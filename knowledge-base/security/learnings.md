@@ -161,6 +161,21 @@ event type does not demonstrate counter inflation. No new confirmed finding or
 whole-store PASS is claimed. All 59 API app files now have line-coverage receipts;
 broader project L1, findings/fixes and required independent sign-off remain owed.
 
+### 2026-10-18: broader backend inventory, RTC and bootstrap L1
+
+[Backend inventory](scans/2026-10/l1-backend-inventory.md) accounts for 109
+additional tracked runtime/configuration/dependency-manifest files, not scanned
+or trusted by enumeration alone. It identifies the shipped Node share-preview
+adapter as backend code rather than excluding it with the frontend.
+
+RTC's 13 synthetic dependency cases support local routing/close behavior only;
+unsigned provider selection, HTTP-status trust and asynchronous admission remain
+**BP-3**, not new or closed findings. Actual PeerServer timing/traffic, verifier
+trust and replay require L2+ evidence. B1's root/bootstrap credential fallbacks
+expand **B-2**, values withheld; static port/socket declarations do not establish
+deployed reachability or host compromise. Preserve legitimate local bootstrap,
+operator overrides, HTTP development certify wiring and useful diagnostics.
+
 ## Known gaps (the "obvious gap" register)
 
 Gaps the orient has surfaced. Each is either a `BP-n` or a standing note:

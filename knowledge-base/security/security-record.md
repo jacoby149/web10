@@ -79,6 +79,18 @@ three-dry sign-off. No campaign PASS is claimed.
 | Q | Same pin/date/model | 875 lines | [Receipt](scans/2026-10/l1-api-q.md): no confirmed local finding; mocked signer forwarding is not an authorized HTTP/private-object exploit; recovery/config/visit handoffs and sign-off pending. |
 | R | Same pin/date/model | 851 lines | [Receipt](scans/2026-10/l1-api-r.md): no confirmed local finding; app/analytics/reporting handoffs, with dedup-window preconditions explicit; review/sign-off pending. |
 
+## Remaining Backend L1 Receipts
+
+[Inventory](scans/2026-10/l1-backend-inventory.md) and
+[coverage index](scans/2026-10/l1-backend-index.md) pin the additional backend/
+runtime denominator at `db325cd3c`, date 2026-10-18, scanner `gpt-6.1 sol`.
+Inventory and line coverage do not establish service PASS or deployment security.
+
+| Scope | Coverage | Disposition / evidence |
+|---|---|---|
+| RTC | 5 files / 492 newlines | OPEN, existing BP-3. [Receipt](scans/2026-10/l1-rtc.md): 13 fake-dependency close/routing cases, no real PeerServer admission/identity exploit or dependency audit. |
+| B1 root orchestration/schema | 9 files / 729 newlines, 732 logical lines | OPEN, existing B-2. [Receipt](scans/2026-10/l1-backend-b1.md): static defaults, values withheld; ports/socket/build/schema handoffs are unverified integration questions, not deployed compromise. |
+
 ## Remaining L1 Boundaries
 
 The API app inventory above now has full file-local line coverage, not security

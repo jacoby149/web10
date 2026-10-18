@@ -1,3 +1,6 @@
+3.235.13 || 18.10.2026
+docs(security): **remaining backend inventory + RTC/root-bootstrap L1 receipts** at `db325cd3c`. Inventory explicitly accounts for 109 files/16,362 newlines with all 1,482 tracked paths reconciled; shipped Node preview adapter retained as backend scope. RTC's five files/492 lines and B1's nine files/729 newlines (732 logical lines) read completely, including lock declarations and unterminated EOF. Safe RTC probes preserve BP-3; bootstrap defaults expand B-2 without publishing values. Fresh independent same-model review completed. No runtime edits, credential validity, deployment compromise, service PASS or whole-project completion claim.
+
 3.235.12 || 18.10.2026
 docs(security): **API app L1 coverage closeout — all six receipt batches merged #1202-#1207**, every check green, each PR below 500 changed lines. Ticked coverage-only task, recorded final integration and local finding/repair map, and queued the excluded backend/runtime inventory. Mechanical accounting: 59 files/13,236 lines including empty packages; two prior files plus 18 disjoint A-R scopes, no gaps/overlap. Fresh final docs review found no blocking issue. Findings/fixes, L2+ handoffs and model-diverse/three-dry sign-off remain open; no runtime changes, security PASS or whole-project L1 completion.
 
