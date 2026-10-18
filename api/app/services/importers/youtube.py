@@ -239,6 +239,81 @@ def _classify(path: str) -> str | None:
     return None
 
 
+def _rows_from_fileobj(f) -> list[dict]:
+    """A Takeout CSV member (a file-like object) -> row dicts. Streaming: the
+    csv module reads the file incrementally (quoted multi-line fields are
+    handled), so a huge comment CSV is never held whole in memory. The BOM is
+    stripped off the first chunk before parsing."""
+    try:
+        first = f.read(8192)
+        if not first:
+            return []
+        if first.startswith(b"\xef\xbb\xbf"):  # UTF-8 BOM
+            first = first[3:]
+        text = first.decode("utf-8")
+        rest = f.read().decode("utf-8")
+        text = text + rest
+    except (UnicodeDecodeError, OSError):
+        return []
+    try:
+        return [
+            row
+            for row in csv.DictReader(io.StringIO(text))
+            if any(v and v.strip() for v in row.values() if v is not None)
+        ]
+    except csv.Error:
+        return []
+
+
+def parse_youtube_streaming(entries) -> list[dict]:
+    """The worker's entry point: entries is a STREAM of (member_path,
+    file_object) pairs (the worker's iter_data_entries). Same mapping as
+    parse_youtube, but the members are read file-like (row-by-row) instead of
+    as whole byte blobs — flat RAM regardless of export size.
+
+    The file objects are closed here (the stream's contract: the consumer
+    closes what it receives).
+    """
+    videos: list[dict] = []
+    comments: list[dict] = []
+    channels: list[dict] = []
+
+    for path, f in entries:
+        try:
+            ftype = _classify(path)
+            if not ftype:
+                continue
+            rows = _rows_from_fileobj(f)
+        finally:
+            try:
+                f.close()
+            except Exception:
+                pass
+        bucket = {"videos": videos, "comments": comments, "channel": channels}[ftype]
+        bucket.extend(r for r in rows if isinstance(r, dict))
+
+    records: list[dict] = []
+    video_ids: set[str] = set()
+    for row in videos:
+        rec = map_youtube_video(row)
+        if rec:
+            records.append(rec)
+            if rec["origin_id"]:
+                video_ids.add(rec["origin_id"])
+
+    for row in comments:
+        rec = map_youtube_comment(row, video_ids)
+        if rec:
+            records.append(rec)
+
+    for row in channels:
+        rec = map_youtube_channel(row)
+        if rec:
+            records.append(rec)
+
+    return records
+
+
 def parse_youtube(entries: list[tuple[str, bytes]]) -> list[dict]:
     """Parse all YouTube records from the archive's CSV entries.
 
