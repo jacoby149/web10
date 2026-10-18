@@ -1,8 +1,8 @@
-# Scan Ledger — web10 coverage record
+# The Security Record — web10 coverage recordd
 
 The altitude. One row per **(unit, level)**. This is the coverage record — the
 thing you point at to prove forward progress. Format, status, and staleness rules
-live in the cartridge: [`ai-pack/ai-security-theory/the-ledger/`](../../ai-pack/ai-security-theory/the-ledger/README.md).
+live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../../ai-pack/ai-security-theory/the-security-record/README.md).
 
 > **Status key:** `PASS` = no open backlog for this unit at this level (everything
 > found is fixed or deferred to a `BP-n`). `OPEN` = scanned, has unfixed/undeferred
@@ -18,7 +18,7 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-ledger/`](../../ai-pack/
 
 Source scan: [`scans/2026-10/`](./scans/2026-10/README.md) (invariant-driven,
 `file:line` evidence). **Honesty note:** the hardening for most of these (PRs
-1157 + 1159) is **in flight, not merged** as of this ledger's date. Until they
+1157 + 1159) is **in flight, not merged** as of this security record's date. Until they
 land, the affected rows are **OPEN**, not PASS — a PASS would be a corrupted
 measure. Re-scan after the hardening merges to flip them.
 

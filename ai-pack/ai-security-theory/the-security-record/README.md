@@ -1,13 +1,13 @@
-# The Ledger — the altitude
+# The Security Record — the altitude
 
 [← back to AI Security Theory](../README.md)
 
-The ledger is the coverage record — the thing you point at to prove forward
+The security record is the coverage record — the thing you point at to prove forward
 progress. It is the security analog of the test suite's role in the use-theory,
 but for *coverage* instead of *regression*: the suite is the floor (what must
-never break), the ledger is the altitude (what has been checked, and when).
+never break), the security record is the altitude (what has been checked, and when).
 
-> A green suite with an empty ledger is a **corrupted measure wearing a security
+> A green suite with an empty security record is a **corrupted measure wearing a security
 > mask** — it looks done, but nothing was actually scanned.
 
 ## The format
@@ -65,7 +65,7 @@ hls.py :: resolve_segment()
 
 The finding is real but deferred to `BP-9` in the big-picture backlog (an L3 /
 architectural item). The row is PASS *at L1* (the scan is complete and the debt is
-tracked) while the backlog item carries the actual work. This keeps the L1 ledger
+tracked) while the backlog item carries the actual work. This keeps the L1 security record
 binary and clean — **L1 PASS means the scan is done and nothing is hiding** —
 without pretending an architectural risk does not exist.
 
@@ -161,12 +161,12 @@ This is the same idea as the use-theory's **anti-test** ("the KB with teeth — 
   dry all three (see [running-it/](../running-it/README.md)). The repro gate is the
   floor; three-dry is the ceiling for the crown jewels. It is not an oracle — it is
   **bounded, evidenced uncertainty**: "reviewed three times by a clean reviewer,
-  empty each time, and everything it did find is in the ledger."
+  empty each time, and everything it did find is in the security record."
 
 A finding closed without the repro gate is a corrupted measure wearing a PASS mask —
 it looks done, but nobody proved the hole is actually closed.
 
-## What the ledger is NOT
+## What the security record is NOT
 
 - **Not a hand-maintained doc.** The scanner *writes* it. Each scan run updates
   only the rows it touched. Nobody edits it by hand except to correct a wrong
@@ -183,7 +183,7 @@ deferred, and every fix is pinned, the surface has **passed the AI pentest** —
 
 ## Where it lives
 
-The method (this folder) is portable. The **actual ledger** is per-repo state, in
-the knowledge base — e.g. `knowledge-base/security/scan-ledger.md`, with the scan
+The method (this folder) is portable. The **actual security record** is per-repo state, in
+the knowledge base — e.g. `knowledge-base/security/security-record.md`, with the scan
 records alongside (e.g. `knowledge-base/security/scans/2026-10/`). The method tells
 you the format; the KB holds the rows.

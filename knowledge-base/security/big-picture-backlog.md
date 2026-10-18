@@ -22,11 +22,11 @@ a critical invariant break beats a hardening nicety.
 | **BP-3** | open | **RTC admission / certify gate** | I5 | Cross-service (RTC ↔ API) trust boundary; one-use tickets | One-use pre-upgrade RTC tickets; fail-closed certify; `CERTIFY_BASE_URL` | — |
 | **BP-4** | open | **Historical exposure + credential rotation** | I1, I5 | Residual: keys/creds that were in source or symmetric; needs a deliberate rotate + re-login decision, not a code edit | Rotate all long-lived creds; force legacy-session re-login; document the exposure window | after BP-1 |
 | **BP-5** | open | **Coordinated 4.0.0 rollout** | — | Breaking change spanning API/RTC/SDK/consumers; must deploy atomically or the guarantee is broken | Version-gated deploy; explicit key/credential provisioning runbook; legacy re-login | after BP-1, BP-4 |
-| **BP-6** | open | **Independent external security audit** | all | The internal scan is self-reported; an external review is the claim that makes "secure" mean something to a third party | Commission after BP-1..BP-5 land; feed findings back into the ledger + checklist | after BP-1..BP-5 |
+| **BP-6** | open | **Independent external security audit** | all | The internal scan is self-reported; an external review is the claim that makes "secure" mean something to a third party | Commission after BP-1..BP-5 land; feed findings back into the security record + checklist | after BP-1..BP-5 |
 
 ## Rules
 
-- **Numbered and stable** — `BP-n` references survive reordering; ledger rows and
+- **Numbered and stable** — `BP-n` references survive reordering; security record rows and
   fix PRs point at an item by ID.
 - **Every item has a `why-L3`** — the one-line reason it is architectural
   (project-wide), not a line-level finding. This is the gate that keeps L1/L2 and
@@ -35,10 +35,10 @@ a critical invariant break beats a hardening nicety.
   is one item; the *implementation* is small PRs that all reference it.
 - **L3 staleness is on architectural change, not a file commit** — an item re-opens
   when a decision lands or a boundary moves, not on every commit. See
-  [`the-ledger/staleness-and-cadence.md`](../../ai-pack/ai-security-theory/the-ledger/staleness-and-cadence.md).
+  [`the-security-record/staleness-and-cadence.md`](../../ai-pack/ai-security-theory/the-security-record/staleness-and-cadence.md).
 
 ## The gate
 
 The L3 backlog is "done" when every item is closed **and** BP-6 (the external
-audit) has run and its findings are in the ledger. Until then, the honest claim is
+audit) has run and its findings are in the security record. Until then, the honest claim is
 *scanned and hardening*, not *secure*.

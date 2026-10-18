@@ -34,11 +34,13 @@ you from reimplementation due to misalignment. The KB is the root of trust — k
 the DB read gate, federation, the SDK's credential surface). Security is
 *coverage, not convergence*: **orient first** (read
 `knowledge-base/security/learnings.md` — onboarding, recession, the obvious gap),
-then scan read-only and ledger it across the scope ladder (L1 file → L2 call-graph
+then scan read-only and record it across the scope ladder (L1 file → L2 call-graph
 → L3 service → L4 project-wide, backend-first), fix in tiny PRs (≤500 lines, one
 finding each, a **repro-gate** test — the exploit replayed and denied), and
-**write the learning back** to `learnings.md`. Re-scan on a 3–6 month cadence. Two
-roots of trust: the ledger (`knowledge-base/security/scan-ledger.md`) records
+**write the learning back** to `learnings.md`. Re-scan on a 3–6 month cadence.
+Written security (WS) = the whole `knowledge-base/security/` section (strategy +
+record + knowledge); having WS in the KB is what makes a project more secure. The
+**security record** (`knowledge-base/security/security-record.md`) records
 *coverage*; the learnings record *knowledge*. No 90-file security PRs.
 
 ## GREETING BEHAVIOR
@@ -82,19 +84,19 @@ The tour, in this order:
    read to get up to speed on web10:
    - `web10-v3/` — the implementation details (db, auth, security, telemetry,
      groups). We're on v3.
-   - `strategy/` — the plan, decisions, design standard, manifesto,
-     timeline, execution lanes.
+    - `strategy/` — the plan, decisions, design standard, manifesto,
+      timeline, execution lanes.
     - `changelogs/` — what shipped and why, newest first.
-    - `security/` — the invariants (I1–I6), the scan ledger, the big-picture
-      backlog, and the scan records.
+    - `security/` — written security (WS): the invariants (I1–I6), the security
+      record, the big-picture backlog, and the scan records.
  3. **The AI method (the cartridge)** — `ai-pack/`. The portable operating
     method that travels to any repo:
-    - `ai-use-theory/` — KB is the root of trust; the pyramid (KB → logs →
-      tests → features) + four-phase flow (orient → generate → compare →
-      repair).
-    - `ai-security-theory/` — security as coverage, not convergence: orient
-      against the learnings KB first, the scope ladder (L1 file → L2 call-graph →
-      L3 service → L4 project-wide, backend-first), the ledger + learnings (the two
+     - `ai-use-theory/` — KB is the root of trust; the pyramid (KB → logs →
+       tests → features) + four-phase flow (orient → generate → compare →
+       repair).
+     - `ai-security-theory/` — security as coverage, not convergence: orient
+       against the learnings KB first, the scope ladder (L1 file → L2 call-graph →
+       L3 service → L4 project-wide, backend-first), the security record + learnings
       roots of trust), the repro gate, the AI pentest gate, the 3–6 month re-scan
       ratchet.
    - how to write — `knowledge-theories/` (Why/How/What),

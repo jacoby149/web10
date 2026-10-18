@@ -18,7 +18,7 @@ is the same at every level; only the zoom changes.
 theory hardens a service at a time; a multi-service project (web10) is the
 *sequence* of its services, run **sequentially, backend-first** (API → SDK → auth
 UI → social UI → marketing UI). **You can stop at any level** — the state is saved
-in the ledger + learnings, so you resume the next run. That is the X-time/Y-money
+in the security record + learnings, so you resume the next run. That is the X-time/Y-money
 flexibility: run L1 on the API now, come back and run L2–L4 (or the other services)
 later.
 
@@ -30,7 +30,7 @@ explanation** (only when the finding is genuinely non-deterministic, usually L3/
 flowchart TD
     IN["Input: one service / module<br/>+ the last run's state"] --> O["ORIENT — read the learnings KB<br/>onboarding + recession + the obvious gap"]
     O --> A["Slice L[N] into scopes, backend-first"]
-    A --> B["Scan — parallel, read-only<br/>ledger rows + findings"]
+    A --> B["Scan — parallel, read-only<br/>security record rows + findings"]
     B --> E{Finding?}
     E -->|yes| F["Fix PR — ≤500 lines, 1 finding"]
     F --> RG{Repro gate}
@@ -49,7 +49,7 @@ flowchart TD
 The **convergence review** (trust-boundary units, 3-dry) and the **3–6 month
 re-scan cadence** sit *around* this loop, not inside it — see
 [the convergence review](#3-the-convergence-review-run-until-dry) and
-[staleness-and-cadence](../the-ledger/staleness-and-cadence.md).
+[staleness-and-cadence](../the-security-record/staleness-and-cadence.md).
 
 ## 0. Orient first (before any scan)
 
@@ -76,11 +76,11 @@ surface into **scopes** — a directory, a module, a few related files — and r
 then SDK, authenticator, social, marketing UI — see
 [the-scope-ladder/](../the-scope-ladder/README.md) for the gradient).
 
-- **Why parallel is safe:** a scan is read-only. It writes only the ledger +
+- **Why parallel is safe:** a scan is read-only. It writes only the security record +
   backlog, never code. Eight scanners across a directory cannot merge-conflict on
-  application code because they touch none of it. (They can touch the *same ledger
-  file* — so either serialize the ledger writes, or have each scope write its own
-  ledger section and a final scan PR union-merges them. The ledger is docs; a
+  application code because they touch none of it. (They can touch the *same security record
+  file* — so either serialize the security record writes, or have each scope write its own
+  security record section and a final scan PR union-merges them. The security record is docs; a
   union merge is trivial.)
 - **Why parallel is also the anti-sycophancy move:** a workspace scanning a narrow
   scope actually reads line by line. A workspace told to "scan everything"
@@ -134,31 +134,31 @@ order), and *then* widen to the rest of the surface, then L2, L3, L4.
 
 The whole flow is **led by the exploit** — the security unit test *is* a working
 hack, and a finding is not real until you can demonstrate it. See
-[the-ledger/](../the-ledger/README.md) (the repro gate) for the full treatment.
+[the-security-record/](../the-security-record/README.md) (the repro gate) for the full treatment.
 
 1. **Scan** (read-only). A workspace reads its scope against
    [the checklist](../the-scope-ladder/the-checklist.md), at the current level
    (L1, then L2, then L3, then L4). For each vuln it finds, it **builds the
    exploit** — a PoC that demonstrates the break (the hack that works) — and writes
-   a ledger row (PASS / OPEN / STALE) + the finding + the PoC. It opens a **scan PR**
-   that touches only the ledger + backlog (the PoC is recorded with the finding, not
+   a security record row (PASS / OPEN / STALE) + the finding + the PoC. It opens a **scan PR**
+   that touches only the security record + backlog (the PoC is recorded with the finding, not
    committed as a permanent test). A finding with no working exploit is a guess, not
    a finding — reject it.
-2. **Merge the scan PR.** Ledger-only, zero code risk, lands in parallel with
-   anything. The surface is now *known*: the ledger shows exactly what is owed, and
+2. **Merge the scan PR.** Security Record-only, zero code risk, lands in parallel with
+   anything. The surface is now *known*: the security record shows exactly what is owed, and
    every OPEN finding has a demonstrated exploit behind it.
 3. **Fix, one finding at a time, exploit-first.** Each OPEN L1/L2 finding becomes a
    **fix PR**: ≤500 lines, target ~100, one finding. The PR **commits the exploit as
    the pinning test and shows red→green** — the exploit works against the vulnerable
    code (red = the vuln is real), the fix lands, the same exploit is now denied
    (green = the hole is closed). A pinning test that was green from the moment it was
-   written proved nothing. The PR references the finding (and the ledger row).
+   written proved nothing. The PR references the finding (and the security record row).
 4. **Write-back.** When the fix lands, **append the learning to the KB**
    ([the-orient/](../the-orient/README.md)): the finding + fix as a dated learning,
    any new assumption / threat class, and if a concern is retired, move it to
    considered-and-declined. This is what makes the next orient smarter.
 5. **Close the row.** The row goes PASS when the **repro gate** is met (the exploit
-   is denied) — see [the-ledger/](../the-ledger/README.md). If the finding was L3/L4
+   is denied) — see [the-security-record/](../the-security-record/README.md). If the finding was L3/L4
    (architectural), it was already deferred to a `BP-n` item; the row reads
    `PASS (1 finding → BP-n)` and the big-picture backlog carries the work.
 6. **L1 → L2 → L3 → L4, each to 100%.** Finish L1 across the whole surface, then
@@ -180,8 +180,8 @@ and came up empty each time."*
    the code, the fix, or the original scan. It is not anchored on what was already
    found, so it finds *different* things. (This is the anti-sycophancy move: the
    reviewer that wrote the fix can't be the one who signs it off.)
-2. It reviews the unit / surface for **L1–L4 findings not already in the ledger.**
-3. **Anything real it raises gets added** — to the ledger as OPEN (needs an exploit
+2. It reviews the unit / surface for **L1–L4 findings not already in the security record.**
+3. **Anything real it raises gets added** — to the security record as OPEN (needs an exploit
    + fix) or to the plan / big-picture backlog. It then goes through the normal
    exploit-first flow (build the exploit, fix, repro gate, write-back).
 4. **Re-run the review** (a fresh reviewer again).
@@ -191,8 +191,8 @@ and came up empty each time."*
 
 ```mermaid
 flowchart TD
-    A[Fresh untainted reviewer] --> B{Found a real L1-L4<br/>not in the ledger?}
-    B -->|yes| C[Add to ledger as OPEN<br/>→ exploit + fix + write-back]
+    A[Fresh untainted reviewer] --> B{Found a real L1-L4<br/>not in the security record?}
+    B -->|yes| C[Add to security record as OPEN<br/>→ exploit + fix + write-back]
     C --> D[Re-run: fresh reviewer]
     D --> B
     B -->|no — dry| E{Dry count}
@@ -209,8 +209,8 @@ repeatedly.
 **What it is:** not an oracle. It is **bounded, evidenced uncertainty.** The claim
 you can make is not "this is secure" — it is *"this was reviewed three times by a
 clean reviewer, empty each time, and everything any review ever found is in the
-ledger."* That is the honest best, and it is strong, because the uncertainty is
-*bounded* (three-dry) and *evidenced* (the ledger), not a vibe.
+security record."* That is the honest best, and it is strong, because the uncertainty is
+*bounded* (three-dry) and *evidenced* (the security record), not a vibe.
 
 ### Model diversity (hitting the class-level blind spots)
 
@@ -218,13 +218,13 @@ Three fresh reviews of the *same model family* reduce **anchoring** risk (the
 reviewer doesn't know what was already found) but not **capability** risk — if the
 model *family* shares a blind spot (all trained on similar data, all missing a
 certain vuln type), three-dry won't catch it. The fix is **model diversity**, and
-the ledger's `model=` field is the hook that makes it possible:
+the security record's `model=` field is the hook that makes it possible:
 
 - **Layer different model families.** Run the scan (and the convergence review)
   with *different* models, one after another — a frontier model, a different
   vendor's model, a smaller workhorse. Each family has different blind spots; the
   **union** of their findings is more complete than any one. The `model=` field on
-  each ledger row records *which* model found what, so you can see the coverage per
+  each security record row records *which* model found what, so you can see the coverage per
   family.
 - **Transparency makes the blind spots visible.** Because every row says which
   model produced it, you can *see* if a whole family never finds a certain class —
@@ -238,7 +238,7 @@ the ledger's `model=` field is the hook that makes it possible:
 
 So the convergence review's "not an oracle" limit is *narrowed* by model diversity:
 you're not betting on one brain, you're betting on the union of several, and the
-ledger shows you exactly which brain found what.
+security record shows you exactly which brain found what.
 
 ## The rules (enforceable)
 
@@ -246,7 +246,7 @@ These are the whole theory compressed to what a reviewer can check on any PR:
 
 1. **No security PR over 500 lines. Target ~100.** One finding = one fix PR.
    *(A 90-file security PR is a review rejection.)*
-2. **The scan is read-only.** A scan PR touches only the ledger + backlog. If a
+2. **The scan is read-only.** A scan PR touches only the security record + backlog. If a
    "scan" PR touches application code, it is not a scan — reject it.
 3. **Orient before you scan.** A scan PR with no orient (no learnings read, no
    recession/gap check) is blind — reject it.
@@ -272,7 +272,7 @@ These are the whole theory compressed to what a reviewer can check on any PR:
    a verification.
 9. **The gauntlet + gate enforce it** — the accumulated exploits run in CI on every
    PR (a regression fails the build); a trust-boundary PR must pass the gate (≤500
-   lines, red→green test or scrutinized explanation, ledger updated). See
+   lines, red→green test or scrutinized explanation, security record updated). See
    [the-gauntlet/](../the-gauntlet/README.md). The wrong way doesn't merge.
 
 *(Parallelize the scan, not the fix, is the operating note under rules 1–2: ~40
@@ -296,5 +296,5 @@ A surface is **done** — it has **passed the AI pentest** — when:
 
 "Done" is not "secure." It is *oriented, fully scanned, fully accounted for,
 repro-verified, convergence-reviewed, and ratcheting.* That is the most a one-dev
-project can honestly claim — and the ledger + learnings are the proof. See
+project can honestly claim — and the security record + learnings are the proof. See
 [the-pentest-gate/](../the-pentest-gate/README.md) for the claim, stated.

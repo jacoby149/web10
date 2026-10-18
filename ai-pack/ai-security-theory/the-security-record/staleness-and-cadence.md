@@ -1,8 +1,8 @@
-# Staleness & Cadence — keeping the ledger honest over time
+# Staleness & Cadence — keeping the security record honest over time
 
-[← back to The Ledger](./README.md)
+[← back to The Security Record](./README.md)
 
-A ledger that is written once and never questioned rots into "we scanned this in
+A security record that is written once and never questioned rots into "we scanned this in
 October, trust me." This doc is the mechanism that keeps coverage a *live*
 guarantee instead of a historical stamp. Two parts: the **relative-staleness rule**
 and the **re-scan cadence**, plus the **ratchet** that makes coverage only go up.
@@ -26,7 +26,7 @@ representative of the code it claims to cover?*
 
 So a row's `last-pass=` (commit for L1/L2/L3, decision/milestone for L4) is the
 anchor, and staleness is a *judgment against that anchor*, not a boolean on commit
-count. The ledger shows the date and the anchor; the reader (or a CI check) decides
+count. The security record shows the date and the anchor; the reader (or a CI check) decides
 "relatively stale?" from those two.
 
 ### The levels age differently
@@ -49,11 +49,11 @@ true rather than aspirational:
   security-relevant.
 - It catches **model improvement** — a re-scan with a stronger model (or an
   updated checklist) finds what the last one missed.
-- It is the **graph** — each cycle, the ledger shows the surface more covered than
-  the last. The cadence is what turns the ledger from a snapshot into a trend line.
+- It is the **graph** — each cycle, the security record shows the surface more covered than
+  the last. The cadence is what turns the security record from a snapshot into a trend line.
 
 The cadence is a scheduled task (a CI job, a calendar lane, a `web10web10!`
-ritual item). It produces scan PRs like any other scan — read-only, ledger-only,
+ritual item). It produces scan PRs like any other scan — read-only, security record-only,
 parallel.
 
 ## The ratchet: coverage only goes up
@@ -87,7 +87,7 @@ same code. And it starts from a bigger map — it inherits every learning (posit
 
 Coverage ratchets: each fix is pinned (can't regress), each re-scan adds coverage
 (can't silently lose it), and each re-scan is *smarter* than the last (the model
-upgrade). **You get more and more secure over time, and the ledger is the graph of
+upgrade). **You get more and more secure over time, and the security record is the graph of
 it.**
 
 ### Why the ratchet matters more than the oracle
@@ -111,7 +111,7 @@ measure. Two guards:
 - **Parallel, narrow scopes** — a fresh workspace scanning a few files is less
   likely to rubber-stamp than one workspace "scanning everything." See
   [running-it/](../running-it/README.md).
-- **The ledger is the check, not the claim.** A PASS must be *backed* — the scan
+- **The security record is the check, not the claim.** A PASS must be *backed* — the scan
   record (in `scans/`) shows the unit, the model, the date, and the findings it
   considered. A PASS with no scan record behind it is not a PASS; it is a row
   someone typed. When in doubt, re-scan the unit and diff the result.
