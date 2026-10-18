@@ -615,3 +615,40 @@ function readRawToken(): string | null {
     return null;
   }
 }
+
+// ── Node ad performance (D57, live from the D86 engine) ─────────────────────
+
+/** One node ad's performance over a window (the Ads tab's per-ad row). */
+export interface NodeAdPerformanceRow {
+  doc_id: string;
+  impressions: number;
+  clicks: number;
+}
+
+/**
+ * The node's node-ad performance — live from the D86 engine (admin).
+ * `node_ads` is null until the node has node ads (the caller shows its empty
+ * state). A read failure (non-admin, node hiccup) degrades to the empty shape —
+ * the Ads tab's performance section is a reporting beat, not a hard dependency.
+ */
+export async function readNodeAdPerformance(days: number): Promise<{
+  impressions: number;
+  clicks: number;
+  ctr: number;
+  ads: NodeAdPerformanceRow[];
+} | null> {
+  const raw = readRawToken();
+  if (!raw) throw new Error('not signed in');
+  try {
+    const resp = await fetch(`${API_ORIGIN}/admin/analytics`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: raw, days }),
+    });
+    if (!resp.ok) return null;
+    const data = (await resp.json()) as { node_ads?: { impressions: number; clicks: number; ctr: number; ads: NodeAdPerformanceRow[] } | null };
+    return data.node_ads ?? null;
+  } catch {
+    return null;
+  }
+}

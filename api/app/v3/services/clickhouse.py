@@ -4942,3 +4942,75 @@ def marketing_events_summary(days: int = 30) -> dict:
         "top_errors": [{"message": r[0], "count": int(r[1])} for r in top_errors],
         "timeseries": [{"day": str(r[0]), "pageviews": int(r[1])} for r in timeseries],
     }
+
+
+def node_ad_performance(days: int = 30) -> dict | None:
+    """Node ad performance (D57) from the D86 engine — the operator's revenue.
+
+    A node ad is a doc tagged `node_ad` (the `get_active_node_ads` idiom,
+    deduped to the latest version per doc). Its performance is the same
+    `content_events` rows every other doc's metrics come from: **impressions**
+    = delivery rows (the node served the ad), **clicks** = click rows (gated on
+    a preceding delivery, D86). `None` when the node has no node ads yet — the
+    dashboard shows its "no node ads" state instead of zeros. A ClickHouse
+    hiccup degrades to `None` (the usage summary still renders)."""
+    try:
+        # The node's node-ad inventory (latest version per doc, deduped).
+        ad_rows = client.query(
+            "SELECT doc_id FROM (SELECT doc_id, row_number() OVER "
+            "(PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
+            "FROM documents WHERE has(tags, 'node_ad') AND deleted = 0) WHERE rn = 1"
+        ).result_rows
+        if not ad_rows:
+            return None
+        doc_ids = [r[0] for r in ad_rows]
+        placeholders = ", ".join(f"%(d{i})s" for i in range(len(doc_ids)))
+        params = {f"d{i}": d for i, d in enumerate(doc_ids)}
+        totals = client.query(
+            f"SELECT countIf(event_type = 'delivery') AS impressions, "
+            f"countIf(event_type = 'click') AS clicks "
+            f"FROM content_events "
+            f"WHERE doc_id IN ({placeholders}) "
+            f"AND seen_at > now() - INTERVAL {int(days)} DAY",
+            params,
+        ).result_rows[0]
+        ts_rows = client.query(
+            f"SELECT toString(toDate(seen_at)) AS day, "
+            f"countIf(event_type = 'delivery') AS impressions, "
+            f"countIf(event_type = 'click') AS clicks "
+            f"FROM content_events "
+            f"WHERE doc_id IN ({placeholders}) "
+            f"AND seen_at > now() - INTERVAL {int(days)} DAY "
+            f"GROUP BY day ORDER BY day",
+            params,
+        ).result_rows
+        # Per-ad rows (the operator's inventory view — one row per node ad,
+        # so the social app's Ads tab can show each ad's performance).
+        per_ad_rows = client.query(
+            f"SELECT doc_id, "
+            f"countIf(event_type = 'delivery') AS impressions, "
+            f"countIf(event_type = 'click') AS clicks "
+            f"FROM content_events "
+            f"WHERE doc_id IN ({placeholders}) "
+            f"AND seen_at > now() - INTERVAL {int(days)} DAY "
+            f"GROUP BY doc_id",
+            params,
+        ).result_rows
+        impressions = int(totals[0] or 0)
+        clicks = int(totals[1] or 0)
+        return {
+            "impressions": impressions,
+            "clicks": clicks,
+            "ctr": round(clicks / impressions * 100, 1) if impressions else 0,
+            "timeseries": [
+                {"day": str(r[0]), "impressions": int(r[1] or 0), "clicks": int(r[2] or 0)}
+                for r in ts_rows
+            ],
+            "ads": [
+                {"doc_id": str(r[0]), "impressions": int(r[1] or 0), "clicks": int(r[2] or 0)}
+                for r in per_ad_rows
+            ],
+        }
+    except Exception as e:
+        log.warning("[node_ads] performance read failed (non-fatal): %s", e)
+        return None

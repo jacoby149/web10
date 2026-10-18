@@ -48,5 +48,5 @@ ARGS=(screenshot --viewport-size "$WIDTH, $HEIGHT" --wait-for-timeout "$WAIT")
 [[ "$FULL_PAGE" == 1 ]] && ARGS+=(--full-page)
 
 mkdir -p "$(dirname "$OUT")"
-npx -y playwright "${ARGS[@]}" "$URL" "$OUT"
+npx -y playwright@1.62.0 "${ARGS[@]}" "$URL" "$OUT"
 echo "screenshot: $OUT (${WIDTH}x${HEIGHT})"

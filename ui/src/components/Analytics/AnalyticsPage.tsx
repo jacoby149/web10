@@ -4,7 +4,7 @@ import AppShell from '../shared/AppShell';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Lock, Eye, MousePointerClick, AlertTriangle, Activity, Globe, Megaphone, TrendingUp } from 'lucide-react';
+import { Lock, Eye, MousePointerClick, AlertTriangle, Activity, Globe, Megaphone, TrendingUp, RefreshCw } from 'lucide-react';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -26,9 +26,11 @@ interface Summary {
   funnel: { event: string; count: number }[];
   top_errors: { message: string; count: number }[];
   timeseries: { day: string; pageviews: number }[];
-  // Node ad performance (D57) — the operator's revenue. Real data comes from
-  // the D81 content_events engine (node ads are docs tagged `ad`). Mock until
-  // the D81 capture is built.
+  // Node ad performance (D57) — the operator's revenue. Live from the D86
+  // content_events engine (node ads are docs tagged `node_ad`). The detail
+  // (per-ad impressions/clicks/CTR) lives in the social app's Monetization
+  // Ads tab, where the node ads are managed; this card is the at-a-glance
+  // pointer. Null until the node has node ads.
   node_ads: {
     impressions: number;
     clicks: number;
@@ -154,6 +156,7 @@ function AnalyticsPage({ I }: { I: Record<string, any> }) {
   const [days, setDays] = React.useState<Days>(30);
   const [data, setData] = React.useState<Summary | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [refreshing, setRefreshing] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   const nodePost = async (path: string, body: Record<string, any>) => {
@@ -166,8 +169,9 @@ function AnalyticsPage({ I }: { I: Record<string, any> }) {
     });
   };
 
-  const load = async (d: Days) => {
-    setLoading(true);
+  const load = async (d: Days, refresh = false) => {
+    if (refresh) setRefreshing(true);
+    else setLoading(true);
     setError(null);
     try {
       if (I.isMock) {
@@ -175,13 +179,13 @@ function AnalyticsPage({ I }: { I: Record<string, any> }) {
         return;
       }
       const resp = await nodePost('/admin/analytics', { token: I.v3.state.token, days: d });
-      // The node doesn't return node_ads yet (D81 engine not built) — default
-      // to null, but preserve it if a future node does return it.
+      // node_ads is live from the D86 engine (null until the node has node ads).
       setData({ ...resp.data, node_ads: resp.data.node_ads ?? null });
     } catch (e: any) {
       setError(e.response?.data?.detail || 'Failed to load analytics. Are you an admin?');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -247,19 +251,31 @@ function AnalyticsPage({ I }: { I: Record<string, any> }) {
       <div className="mx-auto max-w-3xl p-4 sm:p-6" data-testid="analytics-page">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="font-display text-2xl font-bold text-foreground">Analytics</h1>
-          <div className="flex items-center gap-1 rounded-md border border-border bg-elevated p-0.5" data-testid="analytics-days-toggle">
-            {DAYS_OPTIONS.map((d) => (
-              <Button
-                key={d}
-                variant={days === d ? 'brand' : 'ghost'}
-                size="sm"
-                className="h-7 px-2.5"
-                onClick={() => setDays(d)}
-                data-testid={`analytics-days-${d}`}
-              >
-                {d}d
-              </Button>
-            ))}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2.5"
+              onClick={() => load(days, true)}
+              disabled={refreshing}
+              data-testid="analytics-refresh"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+            </Button>
+            <div className="flex items-center gap-1 rounded-md border border-border bg-elevated p-0.5" data-testid="analytics-days-toggle">
+              {DAYS_OPTIONS.map((d) => (
+                <Button
+                  key={d}
+                  variant={days === d ? 'brand' : 'ghost'}
+                  size="sm"
+                  className="h-7 px-2.5"
+                  onClick={() => setDays(d)}
+                  data-testid={`analytics-days-${d}`}
+                >
+                  {d}d
+                </Button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -349,56 +365,34 @@ function AnalyticsPage({ I }: { I: Record<string, any> }) {
             </CardHeader>
             <CardContent className="space-y-4">
               {data.node_ads ? (
-                <>
-                  <div className="grid grid-cols-3 gap-3">
-                    <StatCard label="Impressions" value={data.node_ads.impressions} icon={Eye} tone="brand" />
-                    <StatCard label="Clicks" value={data.node_ads.clicks} icon={MousePointerClick} tone="warning" />
-                    <StatCard label="CTR" value={data.node_ads.ctr} icon={TrendingUp} tone="brand" suffix="%" />
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" data-testid="analytics-node-ads-live">
+                  <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                    <span className="flex items-center gap-2">
+                      <Eye className="h-4 w-4 text-brand-300" strokeWidth={1.5} />
+                      <span className="font-display text-xl font-bold tabular-nums text-foreground">{data.node_ads.impressions.toLocaleString()}</span>
+                      <span className="text-xs text-muted-foreground">impressions</span>
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <MousePointerClick className="h-4 w-4 text-warning" strokeWidth={1.5} />
+                      <span className="font-display text-xl font-bold tabular-nums text-foreground">{data.node_ads.clicks.toLocaleString()}</span>
+                      <span className="text-xs text-muted-foreground">clicks</span>
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-brand-300" strokeWidth={1.5} />
+                      <span className="font-display text-xl font-bold tabular-nums text-foreground">{data.node_ads.ctr}%</span>
+                      <span className="text-xs text-muted-foreground">CTR</span>
+                    </span>
                   </div>
-                  {data.node_ads.timeseries.length > 0 && (
-                    <div className="h-40 w-full" data-testid="analytics-node-ads-timeseries">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={data.node_ads.timeseries} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
-                          <defs>
-                            <linearGradient id="adFill" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="var(--color-brand)" stopOpacity={0.3} />
-                              <stop offset="95%" stopColor="var(--color-brand)" stopOpacity={0} />
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                          <XAxis
-                            dataKey="day"
-                            tick={{ fontSize: 11, fill: 'var(--color-muted-foreground)' }}
-                            tickLine={false}
-                            axisLine={false}
-                            minTickGap={32}
-                          />
-                          <YAxis
-                            tick={{ fontSize: 11, fill: 'var(--color-muted-foreground)' }}
-                            tickLine={false}
-                            axisLine={false}
-                            width={40}
-                          />
-                          <Tooltip
-                            contentStyle={{
-                              background: 'var(--color-surface)',
-                              border: '1px solid var(--color-border)',
-                              borderRadius: '0.5rem',
-                              fontSize: 12,
-                            }}
-                          />
-                          <Area type="monotone" dataKey="impressions" stroke="var(--color-brand)" strokeWidth={2} fill="url(#adFill)" />
-                          <Area type="monotone" dataKey="clicks" stroke="var(--color-warning)" strokeWidth={2} fill="transparent" />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    </div>
-                  )}
-                </>
+                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" data-testid="analytics-node-ads-detail-link">
+                    Per-ad detail: social app → Monetization → Ads
+                  </span>
+                </div>
               ) : (
                 <p className="text-sm text-muted-foreground" data-testid="analytics-node-ads-empty">
-                  Node ad performance arrives with the content analytics engine (D81) —
-                  node ads are docs tagged <code className="rounded bg-elevated px-1 font-mono text-xs">ad</code>,
-                  tracked the same way as creator ads.
+                  No node ads on this node yet. Node ads are docs tagged{' '}
+                  <code className="rounded bg-elevated px-1 font-mono text-xs">node_ad</code> —
+                  once one is live, its impressions and clicks show here in realtime from the
+                  content analytics engine (D86).
                 </p>
               )}
             </CardContent>
