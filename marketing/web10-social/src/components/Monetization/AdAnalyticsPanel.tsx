@@ -18,6 +18,7 @@ import {
   Megaphone,
   Link,
   Paperclip,
+  ChevronRight,
 } from 'lucide-react';
 import { formatCount } from '@web10/discover';
 import { Button } from '@/components/ui/button';
@@ -67,6 +68,8 @@ interface AdAnalyticsPanelProps {
   ad: AdItem;
   /** The posts this ad is attached to (reverse lookup: post.ad_target === adId). */
   attachedPosts: { doc_id: string; label: string; impressions: number }[];
+  /** Drill into the product's per-product aggregate (Tier 5). */
+  onSelectProduct?: (docId: string) => void;
 }
 
 export function AdAnalyticsPanel({
@@ -77,6 +80,7 @@ export function AdAnalyticsPanel({
   onBack,
   ad,
   attachedPosts,
+  onSelectProduct,
 }: AdAnalyticsPanelProps) {
   const { daily, bySurface, totals } = analytics;
 
@@ -302,12 +306,21 @@ export function AdAnalyticsPanel({
         </div>
       </div>
 
-      {/* The product link + projection (if the ad has a product). */}
+      {/* The product link + projection (if the ad has a product). Clickable → Tier 5. */}
       {product && (
-        <div className="rounded border border-border bg-card p-4" data-testid="ad-analytics-product">
-          <div className="flex items-center gap-2">
-            <Link className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
-            <h4 className="text-sm font-medium text-foreground">Product</h4>
+        <button
+          type="button"
+          onClick={() => onSelectProduct?.(ad.product_id || '')}
+          disabled={!ad.product_id}
+          className="w-full rounded border border-border bg-card p-4 text-left transition-colors hover:bg-elevated/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:hover:bg-card"
+          data-testid="ad-analytics-product"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Link className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+              <h4 className="text-sm font-medium text-foreground">Product</h4>
+            </div>
+            {ad.product_id && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />}
           </div>
           <p className="mt-1 text-sm text-foreground">{product.name || 'Untitled product'}</p>
           <p className="text-xs text-muted-foreground">
@@ -323,7 +336,7 @@ export function AdAnalyticsPanel({
               {formatProjection(productProjection)}
             </p>
           )}
-        </div>
+        </button>
       )}
     </div>
   );

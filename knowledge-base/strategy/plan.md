@@ -39,6 +39,11 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## L1 Security Scans
 
+**Campaign order:** [security strategy](../security/strategy.md): API + SDK +
+RTC through L1-L4 first, then everything else through L1-L4. The completed
+receipts below tick coverage only. Protocol L1 findings/repair disposition is
+next; authenticator UI L1 waits for Wave 2.
+
 Read-only receipts first; one finding per later fix PR. Scan completion is not
 finding closure, and a single-file scan does not establish whole-API coverage.
 
@@ -48,10 +53,14 @@ finding closure, and a single-file scan does not establish whole-API coverage.
 - [✓ 3.235.11] **L1-004: remaining API app inventory** — all A-R receipts merged #1202-#1207; 59 files/13,236 lines at `8af7e0fce`, no gaps/overlap. `knowledge-base/security/scans/2026-10/l1-api-index.md`; findings, fixes and required security sign-off remain owed, no project-wide completion.
 - [✓ 3.235.13] **L1-005: remaining backend inventory** — merged #1212; 109 selected files/16,362 newlines; all 1,482 tracked paths reconciled at `db325cd3c`. Inventory is not scanning. `knowledge-base/security/scans/2026-10/l1-backend-inventory.md`.
 - [✓ 3.235.15] **L1-006: backend runtime receipts** — RTC/B1 #1212, marketing API #1213 and preview #1214 merged; 33 files/3,739 newlines (3,742 logical lines) at `db325cd3c`. `knowledge-base/security/scans/2026-10/l1-backend-index.md`; source coverage only, no fixes or security PASS.
-- [ ] **L1-007: remaining API packaging and migration tools** — API packaging/migration tools (7 files/684 newlines at the inventory pin), deferred behind SDK L1. The former marketing packaging scope is retired by D91, not scanned or passed. Refresh counts before starting.
+- [ ] **L1-007: remaining API packaging and migration tools** — Wave 1 when needed for protocol gates: API packaging/migration tools (7 files/684 newlines at the old pin), with refreshed manifest/counts. The removed marketing packaging scope is retired by D91, not scanned or passed; no unrelated operator-tool sweep ahead of protocol repairs.
 - [✓ 3.236.3] **L1-008: exhaustive SDK L1** — source receipts merged #1219/#1220, all checks green; seven files/2,496 logical lines at `caeed4427`, no gaps/overlap. `knowledge-base/security/scans/2026-10/l1-sdk-index.md`; coverage only, not fixes, artifact correspondence or security PASS.
-- [ ] **L1-009: authenticator UI L1** — next source priority: fresh pinned `ui/src/` inventory, bounded complete scopes and read-only receipts for every line; exact gates/acceptance in scan lane.
-- [ ] **L1-010: SDK artifact correspondence** — isolated rebuild/compare of 24 dist artifacts and three copied bundles, accounting for orphan declarations; no silent artifact mutation/publishing or hash-equality security claim.
+- [ ] **L1-009: authenticator UI L1** — Wave 2, blocked until the protocol L1-L4 campaign gates are met; then fresh pinned `ui/src/` inventory and complete read-only scopes. Not the current next scan.
+- [ ] **L1-010: SDK artifact correspondence** — Wave 1 protocol evidence: isolated rebuild/compare of 24 dist artifacts and three copied bundles, accounting for orphan declarations; no silent artifact mutation/publishing or hash-equality security claim.
+- [ ] **PROTOCOL-01: close the protocol L1 gate** — next: reconcile API/SDK/RTC demonstrated findings, unverified candidates and architectural dependencies; prioritize severe/root-cause repairs and ship one-finding repro-gated fixes. Coverage receipts alone do not pass L1.
+- [ ] **PROTOCOL-02: protocol L2** — after the L1 gate: direct-edge scans, bounded fixes and evidence for API/SDK/RTC caller/sink boundaries.
+- [ ] **PROTOCOL-03: protocol L3** — after the L2 gate: full service-flow scans and repair/sign-off for API, SDK and RTC.
+- [ ] **PROTOCOL-04: protocol L4** — after the L3 gate: cross-protocol/artifact/issuer/rollout integration and required independent review; not whole-project assurance. Only then advance the remaining surfaces through their L1-L4 wave.
 - [✓ 3.236.1] **D91: remove unused marketing API** — merged #1217; no deployment or shared-finding closure. `knowledge-base/security/marketing-api-retirement.md` retains operational cutover requirements.
 
 ## Security Hardening Extraction (PRs 1157 / 1159)

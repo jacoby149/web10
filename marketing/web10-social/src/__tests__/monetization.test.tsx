@@ -1142,3 +1142,115 @@ describe('AnalyticsSection — Tier 2b per-ad drill-down', () => {
     expect(screen.queryByTestId('ad-analytics-panel')).not.toBeInTheDocument();
   });
 });
+
+describe('AnalyticsSection — Tier 5 per-product aggregate', () => {
+  const PRODUCT_CATALOG = {
+    ads: [
+      {
+        doc: { doc_id: 'ad-1', tags: ['ad'] },
+        text: 'Ad for the grinder',
+        offer: { kind: 'affiliate' as const, partner: 'Amazon', link: 'https://amzn.to/x', cta: 'Get it', disclosure: '' },
+        status: 'active' as const,
+        format: 'inline' as const,
+        albums: [] as string[],
+        product_id: 'prod-1',
+        product: { target: 'product' as const, name: 'The good coffee grinder', price: 30, commission: 10, commission_is_percent: true, actuals: 22 },
+      },
+      {
+        doc: { doc_id: 'ad-2', tags: ['ad'] },
+        text: 'Another ad for the grinder',
+        offer: { kind: 'affiliate' as const, partner: 'Amazon', link: 'https://amzn.to/y', cta: 'Get it', disclosure: '' },
+        status: 'active' as const,
+        format: 'post' as const,
+        albums: [] as string[],
+        product_id: 'prod-1',
+        product: { target: 'product' as const, name: 'The good coffee grinder', price: 30, commission: 10, commission_is_percent: true, actuals: 88 },
+      },
+    ],
+    products: [
+      {
+        doc: { doc_id: 'prod-1', tags: ['product'] },
+        product: { target: 'product' as const, name: 'The good coffee grinder', price: 30, commission: 10, commission_is_percent: true },
+      },
+    ],
+    albums: [],
+    posts: [
+      { doc: { doc_id: 'p1' }, text: 'My review post', pinnedAdTarget: 'ad-1' },
+      { doc: { doc_id: 'p2' }, text: 'Another post', pinnedAdTarget: 'ad-2' },
+    ],
+  };
+
+  const AD_1_ANALYTICS = {
+    daily: [{ day: '2026-10-10', impressions: 2000, reach: 500 }],
+    bySurface: [{ surface: 'feed', impressions: 2000, reach: 500 }],
+    topPosts: [],
+    totals: { impressions: 2000, reach: 500 },
+  };
+  const AD_2_ANALYTICS = {
+    daily: [{ day: '2026-10-10', impressions: 3000, reach: 700 }],
+    bySurface: [{ surface: 'discover', impressions: 3000, reach: 700 }],
+    topPosts: [],
+    totals: { impressions: 3000, reach: 700 },
+  };
+
+  beforeEach(() => {
+    checkNodeAdmin.mockResolvedValue(false);
+    readMyCatalog.mockResolvedValue(PRODUCT_CATALOG);
+    readCreatorAnalytics.mockResolvedValue({
+      daily: [],
+      bySurface: [],
+      topPosts: [],
+      totals: { impressions: 5000, reach: 1200 },
+    });
+    enrichTopPosts.mockResolvedValue([]);
+    // readPostAnalytics returns different data per ad.
+    readPostAnalytics.mockImplementation((docId: string) => {
+      if (docId === 'ad-1') return Promise.resolve(AD_1_ANALYTICS);
+      if (docId === 'ad-2') return Promise.resolve(AD_2_ANALYTICS);
+      return Promise.resolve(EMPTY_ANALYTICS);
+    });
+  });
+
+  it('a deep link (?product=<doc_id>) renders the per-product panel directly', async () => {
+    renderAt('/monetize?tab=analytics&product=prod-1');
+    expect(await screen.findByTestId('product-analytics-panel')).toBeInTheDocument();
+    expect(screen.getByTestId('product-analytics-title')).toHaveTextContent('The good coffee grinder');
+    // Aggregate impressions: 2000 + 3000 = 5000 → "5k" (waitFor — the per-ad
+    // analytics load async via readPostAnalytics; the map populates after).
+    await waitFor(() => expect(screen.getByTestId('product-analytics-impressions')).toHaveTextContent('5k'));
+    // Aggregate reach: 500 + 700 = 1200 → "1.2k"
+    expect(screen.getByTestId('product-analytics-reach')).toHaveTextContent('1.2k');
+  });
+
+  it('the per-product panel shows all ads for this product', async () => {
+    renderAt('/monetize?tab=analytics&product=prod-1');
+    expect(await screen.findByTestId('product-analytics-ads')).toBeInTheDocument();
+    expect(screen.getByTestId('product-analytics-ad-ad-1')).toBeInTheDocument();
+    expect(screen.getByTestId('product-analytics-ad-ad-2')).toBeInTheDocument();
+  });
+
+  it('the per-product panel shows the attached posts (reverse lookup)', async () => {
+    renderAt('/monetize?tab=analytics&product=prod-1');
+    expect(await screen.findByTestId('product-analytics-attached')).toBeInTheDocument();
+    expect(screen.getByTestId('product-analytics-attached')).toHaveTextContent('My review post');
+    expect(screen.getByTestId('product-analytics-attached')).toHaveTextContent('Another post');
+  });
+
+  it('the per-product panel shows the actuals vs projection', async () => {
+    renderAt('/monetize?tab=analytics&product=prod-1');
+    expect(await screen.findByTestId('product-analytics-finance')).toBeInTheDocument();
+    // Actuals: 22 + 88 = 110 (from the ad's product.actuals — synchronous, no waitFor needed)
+    expect(screen.getByTestId('product-analytics-actuals')).toHaveTextContent('$110');
+    // Projection at 5000 impressions × 0.01 CTR × 0.01 conv × $3 = $1.50
+    // (waitFor — the projection depends on the aggregate impressions which load async)
+    await waitFor(() => expect(screen.getByTestId('product-analytics-projection')).not.toHaveTextContent('—'));
+  });
+
+  it('the back button returns to the Tier 1 dashboard', async () => {
+    renderAt('/monetize?tab=analytics&product=prod-1');
+    await screen.findByTestId('product-analytics-panel');
+    fireEvent.click(screen.getByTestId('product-analytics-back'));
+    expect(await screen.findByTestId('analytics-reach')).toBeInTheDocument();
+    expect(screen.queryByTestId('product-analytics-panel')).not.toBeInTheDocument();
+  });
+});
