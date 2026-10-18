@@ -1,3 +1,6 @@
+3.235.8 || 18.10.2026
+docs(security): **API L1 campaign batch 3 — group/document/query receipts E/F/G**, 1,970 lines at `8af7e0fce`. Recorded account bearer in group-detail URL (existing S7 repair ownership) and caller-SQL INFO logging with bounded separate-field probe evidence. Delegated authorizations, preparation and compiler/retention effects remain explicit L2 handoffs. Fresh reviewer corrections incorporated; no runtime change, auth exploit, fix or PASS claim. Batch 2 #1203 merged.
+
 3.235.7 || 18.10.2026
 docs(security): **API L1 campaign batch 2 — media/reporting receipts C/H/I**, 1,994 lines at `8af7e0fce`. Recorded conditional arbitrary-object read-signing flow L1-H-01 with explicit fake-auth/signer limits and preserved authorized/public media intent. Services, HLS paths, import ownership, preview escaping, log/reporting surfaces covered file-locally; no confirmed C/I finding is not PASS. Fresh review and safe standalone probes completed. Batch 1 #1202 merged and main coverage ticked; no runtime changes or deployment exploit claim.
 
