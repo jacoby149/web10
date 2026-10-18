@@ -83,6 +83,25 @@ describe('TrendingCard interactions', () => {
   });
 });
 
+describe('TrendingCard views (D86 — the delivery metrics)', () => {
+  it('shows the impressions + reach slots when the post carries view metrics', () => {
+    const viewedPost: FeedPost = { ...basePost, impressions: 12400, reach: 1200 };
+    render(
+      <TrendingCard post={viewedPost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
+    );
+    expect(screen.getByTestId('post-actions-impressions')).toHaveTextContent('12.4k');
+    expect(screen.getByTestId('post-actions-reach')).toHaveTextContent('1.2k');
+  });
+
+  it('hides the view slots at zero (a post with no delivery yet shows nothing)', () => {
+    render(
+      <TrendingCard post={basePost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
+    );
+    expect(screen.queryByTestId('post-actions-impressions')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('post-actions-reach')).not.toBeInTheDocument();
+  });
+});
+
 describe('TrendingCard markdown caption (D85 read side)', () => {
   it('renders bold + italic markdown instead of raw syntax', async () => {
     const mdPost: FeedPost = { ...basePost, content: '**_beautiful day!_**' };
@@ -312,16 +331,19 @@ function makeV3PostsResolvedMedia(n: number) {
 
 // Mock the discover feed fetch. The component reads posts (no count) + the
 // server-side engagement-count shape for reactions + comments (count: true →
-// a {ref_value: count} map). The mock returns the right shape per service
-// (reactions/comments default to {} → zero engagement).
+// a {ref_value: count} map). Views are the D86 `contentViews` read (impressions
+// + reach per doc). The mock returns the right shape per service (reactions /
+// comments default to {} → zero engagement; views default to {} → hidden slots).
 function mockDiscoverFeed(
   posts: unknown[] = makeV3Posts(20),
   reactions: Record<string, number> = {},
   comments: Record<string, number> = {},
   reposts: Record<string, number> = {},
+  views: Record<string, { impressions: number; reach: number }> = {},
 ) {
-  vi.mocked(fetch).mockImplementation(async (_url, init) => {
+  vi.mocked(fetch).mockImplementation(async (url, init) => {
     const body = JSON.parse(String(init?.body ?? '{}'));
+    if (String(url).includes('/v3/contentViews')) return jsonOk(views);
     if (body?.service === 'posts') return jsonOk(posts);
     if (body?.service === 'reactions') return jsonOk(reactions);
     if (body?.service === 'comments') return jsonOk(comments);
@@ -391,6 +413,23 @@ describe('Trending page', () => {
     }
     const sidebar = screen.getByTestId('trending-sidebar');
     expect(within(sidebar).getAllByTestId('trending-sidebar-entry')).toHaveLength(10);
+  });
+
+  it('shows the D86 view metrics on the board cards (impressions + reach)', async () => {
+    mockDiscoverFeed(
+      makeV3Posts(20),
+      {},
+      {},
+      {},
+      { 'post-0': { impressions: 12400, reach: 1200 } },
+    );
+    const { default: Trending } = await import('@/pages/Trending');
+    render(<MemoryRouter initialEntries={['/trending/hot-gossip' + window.location.search]}><Trending /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
+    // The first board post (post-0) carries the delivery metrics; the card's
+    // engagement row shows both (the same slots the social app's PostCard shows).
+    expect(await screen.findByTestId('post-actions-impressions')).toHaveTextContent('12.4k');
+    expect(screen.getByTestId('post-actions-reach')).toHaveTextContent('1.2k');
   });
 
   it('shows Load more when a full page returns, and fetches the next page', async () => {

@@ -60,6 +60,8 @@ function feedPostToDiscover(post: FeedPost): DiscoverPost {  const author = post
     comments: post.commentsCount,
     reposts: post.repostsCount,
     score: post.engagementScore,
+    impressions: post.impressions,
+    reach: post.reach,
     media: feedPostToMediaItems(post.mediaRefs),
     repost_of: post.repostOf,
   };
@@ -192,6 +194,12 @@ interface DiscoveryPost {
     reposts: number;
   };
   engagement_score: number;
+  /** Impressions (D86) — total delivery events. The card's view metric (the
+   *  bar-chart icon in the engagement row). Anon-readable: the node's
+   *  `contentViews` read is `user_or_anon` (the public board's delivery). */
+  impressions?: number;
+  /** Reach (D86) — distinct readers who saw the post. */
+  reach?: number;
   // A17 media projection fields. media_refs arrive pre-resolved from the v3
   // read (objects with read_url + mime_type); bare strings are the legacy shape.
   media_refs?: (string | ResolvedMediaRef)[];
@@ -228,6 +236,10 @@ interface FeedPost {
   createdAt: string;
   /** A repost (reposts.md): the doc_id of the post this one reposts. */
   repostOf?: string;
+  /** Impressions (D86) — total delivery events (the card's view metric). */
+  impressions?: number;
+  /** Reach (D86) — distinct readers (the card's people metric). */
+  reach?: number;
 }
 
 const AVATAR_COLORS = [
@@ -317,6 +329,8 @@ function mapDiscoveryToFeedPost(d: DiscoveryPost): FeedPost {
     repostsCount: d.engagement.reposts ?? 0,
     createdAt: d.created_at,
     repostOf: d.repost_of,
+    impressions: d.impressions,
+    reach: d.reach,
   };
 }
 
@@ -504,14 +518,40 @@ async function readGroupRepostCounts(postIds: string[]): Promise<Record<string, 
   return counts;
 }
 
+// The D86 view metrics (impressions + reach) for the board's posts — the same
+// `contentViews` read the social app's `readViewCounts` rides. Anon (no token):
+// the node's endpoint is `user_or_anon` and the discover group is `anyone`-
+// readable, so a signed-out visitor sees the same delivery numbers the social
+// app shows (the public board's D86 delivery — the read path logs it server-
+// side; there is no client-written counter). I3-scoped by construction: a doc
+// only returns metrics if it is in one of the reader's readable groups.
+// Degrades to {} on failure (a view metric is never a hard error).
+async function readGroupViewCounts(postIds: string[]): Promise<Record<string, { impressions: number; reach: number }>> {
+  if (!postIds.length) return {};
+  try {
+    const resp = await fetch(`${API_ORIGIN}/v3/contentViews`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ service: 'posts', doc_ids: postIds, groups: [DISCOVER_GROUP] }),
+    });
+    if (!resp.ok) return {};
+    return await resp.json();
+  } catch {
+    return {};
+  }
+}
+
 // One board doc → the DiscoveryPost shape. `likesByPost` / `commentsByPost`
 // are the server-side engagement counts ({} for a search — the page's knob
 // pipeline re-scores on the raw post signals, not the board's tally).
+// `viewsByPost` is the D86 delivery metrics ({} for a search — the search
+// results' view slots stay hidden at 0, the same rule the card applies).
 function mapV3DocToDiscovery(
   p: V3Doc,
   likesByPost: Record<string, number>,
   commentsByPost: Record<string, number>,
   repostsByPost: Record<string, number> = {},
+  viewsByPost: Record<string, { impressions: number; reach: number }> = {},
 ): DiscoveryPost {
   // The v3 read serves media_refs pre-resolved (objects with mime_type +
   // read_url). Derive the first attachment's mime from the first resolved
@@ -535,6 +575,8 @@ function mapV3DocToDiscovery(
     },
     engagement_score:
       (likesByPost[p.doc_id] || 0) + (commentsByPost[p.doc_id] || 0) + (repostsByPost[p.doc_id] || 0),
+    impressions: viewsByPost[p.doc_id]?.impressions,
+    reach: viewsByPost[p.doc_id]?.reach,
     media_refs: mediaRefs,
     has_media: mediaRefs.length > 0,
     first_attachment_mime: firstAttachmentMime,
@@ -549,16 +591,18 @@ async function fetchDiscoverFeed(sort: 'recent' | 'trending', limit = 6): Promis
   // v3: the public board is the node-default discover group. Read it through
   // the normal group-read path as anon (no token). Engagement is the
   // server-side count shape (GROUP BY ref_value through the engine) for the
-  // board's posts — exact, no cap.
+  // board's posts — exact, no cap. Views are the D86 delivery metrics
+  // (contentViews, anon) — the same object the social app's cards show.
   const posts = dropAdDocs(await readGroup('posts', 200));
   const postIds = posts.map((p) => p.doc_id);
-  const [likesByPost, commentsByPost, repostsByPost] = await Promise.all([
+  const [likesByPost, commentsByPost, repostsByPost, viewsByPost] = await Promise.all([
     readGroupRefCounts('reactions', postIds),
     readGroupRefCounts('comments', postIds),
     readGroupRepostCounts(postIds),
+    readGroupViewCounts(postIds),
   ]);
 
-  const mapped: DiscoveryPost[] = posts.map((p) => mapV3DocToDiscovery(p, likesByPost, commentsByPost, repostsByPost));
+  const mapped: DiscoveryPost[] = posts.map((p) => mapV3DocToDiscovery(p, likesByPost, commentsByPost, repostsByPost, viewsByPost));
   console.log(
     '[trending] discover feed —', posts.length, 'posts;',
     mapped.filter(p => p.has_media).length, 'with media;',
