@@ -1,3 +1,6 @@
+3.236.4 || 18.10.2026
+docs(security): **SDK source L1 closeout — #1219/#1220 merged with every check green**, seven files/2,494 newlines/2,496 logical lines, no gaps/overlap; tests excluded and 24 dist plus three copied artifacts explicitly mapped. 166 SDK tests and typecheck pass; source/locks/tracked bundles unchanged. Added open repair/correspondence map, ticked source coverage only and queued authenticator UI next plus separate SDK artifact comparison. S-1/S-6, joint A-01/F-01 response integrity and local cookie-dictionary evidence remain OPEN; no valid credentials/server grants, runtime fixes, artifact assurance, model-diverse/three-dry sign-off or project-wide completion claimed.
+
 3.236.3 || 18.10.2026
 docs(security): **SDK L1 batch 2 — v3 foundation/data/group/consent receipts D/E/F**, all 1,683 logical lines (1,682 newlines) at `caeed4427`, exhaustive contiguous coverage through EOF. F-01 and A-01 grouped as one consent-response class across public implementations; S-6 remains metadata hygiene and S-3 functional. Shared permission-array mutation and cookie/state flow are bounded local correctness/handoff evidence, not server grants or cross-account requests. Fresh reviewers replayed minimal probes and clarified broader summaries. Batch 1 #1219 merged; no runtime/bundle fixes, source-artifact assurance or security PASS.
 

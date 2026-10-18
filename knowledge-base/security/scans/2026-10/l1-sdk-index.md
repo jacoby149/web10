@@ -31,15 +31,15 @@ are not credited as runtime source scans. Context reads do not add coverage.
 | A | Whole browser.ts | 315 | `l1-sdk-a.md` | Merged #1219 |
 | B | Whole http/index/token/types.ts | 271 | `l1-sdk-b.md` | Merged #1219 |
 | C | Whole rtc/index.ts | 227 | `l1-sdk-c.md` | Merged #1219 |
-| D | v3.ts 1-633 | 633 | `l1-sdk-d.md` | Recorded |
-| E | v3.ts 634-1092 | 459 | `l1-sdk-e.md` | Recorded |
-| F | v3.ts 1093-1683 | 591 | `l1-sdk-f.md` | Recorded |
+| D | v3.ts 1-633 | 633 | `l1-sdk-d.md` | Merged #1220 |
+| E | v3.ts 634-1092 | 459 | `l1-sdk-e.md` | Merged #1220 |
+| F | v3.ts 1093-1683 | 591 | `l1-sdk-f.md` | Merged #1220 |
 
 Recorded rows claim line coverage only, not security sign-off. D/E/F have no
 gaps/overlap; E/F split between methods inside the same enclosing factory, not
 independent top-level functions. Mechanical accounting against pinned Git blobs
 reconciles every source line and includes type-only declarations. All seven
-source files now have receipts; final D-F merge integration remains pending.
+source files have merged receipts; A-C #1219 and D-F #1220 had every check green.
 
 ## Shipped Artifact Manifest (Mapped, Not Scanned)
 
@@ -101,3 +101,18 @@ the base/legacy consent-response manifestation of A-01: one integrity class,
 location-specific aliases with joint regression/repair coverage. S-6 remains
 wildcard metadata hygiene; S-3 remains a functional tokenless-GET mismatch.
 All actual browser/caller/server effects and artifact correctness remain owed.
+
+## Open Work Map
+
+| Class / location evidence | Obligation, not a completed fix |
+|---|---|
+| S-1, browser auth listener | Bind intended message sender without breaking first-login, same-user refresh/dedupe or valid handoff. Synthetic token acceptance is not verified credentials. |
+| A-01 / F-01, consent-response aliases | One class across browser adapter, base client and legacy helper: correlate origin/window/request and prove legitimate concurrent flows, not merely one reject case. |
+| S-6, wildcard senders | Bound intended recipient while preserving consent/close lifecycle; metadata-only hygiene, not demonstrated token exfiltration. |
+| L1-SDK-B-01, cookie dictionary | Prevent inherited token selection; test normal encoded cookies and actual delivery assumptions. No global Object.prototype mutation demonstrated. |
+| S-3 and D/E correctness handoffs | Resolve functional GET/comment mismatch, pure-merge mutation and state/cookie coherence without inventing server-side grant bypasses. |
+| Shipped/copied artifact map above | Rebuild/compare in isolated outputs, account for orphan declarations and copied IIFEs; no artifact correctness or package publishing inferred from source tests. |
+
+This closes source-line accounting only. Actual browser/server reachability,
+repair red -> denied-green tests, independent model-diverse/three-dry review,
+dependency implementation, publication and deployment assurance remain open.
