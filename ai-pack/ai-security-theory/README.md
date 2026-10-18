@@ -130,7 +130,8 @@ need one: **every play of the game is strictly more secure than the last.**
 | [the-security-record/](./the-security-record/README.md) | The altitude — the format, PASS/OPEN/STALE + the deferral reference + the **repro gate** (how a finding closes), freestyle granularity. Plus [staleness-and-cadence.md](./the-security-record/staleness-and-cadence.md), relative staleness + the 3–6 month clock + the ratchet |
 | [the-pentest-gate/](./the-pentest-gate/README.md) | The done-state — what "passed the AI pentest" means, and why it beats a human pentest ($5k–$30k) |
 | [the-gauntlet/](./the-gauntlet/README.md) | **The enforcement** — the security gauntlet (the accumulated exploits, run in CI on every PR like the e2e gauntlets) + the per-PR gate (≤500 lines, red→green test, security record updated). The "wrong way doesn't merge" piece |
-| [running-it/](./running-it/README.md) | The operation — orient, scope slicing backend-first, the scan→fix PR flow (exploit-first + repro gate + write-back), the L1→L2→L3→L4 order, the **convergence review** (fresh untainted reviewer, run until 3-dry, with model diversity), and the enforceable rules |
+| [the-design-intent-gate/](./the-design-intent-gate/README.md) | **The maintains-product-functionality review** — the five-question check (intent, delta, by-design conflict, conventional-standard deviation, untested intent risk) that proves a security fix didn't over-secure or quietly change the product. The "we are doing different, not standard" piece |
+| [running-it/](./running-it/README.md) | The operation — orient, scope slicing backend-first, the scan→fix PR flow (exploit-first + repro gate + write-back), the L1→L2→L3→L4 order, the **convergence review** (fresh untainted reviewer, run until 3-dry, with model diversity), the **design-intent gate**, and the enforceable rules |
 
 ## The rules (the enforceable summary)
 
@@ -158,6 +159,13 @@ need one: **every play of the game is strictly more secure than the last.**
    PR (a regression fails the build); a trust-boundary PR must pass the gate (≤500
    lines, red→green test or scrutinized explanation, security record updated). The wrong way
    doesn't merge.
+10. **Every trust-boundary / security PR passes the design-intent gate.** A fresh
+    reviewer answers the five questions (intent, delta, by-design conflict,
+    conventional-standard deviation, untested intent risk) and posts the
+    `DESIGN-INTENT REVIEW` block. A security fix is not done when the exploit is
+    denied — it is done when the exploit is denied **and** the app still behaves
+    like the product the KB describes. See
+    [the-design-intent-gate/](./the-design-intent-gate/README.md).
 
 *(And: parallelize the scan, not the fix — ~40 read-only scanners at once across the
 core, fix PRs one finding at a time. That's what makes it a quick win, not a
