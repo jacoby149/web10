@@ -49,7 +49,7 @@ finding closure, and a single-file scan does not establish whole-API coverage.
 - [✓ 3.235.13] **L1-005: remaining backend inventory** — merged #1212; 109 selected files/16,362 newlines; all 1,482 tracked paths reconciled at `db325cd3c`. Inventory is not scanning. `knowledge-base/security/scans/2026-10/l1-backend-inventory.md`.
 - [✓ 3.235.15] **L1-006: backend runtime receipts** — RTC/B1 #1212, marketing API #1213 and preview #1214 merged; 33 files/3,739 newlines (3,742 logical lines) at `db325cd3c`. `knowledge-base/security/scans/2026-10/l1-backend-index.md`; source coverage only, no fixes or security PASS.
 - [ ] **L1-007: remaining API packaging and migration tools** — API packaging/migration tools (7 files/684 newlines at the inventory pin), deferred behind SDK L1. The former marketing packaging scope is retired by D91, not scanned or passed. Refresh counts before starting.
-- [~] **L1-008: exhaustive SDK L1** — source scans/reviews A-F complete at `caeed4427`, receipt integration in progress; seven source files/2,496 logical lines. `knowledge-base/security/scans/2026-10/l1-sdk-index.md`; current source coverage is not artifact correspondence or security PASS.
+- [~] **L1-008: exhaustive SDK L1** — A-C merged #1219; D-F scans/reviews complete, receipt merge pending at `caeed4427`. All seven source files/2,496 logical lines accounted for in `knowledge-base/security/scans/2026-10/l1-sdk-index.md`; no artifact correspondence or security PASS.
 - [✓ 3.236.1] **D91: remove unused marketing API** — merged #1217; no deployment or shared-finding closure. `knowledge-base/security/marketing-api-retirement.md` retains operational cutover requirements.
 
 ## Security Hardening Extraction (PRs 1157 / 1159)
