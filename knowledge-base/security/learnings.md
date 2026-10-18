@@ -44,11 +44,12 @@ exploit is replayed and denied.
 | ID | Date | Unit | Learning (vuln → fix) | Status |
 |---|---|---|---|---|
 | B-1 | 2026-10 | `auth.py`, federation | I1 symmetric HS256 — one shared key mints any token → RS256/EdDSA + JWKS (D7) | learned; fix in 1157 (unmerged) → `BP-1` |
-| B-2 | 2026-10 | `settings.py` | signing key + Stripe/Twilio/CH creds in source → env-injected, no defaults | learned; fix in 1157 (unmerged) |
+| B-2 | 2026-10 | `settings.py` | signing key + Stripe/Twilio/CH creds in source → env-injected, no defaults | OPEN; repeatable defaults confirmed at `8704e9f5c`; [L1 receipt](scans/2026-10/l1-settings.md), no live credential validity claim |
 | B-3 | 2026-10 | `auth.py :: decode_token` | `private_key=False` unsigned decode on an auth path → verify signature before any authz | learned; fix in 1157 (unmerged) |
 | B-4 | 2026-10 | `middleware.py` | full request/response body logged (token in body → token in log) → redact the token field | learned; fix in 1159 (unmerged) |
 | B-5 | 2026-10 | `main.py` CORS | `allow_origins=["*"]` defended only by "token in body" → pin the assumption in a test | learned; needs a pinning test |
 | B-6 | 2026-10 | `clickhouse.py :: get_document_any_author` | reads without author scoping, bounded by a doc-bound sig → verify the sig is checked first | learned; verify |
+| B-8 | 2026-10-18 | `settings.py:139-140` | executing the settings CLI prints globals containing environment-injected secrets → separate fix must suppress secrets while preserving nonsecret diagnostics | OPEN; five synthetic credentials recovered from captured stdout at `8704e9f5c`; [PoC + preconditions](scans/2026-10/l1-settings.md) |
 | S-1 | 2026-10 | `sdk/browser.ts :: authListen` | `postMessage` token accepted with no origin check → `e.origin === authOrigin` gate | learned; fix in 1159 (unmerged) |
 | S-2 | 2026-10 | `sdk/v3.ts` (token-in-body) | token in JSON body composes with B-4 (body logged) → the body transport is by design; the log redaction (B-4) is the fix | learned; see B-4 |
 | S-3 | 2026-10 | `sdk/http.ts :: authGet` | `byUserGroups` sends no token — functional gap, not a leak → decide: send the token or drop the comment | learned; open decision |
@@ -71,6 +72,25 @@ truncation is not redaction. A future B-4 repair must cover those copies too.
 No production exposure, live database persistence, or fix is claimed. The unsigned
 JWT decode feeds log attribution only within this file; it does not demonstrate
 an authorization bypass. Whether another consumer trusts that column is L2+ debt.
+
+### 2026-10-18: settings defaults and diagnostic output (still open)
+
+The [whole-file settings L1 scan](scans/2026-10/l1-settings.md), all 140 lines at
+`8704e9f5c97968d9161c4f5f889c0d0fa0a8be6c`, confirms B-2's repeatable credential
+defaults with an empty environment. Some source literals are abbreviated;
+this does not establish live third-party credential validity. Environment injection
+overrides the defaults, but the `__main__` diagnostic prints those injected values
+(B-8), demonstrated with synthetic canaries and captured stdout. Ordinary import
+does not invoke the dump. Production invocation/exposure and BP-4 rotation remain
+unassessed; neither issue is fixed by this scan.
+
+The final env loop also overwrites typed booleans with truthy strings, including
+explicit `"false"` values. That local behavior is proven; consumers must be traced
+at L2 before naming a security bypass or retention/TLS/recovery impact. Preserve
+the intentional bootstrap-admin baseline and operator configuration (node-config
+KB); the source comment's replace-vs-union mismatch is not proof of an auth bug.
+B-7 already means token lifetime in the October backend audit; the new dump
+finding deliberately uses B-8 instead.
 
 ## Known gaps (the "obvious gap" register)
 

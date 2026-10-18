@@ -36,8 +36,9 @@ says what can happen **at the same time**.
 central record/learnings/plan/changelog updates serialized by the scan coordinator.
 API files are read-only. Do not implement extraction-lane fixes in scan PRs.
 
-- [~] **L1-001: middleware** — scan complete, receipt PR pending merge; all 143 lines at `d86658be6`, B-4 reproduced and OPEN; `knowledge-base/security/scans/2026-10/l1-middleware.md`.
-- [ ] **L1-002: settings** — scan all of `api/app/settings.py` at a pinned dev commit; redact credential values, record checklist coverage and safe evidence; no runtime edits. Gates: orient against learnings/checklist, exact scope/model/date/commit receipt, demonstrated findings or explicit unresolved limitations, docs-only PR <=500 changed lines, all CI green. Acceptance: every line accounted for, no secrets published, no unsupported PASS or fix claim.
+- [✓ 3.235.4] **L1-001: middleware** — receipt merged in PR #1199; all 143 lines at `d86658be6`, B-4 reproduced and still OPEN; `knowledge-base/security/scans/2026-10/l1-middleware.md`.
+- [~] **L1-002: settings** — scan complete, receipt PR pending merge; all 140 lines at `8704e9f5c`; B-2 defaults confirmed and B-8 CLI dump reproduced, both OPEN. Boolean type erasure handed to L2; `knowledge-base/security/scans/2026-10/l1-settings.md`.
+- [ ] **L1-003: main** — scan all of `api/app/main.py` at a pinned dev commit; record middleware/CORS registration, every checklist class, and safe evidence; no runtime edits. Gates: orient against learnings/checklist, exact scope/model/date/commit receipt, demonstrated findings or explicit unresolved limitations, docs-only PR <=500 changed lines, fresh design-intent review, all CI green. Acceptance: every line accounted for, no secrets published, no unsupported PASS or fix claim.
 
 ### Lane: security-hardening-extraction (PRs 1157 / 1159)
 **Owns:** Domain/function hunks as assigned in `security-hardening-extraction.md`,

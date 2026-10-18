@@ -50,6 +50,7 @@ rows; no successful fix/last-pass is implied.
 | Unit | Level | Status | Model | Date | Scan commit | Sys | Evidence |
 |---|---|---|---|---|---|---|---|
 | `api/app/middleware.py`, lines 1-143 (whole file) | L1 | **OPEN** | `gpt-6.1 sol` (OpenCode) | 2026-10-18 | `d86658be6d9bb202bbab981a918a6b69c9bde966` | logging | [Receipt + synthetic PoC](scans/2026-10/l1-middleware.md). Existing B-4 reproduced: request/response tokens reach insert arguments; error JSON also reaches meta and detail reaches message. No fix, live DB proof, or independent convergence sign-off. |
+| `api/app/settings.py`, lines 1-140 (whole file) | L1 | **OPEN** | `gpt-6.1 sol` (OpenCode) | 2026-10-18 | `8704e9f5c97968d9161c4f5f889c0d0fa0a8be6c` | config | [Receipt + redacted PoC](scans/2026-10/l1-settings.md). Existing B-2 defaults confirmed; new B-8 CLI secret dump reproduced. Boolean type erasure handed to L2, not claimed as a bypass. No fix, live credential validation, or convergence sign-off. |
 
 ## Not yet scanned (scan debt)
 

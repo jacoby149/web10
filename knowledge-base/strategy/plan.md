@@ -38,8 +38,9 @@ If a lower layer contradicts its source above, the source wins. Always.
 Read-only receipts first; one finding per later fix PR. Scan completion is not
 finding closure, and a single-file scan does not establish whole-API coverage.
 
-- [~] **L1-001: middleware** — whole-file scan complete at `d86658be6`; receipt PR pending merge. Existing B-4 reproduced and remains OPEN. Evidence: `knowledge-base/security/scans/2026-10/l1-middleware.md`.
-- [ ] **L1-002: settings** — scan all of `api/app/settings.py` at a pinned dev commit; redact credential values, record checklist coverage and safe evidence; no runtime edits.
+- [✓ 3.235.4] **L1-001: middleware** — receipt merged in PR #1199; all 143 lines scanned at `d86658be6`. Existing B-4 remains OPEN. Evidence: `knowledge-base/security/scans/2026-10/l1-middleware.md`.
+- [~] **L1-002: settings** — all 140 lines scanned at `8704e9f5c`; receipt PR pending merge. B-2 defaults confirmed, B-8 CLI secret dump reproduced, both OPEN; boolean type erasure handed to L2. Evidence: `knowledge-base/security/scans/2026-10/l1-settings.md`. No runtime edits or credential values published.
+- [ ] **L1-003: main** — scan all of `api/app/main.py` at a pinned dev commit; record middleware/CORS registration, every checklist class, and safe evidence; no runtime edits.
 
 ## Security Hardening Extraction (PRs 1157 / 1159)
 
