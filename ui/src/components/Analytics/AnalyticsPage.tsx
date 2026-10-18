@@ -251,7 +251,19 @@ function AnalyticsPage({ I }: { I: Record<string, any> }) {
       <div className="mx-auto max-w-3xl p-4 sm:p-6" data-testid="analytics-page">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="font-display text-2xl font-bold text-foreground">Analytics</h1>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 rounded-md border border-border bg-elevated p-0.5" data-testid="analytics-days-toggle">
+            {DAYS_OPTIONS.map((d) => (
+              <Button
+                key={d}
+                variant={days === d ? 'brand' : 'ghost'}
+                size="sm"
+                className="h-7 px-2.5"
+                onClick={() => setDays(d)}
+                data-testid={`analytics-days-${d}`}
+              >
+                {d}d
+              </Button>
+            ))}
             <Button
               variant="ghost"
               size="sm"
@@ -262,20 +274,6 @@ function AnalyticsPage({ I }: { I: Record<string, any> }) {
             >
               <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
             </Button>
-            <div className="flex items-center gap-1 rounded-md border border-border bg-elevated p-0.5" data-testid="analytics-days-toggle">
-              {DAYS_OPTIONS.map((d) => (
-                <Button
-                  key={d}
-                  variant={days === d ? 'brand' : 'ghost'}
-                  size="sm"
-                  className="h-7 px-2.5"
-                  onClick={() => setDays(d)}
-                  data-testid={`analytics-days-${d}`}
-                >
-                  {d}d
-                </Button>
-              ))}
-            </div>
           </div>
         </div>
 

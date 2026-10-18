@@ -5003,12 +5003,10 @@ def node_ad_performance(days: int = 30) -> dict | None:
             "clicks": clicks,
             "ctr": round(clicks / impressions * 100, 1) if impressions else 0,
             "timeseries": [
-                {"day": str(r[0]), "impressions": int(r[1] or 0), "clicks": int(r[2] or 0)}
-                for r in ts_rows
+                {"day": str(r[0]), "impressions": int(r[1] or 0), "clicks": int(r[2] or 0)} for r in ts_rows
             ],
             "ads": [
-                {"doc_id": str(r[0]), "impressions": int(r[1] or 0), "clicks": int(r[2] or 0)}
-                for r in per_ad_rows
+                {"doc_id": str(r[0]), "impressions": int(r[1] or 0), "clicks": int(r[2] or 0)} for r in per_ad_rows
             ],
         }
     except Exception as e:
