@@ -1,12 +1,15 @@
 """Tests for the import worker (app/v3/services/import_worker.py).
 
-Focus: the pure/semi-pure logic — archive extraction (tar + zip), the write
-pipeline's ordering + the D62 comment join + idempotency, and the job-row
-updated_at monotonicity invariant. The durable-queue / thread lifecycle is
-integration-level (e2e), not unit-testable here.
+Focus: the pure/semi-pure logic — archive extraction (tar + zip, list +
+streaming), the write pipeline's ordering + the D62 comment join +
+idempotency, the job-row updated_at monotonicity invariant, and the trace
+(import_events) — stage checkpoints, the raw log capture, the resume set, and
+the stuck-job sweep. The durable-queue / thread lifecycle is integration-level
+(e2e), not unit-testable here.
 """
 
 import io
+import logging
 import tarfile
 import zipfile
 from datetime import datetime
@@ -337,6 +340,188 @@ class TestUpdateJobMonotonic:
 
         # The tie (now == current) must be broken: new updated_at = current + 1us.
         assert captured["updated_at"] == fixed + __import__("datetime").timedelta(microseconds=1)
+
+
+# ---------------------------------------------------------------------------
+# iter_data_entries — the STREAMING form (the OOM fix: file objects, not bytes)
+# ---------------------------------------------------------------------------
+
+
+class TestIterDataEntries:
+    def test_tar_yields_file_objects(self, tmp_path):
+        part = tmp_path / "part-000"
+        _make_tar(
+            part,
+            [
+                ("Takeout/YouTube and YouTube Music/video metadata/videos.csv", "Video ID\nv1\n"),
+                ("Takeout/YouTube and YouTube Music/videos/video.mp4", b"binary"),
+            ],
+        )
+        # The stream contract: read each member before advancing to the next
+        # (the tar file objects are valid only while the archive is open).
+        gen = iw.iter_data_entries(tmp_path)
+        name, f = next(gen)
+        data = f.read()
+        f.close()
+        assert name == "Takeout/YouTube and YouTube Music/video metadata/videos.csv"
+        assert data == b"Video ID\nv1\n"  # the MP4 is not yielded
+        assert next(gen, None) is None
+
+    def test_zip_yields_file_objects(self, tmp_path):
+        _make_zip(tmp_path / "part-000", [("a/data.json", '{"items": []}')])
+        gen = iw.iter_data_entries(tmp_path)
+        name, f = next(gen)
+        data = f.read()
+        f.close()
+        assert name == "a/data.json"
+        assert data == b'{"items": []}'
+        assert next(gen, None) is None
+
+    def test_list_form_matches_stream_form(self, tmp_path):
+        # The legacy list form (tests / other callers) and the stream form
+        # agree on what a part contains.
+        _make_tar(tmp_path / "part-000", [("a/videos.csv", "Video ID\nv1\n")])
+        _make_zip(tmp_path / "part-001", [("a/comments.csv", "Comment ID\nc1\n")])
+        streamed = {}
+        for name, f in iw.iter_data_entries(tmp_path):
+            streamed[name] = f.read()
+            f.close()
+        listed = dict(iw._extract_data_entries(tmp_path))
+        assert streamed == listed
+
+
+# ---------------------------------------------------------------------------
+# The trace (import_events) — checkpoints, log capture, resume, stuck sweep
+# ---------------------------------------------------------------------------
+
+
+class TestRecordEvent:
+    def test_inserts_row_with_monotonic_seq(self):
+        captured = []
+        with patch(
+            "app.v3.services.clickhouse.client.insert",
+            side_effect=lambda t, rows, column_names=None: captured.append(rows[0]),
+        ):
+            iw.record_event("j1", "download", "ok", "parts=1")
+            iw.record_event("j1", "parse", "ok", "records=5")
+        assert len(captured) == 2
+        # (job_id, seq, stage, status, detail, created_at)
+        assert captured[0][0] == "j1"
+        assert captured[0][1] == 1
+        assert captured[0][2] == "download"
+        assert captured[0][3] == "ok"
+        assert captured[0][4] == "parts=1"
+        assert captured[1][1] == 2  # seq increments per job
+
+    def test_never_raises(self):
+        # The trace must not be able to kill a job — a CH failure is swallowed.
+        with patch("app.v3.services.clickhouse.client.insert", side_effect=RuntimeError("CH down")):
+            iw.record_event("j1", "download", "ok", "x")  # no raise
+
+
+class TestCompletedStages:
+    def test_returns_ok_stages_excluding_log(self):
+        res = MagicMock()
+        res.result_rows = [["download"], ["parse"], ["log"], ["write"]]
+        with patch("app.v3.services.clickhouse.client.query", return_value=res):
+            assert iw.completed_stages("j1") == {"download", "parse", "write"}
+
+    def test_degrades_to_empty_on_error(self):
+        with patch("app.v3.services.clickhouse.client.query", side_effect=RuntimeError("CH down")):
+            assert iw.completed_stages("j1") == set()
+
+
+class TestJobLogHandler:
+    def test_info_record_becomes_log_event(self, caplog):
+        captured = []
+        with (
+            patch.object(iw, "record_event", side_effect=lambda *a: captured.append(a)),
+            caplog.at_level(logging.INFO, logger="web10-import"),
+        ):
+            with iw._with_job_logging("j1"):
+                iw.logger.info("hello world")
+        assert captured and captured[0][0] == "j1"
+        assert captured[0][1] == "log"
+        assert captured[0][2] == "info"
+        assert "hello world" in captured[0][3]
+
+    def test_error_record_carries_full_traceback(self, caplog):
+        captured = []
+        with (
+            patch.object(iw, "record_event", side_effect=lambda *a: captured.append(a)),
+            caplog.at_level(logging.ERROR, logger="web10-import"),
+        ):
+            with iw._with_job_logging("j1"):
+                try:
+                    raise ValueError("boom")
+                except ValueError:
+                    iw.logger.exception("it broke")
+        assert captured and captured[0][1] == "log"
+        assert captured[0][2] == "error"
+        assert "ValueError: boom" in captured[0][3]
+        assert "Traceback" in captured[0][3]
+
+    def test_handler_detaches_after_context(self):
+        with iw._with_job_logging("j1"):
+            pass
+        assert not any(isinstance(h, iw._JobLogHandler) for h in iw.logger.handlers)
+
+
+class TestMarkError:
+    def test_writes_failed_event_with_traceback(self):
+        events = []
+        with (
+            patch.object(iw, "update_import_job"),
+            patch.object(iw, "record_event", side_effect=lambda *a: events.append(a)),
+        ):
+            try:
+                raise RuntimeError("kaboom")
+            except RuntimeError:
+                iw._mark_error("j1", "kaboom")
+        assert events and events[0][1] == "failed"
+        assert events[0][2] == "error"
+        assert "kaboom" in events[0][3]
+        assert "RuntimeError" in events[0][3]  # the full traceback is dumped
+
+
+class TestStuckSweep:
+    def test_requeues_stale_processing_jobs(self):
+        res = MagicMock()
+        res.result_rows = [("stuck-1",)]
+        with (
+            patch("app.v3.services.clickhouse.client.query", return_value=res) as q,
+            patch.object(iw, "record_event"),
+            patch.object(iw, "update_import_job") as upd,
+            patch.object(iw, "_job_queue") as qd,
+        ):
+            iw._sweep_stuck_jobs()
+        assert "processing" in q.call_args[0][0]
+        upd.assert_called_once_with("stuck-1", phase=iw.QUEUED, message="Stuck — re-queued (worker heartbeat stale)")
+        qd.put.assert_called_once_with("stuck-1")
+
+    def test_sweep_error_is_swallowed(self):
+        with patch("app.v3.services.clickhouse.client.query", side_effect=RuntimeError("CH down")):
+            iw._sweep_stuck_jobs()  # no raise
+
+
+class TestKeepExportSwitch:
+    def test_delete_parts_respects_switch(self, tmp_path):
+        keys = ["imports/u/j1/part-000.tar"]
+        s3 = MagicMock()
+        with (
+            patch("app.services.media.get_s3_client", return_value=s3),
+            patch.object(iw.settings, "KEEP_IMPORT_EXPORTS", True),
+        ):
+            iw._delete_parts(keys)
+        s3.delete_object.assert_not_called()  # the debug switch retains the parts
+
+        s3.reset_mock()
+        with (
+            patch("app.services.media.get_s3_client", return_value=s3),
+            patch.object(iw.settings, "KEEP_IMPORT_EXPORTS", False),
+        ):
+            iw._delete_parts(keys)
+        s3.delete_object.assert_called_once()
 
 
 # ---------------------------------------------------------------------------

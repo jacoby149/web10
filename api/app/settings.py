@@ -105,6 +105,21 @@ IMPORT_WORKER_CONCURRENCY = int(os.getenv("IMPORT_WORKER_CONCURRENCY", "1"))
 # Max export parts per job (a Takeout split into ~2GB parts; 10 parts = ~20GB,
 # far beyond any realistic channel export).
 IMPORT_MAX_PARTS = int(os.getenv("IMPORT_MAX_PARTS", "10"))
+# Debug kill-switch: when truthy, the raw export parts are NOT deleted from
+# MinIO when a job finishes (success OR error) — they stay at
+# imports/{user}/{job_id}/part-NNN so a failed import can be re-run against the
+# exact same bytes without a re-upload. The privacy promise (the node never
+# keeps the raw export) holds in prod: this defaults OFF and is meant for
+# debugging a first real-world import, after which the parts should be deleted
+# by hand.
+KEEP_IMPORT_EXPORTS = os.getenv("KEEP_IMPORT_EXPORTS", "").lower() in ("1", "true", "yes")
+# A `processing` job whose heartbeat (updated_at) is older than this is stuck
+# (the worker thread died without marking it — an OOM kill, a deploy, a hang).
+# The boot resubmit + the periodic sweep re-queue it; the pipeline is
+# idempotent, so the re-run is safe.
+IMPORT_STUCK_AFTER_MINUTES = int(os.getenv("IMPORT_STUCK_AFTER_MINUTES", "10"))
+# How often the stuck-job sweep runs (seconds).
+IMPORT_STUCK_SWEEP_SECONDS = int(os.getenv("IMPORT_STUCK_SWEEP_SECONDS", "300"))
 
 # Load environment variables into settings params.
 for v in list(globals()):
