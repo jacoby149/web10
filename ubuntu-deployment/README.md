@@ -2,8 +2,8 @@
 
 One Linux box, two Portainer stacks from ONE compose file
 (`docker-compose.ecosystem.yml`), each carrying the whole ecosystem:
-node (api, ui, rtc, minio, db) + web10-social + marketing-ui +
-marketing-api. Nginx Proxy Manager (itself a Portainer stack)
+node (api, ui, rtc, minio, db) + web10-social + marketing-ui.
+Nginx Proxy Manager (itself a Portainer stack)
 terminates TLS; Cloudflare does DNS. Everything is visible and
 manageable in the Portainer UI from the LAN/VPN.
 
@@ -66,7 +66,6 @@ resolve ambiguously across environments). Zone `web10.app`:
 | Minio S3 API | `{stack}-minio:9000` | `minio.dev.web10.app` | `minio.web10.app` |
 | web10-social | `{stack}-social:80` | `social.dev.web10.app` | `social.web10.app` |
 | marketing-ui | `{stack}-marketing-ui:80` | `www.dev.web10.app` + `dev.web10.app` | `www.web10.app` + `web10.app` |
-| marketing-api | `{stack}-marketing-api:80` | `marketing-api.dev.web10.app` | `marketing-api.web10.app` |
 
 Quick health check: `https://{api-vhost}/docs` should return the
 FastAPI docs page.
@@ -138,14 +137,13 @@ PUBLIC_IP="the box's public IP"    # VM_PUBLIC_IP in .env
 LAN_IP="the box's LAN IP"          # VM_IP in .env — dev records only
 
 # dev (VPN-only) — content = LAN IP, useless off-VPN by design:
-for host in dev auth.dev rtc.dev minio.dev social.dev www.dev \
-            marketing-api.dev; do
+for host in dev auth.dev rtc.dev minio.dev social.dev www.dev; do
   cloudflare dns record create "$ZONE" --type A --name "$host.$ZONE" \
     --content "$LAN_IP" --proxied=false
 done
 
 # prod (public) — content = PUBLIC IP:
-for host in api auth rtc minio social www marketing-api; do
+for host in api auth rtc minio social www; do
   cloudflare dns record create "$ZONE" --type A --name "$host.$ZONE" \
     --content "$PUBLIC_IP" --proxied=false
 done
@@ -160,6 +158,29 @@ cloudflare dns record create "$ZONE" --type A --name "$ZONE" \
 origins hardcoded in historical app builds and may already point at an
 older deployment. `dig` each name and confirm with the operator before
 moving prod DNS — this is a cutover, not a create.
+
+## Retired Marketing API (D91)
+
+The unused marketing API service is removed from source and deployment manifests.
+Imports, bug reporting and analytics already use the node. The social preview
+server is separate and remains required. This source change does not itself
+shut down a live service or remove existing DNS/proxy entries.
+
+Before the first deployment of this change, inspect dev/prod access logs for
+external callers and preserve any required container-layer feedback/accounting
+JSON under `/app/app/data/`. The old service has no dedicated data volume;
+orphan removal can destroy that data. Do not delete shared ClickHouse/MinIO data.
+After backup and operator-approved cutover, remove only the old marketing API
+containers and both `marketing-api.dev.{zone}` / `marketing-api.{zone}` DNS and
+NPM proxy hosts. Clear obsolete `MARKETING_API_ORIGIN`/frontend build args from
+stored stack environments. Existing SSH deployment uses `--remove-orphans`;
+legacy Portainer deployment can retain orphans. Confirm which path is active.
+
+DNS/NPM provisioning no longer requests these hosts, but this is not a deletion
+routine. Exact-domain certificate matching may provision a replacement cert for
+the smaller host set; retain certificates still needed by live services. Run the
+remaining stack smoke checks and verify `/bug_report`, analytics and node imports
+after deployment. Do not run broad prune or DNS deletion commands as cleanup.
 
 ## Promotion flow (dev → prod)
 

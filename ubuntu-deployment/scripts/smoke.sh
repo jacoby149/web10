@@ -40,7 +40,6 @@ for env in dev prod; do
   check "social"       200 "https://social.${pre}web10.app/"
   check "marketing"    200 "https://www.${pre}web10.app/"
   check "apex marketing" 200 "https://$apex/"
-  check "marketing-api" 200 "https://marketing-api.${pre}web10.app/docs"
 
   # v3 smoke — full auth flow: signup → login → use token.
   # DEV ONLY for now: prod is still v2 (1.0.302) until the Phase 4 cutover

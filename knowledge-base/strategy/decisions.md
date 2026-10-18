@@ -9,6 +9,30 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D91 - Remove the unused marketing API service [decided]
+
+Operator, 18.10.2026: "lets just rip out marketing api".
+
+Repository caller tracing found no current frontend or SDK product operation
+using this service. Imports run in the node (D90); reporting and analytics call
+the node directly. The old HTTP/v2 importer, feedback persistence/proxy and
+payment/affiliate scaffold are not replacement implementations to maintain.
+Remove `marketing/marketing-api/`, its CI/deployment/build/readiness wiring and
+obsolete Swagger link. Preserve the node importer/reporting/analytics APIs and
+the independently shipped social Node preview server. Keep the active E2E
+report-submission check, pointed at the node's real `/bug_report` contract.
+
+Do not add compatibility aliases without a concrete consumer. Static repository
+search does not establish that external callers or historical container data do
+not exist. Before deployment, preserve any required feedback/accounting data,
+check access logs, and deliberately retire old containers and DNS/proxy hosts.
+Source removal is not a production shutdown, credential rotation or proof that
+shared B-2/other node findings are fixed. Preserve pinned historical scan receipts.
+
+After this retirement, the next security scan priority is exhaustive SDK L1,
+not the removed service's packaging. Remaining node packaging/migration and
+deployment inventory stays open; it is not silently counted as scanned.
+
 ### D90 — The import worker's durability pass: streaming extraction, stage checkpoints, the heartbeat sweep, the durable trace, and the keep-exports switch — and the Celery/Redis rejection, on the failure analysis [decided]
 
 Operator, 18.10.2026 — after deciding to test the YouTube importer with a real Takeout on prod: "i want it to really keep all the logs though like a real dump of the errors so we know what is up" + "i can just upload the tar on prod and if its going to shit i can ask you to check what happened on the ubuntu deployment" + "the background threads i hope this shit isnt brittle" + "screw celery then! lets do this!"

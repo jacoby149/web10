@@ -33,7 +33,6 @@ for env, pre in (("dev", "web10-dev"), ("prod", "web10-prod")):
         (f"minio{suffix}", f"{pre}-minio", 9000),
         (f"social{suffix}", f"{pre}-social", 80),
         (f"www{suffix}", f"{pre}-marketing-ui", 80),
-        (f"marketing-api{suffix}", f"{pre}-marketing-api", 80),
         (suffix.lstrip("."), f"{pre}-marketing-ui", 80),  # env apex → marketing
     ]
 DOMAINS = [h[0] for h in HOSTS]

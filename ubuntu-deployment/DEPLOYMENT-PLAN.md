@@ -46,9 +46,8 @@ Internet → Cloudflare DNS → Proxmox host (public IP)
                     │  ├─ rtc (bun, port 6363)
                     │  └─ minio (port 9000/9001)
                     │
-                    └─ marketing stack (if co-located)
-                       ├─ marketing-ui (port 5173)
-                       └─ marketing-api (port 8000)
+                    └─ marketing frontend (if co-located)
+                       └─ marketing-ui (port 5173)
 ```
 
 ## DNS Records (Cloudflare)

@@ -39,6 +39,9 @@ jobs:
         with:
           fetch-depth: 0   # need origin/dev to diff against
 
+      - name: Test the security gate
+        run: python3 scripts/test-security-gate.py
+
       - name: Run the security gate
         env:
           PR_BODY: ${{ github.event.pull_request.body }}

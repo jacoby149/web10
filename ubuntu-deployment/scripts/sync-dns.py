@@ -27,7 +27,7 @@ LAN = cfg["VM_IP"]; PUB = cfg["VM_PUBLIC_IP"]
 H = {"Authorization": "Bearer " + TOKEN, "Content-Type": "application/json"}
 
 # service subdomains, shared by both envs; "" is the env apex (marketing)
-SERVICES = ["", "api.", "auth.", "rtc.", "minio.", "social.", "www.", "marketing-api."]
+SERVICES = ["", "api.", "auth.", "rtc.", "minio.", "social.", "www."]
 # dev mirrors prod with ".dev" inserted: api.dev.web10.app, dev.web10.app apex
 DEV = {f"{s}dev.{ZONE}": LAN for s in SERVICES}
 PROD = {f"{s.rstrip('.')}.{ZONE}": PUB for s in SERVICES if s}

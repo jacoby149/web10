@@ -1,5 +1,11 @@
 # Remaining Backend L1 Coverage Index
 
+**Historical snapshot:** D91 subsequently removes the marketing API source,
+packaging and workflow and edits deployment wiring. MA/MB/MC below are retained
+as pinned history, not present-day runtime assurance. Refresh the live inventory;
+do not count deleted files as scanned or operationally decommissioned. Current
+scope disposition: [retirement record](../../marketing-api-retirement.md).
+
 Source pin: `db325cd3ca242774ed0afdaf743fdf35419da1e7`, date 2026-10-18.
 Scanner fleet: OpenCode `gpt-6.1 sol` (API ID `openrouter/openai/gpt-6.1-sol`).
 
@@ -22,7 +28,7 @@ source coverage, not security PASS. Whole-file manifests are in each receipt.
 | MC marketing app/payment/reporting endpoints/models | 9 | 712 | 712 | `l1-marketing-c.md` | Merged #1213 |
 | PREVIEW shipped Node preview adapter | 3 | 422 | 422 | `l1-preview-backend.md` | Merged #1214 |
 
-Current included coverage: **33 distinct files / 3,739 newlines / 3,742 logical
+Snapshot included coverage: **33 distinct files / 3,739 newlines / 3,742 logical
 lines**, including all 16 marketing API app Python files/2,096 lines. Three B1
 files have unterminated final lines; full EOF was read. RTC
 lockfile review concerns declarations, not external implementation/advisory safety.
@@ -60,8 +66,8 @@ No finding closes when its receipt merges. Existing API app coverage is unchange
 
 ## Next Boundary
 
-Follow the exact remaining manifests in the inventory: next task L1-007 is
-marketing packaging (3 files/911 newlines), API packaging/migration
+Current next task is exhaustive SDK L1 (L1-008). D91 cancels the removed marketing
+packaging scope rather than scanning it. The historical API packaging/migration
 tools (7 files/684 excluding the separately split lock), then remaining lock,
 Ubuntu/CI/scripts/edge/operator scopes. Preview files, once recorded above, must
 not be recounted inside inventory B9; that leaves six root scripts/440 newlines.
