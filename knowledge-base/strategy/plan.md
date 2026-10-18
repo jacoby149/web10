@@ -42,7 +42,8 @@ finding closure, and a single-file scan does not establish whole-API coverage.
 - [✓ 3.235.5] **L1-002: settings** — receipt merged #1201; all 140 lines at `8704e9f5c`, B-2/B-8 remain OPEN; `knowledge-base/security/scans/2026-10/l1-settings.md`.
 - [✓ 3.235.6] **L1-003: main** — full 176-line coverage in A, merged #1202 alongside B/D; no runtime fixes or security PASS.
 - [✓ 3.235.11] **L1-004: remaining API app inventory** — all A-R receipts merged #1202-#1207; 59 files/13,236 lines at `8af7e0fce`, no gaps/overlap. `knowledge-base/security/scans/2026-10/l1-api-index.md`; findings, fixes and required security sign-off remain owed, no project-wide completion.
-- [ ] **L1-005: remaining backend inventory** — inventory RTC, marketing API and deployment/configuration/migration boundaries with exact next L1 scopes and explicit exclusions before widening the coverage denominator.
+- [~] **L1-005: remaining backend inventory** — pinned inventory/review complete, integration pending: 109 selected files/16,362 newlines; all 1,482 tracked paths reconciled at `db325cd3c`. Inventory is not scanning. `knowledge-base/security/scans/2026-10/l1-backend-inventory.md`.
+- [~] **L1-006: backend runtime receipts** — integrate RTC, marketing API, root bootstrap and shipped preview scopes from `knowledge-base/security/scans/2026-10/l1-backend-index.md`; source coverage only, no runtime fixes or security PASS.
 
 ## Security Hardening Extraction (PRs 1157 / 1159)
 
