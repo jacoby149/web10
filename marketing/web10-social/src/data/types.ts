@@ -54,6 +54,12 @@ export interface PostRecord {
    * of posts whose `repost_of` points at it.
    */
   repost_of?: string;
+  // A product (D89): a `posts` doc tagged `product` whose body IS the product
+  // attributes (leaf-typed name/link/kind + pics). Parsed by `fromV3DocToPost`
+  // so every detail surface (permalink, lightbox, feed card) can render it —
+  // the Products tab + the storefront are the management faces, the post
+  // detail is the public face.
+  product?: AdProduct;
   // Author info extracted from V3Document.author_key — needed by DiscoverScreen, FeedScreen, etc.
   author_username?: string;
   author_provider?: string;
@@ -116,6 +122,12 @@ export function fromV3DocToPost(doc: V3Document): PostRecord {
     // A repost (reposts.md): the doc_id of the post this one reposts. Absent
     // on a normal post.
     repost_of: (body.repost_of as string) || undefined,
+    // A product (D89): a `posts` doc tagged `product` whose body IS the product
+    // attributes (leaf-typed name/link/kind + pics). Parsed here so every
+    // detail surface (permalink, lightbox, feed card) can render it — the
+    // Products tab + the storefront are the management faces, the post detail
+    // is the public face.
+    product: parseProductFields(body),
     author_username: username,
     author_provider: provider,
     // The v3 pinned ad (ads-dissemination.md): the read serves a pinned post

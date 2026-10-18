@@ -1002,3 +1002,102 @@ describe('AnalyticsSection — Tier 2 per-post drill-down', () => {
     expect(screen.queryByTestId('post-analytics-projection')).not.toBeInTheDocument();
   });
 });
+
+describe('AnalyticsSection — Tier 2b per-ad drill-down', () => {
+  const AD_TOP_POSTS = [
+    { doc_id: 'ad-1', impressions: 5000, reach: 1200, avgWatchPct: null },
+  ];
+  const AD_TOP_DETAILS = [
+    {
+      doc_id: 'ad-1', impressions: 5000, reach: 1200, avgWatchPct: null,
+      label: 'Sponsored: Nova Lens Pro', thumbnailUrl: null,
+      isAd: true, contentType: 'post' as const, adFormat: 'inline' as const,
+    },
+  ];
+  const AD_ANALYTICS = {
+    daily: [
+      { day: '2026-10-10', impressions: 2000, reach: 500 },
+      { day: '2026-10-11', impressions: 1500, reach: 400 },
+      { day: '2026-10-12', impressions: 1500, reach: 300 },
+    ],
+    bySurface: [
+      { surface: 'feed', impressions: 3000, reach: 700 },
+      { surface: 'discover', impressions: 2000, reach: 500 },
+    ],
+    topPosts: [],
+    totals: { impressions: 5000, reach: 1200 },
+  };
+
+  beforeEach(() => {
+    checkNodeAdmin.mockResolvedValue(false);
+    readMyCatalog.mockResolvedValue({
+      ads: [{
+        doc: { doc_id: 'ad-1', tags: ['ad'] },
+        text: 'Sponsored: Nova Lens Pro',
+        offer: { kind: 'affiliate' as const, partner: 'Amazon', link: 'https://amzn.to/x', cta: 'Get it', disclosure: '' },
+        status: 'active' as const,
+        format: 'inline' as const,
+        albums: [] as string[],
+        product: { target: 'product' as const, name: 'Nova Lens Pro', price: 49, commission: 10, commission_is_percent: true },
+      }],
+      products: [],
+      albums: [],
+      posts: [
+        { doc: { doc_id: 'p1' }, text: 'My review post', pinnedAdTarget: 'ad-1' },
+        { doc: { doc_id: 'p2' }, text: 'Another post', pinnedAdTarget: '' },
+      ],
+    });
+    readCreatorAnalytics.mockResolvedValue({
+      daily: [],
+      bySurface: [],
+      topPosts: AD_TOP_POSTS,
+      totals: { impressions: 5000, reach: 1200 },
+    });
+    enrichTopPosts.mockResolvedValue(AD_TOP_DETAILS);
+    readPostAnalytics.mockResolvedValue(AD_ANALYTICS);
+  });
+
+  it('clicking an ad row in the Top Posts list drills into the per-ad panel', async () => {
+    renderAt('/monetize?tab=analytics');
+    // Switch to the Ads tab.
+    fireEvent.click(await screen.findByTestId('analytics-top-tab-ads'));
+    // The ad row is visible.
+    const row = await screen.findByTestId('analytics-top-post-0');
+    expect(row).toHaveTextContent('Sponsored: Nova Lens Pro');
+    // Click → the per-ad panel loads.
+    fireEvent.click(row);
+    expect(await screen.findByTestId('ad-analytics-panel')).toBeInTheDocument();
+    expect(screen.getByTestId('ad-analytics-title')).toHaveTextContent('Sponsored: Nova Lens Pro');
+    expect(screen.getByTestId('ad-analytics-impressions')).toHaveTextContent('5k');
+    expect(screen.getByTestId('ad-analytics-reach')).toHaveTextContent('1.2k');
+    expect(screen.getByTestId('ad-analytics-back')).toBeInTheDocument();
+  });
+
+  it('a deep link (?ad=<doc_id>) renders the per-ad panel directly', async () => {
+    renderAt('/monetize?tab=analytics&ad=ad-1');
+    expect(await screen.findByTestId('ad-analytics-panel')).toBeInTheDocument();
+    expect(screen.getByTestId('ad-analytics-title')).toHaveTextContent('Sponsored: Nova Lens Pro');
+  });
+
+  it('the per-ad panel shows the attached posts (reverse lookup)', async () => {
+    renderAt('/monetize?tab=analytics&ad=ad-1');
+    expect(await screen.findByTestId('ad-analytics-attached')).toBeInTheDocument();
+    expect(screen.getByTestId('ad-analytics-attached')).toHaveTextContent('My review post');
+  });
+
+  it('the per-ad panel shows the product + projection when the ad has a product', async () => {
+    renderAt('/monetize?tab=analytics&ad=ad-1');
+    expect(await screen.findByTestId('ad-analytics-product')).toBeInTheDocument();
+    expect(screen.getByTestId('ad-analytics-product')).toHaveTextContent('Nova Lens Pro');
+    // 5000 impressions × 0.01 CTR × 0.01 conv × $4.90 (10% of $49) = $2.45
+    expect(screen.getByTestId('ad-analytics-projection-value')).toBeInTheDocument();
+  });
+
+  it('the back button returns to the Tier 1 dashboard', async () => {
+    renderAt('/monetize?tab=analytics&ad=ad-1');
+    await screen.findByTestId('ad-analytics-panel');
+    fireEvent.click(screen.getByTestId('ad-analytics-back'));
+    expect(await screen.findByTestId('analytics-reach')).toBeInTheDocument();
+    expect(screen.queryByTestId('ad-analytics-panel')).not.toBeInTheDocument();
+  });
+});
