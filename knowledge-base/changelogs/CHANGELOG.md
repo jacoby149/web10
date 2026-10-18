@@ -1,3 +1,6 @@
+3.235.12 || 18.10.2026
+docs(security): **API app L1 coverage closeout — all six receipt batches merged #1202-#1207**, every check green, each PR below 500 changed lines. Ticked coverage-only task, recorded final integration and local finding/repair map, and queued the excluded backend/runtime inventory. Mechanical accounting: 59 files/13,236 lines including empty packages; two prior files plus 18 disjoint A-R scopes, no gaps/overlap. Fresh final docs review found no blocking issue. Findings/fixes, L2+ handoffs and model-diverse/three-dry sign-off remain open; no runtime changes, security PASS or whole-project L1 completion.
+
 3.235.11 || 18.10.2026
 docs(security): **API L1 campaign batch 6 — ClickHouse reads/accounts/analytics P/Q/R**, lines 2413-4944 (2,532 lines) at `8af7e0fce`. All 59 API app files/13,236 lines now have scope receipts, with zero coverage gaps/overlap. Signer/authority/recovery/analytics candidates remain unverified L2 handoffs, not demonstrated bypasses; timing/dedup preconditions corrected in review. Updated stale endpoint scan-debt language and explicitly excluded broader runtime/client surfaces. Batch 5 #1206 merged; no runtime fix, security PASS, three-dry or whole-project L1 completion claim.
 
