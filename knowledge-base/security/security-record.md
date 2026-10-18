@@ -31,7 +31,7 @@ measure. Re-scan after the hardening merges to flip them.
 | `api/app/v3/services/clickhouse.py :: read path` | L1 | PASS | (audit) | 2026-10 | — | query-engine | I3 read gate on lock (the crown jewel holds) — `can_read_group` / `effective_role_perms` |
 | `api/app/v3/services/safe_query.py` | L1 | PASS | (audit) | 2026-10 | — | query-engine | I3 wall for caller SQL on lock — boundary on input CTEs, not output filter |
 | `api/app/v3/services/clickhouse.py :: get_document_any_author` | L1 | **OPEN** | (audit) | 2026-10 | — | media | B-6 reads without author scoping; bounded by doc-bound sig — verify sig checked first |
-| `api/app/v3/services/import_worker.py` | L1 | PASS | (D90 review) | 2026-10 | 2026-10-18 | import | D90 durability pass (3.235.1) — L1 read of the reworked worker: the trace handler + `record_event` are fail-open (never raise into the job); the trace endpoint is owner-gated via `_owned_job` (I3 — a token never reads another user's job; 404 unknown / 403 not-owned, test-pinned); `KEEP_IMPORT_EXPORTS` is a debug switch that only RETAINS the job owner's own export parts (default off — the privacy promise holds; no cross-user reach); the stuck sweep re-queues only the node's own jobs (idempotent re-run). No new trust boundary introduced (the import was already token-gated end-to-end). |
+| `api/app/v3/services/import_worker.py` | L1 | **OPEN** | `gpt-6.1 sol` | 2026-10-18 | — | import | Historical D90 review is superseded by [J](scans/2026-10/l1-api-j.md)/[K](scans/2026-10/l1-api-k.md) at `8af7e0fce`: L1-J-01 copies A's logs into overlapping B trace insert arguments. Owner-gated reads do not fix stored misattribution. No live cross-owner disclosure or fix claimed. |
 | `sdk/src/browser.ts :: authListen` | L1 | **OPEN** | (audit) | 2026-10 | — | sdk-auth | S-1 `postMessage` token accepted with no origin check. Hardening in 1159 (unmerged) |
 | `sdk/src/v3.ts` (token-in-body) | L1 | **OPEN** | (audit) | 2026-10 | — | sdk-auth | S-2 token in JSON body — composes with B-4 (body logged). By design; the log is the risk |
 | `sdk/src/http.ts :: authGet` | L1 | **OPEN** | (audit) | 2026-10 | — | sdk-auth | S-3 `byUserGroups` sends no token — functional gap, not a leak |
@@ -52,16 +52,46 @@ rows; no successful fix/last-pass is implied.
 | `api/app/middleware.py`, lines 1-143 (whole file) | L1 | **OPEN** | `gpt-6.1 sol` (OpenCode) | 2026-10-18 | `d86658be6d9bb202bbab981a918a6b69c9bde966` | logging | [Receipt + synthetic PoC](scans/2026-10/l1-middleware.md). Existing B-4 reproduced: request/response tokens reach insert arguments; error JSON also reaches meta and detail reaches message. No fix, live DB proof, or independent convergence sign-off. |
 | `api/app/settings.py`, lines 1-140 (whole file) | L1 | **OPEN** | `gpt-6.1 sol` (OpenCode) | 2026-10-18 | `8704e9f5c97968d9161c4f5f889c0d0fa0a8be6c` | config | [Receipt + redacted PoC](scans/2026-10/l1-settings.md). Existing B-2 defaults confirmed; new B-8 CLI secret dump reproduced. Boolean type erasure handed to L2, not claimed as a bypass. No fix, live credential validation, or convergence sign-off. |
 
-## Not yet scanned (scan debt)
+## API L1 Campaign Receipts
 
-The October audit covered the backend core + SDK. **Not yet scanned** (all STALE
-by definition — never scanned):
+[Coverage inventory](scans/2026-10/l1-api-index.md) pins the 59-file API app
+denominator. Scope coverage is separate from vulnerability disposition and
+three-dry sign-off. No campaign PASS is claimed.
+
+| Scope | Source/date/model | Coverage | Disposition / evidence |
+|---|---|---|---|
+| A | `8af7e0fce`; 2026-10-18; `gpt-6.1 sol` | 794 lines | OPEN: [receipt](scans/2026-10/l1-api-a.md), L1-A-02 local manifest destination/JSON proxy primitive; sensitive-error sink remains unverified disclosure, not a confirmed protected-data leak. |
+| B | Same pin/date/model | 622 lines | OPEN: [receipt](scans/2026-10/l1-api-b.md), L1-B-01 unsigned destination/status trust in remote helper; no production reference found. Existing B-1/B-3 bounded evidence, not a live bypass. |
+| D | Same pin/date/model | 695 lines | OPEN: [receipt](scans/2026-10/l1-api-d.md), L1-D-01 expired-token principal production; L1-D-02 malformed/None expiry classified valid. No actual store mutation or CRUD grant demonstrated. |
+| C | Same pin/date/model | 675 lines | [Receipt](scans/2026-10/l1-api-c.md): no confirmed local finding; caller/media provenance handoffs and sign-off pending, not PASS. |
+| H | Same pin/date/model | 614 lines | OPEN: [receipt](scans/2026-10/l1-api-h.md), L1-H-01 handler discards identity and forwards arbitrary object key to signing sink; dynamic proof uses stub auth/signer, not authenticated HTTP/private-object retrieval. |
+| I | Same pin/date/model | 705 lines | [Receipt](scans/2026-10/l1-api-i.md): no confirmed local finding; delegated authority/log provenance handoffs and sign-off pending, not PASS. |
+| E | Same pin/date/model | 826 lines | OPEN: [receipt](scans/2026-10/l1-api-e.md), L1-E-01 account bearer accepted in group-detail query parameter; static transport hygiene, not a demonstrated theft/auth exploit; related S7 remains open. |
+| F | Same pin/date/model | 614 lines | [Receipt](scans/2026-10/l1-api-f.md): no confirmed local finding; delegated document authority/preparation handoffs and sign-off pending, not PASS. |
+| G | Same pin/date/model | 530 lines | OPEN: [receipt](scans/2026-10/l1-api-g.md), L1-G-01 caller SQL literals reach INFO logger; request/stub-compiled fields tested separately, not a live compiler/retention/data theft proof. |
+| J | Same pin/date/model | 532 lines | OPEN: [receipt](scans/2026-10/l1-api-j.md), L1-J-01 real trace handlers copy one synthetic job's message into both overlapping jobs' event insert arguments; live endpoint disclosure untested. |
+| K | Same pin/date/model | 867 lines | [Receipt](scans/2026-10/l1-api-k.md): no confirmed C+I finding; parser whole-remainder read is reliability debt; persisted-authority/redirect/storage handoffs and sign-off pending. |
+| L | Same pin/date/model | 535 lines | [Receipt](scans/2026-10/l1-api-l.md): no confirmed local finding; compiler accepts qualified/scalar/settings candidates but no SQL executed; execution-boundary handoffs and sign-off pending. |
+| M | Same pin/date/model | 790 lines | [Receipt](scans/2026-10/l1-api-m.md): no confirmed local finding; migration visibility/policy concurrency candidates require actual upgrade/consumer evidence; review/sign-off pending. |
+| N | Same pin/date/model | 825 lines | [Receipt](scans/2026-10/l1-api-n.md): no confirmed local finding; permissions/tombstone/caller-authority handoffs; `read_documents` correctly ranks before deleted filtering in the inspected query, no blanket resurrection claim. |
+| O | Same pin/date/model | 797 lines | [Receipt](scans/2026-10/l1-api-o.md): no confirmed local finding; contract revocation, moderation scope and optional membership-join handoffs; generated SQL alone is not a bypass. |
+| P | Same pin/date/model | 806 lines | [Receipt](scans/2026-10/l1-api-p.md): no confirmed local finding; membership/metadata/media/preparation handoffs, including existing B-6; review/sign-off pending. |
+| Q | Same pin/date/model | 875 lines | [Receipt](scans/2026-10/l1-api-q.md): no confirmed local finding; mocked signer forwarding is not an authorized HTTP/private-object exploit; recovery/config/visit handoffs and sign-off pending. |
+| R | Same pin/date/model | 851 lines | [Receipt](scans/2026-10/l1-api-r.md): no confirmed local finding; app/analytics/reporting handoffs, with dedup-window preconditions explicit; review/sign-off pending. |
+
+## Remaining L1 Boundaries
+
+The API app inventory above now has full file-local line coverage, not security
+PASS or three-dry sign-off. Prior seed PASS labels are historical narrow reviews,
+not complete contemporary file assurance. The worker's disproven PASS is withdrawn.
+The broader project L1 pass remains incomplete; excluded/unscanned surfaces include:
 
 - **Frontend / render surface** — the XSS surface, the `rehype-sanitize` choke
   point, every `dangerouslySetInnerHTML`, the markdown render. (The audit's
   "pass 2," never started.)
-- **`api/app/v3/endpoints/`** — the endpoint layer that calls the services (the
-  audit scoped the services; the endpoints are the next L1 slice).
+- **Remaining backend/runtime** — RTC, marketing API, deployment/configuration,
+  migrations, package manifests/locks and dependency/artifact integrity need
+  explicit inventories. They are outside the 59-file `api/app` denominator.
 - **`marketing/web10-social/src/data/`** — the social app's data layer (token
   handling, the permission requests).
 - **`ui/`** — the authenticator (consent, session restore, the token vault).
