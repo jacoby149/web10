@@ -75,17 +75,23 @@ three-dry sign-off. No campaign PASS is claimed.
 | M | Same pin/date/model | 790 lines | [Receipt](scans/2026-10/l1-api-m.md): no confirmed local finding; migration visibility/policy concurrency candidates require actual upgrade/consumer evidence; review/sign-off pending. |
 | N | Same pin/date/model | 825 lines | [Receipt](scans/2026-10/l1-api-n.md): no confirmed local finding; permissions/tombstone/caller-authority handoffs; `read_documents` correctly ranks before deleted filtering in the inspected query, no blanket resurrection claim. |
 | O | Same pin/date/model | 797 lines | [Receipt](scans/2026-10/l1-api-o.md): no confirmed local finding; contract revocation, moderation scope and optional membership-join handoffs; generated SQL alone is not a bypass. |
+| P | Same pin/date/model | 806 lines | [Receipt](scans/2026-10/l1-api-p.md): no confirmed local finding; membership/metadata/media/preparation handoffs, including existing B-6; review/sign-off pending. |
+| Q | Same pin/date/model | 875 lines | [Receipt](scans/2026-10/l1-api-q.md): no confirmed local finding; mocked signer forwarding is not an authorized HTTP/private-object exploit; recovery/config/visit handoffs and sign-off pending. |
+| R | Same pin/date/model | 851 lines | [Receipt](scans/2026-10/l1-api-r.md): no confirmed local finding; app/analytics/reporting handoffs, with dedup-window preconditions explicit; review/sign-off pending. |
 
-## Not yet scanned (scan debt)
+## Remaining L1 Boundaries
 
-The October audit covered the backend core + SDK. **Not yet scanned** (all STALE
-by definition — never scanned):
+The API app inventory above now has full file-local line coverage, not security
+PASS or three-dry sign-off. Prior seed PASS labels are historical narrow reviews,
+not complete contemporary file assurance. The worker's disproven PASS is withdrawn.
+The broader project L1 pass remains incomplete; excluded/unscanned surfaces include:
 
 - **Frontend / render surface** — the XSS surface, the `rehype-sanitize` choke
   point, every `dangerouslySetInnerHTML`, the markdown render. (The audit's
   "pass 2," never started.)
-- **`api/app/v3/endpoints/`** — the endpoint layer that calls the services (the
-  audit scoped the services; the endpoints are the next L1 slice).
+- **Remaining backend/runtime** — RTC, marketing API, deployment/configuration,
+  migrations, package manifests/locks and dependency/artifact integrity need
+  explicit inventories. They are outside the 59-file `api/app` denominator.
 - **`marketing/web10-social/src/data/`** — the social app's data layer (token
   handling, the permission requests).
 - **`ui/`** — the authenticator (consent, session restore, the token vault).

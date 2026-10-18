@@ -1,3 +1,6 @@
+3.235.11 || 18.10.2026
+docs(security): **API L1 campaign batch 6 — ClickHouse reads/accounts/analytics P/Q/R**, lines 2413-4944 (2,532 lines) at `8af7e0fce`. All 59 API app files/13,236 lines now have scope receipts, with zero coverage gaps/overlap. Signer/authority/recovery/analytics candidates remain unverified L2 handoffs, not demonstrated bypasses; timing/dedup preconditions corrected in review. Updated stale endpoint scan-debt language and explicitly excluded broader runtime/client surfaces. Batch 5 #1206 merged; no runtime fix, security PASS, three-dry or whole-project L1 completion claim.
+
 3.235.10 || 18.10.2026
 docs(security): **API L1 campaign batch 5 — ClickHouse foundations M/N/O**, lines 1-2412 at `8af7e0fce`, no gaps/overlap. Migration policy, document/group/member primitives, contract/blocking/ranking SQL inspected file-locally; safe probes demonstrate local behavior, not endpoint exploits. Tombstone wording corrected to distinguish the rank-then-filter document read from affected candidate getters. No confirmed new finding is not PASS; caller/schema/migration handoffs retained. Batch 4 #1205 merged; no runtime changes or convergence claim.
 

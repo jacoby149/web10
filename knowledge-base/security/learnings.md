@@ -149,6 +149,18 @@ versions before filtering deleted rows; do not generalize prefilter behavior fro
 different getters. D80 social membership visibility and intentional public grants
 must survive future fixes; no helper or migration is certified safe by this scan.
 
+### 2026-10-18: storage reads/accounts/analytics L1 receipts
+
+P/Q/R complete ClickHouse lines 2413-4944. Arbitrary-key forwarding to a fake
+signer establishes local flow, not a reachable private-object read; relate it to
+H's handler-level concern without double-counting a proven exploit. Recovery,
+revocation, metadata, prepared-query and app/analytics authority still need real
+caller/schema evidence. Analytics delivery candidates must honor the one-hour
+same-type dedup and one-day preceding-delivery windows; merely passing a string
+event type does not demonstrate counter inflation. No new confirmed finding or
+whole-store PASS is claimed. All 59 API app files now have line-coverage receipts;
+broader project L1, findings/fixes and required independent sign-off remain owed.
+
 ## Known gaps (the "obvious gap" register)
 
 Gaps the orient has surfaced. Each is either a `BP-n` or a standing note:
