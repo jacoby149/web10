@@ -79,8 +79,15 @@ export function readCreatorAnalytics(_windowDays: number): Promise<CreatorAnalyt
   return Promise.resolve(SEED_ANALYTICS);
 }
 
-export function readPostAnalytics(_docId: string, _windowDays: number): Promise<CreatorAnalytics> {
-  return Promise.resolve(SEED_ANALYTICS);
+// Per-post analytics: the seed data filtered to the requested doc (the mock
+// returns the full seed so the panel renders with realistic content).
+export function readPostAnalytics(docId: string, _windowDays: number): Promise<CreatorAnalytics> {
+  // Filter the top posts to just this doc (the panel shows one post's metrics).
+  const filtered = {
+    ...SEED_ANALYTICS,
+    topPosts: SEED_ANALYTICS.topPosts.filter((p) => p.doc_id === docId),
+  };
+  return Promise.resolve(filtered);
 }
 
 export function enrichTopPosts(topPosts: { doc_id: string; impressions: number; reach: number; avgWatchPct: number | null }[]): Promise<TopPostDetail[]> {
