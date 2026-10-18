@@ -95,6 +95,21 @@ Inventory and line coverage do not establish service PASS or deployment security
 | MC | Historical 9 files / 712 lines | D91 removes the scaffold from current source; [pinned L1-MC-01/02 evidence](scans/2026-10/l1-marketing-c.md) retained. Production retirement remains unverified, not closed by declaring the files gone. |
 | PREVIEW | 3 files / 422 lines | [Receipt](scans/2026-10/l1-preview-backend.md): no confirmed local finding; fixed-origin anonymous composition and safe fallback probes do not establish renderer/public-grant security. Ghost-post 200-vs-404 is correctness debt; review/sign-off pending, not PASS. |
 
+## SDK L1 Source Campaign
+
+[Source/artifact inventory](scans/2026-10/l1-sdk-index.md), source pin
+`caeed4427`, date 2026-10-18, scanner `gpt-6.1 sol`. Seven non-test source files/
+2,496 logical lines; tests and distributions separately accounted, not assumed safe.
+
+| Scope | Logical coverage | Disposition / evidence |
+|---|---:|---|
+| A browser adapter | 315 | OPEN: [receipt](scans/2026-10/l1-sdk-a.md), existing S-1 sender-unbound token acceptance and S-6 wildcard metadata; A-01 consent-response integrity alias grouped with F-01, not independent grants. |
+| B HTTP/token/exports/types | 271 | OPEN: [receipt](scans/2026-10/l1-sdk-b.md), L1-SDK-B-01 inherited token selection via a synthetic __proto__ cookie, not global prototype mutation or demonstrated browser cookie planting/API access. |
+| C RTC client | 227 | [Receipt](scans/2026-10/l1-sdk-c.md): no new confirmed C+I issue; existing BP-3 and real handshake/lifecycle/consumer authority remain unverified, not PASS. |
+| D v3 foundations | 633 | [Receipt](scans/2026-10/l1-sdk-d.md): no confirmed local C+I issue; shared permission-array mutation is correctness evidence, not a server grant; helper-consumer review pending. |
+| E v3 data/request methods | 459 | [Receipt](scans/2026-10/l1-sdk-e.md): no confirmed local C+I issue; cookie/state precedence and fake-helper flow do not establish authenticated cross-account requests; server/transport handoffs pending. |
+| F v3 groups/consent/types | 591 | OPEN: [receipt](scans/2026-10/l1-sdk-f.md), L1-SDK-F-01 alias with A-01 for unbound consent responses in different implementations; existing S-6 metadata wildcard and S-3 functional omission, no actual grant or token leak demonstrated. |
+
 ## Remaining L1 Boundaries
 
 The API app inventory above now has full file-local line coverage, not security
@@ -102,8 +117,10 @@ PASS or three-dry sign-off. Prior seed PASS labels are historical narrow reviews
 not complete contemporary file assurance. The worker's disproven PASS is withdrawn.
 The broader project L1 pass remains incomplete; excluded/unscanned surfaces include:
 
-- **SDK first** — only seed October findings exist so far; exhaustive current
-  `sdk/src/` coverage is next (L1-008), before further packaging inventory.
+- **SDK** — current source receipts A-F merged #1219/#1220, completing line
+  accounting only (L1-008). Seed October rows never established this coverage;
+  open findings, artifact correspondence and required independent security
+  sign-off remain separate debt, not a campaign PASS.
 - **Frontend / render surface** — the XSS surface, the `rehype-sanitize` choke
   point, every `dangerouslySetInnerHTML`, the markdown render. (The audit's
   "pass 2," never started.)

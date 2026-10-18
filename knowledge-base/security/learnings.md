@@ -50,11 +50,12 @@ exploit is replayed and denied.
 | B-5 | 2026-10 | `main.py` CORS | `allow_origins=["*"]` defended only by "token in body" → pin the assumption in a test | learned; needs a pinning test |
 | B-6 | 2026-10 | `clickhouse.py :: get_document_any_author` | reads without author scoping, bounded by a doc-bound sig → verify the sig is checked first | learned; verify |
 | B-8 | 2026-10-18 | `settings.py:139-140` | executing the settings CLI prints globals containing environment-injected secrets → separate fix must suppress secrets while preserving nonsecret diagnostics | OPEN; five synthetic credentials recovered from captured stdout at `8704e9f5c`; [PoC + preconditions](scans/2026-10/l1-settings.md) |
-| S-1 | 2026-10 | `sdk/browser.ts :: authListen` | `postMessage` token accepted with no origin check → `e.origin === authOrigin` gate | learned; fix in 1159 (unmerged) |
+| S-1 | 2026-10 | `sdk/browser.ts :: authListen` | `postMessage` token accepted with no origin check → sender binding required | OPEN; [current pinned A receipt](scans/2026-10/l1-sdk-a.md) reproduces synthetic acceptance, not valid credentials/API access |
 | S-2 | 2026-10 | `sdk/v3.ts` (token-in-body) | token in JSON body composes with B-4 (body logged) → the body transport is by design; the log redaction (B-4) is the fix | learned; see B-4 |
 | S-3 | 2026-10 | `sdk/http.ts :: authGet` | `byUserGroups` sends no token — functional gap, not a leak → decide: send the token or drop the comment | learned; open decision |
 | S-4 | 2026-10 | `sdk/token.ts :: decodeJwt` | unsigned base64 decode — fine for reading claims, a footgun for authz → doc: never use for authorization | learned; documented |
 | S-5 | 2026-10 | `sdk/token.ts` cookie | `SameSite=Lax`+`Secure`, no HttpOnly (impossible by design), 60-day → acceptable; note the 60-day window | learned; accepted |
+| S-6 | 2026-10 | Browser/v3 consent senders | wildcard consent/close metadata target → bind the intended recipient while preserving consent lifecycle | OPEN; [A](scans/2026-10/l1-sdk-a.md)/[F](scans/2026-10/l1-sdk-f.md), metadata hygiene, not demonstrated token exfiltration or token-specific KB violation |
 
 **The L2 lesson (why the call-graph rung exists):** B-4 + S-2 is a single
 *relationship* — the token (source, `v3.ts`) flows to the log (sink, `middleware.py`)
@@ -218,6 +219,39 @@ Refresh live inventory after the deletion/wiring edits; do not subtract removed
 files and call them newly scanned. SDK exhaustive L1 is the next priority;
 seed October SDK rows never established full current file coverage. See
 `marketing-api-retirement.md` for preservation and cutover requirements.
+
+### 2026-10-18: SDK L1 browser/token/RTC receipts
+
+A/B/C at `caeed4427` cover browser, token/HTTP/export/type utilities and optional
+RTC client. S-1 still permits synthetic hostile-origin token acceptance; different
+username filtering is not sender verification. S-6 is wildcard consent/close
+metadata hygiene, not token exfiltration or a breach of a token-specific rule.
+A-01 and F-01 describe one consent-response integrity class in separate public
+implementations; retain both locations under joint repair coverage, not duplicate
+independent bugs. No forged server grant or valid credential demonstrated.
+
+L1-SDK-B-01 proves __proto__ cookie parsing replaces the returned dictionary's
+prototype and inherited token selection follows. Object.prototype is unchanged;
+actual browser cookie planting and downstream authority remain unverified.
+Unsigned UX decoding, JS-readable cookies/lifetime and JSON-body token transport
+remain intentional. RTC fake-peer behavior is not a real impersonation/logout
+exploit. Generated/copied bundles are explicitly mapped, not security-certified.
+
+### 2026-10-18: SDK v3 source receipts complete
+
+D/E/F finish all 1,683 logical lines of v3.ts, including unterminated EOF. No
+method body is cut at the E/F boundary, although both belong to one factory.
+F-01 and A-01 remain one response-integrity class in separate public consent
+implementations; repairs must test both, preserving configured-origin legitimate
+responses, unchanged return-run consent and gesture-driven group setup.
+No callback result by itself establishes server permissions or authentication.
+
+The merge helper mutates a shared permission array despite its purity description;
+that is a proven local correctness defect, not a proven unintended server grant.
+Cookie/state precedence differences are conditional helper-flow evidence, not
+actual cross-account requests. Keep S-3 functional and S-6 metadata-only rather
+than promoting them to disclosure. Published minimal replays are independent
+from broader author-reported runs; neither covers shipped bundle correspondence.
 
 ## Known gaps (the "obvious gap" register)
 
