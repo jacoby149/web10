@@ -66,9 +66,17 @@ every creator, even with zero ads.
 The **totals row** (impressions + reach, the two big numbers) sits above the
 charts — the at-a-glance "how big is my audience" stat.
 
-### Tier 2 — "Per-Post Detail" (click a post from Tier 1)
+### Tier 2 — "Per-Post Detail" (click a post from Tier 1) [built 3.235.6]
 
 The drill-down: one post's full performance over the selected window.
+Built in 3.235.6: `PostAnalyticsPanel.tsx` (the per-post detail card),
+`AnalyticsSection.tsx` (reads `?post=<doc_id>` from the URL, loads via
+`readPostAnalytics`, renders the panel in place of Tier 1), and
+`ReachCharts.tsx` (Top Posts rows are now clickable buttons). The panel
+shows: the post's identity (thumbnail + title + type + window), the two
+big numbers (impressions + reach), the daily time-series (Recharts
+ComposedChart), the surface breakdown, the average watch % (video/short
+only), and the projection beat (if the post has a product ad).
 
 | Chart | Type | Data | What it tells you |
 |-------|------|------|-------------------|

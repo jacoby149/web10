@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { BarChart3, AlertTriangle, RefreshCw, Wallet, SlidersHorizontal, TrendingUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -7,8 +7,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { errorMessage } from '@/components/shared/Toast';
 import { readMyCatalog, type AdItem } from '@/data/ads-catalog';
 import { projectEarnings, formatProjection, DEFAULT_RATES } from '@/data/ad-projection';
-import { readCreatorAnalytics, enrichTopPosts, type CreatorAnalytics, type TopPostDetail } from '@/data/creator-analytics';
+import { readCreatorAnalytics, readPostAnalytics, enrichTopPosts, type CreatorAnalytics, type TopPostDetail } from '@/data/creator-analytics';
 import { ReachCharts } from './ReachCharts';
+import { PostAnalyticsPanel } from './PostAnalyticsPanel';
 
 // The Analytics section (ads-october focus #5) — the "how it's performing"
 // view. A funnel, top to bottom:
@@ -59,6 +60,7 @@ const EMPTY_ANALYTICS: CreatorAnalytics = {
 
 export function AnalyticsSection() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [ads, setAds] = useState<AdItem[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +68,51 @@ export function AnalyticsSection() {
   const [topPostDetails, setTopPostDetails] = useState<TopPostDetail[]>([]);
   // The time-series window (7d / 30d / 90d). Default 30d (the GA/YouTube default).
   const [windowDays, setWindowDays] = useState(30);
+
+  // ── Tier 2: the per-post drill-down ────────────────────────────────────────
+  // The URL holds which post is open (`?post=<doc_id>`), so refresh restores it
+  // and it's deep-linkable. Clicking a Top Posts row sets the param; the back
+  // button clears it. The post's analytics load via `readPostAnalytics`.
+  const selectedPostId = searchParams.get('post');
+  const [postAnalytics, setPostAnalytics] = useState<CreatorAnalytics>(EMPTY_ANALYTICS);
+  const [postLoading, setPostLoading] = useState(false);
+
+  const selectPost = useCallback((docId: string) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('post', docId);
+    setSearchParams(params);
+  }, [searchParams, setSearchParams]);
+
+  const clearPost = useCallback(() => {
+    const params = new URLSearchParams(searchParams);
+    params.delete('post');
+    setSearchParams(params);
+  }, [searchParams, setSearchParams]);
+
+  // Load the selected post's analytics when the param changes.
+  useEffect(() => {
+    if (!selectedPostId) {
+      setPostAnalytics(EMPTY_ANALYTICS);
+      return;
+    }
+    setPostLoading(true);
+    readPostAnalytics(selectedPostId, windowDays)
+      .then(setPostAnalytics)
+      .finally(() => setPostLoading(false));
+  }, [selectedPostId, windowDays]);
+
+  // The selected post's enriched detail (from the already-loaded topPostDetails).
+  const selectedPostDetail = useMemo(
+    () => topPostDetails.find((p) => p.doc_id === selectedPostId) ?? null,
+    [topPostDetails, selectedPostId],
+  );
+
+  // The selected post's product (if it's a product ad) — for the projection beat.
+  const selectedPostProduct = useMemo(() => {
+    if (!selectedPostId || !ads) return null;
+    const ad = ads.find((a) => a.doc.doc_id === selectedPostId);
+    return ad?.product ?? null;
+  }, [selectedPostId, ads]);
   // True once the first load has completed. The first load shows the skeleton;
   // a window switch (7d/30d/90d) refreshes the charts in place (no blank flash,
   // so the window toggle stays in the DOM while the new data loads).
@@ -146,6 +193,113 @@ export function AnalyticsSection() {
 
   const hasProductAds = productAds.length > 0;
 
+  // Tier 2: when a post is selected (`?post=<doc_id>`), the dashboard is
+  // replaced by the per-post detail panel. The back button returns to Tier 1.
+  if (selectedPostId) {
+    if (postLoading || !selectedPostDetail) {
+      return (
+        <div className="space-y-4" data-testid="analytics-section">
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="sm" onClick={clearPost} data-testid="post-analytics-back" disabled={postLoading}>
+              Back
+            </Button>
+            <Skeleton className="h-9 w-48" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Skeleton className="h-24" />
+            <Skeleton className="h-24" />
+          </div>
+          <Skeleton className="h-56 w-full" />
+        </div>
+      );
+    }
+    return (
+      <div className="space-y-6" data-testid="analytics-section">
+        <PostAnalyticsPanel
+          docId={selectedPostId}
+          detail={selectedPostDetail}
+          analytics={postAnalytics}
+          windowDays={windowDays}
+          onBack={clearPost}
+          product={selectedPostProduct}
+        />
+        {/* The calculator still shows below the post detail (the funnel beat). */}
+        <div className="rounded border border-border bg-card p-5" data-testid="analytics-calculator">
+          <div className="flex items-start gap-3">
+            <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded bg-elevated text-muted-foreground">
+              <TrendingUp className="h-6 w-6" strokeWidth={1.5} />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-display text-lg font-medium text-foreground">What you could be making</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Drag the slider, set a price and a commission — the projection updates live.
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 space-y-4">
+            <div data-testid="analytics-calc-impressions">
+              <div className="flex items-center justify-between">
+                <label htmlFor="calc-impressions" className="flex items-center gap-1.5 text-[0.6875rem] text-muted-foreground">
+                  <SlidersHorizontal className="h-3 w-3" strokeWidth={1.75} /> Impressions
+                </label>
+                <span className="text-[0.6875rem] tabular-nums text-foreground">{formatImpressions(calcImpressions)}</span>
+              </div>
+              <input
+                id="calc-impressions"
+                type="range"
+                min={10_000}
+                max={1_000_000}
+                step={10_000}
+                value={calcImpressions}
+                onChange={(e) => setCalcImpressions(Number(e.target.value))}
+                className="mt-1.5 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-elevated accent-[var(--brand)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                data-testid="analytics-calc-impressions-slider"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="calc-price" className="text-[0.6875rem] text-muted-foreground">Price ($)</label>
+                <input
+                  id="calc-price"
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={calcPrice}
+                  onChange={(e) => setCalcPrice(Math.max(0, Number(e.target.value)))}
+                  className="mt-1 w-full rounded border border-border bg-elevated/50 px-2 py-1 text-sm tabular-nums text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  data-testid="analytics-calc-price"
+                />
+              </div>
+              <div>
+                <label htmlFor="calc-commission" className="text-[0.6875rem] text-muted-foreground">Commission (%)</label>
+                <input
+                  id="calc-commission"
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={calcCommission}
+                  onChange={(e) => setCalcCommission(Math.min(100, Math.max(0, Number(e.target.value))))}
+                  className="mt-1 w-full rounded border border-border bg-elevated/50 px-2 py-1 text-sm tabular-nums text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  data-testid="analytics-calc-commission"
+                />
+              </div>
+            </div>
+            <div className="rounded bg-elevated/50 p-3" data-testid="analytics-calc-result">
+              <p className="text-[0.6875rem] uppercase tracking-wide text-muted-foreground">Projected earnings</p>
+              <p className="mt-1 font-display text-2xl font-medium tabular-nums text-success">
+                {formatProjection(projectedEarnings)}
+              </p>
+              <p className="text-[0.6875rem] text-muted-foreground">
+                at {formatImpressions(calcImpressions)} impressions · ${calcPrice} item · {calcCommission}% commission
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6" data-testid="analytics-section">
       {/* Your Reach (Tier 1) — the D86 engine's real reach as charts, always
@@ -175,6 +329,7 @@ export function AnalyticsSection() {
           windowDays={windowDays}
           onWindowChange={setWindowDays}
           topPostDetails={topPostDetails}
+          onSelectPost={selectPost}
         />
       )}
 
