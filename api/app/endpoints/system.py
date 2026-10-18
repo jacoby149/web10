@@ -244,9 +244,14 @@ async def analytics_event(request: Request):
 @router.post("/admin/analytics", tags=["admin"])
 def admin_analytics(req: Token, days: int = 30):
     """The operator's usage dashboard (admin only): totals, top paths, top
-    referrers, funnel counts, top errors — realtime over marketing_events."""
+    referrers, funnel counts, top errors — realtime over marketing_events, plus
+    node ad performance (D57) from the D86 engine (node ads are docs tagged
+    `node_ad`; impressions = delivery rows, clicks = click rows). `node_ads` is
+    null until the node has node ads."""
     check_admin(req)
-    return ch.marketing_events_summary(days=days)
+    summary = ch.marketing_events_summary(days=days)
+    summary["node_ads"] = ch.node_ad_performance(days=days)
+    return summary
 
 
 # --- Health ---
