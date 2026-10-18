@@ -240,6 +240,34 @@ So the convergence review's "not an oracle" limit is *narrowed* by model diversi
 you're not betting on one brain, you're betting on the union of several, and the
 security record shows you exactly which brain found what.
 
+## 4. The design-intent gate (the maintains-product-functionality review)
+
+The convergence review asks "is it *actually* secure?" The **design-intent gate**
+asks the other half: **"does it still work as intended?"** A security change can
+close a real hole and still break the product — by over-securing, by applying a
+conventional standard this project deliberately does not follow, or by quietly
+changing a behavior the KB says is by design. The repro gate proves the hole is
+closed; the design-intent gate proves the fix didn't move the goalposts. Full
+treatment in [the-design-intent-gate/](../the-design-intent-gate/README.md).
+
+**When it runs:** every trust-boundary PR and every security fix PR (the same
+scope as the per-PR gate). A fresh reviewer (not the author) answers five
+questions in writing — **intent** (what was this code supposed to do, from the
+KB), **delta** (what does the change alter, per actor + flow), **by-design
+conflict** (does it contradict a considered-and-declined decision like D41/D56?),
+**conventional-standard deviation** (which standard are we deliberately not
+following, cited or decided?), and **untested intent risk** (what could break
+that no test pins — each pinned or accepted). The answer lands as the
+`DESIGN-INTENT REVIEW` block in the PR; a trust-boundary PR without it is a
+review rejection.
+
+**Why it's separate from the orient:** the orient reads *security knowledge*
+(the invariants, the findings, the declined list). The gate asks the *product*
+question the invariants don't cover — what the code is for, and whether the fix
+preserves it. It is also what makes "we are doing different, not standard"
+auditable: every deviation from a conventional security standard is either cited
+in the KB or filed as a decision — never silent.
+
 ## The rules (enforceable)
 
 These are the whole theory compressed to what a reviewer can check on any PR:
@@ -274,6 +302,13 @@ These are the whole theory compressed to what a reviewer can check on any PR:
    PR (a regression fails the build); a trust-boundary PR must pass the gate (≤500
    lines, red→green test or scrutinized explanation, security record updated). See
    [the-gauntlet/](../the-gauntlet/README.md). The wrong way doesn't merge.
+10. **Every trust-boundary / security PR passes the design-intent gate** — a fresh
+    reviewer answers the five questions (intent, delta, by-design conflict,
+    conventional-standard deviation, untested intent risk) and posts the
+    `DESIGN-INTENT REVIEW` block in the PR. A security fix is not done when the
+    exploit is denied; it is done when the exploit is denied **and** the app still
+    behaves like the product the KB describes. See
+    [the-design-intent-gate/](../the-design-intent-gate/README.md).
 
 *(Parallelize the scan, not the fix, is the operating note under rules 1–2: ~40
 read-only scanners at once across the core; fix PRs land one finding at a time.
@@ -291,10 +326,14 @@ A surface is **done** — it has **passed the AI pentest** — when:
 - every **fix** passed the **repro gate** (the exploit is replayed and denied), and
 - every **trust-boundary unit** passed the **convergence review** (three
   consecutive dry passes by a fresh, untainted reviewer), and
+- every **trust-boundary / security PR** passed the **design-intent gate** (the
+  `DESIGN-INTENT REVIEW` block is present; every by-design conflict and untested
+  intent risk is resolved or accepted), and
 - the **big-picture backlog** is visible and ordered (the architectural debt is
   counted, not hidden).
 
 "Done" is not "secure." It is *oriented, fully scanned, fully accounted for,
-repro-verified, convergence-reviewed, and ratcheting.* That is the most a one-dev
-project can honestly claim — and the security record + learnings are the proof. See
+repro-verified, convergence-reviewed, design-intent-checked, and ratcheting.*
+That is the most a one-dev project can honestly claim — and the security record
++ learnings are the proof. See
 [the-pentest-gate/](../the-pentest-gate/README.md) for the claim, stated.
