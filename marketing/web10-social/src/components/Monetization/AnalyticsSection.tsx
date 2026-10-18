@@ -202,7 +202,7 @@ export function AnalyticsSection() {
   // The product's ads (filtered from the full catalog by product_id).
   const productAdsForSelection = useMemo(() => {
     if (!selectedProductId) return [];
-    return allAds.filter((a) => a.product_id === selectedProductId || a.product?.name);
+    return allAds.filter((a) => a.product_id === selectedProductId);
   }, [selectedProductId, allAds]);
 
   // Load each of the product's ads' analytics when the selection changes.

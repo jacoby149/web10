@@ -1174,8 +1174,9 @@ describe('AnalyticsSection — Tier 5 per-product aggregate', () => {
     renderAt('/monetize?tab=analytics&product=prod-1');
     expect(await screen.findByTestId('product-analytics-panel')).toBeInTheDocument();
     expect(screen.getByTestId('product-analytics-title')).toHaveTextContent('The good coffee grinder');
-    // Aggregate impressions: 2000 + 3000 = 5000 → "5k"
-    expect(screen.getByTestId('product-analytics-impressions')).toHaveTextContent('5k');
+    // Aggregate impressions: 2000 + 3000 = 5000 → "5k" (waitFor — the per-ad
+    // analytics load async via readPostAnalytics; the map populates after).
+    await waitFor(() => expect(screen.getByTestId('product-analytics-impressions')).toHaveTextContent('5k'));
     // Aggregate reach: 500 + 700 = 1200 → "1.2k"
     expect(screen.getByTestId('product-analytics-reach')).toHaveTextContent('1.2k');
   });
@@ -1197,10 +1198,11 @@ describe('AnalyticsSection — Tier 5 per-product aggregate', () => {
   it('the per-product panel shows the actuals vs projection', async () => {
     renderAt('/monetize?tab=analytics&product=prod-1');
     expect(await screen.findByTestId('product-analytics-finance')).toBeInTheDocument();
-    // Actuals: 22 + 88 = 110
+    // Actuals: 22 + 88 = 110 (from the ad's product.actuals — synchronous, no waitFor needed)
     expect(screen.getByTestId('product-analytics-actuals')).toHaveTextContent('$110');
     // Projection at 5000 impressions × 0.01 CTR × 0.01 conv × $3 = $1.50
-    expect(screen.getByTestId('product-analytics-projection')).toBeInTheDocument();
+    // (waitFor — the projection depends on the aggregate impressions which load async)
+    await waitFor(() => expect(screen.getByTestId('product-analytics-projection')).not.toHaveTextContent('—'));
   });
 
   it('the back button returns to the Tier 1 dashboard', async () => {
