@@ -605,6 +605,8 @@ export function DiscoverCard({
           repost="interactive"
           reposted={reposted}
           repostCount={post.reposts ?? 0}
+          impressions={post.impressions}
+          reach={post.reach}
           onToggleRepost={onToggleRepost}
           layout="compact"
           testId="discover-post-actions"
