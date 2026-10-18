@@ -20,15 +20,15 @@ Receipt names below live alongside this index.
 | Scope | Owned surface | Lines | Receipt | Integration |
 |---|---|---:|---|---|
 | Prior | Middleware/settings, complete files | 283 | `l1-middleware.md`, `l1-settings.md` | Merged #1199/#1201 |
-| A | App assembly/system/docs/exceptions/empty packages | 794 | `l1-api-a.md` | Recorded |
-| B | Shared auth/config/models/Twilio | 622 | `l1-api-b.md` | Recorded |
-| C | Media/HLS/transcode/thumbnail services | 675 | `l1-api-c.md` | Pending |
-| D | Identity/access/recovery/blocking/user endpoints/models | 695 | `l1-api-d.md` | Recorded |
+| A | App assembly/system/docs/exceptions/empty packages | 794 | `l1-api-a.md` | Merged #1202 |
+| B | Shared auth/config/models/Twilio | 622 | `l1-api-b.md` | Merged #1202 |
+| C | Media/HLS/transcode/thumbnail services | 675 | `l1-api-c.md` | Recorded |
+| D | Identity/access/recovery/blocking/user endpoints/models | 695 | `l1-api-d.md` | Merged #1202 |
 | E | Group/contract endpoints/models | 826 | `l1-api-e.md` | Pending |
 | F | Document endpoint/models | 614 | `l1-api-f.md` | Pending |
 | G | Query endpoint/shared schemas | 530 | `l1-api-g.md` | Pending |
-| H | Media/import/preview endpoints/models | 614 | `l1-api-h.md` | Pending |
-| I | Router/appstore/moderation/logs/bug reporting | 705 | `l1-api-i.md` | Pending |
+| H | Media/import/preview endpoints/models | 614 | `l1-api-h.md` | Recorded |
+| I | Router/appstore/moderation/logs/bug reporting | 705 | `l1-api-i.md` | Recorded |
 | J | Import worker 1-532 | 532 | `l1-api-j.md` | Pending |
 | K | Import worker 533-1028 + parsers | 867 | `l1-api-k.md` | Pending |
 | L | Entire safe-query compiler | 535 | `l1-api-l.md` | Pending |
