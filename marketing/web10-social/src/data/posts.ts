@@ -277,8 +277,10 @@ export async function readMyPosts(opts?: { limit?: number; surface?: string }): 
   // (ads-catalog.ts writes them there). They are ad inventory, not content —
   // the feed drops them via `dropAdPosts`; the profile reads must too, or
   // every ad the creator made shows up as a tile in their profile grid.
+  // Same for product docs (tagged `product`, D89) — their public face is the
+  // storefront + the product card, not a profile tile.
   const posts = await readPosts(myGroups, opts);
-  return posts.filter((p) => !p.tags?.includes('ad'));
+  return posts.filter((p) => !p.tags?.includes('ad') && !p.tags?.includes('product'));
 }
 
 /**
@@ -290,8 +292,8 @@ export async function readUserPosts(username: string, optsOrProvider?: { limit?:
   const opts = typeof optsOrProvider === 'string' ? undefined : optsOrProvider;
   const posts = await readPosts([followersGroupId(username)], opts);
   // Same ad-inventory drop as readMyPosts — the profile grid (visitor path)
-  // must not render the creator's ads as content tiles.
-  return posts.filter((p) => !p.tags?.includes('ad'));
+  // must not render the creator's ads (or products) as content tiles.
+  return posts.filter((p) => !p.tags?.includes('ad') && !p.tags?.includes('product'));
 }
 
 /**
@@ -377,8 +379,9 @@ export async function readUserPublicProfile(
   });
   // Ad docs (tagged `ad`) are ad inventory, not content — the same drop the
   // feed + the owner's profile reads apply. Without it, a visitor's profile
-  // grid renders the creator's ads as content tiles.
-  const contentPosts = uniquePosts.filter((p) => !p.tags?.includes('ad'));
+  // grid renders the creator's ads as content tiles. Product docs (tagged
+  // `product`, D89) are inventory too — the storefront is their public face.
+  const contentPosts = uniquePosts.filter((p) => !p.tags?.includes('ad') && !p.tags?.includes('product'));
   const avatarUrl = (avatarRes.rows[0] as { avatar_url?: string } | undefined)?.avatar_url;
   const bannerUrl = (bannerRes.rows[0] as { banner_url?: string } | undefined)?.banner_url;
 

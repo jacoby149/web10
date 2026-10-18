@@ -283,7 +283,7 @@ describe('feed v3 data layer', () => {
       // The ad exclusion is the FIRST WHERE condition (before the cursor
       // condition, before the ORDER BY / LIMIT) — so the page is filled with
       // real posts, not ads that get dropped after the LIMIT.
-      expect(feedSql).toContain('WHERE not has(p.tags, \'ad\')');
+      expect(feedSql).toContain('WHERE not has(p.tags, \'ad\') AND not has(p.tags, \'product\')');
     });
 
     it('an all-ad page does not come back empty — real posts below the ad block surface', async () => {
