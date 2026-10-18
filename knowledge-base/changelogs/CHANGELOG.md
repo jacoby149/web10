@@ -1,3 +1,6 @@
+3.236.5 || 18.10.2026
+docs(security): **set the two-wave security campaign order: API + SDK + RTC through L1-L4 first, then remaining project surfaces through L1-L4** — added `knowledge-base/security/strategy.md`, linked it from Written Security and aligned the live plan/lane queues. Protocol L1 finding disposition/repairs are next; authenticator UI scanning is deferred to Wave 2. Necessary protocol artifact/configuration edges stay in Wave 1. Coverage is not PASS, deferral is not repair, required independent/model-diverse review remains required, and protocol-scoped L4 is not a whole-project pentest claim. No runtime changes, fixes or new scan completion claimed.
+
 3.236.4 || 18.10.2026
 docs(security): **SDK source L1 closeout — #1219/#1220 merged with every check green**, seven files/2,494 newlines/2,496 logical lines, no gaps/overlap; tests excluded and 24 dist plus three copied artifacts explicitly mapped. 166 SDK tests and typecheck pass; source/locks/tracked bundles unchanged. Added open repair/correspondence map, ticked source coverage only and queued authenticator UI next plus separate SDK artifact comparison. S-1/S-6, joint A-01/F-01 response integrity and local cookie-dictionary evidence remain OPEN; no valid credentials/server grants, runtime fixes, artifact assurance, model-diverse/three-dry sign-off or project-wide completion claimed.
 
