@@ -32,12 +32,12 @@ Receipt names below live alongside this index.
 | J | Import worker 1-532 | 532 | `l1-api-j.md` | Merged #1205 |
 | K | Import worker 533-1028 + parsers | 867 | `l1-api-k.md` | Merged #1205 |
 | L | Entire safe-query compiler | 535 | `l1-api-l.md` | Merged #1205 |
-| M | ClickHouse 1-790 | 790 | `l1-api-m.md` | Recorded |
-| N | ClickHouse 791-1615 | 825 | `l1-api-n.md` | Recorded |
-| O | ClickHouse 1616-2412 | 797 | `l1-api-o.md` | Recorded |
-| P | ClickHouse 2413-3218 | 806 | `l1-api-p.md` | Pending |
-| Q | ClickHouse 3219-4093 | 875 | `l1-api-q.md` | Pending |
-| R | ClickHouse 4094-4944 | 851 | `l1-api-r.md` | Pending |
+| M | ClickHouse 1-790 | 790 | `l1-api-m.md` | Merged #1206 |
+| N | ClickHouse 791-1615 | 825 | `l1-api-n.md` | Merged #1206 |
+| O | ClickHouse 1616-2412 | 797 | `l1-api-o.md` | Merged #1206 |
+| P | ClickHouse 2413-3218 | 806 | `l1-api-p.md` | Recorded |
+| Q | ClickHouse 3219-4093 | 875 | `l1-api-q.md` | Recorded |
+| R | ClickHouse 4094-4944 | 851 | `l1-api-r.md` | Recorded |
 
 ## Assurance Limits
 

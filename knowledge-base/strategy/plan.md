@@ -41,7 +41,7 @@ finding closure, and a single-file scan does not establish whole-API coverage.
 - [✓ 3.235.4] **L1-001: middleware** — receipt merged in PR #1199; all 143 lines scanned at `d86658be6`. Existing B-4 remains OPEN. Evidence: `knowledge-base/security/scans/2026-10/l1-middleware.md`.
 - [✓ 3.235.5] **L1-002: settings** — receipt merged #1201; all 140 lines at `8704e9f5c`, B-2/B-8 remain OPEN; `knowledge-base/security/scans/2026-10/l1-settings.md`.
 - [✓ 3.235.6] **L1-003: main** — full 176-line coverage in A, merged #1202 alongside B/D; no runtime fixes or security PASS.
-- [~] **L1-004: remaining API app inventory** — integrate A-R read-only receipts at `8af7e0fce`, 57 remaining files/12,953 lines. Inventory: `knowledge-base/security/scans/2026-10/l1-api-index.md`. Coverage is not PASS; fixes and required convergence remain separate.
+- [~] **L1-004: remaining API app inventory** — all A-R scans/reviews complete at `8af7e0fce`; batches #1202-#1206 merged, P-R integration pending. All 59 files/13,236 lines accounted for in `knowledge-base/security/scans/2026-10/l1-api-index.md`; no security PASS or project-wide L1 completion.
 
 ## Security Hardening Extraction (PRs 1157 / 1159)
 
