@@ -90,15 +90,93 @@ total when available.
 
 Already built (3.224.0). The per-ad rows + the projection-vs-actual tell.
 
-## Planned (next narrowing, after Tier 1–2 are in use)
+## Content Previews + Type Filtering (Tier 1 upgrade)
+
+The Top Posts list (Tier 1) shows real content previews instead of raw
+"Untitled post" labels. Each row carries a thumbnail (from the doc's
+`media_refs` via `pickThumbnail`), the post's title (or truncated text),
+and the impression count.
+
+**Two-level filter** (the "Content | Ads" toggle + sub-filter row):
+
+| Top-level | Sub-filters | What it shows |
+|-----------|-------------|---------------|
+| **Content** | All / Posts / Videos / Shorts | Non-ad docs, filtered by content type |
+| **Ads** | All / Inline / Post | Ad docs, filtered by `body.format` |
+
+Content type is derived from the doc's `tags` + `media_refs`:
+- `short` — `tags` includes `'short'` (9:16 video, auto-tagged by the composer)
+- `video` — any `media_refs` item with `mime_type` starting `video/` (and not short)
+- `post` — everything else (text, image, mixed)
+
+Ad format comes from `body.format`: `'inline'` (default, the compact AdBlock)
+or `'post'` (the full post-like card).
+
+**Data path:** `enrichTopPosts(topPosts)` in `creator-analytics.ts` reads the
+top-10 doc_ids via `w.readById` (no `surface` label — the read does NOT log a
+delivery), classifies each, and extracts the thumbnail + label. A read failure
+for one doc degrades to a minimal entry.
+
+## Per-Post Full Profile (Tier 2, next PR)
+
+The single-post drill-down (click a post from Tier 1 → `/monetize?tab=analytics&post=<doc_id>`)
+should show the **full analytical profile** at that granular level:
+
+- The post's own metrics (impressions, reach, watch %, surface breakdown) —
+  already spec'd in Tier 2 above.
+- **All ads attached to this post** (the creator's pinned ad + any node ad)
+  with their individual performance: impressions, clicks, CTR.
+- **How much the post drove to the ads** — the attribution: "this post got
+  45k impressions and its attached ad got 3.2k clicks → 7.1% CTR."
+- The post's own `ad_preference` state (pinned / none) + the ad's `format`
+  (inline / post) so the creator sees the full picture.
+
+This is parity with YouTube Studio / Meta Business Suite: the single-content
+profile includes its monetization layer, not just its organic reach.
+
+**Data needed:** the post's `contentAnalytics` rows (already available) +
+the attached ad's `doc_id` (from `doc.ad` / `doc.node_ad` on the read) +
+the ad's own `contentAnalytics` rows (a second `readById` + filter).
+
+## Per-Ad Full Profile (Tier 2b, next PR)
+
+The single-ad drill-down (`/monetize?tab=analytics&ad=<doc_id>`):
+
+- The ad's own metrics (impressions, clicks, CTR, surface breakdown).
+- **Which posts this ad is attached to** (reverse lookup: posts whose
+  `ad_target` = this ad's doc_id) + each post's impressions.
+- The ad's product link (if D89) + the product's aggregate performance.
+- The ad's `format` (inline / post) + `status` (active / paused).
+
+**Data needed:** the ad's `contentAnalytics` rows + a `w.query` for
+`SELECT doc_id, body.title FROM posts WHERE ad_target = '<ad_doc_id>'`
+(the reverse lookup is a client-side query, D60-clean).
+
+## Per-Product Aggregate (Tier 5, next-next PR)
+
+The product-level view: "how is this product performing across all its ads?"
+
+- **All ads for this product** (by `product_id` or legacy `product` section)
+  with their individual + aggregate metrics.
+- **Which posts have ads attached for this product** (the posts whose
+  attached ad references this product) + each post's impressions.
+- **Product-level CTR / conversion** (aggregated across all its ads).
+- The product's `actuals` (logged revenue) vs the projected earnings.
+
+This is the "product performance" view that Meta/TikTok give advertisers:
+the product is the unit of analysis, the ads are the delivery vehicles,
+the posts are the context.
+
+**Data needed:** a `w.query` for all ads with `product_id = '<product_doc_id>'`
++ each ad's `contentAnalytics` + the reverse post lookup per ad.
+
+## Planned (further out, after the above are in use)
 
 | Feature | What it is | Data needed |
 |---------|------------|-------------|
 | **Comparison periods** | "This 30d vs last 30d" (the GA "compare" toggle) | Two `contentAnalytics` reads (current + prior window) |
 | **Time-of-day heatmap** | "When are your fans active?" (YouTube "audience by hour") | `seen_at` hour bucketing (node-side or client-side from rows) |
 | **New vs returning viewers** | "How many first-time vs repeat?" | Node-side `first_seen` flag (small D86 addition) |
-| **Click-through rate per ad** | The D86 click counter (the "clicks coming soon" lane) | `click` events (already captured, not yet wired to a read) |
-| **Revenue per post** | Overlay actual $ on the impressions chart | The actuals box (already on the ad) + the per-post impressions |
 | **Realtime view** | "Your content is being watched RIGHT NOW" (YouTube's most-visited tab) | `WHERE seen_at > now() - 48h` polled every ~30s |
 
 ## The Line It Does Not Cross
