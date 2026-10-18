@@ -215,6 +215,16 @@ describe('posts v3 data layer', () => {
       // inventory, not content tiles.
       expect(result.map((p) => p._id)).toEqual(['p1']);
     });
+
+    it('drops product-tagged docs (products are inventory — the storefront is their public face, D89)', async () => {
+      const docs = [
+        { doc_id: 'p1', author_key: 'web10.app/users/alice', body: { text: 'my post' }, created_at: '2026-07-19T00:00:00Z' },
+        { doc_id: 'prod1', author_key: 'web10.app/users/alice', body: { name: { type: 'text', value: 'Foam Roller' }, link: { type: 'text', value: 'https://amzn.to/x' } }, tags: ['product'], created_at: '2026-07-20T00:00:00Z' },
+      ];
+      mock.read.mockResolvedValue(docs);
+      const result = await readMyPosts();
+      expect(result.map((p) => p._id)).toEqual(['p1']);
+    });
   });
 
   describe('readUserPosts (v3: a user\'s followers-group posts)', () => {
@@ -228,6 +238,16 @@ describe('posts v3 data layer', () => {
       expect(mock.read).toHaveBeenCalledWith('posts', {
         groups: ['web10.app/groups/users/bob/followers'],
       });
+      expect(result.map((p) => p._id)).toEqual(['p1']);
+    });
+
+    it('drops product-tagged docs (a visitor\'s profile grid shows no product tiles, D89)', async () => {
+      const docs = [
+        { doc_id: 'p1', author_key: 'web10.app/users/bob', body: { text: 'bob post' }, created_at: '2026-07-19T00:00:00Z' },
+        { doc_id: 'prod1', author_key: 'web10.app/users/bob', body: { name: { type: 'text', value: 'Foam Roller' } }, tags: ['product'], created_at: '2026-07-20T00:00:00Z' },
+      ];
+      mock.read.mockResolvedValue(docs);
+      const result = await readUserPosts('bob');
       expect(result.map((p) => p._id)).toEqual(['p1']);
     });
   });
@@ -247,6 +267,19 @@ describe('posts v3 data layer', () => {
       expect(result.posts.map((p) => p._id)).toEqual(['p1']);
       expect(result.avatarUrl).toBe('https://x/a.png');
       expect(result.bannerUrl).toBe('https://x/b.png');
+    });
+
+    it('drops product-tagged posts from the returned list (D89)', async () => {
+      const postRows = [
+        { doc_id: 'p1', author_key: 'web10.app/users/bob', body: { text: 'bob post' }, tags: [], created_at: '2026-07-19T00:00:00Z' },
+        { doc_id: 'prod1', author_key: 'web10.app/users/bob', body: { name: { type: 'text', value: 'Foam Roller' } }, tags: ['product'], created_at: '2026-07-20T00:00:00Z' },
+      ];
+      mock.query
+        .mockResolvedValueOnce({ rows: postRows })
+        .mockResolvedValueOnce({ rows: [{ author_key: 'web10.app/users/bob', body: {}, avatar_url: 'https://x/a.png' }] })
+        .mockResolvedValueOnce({ rows: [{ author_key: 'web10.app/users/bob', body: {}, banner_url: 'https://x/b.png' }] });
+      const result = await readUserPublicProfile('bob');
+      expect(result.posts.map((p) => p._id)).toEqual(['p1']);
     });
   });
 

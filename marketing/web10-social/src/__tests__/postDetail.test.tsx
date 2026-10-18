@@ -163,3 +163,47 @@ describe('PostDetail — the post-detail system (rich-text.md)', () => {
     expect(screen.queryByTestId('post-delete-button')).toBeNull();
   });
 });
+
+describe('PostDetail — the product card (D89)', () => {
+  const PRODUCT = {
+    target: 'product' as const,
+    name: 'Foam Roller',
+    price: 25,
+    link: 'https://link.amazon/B04bfxTdM',
+    partner: 'Amazon',
+    kind: 'affiliate',
+    pics: ['pic-1'],
+  };
+
+  it('renders the product card for a product post (no text, no media_refs)', () => {
+    renderDetail({ post: { ...POST, text: undefined, product: PRODUCT } });
+    const card = screen.getByTestId('post-detail-product');
+    expect(card).toBeInTheDocument();
+    expect(screen.getByTestId('post-detail-product-name')).toHaveTextContent('Foam Roller');
+    expect(screen.getByTestId('post-detail-product-price')).toHaveTextContent('$25');
+    expect(card).toHaveTextContent('Amazon');
+    expect(card).toHaveTextContent('affiliate');
+    expect(screen.getByTestId('post-detail-product-link')).toHaveAttribute('href', 'https://link.amazon/B04bfxTdM');
+  });
+
+  it('renders the product photo when the surface resolves the pic', () => {
+    renderDetail({
+      post: { ...POST, text: undefined, product: PRODUCT },
+      productPic: { _id: 'pic-1', url: 'https://cdn.example/foam.webp', created_at: '' },
+    });
+    const pic = screen.getByTestId('post-detail-product-pic');
+    expect(pic).toHaveAttribute('src', 'https://cdn.example/foam.webp');
+  });
+
+  it('omits the card for a normal post (no product fields)', () => {
+    renderDetail();
+    expect(screen.queryByTestId('post-detail-product')).toBeNull();
+  });
+
+  it('omits the photo slot when no pic is resolved (anon fallback)', () => {
+    renderDetail({ post: { ...POST, text: undefined, product: PRODUCT } });
+    expect(screen.queryByTestId('post-detail-product-pic')).toBeNull();
+    // The card still renders — name + link are the product's public face.
+    expect(screen.getByTestId('post-detail-product')).toBeInTheDocument();
+  });
+});

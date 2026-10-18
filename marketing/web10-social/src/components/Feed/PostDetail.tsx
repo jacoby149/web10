@@ -23,14 +23,17 @@ import { useState, type ReactNode } from 'react';
 import {
   Heart, ThumbsDown, MessageCircle, Repeat2, Share2, Check,
   MoreHorizontal, Globe, Lock, Edit3, Eye, EyeOff, Trash2, Bookmark,
+  ArrowUpRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatCount } from '@web10/discover';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { PostBody } from '@/components/Feed/PostBody';
 import { CommentThread } from '@/components/Feed/CommentThread';
 import { useSave } from '@/context/SaveContext';
 import type { ReactionKind } from '@/components/Feed/PostActions';
+import type { AdProduct, MediaRecord } from '@/data/types';
 
 function formatTimeAgo(dateStr: string): string {
   const then = new Date(dateStr).getTime();
@@ -44,6 +47,61 @@ function formatTimeAgo(dateStr: string): string {
   const d = Math.floor(h / 24);
   if (d < 7) return `${d}d ago`;
   return new Date(dateStr).toLocaleDateString();
+}
+
+/**
+ * The product card (D89) — the public face of a `posts` doc tagged `product`.
+ * A product doc's body IS the product attributes (leaf-typed name/link/kind +
+ * pics), not a post's (no text, no media_refs) — without this card the post
+ * detail rendered the author row + an empty body + the action bar: the
+ * "empty post" the operator saw at a product permalink. The card shows the
+ * product's photo (the first pic, resolved by the surface), name, price,
+ * partner/kind badges, and the affiliate link (the product is the single
+ * source of truth for it — the ad's offer is a snapshot of these fields).
+ */
+function ProductCard({ product, pic, testId }: { product: AdProduct; pic?: MediaRecord; testId: string }) {
+  return (
+    <div className="mt-3 rounded-lg border border-border bg-elevated/30 p-4" data-testid={testId}>
+      {pic?.url && (
+        <img
+          src={pic.url}
+          alt={product.name || 'Product'}
+          className="mb-3 max-h-64 w-full rounded object-contain"
+          data-testid={`${testId}-pic`}
+        />
+      )}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="font-display text-base font-medium leading-tight text-foreground" data-testid={`${testId}-name`}>
+            {product.name || 'Untitled product'}
+          </h3>
+          {(product.partner || product.kind) && (
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {product.partner && <Badge variant="default">{product.partner}</Badge>}
+              {product.kind && product.kind !== 'none' && <Badge variant="outline">{product.kind}</Badge>}
+            </div>
+          )}
+        </div>
+        {product.price !== undefined && (
+          <span className="font-display text-lg font-medium tabular-nums text-foreground" data-testid={`${testId}-price`}>
+            ${product.price}
+          </span>
+        )}
+      </div>
+      {product.link && (
+        <a
+          href={product.link}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-brand-300 hover:underline"
+          data-testid={`${testId}-link`}
+        >
+          View product
+          <ArrowUpRight className="h-3.5 w-3.5" strokeWidth={1.75} />
+        </a>
+      )}
+    </div>
+  );
 }
 
 /**
@@ -450,6 +508,9 @@ export interface PostDetailProps {
     visibility?: string;
     author_username?: string;
     author_provider?: string;
+    /** A product (D89): a `posts` doc tagged `product` — its body IS the
+     *  product attributes. When present, the detail renders the product card. */
+    product?: AdProduct;
   };
   /** The author's display name (falls back to the username). */
   authorName?: string;
@@ -494,6 +555,9 @@ export interface PostDetailProps {
   /** The surface's media (the lightbox's carousel / the watch player). Rendered
    *  between the body and the stats row. */
   media?: ReactNode;
+  /** The product's photo (a `posts` doc tagged `product`, D89) — the surface
+   *  resolves the product's `pics[0]` and passes it here; the card renders it. */
+  productPic?: MediaRecord;
   /** A testid for the root. */
   testId?: string;
 }
@@ -524,9 +588,10 @@ export function PostDetail({
   onAuthorClick,
   onEdit,
   onToggleVisibility,
-  visibilityToggling = false,
+  visibilityToggling,
   onDelete,
   media,
+  productPic,
   testId = 'post-detail',
 }: PostDetailProps) {
   const username = post.author_username || '';
@@ -573,6 +638,11 @@ export function PostDetail({
       {/* Media — the surface's media (the lightbox's carousel / the watch
           player), between the body and the stats row. */}
       {media && <div className="mt-3">{media}</div>}
+
+      {/* Product (D89) — a `posts` doc tagged `product` carries no text and no
+          media_refs (its body IS the product attributes), so without this card
+          the detail rendered empty. The card is the product's public face. */}
+      {post.product && <ProductCard product={post.product} pic={productPic} testId={`${testId}-product`} />}
 
       {/* Stats row — a quiet "N views · M people · K likes · L comments" line above the actions. */}
       <PostStatsRow impressions={impressions} reach={reach} likeCount={likeCount} commentCount={commentCount} testId={testId} />
