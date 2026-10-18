@@ -3,7 +3,7 @@
 [← back to AI Security Theory](../README.md)
 
 Security scanning is **one activity at four zooms** — not two engines, not a
-vibe. You run the same line-by-line, ledgered scan at each level, **one level at a
+vibe. You run the same line-by-line, recorded scan at each level, **one level at a
 time, each to 100% before the next.** The ladder is what makes "harden the
 security" a bounded, orderable task instead of an open-ended sprawl.
 
@@ -45,7 +45,7 @@ the sink is L3.
 ## The zoom is the only thing that changes
 
 The *method* is identical at every level: read the unit, check it against
-[the checklist](./the-checklist.md), write a ledger row, log any finding. L1 is
+[the checklist](./the-checklist.md), write a security record row, log any finding. L1 is
 the Norton pass on one file. L2 is the Norton pass with the direct call graph open.
 L3 is the taint trace across a service. L4 is the taint trace across the whole
 project. Same discipline, four zooms.
@@ -82,7 +82,7 @@ everything." You nest:
 1. **L1 + L2 on everything, backend-first.** Every file (L1), then every file's
    direct call graph (L2), across all services in criticality order (API → SDK →
    authenticator → social → marketing UI). These are the bounded, parallel,
-   ledgered floor.
+   recorded floor.
 2. **L3 per service.** Each service's transitive closure, in criticality order.
    The floor is now clean, so an L3 finding is genuinely a multi-hop / pattern
    vuln, not a missed line.
@@ -105,7 +105,7 @@ the system (L4) on top of services you haven't traced (L3).
 
 ## Where a finding goes
 
-- **L1 / L2 finding** → a ledger row (OPEN) + a **fix PR** (≤500 lines, one
+- **L1 / L2 finding** → a security record row (OPEN) + a **fix PR** (≤500 lines, one
   finding, a **repro-gate** test). The scan logs the debt; the fix pays it down.
 - **L3 / L4 finding** → the **big-picture backlog** (`BP-n`), because it is
   cross-file / architectural and may force a breaking or coordinated change. Done

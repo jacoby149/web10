@@ -1,6 +1,6 @@
 # Security Learnings — web10's security memory
 
-The **knowledge** root of trust (the ledger is the *coverage* root of trust). This
+The **knowledge** root of trust (the security record is the *coverage* root of trust). This
 is the record the [orient phase](../../ai-pack/ai-security-theory/the-orient/README.md)
 reads before every scan: what web10 has *figured out* about its own security — the
 invariants as they've evolved, every finding→fix as a dated learning, the known
@@ -114,7 +114,7 @@ results land.)*
 ## How to update this file
 
 - **A fix lands** → append a row to Findings→fixes (date, unit, vuln→fix, status),
-  and flip the matching ledger row to PASS (repro gate met).
+  and flip the matching security record row to PASS (repro gate met).
 - **An exploit is attempted and fails** → append a row to Considered-and-found-safe
   (date, unit, what it looked like, the failed result, *why it's safe*, commit). A
   negative result is a learning, not a discarded false positive.

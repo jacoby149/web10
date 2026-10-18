@@ -159,7 +159,7 @@ readable by everyone, so the priorities shift):
 exploit — read the source, here's the key) and close red→green like any finding.
 The pure-hygiene ones (insecure default, over-broad mode, no rotation) have no clean
 exploit — they close with a **static check** (a lint rule / config assertion / "grep
-for the pattern returns nothing"), not a red→green test. Either way, it is ledgered
+for the pattern returns nothing"), not a red→green test. Either way, it is recorded
 and cleaned at L1.
 
 ## The render choke point (XSS, stated as a checkable claim)
@@ -215,5 +215,5 @@ answer is "run the gauntlet," not "it's probably fine."
   chain, the client-side / browser-hostile surface, …) has no signatures, the
   KB-orient should raise it.
 - **The list is per-repo in the KB, the *shape* of a list is portable.** This doc
-  is the template; a repo's live list lives with its ledger (e.g.
+  is the template; a repo's live list lives with its security record (e.g.
   `knowledge-base/security/`).

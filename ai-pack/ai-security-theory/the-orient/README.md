@@ -11,7 +11,7 @@ letting it tell you where to look and what you might be missing.**
 The security KB — the **learnings** record (for web10,
 `knowledge-base/security/learnings.md`) — is the root of trust for security
 *knowledge*: the invariants as they've evolved, every finding→fix as a dated
-learning, the known gaps, and the "considered and declined" list. (The **ledger**
+learning, the known gaps, and the "considered and declined" list. (The **security record**
 is a different root of trust — it records *coverage*, what was scanned and when.
 The learnings record *knowledge*, what we've figured out.)
 
@@ -117,5 +117,5 @@ without knowing what's already been handled, so you re-find known things, miss t
 recessions, and never ask "what class are we not even looking for?" Orient-first
 inverts that: you read the map, you check the map against the code (recession),
 you find the edge of the map (the gap), and *then* you scan — aimed, not blind. The
-scan is cheaper and the coverage is more honest, because the ledger rows you write
+scan is cheaper and the coverage is more honest, because the security record rows you write
 are *informed* by what the learnings already say.

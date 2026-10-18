@@ -41,11 +41,11 @@ federation, the SDK's credential surface, the query engine), a CI check (a scrip
   code and green after the fix (the repro gate, *evidenced in the PR*, not just
    claimed). For findings where a deterministic exploit **isn't feasible** (genuinely
    non-deterministic — usually L3/L4), the gate accepts a **scrutinized explanation**
-   instead (see [the-ledger/](../the-ledger/README.md)) — but it requires the
+   instead (see [the-security-record/](../the-security-record/README.md)) — but it requires the
    explanation to be present and to have passed the convergence review. A
    deterministic L3/L4 finding still needs its **real exploit**, not just a note.
-- **It updated the ledger** — a new/changed row for the unit it touched. A
-  trust-boundary PR that doesn't touch the ledger is a claim with no record —
+- **It updated the security record** — a new/changed row for the unit it touched. A
+  trust-boundary PR that doesn't touch the security record is a claim with no record —
   reject it.
 - **(Trust boundaries) it shows the convergence review ran** — the three-dry
   evidence is in the PR (or linked), not just asserted.
@@ -57,7 +57,7 @@ the method before it lands. Together, the gauntlet (floor doesn't drop) + the ga
 ## Why this closes the 1157/1159 gap
 
 1157/1159 happened because the discipline was *described*, not *enforced* — a
-90-file security PR with no repro gate and no ledger would still merge if the
+90-file security PR with no repro gate and no security record would still merge if the
 agent (or a human in a hurry) didn't read the doc. The gauntlet + gate make the
 discipline *automatic*:
 
@@ -65,7 +65,7 @@ discipline *automatic*:
 |---|---|
 | No 90-file security PRs | The gate **fails** a trust-boundary PR over 500 lines |
 | Every fix passes the repro gate | The gate **requires** a red→green test (or a scrutinized L3/L4 explanation) in the PR |
-| Every scan is ledgered | The gate **requires** a ledger row for the touched unit |
+| Every scan is recorded | The gate **requires** a security record row for the touched unit |
 | Trust-boundary units need the convergence review | The gate **requires** the three-dry evidence |
 | The floor only rises | The gauntlet **fails** any PR that breaks an exploit |
 
@@ -75,7 +75,7 @@ That is the difference between a strong specification and a strong system.
 ## What the gate is NOT
 
 - **Not a substitute for the method.** The gate checks *conformity* (line count,
-  test present, ledger updated), not *correctness* (is the fix actually right?).
+  test present, security record updated), not *correctness* (is the fix actually right?).
   Correctness is the repro gate + the convergence review's job. The gate is the
   bouncer; the method is the security.
 - **Not a true oracle.** The gate enforces the *process*; it doesn't prove the
@@ -89,7 +89,7 @@ The method is portable; web10's concrete enforcement is:
 - **The gate** — [`scripts/security-gate.sh`](../../../scripts/security-gate.sh).
   On any PR that touches a trust boundary (the crown-jewel paths, listed at the top
   of the script), it fails the build unless the PR is ≤500 lines of code+test,
-  updated the ledger, and has a repro test (or a `SECURITY-EXPLAINED` marker). A
+  updated the security record, and has a repro test (or a `SECURITY-EXPLAINED` marker). A
   `SECURITY-GATE-EXEMPT` marker in the PR body (with a reason) is the escape hatch
   for a small, genuinely non-security fix in a trust-boundary file.
 - **The gauntlet** — the API security test suite (the exploits + the
@@ -102,4 +102,4 @@ The method is portable; web10's concrete enforcement is:
   invariant still fails the build.
 
 The trust-boundary path list and the security-test selection are the two knobs to
-tune as the surface evolves — keep them in sync with the ledger's scope.
+tune as the surface evolves — keep them in sync with the security record's scope.

@@ -48,7 +48,7 @@ flowchart TD
     D -->|no| E["Merge on faith<br/>E2E not run, audit incomplete"]
     E --> F["The scary stuff gets buried<br/>historical-exposure follow-ups<br/>remain open"]
     F --> G["You burned a ton of review + tokens<br/>and you are NOT sure it is fixed"]
-    G --> H["And there is no ledger saying<br/>what was checked, with what model —<br/>so you'd re-scan it all anyway"]
+    G --> H["And there is no security record saying<br/>what was checked, with what model —<br/>so you'd re-scan it all anyway"]
     style C fill:#f88,color:#fff
     style E fill:#f88,color:#fff
     style G fill:#f88,color:#fff
@@ -69,13 +69,13 @@ answer the question that actually matters: **"do I know what was checked?"**
 - You are **not sure it's fixed** — "the independent audit remains incomplete,"
   "full browser E2E was not run," "historical-exposure follow-ups remaining open."
 - And even if it is fixed *today*, **you have to scan it all over again anyway** —
-  because there is no ledger confirming *what was checked, with what model, on
+  because there is no security record confirming *what was checked, with what model, on
   what date, against what commit.*
 
-That last point is the whole theory in one sentence. **Security without a ledger
+That last point is the whole theory in one sentence. **Security without a security record
 is not a checkbox you can tick — it is a vibe you have to re-earn every time.**
 "Looked at, considered" is not a claim you can make from a merged PR. It is a
-claim you can make from a *row in a ledger.* The theory exists to turn security
+claim you can make from a *row in a security record.* The theory exists to turn security
 from the former into the latter.
 
 ## The merge-breakage closer (why bite-sized is not optional)
@@ -104,9 +104,9 @@ changes — and that is the thing that was broken.**
 | The failure | The answer |
 |---|---|
 | Open-ended scope → a sprawl | The **scope ladder** — L1 file → L2 call-graph → L3 service → L4 project-wide, each a bounded pass ([the-scope-ladder/](../the-scope-ladder/README.md)) |
-| No provable done → merge on faith | **The ledger** — a row per (unit, level) is the done ([the-ledger/](../the-ledger/README.md)) |
+| No provable done → merge on faith | **The security record** — a row per (unit, level) is the done ([the-security-record/](../the-security-record/README.md)) |
 | 90-file PR → unreviewable, un-bisectable | **Bite-sized fix PRs** — ≤500 lines, one finding, a repro-gate test ([running-it/](../running-it/README.md)) |
-| "Do I know what was checked?" → no | **The ledger is the root of trust** — model, date, commit, status, per unit |
+| "Do I know what was checked?" → no | **The security record is the root of trust** — model, date, commit, status, per unit |
 | The scary stuff buried | **L3 + the big-picture backlog** — counted and ordered, not hidden |
-| One-off, then it rots | **The 3–6 month re-scan cadence** — it ratchets, it doesn't rot ([the-ledger/staleness-and-cadence.md](../the-ledger/staleness-and-cadence.md)) |
-| "Is it actually secure?" → a vibe | **The AI pentest gate** — L1+L2+L3+L4 all passed = a claim the ledger backs ([the-pentest-gate/](../the-pentest-gate/README.md)) |
+| One-off, then it rots | **The 3–6 month re-scan cadence** — it ratchets, it doesn't rot ([the-security-record/staleness-and-cadence.md](../the-security-record/staleness-and-cadence.md)) |
+| "Is it actually secure?" → a vibe | **The AI pentest gate** — L1+L2+L3+L4 all passed = a claim the security record backs ([the-pentest-gate/](../the-pentest-gate/README.md)) |

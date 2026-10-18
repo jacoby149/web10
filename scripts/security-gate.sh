@@ -3,13 +3,13 @@
 #
 # Why this exists: the security theory (ai-pack/ai-security-theory/) *describes* the
 # method, but a described process is discretionary — a 90-file security PR with no
-# repro gate and no ledger row would still merge if nobody read the doc. This gate
+# repro gate and no security record row would still merge if nobody read the doc. This gate
 # makes the wrong way *un-mergeable*: on any PR that touches a trust boundary, it
 # fails the build unless the PR conforms to the method.
 #
 # A trust-boundary PR must:
-#   1. Be <=500 lines of code+test (the 90-file guard — docs/ledger don't count).
-#   2. Update the ledger (knowledge-base/security/scan-ledger.md) — a trust-boundary
+#   1. Be <=500 lines of code+test (the 90-file guard — docs/security record don't count).
+#   2. Update the security record (knowledge-base/security/security-record.md) — a trust-boundary
 #      change with no record is a claim with no evidence.
 #   3. Have a repro test (touch a test file) OR a scrutinized L3/L4 explanation
 #      (a SECURITY-EXPLAINED marker) — the repro gate.
@@ -38,10 +38,10 @@ trust_boundary_patterns=(
   "ui/src/"
 )
 
-# The ledger a trust-boundary change must update.
-ledger="knowledge-base/security/scan-ledger.md"
+# The security record a trust-boundary change must update.
+record_file="knowledge-base/security/security-record.md"
 
-# Files that don't count toward the 500-line code budget (docs / ledger / learnings).
+# Files that don't count toward the 500-line code budget (docs / security record / learnings).
 is_doc() { [[ "$(basename "$1")" == *.md ]]; }
 
 # Test files (the repro test lives here) — match on the basename.
@@ -55,7 +55,7 @@ is_test() {
 changed=()
 while IFS= read -r _line; do changed+=("$_line"); done < <(git diff --name-only "$base"...HEAD)
 touched=""
-for p in "${changed[@]}"; do
+for p in ${changed[@]+"${changed[@]}"}; do
   for tb in "${trust_boundary_patterns[@]}"; do
     if [[ "$p" == "$tb"* || "$p" == *"$tb"* ]]; then touched="$p"; break 2; fi
   done
@@ -75,7 +75,7 @@ fi
 
 fail=0
 
-# --- Check 1: <=500 lines of code+test (docs/ledger don't count). ---
+# --- Check 1: <=500 lines of code+test (docs/security record don't count). ---
 code_lines=0
 while IFS=$'\t' read -r add del _path; do
   [[ "$add" == "-" || "$del" == "-" ]] && continue   # binary file
@@ -90,18 +90,18 @@ else
   echo "ok: $code_lines lines of code+test (<=500)."
 fi
 
-# --- Check 2: the ledger was updated. ---
-if git diff --name-only "$base"...HEAD | grep -qx "$ledger"; then
-  echo "ok: ledger updated."
+# --- Check 2: the security record was updated. ---
+if git diff --name-only "$base"...HEAD | grep -qx "$record_file"; then
+  echo "ok: security record updated."
 else
-  echo "FAIL: trust-boundary change did not update $ledger."
-  echo "      A trust-boundary change with no ledger row is a claim with no evidence."
+  echo "FAIL: trust-boundary change did not update $record_file."
+  echo "      A trust-boundary change with no security record row is a claim with no evidence."
   fail=1
 fi
 
 # --- Check 3: a repro test (or a scrutinized L3/L4 explanation). ---
 has_test=0
-for p in "${changed[@]}"; do is_test "$p" && has_test=1; done
+for p in ${changed[@]+"${changed[@]}"}; do is_test "$p" && has_test=1; done
 if (( has_test )); then
   echo "ok: repro test present (a test file was touched)."
 elif [[ -n "${PR_BODY:-}" && "$PR_BODY" == *"SECURITY-EXPLAINED"* ]]; then
