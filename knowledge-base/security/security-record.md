@@ -117,8 +117,8 @@ PASS or three-dry sign-off. Prior seed PASS labels are historical narrow reviews
 not complete contemporary file assurance. The worker's disproven PASS is withdrawn.
 The broader project L1 pass remains incomplete; excluded/unscanned surfaces include:
 
-- **SDK** — all current source lines have A-F receipts, final D-F merge integration
-  in progress (L1-008). Seed October rows never established this coverage;
+- **SDK** — current source receipts A-F merged #1219/#1220, completing line
+  accounting only (L1-008). Seed October rows never established this coverage;
   open findings, artifact correspondence and required independent security
   sign-off remain separate debt, not a campaign PASS.
 - **Frontend / render surface** — the XSS surface, the `rehype-sanitize` choke
