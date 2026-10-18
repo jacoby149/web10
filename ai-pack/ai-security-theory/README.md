@@ -110,13 +110,13 @@ replayed and denied) — the surface has **passed the AI pentest.** That is the
 done-state, and it is a claim the security record backs. See
 [the-pentest-gate/](./the-pentest-gate/README.md).
 
-The pitch: this is the **alternative to hiring a $100k+ human pentest** — and
-potentially *more* thorough, because it is recorded (you can point at what was
-checked, by which model, when), repeatable (re-run on the 3–6 month cadence, not a
-one-off report), and it **ratchets three ways** — pinning tests (a fix can't
-regress), the re-scan (drift is caught), and the **model upgrade** (each pass runs
-on a stronger model than the last, inheriting every learning). A human pentest hands
-you a PDF and leaves; this leaves you a **living coverage record** that gets more
+The pitch: this is the **alternative to hiring a human pentest ($5k–$30k, ≈$18k
+average)** — and potentially *more* thorough, because it is recorded (you can point
+at what was checked, by which model, when), repeatable (re-run on the 3–6 month
+cadence, not a one-off report), and it **ratchets three ways** — pinning tests (a fix
+can't regress), the re-scan (drift is caught), and the **model upgrade** (each pass
+runs on a stronger model than the last, inheriting every learning). A human pentest
+hands you a PDF and leaves; this leaves you a **living coverage record** that gets more
 secure every cycle. The AI is never a true oracle — but the ratchet means you don't
 need one: **every play of the game is strictly more secure than the last.**
 
@@ -128,7 +128,7 @@ need one: **every play of the game is strictly more secure than the last.**
 | [the-orient/](./the-orient/README.md) | Phase 1 — read the learnings KB first: onboarding, recession, the obvious gap (assumption-enumeration), and the write-back that makes the next orient smarter |
 | [the-scope-ladder/](./the-scope-ladder/README.md) | L1 file-scan → L2 call-graph-scan → L3 service-scan → L4 project-wide-scan, the hop-count L2/L3 boundary, and the criticality gradient. Plus [the-checklist.md](./the-scope-ladder/the-checklist.md), the signature list (Python/JS-shaped, by threat class) |
 | [the-security-record/](./the-security-record/README.md) | The altitude — the format, PASS/OPEN/STALE + the deferral reference + the **repro gate** (how a finding closes), freestyle granularity. Plus [staleness-and-cadence.md](./the-security-record/staleness-and-cadence.md), relative staleness + the 3–6 month clock + the ratchet |
-| [the-pentest-gate/](./the-pentest-gate/README.md) | The done-state — what "passed the AI pentest" means, and why it beats a $100k human pentest |
+| [the-pentest-gate/](./the-pentest-gate/README.md) | The done-state — what "passed the AI pentest" means, and why it beats a human pentest ($5k–$30k) |
 | [the-gauntlet/](./the-gauntlet/README.md) | **The enforcement** — the security gauntlet (the accumulated exploits, run in CI on every PR like the e2e gauntlets) + the per-PR gate (≤500 lines, red→green test, security record updated). The "wrong way doesn't merge" piece |
 | [running-it/](./running-it/README.md) | The operation — orient, scope slicing backend-first, the scan→fix PR flow (exploit-first + repro gate + write-back), the L1→L2→L3→L4 order, the **convergence review** (fresh untainted reviewer, run until 3-dry, with model diversity), and the enforceable rules |
 

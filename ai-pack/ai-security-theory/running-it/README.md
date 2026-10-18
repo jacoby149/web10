@@ -97,11 +97,11 @@ The security-critical core is small enough to scope by file, and the read-only s
 **~40 parallel read-only scanners**, each doing L1+L2 on a few files and PRing
 **100–200-line fixes**. That is a *batch*, not a program — a day or two of parallel
 work, not months. L3 (per service) and L4 (project-wide) run the same way, after.
-The convergence review adds cost on trust-boundary units (three fresh reviews), but
-that's a small subset of the surface, not the whole thing. The honest total: a
-moderate, *bounded* investment that amortizes over the 3–6 month cadence — not a
-$100k engagement, and not free. The point is that the parallelism makes the
-thorough version *cheap enough to actually run*, which is what a good-but-expensive
+ The convergence review adds cost on trust-boundary units (three fresh reviews), but
+ that's a small subset of the surface, not the whole thing. The honest total: a
+ moderate, *bounded* investment that amortizes over the 3–6 month cadence — not a
+ $5k–$30k pentest engagement, and not free. The point is that the parallelism makes
+ the thorough version *cheap enough to actually run*, which is what a good-but-expensive
  process never gets.
 
 ## The fix order (within a layer) + day-1 bootstrap
