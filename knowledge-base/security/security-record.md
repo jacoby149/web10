@@ -52,6 +52,18 @@ rows; no successful fix/last-pass is implied.
 | `api/app/middleware.py`, lines 1-143 (whole file) | L1 | **OPEN** | `gpt-6.1 sol` (OpenCode) | 2026-10-18 | `d86658be6d9bb202bbab981a918a6b69c9bde966` | logging | [Receipt + synthetic PoC](scans/2026-10/l1-middleware.md). Existing B-4 reproduced: request/response tokens reach insert arguments; error JSON also reaches meta and detail reaches message. No fix, live DB proof, or independent convergence sign-off. |
 | `api/app/settings.py`, lines 1-140 (whole file) | L1 | **OPEN** | `gpt-6.1 sol` (OpenCode) | 2026-10-18 | `8704e9f5c97968d9161c4f5f889c0d0fa0a8be6c` | config | [Receipt + redacted PoC](scans/2026-10/l1-settings.md). Existing B-2 defaults confirmed; new B-8 CLI secret dump reproduced. Boolean type erasure handed to L2, not claimed as a bypass. No fix, live credential validation, or convergence sign-off. |
 
+## API L1 Campaign Receipts
+
+[Coverage inventory](scans/2026-10/l1-api-index.md) pins the 59-file API app
+denominator. Scope coverage is separate from vulnerability disposition and
+three-dry sign-off. No campaign PASS is claimed.
+
+| Scope | Source/date/model | Coverage | Disposition / evidence |
+|---|---|---|---|
+| A | `8af7e0fce`; 2026-10-18; `gpt-6.1 sol` | 794 lines | OPEN: [receipt](scans/2026-10/l1-api-a.md), L1-A-02 local manifest destination/JSON proxy primitive; sensitive-error sink remains unverified disclosure, not a confirmed protected-data leak. |
+| B | Same pin/date/model | 622 lines | OPEN: [receipt](scans/2026-10/l1-api-b.md), L1-B-01 unsigned destination/status trust in remote helper; no production reference found. Existing B-1/B-3 bounded evidence, not a live bypass. |
+| D | Same pin/date/model | 695 lines | OPEN: [receipt](scans/2026-10/l1-api-d.md), L1-D-01 expired-token principal production; L1-D-02 malformed/None expiry classified valid. No actual store mutation or CRUD grant demonstrated. |
+
 ## Not yet scanned (scan debt)
 
 The October audit covered the backend core + SDK. **Not yet scanned** (all STALE
