@@ -36,6 +36,7 @@ import { SaveProvider } from '@/context/SaveContext';
 import { NewPostSheet } from '@/components/Feed/NewPostSheet';
 import { SaveSheet } from '@/components/Feed/SaveSheet';
 import { PostDetailHarness } from './PostDetailHarness';
+import { ProductDetailHarness } from './ProductDetailHarness';
 
 // Fake hls.js — the harness has no backend, so the seeded manifest sigs are
 // not valid against the production API (a real hls.js would 403 → the
@@ -124,6 +125,8 @@ if (screen === 'install-prompt') {
 // directly (no Layout chrome) — the modal is the whole shot.
 if (screen === 'post-detail') {
   createRoot(document.getElementById('root')!).render(<PostDetailHarness />);
+} else if (screen === 'product-detail') {
+  createRoot(document.getElementById('root')!).render(<ProductDetailHarness />);
 } else {
   const initialRoute =
     screen === 'settings' ? '/settings'
@@ -171,6 +174,7 @@ if (screen === 'post-detail') {
         : screen === 'monetize-products' ? '/monetize?tab=products'
          : screen === 'monetize-analytics' ? '/monetize?tab=analytics'
          : screen === 'monetize-analytics-post' ? '/monetize?tab=analytics&post=doc-2'
+         : screen === 'monetize-analytics-ad' ? '/monetize?tab=analytics&ad=ad-1'
          : screen === 'monetize-node' ? '/monetize?tab=node'
         : screen === 'storefront' ? '/u/nova/store'
       : screen === 'node-settings' ? '/node-settings'

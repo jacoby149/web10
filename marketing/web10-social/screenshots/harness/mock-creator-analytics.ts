@@ -28,6 +28,8 @@ const SEED_ANALYTICS: CreatorAnalytics = {
     { doc_id: 'doc-6', impressions: 180, reach: 120, avgWatchPct: null },
     { doc_id: 'doc-7', impressions: 150, reach: 100, avgWatchPct: 0.81 },
     { doc_id: 'doc-8', impressions: 120, reach: 80, avgWatchPct: null },
+    { doc_id: 'ad-1', impressions: 5000, reach: 1200, avgWatchPct: null },
+    { doc_id: 'ad-2', impressions: 3000, reach: 800, avgWatchPct: null },
   ],
   totals: { impressions: 1860, reach: 1260 },
 };
@@ -72,6 +74,16 @@ const SEED_TOP_POSTS: TopPostDetail[] = [
     doc_id: 'doc-8', impressions: 120, reach: 80, avgWatchPct: null,
     label: 'Weekend vlog: city walk', thumbnailUrl: null,
     isAd: false, contentType: 'video', adFormat: 'inline',
+  },
+  {
+    doc_id: 'ad-1', impressions: 5000, reach: 1200, avgWatchPct: null,
+    label: 'Everything I use, linked.', thumbnailUrl: null,
+    isAd: true, contentType: 'post', adFormat: 'inline',
+  },
+  {
+    doc_id: 'ad-2', impressions: 3000, reach: 800, avgWatchPct: null,
+    label: 'The headphones', thumbnailUrl: null,
+    isAd: true, contentType: 'post', adFormat: 'post',
   },
 ];
 

@@ -10,6 +10,7 @@ import { projectEarnings, formatProjection, DEFAULT_RATES } from '@/data/ad-proj
 import { readCreatorAnalytics, readPostAnalytics, enrichTopPosts, type CreatorAnalytics, type TopPostDetail } from '@/data/creator-analytics';
 import { ReachCharts } from './ReachCharts';
 import { PostAnalyticsPanel } from './PostAnalyticsPanel';
+import { AdAnalyticsPanel } from './AdAnalyticsPanel';
 
 // The Analytics section (ads-october focus #5) — the "how it's performing"
 // view. A funnel, top to bottom:
@@ -62,6 +63,7 @@ export function AnalyticsSection() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [ads, setAds] = useState<AdItem[] | null>(null);
+  const [catalogPosts, setCatalogPosts] = useState<{ doc_id: string; label: string; pinnedAdTarget: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [analytics, setAnalytics] = useState<CreatorAnalytics>(EMPTY_ANALYTICS);
@@ -113,6 +115,62 @@ export function AnalyticsSection() {
     const ad = ads.find((a) => a.doc.doc_id === selectedPostId);
     return ad?.product ?? null;
   }, [selectedPostId, ads]);
+
+  // ── Tier 2b: the per-ad drill-down ─────────────────────────────────────────
+  // The URL holds which ad is open (`?ad=<doc_id>`), so refresh restores it
+  // and it's deep-linkable. Clicking an ad row in the Top Posts list (Ads tab)
+  // sets the param; the back button clears it. The ad's analytics load via
+  // `readPostAnalytics` (same seam as Tier 2 — the ad is a doc in the `posts`
+  // service). The reverse lookup (which posts carry this ad) uses the catalog's
+  // posts array: `post.ad_target === adId`.
+  const selectedAdId = searchParams.get('ad');
+  const [adAnalytics, setAdAnalytics] = useState<CreatorAnalytics>(EMPTY_ANALYTICS);
+  const [adLoading, setAdLoading] = useState(false);
+
+  const selectAd = useCallback((docId: string) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('ad', docId);
+    params.delete('post');
+    setSearchParams(params);
+  }, [searchParams, setSearchParams]);
+
+  const clearAd = useCallback(() => {
+    const params = new URLSearchParams(searchParams);
+    params.delete('ad');
+    setSearchParams(params);
+  }, [searchParams, setSearchParams]);
+
+  // Load the selected ad's analytics when the param changes.
+  useEffect(() => {
+    if (!selectedAdId) {
+      setAdAnalytics(EMPTY_ANALYTICS);
+      return;
+    }
+    setAdLoading(true);
+    readPostAnalytics(selectedAdId, windowDays)
+      .then(setAdAnalytics)
+      .finally(() => setAdLoading(false));
+  }, [selectedAdId, windowDays]);
+
+  // The selected ad's enriched detail (from the already-loaded topPostDetails).
+  const selectedAdDetail = useMemo(
+    () => topPostDetails.find((p) => p.doc_id === selectedAdId) ?? null,
+    [topPostDetails, selectedAdId],
+  );
+
+  // The selected ad's full item (offer, product, status, format).
+  const selectedAd = useMemo(() => {
+    if (!selectedAdId || !ads) return null;
+    return ads.find((a) => a.doc.doc_id === selectedAdId) ?? null;
+  }, [selectedAdId, ads]);
+
+  // The reverse lookup: which posts carry this ad (post.ad_target === adId).
+  const attachedPosts = useMemo(() => {
+    if (!selectedAdId) return [];
+    return catalogPosts
+      .filter((p) => p.pinnedAdTarget === selectedAdId)
+      .map((p) => ({ doc_id: p.doc_id, label: p.label, impressions: 0 }));
+  }, [selectedAdId, catalogPosts]);
   // True once the first load has completed. The first load shows the skeleton;
   // a window switch (7d/30d/90d) refreshes the charts in place (no blank flash,
   // so the window toggle stays in the DOM while the new data loads).
@@ -135,6 +193,15 @@ export function AnalyticsSection() {
       const catalog = await readMyCatalog();
       const productAds = catalog.ads.filter((a) => a.product);
       setAds(productAds);
+      // Store the catalog's posts for the Tier 2b reverse lookup (which posts
+      // carry a given ad: `post.ad_target === adId`).
+      setCatalogPosts(
+        (catalog.posts || []).map((p) => ({
+          doc_id: p.doc.doc_id,
+          label: p.text?.slice(0, 60) || 'Untitled post',
+          pinnedAdTarget: p.pinnedAdTarget || '',
+        })),
+      );
 
       // The D86 creator analytics over the selected window (the creator's own
       // content, I3-bound). A read failure degrades to the empty shape (the
@@ -195,6 +262,41 @@ export function AnalyticsSection() {
 
   // Tier 2: when a post is selected (`?post=<doc_id>`), the dashboard is
   // replaced by the per-post detail panel. The back button returns to Tier 1.
+  // Tier 2b: when an ad is selected (`?ad=<doc_id>`), the dashboard is
+  // replaced by the per-ad detail panel.
+  if (selectedAdId) {
+    if (adLoading || !selectedAdDetail || !selectedAd) {
+      return (
+        <div className="space-y-4" data-testid="analytics-section">
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="sm" onClick={clearAd} data-testid="ad-analytics-back" disabled={adLoading}>
+              Back
+            </Button>
+            <Skeleton className="h-9 w-48" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Skeleton className="h-24" />
+            <Skeleton className="h-24" />
+          </div>
+          <Skeleton className="h-56 w-full" />
+        </div>
+      );
+    }
+    return (
+      <div className="space-y-6" data-testid="analytics-section">
+        <AdAnalyticsPanel
+          adId={selectedAdId}
+          detail={selectedAdDetail}
+          analytics={adAnalytics}
+          windowDays={windowDays}
+          onBack={clearAd}
+          ad={selectedAd}
+          attachedPosts={attachedPosts}
+        />
+      </div>
+    );
+  }
+
   if (selectedPostId) {
     if (postLoading || !selectedPostDetail) {
       return (
@@ -330,6 +432,7 @@ export function AnalyticsSection() {
           onWindowChange={setWindowDays}
           topPostDetails={topPostDetails}
           onSelectPost={selectPost}
+          onSelectAd={selectAd}
         />
       )}
 
