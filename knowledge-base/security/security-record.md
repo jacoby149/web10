@@ -90,6 +90,9 @@ Inventory and line coverage do not establish service PASS or deployment security
 |---|---|---|
 | RTC | 5 files / 492 newlines | OPEN, existing BP-3. [Receipt](scans/2026-10/l1-rtc.md): 13 fake-dependency close/routing cases, no real PeerServer admission/identity exploit or dependency audit. |
 | B1 root orchestration/schema | 9 files / 729 newlines, 732 logical lines | OPEN, existing B-2. [Receipt](scans/2026-10/l1-backend-b1.md): static defaults, values withheld; ports/socket/build/schema handoffs are unverified integration questions, not deployed compromise. |
+| MA | 3 files / 657 lines | OPEN, existing B-2. [Receipt](scans/2026-10/l1-marketing-a.md): retired importer credential defaults; fake routing/stored-authority probes do not prove deployed SSRF or job takeover. |
+| MB | 4 files / 727 lines | [Receipt](scans/2026-10/l1-marketing-b.md): no confirmed local finding; untrusted data/service/URL propagation requires real consumers; review/sign-off pending, not PASS. |
+| MC | 9 files / 712 lines | OPEN. [Receipt](scans/2026-10/l1-marketing-c.md): L1-MC-01/02 local scaffold cancellation and replayed commission arithmetic; fake persistence, no Stripe money movement or signature-forged webhook effect demonstrated. |
 
 ## Remaining L1 Boundaries
 

@@ -15,15 +15,16 @@ assignments, not evidence. Whole-file manifests are in each receipt.
 
 | Scope | Files | Newlines | Logical lines | Receipt | Integration |
 |---|---:|---:|---:|---|---|
-| RTC runtime/packaging, including lock declarations | 5 | 492 | 492 | `l1-rtc.md` | Recorded |
-| B1 root compose/schema/bootstrap | 9 | 729 | 732 | `l1-backend-b1.md` | Recorded |
-| MA marketing import/writer/validation | 3 | 657 | 657 | `l1-marketing-a.md` | Pending |
-| MB marketing import mappers | 4 | 727 | 727 | `l1-marketing-b.md` | Pending |
-| MC marketing app/payment/reporting endpoints/models | 9 | 712 | 712 | `l1-marketing-c.md` | Pending |
+| RTC runtime/packaging, including lock declarations | 5 | 492 | 492 | `l1-rtc.md` | Merged #1212 |
+| B1 root compose/schema/bootstrap | 9 | 729 | 732 | `l1-backend-b1.md` | Merged #1212 |
+| MA marketing import/writer/validation | 3 | 657 | 657 | `l1-marketing-a.md` | Recorded |
+| MB marketing import mappers | 4 | 727 | 727 | `l1-marketing-b.md` | Recorded |
+| MC marketing app/payment/reporting endpoints/models | 9 | 712 | 712 | `l1-marketing-c.md` | Recorded |
 | PREVIEW shipped Node preview adapter | 3 | 422 | 422 | `l1-preview-backend.md` | Pending |
 
-Current included coverage: **14 distinct files / 1,221 newlines / 1,224 logical
-lines**. Three B1 files have unterminated final lines; full EOF was read. RTC
+Current included coverage: **30 distinct files / 3,317 newlines / 3,320 logical
+lines**, including all 16 marketing API app Python files/2,096 lines. Three B1
+files have unterminated final lines; full EOF was read. RTC
 lockfile review concerns declarations, not external implementation/advisory safety.
 Marketing API packaging, API migration tools/locks, Ubuntu, CI, root scripts,
 edge/build packaging and operator/CLI tooling remain selected inventory debt.
@@ -35,6 +36,14 @@ verifier routing/status trust and close paths, not actual pre-admission signalin
 JWT validation, impersonation or network reachability. B1 expands existing **B-2**
 static credential-default evidence; values are withheld and validity/deployment
 activation untested. No new duplicate IDs allocated for these issues.
+
+Marketing's retired HTTP/v2 importer remains code, not proof of deployed or active
+node-importer behavior. MA expands B-2 defaults; MB transformations are handoffs,
+not SSRF/XSS/path or publication exploits. MC's L1-MC-01/02 demonstrate local
+payout cancellation and conversion-accounting mutation/replay with fake stores/
+persistence. No Stripe provider call, money movement, durable production change,
+settlement consumer or forged webhook event is demonstrated. The webhook only
+acknowledges without state mutation. These findings stay OPEN.
 
 Fresh same-model reviewers independently checked source/count accounting and
 replayed applicable safe probes with inert sinks. Review corrections incorporated;
