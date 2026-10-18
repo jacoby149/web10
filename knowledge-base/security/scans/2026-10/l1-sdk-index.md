@@ -28,18 +28,18 @@ are not credited as runtime source scans. Context reads do not add coverage.
 
 | Scope | Owned logical ranges | Count | Receipt | Integration |
 |---|---|---:|---|---|
-| A | Whole browser.ts | 315 | `l1-sdk-a.md` | Recorded |
-| B | Whole http/index/token/types.ts | 271 | `l1-sdk-b.md` | Recorded |
-| C | Whole rtc/index.ts | 227 | `l1-sdk-c.md` | Recorded |
-| D | v3.ts 1-633 | 633 | `l1-sdk-d.md` | Pending |
-| E | v3.ts 634-1092 | 459 | `l1-sdk-e.md` | Pending |
-| F | v3.ts 1093-1683 | 591 | `l1-sdk-f.md` | Pending |
+| A | Whole browser.ts | 315 | `l1-sdk-a.md` | Merged #1219 |
+| B | Whole http/index/token/types.ts | 271 | `l1-sdk-b.md` | Merged #1219 |
+| C | Whole rtc/index.ts | 227 | `l1-sdk-c.md` | Merged #1219 |
+| D | v3.ts 1-633 | 633 | `l1-sdk-d.md` | Recorded |
+| E | v3.ts 634-1092 | 459 | `l1-sdk-e.md` | Recorded |
+| F | v3.ts 1093-1683 | 591 | `l1-sdk-f.md` | Recorded |
 
 Recorded rows claim line coverage only, not security sign-off. D/E/F have no
 gaps/overlap; E/F split between methods inside the same enclosing factory, not
 independent top-level functions. Mechanical accounting against pinned Git blobs
-reconciles every source line and includes type-only declarations. Pending rows
-are assignments, not published coverage.
+reconciles every source line and includes type-only declarations. All seven
+source files now have receipts; final D-F merge integration remains pending.
 
 ## Shipped Artifact Manifest (Mapped, Not Scanned)
 
@@ -91,3 +91,13 @@ coverage/calibration. Broader author-reported probe summaries are labeled as
 such, not all independently reproduced. No browser/network/real credentials or
 server grants tested; no three-dry/model-diverse sign-off or fix claimed.
 Source reads do not cover the copied artifacts above or close existing findings.
+
+## V3 Evidence Disposition
+
+D's shared permission-array mutation is local correctness evidence, not an
+unintended server grant. E's cookie-first metadata/state-first helper divergence
+is conditional local flow, not authenticated cross-account requests. F-01 is
+the base/legacy consent-response manifestation of A-01: one integrity class,
+location-specific aliases with joint regression/repair coverage. S-6 remains
+wildcard metadata hygiene; S-3 remains a functional tokenless-GET mismatch.
+All actual browser/caller/server effects and artifact correctness remain owed.

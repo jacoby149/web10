@@ -1,3 +1,6 @@
+3.236.3 || 18.10.2026
+docs(security): **SDK L1 batch 2 — v3 foundation/data/group/consent receipts D/E/F**, all 1,683 logical lines (1,682 newlines) at `caeed4427`, exhaustive contiguous coverage through EOF. F-01 and A-01 grouped as one consent-response class across public implementations; S-6 remains metadata hygiene and S-3 functional. Shared permission-array mutation and cookie/state flow are bounded local correctness/handoff evidence, not server grants or cross-account requests. Fresh reviewers replayed minimal probes and clarified broader summaries. Batch 1 #1219 merged; no runtime/bundle fixes, source-artifact assurance or security PASS.
+
 3.236.2 || 18.10.2026
 docs(security): **SDK L1 batch 1 — browser/token/RTC receipts A/B/C**, 813 logical lines (812 newlines) at `caeed4427`; established seven-source-file denominator plus explicit tests/generated/copied-artifact map. Existing S-1/S-6 reproduced; conditional consent-response findings grouped under one class, dictionary-only prototype/token selection recorded without browser/global-pollution/API-access claims. 166 SDK tests and typecheck pass; fresh reviewers replayed minimal probes and calibrated broader summaries. No runtime/bundle fixes, real-browser/server grants, artifact correspondence or security PASS. D91 receipt marked merged #1217.
 

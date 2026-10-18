@@ -106,6 +106,9 @@ Inventory and line coverage do not establish service PASS or deployment security
 | A browser adapter | 315 | OPEN: [receipt](scans/2026-10/l1-sdk-a.md), existing S-1 sender-unbound token acceptance and S-6 wildcard metadata; A-01 consent-response integrity alias grouped with F-01, not independent grants. |
 | B HTTP/token/exports/types | 271 | OPEN: [receipt](scans/2026-10/l1-sdk-b.md), L1-SDK-B-01 inherited token selection via a synthetic __proto__ cookie, not global prototype mutation or demonstrated browser cookie planting/API access. |
 | C RTC client | 227 | [Receipt](scans/2026-10/l1-sdk-c.md): no new confirmed C+I issue; existing BP-3 and real handshake/lifecycle/consumer authority remain unverified, not PASS. |
+| D v3 foundations | 633 | [Receipt](scans/2026-10/l1-sdk-d.md): no confirmed local C+I issue; shared permission-array mutation is correctness evidence, not a server grant; helper-consumer review pending. |
+| E v3 data/request methods | 459 | [Receipt](scans/2026-10/l1-sdk-e.md): no confirmed local C+I issue; cookie/state precedence and fake-helper flow do not establish authenticated cross-account requests; server/transport handoffs pending. |
+| F v3 groups/consent/types | 591 | OPEN: [receipt](scans/2026-10/l1-sdk-f.md), L1-SDK-F-01 alias with A-01 for unbound consent responses in different implementations; existing S-6 metadata wildcard and S-3 functional omission, no actual grant or token leak demonstrated. |
 
 ## Remaining L1 Boundaries
 
@@ -114,9 +117,10 @@ PASS or three-dry sign-off. Prior seed PASS labels are historical narrow reviews
 not complete contemporary file assurance. The worker's disproven PASS is withdrawn.
 The broader project L1 pass remains incomplete; excluded/unscanned surfaces include:
 
-- **SDK** — current source receipt integration is in progress (L1-008); seed
-  October rows never established exhaustive coverage. Artifact correspondence
-  and required independent security sign-off remain separate debt.
+- **SDK** — all current source lines have A-F receipts, final D-F merge integration
+  in progress (L1-008). Seed October rows never established this coverage;
+  open findings, artifact correspondence and required independent security
+  sign-off remain separate debt, not a campaign PASS.
 - **Frontend / render surface** — the XSS surface, the `rehype-sanitize` choke
   point, every `dangerouslySetInnerHTML`, the markdown render. (The audit's
   "pass 2," never started.)
