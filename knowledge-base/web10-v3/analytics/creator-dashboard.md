@@ -146,7 +146,18 @@ profile includes its monetization layer, not just its organic reach.
 the attached ad's `doc_id` (from `doc.ad` / `doc.node_ad` on the read) +
 the ad's own `contentAnalytics` rows (a second `readById` + filter).
 
-## Per-Ad Full Profile (Tier 2b, next PR)
+## Per-Ad Full Profile (Tier 2b) [built 3.235.12]
+
+The single-ad drill-down (`/monetize?tab=analytics&ad=<doc_id>`).
+Built in 3.235.12: `AdAnalyticsPanel.tsx` (the per-ad detail card),
+`AnalyticsSection.tsx` (reads `?ad=<doc_id>` from the URL, loads via
+`readPostAnalytics`, renders the panel in place of Tier 1), and
+`ReachCharts.tsx` (Top Posts rows route by type: content → Tier 2, ads → Tier 2b).
+The panel shows: the ad's identity (thumbnail + title + format + status + window),
+the two big numbers (impressions + reach), the daily time-series (Recharts
+ComposedChart), the surface breakdown, the attached posts (reverse lookup:
+`post.ad_target === adId`), and the product card (name + price + commission +
+the projection at the ad's actual impression count).
 
 The single-ad drill-down (`/monetize?tab=analytics&ad=<doc_id>`):
 

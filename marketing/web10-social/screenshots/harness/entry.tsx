@@ -171,6 +171,7 @@ if (screen === 'post-detail') {
         : screen === 'monetize-products' ? '/monetize?tab=products'
          : screen === 'monetize-analytics' ? '/monetize?tab=analytics'
          : screen === 'monetize-analytics-post' ? '/monetize?tab=analytics&post=doc-2'
+         : screen === 'monetize-analytics-ad' ? '/monetize?tab=analytics&ad=ad-1'
          : screen === 'monetize-node' ? '/monetize?tab=node'
         : screen === 'storefront' ? '/u/nova/store'
       : screen === 'node-settings' ? '/node-settings'
