@@ -13,9 +13,9 @@ Each receipt lists its exact owned files/ranges; context reads do not add covera
 
 ## Receipt Inventory
 
-`Recorded` means the receipt is included in this branch's documentation, not that
-the code passed security review. Pending rows claim no published coverage yet.
-Receipt names below live alongside this index.
+All A-R receipts are merged in #1202-#1207 after every PR check passed. This
+records completed line coverage, not security PASS. Receipt names below live
+alongside this index.
 
 | Scope | Owned surface | Lines | Receipt | Integration |
 |---|---|---:|---|---|
@@ -35,9 +35,9 @@ Receipt names below live alongside this index.
 | M | ClickHouse 1-790 | 790 | `l1-api-m.md` | Merged #1206 |
 | N | ClickHouse 791-1615 | 825 | `l1-api-n.md` | Merged #1206 |
 | O | ClickHouse 1616-2412 | 797 | `l1-api-o.md` | Merged #1206 |
-| P | ClickHouse 2413-3218 | 806 | `l1-api-p.md` | Recorded |
-| Q | ClickHouse 3219-4093 | 875 | `l1-api-q.md` | Recorded |
-| R | ClickHouse 4094-4944 | 851 | `l1-api-r.md` | Recorded |
+| P | ClickHouse 2413-3218 | 806 | `l1-api-p.md` | Merged #1207 |
+| Q | ClickHouse 3219-4093 | 875 | `l1-api-q.md` | Merged #1207 |
+| R | ClickHouse 4094-4944 | 851 | `l1-api-r.md` | Merged #1207 |
 
 ## Assurance Limits
 
@@ -60,3 +60,24 @@ No finding closes by merging documentation. Repairs need separate bounded PRs,
 red -> denied-green evidence and design-intent review. Handoffs require actual
 caller/sink/schema context at L2, not automatic promotion to vulnerabilities.
 Broader backend/runtime and later client surfaces remain separate inventory debt.
+
+## Open Work Map
+
+| Local scoped finding | Receipt | Remaining obligation |
+|---|---|---|
+| L1-A-02 | A | Manifest destination/JSON proxy primitive; validate deployed reach and fix without breaking legitimate listing. |
+| L1-B-01 | B | Unsigned remote-helper destination/status trust; no production reference found, so establish need/reach before any rollout or broad issuer rewrite. |
+| L1-D-01 / L1-D-02 | D | Expired-token principal production and weak session expiry classification; prove/deny at real entry points while preserving anon/public flows. |
+| L1-E-01 | E | Account bearer in group-detail query parameter; coordinate existing S7 transport work. |
+| L1-G-01 | G | Caller SQL reaches INFO logs; preserve useful nonsecret diagnostics and flexible queries. |
+| L1-H-01 | H | Identity-discarding object-signing handler; source concern and fake-sink proof are not live object retrieval; preserve legitimate cross-user media. |
+| L1-J-01 | J | Cross-job trace attribution; isolate records without discarding durable per-job diagnostics. |
+
+Existing B-1..B-8 and BP items keep their own dispositions. A-01 secret-bearing
+error sink remains an UNVERIFIED protected-data disclosure until a real reachable
+protected source is demonstrated. Other receipt candidates are L2+ investigation
+debt, not silently promoted findings or accepted safety claims.
+
+A final fresh same-model documentation reviewer verified accounting, source
+immutability, finding calibration and record consistency. No blocking issue;
+this is not an additional security rescan or three-dry/model-diverse sign-off.
