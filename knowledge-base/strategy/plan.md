@@ -43,7 +43,8 @@ finding closure, and a single-file scan does not establish whole-API coverage.
 - [✓ 3.235.6] **L1-003: main** — full 176-line coverage in A, merged #1202 alongside B/D; no runtime fixes or security PASS.
 - [✓ 3.235.11] **L1-004: remaining API app inventory** — all A-R receipts merged #1202-#1207; 59 files/13,236 lines at `8af7e0fce`, no gaps/overlap. `knowledge-base/security/scans/2026-10/l1-api-index.md`; findings, fixes and required security sign-off remain owed, no project-wide completion.
 - [✓ 3.235.13] **L1-005: remaining backend inventory** — merged #1212; 109 selected files/16,362 newlines; all 1,482 tracked paths reconciled at `db325cd3c`. Inventory is not scanning. `knowledge-base/security/scans/2026-10/l1-backend-inventory.md`.
-- [~] **L1-006: backend runtime receipts** — RTC/B1 #1212 and marketing API #1213 merged; preview integration pending. All 33 files/3,739 newlines scanned/reviewed at `db325cd3c`; `knowledge-base/security/scans/2026-10/l1-backend-index.md`. Source coverage only, no fixes or security PASS.
+- [✓ 3.235.15] **L1-006: backend runtime receipts** — RTC/B1 #1212, marketing API #1213 and preview #1214 merged; 33 files/3,739 newlines (3,742 logical lines) at `db325cd3c`. `knowledge-base/security/scans/2026-10/l1-backend-index.md`; source coverage only, no fixes or security PASS.
+- [ ] **L1-007: packaging and migration tools** — two bounded scopes: marketing API packaging (3 files/911 newlines) and API packaging/migration tools (7 files/684); exact manifests/gates in lane queue and backend inventory. No source/credential values or deployment assurance implied by declaration review.
 
 ## Security Hardening Extraction (PRs 1157 / 1159)
 

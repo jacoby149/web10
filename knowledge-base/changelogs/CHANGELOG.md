@@ -1,3 +1,6 @@
+3.235.16 || 18.10.2026
+docs(security): **remaining-backend wave closeout — #1212/#1213/#1214 merged, every check green**, all PRs below 500 changed lines. Ticked L1-005 inventory and L1-006 bounded scans; 33 additional files/3,739 newlines (3,742 logical lines) covered without runtime edits, including RTC, all marketing app Python, root bootstrap and shipped preview. Exact source accounting verified; 76 selected files/12,623 newlines and broader client/artifact work remain explicit debt. Queued two bounded packaging/migration scopes as L1-007. B-2/BP-3 and local payment-scaffold findings remain OPEN; no security PASS, remediation or whole-project completion.
+
 3.235.15 || 18.10.2026
 docs(security): **shipped Node share-preview backend L1 receipt**, three files/422 lines at `db325cd3c`; fixed-origin anonymous composition, spec handling, markdown flattening and server dispatch covered with offline VM probes and fresh review. No renderer/browser exploit, SSRF or private-content disclosure claimed. Ghost-post generic HTTP 200 vs intended 404 retained as correctness debt. Marketing API #1213 merged; additional backend wave now covers 33 files/3,739 newlines (3,742 logical), with 76 inventoried files/12,623 newlines still explicitly unscanned. No runtime changes or service PASS.
 

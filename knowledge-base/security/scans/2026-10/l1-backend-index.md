@@ -10,8 +10,8 @@ is not a scan. Counts are newlines; reads must include an unterminated final lin
 
 ## Receipt Integration
 
-Only Recorded/Merged rows claim published source coverage. Pending rows are
-assignments, not evidence. Whole-file manifests are in each receipt.
+All rows below are merged after every PR check passed. Integration records
+source coverage, not security PASS. Whole-file manifests are in each receipt.
 
 | Scope | Files | Newlines | Logical lines | Receipt | Integration |
 |---|---:|---:|---:|---|---|
@@ -20,7 +20,7 @@ assignments, not evidence. Whole-file manifests are in each receipt.
 | MA marketing import/writer/validation | 3 | 657 | 657 | `l1-marketing-a.md` | Merged #1213 |
 | MB marketing import mappers | 4 | 727 | 727 | `l1-marketing-b.md` | Merged #1213 |
 | MC marketing app/payment/reporting endpoints/models | 9 | 712 | 712 | `l1-marketing-c.md` | Merged #1213 |
-| PREVIEW shipped Node preview adapter | 3 | 422 | 422 | `l1-preview-backend.md` | Recorded |
+| PREVIEW shipped Node preview adapter | 3 | 422 | 422 | `l1-preview-backend.md` | Merged #1214 |
 
 Current included coverage: **33 distinct files / 3,739 newlines / 3,742 logical
 lines**, including all 16 marketing API app Python files/2,096 lines. Three B1
@@ -60,10 +60,19 @@ No finding closes when its receipt merges. Existing API app coverage is unchange
 
 ## Next Boundary
 
-After pending receipt integration, follow the exact remaining manifests in the
-inventory: marketing packaging (3 files/911 newlines), API packaging/migration
+Follow the exact remaining manifests in the inventory: next task L1-007 is
+marketing packaging (3 files/911 newlines), API packaging/migration
 tools (7 files/684 excluding the separately split lock), then remaining lock,
 Ubuntu/CI/scripts/edge/operator scopes. Preview files, once recorded above, must
 not be recounted inside inventory B9; that leaves six root scripts/440 newlines.
 Client/shared source, copied bundles, artifact integrity, deployed state and
 dependencies remain explicitly separate debt, not excluded as inherently safe.
+
+## Closeout
+
+Inventory/RTC/B1 merged #1212; all marketing app Python receipts merged #1213;
+shipped preview merged #1214. Mechanical pin comparison confirms all 33 source
+files unchanged and disjoint, with full logical EOF coverage. This closes only
+the inventory and bounded receipt tasks, not the remaining 76 selected files,
+broader client/artifact surfaces, open findings, L2 handoffs or required sign-off.
+No production credential exposure assessment or runtime remediation occurred.
