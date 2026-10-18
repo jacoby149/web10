@@ -114,6 +114,16 @@ demonstrated. Preserve authorized cross-user/group media and public thumbnails
 when fixing it; arbitrary object-key forwarding is not the same as an authorized
 document capability. C/I have no confirmed local findings, not a safety PASS.
 
+### 2026-10-18: document/group/query endpoint L1 receipts
+
+E/F/G distinguish generic authority delegation from proven local sinks. L1-E-01
+records account-token URL transport: intentional body tokens and scoped HLS
+capabilities do not exempt account credentials in query strings. Existing S7
+already owns the related transport repair. L1-G-01 reproduces caller SQL literals
+in INFO logging with separate request/stub-compiled assertions, not SQL injection
+or demonstrated credential theft. Actual compiler preservation, log access and
+retention remain unverified. F's unchecked helper boundaries remain L2 debt.
+
 ## Known gaps (the "obvious gap" register)
 
 Gaps the orient has surfaced. Each is either a `BP-n` or a standing note:
