@@ -41,6 +41,16 @@ measure. Re-scan after the hardening merges to flip them.
 | federation signing (I1) | L4 | **OPEN** | — | — | — | federation | B-1 / D7 — HS256 → RS256/EdDSA + JWKS (cross-node). See `BP-1` |
 | delegation model (I5) | L3 | **OPEN** | — | — | — | auth | scoped app-management delegation (within the API service). See `BP-2`. Hardening in 1157 (unmerged) |
 
+## Commit-pinned L1 scans
+
+These receipts supplement the seed audit; they do not upgrade unrelated seed
+PASS rows to complete file coverage. `Scan commit` pins the source even for OPEN
+rows; no successful fix/last-pass is implied.
+
+| Unit | Level | Status | Model | Date | Scan commit | Sys | Evidence |
+|---|---|---|---|---|---|---|---|
+| `api/app/middleware.py`, lines 1-143 (whole file) | L1 | **OPEN** | `gpt-6.1 sol` (OpenCode) | 2026-10-18 | `d86658be6d9bb202bbab981a918a6b69c9bde966` | logging | [Receipt + synthetic PoC](scans/2026-10/l1-middleware.md). Existing B-4 reproduced: request/response tokens reach insert arguments; error JSON also reaches meta and detail reaches message. No fix, live DB proof, or independent convergence sign-off. |
+
 ## Not yet scanned (scan debt)
 
 The October audit covered the backend core + SDK. **Not yet scanned** (all STALE
