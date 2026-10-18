@@ -31,6 +31,14 @@ says what can happen **at the same time**.
 
 ## Lanes
 
+### Lane: security-l1-scans
+**Owns:** Scope-specific receipts under `knowledge-base/security/scans/`, with
+central record/learnings/plan/changelog updates serialized by the scan coordinator.
+API files are read-only. Do not implement extraction-lane fixes in scan PRs.
+
+- [~] **L1-001: middleware** — scan complete, receipt PR pending merge; all 143 lines at `d86658be6`, B-4 reproduced and OPEN; `knowledge-base/security/scans/2026-10/l1-middleware.md`.
+- [ ] **L1-002: settings** — scan all of `api/app/settings.py` at a pinned dev commit; redact credential values, record checklist coverage and safe evidence; no runtime edits. Gates: orient against learnings/checklist, exact scope/model/date/commit receipt, demonstrated findings or explicit unresolved limitations, docs-only PR <=500 changed lines, all CI green. Acceptance: every line accounted for, no secrets published, no unsupported PASS or fix claim.
+
 ### Lane: security-hardening-extraction (PRs 1157 / 1159)
 **Owns:** Domain/function hunks as assigned in `security-hardening-extraction.md`,
 not blanket ownership of API/SDK/UI directories. S3 coordinates shared contracts

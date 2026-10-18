@@ -33,6 +33,14 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
+## L1 Security Scans
+
+Read-only receipts first; one finding per later fix PR. Scan completion is not
+finding closure, and a single-file scan does not establish whole-API coverage.
+
+- [~] **L1-001: middleware** — whole-file scan complete at `d86658be6`; receipt PR pending merge. Existing B-4 reproduced and remains OPEN. Evidence: `knowledge-base/security/scans/2026-10/l1-middleware.md`.
+- [ ] **L1-002: settings** — scan all of `api/app/settings.py` at a pinned dev commit; redact credential values, record checklist coverage and safe evidence; no runtime edits.
+
 ## Security Hardening Extraction (PRs 1157 / 1159)
 
 The two overlapping implementations are pinned references, not final merge

@@ -61,6 +61,17 @@ with no redaction between. Neither file is vulnerable in isolation; only the **e
 is. That is exactly what L2 (the direct call graph) catches and L1 (one file)
 cannot. Keep this as the worked example when explaining the ladder.
 
+### 2026-10-18: B-4 reproduced at a pinned commit (still open)
+
+The [whole-file middleware L1 scan](scans/2026-10/l1-middleware.md) at
+`d86658be6d9bb202bbab981a918a6b69c9bde966` demonstrated synthetic request and
+response tokens reaching the real logger's ClickHouse insert arguments. Error
+responses also duplicate the JSON into `meta` and `detail` into `message`;
+truncation is not redaction. A future B-4 repair must cover those copies too.
+No production exposure, live database persistence, or fix is claimed. The unsigned
+JWT decode feeds log attribution only within this file; it does not demonstrate
+an authorization bypass. Whether another consumer trusts that column is L2+ debt.
+
 ## Known gaps (the "obvious gap" register)
 
 Gaps the orient has surfaced. Each is either a `BP-n` or a standing note:
