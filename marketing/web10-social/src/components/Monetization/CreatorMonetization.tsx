@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo, type ReactNode } from 'react';
-import { Megaphone, Plus, Pause, Play, Trash2, Pin, FolderPlus, AlertTriangle, RefreshCw, GraduationCap, ArrowUpRight, X, Pencil, ImagePlus, Radio } from 'lucide-react';
+import { Megaphone, Plus, Pause, Play, Trash2, Pin, FolderPlus, AlertTriangle, RefreshCw, GraduationCap, ArrowUpRight, X, Pencil, ImagePlus, Radio, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -62,6 +62,30 @@ const AFFILIATE_PROGRAMS: AffiliateProgram[] = [
   { name: 'PartnerStack', niche: 'SaaS / B2B software marketplace', commission: 'Varies by program (often 20–50% recurring)', why: 'One signup, one dashboard, hundreds of SaaS programs — a catalog, like Amazon, but for software.', signupUrl: 'https://dash.partnerstack.com/marketplace' },
 ];
 
+// The affiliate onboarding card is collapsible. It defaults to COLLAPSED once a
+// creator has ads (after the first affiliate account it's onboarding noise that
+// pushes the ad catalog down) and EXPANDED for a fresh creator (no ads yet — the
+// "START HERE" sign-up ramp is the most useful thing on the page). An explicit
+// toggle overrides the default and is remembered in localStorage.
+const AFFILIATE_OPEN_KEY = 'w10-affiliate-programs-open';
+function readStoredAffiliateOpen(): 'open' | 'closed' | null {
+  try {
+    const v = localStorage.getItem(AFFILIATE_OPEN_KEY);
+    if (v === 'open') return 'open';
+    if (v === 'closed') return 'closed';
+    return null;
+  } catch {
+    return null;
+  }
+}
+function writeStoredAffiliateOpen(open: boolean) {
+  try {
+    localStorage.setItem(AFFILIATE_OPEN_KEY, open ? 'open' : 'closed');
+  } catch {
+    // private mode / storage disabled — the toggle still works for this visit.
+  }
+}
+
 /**
  * The Monetization Ads section (D55, D57, D75) — the ad catalog, the affiliate
  * onboarding, and (for the node admin) the node-ad inventory.
@@ -97,6 +121,29 @@ export function CreatorMonetization({ isAdmin = false }: { isAdmin?: boolean }) 
   const [filterAlbum, setFilterAlbum] = useState<string | null>(null);
   // The ad-list scope filter (node admin only): all | regular | node.
   const [scopeFilter, setScopeFilter] = useState<'all' | 'regular' | 'node'>('all');
+
+  // The affiliate onboarding card's open/closed state. `null` = undecided (the
+  // catalog hasn't settled yet, so the smart default can't be computed).
+  const [affiliateOpen, setAffiliateOpen] = useState<boolean | null>(null);
+
+  // Decide the default once the catalog has settled (loaded or errored): an
+  // explicit stored choice wins; otherwise the smart default (open for a fresh
+  // creator with no ads, collapsed once they have ads).
+  useEffect(() => {
+    if (affiliateOpen !== null || loading) return;
+    const stored = readStoredAffiliateOpen();
+    if (stored === 'open') setAffiliateOpen(true);
+    else if (stored === 'closed') setAffiliateOpen(false);
+    else setAffiliateOpen((data?.ads.length || 0) === 0);
+  }, [affiliateOpen, loading, data]);
+
+  const toggleAffiliate = () => {
+    setAffiliateOpen((prev) => {
+      const next = !(prev === null ? false : prev);
+      writeStoredAffiliateOpen(next);
+      return next;
+    });
+  };
 
   const openNewAd = () => { setEditingAdId(null); setNewAdOpen(true); };
   const openEditAd = (ad: AdItem) => { setNewAdOpen(false); setEditingAdId(ad.doc.doc_id); };
@@ -290,35 +337,62 @@ export function CreatorMonetization({ isAdmin = false }: { isAdmin?: boolean }) 
 
   return (
     <div className="space-y-6" data-testid="creator-monetization">
-      {/* The affiliate onboarding — "get started". */}
-      <div className="rounded border border-border bg-card p-5" data-testid="affiliate-programs-card">
-        <div className="flex items-start gap-3">
+      {/* The affiliate onboarding — "get started". Collapsible: it defaults to
+          collapsed once a creator has ads (onboarding noise after the first
+          affiliate account) and expanded for a fresh creator (no ads yet). An
+          explicit toggle overrides the default and is remembered. */}
+      <div className="rounded border border-border bg-card" data-testid="affiliate-programs-card">
+        <div
+          role="button"
+          tabIndex={0}
+          aria-expanded={affiliateOpen === true}
+          onClick={toggleAffiliate}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              toggleAffiliate();
+            }
+          }}
+          className="flex cursor-pointer items-center gap-3 p-5 text-left transition-colors hover:bg-elevated/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+          data-testid="affiliate-programs-toggle"
+        >
           <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded bg-elevated text-muted-foreground">
             <GraduationCap className="h-6 w-6" strokeWidth={1.5} />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <h3 className="font-display text-lg font-medium text-foreground">Affiliate Programs</h3>
-              <Badge variant="brand">START HERE</Badge>
+              <Badge variant="brand" className="whitespace-nowrap">START HERE</Badge>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              Sign up for the programs that match what you post — then make your first ad below. The link pays you; web10 just delivers it.
+              Sign up for the programs that match what you post — then make your first ad below.
             </p>
-            <div className="mt-3 flex flex-wrap gap-2">
+          </div>
+          <ChevronDown
+            className={cn(
+              'h-5 w-5 flex-shrink-0 text-muted-foreground transition-transform duration-150',
+              affiliateOpen === true && 'rotate-180',
+            )}
+            strokeWidth={1.5}
+          />
+        </div>
+        {affiliateOpen === true && (
+          <div className="border-t border-border p-5 pt-4" data-testid="affiliate-programs-body">
+            <div className="flex flex-wrap gap-2">
               <Badge variant="outline">No audience minimum</Badge>
               <Badge variant="outline">You keep 100%</Badge>
               <Badge variant="outline">Pays you, not the node</Badge>
             </div>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              {AFFILIATE_PROGRAMS.map((program) => (
+                <ProgramRow key={program.name} program={program} />
+              ))}
+            </div>
+            <p className="mt-4 text-xs text-muted-foreground">
+              Rates and cookie windows shift — confirm on the program&apos;s page before you pitch a brand off them.
+            </p>
           </div>
-        </div>
-        <div className="mt-4 grid gap-2 sm:grid-cols-2">
-          {AFFILIATE_PROGRAMS.map((program) => (
-            <ProgramRow key={program.name} program={program} />
-          ))}
-        </div>
-        <p className="mt-4 text-xs text-muted-foreground">
-          Rates and cookie windows shift — confirm on the program&apos;s page before you pitch a brand off them.
-        </p>
+        )}
       </div>
 
       {/* The node-ad controls (node admin only) — the density + overwrite

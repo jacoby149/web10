@@ -70,6 +70,7 @@ const EMPTY_ANALYTICS = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear();
   readMyCatalog.mockResolvedValue(EMPTY_CATALOG);
   readNodeAds.mockResolvedValue([]);
   getNodeConfig.mockResolvedValue({ node_ad_percentage: 10 });
@@ -150,6 +151,90 @@ describe('MonetizationScreen', () => {
     fireEvent.click(screen.getByTestId('monetization-tab-analytics'));
     expect(await screen.findByTestId('analytics-section')).toBeInTheDocument();
     expect(screen.queryByTestId('creator-monetization')).not.toBeInTheDocument();
+  });
+});
+
+describe('Affiliate Programs card — collapsible (hidden by default once you have ads)', () => {
+  const AD = {
+    doc: { doc_id: 'ad-1', tags: ['ad'] },
+    text: 'Everything I use, linked.',
+    offer: { kind: 'affiliate', partner: 'Amazon', link: 'https://amzn.to/abc', cta: 'Get it', disclosure: '' },
+    status: 'active' as const,
+    media_refs: undefined,
+    format: 'inline' as const,
+    albums: [] as string[],
+  };
+
+  it('is collapsed by default for a creator who has ads', async () => {
+    checkNodeAdmin.mockResolvedValue(false);
+    readMyCatalog.mockResolvedValue({ ads: [AD], albums: [], posts: [] });
+    renderAt('/monetize');
+    // The toggle (the card header) is always present.
+    const toggle = await screen.findByTestId('affiliate-programs-toggle');
+    // Wait for the catalog to load (the ad row proves the data is in), so the
+    // smart default has decided.
+    await screen.findByTestId('ads-row-ad-1');
+    // A creator with ads gets the card collapsed (the onboarding is noise).
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByTestId('affiliate-programs-body')).not.toBeInTheDocument();
+  });
+
+  it('is expanded by default for a fresh creator (no ads yet)', async () => {
+    checkNodeAdmin.mockResolvedValue(false);
+    readMyCatalog.mockResolvedValue(EMPTY_CATALOG);
+    renderAt('/monetize');
+    // No ads → the "START HERE" onboarding is open by default.
+    const body = await screen.findByTestId('affiliate-programs-body');
+    expect(body).toBeInTheDocument();
+    expect(screen.getByTestId('affiliate-programs-toggle')).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('toggles open/closed and remembers the choice in localStorage', async () => {
+    checkNodeAdmin.mockResolvedValue(false);
+    readMyCatalog.mockResolvedValue({ ads: [AD], albums: [], posts: [] });
+    renderAt('/monetize');
+    const toggle = await screen.findByTestId('affiliate-programs-toggle');
+    await screen.findByTestId('ads-row-ad-1'); // let the smart default decide
+    // Collapsed by default (has ads).
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByTestId('affiliate-programs-body')).not.toBeInTheDocument();
+    // Open it.
+    fireEvent.click(toggle);
+    expect(screen.getByTestId('affiliate-programs-body')).toBeInTheDocument();
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(localStorage.getItem('w10-affiliate-programs-open')).toBe('open');
+    // Close it again.
+    fireEvent.click(toggle);
+    expect(screen.queryByTestId('affiliate-programs-body')).not.toBeInTheDocument();
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(localStorage.getItem('w10-affiliate-programs-open')).toBe('closed');
+  });
+
+  it('is keyboard operable (Enter / Space toggle the card)', async () => {
+    checkNodeAdmin.mockResolvedValue(false);
+    readMyCatalog.mockResolvedValue({ ads: [AD], albums: [], posts: [] });
+    renderAt('/monetize');
+    const toggle = await screen.findByTestId('affiliate-programs-toggle');
+    await screen.findByTestId('ads-row-ad-1');
+    expect(screen.queryByTestId('affiliate-programs-body')).not.toBeInTheDocument();
+    fireEvent.keyDown(toggle, { key: 'Enter' });
+    expect(screen.getByTestId('affiliate-programs-body')).toBeInTheDocument();
+    fireEvent.keyDown(toggle, { key: ' ' });
+    expect(screen.queryByTestId('affiliate-programs-body')).not.toBeInTheDocument();
+  });
+
+  it('an explicit stored choice overrides the smart default', async () => {
+    checkNodeAdmin.mockResolvedValue(false);
+    // A fresh creator (no ads) but explicitly closed → stays closed (the smart
+    // default would be "open" for no ads, but the stored choice wins).
+    localStorage.setItem('w10-affiliate-programs-open', 'closed');
+    readMyCatalog.mockResolvedValue(EMPTY_CATALOG);
+    renderAt('/monetize');
+    // Wait for the catalog to load (the empty state proves the data is in), so
+    // the decision effect has run.
+    await screen.findByTestId('ads-empty');
+    expect(screen.queryByTestId('affiliate-programs-body')).not.toBeInTheDocument();
+    expect(screen.getByTestId('affiliate-programs-toggle')).toHaveAttribute('aria-expanded', 'false');
   });
 });
 
