@@ -398,7 +398,10 @@ class TestIterDataEntries:
 class TestRecordEvent:
     def test_inserts_row_with_monotonic_seq(self):
         captured = []
-        with patch("app.v3.services.clickhouse.client.insert", side_effect=lambda t, rows, column_names=None: captured.append(rows[0])):
+        with patch(
+            "app.v3.services.clickhouse.client.insert",
+            side_effect=lambda t, rows, column_names=None: captured.append(rows[0]),
+        ):
             iw.record_event("j1", "download", "ok", "parts=1")
             iw.record_event("j1", "parse", "ok", "records=5")
         assert len(captured) == 2

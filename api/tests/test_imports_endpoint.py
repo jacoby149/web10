@@ -318,7 +318,13 @@ class TestTrace:
         events = [
             {"seq": 1, "stage": "download", "status": "ok", "detail": "parts=1", "created_at": "2026-01-01T00:00:00"},
             {"seq": 2, "stage": "parse", "status": "ok", "detail": "records=5", "created_at": "2026-01-01T00:00:01"},
-            {"seq": 3, "stage": "log", "status": "info", "detail": "INFO [import] ...", "created_at": "2026-01-01T00:00:02"},
+            {
+                "seq": 3,
+                "stage": "log",
+                "status": "info",
+                "detail": "INFO [import] ...",
+                "created_at": "2026-01-01T00:00:02",
+            },
         ]
         with (
             patch("app.v3.services.import_worker.get_import_job", return_value=_job()),
