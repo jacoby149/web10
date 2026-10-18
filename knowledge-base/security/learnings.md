@@ -92,6 +92,63 @@ KB); the source comment's replace-vs-union mismatch is not proof of an auth bug.
 B-7 already means token lifetime in the October backend audit; the new dump
 finding deliberately uses B-8 instead.
 
+### 2026-10-18: API L1 campaign, identity/system receipts
+
+[Inventory](scans/2026-10/l1-api-index.md) separates full source accounting from
+security sign-off. A/B/D record local manifest fetch routing, unused remote-helper
+destination/status trust, expired signed-token principal production and weak
+session-expiry classification. See their scoped IDs for exact proofs and limits.
+No live private-network access or database mutation is claimed. Manufactured
+secret-bearing errors only demonstrate an unredacted sink: until a reachable
+protected-value source is shown, that disclosure remains UNVERIFIED. These
+receipts do not close B-1/B-3 or imply the caller/storage gates are safe.
+
+### 2026-10-18: media/reporting API L1 receipts
+
+Scopes C/H/I add media services and media/import/preview/reporting endpoints.
+L1-H-01 shows a source-level object-authorization concern: the read-URL handler
+discards the authenticated identity and passes caller-selected keys to signing
+without an intervening object check. Its dynamic proof uses fake auth/signing
+sinks; actual authenticated HTTP access and private-object retrieval are not
+demonstrated. Preserve authorized cross-user/group media and public thumbnails
+when fixing it; arbitrary object-key forwarding is not the same as an authorized
+document capability. C/I have no confirmed local findings, not a safety PASS.
+
+### 2026-10-18: document/group/query endpoint L1 receipts
+
+E/F/G distinguish generic authority delegation from proven local sinks. L1-E-01
+records account-token URL transport: intentional body tokens and scoped HLS
+capabilities do not exempt account credentials in query strings. Existing S7
+already owns the related transport repair. L1-G-01 reproduces caller SQL literals
+in INFO logging with separate request/stub-compiled assertions, not SQL injection
+or demonstrated credential theft. Actual compiler preservation, log access and
+retention remain unverified. F's unchecked helper boundaries remain L2 debt.
+
+### 2026-10-18: import traces and compiler L1 receipts
+
+L1-J-01 reproduces cross-job log attribution using two synchronized synthetic
+job contexts, actual handlers/event functions and an in-memory insert sink.
+Shared logger handlers lack a job/thread filter, so A's message is inserted into
+A and B traces. Concurrency/overlap is a precondition; production concurrency,
+cross-owner endpoint disclosure and historical exposure remain untested. The
+old worker PASS is withdrawn: an owner gate on reads cannot isolate already
+misattributed stored events. Preserve detailed per-job diagnostics in a fix.
+
+K's parser still reads the whole remaining stream; that contradicts flat-RAM
+durability prose but is reliability debt, not an added C+I finding. L's compiler
+acceptance probes do not execute ClickHouse: qualified names, scalar functions
+and settings are handoffs, not demonstrated raw-store access or injection.
+
+### 2026-10-18: storage foundations L1 receipts
+
+M/N/O account for ClickHouse lines 1-2412 without finding a demonstrated local
+exploit. Legacy migration classification, member permission shortcuts, selected
+tombstone reads, revocation ties and optional membership joins remain explicit
+L2+ candidates, not blanket access-control failures. `read_documents` ranks
+versions before filtering deleted rows; do not generalize prefilter behavior from
+different getters. D80 social membership visibility and intentional public grants
+must survive future fixes; no helper or migration is certified safe by this scan.
+
 ## Known gaps (the "obvious gap" register)
 
 Gaps the orient has surfaced. Each is either a `BP-n` or a standing note:
