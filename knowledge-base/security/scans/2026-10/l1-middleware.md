@@ -9,7 +9,7 @@ bounded scan checks the logger itself; it does not claim coverage of the API.
 - Level: L1, file-local only.
 - Source commit: `d86658be6d9bb202bbab981a918a6b69c9bde966` (`origin/dev` at scan time).
 - Date: 2026-10-18.
-- Scanner: OpenCode, model `openrouter/openai/gpt-6.1-sol`.
+- Scanner: OpenCode, model `gpt-6.1 sol` (API ID: `openrouter/openai/gpt-6.1-sol`).
 - Result: **OPEN**, existing finding **B-4 reproduced**, not a new finding or fix.
 - Runtime changes: none. No live database, network, production credentials, or user data used.
 - Independent convergence reviews: not performed; no three-dry sign-off claimed.

@@ -49,7 +49,7 @@ rows; no successful fix/last-pass is implied.
 
 | Unit | Level | Status | Model | Date | Scan commit | Sys | Evidence |
 |---|---|---|---|---|---|---|---|
-| `api/app/middleware.py`, lines 1-143 (whole file) | L1 | **OPEN** | `openrouter/openai/gpt-6.1-sol` (OpenCode) | 2026-10-18 | `d86658be6d9bb202bbab981a918a6b69c9bde966` | logging | [Receipt + synthetic PoC](scans/2026-10/l1-middleware.md). Existing B-4 reproduced: request/response tokens reach insert arguments; error JSON also reaches meta and detail reaches message. No fix, live DB proof, or independent convergence sign-off. |
+| `api/app/middleware.py`, lines 1-143 (whole file) | L1 | **OPEN** | `gpt-6.1 sol` (OpenCode) | 2026-10-18 | `d86658be6d9bb202bbab981a918a6b69c9bde966` | logging | [Receipt + synthetic PoC](scans/2026-10/l1-middleware.md). Existing B-4 reproduced: request/response tokens reach insert arguments; error JSON also reaches meta and detail reaches message. No fix, live DB proof, or independent convergence sign-off. |
 
 ## Not yet scanned (scan debt)
 
