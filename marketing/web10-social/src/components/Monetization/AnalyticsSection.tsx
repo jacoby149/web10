@@ -5,12 +5,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { errorMessage } from '@/components/shared/Toast';
-import { readMyCatalog, type AdItem } from '@/data/ads-catalog';
+import { readMyCatalog, type AdItem, type ProductItem } from '@/data/ads-catalog';
 import { projectEarnings, formatProjection, DEFAULT_RATES } from '@/data/ad-projection';
 import { readCreatorAnalytics, readPostAnalytics, enrichTopPosts, type CreatorAnalytics, type TopPostDetail } from '@/data/creator-analytics';
 import { ReachCharts } from './ReachCharts';
 import { PostAnalyticsPanel } from './PostAnalyticsPanel';
 import { AdAnalyticsPanel } from './AdAnalyticsPanel';
+import { ProductAnalyticsPanel } from './ProductAnalyticsPanel';
 
 // The Analytics section (ads-october focus #5) — the "how it's performing"
 // view. A funnel, top to bottom:
@@ -64,6 +65,8 @@ export function AnalyticsSection() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [ads, setAds] = useState<AdItem[] | null>(null);
   const [catalogPosts, setCatalogPosts] = useState<{ doc_id: string; label: string; pinnedAdTarget: string }[]>([]);
+  const [catalogProducts, setCatalogProducts] = useState<ProductItem[]>([]);
+  const [allAds, setAllAds] = useState<AdItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [analytics, setAnalytics] = useState<CreatorAnalytics>(EMPTY_ANALYTICS);
@@ -171,6 +174,71 @@ export function AnalyticsSection() {
       .filter((p) => p.pinnedAdTarget === selectedAdId)
       .map((p) => ({ doc_id: p.doc_id, label: p.label, impressions: 0 }));
   }, [selectedAdId, catalogPosts]);
+
+  // ── Tier 5: the per-product aggregate drill-down ───────────────────────────
+  // The URL holds which product is open (`?product=<doc_id>`). Clicking the
+  // product card in the Tier 2b ad panel sets the param. The product's ads are
+  // filtered from the full catalog by `product_id`; each ad's analytics load
+  // via `readPostAnalytics` (same seam as Tier 2/2b). The reverse lookup
+  // (which posts carry this product's ads) uses the catalog's posts array.
+  const selectedProductId = searchParams.get('product');
+  const [productLoading, setProductLoading] = useState(false);
+  const [productAdAnalytics, setProductAdAnalytics] = useState<Map<string, CreatorAnalytics>>(new Map());
+
+  const selectProduct = useCallback((docId: string) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('product', docId);
+    params.delete('ad');
+    params.delete('post');
+    setSearchParams(params);
+  }, [searchParams, setSearchParams]);
+
+  const clearProduct = useCallback(() => {
+    const params = new URLSearchParams(searchParams);
+    params.delete('product');
+    setSearchParams(params);
+  }, [searchParams, setSearchParams]);
+
+  // The product's ads (filtered from the full catalog by product_id).
+  const productAdsForSelection = useMemo(() => {
+    if (!selectedProductId) return [];
+    return allAds.filter((a) => a.product_id === selectedProductId);
+  }, [selectedProductId, allAds]);
+
+  // Load each of the product's ads' analytics when the selection changes.
+  useEffect(() => {
+    if (!selectedProductId) {
+      setProductAdAnalytics(new Map());
+      return;
+    }
+    const ads = allAds.filter((a) => a.product_id === selectedProductId);
+    if (ads.length === 0) return;
+    setProductLoading(true);
+    Promise.all(
+      ads.map(async (ad) => {
+        const a = await readPostAnalytics(ad.doc.doc_id, windowDays);
+        return [ad.doc.doc_id, a] as const;
+      }),
+    )
+      .then((entries) => setProductAdAnalytics(new Map(entries)))
+      .finally(() => setProductLoading(false));
+  }, [selectedProductId, allAds, windowDays]);
+
+  // The reverse lookup: which posts carry this product's ads.
+  const productAttachedPosts = useMemo(() => {
+    if (!selectedProductId) return [];
+    const productAdIds = new Set(
+      allAds.filter((a) => a.product_id === selectedProductId).map((a) => a.doc.doc_id),
+    );
+    return catalogPosts
+      .filter((p) => productAdIds.has(p.pinnedAdTarget))
+      .map((p) => ({
+        doc_id: p.doc_id,
+        label: p.label,
+        adDocId: p.pinnedAdTarget,
+        impressions: 0,
+      }));
+  }, [selectedProductId, allAds, catalogPosts]);
   // True once the first load has completed. The first load shows the skeleton;
   // a window switch (7d/30d/90d) refreshes the charts in place (no blank flash,
   // so the window toggle stays in the DOM while the new data loads).
@@ -202,6 +270,10 @@ export function AnalyticsSection() {
           pinnedAdTarget: p.pinnedAdTarget || '',
         })),
       );
+      // Store the catalog's products for the Tier 5 product-level view.
+      setCatalogProducts(catalog.products || []);
+      // Store ALL ads (not just product ads) for the Tier 5 per-product filter.
+      setAllAds(catalog.ads || []);
 
       // The D86 creator analytics over the selected window (the creator's own
       // content, I3-bound). A read failure degrades to the empty shape (the
@@ -292,6 +364,44 @@ export function AnalyticsSection() {
           onBack={clearAd}
           ad={selectedAd}
           attachedPosts={attachedPosts}
+          onSelectProduct={selectProduct}
+        />
+      </div>
+    );
+  }
+
+  // Tier 5: when a product is selected (`?product=<doc_id>`), the dashboard is
+  // replaced by the per-product aggregate panel.
+  if (selectedProductId) {
+    const productItem = catalogProducts.find((p) => p.doc.doc_id === selectedProductId);
+    if (productLoading || !productItem) {
+      return (
+        <div className="space-y-4" data-testid="analytics-section">
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="sm" onClick={clearProduct} data-testid="product-analytics-back" disabled={productLoading}>
+              Back
+            </Button>
+            <Skeleton className="h-9 w-48" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Skeleton className="h-24" />
+            <Skeleton className="h-24" />
+          </div>
+          <Skeleton className="h-56 w-full" />
+        </div>
+      );
+    }
+    return (
+      <div className="space-y-6" data-testid="analytics-section">
+        <ProductAnalyticsPanel
+          productId={selectedProductId}
+          product={productItem}
+          productAds={productAdsForSelection}
+          adAnalytics={productAdAnalytics}
+          windowDays={windowDays}
+          onBack={clearProduct}
+          attachedPosts={productAttachedPosts}
+          onSelectAd={selectAd}
         />
       </div>
     );
