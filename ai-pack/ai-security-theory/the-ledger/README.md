@@ -114,21 +114,24 @@ This is the same idea as the use-theory's **anti-test** ("the KB with teeth — 
   records a **PoC** (the demonstration) with the finding. The **fix PR** commits the
   exploit as the permanent pinning test and shows red→green. The scan stays
   code-free; the exploit test ships with the fix.
-- **Two forms, by level.** The repro gate is a deterministic exploit **at L1/L2** —
-  and it *always* can be, because **mocking forces the conditions**: mock the clock
-  to force the race timing, mock the second actor, mock the payload size. A
-  one-hop or two-hop vuln is always reducible to a deterministic test. **At L3/L4**
-  (multi-hop, timing, cross-service) a deterministic exploit is sometimes *not
-  feasible* — and that's where the gate accepts a **scrutinized explanation**
-  instead: the exact sequence, why it's real, and what (if anything) prevents it —
-  which **other agents then check** (the convergence review applied to the
-  explanation, not an exploit). The bar is "could this happen, and did the
-  explanation withstand scrutiny," not "here's a deterministic PoC." Note the
-  division of labor: the **deterministic L1/L2 tests on the *components* are what
-  heal the race** (pin each side of the check-then-act); the L3/L4 explanation
-   covers the composition the components can't see. So the hard cases aren't
-   unverified — they're verified at the zoom where they're verifiable, and explained
-   (and scrutinized) where they aren't.
+ - **Two forms, by *determinism* — not by level.** The default is a **deterministic
+   exploit, at every level (L1–L4)** — and it *can* be, because **mocking forces the
+   conditions**: mock the clock to force the race timing, mock the second actor, mock
+   the payload size. A vuln that is reproducible is reproducible at *any* zoom, so an
+   L3/L4 finding that is deterministic gets a **real red→green exploit, not just a
+   note.** The **scrutinized explanation** is the *fallback*, used **only when the
+   finding is genuinely non-deterministic** (a true race, timing under load, a
+   cross-service composition you can't pin) — and that is *usually* (not always) L3/L4.
+   The explanation is: the exact sequence, why it's real, and what (if anything)
+   prevents it — which **other agents then check** (the convergence review applied to
+   the explanation). The bar is "could this happen, and did the explanation withstand
+   scrutiny." **Do not lazily default L3/L4 to the explanation** — if you can make it
+   deterministic, make the exploit. Note the division of labor: the deterministic
+   tests on the *components* (L1/L2) are what heal a race (pin each side of the
+   check-then-act); the L3/L4 exploit or explanation covers the composition the
+   components can't see. So the hard cases aren't unverified — they're verified with
+   an exploit where possible, and explained (and scrutinized) only where they can't
+   be.
 - **Hygiene findings close with a static check, not an exploit.** Bad practices /
    hygiene (secret in source, insecure default, over-broad mode, no rotation — see
    [the checklist](../the-scope-ladder/the-checklist.md)) are **L1** findings caught

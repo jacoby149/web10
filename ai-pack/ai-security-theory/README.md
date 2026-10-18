@@ -53,9 +53,6 @@ before the next:
 ```mermaid
 flowchart LR
     S[Security-critical surface] --> L1
-    S --> L2
-    S --> L3
-    S --> L4
     L1[L1 file-scan<br/>the file itself,<br/>line by line]
     L2[L2 call-graph-scan<br/>the file + its DIRECT<br/>call graph — one hop]
     L3[L3 service-scan<br/>the whole service,<br/>transitive closure]
@@ -140,10 +137,12 @@ need one: **every play of the game is strictly more secure than the last.**
    scan without an orient is blind.
 4. **L1 → L2 → L3 → L4, each to 100% before the next, backend-first.** The zooms,
    in order, the crown jewels first.
-5. **Every fix passes the repro gate** — the exploit replayed, denied, red-then-
-   green. **L1/L2: a deterministic exploit** (mocking forces the conditions). **L3/L4:
-   a deterministic exploit when feasible, else a scrutinized explanation** (the exact
-   sequence, why it's real, what prevents it — adversarially checked by other agents).
+ 5. **Every fix passes the repro gate** — the exploit replayed, denied, red-then-
+    green. **By determinism, not level:** a **deterministic exploit at any level
+    (L1–L4)** whenever feasible; a **scrutinized explanation only when genuinely
+    non-deterministic** (usually L3/L4 — the exact sequence, why it's real, what
+    prevents it — adversarially checked by other agents). Don't lazily default L3/L4
+    to the explanation.
 6. **Every result writes back to the KB** — a fix *and* a failed exploit (a
    confirmed non-vulnerability is a learning, not a discarded false positive).
 7. **Re-scan on a 3–6 month cadence, on a stronger model.** Staleness is relative;
