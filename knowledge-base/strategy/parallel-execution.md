@@ -41,7 +41,7 @@ API files are read-only. Do not implement extraction-lane fixes in scan PRs.
 - [✓ 3.235.6] **L1-003: main** — all 176 lines covered within A; receipt merged #1202, alongside B/D. No runtime fixes or security PASS.
 - [✓ 3.235.11] **L1-004: remaining API app inventory** — A-R scan receipts merged #1202-#1207; 59 files/13,236 lines accounted for at `8af7e0fce`. This ticks coverage only: findings/fixes, L2 handoffs and independent security sign-off remain open. Index: `knowledge-base/security/scans/2026-10/l1-api-index.md`.
 - [✓ 3.235.13] **L1-005: remaining backend inventory** — merged #1212; 109 selected files/16,362 newlines and exhaustive 1,482-path reconciliation at `db325cd3c`. `knowledge-base/security/scans/2026-10/l1-backend-inventory.md`; not scanned-by-inventory or security PASS.
-- [~] **L1-006: backend runtime receipts** — integrate RTC, marketing API MA/MB/MC, root bootstrap B1 and shipped preview receipts in bounded docs-only batches at `db325cd3c`. Exact manifests/counts in `knowledge-base/security/scans/2026-10/l1-backend-index.md`; runtime read-only, findings/fixes and required independent sign-off separate.
+- [~] **L1-006: backend runtime receipts** — RTC/B1 merged #1212, MA/MB/MC merged #1213; preview integration pending. All scans/reviews complete at `db325cd3c`: 33 files/3,739 newlines (3,742 logical lines). Index: `knowledge-base/security/scans/2026-10/l1-backend-index.md`; no fixes or security PASS.
 
 ### Lane: security-hardening-extraction (PRs 1157 / 1159)
 **Owns:** Domain/function hunks as assigned in `security-hardening-extraction.md`,

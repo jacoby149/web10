@@ -1,3 +1,6 @@
+3.235.15 || 18.10.2026
+docs(security): **shipped Node share-preview backend L1 receipt**, three files/422 lines at `db325cd3c`; fixed-origin anonymous composition, spec handling, markdown flattening and server dispatch covered with offline VM probes and fresh review. No renderer/browser exploit, SSRF or private-content disclosure claimed. Ghost-post generic HTTP 200 vs intended 404 retained as correctness debt. Marketing API #1213 merged; additional backend wave now covers 33 files/3,739 newlines (3,742 logical), with 76 inventoried files/12,623 newlines still explicitly unscanned. No runtime changes or service PASS.
+
 3.235.14 || 18.10.2026
 docs(security): **marketing API app L1 receipts MA/MB/MC — all 16 Python files/2,096 lines** at `db325cd3c`. Retired importer defaults reuse B-2; mapper propagation remains unverified consumer debt. Local payout-cancellation/conversion-replay scaffold findings L1-MC-01/02 reproduced with inert persistence; no Stripe transfer, durable deployed accounting corruption or forged-webhook state change claimed. Fresh review replayed probes, preserved retirement/D57 intent and corrected cleanup/provenance wording. Inventory/RTC/bootstrap #1212 merged; no runtime changes or security PASS.
 

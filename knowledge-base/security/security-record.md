@@ -93,6 +93,7 @@ Inventory and line coverage do not establish service PASS or deployment security
 | MA | 3 files / 657 lines | OPEN, existing B-2. [Receipt](scans/2026-10/l1-marketing-a.md): retired importer credential defaults; fake routing/stored-authority probes do not prove deployed SSRF or job takeover. |
 | MB | 4 files / 727 lines | [Receipt](scans/2026-10/l1-marketing-b.md): no confirmed local finding; untrusted data/service/URL propagation requires real consumers; review/sign-off pending, not PASS. |
 | MC | 9 files / 712 lines | OPEN. [Receipt](scans/2026-10/l1-marketing-c.md): L1-MC-01/02 local scaffold cancellation and replayed commission arithmetic; fake persistence, no Stripe money movement or signature-forged webhook effect demonstrated. |
+| PREVIEW | 3 files / 422 lines | [Receipt](scans/2026-10/l1-preview-backend.md): no confirmed local finding; fixed-origin anonymous composition and safe fallback probes do not establish renderer/public-grant security. Ghost-post 200-vs-404 is correctness debt; review/sign-off pending, not PASS. |
 
 ## Remaining L1 Boundaries
 
@@ -104,9 +105,11 @@ The broader project L1 pass remains incomplete; excluded/unscanned surfaces incl
 - **Frontend / render surface** — the XSS surface, the `rehype-sanitize` choke
   point, every `dangerouslySetInnerHTML`, the markdown render. (The audit's
   "pass 2," never started.)
-- **Remaining backend/runtime** — RTC, marketing API, deployment/configuration,
-  migrations, package manifests/locks and dependency/artifact integrity need
-  explicit inventories. They are outside the 59-file `api/app` denominator.
+- **Remaining backend/runtime** — the pinned backend inventory now has 33 files/
+  3,739 newlines covered outside `api/app`; 76 selected files/12,623 newlines
+  remain unscanned (marketing/API packaging, migrations, Ubuntu/CI/scripts,
+  edge/operator tooling). Dependency implementation/artifact integrity and actual
+  deployments remain outside source-only assurance. Do not call all runtime done.
 - **`marketing/web10-social/src/data/`** — the social app's data layer (token
   handling, the permission requests).
 - **`ui/`** — the authenticator (consent, session restore, the token vault).

@@ -17,17 +17,18 @@ assignments, not evidence. Whole-file manifests are in each receipt.
 |---|---:|---:|---:|---|---|
 | RTC runtime/packaging, including lock declarations | 5 | 492 | 492 | `l1-rtc.md` | Merged #1212 |
 | B1 root compose/schema/bootstrap | 9 | 729 | 732 | `l1-backend-b1.md` | Merged #1212 |
-| MA marketing import/writer/validation | 3 | 657 | 657 | `l1-marketing-a.md` | Recorded |
-| MB marketing import mappers | 4 | 727 | 727 | `l1-marketing-b.md` | Recorded |
-| MC marketing app/payment/reporting endpoints/models | 9 | 712 | 712 | `l1-marketing-c.md` | Recorded |
-| PREVIEW shipped Node preview adapter | 3 | 422 | 422 | `l1-preview-backend.md` | Pending |
+| MA marketing import/writer/validation | 3 | 657 | 657 | `l1-marketing-a.md` | Merged #1213 |
+| MB marketing import mappers | 4 | 727 | 727 | `l1-marketing-b.md` | Merged #1213 |
+| MC marketing app/payment/reporting endpoints/models | 9 | 712 | 712 | `l1-marketing-c.md` | Merged #1213 |
+| PREVIEW shipped Node preview adapter | 3 | 422 | 422 | `l1-preview-backend.md` | Recorded |
 
-Current included coverage: **30 distinct files / 3,317 newlines / 3,320 logical
+Current included coverage: **33 distinct files / 3,739 newlines / 3,742 logical
 lines**, including all 16 marketing API app Python files/2,096 lines. Three B1
 files have unterminated final lines; full EOF was read. RTC
 lockfile review concerns declarations, not external implementation/advisory safety.
 Marketing API packaging, API migration tools/locks, Ubuntu, CI, root scripts,
-edge/build packaging and operator/CLI tooling remain selected inventory debt.
+edge/build packaging and operator/CLI tooling remain selected inventory debt:
+**76 selected files / 12,623 newlines**, not silently marked scanned.
 
 ## Evidence And Limits
 
@@ -44,6 +45,12 @@ payout cancellation and conversion-accounting mutation/replay with fake stores/
 persistence. No Stripe provider call, money movement, durable production change,
 settlement consumer or forged webhook event is demonstrated. The webhook only
 acknowledges without state mutation. These findings stay OPEN.
+
+The preview adapter reads anonymously and composes renderer specifications over
+fixed-origin generic APIs. Synthetic markup/URL propagation is not browser XSS,
+SSRF or private-content disclosure; actual renderer/grant behavior remains L2+.
+The ghost-post generic-card HTTP 200 differs from the KB-required 404; this is
+recorded correctness debt, not a proven confidentiality failure.
 
 Fresh same-model reviewers independently checked source/count accounting and
 replayed applicable safe probes with inert sinks. Review corrections incorporated;
