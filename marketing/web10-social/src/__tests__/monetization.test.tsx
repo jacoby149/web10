@@ -17,6 +17,7 @@ const updateAd = vi.fn();
 const updateNodeAd = vi.fn();
 const convertAdScope = vi.fn();
 const createNodeAd = vi.fn();
+const readNodeAdPerformance = vi.fn();
 vi.mock('@/data/ads-catalog', () => ({
   checkNodeAdmin: (...a: unknown[]) => checkNodeAdmin(...a),
   readMyCatalog: (...a: unknown[]) => readMyCatalog(...a),
@@ -28,6 +29,7 @@ vi.mock('@/data/ads-catalog', () => ({
   updateNodeAd: (...a: unknown[]) => updateNodeAd(...a),
   convertAdScope: (...a: unknown[]) => convertAdScope(...a),
   createNodeAd: (...a: unknown[]) => createNodeAd(...a),
+  readNodeAdPerformance: (...a: unknown[]) => readNodeAdPerformance(...a),
   buildOfferBody: vi.fn(),
   buildNodeAdBody: vi.fn(),
   splitCatalog: vi.fn(),
@@ -80,6 +82,7 @@ beforeEach(() => {
   readCreatorAnalytics.mockResolvedValue(EMPTY_ANALYTICS);
   readPostAnalytics.mockResolvedValue(EMPTY_ANALYTICS);
   enrichTopPosts.mockResolvedValue([]);
+  readNodeAdPerformance.mockResolvedValue(null);
 });
 
 describe('MonetizationScreen', () => {
@@ -119,6 +122,44 @@ describe('MonetizationScreen', () => {
     expect(await screen.findByTestId('creator-monetization')).toBeInTheDocument();
     expect(await screen.findByTestId('node-ad-controls')).toBeInTheDocument();
     expect(screen.queryByTestId('monetization-tab-node')).not.toBeInTheDocument();
+  });
+
+  it('shows the node ad performance (live from the D86 engine) for a node admin', async () => {
+    checkNodeAdmin.mockResolvedValue(true);
+    readNodeAdPerformance.mockResolvedValue({
+      impressions: 5872,
+      clicks: 440,
+      ctr: 7.5,
+      ads: [{ doc_id: 'node-ad-1', impressions: 5872, clicks: 440 }],
+    });
+    readNodeAds.mockResolvedValue([
+      { doc: { doc_id: 'node-ad-1', tags: ['ad', 'node_ad'] }, text: 'Sponsored by web10', status: 'active', format: 'inline', offer: { kind: 'none', partner: '', link: 'https://example.com', cta: '', disclosure: '' }, albums: [], media_refs: [] },
+    ]);
+    renderAt('/monetize');
+    expect(await screen.findByTestId('node-ads-performance')).toBeInTheDocument();
+    expect(screen.getByTestId('node-ads-performance-impressions')).toHaveTextContent('5,872')
+    expect(screen.getByTestId('node-ads-performance-clicks')).toHaveTextContent('440')
+    expect(screen.getByTestId('node-ads-performance-ctr')).toHaveTextContent('7.5')
+    // The per-ad row shows the ad's own numbers + its name.
+    expect(screen.getByTestId('node-ads-performance-ad-node-ad-1')).toHaveTextContent('Sponsored by web10')
+    expect(screen.getByTestId('node-ads-performance-ad-node-ad-1')).toHaveTextContent('5,872')
+  });
+
+  it('shows the node ad performance empty state when the node has no node ads', async () => {
+    checkNodeAdmin.mockResolvedValue(true);
+    readNodeAdPerformance.mockResolvedValue(null);
+    renderAt('/monetize');
+    expect(await screen.findByTestId('node-ads-performance-empty')).toBeInTheDocument();
+  });
+
+  it('switches the node ad performance window (7d/30d/90d)', async () => {
+    checkNodeAdmin.mockResolvedValue(true);
+    readNodeAdPerformance.mockResolvedValue({ impressions: 100, clicks: 5, ctr: 5, ads: [] });
+    renderAt('/monetize');
+    expect(await screen.findByTestId('node-ads-performance')).toBeInTheDocument();
+    expect(readNodeAdPerformance).toHaveBeenCalledWith(30);
+    fireEvent.click(screen.getByTestId('node-ads-performance-window-7'));
+    await waitFor(() => expect(readNodeAdPerformance).toHaveBeenCalledWith(7));
   });
 
   it('falls back to Ads when a non-admin is deep-linked to ?tab=node', async () => {

@@ -120,6 +120,14 @@ export async function convertAdScope() {
 export async function createNodeAd() {
   return { doc_id: 'node-new' };
 }
+export async function readNodeAdPerformance() {
+  return {
+    impressions: 5872,
+    clicks: 440,
+    ctr: 7.5,
+    ads: [{ doc_id: 'node-1', impressions: 5872, clicks: 440 }],
+  };
+}
 export async function createProduct() {
   return { doc_id: 'prod-new' };
 }

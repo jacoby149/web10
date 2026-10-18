@@ -28,6 +28,7 @@ import { projectEarnings, formatProjection, DEFAULT_RATES } from '@/data/ad-proj
 import { uploadMedia, resolveMediaRefs } from '@/data';
 import { processImage, generateThumbnail, captureVideoPoster, getVideoInfo } from '@/lib/mediaProcessing';
 import { NodeAdControls } from './NodeAdControls';
+import { NodeAdPerformance } from './NodeAdPerformance';
 import type { MediaRecord } from '@/data';
 
 // `none` is the default (self-promo — most creator ads aren't affiliate).
@@ -334,6 +335,11 @@ export function CreatorMonetization({ isAdmin = false }: { isAdmin?: boolean }) 
     : scopedAds;
   // The album filter chips show for regular ads (never when the scope is node).
   const showAlbumFilter = !isAdmin || scopeFilter !== 'node';
+  // The node ads' display names (doc_id → copy), for the performance rows.
+  const nodeAdNames = useMemo(
+    () => new Map(nodeAdsList.map((ad) => [ad.doc.doc_id, ad.text || 'Untitled ad'])),
+    [nodeAdsList],
+  );
 
   return (
     <div className="space-y-6" data-testid="creator-monetization">
@@ -414,6 +420,9 @@ export function CreatorMonetization({ isAdmin = false }: { isAdmin?: boolean }) 
             </div>
           </div>
           <NodeAdControls />
+          <div className="mt-4 border-t border-border pt-4">
+            <NodeAdPerformance adNames={nodeAdNames} />
+          </div>
         </div>
       )}
 
