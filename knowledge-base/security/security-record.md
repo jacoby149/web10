@@ -31,7 +31,7 @@ measure. Re-scan after the hardening merges to flip them.
 | `api/app/v3/services/clickhouse.py :: read path` | L1 | PASS | (audit) | 2026-10 | — | query-engine | I3 read gate on lock (the crown jewel holds) — `can_read_group` / `effective_role_perms` |
 | `api/app/v3/services/safe_query.py` | L1 | PASS | (audit) | 2026-10 | — | query-engine | I3 wall for caller SQL on lock — boundary on input CTEs, not output filter |
 | `api/app/v3/services/clickhouse.py :: get_document_any_author` | L1 | **OPEN** | (audit) | 2026-10 | — | media | B-6 reads without author scoping; bounded by doc-bound sig — verify sig checked first |
-| `api/app/v3/services/import_worker.py` | L1 | PASS | (D90 review) | 2026-10 | 2026-10-18 | import | D90 durability pass (3.235.1) — L1 read of the reworked worker: the trace handler + `record_event` are fail-open (never raise into the job); the trace endpoint is owner-gated via `_owned_job` (I3 — a token never reads another user's job; 404 unknown / 403 not-owned, test-pinned); `KEEP_IMPORT_EXPORTS` is a debug switch that only RETAINS the job owner's own export parts (default off — the privacy promise holds; no cross-user reach); the stuck sweep re-queues only the node's own jobs (idempotent re-run). No new trust boundary introduced (the import was already token-gated end-to-end). |
+| `api/app/v3/services/import_worker.py` | L1 | **OPEN** | `gpt-6.1 sol` | 2026-10-18 | — | import | Historical D90 review is superseded by [J](scans/2026-10/l1-api-j.md)/[K](scans/2026-10/l1-api-k.md) at `8af7e0fce`: L1-J-01 copies A's logs into overlapping B trace insert arguments. Owner-gated reads do not fix stored misattribution. No live cross-owner disclosure or fix claimed. |
 | `sdk/src/browser.ts :: authListen` | L1 | **OPEN** | (audit) | 2026-10 | — | sdk-auth | S-1 `postMessage` token accepted with no origin check. Hardening in 1159 (unmerged) |
 | `sdk/src/v3.ts` (token-in-body) | L1 | **OPEN** | (audit) | 2026-10 | — | sdk-auth | S-2 token in JSON body — composes with B-4 (body logged). By design; the log is the risk |
 | `sdk/src/http.ts :: authGet` | L1 | **OPEN** | (audit) | 2026-10 | — | sdk-auth | S-3 `byUserGroups` sends no token — functional gap, not a leak |
@@ -69,6 +69,9 @@ three-dry sign-off. No campaign PASS is claimed.
 | E | Same pin/date/model | 826 lines | OPEN: [receipt](scans/2026-10/l1-api-e.md), L1-E-01 account bearer accepted in group-detail query parameter; static transport hygiene, not a demonstrated theft/auth exploit; related S7 remains open. |
 | F | Same pin/date/model | 614 lines | [Receipt](scans/2026-10/l1-api-f.md): no confirmed local finding; delegated document authority/preparation handoffs and sign-off pending, not PASS. |
 | G | Same pin/date/model | 530 lines | OPEN: [receipt](scans/2026-10/l1-api-g.md), L1-G-01 caller SQL literals reach INFO logger; request/stub-compiled fields tested separately, not a live compiler/retention/data theft proof. |
+| J | Same pin/date/model | 532 lines | OPEN: [receipt](scans/2026-10/l1-api-j.md), L1-J-01 real trace handlers copy one synthetic job's message into both overlapping jobs' event insert arguments; live endpoint disclosure untested. |
+| K | Same pin/date/model | 867 lines | [Receipt](scans/2026-10/l1-api-k.md): no confirmed C+I finding; parser whole-remainder read is reliability debt; persisted-authority/redirect/storage handoffs and sign-off pending. |
+| L | Same pin/date/model | 535 lines | [Receipt](scans/2026-10/l1-api-l.md): no confirmed local finding; compiler accepts qualified/scalar/settings candidates but no SQL executed; execution-boundary handoffs and sign-off pending. |
 
 ## Not yet scanned (scan debt)
 

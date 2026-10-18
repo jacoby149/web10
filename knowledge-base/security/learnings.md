@@ -124,6 +124,21 @@ in INFO logging with separate request/stub-compiled assertions, not SQL injectio
 or demonstrated credential theft. Actual compiler preservation, log access and
 retention remain unverified. F's unchecked helper boundaries remain L2 debt.
 
+### 2026-10-18: import traces and compiler L1 receipts
+
+L1-J-01 reproduces cross-job log attribution using two synchronized synthetic
+job contexts, actual handlers/event functions and an in-memory insert sink.
+Shared logger handlers lack a job/thread filter, so A's message is inserted into
+A and B traces. Concurrency/overlap is a precondition; production concurrency,
+cross-owner endpoint disclosure and historical exposure remain untested. The
+old worker PASS is withdrawn: an owner gate on reads cannot isolate already
+misattributed stored events. Preserve detailed per-job diagnostics in a fix.
+
+K's parser still reads the whole remaining stream; that contradicts flat-RAM
+durability prose but is reliability debt, not an added C+I finding. L's compiler
+acceptance probes do not execute ClickHouse: qualified names, scalar functions
+and settings are handoffs, not demonstrated raw-store access or injection.
+
 ## Known gaps (the "obvious gap" register)
 
 Gaps the orient has surfaced. Each is either a `BP-n` or a standing note:

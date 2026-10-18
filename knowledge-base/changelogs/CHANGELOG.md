@@ -1,3 +1,6 @@
+3.235.9 || 18.10.2026
+docs(security): **API L1 campaign batch 4 — import/compiler receipts J/K/L**, 1,934 lines at `8af7e0fce`. Real synchronized job handlers reproduce L1-J-01 cross-job trace insert contamination; historical worker PASS withdrawn, findings remain OPEN. Parser whole-remainder reading is reliability debt, not a C+I finding; compiler acceptance is not execution proof. Fresh reviewer replayed probes and checked exact worker range coverage. Batch 3 #1204 merged; no runtime fix, production cross-owner disclosure, compiler bypass or campaign PASS claim.
+
 3.235.8 || 18.10.2026
 docs(security): **API L1 campaign batch 3 — group/document/query receipts E/F/G**, 1,970 lines at `8af7e0fce`. Recorded account bearer in group-detail URL (existing S7 repair ownership) and caller-SQL INFO logging with bounded separate-field probe evidence. Delegated authorizations, preparation and compiler/retention effects remain explicit L2 handoffs. Fresh reviewer corrections incorporated; no runtime change, auth exploit, fix or PASS claim. Batch 2 #1203 merged.
 
