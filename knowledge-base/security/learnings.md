@@ -161,6 +161,49 @@ event type does not demonstrate counter inflation. No new confirmed finding or
 whole-store PASS is claimed. All 59 API app files now have line-coverage receipts;
 broader project L1, findings/fixes and required independent sign-off remain owed.
 
+### 2026-10-18: broader backend inventory, RTC and bootstrap L1
+
+[Backend inventory](scans/2026-10/l1-backend-inventory.md) accounts for 109
+additional tracked runtime/configuration/dependency-manifest files, not scanned
+or trusted by enumeration alone. It identifies the shipped Node share-preview
+adapter as backend code rather than excluding it with the frontend.
+
+RTC's 13 synthetic dependency cases support local routing/close behavior only;
+unsigned provider selection, HTTP-status trust and asynchronous admission remain
+**BP-3**, not new or closed findings. Actual PeerServer timing/traffic, verifier
+trust and replay require L2+ evidence. B1's root/bootstrap credential fallbacks
+expand **B-2**, values withheld; static port/socket declarations do not establish
+deployed reachability or host compromise. Preserve legitimate local bootstrap,
+operator overrides, HTTP development certify wiring and useful diagnostics.
+
+### 2026-10-18: marketing API app L1 coverage
+
+MA/MB/MC cover all 16 marketing API Python files/2,096 lines at `db325cd3c`.
+The KB retires the HTTP/v2 importer; do not infer it is unmounted or active just
+from either prose or retained source. MA adds B-2 default-credential evidence;
+mapper URL/path/body propagation is not demonstrated SSRF/XSS/authority bypass.
+Cleanup is attempted, not guaranteed; existence/source checks and errors affect it.
+
+L1-MC-01 reproduces local ungated payout cancellation; L1-MC-02 reproduces repeated
+caller-supplied commission arithmetic. Both are scaffold-state integrity findings
+using synthetic records and inert persistence, not real provider money movement,
+durable deployed corruption or proof of settlement authority. Stripe invocation
+is commented out; the unsigned webhook stub reads no event and mutates no state.
+No payment forgery follows from its acknowledgment. Preserve D57's deferred rails
+and require proper authority/provenance before any future payment activation.
+
+### 2026-10-18: shipped Node share-preview L1 receipt
+
+The three preview adapter files/422 lines are shipped backend source, now covered
+at `db325cd3c`; excluding them as frontend would have left a real inventory gap.
+Pinned VM probes use inert fetch/HTTP sinks: specs retain synthetic markup/URLs
+and fixed-origin anonymous calls, denied reads make generic cards, incoming auth
+does not forward. These are local composition controls, not proof of renderer
+escaping or actual public grants. Missing posts return generic cards/HTTP 200,
+contrary to ghost-404 intent; this is correctness debt, not demonstrated private
+content access. Preserve content-free private fallbacks while tracing real API,
+renderer and routing boundaries at L2. No new confirmed vulnerability or PASS.
+
 ## Known gaps (the "obvious gap" register)
 
 Gaps the orient has surfaced. Each is either a `BP-n` or a standing note:
