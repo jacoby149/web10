@@ -265,7 +265,7 @@ intentional JSON-body tokens remain unchanged. S-2's B-4 composition is addresse
 for this middleware only, not all log producers or historical exposure.
 
 Nine committed regressions fail on the pinned original and pass with repair;
-the full API suite has 1,130 passes. Fresh same-model reviews do not constitute
+the full API suite has 1,131 passes after syncing dev. Fresh same-model reviews do not constitute
 the required model-diverse three-dry sign-off. Shutdown/disconnect, delayed/mounted routing and
 real-storage integration remain untested here; the dated intent-risk acceptance
 and re-open conditions are in the repair receipt. Deployment, retained logs,

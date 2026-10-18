@@ -69,7 +69,8 @@ content and actual background execution. Direct identity/receive/iterator spies
 pin no logger body read or response consumption. Initial test setup lacked empty
 receive channels in two cases; repaired the harness before using the red evidence.
 
-Full repaired API suite: **1,130 passed**; `ruff check .` and `ruff format --check .`
+Full repaired API suite: **1,130 passed**, then **1,131 passed** after merging
+dev's `2e09de0a8` node-ad change; `ruff check .` and `ruff format --check .`
 passed. Fresh independent code/design and red/green replay reviews found no
 blocking issue, including re-review after adding the integration controls;
 remaining shutdown/disconnect, delayed streaming, mounted-route composition and

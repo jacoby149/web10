@@ -100,7 +100,7 @@ Inventory and line coverage do not establish service PASS or deployment security
 
 **B-4:** [source repair evidence](scans/2026-10/repair-b4-middleware.md) records
 all nine regressions red on the pinned original and green on the candidate fix;
-full API suite 1,130 green. This repairs the middleware capture/insert-failure
+full API suite 1,131 green after syncing dev. This repairs the middleware capture/insert-failure
 boundary in source only, not main exceptions, explicit log intake, SQL logs,
 import traces, historical data or operational credential exposure. Other protocol
 findings and L1 advancement gates remain open. No model-diverse/three-dry claim.
