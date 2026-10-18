@@ -79,9 +79,11 @@ interface ReachChartsProps {
   topPostDetails: TopPostDetail[];
   /** Drill into a post's per-post detail (Tier 2). */
   onSelectPost?: (docId: string) => void;
+  /** Drill into an ad's per-ad detail (Tier 2b). */
+  onSelectAd?: (docId: string) => void;
 }
 
-export function ReachCharts({ analytics, windowDays, onWindowChange, topPostDetails, onSelectPost }: ReachChartsProps) {
+export function ReachCharts({ analytics, windowDays, onWindowChange, topPostDetails, onSelectPost, onSelectAd }: ReachChartsProps) {
   const { daily, bySurface, topPosts, totals } = analytics;
   const [topTab, setTopTab] = useState<TopTab>('content');
   const [contentSub, setContentSub] = useState<ContentSubFilter>('all');
@@ -371,7 +373,7 @@ export function ReachCharts({ analytics, windowDays, onWindowChange, topPostDeta
                   <li key={p.doc_id}>
                     <button
                       type="button"
-                      onClick={() => onSelectPost?.(p.doc_id)}
+                      onClick={() => p.isAd ? onSelectAd?.(p.doc_id) : onSelectPost?.(p.doc_id)}
                       className="flex w-full items-center gap-3 rounded border border-border p-2.5 text-left transition-colors hover:bg-elevated/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       data-testid={`analytics-top-post-${i}`}
                     >
