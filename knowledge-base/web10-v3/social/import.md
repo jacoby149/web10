@@ -67,6 +67,64 @@ requests" property with zero new infrastructure. The concurrency is bounded
 the node's disk + network; the thumbnail fan-out inside a job is where the
 parallelism lives (bounded `ThreadPoolExecutor`).
 
+### Durability: the worker is checkpointed, not hopeful
+
+The in-process design has three brittle edges, and each is closed by a
+durable mechanism (not by adding a broker):
+
+1. **The OOM edge — closed by streaming.** The extraction does NOT read each
+   archive member whole into RAM. `iter_data_entries` yields `(path,
+   file_object)` pairs and the parser (`parse_youtube_streaming`) reads the
+   CSV row-by-row, so a channel with a huge comment CSV can't spike the
+   worker's memory and get the API container killed. (The pure
+   `parse_youtube` list-form remains for the test harness.)
+2. **The amputated-thread edge — closed by stage checkpoints.** The pipeline
+   writes a durable **stage event** after each stage (`download` → `parse` →
+   `write` → `complete`); a re-submitted job reads its completed stages
+   (`completed_stages`) and skips them. A crash mid-`write` re-runs only the
+   write stage, and the idempotency pre-scan makes even a partial re-write a
+   no-op for what already landed.
+3. **The zombie edge — closed by a heartbeat + sweep.** The job row's
+   `updated_at` IS the heartbeat (the progress updates bump it every 25
+   records). A `processing` job whose heartbeat is stale
+   (`IMPORT_STUCK_AFTER_MINUTES`, default 10) is re-queued by a periodic
+   sweep (`IMPORT_STUCK_SWEEP_SECONDS`, default 300s) — at boot and every
+   sweep interval. No job can sit in `processing` forever.
+
+### The trace: the durable log (pullable from prod)
+
+The job row is the quick-glance surface (phase, counts, a capped `errors`
+list). The **trace** is the deep zoom — a second ClickHouse table,
+`import_events` (`job_id, seq, stage, status, detail, created_at`), holding:
+
+- **the stage checkpoints** (`download` / `parse` / `write` / `complete` /
+  `failed` / `stuck`) with **untruncated** detail (counts, the per-record
+  error list), and
+- **the raw worker log stream** — a `logging.Handler` attached to the
+  `web10-import` logger for the duration of the job captures every record
+  (INFO and ERROR, with **full tracebacks**) as `log` rows.
+
+This is what makes a prod failure debuggable without docker-log archaeology
+(docker logs rotate; ClickHouse doesn't):
+
+```
+POST /v3/imports/trace  {"token": "...", "job_id": "...", "limit": 2000}
+→ {job_id, phase, events: [{seq, stage, status, detail, created_at}, ...]}
+```
+
+Owner-gated like the rest (I3). `limit` caps the raw `log` rows (a 10k-video
+channel produces ~10k of them); the stage checkpoints are always full.
+
+### The debug kill-switch: `KEEP_IMPORT_EXPORTS`
+
+The privacy promise (the node never keeps the raw export) is enforced by the
+`finally` that deletes the parts on every terminal exit. For debugging a first
+real-world import, `KEEP_IMPORT_EXPORTS=1` (env, default off) makes that
+delete a no-op — the parts stay at `imports/{user}/{job_id}/part-NNN` in MinIO
+so a failed import can be re-run against the exact same bytes (or inspected)
+without a re-upload. It is a debug switch: flip it back off afterwards and
+delete the retained parts by hand.
+
 ## The Flow (one job)
 
 1. **Create** — `POST /v3/imports` `{token, platform, parts:[{filename,
@@ -203,6 +261,7 @@ export — Takeout exports YouTube as CSV, not the Data-API JSON):
 | `POST /v3/imports` | `{token, platform, parts:[{filename, size_bytes}], target_group_id?}` | `{job_id, platform, job, uploads:[{part_index, object_key, upload_url, fields}]}` |
 | `POST /v3/imports/start` | `{token, job_id}` | `{job_id, status}` (400 if parts missing) |
 | `POST /v3/imports/status` | `{token, job_id}` | `{job_id, job}` (the job row carries `progress` 0-100) |
+| `POST /v3/imports/trace` | `{token, job_id, limit?}` | `{job_id, phase, events:[{seq, stage, status, detail, created_at}]}` — the durable trace (stage checkpoints + the raw log stream; `limit` caps the `log` rows, default 2000) |
 
 All token-gated; a user may only start/status **their own** job (403 otherwise,
 404 if unknown). `target_group_id` is optional — when set it must be a group the

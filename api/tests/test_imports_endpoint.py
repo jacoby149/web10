@@ -70,6 +70,7 @@ class TestRoutes:
         assert "/v3/imports" in paths
         assert "/v3/imports/start" in paths
         assert "/v3/imports/status" in paths
+        assert "/v3/imports/trace" in paths
 
 
 # ---------------------------------------------------------------------------
@@ -295,3 +296,54 @@ class TestStatus:
         with patch("app.v3.services.import_worker.get_import_job", return_value=job):
             resp = client.post("/v3/imports/status", json={"token": token, "job_id": "job-1"})
         assert resp.json()["job"]["progress"] == 57
+
+
+# ---------------------------------------------------------------------------
+# POST /v3/imports/trace
+# ---------------------------------------------------------------------------
+
+
+class TestTrace:
+    def test_unknown_job(self, client, token):
+        with patch("app.v3.services.import_worker.get_import_job", return_value=None):
+            resp = client.post("/v3/imports/trace", json={"token": token, "job_id": "nope"})
+        assert resp.status_code == 404
+
+    def test_not_your_job(self, client, token):
+        with patch("app.v3.services.import_worker.get_import_job", return_value=_job(user="someoneelse")):
+            resp = client.post("/v3/imports/trace", json={"token": token, "job_id": "job-1"})
+        assert resp.status_code == 403
+
+    def test_happy_path_returns_events(self, client, token):
+        events = [
+            {"seq": 1, "stage": "download", "status": "ok", "detail": "parts=1", "created_at": "2026-01-01T00:00:00"},
+            {"seq": 2, "stage": "parse", "status": "ok", "detail": "records=5", "created_at": "2026-01-01T00:00:01"},
+            {
+                "seq": 3,
+                "stage": "log",
+                "status": "info",
+                "detail": "INFO [import] ...",
+                "created_at": "2026-01-01T00:00:02",
+            },
+        ]
+        with (
+            patch("app.v3.services.import_worker.get_import_job", return_value=_job()),
+            patch("app.v3.services.import_worker.get_job_events", return_value=events) as ge,
+        ):
+            resp = client.post("/v3/imports/trace", json={"token": token, "job_id": "job-1"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["job_id"] == "job-1"
+        assert data["phase"] == iw.PENDING
+        assert data["events"] == events
+        # the default log cap is applied (2000)
+        ge.assert_called_once_with("job-1", 2000)
+
+    def test_limit_is_passed_through(self, client, token):
+        with (
+            patch("app.v3.services.import_worker.get_import_job", return_value=_job()),
+            patch("app.v3.services.import_worker.get_job_events", return_value=[]) as ge,
+        ):
+            resp = client.post("/v3/imports/trace", json={"token": token, "job_id": "job-1", "limit": 50})
+        assert resp.status_code == 200
+        ge.assert_called_once_with("job-1", 50)
