@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, Skeleton } from './ui';
 import { VideoPlayer, sourceFromMedia } from './VideoPlayer';
 import { MediaCarousel } from './MediaCarousel';
 import { PostActions, type ReactionKind } from './PostActions';
+import { MarkdownText } from './MarkdownText';
 import type { DiscoverPost, MediaItem, ReadComments, ReadReplies, CreateComment, DiscoverAd, RepostOriginal, ReadRepostOriginal } from './types';
 
 // The card's time-ago line — the social feed's `formatTimeAgo` (now / 42m / 3h /
@@ -255,7 +256,7 @@ function RepostEmbed({
         </div>
       </div>
       {original.text ? (
-        <div className="px-3 pb-2.5 text-sm text-foreground line-clamp-6">{original.text}</div>
+        <div className="px-3 pb-2.5 text-sm text-foreground line-clamp-6"><MarkdownText text={original.text} /></div>
       ) : null}
       {media.length > 0 && (
         <div className="pb-2">
@@ -496,7 +497,7 @@ export function DiscoverCard({
           no media of its own; the original's media lives in the embed. */}
       {post.repost_of && post.text ? (
         <div className="px-4 pt-3 text-sm text-foreground">
-          <p className="leading-relaxed">{post.text}</p>
+          <p className="leading-relaxed"><MarkdownText text={post.text} /></p>
         </div>
       ) : null}
       {post.repost_of && (
@@ -547,10 +548,10 @@ export function DiscoverCard({
                 rel="noopener"
                 className="block text-sm leading-relaxed text-foreground transition-colors hover:text-brand-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
               >
-                {post.text}
+                <MarkdownText text={post.text} />
               </a>
             ) : (
-              <p className="text-sm leading-relaxed text-foreground">{post.text}</p>
+              <p className="text-sm leading-relaxed text-foreground"><MarkdownText text={post.text} /></p>
             )
           ) : null}
         </div>

@@ -6,8 +6,8 @@ the discover group is auto-hidden from the board via the existing
 ``group_hidden_docs`` mechanism (no new read-path change). A flag row is
 recorded for the operator's review queue.
 
-KB: knowledge/knowledge-base/web10-v3/social/content-moderation.md
-Default list: knowledge/knowledge-base/web10-v3/social/sensitive-words-default.md
+KB: knowledge-base/web10-v3/social/content-moderation.md
+Default list: knowledge-base/web10-v3/social/sensitive-words-default.md
 """
 
 import logging

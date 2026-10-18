@@ -83,6 +83,24 @@ describe('TrendingCard interactions', () => {
   });
 });
 
+describe('TrendingCard markdown caption (D85 read side)', () => {
+  it('renders bold + italic markdown instead of raw syntax', async () => {
+    const mdPost: FeedPost = { ...basePost, content: '**_beautiful day!_**' };
+    render(
+      <TrendingCard post={mdPost} rank={5} maxScore={100} onLike={noop} onComment={noop} onRepost={noop} />,
+    );
+    await waitFor(() => {
+      expect(screen.getByText('beautiful day!')).toBeInTheDocument();
+    });
+    const phrase = screen.getByText('beautiful day!');
+    expect(phrase.closest('strong')).not.toBeNull();
+    expect(phrase.closest('em')).not.toBeNull();
+    // No raw markdown syntax should leak into the DOM.
+    expect(document.body.textContent).not.toContain('**');
+    expect(document.body.textContent).not.toContain('_beautiful');
+  });
+});
+
 describe('TrendingCard repost (reposts.md)', () => {
   beforeEach(() => {
     vi.clearAllMocks();

@@ -1,6 +1,6 @@
 // ── access.ts — access recovery ─────────────────────────────────────────────
 // Executes the confirmatory access verdict from w.verifyAccess() (the node is
-// the oracle — see knowledge/knowledge-base/web10-v3/sdk/api.md "Access
+// the oracle — see knowledge-base/web10-v3/sdk/api.md "Access
 // Health"). It never guesses from status codes; it runs the verdict's ordered
 // `actions`, honoring a cooldown so a transient false positive can't churn the
 // user into a re-auth loop.

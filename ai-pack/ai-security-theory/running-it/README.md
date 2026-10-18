@@ -1,0 +1,339 @@
+# Running It — the operation
+
+[← back to AI Security Theory](../README.md)
+
+The theory is only as good as the loop that runs it. This is the operational
+shape: orient first, then the L1→L2→L3→L4 ladder in criticality order, how a scan
+becomes a fix (with the repro gate), the write-back to the KB, and the seven rules
+that keep the whole thing from decaying back into the giant-PR trap.
+
+## The loop (per level — the inner loop)
+
+The ladder ([the-scope-ladder/](../the-scope-ladder/README.md)) is the **outer**
+loop: L1 → L2 → L3 → L4, each to 100% before the next. **This** diagram is the
+**inner** loop — what happens at *any single* L[N], on *one service or module*. It
+is the same at every level; only the zoom changes.
+
+**The input is a service / library / module** (plus the last run's state). The
+theory hardens a service at a time; a multi-service project (web10) is the
+*sequence* of its services, run **sequentially, backend-first** (API → SDK → auth
+UI → social UI → marketing UI). **You can stop at any level** — the state is saved
+in the security record + learnings, so you resume the next run. That is the X-time/Y-money
+flexibility: run L1 on the API now, come back and run L2–L4 (or the other services)
+later.
+
+The repro gate has two forms, **by determinism, not level**: a **deterministic
+exploit** (at *any* level, whenever feasible — L3/L4 included) and a **scrutinized
+explanation** (only when the finding is genuinely non-deterministic, usually L3/L4).
+
+```mermaid
+flowchart TD
+    IN["Input: one service / module<br/>+ the last run's state"] --> O["ORIENT — read the learnings KB<br/>onboarding + recession + the obvious gap"]
+    O --> A["Slice L[N] into scopes, backend-first"]
+    A --> B["Scan — parallel, read-only<br/>security record rows + findings"]
+    B --> E{Finding?}
+    E -->|yes| F["Fix PR — ≤500 lines, 1 finding"]
+    F --> RG{Repro gate}
+    RG -->|deterministic — any level| X1["Deterministic exploit<br/>red → green"]
+    RG -->|non-deterministic — usually L3/L4| X2["Scrutinized explanation<br/>sequence + why real + what prevents it<br/>— adversarially reviewed"]
+    X1 --> W["Write-back: the learning to the KB"]
+    X2 --> W
+    W --> H["Row → PASS"]
+    H --> E
+    E -->|level 100%| STOP{"Stop here, or continue?"}
+    STOP -->|stop — resume next run| DONE["Terminate — state saved"]
+    STOP -->|continue| G["L[N+1]"]
+    G --> O
+```
+
+The **convergence review** (trust-boundary units, 3-dry) and the **3–6 month
+re-scan cadence** sit *around* this loop, not inside it — see
+[the convergence review](#3-the-convergence-review-run-until-dry) and
+[staleness-and-cadence](../the-security-record/staleness-and-cadence.md).
+
+## 0. Orient first (before any scan)
+
+Do not start by scanning. Start by reading the security KB (the learnings record)
+and running the three prompts — see [the-orient/](../the-orient/README.md):
+
+1. **Onboarding** — what has been considered security-wide?
+2. **Recession** — did any invariant / handled thing quietly become vulnerable
+   again? (Pinning tests catch code recession; the orient catches *conceptual*
+   recession.)
+3. **The obvious gap** — assumption-enumerate the invariants; is there a threat
+   class or a broken assumption we aren't considering?
+
+The orient's output shapes the scan: it tells you where to look, what's already
+handled (don't re-find it), and what class you might be missing. **A scan that
+didn't orient is the 1157/1159 failure in miniature** — clawing at the surface
+blind.
+
+## 1. Slice the surface (parallelization, backend-first)
+
+Do **not** point one workspace at "all the files." Slice the security-critical
+surface into **scopes** — a directory, a module, a few related files — and run
+**one workspace per scope**, in parallel, **in criticality order** (the API first,
+then SDK, authenticator, social, marketing UI — see
+[the-scope-ladder/](../the-scope-ladder/README.md) for the gradient).
+
+- **Why parallel is safe:** a scan is read-only. It writes only the security record +
+  backlog, never code. Eight scanners across a directory cannot merge-conflict on
+  application code because they touch none of it. (They can touch the *same security record
+  file* — so either serialize the security record writes, or have each scope write its own
+  security record section and a final scan PR union-merges them. The security record is docs; a
+  union merge is trivial.)
+- **Why parallel is also the anti-sycophancy move:** a workspace scanning a narrow
+  scope actually reads line by line. A workspace told to "scan everything"
+  skims and says "totally secure." Narrow scope = honest scan.
+ - **Scope size rule of thumb:** small enough to read line by line in one session
+   without skimming. If a scope is too big to actually read, split it.
+
+## The cost (a quick win, not a program)
+
+The security-critical core is small enough to scope by file, and the read-only scan
+**parallelizes for free** — that is the whole point of the design. For web10: the
+~13k-LOC security-critical core (`clickhouse.py`, `safe_query.py`, `auth.py`,
+`middleware.py`, `main.py`, `settings.py`, the endpoints, the SDK) split across
+**~40 parallel read-only scanners**, each doing L1+L2 on a few files and PRing
+**100–200-line fixes**. That is a *batch*, not a program — a day or two of parallel
+work, not months. L3 (per service) and L4 (project-wide) run the same way, after.
+ The convergence review adds cost on trust-boundary units (three fresh reviews), but
+ that's a small subset of the surface, not the whole thing. The honest total: a
+ moderate, *bounded* investment that amortizes over the 3–6 month cadence — not a
+ $5k–$30k pentest engagement, and not free. The point is that the parallelism makes
+ the thorough version *cheap enough to actually run*, which is what a good-but-expensive
+ process never gets.
+
+## The fix order (within a layer) + day-1 bootstrap
+
+**Layer by layer is already the rule** (L1 → L2 → L3 → L4, each to 100% before the
+next). Within a layer, don't do pure first-in-first-out — a critical I3 break found
+fifth shouldn't wait behind a low-severity hygiene item found first. The order that
+makes it *easier* to implement (not harder) is two obvious sorts + one override:
+
+1. **Severity first** — critical invariant break → high → medium → low.
+2. **Tiebreak: crown jewels first** — a High in `clickhouse.py` before a High in the
+   marketing UI (the criticality gradient).
+3. **Override: root-cause-first** — if one fix is a *prerequisite* for another
+   (removing the root cause closes the symptom), do the root cause first. This is
+   the one case where you jump the severity order, and it's what actually saves
+   rework.
+
+No ranking matrix — just *severe first, backend first, root-cause-first when one
+fix kills another.*
+
+**Day-1 bootstrap:** don't derive where to start — start with the **security-critical
+core at L1, backend-first**: `clickhouse.py` (the I3 read gate), `safe_query.py`
+(the query-engine boundary), `auth.py` (token verify), then `middleware.py` /
+`main.py` / `settings.py` and the endpoints, then the SDK (`browser.ts` / `token.ts`
+/ `http.ts`). That is the crown jewels — the files where a wrong change breaks a
+guarantee. Scan those L1 first (parallel scanners), fix the findings (severity
+order), and *then* widen to the rest of the surface, then L2, L3, L4.
+
+## 2. The scan → fix flow (exploit-first)
+
+The whole flow is **led by the exploit** — the security unit test *is* a working
+hack, and a finding is not real until you can demonstrate it. See
+[the-security-record/](../the-security-record/README.md) (the repro gate) for the full treatment.
+
+1. **Scan** (read-only). A workspace reads its scope against
+   [the checklist](../the-scope-ladder/the-checklist.md), at the current level
+   (L1, then L2, then L3, then L4). For each vuln it finds, it **builds the
+   exploit** — a PoC that demonstrates the break (the hack that works) — and writes
+   a security record row (PASS / OPEN / STALE) + the finding + the PoC. It opens a **scan PR**
+   that touches only the security record + backlog (the PoC is recorded with the finding, not
+   committed as a permanent test). A finding with no working exploit is a guess, not
+   a finding — reject it.
+2. **Merge the scan PR.** Security Record-only, zero code risk, lands in parallel with
+   anything. The surface is now *known*: the security record shows exactly what is owed, and
+   every OPEN finding has a demonstrated exploit behind it.
+3. **Fix, one finding at a time, exploit-first.** Each OPEN L1/L2 finding becomes a
+   **fix PR**: ≤500 lines, target ~100, one finding. The PR **commits the exploit as
+   the pinning test and shows red→green** — the exploit works against the vulnerable
+   code (red = the vuln is real), the fix lands, the same exploit is now denied
+   (green = the hole is closed). A pinning test that was green from the moment it was
+   written proved nothing. The PR references the finding (and the security record row).
+4. **Write-back.** When the fix lands, **append the learning to the KB**
+   ([the-orient/](../the-orient/README.md)): the finding + fix as a dated learning,
+   any new assumption / threat class, and if a concern is retired, move it to
+   considered-and-declined. This is what makes the next orient smarter.
+5. **Close the row.** The row goes PASS when the **repro gate** is met (the exploit
+   is denied) — see [the-security-record/](../the-security-record/README.md). If the finding was L3/L4
+   (architectural), it was already deferred to a `BP-n` item; the row reads
+   `PASS (1 finding → BP-n)` and the big-picture backlog carries the work.
+6. **L1 → L2 → L3 → L4, each to 100%.** Finish L1 across the whole surface, then
+   L2, then L3 per service, then L4 project-wide (the final boss). When all four
+    are 100%, the surface has **passed the AI pentest** — see
+    [the-pentest-gate/](../the-pentest-gate/README.md).
+
+## 3. The convergence review (run until dry)
+
+The ladder says "L1–L4 are 100%." The convergence review answers the harder
+question: **"is it *actually* done, or did the scan just stop finding things?"** It
+is the second pair of eyes, made a rule — and it is what lets you answer "but is the
+AI a true oracle?" with *"no, but it was reviewed three times by a clean reviewer
+and came up empty each time."*
+
+**The loop:**
+
+1. **A fresh, unbiased, untainted reviewer** — a clean context that has **not** seen
+   the code, the fix, or the original scan. It is not anchored on what was already
+   found, so it finds *different* things. (This is the anti-sycophancy move: the
+   reviewer that wrote the fix can't be the one who signs it off.)
+2. It reviews the unit / surface for **L1–L4 findings not already in the security record.**
+3. **Anything real it raises gets added** — to the security record as OPEN (needs an exploit
+   + fix) or to the plan / big-picture backlog. It then goes through the normal
+   exploit-first flow (build the exploit, fix, repro gate, write-back).
+4. **Re-run the review** (a fresh reviewer again).
+5. **Stop on three consecutive dry reviews** — three in a row where the reviewer
+   comes back with nothing new ("I'm out of ideas"). Before you hit three-dry, it is
+   still bringing up real stuff; three-dry is the convergence signal.
+
+```mermaid
+flowchart TD
+    A[Fresh untainted reviewer] --> B{Found a real L1-L4<br/>not in the security record?}
+    B -->|yes| C[Add to security record as OPEN<br/>→ exploit + fix + write-back]
+    C --> D[Re-run: fresh reviewer]
+    D --> B
+    B -->|no — dry| E{Dry count}
+    E -->|1 or 2| D
+    E -->|3 consecutive| F[Converged — the unit is done]
+```
+
+**Why three, not one:** a single dry review is luck; three independent fresh
+reviews all coming up empty is *evidence*. The number is a judgment (three is the
+default), but the principle is **convergence detection with a margin** — you don't
+call it done on the first quiet pass, you call it done when it's been quiet
+repeatedly.
+
+**What it is:** not an oracle. It is **bounded, evidenced uncertainty.** The claim
+you can make is not "this is secure" — it is *"this was reviewed three times by a
+clean reviewer, empty each time, and everything any review ever found is in the
+security record."* That is the honest best, and it is strong, because the uncertainty is
+*bounded* (three-dry) and *evidenced* (the security record), not a vibe.
+
+### Model diversity (hitting the class-level blind spots)
+
+Three fresh reviews of the *same model family* reduce **anchoring** risk (the
+reviewer doesn't know what was already found) but not **capability** risk — if the
+model *family* shares a blind spot (all trained on similar data, all missing a
+certain vuln type), three-dry won't catch it. The fix is **model diversity**, and
+the security record's `model=` field is the hook that makes it possible:
+
+- **Layer different model families.** Run the scan (and the convergence review)
+  with *different* models, one after another — a frontier model, a different
+  vendor's model, a smaller workhorse. Each family has different blind spots; the
+  **union** of their findings is more complete than any one. The `model=` field on
+  each security record row records *which* model found what, so you can see the coverage per
+  family.
+- **Transparency makes the blind spots visible.** Because every row says which
+  model produced it, you can *see* if a whole family never finds a certain class —
+  and that's the signal to add a different family (or the late-stage gauntlet's
+  fuzzing) for that class.
+- **It's an extension, not a requirement.** The base loop works with one model
+  family (three-dry, same family). Model diversity is the *upgrade* you add as the
+  stakes rise (crown jewels, pre-production) — and it composes with the late-stage
+  hacker gauntlet (frontier models + fuzzing) for the classes even a diverse model
+  set misses.
+
+So the convergence review's "not an oracle" limit is *narrowed* by model diversity:
+you're not betting on one brain, you're betting on the union of several, and the
+security record shows you exactly which brain found what.
+
+## 4. The design-intent gate (the maintains-product-functionality review)
+
+The convergence review asks "is it *actually* secure?" The **design-intent gate**
+asks the other half: **"does it still work as intended?"** A security change can
+close a real hole and still break the product — by over-securing, by applying a
+conventional standard this project deliberately does not follow, or by quietly
+changing a behavior the KB says is by design. The repro gate proves the hole is
+closed; the design-intent gate proves the fix didn't move the goalposts. Full
+treatment in [the-design-intent-gate/](../the-design-intent-gate/README.md).
+
+**When it runs:** every trust-boundary PR and every security fix PR (the same
+scope as the per-PR gate). A fresh reviewer (not the author) answers five
+questions in writing — **intent** (what was this code supposed to do, from the
+KB), **delta** (what does the change alter, per actor + flow), **by-design
+conflict** (does it contradict a considered-and-declined decision like D41/D56?),
+**conventional-standard deviation** (which standard are we deliberately not
+following, cited or decided?), and **untested intent risk** (what could break
+that no test pins — each pinned or accepted). The answer lands as the
+`DESIGN-INTENT REVIEW` block in the PR; a trust-boundary PR without it is a
+review rejection.
+
+**Why it's separate from the orient:** the orient reads *security knowledge*
+(the invariants, the findings, the declined list). The gate asks the *product*
+question the invariants don't cover — what the code is for, and whether the fix
+preserves it. It is also what makes "we are doing different, not standard"
+auditable: every deviation from a conventional security standard is either cited
+in the KB or filed as a decision — never silent.
+
+## The rules (enforceable)
+
+These are the whole theory compressed to what a reviewer can check on any PR:
+
+1. **No security PR over 500 lines. Target ~100.** One finding = one fix PR.
+   *(A 90-file security PR is a review rejection.)*
+2. **The scan is read-only.** A scan PR touches only the security record + backlog. If a
+   "scan" PR touches application code, it is not a scan — reject it.
+3. **Orient before you scan.** A scan PR with no orient (no learnings read, no
+   recession/gap check) is blind — reject it.
+4. **L1 → L2 → L3 → L4, each to 100% before the next, backend-first.** No L2 until
+   L1-PASS; no L3 until L2-PASS; no L4 until L3-PASS.
+ 5. **Every fix passes the repro gate** — the exploit replayed, denied, red-then-
+    green. **By determinism, not level:** a **deterministic exploit at any level
+    (L1–L4)** whenever feasible (mocking forces the conditions — the clock for the
+    race, the second actor, the payload); a **scrutinized explanation only when the
+    finding is genuinely non-deterministic** (usually L3/L4 — the exact sequence,
+    why it's real, what prevents it — adversarially checked). Don't lazily default
+    L3/L4 to the explanation — if you can make it deterministic, make the exploit. A
+    fix PR with no repro-gate test (or a non-deterministic explanation) is not done.
+6. **Every fix writes back to the KB** — and so does every *failed* exploit (a
+   confirmed non-vulnerability is a learning, not a discarded false positive). A PR
+   that doesn't append the learning breaks the orient loop — reject it.
+7. **Re-scan on a 3–6 month cadence, on a stronger model.** Staleness is relative;
+   the cadence is the clock; the model upgrade is the third ratchet. A surface with
+   no re-scan in 6+ months is STALE by default.
+8. **Trust-boundary units need the convergence review** — three consecutive dry
+   passes by a fresh, untainted reviewer, **across different model families** (the
+   `model=` field is the diversity hook). A PASS without three-dry is a claim, not
+   a verification.
+9. **The gauntlet + gate enforce it** — the accumulated exploits run in CI on every
+   PR (a regression fails the build); a trust-boundary PR must pass the gate (≤500
+   lines, red→green test or scrutinized explanation, security record updated). See
+   [the-gauntlet/](../the-gauntlet/README.md). The wrong way doesn't merge.
+10. **Every trust-boundary / security PR passes the design-intent gate** — a fresh
+    reviewer answers the five questions (intent, delta, by-design conflict,
+    conventional-standard deviation, untested intent risk) and posts the
+    `DESIGN-INTENT REVIEW` block in the PR. A security fix is not done when the
+    exploit is denied; it is done when the exploit is denied **and** the app still
+    behaves like the product the KB describes. See
+    [the-design-intent-gate/](../the-design-intent-gate/README.md).
+
+*(Parallelize the scan, not the fix, is the operating note under rules 1–2: ~40
+read-only scanners at once across the core; fix PRs land one finding at a time.
+That's what makes it a quick win, not a program.)*
+
+## The gate (what "done" means)
+
+A surface is **done** — it has **passed the AI pentest** — when:
+
+- it was **oriented** (the learnings read, recession + gap checked, recorded),
+- every unit in the scope has a row at **every level** it is in scope for (L1, L2,
+  L3, L4) that is PASS or STALE-requeued (no silent gaps),
+- every **OPEN** finding is a tracked item — a fix PR (L1/L2) or a big-picture
+  backlog entry (L3/L4) — nothing found is unlogged,
+- every **fix** passed the **repro gate** (the exploit is replayed and denied), and
+- every **trust-boundary unit** passed the **convergence review** (three
+  consecutive dry passes by a fresh, untainted reviewer), and
+- every **trust-boundary / security PR** passed the **design-intent gate** (the
+  `DESIGN-INTENT REVIEW` block is present; every by-design conflict and untested
+  intent risk is resolved or accepted), and
+- the **big-picture backlog** is visible and ordered (the architectural debt is
+  counted, not hidden).
+
+"Done" is not "secure." It is *oriented, fully scanned, fully accounted for,
+repro-verified, convergence-reviewed, design-intent-checked, and ratcheting.*
+That is the most a one-dev project can honestly claim — and the security record
++ learnings are the proof. See
+[the-pentest-gate/](../the-pentest-gate/README.md) for the claim, stated.

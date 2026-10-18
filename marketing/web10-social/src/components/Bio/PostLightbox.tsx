@@ -173,18 +173,25 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
     scrollToIndex((indexRef.current + 1) % media.length);
   }, [media.length, scrollToIndex]);
 
-  const hasPostNav = Boolean(onPrevPost || onNextPost);
-
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
-      // With post navigation (the profile grid), the arrows step through the
-      // PROFILE'S posts — Instagram's model. Without it, they page the
-      // post's own media (the multi-frame carousel).
-      else if (e.key === 'ArrowLeft' && hasPostNav) onPrevPost?.();
-      else if (e.key === 'ArrowRight' && hasPostNav) onNextPost?.();
-      else if (e.key === 'ArrowLeft' && multiple) prevFrame();
-      else if (e.key === 'ArrowRight' && multiple) nextFrame();
+      // The arrows page the post's own frames first (the multi-frame
+      // carousel); with post navigation (the profile grid) they hand off to
+      // the PROFILE'S posts only when the carousel is exhausted — last
+      // frame → next post, first frame → prev post. Without post nav, the
+      // arrows just page the post's own media (wrapping).
+      else if (e.key === 'ArrowLeft') {
+        if (multiple) {
+          if (indexRef.current === 0 && onPrevPost) onPrevPost();
+          else prevFrame();
+        } else onPrevPost?.();
+      } else if (e.key === 'ArrowRight') {
+        if (multiple) {
+          if (indexRef.current === media.length - 1 && onNextPost) onNextPost();
+          else nextFrame();
+        } else onNextPost?.();
+      }
     };
     window.addEventListener('keydown', onKey);
     const prevOverflow = document.body.style.overflow;
@@ -193,7 +200,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
       window.removeEventListener('keydown', onKey);
       document.body.style.overflow = prevOverflow;
     };
-  }, [onClose, prevFrame, nextFrame, multiple, hasPostNav, onPrevPost, onNextPost]);
+  }, [onClose, prevFrame, nextFrame, multiple, onPrevPost, onNextPost, media.length]);
 
   // Load reaction + comment state (the lightbox reads fresh — it's a modal,
   // not a feed). The like and dislike counts are derived from the reactions
@@ -374,34 +381,37 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
           </div>
         ))}
       </div>
-      {/* The in-pane media arrows page the post's own frames. They are
-          suppressed when post nav owns the side arrows (the profile
-          grid's Instagram-style prev/next post) — otherwise a
-          multi-frame post shows TWO chevrons per side (the media
-          arrows here + the post arrows on the backdrop). The frame
-          counter stays either way, so the current frame is always
-          visible. */}
-      {multiple && !hasPostNav && (
-        <>
-          <button
-            type="button"
-            onClick={prevFrame}
-            aria-label="Previous"
-            data-testid="post-lightbox-prev"
-            className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-background/60 p-1.5 text-foreground backdrop-blur-sm transition-colors hover:bg-background/80"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </button>
-          <button
-            type="button"
-            onClick={nextFrame}
-            aria-label="Next"
-            data-testid="post-lightbox-next"
-            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-background/60 p-1.5 text-foreground backdrop-blur-sm transition-colors hover:bg-background/80"
-          >
-            <ChevronRight className="h-5 w-5" />
-          </button>
-        </>
+      {/* The in-pane media arrows page the post's own frames. They render
+          whenever the post has multiple frames — even when post nav is
+          active (the profile grid's Instagram-style prev/next post) — and
+          are the SAME size as the backdrop post-nav arrows (p-2, h-6 w-6)
+          so both sets read as one system. Instagram's boundary rule: an
+          arrow that would perform an impossible action is hidden — no
+          prev on the first frame (there is no frame before it), no next
+          on the last frame (there is no frame after it). Without this,
+          a multi-frame post in a multi-post profile leaves the user
+          stuck on frame 1 with no way to advance frames on desktop. */}
+      {multiple && index > 0 && (
+        <button
+          type="button"
+          onClick={prevFrame}
+          aria-label="Previous"
+          data-testid="post-lightbox-prev"
+          className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-background/60 p-2 text-foreground backdrop-blur-sm transition-colors hover:bg-background/80"
+        >
+          <ChevronLeft className="h-6 w-6" />
+        </button>
+      )}
+      {multiple && index < media.length - 1 && (
+        <button
+          type="button"
+          onClick={nextFrame}
+          aria-label="Next"
+          data-testid="post-lightbox-next"
+          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-background/60 p-2 text-foreground backdrop-blur-sm transition-colors hover:bg-background/80"
+        >
+          <ChevronRight className="h-6 w-6" />
+        </button>
       )}
       {multiple && (
         <div className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-background/70 px-2 py-0.5 text-xs font-mono tabular-nums text-foreground backdrop-blur-sm">

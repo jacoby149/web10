@@ -33,6 +33,7 @@ import tarfile
 import tempfile
 import threading
 import time
+import traceback
 import uuid
 import zipfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -77,6 +78,10 @@ FOLLOWER_ROLES = [
 _job_queue: queue.Queue = queue.Queue()
 _start_lock = threading.Lock()
 _started = False
+
+# The archive members the metadata import reads (the video MP4s are Phase 2 —
+# deliberately excluded).
+_DATA_EXTS = (".csv", ".json")
 
 _IMPORT_JOBS_DDL = """
 CREATE TABLE IF NOT EXISTS import_jobs (
@@ -286,6 +291,148 @@ def _resubmit_active_jobs() -> None:
 
 
 # ---------------------------------------------------------------------------
+# The trace (import_events) — the durable per-job log + stage checkpoint store
+# ---------------------------------------------------------------------------
+#
+# The job row is the quick-glance status surface (phase, counts, a capped
+# errors list). The TRACE is the deep zoom: every stage checkpoint + the raw
+# worker log stream (with full tracebacks), durable in ClickHouse so it can be
+# pulled from a prod node later (POST /v3/imports/trace) — docker logs rotate,
+# this doesn't. It is also what makes a crash cheap: a re-submitted job reads
+# its completed stages and skips them instead of re-doing the whole pipeline.
+
+_IMPORT_EVENTS_DDL = """
+CREATE TABLE IF NOT EXISTS import_events (
+    job_id String,
+    seq UInt32,
+    stage String,
+    status String,
+    detail String,
+    created_at DateTime64(3)
+) ENGINE = MergeTree
+ORDER BY (job_id, seq)
+"""
+
+_event_seq: dict[str, int] = {}
+_event_seq_lock = threading.Lock()
+
+
+def ensure_import_events_schema() -> None:
+    """Self-heal for pre-existing volumes (same idiom as the import_jobs DDL)."""
+    try:
+        ch.client.command(_IMPORT_EVENTS_DDL)
+    except Exception as e:
+        logger.warning("[import] import_events schema ensure skipped: %s: %s", type(e).__name__, e)
+
+
+def _next_seq(job_id: str) -> int:
+    with _event_seq_lock:
+        n = _event_seq.get(job_id, 0) + 1
+        _event_seq[job_id] = n
+        return n
+
+
+def record_event(job_id: str, stage: str, status: str, detail: str = "") -> None:
+    """One trace row. NEVER raises — the trace must not be able to kill a job.
+    `detail` is untruncated (full tracebacks, full error strings)."""
+    try:
+        ch.client.insert(
+            "import_events",
+            [[job_id, _next_seq(job_id), stage, status, detail, _now()]],
+            column_names=["job_id", "seq", "stage", "status", "detail", "created_at"],
+        )
+    except Exception as e:
+        logger.warning("[import] event record failed (job=%s stage=%s): %s: %s", job_id, stage, type(e).__name__, e)
+
+
+def get_job_events(job_id: str, limit: int | None = None) -> list[dict]:
+    """The job's trace, in order. `limit` caps the raw `log` rows (the stage
+    checkpoints are always full) so a huge job's trace stays pullable."""
+    try:
+        result = ch.client.query(
+            "SELECT seq, stage, status, detail, created_at FROM import_events WHERE job_id = %(job_id)s ORDER BY seq",
+            {"job_id": job_id},
+        )
+    except Exception as e:
+        logger.warning("[import] event read failed (job=%s): %s: %s", job_id, type(e).__name__, e)
+        return []
+    events = [
+        {
+            "seq": int(r[0]),
+            "stage": r[1],
+            "status": r[2],
+            "detail": r[3],
+            "created_at": r[4].isoformat() if isinstance(r[4], datetime) else r[4],
+        }
+        for r in result.result_rows
+    ]
+    if limit is not None:
+        log_rows = [e for e in events if e["stage"] == "log"]
+        if len(log_rows) > limit:
+            dropped = {id(e) for e in log_rows[: len(log_rows) - limit]}
+            events = [e for e in events if id(e) not in dropped]
+    return events
+
+
+def completed_stages(job_id: str) -> set[str]:
+    """The stages a (re-submitted) job already finished — the resume set. A
+    stage counts as done only on a durable `ok` event row."""
+    done: set[str] = set()
+    try:
+        result = ch.client.query(
+            "SELECT DISTINCT stage FROM import_events WHERE job_id = %(job_id)s AND status = 'ok'",
+            {"job_id": job_id},
+        )
+        done = {r[0] for r in result.result_rows if r[0] != "log"}
+    except Exception as e:
+        logger.warning("[import] completed-stages read failed (job=%s): %s: %s", job_id, type(e).__name__, e)
+    return done
+
+
+class _JobLogHandler(logging.Handler):
+    """Captures the worker's own log stream (the `web10-import` logger) into the
+    job's trace. Every record — including ERROR records with their full
+    traceback — becomes a `log` event row, so the trace is a real dump, not a
+    summary. Thread-safe (the handler is attached only to the running job's
+    thread); never raises into the logging machinery.
+
+    The level is set to DEBUG so EVERYTHING the worker logs is captured — the
+    whole point is a real dump. (The logger itself emits at the root level;
+    this handler just must not filter any of it out.)"""
+
+    def __init__(self, job_id: str):
+        super().__init__(level=logging.DEBUG)
+        self.job_id = job_id
+        self.setFormatter(logging.Formatter("%(levelname)s %(message)s"))
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            msg = self.format(record)
+            if record.exc_info:
+                msg = msg + "\n" + "".join(traceback.format_exception(*record.exc_info))
+            record_event(self.job_id, "log", record.levelname.lower(), msg)
+        except Exception:
+            pass  # the trace must never break the logging call
+
+
+def _with_job_logging(job_id: str):
+    """Context manager: attach the trace handler to the `web10-import` logger
+    for the duration of the job (the raw log stream lands in the trace)."""
+
+    class _Ctx:
+        def __enter__(self):
+            self._handler = _JobLogHandler(job_id)
+            logger.addHandler(self._handler)
+            return self._handler
+
+        def __exit__(self, *exc_info):
+            logger.removeHandler(self._handler)
+            return False
+
+    return _Ctx()
+
+
+# ---------------------------------------------------------------------------
 # Worker lifecycle (the transcode-worker idiom)
 # ---------------------------------------------------------------------------
 
@@ -308,12 +455,46 @@ def _ensure_started() -> None:
         if _started:
             return
         ensure_import_jobs_schema()
+        ensure_import_events_schema()
         _resubmit_active_jobs()
+        _sweep_stuck_jobs()
         for i in range(max(1, settings.IMPORT_WORKER_CONCURRENCY)):
             t = threading.Thread(target=_worker_loop, daemon=True, name=f"import-worker-{i}")
             t.start()
+        s = threading.Thread(target=_sweep_loop, daemon=True, name="import-stuck-sweep")
+        s.start()
         _started = True
         logger.info("[import] worker started — concurrency=%s", settings.IMPORT_WORKER_CONCURRENCY)
+
+
+def _sweep_loop() -> None:
+    """Periodically re-queue stuck `processing` jobs (the worker thread died
+    without marking them — OOM kill, deploy, hang). The pipeline is idempotent
+    + stage-checkpointed, so a re-run is safe and cheap."""
+    while True:
+        time.sleep(max(30, settings.IMPORT_STUCK_SWEEP_SECONDS))
+        _sweep_stuck_jobs()
+
+
+def _sweep_stuck_jobs() -> None:
+    try:
+        result = ch.client.query(
+            "SELECT job_id FROM (SELECT job_id, phase, updated_at, "
+            "row_number() OVER (PARTITION BY job_id ORDER BY updated_at DESC) AS rn "
+            "FROM import_jobs WHERE deleted = 0) WHERE rn = 1 "
+            "AND phase = 'processing' "
+            "AND updated_at < now() - toIntervalMinute(%(mins)s)",
+            {"mins": max(1, settings.IMPORT_STUCK_AFTER_MINUTES)},
+        )
+        for (job_id,) in result.result_rows:
+            logger.warning("[import] stuck job detected — re-queueing %s (heartbeat stale)", job_id)
+            record_event(
+                job_id, "stuck", "error", f"heartbeat stale > {settings.IMPORT_STUCK_AFTER_MINUTES}m — re-queued"
+            )
+            update_import_job(job_id, phase=QUEUED, message="Stuck — re-queued (worker heartbeat stale)")
+            _job_queue.put(job_id)
+    except Exception as e:
+        logger.warning("[import] stuck sweep skipped: %s: %s", type(e).__name__, e)
 
 
 def _worker_loop() -> None:
@@ -331,10 +512,17 @@ def _worker_loop() -> None:
 
 
 def _mark_error(job_id: str, error: str) -> None:
+    tb = traceback.format_exc()
+    # format_exc outside an except block returns "NoneType: None\n" — no live
+    # exception; in that case the error string is the whole story.
+    if tb.strip() in ("", "NoneType: None"):
+        tb = ""
+    detail = f"{error}\n{tb}" if tb else error
     try:
         update_import_job(job_id, phase=ERROR, errors=[error[:500]], message=f"Import failed: {error[:200]}")
     except Exception:
         logger.exception("[import] could not mark job %s error", job_id)
+    record_event(job_id, "failed", "error", detail)
 
 
 # ---------------------------------------------------------------------------
@@ -355,56 +543,93 @@ def _process_job(job_id: str) -> None:
         return
 
     user = job["user_key"]
+    # Resume: a re-submitted job (a restart, a stuck-sweep re-queue) skips the
+    # stages it already checkpointed — the idempotency pre-scan inside the
+    # write stage makes even a partial re-write safe.
+    done_stages = completed_stages(job_id)
     update_import_job(job_id, phase=PROCESSING, progress=0, message="Downloading export from storage...")
 
     tmp_dir = Path(tempfile.mkdtemp(prefix=f"import-{job_id[:8]}-"))
     try:
-        _download_parts(job["object_keys"], tmp_dir)
-        # Download + parse are indeterminate (the record count isn't known
-        # until the parse) — progress stays 0 with a live message; the
-        # percentage starts counting once the write phase knows its total.
-        update_import_job(job_id, message="Extracting and parsing the export...")
-        entries = _extract_data_entries(tmp_dir)
-        records = parser(entries)
-        update_import_job(
-            job_id,
-            total_records=len(records),
-            progress=0,
-            message=f"Parsed {len(records)} records — writing to node...",
-        )
-        if not records:
+        with _with_job_logging(job_id):
+            if "download" not in done_stages:
+                _download_parts(job["object_keys"], tmp_dir)
+                record_event(job_id, "download", "ok", f"parts={len(job['object_keys'])}")
+            else:
+                logger.info("[import] resuming — download stage already done, re-downloading parts")
+                _download_parts(job["object_keys"], tmp_dir)
+                record_event(job_id, "download", "ok", "resume (parts re-fetched from storage)")
+
+            # Download + parse are indeterminate (the record count isn't known
+            # until the parse) — progress stays 0 with a live message; the
+            # percentage starts counting once the write phase knows its total.
+            update_import_job(job_id, message="Extracting and parsing the export...")
+            if "parse" not in done_stages:
+                # Stream the CSV/JSON members through the parser (flat RAM —
+                # a multi-GB export's comment CSV is never held whole in memory).
+                records = parser(iter_data_entries(tmp_dir))
+            else:
+                logger.info("[import] resuming — parse stage already done, re-parsing")
+                records = parser(iter_data_entries(tmp_dir))
+                record_event(job_id, "parse", "ok", f"records={len(records)} (resume re-parse)")
             update_import_job(
                 job_id,
-                phase=ERROR,
-                errors=["No importable records found in the export."],
-                message="No importable records found",
+                total_records=len(records),
+                progress=0,
+                message=f"Parsed {len(records)} records — writing to node...",
             )
-            return
+            record_event(job_id, "parse", "ok", f"records={len(records)}")
+            if not records:
+                update_import_job(
+                    job_id,
+                    phase=ERROR,
+                    errors=["No importable records found in the export."],
+                    message="No importable records found",
+                )
+                record_event(job_id, "failed", "error", "No importable records found in the export.")
+                return
 
-        # Resolve the target group. An explicit target_group_id (validated as
-        # user-owned at create time) is a PAGE import — the channel becomes the
-        # group's face (group-as-profile, D60). Absent → the legacy followers
-        # group + personal profile.
-        target_group_id = job.get("target_group_id") or ""
-        if target_group_id:
-            target_group = target_group_id
-            as_page = True
-        else:
-            target_group = ensure_followers_group(user)
-            as_page = False
-        written, skipped, errors = _write_records(job_id, user, records, target_group, as_page)
-        update_import_job(
-            job_id,
-            phase=COMPLETE,
-            written_records=written,
-            skipped_records=skipped,
-            progress=100,
-            errors=errors[:100],
-            message=f"Import complete: {written} written, {skipped} skipped.",
-        )
+            # Resolve the target group. An explicit target_group_id (validated
+            # as user-owned at create time) is a PAGE import — the channel
+            # becomes the group's face (group-as-profile, D60). Absent → the
+            # legacy followers group + personal profile.
+            target_group_id = job.get("target_group_id") or ""
+            if target_group_id:
+                target_group = target_group_id
+                as_page = True
+            else:
+                target_group = ensure_followers_group(user)
+                as_page = False
+            if "write" not in done_stages:
+                written, skipped, errors = _write_records(job_id, user, records, target_group, as_page)
+            else:
+                logger.info("[import] resuming — write stage already done, re-verifying (idempotent)")
+                written, skipped, errors = _write_records(job_id, user, records, target_group, as_page)
+            record_event(
+                job_id,
+                "write",
+                "ok",
+                f"written={written} skipped={skipped} errors={len(errors)}" + (f" — {errors[:10]}" if errors else ""),
+            )
+            update_import_job(
+                job_id,
+                phase=COMPLETE,
+                written_records=written,
+                skipped_records=skipped,
+                progress=100,
+                errors=errors[:100],
+                message=f"Import complete: {written} written, {skipped} skipped.",
+            )
+            record_event(job_id, "complete", "ok", f"written={written} skipped={skipped}")
     finally:
-        # The privacy promise: the raw export never survives the import.
-        _delete_parts(job["object_keys"])
+        # The privacy promise: the raw export never survives the import —
+        # UNLESS KEEP_IMPORT_EXPORTS is on (the debug kill-switch: a failed
+        # first real-world import can be re-run against the exact same bytes).
+        if settings.KEEP_IMPORT_EXPORTS:
+            logger.info("[import] KEEP_IMPORT_EXPORTS on — leaving export parts in storage (job=%s)", job_id)
+            record_event(job_id, "cleanup", "ok", "KEEP_IMPORT_EXPORTS=on — export parts retained in storage")
+        else:
+            _delete_parts(job["object_keys"])
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
@@ -421,36 +646,76 @@ def _is_zip(path: Path) -> bool:
         return f.read(4) == b"PK\x03\x04"
 
 
-def _extract_data_entries(tmp_dir: Path) -> list[tuple[str, bytes]]:
-    """The data members (CSV + JSON) of every part — tar or zip. Takeout exports
-    YouTube as CSV (video metadata/videos.csv, comments/comments.csv,
+def _iter_zip_entries(part: Path):
+    """(member_path, file_object) for a zip part — streamed (the member is read
+    on demand, never held whole in RAM)."""
+    with zipfile.ZipFile(part, "r") as zf:
+        for info in zf.infolist():
+            if info.is_dir() or not info.filename.lower().endswith(_DATA_EXTS):
+                continue
+            yield info.filename, zf.open(info, "r")
+
+
+def _iter_tar_entries(part: Path):
+    """(member_path, file_object) for a tar part — streamed (extractfile gives
+    a file-like object; the bytes are read by the consumer, row by row).
+
+    IMPORTANT: the file objects are valid only while the archive is open —
+    the consumer must read each member before yielding the next (the parser
+    does: it reads a member fully, then asks for the next)."""
+    tf = tarfile.open(part, "r:*")
+    try:
+        for member in tf.getmembers():
+            if not member.isfile() or not member.name.lower().endswith(_DATA_EXTS):
+                continue
+            f = tf.extractfile(member)
+            if f is None:
+                continue
+            yield member.name, f
+    finally:
+        tf.close()
+
+
+def iter_data_entries(tmp_dir: Path):
+    """The data members (CSV + JSON) of every part, as a STREAM of
+    (member_path, file_object) pairs — tar or zip, any split size. Takeout
+    exports YouTube as CSV (video metadata/videos.csv, comments/comments.csv,
     channels/channel.csv); JSON is kept for future/other platforms. The video
-    MP4s are deliberately NOT read here (27GB) — the metadata import only.
-    Split exports are multiple parts; each is a standalone archive."""
-    entries: list[tuple[str, bytes]] = []
-    exts = (".csv", ".json")
+    MP4s are deliberately NOT read (27GB in a real export) — the metadata
+    import only.
+
+    Streaming (vs the old list-of-bytes) is the OOM fix: a member's bytes are
+    consumed row-by-row by the parser and released, so a channel with a huge
+    comment CSV can't spike the worker's memory and get the API container
+    killed. Split exports are multiple parts; each is a standalone archive."""
     for part in sorted(tmp_dir.iterdir()):
         if not part.is_file() or part.stat().st_size == 0:
             continue
         if _is_zip(part):
-            with zipfile.ZipFile(part, "r") as zf:
-                for info in zf.infolist():
-                    if info.is_dir() or not info.filename.lower().endswith(exts):
-                        continue
-                    entries.append((info.filename, zf.read(info.filename)))
+            yield from _iter_zip_entries(part)
         else:
-            with tarfile.open(part, "r:*") as tf:
-                for member in tf.getmembers():
-                    if not member.isfile() or not member.name.lower().endswith(exts):
-                        continue
-                    f = tf.extractfile(member)
-                    if f is None:
-                        continue
-                    entries.append((member.name, f.read()))
+            yield from _iter_tar_entries(part)
+
+
+def _extract_data_entries(tmp_dir: Path) -> list[tuple[str, bytes]]:
+    """LIST form of iter_data_entries — (path, bytes) pairs, fully read. Kept
+    for the test harness + any caller that wants the old shape; the worker
+    itself streams via iter_data_entries."""
+    entries: list[tuple[str, bytes]] = []
+    for name, f in iter_data_entries(tmp_dir):
+        try:
+            entries.append((name, f.read()))
+        finally:
+            f.close()
     return entries
 
 
 def _delete_parts(object_keys: list[str]) -> None:
+    if settings.KEEP_IMPORT_EXPORTS:
+        # The debug kill-switch: a failed first real-world import can be
+        # re-run against the exact same bytes without a re-upload.
+        logger.info("[import] KEEP_IMPORT_EXPORTS on — retaining export parts: %s", object_keys)
+        return
     try:
         s3 = media_svc.get_s3_client()
         for key in object_keys:

@@ -1,0 +1,70 @@
+name: security-gate
+
+# The security theory's enforcement layer (ai-pack/ai-security-theory/the-gauntlet/).
+# Two jobs, both on PRs that touch a trust boundary (the crown jewels):
+#   - gate:     the per-PR method check (<=500 lines, ledger updated, repro test).
+#               The "wrong way doesn't merge" guard — stops the 1157/1159 class.
+#   - gauntlet: runs the API security test suite (the exploits + conformance).
+#               The backstop — runs even for sdk/ui/rtc changes that api.yml
+#               (path-filtered to api/**) would not catch.
+on:
+  pull_request:
+    paths:
+      - api/app/services/auth.py
+      - api/app/v3/services/clickhouse.py
+      - api/app/v3/services/safe_query.py
+      - api/app/v3/endpoints/**
+      - api/app/middleware.py
+      - api/app/main.py
+      - api/app/settings.py
+      - api/rtc/**
+      - sdk/src/**
+      - ui/src/**
+      - api/tests/**
+      - knowledge-base/security/**
+      - scripts/security-gate.sh
+      - .github/workflows/security-gate.yml
+
+concurrency:
+  group: security-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: security gate (method check)
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0   # need origin/dev to diff against
+
+      - name: Run the security gate
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: bash scripts/security-gate.sh origin/dev
+
+  gauntlet:
+    name: security gauntlet (run the exploits)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: api/uv.lock
+
+      - name: uv sync
+        run: uv sync --frozen --extra test
+
+      # The security test suite — the exploits + the conformance/permission tests
+      # that mechanically enforce the invariants (I1-I6). Self-contained (the DB is
+      # mocked), so no live stack is needed.
+      - name: Run the security gauntlet
+        run: uv run pytest

@@ -1,6 +1,7 @@
 import { Flame } from 'lucide-react';
 import type { FeedPost } from '@/components/FeedPreview';
 import { formatCount } from '@/components/FeedPreview';
+import { MarkdownText } from '@web10/discover';
 
 // /trending sidebar — desktop only (wide screens). A compact "Top 10"
 // ranked list; selecting an entry scrolls the matching card into view in
@@ -64,7 +65,7 @@ function TrendingSidebar({ entries, onSelect }: TrendingSidebarProps) {
                       {post.name}
                     </span>
                     <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-                      {post.content}
+                      <MarkdownText text={post.content} />
                     </span>
                   </span>
                   <span className="shrink-0 text-xs tabular-nums text-muted-foreground">

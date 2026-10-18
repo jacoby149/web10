@@ -23,6 +23,10 @@
       "react-dom": ["./node_modules/@types/react-dom"],
       "react-dom/*": ["./node_modules/@types/react-dom/*"],
       "lucide-react": ["./node_modules/lucide-react"],
+      "react-markdown": ["./node_modules/react-markdown"],
+      "rehype-sanitize": ["./node_modules/rehype-sanitize"],
+      "remark-breaks": ["./node_modules/remark-breaks"],
+      "remark-gfm": ["./node_modules/remark-gfm"],
       "clsx": ["./node_modules/clsx"],
       "tailwind-merge": ["./node_modules/tailwind-merge"]
     },

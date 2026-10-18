@@ -48,7 +48,7 @@ ENV VITE_API_URL=$VITE_API_URL \
     STATUS_VERSION=$STATUS_VERSION
 
 # Copy the marketing-ui source (only) so the build context — now the
-# whole repo — does not leak e2e/api/knowledge/... into /app.
+# whole repo — does not leak e2e/api/knowledge-base/... into /app.
 COPY marketing/marketing-ui/ ./
 
 # Build SDK from source so wapi.js is always fresh (never stale from repo).

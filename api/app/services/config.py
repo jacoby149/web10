@@ -5,7 +5,7 @@ import app.settings as settings
 # Content moderation (D59) — the shipped default blocklist. Hate speech and
 # slurs only (not general profanity). Whole-word, case-insensitive matching.
 # The operator can add to or remove from this in the Node Config UI. Source:
-# knowledge/knowledge-base/web10-v3/social/sensitive-words-default.md.
+# knowledge-base/web10-v3/social/sensitive-words-default.md.
 DEFAULT_SENSITIVE_WORDS: list[str] = [
     # Anti-Black
     "nigger",

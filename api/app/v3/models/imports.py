@@ -20,3 +20,10 @@ class ImportCreate(BaseModel):
 class ImportJobRef(BaseModel):
     token: str
     job_id: str
+
+
+class ImportTraceRef(ImportJobRef):
+    # The trace's depth — how many raw log lines to include (the stage
+    # checkpoints are always full; the log dump is capped so a 10k-video
+    # channel's trace stays pullable). 0 = stages only.
+    limit: int | None = 2000

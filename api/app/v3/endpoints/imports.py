@@ -22,7 +22,7 @@ import app.settings as settings
 from app.services.importers import PARSERS
 from app.services.media import ensure_bucket, get_s3_client, get_s3_signing_client
 from app.v3.endpoints.auth_helper import user as _user
-from app.v3.models import ImportCreate, ImportJobRef
+from app.v3.models import ImportCreate, ImportJobRef, ImportTraceRef
 from app.v3.services import import_worker
 
 router = APIRouter(tags=["imports"])
@@ -134,3 +134,24 @@ def import_status(data: ImportJobRef):
     """Poll the job row (the status surface the client renders)."""
     job = _owned_job(data)
     return {"job_id": job["job_id"], "job": job}
+
+
+@router.post("/imports/trace")
+def import_trace(data: ImportTraceRef):
+    """The job's durable trace — the deep zoom behind the status poll.
+
+    Every stage checkpoint (download / parse / write / complete / failed /
+    stuck) with its untruncated detail, plus the raw worker log stream
+    (the `log` rows, capped by `limit` so a huge job's trace stays pullable).
+    This is what you pull from a prod node after an import goes to shit:
+    which stage died, the exact traceback, the per-record errors — durable in
+    ClickHouse, immune to docker-log rotation. Owner-gated like the rest
+    (I3: a token never reads another user's job).
+    """
+    job = _owned_job(data)
+    limit = data.limit if data.limit is not None else 2000
+    return {
+        "job_id": job["job_id"],
+        "phase": job["phase"],
+        "events": import_worker.get_job_events(job["job_id"], limit),
+    }

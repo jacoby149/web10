@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { errorMessage } from '@/components/shared/Toast';
 import { readMyCatalog, type AdItem } from '@/data/ads-catalog';
 import { projectEarnings, formatProjection, DEFAULT_RATES } from '@/data/ad-projection';
-import { readCreatorAnalytics, type CreatorAnalytics } from '@/data/creator-analytics';
+import { readCreatorAnalytics, enrichTopPosts, type CreatorAnalytics, type TopPostDetail } from '@/data/creator-analytics';
 import { ReachCharts } from './ReachCharts';
 
 // The Analytics section (ads-october focus #5) — the "how it's performing"
@@ -28,7 +28,7 @@ import { ReachCharts } from './ReachCharts';
 // Data: the owner's own catalog (readMyCatalog) + the D86 contentAnalytics
 // read (the creator's own content, I3-bound). No node surface (D60).
 //
-// KB: knowledge/knowledge-base/web10-v3/analytics/creator-dashboard.md
+// KB: knowledge-base/web10-v3/analytics/creator-dashboard.md
 
 type Tell = { label: string; variant: 'success' | 'warning' | 'danger' | 'brand' | 'default'; note: string };
 
@@ -63,6 +63,7 @@ export function AnalyticsSection() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [analytics, setAnalytics] = useState<CreatorAnalytics>(EMPTY_ANALYTICS);
+  const [topPostDetails, setTopPostDetails] = useState<TopPostDetail[]>([]);
   // The time-series window (7d / 30d / 90d). Default 30d (the GA/YouTube default).
   const [windowDays, setWindowDays] = useState(30);
   // True once the first load has completed. The first load shows the skeleton;
@@ -100,6 +101,10 @@ export function AnalyticsSection() {
       if (a.totals.impressions > 0) {
         setCalcImpressions(Math.min(Math.max(a.totals.impressions, 10_000), 1_000_000));
       }
+      // Enrich the top posts with their doc identity (title, thumbnail,
+      // content type, ad format) so the Top Posts list shows real previews.
+      const enriched = await enrichTopPosts(a.topPosts);
+      setTopPostDetails(enriched);
     } catch (e) {
       const msg = errorMessage(e, 'Failed to load your analytics');
       if (/403|not a member/i.test(msg)) setAds([]);
@@ -113,16 +118,6 @@ export function AnalyticsSection() {
   useEffect(() => { load(); }, [load]);
 
   const productAds = useMemo(() => ads || [], [ads]);
-
-  // doc_id → a short label (title or truncated text) for the top-posts list.
-  // Built from the catalog (ads + posts + albums) so the drill-down shows the
-  // post's own text, not a raw doc_id.
-  const postLabels = useMemo(() => {
-    const m = new Map<string, string>();
-    if (!ads) return m;
-    for (const ad of ads) m.set(ad.doc.doc_id, ad.title || ad.text || 'Ad');
-    return m;
-  }, [ads]);
 
   // The what-if projection: same math as the per-ad projection, but driven by
   // the creator's own assumed price + commission (no product required).
@@ -179,7 +174,7 @@ export function AnalyticsSection() {
           analytics={analytics}
           windowDays={windowDays}
           onWindowChange={setWindowDays}
-          postLabels={postLabels}
+          topPostDetails={topPostDetails}
         />
       )}
 

@@ -7,7 +7,7 @@ architecture, and picked up by the standard feed read. The API has zero
 ad-specific branches: the ad post is indistinguishable from a post except its
 tag + body fields. This suite pins that.
 
-KB: knowledge/knowledge-base/web10-v3/social/ads.md (D55) + ads-catalog.md.
+KB: knowledge-base/web10-v3/social/ads.md (D55) + ads-catalog.md.
 """
 
 from datetime import datetime, timedelta

@@ -26,7 +26,7 @@ type TabId = (typeof TABS)[number]['id'];
  *   - **People** — search the node's people, see their posts, hide a user.
  *   - **Link** — paste a web10 permalink, pull up the post + user, hide either.
  *
- * KB: knowledge/knowledge-base/web10-v3/social/content-moderation.md
+ * KB: knowledge-base/web10-v3/social/content-moderation.md
  */
 export default function NodeSettingsScreen() {
   const [searchParams, setSearchParams] = useSearchParams();

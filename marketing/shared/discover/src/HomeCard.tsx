@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { cn, hashToColor, timeAgo, formatCount } from './utils';
 import { Avatar, AvatarFallback } from './ui';
 import { HoverVideo } from './HoverVideo';
+import { MarkdownText } from './MarkdownText';
 import type { DiscoverPost, MediaItem } from './types';
 
 /**
@@ -118,6 +119,11 @@ export function HomeCard({
   // post text (`text`) truncated to the char limit. The video wall card shows
   // the title only (the YouTube model — the caption is the watch page's
   // description, not the card). A caption-only post shows its text, truncated.
+  // `titleIsMarkdown` is true when the headline is actually the post's `text`
+  // (which is stored as markdown, D85) rather than the plain `title` field —
+  // in that case the text must be rendered through the markdown renderer, not
+  // shown raw.
+  const titleIsMarkdown = !post.title && !!post.text;
   const title = truncateTitle(post.title || post.text || '') || displayName;
 
   const media: MediaItem | undefined = post.media?.[0];
@@ -236,7 +242,7 @@ export function HomeCard({
         data-testid={`${testId}-title`}
         className="mt-2.5 line-clamp-2 text-base font-semibold leading-snug text-foreground transition-colors hover:text-brand-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
       >
-        {title}
+        {titleIsMarkdown ? <MarkdownText text={title} /> : title}
       </a>
 
       {/* 3. The attribution — the author's avatar + name + a relative time. */}

@@ -5,7 +5,7 @@
 This file is the only root-level doc you need. Read it top to bottom.
 Everything else is a read you choose to make when relevant.
 
-**Browse `knowledge/strategy/` before responding.** It is the project's
+**Browse `knowledge-base/strategy/` before responding.** It is the project's
 brain — the plan, the execution lanes, the design standard, the decisions,
 the manifesto, the timeline. These are root-level docs that define what the
 project is, where it's going, and how work is organized. The read is NOT
@@ -13,21 +13,35 @@ optional and NOT skippable for greetings — do not greet first and read
 later. Greeting behavior (below) governs how you sound AFTER the read, not
 whether you read.
 
-**Scan `knowledge/changelogs/CHANGELOG.md`.** It is the project's memory —
+**Scan `knowledge-base/changelogs/CHANGELOG.md`.** It is the project's memory —
 the recent history of what changed and why. The top entries tell you what's
 been shipped. When debugging, the changelog is a signal: it captures the
 intention behind every change.
 
-**Load `knowledge/ai-use-theory/ai-use-theory.md` before modifying any code.**
+**Load `ai-pack/ai-use-theory/ai-use-theory.md` before modifying any code.**
 This is your operating procedure when adding features, fixing bugs, or
 refactoring — the four-phase task flow (**orient → generate → compare
 → repair**) and the pyramid (**KB → logs → tests → features**). When
 something breaks, do not speculate: run the flow. When building new
 features, build the pyramid bottom-up — the KB alignment is what saves
 you from reimplementation due to misalignment. The KB is the root of trust — keep
-it aligned with the code before you trust any of it. For read-only tasks
-(answering questions, explaining code, searching), this protocol does not
-apply.
+ it aligned with the code before you trust any of it. For read-only tasks
+ (answering questions, explaining code, searching), this protocol does not
+ apply.
+
+**Load `ai-pack/ai-security-theory/README.md` before doing security work**
+(hardening, scanning, or any PR that touches a trust boundary — auth, tokens,
+the DB read gate, federation, the SDK's credential surface). Security is
+*coverage, not convergence*: **orient first** (read
+`knowledge-base/security/learnings.md` — onboarding, recession, the obvious gap),
+then scan read-only and record it across the scope ladder (L1 file → L2 call-graph
+→ L3 service → L4 project-wide, backend-first), fix in tiny PRs (≤500 lines, one
+finding each, a **repro-gate** test — the exploit replayed and denied), and
+**write the learning back** to `learnings.md`. Re-scan on a 3–6 month cadence.
+Written security (WS) = the whole `knowledge-base/security/` section (strategy +
+record + knowledge); having WS in the KB is what makes a project more secure. The
+**security record** (`knowledge-base/security/security-record.md`) records
+*coverage*; the learnings record *knowledge*. No 90-file security PRs.
 
 ## GREETING BEHAVIOR
 
@@ -62,20 +76,32 @@ The tour, in this order:
 1. **Top-level folders** — `api/` (FastAPI node: data, auth, billing,
    media; `api/rtc/` WebRTC), `ui/` (React admin/consent UI), `sdk/`
    (wapi.js), `marketing/` (web10-social killer app, marketing-ui site,
-    marketing-api), `knowledge/` (the docs — below),
-    `ubuntu-deployment/` (server deploy), `e2e/` + `scripts/` (tests +
-    helpers).
-2. **The knowledge base** — `knowledge/`. The docs:
-   - `knowledge-base/` — the web10 implementation details. We're on v3.
-   - `ai-use-theory/` — the operating method: KB is the root of trust;
-     the pyramid (KB → logs → tests → features) + four-phase flow (orient
-     → generate → compare → repair).
+     marketing-api), `knowledge-base/` (the web10 brain — below),
+    `ai-pack/` (the AI method cartridge — below),
+     `ubuntu-deployment/` (server deploy), `e2e/` + `scripts/` (tests +
+     helpers).
+2. **The knowledge base (the brain)** — `knowledge-base/`. Everything you
+   read to get up to speed on web10:
+   - `web10-v3/` — the implementation details (db, auth, security, telemetry,
+     groups). We're on v3.
+    - `strategy/` — the plan, decisions, design standard, manifesto,
+      timeline, execution lanes.
+    - `changelogs/` — what shipped and why, newest first.
+    - `security/` — written security (WS): the invariants (I1–I6), the security
+      record, the big-picture backlog, and the scan records.
+ 3. **The AI method (the cartridge)** — `ai-pack/`. The portable operating
+    method that travels to any repo:
+     - `ai-use-theory/` — KB is the root of trust; the pyramid (KB → logs →
+       tests → features) + four-phase flow (orient → generate → compare →
+       repair).
+     - `ai-security-theory/` — security as coverage, not convergence: orient
+       against the learnings KB first, the scope ladder (L1 file → L2 call-graph →
+       L3 service → L4 project-wide, backend-first), the security record + learnings
+      roots of trust), the repro gate, the AI pentest gate, the 3–6 month re-scan
+      ratchet.
    - how to write — `knowledge-theories/` (Why/How/What),
      `writing-styles/`, `voices/`, `visual-styles/`, `editing-styles/`.
-   - `strategy/` — the plan, decisions, design standard, manifesto,
-     timeline.
-   - `changelogs/` — what shipped and why, newest first.
-3. **Commands** —
+4. **Commands** —
    - `web10web10!` — ship-first ritual: gather state, gate + promote
      dev→main if clean, then plan, then emit copy-pastable kickoff blocks
      for the fleet.
@@ -85,7 +111,7 @@ The tour, in this order:
    - `imma rant` — complaints incoming: don't implement, file each as a
      lane item (quote, diagnosis, acceptance bar, gates + bite sizing) on
      one docs branch + PR.
-4. **Agent docs** — `AGENTS.md` is the operating manual (wake-up,
+5. **Agent docs** — `AGENTS.md` is the operating manual (wake-up,
    personality, conventions, PR checklist); `CLAUDE.md` and `QWEN.md`
    redirect to it. `README.md` is the project readme.
 
@@ -211,9 +237,9 @@ The product is a platform for influencers — own your audience, no shadow
 ban (100% delivery by architecture) — and the protocol exists to make that
 ownership possible. Protocol/feature decisions are judged by whether they
 make the creator platform better. Read THE STORY at the top of
-`knowledge/strategy/plan.md` before touching product surfaces; the fan-
-facing voice lives in `knowledge/strategy/manifesto.md`, the creator pitch
-in `knowledge/strategy/outreach.md`. **Read `knowledge/strategy/thesis.md`
+`knowledge-base/strategy/plan.md` before touching product surfaces; the fan-
+facing voice lives in `knowledge-base/strategy/manifesto.md`, the creator pitch
+in `knowledge-base/strategy/outreach.md`. **Read `knowledge-base/strategy/thesis.md`
 before any product or security call** — web10 is a data-policy platform,
 not a privacy platform (D41): the node is readable by design (discovery /
 search / auditability), there is no default e2e, and the client is a PWA,
@@ -230,7 +256,7 @@ the events, not sold, not fed to any ad machine (GA4 advertising features
 stay off; the only sponsors a fan sees are the creator's, D50/D55). The
 trade is terms-level, not a consent popup: "it is the wrong platform for
 you if you arent ok with that." Full model:
-`knowledge/knowledge-base/web10-v3/telemetry.md`. Do not "tighten" or
+`knowledge-base/web10-v3/telemetry.md`. Do not "tighten" or
 "privacy-wash" tracking without re-reading D56.
 
 ## The stack
@@ -252,7 +278,7 @@ you if you arent ok with that." Full model:
 
 ## How the data model works
 
-Single ClickHouse `documents` table, primary key `(author_key, doc_id)`. `doc_groups` maps documents to groups. `group_contracts` + `group_members` define access. Two contract types: app contracts (infrastructure trust, CORS-enforced) and group contracts (social access, role-enforced). Full model: `knowledge/knowledge-base/web10-v3/db/clickhouse.md`.
+Single ClickHouse `documents` table, primary key `(author_key, doc_id)`. `doc_groups` maps documents to groups. `group_contracts` + `group_members` define access. Two contract types: app contracts (infrastructure trust, CORS-enforced) and group contracts (social access, role-enforced). Full model: `knowledge-base/web10-v3/db/clickhouse.md`.
 
 ## The node stays generic (D60) — no app-specific surface in `api/`
 
@@ -289,22 +315,22 @@ the session oracle (→ client-side) · a `collection_name = 'posts'` filter in 
 ad path (→ tag + group membership, D64). If you catch yourself adding a node
 endpoint that names a social concept, stop — that's the smell.
 
-Full model: `knowledge/strategy/decisions.md` D60 + `knowledge-base/web10-v3/
+Full model: `knowledge-base/strategy/decisions.md` D60 + `knowledge-base/web10-v3/
 groups/access.md`. This is a **review rejection**: an app-specific `api/` change
 does not merge.
 
 ## Auth model
 
-JWT tokens with `username, site, target, provider, expires`. Server verifies signature, checks app contracts + group membership. Full auth flow: `knowledge/knowledge-base/web10-v3/auth/auth.md`.
+JWT tokens with `username, site, target, provider, expires`. Server verifies signature, checks app contracts + group membership. Full auth flow: `knowledge-base/web10-v3/auth/auth.md`.
 
 ## Security invariants
 
-Defined in the KB: `knowledge/knowledge-base/web10-v3/security/overview.md`. Short version — I1: cryptographic issuer verification, I2: no unsigned decode, I3: no query returns documents for an `author_key` the token doesn't own (unless group membership grants access), I4: node-readable by design — operator-blindness is not a goal, access is terms-controlled (D41), I5: scoped/expiring/revocable tokens enforced by app contracts. Enforced by the conformance/permission test suite.
+Defined in the KB: `knowledge-base/web10-v3/security/overview.md`. Short version — I1: cryptographic issuer verification, I2: no unsigned decode, I3: no query returns documents for an `author_key` the token doesn't own (unless group membership grants access), I4: node-readable by design — operator-blindness is not a goal, access is terms-controlled (D41), I5: scoped/expiring/revocable tokens enforced by app contracts. Enforced by the conformance/permission test suite.
 
 ## Operator code words — recognize instantly, never treat as banter
 
 - **`web10web10!`** (any number of `!`s) → run the full ritual defined in
-  `knowledge/strategy/AGENTS-RITUALS.md`. In short: SHIP FIRST — gather
+  `knowledge-base/strategy/AGENTS-RITUALS.md`. In short: SHIP FIRST — gather
   state (dangling PRs, dev batch), gate + promote dev→main if clean (fix
   blocks if not) — THEN plan — audit alignment, audit bite-size
   parallelizability + Qwen autonomy horizon, refactor planning docs IF
@@ -312,25 +338,25 @@ Defined in the KB: `knowledge/knowledge-base/web10-v3/security/overview.md`. Sho
 - **`unbrick!`** → a workspace BROKE (agent choked/stalled/burned it).
   The fire alarm, not a planning ritual. Diagnose the failure CLASS and
   fix the SYSTEM (code/infra/tooling first; docs are the fallback). Full
-  ritual in `knowledge/strategy/AGENTS-RITUALS.md`.
+  ritual in `knowledge-base/strategy/AGENTS-RITUALS.md`.
 - **`imma rant`** → the operator is about to fire a stream of complaints.
   Do NOT implement ANY of them — file EACH as a lane item in
-  `knowledge/strategy/parallel-execution.md` + `knowledge/strategy/plan.md`
+  `knowledge-base/strategy/parallel-execution.md` + `knowledge-base/strategy/plan.md`
   (verbatim quote, screenshot referenced, diagnosis, acceptance bar,
   sub-lane + gates + bite sizing), one docs branch + PR with a CHANGELOG
   line. The next `web10web10!` hands them to the Qwen fleet as kickoff
-  blocks. Full ritual in `knowledge/strategy/AGENTS-RITUALS.md`.
+  blocks. Full ritual in `knowledge-base/strategy/AGENTS-RITUALS.md`.
 
 A code word is a command, not a greeting. If you are a large-context
 model and one of these arrives, run the ritual — do not reply with banter.
 
 ## Browse the knowledge base before starting work
 
-`knowledge/strategy/` is the project's brain — the plan, the execution
+`knowledge-base/strategy/` is the project's brain — the plan, the execution
 lanes, the design standard, the decisions, the manifesto, the timeline.
 Browse it before starting work.
 
-`knowledge/changelogs/CHANGELOG.md` is the project's memory — the recent
+`knowledge-base/changelogs/CHANGELOG.md` is the project's memory — the recent
 history of what changed and why. Scan the top entries to understand what's
 been shipped.
 
@@ -354,7 +380,7 @@ apps, etc.
 
 ### The AI Use Theory — the full method
 
-The full theory is loaded in WAKE-UP (`knowledge/ai-use-theory/ai-use-theory.md`).
+The full theory is loaded in WAKE-UP (`ai-pack/ai-use-theory/ai-use-theory.md`).
 Logging is one layer of the pyramid. The load-bearing one-liners to keep in mind:
 
 - **The KB is the root of trust.** Intent has no higher oracle than the
@@ -368,7 +394,7 @@ Logging is one layer of the pyramid. The load-bearing one-liners to keep in mind
 
 If your task touches anything a user sees — `ui/`,
 `marketing/marketing-ui/`, `marketing/web10-social/`, any screen or
-component — read `knowledge/strategy/design.md` BEFORE writing code,
+component — read `knowledge-base/strategy/design.md` BEFORE writing code,
 every time. It is the binding standard: the quality bar (the screenshot
 test), the canonical brand assets (the files named `logo*.png` are NOT
 the logos — §3 names the real ones), the shared design tokens (§13), and
@@ -394,11 +420,11 @@ after.
 Task completion state lives in three places. Check all three before
 writing code — merged work must not be redone:
 
-1. `knowledge/strategy/parallel-execution.md` — the lane queues carry
+1. `knowledge-base/strategy/parallel-execution.md` — the lane queues carry
    live status: `[✓ x.y.z]` = merged, `[~]` = in flight elsewhere,
    `[ ]` = open.
-2. `knowledge/strategy/plan.md` — completed items are ticked `[✓]`.
-3. `knowledge/changelogs/CHANGELOG.md` — newest entry at top. Work merged
+2. `knowledge-base/strategy/plan.md` — completed items are ticked `[✓]`.
+3. `knowledge-base/changelogs/CHANGELOG.md` — newest entry at top. Work merged
    after the lane queues were last ticked shows up here first.
 
 If the task you were given is already done, say so and pick the next
@@ -406,17 +432,17 @@ unticked item in the same lane instead of redoing it.
 
 ## When you finish a task
 
-In the SAME branch as the change: add a `knowledge/changelogs/CHANGELOG.md`
+In the SAME branch as the change: add a `knowledge-base/changelogs/CHANGELOG.md`
 line (newest at top, `version || DD.MM.YYYY` — pick the version per the
 semver rules in "CHANGELOG version numbers" below), tick the item in
-`knowledge/strategy/plan.md`, and tick your lane item in
-`knowledge/strategy/parallel-execution.md`. If you changed the stack, data
+`knowledge-base/strategy/plan.md`, and tick your lane item in
+`knowledge-base/strategy/parallel-execution.md`. If you changed the stack, data
 model, or auth flow, keep `AGENTS.md` true
-and record big calls in `knowledge/strategy/decisions.md`.
+and record big calls in `knowledge-base/strategy/decisions.md`.
 
 ## CHANGELOG version numbers: semver, bump the level that changed
 
-The top entry's version in `knowledge/changelogs/CHANGELOG.md` is the
+The top entry's version in `knowledge-base/changelogs/CHANGELOG.md` is the
 project's release version — `deploy.yml`/`cd.yml` bake it into the status
 pill and `cd.yml` uses it for the GitHub release. Format:
 `MAJOR.MINOR.PATCH || DD.MM.YYYY`.
@@ -442,12 +468,12 @@ Rules:
 
 ## CHANGELOG.md in parallel branches: union-merge, then renumber
 
-Every branch prepends an entry to `knowledge/changelogs/CHANGELOG.md`,
+Every branch prepends an entry to `knowledge-base/changelogs/CHANGELOG.md`,
 usually claiming the same next version number — collisions are expected,
-not exceptional. `.gitattributes` sets `knowledge/changelogs/CHANGELOG.md
+not exceptional. `.gitattributes` sets `knowledge-base/changelogs/CHANGELOG.md
 merge=union`, so a local `git merge origin/dev` keeps BOTH sides' entries.
 
-After ANY merge that touched `knowledge/changelogs/CHANGELOG.md`:
+After ANY merge that touched `knowledge-base/changelogs/CHANGELOG.md`:
 
 1. Look at the top of the file — all entries should be intact, none
    duplicated or interleaved.
@@ -455,22 +481,22 @@ After ANY merge that touched `knowledge/changelogs/CHANGELOG.md`:
    Renumber YOURS to the next free number (strictly above the highest
    anywhere in the file), restore the other entry's header and the blank
    line between entries, and update any `[✓ x.y.z]` / `[~]` refs you made
-   in `knowledge/strategy/plan.md` and
-   `knowledge/strategy/parallel-execution.md` to match.
+   in `knowledge-base/strategy/plan.md` and
+   `knowledge-base/strategy/parallel-execution.md` to match.
 3. Never rewrite, reorder, or renumber someone else's entry.
 
 ## CHANGELOG.md pruning
 
-`knowledge/changelogs/CHANGELOG.md` keeps the last 50 entries detailed.
+`knowledge-base/changelogs/CHANGELOG.md` keeps the last 50 entries detailed.
 When the file exceeds 200 entries, ask the operator, then prune: keep the
 top 50 entries intact, copy the older entries into a file in
-`knowledge/changelogs/changelog-archives/` named
+`knowledge-base/changelogs/changelog-archives/` named
 `<commit-hash>-DD.MM.YYYY.md`, and replace everything older with a
 pointer line at the bottom:
 
 ```
 ---
-Entries prior to vX.Y.Z archived at `changelog-archives/abc1234-17.08.2026.md`. Full history available via `git show abc1234:knowledge/changelogs/CHANGELOG.md`.
+Entries prior to vX.Y.Z archived at `changelog-archives/abc1234-17.08.2026.md`. Full history available via `git show abc1234:knowledge-base/changelogs/CHANGELOG.md`.
 ```
 
 ## After opening a PR: conflicts first, then EVERY check green
@@ -547,7 +573,7 @@ Every branch must use a type prefix so the history is scannable:
 | `refactor/` | Code restructuring with no behavioral change |
 | `chore/` | Deps, CI, tooling, docs, config |
 | `test/` | Test additions or test infrastructure |
-| `docs/` | Documentation only (AGENTS.md, knowledge/strategy/plan.md, etc.) |
+| `docs/` | Documentation only (AGENTS.md, knowledge-base/strategy/plan.md, etc.) |
 
 **Format:** `type/short-description` — e.g. `fix/auth-token-expiry`,
 `feature/social-feed`. Keep descriptions imperative, hyphen-separated,
@@ -558,22 +584,22 @@ under ~40 characters.
 The base branch for every PR is `dev`. `main` is only updated by an
 explicit, deliberate merge from `dev`. Merging to `main` directly causes
 conflicts when `dev` later merges into `main` because both branches
-diverge on shared files (knowledge/changelogs/CHANGELOG.md, AGENTS.md,
-knowledge/strategy/plan.md, CI workflows). If you're unsure, target `dev`.
+diverge on shared files (knowledge-base/changelogs/CHANGELOG.md, AGENTS.md,
+knowledge-base/strategy/plan.md, CI workflows). If you're unsure, target `dev`.
 
 ## Working conventions for parallel agents
 
-- **UI work reads `knowledge/strategy/design.md` first — every time, no
+- **UI work reads `knowledge-base/strategy/design.md` first — every time, no
   exceptions.** Any change under `ui/`, `marketing/marketing-ui/`, or
   `marketing/web10-social/` (or any new user-facing surface) is judged
-  against `knowledge/strategy/design.md`. Hardcoded colors/fonts are a
+  against `knowledge-base/strategy/design.md`. Hardcoded colors/fonts are a
   review rejection.
 - **Check it isn't already done.** Before starting a plan/lane item,
-  check the lane queues in `knowledge/strategy/parallel-execution.md`,
-  the `[✓]` ticks in `knowledge/strategy/plan.md`, and the top of
-  `knowledge/changelogs/CHANGELOG.md`. If it's done, say so and pick the
+  check the lane queues in `knowledge-base/strategy/parallel-execution.md`,
+  the `[✓]` ticks in `knowledge-base/strategy/plan.md`, and the top of
+  `knowledge-base/changelogs/CHANGELOG.md`. If it's done, say so and pick the
   next unticked item.
-- **Stay in your lane.** `knowledge/strategy/parallel-execution.md`
+- **Stay in your lane.** `knowledge-base/strategy/parallel-execution.md`
   assigns directory ownership. Don't edit another lane's files; if you
   need a change there (e.g. `docker-compose.yml`, `settings`), leave a
   note, don't reach in.
@@ -595,18 +621,18 @@ knowledge/strategy/plan.md, CI workflows). If you're unsure, target `dev`.
 - **Match the surrounding code** until a phase explicitly modernizes it.
 - **Update CHANGELOG.md.** Any improvement or change gets a line (newest
   at top, `version || DD.MM.YYYY`). Do it in the same branch. If your
-  work completes a `knowledge/strategy/plan.md` item, tick it there AND
-  tick your lane item in `knowledge/strategy/parallel-execution.md`.
+  work completes a `knowledge-base/strategy/plan.md` item, tick it there AND
+  tick your lane item in `knowledge-base/strategy/parallel-execution.md`.
   Version collisions between parallel branches are expected — union-merge
   + renumber procedure above.
 - **Keep the docs true.** If you change the stack, data model, or auth
   flow, update `AGENTS.md` in the same
   branch. A big architectural decision gets an entry in
-  `knowledge/strategy/decisions.md`. Stale orientation docs are worse
+  `knowledge-base/strategy/decisions.md`. Stale orientation docs are worse
   than none.
 - **Hand off the next task.** After your work merges (or the PR is up),
   end your final message with the next unticked item in your lane from
-  `knowledge/strategy/parallel-execution.md` AND a paste-ready kickoff
+  `knowledge-base/strategy/parallel-execution.md` AND a paste-ready kickoff
   prompt for a fresh workspace: the task text verbatim, its gates, the
   directories that lane owns, and the acceptance bar. If the next item is
   gated on unmerged work, say so in the kickoff.
