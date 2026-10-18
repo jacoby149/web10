@@ -46,7 +46,7 @@ exploit is replayed and denied.
 | B-1 | 2026-10 | `auth.py`, federation | I1 symmetric HS256 — one shared key mints any token → RS256/EdDSA + JWKS (D7) | learned; fix in 1157 (unmerged) → `BP-1` |
 | B-2 | 2026-10 | `settings.py` | signing key + Stripe/Twilio/CH creds in source → env-injected, no defaults | OPEN; repeatable defaults confirmed at `8704e9f5c`; [L1 receipt](scans/2026-10/l1-settings.md), no live credential validity claim |
 | B-3 | 2026-10 | `auth.py :: decode_token` | `private_key=False` unsigned decode on an auth path → verify signature before any authz | learned; fix in 1157 (unmerged) |
-| B-4 | 2026-10 | `middleware.py` | full request/response body logged (token in body → token in log) → redact the token field | learned; fix in 1159 (unmerged) |
+| B-4 | 2026-10 | `middleware.py` | arbitrary HTTP content copied into logs -> metadata-only automatic logging; field-name redaction is insufficient | Source repair/repro gate documented in [B-4 evidence](scans/2026-10/repair-b4-middleware.md); merge/deployment/exposure/sign-off not closed |
 | B-5 | 2026-10 | `main.py` CORS | `allow_origins=["*"]` defended only by "token in body" → pin the assumption in a test | learned; needs a pinning test |
 | B-6 | 2026-10 | `clickhouse.py :: get_document_any_author` | reads without author scoping, bounded by a doc-bound sig → verify the sig is checked first | learned; verify |
 | B-8 | 2026-10-18 | `settings.py:139-140` | executing the settings CLI prints globals containing environment-injected secrets → separate fix must suppress secrets while preserving nonsecret diagnostics | OPEN; five synthetic credentials recovered from captured stdout at `8704e9f5c`; [PoC + preconditions](scans/2026-10/l1-settings.md) |
@@ -252,6 +252,24 @@ Cookie/state precedence differences are conditional helper-flow evidence, not
 actual cross-account requests. Keep S-3 functional and S-6 metadata-only rather
 than promoting them to disclosure. Published minimal replays are independent
 from broader author-reported runs; neither covers shipped bundle correspondence.
+
+### 2026-10-18: B-4 metadata-only source repair
+
+Stop automatic request-body reads, response buffering/reconstruction, raw
+path/header capture, unsigned JWT attribution and error/meta copies. Log only
+allowlisted method, server route template, status, severity and response-availability
+latency; preserve the table layout with content/attribution fields empty and return
+the original response. Insert errors emit fixed diagnostics without traceback.
+This retains useful signal without another credentials/content store; D41/D56 and
+intentional JSON-body tokens remain unchanged. S-2's B-4 composition is addressed
+for this middleware only, not all log producers or historical exposure.
+
+Nine committed regressions fail on the pinned original and pass with repair;
+the full API suite has 1,130 passes. Fresh same-model reviews do not constitute
+the required model-diverse three-dry sign-off. Shutdown/disconnect, delayed/mounted routing and
+real-storage integration remain untested here; the dated intent-risk acceptance
+and re-open conditions are in the repair receipt. Deployment, retained logs,
+backups, proxies and approved credential rotation remain separate obligations.
 
 ## Known gaps (the "obvious gap" register)
 

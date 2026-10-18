@@ -363,6 +363,11 @@ been shipped.
 
 ## Debugging: log everything, keep it in
 
+**Security boundary:** diagnostic density does not permit credentials or private
+HTTP content in logs. Automatic API request logging is metadata-only; follow
+`knowledge-base/web10-v3/security/logging.md` rather than the payload-dumping
+guidance below for that boundary. Keep useful safe signal, not secret copies.
+
 This is an open-source project — copious logging is a feature, not noise.
 When debugging, add `console.log` at every decision point, state
 transition, and message boundary. Prefix logs so they're filterable:
