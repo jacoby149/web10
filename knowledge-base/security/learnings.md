@@ -103,6 +103,17 @@ secret-bearing errors only demonstrate an unredacted sink: until a reachable
 protected-value source is shown, that disclosure remains UNVERIFIED. These
 receipts do not close B-1/B-3 or imply the caller/storage gates are safe.
 
+### 2026-10-18: media/reporting API L1 receipts
+
+Scopes C/H/I add media services and media/import/preview/reporting endpoints.
+L1-H-01 shows a source-level object-authorization concern: the read-URL handler
+discards the authenticated identity and passes caller-selected keys to signing
+without an intervening object check. Its dynamic proof uses fake auth/signing
+sinks; actual authenticated HTTP access and private-object retrieval are not
+demonstrated. Preserve authorized cross-user/group media and public thumbnails
+when fixing it; arbitrary object-key forwarding is not the same as an authorized
+document capability. C/I have no confirmed local findings, not a safety PASS.
+
 ## Known gaps (the "obvious gap" register)
 
 Gaps the orient has surfaced. Each is either a `BP-n` or a standing note:

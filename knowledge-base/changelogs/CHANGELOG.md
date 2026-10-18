@@ -1,3 +1,6 @@
+3.235.7 || 18.10.2026
+docs(security): **API L1 campaign batch 2 — media/reporting receipts C/H/I**, 1,994 lines at `8af7e0fce`. Recorded conditional arbitrary-object read-signing flow L1-H-01 with explicit fake-auth/signer limits and preserved authorized/public media intent. Services, HLS paths, import ownership, preview escaping, log/reporting surfaces covered file-locally; no confirmed C/I finding is not PASS. Fresh review and safe standalone probes completed. Batch 1 #1202 merged and main coverage ticked; no runtime changes or deployment exploit claim.
+
 3.235.6 || 18.10.2026
 docs(security): **API L1 campaign batch 1 — system/shared-auth/identity receipts A/B/D** at `8af7e0fce`, 2,111 lines. Added the exhaustive 59-file/13,236-line API app denominator and disjoint A-R inventory. Local manifest fetch routing, unused remote-helper trust, expired-token principals and session-expiry classification recorded with safe bounded evidence. Manufactured secret-bearing errors remain an unverified disclosure source, not a confirmed leak. Fresh same-model review corrections incorporated. No runtime fixes, live-service exposure proof, campaign PASS or convergence claim; settings receipt #1201 marked merged.
 
