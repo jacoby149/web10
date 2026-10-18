@@ -1,30 +1,20 @@
 # AI Security Theory
 
-The **security record** is the root of trust: a dated, agent-attributed log of what
-was scanned, by which model, when, against what commit, and what was found. It does
-*not* guarantee security — it records the **due diligence**, so you can say "here is
-the level of security we actually did." This is the methodology for hardening a
-codebase with AI so that security is **coverage you can point at**, not a 90-file PR
-merged on faith. The record is the *record* piece of **written security** (WS) — the
-whole `knowledge-base/security/` section, which is strategy + record + knowledge.
+This is how you make security *real* with AI — not "point a model at the code and hope,"
+but a process that ends with a **dated record**: what was checked, by what, when, what
+was found, what was fixed, and that it was confirmed after. That record is the
+**security record**, and it lives in `knowledge-base/security/` alongside the rest of
+the project's written security (the plan, the knowledge, the decisions).
 
-It is the security sibling of [AI Use Theory](../ai-use-theory/README.md): where
-the use-theory converges a *bug* (find the break, fix it, test green), the security
-theory covers a *surface* (scan every line, fix every finding, and be able to prove
-both from the record).
+It's the security sibling of [AI Use Theory](../ai-use-theory/README.md): that one is
+about fixing a *bug* (find the break, fix it, test green); this one is about hardening
+a *surface* (check everything, fix every hole, and be able to show it).
 
-> **The one assumption:** *a surface is only as secure as its last scan.* You cannot
-> claim a file is secure until the record says it was scanned — by which model, on
-> what date, against which commit. The KB tells you what the system is *supposed* to
-> guarantee (the invariants); the record tells you what has actually been *checked*
-> against those guarantees, and when.
->
-> There are **two roots of trust**, and they are different: the **security record**
-> records *coverage* (what was scanned, when, by what model); the **learnings** KB
-> records *knowledge* (the invariants as they've evolved, every finding→fix, the gaps,
-> the "considered and declined" list).
-> "considered and declined" list). You orient against the learnings before you scan,
-> and every fix writes back to them — see [the-orient/](./the-orient/README.md).
+Two things keep it honest: the **security record** (what was checked, when, by what) and
+the **learnings** (what we've figured out — the rules we're protecting, every fix, the
+gaps, and the things we decided *not* to do). You read the learnings before you scan,
+and every fix writes back to them — so each pass starts smarter than the last. See
+[the-orient/](./the-orient/README.md).
 
 ## Start here: the post-mortem
 
@@ -35,17 +25,31 @@ it first. It ends on the beat that justifies everything below: *you burned a ton
 you're not even sure it's fixed, and you'd have to scan it all over again anyway —
 because there was no security record confirming what was checked with what model.*
 
-## The reframe in one paragraph
+## The point, in plain terms
 
-A security-hardening task has no bounded scope and no provable *done* — "there
-are no more vulnerabilities" can never be shown, only *covered*. Hand that
-open-ended task to an agent and you get the security-flavored doom loop: it claws
-at an unbounded surface and ships a sprawl. The fix is to stop treating security
-as a *convergence* task and treat it as a **coverage** task. What you can measure
-is coverage — what fraction of the trust surface has been scanned, at what level,
-and what fraction of the findings are fixed. Coverage is recorded and monotonic.
-**Forward progress on security = the security record fills up and the backlog drains, both
-monotonically, and you can point at the security record and show it.**
+Why bother? Because of what you *walk away with.*
+
+When you pay a pentest firm, they look at your code, try to break it, and hand you
+something specific: *"we tested this, on this date, we found these holes, they're
+fixed now, and we checked again and it looks good."* That's a **promise you can hold
+someone to.** It's peace of mind with a date on it.
+
+Just pointing an AI at your code doesn't give you that. You get a bunch of changes
+and a hope. No one can say *what* was checked, *when*, or *that it was actually
+fixed.* It's vibes, not a guarantee.
+
+This is how you get the pentest promise — but better. It doesn't just find the
+holes; **it fixes them too.** A human pentest stops at the report ("here are the
+problems, go fix them"). This does the finding *and* the fixing — the actual software
+work that comes after. And every step gets written down, so at the end you have the
+same dated promise: *what was checked, by what, when, what was found, what was fixed,
+and that it was confirmed after.*
+
+So the measure of success isn't "how much code did we change" or "what percentage did
+we scan." It's simpler: **what holes did we find, and did we close them?** A ship that
+was scanned top to bottom but still has a hole in the hull is still taking on water.
+Scanning is how you make sure you don't *miss* a hole. Closing the holes — and being
+able to show it — is the point.
 
 ## The scope ladder (not two engines)
 
@@ -104,21 +108,20 @@ treatment in [the-security-record/](./the-security-record/README.md).
 
 ## The gate: passing the AI pentest
 
-When **L1 + L2 + L3 + L4 are all passed** — every unit recorded, every finding
-fixed or explicitly deferred, every fix passing the **repro gate** (the exploit
-replayed and denied) — the surface has **passed the AI pentest.** That is the
-done-state, and it is a claim the security record backs. See
+When **L1 + L2 + L3 + L4 are all done** — every part checked, every hole fixed (or
+deliberately parked), every fix verified — the surface has **passed the AI pentest.**
+That's the done-state, and it's a claim the security record backs. See
 [the-pentest-gate/](./the-pentest-gate/README.md).
 
-The pitch: this is the **alternative to hiring a human pentest ($5k–$30k, ≈$18k
-average)** — and potentially *more* thorough, because it is recorded (you can point
-at what was checked, by which model, when), repeatable (re-run on the 3–6 month
-cadence, not a one-off report), and it **ratchets three ways** — pinning tests (a fix
-can't regress), the re-scan (drift is caught), and the **model upgrade** (each pass
-runs on a stronger model than the last, inheriting every learning). A human pentest
-hands you a PDF and leaves; this leaves you a **living coverage record** that gets more
-secure every cycle. The AI is never a true oracle — but the ratchet means you don't
-need one: **every play of the game is strictly more secure than the last.**
+**How it compares to hiring a human pentest ($5k–$30k, ~$18k average):** a human
+pentest looks at your code, tries to break it, hands you a report, and leaves. You
+still have to do the fixing yourself, and next year you pay them again for a fresh
+look. This does the same checking *and* the fixing, writes the whole thing down, and
+you can re-run it on a schedule (every 3–6 months) instead of re-hiring. And it gets
+better each time: the fixes are locked in with tests (so they don't sneak back), and
+each pass uses a smarter model that already knows what the last pass learned. So where
+a human pentest is a one-time snapshot, this is a check that keeps getting stronger —
+and you always have the dated record of exactly what was done.
 
 ## The map
 
@@ -130,7 +133,8 @@ need one: **every play of the game is strictly more secure than the last.**
 | [the-security-record/](./the-security-record/README.md) | The altitude — the format, PASS/OPEN/STALE + the deferral reference + the **repro gate** (how a finding closes), freestyle granularity. Plus [staleness-and-cadence.md](./the-security-record/staleness-and-cadence.md), relative staleness + the 3–6 month clock + the ratchet |
 | [the-pentest-gate/](./the-pentest-gate/README.md) | The done-state — what "passed the AI pentest" means, and why it beats a human pentest ($5k–$30k) |
 | [the-gauntlet/](./the-gauntlet/README.md) | **The enforcement** — the security gauntlet (the accumulated exploits, run in CI on every PR like the e2e gauntlets) + the per-PR gate (≤500 lines, red→green test, security record updated). The "wrong way doesn't merge" piece |
-| [running-it/](./running-it/README.md) | The operation — orient, scope slicing backend-first, the scan→fix PR flow (exploit-first + repro gate + write-back), the L1→L2→L3→L4 order, the **convergence review** (fresh untainted reviewer, run until 3-dry, with model diversity), and the enforceable rules |
+| [the-design-intent-gate/](./the-design-intent-gate/README.md) | **The maintains-product-functionality review** — the five-question check (intent, delta, by-design conflict, conventional-standard deviation, untested intent risk) that proves a security fix didn't over-secure or quietly change the product. The "we are doing different, not standard" piece |
+| [running-it/](./running-it/README.md) | The operation — orient, scope slicing backend-first, the scan→fix PR flow (exploit-first + repro gate + write-back), the L1→L2→L3→L4 order, the **convergence review** (fresh untainted reviewer, run until 3-dry, with model diversity), the **design-intent gate**, and the enforceable rules |
 
 ## The rules (the enforceable summary)
 
@@ -158,6 +162,13 @@ need one: **every play of the game is strictly more secure than the last.**
    PR (a regression fails the build); a trust-boundary PR must pass the gate (≤500
    lines, red→green test or scrutinized explanation, security record updated). The wrong way
    doesn't merge.
+10. **Every trust-boundary / security PR passes the design-intent gate.** A fresh
+    reviewer answers the five questions (intent, delta, by-design conflict,
+    conventional-standard deviation, untested intent risk) and posts the
+    `DESIGN-INTENT REVIEW` block. A security fix is not done when the exploit is
+    denied — it is done when the exploit is denied **and** the app still behaves
+    like the product the KB describes. See
+    [the-design-intent-gate/](./the-design-intent-gate/README.md).
 
 *(And: parallelize the scan, not the fix — ~40 read-only scanners at once across the
 core, fix PRs one finding at a time. That's what makes it a quick win, not a
