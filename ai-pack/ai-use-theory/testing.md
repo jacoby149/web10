@@ -66,7 +66,14 @@ Base is unit tests. Most bugs are logic bugs. Unit tests catch them cheaply.
 ```
 Base is E2E anti-tests. Most system bugs are invisible to unit tests. The anti-test *is* the unit test for system properties.
 
-This project is a system. Security invariants, contract enforcement, tombstone semantics, group membership gates — all system properties. The test pyramid is inverted: the base is the E2E anti-test suite, not the unit tests.
+ This project is a system. Security invariants, contract enforcement, tombstone semantics, group membership gates — all system properties. The test pyramid is inverted: the base is the E2E anti-test suite, not the unit tests.
+
+ **Hardening a surface (not just testing one)?** That is the sibling method,
+ [AI Security Theory](../ai-security-theory/README.md) — the same anti-test /
+ "KB with teeth" idea scaled into a full hardening process: the scope ladder
+ (L1→L4), the repro gate (the exploit *is* the anti-test), the security record, and
+ the convergence review. This doc covers how to *test*; that one covers how to
+ *harden*.
 
 ## The Seam Rule: A Test Must Drive What It's Named For
 
