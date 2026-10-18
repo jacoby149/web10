@@ -27,7 +27,6 @@ RUN bun install --frozen-lockfile || bun install
 # ubuntu-deployment/docker-compose.ecosystem.yml; empty args fall
 # back to the in-code localhost defaults.
 ARG VITE_API_URL
-ARG VITE_MARKETING_API
 ARG VITE_GIT_COMMIT
 ARG VITE_AUTH_URL
 ARG VITE_SOCIAL_URL
@@ -37,7 +36,6 @@ ARG VITE_HOTJAR_VERSION
 ARG VITE_GA4_MEASUREMENT_ID
 ARG STATUS_VERSION
 ENV VITE_API_URL=$VITE_API_URL \
-    VITE_MARKETING_API=$VITE_MARKETING_API \
     VITE_GIT_COMMIT=$VITE_GIT_COMMIT \
     VITE_AUTH_URL=$VITE_AUTH_URL \
     VITE_SOCIAL_URL=$VITE_SOCIAL_URL \

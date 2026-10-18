@@ -50,11 +50,6 @@ updates:
     target-branch: "dev"
     schedule:
       interval: "weekly"
-  - package-ecosystem: "pip"
-    directory: "/marketing/marketing-api"
-    target-branch: "dev"
-    schedule:
-      interval: "weekly"
 
   # GitHub Actions
   - package-ecosystem: "github-actions"

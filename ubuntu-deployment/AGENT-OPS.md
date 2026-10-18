@@ -125,7 +125,11 @@ works on VPN; prod on public real names — full table in README.md):
 | `minio.dev.web10.app` / `minio.web10.app` | `web10-{env}-minio:9000` | S3 API (media) — never :9001 |
 | `social.dev.web10.app` / `social.web10.app` | `web10-{env}-social:80` | web10-social |
 | `www.dev.web10.app`+`dev.web10.app` / `www.web10.app`+apex | `web10-{env}-marketing-ui:80` | marketing site |
-| `marketing-api.dev.web10.app` / `marketing-api.web10.app` | `web10-{env}-marketing-api:80` | importer/analytics API |
+
+The old marketing API is removed (D91). Before deploying its removal, follow
+README.md "Retired Marketing API": preserve required container-layer data,
+check external callers and deliberately retire only its orphan containers and
+DNS/proxy hosts. Current imports/reporting/analytics use the node.
 
 ## 3. Diagnosis — run this sequence, in order, before changing anything
 

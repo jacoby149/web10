@@ -28,7 +28,6 @@ docker run --rm \
   --add-host sdk.localhost:"$PROXY_IP" \
   --add-host marketing.localhost:"$PROXY_IP" \
   --add-host social.localhost:"$PROXY_IP" \
-  --add-host marketing-api.localhost:"$PROXY_IP" \
   -v "$(pwd)/e2e":/e2e \
   -w /e2e \
   -e E2E_HTTP_PORT=80 \

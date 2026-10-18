@@ -75,8 +75,8 @@ The tour, in this order:
 
 1. **Top-level folders** — `api/` (FastAPI node: data, auth, billing,
    media; `api/rtc/` WebRTC), `ui/` (React admin/consent UI), `sdk/`
-   (wapi.js), `marketing/` (web10-social killer app, marketing-ui site,
-     marketing-api), `knowledge-base/` (the web10 brain — below),
+   (wapi.js), `marketing/` (web10-social killer app, marketing-ui site),
+    `knowledge-base/` (the web10 brain — below),
     `ai-pack/` (the AI method cartridge — below),
      `ubuntu-deployment/` (server deploy), `e2e/` + `scripts/` (tests +
      helpers).
@@ -272,7 +272,8 @@ you if you arent ok with that." Full model:
 - `marketing/` — everything that makes web10 accessible:
   - `marketing-ui/` — web10 Inc.'s site: landing + docs + App Store +
     Exporter UI. Vite + React 19 + TS + Bun + react-router.
-  - `marketing-api/` — FastAPI backend for marketing-ui.
+  - Marketing and social call the node API directly for imports, reporting and
+    analytics. The unused `marketing-api/` service was removed (D91).
   - `web10-social/` — the killer app: all-in-one social lens (instagram-
     shaped, video + streaming).
 

@@ -238,7 +238,8 @@ audit (steps 1–4), then the promotion (steps 5–7).
 7. **Verify prod is live, then report.** Hit the public prod endpoints
    from the workspace — the prod slice of
    `ubuntu-deployment/scripts/smoke.sh` (api `/docs` + `/`, auth,
-   social, www + apex, marketing-api `/docs`; all public). The dev
+   social, www + apex; all public). The removed marketing API (D91)
+   is not a smoke target. The dev
    vhosts resolve only on the box/VPN — if unreachable, say "dev smoke
    needs the box", don't pretend. If a user-facing surface changed,
    load it and LOOK at it. The final report states: what merged, what

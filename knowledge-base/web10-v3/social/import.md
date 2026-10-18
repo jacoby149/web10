@@ -43,7 +43,8 @@ native playback — no HLS transcode required (the D44 transcode,
 
 The import runs **on the node** (`api/`), not in a separate marketing service.
 The old v2 pipeline lived in `marketing-api` and drove the v2 node API over
-HTTP — it 404'd against v3 and is retired. The v3 pipeline writes straight into
+HTTP - it 404'd against v3. That unused service is removed (D91); the v3
+pipeline writes straight into
 the node's own ClickHouse + MinIO, because the node owns the data it's
 importing. No cross-service writes, no legacy API shape.
 
