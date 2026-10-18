@@ -57,11 +57,6 @@ while [ $ELAPSED -lt $TIMEOUT ]; do
     ALL_UP=false
   fi
 
-  # Check marketing-api
-  if ! check_service "marketing-api" "http://marketing-api.localhost${PS}/v3/infra/health"; then
-    ALL_UP=false
-  fi
-
   if [ "$ALL_UP" = true ]; then
     echo "✓ All services are healthy after ${ELAPSED}s"
     exit 0

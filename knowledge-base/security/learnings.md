@@ -204,6 +204,21 @@ contrary to ghost-404 intent; this is correctness debt, not demonstrated private
 content access. Preserve content-free private fallbacks while tracing real API,
 renderer and routing boundaries at L2. No new confirmed vulnerability or PASS.
 
+### 2026-10-18: D91 retires the unused marketing API
+
+Caller tracing found no current frontend/SDK product operation using the service;
+node imports, reporting and analytics already own those flows. D91 removes the
+legacy service and its wiring, not the independent social preview server. The
+old MA/MB/MC receipts remain historical at their pin. Removed source is not a
+remediated deployed endpoint: live containers, historical data, external callers,
+DNS/proxy records and credentials still require deliberate operational assessment.
+L1-MC-01/02 are source-retired only, and shared B-2 remains OPEN elsewhere.
+
+Refresh live inventory after the deletion/wiring edits; do not subtract removed
+files and call them newly scanned. SDK exhaustive L1 is the next priority;
+seed October SDK rows never established full current file coverage. See
+`marketing-api-retirement.md` for preservation and cutover requirements.
+
 ## Known gaps (the "obvious gap" register)
 
 Gaps the orient has surfaced. Each is either a `BP-n` or a standing note:

@@ -2,7 +2,7 @@
 # repo root as its context (currently marketing-ui: the build needs
 # CHANGELOG.md + .git to bake status.json). Tuned to send only what that
 # build touches while keeping the door open for other services (api, ui,
-# social, marketing-api) that may later move to a repo-root context too.
+# social) that may later move to a repo-root context too.
 
 # Universal dev/build crud — never needed in any image build.
 **/node_modules
@@ -44,8 +44,6 @@
 # Heavy marketing subprojects that ship their own Dockerfile / context
 # and never bake the marketing-ui bundle. Excluded here only to keep the
 # marketing-ui context small; their own `context:` is unaffected.
-marketing/marketing-api/marketing_api.egg-info
-marketing/marketing-api/.venv
 marketing/web10-social/node_modules
 marketing/web10-cli/node_modules
 mobile/node_modules

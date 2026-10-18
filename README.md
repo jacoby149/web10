@@ -89,9 +89,11 @@ at the box and the certificates provision themselves. See
 | `sdk/` | `wapi.js`, the frontend library web10 apps are built with. |
 | `marketing/web10-social/` | The killer app: all-in-one social app (feed, profiles, DMs, media). CRM and Mail live here as sub-apps. |
 | `marketing/marketing-ui/` | web10 Inc.'s site: landing page, docs, App Store, Exporter UI. |
-| `marketing/marketing-api/` | Backend for the marketing site: ZIP import pipeline (bring your Instagram/Facebook/YouTube data), analytics. |
 | `marketing/web10-cli/` | CLI tool for web10. |
 | `ubuntu-deployment/` | One-shot server deploy (Docker + Caddy + TLS). |
+
+The marketing site and social app call the node API directly for imports,
+reporting and analytics. There is no separate marketing API service (D91).
 
 ## Learn more
 

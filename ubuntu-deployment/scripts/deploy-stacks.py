@@ -72,7 +72,7 @@ def env_for(stack):
         d = dict(STACK="web10-dev", PROVIDER="api.dev.web10.app",
                  API_ORIGIN="https://api.dev.web10.app", API_HOST="api.dev.web10.app",
                  AUTH_ORIGIN="https://auth.dev.web10.app", RTC_ORIGIN="https://rtc.dev.web10.app",
-                 MINIO_HOST="minio.dev.web10.app", MARKETING_API_ORIGIN="https://marketing-api.dev.web10.app",
+                 MINIO_HOST="minio.dev.web10.app",
                  CORS_SERVICE_MANAGERS="auth.dev.web10.app",
                  MINIO_PASSWORD=cfg["MINIO_PASSWORD_DEV"])
     else:
@@ -80,7 +80,7 @@ def env_for(stack):
                  DB="deploy", DB_URL="mongodb://host.docker.internal:27017/",
                  API_ORIGIN="https://api.web10.app", API_HOST="api.web10.app",
                  AUTH_ORIGIN="https://auth.web10.app", RTC_ORIGIN="https://rtc.web10.app",
-                 MINIO_HOST="minio.web10.app", MARKETING_API_ORIGIN="https://marketing-api.web10.app",
+                 MINIO_HOST="minio.web10.app",
                  CORS_SERVICE_MANAGERS="auth.web10.app",
                  MINIO_PASSWORD=cfg["MINIO_PASSWORD_PROD"])
     return [{"name": k, "value": v} for k, v in d.items()]
