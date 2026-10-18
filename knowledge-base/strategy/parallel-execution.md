@@ -39,7 +39,7 @@ API files are read-only. Do not implement extraction-lane fixes in scan PRs.
 - [✓ 3.235.4] **L1-001: middleware** — receipt merged in PR #1199; all 143 lines at `d86658be6`, B-4 reproduced and still OPEN; `knowledge-base/security/scans/2026-10/l1-middleware.md`.
 - [✓ 3.235.5] **L1-002: settings** — receipt merged in PR #1201; all 140 lines at `8704e9f5c`; B-2/B-8 remain OPEN, boolean type erasure handed to L2.
 - [✓ 3.235.6] **L1-003: main** — all 176 lines covered within A; receipt merged #1202, alongside B/D. No runtime fixes or security PASS.
-- [~] **L1-004: remaining API app inventory** — 18 disjoint A-R receipts at `8af7e0fce`; integrate small docs-only batches from `knowledge-base/security/scans/2026-10/l1-api-index.md`. Runtime stays read-only; no PASS without required independent sign-off; every finding fixed separately. Coordinator serializes central docs and watches every PR check before merging.
+- [~] **L1-004: remaining API app inventory** — all 18 A-R scans/reviews complete at `8af7e0fce`; A-O batches merged #1202-#1206, P-R receipt integration pending. All 59 files/13,236 lines accounted for; fixes, L2 handoffs and independent sign-off remain open. Index: `knowledge-base/security/scans/2026-10/l1-api-index.md`.
 
 ### Lane: security-hardening-extraction (PRs 1157 / 1159)
 **Owns:** Domain/function hunks as assigned in `security-hardening-extraction.md`,
