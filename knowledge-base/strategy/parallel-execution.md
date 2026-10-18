@@ -37,8 +37,9 @@ central record/learnings/plan/changelog updates serialized by the scan coordinat
 API files are read-only. Do not implement extraction-lane fixes in scan PRs.
 
 - [✓ 3.235.4] **L1-001: middleware** — receipt merged in PR #1199; all 143 lines at `d86658be6`, B-4 reproduced and still OPEN; `knowledge-base/security/scans/2026-10/l1-middleware.md`.
-- [~] **L1-002: settings** — scan complete, receipt PR pending merge; all 140 lines at `8704e9f5c`; B-2 defaults confirmed and B-8 CLI dump reproduced, both OPEN. Boolean type erasure handed to L2; `knowledge-base/security/scans/2026-10/l1-settings.md`.
+- [✓ 3.235.5] **L1-002: settings** — receipt merged in PR #1201; all 140 lines at `8704e9f5c`; B-2/B-8 remain OPEN, boolean type erasure handed to L2.
 - [ ] **L1-003: main** — scan all of `api/app/main.py` at a pinned dev commit; record middleware/CORS registration, every checklist class, and safe evidence; no runtime edits. Gates: orient against learnings/checklist, exact scope/model/date/commit receipt, demonstrated findings or explicit unresolved limitations, docs-only PR <=500 changed lines, fresh design-intent review, all CI green. Acceptance: every line accounted for, no secrets published, no unsupported PASS or fix claim.
+- [~] **L1-004: remaining API app inventory** — 18 disjoint A-R receipts at `8af7e0fce`; integrate small docs-only batches from `knowledge-base/security/scans/2026-10/l1-api-index.md`. Runtime stays read-only; no PASS without required independent sign-off; every finding fixed separately. Coordinator serializes central docs and watches every PR check before merging.
 
 ### Lane: security-hardening-extraction (PRs 1157 / 1159)
 **Owns:** Domain/function hunks as assigned in `security-hardening-extraction.md`,

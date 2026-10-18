@@ -92,6 +92,17 @@ KB); the source comment's replace-vs-union mismatch is not proof of an auth bug.
 B-7 already means token lifetime in the October backend audit; the new dump
 finding deliberately uses B-8 instead.
 
+### 2026-10-18: API L1 campaign, identity/system receipts
+
+[Inventory](scans/2026-10/l1-api-index.md) separates full source accounting from
+security sign-off. A/B/D record local manifest fetch routing, unused remote-helper
+destination/status trust, expired signed-token principal production and weak
+session-expiry classification. See their scoped IDs for exact proofs and limits.
+No live private-network access or database mutation is claimed. Manufactured
+secret-bearing errors only demonstrate an unredacted sink: until a reachable
+protected-value source is shown, that disclosure remains UNVERIFIED. These
+receipts do not close B-1/B-3 or imply the caller/storage gates are safe.
+
 ## Known gaps (the "obvious gap" register)
 
 Gaps the orient has surfaced. Each is either a `BP-n` or a standing note:

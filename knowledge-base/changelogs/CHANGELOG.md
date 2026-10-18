@@ -1,3 +1,6 @@
+3.235.6 || 18.10.2026
+docs(security): **API L1 campaign batch 1 — system/shared-auth/identity receipts A/B/D** at `8af7e0fce`, 2,111 lines. Added the exhaustive 59-file/13,236-line API app denominator and disjoint A-R inventory. Local manifest fetch routing, unused remote-helper trust, expired-token principals and session-expiry classification recorded with safe bounded evidence. Manufactured secret-bearing errors remain an unverified disclosure source, not a confirmed leak. Fresh same-model review corrections incorporated. No runtime fixes, live-service exposure proof, campaign PASS or convergence claim; settings receipt #1201 marked merged.
+
 3.235.5 || 18.10.2026
 docs(security): **second commit-pinned whole-file L1 receipt: API settings** — all 140 lines scanned at `8704e9f5c` by OpenCode (`gpt-6.1 sol`). Isolated stdlib probes confirm existing B-2 repeatable credential defaults and new B-8: the settings CLI prints environment-injected secrets. Values withheld; only synthetic stdout inspected. Boolean type erasure is recorded as an L2 handoff, not an auth bypass. Both findings remain OPEN. Recorded merged middleware receipt #1199 and queued main.py next. No runtime edits, live credential validation, production exposure assessment, fix, or whole-API sign-off.
 
