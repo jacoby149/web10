@@ -219,6 +219,23 @@ files and call them newly scanned. SDK exhaustive L1 is the next priority;
 seed October SDK rows never established full current file coverage. See
 `marketing-api-retirement.md` for preservation and cutover requirements.
 
+### 2026-10-18: SDK L1 browser/token/RTC receipts
+
+A/B/C at `caeed4427` cover browser, token/HTTP/export/type utilities and optional
+RTC client. S-1 still permits synthetic hostile-origin token acceptance; different
+username filtering is not sender verification. S-6 is wildcard consent/close
+metadata hygiene, not token exfiltration or a breach of a token-specific rule.
+A-01 and F-01 describe one consent-response integrity class in separate public
+implementations; retain both locations under joint repair coverage, not duplicate
+independent bugs. No forged server grant or valid credential demonstrated.
+
+L1-SDK-B-01 proves __proto__ cookie parsing replaces the returned dictionary's
+prototype and inherited token selection follows. Object.prototype is unchanged;
+actual browser cookie planting and downstream authority remain unverified.
+Unsigned UX decoding, JS-readable cookies/lifetime and JSON-body token transport
+remain intentional. RTC fake-peer behavior is not a real impersonation/logout
+exploit. Generated/copied bundles are explicitly mapped, not security-certified.
+
 ## Known gaps (the "obvious gap" register)
 
 Gaps the orient has surfaced. Each is either a `BP-n` or a standing note:
