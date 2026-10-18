@@ -176,6 +176,22 @@ expand **B-2**, values withheld; static port/socket declarations do not establis
 deployed reachability or host compromise. Preserve legitimate local bootstrap,
 operator overrides, HTTP development certify wiring and useful diagnostics.
 
+### 2026-10-18: marketing API app L1 coverage
+
+MA/MB/MC cover all 16 marketing API Python files/2,096 lines at `db325cd3c`.
+The KB retires the HTTP/v2 importer; do not infer it is unmounted or active just
+from either prose or retained source. MA adds B-2 default-credential evidence;
+mapper URL/path/body propagation is not demonstrated SSRF/XSS/authority bypass.
+Cleanup is attempted, not guaranteed; existence/source checks and errors affect it.
+
+L1-MC-01 reproduces local ungated payout cancellation; L1-MC-02 reproduces repeated
+caller-supplied commission arithmetic. Both are scaffold-state integrity findings
+using synthetic records and inert persistence, not real provider money movement,
+durable deployed corruption or proof of settlement authority. Stripe invocation
+is commented out; the unsigned webhook stub reads no event and mutates no state.
+No payment forgery follows from its acknowledgment. Preserve D57's deferred rails
+and require proper authority/provenance before any future payment activation.
+
 ## Known gaps (the "obvious gap" register)
 
 Gaps the orient has surfaced. Each is either a `BP-n` or a standing note:
