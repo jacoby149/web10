@@ -57,7 +57,7 @@ while IFS= read -r _line; do changed+=("$_line"); done < <(git diff --name-only 
 touched=""
 for p in ${changed[@]+"${changed[@]}"}; do
   for tb in "${trust_boundary_patterns[@]}"; do
-    if [[ "$p" == "$tb"* || "$p" == *"$tb"* ]]; then touched="$p"; break 2; fi
+    if [[ "$p" == "$tb" || ( "$tb" == */ && "$p" == "$tb"* ) ]]; then touched="$p"; break 2; fi
   done
 done
 

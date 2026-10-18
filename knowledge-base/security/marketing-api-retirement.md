@@ -61,3 +61,9 @@ orphans. Existing certificates still used by remaining services must be retained
 - Fresh independent design-intent/code review found no introduced product-path
   or invariant regression; its tracker/ritual/changelog corrections incorporated.
   This is not deployment acceptance or model-diverse security sign-off.
+- PR CI exposed a gate matcher bug: a nested marketing path containing
+  `api/app/main.py` was misclassified as the root node boundary. Root file paths
+  now match exactly and directory scopes match only from the repository root.
+  The new regression fails with the old matcher and passes with the fix; real
+  node/authenticator/SDK/RTC paths still enforce size, record and test rules.
+  No exemption marker or budget increase was used.
