@@ -1,3 +1,6 @@
+3.235.14 || 18.10.2026
+docs(security): **marketing API app L1 receipts MA/MB/MC — all 16 Python files/2,096 lines** at `db325cd3c`. Retired importer defaults reuse B-2; mapper propagation remains unverified consumer debt. Local payout-cancellation/conversion-replay scaffold findings L1-MC-01/02 reproduced with inert persistence; no Stripe transfer, durable deployed accounting corruption or forged-webhook state change claimed. Fresh review replayed probes, preserved retirement/D57 intent and corrected cleanup/provenance wording. Inventory/RTC/bootstrap #1212 merged; no runtime changes or security PASS.
+
 3.235.13 || 18.10.2026
 docs(security): **remaining backend inventory + RTC/root-bootstrap L1 receipts** at `db325cd3c`. Inventory explicitly accounts for 109 files/16,362 newlines with all 1,482 tracked paths reconciled; shipped Node preview adapter retained as backend scope. RTC's five files/492 lines and B1's nine files/729 newlines (732 logical lines) read completely, including lock declarations and unterminated EOF. Safe RTC probes preserve BP-3; bootstrap defaults expand B-2 without publishing values. Fresh independent same-model review completed. No runtime edits, credential validity, deployment compromise, service PASS or whole-project completion claim.
 
