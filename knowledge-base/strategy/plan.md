@@ -35,7 +35,7 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## web10-social Product Post Permalink (D89)
 
-- [✓ 3.235.13] **A product post's permalink renders the product, not an empty post** — the post-detail layout only rendered `title` / `text` / `media`, so a `posts` doc tagged `product` (D89 — the body IS the product attributes) showed the author row + an empty body + the action bar. `PostRecord.product` (parsed by `parseProductFields`) + the `PostDetail` product card (photo / name / price / badges / affiliate link) + the permalink route resolving `pics[0]` through the owner-scoped media path. Products are inventory like ads — dropped from the standalone feed/profile lists (the storefront + the product card are their public face). All client-side, D60.
+- [✓ 3.235.17] **A product post's permalink renders the product, not an empty post** — the post-detail layout only rendered `title` / `text` / `media`, so a `posts` doc tagged `product` (D89 — the body IS the product attributes) showed the author row + an empty body + the action bar. `PostRecord.product` (parsed by `parseProductFields`) + the `PostDetail` product card (photo / name / price / badges / affiliate link) + the permalink route resolving `pics[0]` through the owner-scoped media path. Products are inventory like ads — dropped from the standalone feed/profile lists (the storefront + the product card are their public face). All client-side, D60.
 
 ## L1 Security Scans
 
