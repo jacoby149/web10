@@ -171,9 +171,19 @@ The single-ad drill-down (`/monetize?tab=analytics&ad=<doc_id>`):
 `SELECT doc_id, body.title FROM posts WHERE ad_target = '<ad_doc_id>'`
 (the reverse lookup is a client-side query, D60-clean).
 
-## Per-Product Aggregate (Tier 5, next-next PR)
+## Per-Product Aggregate (Tier 5) [built 3.235.18]
 
 The product-level view: "how is this product performing across all its ads?"
+Built in 3.235.18: `ProductAnalyticsPanel.tsx` (the per-product aggregate card),
+`AnalyticsSection.tsx` (reads `?product=<doc_id>` from the URL, filters the
+catalog's ads by `product_id`, loads each ad's analytics via `readPostAnalytics`,
+renders the panel in place of Tier 1), and `AdAnalyticsPanel.tsx` (the product
+card is now a clickable button → Tier 5). The panel shows: the product's identity
+(name + price + commission + window), the aggregate totals (impressions + reach
+across all the product's ads), the aggregate daily time-series (Recharts
+ComposedChart, summed across ads), the per-ad list (each ad's individual
+impressions, clickable → Tier 2b), the attached posts (reverse lookup), and the
+actuals vs projection card (the tell).
 
 - **All ads for this product** (by `product_id` or legacy `product` section)
   with their individual + aggregate metrics.
