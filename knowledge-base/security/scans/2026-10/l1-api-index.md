@@ -29,12 +29,12 @@ Receipt names below live alongside this index.
 | G | Query endpoint/shared schemas | 530 | `l1-api-g.md` | Merged #1204 |
 | H | Media/import/preview endpoints/models | 614 | `l1-api-h.md` | Merged #1203 |
 | I | Router/appstore/moderation/logs/bug reporting | 705 | `l1-api-i.md` | Merged #1203 |
-| J | Import worker 1-532 | 532 | `l1-api-j.md` | Recorded |
-| K | Import worker 533-1028 + parsers | 867 | `l1-api-k.md` | Recorded |
-| L | Entire safe-query compiler | 535 | `l1-api-l.md` | Recorded |
-| M | ClickHouse 1-790 | 790 | `l1-api-m.md` | Pending |
-| N | ClickHouse 791-1615 | 825 | `l1-api-n.md` | Pending |
-| O | ClickHouse 1616-2412 | 797 | `l1-api-o.md` | Pending |
+| J | Import worker 1-532 | 532 | `l1-api-j.md` | Merged #1205 |
+| K | Import worker 533-1028 + parsers | 867 | `l1-api-k.md` | Merged #1205 |
+| L | Entire safe-query compiler | 535 | `l1-api-l.md` | Merged #1205 |
+| M | ClickHouse 1-790 | 790 | `l1-api-m.md` | Recorded |
+| N | ClickHouse 791-1615 | 825 | `l1-api-n.md` | Recorded |
+| O | ClickHouse 1616-2412 | 797 | `l1-api-o.md` | Recorded |
 | P | ClickHouse 2413-3218 | 806 | `l1-api-p.md` | Pending |
 | Q | ClickHouse 3219-4093 | 875 | `l1-api-q.md` | Pending |
 | R | ClickHouse 4094-4944 | 851 | `l1-api-r.md` | Pending |

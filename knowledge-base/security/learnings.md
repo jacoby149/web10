@@ -139,6 +139,16 @@ durability prose but is reliability debt, not an added C+I finding. L's compiler
 acceptance probes do not execute ClickHouse: qualified names, scalar functions
 and settings are handoffs, not demonstrated raw-store access or injection.
 
+### 2026-10-18: storage foundations L1 receipts
+
+M/N/O account for ClickHouse lines 1-2412 without finding a demonstrated local
+exploit. Legacy migration classification, member permission shortcuts, selected
+tombstone reads, revocation ties and optional membership joins remain explicit
+L2+ candidates, not blanket access-control failures. `read_documents` ranks
+versions before filtering deleted rows; do not generalize prefilter behavior from
+different getters. D80 social membership visibility and intentional public grants
+must survive future fixes; no helper or migration is certified safe by this scan.
+
 ## Known gaps (the "obvious gap" register)
 
 Gaps the orient has surfaced. Each is either a `BP-n` or a standing note:
