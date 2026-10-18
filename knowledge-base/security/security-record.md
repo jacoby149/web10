@@ -72,6 +72,9 @@ three-dry sign-off. No campaign PASS is claimed.
 | J | Same pin/date/model | 532 lines | OPEN: [receipt](scans/2026-10/l1-api-j.md), L1-J-01 real trace handlers copy one synthetic job's message into both overlapping jobs' event insert arguments; live endpoint disclosure untested. |
 | K | Same pin/date/model | 867 lines | [Receipt](scans/2026-10/l1-api-k.md): no confirmed C+I finding; parser whole-remainder read is reliability debt; persisted-authority/redirect/storage handoffs and sign-off pending. |
 | L | Same pin/date/model | 535 lines | [Receipt](scans/2026-10/l1-api-l.md): no confirmed local finding; compiler accepts qualified/scalar/settings candidates but no SQL executed; execution-boundary handoffs and sign-off pending. |
+| M | Same pin/date/model | 790 lines | [Receipt](scans/2026-10/l1-api-m.md): no confirmed local finding; migration visibility/policy concurrency candidates require actual upgrade/consumer evidence; review/sign-off pending. |
+| N | Same pin/date/model | 825 lines | [Receipt](scans/2026-10/l1-api-n.md): no confirmed local finding; permissions/tombstone/caller-authority handoffs; `read_documents` correctly ranks before deleted filtering in the inspected query, no blanket resurrection claim. |
+| O | Same pin/date/model | 797 lines | [Receipt](scans/2026-10/l1-api-o.md): no confirmed local finding; contract revocation, moderation scope and optional membership-join handoffs; generated SQL alone is not a bypass. |
 
 ## Not yet scanned (scan debt)
 

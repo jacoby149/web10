@@ -1,3 +1,6 @@
+3.235.10 || 18.10.2026
+docs(security): **API L1 campaign batch 5 — ClickHouse foundations M/N/O**, lines 1-2412 at `8af7e0fce`, no gaps/overlap. Migration policy, document/group/member primitives, contract/blocking/ranking SQL inspected file-locally; safe probes demonstrate local behavior, not endpoint exploits. Tombstone wording corrected to distinguish the rank-then-filter document read from affected candidate getters. No confirmed new finding is not PASS; caller/schema/migration handoffs retained. Batch 4 #1205 merged; no runtime changes or convergence claim.
+
 3.235.9 || 18.10.2026
 docs(security): **API L1 campaign batch 4 — import/compiler receipts J/K/L**, 1,934 lines at `8af7e0fce`. Real synchronized job handlers reproduce L1-J-01 cross-job trace insert contamination; historical worker PASS withdrawn, findings remain OPEN. Parser whole-remainder reading is reliability debt, not a C+I finding; compiler acceptance is not execution proof. Fresh reviewer replayed probes and checked exact worker range coverage. Batch 3 #1204 merged; no runtime fix, production cross-owner disclosure, compiler bypass or campaign PASS claim.
 
