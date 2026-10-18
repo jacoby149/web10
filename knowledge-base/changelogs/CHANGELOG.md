@@ -1,3 +1,6 @@
+3.235.5 || 18.10.2026
+docs(security): **second commit-pinned whole-file L1 receipt: API settings** — all 140 lines scanned at `8704e9f5c` by OpenCode (`gpt-6.1 sol`). Isolated stdlib probes confirm existing B-2 repeatable credential defaults and new B-8: the settings CLI prints environment-injected secrets. Values withheld; only synthetic stdout inspected. Boolean type erasure is recorded as an L2 handoff, not an auth bypass. Both findings remain OPEN. Recorded merged middleware receipt #1199 and queued main.py next. No runtime edits, live credential validation, production exposure assessment, fix, or whole-API sign-off.
+
 3.235.4 || 18.10.2026
 docs(security): **first commit-pinned whole-file L1 receipt: API middleware** — all 143 lines scanned at `d86658be6` by OpenCode (`gpt-6.1 sol`). A synthetic local PoC using the real middleware and an in-memory ClickHouse sink reproduces existing B-4: request/response tokens reach insert arguments, with error JSON/detail duplicated into meta/message. Security record and learnings updated; B-4 remains OPEN. Added the scan lane and next settings bite. No runtime changes, live database access, production exposure assessment, fix, or whole-API/security sign-off claimed.
 
