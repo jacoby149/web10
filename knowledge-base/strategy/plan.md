@@ -31,7 +31,11 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ---
 
-## Phases
+## Phases 
+
+## web10-social Product Post Permalink (D89)
+
+- [✓ 3.235.6] **A product post's permalink renders the product, not an empty post** — the post-detail layout only rendered `title` / `text` / `media`, so a `posts` doc tagged `product` (D89 — the body IS the product attributes) showed the author row + an empty body + the action bar. `PostRecord.product` (parsed by `parseProductFields`) + the `PostDetail` product card (photo / name / price / badges / affiliate link) + the permalink route resolving `pics[0]` through the owner-scoped media path. All client-side, D60.
 
 ## L1 Security Scans
 

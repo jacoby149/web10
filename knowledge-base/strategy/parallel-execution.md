@@ -31,6 +31,12 @@ says what can happen **at the same time**.
 
 ## Lanes
 
+### Lane: web10-social-product-permalink
+**Owns:** `marketing/web10-social/` (the post-detail system + the permalink
+route + the screenshot harness).
+
+- [✓ 3.235.6] **A product post's permalink renders the product, not an empty post (D89)** — the post-detail layout only rendered `title` / `text` / `media`, so a `posts` doc tagged `product` (the body IS the product attributes) showed the author row + an empty body + the action bar (the operator's "empty post" at `/u/jacoby149/p/01a12c11-…`). `PostRecord.product` (parsed by `parseProductFields`) + the `PostDetail` product card (photo / name / price / badges / affiliate link) + the permalink route resolving `pics[0]` through the owner-scoped media path (anon falls back to no photo). All client-side, D60 — zero node surface. `postDetail.test.tsx` +4; full suite green (1486); screenshots `product-permalink-{desktop,375}.png`.
+
 ### Lane: security-l1-scans
 **Owns:** Scope-specific receipts under `knowledge-base/security/scans/`, with
 central record/learnings/plan/changelog updates serialized by the scan coordinator.

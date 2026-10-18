@@ -39,7 +39,7 @@ import { SaveProvider } from '@/context/SaveContext';
 import { NewPostSheet } from '@/components/Feed/NewPostSheet';
 import { SaveSheet } from '@/components/Feed/SaveSheet';
 import type { PostRecord, MediaRecord, Visibility, ResolvedMediaRef } from '@/data/types';
-import { fromResolvedMediaRef } from '@/data/types';
+import { fromResolvedMediaRef, parseProductFields } from '@/data/types';
 
 const LOG = (...args: unknown[]) => console.log('[social]', ...args);
 const LOG_ERR = (...args: unknown[]) => console.error('[social]', ...args);
@@ -171,17 +171,25 @@ function UserProfilePostLinkRoute() {
         let p: PostRecord | null = null;
         try {
           const doc = await w.readById(postId, 'posts');
-          p = { _id: doc.doc_id, text: (doc.body.text as string) || undefined, media_refs: (doc.body.media_refs as (string | ResolvedMediaRef)[]) || undefined, created_at: doc.created_at, updated_at: doc.updated_at, visibility: (doc.body.visibility as Visibility) || undefined, tags: doc.tags || (doc.body.tags as string[]) || undefined };
+          p = { _id: doc.doc_id, text: (doc.body.text as string) || undefined, media_refs: (doc.body.media_refs as (string | ResolvedMediaRef)[]) || undefined, created_at: doc.created_at, updated_at: doc.updated_at, visibility: (doc.body.visibility as Visibility) || undefined, tags: doc.tags || (doc.body.tags as string[]) || undefined, product: parseProductFields(doc.body) };
         } catch { /* not found */ }
         if (!cancelled && p) {
           setPost(p);
-          if (p.media_refs?.length) {
+          const refIds: (string | ResolvedMediaRef)[] = [...(p.media_refs || [])];
+          // A product (D89) carries its photo in `pics` (bare doc_id strings),
+          // not `media_refs` — resolve the first pic so the product card can
+          // show it. Same owner-scoped path as the post's own media.
+          const firstPic = p.product?.pics?.[0];
+          if (firstPic && !refIds.some((r) => (typeof r === 'string' ? r : r.doc_id) === firstPic)) {
+            refIds.push(firstPic);
+          }
+          if (refIds.length) {
             const flat: Record<string, MediaRecord> = {};
             if (token) {
               // Signed-in: the cross-user `public_media` path mints fresh
               // presigned URLs (the owner's own media uses the `media` service).
               const media = await resolveMediaRefs(
-                p.media_refs,
+                refIds,
                 { username: username!, provider: provider || token.provider },
                 username === token.username ? 'media' : 'public_media',
               );
@@ -190,8 +198,10 @@ function UserProfilePostLinkRoute() {
               }
             } else {
               // Anon: build the map from the inline resolved refs the node
-              // returned (no token to re-presign with).
-              for (const r of p.media_refs) {
+              // returned (no token to re-presign with). A product's pics are
+              // bare doc_ids the anon path can't presign — the card falls back
+              // to no photo (the product's name + link still render).
+              for (const r of refIds) {
                 if (typeof r === 'string') continue;
                 const id = r.doc_id || '';
                 if (id) flat[id] = fromResolvedMediaRef(r);
