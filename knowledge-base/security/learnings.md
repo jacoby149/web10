@@ -192,6 +192,18 @@ is commented out; the unsigned webhook stub reads no event and mutates no state.
 No payment forgery follows from its acknowledgment. Preserve D57's deferred rails
 and require proper authority/provenance before any future payment activation.
 
+### 2026-10-18: shipped Node share-preview L1 receipt
+
+The three preview adapter files/422 lines are shipped backend source, now covered
+at `db325cd3c`; excluding them as frontend would have left a real inventory gap.
+Pinned VM probes use inert fetch/HTTP sinks: specs retain synthetic markup/URLs
+and fixed-origin anonymous calls, denied reads make generic cards, incoming auth
+does not forward. These are local composition controls, not proof of renderer
+escaping or actual public grants. Missing posts return generic cards/HTTP 200,
+contrary to ghost-404 intent; this is correctness debt, not demonstrated private
+content access. Preserve content-free private fallbacks while tracing real API,
+renderer and routing boundaries at L2. No new confirmed vulnerability or PASS.
+
 ## Known gaps (the "obvious gap" register)
 
 Gaps the orient has surfaced. Each is either a `BP-n` or a standing note:
