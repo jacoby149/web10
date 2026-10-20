@@ -361,6 +361,17 @@ describe('the product section (ads-october focus #2)', () => {
   });
 });
 
+describe('deleteProduct', () => {
+  beforeEach(mockV3Client);
+
+  it('tombstones the product doc (the same delete the ad retire rides)', async () => {
+    const mock = v3.getV3Client() as any;
+    const productDoc = { doc_id: 'prod-1', tags: ['product'] };
+    await adsCatalog.deleteProduct(productDoc as any);
+    expect(mock.delete).toHaveBeenCalledWith('prod-1');
+  });
+});
+
 describe('readMyCatalog / readNodeAds', () => {
   beforeEach(mockV3Client);
 

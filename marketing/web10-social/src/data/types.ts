@@ -96,6 +96,17 @@ export interface PostRecord {
   post_id?: string;
 }
 
+/**
+ * Drop ad-inventory docs (tagged `ad` — creator or `node_ad`) and product docs
+ * (tagged `product`, D89) from a standalone post list. Ad docs show only when
+ * ATTACHED to a post via the read-time join (`doc.ad` / `doc.node_ad`), never
+ * as standalone ranked posts. Product docs' public face is the storefront +
+ * the product card on their own permalink, not a feed/profile tile.
+ */
+export function dropAdPosts(posts: PostRecord[]): PostRecord[] {
+  return posts.filter((p) => !p.tags?.includes('ad') && !p.tags?.includes('product'));
+}
+
 export function fromV3DocToPost(doc: V3Document): PostRecord {
   const body = doc.body as Record<string, unknown>;
   const username = extractUsername(doc.author_key);
