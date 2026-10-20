@@ -21,6 +21,15 @@ import { stripMarkdown } from './markdown.mjs'
 const API_ORIGIN = (process.env.API_ORIGIN || 'http://api.localhost').replace(/\/$/, '')
 const SOCIAL_ORIGIN = (process.env.SOCIAL_ORIGIN || 'http://social.localhost').replace(/\/$/, '')
 
+// The node's PROVIDER — the host prefix every group id carries
+// (`{provider}/groups/users/{username}/followers`). The API derives it from its
+// own hostname (settings.PROVIDER), and the preview server's API_ORIGIN is that
+// same host over the proxy network, so the provider is API_ORIGIN's hostname.
+// Deriving it (instead of hardcoding) is what lets a profile share resolve the
+// author's real followers group on every node — a hardcoded `web10` prefix only
+// matches a node whose provider is literally `web10`.
+export const PROVIDER = new URL(API_ORIGIN).hostname
+
 // The social brand mark — the fallback image when a doc has no picture and the
 // author has no avatar. Served from the social app's static assets (the crawler
 // resolves it against the social origin, where the SPA is hosted).
@@ -80,7 +89,7 @@ async function renderCardAnon(spec) {
 // social app's preview logic, so it knows its own group structure). The read is
 // anon-capable for a public profile (the face is public identity, D41).
 async function readAuthorProfile(username) {
-  const followersGroup = `web10/groups/users/${username}/followers`
+  const followersGroup = `${PROVIDER}/groups/users/${username}/followers`
   const res = await fetch(`${API_ORIGIN}/v3/read`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
