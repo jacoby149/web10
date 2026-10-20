@@ -1315,6 +1315,30 @@ def ensure_creator_owner(group_id: str, creator: str, roles: list[dict]) -> None
     add_group_member(group_id, creator, "owner")
 
 
+def heal_followers_group_owner(group_id: str, user: str) -> None:
+    """Self-heal the owner row of a user-created (followers) group.
+
+    A user-created group's id is ``{provider}/groups/users/{creator}/{slug}`` —
+    the creator is the owner by definition. When the creator's member row is
+    missing or drifted to a non-owner role, the group is dead for its creator:
+    ``get_user_groups`` (the ``/list`` read) drops it, so the client's
+    followers-group heal (``ensureFollowers``) sees "not a member" and joins
+    with the ``member`` role — which never upgrades the row back to owner, and
+    every owner-only surface (the profile's posts read, the moderation gate)
+    keeps failing. The join is a one-way ratchet into the dead state.
+
+    The fix is the same latest-row dedup the readers use: insert a current
+    ``owner`` row for the creator's bare username. It wins over the stale
+    member row (higher ``updated_at``), and it is idempotent — a no-op when the
+    creator already holds the owner role or the contract defines no owner role
+    (DM groups, the discover board).
+    """
+    group = get_group(group_id)
+    if not group:
+        return
+    ensure_creator_owner(group_id, user, group.get("roles") or [])
+
+
 def get_group_members(group_id: str, limit: int = 100, offset: int = 0) -> list[dict]:
     """Get active members of a group (deduplicated by latest version).
 

@@ -180,9 +180,24 @@ def get_my_groups(data: ListMyGroups):
 
     ``tags`` (D78): an optional server-side tag filter — only groups carrying
     every given tag are returned (My Groups = ``["web10-social-group"]``).
+
+    Owner self-heal: for every user-created group (``{provider}/groups/users/
+    {creator}/…``) whose creator is the caller, the creator's member row is
+    re-pointed to ``owner`` when it is missing or drifted. The ``/list`` read
+    is the app's group-discovery seam (the client's ``ensureFollowers`` heal
+    keys off it) — healing here breaks the dead-group ratchet where a missing
+    owner row made the client join as ``member``, which never upgrades back,
+    leaving the creator locked out of their own followers group (profile
+    posts, moderation). Idempotent: a no-op when the creator is already the
+    owner or the contract defines no owner role.
     """
     user = _user(data)
-    return ch.get_user_groups(user, data.tags)
+    groups = ch.get_user_groups(user, data.tags)
+    for g in groups:
+        creator, _slug = _parse_group_id(g["group_id"])
+        if creator == user:
+            ch.heal_followers_group_owner(g["group_id"], user)
+    return groups
 
 
 @router.post("/get")
