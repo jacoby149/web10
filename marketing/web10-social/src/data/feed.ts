@@ -1,29 +1,13 @@
 import { getV3Client } from './v3';
 import type { PowerMeanSort } from './v3';
 import { getDiscoverGroupId, getMyGroups, getFeedGroups, followersGroupId } from './groups';
-import { fromV3DocToPost, fromV3DocToProfile, fromV3FeedPost, extractUsername, mediaRefId, type PostRecord, type ResolvedMediaRef } from './types';
+import { fromV3DocToPost, fromV3DocToProfile, fromV3FeedPost, extractUsername, mediaRefId, dropAdPosts, type PostRecord, type ResolvedMediaRef } from './types';
 import { resolveMediaRefs } from './posts';
 import type { MediaRecord } from './types';
 import { knobStateToSort } from '@/lib/powerMean';
 
 // ── Feed / Discover data layer (v3) ──────────────────────────────────────────
 // v3 feed: read from groups, not inbox. Discover: read from discover group.
-
-/**
- * Ad docs (tagged `ad` — creator or `node_ad`) are ad inventory, not feed
- * content. They show only when ATTACHED to a post via the read-time join
- * (`doc.ad` / `doc.node_ad`), never as standalone ranked posts (ad-improvements
- * .md — an ad doesn't need to be popular to show; it's attached). Drop them from
- * the standalone list so they don't leak in as plain, ranked posts.
- *
- * Product docs (tagged `product`, D89) are the same kind of inventory — they
- * live in the followers group as the master the ads reference, and their public
- * face is the storefront + the product card on their own permalink, NOT a
- * ranked feed tile. Drop them from the standalone list the same way.
- */
-function dropAdPosts(posts: PostRecord[]): PostRecord[] {
-  return posts.filter((p) => !p.tags?.includes('ad') && !p.tags?.includes('product'));
-}
 
 // ── Discover feed ────────────────────────────────────────────────────────────
 

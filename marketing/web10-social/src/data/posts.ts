@@ -7,7 +7,8 @@ import {
   ensureFollowers,
 } from './groups';
 import type { PostRecord, MediaRecord, MediaUploadRequest, Visibility, ResolvedMediaRef, ProfileRecord } from './types';
-import { fromV3DocToPost, fromV3DocToMedia, fromResolvedMediaRef, fromV3DocToProfile, mediaRefId, extractUsername } from './types';
+import type { V3Document } from './v3';
+import { fromV3DocToPost, fromV3DocToMedia, fromResolvedMediaRef, fromV3DocToProfile, mediaRefId, extractUsername, dropAdPosts } from './types';
 
 // ── Post data layer (v3) ─────────────────────────────────────────────────────
 // Posts live in the `posts` collection. Visibility is controlled by GROUPS:
@@ -273,14 +274,35 @@ export async function readMyPosts(opts?: { limit?: number; surface?: string }): 
   if (!token) return [];
   const myGroups = [followersGroupId(token.username), closeFriendsGroupId(token.username)];
   console.log('[social-feed] readMyPosts — own groups:', JSON.stringify(myGroups));
-  // Ad docs (tagged `ad`) live in the same followers group as regular posts
-  // (ads-catalog.ts writes them there). They are ad inventory, not content —
-  // the feed drops them via `dropAdPosts`; the profile reads must too, or
-  // every ad the creator made shows up as a tile in their profile grid.
-  // Same for product docs (tagged `product`, D89) — their public face is the
-  // storefront + the product card, not a profile tile.
-  const posts = await readPosts(myGroups, opts);
-  return posts.filter((p) => !p.tags?.includes('ad') && !p.tags?.includes('product'));
+  // Ad docs (tagged `ad`) + product docs (tagged `product`, D89) are inventory,
+  // not content. They must be excluded at the SQL level (before the LIMIT), not
+  // dropped after it: a creator who batch-creates ads has those ads as the
+  // newest docs in the followers group, so a plain group read (LIMIT before the
+  // client filter) returns a page full of inventory and zero real posts — the
+  // profile shows one post (or none) even though real posts sit below the ad
+  // block. Same bug class as the feed's 3.223.1 fix. The query engine (D73) is
+  // the seam: the app writes its own SELECT over `posts` scoped to the owner's
+  // groups, with the exclusion in the WHERE clause. `dropAdPosts` stays as the
+  // backstop for the attached-ad join.
+  const limit = opts?.limit ?? 50;
+  const sql =
+    'SELECT p.doc_id AS doc_id, p.author_key AS author_key, p.body AS body, p.tags AS tags, ' +
+    'p.created_at AS created_at, p.ref_value AS ref_value, p.ad_mode AS ad_mode, p.ad_target AS ad_target ' +
+    "FROM posts p WHERE not has(p.tags, 'ad') AND not has(p.tags, 'product') " +
+    'ORDER BY toUnixTimestamp64Milli(p.created_at) DESC ' +
+    `LIMIT ${limit}`;
+  try {
+    const result = await w.query(sql, {
+      groups: myGroups,
+      ...(opts?.surface ? { surface: opts.surface, contentService: 'posts' } : {}),
+      prepare: { media: true, ads: true },
+    });
+    return dropAdPosts(result.rows.map((r) => fromV3DocToPost(r as unknown as V3Document)));
+  } catch (e) {
+    console.error('[social-feed] readMyPosts — query failed, falling back to group read:', e);
+    const posts = await readPosts(myGroups, opts);
+    return dropAdPosts(posts);
+  }
 }
 
 /**
@@ -290,10 +312,28 @@ export async function readMyPosts(opts?: { limit?: number; surface?: string }): 
  */
 export async function readUserPosts(username: string, optsOrProvider?: { limit?: number } | string): Promise<PostRecord[]> {
   const opts = typeof optsOrProvider === 'string' ? undefined : optsOrProvider;
-  const posts = await readPosts([followersGroupId(username)], opts);
-  // Same ad-inventory drop as readMyPosts — the profile grid (visitor path)
-  // must not render the creator's ads (or products) as content tiles.
-  return posts.filter((p) => !p.tags?.includes('ad') && !p.tags?.includes('product'));
+  // Same server-side ad/product exclusion as readMyPosts — the profile grid
+  // (visitor path) must not render the creator's ads (or products) as content
+  // tiles. The query engine (D73) excludes them before the LIMIT.
+  const limit = opts?.limit ?? 50;
+  const sql =
+    'SELECT p.doc_id AS doc_id, p.author_key AS author_key, p.body AS body, p.tags AS tags, ' +
+    'p.created_at AS created_at, p.ref_value AS ref_value, p.ad_mode AS ad_mode, p.ad_target AS ad_target ' +
+    "FROM posts p WHERE not has(p.tags, 'ad') AND not has(p.tags, 'product') " +
+    'ORDER BY toUnixTimestamp64Milli(p.created_at) DESC ' +
+    `LIMIT ${limit}`;
+  try {
+    const w = getV3Client();
+    const result = await w.query(sql, {
+      groups: [followersGroupId(username)],
+      prepare: { media: true, ads: true },
+    });
+    return dropAdPosts(result.rows.map((r) => fromV3DocToPost(r as unknown as V3Document)));
+  } catch (e) {
+    console.error('[social-feed] readUserPosts — query failed, falling back to group read:', e);
+    const posts = await readPosts([followersGroupId(username)], opts);
+    return dropAdPosts(posts);
+  }
 }
 
 /**
