@@ -110,6 +110,15 @@ link/partner offers an **apply-to-all-ads** sync (the follow-up).
 `product_id` (new) or the embedded section (old), so old ads keep rendering
 without a migration.
 
+**Deleting a product.** The product is a normal `posts` doc, so it is
+deleted the normal way — a tombstone through the CRUD path (the owner's
+`deleteAll` on the followers group authorizes it; `deleteProduct` in
+`ads-catalog.ts`, the Products tab's per-tile delete affordance). The ads
+that reference it by `product_id` are untouched: they keep their
+denormalized offer snapshot (link + partner + kind), so the public feed's
+ad block still renders; the product just drops out of the Products tab +
+the storefront on the next read.
+
 The `number` leaves are `number`-typed (sortable/filterable), the rest `text`
 (`../sdk/document-typing.md`). **The projection** (focus #3) is a *static*
 "100k impressions ~ $X" line computed client-side from the product's `price` ×

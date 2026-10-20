@@ -129,7 +129,14 @@ a grid of product tiles (picture + name + price + the commission badge + the
 Each product is the **master** (the single source of truth for the affiliate
 link, the price, the commission, the pics); the ads reference it by
 `product_id`. A product tile has a **make-an-ad** affordance (create a new ad
-off the product) + an **edit** affordance (edit the master).
+off the product), an **edit** affordance (edit the master), and a **delete**
+affordance (remove the product — a confirm dialog, then the doc is
+tombstoned through the normal CRUD path; the owner's `deleteAll` on the
+followers group authorizes it, same as the ad retire). Deleting a product
+does not touch the ads that reference it by `product_id` — they keep their
+denormalized offer snapshot (link + partner + kind), so the public feed's ad
+block still renders; the product just drops out of the Products tab + the
+storefront on the next read.
 
 The **public storefront** (focus #1) is the *shareable browsing face* of this
 same data — a deep-linkable `/u/:username/store` route (the "here's everything
