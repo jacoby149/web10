@@ -17,6 +17,7 @@ const updateAd = vi.fn();
 const updateNodeAd = vi.fn();
 const convertAdScope = vi.fn();
 const createNodeAd = vi.fn();
+const readNodeAdPerformance = vi.fn();
 vi.mock('@/data/ads-catalog', () => ({
   checkNodeAdmin: (...a: unknown[]) => checkNodeAdmin(...a),
   readMyCatalog: (...a: unknown[]) => readMyCatalog(...a),
@@ -28,6 +29,7 @@ vi.mock('@/data/ads-catalog', () => ({
   updateNodeAd: (...a: unknown[]) => updateNodeAd(...a),
   convertAdScope: (...a: unknown[]) => convertAdScope(...a),
   createNodeAd: (...a: unknown[]) => createNodeAd(...a),
+  readNodeAdPerformance: (...a: unknown[]) => readNodeAdPerformance(...a),
   buildOfferBody: vi.fn(),
   buildNodeAdBody: vi.fn(),
   splitCatalog: vi.fn(),
@@ -42,9 +44,11 @@ vi.mock('@/data/ads-catalog', () => ({
 
 // Mock the creator-analytics data layer (the D86 dashboard read).
 const readCreatorAnalytics = vi.fn();
+const readPostAnalytics = vi.fn();
 const enrichTopPosts = vi.fn();
 vi.mock('@/data/creator-analytics', () => ({
   readCreatorAnalytics: (...a: unknown[]) => readCreatorAnalytics(...a),
+  readPostAnalytics: (...a: unknown[]) => readPostAnalytics(...a),
   enrichTopPosts: (...a: unknown[]) => enrichTopPosts(...a),
 }));
 
@@ -76,7 +80,9 @@ beforeEach(() => {
   getNodeConfig.mockResolvedValue({ node_ad_percentage: 10 });
   saveNodeAdPercentage.mockResolvedValue(undefined);
   readCreatorAnalytics.mockResolvedValue(EMPTY_ANALYTICS);
+  readPostAnalytics.mockResolvedValue(EMPTY_ANALYTICS);
   enrichTopPosts.mockResolvedValue([]);
+  readNodeAdPerformance.mockResolvedValue(null);
 });
 
 describe('MonetizationScreen', () => {
@@ -116,6 +122,44 @@ describe('MonetizationScreen', () => {
     expect(await screen.findByTestId('creator-monetization')).toBeInTheDocument();
     expect(await screen.findByTestId('node-ad-controls')).toBeInTheDocument();
     expect(screen.queryByTestId('monetization-tab-node')).not.toBeInTheDocument();
+  });
+
+  it('shows the node ad performance (live from the D86 engine) for a node admin', async () => {
+    checkNodeAdmin.mockResolvedValue(true);
+    readNodeAdPerformance.mockResolvedValue({
+      impressions: 5872,
+      clicks: 440,
+      ctr: 7.5,
+      ads: [{ doc_id: 'node-ad-1', impressions: 5872, clicks: 440 }],
+    });
+    readNodeAds.mockResolvedValue([
+      { doc: { doc_id: 'node-ad-1', tags: ['ad', 'node_ad'] }, text: 'Sponsored by web10', status: 'active', format: 'inline', offer: { kind: 'none', partner: '', link: 'https://example.com', cta: '', disclosure: '' }, albums: [], media_refs: [] },
+    ]);
+    renderAt('/monetize');
+    expect(await screen.findByTestId('node-ads-performance')).toBeInTheDocument();
+    expect(screen.getByTestId('node-ads-performance-impressions')).toHaveTextContent('5,872')
+    expect(screen.getByTestId('node-ads-performance-clicks')).toHaveTextContent('440')
+    expect(screen.getByTestId('node-ads-performance-ctr')).toHaveTextContent('7.5')
+    // The per-ad row shows the ad's own numbers + its name.
+    expect(screen.getByTestId('node-ads-performance-ad-node-ad-1')).toHaveTextContent('Sponsored by web10')
+    expect(screen.getByTestId('node-ads-performance-ad-node-ad-1')).toHaveTextContent('5,872')
+  });
+
+  it('shows the node ad performance empty state when the node has no node ads', async () => {
+    checkNodeAdmin.mockResolvedValue(true);
+    readNodeAdPerformance.mockResolvedValue(null);
+    renderAt('/monetize');
+    expect(await screen.findByTestId('node-ads-performance-empty')).toBeInTheDocument();
+  });
+
+  it('switches the node ad performance window (7d/30d/90d)', async () => {
+    checkNodeAdmin.mockResolvedValue(true);
+    readNodeAdPerformance.mockResolvedValue({ impressions: 100, clicks: 5, ctr: 5, ads: [] });
+    renderAt('/monetize');
+    expect(await screen.findByTestId('node-ads-performance')).toBeInTheDocument();
+    expect(readNodeAdPerformance).toHaveBeenCalledWith(30);
+    fireEvent.click(screen.getByTestId('node-ads-performance-window-7'));
+    await waitFor(() => expect(readNodeAdPerformance).toHaveBeenCalledWith(7));
   });
 
   it('falls back to Ads when a non-admin is deep-linked to ?tab=node', async () => {
@@ -872,5 +916,341 @@ describe('Unified ad list — the scope filter (All | Regular | Node, node admin
     renderAt('/monetize');
     expect(await screen.findByTestId('creator-monetization')).toBeInTheDocument();
     expect(screen.queryByTestId('ads-scope-filter')).not.toBeInTheDocument();
+  });
+});
+
+describe('AnalyticsSection — Tier 2 per-post drill-down', () => {
+  const TOP_POSTS = [
+    { doc_id: 'p1', impressions: 5000, reach: 1200, avgWatchPct: null },
+    { doc_id: 'p2', impressions: 3000, reach: 800, avgWatchPct: 0.72 },
+  ];
+  const TOP_POST_DETAILS = [
+    {
+      doc_id: 'p1', impressions: 5000, reach: 1200, avgWatchPct: null,
+      label: 'Behind the scenes: studio setup', thumbnailUrl: null,
+      isAd: false, contentType: 'post' as const, adFormat: 'inline' as const,
+    },
+    {
+      doc_id: 'p2', impressions: 3000, reach: 800, avgWatchPct: 0.72,
+      label: 'Full breakdown: my editing workflow', thumbnailUrl: null,
+      isAd: false, contentType: 'video' as const, adFormat: 'inline' as const,
+    },
+  ];
+  const POST_ANALYTICS = {
+    daily: [
+      { day: '2026-10-10', impressions: 2000, reach: 500 },
+      { day: '2026-10-11', impressions: 1500, reach: 400 },
+      { day: '2026-10-12', impressions: 1500, reach: 300 },
+    ],
+    bySurface: [
+      { surface: 'feed', impressions: 3000, reach: 700 },
+      { surface: 'discover', impressions: 2000, reach: 500 },
+    ],
+    topPosts: [],
+    totals: { impressions: 5000, reach: 1200 },
+  };
+
+  beforeEach(() => {
+    checkNodeAdmin.mockResolvedValue(false);
+    readMyCatalog.mockResolvedValue(EMPTY_CATALOG);
+    readCreatorAnalytics.mockResolvedValue({
+      daily: [],
+      bySurface: [],
+      topPosts: TOP_POSTS,
+      totals: { impressions: 8000, reach: 2000 },
+    });
+    enrichTopPosts.mockResolvedValue(TOP_POST_DETAILS);
+    readPostAnalytics.mockResolvedValue(POST_ANALYTICS);
+  });
+
+  it('clicking a Top Posts row drills into the per-post detail panel', async () => {
+    renderAt('/monetize?tab=analytics');
+    // The Top Posts list renders with the enriched details.
+    const row = await screen.findByTestId('analytics-top-post-0');
+    expect(row).toBeInTheDocument();
+    expect(row).toHaveTextContent('Behind the scenes: studio setup');
+
+    // Click the row → the per-post panel loads.
+    fireEvent.click(row);
+    expect(await screen.findByTestId('post-analytics-panel')).toBeInTheDocument();
+    expect(screen.getByTestId('post-analytics-title')).toHaveTextContent('Behind the scenes: studio setup');
+    // The post's own totals are shown.
+    expect(screen.getByTestId('post-analytics-impressions')).toHaveTextContent('5k');
+    expect(screen.getByTestId('post-analytics-reach')).toHaveTextContent('1.2k');
+    // The surface breakdown is present.
+    expect(screen.getByTestId('post-analytics-surfaces')).toBeInTheDocument();
+    // The back button is present.
+    expect(screen.getByTestId('post-analytics-back')).toBeInTheDocument();
+  });
+
+  it('the back button returns to the Tier 1 dashboard', async () => {
+    renderAt('/monetize?tab=analytics');
+    const row = await screen.findByTestId('analytics-top-post-0');
+    fireEvent.click(row);
+    await screen.findByTestId('post-analytics-panel');
+
+    // Click back → the Tier 1 dashboard returns.
+    fireEvent.click(screen.getByTestId('post-analytics-back'));
+    expect(await screen.findByTestId('analytics-reach')).toBeInTheDocument();
+    expect(screen.queryByTestId('post-analytics-panel')).not.toBeInTheDocument();
+  });
+
+  it('a deep link (?post=<doc_id>) renders the per-post panel directly', async () => {
+    renderAt('/monetize?tab=analytics&post=p2');
+    // The panel renders with p2's data.
+    expect(await screen.findByTestId('post-analytics-panel')).toBeInTheDocument();
+    expect(screen.getByTestId('post-analytics-title')).toHaveTextContent('Full breakdown: my editing workflow');
+    // The watch % stat shows for video posts.
+    expect(screen.getByTestId('post-analytics-watch-pct')).toHaveTextContent('72%');
+  });
+
+  it('the per-post panel shows the average watch % for video/short posts', async () => {
+    renderAt('/monetize?tab=analytics&post=p2');
+    expect(await screen.findByTestId('post-analytics-watch')).toBeInTheDocument();
+    expect(screen.getByTestId('post-analytics-watch-pct')).toHaveTextContent('72%');
+  });
+
+  it('the per-post panel does NOT show the watch % for plain posts', async () => {
+    renderAt('/monetize?tab=analytics&post=p1');
+    await screen.findByTestId('post-analytics-panel');
+    expect(screen.queryByTestId('post-analytics-watch')).not.toBeInTheDocument();
+  });
+
+  it('the per-post panel shows the projection when the post has a product ad', async () => {
+    // p1 is a product ad with a $30 price, 10% commission.
+    readMyCatalog.mockResolvedValue({
+      ads: [{
+        doc: { doc_id: 'p1', tags: ['ad'] },
+        text: 'Ad for the grinder',
+        offer: { kind: 'affiliate' as const, partner: 'Amazon', link: 'https://amzn.to/x', cta: 'Get it', disclosure: '' },
+        status: 'active' as const,
+        format: 'inline' as const,
+        albums: [] as string[],
+        product: { target: 'product' as const, name: 'Grinder', price: 30, commission: 10, commission_is_percent: true },
+      }],
+      albums: [],
+      posts: [],
+    });
+    renderAt('/monetize?tab=analytics&post=p1');
+    expect(await screen.findByTestId('post-analytics-projection')).toBeInTheDocument();
+    // 5000 impressions × 0.01 CTR × 0.01 conv × $3 = $1.50
+    expect(screen.getByTestId('post-analytics-projection-value')).toHaveTextContent('$1.5');
+  });
+
+  it('the per-post panel does NOT show the projection for a post with no product ad', async () => {
+    renderAt('/monetize?tab=analytics&post=p1');
+    await screen.findByTestId('post-analytics-panel');
+    expect(screen.queryByTestId('post-analytics-projection')).not.toBeInTheDocument();
+  });
+});
+
+describe('AnalyticsSection — Tier 2b per-ad drill-down', () => {
+  const AD_TOP_POSTS = [
+    { doc_id: 'ad-1', impressions: 5000, reach: 1200, avgWatchPct: null },
+  ];
+  const AD_TOP_DETAILS = [
+    {
+      doc_id: 'ad-1', impressions: 5000, reach: 1200, avgWatchPct: null,
+      label: 'Sponsored: Nova Lens Pro', thumbnailUrl: null,
+      isAd: true, contentType: 'post' as const, adFormat: 'inline' as const,
+    },
+  ];
+  const AD_ANALYTICS = {
+    daily: [
+      { day: '2026-10-10', impressions: 2000, reach: 500 },
+      { day: '2026-10-11', impressions: 1500, reach: 400 },
+      { day: '2026-10-12', impressions: 1500, reach: 300 },
+    ],
+    bySurface: [
+      { surface: 'feed', impressions: 3000, reach: 700 },
+      { surface: 'discover', impressions: 2000, reach: 500 },
+    ],
+    topPosts: [],
+    totals: { impressions: 5000, reach: 1200 },
+  };
+
+  beforeEach(() => {
+    checkNodeAdmin.mockResolvedValue(false);
+    readMyCatalog.mockResolvedValue({
+      ads: [{
+        doc: { doc_id: 'ad-1', tags: ['ad'] },
+        text: 'Sponsored: Nova Lens Pro',
+        offer: { kind: 'affiliate' as const, partner: 'Amazon', link: 'https://amzn.to/x', cta: 'Get it', disclosure: '' },
+        status: 'active' as const,
+        format: 'inline' as const,
+        albums: [] as string[],
+        product: { target: 'product' as const, name: 'Nova Lens Pro', price: 49, commission: 10, commission_is_percent: true },
+      }],
+      products: [],
+      albums: [],
+      posts: [
+        { doc: { doc_id: 'p1' }, text: 'My review post', pinnedAdTarget: 'ad-1' },
+        { doc: { doc_id: 'p2' }, text: 'Another post', pinnedAdTarget: '' },
+      ],
+    });
+    readCreatorAnalytics.mockResolvedValue({
+      daily: [],
+      bySurface: [],
+      topPosts: AD_TOP_POSTS,
+      totals: { impressions: 5000, reach: 1200 },
+    });
+    enrichTopPosts.mockResolvedValue(AD_TOP_DETAILS);
+    readPostAnalytics.mockResolvedValue(AD_ANALYTICS);
+  });
+
+  it('clicking an ad row in the Top Posts list drills into the per-ad panel', async () => {
+    renderAt('/monetize?tab=analytics');
+    // Switch to the Ads tab.
+    fireEvent.click(await screen.findByTestId('analytics-top-tab-ads'));
+    // The ad row is visible.
+    const row = await screen.findByTestId('analytics-top-post-0');
+    expect(row).toHaveTextContent('Sponsored: Nova Lens Pro');
+    // Click → the per-ad panel loads.
+    fireEvent.click(row);
+    expect(await screen.findByTestId('ad-analytics-panel')).toBeInTheDocument();
+    expect(screen.getByTestId('ad-analytics-title')).toHaveTextContent('Sponsored: Nova Lens Pro');
+    expect(screen.getByTestId('ad-analytics-impressions')).toHaveTextContent('5k');
+    expect(screen.getByTestId('ad-analytics-reach')).toHaveTextContent('1.2k');
+    expect(screen.getByTestId('ad-analytics-back')).toBeInTheDocument();
+  });
+
+  it('a deep link (?ad=<doc_id>) renders the per-ad panel directly', async () => {
+    renderAt('/monetize?tab=analytics&ad=ad-1');
+    expect(await screen.findByTestId('ad-analytics-panel')).toBeInTheDocument();
+    expect(screen.getByTestId('ad-analytics-title')).toHaveTextContent('Sponsored: Nova Lens Pro');
+  });
+
+  it('the per-ad panel shows the attached posts (reverse lookup)', async () => {
+    renderAt('/monetize?tab=analytics&ad=ad-1');
+    expect(await screen.findByTestId('ad-analytics-attached')).toBeInTheDocument();
+    expect(screen.getByTestId('ad-analytics-attached')).toHaveTextContent('My review post');
+  });
+
+  it('the per-ad panel shows the product + projection when the ad has a product', async () => {
+    renderAt('/monetize?tab=analytics&ad=ad-1');
+    expect(await screen.findByTestId('ad-analytics-product')).toBeInTheDocument();
+    expect(screen.getByTestId('ad-analytics-product')).toHaveTextContent('Nova Lens Pro');
+    // 5000 impressions × 0.01 CTR × 0.01 conv × $4.90 (10% of $49) = $2.45
+    expect(screen.getByTestId('ad-analytics-projection-value')).toBeInTheDocument();
+  });
+
+  it('the back button returns to the Tier 1 dashboard', async () => {
+    renderAt('/monetize?tab=analytics&ad=ad-1');
+    await screen.findByTestId('ad-analytics-panel');
+    fireEvent.click(screen.getByTestId('ad-analytics-back'));
+    expect(await screen.findByTestId('analytics-reach')).toBeInTheDocument();
+    expect(screen.queryByTestId('ad-analytics-panel')).not.toBeInTheDocument();
+  });
+});
+
+describe('AnalyticsSection — Tier 5 per-product aggregate', () => {
+  const PRODUCT_CATALOG = {
+    ads: [
+      {
+        doc: { doc_id: 'ad-1', tags: ['ad'] },
+        text: 'Ad for the grinder',
+        offer: { kind: 'affiliate' as const, partner: 'Amazon', link: 'https://amzn.to/x', cta: 'Get it', disclosure: '' },
+        status: 'active' as const,
+        format: 'inline' as const,
+        albums: [] as string[],
+        product_id: 'prod-1',
+        product: { target: 'product' as const, name: 'The good coffee grinder', price: 30, commission: 10, commission_is_percent: true, actuals: 22 },
+      },
+      {
+        doc: { doc_id: 'ad-2', tags: ['ad'] },
+        text: 'Another ad for the grinder',
+        offer: { kind: 'affiliate' as const, partner: 'Amazon', link: 'https://amzn.to/y', cta: 'Get it', disclosure: '' },
+        status: 'active' as const,
+        format: 'post' as const,
+        albums: [] as string[],
+        product_id: 'prod-1',
+        product: { target: 'product' as const, name: 'The good coffee grinder', price: 30, commission: 10, commission_is_percent: true, actuals: 88 },
+      },
+    ],
+    products: [
+      {
+        doc: { doc_id: 'prod-1', tags: ['product'] },
+        product: { target: 'product' as const, name: 'The good coffee grinder', price: 30, commission: 10, commission_is_percent: true },
+      },
+    ],
+    albums: [],
+    posts: [
+      { doc: { doc_id: 'p1' }, text: 'My review post', pinnedAdTarget: 'ad-1' },
+      { doc: { doc_id: 'p2' }, text: 'Another post', pinnedAdTarget: 'ad-2' },
+    ],
+  };
+
+  const AD_1_ANALYTICS = {
+    daily: [{ day: '2026-10-10', impressions: 2000, reach: 500 }],
+    bySurface: [{ surface: 'feed', impressions: 2000, reach: 500 }],
+    topPosts: [],
+    totals: { impressions: 2000, reach: 500 },
+  };
+  const AD_2_ANALYTICS = {
+    daily: [{ day: '2026-10-10', impressions: 3000, reach: 700 }],
+    bySurface: [{ surface: 'discover', impressions: 3000, reach: 700 }],
+    topPosts: [],
+    totals: { impressions: 3000, reach: 700 },
+  };
+
+  beforeEach(() => {
+    checkNodeAdmin.mockResolvedValue(false);
+    readMyCatalog.mockResolvedValue(PRODUCT_CATALOG);
+    readCreatorAnalytics.mockResolvedValue({
+      daily: [],
+      bySurface: [],
+      topPosts: [],
+      totals: { impressions: 5000, reach: 1200 },
+    });
+    enrichTopPosts.mockResolvedValue([]);
+    // readPostAnalytics returns different data per ad.
+    readPostAnalytics.mockImplementation((docId: string) => {
+      if (docId === 'ad-1') return Promise.resolve(AD_1_ANALYTICS);
+      if (docId === 'ad-2') return Promise.resolve(AD_2_ANALYTICS);
+      return Promise.resolve(EMPTY_ANALYTICS);
+    });
+  });
+
+  it('a deep link (?product=<doc_id>) renders the per-product panel directly', async () => {
+    renderAt('/monetize?tab=analytics&product=prod-1');
+    expect(await screen.findByTestId('product-analytics-panel')).toBeInTheDocument();
+    expect(screen.getByTestId('product-analytics-title')).toHaveTextContent('The good coffee grinder');
+    // Aggregate impressions: 2000 + 3000 = 5000 → "5k" (waitFor — the per-ad
+    // analytics load async via readPostAnalytics; the map populates after).
+    await waitFor(() => expect(screen.getByTestId('product-analytics-impressions')).toHaveTextContent('5k'));
+    // Aggregate reach: 500 + 700 = 1200 → "1.2k"
+    expect(screen.getByTestId('product-analytics-reach')).toHaveTextContent('1.2k');
+  });
+
+  it('the per-product panel shows all ads for this product', async () => {
+    renderAt('/monetize?tab=analytics&product=prod-1');
+    expect(await screen.findByTestId('product-analytics-ads')).toBeInTheDocument();
+    expect(screen.getByTestId('product-analytics-ad-ad-1')).toBeInTheDocument();
+    expect(screen.getByTestId('product-analytics-ad-ad-2')).toBeInTheDocument();
+  });
+
+  it('the per-product panel shows the attached posts (reverse lookup)', async () => {
+    renderAt('/monetize?tab=analytics&product=prod-1');
+    expect(await screen.findByTestId('product-analytics-attached')).toBeInTheDocument();
+    expect(screen.getByTestId('product-analytics-attached')).toHaveTextContent('My review post');
+    expect(screen.getByTestId('product-analytics-attached')).toHaveTextContent('Another post');
+  });
+
+  it('the per-product panel shows the actuals vs projection', async () => {
+    renderAt('/monetize?tab=analytics&product=prod-1');
+    expect(await screen.findByTestId('product-analytics-finance')).toBeInTheDocument();
+    // Actuals: 22 + 88 = 110 (from the ad's product.actuals — synchronous, no waitFor needed)
+    expect(screen.getByTestId('product-analytics-actuals')).toHaveTextContent('$110');
+    // Projection at 5000 impressions × 0.01 CTR × 0.01 conv × $3 = $1.50
+    // (waitFor — the projection depends on the aggregate impressions which load async)
+    await waitFor(() => expect(screen.getByTestId('product-analytics-projection')).not.toHaveTextContent('—'));
+  });
+
+  it('the back button returns to the Tier 1 dashboard', async () => {
+    renderAt('/monetize?tab=analytics&product=prod-1');
+    await screen.findByTestId('product-analytics-panel');
+    fireEvent.click(screen.getByTestId('product-analytics-back'));
+    expect(await screen.findByTestId('analytics-reach')).toBeInTheDocument();
+    expect(screen.queryByTestId('product-analytics-panel')).not.toBeInTheDocument();
   });
 });

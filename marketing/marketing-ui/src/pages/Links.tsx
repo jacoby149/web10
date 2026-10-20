@@ -1,8 +1,6 @@
-import { ExternalLink, BookOpen, Store, MessageCircle, Shield, TrendingUp, FileCode } from 'lucide-react'
+import { ExternalLink, BookOpen, Store, MessageCircle, Shield, TrendingUp } from 'lucide-react'
 import { Card } from '../components/ui/card'
 import { API_ORIGIN, SOCIAL_ORIGIN, AUTH_ORIGIN } from '../lib/origins'
-
-const MARKETING_API_ORIGIN = (import.meta.env as any).VITE_MARKETING_API_URL || 'https://marketing-api.web10.app'
 
 interface LinkItem {
   name: string
@@ -15,7 +13,6 @@ function getLinks(): LinkItem[] {
   const api = API_ORIGIN.replace(/\/$/, '')
   const social = SOCIAL_ORIGIN.replace(/\/$/, '')
   const auth = AUTH_ORIGIN.replace(/\/$/, '')
-  const marketingApi = MARKETING_API_ORIGIN.replace(/\/$/, '')
 
   return [
     {
@@ -47,12 +44,6 @@ function getLinks(): LinkItem[] {
       description: 'Swagger documentation for the v3 API',
       href: `${api}/docs`,
       icon: BookOpen,
-    },
-    {
-      name: 'Marketing API Docs',
-      description: 'Analytics, import, feedback endpoints',
-      href: `${marketingApi}/docs`,
-      icon: FileCode,
     },
     {
       name: 'Developer Docs',

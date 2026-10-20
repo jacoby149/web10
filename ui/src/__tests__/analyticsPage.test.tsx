@@ -77,13 +77,15 @@ describe('AnalyticsPage (D56 first-party usage)', () => {
     expect(screen.getByTestId('analytics-errors')).toHaveTextContent('TypeError: x')
     // timeseries card renders (the line graph container)
     expect(screen.getByTestId('analytics-timeseries')).toBeInTheDocument()
-    // node ads: impressions / clicks / CTR + the chart
-    expect(screen.getByTestId('analytics-stat-impressions')).toHaveTextContent('500')
-    expect(screen.getByTestId('analytics-stat-clicks')).toHaveTextContent('25')
-    expect(screen.getByTestId('analytics-node-ads-timeseries')).toBeInTheDocument()
+    // node ads: the at-a-glance live numbers (detail lives in the social app)
+    expect(screen.getByTestId('analytics-node-ads-live')).toBeInTheDocument()
+    expect(screen.getByTestId('analytics-node-ads-live')).toHaveTextContent('500')
+    expect(screen.getByTestId('analytics-node-ads-live')).toHaveTextContent('25')
+    expect(screen.getByTestId('analytics-node-ads-live')).toHaveTextContent('5%')
+    expect(screen.getByTestId('analytics-node-ads-detail-link')).toBeInTheDocument()
   })
 
-  it('shows the node-ads placeholder when node_ads is null (D81 not built yet)', async () => {
+  it('shows the node-ads empty state when node_ads is null (no node ads yet)', async () => {
     mockLoad()
     ;(axios.post as any).mockImplementation((url: string) => {
       if (String(url).includes('/admin/analytics')) return Promise.resolve({ data: { ...SUMMARY, node_ads: null } })
@@ -91,6 +93,32 @@ describe('AnalyticsPage (D56 first-party usage)', () => {
     })
     render(<AnalyticsPage I={mockI as any} />)
     expect(await screen.findByTestId('analytics-node-ads-empty')).toBeInTheDocument()
+  })
+
+  it('reloads live from the node on refresh (no blank flash over existing data)', async () => {
+    const updated = { ...SUMMARY, totals: { pageviews: 200, funnel: 40, errors: 1 } }
+    let resolveFirst: (v: any) => void
+    let first = false
+    ;(axios.post as any).mockImplementation((url: string) => {
+      if (!String(url).includes('/admin/analytics')) return Promise.resolve({ data: {} })
+      if (first) return Promise.resolve({ data: updated })
+      first = true
+      return new Promise((res) => {
+        resolveFirst = res
+      })
+    })
+    render(<AnalyticsPage I={mockI as any} />)
+    // resolve the initial load
+    resolveFirst!({ data: SUMMARY })
+    await screen.findByTestId('analytics-stat-pageviews')
+    expect(screen.getByTestId('analytics-stat-pageviews')).toHaveTextContent('120')
+    const postBefore = (axios.post as any).mock.calls.length
+    fireEvent.click(screen.getByTestId('analytics-refresh'))
+    await waitFor(() => expect(screen.getByTestId('analytics-stat-pageviews')).toHaveTextContent('200'))
+    // the refresh fired a new request with the same window
+    expect((axios.post as any).mock.calls.length).toBeGreaterThan(postBefore)
+    // the page never unmounted to the skeleton (data stayed mounted)
+    expect(screen.queryByTestId('analytics-loading')).not.toBeInTheDocument()
   })
 
   it('sends the selected window (days) with the request', async () => {

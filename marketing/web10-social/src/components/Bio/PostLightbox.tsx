@@ -86,6 +86,9 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   const media = (currentPost.media_refs || [])
     .map(ref => mediaMap[mediaRefId(ref)])
     .filter((m): m is MediaRecord => Boolean(m));
+  // A product (D89) carries its photo in `pics` (bare doc_ids), not
+  // `media_refs` — the product card's photo comes from the same media map.
+  const productPic = currentPost.product?.pics?.[0] ? mediaMap[currentPost.product.pics[0]] : undefined;
   const [index, setIndex] = useState(0);
   const hasMedia = media.length > 0;
   const multiple = media.length > 1;
@@ -479,6 +482,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
             visibilityToggling={togglingVisibility}
             onDelete={handleDelete}
             media={mediaPane}
+            productPic={productPic}
             testId="post-lightbox-detail"
           />
 

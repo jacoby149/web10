@@ -45,7 +45,7 @@ function vhostResolverArgs(): string[] {
     const out = execSync('getent hosts api.localhost', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }).trim();
     const ip = out.split(/\s+/)[0];
     if (!/^\d+\.\d+\.\d+\.\d+$/.test(ip)) return [];
-    const hosts = ['api', 'auth', 'sdk', 'marketing', 'social', 'marketing-api'];
+    const hosts = ['api', 'auth', 'sdk', 'marketing', 'social'];
     return [`--host-resolver-rules=${hosts.map((h) => `MAP ${h}.localhost ${ip}`).join(', ')}`];
   } catch {
     return [];

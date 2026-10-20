@@ -291,3 +291,19 @@ company.
 For the ad object, see `ads.md`. For the v3 dissemination (`pinned` |
 `none`), see `ads-dissemination.md`. For the catalog + composer surfaces,
 see `ads-catalog.md`. For the data model, see `../db/clickhouse.md`.
+
+## Performance (live, from the D86 engine)
+
+Node ad performance is read live from the D86 `content_events` engine —
+the same table every other doc's metrics come from. A node ad's
+**impressions** are its delivery rows (the node served it at the density);
+its **clicks** are its click rows (gated on a preceding delivery, D86).
+`POST /admin/analytics` (admin) returns `node_ads` (impressions / clicks /
+CTR + a per-day timeseries + a per-ad row) — null until the node has node
+ads. The **per-ad detail lives in web10-social's Monetization → Ads tab**
+(the node admin's ads surface, where the ads are created, edited, and
+converted personal↔node via the "Run as" toggle): the Node Ads card's
+Performance section (totals + a 7d/30d/90d window + a per-ad breakdown).
+The operator console's Analytics page (`ui/`) shows the at-a-glance
+summary + a pointer to the per-ad detail. Operator call (18.10.2026): the
+detail belongs with the ads, not the auth UI.

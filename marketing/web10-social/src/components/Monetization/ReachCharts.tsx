@@ -12,7 +12,7 @@ import {
   Tooltip,
   Cell,
 } from 'recharts';
-import { Eye, Users, TrendingUp, BarChart3, Image, Play, Music, Megaphone } from 'lucide-react';
+import { Eye, Users, TrendingUp, BarChart3, Image, Play, Music, Megaphone, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatCount } from '@web10/discover';
 import type { CreatorAnalytics, TopPostDetail } from '@/data/creator-analytics';
@@ -77,9 +77,13 @@ interface ReachChartsProps {
   onWindowChange: (days: number) => void;
   /** Enriched top-post details (title, thumbnail, content type, ad format). */
   topPostDetails: TopPostDetail[];
+  /** Drill into a post's per-post detail (Tier 2). */
+  onSelectPost?: (docId: string) => void;
+  /** Drill into an ad's per-ad detail (Tier 2b). */
+  onSelectAd?: (docId: string) => void;
 }
 
-export function ReachCharts({ analytics, windowDays, onWindowChange, topPostDetails }: ReachChartsProps) {
+export function ReachCharts({ analytics, windowDays, onWindowChange, topPostDetails, onSelectPost, onSelectAd }: ReachChartsProps) {
   const { daily, bySurface, topPosts, totals } = analytics;
   const [topTab, setTopTab] = useState<TopTab>('content');
   const [contentSub, setContentSub] = useState<ContentSubFilter>('all');
@@ -359,43 +363,49 @@ export function ReachCharts({ analytics, windowDays, onWindowChange, topPostDeta
             </div>
           </div>
 
-          {/* The ranked list. */}
+          {/* The ranked list. Each row is a drill-down entry point into Tier 2
+              (the per-post detail) — the "click a post → its full performance"
+              interaction the KB specs. */}
           <div className="mt-3">
             {filteredPosts.length > 0 ? (
               <ol className="space-y-2">
                 {filteredPosts.slice(0, 5).map((p, i) => (
-                  <li
-                    key={p.doc_id}
-                    className="flex items-center gap-3 rounded border border-border p-2.5"
-                    data-testid={`analytics-top-post-${i}`}
-                  >
-                    <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded bg-elevated text-xs font-medium tabular-nums text-muted-foreground">
-                      {i + 1}
-                    </span>
-                    {p.thumbnailUrl ? (
-                      <img
-                        src={p.thumbnailUrl}
-                        alt=""
-                        className="h-8 w-8 flex-shrink-0 rounded object-cover"
-                        data-testid={`analytics-top-post-thumb-${i}`}
-                      />
-                    ) : (
-                      <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded bg-elevated text-muted-foreground">
-                        {p.isAd ? (
-                          <Megaphone className="h-3.5 w-3.5" strokeWidth={1.5} />
-                        ) : p.contentType === 'short' ? (
-                          <Music className="h-3.5 w-3.5" strokeWidth={1.5} />
-                        ) : p.contentType === 'video' ? (
-                          <Play className="h-3.5 w-3.5" strokeWidth={1.5} />
-                        ) : (
-                          <Image className="h-3.5 w-3.5" strokeWidth={1.5} />
-                        )}
+                  <li key={p.doc_id}>
+                    <button
+                      type="button"
+                      onClick={() => p.isAd ? onSelectAd?.(p.doc_id) : onSelectPost?.(p.doc_id)}
+                      className="flex w-full items-center gap-3 rounded border border-border p-2.5 text-left transition-colors hover:bg-elevated/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      data-testid={`analytics-top-post-${i}`}
+                    >
+                      <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded bg-elevated text-xs font-medium tabular-nums text-muted-foreground">
+                        {i + 1}
                       </span>
-                    )}
-                    <span className="min-w-0 flex-1 truncate text-sm text-foreground">{p.label}</span>
-                    <span className="flex-shrink-0 text-xs tabular-nums text-muted-foreground">
-                      {formatCount(p.impressions)}
-                    </span>
+                      {p.thumbnailUrl ? (
+                        <img
+                          src={p.thumbnailUrl}
+                          alt=""
+                          className="h-8 w-8 flex-shrink-0 rounded object-cover"
+                          data-testid={`analytics-top-post-thumb-${i}`}
+                        />
+                      ) : (
+                        <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded bg-elevated text-muted-foreground">
+                          {p.isAd ? (
+                            <Megaphone className="h-3.5 w-3.5" strokeWidth={1.5} />
+                          ) : p.contentType === 'short' ? (
+                            <Music className="h-3.5 w-3.5" strokeWidth={1.5} />
+                          ) : p.contentType === 'video' ? (
+                            <Play className="h-3.5 w-3.5" strokeWidth={1.5} />
+                          ) : (
+                            <Image className="h-3.5 w-3.5" strokeWidth={1.5} />
+                          )}
+                        </span>
+                      )}
+                      <span className="min-w-0 flex-1 truncate text-sm text-foreground">{p.label}</span>
+                      <span className="flex-shrink-0 text-xs tabular-nums text-muted-foreground">
+                        {formatCount(p.impressions)}
+                      </span>
+                      <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" strokeWidth={1.5} />
+                    </button>
                   </li>
                 ))}
               </ol>

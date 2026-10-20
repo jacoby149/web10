@@ -66,9 +66,17 @@ every creator, even with zero ads.
 The **totals row** (impressions + reach, the two big numbers) sits above the
 charts — the at-a-glance "how big is my audience" stat.
 
-### Tier 2 — "Per-Post Detail" (click a post from Tier 1)
+### Tier 2 — "Per-Post Detail" (click a post from Tier 1) [built 3.235.6]
 
 The drill-down: one post's full performance over the selected window.
+Built in 3.235.6: `PostAnalyticsPanel.tsx` (the per-post detail card),
+`AnalyticsSection.tsx` (reads `?post=<doc_id>` from the URL, loads via
+`readPostAnalytics`, renders the panel in place of Tier 1), and
+`ReachCharts.tsx` (Top Posts rows are now clickable buttons). The panel
+shows: the post's identity (thumbnail + title + type + window), the two
+big numbers (impressions + reach), the daily time-series (Recharts
+ComposedChart), the surface breakdown, the average watch % (video/short
+only), and the projection beat (if the post has a product ad).
 
 | Chart | Type | Data | What it tells you |
 |-------|------|------|-------------------|
@@ -138,7 +146,18 @@ profile includes its monetization layer, not just its organic reach.
 the attached ad's `doc_id` (from `doc.ad` / `doc.node_ad` on the read) +
 the ad's own `contentAnalytics` rows (a second `readById` + filter).
 
-## Per-Ad Full Profile (Tier 2b, next PR)
+## Per-Ad Full Profile (Tier 2b) [built 3.235.12]
+
+The single-ad drill-down (`/monetize?tab=analytics&ad=<doc_id>`).
+Built in 3.235.12: `AdAnalyticsPanel.tsx` (the per-ad detail card),
+`AnalyticsSection.tsx` (reads `?ad=<doc_id>` from the URL, loads via
+`readPostAnalytics`, renders the panel in place of Tier 1), and
+`ReachCharts.tsx` (Top Posts rows route by type: content → Tier 2, ads → Tier 2b).
+The panel shows: the ad's identity (thumbnail + title + format + status + window),
+the two big numbers (impressions + reach), the daily time-series (Recharts
+ComposedChart), the surface breakdown, the attached posts (reverse lookup:
+`post.ad_target === adId`), and the product card (name + price + commission +
+the projection at the ad's actual impression count).
 
 The single-ad drill-down (`/monetize?tab=analytics&ad=<doc_id>`):
 
@@ -152,9 +171,19 @@ The single-ad drill-down (`/monetize?tab=analytics&ad=<doc_id>`):
 `SELECT doc_id, body.title FROM posts WHERE ad_target = '<ad_doc_id>'`
 (the reverse lookup is a client-side query, D60-clean).
 
-## Per-Product Aggregate (Tier 5, next-next PR)
+## Per-Product Aggregate (Tier 5) [built 3.235.18]
 
 The product-level view: "how is this product performing across all its ads?"
+Built in 3.235.18: `ProductAnalyticsPanel.tsx` (the per-product aggregate card),
+`AnalyticsSection.tsx` (reads `?product=<doc_id>` from the URL, filters the
+catalog's ads by `product_id`, loads each ad's analytics via `readPostAnalytics`,
+renders the panel in place of Tier 1), and `AdAnalyticsPanel.tsx` (the product
+card is now a clickable button → Tier 5). The panel shows: the product's identity
+(name + price + commission + window), the aggregate totals (impressions + reach
+across all the product's ads), the aggregate daily time-series (Recharts
+ComposedChart, summed across ads), the per-ad list (each ad's individual
+impressions, clickable → Tier 2b), the attached posts (reverse lookup), and the
+actuals vs projection card (the tell).
 
 - **All ads for this product** (by `product_id` or legacy `product` section)
   with their individual + aggregate metrics.

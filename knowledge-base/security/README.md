@@ -27,10 +27,19 @@ folder is where that method's output lands for this repo.
 > [orient phase](../../ai-pack/ai-security-theory/the-orient/README.md) reads before
 > every scan, and what every fix writes back to.
 
+## Campaign Order
+
+**API + SDK (including RTC) through L1 -> L2 -> L3 -> L4 first; then everything
+else through L1 -> L2 -> L3 -> L4.** Follow [strategy.md](strategy.md) for exact
+scope, advancement gates and the distinction between source coverage, repaired
+findings, protocol-scoped assurance and whole-project completion. The next work
+is protocol L1 disposition/repairs, not the authenticator UI's broad L1 scan.
+
 ## The layout
 
 | Path | What it is |
 |---|---|
+| [`strategy.md`](./strategy.md) | **The execution order.** Protocol/API+SDK first through all four levels, then the remaining surfaces through all four; gates and honest scope limits. |
 | [`learnings.md`](./learnings.md) | **The knowledge.** The security memory the orient reads first: the invariants as they've evolved, every finding→fix as a dated learning, the known gaps, and the considered-and-declined list. Every fix writes back here. |
 | [`security-record.md`](./security-record.md) | **The coverage.** One row per (unit, level): what was scanned, by which model, when, against which commit, and the status (PASS / OPEN / STALE). |
 | [`big-picture-backlog.md`](./big-picture-backlog.md) | **The L3/L4 debt.** The cross-file / architectural (service + project-wide) findings (`BP-n`), done one at a time after L1 + L2 are 100%. |

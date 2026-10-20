@@ -15,9 +15,14 @@ import { knobStateToSort } from '@/lib/powerMean';
  * (`doc.ad` / `doc.node_ad`), never as standalone ranked posts (ad-improvements
  * .md — an ad doesn't need to be popular to show; it's attached). Drop them from
  * the standalone list so they don't leak in as plain, ranked posts.
+ *
+ * Product docs (tagged `product`, D89) are the same kind of inventory — they
+ * live in the followers group as the master the ads reference, and their public
+ * face is the storefront + the product card on their own permalink, NOT a
+ * ranked feed tile. Drop them from the standalone list the same way.
  */
 function dropAdPosts(posts: PostRecord[]): PostRecord[] {
-  return posts.filter((p) => !p.tags?.includes('ad'));
+  return posts.filter((p) => !p.tags?.includes('ad') && !p.tags?.includes('product'));
 }
 
 // ── Discover feed ────────────────────────────────────────────────────────────
@@ -358,8 +363,9 @@ function buildFeedQuery(sort: FeedRanking | null, cursor: { created_at?: string;
   // even though real posts sit just below the ad block (the "feed is empty
   // because I made 30 ads" bug — the 32 ads a creator batch-created outrank
   // every real post in the newest-first page). `dropAdPosts` stays as the
-  // backstop for the attached-ad join.
-  const conditions = ["not has(p.tags, 'ad')"];
+  // backstop for the attached-ad join. Product docs (tagged `product`, D89)
+  // are inventory too — the storefront is their public face, not a feed tile.
+  const conditions = ["not has(p.tags, 'ad')", "not has(p.tags, 'product')"];
   if (newest) {
     if (cursor?.created_at) conditions.push(`toUnixTimestamp64Milli(p.created_at) < toUnixTimestamp64Milli('${cursor.created_at}')`);
   } else if (cursor?.score != null) {

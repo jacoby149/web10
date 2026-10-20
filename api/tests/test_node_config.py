@@ -413,6 +413,7 @@ class TestMarketingEvents:
                 MagicMock(result_rows=[("landing", 5)]),  # funnel
                 MagicMock(result_rows=[("TypeError: x", 2)]),  # top errors
                 MagicMock(result_rows=[("2026-09-01", 4), ("2026-09-02", 6)]),  # timeseries
+                MagicMock(result_rows=[]),  # node ad inventory (none)
             ]
             resp = client.post("/admin/analytics", json={"token": token}, params={"days": 30})
         assert resp.status_code == 200
@@ -426,6 +427,36 @@ class TestMarketingEvents:
             {"day": "2026-09-01", "pageviews": 4},
             {"day": "2026-09-02", "pageviews": 6},
         ]
+        # No node ads on the node → node_ads is null (the dashboard's empty state).
+        assert data["node_ads"] is None
+
+    def test_admin_analytics_returns_live_node_ads(self, client, token):
+        """Node ads exist → node_ads is live from the D86 engine (D57)."""
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.side_effect = [
+                _config_result({"admins": ["testuser"]}),  # check_admin
+                MagicMock(result_rows=[(10, 5, 2)]),  # totals
+                MagicMock(result_rows=[("/", 8)]),  # top paths
+                MagicMock(result_rows=[]),  # top referrers
+                MagicMock(result_rows=[]),  # funnel
+                MagicMock(result_rows=[]),  # top errors
+                MagicMock(result_rows=[("2026-09-01", 4)]),  # timeseries
+                MagicMock(result_rows=[("node-ad-1",)]),  # node ad inventory
+                MagicMock(result_rows=[(1200, 37)]),  # ad totals (impressions, clicks)
+                MagicMock(result_rows=[("2026-09-01", 800, 20), ("2026-09-02", 400, 17)]),  # ad timeseries
+                MagicMock(result_rows=[("node-ad-1", 1200, 37)]),  # per-ad rows
+            ]
+            resp = client.post("/admin/analytics", json={"token": token}, params={"days": 30})
+        assert resp.status_code == 200
+        node_ads = resp.json()["node_ads"]
+        assert node_ads["impressions"] == 1200
+        assert node_ads["clicks"] == 37
+        assert node_ads["ctr"] == 3.1
+        assert node_ads["timeseries"] == [
+            {"day": "2026-09-01", "impressions": 800, "clicks": 20},
+            {"day": "2026-09-02", "impressions": 400, "clicks": 17},
+        ]
+        assert node_ads["ads"] == [{"doc_id": "node-ad-1", "impressions": 1200, "clicks": 37}]
 
     def test_admin_analytics_requires_admin(self):
         """A valid token for a NON-admin user is rejected (403 NOT_ADMIN)."""

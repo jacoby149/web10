@@ -50,11 +50,12 @@ exploit is replayed and denied.
 | B-5 | 2026-10 | `main.py` CORS | `allow_origins=["*"]` defended only by "token in body" → pin the assumption in a test | learned; needs a pinning test |
 | B-6 | 2026-10 | `clickhouse.py :: get_document_any_author` | reads without author scoping, bounded by a doc-bound sig → verify the sig is checked first | learned; verify |
 | B-8 | 2026-10-18 | `settings.py:139-140` | executing the settings CLI prints globals containing environment-injected secrets → separate fix must suppress secrets while preserving nonsecret diagnostics | OPEN; five synthetic credentials recovered from captured stdout at `8704e9f5c`; [PoC + preconditions](scans/2026-10/l1-settings.md) |
-| S-1 | 2026-10 | `sdk/browser.ts :: authListen` | `postMessage` token accepted with no origin check → `e.origin === authOrigin` gate | learned; fix in 1159 (unmerged) |
+| S-1 | 2026-10 | `sdk/browser.ts :: authListen` | `postMessage` token accepted with no origin check → sender binding required | OPEN; [current pinned A receipt](scans/2026-10/l1-sdk-a.md) reproduces synthetic acceptance, not valid credentials/API access |
 | S-2 | 2026-10 | `sdk/v3.ts` (token-in-body) | token in JSON body composes with B-4 (body logged) → the body transport is by design; the log redaction (B-4) is the fix | learned; see B-4 |
 | S-3 | 2026-10 | `sdk/http.ts :: authGet` | `byUserGroups` sends no token — functional gap, not a leak → decide: send the token or drop the comment | learned; open decision |
 | S-4 | 2026-10 | `sdk/token.ts :: decodeJwt` | unsigned base64 decode — fine for reading claims, a footgun for authz → doc: never use for authorization | learned; documented |
 | S-5 | 2026-10 | `sdk/token.ts` cookie | `SameSite=Lax`+`Secure`, no HttpOnly (impossible by design), 60-day → acceptable; note the 60-day window | learned; accepted |
+| S-6 | 2026-10 | Browser/v3 consent senders | wildcard consent/close metadata target → bind the intended recipient while preserving consent lifecycle | OPEN; [A](scans/2026-10/l1-sdk-a.md)/[F](scans/2026-10/l1-sdk-f.md), metadata hygiene, not demonstrated token exfiltration or token-specific KB violation |
 
 **The L2 lesson (why the call-graph rung exists):** B-4 + S-2 is a single
 *relationship* — the token (source, `v3.ts`) flows to the log (sink, `middleware.py`)
@@ -91,6 +92,166 @@ the intentional bootstrap-admin baseline and operator configuration (node-config
 KB); the source comment's replace-vs-union mismatch is not proof of an auth bug.
 B-7 already means token lifetime in the October backend audit; the new dump
 finding deliberately uses B-8 instead.
+
+### 2026-10-18: API L1 campaign, identity/system receipts
+
+[Inventory](scans/2026-10/l1-api-index.md) separates full source accounting from
+security sign-off. A/B/D record local manifest fetch routing, unused remote-helper
+destination/status trust, expired signed-token principal production and weak
+session-expiry classification. See their scoped IDs for exact proofs and limits.
+No live private-network access or database mutation is claimed. Manufactured
+secret-bearing errors only demonstrate an unredacted sink: until a reachable
+protected-value source is shown, that disclosure remains UNVERIFIED. These
+receipts do not close B-1/B-3 or imply the caller/storage gates are safe.
+
+### 2026-10-18: media/reporting API L1 receipts
+
+Scopes C/H/I add media services and media/import/preview/reporting endpoints.
+L1-H-01 shows a source-level object-authorization concern: the read-URL handler
+discards the authenticated identity and passes caller-selected keys to signing
+without an intervening object check. Its dynamic proof uses fake auth/signing
+sinks; actual authenticated HTTP access and private-object retrieval are not
+demonstrated. Preserve authorized cross-user/group media and public thumbnails
+when fixing it; arbitrary object-key forwarding is not the same as an authorized
+document capability. C/I have no confirmed local findings, not a safety PASS.
+
+### 2026-10-18: document/group/query endpoint L1 receipts
+
+E/F/G distinguish generic authority delegation from proven local sinks. L1-E-01
+records account-token URL transport: intentional body tokens and scoped HLS
+capabilities do not exempt account credentials in query strings. Existing S7
+already owns the related transport repair. L1-G-01 reproduces caller SQL literals
+in INFO logging with separate request/stub-compiled assertions, not SQL injection
+or demonstrated credential theft. Actual compiler preservation, log access and
+retention remain unverified. F's unchecked helper boundaries remain L2 debt.
+
+### 2026-10-18: import traces and compiler L1 receipts
+
+L1-J-01 reproduces cross-job log attribution using two synchronized synthetic
+job contexts, actual handlers/event functions and an in-memory insert sink.
+Shared logger handlers lack a job/thread filter, so A's message is inserted into
+A and B traces. Concurrency/overlap is a precondition; production concurrency,
+cross-owner endpoint disclosure and historical exposure remain untested. The
+old worker PASS is withdrawn: an owner gate on reads cannot isolate already
+misattributed stored events. Preserve detailed per-job diagnostics in a fix.
+
+K's parser still reads the whole remaining stream; that contradicts flat-RAM
+durability prose but is reliability debt, not an added C+I finding. L's compiler
+acceptance probes do not execute ClickHouse: qualified names, scalar functions
+and settings are handoffs, not demonstrated raw-store access or injection.
+
+### 2026-10-18: storage foundations L1 receipts
+
+M/N/O account for ClickHouse lines 1-2412 without finding a demonstrated local
+exploit. Legacy migration classification, member permission shortcuts, selected
+tombstone reads, revocation ties and optional membership joins remain explicit
+L2+ candidates, not blanket access-control failures. `read_documents` ranks
+versions before filtering deleted rows; do not generalize prefilter behavior from
+different getters. D80 social membership visibility and intentional public grants
+must survive future fixes; no helper or migration is certified safe by this scan.
+
+### 2026-10-18: storage reads/accounts/analytics L1 receipts
+
+P/Q/R complete ClickHouse lines 2413-4944. Arbitrary-key forwarding to a fake
+signer establishes local flow, not a reachable private-object read; relate it to
+H's handler-level concern without double-counting a proven exploit. Recovery,
+revocation, metadata, prepared-query and app/analytics authority still need real
+caller/schema evidence. Analytics delivery candidates must honor the one-hour
+same-type dedup and one-day preceding-delivery windows; merely passing a string
+event type does not demonstrate counter inflation. No new confirmed finding or
+whole-store PASS is claimed. All 59 API app files now have line-coverage receipts;
+broader project L1, findings/fixes and required independent sign-off remain owed.
+
+### 2026-10-18: broader backend inventory, RTC and bootstrap L1
+
+[Backend inventory](scans/2026-10/l1-backend-inventory.md) accounts for 109
+additional tracked runtime/configuration/dependency-manifest files, not scanned
+or trusted by enumeration alone. It identifies the shipped Node share-preview
+adapter as backend code rather than excluding it with the frontend.
+
+RTC's 13 synthetic dependency cases support local routing/close behavior only;
+unsigned provider selection, HTTP-status trust and asynchronous admission remain
+**BP-3**, not new or closed findings. Actual PeerServer timing/traffic, verifier
+trust and replay require L2+ evidence. B1's root/bootstrap credential fallbacks
+expand **B-2**, values withheld; static port/socket declarations do not establish
+deployed reachability or host compromise. Preserve legitimate local bootstrap,
+operator overrides, HTTP development certify wiring and useful diagnostics.
+
+### 2026-10-18: marketing API app L1 coverage
+
+MA/MB/MC cover all 16 marketing API Python files/2,096 lines at `db325cd3c`.
+The KB retires the HTTP/v2 importer; do not infer it is unmounted or active just
+from either prose or retained source. MA adds B-2 default-credential evidence;
+mapper URL/path/body propagation is not demonstrated SSRF/XSS/authority bypass.
+Cleanup is attempted, not guaranteed; existence/source checks and errors affect it.
+
+L1-MC-01 reproduces local ungated payout cancellation; L1-MC-02 reproduces repeated
+caller-supplied commission arithmetic. Both are scaffold-state integrity findings
+using synthetic records and inert persistence, not real provider money movement,
+durable deployed corruption or proof of settlement authority. Stripe invocation
+is commented out; the unsigned webhook stub reads no event and mutates no state.
+No payment forgery follows from its acknowledgment. Preserve D57's deferred rails
+and require proper authority/provenance before any future payment activation.
+
+### 2026-10-18: shipped Node share-preview L1 receipt
+
+The three preview adapter files/422 lines are shipped backend source, now covered
+at `db325cd3c`; excluding them as frontend would have left a real inventory gap.
+Pinned VM probes use inert fetch/HTTP sinks: specs retain synthetic markup/URLs
+and fixed-origin anonymous calls, denied reads make generic cards, incoming auth
+does not forward. These are local composition controls, not proof of renderer
+escaping or actual public grants. Missing posts return generic cards/HTTP 200,
+contrary to ghost-404 intent; this is correctness debt, not demonstrated private
+content access. Preserve content-free private fallbacks while tracing real API,
+renderer and routing boundaries at L2. No new confirmed vulnerability or PASS.
+
+### 2026-10-18: D91 retires the unused marketing API
+
+Caller tracing found no current frontend/SDK product operation using the service;
+node imports, reporting and analytics already own those flows. D91 removes the
+legacy service and its wiring, not the independent social preview server. The
+old MA/MB/MC receipts remain historical at their pin. Removed source is not a
+remediated deployed endpoint: live containers, historical data, external callers,
+DNS/proxy records and credentials still require deliberate operational assessment.
+L1-MC-01/02 are source-retired only, and shared B-2 remains OPEN elsewhere.
+
+Refresh live inventory after the deletion/wiring edits; do not subtract removed
+files and call them newly scanned. SDK exhaustive L1 is the next priority;
+seed October SDK rows never established full current file coverage. See
+`marketing-api-retirement.md` for preservation and cutover requirements.
+
+### 2026-10-18: SDK L1 browser/token/RTC receipts
+
+A/B/C at `caeed4427` cover browser, token/HTTP/export/type utilities and optional
+RTC client. S-1 still permits synthetic hostile-origin token acceptance; different
+username filtering is not sender verification. S-6 is wildcard consent/close
+metadata hygiene, not token exfiltration or a breach of a token-specific rule.
+A-01 and F-01 describe one consent-response integrity class in separate public
+implementations; retain both locations under joint repair coverage, not duplicate
+independent bugs. No forged server grant or valid credential demonstrated.
+
+L1-SDK-B-01 proves __proto__ cookie parsing replaces the returned dictionary's
+prototype and inherited token selection follows. Object.prototype is unchanged;
+actual browser cookie planting and downstream authority remain unverified.
+Unsigned UX decoding, JS-readable cookies/lifetime and JSON-body token transport
+remain intentional. RTC fake-peer behavior is not a real impersonation/logout
+exploit. Generated/copied bundles are explicitly mapped, not security-certified.
+
+### 2026-10-18: SDK v3 source receipts complete
+
+D/E/F finish all 1,683 logical lines of v3.ts, including unterminated EOF. No
+method body is cut at the E/F boundary, although both belong to one factory.
+F-01 and A-01 remain one response-integrity class in separate public consent
+implementations; repairs must test both, preserving configured-origin legitimate
+responses, unchanged return-run consent and gesture-driven group setup.
+No callback result by itself establishes server permissions or authentication.
+
+The merge helper mutates a shared permission array despite its purity description;
+that is a proven local correctness defect, not a proven unintended server grant.
+Cookie/state precedence differences are conditional helper-flow evidence, not
+actual cross-account requests. Keep S-3 functional and S-6 metadata-only rather
+than promoting them to disclosure. Published minimal replays are independent
+from broader author-reported runs; neither covers shipped bundle correspondence.
 
 ## Known gaps (the "obvious gap" register)
 

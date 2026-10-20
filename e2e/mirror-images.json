@@ -40,11 +40,6 @@
       "used_by": ["marketing/marketing-ui/Dockerfile", "marketing/web10-social/Dockerfile"]
     },
     {
-      "source": "python:3.12-slim",
-      "target": "ghcr.io/jacoby149/base-python:3.12-slim",
-      "used_by": ["marketing/marketing-api/Dockerfile"]
-    },
-    {
       "source": "joseluisq/static-web-server:latest",
       "target": "ghcr.io/jacoby149/base-static-web-server:latest",
       "used_by": ["ui/Dockerfile", "sdk/Dockerfile"]
