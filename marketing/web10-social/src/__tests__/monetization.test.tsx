@@ -18,6 +18,7 @@ const updateNodeAd = vi.fn();
 const convertAdScope = vi.fn();
 const createNodeAd = vi.fn();
 const readNodeAdPerformance = vi.fn();
+const deleteProduct = vi.fn();
 vi.mock('@/data/ads-catalog', () => ({
   checkNodeAdmin: (...a: unknown[]) => checkNodeAdmin(...a),
   readMyCatalog: (...a: unknown[]) => readMyCatalog(...a),
@@ -30,6 +31,7 @@ vi.mock('@/data/ads-catalog', () => ({
   convertAdScope: (...a: unknown[]) => convertAdScope(...a),
   createNodeAd: (...a: unknown[]) => createNodeAd(...a),
   readNodeAdPerformance: (...a: unknown[]) => readNodeAdPerformance(...a),
+  deleteProduct: (...a: unknown[]) => deleteProduct(...a),
   buildOfferBody: vi.fn(),
   buildNodeAdBody: vi.fn(),
   splitCatalog: vi.fn(),
@@ -83,6 +85,7 @@ beforeEach(() => {
   readPostAnalytics.mockResolvedValue(EMPTY_ANALYTICS);
   enrichTopPosts.mockResolvedValue([]);
   readNodeAdPerformance.mockResolvedValue(null);
+  deleteProduct.mockResolvedValue(undefined);
 });
 
 describe('MonetizationScreen', () => {
@@ -195,6 +198,55 @@ describe('MonetizationScreen', () => {
     fireEvent.click(screen.getByTestId('monetization-tab-analytics'));
     expect(await screen.findByTestId('analytics-section')).toBeInTheDocument();
     expect(screen.queryByTestId('creator-monetization')).not.toBeInTheDocument();
+  });
+});
+
+describe('ProductsSection — delete a product (D89)', () => {
+  const PRODUCT = {
+    doc: { doc_id: 'prod-1', tags: ['product'] },
+    product: {
+      name: 'The good coffee grinder',
+      price: 30,
+      commission: 10,
+      commission_is_percent: true,
+      link: 'https://amzn.to/grinder?tag=me',
+      partner: 'Amazon',
+      kind: 'affiliate',
+    },
+  };
+
+  const renderProducts = async () => {
+    checkNodeAdmin.mockResolvedValue(false);
+    readMyCatalog.mockResolvedValue({ ads: [], albums: [], posts: [], products: [PRODUCT] });
+    renderAt('/monetize?tab=products');
+    return screen.findByTestId('product-tile-prod-1');
+  };
+
+  it('tombstones the product doc on confirm (the tile carries the delete affordance)', async () => {
+    await renderProducts();
+    fireEvent.click(screen.getByTestId('product-delete-prod-1'));
+    expect(await screen.findByTestId('product-delete-dialog')).toBeInTheDocument();
+    expect(screen.getByTestId('product-delete-dialog')).toHaveTextContent('The good coffee grinder');
+    fireEvent.click(screen.getByTestId('product-delete-confirm'));
+    await waitFor(() => expect(deleteProduct).toHaveBeenCalledWith(PRODUCT.doc));
+  });
+
+  it('cancel closes the dialog without deleting', async () => {
+    await renderProducts();
+    fireEvent.click(screen.getByTestId('product-delete-prod-1'));
+    fireEvent.click(await screen.findByTestId('product-delete-cancel'));
+    expect(screen.queryByTestId('product-delete-dialog')).not.toBeInTheDocument();
+    expect(deleteProduct).not.toHaveBeenCalled();
+  });
+
+  it('a failed delete keeps the dialog open (the product is still there)', async () => {
+    deleteProduct.mockRejectedValueOnce(new Error('boom'));
+    await renderProducts();
+    fireEvent.click(screen.getByTestId('product-delete-prod-1'));
+    fireEvent.click(await screen.findByTestId('product-delete-confirm'));
+    await waitFor(() => expect(deleteProduct).toHaveBeenCalled());
+    // The rejection is toasted, not swallowed — the dialog stays up.
+    expect(screen.getByTestId('product-delete-dialog')).toBeInTheDocument();
   });
 });
 

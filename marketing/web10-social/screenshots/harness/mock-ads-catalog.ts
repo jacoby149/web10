@@ -134,6 +134,7 @@ export async function createProduct() {
 export async function updateProduct() {
   return { doc_id: 'prod-1' };
 }
+export async function deleteProduct() {}
 export async function ensureFollowersGroup() {
   return 'web10.app/groups/users/testuser/followers';
 }

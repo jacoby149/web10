@@ -480,6 +480,19 @@ export async function updateProduct(productDoc: V3Document, product: AdProduct |
 }
 
 /**
+ * Delete a product (D89) — tombstone the `posts` doc. The owner has
+ * `deleteAll` on their followers group, so the tombstone is authorized the
+ * same way the ad retire is. Ads that reference the product by `product_id`
+ * keep their denormalized offer snapshot (link + partner + kind), so the
+ * public feed's ad block still renders; the storefront + the Products tab
+ * drop the product on the next read.
+ */
+export async function deleteProduct(productDoc: V3Document): Promise<void> {
+  const w = getV3Client();
+  await w.delete(productDoc.doc_id);
+}
+
+/**
  * Read the creator's products (D89) — the `posts` docs tagged `product` in the
  * followers group. One read, split client-side.
  */
