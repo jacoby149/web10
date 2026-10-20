@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Package, AlertTriangle, RefreshCw, Plus, Pencil, X, ImagePlus, ArrowUpRight } from 'lucide-react';
+import { Package, AlertTriangle, RefreshCw, Plus, Pencil, X, ImagePlus, ArrowUpRight, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { errorMessage } from '@/components/shared/Toast';
-import { readMyCatalog, createProduct, updateProduct, type ProductItem } from '@/data/ads-catalog';
+import { toast, errorMessage } from '@/components/shared/Toast';
+import { readMyCatalog, createProduct, updateProduct, deleteProduct, type ProductItem } from '@/data/ads-catalog';
 import { resolveMediaRefs, type MediaRecord, type AdProduct } from '@/data';
 import { projectEarnings, formatProjection, commissionPerSale, DEFAULT_RATES } from '@/data/ad-projection';
 import { uploadAdMedia } from './CreatorMonetization';
@@ -31,6 +31,8 @@ export function ProductsSection() {
   const [mediaMap, setMediaMap] = useState<Record<string, MediaRecord>>({});
   const [editing, setEditing] = useState<ProductItem | null>(null);
   const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState<ProductItem | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -63,6 +65,22 @@ export function ProductsSection() {
   useEffect(() => { load(); }, [load]);
 
   const formOpen = creating || !!editing;
+
+  const confirmDelete = async () => {
+    if (!deleting) return;
+    setDeleteBusy(true);
+    try {
+      await deleteProduct(deleting.doc);
+      toast.success('Product deleted');
+      setDeleting(null);
+      await load();
+    } catch (e) {
+      console.error('Failed to delete product:', e);
+      toast.error(errorMessage(e, 'Could not delete the product.'));
+    } finally {
+      setDeleteBusy(false);
+    }
+  };
 
   return (
     <div className="space-y-6" data-testid="products-section">
@@ -138,17 +156,49 @@ export function ProductsSection() {
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
               {(products || []).map((p) => (
-                <ProductTile key={p.doc.doc_id} item={p} mediaMap={mediaMap} onEdit={() => { setCreating(false); setEditing(p); }} />
+                <ProductTile
+                  key={p.doc.doc_id}
+                  item={p}
+                  mediaMap={mediaMap}
+                  onEdit={() => { setCreating(false); setEditing(p); }}
+                  onDelete={() => { setCreating(false); setEditing(null); setDeleting(p); }}
+                />
               ))}
             </div>
           )}
         </div>
       </div>
+
+      {deleting && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" data-testid="product-delete-dialog">
+          <div className="absolute inset-0 bg-black/60" onClick={() => { if (!deleteBusy) setDeleting(null); }} />
+          <div className="relative w-full max-w-sm rounded-lg border border-border bg-surface p-5 shadow-lg">
+            <h3 className="mb-1 text-sm font-semibold text-foreground">Delete product</h3>
+            <p className="mb-4 text-xs text-muted-foreground">
+              &ldquo;{deleting.product.name || 'Untitled product'}&rdquo; will be removed from your products and your storefront.
+              Ads that use it keep their own link and keep running.
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setDeleting(null)} disabled={deleteBusy} data-testid="product-delete-cancel">
+                Cancel
+              </Button>
+              <Button variant="destructive" size="sm" onClick={confirmDelete} disabled={deleteBusy} data-testid="product-delete-confirm">
+                {deleteBusy ? 'Deleting…' : 'Delete'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function ProductTile({ item, mediaMap, onEdit }: { item: ProductItem; mediaMap: Record<string, MediaRecord>; onEdit: () => void }) {
+function ProductTile({ item, mediaMap, onEdit, onDelete }: {
+  item: ProductItem;
+  mediaMap: Record<string, MediaRecord>;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
   const p = item.product;
   // The tile's picture: the first product pic.
   const picId = p.pics?.[0];
@@ -174,6 +224,9 @@ function ProductTile({ item, mediaMap, onEdit }: { item: ProductItem; mediaMap: 
           <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{p.name || 'Untitled product'}</span>
           <Button variant="ghost" size="sm" className="h-7 w-7 flex-shrink-0 p-0" onClick={onEdit} aria-label="Edit product" data-testid={`product-edit-${item.doc.doc_id}`}>
             <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
+          </Button>
+          <Button variant="ghost" size="sm" className="h-7 w-7 flex-shrink-0 p-0 text-muted-foreground hover:text-danger" onClick={onDelete} aria-label="Delete product" data-testid={`product-delete-${item.doc.doc_id}`}>
+            <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
           </Button>
         </div>
         <div className="mt-1 flex items-center justify-between gap-2">
