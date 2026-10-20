@@ -493,9 +493,20 @@ class TestHealFollowersGroupOwner:
     re-pointed to owner (the /list self-heal)."""
 
     OWNER_ROLES = [{"name": "owner", "permissions": {"*": ["readAll", "create"]}}]
-    GROUP_ROW = ("web10.app/groups/users/alice/followers", json.dumps([
-        {"name": "owner", "permissions": {"*": ["readAll", "create"]}},
-    ]), "open", False, [], "hidden", datetime(2026, 1, 1), datetime(2026, 1, 1))
+    GROUP_ROW = (
+        "web10.app/groups/users/alice/followers",
+        json.dumps(
+            [
+                {"name": "owner", "permissions": {"*": ["readAll", "create"]}},
+            ]
+        ),
+        "open",
+        False,
+        [],
+        "hidden",
+        datetime(2026, 1, 1),
+        datetime(2026, 1, 1),
+    )
 
     def test_missing_creator_row_is_healed_to_owner(self):
         # The ratchet: the creator's row is gone (or drifted to a non-owner
@@ -542,7 +553,16 @@ class TestHealFollowersGroupOwner:
 
     def test_no_owner_role_is_noop(self):
         # A contract with no owner role (e.g. a DM group) is left alone.
-        group_row = ("g1", json.dumps([{"name": "member", "permissions": {"posts": ["readAll"]}}]), "invite_only", False, [], "hidden", datetime(2026, 1, 1), datetime(2026, 1, 1))
+        group_row = (
+            "g1",
+            json.dumps([{"name": "member", "permissions": {"posts": ["readAll"]}}]),
+            "invite_only",
+            False,
+            [],
+            "hidden",
+            datetime(2026, 1, 1),
+            datetime(2026, 1, 1),
+        )
         with _patch_client() as mock_client:
             mock_client.query.side_effect = [
                 _mock_result_rows([group_row]),  # get_group → exists

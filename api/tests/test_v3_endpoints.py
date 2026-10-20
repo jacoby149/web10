@@ -633,9 +633,10 @@ class TestListGroups:
         # self-heal), so the client's ensureFollowers heal stops re-joining
         # as `member`.
         group_id = "web10.app/groups/users/testuser/followers"
-        with patch("app.v3.services.clickhouse.get_user_groups") as mock_groups, patch(
-            "app.v3.services.clickhouse.heal_followers_group_owner"
-        ) as mock_heal:
+        with (
+            patch("app.v3.services.clickhouse.get_user_groups") as mock_groups,
+            patch("app.v3.services.clickhouse.heal_followers_group_owner") as mock_heal,
+        ):
             mock_groups.return_value = [
                 {"group_id": group_id, "join_policy": "open", "tags": [], "my_role": "member", "member_count": 1},
             ]
@@ -647,11 +648,18 @@ class TestListGroups:
     def test_does_not_heal_other_users_groups(self, client, token):
         # Only the creator's own groups are healed — a followed user's
         # followers group is read, never touched.
-        with patch("app.v3.services.clickhouse.get_user_groups") as mock_groups, patch(
-            "app.v3.services.clickhouse.heal_followers_group_owner"
-        ) as mock_heal:
+        with (
+            patch("app.v3.services.clickhouse.get_user_groups") as mock_groups,
+            patch("app.v3.services.clickhouse.heal_followers_group_owner") as mock_heal,
+        ):
             mock_groups.return_value = [
-                {"group_id": "web10.app/groups/users/someoneelse/followers", "join_policy": "open", "tags": [], "my_role": "member", "member_count": 3},
+                {
+                    "group_id": "web10.app/groups/users/someoneelse/followers",
+                    "join_policy": "open",
+                    "tags": [],
+                    "my_role": "member",
+                    "member_count": 3,
+                },
             ]
             resp = client.post("/v3/groups/list", json={"token": token})
         assert resp.status_code == 200
