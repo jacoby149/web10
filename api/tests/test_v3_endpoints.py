@@ -626,6 +626,37 @@ class TestListGroups:
         assert resp.status_code == 200
         assert len(resp.json()) == 1
 
+    def test_heals_own_followers_group_owner_row(self, client, token):
+        # The dead-group ratchet: the caller's followers group is in their
+        # /list (so the row exists) but their member row drifted to a
+        # non-owner role — the /list read re-points it to owner (the
+        # self-heal), so the client's ensureFollowers heal stops re-joining
+        # as `member`.
+        group_id = "web10.app/groups/users/testuser/followers"
+        with patch("app.v3.services.clickhouse.get_user_groups") as mock_groups, patch(
+            "app.v3.services.clickhouse.heal_followers_group_owner"
+        ) as mock_heal:
+            mock_groups.return_value = [
+                {"group_id": group_id, "join_policy": "open", "tags": [], "my_role": "member", "member_count": 1},
+            ]
+            resp = client.post("/v3/groups/list", json={"token": token})
+        assert resp.status_code == 200
+        assert len(resp.json()) == 1
+        mock_heal.assert_called_once_with(group_id, "testuser")
+
+    def test_does_not_heal_other_users_groups(self, client, token):
+        # Only the creator's own groups are healed — a followed user's
+        # followers group is read, never touched.
+        with patch("app.v3.services.clickhouse.get_user_groups") as mock_groups, patch(
+            "app.v3.services.clickhouse.heal_followers_group_owner"
+        ) as mock_heal:
+            mock_groups.return_value = [
+                {"group_id": "web10.app/groups/users/someoneelse/followers", "join_policy": "open", "tags": [], "my_role": "member", "member_count": 3},
+            ]
+            resp = client.post("/v3/groups/list", json={"token": token})
+        assert resp.status_code == 200
+        mock_heal.assert_not_called()
+
 
 class TestGroupDirectory:
     """The public, minimal directory of discoverable groups (D53)."""

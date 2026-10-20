@@ -3,6 +3,7 @@
 Uses mocked clickhouse-connect client — no real ClickHouse needed.
 """
 
+import json
 import re
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
@@ -485,6 +486,70 @@ class TestEnsureCreatorOwner:
             row = mock_client.insert.call_args[0][1][0]
             assert row[1] == "alice"
             assert row[2] == "owner"
+
+
+class TestHealFollowersGroupOwner:
+    """The dead-group ratchet breaker: a user-created group's creator row is
+    re-pointed to owner (the /list self-heal)."""
+
+    OWNER_ROLES = [{"name": "owner", "permissions": {"*": ["readAll", "create"]}}]
+    GROUP_ROW = ("web10.app/groups/users/alice/followers", json.dumps([
+        {"name": "owner", "permissions": {"*": ["readAll", "create"]}},
+    ]), "open", False, [], "hidden", datetime(2026, 1, 1), datetime(2026, 1, 1))
+
+    def test_missing_creator_row_is_healed_to_owner(self):
+        # The ratchet: the creator's row is gone (or drifted to a non-owner
+        # role the client's join can't upgrade) → a current owner row lands.
+        with _patch_client() as mock_client:
+            mock_client.query.side_effect = [
+                _mock_result_rows([self.GROUP_ROW]),  # get_group → exists
+                _mock_result_rows([]),  # get_group_member → no creator row
+            ]
+            ch.heal_followers_group_owner("web10.app/groups/users/alice/followers", "alice")
+        mock_client.insert.assert_called_once()
+        row = mock_client.insert.call_args[0][1][0]
+        assert row[0] == "web10.app/groups/users/alice/followers"  # group_id
+        assert row[1] == "alice"  # member_key
+        assert row[2] == "owner"  # role
+
+    def test_already_owner_is_noop(self):
+        with _patch_client() as mock_client:
+            mock_client.query.side_effect = [
+                _mock_result_rows([self.GROUP_ROW]),  # get_group → exists
+                _mock_result_rows([("alice", "owner", datetime(2026, 1, 1))]),  # already owner
+            ]
+            ch.heal_followers_group_owner("web10.app/groups/users/alice/followers", "alice")
+            mock_client.insert.assert_not_called()
+
+    def test_non_owner_role_is_repointed(self):
+        # The drifted case: the client joined as `member` (the ratchet) — the
+        # owner row must win over it via latest-row dedup.
+        with _patch_client() as mock_client:
+            mock_client.query.side_effect = [
+                _mock_result_rows([self.GROUP_ROW]),  # get_group → exists
+                _mock_result_rows([("alice", "member", datetime(2026, 1, 1))]),  # drifted
+            ]
+            ch.heal_followers_group_owner("web10.app/groups/users/alice/followers", "alice")
+        mock_client.insert.assert_called_once()
+        row = mock_client.insert.call_args[0][1][0]
+        assert row[2] == "owner"
+
+    def test_missing_group_is_noop(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([])  # get_group → missing
+            ch.heal_followers_group_owner("web10.app/groups/users/alice/followers", "alice")
+            mock_client.insert.assert_not_called()
+
+    def test_no_owner_role_is_noop(self):
+        # A contract with no owner role (e.g. a DM group) is left alone.
+        group_row = ("g1", json.dumps([{"name": "member", "permissions": {"posts": ["readAll"]}}]), "invite_only", False, [], "hidden", datetime(2026, 1, 1), datetime(2026, 1, 1))
+        with _patch_client() as mock_client:
+            mock_client.query.side_effect = [
+                _mock_result_rows([group_row]),  # get_group → exists
+                _mock_result_rows([]),  # get_group_member → no row
+            ]
+            ch.heal_followers_group_owner("g1", "alice")
+            mock_client.insert.assert_not_called()
 
 
 class TestGetUserGroups:
