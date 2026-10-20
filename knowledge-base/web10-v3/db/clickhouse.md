@@ -515,7 +515,7 @@ TTL ts + INTERVAL 30 DAY;
 
 | `service` | Source | How |
 |---|---|---|
-| `api` | API middleware (`app/middleware.py`) | Every HTTP request: method, path, status, latency, user_key, origin, truncated bodies (4KB), error detail in `message` |
+| `api` | API middleware (`app/middleware.py`) | When downstream yields a response: allowlisted method, server route template (not raw URL), status, latency and severity; body/meta/user_key/origin columns empty ([logging boundary](../security/logging.md)) |
 | `sdk` | Browser SDK via `POST /v3/logs` | Console logs tee'd from the demo app. Tagged with `user_key` + `origin` |
 | `e2e` | Playwright runner via `POST /v3/logs` | Captured browser console + network logs after each test. Tagged with `test_name` in `meta` |
 
