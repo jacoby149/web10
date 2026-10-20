@@ -148,7 +148,7 @@ describe('web10-social link-preview card logic (KB: media/thumbnailing.md)', () 
     mockPlatform({
       'read:p1': { author_key: 'nova', body: { text: 'just words' } },
       'thumb:p1': { thumbnail: null }, // no media
-      'read:groups:["web10/groups/users/nova/followers"]': [
+      'read:groups:["api.test/groups/users/nova/followers"]': [
         { author_key: 'nova', body: { display_name: 'Nova', avatar_ref: 'av-1' } },
       ],
       'thumb:av-1': { thumbnail: { url: 'http://minio.test/nova/avatar.png', alt: null, is_video: false } },
@@ -163,7 +163,7 @@ describe('web10-social link-preview card logic (KB: media/thumbnailing.md)', () 
     mockPlatform({
       'read:p1': { author_key: 'nova', body: { text: 'just words' } },
       'thumb:p1': { thumbnail: null },
-      'read:groups:["web10/groups/users/nova/followers"]': [], // no profile
+      'read:groups:["api.test/groups/users/nova/followers"]': [], // no profile
     })
     const html = await postCard('nova', 'p1')
     expect(html).toContain('http://social.test/keys-mark.png')
@@ -184,7 +184,7 @@ describe('web10-social link-preview card logic (KB: media/thumbnailing.md)', () 
 
   it('profileCard: a profile with an avatar renders the name + bio + the avatar', async () => {
     mockPlatform({
-      'read:groups:["web10/groups/users/nova/followers"]': [
+      'read:groups:["api.test/groups/users/nova/followers"]': [
         { author_key: 'nova', body: { display_name: 'Nova', bio: 'Synthwave producer', avatar_ref: 'av-1' } },
       ],
       'thumb:av-1': { thumbnail: { url: 'http://minio.test/nova/avatar.png', alt: null, is_video: false } },
@@ -200,7 +200,7 @@ describe('web10-social link-preview card logic (KB: media/thumbnailing.md)', () 
 
   it('profileCard: a profile with no avatar falls back to the brand mark', async () => {
     mockPlatform({
-      'read:groups:["web10/groups/users/nova/followers"]': [
+      'read:groups:["api.test/groups/users/nova/followers"]': [
         { author_key: 'nova', body: { display_name: 'Nova', bio: 'hi' } },
       ],
     })
@@ -211,7 +211,7 @@ describe('web10-social link-preview card logic (KB: media/thumbnailing.md)', () 
 
   it('profileCard: an unknown user (no profile doc) renders a generic @username card', async () => {
     mockPlatform({
-      'read:groups:["web10/groups/users/ghost/followers"]': [], // no profile
+      'read:groups:["api.test/groups/users/ghost/followers"]': [], // no profile
     })
     const html = await profileCard('ghost')
     expect(html).toContain('@ghost on web10')
@@ -311,7 +311,7 @@ describe('web10-social link-preview card logic (KB: media/thumbnailing.md)', () 
       mockPlatform({
         'read:p1': { author_key: 'nova', body: { text: 'just words' } },
         'thumb:p1': { thumbnail: null },
-        'read:groups:["web10/groups/users/nova/followers"]': [
+        'read:groups:["api.test/groups/users/nova/followers"]': [
           { author_key: 'nova', body: { display_name: 'Nova', avatar_ref: 'av-1' } },
         ],
         'thumb:av-1': { thumbnail: { url: 'http://minio.test/nova/avatar.png', alt: null, is_video: false } },
@@ -368,7 +368,7 @@ describe('web10-social link-preview card logic (KB: media/thumbnailing.md)', () 
       mockPlatform({
         'read:p1': { author_key: 'nova', body: { text: 'just words' } },
         'thumb:p1': { thumbnail: null },
-        'read:groups:["web10/groups/users/nova/followers"]': [
+        'read:groups:["api.test/groups/users/nova/followers"]': [
           { author_key: 'nova', body: { display_name: 'Nova', avatar_ref: 'av-1' } },
         ],
         'thumb:av-1': { thumbnail: { url: 'http://minio.test/nova/avatar.png', alt: null, is_video: false } },
