@@ -21,7 +21,7 @@ This kills three of the four "how do we do this" questions at once:
 | Auto-detect or user-elects? | **Auto-detect, opt-out.** A post with exactly one 9:16 video *is* a short. The creator already signaled it by shooting/cropping vertical. No "post as short" toggle for the common case. |
 | How does it get in the feed? | It's a public post → already on discover → the Shorts feed reads discover and keeps the shorts. |
 
-**Why 9:16, not "under 3 minutes"?** Every video in web10 is already ≤ 3 minutes — there is a hard upload cap, `MAX_VIDEO_DURATION = 180` (`mediaProcessing.ts:11`). Duration is therefore a non-discriminator: it would make *every* video a short, including a 16:9 landscape clip that isn't one. The signal that actually makes something a short is **aspect ratio: 9:16 vertical** (`width < height`). That is what TikTok/Shorts are.
+**Why 9:16, not "under N minutes"?** The upload duration cap (`MAX_VIDEO_DURATION = 3600`, `mediaProcessing.ts:13`) is far above the short-form sweet spot, so duration alone is a non-discriminator: it would make *many* videos shorts, including 16:9 landscape clips that aren't. The signal that actually makes something a short is **aspect ratio: 9:16 vertical** (`width < height`). That is what TikTok/Shorts are.
 
 ## The mechanism
 
@@ -93,7 +93,7 @@ What the node actually enforces, and what it doesn't:
 |---|---|---|
 | Declared `Content-Type` on upload | **Yes** | the presigned POST bakes in `Conditions=[{"Content-Type": mime_type}]` (`media.py:50-52`) — S3 rejects an upload whose declared type differs. |
 | Real file is video / real dimensions | **No** | `confirm_media_upload` (`clickhouse.py:3336-3362`) stores the client-asserted `width`/`height`/`duration_seconds`/`mime_type` **as-is**. The node never opens the file. |
-| Duration ≤ 180s | **No (server)** | enforced **client-side only** (`mediaProcessing.ts:224`). A direct API caller can assert a longer duration. |
+| Duration ≤ 3600s | **No (server)** | enforced **client-side only** (`mediaProcessing.ts:244`). A direct API caller can assert a longer duration. |
 
 So the honest answer to "can someone put an image in?": **yes, at the metadata level.** A direct API caller (bypassing the composer) can create a `posts` doc tagged `short` whose `media_refs` point at an image, or a video with a lying `width`/`height`. The node will store and serve it. **The `short` tag and the 9:16 dimensions are client-asserted, not server-verified.**
 
@@ -114,7 +114,7 @@ The honest framing, in line with D41 (the node is readable by design; trust is *
 | `short` tag present | client (composer) | server stores it; the `read` endpoint filters on it (`has(tags,'short')`, the inclusion rule) |
 | media is `video/*` | client (declared Content-Type) | S3 enforces the *declared* type on upload; render re-checks the stored `mime_type` |
 | media is 9:16 | client (asserted `width`/`height`) | **not** server-verified → render-time gate re-derives `width < height`; optional worker verification stamps the truth |
-| duration ≤ 180s | client | **not** server-verified → optional worker verification |
+| duration ≤ 3600s | client | **not** server-verified → optional worker verification |
 
 ## What this is not
 

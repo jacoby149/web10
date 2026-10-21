@@ -43,11 +43,16 @@ describe('validateMedia', () => {
   });
 
   it('rejects oversized videos', () => {
-    const file = new File(['x'.repeat(101 * 1024 * 1024)], 'huge.mp4', { type: 'video/mp4' });
+    const file = new File(['x'.repeat(501 * 1024 * 1024)], 'huge.mp4', { type: 'video/mp4' });
     const err = validateMedia(file);
     expect(err).not.toBeNull();
     expect(err?.field).toBe('size');
-    expect(err?.message).toContain('MB');
+    expect(err?.message).toContain('500 MB');
+  });
+
+  it('accepts videos up to 500 MB', () => {
+    const file = new File(['x'.repeat(500 * 1024 * 1024)], 'large.mp4', { type: 'video/mp4' });
+    expect(validateMedia(file)).toBeNull();
   });
 });
 
@@ -55,13 +60,14 @@ describe('validateVideoDuration', () => {
   it('accepts duration within limit', () => {
     expect(validateVideoDuration(60)).toBeNull();
     expect(validateVideoDuration(180)).toBeNull();
+    expect(validateVideoDuration(3600)).toBeNull();
   });
 
   it('rejects duration over limit', () => {
-    const err = validateVideoDuration(181);
+    const err = validateVideoDuration(3601);
     expect(err).not.toBeNull();
     expect(err?.field).toBe('duration');
-    expect(err?.message).toContain('3 minutes');
+    expect(err?.message).toContain('1 hour');
   });
 
   it('accepts short video', () => {
