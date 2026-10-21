@@ -1,6 +1,7 @@
-3.238.2 || 21.10.2026
+3.238.3 || 21.10.2026
 CI follow-up: SDK producer pinned to Bun 1.3.14 in package metadata and CI after floating 1.4.3 triggered all four exact-output checks; comparison remains byte-for-byte.
 fix(build) + docs(security): **align shipped browser SDKs before the cookie repair** — clean pinned builds matched 16/17 outputs but found stale browser copies; regenerate browser.js, its wapi alias and social/marketing copies from current source, with an explicit alias producer and fresh-build regression. Source-existing analytics/surface forwarding plus older marketing group/ICE/anonymous-read parity are documented as consumer-visible deltas, not a cookie fix. Four drift checks were red before alignment; all five artifact tests and 171 SDK tests/typecheck now pass. Cookie parser/source auth unchanged, L1-SDK-B-01 still open; six orphan declarations and docs RTC IIFE provenance remain unresolved, no publication/deployment/full-integrity/security PASS claimed. B-4 source repair marked merged #1225.
+
 3.238.2 || 20.10.2026
 fix(ui): **authenticator account picker cap raised 5 → 16 (Google parity)** — the account picker (`rememberedAccounts.ts`) and the live-token vault (`tokenVault.ts`) both capped at 5 remembered accounts per origin; raised both to 16 to match Google's per-profile account limit. Both cap tests updated to assert 16. 18 tests green, `tsc` clean.
 
