@@ -1,3 +1,6 @@
+3.238.2 || 20.10.2026
+fix(ui): **authenticator account picker cap raised 5 → 16 (Google parity)** — the account picker (`rememberedAccounts.ts`) and the live-token vault (`tokenVault.ts`) both capped at 5 remembered accounts per origin; raised both to 16 to match Google's per-profile account limit. Both cap tests updated to assert 16. 18 tests green, `tsc` clean.
+
 3.238.1 || 20.10.2026
 fix(api): **B-4 automatic HTTP logging becomes metadata-only** — remove body reads/buffering, raw paths/headers, unsigned JWT attribution and error/meta copies; retain method/route-template/status/severity/response-availability latency in the unchanged log schema, returning the original response. Insert failures emit no exception content. Nine synthetic regressions are red on the pinned original and green after repair, including real router/validation/stream/cookie/background controls; 1,138 API tests plus lint/format pass after syncing dev. Pinned hardening research and fresh same-model review recorded; no auth/SDK wire changes, other-logger fix, historical-data cleanup, deployment closure or security PASS. Protocol L1 gate remains open.
 

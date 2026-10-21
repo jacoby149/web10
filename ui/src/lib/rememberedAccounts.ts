@@ -18,7 +18,7 @@ export interface RememberedAccount {
 }
 
 const KEY = 'web10.rememberedAccounts';
-const MAX = 5;
+const MAX = 16;
 
 function read(): RememberedAccount[] {
   try {
