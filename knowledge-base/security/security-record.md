@@ -26,7 +26,7 @@ measure. Re-scan after the hardening merges to flip them.
 |---|---|---|---|---|---|---|---|
 | `api/app/services/auth.py :: decode_token` | L1 | **OPEN** | (audit) | 2026-10 | — | auth | B-3 unsigned decode path; B-1 I1 symmetric HS256. Hardening in 1157 (unmerged) |
 | `api/app/settings.py` | L1 | **OPEN** | (audit) | 2026-10 | — | config | B-2 secrets in source (signing key + Stripe/Twilio/CH creds). Hardening in 1157 (unmerged) |
-| `api/app/middleware.py` | L1 | **OPEN** | `gpt-6.1 sol` | 2026-10-18 | — | logging | B-4 source repair with passing repro gate: metadata-only route/method/status/latency, no body/headers/unsigned attribution/error copy. [Evidence](scans/2026-10/repair-b4-middleware.md). Merge/deployment, historical exposure and required security sign-off remain unclosed; no whole-file PASS. |
+| `api/app/middleware.py` | L1 | **OPEN** | `gpt-6.1 sol` | 2026-10-18 | — | logging | B-4 source repair merged #1225 with passing repro gate. [Evidence](scans/2026-10/repair-b4-middleware.md). Deployment, historical exposure and required security sign-off remain unclosed; no whole-file PASS. |
 | `api/app/main.py :: CORS` | L1 | **OPEN** | (audit) | 2026-10 | — | boundary | B-5 `allow_origins=["*"]` — load-bearing assumption, needs a pinning test |
 | `api/app/v3/services/clickhouse.py :: read path` | L1 | PASS | (audit) | 2026-10 | — | query-engine | I3 read gate on lock (the crown jewel holds) — `can_read_group` / `effective_role_perms` |
 | `api/app/v3/services/safe_query.py` | L1 | PASS | (audit) | 2026-10 | — | query-engine | I3 wall for caller SQL on lock — boundary on input CTEs, not output filter |
@@ -120,6 +120,16 @@ findings and L1 advancement gates remain open. No model-diverse/three-dry claim.
 | D v3 foundations | 633 | [Receipt](scans/2026-10/l1-sdk-d.md): no confirmed local C+I issue; shared permission-array mutation is correctness evidence, not a server grant; helper-consumer review pending. |
 | E v3 data/request methods | 459 | [Receipt](scans/2026-10/l1-sdk-e.md): no confirmed local C+I issue; cookie/state precedence and fake-helper flow do not establish authenticated cross-account requests; server/transport handoffs pending. |
 | F v3 groups/consent/types | 591 | OPEN: [receipt](scans/2026-10/l1-sdk-f.md), L1-SDK-F-01 alias with A-01 for unbound consent responses in different implementations; existing S-6 metadata wildcard and S-3 functional omission, no actual grant or token leak demonstrated. |
+
+### SDK Artifact Follow-Up (20.10.2026)
+
+[Clean-build/copy evidence](scans/2026-10/sdk-artifact-correspondence.md) at
+`89323cd93` proves 16/17 original clean outputs matched; four browser files lagged
+source. Candidate alignment regenerates those files and explicitly produces the
+wapi alias; five fresh-build/API-parity tests pass, SDK total 171 plus typecheck.
+The source-existing analytics/group/ICE/anonymous-read delta is documented, not
+silently called a cookie fix. L1-SDK-B-01, six orphan declaration/maps, docs RTC
+IIFE provenance and deployment/full artifact/security sign-off remain open.
 
 ## Remaining L1 Boundaries
 

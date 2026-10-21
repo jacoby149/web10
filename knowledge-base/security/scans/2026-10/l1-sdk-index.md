@@ -4,6 +4,12 @@ Pin: `caeed44278adb65d19f5c737ed9188ccf589b69c`, 2026-10-18.
 Scanners: OpenCode `gpt-6.1 sol` (API ID `openrouter/openai/gpt-6.1-sol`).
 This is first-party source coverage, not a security PASS or shipped-bundle audit.
 
+Current artifact follow-up (20.10.2026):
+[browser correspondence prerequisite](sdk-artifact-correspondence.md) documents
+clean-build proof, stale browser copies and their explicit source-parity refresh.
+The manifest/hashes below remain historical at this pin, not current file hashes.
+Full artifact coverage and L1-SDK-B-01 repair remain open.
+
 ## Source Denominator
 
 | Whole tracked file | Newlines | Logical lines |
