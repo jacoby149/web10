@@ -9,8 +9,8 @@ const THUMBNAIL_EDGE = 480;
 const IMAGE_QUALITY = 0.8;
 const THUMBNAIL_QUALITY = 0.7;
 const MAX_IMAGE_SIZE = 20 * 1024 * 1024; // 20 MB
-const MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100 MB
-const MAX_VIDEO_DURATION = 180; // 3 minutes
+const MAX_VIDEO_SIZE = 500 * 1024 * 1024; // 500 MB
+const MAX_VIDEO_DURATION = 3600; // 1 hour
 const IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif'];
 const VIDEO_MIMES = ['video/mp4', 'video/webm'];
 
@@ -65,7 +65,7 @@ export function validateMedia(file: File): ProcessingError | null {
   if (isVideo && file.size > MAX_VIDEO_SIZE) {
     return {
       field: 'size',
-      message: `Video is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Max is 100 MB.`,
+      message: `Video is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Max is 500 MB.`,
     };
   }
 
@@ -245,7 +245,7 @@ export function validateVideoDuration(duration: number): ProcessingError | null 
   if (duration > MAX_VIDEO_DURATION) {
     return {
       field: 'duration',
-      message: `Video is too long (${formatDuration(duration)}). Max is 3 minutes.`,
+      message: `Video is too long (${formatDuration(duration)}). Max is 1 hour.`,
     };
   }
   return null;
