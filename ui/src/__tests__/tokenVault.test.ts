@@ -47,13 +47,16 @@ describe('tokenVault', () => {
     expect(vaultedAccountsFor('api.other.app')).toHaveLength(1)
   })
 
-  it('caps at 5, dropping the oldest', () => {
-    for (let i = 1; i <= 6; i++) {
+  it('caps at 16, dropping the oldest', () => {
+    for (let i = 1; i <= 17; i++) {
       vaultToken({ username: `u${i}`, provider: 'api.web10.app', token: `tok-${i}` })
     }
     const accounts = vaultedAccountsFor('api.web10.app')
-    expect(accounts).toHaveLength(5)
-    expect(accounts.map((a) => a.username)).toEqual(['u6', 'u5', 'u4', 'u3', 'u2'])
+    expect(accounts).toHaveLength(16)
+    expect(accounts.map((a) => a.username)).toEqual([
+      'u17', 'u16', 'u15', 'u14', 'u13', 'u12', 'u11', 'u10',
+      'u9', 'u8', 'u7', 'u6', 'u5', 'u4', 'u3', 'u2',
+    ])
   })
 
   it('vaultedAccountsFor filters to the expected provider', () => {

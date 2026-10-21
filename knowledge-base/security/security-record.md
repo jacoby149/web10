@@ -26,7 +26,7 @@ measure. Re-scan after the hardening merges to flip them.
 |---|---|---|---|---|---|---|---|
 | `api/app/services/auth.py :: decode_token` | L1 | **OPEN** | (audit) | 2026-10 | — | auth | B-3 unsigned decode path; B-1 I1 symmetric HS256. Hardening in 1157 (unmerged) |
 | `api/app/settings.py` | L1 | **OPEN** | (audit) | 2026-10 | — | config | B-2 secrets in source (signing key + Stripe/Twilio/CH creds). Hardening in 1157 (unmerged) |
-| `api/app/middleware.py` | L1 | **OPEN** | (audit) | 2026-10 | — | logging | B-4 full request/response body logged. Redaction in 1159 (unmerged) |
+| `api/app/middleware.py` | L1 | **OPEN** | `gpt-6.1 sol` | 2026-10-18 | — | logging | B-4 source repair with passing repro gate: metadata-only route/method/status/latency, no body/headers/unsigned attribution/error copy. [Evidence](scans/2026-10/repair-b4-middleware.md). Merge/deployment, historical exposure and required security sign-off remain unclosed; no whole-file PASS. |
 | `api/app/main.py :: CORS` | L1 | **OPEN** | (audit) | 2026-10 | — | boundary | B-5 `allow_origins=["*"]` — load-bearing assumption, needs a pinning test |
 | `api/app/v3/services/clickhouse.py :: read path` | L1 | PASS | (audit) | 2026-10 | — | query-engine | I3 read gate on lock (the crown jewel holds) — `can_read_group` / `effective_role_perms` |
 | `api/app/v3/services/safe_query.py` | L1 | PASS | (audit) | 2026-10 | — | query-engine | I3 wall for caller SQL on lock — boundary on input CTEs, not output filter |
@@ -96,6 +96,15 @@ Inventory and line coverage do not establish service PASS or deployment security
 | MB | Historical 4 files / 727 lines | D91 removes these mappers; [pinned receipt](scans/2026-10/l1-marketing-b.md) retained, not a current runtime PASS. |
 | MC | Historical 9 files / 712 lines | D91 removes the scaffold from current source; [pinned L1-MC-01/02 evidence](scans/2026-10/l1-marketing-c.md) retained. Production retirement remains unverified, not closed by declaring the files gone. |
 | PREVIEW | 3 files / 422 lines | [Receipt](scans/2026-10/l1-preview-backend.md): no confirmed local finding; fixed-origin anonymous composition and safe fallback probes do not establish renderer/public-grant security. Ghost-post 200-vs-404 is correctness debt; review/sign-off pending, not PASS. |
+
+## Protocol L1 Repair Progress
+
+**B-4:** [source repair evidence](scans/2026-10/repair-b4-middleware.md) records
+all nine regressions red on the pinned original and green on the candidate fix;
+full API suite 1,138 green after syncing dev on 20.10.2026. This repairs the middleware capture/insert-failure
+boundary in source only, not main exceptions, explicit log intake, SQL logs,
+import traces, historical data or operational credential exposure. Other protocol
+findings and L1 advancement gates remain open. No model-diverse/three-dry claim.
 
 ## SDK L1 Source Campaign
 

@@ -25,7 +25,7 @@ export interface VaultedToken {
 }
 
 const KEY = 'web10.tokenVault';
-const MAX = 5;
+const MAX = 16;
 
 function read(): VaultedToken[] {
   try {
