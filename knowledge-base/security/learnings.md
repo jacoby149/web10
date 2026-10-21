@@ -294,6 +294,7 @@ Accepted for this bounded correspondence prerequisite because outputs reproduce
 existing source and API/request controls are pinned, not because integration is
 proven. Revisit on source, toolchain, producer/copy changes or integration failures;
 release/deployment evidence and required security sign-off remain open.
+CI's floating Bun 1.4.3 reproduced hash drift; SDK metadata/CI now pin producer 1.3.14. Compiler upgrades must deliberately rebuild artifacts, not weaken equality.
 
 ## Known gaps (the "obvious gap" register)
 

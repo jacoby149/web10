@@ -70,6 +70,9 @@ Resume verification, 21.10.2026: fresh same-model reviewer independently ran all
 171 SDK tests and typecheck; coordinator reran five artifact tests and typecheck.
 No blocking runtime finding; missing dated intent-risk write-back was corrected
 in learnings. Historical four-red/17-output research was not independently replayed.
+PR #1248 initially detected four hash mismatches with CI's floating Bun 1.4.3;
+SDK package metadata and its CI job now pin producer Bun 1.3.14, preserving exact
+comparison rather than normalizing away compiler differences; upgrades require rebuilds.
 
 DESIGN-INTENT REVIEW (fresh `openai/gpt-6.1-sol`, not model-diverse sign-off):
 - Intended behavior: generic browser SDK primitives, server-authorized public reads and D86 measurement.
