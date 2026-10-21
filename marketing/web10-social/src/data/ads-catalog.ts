@@ -314,10 +314,11 @@ export async function createNodeAd(
   status: 'active' | 'paused',
   mediaRefs?: string[],
   format: 'inline' | 'post' = 'inline',
+  title?: string,
   product?: AdProduct | null,
 ): Promise<V3Document> {
   const w = getV3Client();
-  return w.create('posts', buildNodeAdBody(offer, text, status, mediaRefs, format, undefined, product), { groups: [getDiscoverGroupId()] });
+  return w.create('posts', buildNodeAdBody(offer, text, status, mediaRefs, format, title, product), { groups: [getDiscoverGroupId()] });
 }
 
 /**
@@ -387,17 +388,18 @@ export async function convertAdScope(
   albumIds: string[],
   mediaRefs?: string[],
   format: 'inline' | 'post' = 'inline',
+  title?: string,
   product?: AdProduct | null,
   productId?: string,
 ): Promise<V3Document> {
   const w = getV3Client();
   if (target === 'node') {
-    const body = buildNodeAdBody(offer, text, status, mediaRefs, format, undefined, product);
+    const body = buildNodeAdBody(offer, text, status, mediaRefs, format, title, product);
     return w.update(ad.doc.doc_id, body, { groups: [getDiscoverGroupId()] });
   }
   const token = w.readToken();
   const group = await ensureFollowersGroup(token!.username, token!.provider);
-  const body = buildOfferBody(offer, text, status, albumIds, mediaRefs, format, undefined, product, productId);
+  const body = buildOfferBody(offer, text, status, albumIds, mediaRefs, format, title, product, productId);
   return w.update(ad.doc.doc_id, body, { groups: [group] });
 }
 

@@ -8,6 +8,7 @@ import type { AdRecord, MediaRecord } from '@/data/types';
 import { cn } from '@/lib/utils';
 import { toast, errorMessage } from '@/components/shared/Toast';
 import { VideoPlayer, sourceFromMedia } from './VideoPlayer';
+import { PostBodyInline } from './PostBody';
 
 function formatTimeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -200,9 +201,9 @@ export function PostAdCard({ ad, className, standalone = true }: { ad: AdRecord;
           </h3>
         )}
         {ad.text && (
-          <p className={cn('px-3 text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words', ad.title ? 'pt-1' : 'pt-3')}>
-            {ad.text}
-          </p>
+          <div className={cn('px-3 text-sm leading-relaxed', ad.title ? 'pt-1' : 'pt-3')}>
+            <PostBodyInline text={ad.text} />
+          </div>
         )}
         {offer}
         {likeRow}
@@ -257,8 +258,8 @@ export function PostAdCard({ ad, className, standalone = true }: { ad: AdRecord;
         </h3>
       )}
       {ad.text && (
-        <div className={cn('px-4 text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words', ad.title ? 'pt-1' : 'pt-3')}>
-          {ad.text}
+        <div className={cn('px-4 text-sm leading-relaxed', ad.title ? 'pt-1' : 'pt-3')}>
+          <PostBodyInline text={ad.text} />
         </div>
       )}
 

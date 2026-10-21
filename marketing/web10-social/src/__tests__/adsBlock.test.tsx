@@ -72,6 +72,24 @@ describe('AdBlock', () => {
     expect(screen.getByText('Get it')).toBeTruthy();
   });
 
+  it('renders the ad copy as markdown (the D85 read side — bold shows, not the syntax)', async () => {
+    const { AdBlock } = await import('@/components/Feed/AdBlock');
+    const { container } = render(<AdBlock ad={{ ...AD, text: '**Bold** ad copy' }} />);
+    // The markdown is rendered through PostBodyInline: the bold mark is a real
+    // <strong>, and the raw `**` syntax is NOT shown as literal text.
+    const inline = container.querySelector('[data-testid="post-body-inline"]');
+    expect(inline).toBeTruthy();
+    expect(inline?.textContent).toBe('Bold ad copy');
+    expect(inline?.querySelector('strong')).toBeTruthy();
+    expect(inline?.textContent).not.toContain('**');
+  });
+
+  it('renders the ad title (the D82 headline) above the copy', async () => {
+    const { AdBlock } = await import('@/components/Feed/AdBlock');
+    render(<AdBlock ad={{ ...AD, title: 'My headline' }} />);
+    expect(screen.getByTestId('ad-title')).toHaveTextContent('My headline');
+  });
+
   it('always shows the disclosure (never hidden), naming who made it', async () => {
     const { AdBlock } = await import('@/components/Feed/AdBlock');
     render(<AdBlock ad={AD} />);
