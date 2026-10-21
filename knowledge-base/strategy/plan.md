@@ -940,6 +940,24 @@ render). Spec'd in `knowledge-base/web10-v3/social/shorts.md`.
 - [✓ 3.95.0] **The surface plays like a short** — the video fills the screen (the `immersive` player mode: the video-only hls fill, no control rack, no phone-width column; the desktop slide is a centered 9:16 column that fills the viewport height — the designed letterbox), the active slide autoplays muted + off-screen slides pause, and the TikTok swipe works (native scroll-snap + `ArrowUp`/`ArrowDown`/`PageUp`/`PageDown`). `shorts.md` gains the frame/playback/swipe spec (decision #6); `video-player.md` gains the `immersive` layout prop.
  - [✓ 3.97.0] **v1.5** — the server-side `has(tags, 'short')` filter on `read` (the generic `tags` param — a platform primitive, not a social concept; the idiom the node-ad read already uses, `clickhouse.py:2419`) so the Shorts feed pulls only shorts. The two-layer model is now explicit: the tag is the server-side inclusion rule, the render-time 9:16 gate stays the backstop that drops fakes. (The optional ffmpeg-stamped dimension verification in the transcode worker remains the open "truly bulletproof" follow-up.)
 
+## Music: The Audio Track Feed — web10-social
+
+A music track is a `posts` doc on the discover group whose single media is a
+**real audio file** (`audio/*`) — no new collection, no new group (the Music
+feed is a *view* over the discover group, filtered to music). Same model as
+Shorts (a 9:16 video) and Video (a landscape video): the node stores
+`{service, body}` opaquely; the app writes + reads a `tags` array; the feed
+applies a **render-time gate** (a post is a track only if its single media is
+`audio/*`, re-derived from the *resolved* media, not trusted from the
+client-asserted `music` tag). Spec'd in `knowledge-base/web10-v3/social/music.md`.
+
+- [✓] **KB** (`social/music.md`) — the design (a track is a post, the feed is a filtered view), the write (one-line `tags`), the read + the render-time gate, the album-art model (optional image → the media doc's thumbnail), the D60 line.
+- [✓] **The write** — `validateMedia` accepts `audio/mpeg` (50 MB cap); `getAudioInfo` probes duration; the composer auto-tags `['music']` on a single audio item; the album-art picker (optional image in the tray) becomes the track's thumbnail; the upload path skips the video transcode + poster frame.
+- [✓] **The read + gate** (`feed.ts` `readMusicPage` / `readMusicFeed`) — read discover with `["music"]` tag filter, resolve media, keep only genuine single `audio/*` tracks (the anti-hack seam). D86 surface `'music'`.
+- [✓] **The surface** (`MusicScreen.tsx`, `/music`) — responsive wall of square album-art tiles (cover or default musical-note fallback, title, author, duration, D86 views); tap → inline `<audio>` player (sticky bottom bar, one track at a time, play/pause toggle); `?q=` search filter + query chip; infinite scroll (sentinel).
+- [✓] **Nav** — Music promoted from coming-soon to a real destination (desktop sidebar after Shorts + the mobile More sheet; the bottom bar stays at five). Anon can browse.
+- [✓] **Tests** — `data/feed.test.ts` +4 driving the gate (real audio kept; faked video / image / multi-media dropped; untagged audio dropped server-side; empty list) + `musicScreen.test.tsx` (new, 5: wall renders title/author/duration; default art fallback; uploaded art; empty state; `?q=` filter). 1528 web10-social green, `tsc` clean.
+
 ## Feed Paging: the one-shot feeds page until exhausted — web10-social
 **Operator (29.09.2026):** "do all the feeds paginate too? where they get another get another until you hit the limit? run out? because that is the correct behavior." The audit found several feeds were single reads capped at 50 — a creator with more than the cap only ever saw the first page. The node already supports it (both the ranked + chronological `read_documents_in_groups` paths apply `LIMIT … OFFSET …`), so this is all client-side (no node change, D60). The pattern (from the Shorts wall, 3.179.0): a paged data read returning `{ items, hasMore }` (hasMore = board page size) + a sentinel (`IntersectionObserver`, `rootMargin: 200px`) that appends the next page (offset advances by the board page size, dedupe by id).
 

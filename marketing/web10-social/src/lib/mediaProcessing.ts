@@ -10,9 +10,11 @@ const IMAGE_QUALITY = 0.8;
 const THUMBNAIL_QUALITY = 0.7;
 const MAX_IMAGE_SIZE = 20 * 1024 * 1024; // 20 MB
 const MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100 MB
+const MAX_AUDIO_SIZE = 50 * 1024 * 1024; // 50 MB
 const MAX_VIDEO_DURATION = 180; // 3 minutes
 const IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif'];
 const VIDEO_MIMES = ['video/mp4', 'video/webm'];
+const AUDIO_MIMES = ['audio/mpeg', 'audio/mp3'];
 
 export interface ProcessedImage {
   blob: Blob;
@@ -32,6 +34,10 @@ export interface VideoInfo {
   height: number;
 }
 
+export interface AudioInfo {
+  duration: number;
+}
+
 export interface ProcessingError {
   field: 'type' | 'size' | 'duration';
   message: string;
@@ -41,17 +47,24 @@ export interface ProcessingError {
 export function validateMedia(file: File): ProcessingError | null {
   const isImage = IMAGE_MIMES.includes(file.type);
   const isVideo = VIDEO_MIMES.includes(file.type);
+  const isAudio = AUDIO_MIMES.includes(file.type);
 
-  if (!isImage && !isVideo) {
+  if (!isImage && !isVideo && !isAudio) {
     if (file.type.startsWith('video/')) {
       return {
         field: 'type',
         message: 'Only MP4 or WebM videos are supported. Please convert your video to MP4 first.',
       };
     }
+    if (file.type.startsWith('audio/')) {
+      return {
+        field: 'type',
+        message: 'Only MP3 audio is supported. Please convert your audio to MP3 first.',
+      };
+    }
     return {
       field: 'type',
-      message: 'Only photos and MP4/WebM videos are supported.',
+      message: 'Only photos, MP4/WebM videos, and MP3 audio are supported.',
     };
   }
 
@@ -66,6 +79,13 @@ export function validateMedia(file: File): ProcessingError | null {
     return {
       field: 'size',
       message: `Video is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Max is 100 MB.`,
+    };
+  }
+
+  if (isAudio && file.size > MAX_AUDIO_SIZE) {
+    return {
+      field: 'size',
+      message: `Audio is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Max is 50 MB.`,
     };
   }
 
@@ -237,6 +257,45 @@ export async function getVideoInfo(file: File): Promise<VideoInfo> {
     };
 
     video.src = url;
+  });
+}
+
+/**
+ * Probe an audio file's duration in the browser.
+ * Resolves with `{ duration }` (seconds) or rejects with a `VideoMetadataError`
+ * (reused — the error shape is the same: a user-facing `message`).
+ */
+export async function getAudioInfo(file: File): Promise<AudioInfo> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const audio = new Audio();
+    audio.preload = 'metadata';
+
+    const timer = setTimeout(() => {
+      audio.onerror = null;
+      audio.onloadedmetadata = null;
+      cleanup();
+      reject(new VideoMetadataError('timeout'));
+    }, METADATA_TIMEOUT_MS);
+
+    const cleanup = () => {
+      clearTimeout(timer);
+      URL.revokeObjectURL(url);
+      audio.src = '';
+    };
+
+    audio.onloadedmetadata = () => {
+      const info: AudioInfo = { duration: audio.duration };
+      cleanup();
+      resolve(info);
+    };
+
+    audio.onerror = () => {
+      cleanup();
+      reject(new VideoMetadataError('codec'));
+    };
+
+    audio.src = url;
   });
 }
 
