@@ -46,7 +46,7 @@ exploit is replayed and denied.
 | B-1 | 2026-10 | `auth.py`, federation | I1 symmetric HS256 — one shared key mints any token → RS256/EdDSA + JWKS (D7) | learned; fix in 1157 (unmerged) → `BP-1` |
 | B-2 | 2026-10 | `settings.py` | signing key + Stripe/Twilio/CH creds in source → env-injected, no defaults | OPEN; repeatable defaults confirmed at `8704e9f5c`; [L1 receipt](scans/2026-10/l1-settings.md), no live credential validity claim |
 | B-3 | 2026-10 | `auth.py :: decode_token` | `private_key=False` unsigned decode on an auth path → verify signature before any authz | learned; fix in 1157 (unmerged) |
-| B-4 | 2026-10 | `middleware.py` | arbitrary HTTP content copied into logs -> metadata-only automatic logging; field-name redaction is insufficient | Source repair/repro gate documented in [B-4 evidence](scans/2026-10/repair-b4-middleware.md); merge/deployment/exposure/sign-off not closed |
+| B-4 | 2026-10 | `middleware.py` | arbitrary HTTP content copied into logs -> metadata-only automatic logging; field-name redaction is insufficient | Source repair merged #1225; [repro evidence](scans/2026-10/repair-b4-middleware.md); deployment/exposure/sign-off not closed |
 | B-5 | 2026-10 | `main.py` CORS | `allow_origins=["*"]` defended only by "token in body" → pin the assumption in a test | learned; needs a pinning test |
 | B-6 | 2026-10 | `clickhouse.py :: get_document_any_author` | reads without author scoping, bounded by a doc-bound sig → verify the sig is checked first | learned; verify |
 | B-8 | 2026-10-18 | `settings.py:139-140` | executing the settings CLI prints globals containing environment-injected secrets → separate fix must suppress secrets while preserving nonsecret diagnostics | OPEN; five synthetic credentials recovered from captured stdout at `8704e9f5c`; [PoC + preconditions](scans/2026-10/l1-settings.md) |
@@ -270,6 +270,30 @@ the required model-diverse three-dry sign-off. Shutdown/disconnect, delayed/moun
 real-storage integration remain untested here; the dated intent-risk acceptance
 and re-open conditions are in the repair receipt. Deployment, retained logs,
 backups, proxies and approved credential rotation remain separate obligations.
+
+### 2026-10-20: SDK browser delivery prerequisite, not cookie closure
+
+B-4 source repair is merged #1225; historical/operational exposure and sign-off
+remain open. The next SDK repair cannot rely on source tests alone: a clean
+pinned build found 16/17 outputs byte-equal but stale browser bundles/copies.
+Aligning them also delivers existing-source analytics and older marketing-only
+group/ICE/anonymous-read parity, so this is a separate prerequisite, not hidden
+inside L1-SDK-B-01. Fresh-build tests compare all four browser files; the package
+now produces its existing wapi alias explicitly. Public-copy refresh is documented.
+
+L1-SDK-B-01 is still unfixed. Preserve the public cookie dictionary's ordinary
+object behavior with safe own-property writes and explicit own-token selection;
+do not import malformed-cookie, JWT-decoder, TTL or popup changes into that repair.
+Six orphan declarations and docs RTC IIFE still need separate provenance work;
+matching hashes are not security or deployed-version assurance.
+
+Intent-risk acceptance, 21.10.2026: browser alignment could alter analytics
+accounting, anonymous reads, group mutations, ICE and constructor registration;
+real-browser/server flows and deployed/cached versions are not verified here.
+Accepted for this bounded correspondence prerequisite because outputs reproduce
+existing source and API/request controls are pinned, not because integration is
+proven. Revisit on source, toolchain, producer/copy changes or integration failures;
+release/deployment evidence and required security sign-off remain open.
 
 ## Known gaps (the "obvious gap" register)
 
