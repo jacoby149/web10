@@ -38,6 +38,30 @@ If a lower layer contradicts its source above, the source wins. Always.
 - [✓ 3.235.17] **A product post's permalink renders the product, not an empty post** — the post-detail layout only rendered `title` / `text` / `media`, so a `posts` doc tagged `product` (D89 — the body IS the product attributes) showed the author row + an empty body + the action bar. `PostRecord.product` (parsed by `parseProductFields`) + the `PostDetail` product card (photo / name / price / badges / affiliate link) + the permalink route resolving `pics[0]` through the owner-scoped media path. Products are inventory like ads — dropped from the standalone feed/profile lists (the storefront + the product card are their public face). All client-side, D60.
 - [✓ 3.238.0] **A product can be deleted — the Products tab gains the delete affordance (D89 CRUD completes)** — the product maker had create + edit but no delete, so a product made in error (or whose affiliate link died) sat in the Products tab + the storefront forever. `deleteProduct` (`data/ads-catalog.ts`) tombstones the product's `posts` doc through the normal CRUD path (the owner has `deleteAll` on their followers group — the same authorization as the ad retire); ads that reference the product by `product_id` keep their denormalized offer snapshot, so the public feed's ad block still renders. `ProductsSection.tsx` gains a per-tile delete (trash) affordance + a confirm dialog (the product's name + the "ads keep their own link" note; a failed delete keeps the dialog open). All client-side, D60.
 
+## OAuth 2.0 — Delegated Access for External Apps (D92)
+
+**Where:** `api/` (endpoints + tables + certify), `ui/` (consent screen +
+revocation list)
+
+OAuth 2.0 (authorization-code flow) for non-browser clients (AI assistants,
+server-side apps). The delegated token is a superset of a normal token: one
+new claim, `client_id`. No `scope` claim — the existing
+`has_permission` / group-membership / I3 enforcement is the scope. The
+consent screen reuses the authenticator's existing patterns. Revocation
+reuses `POST /v3/app-contracts/revoke`. Full spec:
+`knowledge-base/web10-v3/auth/oauth.md`.
+
+- [✓ 3.241.0] **O1: `oauth_clients` table + admin registration** (`api/app/v3/services/clickhouse.py`, `api/app/v3/endpoints/oauth.py`) — the ClickHouse table (`client_id`, `client_secret`, `client_name`, `redirect_uris`, `created_at`, `deleted`), admin-only registration endpoint. The foundation everything else reads.
+- [ ] **O2: `client_id` claim in `TokenData` + `certify()` check** (`api/app/models/auth.py`, `api/app/services/auth.py`) — add the optional claim; in `certify()`, if `client_id` is present, verify the client exists and is not tombstoned. Existing tokens (no `client_id`) unaffected.
+- [ ] **O3: `_check_app_permission` re-keying** (`api/app/v3/endpoints/documents.py`, `api/app/v3/endpoints/query.py`) — a token with `client_id` goes through `has_permission(user_key, client_id=...)` instead of the Origin lookup. The no-Origin skip is preserved for tokens *without* `client_id`.
+- [ ] **O4: `app_contracts` gains `client_id` column** (`api/app/v3/services/clickhouse.py`) — nullable; browser contracts have `NULL`, delegated contracts have the client ID. `has_permission` learns to look up by `client_id`. Revocation works for both.
+- [ ] **O5: `GET /oauth/authorize`** (`api/app/v3/endpoints/oauth.py`, `ui/`) — the consent endpoint. Session check, client lookup, consent screen (reuse `ConsentView` patterns), code mint, redirect. The `oauth_codes` table (60s TTL, single-use).
+- [ ] **O6: `POST /oauth/token` (authorization_code grant)** (`api/app/v3/endpoints/oauth.py`) — code redemption, access-token mint (with `client_id` claim), refresh-token mint, `oauth_refresh_tokens` table.
+- [ ] **O7: `POST /oauth/token` (refresh_token grant)** (`api/app/v3/endpoints/oauth.py`) — rotation, family invalidation on replay.
+- [ ] **O8: Consent UI in `ui/`** (`ui/src/`) — the `/oauth/authorize` screen in the authenticator. Shows the client name, the derived permission list, approve/deny. Reuses `ConsentView` patterns.
+- [ ] **O9: Revocation UI update** (`ui/src/components/Contracts/ContractPage.tsx`) — shows OAuth clients alongside browser-origin apps. Revoke works for both.
+- [ ] **O10: SDK `w.oauth()` helper (optional, later)** (`sdk/`) — a convenience method for the SDK to drive the authorize flow for non-browser clients. Not blocking.
+
 ## L1 Security Scans
 
 **Campaign order:** [security strategy](../security/strategy.md): API + SDK +

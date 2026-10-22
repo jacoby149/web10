@@ -31,6 +31,27 @@ says what can happen **at the same time**.
 
 ## Lanes
 
+### Lane: oauth-2-0 (D92)
+**Owns:** `api/app/v3/endpoints/oauth.py` (new), `api/app/models/auth.py`
+(TokenData), `api/app/services/auth.py` (certify), `api/app/v3/endpoints/
+documents.py` + `query.py` (permission re-keying), `api/app/v3/services/
+clickhouse.py` (oauth_clients, oauth_codes, oauth_refresh_tokens tables +
+app_contracts.client_id column), `ui/src/` (consent screen + revocation list
+for OAuth clients).
+
+Spec: `knowledge-base/web10-v3/auth/oauth.md`. Decision: D92.
+
+- [✓ 3.241.0] **O1: `oauth_clients` table + admin registration** — ClickHouse table (`client_id`, `client_secret`, `client_name`, `redirect_uris`, `created_at`, `deleted`), admin-only registration endpoint. The foundation.
+- [ ] **O2: `client_id` claim + `certify()` check** — optional claim in `TokenData`; `certify()` verifies the client exists + not tombstoned when present. Existing tokens unaffected.
+- [ ] **O3: `_check_app_permission` re-keying** — `client_id` token → `has_permission(user_key, client_id=...)`; no-`client_id` token → today's Origin path. The no-Origin skip is preserved for browser tokens only.
+- [ ] **O4: `app_contracts` gains `client_id` column** — nullable; `has_permission` looks up by `client_id` when provided; revocation works for both.
+- [ ] **O5: `GET /oauth/authorize`** — consent endpoint, session check, client lookup, consent screen, code mint, redirect. `oauth_codes` table (60s TTL, single-use).
+- [ ] **O6: `POST /oauth/token` (authorization_code)** — code redemption, access-token mint (with `client_id`), refresh-token mint, `oauth_refresh_tokens` table.
+- [ ] **O7: `POST /oauth/token` (refresh_token)** — rotation, family invalidation on replay.
+- [ ] **O8: Consent UI in `ui/`** — the `/oauth/authorize` screen; client name, derived permission list, approve/deny. Reuses `ConsentView` patterns.
+- [ ] **O9: Revocation UI update** — `ContractPage.tsx` shows OAuth clients alongside browser-origin apps.
+- [ ] **O10: SDK `w.oauth()` helper (optional, later)** — convenience for non-browser clients. Not blocking.
+
 ### Lane: web10-social-product-permalink
 **Owns:** `marketing/web10-social/` (the post-detail system + the permalink
 route + the screenshot harness).
