@@ -12,6 +12,10 @@ Full artifact coverage and L1-SDK-B-01 repair remain open.
 
 ## Source Denominator
 
+21.10.2026 repair follow-up: alignment #1248 merged; [SDK-B-01 local repair](repair-sdk-b01-cookie.md)
+now covers own-property parsing/selection and five affected runtime outputs.
+Historical source/coverage counts below are unchanged; merge, rollout and sign-off remain open.
+
 | Whole tracked file | Newlines | Logical lines |
 |---|---:|---:|
 | `sdk/src/browser.ts` | 314 | 315 |
