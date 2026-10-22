@@ -9,6 +9,61 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D92 — OAuth 2.0: delegated access for external apps, one new claim, the locks are already on the rooms [decided]
+
+Operator, 21.10.2026: "we need oauth 2.0" — the Muse AI assistant (and any
+external app) needs a standard way to connect per-account without the
+browser-popup flow.
+
+**The decision.** OAuth 2.0 (authorization-code flow) is bolted onto the edge
+of the node. It does not touch the protocol underneath. The delegated token
+is a superset of a normal token: one new claim, `client_id`. No `scope`
+claim — the token is the door key (who + which client + not expired); the
+locks are already on every room (group membership, `has_permission`
+default-deny, I3). The consent screen shows what the app *will* be able to
+do (derived from the user's current grants), but the token doesn't carry a
+redundant copy.
+
+**The one structural change:** app identity re-keying. Today,
+`_check_app_permission` uses the browser `Origin` header, and a missing
+Origin skips the check. After OAuth: a token with a `client_id` claim always
+goes through `has_permission(user_key, client_id=...)` — even without an
+Origin header. The AI assistant has no Origin, but its token has a
+`client_id`, so it's gated. Tokens without `client_id` (the popup flow) keep
+today's Origin path, byte-for-byte.
+
+**What's net-new:** authorize + token endpoints (on the node's domain, each
+provider runs its own), static client registration (`oauth_clients` table),
+refresh-token storage + rotation (`oauth_refresh_tokens`, tombstone idiom,
+family invalidation on replay), authorization-code storage (`oauth_codes`,
+60s TTL, single-use). The consent UI reuses the authenticator's existing
+`ConsentView` patterns. Revocation reuses `POST /v3/app-contracts/revoke`
+(`app_contracts` gains a nullable `client_id` column).
+
+**What does NOT change:** node-to-node traffic, the token exchange between
+providers, inbox delivery, password login, the popup flow, HS256 signing
+(D7 RS256/JWKS is separate and will cover OAuth tokens automatically), the
+"every post reaches every follower" model. I1–I6: no regressions.
+
+**Precedent:** Mastodon — fully decentralized, every third-party client
+connects per-account over OAuth 2.0 without the federation protocol caring.
+web10's federated version is the same: each provider runs its own
+authorize/token endpoints on its own domain.
+
+**Rejects:** (1) a flat `scope` string in the token — it flattens web10's
+existing per-group/per-service/per-operation model into a string the consent
+screen can't render meaningfully and the enforcement layer would have to
+re-parse; the existing model is richer and already enforced. (2) a new
+permission system for OAuth — the locks exist; OAuth is a transport for the
+delegation marker, not a new lock. (3) implicit grant (token in the
+fragment) — rejected; authorization-code only, the standard for
+confidential clients. (4) dynamic client registration — v1 is static
+(operator-registered); self-service is a later addition. (5) PKCE /
+public-client flow — v1 is confidential clients only (server-side apps with
+a secret); PKCE is a later addition if a browser-based OAuth client needs it.
+
+Full spec: `knowledge-base/web10-v3/auth/oauth.md`.
+
 ### D91 - Remove the unused marketing API service [decided]
 
 Operator, 18.10.2026: "lets just rip out marketing api".

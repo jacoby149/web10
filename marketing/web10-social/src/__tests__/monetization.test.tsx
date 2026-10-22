@@ -1,10 +1,26 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import '@testing-library/jest-dom';
 
 import { lucideMock } from './helpers/lucideMock';
 vi.mock('lucide-react', () => lucideMock);
+
+// The ad copy is a Tiptap WYSIWYG (the same editor the post composer uses).
+// jsdom can't drive a ProseMirror contenteditable through DOM events, so tests
+// reach the editor through its command API (the `__editor` seam exposed on the
+// `[data-testid="ad-text-editor"]` node).
+async function adEditor() {
+  const el = screen.getByTestId('ad-text-editor') as HTMLElement & { __editor?: any };
+  await waitFor(() => expect(el.__editor).toBeTruthy());
+  return el.__editor;
+}
+async function typeInAdEditor(text: string) {
+  const editor = await adEditor();
+  await act(async () => {
+    editor.commands.insertContent(text);
+  });
+}
 
 // Mock the ads-catalog data layer (the seam the surface talks to).
 const checkNodeAdmin = vi.fn();
@@ -402,6 +418,7 @@ describe('AdForm — the personal / node scope (node admin)', () => {
       'active',
       [],
       'inline',
+      '', // no title (the form's title field is empty)
       null, // no product section (a pure ad)
     );
   });
@@ -453,7 +470,8 @@ describe('AdForm (create + edit, ad-improvements.md)', () => {
     fireEvent.click(editBtn);
     // The edit form opens (not the new form), pre-filled with the ad's copy.
     expect(await screen.findByTestId('ad-edit-form')).toBeInTheDocument();
-    expect(screen.getByTestId('ad-text')).toHaveValue('Everything I use, linked.');
+    // The copy is a Tiptap WYSIWYG — the editor seeds from the stored markdown.
+    expect(await screen.findByTestId('ad-text-editor')).toBeInTheDocument();
   });
 
   it('saving an edit calls updateAd with the same doc_id', async () => {
@@ -462,8 +480,8 @@ describe('AdForm (create + edit, ad-improvements.md)', () => {
     renderAt('/monetize');
     fireEvent.click(await screen.findByTestId('ads-edit-ad-1'));
     await screen.findByTestId('ad-edit-form');
-    // Change the copy + pick the post format, then save.
-    fireEvent.change(screen.getByTestId('ad-text'), { target: { value: 'Updated copy' } });
+    // Change the copy (through the Tiptap editor) + pick the post format, then save.
+    await typeInAdEditor('Updated copy');
     fireEvent.click(screen.getByTestId('ad-format-post'));
     fireEvent.click(screen.getByTestId('ad-save'));
     await waitFor(() => expect(updateAd).toHaveBeenCalled());
@@ -498,6 +516,86 @@ describe('AdForm (create + edit, ad-improvements.md)', () => {
     fireEvent.click(screen.getByTestId('ad-cancel'));
     expect(await screen.findByTestId('ads-row-ad-1')).toBeInTheDocument();
     expect(screen.queryByTestId('ad-edit-form')).not.toBeInTheDocument();
+  });
+});
+
+describe('AdForm — the creative is a post (title + rich text + multi-media)', () => {
+  const openNewAd = async () => {
+    checkNodeAdmin.mockResolvedValue(false);
+    readMyCatalog.mockResolvedValue({ ads: [], albums: [], posts: [] });
+    renderAt('/monetize');
+    fireEvent.click(await screen.findByTestId('ads-new-ad'));
+    await screen.findByTestId('ad-new-form');
+  };
+
+  it('the New Ad form has a title field (the D82 headline)', async () => {
+    await openNewAd();
+    const title = screen.getByTestId('ad-title');
+    expect(title).toBeInTheDocument();
+    expect(title).toHaveValue('');
+  });
+
+  it('the New Ad form has the rich-text toolbar (the D85 write side)', async () => {
+    await openNewAd();
+    // The toolbar is present with the same formatting surface as the post
+    // composer: bold / italic / strikethrough / heading / list / code / link.
+    expect(screen.getByTestId('ad-toolbar')).toBeInTheDocument();
+    expect(screen.getByTestId('ad-toolbar-bold')).toBeInTheDocument();
+    expect(screen.getByTestId('ad-toolbar-italic')).toBeInTheDocument();
+    expect(screen.getByTestId('ad-toolbar-strikethrough')).toBeInTheDocument();
+    expect(screen.getByTestId('ad-toolbar-heading')).toBeInTheDocument();
+    expect(screen.getByTestId('ad-toolbar-bullet-list')).toBeInTheDocument();
+    expect(screen.getByTestId('ad-toolbar-code')).toBeInTheDocument();
+    expect(screen.getByTestId('ad-toolbar-link')).toBeInTheDocument();
+  });
+
+  it('the copy is a Tiptap editor (the same WYSIWYG the post composer uses)', async () => {
+    await openNewAd();
+    expect(await screen.findByTestId('ad-text-editor')).toBeInTheDocument();
+  });
+
+  it('the media attach is a multi-item tray (the post composer model)', async () => {
+    await openNewAd();
+    // The "Add media" button is present (it opens the multi-file picker).
+    expect(screen.getByTestId('ad-media-add')).toBeInTheDocument();
+    // The file input accepts multiple files.
+    const input = screen.getByTestId('ad-media-input') as HTMLInputElement;
+    expect(input.multiple).toBe(true);
+  });
+
+  it('picking multiple media files adds them to the tray', async () => {
+    await openNewAd();
+    const file1 = new File(['img1'], 'a.png', { type: 'image/png' });
+    const file2 = new File(['img2'], 'b.png', { type: 'image/png' });
+    fireEvent.change(screen.getByTestId('ad-media-input'), { target: { files: [file1, file2] } });
+    // Both items are in the tray.
+    expect(screen.getByTestId('ad-media-tray')).toBeInTheDocument();
+    const items = screen.getAllByTestId(/^ad-media-item-/);
+    expect(items).toHaveLength(2);
+    // Each item has its own alt-text input + remove button.
+    expect(screen.getAllByTestId(/^ad-media-alt-/)).toHaveLength(2);
+    expect(screen.getAllByTestId(/^ad-media-remove-/)).toHaveLength(2);
+  });
+
+  it('removing a media item drops it from the tray', async () => {
+    await openNewAd();
+    const file1 = new File(['img1'], 'a.png', { type: 'image/png' });
+    const file2 = new File(['img2'], 'b.png', { type: 'image/png' });
+    fireEvent.change(screen.getByTestId('ad-media-input'), { target: { files: [file1, file2] } });
+    const items = screen.getAllByTestId(/^ad-media-item-/);
+    expect(items).toHaveLength(2);
+    // Remove the first item.
+    fireEvent.click(screen.getAllByTestId(/^ad-media-remove-/)[0]);
+    expect(screen.getAllByTestId(/^ad-media-item-/)).toHaveLength(1);
+  });
+
+  it('the save button is disabled until the required link is filled', async () => {
+    await openNewAd();
+    // No link yet → the save button is disabled (the link is the one that pays).
+    expect(screen.getByTestId('ad-save')).toBeDisabled();
+    // Fill the link → the save button enables.
+    fireEvent.change(screen.getByTestId('ad-link'), { target: { value: 'https://amzn.to/abc?tag=me' } });
+    expect(screen.getByTestId('ad-save')).not.toBeDisabled();
   });
 });
 
@@ -888,7 +986,8 @@ describe('Unified ad list — the node ad (in the Ads tab, node admin)', () => {
     fireEvent.click(editBtn);
     // The edit form opens (the shared AdForm), pre-filled with the ad's copy.
     expect(await screen.findByTestId('ad-edit-form')).toBeInTheDocument();
-    expect(screen.getByTestId('ad-text')).toHaveValue('Sick of Youtube? Try exporting to web10!');
+    // The copy is a Tiptap WYSIWYG — the editor seeds from the stored markdown.
+    expect(await screen.findByTestId('ad-text-editor')).toBeInTheDocument();
     expect(screen.getByTestId('ad-link')).toHaveValue('https://web10.app/export');
   });
 
@@ -896,8 +995,8 @@ describe('Unified ad list — the node ad (in the Ads tab, node admin)', () => {
     renderAt('/monetize');
     fireEvent.click(await screen.findByTestId('ads-edit-node-1'));
     await screen.findByTestId('ad-edit-form');
-    // Change the copy + pick the post format, then save.
-    fireEvent.change(screen.getByTestId('ad-text'), { target: { value: 'Updated node ad copy' } });
+    // Change the copy (through the Tiptap editor) + pick the post format, then save.
+    await typeInAdEditor('Updated node ad copy');
     fireEvent.click(screen.getByTestId('ad-format-post'));
     fireEvent.click(screen.getByTestId('ad-save'));
     await waitFor(() => expect(updateNodeAd).toHaveBeenCalled());

@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback, useRef, useMemo, type ReactNode } from 'react';
-import { Megaphone, Plus, Pause, Play, Trash2, Pin, FolderPlus, AlertTriangle, RefreshCw, GraduationCap, ArrowUpRight, X, Pencil, ImagePlus, Radio, ChevronDown } from 'lucide-react';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Placeholder from '@tiptap/extension-placeholder';
+import TurndownService from 'turndown';
+import { Megaphone, Plus, Pause, Play, Trash2, Pin, FolderPlus, AlertTriangle, RefreshCw, GraduationCap, ArrowUpRight, X, Pencil, ImagePlus, Radio, ChevronDown, Bold, Italic, Strikethrough, Heading2, List, Code, Link as LinkIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -7,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast, errorMessage } from '@/components/shared/Toast';
+import { markdownToHtml } from '@/lib/markdownHtml';
 import {
   readMyCatalog,
   readNodeAds,
@@ -192,12 +197,13 @@ export function CreatorMonetization({ isAdmin = false }: { isAdmin?: boolean }) 
     albumIds: string[],
     mediaRefs?: string[],
     format: AdFormat = 'inline',
+    title?: string,
     product?: AdProduct | null,
     productId?: string,
   ) => {
     const w = getV3Client();
     const group = await ensureFollowersGroup(username(), provider());
-    await w.create('posts', buildOfferBody(offer, text, status, albumIds, mediaRefs, format, undefined, product, productId), { groups: [group] });
+    await w.create('posts', buildOfferBody(offer, text, status, albumIds, mediaRefs, format, title, product, productId), { groups: [group] });
   };
 
   const editAd = async (
@@ -208,10 +214,11 @@ export function CreatorMonetization({ isAdmin = false }: { isAdmin?: boolean }) 
     albumIds: string[],
     mediaRefs?: string[],
     format: AdFormat = 'inline',
+    title?: string,
     product?: AdProduct | null,
     productId?: string,
   ) => {
-    await updateAd(ad, offer, text, status, albumIds, mediaRefs, format, undefined, product, productId);
+    await updateAd(ad, offer, text, status, albumIds, mediaRefs, format, title, product, productId);
   };
 
   // Edit a NODE ad (the operator's inventory) — keeps the `node_ad` tag (the
@@ -223,9 +230,10 @@ export function CreatorMonetization({ isAdmin = false }: { isAdmin?: boolean }) 
     status: 'active' | 'paused',
     mediaRefs?: string[],
     format: AdFormat = 'inline',
+    title?: string,
     product?: AdProduct | null,
   ) => {
-    await updateNodeAd(ad, offer, text, status, mediaRefs, format, undefined, product);
+    await updateNodeAd(ad, offer, text, status, mediaRefs, format, title, product);
   };
 
   // The one submit path for the ad form (create AND edit, inline or top).
@@ -238,6 +246,7 @@ export function CreatorMonetization({ isAdmin = false }: { isAdmin?: boolean }) 
     ad: AdItem | null,
     offer: AdOffer,
     text: string,
+    title: string,
     status: 'active' | 'paused',
     albumIds: string[],
     mediaRefs: string[],
@@ -250,8 +259,8 @@ export function CreatorMonetization({ isAdmin = false }: { isAdmin?: boolean }) 
       run(
         () =>
           scope === 'node'
-            ? createNodeAd(offer, text, status, mediaRefs, format, product)
-            : createAd(offer, text, status, albumIds, mediaRefs, format, product, productId),
+            ? createNodeAd(offer, text, status, mediaRefs, format, title, product)
+            : createAd(offer, text, status, albumIds, mediaRefs, format, title, product, productId),
         scope === 'node' ? 'Node ad created' : 'Ad created',
       );
       return;
@@ -262,8 +271,8 @@ export function CreatorMonetization({ isAdmin = false }: { isAdmin?: boolean }) 
       run(
         () =>
           wasNode
-            ? editNodeAd(ad, offer, text, status, mediaRefs, format, product)
-            : editAd(ad, offer, text, status, albumIds, mediaRefs, format, product, productId),
+            ? editNodeAd(ad, offer, text, status, mediaRefs, format, title, product)
+            : editAd(ad, offer, text, status, albumIds, mediaRefs, format, title, product, productId),
         'Ad updated',
       );
     } else {
@@ -278,6 +287,7 @@ export function CreatorMonetization({ isAdmin = false }: { isAdmin?: boolean }) 
             albumIds,
             mediaRefs,
             format,
+            title,
             product,
             productId,
           ),
@@ -450,8 +460,8 @@ export function CreatorMonetization({ isAdmin = false }: { isAdmin?: boolean }) 
               albums={data?.albums || []}
               products={data?.products || []}
               allowNode={isAdmin}
-              onSubmit={(offer, text, status, albumIds, mediaRefs, format, scope, product, productId) =>
-                handleAdSubmit(null, offer, text, status, albumIds, mediaRefs, format, scope, product, productId)
+              onSubmit={(offer, text, title, status, albumIds, mediaRefs, format, scope, product, productId) =>
+                handleAdSubmit(null, offer, text, title, status, albumIds, mediaRefs, format, scope, product, productId)
               }
               onCancel={closeAdForm}
             />
@@ -493,11 +503,11 @@ export function CreatorMonetization({ isAdmin = false }: { isAdmin?: boolean }) 
                     initial={ad}
                     albums={data?.albums || []}
                     products={data?.products || []}
-                    allowNode={isAdmin}
-                    onSubmit={(offer, text, status, albumIds, mediaRefs, format, scope, product, productId) =>
-                      handleAdSubmit(ad, offer, text, status, albumIds, mediaRefs, format, scope, product, productId)
-                    }
-                    onCancel={closeAdForm}
+                      allowNode={isAdmin}
+                      onSubmit={(offer, text, title, status, albumIds, mediaRefs, format, scope, product, productId) =>
+                        handleAdSubmit(ad, offer, text, title, status, albumIds, mediaRefs, format, scope, product, productId)
+                      }
+                      onCancel={closeAdForm}
                   />
                 )}
               />
@@ -876,6 +886,31 @@ function AlbumRow({ album, ads, onAddAd }: {
   );
 }
 
+// The markdown converter (D85, rich-text.md "The write side"): Tiptap v3 has no
+// built-in `getMarkdown()`, so the editor's HTML (`getHTML()`) is converted to
+// markdown with turndown. The ad copy is written in a WYSIWYG and the markdown
+// string is what the data layer writes — the same write side as the post
+// composer (an ad is a `posts` doc, so it carries the same markdown `text`).
+const adMarkdownConverter = new TurndownService({
+  headingStyle: 'atx',
+  codeBlockStyle: 'fenced',
+  bulletListMarker: '-',
+});
+
+// One item in the ad's creative media tray (the multi-media attach — the same
+// shape the post composer's tray uses, minus the video-edit + post-phase
+// fields the ad doesn't need). `file` = a newly picked file (uploaded on
+// submit); `existingDocId` = a current media ref kept (edit mode).
+interface AdMediaItem {
+  id: number;
+  file?: File;
+  previewUrl?: string;
+  isVideo?: boolean;
+  existingDocId?: string;
+}
+
+let nextAdMediaId = 0;
+
 /**
  * The ad form — create AND edit (ad-improvements.md). Edit mode pre-fills from
  * `initial`; the save keeps the same doc_id (so pins survive). Adds the CTA
@@ -886,6 +921,16 @@ function AlbumRow({ album, ads, onAddAd }: {
  * CREATE flow: a node admin runs an ad as a personal ad (their followers group)
  * OR a node ad (the discover group, the operator's inventory) from one surface.
  * Edit mode has no scope — the ad's home is fixed by where it was created.
+ *
+ * **The creative is a post** (operator, 21.10.2026): "Post ads are supposed to
+ * be like making a post, have all that flexibility of creating them!" The ad
+ * copy is a Tiptap WYSIWYG (bold / italic / strikethrough / heading / list /
+ * code / link — markdown under the hood, D85) + an optional display-face
+ * **title** (D82) + a **multi-media** tray (many images/videos, drag-to-reorder,
+ * per-item alt text) — the same editor the post composer uses. The ad is a
+ * `posts` doc, so it carries the same `title` + markdown `text` + `media_refs`
+ * as any post; the offer / CTA / disclosure / product are the ad-specific
+ * layer on top.
  */
 function AdForm({ initial, albums, products, allowNode = false, onSubmit, onCancel }: {
   initial: AdItem | null;
@@ -897,6 +942,7 @@ function AdForm({ initial, albums, products, allowNode = false, onSubmit, onCanc
   onSubmit: (
     offer: AdOffer,
     text: string,
+    title: string,
     status: 'active' | 'paused',
     albumIds: string[],
     mediaRefs: string[],
@@ -911,7 +957,8 @@ function AdForm({ initial, albums, products, allowNode = false, onSubmit, onCanc
   // Editing a node ad (the operator's inventory) — no albums (node ads have no
   // albums), and the scope is fixed (the ad's home is where it was created).
   const isNode = !!initial && isNodeAd(initial.doc);
-  const [text, setText] = useState(initial?.text || '');
+  // The ad's headline (D82) — the display-face title above the caption.
+  const [title, setTitle] = useState(initial?.title || '');
   const [kind, setKind] = useState<string>(initial?.offer.kind || 'none');
   const [partner, setPartner] = useState(initial?.offer.partner || '');
   const [link, setLink] = useState(initial?.offer.link || '');
@@ -927,6 +974,58 @@ function AdForm({ initial, albums, products, allowNode = false, onSubmit, onCanc
   // — moves it between groups + retags, same doc_id).
   const [scope, setScope] = useState<'personal' | 'node'>(isNode ? 'node' : 'personal');
   const [saving, setSaving] = useState(false);
+
+  // The ad copy is a Tiptap editor (D85, the write side — the same WYSIWYG the
+  // post composer uses): the user writes in a WYSIWYG (bold, italic, headings,
+  // lists, code, links) and the markdown is stored under the hood. The editor
+  // owns the document; the markdown is serialized on demand at submit (a full
+  // turndown walk on every keystroke is what made typing laggy). Edit mode
+  // seeds the editor from the stored markdown via markdownToHtml (the inverse
+  // of the turndown write) so the editor shows **bold**, not `**bold**`.
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({ link: { openOnClick: false } }),
+      Placeholder.configure({ placeholder: 'Write your ad copy…' }),
+    ],
+    content: markdownToHtml(initial?.text || ''),
+    editorProps: {
+      attributes: {
+        'data-testid': 'ad-text-editor',
+        class:
+          'composer-editor bg-transparent caret-brand-400 min-h-[120px] max-h-[40vh] overflow-y-auto px-0 py-1 text-base leading-relaxed text-foreground focus:outline-none',
+      },
+      // The browser's native Cmd/Ctrl+U underlines a contenteditable selection
+      // in place — but the write side (turndown) has no rule for `<u>` and
+      // markdown has no underline, so the mark would vanish on save. The
+      // toolbar is the ONLY formatting surface (D85) and it has no underline
+      // button, so the editor must not offer one either.
+      handleKeyDown: (_view, event) => {
+        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'u') {
+          event.preventDefault();
+          return true;
+        }
+        return false;
+      },
+    },
+  });
+
+  // Test seam: jsdom can't drive a ProseMirror contenteditable through DOM
+  // events, so tests reach the editor through its command API. Expose the
+  // instance on the contenteditable node (the same seam the post composer uses).
+  useEffect(() => {
+    if (!editor) return;
+    const el = editor.view.dom as HTMLElement & { __editor?: typeof editor };
+    el.__editor = editor;
+    return () => {
+      el.__editor = undefined;
+    };
+  }, [editor]);
+
+  // Serialize the editor's document to markdown — called ONLY at submit.
+  const getAdMarkdown = useCallback(
+    () => (editor ? adMarkdownConverter.turndown(editor.getHTML()).trim() : ''),
+    [editor],
+  );
 
   // The product picker (D89) — the ad references a product (the master) by
   // `product_id`. Selecting a product auto-fills the offer's `link` / `partner`
@@ -949,58 +1048,115 @@ function AdForm({ initial, albums, products, allowNode = false, onSubmit, onCanc
     }
   };
 
-  // The ad's creative media — one item (image or video). `file` = a newly
-  // picked file (uploaded on submit); `existingDocId` = the current media kept
-  // (edit mode); `previewUrl` = what to show.
-  const [media, setMedia] = useState<{
-    file?: File;
-    previewUrl?: string;
-    isVideo?: boolean;
-    existingDocId?: string;
-  } | null>(null);
-  const mediaInputRef = useRef<HTMLInputElement>(null);
+  // The ad's creative media — a MULTI-item tray (the post composer's model):
+  // many images/videos, drag-to-reorder, per-item alt text, remove. `file` = a
+  // newly picked file (uploaded on submit); `existingDocId` = a current media
+  // ref kept (edit mode).
+  const [adMedia, setAdMedia] = useState<AdMediaItem[]>([]);
+  const [adMediaAlt, setAdMediaAlt] = useState<Record<number, string>>({});
+  const adMediaInputRef = useRef<HTMLInputElement>(null);
+  const adDragIdRef = useRef<number | null>(null);
 
-  // Edit mode: resolve the existing media to a preview URL.
+  // Edit mode: resolve the ad's existing media refs into tray items (so the
+  // current creative shows + can be removed). Each ref becomes one item.
   useEffect(() => {
     let live = true;
     const refs = initial?.media_refs;
     if (refs && refs.length) {
-      const first = refs[0];
-      const docId = typeof first === 'string' ? first : (first as { doc_id?: string }).doc_id;
-      if (docId) {
-        setMedia({ existingDocId: docId, isVideo: false });
-        resolveMediaRefs([docId])
+      const items: AdMediaItem[] = refs.map((ref) => {
+        const docId = typeof ref === 'string' ? ref : (ref as { doc_id?: string }).doc_id;
+        return { id: nextAdMediaId++, existingDocId: docId, isVideo: false };
+      });
+      setAdMedia(items);
+      // Resolve each item's preview URL (best-effort — a failed resolve just
+      // leaves the item without a preview, it's still kept on save).
+      items.forEach((item) => {
+        if (!item.existingDocId) return;
+        resolveMediaRefs([item.existingDocId])
           .then((m) => {
             if (!live) return;
             const rec = m[0];
-            setMedia((prev) =>
-              prev && prev.existingDocId === docId
-                ? { ...prev, previewUrl: rec?.thumbnail_url || rec?.url, isVideo: rec?.mime_type?.startsWith('video/') }
-                : prev,
+            setAdMedia((prev) =>
+              prev.map((it) =>
+                it.id === item.id
+                  ? { ...it, previewUrl: rec?.thumbnail_url || rec?.url, isVideo: rec?.mime_type?.startsWith('video/') }
+                  : it,
+              ),
             );
           })
           .catch(() => {});
-      }
+      });
     }
     return () => { live = false; };
   }, [initial]);
 
-  const pickMedia = (file: File) => {
-    const isVideo = file.type.startsWith('video/');
-    setMedia({ file, previewUrl: URL.createObjectURL(file), isVideo });
+  const pickAdMedia = (files: FileList | File[]) => {
+    const list = Array.from(files);
+    if (!list.length) return;
+    const items: AdMediaItem[] = list.map((file) => ({
+      id: nextAdMediaId++,
+      file,
+      previewUrl: URL.createObjectURL(file),
+      isVideo: file.type.startsWith('video/'),
+    }));
+    setAdMedia((prev) => [...prev, ...items]);
+  };
+
+  const removeAdMedia = (id: number) => {
+    setAdMedia((prev) => {
+      const item = prev.find((m) => m.id === id);
+      if (item?.previewUrl?.startsWith('blob:')) URL.revokeObjectURL(item.previewUrl);
+      return prev.filter((m) => m.id !== id);
+    });
+  };
+
+  const updateAdMediaAlt = (id: number, alt: string) => {
+    setAdMediaAlt((prev) => ({ ...prev, [id]: alt }));
+  };
+
+  // Drag-to-reorder (the post composer's tray model).
+  const handleAdMediaDragStart = (e: React.DragEvent, index: number) => {
+    const item = adMedia[index];
+    if (item) adDragIdRef.current = item.id;
+    e.dataTransfer.effectAllowed = 'move';
+  };
+  const handleAdMediaDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+  const handleAdMediaDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    const dragId = adDragIdRef.current;
+    if (dragId === null) return;
+    setAdMedia((prev) => {
+      const dragIdx = prev.findIndex((m) => m.id === dragId);
+      if (dragIdx === -1 || dragIdx === dropIndex) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(dragIdx, 1);
+      next.splice(dropIndex, 0, moved);
+      return next;
+    });
+    adDragIdRef.current = null;
+  };
+  const handleAdMediaDragEnd = () => {
+    adDragIdRef.current = null;
   };
 
   const submit = async () => {
     if (!link.trim()) return;
     setSaving(true);
     try {
-      let mediaRefs: string[] = [];
-      if (media?.file) {
-        const record = await uploadAdMedia(media.file);
-        if (record._id) mediaRefs = [record._id];
-      } else if (media?.existingDocId) {
-        mediaRefs = [media.existingDocId];
+      // Upload each newly-picked media file; keep the existing doc_ids as-is.
+      const mediaRefs: string[] = [];
+      for (const item of adMedia) {
+        if (item.file) {
+          const record = await uploadAdMedia(item.file);
+          if (record._id) mediaRefs.push(record._id);
+        } else if (item.existingDocId) {
+          mediaRefs.push(item.existingDocId);
+        }
       }
+      const markdown = getAdMarkdown();
       const offer: AdOffer = { kind, partner: partner.trim(), link: link.trim(), cta: cta.trim(), disclosure: disclosure.trim() };
       // D89: when a product is selected, the ad references it by `product_id`
       // (the master) + the offer snapshot (link + partner + kind). When no
@@ -1008,7 +1164,7 @@ function AdForm({ initial, albums, products, allowNode = false, onSubmit, onCanc
       // attributes (price, commission, pics) live on the product, not the ad.
       // `scope` is always the form's current scope — in edit mode a change
       // from the ad's current scope triggers a conversion (the parent decides).
-      onSubmit(offer, text.trim() || 'Untitled ad', status, albumIds, mediaRefs, format, scope, null, productId || undefined);
+      onSubmit(offer, markdown || 'Untitled ad', title.trim(), status, albumIds, mediaRefs, format, scope, null, productId || undefined);
       onCancel();
     } catch (e) {
       toast.error(errorMessage(e, 'Failed to upload media'));
@@ -1064,9 +1220,62 @@ function AdForm({ initial, albums, products, allowNode = false, onSubmit, onCanc
       )}
 
       <div className="grid gap-3">
+        {/* The title — the ad's headline (D82). A display-face input above the
+            caption; optional (an ad with no title is caption-only). The same
+            treatment the post composer's title uses (the D85 write side). */}
         <div className="grid gap-1.5">
-          <Label htmlFor="ad-text">Copy</Label>
-          <Input id="ad-text" placeholder="Everything I use, linked." value={text} onChange={(e) => setText(e.target.value)} data-testid="ad-text" />
+          <Label htmlFor="ad-title">Title (optional)</Label>
+          <Input
+            id="ad-title"
+            placeholder="Add a title…"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="h-auto min-h-9 rounded-none border-0 bg-transparent px-0 py-1 font-display text-2xl font-semibold tracking-tight text-foreground caret-brand-400 placeholder:font-display placeholder:text-muted-foreground/50"
+            data-testid="ad-title"
+          />
+        </div>
+
+        {/* The copy — the Tiptap WYSIWYG (the same editor the post composer
+            uses). Bold / italic / strikethrough / heading / list / code / link;
+            the markdown is stored under the hood (serialized at submit). */}
+        <div className="grid gap-1.5">
+          <Label>Copy</Label>
+          <div className="rounded-md border border-border bg-elevated/40 px-3 py-2" data-testid="ad-copy-box">
+            <EditorContent editor={editor} />
+          </div>
+          {/* The formatting toolbar (the D85 write side — the same row the post
+              composer uses): a slim token/Lucide row that wraps the selection /
+              toggles a block. The user controls the markdown here and never
+              sees the syntax. */}
+          <div className="flex items-center gap-1" data-testid="ad-toolbar">
+            {[
+              { icon: Bold, label: 'Bold', run: () => editor?.chain().focus().toggleBold().run(), on: () => editor?.isActive('bold') },
+              { icon: Italic, label: 'Italic', run: () => editor?.chain().focus().toggleItalic().run(), on: () => editor?.isActive('italic') },
+              { icon: Strikethrough, label: 'Strikethrough', run: () => editor?.chain().focus().toggleStrike().run(), on: () => editor?.isActive('strike') },
+              { icon: Heading2, label: 'Heading', run: () => editor?.chain().focus().toggleHeading({ level: 2 }).run(), on: () => editor?.isActive('heading', { level: 2 }) },
+              { icon: List, label: 'Bullet list', run: () => editor?.chain().focus().toggleBulletList().run(), on: () => editor?.isActive('bulletList') },
+              { icon: Code, label: 'Code', run: () => editor?.chain().focus().toggleCode().run(), on: () => editor?.isActive('code') },
+              { icon: LinkIcon, label: 'Link', run: () => editor?.chain().focus().extendMarkRange('link').setLink({ href: 'https://' }).run(), on: () => editor?.isActive('link') },
+            ].map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                aria-label={item.label}
+                aria-pressed={!!item.on()}
+                data-testid={`ad-toolbar-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
+                onClick={item.run}
+                disabled={!editor || saving}
+                className={cn(
+                  'flex h-8 w-8 items-center justify-center rounded-md transition-colors duration-150 disabled:opacity-40',
+                  item.on()
+                    ? 'bg-brand-muted text-brand-300'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
+                )}
+              >
+                <item.icon className="w-4 h-4" strokeWidth={1.75} />
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Format — inline (compact block) vs post (a full post). */}
@@ -1093,38 +1302,65 @@ function AdForm({ initial, albums, products, allowNode = false, onSubmit, onCanc
           </div>
         </div>
 
-        {/* Media — one image or video (the creative). */}
+        {/* Media — a multi-item tray (the post composer's model): many
+            images/videos, drag-to-reorder, per-item alt text, remove. */}
         <div className="grid gap-1.5">
-          <Label>Media (image or video)</Label>
+          <Label>Media (images &amp; videos)</Label>
           <input
-            ref={mediaInputRef}
+            ref={adMediaInputRef}
             type="file"
             accept="image/*,video/*"
+            multiple
             className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) pickMedia(f); e.target.value = ''; }}
+            onChange={(e) => { if (e.target.files) pickAdMedia(e.target.files); e.target.value = ''; }}
             data-testid="ad-media-input"
           />
-          {media ? (
-            <div className="relative overflow-hidden rounded-md border border-border" data-testid="ad-media-preview">
-              {media.isVideo ? (
-                <video src={media.previewUrl} className="max-h-48 w-full object-contain bg-elevated" muted playsInline />
-              ) : (
-                <img src={media.previewUrl} alt="" className="max-h-48 w-full object-contain bg-elevated" />
-              )}
-              <div className="absolute right-2 top-2 flex gap-1">
-                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 bg-background/70" onClick={() => mediaInputRef.current?.click()} aria-label="Replace media" data-testid="ad-media-replace">
-                  <ImagePlus className="h-3.5 w-3.5" />
-                </Button>
-                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 bg-background/70 hover:text-danger" onClick={() => setMedia(null)} aria-label="Remove media" data-testid="ad-media-remove">
-                  <X className="h-3.5 w-3.5" />
-                </Button>
-              </div>
+          {adMedia.length > 0 ? (
+            <div className="flex flex-wrap gap-2" data-testid="ad-media-tray">
+              {adMedia.map((item, i) => (
+                <div
+                  key={item.id}
+                  className="relative group flex-shrink-0 w-24"
+                  draggable
+                  onDragStart={(e) => handleAdMediaDragStart(e, i)}
+                  onDragOver={handleAdMediaDragOver}
+                  onDrop={(e) => handleAdMediaDrop(e, i)}
+                  onDragEnd={handleAdMediaDragEnd}
+                  data-testid={`ad-media-item-${item.id}`}
+                >
+                  <div className="aspect-square overflow-hidden rounded-md border border-border bg-elevated">
+                    {item.isVideo ? (
+                      <video src={item.previewUrl} className="h-full w-full object-cover" muted playsInline />
+                    ) : (
+                      <img src={item.previewUrl} alt={adMediaAlt[item.id] || ''} className="h-full w-full object-cover" />
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeAdMedia(item.id)}
+                    disabled={saving}
+                    aria-label={`Remove ${item.isVideo ? 'video' : 'photo'}`}
+                    className="absolute -top-2 -right-2 flex items-center justify-center h-7 w-7 rounded-full bg-background border border-border shadow-md text-muted-foreground hover:text-danger hover:border-danger transition-colors disabled:opacity-40"
+                    data-testid={`ad-media-remove-${item.id}`}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                  <input
+                    value={adMediaAlt[item.id] || ''}
+                    onChange={(e) => updateAdMediaAlt(item.id, e.target.value)}
+                    placeholder="Alt text…"
+                    disabled={saving}
+                    className="mt-1 h-6 w-full rounded border border-border bg-background px-1.5 text-[0.625rem] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
+                    aria-label={`Alt text for ${item.isVideo ? 'video' : 'photo'} ${i + 1}`}
+                    data-testid={`ad-media-alt-${item.id}`}
+                  />
+                </div>
+              ))}
             </div>
-          ) : (
-            <Button variant="outline" size="sm" onClick={() => mediaInputRef.current?.click()} data-testid="ad-media-add">
-              <ImagePlus className="mr-1 h-3.5 w-3.5" /> Add media
-            </Button>
-          )}
+          ) : null}
+          <Button variant="outline" size="sm" onClick={() => adMediaInputRef.current?.click()} data-testid="ad-media-add">
+            <ImagePlus className="mr-1 h-3.5 w-3.5" /> Add media
+          </Button>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
