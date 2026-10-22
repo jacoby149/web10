@@ -42,7 +42,7 @@ for OAuth clients).
 Spec: `knowledge-base/web10-v3/auth/oauth.md`. Decision: D92.
 
 - [✓ 3.241.0] **O1: `oauth_clients` table + admin registration** — ClickHouse table (`client_id`, `client_secret`, `client_name`, `redirect_uris`, `created_at`, `deleted`), admin-only registration endpoint. The foundation.
-- [ ] **O2: `client_id` claim + `certify()` check** — optional claim in `TokenData`; `certify()` verifies the client exists + not tombstoned when present. Existing tokens unaffected.
+- [✓ 3.242.0] **O2: `client_id` claim + `certify()` check** — optional claim in `TokenData`; `certify()` verifies the client exists + not tombstoned when present. Existing tokens unaffected.
 - [ ] **O3: `_check_app_permission` re-keying** — `client_id` token → `has_permission(user_key, client_id=...)`; no-`client_id` token → today's Origin path. The no-Origin skip is preserved for browser tokens only.
 - [ ] **O4: `app_contracts` gains `client_id` column** — nullable; `has_permission` looks up by `client_id` when provided; revocation works for both.
 - [ ] **O5: `GET /oauth/authorize`** — consent endpoint, session check, client lookup, consent screen, code mint, redirect. `oauth_codes` table (60s TTL, single-use).
