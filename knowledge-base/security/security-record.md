@@ -108,6 +108,12 @@ findings and L1 advancement gates remain open. No model-diverse/three-dry claim.
 
 ## SDK L1 Source Campaign
 
+21.10.2026: SDK-B-01 local source/artifact repair verified; [repro and fresh
+review](scans/2026-10/repair-sdk-b01-cookie.md). Own data-property parsing and
+own-token selection deny synthetic inherited tokens in source/five runtimes.
+208 SDK tests and typecheck pass. Pending merge/deployment/sign-off; scope B
+remains OPEN for other handoffs, not whole-file PASS. Alignment #1248 merged.
+
 [Source/artifact inventory](scans/2026-10/l1-sdk-index.md), source pin
 `caeed4427`, date 2026-10-18, scanner `gpt-6.1 sol`. Seven non-test source files/
 2,496 logical lines; tests and distributions separately accounted, not assumed safe.
