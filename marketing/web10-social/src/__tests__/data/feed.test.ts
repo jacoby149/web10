@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as v3 from '../../data/v3';
-import { readDiscoverFeed, readShortsFeed, readFeedPage, readFeedReactions } from '../../data/feed';
+import { readDiscoverFeed, readShortsFeed, readMusicFeed, readFeedPage, readFeedReactions } from '../../data/feed';
 import { getFeedGroups } from '../../data/groups';
 
 function mockV3Client() {
@@ -441,6 +441,97 @@ describe('feed v3 data layer', () => {
 
       const shorts = await readShortsFeed(50);
       expect(shorts).toEqual([]);
+    });
+  });
+
+  describe('readMusicFeed (the two-layer filter — music.md)', () => {
+    // The filter is two-layered (defense in depth):
+    //   1. SERVER — readDiscoverFeed(…, ["music"]) sends has(tags, 'music'), so
+    //      the node pulls only tagged tracks (cheap + indexable).
+    //   2. RENDER — the gate re-derives audio/* from the resolved media and
+    //      drops fakes (a doc tagged `music` whose media isn't a real audio file).
+    function discoverPost(id: string, mediaRefs: string[], tags: string[], author = 'alice') {
+      return {
+        doc_id: id,
+        author_key: `web10.app/users/${author}`,
+        body: { media_refs: mediaRefs, tags },
+        created_at: '2026-07-18T00:00:00Z',
+      };
+    }
+    function mediaDoc(id: string, mime: string) {
+      return { doc_id: id, created_at: '2026-07-18T00:00:00Z', body: { mime_type: mime } };
+    }
+    function serverFilteredRead(posts: unknown[]) {
+      mock.read.mockImplementation(async (_coll: string, opts: { tags?: string[] }) => {
+        const all = posts as { body: { tags: string[] } }[];
+        if (!opts.tags?.length) return all;
+        return all.filter((p) => opts.tags!.every((t) => p.body.tags.includes(t)));
+      });
+    }
+
+    it('sends the server-side tag filter (["music"]) so the node pulls only tracks', async () => {
+      serverFilteredRead([discoverPost('p1', ['m1'], ['music'])]);
+      mock.listMedia.mockResolvedValue([mediaDoc('m1', 'audio/mpeg')]);
+
+      await readMusicFeed(50);
+
+      expect(mock.read).toHaveBeenCalledWith(
+        'posts',
+        expect.objectContaining({ groups: ['web10.app/groups/web10/discover'], tags: ['music'] }),
+      );
+    });
+
+    it('the render-time gate drops fakes among the tagged posts (video / image / multi-media)', async () => {
+      // p1: audio/mpeg, tagged music       → TRACK
+      // p2: video/mp4, tagged music        → NOT (video faked as track)
+      // p3: image/jpeg, tagged music       → NOT (image faked as track)
+      // p4: audio + video, tagged music    → NOT (a track is a single audio)
+      serverFilteredRead([
+        discoverPost('p1', ['m1'], ['music']),
+        discoverPost('p2', ['m2'], ['music']),
+        discoverPost('p3', ['m3'], ['music']),
+        discoverPost('p4', ['m4', 'm5'], ['music']),
+      ]);
+      mock.listMedia.mockResolvedValue([
+        mediaDoc('m1', 'audio/mpeg'),
+        mediaDoc('m2', 'video/mp4'),
+        mediaDoc('m3', 'image/jpeg'),
+        mediaDoc('m4', 'audio/mpeg'),
+        mediaDoc('m5', 'video/mp4'),
+      ]);
+
+      const tracks = await readMusicFeed(50);
+      const ids = tracks.map((t) => t.post._id).sort();
+
+      expect(ids).toEqual(['p1']);
+      const p1 = tracks.find((t) => t.post._id === 'p1')!;
+      expect(p1.media.mime_type).toBe('audio/mpeg');
+    });
+
+    it('an untagged audio post is not a track (the server tag filter is the inclusion rule)', async () => {
+      serverFilteredRead([
+        discoverPost('p1', ['m1'], ['music']), // tagged audio → TRACK
+        discoverPost('p2', ['m2'], []), // untagged audio → dropped server-side
+      ]);
+      mock.listMedia.mockResolvedValue([
+        mediaDoc('m1', 'audio/mpeg'),
+        mediaDoc('m2', 'audio/mpeg'),
+      ]);
+
+      const tracks = await readMusicFeed(50);
+      expect(tracks.map((t) => t.post._id)).toEqual(['p1']);
+      expect(mock.read).toHaveBeenCalledWith('posts', expect.objectContaining({ tags: ['music'] }));
+    });
+
+    it('returns an empty list when no post is a genuine track', async () => {
+      serverFilteredRead([
+        discoverPost('p1', ['m1'], ['music']), // video faked as track
+        discoverPost('p2', [], ['music']), // no media
+      ]);
+      mock.listMedia.mockResolvedValue([mediaDoc('m1', 'video/mp4')]);
+
+      const tracks = await readMusicFeed(50);
+      expect(tracks).toEqual([]);
     });
   });
 
