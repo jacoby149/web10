@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { resolveMediaRefs } from '@/data';
 import type { AdRecord, MediaRecord } from '@/data';
 import { cn } from '@/lib/utils';
+import { PostBodyInline } from './PostBody';
 
 /**
  * The ad block — renders a post's carried ad as a self-contained "ad-as-a-post"
@@ -122,9 +123,9 @@ export function AdBlock({ ad, className }: { ad: AdRecord; className?: string })
         </p>
       )}
       {ad.text && (
-        <p className={cn('px-3 text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words', ad.title ? 'pt-1' : 'pt-3')}>
-          {ad.text}
-        </p>
+        <div className={cn('px-3 text-sm leading-relaxed', ad.title ? 'pt-1' : 'pt-3')}>
+          <PostBodyInline text={ad.text} />
+        </div>
       )}
 
       {/* The offer row — partner + CTA (the link that pays). */}

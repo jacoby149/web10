@@ -421,7 +421,9 @@ test.describe('Node ads gauntlet — Node Monetization surface → follower feed
     await pageOp.locator('[data-testid="ads-new-ad"]').click();
     await expect(pageOp.locator('[data-testid="ad-scope-toggle"]')).toBeVisible({ timeout: 20000 });
     await pageOp.locator('[data-testid="ad-scope-node"]').click();
-    await pageOp.locator('[data-testid="ad-text"]').fill(nodeAdText);
+    // The ad copy is a Tiptap WYSIWYG (contenteditable) — click to focus, then type.
+    await pageOp.locator('[data-testid="ad-text-editor"]').click();
+    await pageOp.keyboard.type(nodeAdText);
     await pageOp.locator('[data-testid="ad-link"]').fill('https://workflowco.com?ref=gauntlet');
     await pageOp.locator('[data-testid="ad-save"]').click();
     // The surface reloads and shows the new node ad (poll for CH consistency).
