@@ -51,7 +51,7 @@ consent screen reuses the authenticator's existing patterns. Revocation
 reuses `POST /v3/app-contracts/revoke`. Full spec:
 `knowledge-base/web10-v3/auth/oauth.md`.
 
-- [ ] **O1: `oauth_clients` table + admin registration** (`api/app/v3/services/clickhouse.py`, `api/app/v3/endpoints/oauth.py`) — the ClickHouse table (`client_id`, `client_secret`, `client_name`, `redirect_uris`, `created_at`, `deleted`), admin-only registration endpoint. The foundation everything else reads.
+- [✓ 3.241.0] **O1: `oauth_clients` table + admin registration** (`api/app/v3/services/clickhouse.py`, `api/app/v3/endpoints/oauth.py`) — the ClickHouse table (`client_id`, `client_secret`, `client_name`, `redirect_uris`, `created_at`, `deleted`), admin-only registration endpoint. The foundation everything else reads.
 - [ ] **O2: `client_id` claim in `TokenData` + `certify()` check** (`api/app/models/auth.py`, `api/app/services/auth.py`) — add the optional claim; in `certify()`, if `client_id` is present, verify the client exists and is not tombstoned. Existing tokens (no `client_id`) unaffected.
 - [ ] **O3: `_check_app_permission` re-keying** (`api/app/v3/endpoints/documents.py`, `api/app/v3/endpoints/query.py`) — a token with `client_id` goes through `has_permission(user_key, client_id=...)` instead of the Origin lookup. The no-Origin skip is preserved for tokens *without* `client_id`.
 - [ ] **O4: `app_contracts` gains `client_id` column** (`api/app/v3/services/clickhouse.py`) — nullable; browser contracts have `NULL`, delegated contracts have the client ID. `has_permission` learns to look up by `client_id`. Revocation works for both.
