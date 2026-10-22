@@ -168,6 +168,96 @@ export async function readShortsFeed(limit = 50, offset = 0): Promise<ShortPost[
   return shorts;
 }
 
+// ── Music feed (music.md) ────────────────────────────────────────────────────
+
+/** A music track: a discover post whose single media is a real audio file. */
+export interface MusicTrack {
+  post: PostRecord;
+  /** The one resolved media record (the audio file). */
+  media: MediaRecord;
+}
+
+export interface MusicPage {
+  tracks: MusicTrack[];
+  hasMore: boolean;
+}
+
+/**
+ * One PAGE of the Music feed (the paged read — the wall's infinite scroll).
+ * Returns the genuine audio tracks for the page + `hasMore`.
+ *
+ * A music track is a post with exactly one media that is a **real audio file**
+ * — `mime_type` starts with `audio/`. The two-layer model (music.md):
+ *   1. **Server-side** — `readDiscoverFeed(…, ["music"])` sends the generic
+ *      tag filter (`has(tags, 'music')`), so the node pulls only tagged tracks.
+ *   2. **Render-time** — the audio/* re-derive below (the backstop that drops
+ *      fakes: a doc tagged `music` whose media isn't a real audio file).
+ */
+export async function readMusicPage(limit = 50, offset = 0): Promise<MusicPage> {
+  const posts = await readDiscoverFeed(null, limit, ['music'], offset, 'music');
+  const hasMore = posts.length >= limit;
+  const withMedia = posts.filter((p) => p.media_refs?.length);
+  if (!withMedia.length) return { tracks: [], hasMore };
+
+  const token = getV3Client().readToken();
+  const byAuthor = new Map<string, { posts: PostRecord[]; refs: (string | ResolvedMediaRef)[] }>();
+  for (const p of withMedia) {
+    const key = `${p.author_username}@${p.author_provider}`;
+    const entry = byAuthor.get(key);
+    if (entry) {
+      entry.posts.push(p);
+      entry.refs.push(...(p.media_refs || []));
+    } else {
+      byAuthor.set(key, { posts: [p], refs: [...(p.media_refs || [])] });
+    }
+  }
+
+  const mediaByPost: Record<string, MediaRecord[]> = {};
+  for (const [key, entry] of byAuthor) {
+    const [username, provider] = key.split('@');
+    const isOwn = token && username === token.username && provider === token.provider;
+    const seen = new Set<string>();
+    const uniqueRefs = entry.refs.filter((r) => {
+      const id = mediaRefId(r);
+      if (!id || seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+    if (!uniqueRefs.length) continue;
+    try {
+      const media = await resolveMediaRefs(uniqueRefs, { username, provider }, isOwn ? 'media' : 'public_media');
+      for (const p of entry.posts) {
+        const refIds = new Set((p.media_refs || []).map(mediaRefId));
+        mediaByPost[p._id || ''] = media.filter((m) => m._id && refIds.has(m._id));
+      }
+    } catch {
+      // Media resolution failed for this author — degrade (no tracks from them).
+    }
+  }
+
+  const tracks: MusicTrack[] = [];
+  for (const p of withMedia) {
+    // The render-time gate (music.md): a real audio file, re-derived from the
+    // resolved media — not trusted from the client-asserted `music` tag.
+    const audio = (mediaByPost[p._id || ''] || []).filter(
+      (m) => m.mime_type?.startsWith('audio/'),
+    );
+    if (audio.length === 1 && (p.media_refs?.length ?? 0) === 1) {
+      tracks.push({ post: p, media: audio[0] });
+    }
+  }
+  return { tracks, hasMore };
+}
+
+/**
+ * The Music feed (the one-shot read — the search). Returns the
+ * genuine audio tracks for the first page.
+ */
+export async function readMusicFeed(limit = 50, offset = 0): Promise<MusicTrack[]> {
+  const { tracks } = await readMusicPage(limit, offset);
+  return tracks;
+}
+
 // ── Suggested users ──────────────────────────────────────────────────────────
 
 export interface SuggestedUser {

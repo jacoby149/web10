@@ -249,8 +249,22 @@ def ensure_apps_schema():
             ") ENGINE = MergeTree ORDER BY (doc_id, reader_key, surface, event_type, seen_at)"
             " TTL toDateTime(seen_at) + INTERVAL 1 YEAR"
         )
+        # oauth_clients — the OAuth 2.0 client registry (D92). One row per
+        # *app* (not per user): the client_id, its secret, the display name the
+        # consent screen shows, and the exact-match redirect URIs. Permanent
+        # (no TTL) — it's the app's identity, registered once by the operator.
+        # ReplacingMergeTree + tombstone: revoking a client appends a deleted=1
+        # row that ranks latest, so the client leaves the registry. Pre-existing
+        # volumes predate the table; the DDL template covers fresh volumes.
+        client.command(
+            "CREATE TABLE IF NOT EXISTS oauth_clients ("
+            "client_id String, client_secret String, client_name String, "
+            "redirect_uris Array(String), created_at DateTime64(3), "
+            "updated_at DateTime64(3), deleted UInt8 DEFAULT 0"
+            ") ENGINE = ReplacingMergeTree(updated_at) ORDER BY client_id"
+        )
         log.info(
-            "[v3] schema ensured (apps.visits + app_ratings.comment + node_config + app_visits + group_contracts.discoverable + group_contracts.tags + group_contracts.membership_visibility + documents.ad_mode/ad_target + moderation_flags + bug_reports + marketing_events + banned_users + content_events present)"
+            "[v3] schema ensured (apps.visits + app_ratings.comment + node_config + app_visits + group_contracts.discoverable + group_contracts.tags + group_contracts.membership_visibility + documents.ad_mode/ad_target + moderation_flags + bug_reports + marketing_events + banned_users + content_events + oauth_clients present)"
         )
         # Data migration (idempotent): re-home demo apps registered under
         # their directory-index file URLs onto their directory URLs.
@@ -2159,6 +2173,81 @@ def cleanup_stale_app_contracts(user_key: str) -> int:
         {"user_key": user_key},
     )
     return result.written_rows if hasattr(result, "written_rows") else 0
+
+
+# ---------------------------------------------------------------------------
+# OAuth 2.0 — client registry (D92)
+# ---------------------------------------------------------------------------
+
+
+def add_oauth_client(client_id: str, client_secret: str, client_name: str, redirect_uris: list[str]) -> dict:
+    """Register an OAuth client (one row per app). Upserts if the client_id
+    exists — a re-registration refreshes the secret + redirect URIs and
+    un-tombstones (a new active row ranks latest, so the client re-enters the
+    registry)."""
+    now = _now()
+    client.insert(
+        "oauth_clients",
+        [[client_id, client_secret, client_name, redirect_uris, now, now, 0]],
+    )
+    return {
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "client_name": client_name,
+        "redirect_uris": redirect_uris,
+        "created_at": _iso_utc(now),
+    }
+
+
+def get_oauth_client(client_id: str) -> dict | None:
+    """Get an active OAuth client by id. Returns None if absent or tombstoned."""
+    result = client.query(
+        "SELECT client_id, client_secret, client_name, redirect_uris, created_at FROM ("
+        "SELECT client_id, client_secret, client_name, redirect_uris, created_at, deleted, "
+        "row_number() OVER (PARTITION BY client_id ORDER BY updated_at DESC) AS rn "
+        "FROM oauth_clients WHERE client_id = %(client_id)s) WHERE rn = 1 AND deleted = 0",
+        {"client_id": client_id},
+    )
+    rows = result.result_rows
+    if not rows:
+        return None
+    row = rows[0]
+    return {
+        "client_id": row[0],
+        "client_secret": row[1],
+        "client_name": row[2],
+        "redirect_uris": list(row[3]) if row[3] else [],
+        "created_at": _iso_utc(row[4]),
+    }
+
+
+def list_oauth_clients() -> list[dict]:
+    """List all active OAuth clients (admin view). Never returns the secret."""
+    result = client.query(
+        "SELECT client_id, client_name, redirect_uris, created_at FROM ("
+        "SELECT client_id, client_name, redirect_uris, created_at, deleted, "
+        "row_number() OVER (PARTITION BY client_id ORDER BY updated_at DESC) AS rn "
+        "FROM oauth_clients) WHERE rn = 1 AND deleted = 0 ORDER BY client_id",
+    )
+    return [
+        {
+            "client_id": row[0],
+            "client_name": row[1],
+            "redirect_uris": list(row[2]) if row[2] else [],
+            "created_at": _iso_utc(row[3]),
+        }
+        for row in result.result_rows
+    ]
+
+
+def revoke_oauth_client(client_id: str) -> None:
+    """Tombstone an OAuth client (one row = one app)."""
+    client.command(
+        "INSERT INTO oauth_clients (client_id, client_secret, client_name, redirect_uris, created_at, updated_at, deleted) "
+        "SELECT client_id, client_secret, client_name, redirect_uris, created_at, now64(6), 1 "
+        "FROM oauth_clients WHERE client_id = %(client_id)s AND deleted = 0",
+        {"client_id": client_id},
+    )
 
 
 # ---------------------------------------------------------------------------

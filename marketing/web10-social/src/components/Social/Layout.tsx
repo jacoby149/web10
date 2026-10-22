@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { User, Users, MessageSquare, LogOut, LogIn, Bug, Store, Gamepad2, Radio, Zap, Clapperboard, Settings, MoreHorizontal, X, Bell, ChevronDown, DollarSign, Flame, Shield, Video } from 'lucide-react';
+import { User, Users, MessageSquare, LogOut, LogIn, Bug, Store, Gamepad2, Radio, Zap, Clapperboard, Settings, MoreHorizontal, X, Bell, ChevronDown, DollarSign, Flame, Shield, Video, Music } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getWapi } from '@/data/wapi';
@@ -46,6 +46,7 @@ const feedItem = { path: '/feed', icon: Flame, label: 'Posts', testId: 'nav-feed
 // The sidebar owns the nav; the ?view= / ?tab= salad retires.
 const videoItem = { path: '/video', icon: Video, label: 'Video', testId: 'nav-video' };
 const shortsItem = { path: '/shorts', icon: Clapperboard, label: 'Shorts', testId: 'nav-shorts' };
+const musicItem = { path: '/music', icon: Music, label: 'Music', testId: 'nav-music' };
 const peopleItem = { path: '/people', icon: Users, label: 'People', testId: 'nav-people' };
 const messagesItem = { path: '/messages', icon: MessageSquare, label: 'Messages', testId: 'nav-messages' };
 // The profile nav item shows the user's name/username (not the word "Profile")
@@ -114,12 +115,12 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
   // Shorts. People validates "wow there are people here!" (the node stats),
   // then the user makes their way down the pyramid: Posts (the ranked board),
   // Video (the wall), Shorts (the lens). Anon + signed-in share the order.
-  const anonSidebarNavItems = [peopleItem, feedItem, videoItem, shortsItem];
+  const anonSidebarNavItems = [peopleItem, feedItem, videoItem, shortsItem, musicItem];
   const anonBottomNavItems = [peopleItem, feedItem, videoItem, shortsItem];
   // Signed-in: Profile at the top, then the pyramid (People, Posts, Video,
-  // Shorts), then Messages + Monetization. More holds the rest (Settings,
-  // Node Monetization, Node Settings, coming-soon).
-  const sidebarNavItems = isAnon ? anonSidebarNavItems : [profileItem, peopleItem, feedItem, videoItem, shortsItem, messagesItem, monetizationItem];
+  // Shorts, Music), then Messages + Monetization. More holds the rest
+  // (Settings, Node Monetization, Node Settings, coming-soon).
+  const sidebarNavItems = isAnon ? anonSidebarNavItems : [profileItem, peopleItem, feedItem, videoItem, shortsItem, musicItem, messagesItem, monetizationItem];
   // Mobile: the four pyramid destinations (People, Posts, Video, Shorts) +
   // More (all the other icons: Profile, Messages, Monetization, Settings, ...).
   const bottomNavItems = isAnon ? anonBottomNavItems : [feedItem, videoItem, shortsItem, messagesItem];
@@ -770,6 +771,19 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                 >
                   <Users className="w-5 h-5" strokeWidth={1.75} />
                   {peopleItem.label}
+                </button>
+                {/* Music — the audio track wall (music.md). A real destination,
+                    not coming-soon: a `posts` doc with a single `audio/*` media. */}
+                <button
+                  data-testid="nav-music-mobile"
+                  onClick={() => go(musicItem.path)}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150',
+                    isActive(musicItem.path) ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
+                  )}
+                >
+                  <Music className="w-5 h-5" strokeWidth={1.75} />
+                  {musicItem.label}
                 </button>
                 <button
                   data-testid="nav-settings-mobile"

@@ -26,7 +26,7 @@ measure. Re-scan after the hardening merges to flip them.
 |---|---|---|---|---|---|---|---|
 | `api/app/services/auth.py :: decode_token` | L1 | **OPEN** | (audit) | 2026-10 | — | auth | B-3 unsigned decode path; B-1 I1 symmetric HS256. Hardening in 1157 (unmerged) |
 | `api/app/settings.py` | L1 | **OPEN** | (audit) | 2026-10 | — | config | B-2 secrets in source (signing key + Stripe/Twilio/CH creds). Hardening in 1157 (unmerged) |
-| `api/app/middleware.py` | L1 | **OPEN** | `gpt-6.1 sol` | 2026-10-18 | — | logging | B-4 source repair with passing repro gate: metadata-only route/method/status/latency, no body/headers/unsigned attribution/error copy. [Evidence](scans/2026-10/repair-b4-middleware.md). Merge/deployment, historical exposure and required security sign-off remain unclosed; no whole-file PASS. |
+| `api/app/middleware.py` | L1 | **OPEN** | `gpt-6.1 sol` | 2026-10-18 | — | logging | B-4 source repair merged #1225 with passing repro gate. [Evidence](scans/2026-10/repair-b4-middleware.md). Deployment, historical exposure and required security sign-off remain unclosed; no whole-file PASS. |
 | `api/app/main.py :: CORS` | L1 | **OPEN** | (audit) | 2026-10 | — | boundary | B-5 `allow_origins=["*"]` — load-bearing assumption, needs a pinning test |
 | `api/app/v3/services/clickhouse.py :: read path` | L1 | PASS | (audit) | 2026-10 | — | query-engine | I3 read gate on lock (the crown jewel holds) — `can_read_group` / `effective_role_perms` |
 | `api/app/v3/services/safe_query.py` | L1 | PASS | (audit) | 2026-10 | — | query-engine | I3 wall for caller SQL on lock — boundary on input CTEs, not output filter |
@@ -39,6 +39,7 @@ measure. Re-scan after the hardening merges to flip them.
 | `sdk/src/token.ts :: decodeJwt` | L1 | PASS | (audit) | 2026-10 | — | sdk-auth | S-4 unsigned base64 decode — acceptable for reading claims; doc: never for authz |
 | `sdk/src/token.ts :: cookie` | L1 | PASS | (audit) | 2026-10 | — | sdk-auth | S-5 `SameSite=Lax`+`Secure`, no HttpOnly (impossible by design), 60-day — acceptable, noted |
 | `api/app/v3/endpoints/groups.py :: POST /v3/groups/list` | L1 | PASS | `qwen3.8-27b` (OpenCode) | 2026-10-19 | — | groups | Owner-row self-heal on the /list read (the dead-group ratchet breaker, 3.237.1): for every user-created group (`{provider}/groups/users/{creator}/…`) in the caller's list, the creator's member row is re-pointed to `owner` when missing or non-owner. Gated on `creator == caller` (the creator is parsed from the group_id; another user's group is never touched — a follower's read of a followed group is read-only). The write is the same `add_group_member` the /join endpoint uses (a current `owner` row; latest-row dedup makes it win). No new read surface (the /list response shape is unchanged), no I3 change (the healed row only restores the creator's own access to their own group), no admin path. Repro: `api/tests/test_v3_endpoints.py::TestListGroups` (heals the caller's own followers group; never another user's) + `api/tests/test_v3_clickhouse.py::TestHealFollowersGroupOwner` (missing row → owner, already owner → no-op, drifted member → re-pointed, missing group → no-op, no owner role → no-op). |
+| `api/app/v3/endpoints/oauth.py` (client registry, D92 O1) | L1 | PASS | `qwen3.8-27b` (OpenCode) | 2026-10-22 | — | oauth | OAuth 2.0 client registry (the delegated-access foundation): `oauth_clients` ClickHouse table (ReplacingMergeTree + tombstone) + admin-only register/list/lookup/revoke under `/v3/oauth/clients/`. `register` + `list` + `revoke` are `check_admin`-gated (non-admin → 403); `lookup` is unauthenticated but returns only public fields (`client_id`/`client_name`/`redirect_uris`) — the `client_secret` is minted via `secrets.token_urlsafe(32)`, returned exactly once at register, and never returned by list/lookup. Redirect URIs are https-only + exact-match (validated at register). No token claim, no `certify`/`has_permission` change yet (the Origin→client_id re-keying is O2/O3), so no new I3/I5 surface. Repro: `api/tests/test_oauth_clients.py` (15: admin register mints secret, non-admin 403 on register/list/revoke, non-https redirect rejected, list omits secret, lookup 404 on missing/tombstoned, revoke tombstones). |
 | `api/rtc/` (admission) | L4 | **OPEN** | — | — | — | rtc | RTC socket admission / certify gate (cross-service RTC↔API) — see `BP-3`. Hardening in 1159 (unmerged) |
 | federation signing (I1) | L4 | **OPEN** | — | — | — | federation | B-1 / D7 — HS256 → RS256/EdDSA + JWKS (cross-node). See `BP-1` |
 | delegation model (I5) | L3 | **OPEN** | — | — | — | auth | scoped app-management delegation (within the API service). See `BP-2`. Hardening in 1157 (unmerged) |
@@ -120,6 +121,16 @@ findings and L1 advancement gates remain open. No model-diverse/three-dry claim.
 | D v3 foundations | 633 | [Receipt](scans/2026-10/l1-sdk-d.md): no confirmed local C+I issue; shared permission-array mutation is correctness evidence, not a server grant; helper-consumer review pending. |
 | E v3 data/request methods | 459 | [Receipt](scans/2026-10/l1-sdk-e.md): no confirmed local C+I issue; cookie/state precedence and fake-helper flow do not establish authenticated cross-account requests; server/transport handoffs pending. |
 | F v3 groups/consent/types | 591 | OPEN: [receipt](scans/2026-10/l1-sdk-f.md), L1-SDK-F-01 alias with A-01 for unbound consent responses in different implementations; existing S-6 metadata wildcard and S-3 functional omission, no actual grant or token leak demonstrated. |
+
+### SDK Artifact Follow-Up (20.10.2026)
+
+[Clean-build/copy evidence](scans/2026-10/sdk-artifact-correspondence.md) at
+`89323cd93` proves 16/17 original clean outputs matched; four browser files lagged
+source. Candidate alignment regenerates those files and explicitly produces the
+wapi alias; five fresh-build/API-parity tests pass, SDK total 171 plus typecheck.
+The source-existing analytics/group/ICE/anonymous-read delta is documented, not
+silently called a cookie fix. L1-SDK-B-01, six orphan declaration/maps, docs RTC
+IIFE provenance and deployment/full artifact/security sign-off remain open.
 
 ## Remaining L1 Boundaries
 

@@ -12,6 +12,7 @@ import UserFollowListScreen from '@/components/Bio/UserFollowListScreen';
 import DiscoverScreen from '@/components/Discover/DiscoverScreen';
 import WatchScreen from '@/components/Watch/WatchScreen';
 import ShortsScreen from '@/components/Shorts/ShortsScreen';
+import MusicScreen from '@/components/Music/MusicScreen';
 import GroupsScreen from '@/components/Groups/GroupsScreen';
 import GroupDetailScreen from '@/components/Groups/GroupDetailScreen';
 import DmsScreen from '@/components/Chat/DmsScreen';
@@ -483,6 +484,7 @@ function App() {
           <Route path="/watch/:postId" element={<WatchScreen />} />
           <Route path="/shorts" element={<ShortsScreen />} />
           <Route path="/shorts/:postId" element={<ShortsScreen />} />
+          <Route path="/music" element={<MusicScreen />} />
           <Route path="/groups" element={<GroupsScreen />} />
           <Route path="/groups/:groupId" element={<GroupDetailRoute />} />
           <Route path="/groups/:groupId/saved/:collectionId" element={<GroupSavedCollectionRoute />} />

@@ -17,10 +17,11 @@ import {
   generateThumbnail,
   captureVideoPoster,
   getVideoInfo,
+  getAudioInfo,
   validateVideoDuration,
 } from '@/lib/mediaProcessing';
 import type { ProcessingError as MediaProcessingError } from '@/lib/mediaProcessing';
-import { Image, X, Send, Loader2, AlertTriangle, GripVertical, Globe, Lock, Megaphone, Scissors, Repeat2, Bold, Italic, Strikethrough, Heading2, List, Code, Link as LinkIcon, Film } from 'lucide-react';
+import { Image, X, Send, Loader2, AlertTriangle, GripVertical, Globe, Lock, Megaphone, Scissors, Repeat2, Bold, Italic, Strikethrough, Heading2, List, Code, Link as LinkIcon, Film, Music } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AdPicker } from './AdPicker';
 import { VideoEditorSheet } from './VideoEditorSheet';
@@ -29,6 +30,12 @@ import { editVideo, isNoopEdit } from '@/lib/videoEditing';
 import { markdownToHtml } from '@/lib/markdownHtml';
 
 let nextMediaId = 0;
+
+function formatAudioDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60);
+  return m > 0 ? `${m}:${String(s).padStart(2, '0')}` : `${s}s`;
+}
 
 // The markdown converter (D85, rich-text.md "The write side"): Tiptap v3 has no
 // built-in `getMarkdown()`, so the editor's HTML (`getHTML()`) is converted to
@@ -47,8 +54,10 @@ interface AttachedMedia {
   file: File;
   previewUrl: string;
   isVideo: boolean;
+  isAudio: boolean;
   width: number;
   height: number;
+  duration: number;
   altText: string;
   processing: boolean;
   /** True once the user has run the video through the editor (the file is the
@@ -60,6 +69,10 @@ interface AttachedMedia {
   postPhase?: 'encoding' | 'uploading';
   /** 0 → 1 progress for the current postPhase. */
   postProgress?: number;
+  /** The album art file for an audio item (optional — the track's cover). */
+  albumArt?: File;
+  /** The album art preview URL (object URL, revoked on remove/unmount). */
+  albumArtUrl?: string;
   error?: MediaProcessingError;
 }
 
@@ -74,6 +87,7 @@ function MediaTrayItem({
   onDrop,
   onDragEnd,
   onEdit,
+  onAlbumArtChange,
   disabled,
 }: {
   item: AttachedMedia;
@@ -86,6 +100,7 @@ function MediaTrayItem({
   onDrop: (e: React.DragEvent, index: number) => void;
   onDragEnd: () => void;
   onEdit?: () => void;
+  onAlbumArtChange?: (file: File) => void;
   disabled: boolean;
 }) {
   const aspectRatio = item.width && item.height ? item.width / item.height : 1;
@@ -94,14 +109,54 @@ function MediaTrayItem({
   return (
     <div
       className="relative group flex-shrink-0"
-      style={{ aspectRatio: clampedRatio, maxWidth: '33%' }}
+      style={{ aspectRatio: item.isAudio ? 1 : clampedRatio, maxWidth: '33%' }}
       draggable
       onDragStart={(e) => onDragStart(e, index)}
       onDragOver={(e) => onDragOver(e, index)}
       onDrop={(e) => onDrop(e, index)}
       onDragEnd={onDragEnd}
     >
-      {item.isVideo ? (
+      {item.isAudio ? (
+        <div className="w-full h-full rounded-lg ring-1 ring-border bg-elevated flex flex-col items-center justify-center gap-2 p-2 relative overflow-hidden">
+          {item.albumArtUrl ? (
+            <img
+              src={item.albumArtUrl}
+              alt="Album art"
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-brand-muted to-background flex items-center justify-center">
+              <Music className="w-10 h-10 text-brand-300/60" strokeWidth={1.5} />
+            </div>
+          )}
+          <div className="relative z-10 flex flex-col items-center gap-1">
+            <Music className="w-6 h-6 text-foreground" strokeWidth={1.75} />
+            {item.duration > 0 && (
+              <span className="font-mono text-[0.625rem] tabular-nums text-foreground bg-background/70 rounded px-1">
+                {formatAudioDuration(item.duration)}
+              </span>
+            )}
+          </div>
+          {onAlbumArtChange && (
+            <label className="relative z-10 mt-1 cursor-pointer">
+              <span className="flex items-center gap-1 text-[0.625rem] font-medium text-foreground bg-background/80 rounded-full px-2 py-0.5 hover:bg-background transition-colors">
+                <Image className="w-3 h-3" />
+                {item.albumArt ? 'Change art' : 'Add art'}
+              </span>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) onAlbumArtChange(f);
+                  e.target.value = '';
+                }}
+              />
+            </label>
+          )}
+        </div>
+      ) : item.isVideo ? (
         <video
           src={item.previewUrl}
           className="w-full h-full object-cover rounded-lg ring-1 ring-border"
@@ -494,8 +549,10 @@ export default function PostComposer({
           file,
           previewUrl,
           isVideo: file.type.startsWith('video/'),
+          isAudio: file.type.startsWith('audio/'),
           width: 0,
           height: 0,
+          duration: 0,
           altText: '',
           processing: false,
           error: validationError,
@@ -504,14 +561,17 @@ export default function PostComposer({
       }
 
       const isVideo = file.type.startsWith('video/');
+      const isAudio = file.type.startsWith('audio/');
 
       itemsToAdd.push({
         id: nextMediaId++,
         file,
         previewUrl,
         isVideo,
+        isAudio,
         width: 0,
         height: 0,
+        duration: 0,
         altText: '',
         processing: true,
       });
@@ -519,7 +579,14 @@ export default function PostComposer({
       // Process in background
       (async () => {
         try {
-          if (isVideo) {
+          if (isAudio) {
+            const info = await getAudioInfo(file);
+            setMediaItems((prev) =>
+              prev.map((item) =>
+                item.file === file ? { ...item, duration: info.duration, processing: false } : item,
+              ),
+            );
+          } else if (isVideo) {
             const info = await getVideoInfo(file);
             const durationError = validateVideoDuration(info.duration);
             if (durationError) {
@@ -599,6 +666,7 @@ export default function PostComposer({
     const item = mediaItems.find((m) => m.id === id);
     if (item) {
       previewUrlsRef.current.delete(item.previewUrl);
+      if (item.albumArtUrl) URL.revokeObjectURL(item.albumArtUrl);
     }
     setMediaItems((prev) => prev.filter((m) => m.id !== id));
   }
@@ -606,6 +674,18 @@ export default function PostComposer({
   function updateAltText(id: number, alt: string) {
     setMediaItems((prev) =>
       prev.map((item) => (item.id === id ? { ...item, altText: alt } : item)),
+    );
+  }
+
+  function handleAlbumArtChange(id: number, file: File) {
+    setMediaItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        const url = URL.createObjectURL(file);
+        previewUrlsRef.current.add(url);
+        if (item.albumArtUrl) URL.revokeObjectURL(item.albumArtUrl);
+        return { ...item, albumArt: file, albumArtUrl: url };
+      }),
     );
   }
 
@@ -756,7 +836,25 @@ export default function PostComposer({
       for (const item of mediaItems) {
         let record: MediaRecord;
 
-        if (item.isVideo) {
+        if (item.isAudio) {
+          // Audio: no transcode (the node's ffmpeg is for video HLS), no
+          // poster frame. The album art (if the user picked one) becomes the
+          // track's thumbnail — the Music wall's cover.
+          let albumArtFile: File | undefined;
+          if (item.albumArt) {
+            const thumb = await generateThumbnail(item.albumArt);
+            albumArtFile = new File([thumb.blob], `album-art-${Date.now()}.webp`, { type: thumb.mimeType });
+          }
+
+          record = await uploadMedia({
+            file: item.file,
+            thumbnailFile: albumArtFile,
+            durationSeconds: Math.round(item.duration * 100) / 100,
+            altText: item.altText || undefined,
+            service: mediaService,
+            onProgress: (p) => patchItem(item.id, { postPhase: 'uploading', postProgress: p }),
+          });
+        } else if (item.isVideo) {
           // The node transcodes every upload to HLS. A video the user ran
           // through the editor is already the finished re-encode; one they
           // never touched gets the DEFAULT edit (Original ratio, full
@@ -846,6 +944,10 @@ export default function PostComposer({
         mediaItems[0].width > 0 &&
         mediaItems[0].height > 0 &&
         mediaItems[0].width < mediaItems[0].height;
+      // A music track (music.md): exactly one audio file. Auto-detect, no
+      // toggle — the tag is the server-side feed filter; the Music feed also
+      // re-derives audio/* at render (the tag alone is client-asserted).
+      const isMusic = mediaItems.length === 1 && mediaItems[0].isAudio;
       const postRecord = await createPost(
         {
           title: title.trim() || undefined,
@@ -853,7 +955,7 @@ export default function PostComposer({
           media_refs: mediaRecords.map((m) => m._id!).filter(Boolean),
           visibility,
           created_at: new Date().toISOString(),
-          tags: isShort ? ['short'] : undefined,
+          tags: isShort ? ['short'] : isMusic ? ['music'] : undefined,
         },
         groups,
         pinnedAd ? { mode: 'pinned', target: pinnedAd._id } : undefined,
@@ -1028,6 +1130,7 @@ export default function PostComposer({
                       onDrop={handleMediaDrop}
                       onDragEnd={handleDragEnd}
                       onEdit={item.isVideo ? () => setEditingMediaId(item.id) : undefined}
+                      onAlbumArtChange={item.isAudio ? (f) => handleAlbumArtChange(item.id, f) : undefined}
                       disabled={posting || uploading}
                     />
                   ))}
@@ -1192,7 +1295,7 @@ export default function PostComposer({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"
+                accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,audio/mpeg"
                 multiple
                 className="hidden"
                 onChange={handleFileSelect}

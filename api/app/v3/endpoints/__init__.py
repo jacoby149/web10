@@ -15,6 +15,7 @@ from . import (
     logs,
     media,
     moderation,
+    oauth,
     preview,
     query,
     recovery,
@@ -65,6 +66,9 @@ router.include_router(contracts.router, prefix="/app-contracts")
 
 # App store
 router.include_router(appstore.router, prefix="/apps")
+
+# OAuth 2.0 — client registry (D92). The authorize/token endpoints land in O5/O6.
+router.include_router(oauth.router, prefix="/oauth")
 
 # Logs (SDK/E2E forwarding)
 router.include_router(logs.router, prefix="")
