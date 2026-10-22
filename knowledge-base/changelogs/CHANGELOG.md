@@ -1,4 +1,4 @@
-3.239.2 || 21.10.2026
+3.240.1 || 21.10.2026
 fix(sdk): **SDK-B-01 cookie dictionary integrity** — define parsed cookies as own data properties and select only an own token, denying synthetic prototype/inherited-token attacks while preserving ordinary objects, URI/JSON/SSR, own-token behavior and public signatures. Rebuilt five runtime outputs and token declaration map with the pinned producer; source/artifact repro tests and compatibility controls pass (208 SDK tests, typecheck). Fresh same-model review and dated intent-risk acceptance recorded; alignment #1248 marked merged. Source repair pending merge/deployment/model-diverse sign-off; no cookie planting, server access, auth-message fix or protocol/security PASS claimed.
 
 3.240.0 || 21.10.2026
