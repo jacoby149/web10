@@ -30,9 +30,7 @@ class TestCertify:
         token = Token(token="t")
         with patch(
             "app.services.auth.decode_token",
-            return_value=TokenData(
-                username="alice", provider=settings.PROVIDER, expires=_future_iso(), client_id=None
-            ),
+            return_value=TokenData(username="alice", provider=settings.PROVIDER, expires=_future_iso(), client_id=None),
         ):
             assert certify(token) is True
 
