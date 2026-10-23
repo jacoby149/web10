@@ -825,13 +825,30 @@ class TestAppContracts:
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
                 [
-                    ("myapp.com", '{"posts": ["readAll"], "playlists": ["readAll", "create"]}'),
+                    ("myapp.com", "", '{"posts": ["readAll"], "playlists": ["readAll", "create"]}'),
                 ]
             )
             contracts = ch.get_app_contracts("alice")
             assert len(contracts) == 1
             assert contracts[0]["allowed_origin"] == "myapp.com"
+            assert contracts[0]["client_id"] == ""
             assert "posts" in contracts[0]["permissions"]
+
+    def test_get_includes_delegated_contract(self):
+        # A delegated (OAuth) contract has allowed_origin = '' + a client_id;
+        # the list must surface it (dedup by client_id, not allowed_origin).
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows(
+                [
+                    ("myapp.com", "", '{"posts": ["readAll"]}'),
+                    ("", "muse-connector", '{"posts": ["create"]}'),
+                ]
+            )
+            contracts = ch.get_app_contracts("alice")
+            assert len(contracts) == 2
+            delegated = [c for c in contracts if c["client_id"] == "muse-connector"]
+            assert delegated and delegated[0]["allowed_origin"] == ""
+            assert delegated[0]["permissions"] == {"posts": ["create"]}
 
     def test_is_origin_allowed_true(self):
         with _patch_client() as mock_client:
@@ -862,6 +879,48 @@ class TestAppContracts:
         with _patch_client() as mock_client:
             ch.revoke_all_app_contracts("alice")
             mock_client.command.assert_called_once()
+
+    # --- OAuth delegation (D92, O3/O4) ---
+
+    def test_has_permission_by_client_id(self):
+        # A delegated token is gated on its client_id contract (no origin).
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([('{"posts": ["readAll", "create"]}',)])
+            assert ch.has_permission("alice", "", "posts", "create", client_id="muse-connector") is True
+        # The query must key on client_id, not allowed_origin.
+        sql = mock_client.query.call_args[0][0]
+        assert "client_id = %(client_id)s" in sql
+
+    def test_has_permission_by_client_id_denied(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([('{"posts": ["readAll"]}',)])
+            assert ch.has_permission("alice", "", "posts", "create", client_id="muse-connector") is False
+
+    def test_has_permission_by_origin_unchanged(self):
+        # No client_id → the browser-origin path (today's behavior).
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([('{"posts": ["readAll"]}',)])
+            assert ch.has_permission("alice", "myapp.com", "posts", "readAll") is True
+        sql = mock_client.query.call_args[0][0]
+        assert "allowed_origin = %(allowed_origin)s" in sql
+        assert "client_id = %(client_id)s" not in sql
+
+    def test_grant_delegated_contract(self):
+        # Keyed on client_id with allowed_origin = '' (mutually exclusive).
+        with _patch_client() as mock_client:
+            result = ch.grant_delegated_contract("alice", "muse-connector", {"posts": ["create"]})
+        row = mock_client.insert.call_args[0][1][0]
+        assert row[0] == "alice"
+        assert row[1] == ""  # allowed_origin empty for a delegated contract
+        assert row[6] == "muse-connector"  # client_id appended last
+        assert result["client_id"] == "muse-connector"
+
+    def test_revoke_by_client_id(self):
+        with _patch_client() as mock_client:
+            ch.revoke_app_contract("alice", "", client_id="muse-connector")
+        sql = mock_client.command.call_args[0][0]
+        assert "client_id = %(client_id)s" in sql
+        assert mock_client.command.call_args[0][1] == {"user_key": "alice", "client_id": "muse-connector"}
 
 
 # ---------------------------------------------------------------------------

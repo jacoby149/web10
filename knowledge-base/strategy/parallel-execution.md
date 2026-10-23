@@ -43,13 +43,13 @@ Spec: `knowledge-base/web10-v3/auth/oauth.md`. Decision: D92.
 
 - [✓ 3.241.0] **O1: `oauth_clients` table + admin registration** — ClickHouse table (`client_id`, `client_secret`, `client_name`, `redirect_uris`, `created_at`, `deleted`), admin-only registration endpoint. The foundation.
 - [✓ 3.242.0] **O2: `client_id` claim + `certify()` check** — optional claim in `TokenData`; `certify()` verifies the client exists + not tombstoned when present. Existing tokens unaffected.
-- [ ] **O3: `_check_app_permission` re-keying** — `client_id` token → `has_permission(user_key, client_id=...)`; no-`client_id` token → today's Origin path. The no-Origin skip is preserved for browser tokens only.
-- [ ] **O4: `app_contracts` gains `client_id` column** — nullable; `has_permission` looks up by `client_id` when provided; revocation works for both.
-- [ ] **O5: `GET /oauth/authorize`** — consent endpoint, session check, client lookup, consent screen, code mint, redirect. `oauth_codes` table (60s TTL, single-use).
-- [ ] **O6: `POST /oauth/token` (authorization_code)** — code redemption, access-token mint (with `client_id`), refresh-token mint, `oauth_refresh_tokens` table.
-- [ ] **O7: `POST /oauth/token` (refresh_token)** — rotation, family invalidation on replay.
-- [ ] **O8: Consent UI in `ui/`** — the `/oauth/authorize` screen; client name, derived permission list, approve/deny. Reuses `ConsentView` patterns.
-- [ ] **O9: Revocation UI update** — `ContractPage.tsx` shows OAuth clients alongside browser-origin apps.
+- [✓ 3.244.0] **O3: `_check_app_permission` re-keying** — `client_id` token → `has_permission(user_key, client_id=...)`; no-`client_id` token → today's Origin path. The no-Origin skip is preserved for browser tokens only.
+- [✓ 3.244.0] **O4: `app_contracts` gains `client_id` column** — nullable; `has_permission` looks up by `client_id` when provided; revocation works for both.
+- [✓ 3.244.0] **O5: `GET /oauth/authorize`** — consent endpoint, session check, client lookup, consent screen, code mint, redirect. `oauth_codes` table (60s TTL, single-use).
+- [✓ 3.244.0] **O6: `POST /oauth/token` (authorization_code)** — code redemption, access-token mint (with `client_id`), refresh-token mint, `oauth_refresh_tokens` table.
+- [✓ 3.244.0] **O7: `POST /oauth/token` (refresh_token)** — rotation, family invalidation on replay.
+- [✓ 3.244.0] **O8: Consent UI in `ui/`** — the `/oauth/authorize` screen; client name, derived permission list, approve/deny. Reuses `ConsentView` patterns.
+- [✓ 3.244.0] **O9: Revocation UI update** — `ContractPage.tsx` shows OAuth clients alongside browser-origin apps.
 - [ ] **O10: SDK `w.oauth()` helper (optional, later)** — convenience for non-browser clients. Not blocking.
 
 ### Lane: web10-social-product-permalink

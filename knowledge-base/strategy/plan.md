@@ -53,13 +53,13 @@ reuses `POST /v3/app-contracts/revoke`. Full spec:
 
 - [✓ 3.241.0] **O1: `oauth_clients` table + admin registration** (`api/app/v3/services/clickhouse.py`, `api/app/v3/endpoints/oauth.py`) — the ClickHouse table (`client_id`, `client_secret`, `client_name`, `redirect_uris`, `created_at`, `deleted`), admin-only registration endpoint. The foundation everything else reads.
 - [✓ 3.242.0] **O2: `client_id` claim in `TokenData` + `certify()` check** (`api/app/models/auth.py`, `api/app/services/auth.py`) — add the optional claim; in `certify()`, if `client_id` is present, verify the client exists and is not tombstoned. Existing tokens (no `client_id`) unaffected.
-- [ ] **O3: `_check_app_permission` re-keying** (`api/app/v3/endpoints/documents.py`, `api/app/v3/endpoints/query.py`) — a token with `client_id` goes through `has_permission(user_key, client_id=...)` instead of the Origin lookup. The no-Origin skip is preserved for tokens *without* `client_id`.
-- [ ] **O4: `app_contracts` gains `client_id` column** (`api/app/v3/services/clickhouse.py`) — nullable; browser contracts have `NULL`, delegated contracts have the client ID. `has_permission` learns to look up by `client_id`. Revocation works for both.
-- [ ] **O5: `GET /oauth/authorize`** (`api/app/v3/endpoints/oauth.py`, `ui/`) — the consent endpoint. Session check, client lookup, consent screen (reuse `ConsentView` patterns), code mint, redirect. The `oauth_codes` table (60s TTL, single-use).
-- [ ] **O6: `POST /oauth/token` (authorization_code grant)** (`api/app/v3/endpoints/oauth.py`) — code redemption, access-token mint (with `client_id` claim), refresh-token mint, `oauth_refresh_tokens` table.
-- [ ] **O7: `POST /oauth/token` (refresh_token grant)** (`api/app/v3/endpoints/oauth.py`) — rotation, family invalidation on replay.
-- [ ] **O8: Consent UI in `ui/`** (`ui/src/`) — the `/oauth/authorize` screen in the authenticator. Shows the client name, the derived permission list, approve/deny. Reuses `ConsentView` patterns.
-- [ ] **O9: Revocation UI update** (`ui/src/components/Contracts/ContractPage.tsx`) — shows OAuth clients alongside browser-origin apps. Revoke works for both.
+- [✓ 3.244.0] **O3: `_check_app_permission` re-keying** (`api/app/v3/endpoints/documents.py`, `api/app/v3/endpoints/query.py`) — a token with `client_id` goes through `has_permission(user_key, client_id=...)` instead of the Origin lookup. The no-Origin skip is preserved for tokens *without* `client_id`.
+- [✓ 3.244.0] **O4: `app_contracts` gains `client_id` column** (`api/app/v3/services/clickhouse.py`) — nullable; browser contracts have `NULL`, delegated contracts have the client ID. `has_permission` learns to look up by `client_id`. Revocation works for both.
+- [✓ 3.244.0] **O5: `GET /oauth/authorize`** (`api/app/v3/endpoints/oauth.py`, `ui/`) — the consent endpoint. Session check, client lookup, consent screen (reuse `ConsentView` patterns), code mint, redirect. The `oauth_codes` table (60s TTL, single-use).
+- [✓ 3.244.0] **O6: `POST /oauth/token` (authorization_code grant)** (`api/app/v3/endpoints/oauth.py`) — code redemption, access-token mint (with `client_id` claim), refresh-token mint, `oauth_refresh_tokens` table.
+- [✓ 3.244.0] **O7: `POST /oauth/token` (refresh_token grant)** (`api/app/v3/endpoints/oauth.py`) — rotation, family invalidation on replay.
+- [✓ 3.244.0] **O8: Consent UI in `ui/`** (`ui/src/`) — the `/oauth/authorize` screen in the authenticator. Shows the client name, the derived permission list, approve/deny. Reuses `ConsentView` patterns.
+- [✓ 3.244.0] **O9: Revocation UI update** (`ui/src/components/Contracts/ContractPage.tsx`) — shows OAuth clients alongside browser-origin apps. Revoke works for both.
 - [ ] **O10: SDK `w.oauth()` helper (optional, later)** (`sdk/`) — a convenience method for the SDK to drive the authorize flow for non-browser clients. Not blocking.
 
 ## L1 Security Scans

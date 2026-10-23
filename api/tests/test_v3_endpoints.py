@@ -79,6 +79,66 @@ class TestCreate:
         resp = client.post("/v3/create", json={"token": token, "service": "posts"})
         assert resp.status_code == 422
 
+    # --- Origin→client_id re-keying (D92, O3) ---
+
+    def test_delegated_token_no_origin_is_gated(self, client):
+        # A delegated token (client_id) with NO Origin header must still be
+        # gated on its client_id contract — the no-Origin skip does NOT apply.
+        delegated = _make_token(client_id="muse-connector")
+        with (
+            patch("app.v3.services.clickhouse.has_permission", return_value=True) as mock_perm,
+            patch("app.v3.services.clickhouse._gen_doc_id", return_value="doc-d1"),
+        ):
+            resp = client.post(
+                "/v3/create",
+                json={"token": delegated, "service": "posts", "body": {"text": "hi"}},
+            )
+        assert resp.status_code == 200
+        # Gated by client_id, not origin (origin is empty).
+        assert mock_perm.call_args[0][1] == ""  # allowed_origin
+        assert mock_perm.call_args[1].get("client_id") == "muse-connector"
+
+    def test_delegated_token_no_contract_403(self, client):
+        delegated = _make_token(client_id="muse-connector")
+        with (
+            patch("app.v3.services.clickhouse.has_permission", return_value=False),
+            patch("app.v3.services.clickhouse._gen_doc_id", return_value="doc-d2"),
+        ):
+            resp = client.post(
+                "/v3/create",
+                json={"token": delegated, "service": "posts", "body": {"text": "hi"}},
+            )
+        assert resp.status_code == 403
+
+    def test_browser_token_no_origin_still_skipped(self, client, token):
+        # A normal token (no client_id) with no Origin → the contract check is
+        # skipped (today's behavior). has_permission must NOT be called.
+        with (
+            patch("app.v3.services.clickhouse.has_permission") as mock_perm,
+            patch("app.v3.services.clickhouse._gen_doc_id", return_value="doc-b1"),
+        ):
+            resp = client.post(
+                "/v3/create",
+                json={"token": token, "service": "posts", "body": {"text": "hi"}},
+            )
+        assert resp.status_code == 200
+        mock_perm.assert_not_called()
+
+    def test_browser_token_with_origin_gated_by_origin(self, client, token):
+        # A normal token WITH an Origin → gated by origin (today's path).
+        with (
+            patch("app.v3.services.clickhouse.has_permission", return_value=True) as mock_perm,
+            patch("app.v3.services.clickhouse._gen_doc_id", return_value="doc-b2"),
+        ):
+            resp = client.post(
+                "/v3/create",
+                json={"token": token, "service": "posts", "body": {"text": "hi"}},
+                headers={"origin": "https://myapp.example.com"},
+            )
+        assert resp.status_code == 200
+        assert mock_perm.call_args[0][1] == "https://myapp.example.com"
+        assert mock_perm.call_args[1].get("client_id") is None
+
     def test_create_with_ref_value(self, client, token):
         """A reaction/comment references its target post via ref_value."""
         captured = {}
@@ -1289,13 +1349,14 @@ class TestAppContracts:
         assert resp.status_code == 403
 
     def test_list(self, client, token):
-        mock_rows = [("myapp.com", '{"posts": ["readAll"]}')]
+        mock_rows = [("myapp.com", "", '{"posts": ["readAll"]}')]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
             resp = client.post("/v3/app-contracts/list", json={"token": token})
         assert resp.status_code == 200
         assert len(resp.json()) == 1
         assert resp.json()[0]["allowed_origin"] == "myapp.com"
+        assert resp.json()[0]["client_id"] == ""
 
     def test_revoke_by_origin(self, client, token):
         resp = client.post(
