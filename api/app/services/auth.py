@@ -97,6 +97,15 @@ def certify(token: Token) -> bool:
             raise Exception("TOKEN")
         if token_data.username != "anon" and datetime.utcnow() > datetime.fromisoformat(token_data.expires):
             raise Exception("TOKEN")
+        # OAuth 2.0 delegation (D92): a token carrying a client_id is a
+        # delegated token — the client must exist and be active (not
+        # tombstoned). Tokens without a client_id (the popup flow) skip this
+        # check entirely — today's behavior, byte-for-byte.
+        if token_data.client_id:
+            from app.v3.services import clickhouse as ch
+
+            if ch.get_oauth_client(token_data.client_id) is None:
+                raise Exception("TOKEN")
     except (jwt.exceptions.PyJWTError, ValueError, TypeError):
         raise Exception("TOKEN")
     return True

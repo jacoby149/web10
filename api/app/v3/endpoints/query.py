@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 import app.exceptions as exceptions
 import app.v3.services.safe_query as sq
-from app.v3.endpoints.auth_helper import user_or_anon
+from app.v3.endpoints.auth_helper import client_id_of, user_or_anon
 from app.v3.endpoints.documents import _mint_hls_manifest_urls
 from app.v3.models import PrepareFace, PrepareSpec, QueryRequest
 from app.v3.services import clickhouse as ch
@@ -161,10 +161,13 @@ def run_query(request: Request, data: QueryRequest):
     _check_query_rate_limit(reader)
 
     # App-contract gate: the query may only touch services the app's contract
-    # grants readAll on.
+    # grants readAll on. Origin→client_id re-keying (D92, O3): a delegated
+    # token (client_id) is always gated on its client_id contract — even with
+    # no Origin; a browser token keeps the Origin path (skipped when no Origin).
     origin = request.headers.get("origin", "")
-    if authenticated and origin:
-        perms = ch.get_app_permissions(reader, origin) or {}
+    delegated_client_id = client_id_of(data) if authenticated else None
+    if authenticated and (delegated_client_id or origin):
+        perms = ch.get_app_permissions(reader, origin, client_id=delegated_client_id) or {}
         allowed = frozenset(svc for svc, ops in perms.items() if "readAll" in (ops or []))
     else:
         allowed = None  # unrestricted: any non-raw table name is a service

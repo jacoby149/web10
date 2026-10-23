@@ -17,6 +17,7 @@ class TokenData(BaseModel):
     target: str = None
     provider: str = None
     expires: str = None
+    client_id: str | None = None
 
     def populate_from_payload(self, payload):
         self.username: str = payload.get("username")
@@ -24,6 +25,9 @@ class TokenData(BaseModel):
         self.target: str = payload.get("target")
         self.provider: str = payload.get("provider")
         self.expires: str = payload.get("expires")
+        # OAuth 2.0 delegation marker (D92). Present only on delegated tokens;
+        # a normal login token has no client_id claim → None (today's behavior).
+        self.client_id: str = payload.get("client_id")
 
     def populate_from_token_form(self, token_form):
         self.username: str = token_form.username
