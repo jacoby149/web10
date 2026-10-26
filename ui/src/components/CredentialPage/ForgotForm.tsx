@@ -60,7 +60,18 @@ function ForgotForm({ I, embedded = false }: { I: Record<string, any>; embedded?
           </p>
         </>
       )}
-      <div className="mt-6">
+      <form
+        className="mt-6"
+        onSubmit={(e) => {
+          // A real submit: the form element is what password managers key off
+          // to detect the flow and offer fills. preventDefault keeps the SPA
+          // flow (no navigation).
+          e.preventDefault();
+          if (I.recoveryContact && I.recoveryContact.trim()) {
+            I.recoverRequest(I.recoveryContact.trim());
+          }
+        }}
+      >
         <Label htmlFor="recovery-contact" className="mb-1.5 block text-muted-foreground">
           Phone number or email
         </Label>
@@ -81,16 +92,16 @@ function ForgotForm({ I, embedded = false }: { I: Record<string, any>; embedded?
             <Info className="h-4 w-4" strokeWidth={1.5} />
           </span>
         </div>
-      </div>
-      <Button
-        variant="brand"
-        className="mt-4 w-full"
-        data-testid="recovery-send-code"
-        disabled={!I.recoveryContact || !I.recoveryContact.trim()}
-        onClick={() => I.recoverRequest(I.recoveryContact.trim())}
-      >
-        Send code
-      </Button>
+        <Button
+          variant="brand"
+          type="submit"
+          className="mt-4 w-full"
+          data-testid="recovery-send-code"
+          disabled={!I.recoveryContact || !I.recoveryContact.trim()}
+        >
+          Send code
+        </Button>
+      </form>
       <div className="mt-4 text-center">
         <button
           type="button"
@@ -110,18 +121,27 @@ function ForgotForm({ I, embedded = false }: { I: Record<string, any>; embedded?
       <p className="mt-1 text-sm text-muted-foreground">
         We sent a 6-digit code to <span className="text-foreground">{contact}</span>.
       </p>
-      <div className="mt-6">
-        <CodeInput value={code} onChange={setCode} testid="recovery-code-input" />
-      </div>
-      <Button
-        variant="brand"
-        className="mt-4 w-full"
-        data-testid="recovery-verify"
-        disabled={code.length !== 6}
-        onClick={() => I.recoverVerify(contact, code)}
+      <form
+        className="mt-6"
+        onSubmit={(e) => {
+          // A real submit: the form element is what password managers key off
+          // to detect the flow and offer fills. preventDefault keeps the SPA
+          // flow (no navigation).
+          e.preventDefault();
+          if (code.length === 6) I.recoverVerify(contact, code);
+        }}
       >
-        Verify
-      </Button>
+        <CodeInput value={code} onChange={setCode} testid="recovery-code-input" />
+        <Button
+          variant="brand"
+          type="submit"
+          className="mt-4 w-full"
+          data-testid="recovery-verify"
+          disabled={code.length !== 6}
+        >
+          Verify
+        </Button>
+      </form>
       <div className="mt-4 text-center">
         <button
           type="button"
@@ -145,7 +165,17 @@ function ForgotForm({ I, embedded = false }: { I: Record<string, any>; embedded?
           ? `This ${isEmail ? "email" : "number"} is linked to ${accounts.length} account${accounts.length === 1 ? "" : "s"}. Pick one to sign in.`
           : `No account on this ${isEmail ? "email" : "number"} yet — pick a username to get started.`}
       </p>
-      <div className="mt-6 space-y-2" data-testid="recovery-account-list">
+      <form
+        className="mt-6"
+        onSubmit={(e) => {
+          // A real submit: the form element is what password managers key off
+          // to detect the flow and offer fills. preventDefault keeps the SPA
+          // flow (no navigation).
+          e.preventDefault();
+          if (canSubmit) I.recoverComplete(submitUsername, newPassword || undefined);
+        }}
+      >
+        <div className="space-y-2" data-testid="recovery-account-list">
         {accounts.map((a) => (
           <label
             key={a.username}
@@ -199,6 +229,7 @@ function ForgotForm({ I, embedded = false }: { I: Record<string, any>; embedded?
           </Label>
           <input
             id="recovery-new-username"
+            name="recovery-new-username"
             data-testid="recovery-new-username"
             type="text"
             autoComplete="off"
@@ -216,6 +247,7 @@ function ForgotForm({ I, embedded = false }: { I: Record<string, any>; embedded?
         </Label>
         <input
           id="recovery-new-password"
+          name="recovery-new-password"
           data-testid="recovery-new-password"
           type="password"
           autoComplete="new-password"
@@ -225,15 +257,16 @@ function ForgotForm({ I, embedded = false }: { I: Record<string, any>; embedded?
           className="h-9 w-full rounded-sm border border-input bg-transparent px-3 text-sm shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
       </div>
-      <Button
-        variant="brand"
-        className="mt-4 w-full"
-        data-testid="recovery-sign-in"
-        disabled={!canSubmit}
-        onClick={() => I.recoverComplete(submitUsername, newPassword || undefined)}
-      >
-        {creating ? "Create account" : "Sign in"}
-      </Button>
+        <Button
+          variant="brand"
+          type="submit"
+          className="mt-4 w-full"
+          data-testid="recovery-sign-in"
+          disabled={!canSubmit}
+        >
+          {creating ? "Create account" : "Sign in"}
+        </Button>
+      </form>
     </>
   );
 

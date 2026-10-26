@@ -690,10 +690,10 @@ function useInterface() {
         });
     }
 
-    // Revoke an app contract (by origin) or all contracts.
-    I.revokeV3Contract = function (allowedOrigin?: string) {
+    // Revoke an app contract (by origin, or by OAuth client_id) or all contracts.
+    I.revokeV3Contract = function (allowedOrigin?: string, clientId?: string) {
         return v3Post('app-contracts/revoke', {
-            ...(allowedOrigin && { allowed_origin: allowedOrigin }),
+            ...(clientId ? { client_id: clientId } : allowedOrigin ? { allowed_origin: allowedOrigin } : {}),
         }).then(() => {
             I.v3ContractsLoad();
         });
@@ -703,6 +703,26 @@ function useInterface() {
     I.cleanupV3Contracts = function () {
         return v3Post('app-contracts/cleanup', {}).then(() => {
             I.v3ContractsLoad();
+        });
+    }
+
+    // ── OAuth 2.0 delegated access (D92) ─────────────────────────────────────
+
+    // Look up an OAuth client's public fields (name + redirect URIs) — never
+    // the secret. The consent screen (O8) uses this to show who's asking.
+    I.oauthClientLookup = function (clientId: string) {
+        return v3Post('oauth/clients/lookup', { client_id: clientId });
+    }
+
+    // Mint the authorization code on approval (the node's /v3/oauth/authorize).
+    // Returns {code, state}; the external app's backend completes the exchange
+    // out-of-band, so the popup just closes after success.
+    I.oauthAuthorize = function (params: { client_id: string | null; redirect_uri: string | null; state: string | null }) {
+        return v3Post('oauth/authorize', {
+            client_id: params.client_id || '',
+            redirect_uri: params.redirect_uri || '',
+            response_type: 'code',
+            ...(params.state != null && { state: params.state }),
         });
     }
 

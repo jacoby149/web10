@@ -62,7 +62,13 @@ from app.v3.models.media import (
     UploadUrlRequest,
 )
 from app.v3.models.moderation import ModerationAutoHide, ModerationBan, ModerationFlags
-from app.v3.models.oauth import LookupOauthClient, RegisterOauthClient, RevokeOauthClient
+from app.v3.models.oauth import (
+    LookupOauthClient,
+    OauthAuthorize,
+    OauthToken,
+    RegisterOauthClient,
+    RevokeOauthClient,
+)
 from app.v3.models.preview import PreviewRender
 from app.v3.models.query import PrepareFace, PrepareSpec, QueryRequest
 from app.v3.models.session import VerifySession
@@ -150,6 +156,8 @@ __all__ = [
     "RegisterOauthClient",
     "RevokeOauthClient",
     "LookupOauthClient",
+    "OauthAuthorize",
+    "OauthToken",
     # preview (the generic link-preview card renderer)
     "PreviewRender",
     # people (the public people directory, D0)

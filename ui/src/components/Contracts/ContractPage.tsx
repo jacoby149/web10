@@ -1,4 +1,4 @@
-import { FileText, Globe, Shield, ShieldX, Trash2 } from 'lucide-react';
+import { Bot, FileText, Globe, Shield, ShieldX, Trash2 } from 'lucide-react';
 import AppShell from '../shared/AppShell';
 import RecoveryNudgeBanner from '../shared/RecoveryNudgeBanner';
 import { Button } from '@/components/ui/button';
@@ -6,18 +6,21 @@ import React from 'react';
 
 // ── App contract card (v3: one row per origin, permissions is JSON) ──
 
-function AppContractCard({ I, contract }: { I: Record<string, any>; contract: { allowed_origin: string; permissions: Record<string, string[]> } }) {
+function AppContractCard({ I, contract }: { I: Record<string, any>; contract: { allowed_origin: string; client_id?: string; permissions: Record<string, string[]> } }) {
   const [open, setOpen] = React.useState(false);
   const [revoking, setRevoking] = React.useState(false);
   const [showRevoke, setShowRevoke] = React.useState(false);
 
+  const isOAuth = Boolean(contract.client_id);
   const origin = contract.allowed_origin;
   const perms = contract.permissions || {};
   const services = Object.keys(perms).sort();
   const totalOps = services.reduce((sum, s) => sum + (perms[s] || []).length, 0);
 
-  // Derive a readable label from the origin (strip protocol, keep hostname)
+  // Derive a readable label: OAuth clients use their client_id; browser apps
+  // use the origin hostname.
   const label = (() => {
+    if (isOAuth) return contract.client_id as string;
     if (!origin) return '(no origin)';
     try {
       const url = origin.startsWith('http') ? new URL(origin) : new URL(`https://${origin}`)
@@ -28,11 +31,14 @@ function AppContractCard({ I, contract }: { I: Record<string, any>; contract: { 
 
   const handleRevoke = () => {
     setRevoking(true);
-    I.revokeV3Contract?.(origin).then(() => {
-      I.setStatus?.(`Revoked contract for ${label}`);
+    const p = isOAuth
+      ? I.revokeV3Contract?.(undefined, contract.client_id)
+      : I.revokeV3Contract?.(origin);
+    p?.then(() => {
+      I.setStatus?.(`Revoked access for ${label}`);
       I.v3ContractsLoad?.();
     }).catch((e: any) => {
-      I.setStatus?.('Failed to revoke contract: ' + (e?.message || String(e)));
+      I.setStatus?.('Failed to revoke: ' + (e?.message || String(e)));
     }).finally(() => {
       setRevoking(false);
       setShowRevoke(false);
@@ -41,7 +47,7 @@ function AppContractCard({ I, contract }: { I: Record<string, any>; contract: { 
 
   return (
     <div className="mb-3 overflow-hidden rounded border border-border bg-card transition-colors hover:border-brand/40">
-      {/* Collapsed row — origin, service count, expand */}
+      {/* Collapsed row — origin/client, service count, expand */}
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -51,8 +57,15 @@ function AppContractCard({ I, contract }: { I: Record<string, any>; contract: { 
       >
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <Globe className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
+            {isOAuth
+              ? <Bot className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
+              : <Globe className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />}
             <span className="truncate font-medium text-foreground">{label}</span>
+            {isOAuth && (
+              <span className="rounded-full bg-brand-muted px-2 py-0.5 text-[10px] font-medium text-brand-300">
+                OAuth
+              </span>
+            )}
           </div>
           <div className="mt-0.5 text-xs text-muted-foreground">
             {services.length} {services.length === 1 ? 'service' : 'services'} · {totalOps} {totalOps === 1 ? 'permission' : 'permissions'}
@@ -178,12 +191,16 @@ function AppContracts({ I }: { I: Record<string, any> }) {
   const filtered = query
     ? contracts.filter((c: any) =>
         String(c?.allowed_origin ?? '').toLowerCase().includes(query) ||
+        String(c?.client_id ?? '').toLowerCase().includes(query) ||
         Object.keys(c?.permissions ?? {}).some((s) => s.toLowerCase().includes(query)),
       )
     : contracts;
 
-  // Detect stale contracts (allowed_origin is not a URL)
+  // Detect stale contracts (allowed_origin is not a URL). OAuth (delegated)
+  // contracts have an empty origin by design — they're keyed on client_id, so
+  // they're never "stale."
   const staleCount = contracts.filter((c: any) => {
+    if (c.client_id) return false;
     const o = c.allowed_origin || '';
     return !o.startsWith('http://') && !o.startsWith('https://');
   }).length;

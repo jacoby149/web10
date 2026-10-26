@@ -113,17 +113,14 @@ function LoginForm({ I, embedded = false }: { I: Record<string, any>; embedded?:
         </div>
       )}
 
-      <div className={embedded ? "space-y-1" : "space-y-1"}>
-        <Provider I={I} />
-        <Username I={I} />
-        <Password I={I} />
-      </div>
-
-      <Button
-        variant="brand"
-        className="mt-2 w-full"
-        data-testid="login-submit"
-        onClick={() => {
+      <form
+        className={embedded ? "space-y-1" : "space-y-1"}
+        onSubmit={(e) => {
+          // A real submit: the form element is what password managers key off
+          // to detect a login and offer fills. preventDefault keeps the SPA
+          // flow (no navigation) — the values come from the same DOM the
+          // button's click handler used to scrape.
+          e.preventDefault();
           I.login(
             (document.getElementById("provider") as HTMLInputElement).value,
             (document.getElementById("username") as HTMLInputElement).value,
@@ -131,8 +128,19 @@ function LoginForm({ I, embedded = false }: { I: Record<string, any>; embedded?:
           );
         }}
       >
-        Log in
-      </Button>
+        <Provider I={I} />
+        <Username I={I} />
+        <Password I={I} />
+
+        <Button
+          variant="brand"
+          type="submit"
+          className="mt-2 w-full"
+          data-testid="login-submit"
+        >
+          Log in
+        </Button>
+      </form>
 
       <CredentialStatus I={I} />
 

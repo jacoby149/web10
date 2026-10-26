@@ -30,20 +30,31 @@ function ChangePass({ I }: { I: Record<string, any> }) {
       </button>
       {!hide && (
         <div className="p-4">
-          <div className="max-w-[300px] space-y-2">
-            <NewPassword I={I} value={newPass} onChange={setNewPass} />
-            <ReTypeNewPass I={I} value={retypeNewPass} onChange={setRetypeNewPass} />
-            <ConfirmationPass I={I} value={currentPass} onChange={setCurrentPass} />
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-2.5 border-warning text-warning hover:bg-warning/15"
-            data-testid="change-password-submit"
-            onClick={() => I.changePassword(currentPass, newPass, retypeNewPass)}
+          <form
+            className="max-w-[300px]"
+            onSubmit={(e) => {
+              // A real submit: the form element is what password managers key
+              // off to offer the current-password fill. preventDefault keeps
+              // the SPA flow (no navigation).
+              e.preventDefault();
+              I.changePassword(currentPass, newPass, retypeNewPass);
+            }}
           >
-            Change Password
-          </Button>
+            <div className="space-y-2">
+              <NewPassword I={I} value={newPass} onChange={setNewPass} />
+              <ReTypeNewPass I={I} value={retypeNewPass} onChange={setRetypeNewPass} />
+              <ConfirmationPass I={I} value={currentPass} onChange={setCurrentPass} />
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              type="submit"
+              className="mt-2.5 border-warning text-warning hover:bg-warning/15"
+              data-testid="change-password-submit"
+            >
+              Change Password
+            </Button>
+          </form>
         </div>
       )}
     </Card>
