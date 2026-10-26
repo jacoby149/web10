@@ -58,7 +58,10 @@ def revoke_app_contract(request: Request, data: RevokeAppContract):
             detail="App contract revocation is only allowed from the authenticator.",
         )
     user = _user(data)
-    if data.allowed_origin:
+    if data.client_id:
+        # Delegated (OAuth) contract — revoke by client_id (D92).
+        ch.revoke_app_contract(user, "", client_id=data.client_id)
+    elif data.allowed_origin:
         ch.revoke_app_contract(user, data.allowed_origin)
     else:
         ch.revoke_all_app_contracts(user)

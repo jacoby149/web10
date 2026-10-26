@@ -1,5 +1,6 @@
-"""Tests for auth service: certify_with_remote_provider, check_admin."""
+"""Tests for auth service: certify, certify_with_remote_provider, check_admin."""
 
+from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -7,11 +8,87 @@ import pytest
 import app.settings as settings
 from app.models.auth import Token, TokenData
 from app.services.auth import (
+    certify,
     certify_with_remote_provider,
     check_admin,
     get_password_hash,
     verify_password,
 )
+
+
+def _future_iso(minutes: int = 60) -> str:
+    return (datetime.utcnow() + timedelta(minutes=minutes)).isoformat()
+
+
+class TestCertify:
+    """certify() — the canonical token gate. The OAuth delegation check (D92):
+    a token carrying a client_id must reference an active (non-tombstoned)
+    client; tokens without a client_id skip the check (today's behavior)."""
+
+    def test_normal_token_no_client_id_passes(self):
+        # No client_id claim → the delegation check is skipped entirely.
+        token = Token(token="t")
+        with patch(
+            "app.services.auth.decode_token",
+            return_value=TokenData(username="alice", provider=settings.PROVIDER, expires=_future_iso(), client_id=None),
+        ):
+            assert certify(token) is True
+
+    def test_delegated_token_active_client_passes(self):
+        token = Token(token="t")
+        with (
+            patch(
+                "app.services.auth.decode_token",
+                return_value=TokenData(
+                    username="alice", provider=settings.PROVIDER, expires=_future_iso(), client_id="muse-connector"
+                ),
+            ),
+            patch("app.v3.services.clickhouse.get_oauth_client", return_value={"client_id": "muse-connector"}),
+        ):
+            assert certify(token) is True
+
+    def test_delegated_token_missing_client_raises(self):
+        token = Token(token="t")
+        with (
+            patch(
+                "app.services.auth.decode_token",
+                return_value=TokenData(
+                    username="alice", provider=settings.PROVIDER, expires=_future_iso(), client_id="ghost"
+                ),
+            ),
+            patch("app.v3.services.clickhouse.get_oauth_client", return_value=None),
+        ):
+            with pytest.raises(Exception, match="TOKEN"):
+                certify(token)
+
+    def test_delegated_token_tombstoned_client_raises(self):
+        # A tombstoned client is absent from get_oauth_client (the dedup-then-
+        # filter read returns None) → the delegated token is rejected.
+        token = Token(token="t")
+        with (
+            patch(
+                "app.services.auth.decode_token",
+                return_value=TokenData(
+                    username="alice", provider=settings.PROVIDER, expires=_future_iso(), client_id="revoked-app"
+                ),
+            ),
+            patch("app.v3.services.clickhouse.get_oauth_client", return_value=None),
+        ):
+            with pytest.raises(Exception, match="TOKEN"):
+                certify(token)
+
+    def test_expired_token_still_rejected(self):
+        # The expiry check is unchanged — an expired token fails before the
+        # delegation check is even reached.
+        token = Token(token="t")
+        with patch(
+            "app.services.auth.decode_token",
+            return_value=TokenData(
+                username="alice", provider=settings.PROVIDER, expires=_future_iso(-60), client_id=None
+            ),
+        ):
+            with pytest.raises(Exception, match="TOKEN"):
+                certify(token)
 
 
 class TestCertifyWithRemoteProvider:

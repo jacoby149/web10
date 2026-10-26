@@ -213,7 +213,7 @@ class TestAppContractTombstone:
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
                 [
-                    ("https://app.com", '{"posts":["read"]}'),
+                    ("https://app.com", "", '{"posts":["read"]}'),
                 ]
             )
             result = ch.get_app_contracts("alice")

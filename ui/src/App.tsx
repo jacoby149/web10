@@ -9,6 +9,7 @@ import SetupWizard from './components/SetupWizard/SetupWizard';
 import ConfigPage from './components/Config/ConfigPage';
 import AnalyticsPage from './components/Analytics/AnalyticsPage';
 import ConsentView from './components/Consent/ConsentView';
+import OauthConsentView from './components/Oauth/OauthConsentView';
 import GroupsPage from './components/Groups/GroupsPage';
 import { config } from './config';
 
@@ -38,6 +39,9 @@ function App() {
   // D42: handoff=none marks a consent-only popup (the lazy group contract) —
   // the opener already holds the token, so the popup closes without re-sending it.
   const handoff = queryParameters.get("handoff")
+  // OAuth 2.0 (D92): ?oauth=1 (with client_id/redirect_uri/state) is the
+  // delegated-access consent screen — an external app asking to act as the user.
+  const oauth = queryParameters.get("oauth")
   const mockI = useMockInterface();
   const realI = useInterface();
   const I = mock ? mockI : realI;
@@ -122,6 +126,12 @@ function App() {
   // Opened by another app for consent (window.opener present, or ?consent=1 to
   // preview) → a dedicated, focused consent screen, not the full console with a
   // floating prompt over it.
+  // OAuth consent (D92) takes precedence: a delegated app asking to act as the
+  // user gets the focused OAuth screen, not the generic app-contract consent.
+  if (oauth != null) {
+    return <OauthConsentView I={I} />;
+  }
+
   const consentMode =
     typeof window !== "undefined" && (window.opener != null || queryParameters.get("consent") != null);
   if (consentMode) {
