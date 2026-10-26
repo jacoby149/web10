@@ -42,14 +42,14 @@ for OAuth clients).
 Spec: `knowledge-base/web10-v3/auth/oauth.md`. Decision: D92.
 
 - [✓ 3.241.0] **O1: `oauth_clients` table + admin registration** — ClickHouse table (`client_id`, `client_secret`, `client_name`, `redirect_uris`, `created_at`, `deleted`), admin-only registration endpoint. The foundation.
-- [ ] **O2: `client_id` claim + `certify()` check** — optional claim in `TokenData`; `certify()` verifies the client exists + not tombstoned when present. Existing tokens unaffected.
-- [ ] **O3: `_check_app_permission` re-keying** — `client_id` token → `has_permission(user_key, client_id=...)`; no-`client_id` token → today's Origin path. The no-Origin skip is preserved for browser tokens only.
-- [ ] **O4: `app_contracts` gains `client_id` column** — nullable; `has_permission` looks up by `client_id` when provided; revocation works for both.
-- [ ] **O5: `GET /oauth/authorize`** — consent endpoint, session check, client lookup, consent screen, code mint, redirect. `oauth_codes` table (60s TTL, single-use).
-- [ ] **O6: `POST /oauth/token` (authorization_code)** — code redemption, access-token mint (with `client_id`), refresh-token mint, `oauth_refresh_tokens` table.
-- [ ] **O7: `POST /oauth/token` (refresh_token)** — rotation, family invalidation on replay.
-- [ ] **O8: Consent UI in `ui/`** — the `/oauth/authorize` screen; client name, derived permission list, approve/deny. Reuses `ConsentView` patterns.
-- [ ] **O9: Revocation UI update** — `ContractPage.tsx` shows OAuth clients alongside browser-origin apps.
+- [✓ 3.242.0] **O2: `client_id` claim + `certify()` check** — optional claim in `TokenData`; `certify()` verifies the client exists + not tombstoned when present. Existing tokens unaffected.
+- [✓ 3.244.0] **O3: `_check_app_permission` re-keying** — `client_id` token → `has_permission(user_key, client_id=...)`; no-`client_id` token → today's Origin path. The no-Origin skip is preserved for browser tokens only.
+- [✓ 3.244.0] **O4: `app_contracts` gains `client_id` column** — nullable; `has_permission` looks up by `client_id` when provided; revocation works for both.
+- [✓ 3.244.0] **O5: `GET /oauth/authorize`** — consent endpoint, session check, client lookup, consent screen, code mint, redirect. `oauth_codes` table (60s TTL, single-use).
+- [✓ 3.244.0] **O6: `POST /oauth/token` (authorization_code)** — code redemption, access-token mint (with `client_id`), refresh-token mint, `oauth_refresh_tokens` table.
+- [✓ 3.244.0] **O7: `POST /oauth/token` (refresh_token)** — rotation, family invalidation on replay.
+- [✓ 3.244.0] **O8: Consent UI in `ui/`** — the `/oauth/authorize` screen; client name, derived permission list, approve/deny. Reuses `ConsentView` patterns.
+- [✓ 3.244.0] **O9: Revocation UI update** — `ContractPage.tsx` shows OAuth clients alongside browser-origin apps.
 - [ ] **O10: SDK `w.oauth()` helper (optional, later)** — convenience for non-browser clients. Not blocking.
 
 ### Lane: web10-social-product-permalink
@@ -736,6 +736,7 @@ were never built (the changelog's "the API is 3.37.0" was wrong).
 - [✓ 3.51.1] Refinement: the recovery send drops the username (the message is the console-configured Twilio Verify template — a username-less "your code is {{code}}, if you didn't request this ignore it"); `send_verification` no longer takes a username
 - [✓ 3.56.1] E2E: the contact-anchored auth gauntlet (`e2e/tests/recovery.spec.ts`) — phone + email paths, create-on-complete, password-change, the anti-tests (contact mismatch, bad/expired/wrong-purpose verify_token, send rate-limit); the e2e stack runs the API in local-Twilio mode (`TWILIO_E2E`) so the fixed code "123456" completes the flow without real credentials
 - [✓ 3.58.1] Fix: the recovery password-change 401s the new password — a same-second `updated_at` race. The five users-table mutators (`change_password`/`change_phone`/`set_email`/`verify_phone`/`verify_email`) wrote `updated_at` from ClickHouse `now()` (second precision) while `create_user`/`migrate_user` used Python microsecond `_now()`; in the same second the new row's `.000` ms tied/lost to the old row's real ms, so `get_user`'s `ORDER BY updated_at DESC LIMIT 1` returned the stale old-hash row. The mutators now use `_now()` (bound `%(updated_at)s`) so the new row strictly outranks the old one
+- [~ 3.242.0] **Autofill-friendly auth forms** — the credential forms (login / signup / recovery / change-password) were formless: divs plus a button whose click handler scraped the provider/username/password by element id. Password managers key off a real `<form>` to detect a login and offer fills; a formless login is a classic autofill-hostile pattern (the 1Password grant landed an empty `web10.app` entry with nothing to fill). The fields are now wrapped in real `<form>` elements with a `type="submit"` button (`onSubmit` + `preventDefault` keeps the SPA flow — no navigation) and `name` attributes on the inputs (`username`, `password`, `new-password`, `current-password`). `authFormsAutofill.test.tsx` (new, 8) locks in the form element + submit + name attrs across all four surfaces.
 
 ### Lane: ads (monetization)
 **Owns:** `marketing/web10-social/src/components/Monetization/` + `marketing/web10-social/src/data/ads-catalog.ts` (the app-owned ad surface, D75), `api/app/v3/services/clickhouse.py` + `api/app/v3/endpoints/documents.py` + `api/tests/test_ads.py`, `e2e/tests/ads.spec.ts`, `marketing/web10-social/src/components/Feed/PostComposer.tsx` + the ad block

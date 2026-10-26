@@ -21,20 +21,14 @@ function SignupForm({ I, embedded = false }: { I: Record<string, any>; embedded?
         </>
       )}
 
-      <div className={embedded ? "space-y-1" : "mt-6 space-y-1"}>
-        <Provider I={I} />
-        <Username I={I} />
-        <Password I={I} />
-        <ReTypePass I={I} />
-        <Contact I={I} />
-        <BetaCode I={I} />
-      </div>
-
-      <Button
-        variant="brand"
-        className="mt-2 w-full"
-        data-testid="signup-submit"
-        onClick={() => {
+      <form
+        className={embedded ? "space-y-1" : "mt-6 space-y-1"}
+        onSubmit={(e) => {
+          // A real submit: the form element is what password managers key off
+          // to detect a registration and offer fills. preventDefault keeps the
+          // SPA flow (no navigation) — the values come from the same DOM the
+          // button's click handler used to scrape.
+          e.preventDefault();
           const [provider, username, password, betacode, retype, contact] = [
             (document.getElementById("provider") as HTMLInputElement).value,
             (document.getElementById("username") as HTMLInputElement).value,
@@ -46,8 +40,22 @@ function SignupForm({ I, embedded = false }: { I: Record<string, any>; embedded?
           I.signup(provider, username, password, retype, betacode, contact);
         }}
       >
-        Sign up
-      </Button>
+        <Provider I={I} />
+        <Username I={I} />
+        <Password I={I} />
+        <ReTypePass I={I} />
+        <Contact I={I} />
+        <BetaCode I={I} />
+
+        <Button
+          variant="brand"
+          type="submit"
+          className="mt-2 w-full"
+          data-testid="signup-submit"
+        >
+          Sign up
+        </Button>
+      </form>
 
       <CredentialStatus I={I} />
 

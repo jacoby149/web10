@@ -4,8 +4,8 @@ from fastapi import APIRouter, HTTPException, Request
 
 import app.exceptions as exceptions
 from app.services.hls import hls_prefix, mint_sig
+from app.v3.endpoints.auth_helper import client_id_of, user_or_anon
 from app.v3.endpoints.auth_helper import user as _user
-from app.v3.endpoints.auth_helper import user_or_anon
 from app.v3.models import (
     ContentAnalyticsRequest,
     ContentViewsRequest,
@@ -147,8 +147,24 @@ def _mint_hls_manifest_urls(docs: list[dict], reader_key: str, authenticated: bo
     return out
 
 
-def _check_app_permission(request: Request, user_key: str, service: str, operation: str) -> None:
-    """Enforce app contract permissions. Raises 403 if no valid contract."""
+def _check_app_permission(
+    request: Request, user_key: str, service: str, operation: str, client_id: str | None = None
+) -> None:
+    """Enforce app contract permissions. Raises 403 if no valid contract.
+
+    Origin→client_id re-keying (D92, O3): a delegated token (client_id present)
+    is ALWAYS gated on its client_id contract — even with no Origin header (the
+    AI assistant has no Origin). A browser token (no client_id) keeps today's
+    path: Origin-gated when an Origin is present, skipped when absent
+    (same-origin / direct call).
+    """
+    if client_id:
+        if not ch.has_permission(user_key, "", service, operation, client_id=client_id):
+            raise HTTPException(
+                status_code=403,
+                detail=f"No app contract for {client_id} to {operation} on {service}",
+            )
+        return
     origin = request.headers.get("origin", "")
     if not origin:
         return  # same-origin or direct API call — skip contract check
@@ -163,7 +179,7 @@ def _check_app_permission(request: Request, user_key: str, service: str, operati
 def create_document(request: Request, data: CreateDocument):
     """Create a document in a service. User from JWT. Server generates doc_id."""
     author = _user(data)
-    _check_app_permission(request, author, data.service, "create")
+    _check_app_permission(request, author, data.service, "create", client_id_of(data))
     result = ch.insert_document(
         author_key=author,
         service=data.service,
@@ -210,7 +226,7 @@ def read_documents(request: Request, data: ReadDocuments):
     # class in the effective-role union.
     authenticated = reader != "anon"
     if authenticated:
-        _check_app_permission(request, reader, data.service, "readAll")
+        _check_app_permission(request, reader, data.service, "readAll", client_id_of(data))
 
     if data.doc_id:
         doc = ch.read_document_by_id(data.doc_id, reader, data.service, authenticated)
@@ -313,7 +329,7 @@ def update_document(request: Request, data: UpdateDocument):
     existing = ch.get_document(data.doc_id, author)
     if not existing:
         raise exceptions.ENTRY_NOT_FOUND
-    _check_app_permission(request, author, existing["service"], "updateOwn")
+    _check_app_permission(request, author, existing["service"], "updateOwn", client_id_of(data))
 
     merged_body = {**existing["body"], **data.body}
     # Preserve the existing ad preference unless the update sets one.
@@ -346,7 +362,7 @@ def delete_document(request: Request, data: DeleteDocument):
     existing = ch.get_document(data.doc_id, author)
     if not existing:
         raise exceptions.ENTRY_NOT_FOUND
-    _check_app_permission(request, author, existing["service"], "deleteOwn")
+    _check_app_permission(request, author, existing["service"], "deleteOwn", client_id_of(data))
 
     ch.delete_document(data.doc_id, author, existing["service"])
     ch.detach_doc_from_groups(data.doc_id)
@@ -368,7 +384,7 @@ def track_content_event(request: Request, data: TrackContentEvent):
     stored verbatim, content-free (D60: the app owns the payload's meaning).
     """
     reader = _user(data)  # verified reader only (anon rejected)
-    _check_app_permission(request, reader, data.service, "readAll")
+    _check_app_permission(request, reader, data.service, "readAll", client_id_of(data))
     recorded = ch.record_content_event(
         doc_id=data.doc_id,
         service=data.service,
@@ -395,7 +411,7 @@ def content_analytics(request: Request, data: ContentAnalyticsRequest):
     to totals / per-surface / time-series / per-doc.
     """
     reader = _user(data)  # verified creator only (anon rejected)
-    _check_app_permission(request, reader, data.service, "readAll")
+    _check_app_permission(request, reader, data.service, "readAll", client_id_of(data))
     rows = ch.content_event_creator_rows(reader, data.service, data.window_days)
     return {"rows": rows, "count": len(rows)}
 
@@ -425,7 +441,7 @@ def content_views(request: Request, data: ContentViewsRequest):
     reader = user_or_anon(data)
     authenticated = reader != "anon"
     if authenticated:
-        _check_app_permission(request, reader, data.service, "readAll")
+        _check_app_permission(request, reader, data.service, "readAll", client_id_of(data))
     # D58 read gate: filter to the groups the reader's effective role grants
     # readAll on this service (the same gate the group read uses). Anon reads
     # the public board (the `anyone` grant).

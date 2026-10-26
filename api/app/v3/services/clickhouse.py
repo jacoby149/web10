@@ -5,7 +5,7 @@ import re
 import threading
 import time
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import clickhouse_connect
 from clickhouse_connect.driver import exceptions as _ch_exceptions
@@ -262,6 +262,36 @@ def ensure_apps_schema():
             "redirect_uris Array(String), created_at DateTime64(3), "
             "updated_at DateTime64(3), deleted UInt8 DEFAULT 0"
             ") ENGINE = ReplacingMergeTree(updated_at) ORDER BY client_id"
+        )
+        # app_contracts.client_id — the OAuth 2.0 delegation key (D92). A
+        # browser-origin contract has client_id = '' (keyed on allowed_origin);
+        # a delegated (OAuth) contract has client_id = the app's id and
+        # allowed_origin = '' (keyed on client_id). The two are mutually
+        # exclusive in a row, so has_permission can look up by either.
+        # Pre-existing volumes predate the column; ADD COLUMN appends it at the
+        # end (default ''), which is why contract inserts name their columns.
+        client.command("ALTER TABLE app_contracts ADD COLUMN IF NOT EXISTS client_id String DEFAULT ''")
+        # oauth_codes — the short-lived authorization code (D92, O5). Minted at
+        # /oauth/authorize, redeemed once at /oauth/token. 60s TTL, single-use
+        # (redeemed → tombstone). Only the SHA-256 hash is stored (never the
+        # raw code). ReplacingMergeTree + tombstone for the single-use mark.
+        client.command(
+            "CREATE TABLE IF NOT EXISTS oauth_codes ("
+            "code_hash String, client_id String, username String, redirect_uri String, "
+            "created_at DateTime64(3), expires_at DateTime64(3), deleted UInt8 DEFAULT 0"
+            ") ENGINE = ReplacingMergeTree(updated_at) ORDER BY code_hash"
+        )
+        # oauth_refresh_tokens — the per-(user, client) refresh credential
+        # (D92, O6/O7). 60-day lifetime, rotating: each use tombstones the old
+        # row and inserts a new one with the same family_id. A replayed
+        # (tombstoned) token invalidates the whole family (stolen-token
+        # detection). Only the SHA-256 hash is stored.
+        client.command(
+            "CREATE TABLE IF NOT EXISTS oauth_refresh_tokens ("
+            "token_hash String, client_id String, username String, family_id String, "
+            "created_at DateTime64(3), expires_at DateTime64(3), updated_at DateTime64(3), "
+            "deleted UInt8 DEFAULT 0"
+            ") ENGINE = ReplacingMergeTree(updated_at) ORDER BY token_hash"
         )
         log.info(
             "[v3] schema ensured (apps.visits + app_ratings.comment + node_config + app_visits + group_contracts.discoverable + group_contracts.tags + group_contracts.membership_visibility + documents.ad_mode/ad_target + moderation_flags + bug_reports + marketing_events + banned_users + content_events + oauth_clients present)"
@@ -2073,11 +2103,13 @@ def get_moderation_flags() -> list[dict]:
 
 
 def add_app_contract(user_key: str, allowed_origin: str, permissions: dict) -> dict:
-    """Add an app contract (one row per app, permissions is JSON). Upserts if exists."""
+    """Add a browser-origin app contract (one row per app, permissions is JSON).
+    Upserts if exists. client_id = '' (the browser-origin key; the OAuth
+    delegation key is grant_delegated_contract, D92)."""
     now = _now()
     client.insert(
         "app_contracts",
-        [[user_key, allowed_origin, json.dumps(permissions), now, now, 0]],
+        [[user_key, allowed_origin, json.dumps(permissions), now, now, 0, ""]],
     )
     return {
         "user_key": user_key,
@@ -2088,17 +2120,24 @@ def add_app_contract(user_key: str, allowed_origin: str, permissions: dict) -> d
 
 
 def get_app_contracts(user_key: str) -> list[dict]:
-    """Get active app contracts for a user."""
+    """Get active app contracts for a user (browser-origin + delegated OAuth).
+
+    Dedup is by the effective key: ``client_id`` for a delegated contract
+    (allowed_origin = ''), else ``allowed_origin``. Partitioning on
+    allowed_origin alone would collapse every delegated contract (they all
+    have allowed_origin = '') into one row.
+    """
     result = client.query(
-        "SELECT allowed_origin, permissions FROM (SELECT allowed_origin, permissions, deleted, "
-        "row_number() OVER (PARTITION BY allowed_origin ORDER BY updated_at DESC) as rn "
+        "SELECT allowed_origin, client_id, permissions FROM (SELECT allowed_origin, client_id, permissions, deleted, "
+        "row_number() OVER (PARTITION BY multiIf(client_id != '', client_id, allowed_origin) ORDER BY updated_at DESC) as rn "
         "FROM app_contracts WHERE user_key = %(user_key)s) WHERE rn = 1 AND deleted = 0",
         {"user_key": user_key},
     )
     return [
         {
             "allowed_origin": row[0],
-            "permissions": json.loads(row[1]) if row[1] else {},
+            "client_id": row[1],
+            "permissions": json.loads(row[2]) if row[2] else {},
         }
         for row in result.result_rows
     ]
@@ -2115,13 +2154,23 @@ def is_origin_allowed(user_key: str, allowed_origin: str) -> bool:
     return result.result_rows[0][0] > 0
 
 
-def get_app_permissions(user_key: str, allowed_origin: str) -> dict:
-    """Get the permissions dict for a user+origin contract. Returns {} if no contract."""
+def get_app_permissions(user_key: str, allowed_origin: str, client_id: str | None = None) -> dict:
+    """Get the permissions dict for a user's app contract. Returns {} if none.
+
+    Keyed on ``client_id`` when provided (a delegated OAuth contract, D92),
+    else on ``allowed_origin`` (a browser-origin contract). The two are
+    mutually exclusive in a row, so the WHERE picks the right key.
+    """
+    if client_id:
+        where = "user_key = %(user_key)s AND client_id = %(client_id)s"
+        params = {"user_key": user_key, "client_id": client_id}
+    else:
+        where = "user_key = %(user_key)s AND allowed_origin = %(allowed_origin)s"
+        params = {"user_key": user_key, "allowed_origin": allowed_origin}
     result = client.query(
-        "SELECT permissions FROM (SELECT permissions, deleted FROM app_contracts "
-        "WHERE user_key = %(user_key)s AND allowed_origin = %(allowed_origin)s "
-        "ORDER BY updated_at DESC LIMIT 1) WHERE deleted = 0",
-        {"user_key": user_key, "allowed_origin": allowed_origin},
+        f"SELECT permissions FROM (SELECT permissions, deleted FROM app_contracts "
+        f"WHERE {where} ORDER BY updated_at DESC LIMIT 1) WHERE deleted = 0",
+        params,
     )
     rows = result.result_rows
     if not rows:
@@ -2129,22 +2178,48 @@ def get_app_permissions(user_key: str, allowed_origin: str) -> dict:
     return json.loads(rows[0][0]) if rows[0][0] else {}
 
 
-def has_permission(user_key: str, allowed_origin: str, service_name: str, operation: str) -> bool:
-    """Check if an origin has permission for a specific service+operation."""
-    perms = get_app_permissions(user_key, allowed_origin)
+def has_permission(
+    user_key: str, allowed_origin: str, service_name: str, operation: str, client_id: str | None = None
+) -> bool:
+    """Check if an app (by origin or by OAuth client_id) has permission for a
+    specific service+operation. Default-deny: no contract → False."""
+    perms = get_app_permissions(user_key, allowed_origin, client_id=client_id)
     if not perms:
         return False
     service_perms = perms.get(service_name, [])
     return operation in service_perms
 
 
-def revoke_app_contract(user_key: str, allowed_origin: str):
-    """Tombstone one app contract (one row = one app)."""
+def grant_delegated_contract(user_key: str, client_id: str, permissions: dict) -> dict:
+    """Grant a delegated (OAuth) app contract (D92). One row per (user,
+    client_id): keyed on client_id with allowed_origin = '' (mutually
+    exclusive with the browser-origin key). Upserts if it exists."""
+    now = _now()
+    client.insert(
+        "app_contracts",
+        [[user_key, "", json.dumps(permissions), now, now, 0, client_id]],
+    )
+    return {
+        "user_key": user_key,
+        "client_id": client_id,
+        "permissions": permissions,
+        "created_at": _iso_utc(now),
+    }
+
+
+def revoke_app_contract(user_key: str, allowed_origin: str, client_id: str | None = None):
+    """Tombstone one app contract (one row = one app). By client_id when
+    provided (delegated), else by allowed_origin (browser-origin)."""
+    if client_id:
+        where = "user_key = %(user_key)s AND client_id = %(client_id)s AND deleted = 0"
+        params = {"user_key": user_key, "client_id": client_id}
+    else:
+        where = "user_key = %(user_key)s AND allowed_origin = %(allowed_origin)s AND deleted = 0"
+        params = {"user_key": user_key, "allowed_origin": allowed_origin}
     client.command(
-        "INSERT INTO app_contracts (user_key, allowed_origin, permissions, created_at, updated_at, deleted) "
-        "SELECT user_key, allowed_origin, permissions, created_at, now64(6), 1 "
-        "FROM app_contracts WHERE user_key = %(user_key)s AND allowed_origin = %(allowed_origin)s AND deleted = 0",
-        {"user_key": user_key, "allowed_origin": allowed_origin},
+        "INSERT INTO app_contracts (user_key, allowed_origin, permissions, created_at, updated_at, deleted, client_id) "
+        f"SELECT user_key, allowed_origin, permissions, created_at, now64(6), 1, client_id FROM app_contracts WHERE {where}",
+        params,
     )
 
 
@@ -2247,6 +2322,121 @@ def revoke_oauth_client(client_id: str) -> None:
         "SELECT client_id, client_secret, client_name, redirect_uris, created_at, now64(6), 1 "
         "FROM oauth_clients WHERE client_id = %(client_id)s AND deleted = 0",
         {"client_id": client_id},
+    )
+
+
+# --- Authorization codes (D92, O5) ---
+
+
+def _hash_secret(value: str) -> str:
+    """SHA-256 hex of a secret (code / refresh token). Only the hash is stored."""
+    import hashlib
+
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def store_oauth_code(code: str, client_id: str, username: str, redirect_uri: str, ttl_seconds: int = 60) -> None:
+    """Store a fresh authorization code (60s TTL, single-use). Only the hash
+    is persisted — the raw code is returned to the client once and discarded."""
+    now = _now()
+    expires = now + timedelta(seconds=ttl_seconds)
+    client.insert(
+        "oauth_codes",
+        [[_hash_secret(code), client_id, username, redirect_uri, now, expires, 0]],
+    )
+
+
+def redeem_oauth_code(code: str, client_id: str, redirect_uri: str) -> str | None:
+    """Redeem a single-use authorization code. Returns the bound username, or
+    None if the code is unknown, expired, already used, or bound to a
+    different client/redirect_uri. A valid redemption tombstones the code."""
+    code_hash = _hash_secret(code)
+    result = client.query(
+        "SELECT username, expires_at, client_id, redirect_uri FROM (SELECT username, expires_at, "
+        "client_id, redirect_uri, deleted, row_number() OVER (PARTITION BY code_hash ORDER BY updated_at DESC) AS rn "
+        "FROM oauth_codes WHERE code_hash = %(code_hash)s) WHERE rn = 1 AND deleted = 0",
+        {"code_hash": code_hash},
+    )
+    rows = result.result_rows
+    if not rows:
+        return None
+    username, expires_at, bound_client, bound_uri = rows[0]
+    # Bound to the presenting client + redirect_uri (a different client or URI
+    # cannot redeem it).
+    if bound_client != client_id or bound_uri != redirect_uri:
+        return None
+    # 60s TTL — a code not redeemed in time is dead.
+    if _now() > expires_at:
+        return None
+    # Single-use: tombstone the code so a second redemption fails.
+    client.command(
+        "INSERT INTO oauth_codes (code_hash, client_id, username, redirect_uri, created_at, expires_at, updated_at, deleted) "
+        "SELECT code_hash, client_id, username, redirect_uri, created_at, expires_at, now64(6), 1 "
+        "FROM oauth_codes WHERE code_hash = %(code_hash)s AND deleted = 0",
+        {"code_hash": code_hash},
+    )
+    return username
+
+
+# --- Refresh tokens (D92, O6/O7) ---
+
+
+def store_refresh_token(token: str, client_id: str, username: str, family_id: str, ttl_days: int = 60) -> None:
+    """Store a fresh refresh token (60-day TTL). Only the hash is persisted."""
+    now = _now()
+    expires = now + timedelta(days=ttl_days)
+    client.insert(
+        "oauth_refresh_tokens",
+        [[_hash_secret(token), client_id, username, family_id, now, expires, now, 0]],
+    )
+
+
+def get_refresh_token(token: str) -> dict | None:
+    """Look up a refresh token by hash. Returns the row (with family_id) or
+    None if unknown. Does NOT check expiry or tombstone state — the caller
+    decides (replay detection needs to see a tombstoned row)."""
+    token_hash = _hash_secret(token)
+    result = client.query(
+        "SELECT client_id, username, family_id, expires_at, deleted FROM (SELECT client_id, username, "
+        "family_id, expires_at, deleted, row_number() OVER (PARTITION BY token_hash ORDER BY updated_at DESC) AS rn "
+        "FROM oauth_refresh_tokens WHERE token_hash = %(token_hash)s) WHERE rn = 1",
+        {"token_hash": token_hash},
+    )
+    rows = result.result_rows
+    if not rows:
+        return None
+    row = rows[0]
+    return {
+        "client_id": row[0],
+        "username": row[1],
+        "family_id": row[2],
+        "expires_at": row[3],
+        "deleted": bool(row[4]),
+    }
+
+
+def rotate_refresh_token(
+    old_token: str, new_token: str, client_id: str, username: str, family_id: str, ttl_days: int = 60
+) -> None:
+    """Rotate: tombstone the old token, store the new one (same family)."""
+    old_hash = _hash_secret(old_token)
+    client.command(
+        "INSERT INTO oauth_refresh_tokens (token_hash, client_id, username, family_id, created_at, expires_at, updated_at, deleted) "
+        "SELECT token_hash, client_id, username, family_id, created_at, expires_at, now64(6), 1 "
+        "FROM oauth_refresh_tokens WHERE token_hash = %(token_hash)s AND deleted = 0",
+        {"token_hash": old_hash},
+    )
+    store_refresh_token(new_token, client_id, username, family_id, ttl_days)
+
+
+def invalidate_token_family(family_id: str) -> None:
+    """Stolen-token detection: tombstone every token in a rotation family. A
+    replayed (tombstoned) refresh token means the family is compromised."""
+    client.command(
+        "INSERT INTO oauth_refresh_tokens (token_hash, client_id, username, family_id, created_at, expires_at, updated_at, deleted) "
+        "SELECT token_hash, client_id, username, family_id, created_at, expires_at, now64(6), 1 "
+        "FROM oauth_refresh_tokens WHERE family_id = %(family_id)s AND deleted = 0",
+        {"family_id": family_id},
     )
 
 
