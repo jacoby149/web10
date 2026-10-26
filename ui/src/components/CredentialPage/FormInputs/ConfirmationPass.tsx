@@ -23,6 +23,7 @@ function ConfirmationPass({
         />
         <Input
           id="retypepass"
+          name="current-password"
           type="password"
           className="pl-9"
           placeholder="••••••••"

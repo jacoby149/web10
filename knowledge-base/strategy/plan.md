@@ -838,6 +838,7 @@ were never built (the changelog's "the API is 3.37.0" was wrong). Lane is
 - [✓ 3.51.0] **Node config flag** (`api/app/models/config.py`, `services/config.py`) — `require_contact` (D10); enforced in `POST /v3/signup` (401 `CONTACT_REQUIRED`).
 - [✓ 3.51.0] **Tests** (`api/tests/test_recovery.py`) — request sends code, verify returns accounts + verify_token, complete signs in / creates account / changes password, contact mismatch, bad code, node-config gate.
 - [✓ 3.51.0] **UI** (`ui/src/interfaces/Interface.tsx`, `ui/src/components/CredentialPage/ForgotForm.tsx`) — the contact input (phone OR email), the verify_token plumbing, the "create a new account" option, the primary-sign-in routing.
+- [~ 3.242.0] **Autofill-friendly auth forms** (`ui/src/components/CredentialPage/`, `ui/src/components/Settings/`) — the credential forms (login / signup / recovery / change-password) were formless (divs + a button whose click handler scraped the DOM by id); password managers key off a real `<form>` to offer fills. The fields are now wrapped in real `<form>` elements with a `type="submit"` button (`onSubmit` + `preventDefault` keeps the SPA flow) and `name` attributes on the inputs. `authFormsAutofill.test.tsx` (new, 8) locks it in.
 
 ## Public Docs Overhaul (audience model) — Docs
 

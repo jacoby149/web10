@@ -4,6 +4,7 @@ function ReTypePass({ I }: { I: Record<string, any> }) {
   return (
     <PasswordInput
       id="retypepass"
+      name="retypepass"
       label="Retype password"
       autoComplete="new-password"
       testId="retype-password-input"
