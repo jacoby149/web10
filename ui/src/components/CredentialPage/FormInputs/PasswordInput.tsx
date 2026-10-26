@@ -10,11 +10,13 @@ function PasswordInput({
   label,
   autoComplete,
   testId,
+  name,
 }: {
   id: string;
   label: string;
   autoComplete: string;
   testId: string;
+  name?: string;
 }) {
   const [visible, setVisible] = useState(false);
 
@@ -30,6 +32,7 @@ function PasswordInput({
         />
         <Input
           id={id}
+          name={name}
           type={visible ? "text" : "password"}
           className="pl-9 pr-9"
           placeholder="••••••••"

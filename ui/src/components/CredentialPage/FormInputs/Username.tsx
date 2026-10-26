@@ -15,6 +15,7 @@ function Username({ I }: { I: Record<string, any> }) {
         />
           <Input
             id="username"
+            name="username"
             className="pl-9"
             placeholder="yourname"
             autoComplete="username"
