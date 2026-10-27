@@ -4,15 +4,38 @@ The altitude. One row per **(unit, level)**. This is the coverage record — the
 thing you point at to prove forward progress. Format, status, and staleness rules
 live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../../ai-pack/ai-security-theory/the-security-record/README.md).
 
-> **Status key:** `PASS` = no open backlog for this unit at this level (everything
-> found is fixed or deferred to a `BP-n`). `OPEN` = scanned, has unfixed/undeferred
-> findings (live scan debt). `STALE` = last check relatively old, re-scan owed.
+> **Status key:** `PASS` requires evidenced current-level disposition and required
+> sign-off under the campaign strategy. A `BP-n` reference or completed read alone
+> does not pass a blocked guarantee. `OPEN` = unresolved findings, coverage or
+> sign-off. `STALE` = evidence invalidated or relatively old, re-scan owed.
 >
 > **Level key (the scope ladder):** `L1` = file-scan (the file itself) · `L2` =
 > call-graph-scan (the file + its direct call graph, one hop) · `L3` = service-scan
 > (the whole service, transitive closure) · `L4` = project-wide-scan (all services,
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
+
+## Current Protocol L1 Read Pass (27.10.2026)
+
+[Current index/ledger](scans/2026-10/l1-current-index.md) records the exhaustive
+selected manifest at `f7aabdb26346752141f46f19c393dbadfd25ddd2`: 171 paths/30,451
+logical lines, 105 paths freshly read and 66 byte-equal historical paths. Exact
+1,341-path exclusions, all six classes, runnable evidence and fresh same-model
+reviews are linked there. This is read coverage, NOT L1 security PASS.
+
+New local evidence includes OAuth expired-principal acceptance (same D-01 root),
+conditional code single-use failure and operator Mongo URI credential output.
+Real DB schema/merge/revocation effects and backup protection remain unverified.
+Refresh-family invalidation is not a proven C+I exploit; deliberate gate exemption
+is a policy/control limitation, not accidental auth bypass. All existing open
+protocol findings, separate B-8 integration and required model-diverse review
+remain blockers; no L2 advancement. Scan receipts pending publication. O10
+follow-up at `1332abc678344d24dc6f85227549dda2b0bef9a9` rescans complete SDK v3/index
+and changed artifacts: selected union now 171 paths/31,537 lines, other 160 selected
+paths unchanged. [Fresh O10 review](scans/2026-10/l1-o10-review.md) keeps callback/
+refresh observations conditional, first-use exchange as correctness, inherited
+refresh selection distinct from repaired parsing. No new proven server C+I exploit.
+Operator approved larger evidence PR; code/test CI limit unchanged, no exemption.
 
 ## Seed state — from the October 2026 audit
 
@@ -102,6 +125,14 @@ Inventory and line coverage do not establish service PASS or deployment security
 
 ## Protocol L1 Repair Progress
 
+27.10.2026: SDK-B-01 source repair merged #1255 (3.244.1); rollout/sign-off remain
+open. **B-8** [local source repair](scans/2026-10/repair-b8-settings.md) replaces
+the settings globals dump with fixed safe output. Four CLI subcases red -> green,
+import compatibility preserved, 1,180 API tests pass; fresh same-model review.
+Pending merge/deployment/sign-off, not whole-settings PASS; B-2 remains OPEN.
+OAuth additions/changed authority paths after the original API pin require delta
+L1 coverage and disposition before advancement; old receipts do not cover them.
+
 **B-4:** [source repair evidence](scans/2026-10/repair-b4-middleware.md) records
 all nine regressions red on the pinned original and green on the candidate fix;
 full API suite 1,138 green after syncing dev on 20.10.2026. This repairs the middleware capture/insert-failure
@@ -111,10 +142,10 @@ findings and L1 advancement gates remain open. No model-diverse/three-dry claim.
 
 ## SDK L1 Source Campaign
 
-21.10.2026: SDK-B-01 local source/artifact repair verified; [repro and fresh
+21.10.2026 repair, merged #1255: SDK-B-01 source/artifact repair verified; [repro and fresh
 review](scans/2026-10/repair-sdk-b01-cookie.md). Own data-property parsing and
 own-token selection deny synthetic inherited tokens in source/five runtimes.
-208 SDK tests and typecheck pass. Pending merge/deployment/sign-off; scope B
+208 SDK tests and typecheck pass at repair pin. Deployment/sign-off pending; scope B
 remains OPEN for other handoffs, not whole-file PASS. Alignment #1248 merged.
 
 [Source/artifact inventory](scans/2026-10/l1-sdk-index.md), source pin

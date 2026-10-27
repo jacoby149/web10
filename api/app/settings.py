@@ -137,4 +137,4 @@ COST["delete"] = COST_DELETE
 COST["aggregate"] = COST_AGGREGATE
 
 if __name__ == "__main__":
-    print(globals())
+    print("Settings loaded; configuration values omitted.")
