@@ -238,6 +238,71 @@ export interface V3ServiceContract {
     allowed_origin: string;
     permissions: Record<string, string[]>;
 }
+/** Options for `w.oauth.authorize()` — the consent entry point. */
+export interface V3OauthAuthorizeOptions {
+    /** The registered app's client_id (from the node's oauth_clients registry). */
+    clientId: string;
+    /** An exact-match redirect URI from the client's registered set. In a
+     *  browser this is where the user lands after consent (the code arrives in
+     *  its query string); for a server-side connector it's the callback the
+     *  connector itself handles. */
+    redirectUri: string;
+    /** Opaque value returned verbatim on completion (CSRF protection, the
+     *  connector's own use). */
+    state?: string;
+    /** Origin of the authenticator that renders the consent screen
+     *  (e.g. 'https://auth.web10.app'). Defaults to the API origin's host with
+     *  the first label swapped to `auth`. */
+    authOrigin?: string;
+    /** Browser only: open the consent screen in a popup and resolve when the
+     *  user approves (code) or denies/closes (error). Default true when a
+     *  window exists; pass false — or run server-side — to get just the URL. */
+    openPopup?: boolean;
+    /** Popup wait budget before giving up (default 60s — consent can take a
+     *  while; the code itself only lives 60s once minted). */
+    timeoutMs?: number;
+}
+/** The result of an approved consent: the single-use authorization code
+ *  (redeem within 60s via `exchangeCode`) + the echoed `state`. */
+export interface V3OauthCodeResult {
+    code: string;
+    state?: string | null;
+}
+/** The node's `/v3/oauth/token` response (both grants share the shape). */
+export interface V3OauthTokenResponse {
+    access_token: string;
+    token_type: string;
+    expires_in: number;
+    refresh_token: string;
+}
+/** The delegated-access surface on the v3 client (`w.oauth`). */
+export interface V3OauthClient {
+    /** Build the consent URL (and open it in a popup by default in a browser).
+     *  Resolves `{ code, state }` when the user approves; rejects with a
+     *  Web10Error when they deny / close / time out, or when `openPopup` is
+     *  false (then it resolves the URL object instead — see return type). */
+    authorize(options: V3OauthAuthorizeOptions): Promise<V3OauthCodeResult | {
+        url: string;
+    }>;
+    /** Exchange a single-use authorization code for tokens (grant_type
+     *  `authorization_code`). Requires the client_secret (confidential clients
+     *  only, per the spec). Stores the access token (setToken) + the refresh
+     *  token. Rejects on invalid_client (401) / invalid_grant (400). */
+    exchangeCode(code: string, redirectUri: string, opts: {
+        clientSecret: string;
+    }): Promise<V3OauthTokenResponse>;
+    /** Rotate the stored refresh token (grant_type `refresh_token`). Mints a
+     *  fresh access + refresh pair; the old refresh token is dead (replaying it
+     *  invalidates the whole family server-side). Requires the client_secret. */
+    refresh(opts: {
+        clientSecret: string;
+    }): Promise<V3OauthTokenResponse>;
+    /** The stored refresh token, or null. Persist it yourself if the cookie
+     *  store isn't enough (server-side connectors). */
+    getRefreshToken(): string | null;
+    /** Store a refresh token (e.g. restored from your own persistence). */
+    setRefreshToken(token: string | null): void;
+}
 export interface V3QueryResult {
     rows: Record<string, unknown>[];
     count: number;
@@ -434,6 +499,7 @@ export interface V3Client {
     setRecoveryPhone(phone: string): Promise<{
         phone_number: string;
     }>;
+    oauth: V3OauthClient;
     create(collection: string, body: Record<string, unknown>, opts?: {
         groups?: string[];
         ad_preference?: V3AdPreference;
