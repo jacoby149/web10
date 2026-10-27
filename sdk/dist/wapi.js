@@ -265,6 +265,157 @@
         }).catch(() => {});
       } catch {}
     }
+    let lastClientId = null;
+    function currentClientId() {
+      const payload = state.token ? decodeJwt(state.token) : null;
+      const cid = payload?.client_id ?? null;
+      if (cid)
+        lastClientId = cid;
+      return cid;
+    }
+    function readRefreshTokenCookie() {
+      const raw = cookieDict()["refresh_token"];
+      return typeof raw === "string" && raw ? raw : null;
+    }
+    function setRefreshTokenCookie(token) {
+      if (typeof document === "undefined")
+        return;
+      if (!token) {
+        document.cookie = "refresh_token=;max-age=-1;path=/;";
+        return;
+      }
+      const age = 3600 * 24 * 60;
+      const secure = typeof location !== "undefined" && location.protocol === "https:" ? "Secure;" : "";
+      document.cookie = `refresh_token=${encodeURIComponent(token)};${secure}path=/;max-age=${age};SameSite=Lax;`;
+    }
+    const oauthState = { refresh_token: readRefreshTokenCookie() };
+    async function oauthTokenRequest(body) {
+      const res = await authPost(`${apiOrigin}/v3/oauth/token`, body);
+      this.setToken(res.access_token);
+      currentClientId();
+      oauthState.refresh_token = res.refresh_token || null;
+      setRefreshTokenCookie(res.refresh_token || null);
+      return res;
+    }
+    const oauth = {
+      authorize(options2) {
+        const clientId = options2.clientId.trim().toLowerCase();
+        if (!clientId)
+          throw new Web10Error("oauth: clientId is required", 400);
+        if (!options2.redirectUri)
+          throw new Web10Error("oauth: redirectUri is required", 400);
+        const params = new URLSearchParams({
+          oauth: "1",
+          client_id: clientId,
+          redirect_uri: options2.redirectUri,
+          response_type: "code"
+        });
+        if (options2.state != null)
+          params.set("state", options2.state);
+        const host = apiOrigin.replace(/^https?:\/\//, "").split("/")[0];
+        const authHost = host.replace(/^[^.]*\./, "auth.");
+        const protocol = typeof location !== "undefined" ? location.protocol : "https:";
+        const authOrigin = options2.authOrigin ?? `${protocol}//${authHost}`;
+        const url = `${authOrigin}/?${params.toString()}`;
+        const inBrowser = typeof window !== "undefined" && typeof window.open === "function";
+        if (!inBrowser || options2.openPopup === false) {
+          return Promise.resolve({ url });
+        }
+        return new Promise((resolve, reject) => {
+          const popup = window.open(url, "web10-oauth-consent", "width=480,height=720,scrollbars=yes");
+          if (!popup) {
+            reject(new Web10Error("Popup blocked — allow popups and try again", 400));
+            return;
+          }
+          let settled = false;
+          let poll = null;
+          const cleanup = () => {
+            if (poll)
+              clearInterval(poll);
+          };
+          const fail = (message) => {
+            if (settled)
+              return;
+            settled = true;
+            cleanup();
+            reject(new Web10Error(message, 400));
+          };
+          const succeed = (code, state2) => {
+            if (settled)
+              return;
+            settled = true;
+            cleanup();
+            resolve({ code, state: state2 });
+          };
+          poll = setInterval(() => {
+            let href = "";
+            try {
+              href = popup.location?.href ?? "";
+            } catch {
+              return;
+            }
+            if (!href)
+              return;
+            if (popup.closed) {
+              setTimeout(() => fail("Consent window closed"), 250);
+              return;
+            }
+            try {
+              const u = new URL(href);
+              const code = u.searchParams.get("code");
+              if (code) {
+                succeed(code, u.searchParams.get("state"));
+                return;
+              }
+              const error = u.searchParams.get("error");
+              if (error) {
+                fail(error === "access_denied" ? "Consent denied by the user" : `OAuth error: ${error}`);
+              }
+            } catch {}
+          }, 500);
+          setTimeout(() => fail("Consent timed out"), options2.timeoutMs ?? 60000);
+        });
+      },
+      exchangeCode(code, redirectUri, opts) {
+        if (!code)
+          throw new Web10Error("oauth: code is required", 400);
+        if (!opts?.clientSecret)
+          throw new Web10Error("oauth: clientSecret is required", 400);
+        const cid = lastClientId ?? currentClientId();
+        if (!cid)
+          throw new Web10Error("No delegated token in use — run authorize() + exchangeCode() first.", 401);
+        return oauthTokenRequest.call(client, {
+          grant_type: "authorization_code",
+          client_id: cid,
+          client_secret: opts.clientSecret,
+          code,
+          redirect_uri: redirectUri
+        });
+      },
+      refresh(opts) {
+        if (!opts?.clientSecret)
+          throw new Web10Error("oauth: clientSecret is required", 400);
+        const stored = oauthState.refresh_token ?? readRefreshTokenCookie();
+        if (!stored)
+          throw new Web10Error("No refresh token stored. Run authorize() + exchangeCode() first.", 401);
+        const cid = lastClientId ?? currentClientId();
+        if (!cid)
+          throw new Web10Error("No delegated token in use — run authorize() + exchangeCode() first.", 401);
+        return oauthTokenRequest.call(client, {
+          grant_type: "refresh_token",
+          client_id: cid,
+          client_secret: opts.clientSecret,
+          refresh_token: stored
+        });
+      },
+      getRefreshToken() {
+        return oauthState.refresh_token ?? readRefreshTokenCookie();
+      },
+      setRefreshToken(token) {
+        oauthState.refresh_token = token;
+        setRefreshTokenCookie(token);
+      }
+    };
     const client = {
       get state() {
         return { ...state };
@@ -289,6 +440,7 @@
       signOut() {
         this.scrubToken();
       },
+      oauth,
       async login(username, password, site) {
         const res = await authPost(`${apiOrigin}/v3/login`, { username, password, site: site ?? window?.location?.hostname ?? "web10" });
         this.setToken(res.token);
