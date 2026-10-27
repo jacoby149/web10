@@ -106,7 +106,7 @@ Conditional local facts remain bounded; no production breach is established.
 | L1-CURRENT-STORE-B-01 | Conditional single-use code consumption failure: two forced active snapshots both return user. Actual schema/ClickHouse/endpoint issuance unverified |
 | L1-CURRENT-STORE-B-02 | Bulk revoke/cleanup SQL omits delegated client identity; actual default/merge/authorization impact UNVERIFIED, not proven revoke bypass |
 | STORE-A-SCHEMA | OAuth code DDL references undeclared version column; insert compatibility and existing/fresh schema need real evidence; correctness/reachability, not C+I exploit |
-| L1-PKG-01 | New local URI-credential output class across audit/extractor; supported synthetic userinfo reaches stdout/manifest, not historical theft; S1 |
+| L1-PKG-01 | Local repair verified: whole URI omitted from audit/stdout/file manifests, 12 red -> green cases and fresh same-model review; [repair](repair-pkg01-mongo-output.md). Pending source integration/deployment/sign-off, not historical exposure closure; S1 |
 | L1-PKG-02 | Conditional backup protection risk; actual permissions/symlink/access UNVERIFIED, not a replayed filesystem disclosure |
 | L1-DEPLOY-01 | Frozen-install fallback drops integrity constraint at three sites; conditional supply-chain control finding, no poisoned artifact shown |
 | ART-01 / orphan artifacts | Producer pin/publication drift, six orphan declaration/maps and docs RTC provenance OPEN; hashes not build/publication/deployment assurance |

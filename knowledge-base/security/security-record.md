@@ -126,6 +126,14 @@ Inventory and line coverage do not establish service PASS or deployment security
 
 ## Protocol L1 Repair Progress
 
+27.10.2026: **L1-PKG-01** [local repair](scans/2026-10/repair-pkg01-mongo-output.md)
+omits raw Mongo URI input from audit stdout and both extractor output modes.
+Twelve output regressions red -> green; independent replay and migration controls
+preserve account rows/count/checksum. Fresh same-model design-intent review
+records the deliberate host-diagnostic/external-parser compatibility tradeoff.
+Follow-up included in still-open #1265; not merged, deployed or L1 PASS.
+Backup protection/defaults/operational exposure and diverse sign-off remain open.
+
 27.10.2026: SDK-B-01 source repair merged #1255 (3.244.1); rollout/sign-off remain
 open. **B-8** [local source repair](scans/2026-10/repair-b8-settings.md) replaces
 the settings globals dump with fixed safe output. Four CLI subcases red -> green,

@@ -356,6 +356,18 @@ correctness/design blocker, not a security exploit. Inherited refresh selection
 needs separate ambient pollution; repaired cookie parsing did not regress.
 Selected accounting is now 171 paths/31,537 lines, security gate still OPEN.
 
+### 2026-10-27: Mongo connection metadata is not account backup data
+
+[L1-PKG-01 local repair](scans/2026-10/repair-pkg01-mongo-output.md) omits the
+entire URI from audit output and account manifest metadata. Userinfo is not the
+only secret carrier: query options can contain credentials too. Twelve real-CLI
+synthetic output cases fail before and pass after; account hashes, rows and
+checksum behavior are preserved. The connection input is still forwarded intact.
+Host identification and external output-parser compatibility are intentionally
+not preserved; the dated repair records this bounded acceptance and reopen bar.
+Source is local, not merged/deployed; file permissions, defaults, driver errors,
+process arguments, history/rotation and required model-diverse review remain open.
+
 ## Known gaps (the "obvious gap" register)
 
 Gaps the orient has surfaced. Each is either a `BP-n` or a standing note:
