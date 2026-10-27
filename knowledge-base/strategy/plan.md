@@ -60,7 +60,7 @@ reuses `POST /v3/app-contracts/revoke`. Full spec:
 - [✓ 3.244.0] **O7: `POST /oauth/token` (refresh_token grant)** (`api/app/v3/endpoints/oauth.py`) — rotation, family invalidation on replay.
 - [✓ 3.244.0] **O8: Consent UI in `ui/`** (`ui/src/`) — the `/oauth/authorize` screen in the authenticator. Shows the client name, the derived permission list, approve/deny. Reuses `ConsentView` patterns.
 - [✓ 3.244.0] **O9: Revocation UI update** (`ui/src/components/Contracts/ContractPage.tsx`) — shows OAuth clients alongside browser-origin apps. Revoke works for both.
-- [ ] **O10: SDK `w.oauth()` helper (optional, later)** (`sdk/`) — a convenience method for the SDK to drive the authorize flow for non-browser clients. Not blocking.
+- [✓ 3.245.0] **O10: SDK `w.oauth()` helper** (`sdk/`) — `authorize` (consent URL + popup, or `{ url }` for server-side connectors) + `exchangeCode` / `refresh` (both grants against `/v3/oauth/token`) + refresh-token storage (own cookie slot; client_id from the delegated token's claim). D60-clean: no registry management, no consent rendering.
 
 ## L1 Security Scans
 

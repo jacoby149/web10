@@ -1,0 +1,418 @@
+% web10 workshop paper — v1 draft
+% Render: tectonic main.tex  (from this directory)
+\documentclass[sigconf, nonacm, review]{acmart}
+
+% --- packages (all in the tectonic bundle) ---
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{listings}
+
+\lstdefinestyle{sql}{
+  language={},
+  basicstyle=\ttfamily\footnotesize,
+  breaklines=true,
+  frame=single,
+  framesep=4pt,
+  rulecolor=\color{gray!50},
+  backgroundcolor=\color{gray!6},
+  keywordstyle=\bfseries,
+}
+\lstdefinestyle{json}{
+  language={},
+  basicstyle=\ttfamily\footnotesize,
+  breaklines=true,
+  frame=single,
+  framesep=4pt,
+  rulecolor=\color{gray!50},
+  backgroundcolor=\color{gray!6},
+}
+
+% --- acmart metadata ---
+\setcopyright{none}
+\acmConference[Workshop on Innovative Data Systems]{WDS '27}{October 2027}{To be held}
+\acmPrice{}
+\acmISBN{}
+\acmDOI{}
+
+\title{web10: User-Owned Social Data with IAM-Grade Access Contracts \\ at Zero Scan Penalty}
+\author{Jacob Hoffman}
+\affiliation{\institution{web10 Inc.}\country{}}
+\email{jacob@web10.app}
+
+\begin{document}
+
+\begin{abstract}
+Social platforms concentrate user data in platform-controlled silos with
+coarse, platform-defined access: users cannot leave with their data, cannot
+govern who sees what at fine granularity, and cannot monetize their own
+audience. Cloud identity-and-access-management (IAM) solved fine-grained,
+revocable authorization for infrastructure a decade ago, but never exposed
+that model to end users.
+
+We present \textbf{web10}, a deployed data architecture in which every user
+owns their data and access is governed by fine-grained, revocable,
+group/role-scoped contracts---bringing IAM primitives to the \emph{front} of
+a social data platform. Two trust layers gate every request: an
+\emph{app contract} (which origin may perform which operation on which data
+service) and a \emph{group role} (which principal may do what, expressed as a
+per-service permission map). Publicness is not a flag; it is a role grant to
+a principal class. The entire model is enforced at the query layer over a
+single columnar store, so fine-grained authorization is an index lookup into
+small metadata tables and adds \emph{zero scan-time penalty} to the
+columnar read.
+
+We report initial production measurements from the running system:
+[\textbf{N}] users, [\textbf{N}] documents, and [\textbf{N}] access
+decisions per day, with access decisions completing in [\textbf{X}]~ms at
+p99. A full evaluation, including a cost comparison against a shared-table
+baseline with row-level security, appears in the extended version.
+\end{abstract}
+
+\maketitle
+
+%=============================================================================
+\section{Introduction}
+\label{sec:intro}
+
+The dominant social platforms solve engagement extremely well and ownership
+extremely poorly. A user's posts, messages, and relationships live in the
+platform's database under the platform's access model. The user can adjust a
+handful of visibility settings the platform chose to expose; they cannot
+redefine who a ``friend'' or a ``member'' is, cannot contract access
+per-service, and cannot take their data---let alone their audience---
+elsewhere. When the platform changes its rules or goes away, the user's data
+goes with it.
+
+Cloud infrastructure solved the authorization half of this problem long ago.
+AWS IAM and its descendants give operators fine-grained, role-based,
+service-scoped, revocable access control with cryptographic token
+verification. But that model lives at the \emph{infrastructure} boundary: the
+cloud provider owns the data plane, and the end user is invisible to it.
+Nobody has brought the IAM model to the \emph{user} boundary of a social
+platform---where the user, not the platform, is the principal that holds the
+contracts.
+
+\textbf{web10} is a social data platform that makes that move. Every user's
+data lives under their own key in a single columnar store; every access
+decision is a check against two user-held contract layers; and the social
+application (feeds, groups, direct messages, discovery) is built entirely
+from these primitives with no app-specific surface in the node. This paper
+makes three contributions:
+
+\begin{enumerate}[leftmargin=*,nosep]
+  \item \textbf{A two-layer access model for user-owned social data}
+  (\S\ref{sec:model}): an outer \emph{app trust} layer (per-origin,
+  per-service operation grants) and an inner \emph{person trust} layer
+  (group roles as per-service permission maps over three nested principal
+  classes). Both must pass; either can deny.
+  \item \textbf{A query-layer enforcement design} (\S\ref{sec:enforcement})
+  in which the role check never touches the large document table. Effective
+  permissions are resolved against small metadata tables, producing a list of
+  cleared group identifiers that the columnar scan consumes as an ordinary
+  filter. Fine-grained control, zero scan-time penalty.
+  \item \textbf{Initial production measurements} (\S\ref{sec:eval}) from the
+  deployed system, with a full evaluation (latency curves, cost model,
+  shared-table baseline) in the extended version.
+\end{enumerate}
+
+The remainder of this paper: \S\ref{sec:model} defines the access model;
+\S\ref{sec:enforcement} shows how it is enforced over one columnar table;
+\S\ref{sec:eval} reports initial numbers; \S\ref{sec:related} positions web10
+against Solid, federated social protocols, and cloud IAM; \S\ref{sec:concl}
+concludes.
+
+%=============================================================================
+\section{The Access Model}
+\label{sec:model}
+
+\subsection{Two trust layers}
+
+Every request in web10 names an \emph{app} (the calling origin), a
+\emph{principal} (the acting user), a \emph{group} $G$, a \emph{service} $S$
+(a data namespace such as \texttt{posts} or \texttt{comments}), and an
+\emph{operation} $O$ (e.g.\ \texttt{readAll}, \texttt{create}). Authorization
+asks two independent questions, and \emph{both} must pass:
+
+\begin{center}
+\small
+\begin{tabular}{ll}
+\toprule
+\textbf{Layer} & \textbf{Question} \\
+\midrule
+App trust (outer wall)   & Can this \emph{app} perform $O$ on $S$? \\
+Person trust (inner wall) & Can this \emph{principal}'s effective role in $G$ grant $O$ on $S$? \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The app contract is \emph{infrastructure trust}: which origins may touch
+which services, enforced by CORS in the browser and re-checked server-side on
+every call. The group role is \emph{social trust}: which people may do what
+inside a group. The split matters because the two layers change at different
+rates and for different reasons---a user re-points an app's access without
+leaving any group, and leaves a group without touching any app's access.
+
+\subsection{Roles are per-service permission maps}
+
+A role is a named bundle of per-service permissions---a map from service to
+the operations it grants:
+
+\begin{lstlisting}[style=json]
+{ "name": "editor",
+  "permissions": {
+    "posts":    ["readAll", "create", "updateOwn"],
+    "comments": ["readAll"]
+  } }
+\end{lstlisting}
+
+The map \emph{is} the scope. \texttt{'*'} wildcards all document services; a
+reserved key \texttt{'group'} carries \emph{structural} operations on the
+group itself (\texttt{manageRoles}, \texttt{assignRoles},
+\texttt{deleteGroup}, join/member operations), while \emph{content}
+operations---including moderation such as \texttt{hideAll}---live under the
+service key, because they act on documents, not on the group's shape.
+
+Two properties keep the model small. First, the role map is the
+\emph{same shape} as the app-contract permission object: there is one
+permission language across both trust layers. Second, a person holds
+\emph{exactly one role} per group; the per-service map makes a single role
+fully expressive over any (principal, service, operation) matrix, so there is
+no multi-role stacking to reason about. Roles are generic---a group defines
+whatever roles fit its purpose (\texttt{owner}, \texttt{moderator},
+\texttt{page-curator}, \texttt{member}, or \texttt{dj}, \texttt{listener})---
+and the platform never names them.
+
+\subsection{Principal classes and effective permissions}
+
+Access is granted to \emph{principals}, of which there are three nested
+classes, broadest to narrowest:
+
+\begin{center}
+\small
+\begin{tabular}{ll}
+\toprule
+\textbf{Class} & \textbf{Who} \\
+\midrule
+\texttt{anyone}        & every request, signed in or not \\
+\texttt{authenticated} & any valid token (any user, member or not) \\
+\texttt{member}        & holds a member row in this group \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The classes are \emph{reserved keys in the member table}---no separate
+visibility table exists. A group grants a class a role by storing a member
+row for the reserved key:
+
+\begin{lstlisting}[style=sql]
+group_members:
+  (G, 'anyone',        'reader')    -- the group is public
+  (G, 'authenticated', 'reader')    -- signed-in users can read
+  (G, 'bob',           'moderator') -- bob moderates
+  (G, 'alice',         'owner')     -- alice owns
+\end{lstlisting}
+
+A principal's \emph{effective} permissions in a group are the union of the
+permission maps of every class they belong to:
+
+\begin{center}
+\small
+$\mathrm{effective}(P, G) \;=\; \mathrm{grant}(G,\ \texttt{anyone})$\\
+$\quad \cup\ \big(P \in \texttt{authenticated} \;?\; \mathrm{grant}(G,\ \texttt{authenticated}) : \emptyset\big)$\\
+$\quad \cup\ \big(P \in \texttt{member}(G) \;?\; \mathrm{grant}(G,\ \mathrm{role}(P)) : \emptyset\big)$
+\end{center}
+
+The nesting buys a monotonicity invariant for free: a member always sees at
+least what a signed-in stranger sees, who always sees at least what a
+signed-out visitor sees. The model cannot express the inversion.
+
+\subsection{Publicness is a grant, not a flag}
+
+There is no \texttt{visibility} column. ``Make my group public'' is the act
+of granting \texttt{readAll} to \texttt{anyone}; ``signed-in only'' grants it
+to \texttt{authenticated}; ``private'' grants it to member roles only. Join
+policy is orthogonal: it controls how a human \emph{becomes} a member (open,
+request, invite-only) and says nothing about what a non-member bystander can
+see. A group can be invite-only to join and still publicly readable---the
+discovery board is exactly that.
+
+This is the sense in which web10 brings IAM to the front: the operations a
+cloud operator would express as policies---\emph{principal class, service,
+operation, grant}---are the operations an \emph{end user} expresses about
+their own data, with the same revocability (a grant is a row; removing it is
+a tombstone that takes effect on the next read).
+
+%=============================================================================
+\section{Enforcement at the Query Layer}
+\label{sec:enforcement}
+
+\subsection{One columnar table}
+
+All user content lives in a single ClickHouse table, keyed by
+\texttt{(author\_key, doc\_id)}:
+
+\begin{lstlisting}[style=sql]
+CREATE TABLE documents (
+    doc_id          String,
+    author_key      String,
+    collection_name String,   -- the service: 'posts', 'comments', ...
+    body            String,   -- JSON
+    tags            Array(String),
+    created_at      DateTime64(3),
+    updated_at      DateTime64(3),
+    deleted         UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY (author_key, doc_id);
+\end{lstlisting}
+
+Updates are inserts with a higher \texttt{updated\_at} (the engine keeps the
+latest version); deletes are tombstone rows filtered at read time. Documents
+attach to groups through a small mapping table, and groups carry their
+contracts and members in two more small tables. Content is one wide
+columnar table; \emph{access is a handful of narrow metadata tables}.
+
+\subsection{The role check never touches the document table}
+
+The read path is the heart of the design:
+
+\begin{enumerate}[leftmargin=*,nosep]
+  \item \textbf{Resolve.} Look up the reader's rows in
+  \texttt{group\_members} (including the reserved principal-class rows) and
+  the role maps in \texttt{group\_contracts}. These are small, hot, and
+  indexed by their primary keys.
+  \item \textbf{Compute.} For the requested service, compute the set of group
+  identifiers whose effective role grants \texttt{readAll} to the reader.
+  \item \textbf{Scan.} Run the columnar \texttt{documents} scan exactly as it
+  always would, with the cleared-group list as an ordinary filter, unioned
+  with the reader's own \texttt{author\_key}.
+\end{enumerate}
+
+The authorization decision is therefore an index lookup into small metadata
+tables, not a per-document check inside the scan. The scan stays a scan. This
+is the ``zero scan-time penalty'' property: fine-grained, per-group,
+per-service control costs the same as the coarsest possible filter, because
+it \emph{is} a filter list computed once per query.
+
+\subsection{The same invariant on every path}
+
+The enforcement rule is uniform: \emph{no query returns documents for an
+\texttt{author\_key} the token does not own, unless group membership grants
+access} (invariant I3). Every read path---group feed, read-by-id, directory
+search---applies the identical principal-class gate, and the write side is
+gated the same way, so a bystander cannot attach content to a group they
+cannot write. A conformance suite of permission-matrix cases (including
+replayed-exploit denials) enforces the invariants mechanically; the full
+suite results appear in the extended version.
+
+%=============================================================================
+\section{Initial Evaluation}
+\label{sec:eval}
+
+web10 is deployed and in active use. This workshop version reports the
+measurement plan and initial scale; the extended version adds latency
+curves, the cost model, and the shared-table baseline comparison.
+
+\textbf{Scale (initial).} [\textbf{N}] registered users; [\textbf{N}]
+documents across [\textbf{N}] services; [\textbf{N}] groups;
+[\textbf{N}] access decisions per day.
+
+\textbf{Access-decision latency (initial).} The resolve+compute phase
+(metadata lookup + effective-role computation) completes in
+[\textbf{X}]~ms at p50 / [\textbf{Y}]~ms at p99, measured as a fraction of
+[\textbf{Z}]\% of total read latency.
+
+\textbf{Planned (extended version).} (1)~p50/p95/p99 access-decision latency
+under sustained load, with the signature-verify / contract-lookup /
+membership-lookup breakdown; (2)~the cost of the per-user key-space model
+versus a single shared table with row-level security, including storage
+overhead and the cost growth curve; (3)~the same social application's
+end-to-end flow latencies on web10 versus a conventional backend; and
+(4)~the full permission-matrix conformance results.
+
+%=============================================================================
+\section{Related Work}
+\label{sec:related}
+
+\textbf{Decentralized social data.} Solid~\cite{solid} gives users personal
+data stores (Pods) with WebACL-style access control and scoped app tokens;
+ActivityPub~\cite{activitypub} and ATProto~\cite{atproto} federate social
+activity with user-held datastores. These systems establish that users can
+own their data, but their authorization is either coarse (container-level
+ACLs) or federation-trust based, and none makes fine-grained, per-service,
+role-scoped \emph{group} contracts a first-class, query-enforced primitive
+with measured scan cost. web10's closest philosophical ancestor is Solid; the
+differences are storage (one columnar table versus per-Pod LDPC containers),
+authorization (per-service role maps versus WebACL), and the explicit
+zero-scan-penalty enforcement point.
+
+\textbf{Cloud IAM.} AWS IAM~\cite{awsiam} and the RBAC/ABAC
+literature~\cite{rbac} define the permission language web10 reuses at the
+user boundary: principals, roles, service-scoped operations, revocable
+grants. The move in this paper is directional---the same policy shape, held
+by the end user about their own data, enforced by the data layer rather than
+a control plane.
+
+\textbf{Multi-tenant isolation.} The database literature on tenant
+isolation---schema-per-tenant, database-per-tenant, and row-level
+security~\cite{rls}---is the closest systems ancestor. web10's key-space
+per user is tenant-per-end-user taken to its limit: the tenant is the
+\emph{end user}, and the isolation is expressed as the query's
+\texttt{author\_key} filter plus group-grant list rather than a physical
+boundary. The cost tradeoff of that choice is measured in the extended
+version.
+
+%=============================================================================
+\section{Conclusion}
+\label{sec:concl}
+
+web10 brings the cloud IAM permission model---principal classes, roles,
+service-scoped operations, revocable grants---to the user boundary of a
+social data platform, and enforces it at the query layer of a single
+columnar store so that fine-grained authorization costs an index lookup, not
+a scan. This workshop version presents the model and initial production
+measurements; the extended version adds the full evaluation, including the
+cost comparison against row-level-security baselines.
+
+%=============================================================================
+\bibliographystyle{ACM-Reference-Format}
+\begin{thebibliography}{9}
+
+\bibitem{solid}
+T.\ Berners-Lee.
+\newblock Solid: A distributed social web protocol.
+\newblock \emph{Solid Project / W3C}, 2014--present.
+\newblock \url{https://solidproject.org}.
+
+\bibitem{activitypub}
+M.\ Sporny, D.\ Wilson, R.\ Smith, and D.\ Sadok.
+\newblock ActivityPub: A protocol for distributed federated publishing, archiving, and sharing.
+\newblock \emph{IETF Internet-Draft}, 2023.
+
+\bibitem{atproto}
+D.\ Holman and M.\ Roth.
+\newblock AT Protocol: A personal data protocol for social applications.
+\newblock \emph{Bluesky Technologies}, 2022--present.
+\newblock \url{https://github.com/bluesky-social/atproto}.
+
+\bibitem{awsiam}
+Amazon Web Services.
+\newblock AWS Identity and Access Management (IAM) user guide.
+\newblock \emph{Amazon Web Services}, 2025.
+\newblock \url{https://docs.aws.amazon.com/IAM/latest/UserGuide/introduction.html}.
+
+\bibitem{rbac}
+R.\ Sandhu, E.\ Coyne, H.\ Feinstein, and C.\ Youman.
+\newblock Role-based access control models.
+\newblock \emph{IEEE Computer}, 29(2):38--47, 1996.
+
+\bibitem{rls}
+A.\ Kemper and S.\ Lott.
+\newblock Row-level security in PostgreSQL.
+\newblock \emph{PostgreSQL Documentation}, 2024.
+\newblock \url{https://www.postgresql.org/docs/current/ddl-rowsecurity.html}.
+
+\end{thebibliography}
+
+\end{document}

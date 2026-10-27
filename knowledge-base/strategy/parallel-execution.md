@@ -50,7 +50,7 @@ Spec: `knowledge-base/web10-v3/auth/oauth.md`. Decision: D92.
 - [✓ 3.244.0] **O7: `POST /oauth/token` (refresh_token)** — rotation, family invalidation on replay.
 - [✓ 3.244.0] **O8: Consent UI in `ui/`** — the `/oauth/authorize` screen; client name, derived permission list, approve/deny. Reuses `ConsentView` patterns.
 - [✓ 3.244.0] **O9: Revocation UI update** — `ContractPage.tsx` shows OAuth clients alongside browser-origin apps.
-- [ ] **O10: SDK `w.oauth()` helper (optional, later)** — convenience for non-browser clients. Not blocking.
+- [✓ 3.245.0] **O10: SDK `w.oauth()` helper** — `authorize` (popup or URL) + `exchangeCode` / `refresh` + refresh-token storage. The OAuth lane is complete (O1–O10).
 
 ### Lane: web10-social-product-permalink
 **Owns:** `marketing/web10-social/` (the post-detail system + the permalink

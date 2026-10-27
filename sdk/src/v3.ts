@@ -32,7 +32,7 @@
  */
 
 import { authPost, authGet, Web10Error } from './http'
-import { decodeJwt, readTokenCookie, setTokenCookie, scrubTokenCookie } from './token'
+import { cookieDict, decodeJwt, readTokenCookie, setTokenCookie, scrubTokenCookie } from './token'
 import type { TokenPayload } from './types'
 
 // ── Options & State ────────────────────────────────────────────────────────
@@ -420,6 +420,77 @@ export interface V3ServiceContract {
   permissions: Record<string, string[]>
 }
 
+// ── OAuth 2.0 delegated access (D92, O10) ───────────────────────────────────
+// The authorization-code flow for external apps (AI assistants, server-side
+// connectors). A delegated token is a web10 JWT with one extra claim
+// (`client_id`); it acts as the user under the user's existing contracts +
+// group memberships — there is no separate scope to grant. The consent screen
+// is the authenticator's surface; this helper drives the redirect + the token
+// exchange. Spec: knowledge-base/web10-v3/auth/oauth.md.
+
+/** Options for `w.oauth.authorize()` — the consent entry point. */
+export interface V3OauthAuthorizeOptions {
+  /** The registered app's client_id (from the node's oauth_clients registry). */
+  clientId: string
+  /** An exact-match redirect URI from the client's registered set. In a
+   *  browser this is where the user lands after consent (the code arrives in
+   *  its query string); for a server-side connector it's the callback the
+   *  connector itself handles. */
+  redirectUri: string
+  /** Opaque value returned verbatim on completion (CSRF protection, the
+   *  connector's own use). */
+  state?: string
+  /** Origin of the authenticator that renders the consent screen
+   *  (e.g. 'https://auth.web10.app'). Defaults to the API origin's host with
+   *  the first label swapped to `auth`. */
+  authOrigin?: string
+  /** Browser only: open the consent screen in a popup and resolve when the
+   *  user approves (code) or denies/closes (error). Default true when a
+   *  window exists; pass false — or run server-side — to get just the URL. */
+  openPopup?: boolean
+  /** Popup wait budget before giving up (default 60s — consent can take a
+   *  while; the code itself only lives 60s once minted). */
+  timeoutMs?: number
+}
+
+/** The result of an approved consent: the single-use authorization code
+ *  (redeem within 60s via `exchangeCode`) + the echoed `state`. */
+export interface V3OauthCodeResult {
+  code: string
+  state?: string | null
+}
+
+/** The node's `/v3/oauth/token` response (both grants share the shape). */
+export interface V3OauthTokenResponse {
+  access_token: string
+  token_type: string
+  expires_in: number
+  refresh_token: string
+}
+
+/** The delegated-access surface on the v3 client (`w.oauth`). */
+export interface V3OauthClient {
+  /** Build the consent URL (and open it in a popup by default in a browser).
+   *  Resolves `{ code, state }` when the user approves; rejects with a
+   *  Web10Error when they deny / close / time out, or when `openPopup` is
+   *  false (then it resolves the URL object instead — see return type). */
+  authorize(options: V3OauthAuthorizeOptions): Promise<V3OauthCodeResult | { url: string }>
+  /** Exchange a single-use authorization code for tokens (grant_type
+   *  `authorization_code`). Requires the client_secret (confidential clients
+   *  only, per the spec). Stores the access token (setToken) + the refresh
+   *  token. Rejects on invalid_client (401) / invalid_grant (400). */
+  exchangeCode(code: string, redirectUri: string, opts: { clientSecret: string }): Promise<V3OauthTokenResponse>
+  /** Rotate the stored refresh token (grant_type `refresh_token`). Mints a
+   *  fresh access + refresh pair; the old refresh token is dead (replaying it
+   *  invalidates the whole family server-side). Requires the client_secret. */
+  refresh(opts: { clientSecret: string }): Promise<V3OauthTokenResponse>
+  /** The stored refresh token, or null. Persist it yourself if the cookie
+   *  store isn't enough (server-side connectors). */
+  getRefreshToken(): string | null
+  /** Store a refresh token (e.g. restored from your own persistence). */
+  setRefreshToken(token: string | null): void
+}
+
 // The flexible read (w.query): rows keyed by the query's column names. A
 // `body` column comes back as a parsed object (like read()); datetimes are
 // ISO-8601 UTC. `count` is the number of rows returned.
@@ -681,6 +752,184 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
     }
   }
 
+  // ── OAuth 2.0 delegated access (D92, O10) ────────────────────────────────
+  // The authorization-code flow for external apps. The consent SCREEN is the
+  // authenticator's surface (?oauth=1); this drives the redirect + the token
+  // exchange. A delegated token acts as the user under the user's existing
+  // contracts + group memberships — no separate scope. Spec:
+  // knowledge-base/web10-v3/auth/oauth.md.
+
+  // The client_id for token requests comes from the current delegated token
+  // (its `client_id` claim) — the same client that minted the refresh token.
+  // Remembers the last-seen value so a refresh still works after the access
+  // token has been scrubbed or expired.
+  let lastClientId: string | null = null
+  function currentClientId(): string | null {
+    const payload = state.token ? decodeJwt(state.token) : null
+    const cid = (payload as { client_id?: string } | null)?.client_id ?? null
+    if (cid) lastClientId = cid
+    return cid
+  }
+
+  // Refresh tokens are opaque (not JWTs) and outlive any single page, so they
+  // get their own cookie slot next to the access-token cookie. Same flags as
+  // the token cookie (Secure on HTTPS, SameSite=Lax, 60-day max-age — matching
+  // the node's refresh TTL).
+  function readRefreshTokenCookie(): string | null {
+    const raw = cookieDict()['refresh_token']
+    return typeof raw === 'string' && raw ? raw : null
+  }
+  function setRefreshTokenCookie(token: string | null): void {
+    if (typeof document === 'undefined') return
+    if (!token) {
+      document.cookie = 'refresh_token=;max-age=-1;path=/;'
+      return
+    }
+    const age = 3600 * 24 * 60
+    const secure = typeof location !== 'undefined' && location.protocol === 'https:' ? 'Secure;' : ''
+    document.cookie = `refresh_token=${encodeURIComponent(token)};${secure}path=/;max-age=${age};SameSite=Lax;`
+  }
+
+  const oauthState: { refresh_token: string | null } = { refresh_token: readRefreshTokenCookie() }
+
+  async function oauthTokenRequest(this: V3Client, body: Record<string, unknown>): Promise<V3OauthTokenResponse> {
+    // The node's /v3/oauth/token takes a flat JSON body (the v3 convention —
+    // every endpoint is POST with a single JSON body). No user token rides
+    // along: the client_id + client_secret ARE the credential here.
+    const res = await authPost<V3OauthTokenResponse>(`${apiOrigin}/v3/oauth/token`, body)
+    this.setToken(res.access_token)
+    currentClientId() // remember the delegated client from the fresh token
+    oauthState.refresh_token = res.refresh_token || null
+    setRefreshTokenCookie(res.refresh_token || null)
+    return res
+  }
+
+  const oauth: V3OauthClient = {
+    authorize(options) {
+      const clientId = options.clientId.trim().toLowerCase()
+      if (!clientId) throw new Web10Error('oauth: clientId is required', 400)
+      if (!options.redirectUri) throw new Web10Error('oauth: redirectUri is required', 400)
+      const params = new URLSearchParams({
+        oauth: '1',
+        client_id: clientId,
+        redirect_uri: options.redirectUri,
+        response_type: 'code',
+      })
+      if (options.state != null) params.set('state', options.state)
+      // The consent screen lives on the authenticator host — the API origin's
+      // host with its first label swapped to `auth` (api.web10.app →
+      // auth.web10.app; api.localhost → auth.localhost). Overridable.
+      const host = apiOrigin.replace(/^https?:\/\//, '').split('/')[0]
+      const authHost = host.replace(/^[^.]*\./, 'auth.')
+      const protocol = typeof location !== 'undefined' ? location.protocol : 'https:'
+      const authOrigin = options.authOrigin ?? `${protocol}//${authHost}`
+      const url = `${authOrigin}/?${params.toString()}`
+
+      const inBrowser = typeof window !== 'undefined' && typeof window.open === 'function'
+      if (!inBrowser || options.openPopup === false) {
+        // Server-side connector (or explicit opt-out): the caller opens the
+        // URL itself (redirects the user's browser to it) and handles the
+        // callback — the code arrives in the callback's query string.
+        return Promise.resolve({ url })
+      }
+
+      // Browser: open the consent screen in a popup. After approval the popup
+      // navigates to the app's own redirect_uri with ?code= — we watch the
+      // popup's href for that landing (deny lands with ?error=access_denied).
+      return new Promise<V3OauthCodeResult>((resolve, reject) => {
+        const popup = window.open(url, 'web10-oauth-consent', 'width=480,height=720,scrollbars=yes')
+        if (!popup) {
+          reject(new Web10Error('Popup blocked — allow popups and try again', 400))
+          return
+        }
+        let settled = false
+        let poll: ReturnType<typeof setInterval> | null = null
+        const cleanup = () => {
+          if (poll) clearInterval(poll)
+        }
+        const fail = (message: string) => {
+          if (settled) return
+          settled = true
+          cleanup()
+          reject(new Web10Error(message, 400))
+        }
+        const succeed = (code: string, state: string | null) => {
+          if (settled) return
+          settled = true
+          cleanup()
+          resolve({ code, state })
+        }
+        poll = setInterval(() => {
+          let href = ''
+          try {
+            href = popup.location?.href ?? ''
+          } catch {
+            // Cross-origin before the redirect lands — not there yet.
+            return
+          }
+          if (!href) return
+          if (popup.closed) {
+            // Give a final navigation a beat before declaring failure.
+            setTimeout(() => fail('Consent window closed'), 250)
+            return
+          }
+          try {
+            const u = new URL(href)
+            const code = u.searchParams.get('code')
+            if (code) {
+              succeed(code, u.searchParams.get('state'))
+              return
+            }
+            const error = u.searchParams.get('error')
+            if (error) {
+              fail(error === 'access_denied' ? 'Consent denied by the user' : `OAuth error: ${error}`)
+            }
+          } catch {
+            // Unparseable href mid-navigation — keep polling.
+          }
+        }, 500)
+        setTimeout(() => fail('Consent timed out'), options.timeoutMs ?? 60000)
+      })
+    },
+
+    exchangeCode(code, redirectUri, opts) {
+      if (!code) throw new Web10Error('oauth: code is required', 400)
+      if (!opts?.clientSecret) throw new Web10Error('oauth: clientSecret is required', 400)
+      const cid = lastClientId ?? currentClientId()
+      if (!cid) throw new Web10Error('No delegated token in use — run authorize() + exchangeCode() first.', 401)
+      return oauthTokenRequest.call(client, {
+        grant_type: 'authorization_code',
+        client_id: cid,
+        client_secret: opts.clientSecret,
+        code,
+        redirect_uri: redirectUri,
+      })
+    },
+
+    refresh(opts) {
+      if (!opts?.clientSecret) throw new Web10Error('oauth: clientSecret is required', 400)
+      const stored = oauthState.refresh_token ?? readRefreshTokenCookie()
+      if (!stored) throw new Web10Error('No refresh token stored. Run authorize() + exchangeCode() first.', 401)
+      const cid = lastClientId ?? currentClientId()
+      if (!cid) throw new Web10Error('No delegated token in use — run authorize() + exchangeCode() first.', 401)
+      return oauthTokenRequest.call(client, {
+        grant_type: 'refresh_token',
+        client_id: cid,
+        client_secret: opts.clientSecret,
+        refresh_token: stored,
+      })
+    },
+
+    getRefreshToken() {
+      return oauthState.refresh_token ?? readRefreshTokenCookie()
+    },
+
+    setRefreshToken(token) {
+      oauthState.refresh_token = token
+      setRefreshTokenCookie(token)
+    },
+  }
+
   const client: V3Client = {
     // ── Token management ──────────────────────────────────────────────────
 
@@ -715,7 +964,10 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       this.scrubToken()
     },
 
-    // ── Auth ──────────────────────────────────────────────────────────────
+    // ── OAuth 2.0 delegated access (D92, O10) ───────────────────────────────
+    oauth,
+
+    // ── Auth ───────────────────────────────────────────────────────────────
 
     async login(username: string, password: string, site?: string): Promise<V3LoginResponse> {
       const res = await authPost<V3LoginResponse>(
@@ -1586,6 +1838,10 @@ export interface V3Client {
   verifyEmail(code: string): Promise<{ email_verified: boolean }>
   sendCode(): Promise<{ sent: boolean }>
   setRecoveryPhone(phone: string): Promise<{ phone_number: string }>
+
+  // OAuth 2.0 delegated access (D92, O10) — the authorization-code flow for
+  // external apps (AI assistants, server-side connectors).
+  oauth: V3OauthClient
 
   // CRUD with groups
   create(collection: string, body: Record<string, unknown>, opts?: { groups?: string[]; ad_preference?: V3AdPreference; ref_value?: string }): Promise<V3Document>
