@@ -296,6 +296,21 @@ proven. Revisit on source, toolchain, producer/copy changes or integration failu
 release/deployment evidence and required security sign-off remain open.
 CI's floating Bun 1.4.3 reproduced hash drift; SDK metadata/CI now pin producer 1.3.14. Compiler upgrades must deliberately rebuild artifacts, not weaken equality.
 
+### 2026-10-21: SDK-B-01 own-property repair (local, not deployed)
+
+Alignment #1248 is merged. [Cookie repair](scans/2026-10/repair-sdk-b01-cookie.md)
+uses data-property definitions to prevent inherited setters and an own-token check
+to reject ambient inherited credentials. Keep ordinary objects, existing parsing,
+SSR and own-token coercion; a null-prototype/API change is unnecessary. Source and
+five generated runtimes deny the synthetic exploit; actual cookie planting and
+server authority remain unproven. Source repair pending merge, no security PASS.
+
+Intent-risk acceptance, 21.10.2026: real browser/PWA restoration, supported-engine
+integration and deployed/cached versions remain untested. Accepted for bounded local
+repair because public signatures/own-token behavior and generated correspondence
+are pinned; not acceptance of a deployment guarantee. Reopen on cookie-helper,
+toolchain or browser/session changes/failures; rollout and model-diverse sign-off owed.
+
 ## Known gaps (the "obvious gap" register)
 
 Gaps the orient has surfaced. Each is either a `BP-n` or a standing note:

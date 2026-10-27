@@ -77,16 +77,20 @@ function cookieDict() {
       return res;
     const key = c.substring(0, eq).trim();
     const val = c.substring(eq + 1).trim();
+    let value;
     try {
-      res[key] = JSON.parse(decodeURIComponent(val));
+      value = JSON.parse(decodeURIComponent(val));
     } catch {
-      res[key] = decodeURIComponent(val);
+      value = decodeURIComponent(val);
     }
+    Object.defineProperty(res, key, { value, enumerable: true, writable: true, configurable: true });
     return res;
   }, {});
 }
 function readTokenCookie() {
   const cookies = cookieDict();
+  if (!Object.hasOwn(cookies, "token"))
+    return null;
   const raw = cookies["token"];
   if (!raw)
     return null;
