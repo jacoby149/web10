@@ -134,6 +134,15 @@ red -> green; 13 real-hook controls, 195 UI tests/typecheck/build, unchanged SDK
 cancellation/account/batch lifecycle and actual browser integration remain gates.
 No complete correlation, A-01/F-01, deployment or L1 PASS.
 
+28.10.2026: **Consent lifecycle disposition** [local receipt](scans/2026-10/consent-lifecycle.md):
+27 focused real-hook/ConsentView tests and 209 UI tests pass; TypeScript and
+production build pass. Empty/no-op, exact same-principal grants, skip,
+logout/account change, replacement, in-flight failure and delayed handoff are
+covered. The responder remains a preparation for strict SDK correlation: SDK,
+artifact, real-browser cohort and deployment gates are not included. A-01/F-01
+and protocol L1 remain OPEN; Luna is weaker than Sol and this is not equivalent
+assurance or model-diverse sign-off.
+
 28.10.2026: **A-01/F-01 sender slice** [source merged #1275](scans/2026-10/repair-consent-senders.md) at 40a515fcc:
 bound readiness/replies, pre-send guard, configured legacy callback migration;
 19 new runtime cases red -> green, 265 SDK passes/typecheck and five-runtime parity.
