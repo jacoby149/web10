@@ -155,6 +155,17 @@ cross-owner endpoint disclosure and historical exposure remain untested. The
 old worker PASS is withdrawn: an owner gate on reads cannot isolate already
 misattributed stored events. Preserve detailed per-job diagnostics in a fix.
 
+27.10.2026 [local repair](scans/2026-10/repair-j01-import-traces.md): bind trace
+capture to a unique execution-context handler and explicitly propagate a fresh
+copy into each thumbnail task. Reject foreign records before acquiring handler
+locks, not just inside emit: review reproduced a concurrent insert-failure lock
+cycle in that first candidate. Its isolated red/green regression now pins liveness;
+temporarily suppress capture during event writing to avoid recursive inserts.
+Nested scopes restore/detach, owned diagnostics/tracebacks and import semantics
+remain. Nine new controls and 1,225 API passes support the bounded local repair,
+not real-service/rollout/history/diverse-sign-off closure. Dated acceptance and
+reopen conditions cover new child execution paths and handler changes.
+
 K's parser still reads the whole remaining stream; that contradicts flat-RAM
 durability prose but is reliability debt, not an added C+I finding. L's compiler
 acceptance probes do not execute ClickHouse: qualified names, scalar functions

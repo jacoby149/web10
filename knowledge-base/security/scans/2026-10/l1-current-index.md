@@ -95,9 +95,9 @@ Conditional local facts remain bounded; no production breach is established.
 | L1-D-01 | OPEN expired signed principal production; S3 freshness foundation with explicit valid/anonymous controls |
 | L1-D-02 | OPEN null/malformed-expiry session classification; no oracle-to-CRUD grant proved; S3 |
 | L1-E-01 | OPEN account token GET-query transport; no theft shown; S7 body-authenticated detail and consumers |
-| L1-G-01 | [Local source repair verified](repair-g01-query-logging.md): safe topology/metadata for submitted/compiled paths, no column/error/parser-fallback echoes; red -> green, 1,216 API passes, fresh same-model review. Integration/deployment/diverse sign-off OPEN; not SQL injection or observed credential theft; S4 |
+| L1-G-01 | [Source repair merged #1266](repair-g01-query-logging.md) at b5ebcd7e7: safe query diagnostics; red -> green, 1,216 API passes at repair pin, fresh same-model review. Deployment/diverse sign-off OPEN; S4 |
 | L1-H-01 | OPEN object-signing provenance concern; fake-auth/signer proves forwarding, not private retrieval; S5 |
-| L1-J-01 | OPEN overlapping import-job trace contamination; synchronized actual-handler/inert-insert proof; S5 |
+| L1-J-01 | [Local source repair verified](repair-j01-import-traces.md): unique execution ownership, explicit thumbnail propagation, pre-lock/reentry guards; contamination and lock-cycle red -> green. Nine controls/1,225 API passes, fresh same-model review; integration/deployment/history/diverse sign-off OPEN; S5 |
 | S-1 | OPEN sender-unbound SDK credential message; synthetic acceptance not valid credentials; S2 |
 | L1-SDK-A-01/F-01 | OPEN one consent-response integrity class across implementations; origin/window/request/concurrency binding required; S2 |
 | S-6 | OPEN wildcard recipient metadata hygiene, not token exfiltration; S2 |
