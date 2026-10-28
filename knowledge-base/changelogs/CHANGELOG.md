@@ -1,3 +1,10 @@
+3.251.2 || 28.10.2026
+docs(research): **give the paper a direct, contribution-led voice** — simplify the abstract, ground the introduction in reusable audience relationships, present the deployed application as the third contribution and replace argumentative disclaimers with affirmative architectural comparisons. Frame evaluation around practical feasibility and costs, with further optimization as follow-up work. Preserve actual feed/access behavior, pending measurements and security/portability limits; fresh prose review incorporated.
+
+3.251.1 || 28.10.2026
+docs(research): **repair paper accuracy before SIGMOD evaluation** — recenter the draft on reader-specific query composition over shared ClickHouse storage; correct current multi-call feed behavior, app-contract and membership semantics, ownership/revocation/media limits, RLS comparisons and related-work claims. Remove unverified speedup/zero-penalty claims and placeholder results; align research brief, outline, literature/evaluation notes and harness status. Fresh source review incorporated; empirical results, harness fixes and comparative literature review remain pending. No runtime or marketing changes.
+Verification: regenerated and inspected the seven-page PDF; repaired ACM/natbib rendering of the undated PostgreSQL reference without inventing a publication year. All citations resolve and `git diff --check` passes. Nonfatal bibliography-metadata and line-overflow warnings remain for final formatting.
+
 3.249.2 || 28.10.2026
 docs(research): **explain the Python implementation choice** — add `research/why-python.md`: FastAPI/ClickHouse division of work, commercial suitability, inspection/security tradeoffs, profiling before a Go rewrite, fair baseline requirements and conference framing. Distinguish architecture from measured load and phase ratios from total authorization cost. Paper draft unchanged; no benchmark results claimed.
 

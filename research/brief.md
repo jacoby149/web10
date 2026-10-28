@@ -1,98 +1,54 @@
-# One-Page Brief — web10 Paper
+# One-Page Brief - web10 Paper
 
-*The paper's skeleton. Everything in `draft/` hangs off this page. If this
-page is wrong, the paper is wrong. Sharpen the claim before writing anything
-else.*
+## Claim
 
----
+> We present web10, a systems integration of generic query composition and
+> user-managed group/service permissions over logical per-user namespaces,
+> illustrated by a social application built on the same generic node.
 
-## The claim (one sentence)
+The node uses one shared ClickHouse `documents` table keyed by
+`(author_key, doc_id)`, not a database or physical collection per user.
+Applications define feed queries and service-namespaced content through shared
+primitives; the node also supplies advertising, content-event, media and
+result-preparation machinery. The node is readable by design, not operator-blind.
 
-> We present **web10**, a data architecture in which each user owns their data
-> and access is governed by fine-grained, revocable, group/role-scoped
-> contracts — bringing cloud-grade identity-and-access-management (IAM)
-> primitives to the front of a social data platform.
+## Contribution and Boundaries
 
-*Draft. We will sharpen this. The test: can a reviewer who has never seen
-web10 read this one sentence and know exactly what is new?*
+The contribution is the integration and a planned evaluation of its operational tradeoffs,
+not the invention of RBAC, user-controlled access, shared-table isolation, or
+SQL composition. web10-social is the case study, not proof of generality.
+Creator monetization is outside this paper's evaluation and cannot define
+its literature gap. No universal novelty or first-ever claim is established.
 
----
+## Related-Work Question
 
-## The contributions (ranked)
+How does this integration compare with Solid WAC/ACP and server/query work,
+ActivityPub/ActivityPods, AT Protocol, established authorization systems and
+shared-table policy enforcement? The precise gap remains **unverified**.
+Use the verified bibliography and its placement guide, but do not confuse
+verified citations with a completed comparative literature review. Tasks and
+claim limits are in `related-work.md`.
 
-1. **[THE CLAIM]** A user-owned data architecture where authorization is
-   first-class: fine-grained, revocable, group/role-scoped contracts govern
-   access to each user's own data. (IAM to the front.)
-2. *(context)* A storage model in which each user's data lives in their own
-   collection, accessed through a scoped, expiring token over a tiny CRUD API.
-3. *(motivating app)* A social platform (web10-social) built entirely on these
-   primitives — proof the model supports a real, demanding application.
-4. *(future work / separate paper)* Creator monetization through the
-   platform's payment rails.
+## Evaluation Promise
 
-Only #1 is the contribution. #2 is the system. #3 is the evaluation/case
-study. #4 is future work (or its own EC paper later).
+Results are pending. Separate dated production observations from synthetic
+capacity trials. Evaluate phase timings, total causal authorization cost,
+matched shared-table policy baselines, actual hardware/cost and bounded
+conformance evidence. A `readable/execute` phase ratio is not total overhead.
 
----
+The current nonempty feed uses three query calls plus content views, with
+discovery and media work additional; one simplified query is not the whole
+page. See `evaluation-plan.md` and the prominent harness blockers in
+`experiments/README.md`. The artifact is not yet validated as runnable or
+reproducible.
 
-## The gap (why this is new)
+## Venue and Remaining Gates
 
-No prior system combines **user-owned storage** + **IAM-grade group/role
-access contracts** + **creator monetization** in one coherent, deployed system.
+SIGMOD 2027 industry track: **November 24, 2026, 23:59 AoE**, up to **12 pages
+plus references**, not anonymous, CMT open (verified October 28, 2026).
+Official links and requirements: `README.md`. Internal freeze: November 20.
 
-- Decentralized social (Solid, ActivityPods, ATProto): user-owned data, but
-  weak/absent fine-grained group/role authz, no first-class monetization.
-- Cloud IAM (AWS IAM, etc.): the authz model, but infrastructure-trust, not
-  user-owned, not social.
-- Conventional social (Meta, TikTok): monetization + social graph, but the
-  user owns nothing; access is platform-controlled.
-
-web10 is the empty intersection. **Confirm against `related-work.md` before
-drafting — the gap must survive contact with the actual literature.**
-
----
-
-## Why now / why it matters (the intro's hook)
-
-The current web concentrates user data in platform-controlled silos with
-coarse, platform-defined access. Users can't leave with their data, can't
-govern who sees what at fine granularity, and can't monetize their own
-audience. Cloud IAM solved fine-grained authorization for infrastructure but
-never exposed it to end users. web10 brings that model to the user: own your
-data, contract its access, monetize your audience. *This is the "so what" —
-make it land in two sentences.*
-
----
-
-## Target venue
-
-- **SIGMOD 2027 industry track** — 12 pages + references. Deadline:
-  **Nov 24, 2026, 11:59pm AoE**. Internal freeze: **Nov 20**.
-- The original plan (workshop first, then CIDR) is superseded. See
-  `README.md` for the venue change and `conferences.md` for the historical
-  venue map.
-
----
-
-## The evaluation promise (the load-bearing wall)
-
-We will report **production numbers** from the running system:
-- Scale: users, collections, documents, access decisions/day.
-- Access-control decision latency (p50/p99).
-- Cost of the per-user-collection model vs. a shared-table baseline.
-- The same social app's behavior on web10 vs. a conventional backend.
-
-Full metric list: `evaluation-plan.md`. **If we don't have these numbers yet,
-collecting them is the first task, not the last.**
-
----
-
-## What "done" looks like for this brief
-
-- [ ] Claim is one sentence a stranger can repeat.
-- [ ] Gap confirmed against `related-work.md` (not just hypothesized).
-- [x] Venue + deadline pinned (Step 1 and Step 2). — **SIGMOD 2027 industry
-      track, Nov 24, 2026.** (The original two-step workshop→CIDR plan is
-      superseded; the venue is now a single target.)
-- [ ] Evaluation data: confirmed we have it, or a dated plan to collect it.
-- [ ] System name for the paper decided (web10 vs. codename).
+- [ ] Complete the comparative literature review and bound the distinction.
+- [ ] Clear harness validity gates and collect repeated, attributable trials.
+- [ ] Verify production observations and equivalent baseline results.
+- [ ] Confirm paper name, authorship and final submission metadata.

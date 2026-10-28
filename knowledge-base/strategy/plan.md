@@ -1126,6 +1126,16 @@ all unchecked boxes. The numbers the industry track will demand:
 
 **The writing plan (after the data lands):**
 
+- [✓ 3.251.2] **Paper contribution-led voice** — simplify abstract/introduction/contributions/conclusion and related-work comparisons; preserve 3.251.1 factual corrections. Feasibility and operational costs are the evaluation goal; maximum performance is not a prerequisite. No new novelty priority or measured-result claims; E1–E6 remain open.
+
+- [✓ 3.251.1] **Paper factual alignment** — operator-authorized repair of `research/workshop/main.tex` and research notes: current feed call count, shared-table namespaces, actual app/group gates, bounded security/portability, fair RLS comparison and pending evidence. This is text repair, not E1–E6 completion or final submission readiness. `research/experiments/README.md` records harness blockers; fix code before collecting results.
+
+Evaluation task wording below is historical shorthand: `research/evaluation-plan.md`
+governs methodology. E3 compares equivalent shared-table policy implementations,
+not physical per-user databases; E2 phase ratios are not total authorization cost.
+The official CMT is open as of 28.10.2026. W1 may be scaffolded independently of
+results, but no evaluation or novelty claim is complete without its evidence.
+
 - [✓ 3.249.2] **Python implementation rationale (supporting note)** — `research/why-python.md` covers FastAPI/ClickHouse responsibilities, commercial suitability, security visibility, rewrite tradeoffs and evaluation requirements. Draft untouched; E1–E6/W1–W6 not completed by this note.
 
 - [ ] **W1: scaffold `research/sigmod/`** — acmart sigconf, 12-page budget,

@@ -1,4 +1,4 @@
-% web10 workshop paper — v1 draft
+% web10 paper: text revision for the SIGMOD 2027 industry target
 % Render: tectonic main.tex  (from this directory)
 \documentclass[sigconf, nonacm, review]{acmart}
 
@@ -32,12 +32,12 @@
 
 % --- acmart metadata ---
 \setcopyright{none}
-\acmConference[Workshop on Innovative Data Systems]{WDS '27}{October 2027}{To be held}
+\acmConference[SIGMOD 2027 Industry Track (Target)]{Draft targeting the SIGMOD 2027 Industry Track}{}{}
 \acmPrice{}
 \acmISBN{}
 \acmDOI{}
 
-\title{Your Data, Your Rules, One Query: \\ Extending the Decentralized Web}
+\title{Your Data, Your Rules: \\ Query-Layer Access for a Social Data Platform}
 \author{Jacob Hoffman}
 \affiliation{\institution{web10 Inc.}\country{}}
 \email{jacob@web10.app}
@@ -45,25 +45,22 @@
 \begin{document}
 
 \begin{abstract}
-ActivityPub (Mastodon) and ATProto (Bluesky) are running, non-cryptographic
-social protocols---no blockchain, no gas fees, no wallet-gated feeds. But each
-defines a rich protocol and then steps outside it: the server knows what a
-post, a follow, or a like is, and special-cases them for performance. The
-protocol is the spec; the implementation cheats around it.
-
-We present \textbf{web10}, a user-owned-data platform whose node contains
-\emph{no social primitives at all}---no feed, follow, post, group, or message
-endpoint. The entire social application (feeds, groups, direct messages,
-discovery) is composed, 100\%, from generic documents, groups, roles, and a
-query engine: every database call goes through the same generic path, with no
-platform-specific shortcut. Access is governed by fine-grained, revocable,
-group/role-scoped contracts enforced at the query layer, so the generic path
-stays secure at an index-lookup cost rather than a scan. And because that
-generic path is fast enough, there is no reason to cheat: a feed that a naive
-implementation loads with \textbf{267 network requests} loads in \textbf{one}
-web10 query-engine call. A full social platform, built nothing but generic
-queries, that runs at commercial grade---and a node general enough to host a
-messaging app, a music app, or a shop without changing the platform.
+Social applications typically implement content, audience relationships, and
+access rules in application-specific backends. \textbf{web10} places content
+and access relationships in a shared data platform, allowing applications to
+define their own queries while users manage group membership and grants. The
+platform stores documents under logical user namespaces in ClickHouse and
+exposes generic groups, service-scoped roles, app contracts, and a query API.
+Its central mechanism is a query boundary: application queries name services,
+and the node supplies filtered relations for the reader before executing joins
+and aggregations. A deployed social application uses this mechanism to combine
+ranked posts, engagement, and profiles, with media capabilities prepared by the
+node. We describe the access model, query compilation, and application
+composition, including the costs of metadata resolution and the consistency
+obligations of a shared columnar store. The design separates application-defined
+social queries from shared access enforcement. This draft specifies the
+feasibility evaluation; latency, capacity, revocation, and cost results remain
+pending.
 \end{abstract}
 
 \maketitle
@@ -72,99 +69,68 @@ messaging app, a music app, or a shop without changing the platform.
 \section{Introduction}
 \label{sec:intro}
 
-The dominant social platforms solve engagement extremely well and ownership
-extremely poorly. A user's posts, messages, and relationships live in the
-platform's database under the platform's access model. The user can adjust a
-handful of visibility settings the platform chose to expose; they cannot
-redefine who a ``friend'' or a ``member'' is, cannot contract access
-per-service, and cannot take their data---let alone their audience---
-elsewhere. When the platform changes its rules or goes away, the user's data
-goes with it.
+For a creator, an audience is more than a list of accounts. It is a set of
+relationships: who follows, who belongs to a group, and who may read or contribute
+content. When those relationships live inside one application's backend, a new
+frontend must recover both the data and the rules that give it meaning. The
+database question is how to make content and access relationships reusable
+across applications while preserving the reader's authorization boundary.
 
-For a subset of users this is not an abstraction---it is a paycheck. Creators
-and influencers build their income on their social graph: their audience is
-the asset, and the platform that hosts it can deplatform them, shadowban their
-reach, reprice their distribution, or take a larger cut, at will, with no
-recourse. Trust in the platform is therefore a financial dependency, not a
-preference. web10 removes that dependency by construction: delivery is
-guaranteed by architecture (the feed is a query over the creator's own data,
-not a platform-controlled ranking), and the audience is portable because it
-lives under the creator's key, not the platform's.
+\textbf{web10} addresses this question with a shared data plane and a small set
+of composable access primitives. A user's key identifies a logical namespace,
+not a separate database. Generic groups associate documents with audiences;
+roles name per-service operations; app contracts constrain supported calling
+contexts. An application supplies its own services and queries rather than
+requiring a new feed endpoint for each ranking or audience model.
 
-Cloud infrastructure solved the authorization half of this problem long ago.
-AWS IAM and its descendants give operators fine-grained, role-based,
-service-scoped, revocable access control with cryptographic token
-verification. But that model lives at the \emph{infrastructure} boundary: the
-cloud provider owns the data plane, and the end user is invisible to it.
-Nobody has brought the IAM model to the \emph{user} boundary of a social
-platform---where the user, not the platform, is the principal that holds the
-contracts.
+The motivating application is a deployed creator-oriented social platform,
+including feeds, groups, direct messages, discovery, and monetization. Its feed
+illustrates the separation: an application chooses chronological or weighted
+ranking, while the node resolves the reader's access. A chronological query
+makes eligible posts retrievable without an engagement-based cutoff, subject
+to access and moderation rules. Here distribution means eligibility for
+retrieval; pagination and user attention determine what is actually viewed.
 
-The decentralized social web has real, running systems, and web10 builds on
-that lineage rather than against it. \textbf{ActivityPub} (Mastodon) and
-\textbf{ATProto} (Bluesky) are live, non-cryptographic protocols with large
-user bases---deliberately no blockchain, no gas fees, no wallet-gated feeds,
-which is the practical choice web10 shares. Their gap is the access model:
-authorization stops at follow/block and collection-level control, with no
-fine-grained group/role contracts and no request/approve/assign lifecycle, and
-their data models are shaped to one app (a microblog or a post graph) rather
-than a platform that hosts many. \textbf{Solid} goes further on ownership
-(personal data stores, Web Access Control~\cite{wac2022}) but its
-resource-level ACLs still lack a group/role primitive, and its per-Pod storage
-makes a cross-user feed query expensive---each Pod is a separate server---so a
-feed at Mastodon or Bluesky scale is not demonstrated in the cited Solid
-systems~\cite{solid2016, css2024}. \textbf{Cloud IAM} has exactly the
-permission language a social
-platform needs---principals, roles, service-scoped operations, revocable
-grants---but it lives at the infrastructure boundary, where the provider owns
-the data and the end user is invisible.
+This work builds on the decentralized social web. ActivityPub defines activity
+delivery APIs~\cite{activitypub2018}; ATProto separates repositories, relays,
+and application views~\cite{kleppmann2024}; Solid separates applications from
+personal data stores~\cite{solid2016}. Solid's Web Access Control supports group
+agents~\cite{wac2022}, and its Access Control Policy includes a client
+dimension~\cite{acp2022}. web10 brings user-facing contracts and application-written
+SQL together within one node's shared columnar store. This placement lets an
+application compose cross-service reads against relations filtered for its
+reader, rather than define a dedicated server endpoint for each social view.
 
-What none of them do is \emph{live} in their protocol. Each defines rich
-primitives and then bypasses them---the server special-cases posts, follows,
-and likes for performance, so the protocol is a layer conformed to at the
-edges, not the path every request takes. web10 does the opposite. Its node has
-no social primitives, and its application never steps outside the generic
-path: every database call---feed, follow, message, group, discovery---goes
-through the same documents, groups, roles, and query engine, with no
-platform-specific shortcut. And because that generic path is fast enough (a
-267-request feed loads in one), there is no reason to cheat. That purity---and
-the access model and columnar backend that make it safe and fast---is this
-paper.
+We use \emph{generic social composition} to mean that app-defined content and
+relationships are represented through service-namespaced documents, generic
+group membership, role maps, and queries. Generic group-management endpoints
+are part of this substrate. The node also provides advertising, content-event,
+media, and result-preparation machinery. The architectural separation is between
+application-defined content and query semantics and these shared node services.
 
-\textbf{web10} is a user-owned-data platform that makes that move. Every
-user's data lives under their own key in a single columnar store; every access
-decision is a check against two user-held contract layers; and the social
-application (feeds, groups, direct messages, discovery) is composed 100\% from
-generic primitives, with no app-specific surface in the node. This paper makes
-three contributions:
+This paper makes three contributions:
 
 \begin{enumerate}[leftmargin=*,nosep]
-  \item \textbf{A fully generic node, used fully.} The node exposes only
-  universal primitives---documents, groups, roles, services, and a query
-  engine---and contains no social endpoints. The entire social application is
-  composed from those primitives, every database call through the generic
-  path, with no special-case fast path. The same node hosts a messaging app, a
-  music app, or a shop without platform changes (\S\ref{sec:model},
-  \S\ref{sec:eval}).
-  \item \textbf{An access model that keeps the generic path safe}
-  (\S\ref{sec:model}): an outer \emph{app trust} layer (per-origin, per-service
-  operation grants) and an inner \emph{person trust} layer (group roles as
-  per-service permission maps over three nested principal classes). Enforced at
-  the query layer, the role check never touches the large document table---fine-
-  grained control at an index-lookup cost, not a scan
-  (\S\ref{sec:enforcement}).
-  \item \textbf{Proof that pure-generic is fast enough} (\S\ref{sec:eval}): a
-  running social platform whose feed---naively 267 network requests---loads in
-  a single query-engine call, every row access-checked against the reader's
-  role grants. The generic path needs no shortcut because it is already fast.
+  \item \textbf{A compositional data/access architecture}
+  (\S\ref{sec:model}): logical user namespaces, app contracts, and group roles
+  share a service-scoped permission vocabulary, exposed to application authors
+  and users rather than only infrastructure operators.
+  \item \textbf{A reader-specific query boundary}
+  (\S\ref{sec:enforcement}): service references resolve to filtered CTEs before
+  caller joins and aggregation. The implementation combines policy resolution,
+  SQL validation, and boundary construction above a shared database account.
+  \item \textbf{A deployed social application case study}
+  (\S\ref{sec:eval}): ranked feeds combine content, engagement, profiles, and
+  media through application queries and node preparation. The case study shows
+  how access scope shapes query results and follow-up reads.
 \end{enumerate}
 
-The remainder of this paper: \S\ref{sec:model} defines the generic primitives
-and the access model; \S\ref{sec:enforcement} shows how access is enforced over
-one columnar table at zero scan penalty; \S\ref{sec:eval} presents the running
-social platform---composed entirely of generic queries---and its 267-to-1 feed
-as the demonstration; \S\ref{sec:related} positions web10 against the
-decentralized social protocols and cloud IAM; \S\ref{sec:concl} concludes.
+The evaluation in \S\ref{sec:method} will assess practical operating points
+and characterize the architecture's costs. This submission's goal is feasibility
+and a clear account of tradeoffs; further optimization is follow-up work.
+Measurements remain pending in this draft.
+\S\ref{sec:related} relates the design to decentralized storage, IAM, and
+multi-tenant databases; \S\ref{sec:concl} concludes.
 
 %=============================================================================
 \section{The Access Model}
@@ -172,11 +138,11 @@ decentralized social protocols and cloud IAM; \S\ref{sec:concl} concludes.
 
 \subsection{Two trust layers}
 
-Every request in web10 names an \emph{app} (the calling origin), a
+For a group-scoped content operation, the model distinguishes an \emph{app}, a
 \emph{principal} (the acting user), a \emph{group} $G$, a \emph{service} $S$
 (a data namespace such as \texttt{posts} or \texttt{comments}), and an
 \emph{operation} $O$ (e.g.\ \texttt{readAll}, \texttt{create}). Authorization
-asks two independent questions, and \emph{both} must pass:
+asks two questions where the corresponding gates apply:
 
 \begin{center}
 \small
@@ -186,17 +152,27 @@ asks two independent questions, and \emph{both} must pass:
 \textbf{Layer} & \textbf{Question} \\
 \midrule
 App trust (outer wall)   & Can this \emph{app} perform $O$ on $S$? \\
-Person trust (inner wall) & Can this \emph{principal}'s effective role in $G$ grant $O$ on $S$? \\
+Person trust (inner wall) & Does membership or a class/role grant allow $O$ on $S$ in $G$? \\
 \bottomrule
 \end{tabular}}
 \end{center}
 
-The app contract is \emph{infrastructure trust}: which origins may touch
-which services, enforced by CORS in the browser and re-checked server-side on
-every call. The group role is \emph{social trust}: which people may do what
-inside a group. The split matters because the two layers change at different
-rates and for different reasons---a user re-points an app's access without
-leaving any group, and leaves a group without touching any app's access.
+The app contract expresses trust in a calling application. In the current
+document and query paths, authenticated browser-style tokens are checked against
+an origin-keyed contract when an HTTP \texttt{Origin} is present; without that
+header, this app-contract check is skipped. Anonymous queries also skip it.
+OAuth-delegated tokens instead select a \texttt{client\_id}-keyed contract,
+including when no Origin is present. The node enables wildcard, non-credentialed
+CORS; endpoint code enforces application grants separately. CORS is not
+cryptographic client authentication and does not constrain a non-browser
+client's choice of headers. Thus the outer layer is not a universal gate on
+every API call. Identity verification and document/group authorization remain
+distinct from this calling-context policy.
+
+The group layer expresses trust in people. The split lets a user revoke an
+app grant without leaving a group, or leave a group without changing app
+grants. Describing this policy decomposition does not certify all issuance,
+consent, and delegation paths (\S\ref{sec:method}).
 
 \subsection{Roles are per-service permission maps}
 
@@ -221,12 +197,15 @@ service key, because they act on documents, not on the group's shape.
 Two properties keep the model small. First, the role map is the
 \emph{same shape} as the app-contract permission object: there is one
 permission language across both trust layers. Second, a person holds
-\emph{exactly one role} per group; the per-service map makes a single role
-fully expressive over any (principal, service, operation) matrix, so there is
-no multi-role stacking to reason about. Roles are generic---a group defines
+\emph{one explicit member role} per group; compound permissions can be placed
+in that role rather than stacked through multiple assignments. This positive
+grant model does not express every policy, such as explicit deny or arbitrary
+context-dependent conditions. Roles are generic---a group defines
 whatever roles fit its purpose (\texttt{owner}, \texttt{moderator},
 \texttt{page-curator}, \texttt{member}, or \texttt{dj}, \texttt{listener})---
-and the platform never names them.
+and applications supply their role definitions. Some lifecycle operations use
+conventional names such as \texttt{member}; the extensibility claim is not that
+every role name is unknown to the implementation.
 
 \subsection{Principal classes and effective permissions}
 
@@ -240,15 +219,15 @@ classes, broadest to narrowest:
 \textbf{Class} & \textbf{Who} \\
 \midrule
 \texttt{anyone}        & every request, signed in or not \\
-\texttt{authenticated} & any valid token (any user, member or not) \\
+\texttt{authenticated} & a verified non-anonymous user, member or not \\
 \texttt{member}        & holds a member row in this group \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-The classes are \emph{reserved keys in the member table}---no separate
-visibility table exists. A group grants a class a role by storing a member
-row for the reserved key:
+The broad classes \texttt{anyone} and \texttt{authenticated} are represented by
+\emph{reserved keys in the member table}; individual members use their own
+principal keys. No separate visibility table is needed. For example:
 
 \begin{lstlisting}[style=sql]
 group_members:
@@ -268,15 +247,25 @@ $\quad \cup\ \big(P \in \texttt{authenticated} \;?\; \mathrm{grant}(G,\ \texttt{
 $\quad \cup\ \big(P \in \texttt{member}(G) \;?\; \mathrm{grant}(G,\ \mathrm{role}(P)) : \emptyset\big)$
 \end{center}
 
-The nesting buys a monotonicity invariant for free: a member always sees at
-least what a signed-in stranger sees, who always sees at least what a
-signed-out visitor sees. The model cannot express the inversion.
+This equation describes the union of explicit grants, not the whole current
+content gate. In the implemented \texttt{can\_read\_group} and
+\texttt{can\_write\_group} helpers, an active member is admitted for content
+reads and creates without requiring service-specific \texttt{readAll} or
+\texttt{create} in that member's role. For non-members, the class grants supply
+those permissions. Other role-controlled operations still require their own
+checks. In particular, omitting \texttt{readAll} from a member role is not a
+way to hide that service from the member in these paths.
+
+The union is monotone across principal classes under otherwise equal
+conditions. Actual visibility also depends on blocks, sharing state, hidden
+documents, and node moderation; the equation alone is not a theorem that every
+member sees a superset of every stranger's results.
 
 \subsection{Publicness is a grant, not a flag}
 
 There is no \texttt{visibility} column. ``Make my group public'' is the act
 of granting \texttt{readAll} to \texttt{anyone}; ``signed-in only'' grants it
-to \texttt{authenticated}; ``private'' grants it to member roles only. Join
+to \texttt{authenticated}; ``private'' withholds those non-member grants. Join
 policy is orthogonal: it controls how a human \emph{becomes} a member (open,
 request, invite-only) and says nothing about what a non-member bystander can
 see. A group can be invite-only to join and still publicly readable---the
@@ -285,8 +274,11 @@ discovery board is exactly that.
 This is the sense in which web10 brings IAM to the front: the operations a
 cloud operator would express as policies---\emph{principal class, service,
 operation, grant}---are the operations an \emph{end user} expresses about
-their own data, with the same revocability (a grant is a row; removing it is
-a tombstone that takes effect on the next read).
+their own data. A grant is represented by metadata rows and revoked through
+tombstones. Subsequent checks use latest-row resolution, but an end-to-end
+revocation bound must also account for concurrent checks, database visibility,
+and already issued capabilities; it is not established merely by writing a
+tombstone.
 
 %=============================================================================
 \section{Enforcement at the Query Layer}
@@ -294,20 +286,16 @@ a tombstone that takes effect on the next read).
 
 \subsection{One columnar table}
 
-A social feed is an analytical workload: every read is a join across users,
-groups, and time---filtered, ranked, and paginated---which is OLAP, not OLTP.
-web10 therefore uses a single columnar store for \emph{all} user data, with no
-Postgres, no change-data-capture pipeline, and no separate operational
-database. The ``OLTP'' operations are translated to the columnar model: an
-update is a new row with a higher timestamp, a delete is a tombstone row, a
-point lookup is a primary-key scan, and a counter is a \texttt{count()} at read
-time. This removes the two-database drift (schema divergence, sync lag) that a
-Postgres-to-ClickHouse pipeline would introduce, at the cost of embracing the
-columnar write idioms described below. All structured user content lives in a
-single ClickHouse~\cite{clickhouse2024} table, keyed by
-\texttt{(author\_key, doc\_id)}; large binary objects (media) live in object
-storage and are \emph{referenced} from this
-table (\S\ref{sec:enforcement}):
+A ranked feed has analytical components: joins across authors and engagement,
+filtering, aggregation, and sorting. A social application also has point reads,
+updates, and coordination-heavy operations; calling the entire workload OLAP
+would conceal that mixture. web10 chooses ClickHouse~\cite{clickhouse2024} for
+both structured content and operational metadata rather than maintaining a
+separate Postgres-to-ClickHouse replication pipeline. User content occupies
+one shared \texttt{documents} table keyed by \texttt{(author\_key, doc\_id)}.
+The user namespace is logical isolation within that table, not a per-user
+database or physical collection. Large media objects reside in object storage.
+The following simplified schema omits reference and advertising fields:
 
 \begin{center}
 \begin{minipage}{\columnwidth}
@@ -327,21 +315,30 @@ ORDER BY (author_key, doc_id);
 \end{minipage}
 \end{center}
 
-Updates are inserts with a higher \texttt{updated\_at} (the engine keeps the
-latest version); deletes are tombstone rows filtered at read time. Documents
-attach to groups through a small mapping table, and groups carry their
-contracts and members in two more small tables. Content is one wide
-columnar table; \emph{access is a handful of narrow metadata tables}.
+Updates insert a newer version; deletes insert tombstones. Background merges
+alone do not establish read correctness: reads must select the latest version
+\emph{including tombstones}, then filter deleted rows. Filtering tombstones
+before deduplication can resurrect the previous version. Documents attach to
+groups through \texttt{doc\_groups}; \texttt{group\_contracts} and
+\texttt{group\_members} hold contracts and assignments. These are narrower
+metadata tables, not necessarily small or constant-cost at all scales.
+
+One structured store removes a cross-database synchronization dependency, but
+does not remove operational tradeoffs. Version accumulation, merge pressure,
+read-time deduplication, point-query latency, and shared-resource contention
+matter. Multi-row content/membership changes and concurrent revocation require
+explicit consistency reasoning rather than an assumed transactional boundary.
+Backup, restore, and recovery must cover both database metadata and object
+storage. These are design obligations, not newly measured production incidents.
 
 \subsection{The query boundary: a wall, not a membrane}
 
-The genericity claim in \S\ref{sec:model} has an obvious objection: if any app
-can write an arbitrary \texttt{SELECT} over a multi-tenant store, how does that
-not leak other users' data? The answer is a constrained query-compilation layer
-that makes the raw tables \emph{unreachable as inputs}, not merely filtered from
-the output. We call this a \emph{wall, not a membrane}: the guarantee is not
-``we filter bad rows out of the result'' but ``the caller's query can only read
-pre-filtered views; the underlying tables are simply not addressable.''
+Application-written SQL over a multi-tenant store requires a boundary before
+the caller's relational operations. The query API accepts a constrained
+read-only SQL surface, not arbitrary database access. Its intended boundary is
+a \emph{wall, not a membrane}: validated service references read reader-filtered
+CTEs, rather than raw tables whose output is filtered afterward. Correctness
+depends on validation coverage and SQL dialect interpretation, as discussed below.
 
 \paragraph{Why output-side filtering is unsound.} The natural design wraps the
 caller's query and filters the \emph{result}, e.g.\
@@ -357,201 +354,202 @@ GROUP BY author_key
 The aggregate has already collapsed all authors into counts before any row-level
 filter could run. Filtering the output of an aggregation is not access control.
 
-\paragraph{Redirecting the input instead.} web10 parses the caller's SQL to an
-AST (never executing the string), then rewrites every table reference to a
-\emph{boundary CTE}---the service's documents, deduped, joined to
-\texttt{doc\_groups}, and filtered to the caller's readable groups for that
-service, with the block/sharing/hidden exclusions applied. The caller's
-\texttt{SELECT ... FROM posts} now reads that CTE; \texttt{posts} is no longer
-the raw table, it is the caller's own groups and nothing else. Because the raw
-table never appears in the caller's query, there is nothing to aggregate over,
-join, or subquery outside the boundary---aggregation, self-joins, and subqueries
-all stay inside it by construction.
+\paragraph{Redirecting the input instead.} web10 parses submitted SQL to an
+AST; it does not send that original string directly to ClickHouse. It validates
+table references and injects a \emph{boundary CTE} under each referenced service
+name. The CTE deduplicates the service's documents, joins current
+\texttt{doc\_groups} mappings, filters to readable groups, and applies block,
+sharing, hidden-document, and node-ban exclusions. Thus
+\texttt{SELECT ... FROM posts} resolves to a service CTE before aggregation or
+joins. The readable set can include public or authenticated-class grants, not
+just the reader's memberships. An empty set produces an empty service CTE.
+Before compilation, an authenticated request with explicit groups is rejected
+with 403 if none of its referenced services has a readable group. The query
+boundary does not automatically union in all reader-owned documents.
 
 \paragraph{The walk and the backstop.} The compilation is five steps: (1)~parse
-to an AST (unparseable or multi-statement input is rejected); (2)~type-check
-(single \texttt{SELECT} only---\texttt{INSERT}/\texttt{DROP}/\ldots{} rejected);
+to an AST (unparseable or multi-statement input is rejected); (2)~check the
+statement kind (\texttt{SELECT} and supported set operations, not
+\texttt{INSERT}, \texttt{DROP}, etc.; this is not full SQL type checking);
 (3)~walk every \texttt{Table} node, including inside caller CTEs and subqueries,
 rejecting raw node tables, ungranted services, and table functions
-(\texttt{file()}, \texttt{s3()}, \texttt{numbers()}---the one non-\texttt{Table}
-escape off the node, which surfaces as an empty-named \texttt{Table});
+(\texttt{file()}, \texttt{s3()}, \texttt{numbers()}, represented in the
+validated parser shapes as empty-named \texttt{Table} nodes);
 (4)~inject the needed boundary CTEs ahead of the caller's CTEs and re-emit from
 the validated AST; and (5)~\emph{round-trip}---re-parse the compiled SQL and
-require it to come back as exactly one statement, a backstop against a parser
-mis-read that hides a table reference. String-injection attacks (stacked
-statements, comment-hidden references, gibberish) are neutralized because the
-string is resolved into a tree before any check runs; there is no string
-boundary to jump out of.
+require it to come back as exactly one statement. This catches malformed
+composition, not every semantic discrepancy between SQLGlot and ClickHouse.
+Re-emission avoids directly concatenating the submitted query string, but
+does not by itself prove the absence of injection or dialect escapes.
 
-\paragraph{Why the database's own RLS does not fit.} A reviewer's next question
-is why not use ClickHouse row-level security or per-account roles. The access
-boundary here is a \emph{dynamic, membership-dependent JOIN predicate}---``the
-documents in the groups I am \emph{currently} a member of, where my effective
-role grants this service.'' Row-level security in an OLAP engine expresses
-\emph{static} row predicates bound to an account; it cannot express a predicate
-that depends on a live membership join evaluated per reader. The boundary
-therefore cannot live in the storage engine; it must be injected by the
-compilation layer, per query, per reader. This is the structural reason the
-security logic sits above the database rather than inside it.
+\paragraph{Why place policy above ClickHouse?} web10 uses a shared database
+service account and constructs a reader-specific boundary combining membership,
+class grants, and visibility exclusions. This design puts policy orchestration
+in the application rather than provisioning a database account and policy for
+each end user. It is a ClickHouse integration choice, not a general limitation
+of row-level security. PostgreSQL policies can use expressions, functions, and
+subqueries to consult dynamic authorization state~\cite{postgres-rls}; an
+equivalent membership policy is a legitimate comparison baseline. No
+expressiveness impossibility or cost advantage over such policies is claimed.
 
-\paragraph{An honest caveat.} The guarantee rests on the SQL parser reading the
-ClickHouse dialect faithfully. An unparseable query is rejected (safe); a
-mis-parsed one is caught by the round-trip re-parse when it is malformed, though
-a subtle semantic mis-parse that hides a table reference is the residual risk.
-The pinned test suite---including an end-to-end run of the compiled SQL against
-a real store with real membership data, asserting that raw tables 403 in every
-shape (top-level, caller CTE, subquery) and that aggregation cannot leak past
-the boundary---is the tripwire. The database account is deliberately \emph{not}
-a backstop: the boundary CTEs legitimately read the raw tables, so the service
-account must be able to; the rewriter is the only wall.
+\paragraph{Trusted implementation.} The parser, validator, generated CTEs,
+identity resolution, metadata checks, and ClickHouse name-resolution semantics
+are in the trusted computing base. The service account must read raw tables to
+execute generated CTEs; its privileges do not independently enforce each
+reader's boundary. Repository tests cover selected top-level, caller-CTE,
+subquery, table-function, and aggregation cases, with a live-node E2E gauntlet
+for supported shapes. These are regression controls, not an exhaustive proof
+over the ClickHouse SQL language. Parser and engine upgrades require renewed
+compatibility and adversarial testing.
 
-\subsection{The role check never touches the document table}
+\subsection{Metadata resolution and relational cost}
 
 The read path is the heart of the design:
 
 \begin{enumerate}[leftmargin=*,nosep]
-  \item \textbf{Resolve.} Look up the reader's rows in
-  \texttt{group\_members} (including the reserved principal-class rows) and
-  the role maps in \texttt{group\_contracts}. These are small, hot, and
-  indexed by their primary keys.
-  \item \textbf{Compute.} For the requested service, compute the set of group
-  identifiers whose effective role grants \texttt{readAll} to the reader.
-  \item \textbf{Scan.} Run the columnar \texttt{documents} scan exactly as it
-  always would, with the cleared-group list as an ordinary filter, unioned
-  with the reader's own \texttt{author\_key}.
+  \item \textbf{Resolve.} Take explicitly requested candidate groups, or
+  discover the reader's memberships. Parse the query to identify its services.
+  \item \textbf{Compute.} For each referenced service and candidate group,
+  check active membership or resolve class grants through member and contract
+  metadata. The current query endpoint calls \texttt{readable\_groups}, which
+  loops over candidates; a check may issue several metadata queries.
+  \item \textbf{Execute.} Inject each service's readable-group set into its
+  boundary CTE. ClickHouse performs document/mapping deduplication, the mapping
+  join, visibility exclusions, and the caller's joins, aggregates, and sorting.
 \end{enumerate}
 
-The authorization decision is therefore an index lookup into small metadata
-tables, not a per-document check inside the scan. The scan stays a scan. This
-is the ``zero scan-time penalty'' property: fine-grained, per-group,
-per-service control costs the same as the coarsest possible filter, because
-it \emph{is} a filter list computed once per query.
+For $s$ referenced services and $g$ candidate groups, this path performs up to
+$s g$ group-gate evaluations, with early membership success reducing work
+within a check. This counts evaluations, not constant-time index lookups or a
+latency bound. The repository also has a batched helper used elsewhere; the
+query endpoint currently uses the per-group helper. Role resolution does not
+need content bodies, but its metadata I/O and the generated relational work
+both contribute to authorization cost.
 
-\subsection{The same invariant on every path}
+The document-to-group join can yield multiple rows for one document attached
+to several readable groups. Applications must choose whether to retain those
+associations or deduplicate before counting and pagination. CTE expansion,
+join cardinalities, exclusions, and sorting can change database work and query
+plans. A cleared-group list is therefore neither a zero-cost filter nor proof
+of negligible scan overhead.
 
-The enforcement rule is uniform: \emph{no query returns documents for an
-\texttt{author\_key} the token does not own, unless group membership grants
-access} (invariant I3). Every read path---group feed, read-by-id, directory
-search---applies the identical principal-class gate, and the write side is
-gated the same way, so a bystander cannot attach content to a group they
-cannot write. A conformance suite of permission-matrix cases (including
-replayed-exploit denials) enforces the invariants mechanically; the full
-suite results appear in the extended version.
+\subsection{Intended invariant and tested scope}
 
-\subsection{Two data dimensions, one access model}
+The intended isolation rule is that another author's document requires an
+authorized group path, including public or authenticated-class grants
+(invariant I3). The query path implements this through service CTEs; CRUD,
+directory, group-attachment, preparation, and media paths have separate call
+graphs that must be checked rather than inferred correct from the compiler.
+Permission-matrix and exploit-regression tests provide evidence for their
+named cases. This draft reports neither a fresh whole-system conformance run
+nor a security certification. In particular, passing compiler tests does not
+establish end-to-end credential, delegation, or object-signing safety.
 
-web10 stores user data in two places: structured rows in the columnar store,
-and large binary objects (images, audio, video) in object storage (MinIO/S3
-API). Both are governed by the \emph{same} group/role/I3 model, because the
-permission gate for an object is a \emph{document}, not the file.
+\subsection{Document-linked media capabilities}
 
-A media object is referenced by a row in \texttt{documents} (a
-\texttt{media\_refs} array or a \texttt{minio} leaf carrying the object key).
-Access to the bytes is therefore derived from access to that document: the
-node never hands out a permanent URL. For single-file objects (images, audio,
-documents) it mints a \emph{presigned URL} with a short TTL---the browser
-fetches directly from object storage, no middleware hop, and a shared link
-dies when the URL expires. The gate is the document read that produced the
-URL; a reader who cannot read the document never gets a URL at all.
+Structured documents refer to binary objects in MinIO/S3-compatible storage.
+The intended linkage is document authorization followed by capability issuance:
+presigned URLs let browsers fetch individual objects directly; HLS uses
+short-lived signed manifests and segment capabilities, with document checks
+on manifest access. Expiry limits capability lifetime but does not retract
+bytes already fetched or guarantee immediate revocation.
 
-Video streaming is the one case where a per-object presigned URL breaks (an
-HLS video is 100+ small segments fetched continuously over minutes). There the
-node instead signs a manifest bound to \emph{(reader, document, prefix)} and
-validates a short-lived JWT on every segment; on each manifest (re)fetch it
-re-runs the same \texttt{can\_view\_doc} check the read path uses, so a
-removed or blocked reader loses the stream within one signature TTL. The
-re-check answers ``can this reader see this?'' exactly the way the document
-read did---it is revocation working within a TTL, not a second, stricter
-model.
-
-The point for the architecture: adding a second storage dimension does not add
-a second access model. Objects are governed through the documents that
-reference them, so the group/role contracts and the I3 invariant apply to a
-creator's video the same way they apply to their post. This is also why the
-feed's single request can carry resolved media: the query engine's prepare
-pass mints the per-row object URLs (presigned, or signed manifests for HLS)
-after the SELECT, reusing the read path's access checks verbatim.
+The query prepare pass reuses media-resolution and HLS-signing helpers, as
+well as advertising and avatar preparation. Reusing helpers is useful
+engineering, not proof that arbitrary result projections or every signing
+endpoint preserve document-to-object authorization. An unresolved source-level
+concern in a separate read-URL handler forwards caller-selected keys to signing
+without an intervening object check; the recorded probe is not proof of live
+private-object retrieval. Consequently this paper does not assert uniform
+authorization over every media path. Such coverage must include key ownership,
+authorized cross-user references, projections, public thumbnails, and stale
+capabilities.
 
 \subsection{Data policy, not privacy}
 
-A natural objection is that a node which can read its users' content is not
-really ``user-owned''---that true ownership requires the operator to be
-cryptographically blind. web10 makes the opposite, deliberate choice. The node
-is a \emph{readable, accountable broker}: content is node-readable by design,
-because discovery, search, and auditability all require it, and
-``discoverable'' and ``hidden from the node'' are mutually exclusive. Access is
-controlled by the permission model (I3) and by \emph{terms}, not by
-cryptography: the operator who misuses hosted data is legally liable, whereas a
-system that merely cannot read it offers a weaker promise than one you can take
-your data from and sue. In short, web10 is a \emph{data-policy} platform, not a
-\emph{data-privacy} platform---ownership is defined by key-space, portability,
-and user-held contracts, not by operator-blindness. This is what lets the feed
-be a fast, global, tunable query in the first place; a privacy-first design
-could not do cross-user ranking or attribution without consent plumbing.
+web10 deliberately trusts the node operator with readable content. Search,
+ranking, moderation, and audit functions operate on plaintext. Tokens and signed
+capabilities protect application/user boundaries; terms govern operator conduct.
+This trust model supports node-side querying without requiring default
+end-to-end encryption.
+
+Here \emph{user-owned} denotes logical authorship namespaces and user-controlled
+grants. The operator retains physical access to hosted data, and legal remedies
+depend on terms, jurisdiction, and enforceability. Usable export and exit are
+broader product goals; interoperable migration and federation remain outside
+the demonstrated single-node architecture.
+
+\subsection{Implementation boundary}
+
+Python/FastAPI handles request validation, identity and permission orchestration,
+SQLGlot parsing/compilation, serialization, and result preparation. ClickHouse's
+native engine performs scans, joins, aggregation, filtering, and sorting. The
+production API command configures four Gunicorn processes with Uvicorn workers;
+this permits multi-process execution but does not establish linear scaling.
+This is a conventional service/database division of work suitable for commercial
+application development. Its capacity remains workload-dependent: complex parsing, metadata round
+trips, large responses, and preparation can dominate some workloads. Profiling
+must distinguish API CPU, database CPU, I/O waits, and queueing before motivating
+a language rewrite or attributing performance to the columnar store.
 
 %=============================================================================
 \section{A Running Social Platform}
 \label{sec:eval}
 
-The strongest evidence for the model is not a benchmark but a product: web10
-runs a complete social application---feeds, groups, direct messages, and
-discovery---entirely on the primitives of \S\ref{sec:model} and
-\S\ref{sec:enforcement}, with no app-specific surface in the node (D60). This
-is the commercial-grade execution of user-owned social data that protocol-
-first systems such as Solid proposed but did not ship. We highlight the feed,
-because it is the workload that most stresses the design: a real social feed
-must be large, tunable, and access-controlled simultaneously.
+web10-social exercises the architecture through feeds, social groups, direct
+messages, and discovery. These features require different content shapes and
+audience relationships over the same document and group substrate. The feed is
+a useful case study because it combines ranking, relationships, media, and
+multiple authorization scopes. We examine its query composition here; workload
+capacity is the subject of \S\ref{sec:method}.
 
 \subsection{The feed as a query}
 
-A naive social feed is a stack of N+1 fan-outs: one call per author profile,
-per post's media, per avatar, per engagement count. Measured on web10's first
-feed implementation, loading a single page issued \textbf{267 network
-requests}. The fix was not more batching on a bespoke endpoint---it was making
-the feed an ordinary query over the columnar store, so that one request returns
-the whole page. Three properties hold at once in that single call:
+The application builds a query over \texttt{posts}, \texttt{reactions},
+\texttt{comments}, and \texttt{profile}. It chooses chronological or weighted
+ranking, joins engagement aggregates and author profiles, and supplies cursor
+conditions. The node resolves those service names through the boundary CTEs.
+Preparation can attach advertising and resolve media, HLS manifests, and author
+avatars on returned rows. This separates the application's feed definition
+from a dedicated feed endpoint, while retaining explicit server-side
+preparation machinery.
+
+Three implementation observations define the scope of the case study:
 
 \begin{enumerate}[leftmargin=*,nosep]
-  \item \textbf{It collapses the fan-out.} The 267 requests become
-  \textbf{one}: a single query-engine call returns the full page---posts with
-  resolved media and streaming manifests, exact like/comment counts, author
-  profiles and avatars, and attached ads---as one envelope, keyset-cursor
-  paged. The engine's \emph{prepare pass} mints the per-row capabilities
-  (presigned media URLs, ad attachment, author face) after the SELECT, reusing
-  the read path verbatim, so the one request carries everything the old 267 did.
-  \item \textbf{It is fully user-gated.} Every row in that single response
-  passed the access model on its way out: the query's boundary CTEs apply
-  invariant I3 (no document for an \texttt{author\_key} the token does not own)
-  plus the reader's effective group/role grants (\S\ref{sec:model}). The result
-  is not an arbitrary batch; it is exactly the set the reader's role clears.
-  This is the read-time privacy check TAO performs at social-graph
-  scale~\cite{tao2013}---every item checked for the viewer on its way out---
-  applied here to a single columnar store. Fine-grained social access and a
-  large feed coexist in one query---the conjunction that is this paper's core
-  claim.
-  \item \textbf{It is tunable---and generic.} The feed's shape---what it
-  contains, how it is ranked and filtered---is a query the \emph{application}
-  writes, not logic hardcoded in the node. A different query is a different
-  feed. Crucially, this goes through the \emph{general} query engine, not a
-  social-specific endpoint: the node never learns what a ``feed'' is (D60). Any
-  app can issue its own ranked, resolved, access-checked read the same way; the
-  social feed is the reference example.
+  \item \textbf{Page assembly.} For a nonempty page with post IDs,
+  \texttt{readFeedPage} issues the main query, then two engagement queries
+  (reactions and comments) and a \texttt{contentViews} call. Group discovery
+  precedes this work, and media bytes require separate fetches. UI-level
+  reaction-state reads and other screen activity may add calls. Page assembly
+  therefore combines one main composition query with scoped follow-up reads.
+  \item \textbf{Authorization scope affects semantics.} The main query's
+  engagement joins use the feed-group scope, while engagement documents may
+  live in the discovery group. The follow-up queries use the union of feed
+  groups and discovery to populate displayed counts. Counts are relative to
+  readable relations, not necessarily global totals. The displayed counts
+  can therefore differ from the counts used by the main ranking query; the
+  composition does not automatically guarantee scope-consistent ranking.
+  \item \textbf{The query is application-defined.} Ranking and filtering can
+  change without adding a dedicated node feed endpoint. Applications can select
+  their ranking and projections while reusing the same boundary construction
+  and preparation services.
 \end{enumerate}
 
-This is the ``because of the columnar backend'' point made concrete: Solid's
-per-Pod architecture makes a cross-user feed query expensive (each Pod is a
-separate server), and no cited Solid system demonstrates a feed at this
-scale~\cite{css2024}. web10's single table makes the feed a first-class,
-tunable query---267 requests reduced
-to 1---while the access model stays a filter list with zero scan penalty.
+The evaluation must account for this complete application path as well as the
+main query in isolation. Client-call counts and internal work are separate
+metrics: one API call can perform many metadata queries and substantial database
+work. A smaller number of client requests is not by itself a latency or
+throughput result.
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\columnwidth]{figs/fig-feed.png}
   \caption{The web10 feed. The reader chooses the ranking (Most Recent / Most
   Liked / Most Commented / Balanced) and filters (tags); each is a different
-  query over the same columnar store, every result access-checked against the
-  reader's role grants.}
+  application query over the same columnar store. The main query uses
+  reader-specific service boundaries; engagement and view metrics also use
+  follow-up calls.}
   \label{fig:feed}
 \end{figure}
 
@@ -559,109 +557,178 @@ to 1---while the access model stays a filter list with zero scan penalty.
   \centering
   \includegraphics[width=\columnwidth]{figs/fig-groups.png}
   \caption{A group---``a shared space on your node.'' Membership, roles, and
-  per-post visibility (Public / node / group) are the group/role contracts of
-  \S\ref{sec:model}, expressed in the UI.}
+  per-post visibility (Public / node / group) expose application choices over
+  the generic groups and grants of \S\ref{sec:model}.}
   \label{fig:groups}
 \end{figure}
 
 \subsection{Durability and extensibility}
 
-Because the node exposes only universal primitives and the access model is a
-per-service role map, the social app is not a one-off demo---it is the hardest
-instance of a general pattern. The same substrate supports other app shapes
-(a messaging app, a music app, a shop) by defining new services and roles
-over the same tables, with no node changes. The social platform demonstrates
-that the model carries a demanding, real workload; extensibility to other
-apps follows from the same genericity.
+Application-named services let different clients interpret documents without
+changing the shared document schema. A conversation can be a group with message
+documents; a music library can define track services and listener roles; a
+shop can define catalog services. These are compositional possibilities, not
+evidence that every application's requirements fit unchanged. Transactions,
+payment workflows, search indexes, schema evolution, and external integrations
+may still require additional machinery.
 
-\subsection{Scale and latency (extended version)}
+The durable separation is between stored content/access relationships and a
+particular frontend. Replacing a frontend can reuse those primitives when it
+understands their semantics. Moving providers is a larger task: identity
+continuity, document references, group grants, media, and remote relationships
+must survive export/import. This paper does not demonstrate complete migration
+or federation, and a single-node relational query should not be interpreted as
+a cross-node query protocol.
 
-The deployed system's scale and access-decision latency are reported in the
-extended version: [\textbf{N}] registered users, [\textbf{N}] documents
-across [\textbf{N}] services and [\textbf{N}] groups, [\textbf{N}] access
-decisions per day; the resolve+compute phase (metadata lookup + effective-
-role computation) completes in [\textbf{X}]~ms at p50 / [\textbf{Y}]~ms at
-p99, a fraction [\textbf{Z}]\% of total read latency. The extended version
-also adds the cost of the per-user key-space model versus a shared table with
-row-level security, end-to-end flow latencies against a conventional backend,
-and the full permission-matrix conformance results.
+%=============================================================================
+\section{Evaluation Status and Methodology}
+\label{sec:method}
+
+\subsection{Evidence available and pending}
+
+The evidence here is the implemented architecture, repository tests for named
+paths, and a deployed motivating application. The repository includes a
+deterministic synthetic-data/load harness and query-phase telemetry. Their
+existence is not a completed experiment. This draft has no verified production
+scale snapshot, latency distribution, saturation curve, recovery measurement,
+or matched baseline result. Empirical evaluation remains pending; neither
+commercial capacity nor comparative superiority follows from the screenshots.
+Commercial use is the motivation, and measurable service behavior is the bar.
+
+An industry evaluation needs dated production observations separated from
+synthetic runs. Production observations should identify deployment duration,
+registered and active users, live and versioned document counts, services,
+groups, membership distributions, object volume, and operation rates. Counts
+of logical user namespaces must not be presented as physical databases. Any
+availability, recovery, or operating-cost claim needs its own observation
+window, failure definition, and accounting boundary.
+
+\subsection{Workloads and measurement}
+
+Experiments should pin the source revision, dependency and engine versions,
+schema, data generator and seed, hardware, storage, network placement, worker
+counts, connection limits, and database settings. A localhost harness excludes
+wide-area latency but still includes scheduling, queueing, container networking,
+and service waits; it is not a browser experience measurement. Browser traces
+must separately capture group discovery, main and follow-up queries, media
+fetches, and time to a defined render milestone.
+
+Vary document count, versions per document, groups per reader, services per
+query, group overlap, response size, ranking complexity, and concurrent writes.
+Include member, public-class, authenticated-class, denied, and anonymous reads,
+as well as posting, direct-message, and group flows. Multi-group attachments
+need explicit duplicate/counting semantics. State warm-up, cache conditions,
+run length, offered-load model, concurrency, repeated runs, and uncertainty.
+Report successful throughput, errors and timeouts alongside end-to-end
+p50/p95/p99 latency; a latency distribution of successful requests alone can
+hide overload. Separate API and ClickHouse CPU/memory, storage growth, merge
+activity, internal query counts, and resource cost.
+
+The query telemetry times authentication, app contracts, parsing/validation,
+candidate discovery, readable-group resolution, group metadata, compilation,
+execution, serialization, preparation, and total handler duration. Phase wall
+times include waits and do not directly measure Python CPU. The ratio of the
+median readable-group phase to median execution time is a descriptive ratio,
+not total authorization overhead: policy also changes compilation and the SQL
+executed, and ratios of medians are not distributions of per-request overhead.
+Instrumentation coverage, including work outside named phases, must be stated.
+
+\subsection{Baselines and correctness}
+
+A conventional shared-table backend with dynamic PostgreSQL RLS is a feasible
+baseline~\cite{postgres-rls}, not an intentionally weaker access model. Match
+returned content, membership/class grants, visibility exclusions, ranking,
+pagination, preparation, consistency requirements, and hardware/resource
+budgets. Document indexes, caching, batching, and implementation differences.
+Compare full flows as well as database queries. Since web10 already uses a
+shared table, the comparison is not ``per-user databases versus shared RLS.''
+
+An authorization-disabled ablation may isolate some costs on synthetic data in
+an isolated environment, but is not a functionally equivalent product baseline.
+It must account for both metadata orchestration and changes to generated query
+plans. Distributed Pod or federated architectures offer different placement
+and autonomy properties; any comparison must describe those tradeoffs rather
+than infer inferior performance from topology alone.
+
+Correctness evaluation should publish a pinned test matrix and actual results,
+distinguishing unit tests, mocked endpoints, and live-store and browser tests. Cover
+principal classes, membership admission, service permissions, tombstones,
+multi-group rows, aggregations, nested SQL, denied raw tables/functions, and
+capability issuance. Revocation experiments must race grant changes with reads
+and measure stale access through metadata visibility, in-flight requests, and
+issued URLs/manifests. Current security work retains unresolved credential,
+consent/delegation, and media-boundary questions; regression tests on selected
+query paths do not close them. The paper requires measured outcomes and bounded
+coverage statements, not a blanket security label or a promised later report.
 
 %=============================================================================
 \section{Related Work}
 \label{sec:related}
 
-\textbf{Decentralized social data.} web10 is in the lineage of the running,
-non-cryptographic decentralized social protocols and builds on it.
-ActivityPub~\cite{activitypub2018} (Mastodon) and the AT
-Protocol~\cite{kleppmann2024} (Bluesky) are live systems with large user
-bases; both are deliberately blockchain-free---no gas fees, no wallet-gated
-feeds---the same practical stance web10 takes. Solid~\cite{solid2016} goes
-furthest on ownership (personal data stores, Web
-Access Control~\cite{wac2022}) and has produced a body of work on building
-social applications over them~\cite{solid-apps2016}, with a maintained
-reference server~\cite{css2024}. All four establish that a user can
-\emph{own} their data without a ledger.
+\textbf{Decentralized social data.} ActivityPub~\cite{activitypub2018} defines
+client/server and federated server/server activity delivery. ATProto's
+repositories, relays, and AppViews separate storage from application views and
+support user agency and provider switching~\cite{kleppmann2024}. web10 focuses
+on query composition within a node: app-defined service queries read a shared
+store through relations filtered for the reader at request time. Federation
+and provider migration address complementary system boundaries.
 
-The gap web10 addresses is authorization granularity and generality.
-ActivityPub and the AT Protocol authorize at the level of follows and
-collection-level visibility as deployed~\cite{activitypub2018,
-kleppmann2024}; neither has fine-grained group/role contracts or a request
-$\rightarrow$ approve $\rightarrow$ assign-role lifecycle, and each data model
-is shaped to one app. Solid's Web Access Control answers ``who may read or
-write this resource?''---a coarse, resource-level question; it names
-\texttt{acl:agentGroup} but does not carry \emph{roles} (per-service
-permission maps) on a group, nor the request $\rightarrow$ approve
-$\rightarrow$ assign-role lifecycle~\cite{wac2022}. (Solid's newer Access
-Control Policy adds a client dimension that parallels web10's outer app-trust
-layer~\cite{acp2022}.) web10's contribution is exactly this missing layer:
-access as \emph{person $\rightarrow$ role $\rightarrow$ per-service
-operations}, granted \emph{inside} a group through an explicit join-request
-and approval flow, where a role is a map from data service to the operations
-it grants (\S\ref{sec:model}). On top of that, web10's node is
-generic---its primitives support arbitrary app shapes, not just the one social
-app each earlier protocol was built around---and it does so on a running
-platform whose feed collapses 267 requests into one.
+Solid separates applications from personal data stores~\cite{solid2016}, with
+social application work~\cite{solid-apps2016} and a maintained Community Solid
+Server~\cite{css2024}. WAC supports resource permissions and group agents
+through \texttt{acl:agentGroup}~\cite{wac2022}; ACP includes agent, client, and
+issuer matching~\cite{acp2022}. web10 packages group membership,
+join policies, and per-service role maps with a shared relational query path.
+Pods are logical stores that need not each occupy a separate server; cross-store
+query cost depends on deployment, caching, indexing, and query strategy. The
+comparison here concerns data placement and query interfaces; a performance
+comparison would require a matched workload and deployment.
 
 \textbf{Cloud IAM.} AWS IAM (documentation)~\cite{awsiam} and the
-RBAC/ABAC literature~\cite{ferraiolo1992, sandhu1996, abac2014} define the
-permission language web10 reuses at the user boundary: principals, roles,
+RBAC/ABAC literature~\cite{ferraiolo1992, sandhu1996, abac2014} provide the
+policy concepts web10 adapts at the user boundary: principals, roles,
 service-scoped operations, revocable grants. The move in this paper is
-directional---the same policy shape, held by the end user about their own
-data, enforced by the data layer rather than a control plane. At industrial
+directional---a familiar policy vocabulary exposed to users about their own
+content and groups, orchestrated by the API and query layer. At industrial
 scale, relationship-based authorization (Zanzibar~\cite{zanzibar2019}) shows
-a uniform ACL data model and consistency as a first-class problem; web10's
-tombstone / next-read revocation bound is the small-system analogue, and its
-numbers must be read against that precedent, not implied equivalent to it.
+a uniform ACL data model and consistency as a first-class problem. Its
+consistency guarantees motivate explicit evaluation of web10's revocation
+visibility. TAO~\cite{tao2013} provides a social-graph storage precedent, whereas
+web10 composes application queries over service-namespaced documents in a
+columnar store.
 
 \textbf{Multi-tenant isolation.} The database literature on tenant
 isolation---shared tables with an organization identifier
 (Force.com~\cite{force2009}), schema-mapping techniques
 ~\cite{aulbach2008}, and the shared-versus-separate spectrum
 ~\cite{jacobs2007}---is the closest systems ancestor. web10's key-space per
-user is tenant-per-end-user taken to its limit: the tenant is the \emph{end
-user}, and the isolation is expressed as the query's \texttt{author\_key}
-filter plus group-grant list rather than a physical boundary. Row-level
-security (PostgreSQL documentation)~\cite{postgres-rls} is the named
-alternative web10 differs from---per-row policy evaluation versus a
-precomputed cleared-group filter list---and is the baseline the extended
-version cost-compares against. The columnar store itself is
-ClickHouse~\cite{clickhouse2024}; the access model is web10's layer on top of
-it, and the two claims are kept in separate sentences with separate cites.
+user makes the \emph{end user} the logical tenant. Authorship uses
+\texttt{author\_key}; shared reads use authorized group relations rather than
+a physical database boundary.
+PostgreSQL row-security policies~\cite{postgres-rls} are an alternative location
+for dynamic access enforcement. Matched policy and workload execution
+(\S\ref{sec:method}) can distinguish the costs of these enforcement placements.
+ClickHouse~\cite{clickhouse2024}
+supplies the columnar execution engine; web10 supplies the access orchestration
+above it, including metadata resolution, SQL compilation, and result preparation.
 
 %=============================================================================
 \section{Conclusion}
 \label{sec:concl}
 
-web10 brings the cloud IAM permission model---principal classes, roles,
-service-scoped operations, revocable grants---to the user boundary of a
-social data platform, and enforces it at the query layer of a single
-columnar store so that fine-grained authorization costs an index lookup, not
-a scan. We demonstrate the model in a running social platform whose feed is a
-tunable query that collapses 267 network requests into one, every row access-
-checked---the commercial-grade execution of user-owned social data that
-protocol-first systems proposed but did not ship. The extended version adds
-scale and latency figures and the cost comparison against row-level-security
-baselines.
+web10 makes content and access relationships a shared substrate for application
+queries. Logical user namespaces, app contracts, and generic groups connect
+user-managed access to a columnar store; the query layer supplies the reader's
+service relations before joins and aggregation. The social application shows
+how this separation supports ranked feeds and scoped engagement reads while
+keeping query definitions in the application.
+
+The next step is to establish a practical operating point and characterize
+metadata fan-out, query execution, and revocation under representative workloads.
+Those measurements remain pending. They will provide a baseline for subsequent
+optimization of policy resolution and query processing. The architectural
+contribution is this integration: applications compose social views over
+reader-specific service relations in a shared columnar store.
 
 %=============================================================================
 \bibliographystyle{ACM-Reference-Format}

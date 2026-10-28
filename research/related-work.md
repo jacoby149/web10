@@ -1,135 +1,42 @@
-# Related Work — web10
+# Related Work - web10
 
-*The purpose of this file is to confirm the gap. For each prior system: what
-it did, what it's missing that web10 has, and the citation. The gap survives
-only if, after reading all of these, the combination is still empty.*
+**Status: comparative gap UNVERIFIED; review tasks remain open.** The verified
+26-entry [bibliography](references/web10-references.bib) and
+[citation mapping](references/citation-mapping.md) supply citation metadata
+and claim-placement guidance, not proof that literature verification or the
+comparison is complete. Do not infer missing functionality from a venue's
+prestige, a sparse publication record, or silence in one cited paper.
 
-**The gap hypothesis (from `brief.md`):**
-> No prior system combines user-owned storage + IAM-grade group/role access
-> contracts + creator monetization in one coherent, deployed system.
+The question is how web10 integrates generic query composition with
+user-managed group/service permissions over a shared-table logical namespace.
+It is not whether anyone previously combined ownership, IAM and monetization:
+monetization is out of scope. No universal absence or first-ever claim follows.
 
-Each entry below should be checked against that hypothesis. Mark each with:
-- `[CONFIRMED GAP]` — they lack the combination, gap holds.
-- `[THREAT]` — they're closer than expected; the claim needs sharpening.
-- `[CITE-ONLY]` — background, not a direct competitor.
+## Comparison Tasks
 
-**Status: NOT DONE.** All citations are TODO and all status boxes are empty.
-The gap check at the bottom is not `[YES]`. This is a prerequisite for the
-Related Work section of the paper (W4 in the execution plan) — do not freeze
-that section until the gap check is `[YES]`.
+| Prior work | Verified bibliography keys | Open comparison, not an established gap |
+|---|---|---|
+| Solid and Community Solid Server | `solid2016`, `solid-demo2016`, `solid-apps2016`, `solid-protocol2024`, `css2024` | Inspect current server and cross-Pod query work; compare composition, deployment and trust boundaries. Do not assert Solid never shipped or cross-Pod querying is impossible. |
+| Solid authorization | `wac2022`, `acp2022` | WAC has `acl:agentGroup`; ACP includes client/issuer matchers. Compare these with per-service role maps, grant lifecycle and query enforcement; do not call Solid group/client authorization absent. |
+| ActivityPub and ActivityPods | `activitypub2018`, `activitypods` | Separate the W3C protocol from framework implementations. Inspect actual authorization/query behavior; the ActivityPods project page alone cannot establish a technical gap. |
+| AT Protocol | `kleppmann2024` | Compare repositories, AppViews, visibility and authorization as described, then check relevant current work. Do not infer all implementation limits from the 2024 paper. |
+| RBAC, ABAC and IAM | `ferraiolo1992`, `sandhu1996`, `abac2014`, `awsiam` | Established foundations, not missing inventions. Explain the integration's user-facing policy management without claiming IAM was never exposed to end users. AWS documentation is not performance evidence. |
+| Relationship/global authorization | `zanzibar2019` | Compare relationship modeling, consistency and revocation semantics. No equivalent scale or consistency claim for web10 without evidence. |
+| Shared-table multi-tenancy and RLS | `jacobs2007`, `aulbach2008`, `force2009`, `postgres-rls` | Direct antecedents: logical tenant isolation in shared storage. Compare equivalent policies and query composition; do not portray web10 as physical DB-per-user or policies as inexpressible in RLS. |
+| Storage and social systems | `clickhouse2024`, `tao2013` | Separate storage design and deployed social-read precedents from web10's own unmeasured performance. Neither source establishes web10 authorization correctness. |
 
----
+## Before Freezing Related Work
 
-## A. Decentralized / user-owned social data
+- [ ] Read the relevant primary sources and record version/section evidence
+  for each technical comparison, including counterexamples and close threats.
+- [ ] Search Solid query/access-control and generic policy-aware composition
+  work beyond this pack; record search scope, date and exclusions.
+- [ ] Identify the closest integration and state a narrow, source-supported
+  design distinction. If not supported, frame this as an integration and
+  operational-experience report rather than inventing a novelty gap.
+- [ ] Separate documented design differences from measured comparisons;
+  performance and cost comparisons remain pending in `evaluation-plan.md`.
 
-### Solid (Tim Berners-Lee, MIT / Inrupt / W3C)
-- **What it did:** User-owned "Pods" (personal data stores), apps access via
-  scoped tokens, W3C standardization effort. The closest philosophical cousin.
-- **What it's missing (hypothesis):** Fine-grained *group/role* authorization
-  is weak/absent relative to cloud IAM; no first-class creator monetization.
-  Also: thin top-tier academic publication record (mostly symposia/workshops,
-  not SIGMOD/CCS-tier) — itself a signal of the gap.
-- **Citation:** TODO — find the Solid protocol paper(s) + W3C spec. The
-  academic footprint is small (Solid Symposium 2023/2024/2025, MyData 2023,
-  FOSDEM). Locate any arXiv/DOI protocol paper.
-- **Status:** `[ ]`
-
-### ActivityPub / ActivityPods
-- **What it did:** Federated social activity protocol (Mastodon's protocol);
-  ActivityPods combines it with Solid-style pods.
-- **What it's missing (hypothesis):** Authorization is federation-trust, not
-  fine-grained user-contracted group/role IAM; monetization not first-class.
-- **Citation:** TODO
-- **Status:** `[ ]`
-
-### ATProto (Bluesky)
-- **What it did:** Decentralized social protocol, user-owned data on
-  Datastore servers, scoped access.
-- **What it's missing (hypothesis):** Group/role access contracts are not the
-  core abstraction; monetization is platform-level, not user-contracted.
-- **Citation:** TODO
-- **Status:** `[ ]`
-
----
-
-## B. Cloud IAM / fine-grained access control (the model we're bringing to the front)
-
-### AWS IAM / resource-based policies
-- **What it did:** The reference fine-grained, role/policy-based, revocable
-  authorization model for infrastructure.
-- **What it's missing (hypothesis):** It is infrastructure-trust — the cloud
-  provider owns the data plane; end users don't own their data; not social.
-  web10's move is to make *this* model the user-facing social primitive.
-- **Citation:** TODO (AWS IAM docs / any academic treatment of IAM policies)
-- **Status:** `[CITE-ONLY]` (it's the model, not a competitor)
-
-### RBAC / ABAC literature
-- **What it did:** Decades of role-based and attribute-based access control
-  theory (Sandhu's RBAC, etc.).
-- **What it's missing (hypothesis):** None of it is user-owned-data + social +
-  monetized. This is the theoretical backbone to cite, not a competitor.
-- **Citation:** TODO (Sandhu RBAC 1992/1996, ABAC surveys)
-- **Status:** `[CITE-ONLY]`
-
----
-
-## C. Conventional social platforms (the status quo we're replacing)
-
-### Meta / TikTok data + monetization model
-- **What it did:** Platform-owned data, platform-controlled access,
-  platform-captured monetization, coarse user-facing privacy settings.
-- **What it's missing (hypothesis):** The user owns nothing; access is
-  platform-defined, not user-contracted; monetization is captured, not
-  creator-owned.
-- **Citation:** TODO (likely framing/citation, not a system paper)
-- **Status:** `[CITE-ONLY]`
-
----
-
-## D. Databases / storage architectures (the system's substrate)
-
-### Per-tenant / multi-tenant storage isolation
-- **What it did:** The literature on tenant isolation in multi-tenant DBs
-  (row-level security, schema-per-tenant, DB-per-tenant).
-- **What it's missing (hypothesis):** web10's "collection per user" is
-  DB/collection-per-user taken to the end-user as tenant — cite the multi-tenant
-  isolation work as the closest DB ancestor, note the difference (the tenant
-  is the *end user*, not a B2B customer).
-- **Citation:** TODO
-- **Status:** `[ ]`
-
-### ClickHouse / analytical storage for social workloads
-- **What it did:** Columnar OLAP storage; web10 uses a single ClickHouse
-  `documents` table keyed by `(author_key, doc_id)`.
-- **What it's missing (hypothesis):** Not a competitor — it's the substrate.
-  Cite for the storage choice; the contribution is the access model on top.
-- **Citation:** TODO (ClickHouse paper if one exists)
-- **Status:** `[CITE-ONLY]`
-
----
-
-## E. Monetization / creator economics (future-work / separate paper)
-
-### Platform revenue-share / creator economy literature
-- **What it did:** Work on creator monetization, revenue sharing, platform
-  economics.
-- **What it's missing (hypothesis):** Not combined with user-owned data +
-  user-contracted access. This is the wildcard that differentiates web10;
-  likely its own EC paper later.
-- **Citation:** TODO
-- **Status:** `[ ]`
-
----
-
-## The gap check (fill after all entries are cited)
-
-After every entry above is filled and cited, answer:
-
-1. Is there ANY single system that has all three (user-owned + IAM-grade
-   group/role contracts + creator monetization)? If yes → `[THREAT]`, sharpen
-   the claim to the specific combination that's still empty.
-2. What is the *closest* system, and what is the *one specific thing* web10
-   has that it doesn't? That one thing is the paper's actual novelty sentence.
-3. Does the gap survive? `[YES]` / `[NO — reframe]`
-
-**Do not start `draft/` until this check is `[YES]`.**
+**Gap decision: OPEN.** Citation verification does not close these tasks.
+Do not claim competing systems lack fine-grained access, deployed scale, or
+query capabilities without direct, scoped evidence.

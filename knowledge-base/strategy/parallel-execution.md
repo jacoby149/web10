@@ -1195,6 +1195,16 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+- [✓ 3.251.2] **Paper contribution-led voice** — operator-authorized prose pass in `research/workshop/main.tex`; positive architectural contribution and deployed application case study, feasibility-first evaluation, optimization as follow-up. Preserve factual corrections and pending evidence; no runtime changes or E/W result completion.
+
+- [✓ 3.251.1] **Paper factual alignment** — operator-authorized edits to the existing workshop draft and research notes; shared-table/query composition, current feed calls, actual authorization gates, bounded ownership/security and fair comparisons. Text only; E/W results remain open. Harness repair is the immediate prerequisite to measurements; blockers in `research/experiments/README.md`.
+
+**Methodology correction (28.10.2026):** `research/evaluation-plan.md` supersedes
+old E2/E3 shorthand below: phase ratios are not total authorization overhead;
+the baseline is equivalent shared-table policy enforcement, not a physical
+per-user database. CMT is open. This operator-authorized text repair includes
+`research/workshop/main.tex`; it does not confer runtime/instrumentation ownership.
+
 - [✓ 3.249.2] **Python implementation rationale (supporting note)** — operator-requested `research/why-python.md`; no workshop draft edits. Covers FastAPI/ClickHouse responsibilities, commercial suitability, inspection/security tradeoffs, profiling before rewriting and fair evaluation. Documentation only; E/W data and paper gates remain open.
 **Owns:** `research/sigmod/` (new — the full paper), `research/evaluation-plan.md` (tick boxes as data lands), `research/related-work.md` (gap check), `research/draft/outline.md` (expand for industry track). **Does NOT own** `research/workshop/` (the workshop paper stays intact as the short version) or any `api/`/`ui/`/`sdk/` source — instrumentation for E2/E3 is a cross-lane seam (file a note in `.context/` if new logging is needed in `api/`). **Deadline: Nov 24, 2026 11:59pm AoE. Internal freeze: Nov 20.** Plan: the "SIGMOD 2027 Industry Track" section in `plan.md`.
 
