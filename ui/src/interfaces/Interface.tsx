@@ -211,8 +211,8 @@ function useInterface() {
         const who = currentInterface.current.v3?.readToken?.();
         return JSON.stringify([who?.provider, who?.username || who?.sub]);
     };
-    const grantsPrincipal = React.useRef<string | null>(principal());
-    const confirmedPrincipal = React.useRef<string | null>(null);
+    const grantsPrincipal = React.useRef<string | null>(null);
+    const confirmedPrincipal = React.useRef<string | null>(principal());
     const seenRequests = React.useRef(new WeakMap<Window, Set<string>>());
     // D42: has this popup received a contract yet? React state, NOT a plain
     // property — `I` is recreated every render, and the contract listener
@@ -569,7 +569,8 @@ function useInterface() {
 
     I.finishLogin = function () {
         const account = principal();
-        if (confirmedPrincipal.current !== account) I.setV3Contracts([]);
+        const sameAccount = confirmedPrincipal.current === account;
+        if (!sameAccount) I.setV3Contracts([]);
         confirmedPrincipal.current = account;
         console.log('[auth-ui] finishLogin — setting auth=true, mode=contracts')
         I.setAuth(true);
@@ -590,6 +591,7 @@ function useInterface() {
             }
         }
         I.checkAdmin();
+        if (sameAccount) I.v3ContractsLoad();
         I.servicesLoad();
         I.setStatus(null);
         I.setMode("contracts");
@@ -626,7 +628,7 @@ function useInterface() {
     }
 
     I.logout = function () {
-        confirmedPrincipal.current = null;
+        confirmedPrincipal.current = principal();
         resetConsentIdentity();
         I.v3.signOut();
         I.setAuth(false);

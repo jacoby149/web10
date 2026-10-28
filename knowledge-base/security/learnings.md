@@ -457,6 +457,20 @@ status timers need batch ownership. 13 real-hook controls/195 UI passes support
 this preparation only. Legacy wire/retry remains, and SDK stays unversioned until
 no-op/cancellation/account/full-batch and browser integration gates are met.
 
+### 2026-10-28: Consent terminal paths must preserve the popup transaction
+
+The local lifecycle candidate covers empty/no-op, skip, logout/account change,
+replacement, approve-all failure and delayed handoff. Preserve the exact
+requested-permission inclusion predicate; grants apply only to the same confirmed
+principal and do not authenticate. Logout followed by same-account login must
+not cancel an unstarted request, while a different principal must not inherit
+grants. A completed app-login batch also must not let its delayed close timer
+terminate a subsequent lazy group-consent batch. Focused unit/browser evidence
+must pin both transitions. The unit suite passes locally; Docker was unavailable
+for local E2E, and the first two CI E2E attempts still failed these paths, so the
+browser confirmation remains OPEN. Strict SDK/artifact integration and diverse
+sign-off remain separate gates; no A-01/F-01 closure or L1 PASS.
+
 ## Known gaps (the "obvious gap" register)
 
 Gaps the orient has surfaced. Each is either a `BP-n` or a standing note:
