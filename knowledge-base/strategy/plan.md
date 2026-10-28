@@ -1116,9 +1116,14 @@ all unchecked boxes. The numbers the industry track will demand:
 - [ ] **E5: conformance results** — the permission-matrix suite: case count,
   all passing, the I3 negative tests (exploit replayed and denied),
   revocation bound.
-- [ ] **E6: methodology** — hardware/instance specs, workload description
+- [✓ 3.251.0] **E6: methodology** — hardware/instance specs, workload description
   (real traffic vs. replayed vs. synthetic — honest), runs + variance, what
-  was NOT measured.
+  was NOT measured. **Harness landed** (3.250.0/3.251.0): `research/experiments/`
+  — spinup/teardown on a Digital Ocean droplet (s-4vcpu-16gb, nyc3), the
+  pre-experiment baby test (s-1vcpu-1gb, nyc1) de-risks the lifecycle,
+  `seed.py` + `bench.py` + `run.sh` orchestrate compose-up → seed → bench →
+  collect → results. Data collection pending: run `run.sh`, scrape the
+  `[query] … timing_ms` logs, compute p50/p95/p99 per phase.
 
 **The writing plan (after the data lands):**
 
