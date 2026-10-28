@@ -383,6 +383,21 @@ it('a replacement request fences the previous delayed close', async () => {
   expect(I.current.pendingContracts).toHaveLength(1)
 })
 
+it('a lazy group request replaces the completed app batch before its close timer fires', async () => {
+  const I = mount(), app = { postMessage: vi.fn() }, group = { postMessage: vi.fn() }
+  const opener = { postMessage: vi.fn() }
+  const close = vi.spyOn(window, 'close').mockImplementation(() => {})
+  window.opener = opener
+  receive(app, [], 'app-login')
+  act(() => I.current.setUserConfirmed(true))
+  act(() => I.current.goToApp())
+  receive(group, [{ kind: 'group', name: 'lazy-group' }], 'lazy-group')
+  expect(opener.postMessage.mock.calls.filter(([payload]) => payload.type === 'auth')).toHaveLength(1)
+  await act(async () => { vi.advanceTimersByTime(300) })
+  expect(close).not.toHaveBeenCalled()
+  expect(I.current.pendingContracts).toHaveLength(1)
+})
+
 it('a completed empty batch does not prevent a new account credential handoff', async () => {
   const I = mount(), source = { postMessage: vi.fn() }, opener = { postMessage: vi.fn() }
   window.opener = opener
