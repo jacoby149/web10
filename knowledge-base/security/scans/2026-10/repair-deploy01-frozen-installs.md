@@ -34,8 +34,13 @@ restructuring it requires updating the test, not silently omitting a site.
 Fresh review found the new regression would not run on future Dockerfile-only
 PRs. Added both Dockerfile paths to API CI's pull_request filter and a seventh
 regression (red before, green after). This changes test scheduling only.
-`uv run --frozen pytest -q --disable-warnings --tb=short`: **1,232 passed, four
-subtests passed**. Focused suite: seven pass; Ruff check/format and diff checks pass.
+PR verification then corrected a false coverage assumption: social E2E uses
+`e2e/Dockerfile.social`, not the production Dockerfile. Added the production social
+image to Docker CI's linux/amd64 matrix, its source-path trigger, and an API CI
+trigger for Docker workflow changes. An eighth regression fails before and passes
+after this correction. Buildx still uses push=false/load=false; no deployment.
+`uv run --frozen pytest -q --disable-warnings --tb=short`: **1,233 passed, four
+subtests passed**. Focused suite: eight pass; Ruff check/format and diff checks pass.
 
 Native compatibility was exercised in a clean detached baseline worktree outside
 the workspace, using Bun 1.3.14 on macOS. All three real `bun install
@@ -50,8 +55,9 @@ Independent review replayed baseline/current shell controls, checked dependency
 paths and unchanged input/tool pins; it did not rerun the native builds. Docker
 daemon was unavailable locally, so Alpine/mirrored-image Bun, actual Docker COPY
 layout, BuildKit status generation and final runtime assembly are NOT verified.
-Required follow-up: successful Linux image CI for both applications, including
-social (not present in the standalone Docker matrix; the E2E stack builds it).
+Required follow-up: successful Linux production-image CI for both applications
+on the pushed revision, including the newly added social matrix entry. Earlier
+E2E success is not production-social image evidence.
 That gate is not waived by native success. Current local-package lock metadata
 also has pre-existing correspondence differences; Bun acceptance is not a claim
 that all local-package metadata or external dependency code is certified.

@@ -128,10 +128,12 @@ Inventory and line coverage do not establish service PASS or deployment security
 
 27.10.2026: **L1-DEPLOY-01** [local repair](scans/2026-10/repair-deploy01-frozen-installs.md)
 removes three fail-open install fallbacks and pins Dockerfile-only CI triggering.
-Seven controls and 1,232 API tests plus four subtests pass; native frozen installs/
+Eight controls and 1,233 API tests plus four subtests pass; native frozen installs/
 builds retain manifests/locks and local dependencies, fresh same-model review.
 Linux image CI, integration/deployment and diverse sign-off remain open. No Docker
 daemon available locally; native success does not waive container verification.
+Production social was added to the Docker matrix: E2E's separate dev image is
+not production-image evidence. New-revision production build checks are required.
 
 27.10.2026: **L1-J-01** [source repair merged #1267](scans/2026-10/repair-j01-import-traces.md)
 denies cross-context trace copying while preserving owned diagnostics/tracebacks

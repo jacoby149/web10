@@ -410,6 +410,10 @@ Native frozen installs/builds with unchanged locks support local-package
 compatibility, not Linux-image or dependency-authenticity assurance. Required
 container CI and diverse review remain open; a failed build must be repaired via
 approved inputs/toolchains, not an unrestricted fallback.
+PR verification caught a second coverage gap: social E2E builds a dev Dockerfile,
+not its production image. The latter now has its own Linux Docker matrix entry,
+with source/workflow triggers and a red/green control. Eight controls/1,233 API
+passes do not substitute for the new revision's actual production-image checks.
 
 ## Known gaps (the "obvious gap" register)
 

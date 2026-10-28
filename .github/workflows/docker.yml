@@ -8,6 +8,7 @@ on:
       - ui/**
       - sdk/**
       - marketing/marketing-ui/**
+      - marketing/web10-social/**
       - .github/workflows/docker.yml
 
 concurrency:
@@ -44,6 +45,10 @@ jobs:
             context: .
             dockerfile: marketing/marketing-ui/Dockerfile
             hashPath: marketing/marketing-ui
+          - name: web10-social
+            context: .
+            dockerfile: marketing/web10-social/Dockerfile
+            hashPath: marketing/web10-social
     steps:
       - uses: actions/checkout@v7
 

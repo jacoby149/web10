@@ -50,3 +50,16 @@ def test_api_ci_runs_regression_for_dockerfile_only_changes():
     filters = (ROOT / ".github/workflows/api.yml").read_text().split("concurrency:", 1)[0].splitlines()
     for path in ("marketing/marketing-ui/Dockerfile", "marketing/web10-social/Dockerfile"):
         assert f"      - {path}" in filters
+
+
+def test_ci_builds_social_production_image_not_only_e2e_dev_image():
+    workflow = (ROOT / ".github/workflows/docker.yml").read_text()
+    assert "      - marketing/web10-social/**" in workflow.split("concurrency:", 1)[0].splitlines()
+    assert (
+        "          - name: web10-social\n"
+        "            context: .\n"
+        "            dockerfile: marketing/web10-social/Dockerfile\n"
+        "            hashPath: marketing/web10-social"
+    ) in workflow
+    api_filters = (ROOT / ".github/workflows/api.yml").read_text().split("concurrency:", 1)[0].splitlines()
+    assert "      - .github/workflows/docker.yml" in api_filters
