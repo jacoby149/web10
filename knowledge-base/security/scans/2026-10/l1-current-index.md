@@ -99,7 +99,7 @@ Conditional local facts remain bounded; no production breach is established.
 | L1-H-01 | OPEN object-signing provenance concern; fake-auth/signer proves forwarding, not private retrieval; S5 |
 | L1-J-01 | [Source repair merged #1267](repair-j01-import-traces.md) at e0c271da1: context-owned traces/pre-lock guards; contamination and lock-cycle red -> green. Nine controls/1,225 API passes at repair pin; deployment/history/diverse sign-off OPEN; S5 |
 | S-1 | [Source repair merged #1273](repair-s1-auth-sender.md) at c258ce048; 246 SDK passes at repair pin, browser/package/Docker/security CI passed on identical a2262c620 inputs. Migration/delivery/diverse review OPEN; S2 |
-| L1-SDK-A-01/F-01 | OPEN: [local sender slice verified](repair-consent-senders.md), 19 new cases/265 SDK passes. Request/batch correlation remains locally reproduced: one matching reply satisfies two pending callbacks. Browser CI/rollout/diverse review pending; S2 |
+| L1-SDK-A-01/F-01 | OPEN: [sender slice merged #1275](repair-consent-senders.md) at 40a515fcc, CI green. [Local UI preparation](consent-ui-ownership-foundation.md): 13 real-hook controls/195 UI passes, no strict SDK activation. No-op/cancellation/account/full-batch, SDK/artifact/browser integration and diverse review remain gates; current SDK still reproduces cross-request settlement; S2 |
 | S-6 | OPEN wildcard recipient metadata hygiene, not token exfiltration; S2 |
 | SDK-B-01 | Source/five-runtime repair merged #1255; remaining browser/rollout/sign-off limits retained |
 | L1-OAUTH-01 | OAuth occurrence of D-01 root: local repair denies expired/malformed users before code storage in real HTTP/inert-store controls; valid code flow preserved. Integration/rollout/diverse review OPEN; no live takeover/issuance claim |

@@ -2,8 +2,14 @@
 
 28.10.2026. Baseline `c258ce048e4771fb8b27daf85fe1d3083e8f54c8` (#1273 merged).
 Author/fresh reviewer: separate OpenCode `openrouter/openai/gpt-6.1-sol` contexts,
-same-model, not diverse three-dry sign-off. Local sender slice verified;
-pending PR review/merge, not deployed. A-01/F-01 and protocol L1 remain OPEN.
+same-model, not diverse three-dry sign-off. Source sender slice merged #1275 at
+`40a515fcc`; rollout/diverse review pending. A-01/F-01 and protocol L1 remain OPEN.
+
+Publication: [browser E2E](https://github.com/jacoby149/web10/actions/runs/40677112637),
+SDK/package, six Docker builds and security checks passed on db5703900; the
+SDK/browser-copy inputs are byte-identical in the merge. Social unit/E2E jobs
+needed unchanged reruns, documented in the PR. This is CI, not deployment or
+correlation closure; current SDK cross-request settlement remains reproduced.
 
 ## Boundary And Delta
 
