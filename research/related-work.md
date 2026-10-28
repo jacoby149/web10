@@ -13,6 +13,11 @@ Each entry below should be checked against that hypothesis. Mark each with:
 - `[THREAT]` — they're closer than expected; the claim needs sharpening.
 - `[CITE-ONLY]` — background, not a direct competitor.
 
+**Status: NOT DONE.** All citations are TODO and all status boxes are empty.
+The gap check at the bottom is not `[YES]`. This is a prerequisite for the
+Related Work section of the paper (W4 in the execution plan) — do not freeze
+that section until the gap check is `[YES]`.
+
 ---
 
 ## A. Decentralized / user-owned social data

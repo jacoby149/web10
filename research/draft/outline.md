@@ -1,8 +1,20 @@
 # Draft — web10 Paper
 
-*Markdown-first. Convert to the venue's LaTeX template (CIDR/WWW) at submission
-time. Do not start filling sections until `brief.md`'s claim is locked and
-`related-work.md`'s gap check is [YES].*
+*Markdown-first. Convert to the venue's LaTeX template (SIGMOD 2027 industry
+track — ACM sigconf) at submission time. Do not start filling sections until
+`brief.md`'s claim is locked and `related-work.md`'s gap check is [YES].*
+
+**Target: SIGMOD 2027 industry track. Deadline: Nov 24, 2026. Internal freeze:
+Nov 20.** 12 pages + references. The full paper lives in `research/sigmod/`
+(new — to be scaffolded); the workshop paper (`research/workshop/main.tex`) is
+the draft foundation (~40% of the full paper, in workshop compression).
+
+**Industry-track addition:** the outline below is the research-paper spine.
+For the industry track, add a **"Lessons from Running It"** section (between
+Evaluation and Related Work) — the operational story: what the per-collection
+model gave up, what broke in production, what the genericity (D60) bought.
+This is the industry-track differentiator that the research-paper outline
+doesn't have.
 
 ## Section outline
 
@@ -41,16 +53,20 @@ time. Do not start filling sections until `brief.md`'s claim is locked and
    - Revocability and its bound.
    - The security invariants (I1–I6) and how the model enforces them.
 6. **Evaluation** — from `evaluation-plan.md`.
-   - Scale. Access-decision latency. Cost model. Social-app case study.
-     Conformance suite. Methodology.
-7. **Related Work** — from `related-work.md` (decentralized social, cloud IAM,
+    - Scale. Access-decision latency. Cost model. Social-app case study.
+      Conformance suite. Methodology.
+7. **Lessons from Running It** *(industry track)* — the operational story:
+    what the per-collection model gave up, what broke in production, what the
+    genericity (D60) bought, what we'd do differently. The industry-track
+    differentiator.
+8. **Related Work** — from `related-work.md` (decentralized social, cloud IAM,
    conventional social, DB tenant isolation, creator economics).
-8. **Discussion & Limitations**
-   - What the per-collection model gives up.
-   - What's out of scope (the monetization deep-dive → future EC paper; the
-     formal security proof → future CCS paper).
-9. **Conclusion**
-10. **References**
+9. **Discussion & Limitations**
+    - What the per-collection model gives up.
+    - What's out of scope (the monetization deep-dive → future EC paper; the
+      formal security proof → future CCS paper).
+10. **Conclusion**
+11. **References**
 
 ## Writing rules (from the project's KB method)
 
