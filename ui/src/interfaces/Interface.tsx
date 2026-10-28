@@ -210,7 +210,8 @@ function useInterface() {
         const who = currentInterface.current.v3?.readToken?.();
         return JSON.stringify([who?.provider, who?.username || who?.sub]);
     };
-    const grantsPrincipal = React.useRef<string | null>(null);
+    const grantsPrincipal = React.useRef<string | null>(principal());
+    const confirmedPrincipal = React.useRef<string | null>(null);
     const seenRequests = React.useRef(new WeakMap<Window, Set<string>>());
     // D42: has this popup received a contract yet? React state, NOT a plain
     // property — `I` is recreated every render, and the contract listener
@@ -565,10 +566,9 @@ function useInterface() {
     }
 
     I.finishLogin = function () {
-        if (grantsPrincipal.current !== principal()) {
-            I.setV3Contracts([]);
-            resetConsentIdentity();
-        }
+        const account = principal();
+        if (confirmedPrincipal.current !== account) I.setV3Contracts([]);
+        confirmedPrincipal.current = account;
         console.log('[auth-ui] finishLogin — setting auth=true, mode=contracts')
         I.setAuth(true);
         // The user just confirmed their identity (a login) — this is what lets
@@ -624,6 +624,7 @@ function useInterface() {
     }
 
     I.logout = function () {
+        confirmedPrincipal.current = null;
         resetConsentIdentity();
         I.v3.signOut();
         I.setAuth(false);
@@ -1021,6 +1022,7 @@ function applyACR(cr: any) {
         // Dispatched/partly decided indexed batches must be retried by the app.
         if (batch && (batch.emptySettled || batch.handedOff || batch.rows.some((row: any) => row._consent.started || row._consent.settled))) cancelConsent('Account changed');
         I.setV3Contracts([]);
+        grantsPrincipal.current = null;
     }
 
     function cancelConsent(reason: string) {

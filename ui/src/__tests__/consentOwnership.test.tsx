@@ -9,7 +9,7 @@ const session = vi.hoisted(() => ({ username: 'alice', token: 'synthetic-token' 
 vi.mock('../interfaces/authAdapter', () => ({ default: () => ({ v3: {
   state: { get token() { return session.token } },
   readToken: () => ({ username: session.username, provider: 'api.localhost', expires: '2099-01-01' }),
-  signOut: () => { session.token = null },
+  signOut: () => {},
   setToken: (token: string) => { session.token = token; session.username = 'bob' },
   getProfile: async () => ({}),
 } }) }))
@@ -344,6 +344,20 @@ it('logout then login keeps unstarted consent reviewable without the previous gr
   expect(I.current.v3Contracts).toEqual([])
   await act(async () => { I.current.approveContract(I.current.pendingContracts[0]) })
   expect(source.postMessage.mock.calls[0][0]).toMatchObject({ requestId: 'relogin', status: 'approved' })
+})
+
+it('logout then same-account login preserves an unstarted request for handoff', async () => {
+  const I = mount(), source = { postMessage: vi.fn() }, opener = { postMessage: vi.fn() }
+  window.opener = opener
+  receive(source, [], 'same-account-relogin')
+  act(() => I.current.logout())
+  act(() => I.current.finishLogin())
+  expect(source.postMessage).not.toHaveBeenCalled()
+  act(() => I.current.goToApp())
+  expect(source.postMessage).toHaveBeenCalledWith({
+    type: 'contract_response', requestId: 'same-account-relogin', status: 'approved', contractCount: 0,
+  }, 'https://caller.invalid')
+  expect(opener.postMessage.mock.calls.some(([payload]) => payload.type === 'auth')).toBe(true)
 })
 
 it('real approve-all failure settles every row exactly once without retrying failed writes', async () => {
