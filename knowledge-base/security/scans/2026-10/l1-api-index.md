@@ -13,6 +13,11 @@ Each receipt lists its exact owned files/ranges; context reads do not add covera
 
 ## Receipt Inventory
 
+27.10.2026: this remains historical coverage at the pin, not current-dev assurance.
+[Current read pass](l1-current-index.md) now refreshes all changed API paths and
+accounts for unchanged historical files. Findings, repair/sign-off and publication
+remain open; B-8's [local repair](repair-b8-settings.md) is a separate overlay.
+
 All A-R receipts are merged in #1202-#1207 after every PR check passed. This
 records completed line coverage, not security PASS. Receipt names below live
 alongside this index.

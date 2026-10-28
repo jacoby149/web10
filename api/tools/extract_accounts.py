@@ -123,11 +123,11 @@ def _sha256_of_rows(rows):
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
-def build_manifest(rows, uri, db_name):
+def build_manifest(rows, db_name):
     """Assemble the manifest envelope around the extracted rows."""
     return {
         "extracted_at": datetime.now(timezone.utc).isoformat(),  # noqa: UP017 — box is Python 3.10 (no datetime.UTC); API is 3.12
-        "source": {"uri": uri, "db": db_name},
+        "source": {"db": db_name},
         "count": len(rows),
         "sha256": _sha256_of_rows(rows),
         "users": rows,
@@ -201,7 +201,7 @@ def main(argv=None):
         print("No manifest written. Fix the data (or accept the loss explicitly) and re-run.", file=sys.stderr)
         return 1
 
-    manifest = build_manifest(rows, args.uri, args.db)
+    manifest = build_manifest(rows, args.db)
     payload = json.dumps(manifest, indent=2)
     if args.out:
         with open(args.out, "w") as f:

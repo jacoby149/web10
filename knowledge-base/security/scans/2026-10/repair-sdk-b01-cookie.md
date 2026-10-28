@@ -3,7 +3,7 @@
 Date: 21.10.2026. Author/reviewer: fresh OpenCode `gpt-6.1 sol` contexts
 (`openrouter/openai/gpt-6.1-sol`), not model-diverse three-dry sign-off.
 Baseline: `e8b5deae4b8860b615b5411bb20dd359343b7970` (alignment #1248 merged).
-Status: source/artifact repair verified; pending PR review/merge, not deployed.
+Status: source/artifact repair merged #1255 (3.244.1) at `f7aabdb26346752141f46f19c393dbadfd25ddd2`; deployment/sign-off not established.
 
 ## Boundary And Repair
 

@@ -125,6 +125,18 @@ in INFO logging with separate request/stub-compiled assertions, not SQL injectio
 or demonstrated credential theft. Actual compiler preservation, log access and
 retention remain unverified. F's unchecked helper boundaries remain L2 debt.
 
+### 2026-10-27: agreed SQL diagnostic repair direction
+
+Operator direction, 27.10.2026, for L1-G-01: retain useful parser-derived query
+shape and execution metadata, not automatic raw submitted/compiled SQL. Literals
+help reproduce bugs, but routine logs must not become a second store of user
+input. Comments and quoted identifiers can carry content too; masking literals
+alone is insufficient. Exact-value debugging uses synthetic input or a deliberate
+controlled operator session, not blanket raw-query retention. See the
+[repair strategy and acceptance gates](../web10-v3/security/logging.md#query-diagnostics-strategy).
+This records intent only; implementation, red/green verification and closure
+remain OPEN.
+
 ### 2026-10-18: import traces and compiler L1 receipts
 
 L1-J-01 reproduces cross-job log attribution using two synchronized synthetic
@@ -303,13 +315,70 @@ uses data-property definitions to prevent inherited setters and an own-token che
 to reject ambient inherited credentials. Keep ordinary objects, existing parsing,
 SSR and own-token coercion; a null-prototype/API change is unnecessary. Source and
 five generated runtimes deny the synthetic exploit; actual cookie planting and
-server authority remain unproven. Source repair pending merge, no security PASS.
+server authority remain unproven. Source repair merged #1255 (3.244.1); no deployment or security PASS.
 
 Intent-risk acceptance, 21.10.2026: real browser/PWA restoration, supported-engine
 integration and deployed/cached versions remain untested. Accepted for bounded local
 repair because public signatures/own-token behavior and generated correspondence
 are pinned; not acceptance of a deployment guarantee. Reopen on cookie-helper,
 toolchain or browser/session changes/failures; rollout and model-diverse sign-off owed.
+
+### 2026-10-27: B-8 fixed-output settings diagnostic (local)
+
+[B-8 repair](scans/2026-10/repair-b8-settings.md) replaces the globals dump with
+a fixed load-completion message. Script/module canary regressions are red before,
+green after; normal imports/overrides/derived config unchanged. B-2 defaults,
+issuer trust, environment type erasure and historical exposure remain OPEN.
+This independently safe hygiene slice does not discharge higher-impact debt.
+
+Accepted intent risk, 27.10.2026: external tooling parsing the old dump may break;
+retaining credential-bearing output is unsafe and documented admin configuration
+is unchanged. No repository invocation found by fresh review; external/deployed
+consumers unverified. Reopen on an operational dependency with a separately
+specified safe diagnostic, not a globals-dump restoration. Source repair local,
+deployment/log retention/rotation and model-diverse sign-off still owed.
+
+### 2026-10-27: Current L1 read pass and claim calibration
+
+[Current ledger](scans/2026-10/l1-current-index.md) accounts for all selected
+protocol paths, including post-scan OAuth and packaging/artifacts/deploy edges.
+Signature verification again accepted expired custom claims at OAuth authorize
+(D-01 root); fake storage limits issuance claims. A forced two-active-snapshot
+code replay proves missing local atomic consumption, not real ClickHouse issuance.
+Schema/version-column and delegated bulk-tombstone/key defects need real store
+evidence. Operator URI userinfo reaches successful audit/export outputs; protected
+account backup contents are intentional, redundant connection credentials are not.
+
+Fresh same-model review corrected two overclaims: refresh invalidation alone is
+availability/order, not demonstrated C+I; a documented exemption's deliberate skip
+is not an accidental security bypass. Backup mode risk remains conditional absent
+filesystem evidence. Exact copy hashes and lock syntax are not provenance or
+external-code assurance. Keep read completion, finding repair, deployment and
+model-diverse sign-off separate; pending receipts do not pass the L1 gate.
+
+### 2026-10-27: O10 drift rescan
+
+[O10 review](scans/2026-10/l1-o10-review.md) at `1332abc67` verifies new source/
+artifact correspondence without assuming helper safety. Wrong-path/concurrent
+popup acceptance is conditional callback-integrity debt; state is explicitly
+caller-managed, not a mandatory new policy. Refresh material/client cache survives
+signout; a denied-server control leaves access null, so real authority after logout
+is unproved. First-use code exchange requires a prior delegated token: confirmed
+correctness/design blocker, not a security exploit. Inherited refresh selection
+needs separate ambient pollution; repaired cookie parsing did not regress.
+Selected accounting is now 171 paths/31,537 lines, security gate still OPEN.
+
+### 2026-10-27: Mongo connection metadata is not account backup data
+
+[L1-PKG-01 local repair](scans/2026-10/repair-pkg01-mongo-output.md) omits the
+entire URI from audit output and account manifest metadata. Userinfo is not the
+only secret carrier: query options can contain credentials too. Twelve real-CLI
+synthetic output cases fail before and pass after; account hashes, rows and
+checksum behavior are preserved. The connection input is still forwarded intact.
+Host identification and external output-parser compatibility are intentionally
+not preserved; the dated repair records this bounded acceptance and reopen bar.
+Source is local, not merged/deployed; file permissions, defaults, driver errors,
+process arguments, history/rotation and required model-diverse review remain open.
 
 ## Known gaps (the "obvious gap" register)
 

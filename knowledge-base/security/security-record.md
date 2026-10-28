@@ -4,15 +4,38 @@ The altitude. One row per **(unit, level)**. This is the coverage record — the
 thing you point at to prove forward progress. Format, status, and staleness rules
 live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../../ai-pack/ai-security-theory/the-security-record/README.md).
 
-> **Status key:** `PASS` = no open backlog for this unit at this level (everything
-> found is fixed or deferred to a `BP-n`). `OPEN` = scanned, has unfixed/undeferred
-> findings (live scan debt). `STALE` = last check relatively old, re-scan owed.
+> **Status key:** `PASS` requires evidenced current-level disposition and required
+> sign-off under the campaign strategy. A `BP-n` reference or completed read alone
+> does not pass a blocked guarantee. `OPEN` = unresolved findings, coverage or
+> sign-off. `STALE` = evidence invalidated or relatively old, re-scan owed.
 >
 > **Level key (the scope ladder):** `L1` = file-scan (the file itself) · `L2` =
 > call-graph-scan (the file + its direct call graph, one hop) · `L3` = service-scan
 > (the whole service, transitive closure) · `L4` = project-wide-scan (all services,
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
+
+## Current Protocol L1 Read Pass (27.10.2026)
+
+[Current index/ledger](scans/2026-10/l1-current-index.md) records the exhaustive
+selected manifest at `f7aabdb26346752141f46f19c393dbadfd25ddd2`: 171 paths/30,451
+logical lines, 105 paths freshly read and 66 byte-equal historical paths. Exact
+1,341-path exclusions, all six classes, runnable evidence and fresh same-model
+reviews are linked there. This is read coverage, NOT L1 security PASS.
+
+New local evidence includes OAuth expired-principal acceptance (same D-01 root),
+conditional code single-use failure and operator Mongo URI credential output.
+Real DB schema/merge/revocation effects and backup protection remain unverified.
+Refresh-family invalidation is not a proven C+I exploit; deliberate gate exemption
+is a policy/control limitation, not accidental auth bypass. All existing open
+protocol findings, separate B-8 integration and required model-diverse review
+remain blockers; no L2 advancement. Scan receipts pending publication. O10
+follow-up at `1332abc678344d24dc6f85227549dda2b0bef9a9` rescans complete SDK v3/index
+and changed artifacts: selected union now 171 paths/31,537 lines, other 160 selected
+paths unchanged. [Fresh O10 review](scans/2026-10/l1-o10-review.md) keeps callback/
+refresh observations conditional, first-use exchange as correctness, inherited
+refresh selection distinct from repaired parsing. No new proven server C+I exploit.
+Operator approved larger evidence PR; code/test CI limit unchanged, no exemption.
 
 ## Seed state — from the October 2026 audit
 
@@ -43,7 +66,7 @@ measure. Re-scan after the hardening merges to flip them.
 | `api/app/services/auth.py :: certify` (delegation gate, D92 O2) | L1 | PASS | `qwen3.8-27b` (OpenCode) | 2026-10-22 | — | auth | OAuth 2.0 delegation gate at the verification seam: `TokenData` gains an optional `client_id` claim; `certify()` verifies — when `client_id` is present — that the client exists and is active (not tombstoned) via `ch.get_oauth_client()`, else `TOKEN` (401). Tokens without a `client_id` (the popup flow) skip the check entirely — today's behavior, byte-for-byte (I1 signature/provider/expiry checks unchanged and run first). Strictly *tightens* the gate for delegated tokens (a revoked/unknown client can no longer certify); no new read surface, no I3 change, no weakening of any existing invariant. The Origin→client_id `has_permission` re-keying is O3 (not yet landed). Repro: `api/tests/test_auth_services.py::TestCertify` (5: normal token passes, active client passes, missing client → TOKEN, tombstoned client → TOKEN, expired token still rejected). |
 | `api/rtc/` (admission) | L4 | **OPEN** | — | — | — | rtc | RTC socket admission / certify gate (cross-service RTC↔API) — see `BP-3`. Hardening in 1159 (unmerged) |
 | `ui/src/components/CredentialPage/` (auth forms) | L1 | PASS | `qwen3.8-27b` (OpenCode) | 2026-10-26 | — | auth-ui | Autofill-hostile formless login repaired (3.242.0): the credential forms (login / signup / recovery / change-password) were divs + a button whose click handler scraped the DOM by id — no `<form>` for a password manager to key off (the 1Password grant landed an empty `web10.app` entry with nothing to fill). Now real `<form>` elements with a `type="submit"` button (`onSubmit` + `preventDefault` keeps the SPA flow) + `name` attrs on the inputs. **No invariant change** — no token/credential handling altered, no new read surface, no I1–I6 surface touched (the values still come from the same DOM the click handler used to scrape). Repro: `ui/src/__tests__/authFormsAutofill.test.tsx` (8: the `<form>` element + `type="submit"` + `name` attrs across all four surfaces; submitting the form drives `login`/`signup`/`recoverRequest`/`recoverVerify`/`recoverComplete`). |
-| `sdk/src/v3.ts :: oauth` (w.oauth(), D92 O10) | L1 | PASS | `qwen3.8-27b` (OpenCode) | 2026-10-27 | — | sdk-auth | The SDK's OAuth 2.0 delegated-access helper (3.245.0): `authorize` (consent URL for the authenticator's `?oauth=1` screen; popup in-browser, `{ url }` for server-side connectors), `exchangeCode` / `refresh` (both grants against `/v3/oauth/token`), refresh-token storage. **Credential handling:** the `client_secret` is passed by the caller per call and sent only to the node's own `/v3/oauth/token` endpoint — never stored, never logged, never returned by any SDK method (no getter exists). The delegated access token installs through the existing `setToken` (same cookie as today's tokens — S-5 flags unchanged: `SameSite=Lax`+`Secure`, no HttpOnly by design); the opaque refresh token gets its own cookie slot with the identical flags + a 60-day max-age matching the node's refresh TTL — it is not a JWT and is never decoded client-side (`decodeJwt` is claim-reading only, S-4). The consent-screen navigation is the user's browser going to the authenticator host (derived api→auth, overridable) — no postMessage, no token crossing window boundaries (S-1 untouched). **No invariant change:** no new read surface, no I1–I6 surface touched, no node code changed (the endpoints are O5/O6/O7, already recorded). Repro: `sdk/src/v3.test.ts` `v3 client — oauth (D92 O10)` (17: URL shape + host derivation + state handling, popup approve/deny/blocked/timeout, both grant bodies verified field-for-field, token installation + refresh rotation, error paths, storage round-trip). |
+| `sdk/src/v3.ts :: oauth` (w.oauth(), D92 O10) | L1 | OPEN | Initial `qwen3.8-27b`; fresh `openai/gpt-6.1-sol` (OpenCode) | 2026-10-27 | — | sdk-auth | Shipped in 3.245.0 with 17 mocked helper tests; implementation completion is preserved, but the initial PASS is superseded by the [pinned source/artifact rescan and fresh review](scans/2026-10/l1-o10-review.md). Callback-result binding and refresh/client ownership remain conditional concerns; first-use exchange has a confirmed correctness gap, and inherited refresh selection requires additional ambient pollution. Original tests do not establish initial connection, browser callback integrity, real server authority or model-diverse sign-off. Confidential-client secrets remain caller-supplied; deliberate JS-cookie storage, caller-managed state and restoration semantics are not reversed. No new proven server C+I exploit or protocol PASS. |
 | federation signing (I1) | L4 | **OPEN** | — | — | — | federation | B-1 / D7 — HS256 → RS256/EdDSA + JWKS (cross-node). See `BP-1` |
 | delegation model (I5) | L3 | **OPEN** | — | — | — | auth | scoped app-management delegation (within the API service). See `BP-2`. Hardening in 1157 (unmerged) |
 
@@ -103,6 +126,22 @@ Inventory and line coverage do not establish service PASS or deployment security
 
 ## Protocol L1 Repair Progress
 
+27.10.2026: **L1-PKG-01** [local repair](scans/2026-10/repair-pkg01-mongo-output.md)
+omits raw Mongo URI input from audit stdout and both extractor output modes.
+Twelve output regressions red -> green; independent replay and migration controls
+preserve account rows/count/checksum. Fresh same-model design-intent review
+records the deliberate host-diagnostic/external-parser compatibility tradeoff.
+Follow-up included in still-open #1265; not merged, deployed or L1 PASS.
+Backup protection/defaults/operational exposure and diverse sign-off remain open.
+
+27.10.2026: SDK-B-01 source repair merged #1255 (3.244.1); rollout/sign-off remain
+open. **B-8** [local source repair](scans/2026-10/repair-b8-settings.md) replaces
+the settings globals dump with fixed safe output. Four CLI subcases red -> green,
+import compatibility preserved, 1,180 API tests pass; fresh same-model review.
+Pending merge/deployment/sign-off, not whole-settings PASS; B-2 remains OPEN.
+OAuth additions/changed authority paths after the original API pin require delta
+L1 coverage and disposition before advancement; old receipts do not cover them.
+
 **B-4:** [source repair evidence](scans/2026-10/repair-b4-middleware.md) records
 all nine regressions red on the pinned original and green on the candidate fix;
 full API suite 1,138 green after syncing dev on 20.10.2026. This repairs the middleware capture/insert-failure
@@ -112,10 +151,10 @@ findings and L1 advancement gates remain open. No model-diverse/three-dry claim.
 
 ## SDK L1 Source Campaign
 
-21.10.2026: SDK-B-01 local source/artifact repair verified; [repro and fresh
+21.10.2026 repair, merged #1255: SDK-B-01 source/artifact repair verified; [repro and fresh
 review](scans/2026-10/repair-sdk-b01-cookie.md). Own data-property parsing and
 own-token selection deny synthetic inherited tokens in source/five runtimes.
-208 SDK tests and typecheck pass. Pending merge/deployment/sign-off; scope B
+208 SDK tests and typecheck pass at repair pin. Deployment/sign-off pending; scope B
 remains OPEN for other handoffs, not whole-file PASS. Alignment #1248 merged.
 
 [Source/artifact inventory](scans/2026-10/l1-sdk-index.md), source pin
