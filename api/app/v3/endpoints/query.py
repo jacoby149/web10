@@ -289,9 +289,7 @@ def run_query(request: Request, data: QueryRequest):
         # The compiled query is structurally safe; a ClickHouse failure here
         # is the caller's SQL (a column the boundary CTE doesn't expose, a
         # bad function arg, ...).
-        log.warning(
-            "[query] id=%s execution failed duration_ms=%.2f", diagnostic_id, (time.perf_counter() - t7) * 1000
-        )
+        log.warning("[query] id=%s execution failed duration_ms=%.2f", diagnostic_id, (time.perf_counter() - t7) * 1000)
         raise HTTPException(status_code=400, detail=f"query execution failed: {e}")
     t_execute = time.perf_counter() - t7
 
