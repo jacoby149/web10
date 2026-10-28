@@ -126,11 +126,18 @@ Inventory and line coverage do not establish service PASS or deployment security
 
 ## Protocol L1 Repair Progress
 
-27.10.2026: **L1-G-01** [local repair](scans/2026-10/repair-g01-query-logging.md)
+27.10.2026: **L1-J-01** [local repair](scans/2026-10/repair-j01-import-traces.md)
+denies cross-context trace copying while preserving owned diagnostics/tracebacks
+and thumbnail work. Pre-lock filtering plus reentry suppression resolves the
+reviewed concurrent store-failure deadlock. Nine controls, 1,225 API passes plus
+four subtests and fresh same-model review; integration/deployment/history/diverse
+sign-off remain OPEN, not whole-worker or L1 PASS.
+
+27.10.2026: **L1-G-01** [source repair merged #1266](scans/2026-10/repair-g01-query-logging.md)
 denies SQL/name/error and parser-fallback log echoes, retaining topology,
 literal metadata, correlation IDs, counts and duration. Original eight cases
 and two later parser-fallback cases red -> green; 24 focused cases, 1,216 API
-tests plus four subtests pass, fresh same-model review. Source integration,
+tests plus four subtests pass, fresh same-model review. Merged at b5ebcd7e7;
 deployment/diverse review remain open; no whole-query/whole-file or L1 PASS.
 
 27.10.2026: **L1-PKG-01** [local repair](scans/2026-10/repair-pkg01-mongo-output.md)
