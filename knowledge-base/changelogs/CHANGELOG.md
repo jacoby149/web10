@@ -1,3 +1,6 @@
+3.251.6 || 28.10.2026
+docs(research): **collect a live Ubuntu operating-point pilot** — actual operator-authorized login/SDK handoff and three rounds of Following, Music-empty and Groups browsing; record 597 live account rows, 593 documents, 49 groups and 1,298 memberships with read-only host/container stats. Following readiness 4.366–5.962s; Music has no tracks and is not a playback result. Preserve initial selector timeout, sample definitions, mixed-workload/provenance limits and absent deployed phase telemetry. No stress test, direct business-data edits or redeploy; normal auth/consent/metrics side effects logged. E1 partial, formal evaluation open.
+
 3.251.5 || 28.10.2026
 docs(research): **remove defensive prose while retaining factual boundaries** — replace repeated rebuttals and proof/certification disclaimers with direct descriptions of authorization, compilation, deployment and application composition; consolidate open security/adoption/parity scope into one evaluation subsection. Preserve membership and Origin behavior, media-signing concern, single-node scope and pending empirical results. No runtime or evidence-status changes.
 

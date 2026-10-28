@@ -25,8 +25,11 @@ monetization is outside the paper's evaluation and does not define its gap.
 No first-ever claim or universal literature gap is established.
 
 Deployment provides an opportunity to collect experience, not a substitute
-for measurements. Production counts, latency, cost and synthetic capacity
-results remain pending. Do not imply that a simplified SQL benchmark measures
+for measurements. Formal production characterization, cost and synthetic
+capacity results remain pending. A [live Ubuntu pilot](live-observation-2026-10-28.md)
+now records dated aggregate counts and nine authenticated browsing checks;
+formal capacity, phase-level and comparative evaluation remain open.
+Do not imply that a simplified SQL benchmark measures
 the full feed: the current nonempty path has three query calls plus content
 views, with discovery and media fetches additional.
 
@@ -53,6 +56,7 @@ the official CFP governs current logistics.
 |---|---|
 | `brief.md` | Bounded claim, scope and outstanding gates |
 | `source-map.md` | Commit-pinned demonstration source counts, backend boundary and artifact links |
+| `live-observation-2026-10-28.md` | Actual Ubuntu dataset/hardware snapshot and bounded authenticated browser pilot |
 | `related-work.md` | Explicitly unverified comparison tasks, using the verified citation pack |
 | `references/web10-references.bib` | Verified bibliography; not a completed gap analysis |
 | `references/citation-mapping.md` | Placement guidance and unsupported-claim warnings |
