@@ -7,6 +7,38 @@ Scanners/reviewers: separate OpenCode `openai/gpt-6.1-sol` contexts
 **Selected source read coverage complete; protocol L1 security gate OPEN.**
 No scan runtime changes. B-8 remains a separately recorded repair overlay in this publication.
 
+## Sol Resumption (28.10.2026)
+
+Fresh bounded review at `49178a87dcd651337e7f17dea68b66f377ae2e05` resumes Sol
+after the Luna attempt. [API](sol-resumption-api.md) reads all six changed app
+files (2,365 lines) plus bounded unchanged edges; [SDK](sol-resumption-sdk.md)
+reads eight complete runtime files (2,807 lines, including new `popup.ts`);
+[edges](sol-resumption-edges.md) reads six changed and 19 unchanged boundary
+files. These exact scope receipts supplement, not replace or silently update,
+the historical 171-path denominator below. No fresh whole-project accounting.
+
+- **L1-VAL-01 / B-4 residual:** actual malformed query HTTP input puts a complete
+  synthetic bearer in validation ERROR logs and the 422 response. Separate from
+  repaired middleware; response echo is not independently cross-user disclosure.
+- **L1-OAUTH-SOURCE-01 / BP-2:** actual authorize accepts a fresh delegated token
+  rejected by certify for a missing/revoked source client; target lookup and code
+  write use doubles. Durable issuance/redemption or contract escape not proved.
+- A-01/F-01: one trusted reply still settles two pending requests. S-1 sender
+  rejection and exact five-runtime correspondence remain supported. Existing
+  dirty UI close-fence removal was left untouched; integration readiness unproved.
+- Fresh independent same-model review reproduced both API findings and ran eight
+  focused modules: **167 passed, four subtests passed**, 70 warnings. It checked
+  relevant runtime edges, not every file in the scanner scopes. API receipt now
+  preserves a runnable sanitized replay. No different-family convergence credit.
+- SDK vitest/typecheck blocked by missing executables; in-memory Bun correspondence
+  and offline VM probes passed. Eight frozen-install controls and 12 Mongo-output
+  controls passed; real images, browser, ClickHouse and deployment not exercised.
+
+**Protocol L1 remains OPEN.** Prioritize one validation-diagnostics repair with
+actual-route red/green tests, then source-delegation authority under S3 and
+serialized consent correlation. No runtime repairs, L2 advancement, Wave 2 scan,
+production-exposure conclusion or model-diverse sign-off in this resumption.
+
 ## Exact Denominator
 
 O10 overlay: [source rescan](l1-o10-source.md), [artifact delta](l1-o10-artifacts.md)

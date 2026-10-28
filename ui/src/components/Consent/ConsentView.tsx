@@ -249,6 +249,7 @@ function ConsentView({ I }: { I: Record<string, any> }) {
 
   // An ACR is "already granted" when its origin holds every requested permission.
   const isAlreadyGranted = (c: any): boolean => {
+    if (I.isContractGranted) return I.isContractGranted(c);
     if (c.kind !== 'app') return false;
     const origin = c.app_origin || c.allowed_origin;
     const existing = v3Contracts.find((vc: any) => vc.allowed_origin === origin);
@@ -297,9 +298,9 @@ function ConsentView({ I }: { I: Record<string, any> }) {
   React.useEffect(() => {
     if (allSettled) {
       console.log('[consent] all settled — auto-completing (token + close, zero UI)');
-      I.goToApp();
+      if (!I.completeConsent || I.completeConsent()) I.goToApp();
     }
-  }, [allSettled]);
+  }, [allSettled, pendingContracts]);
 
   return (
     <div className="relative flex h-screen flex-col items-center justify-center overflow-hidden bg-background px-4 py-8 text-foreground">
@@ -411,7 +412,7 @@ function ConsentView({ I }: { I: Record<string, any> }) {
                 <Button
                   variant="ghost"
                   className="w-full text-muted-foreground hover:text-foreground"
-                  onClick={() => I.goToApp()}
+                  onClick={() => I.skipConsent ? I.skipConsent() : I.goToApp()}
                   data-testid="consent-skip"
                 >
                   Continue without sharing

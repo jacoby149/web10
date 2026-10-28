@@ -72,6 +72,10 @@ next; authenticator UI L1 waits for Wave 2.
 Read-only receipts first; one finding per later fix PR. Scan completion is not
 finding closure, and a single-file scan does not establish whole-API coverage.
 
+- [~ 3.249.1] **PROTOCOL-01/SOL-RESUME: resume Sol protocol revalidation** — local pinned API/SDK/edge receipts and fresh same-model replay complete; publication pending, campaign OPEN. See `knowledge-base/security/scans/2026-10/l1-current-index.md`. Not a whole-project rescan or diverse sign-off.
+- [ ] **PROTOCOL-01/L1-VAL-01: prevent validation credential copies** — S1 owns `api/app/main.py` validation-handler hunks and focused tests; redact input/exception content from logs and define safe client errors without changing 422 semantics. Gate: actual-route synthetic token/password/content red -> denied green, legitimate 422/401/success controls, fresh design-intent review, KB write-back, <=500 changed lines, all checks green.
+- [ ] **PROTOCOL-01/L1-OAUTH-SOURCE-01: validate source delegation authority** — S3 owns OAuth authorization/auth-service hunks and tests; resolve certify/authorize source-client inconsistency with revoked-source denial and valid delegation controls. Inert-store finding only; do not claim contract escape. Gates: exploit-red/denied-green, product-aligned delegation policy, fresh design-intent review, <=500 changed lines, KB write-back and all checks green.
+
 - [✓ 3.235.4] **L1-001: middleware** — receipt merged in PR #1199; all 143 lines scanned at `d86658be6`. Existing B-4 remains OPEN. Evidence: `knowledge-base/security/scans/2026-10/l1-middleware.md`.
 - [✓ 3.235.5] **L1-002: settings** — receipt merged #1201; all 140 lines at `8704e9f5c`, B-2/B-8 remain OPEN; `knowledge-base/security/scans/2026-10/l1-settings.md`.
 - [✓ 3.235.6] **L1-003: main** — full 176-line coverage in A, merged #1202 alongside B/D; no runtime fixes or security PASS.
@@ -96,7 +100,7 @@ finding closure, and a single-file scan does not establish whole-API coverage.
 - [✓ 3.245.10] **PROTOCOL-01/A-01-F-01-SENDER: consent sender slice** — source merged #1275 at 40a515fcc, applicable CI green on identical inputs. Request correlation/class/rollout/diverse review remain OPEN. `knowledge-base/security/scans/2026-10/repair-consent-senders.md`.
 - [~] **PROTOCOL-01/A-01-F-01-CORRELATION: bind consent decisions to requests/batches** — UI preparation local, not strict SDK activation or class closure; lifecycle and end-to-end integration below remain local L1 gates, not L2 deferrals.
 - [~] **CORRELATION/UI-OWNER: prepare owned indexed replies** — local 3.246.0 foundation, 13 real-hook controls/195 UI tests/typecheck/build and fresh same-model review; no SDK/artifact changes. `knowledge-base/security/scans/2026-10/consent-ui-ownership-foundation.md`.
-- [ ] **CORRELATION/LIFECYCLE: settle no-op and terminal batch paths before strict SDK** — after UI-owner merge, cover empty/no-op, skip/logout/account change, replacement/cancellation, approve-all errors and complete-batch handoff with real hook+ConsentView tests; then strict SDK/artifact and browser cohort integration. Keep A-01/F-01 OPEN until every gate is evidenced.
+- [~ 3.246.1] **CORRELATION/LIFECYCLE: settle no-op and terminal batch paths before strict SDK** — after UI-owner merge #1277, UI hook/ConsentView covers empty/no-op, skip/logout/account, replacement/cancellation, approve-all failure, same-account re-login and lazy follow-up batches. 29 focused consent tests/211 UI tests, typecheck/build pass. Two CI E2E attempts exposed logout/relogin and lazy-popup close races; fixes are in this PR, but fresh E2E shard confirmation is pending. Strict SDK/artifact/browser cohort integration remains separate; keep A-01/F-01 OPEN.
 - [✓ 3.245.3] **PROTOCOL-01/L1-PKG-01: Mongo URI output** — source repair merged #1265; 12 red -> green CLI cases, preserved account rows/count/checksum and fresh same-model intent review. Deployment/history/diverse sign-off and L1-PKG-02 separate. `knowledge-base/security/scans/2026-10/repair-pkg01-mongo-output.md`.
 - [ ] **PROTOCOL-03: protocol L3** — after the L2 gate: full service-flow scans and repair/sign-off for API, SDK and RTC.
 - [ ] **PROTOCOL-04: protocol L4** — after the L3 gate: cross-protocol/artifact/issuer/rollout integration and required independent review; not whole-project assurance. Only then advance the remaining surfaces through their L1-L4 wave.
@@ -1121,6 +1125,8 @@ all unchecked boxes. The numbers the industry track will demand:
   was NOT measured.
 
 **The writing plan (after the data lands):**
+
+- [✓ 3.249.2] **Python implementation rationale (supporting note)** — `research/why-python.md` covers FastAPI/ClickHouse responsibilities, commercial suitability, security visibility, rewrite tradeoffs and evaluation requirements. Draft untouched; E1–E6/W1–W6 not completed by this note.
 
 - [ ] **W1: scaffold `research/sigmod/`** — acmart sigconf, 12-page budget,
   section outline from `research/draft/outline.md` expanded for industry

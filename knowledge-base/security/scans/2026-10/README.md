@@ -11,6 +11,18 @@ that are confirmed bugs get a lane item + a fix PR; the audit doc is the record.
 
 ## Scope and method
 
+### Sol resumed: 28.10.2026
+
+The operator reverted the remaining campaign to `openai/gpt-6.1-sol`, routed as
+`openrouter/openai/gpt-6.1-sol`, after the Luna attempt. The transition below is
+historical and remains intact; prior receipts are not relabeled. Fresh bounded
+protocol L1 revalidation at `49178a87d` is recorded in [API](sol-resumption-api.md),
+[SDK](sol-resumption-sdk.md) and [deployment/packaging](sol-resumption-edges.md)
+receipts. This is a resumption, not a fresh whole-project scan or completion of
+the L1-L4 campaign. All reviewers in this pass are Sol; required different-model-
+family sign-off remains OPEN. See the [current ledger](l1-current-index.md) for
+findings, fresh same-model replay and verification limits.
+
 ### Model transition: gpt-6.1-sol to gpt-6-luna
 
 On 28.10.2026 the operator changed the model for the remaining security sweep
