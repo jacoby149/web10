@@ -66,10 +66,11 @@ make it land in two sentences.*
 
 ## Target venue
 
-- **Step 1:** Workshop paper (3–6 pp) — WWW or VLDB workshop.
-- **Step 2:** Full paper (12 pp) — **CIDR** (primary) or **WWW** (alternate).
-
-See `conferences.md` for the full map + deadlines.
+- **SIGMOD 2027 industry track** — 12 pages + references. Deadline:
+  **Nov 24, 2026, 11:59pm AoE**. Internal freeze: **Nov 20**.
+- The original plan (workshop first, then CIDR) is superseded. See
+  `README.md` for the venue change and `conferences.md` for the historical
+  venue map.
 
 ---
 
@@ -90,6 +91,8 @@ collecting them is the first task, not the last.**
 
 - [ ] Claim is one sentence a stranger can repeat.
 - [ ] Gap confirmed against `related-work.md` (not just hypothesized).
-- [ ] Venue + deadline pinned (Step 1 and Step 2).
+- [x] Venue + deadline pinned (Step 1 and Step 2). — **SIGMOD 2027 industry
+      track, Nov 24, 2026.** (The original two-step workshop→CIDR plan is
+      superseded; the venue is now a single target.)
 - [ ] Evaluation data: confirmed we have it, or a dated plan to collect it.
 - [ ] System name for the paper decided (web10 vs. codename).

@@ -2,8 +2,8 @@
 
 **Author:** Jacob Hoffman (web10 Inc.)
 **System:** web10 — user-owned data platform with fine-grained group/role access contracts + creator monetization
-**Status:** planning
-**Last updated:** 2026-10-27
+**Status:** drafting — SIGMOD 2027 industry track
+**Last updated:** 2026-10-28
 
 ---
 
@@ -83,7 +83,26 @@ web10 sits in the empty intersection. **That intersection is the paper.**
 
 ---
 
-## The venue ladder
+## The venue
+
+**SIGMOD 2027 industry track.** Deadline: **Tuesday, Nov 24, 2026, 11:59pm AoE**
+(6:59am ET Wed Nov 25). Up to **12 pages + references** (10 is fine — it does
+not have to be exactly 10). CMT has not opened for this track yet. Internal
+freeze: **Nov 20** — evaluation numbers and formatting always take longer
+than expected.
+
+The original plan (below, "The venue ladder") aimed at a workshop first, then
+CIDR. That ladder is dead — the target is now the SIGMOD industry track,
+which changes the paper's center of gravity: industry track rewards
+**operational experience, scale, deployment lessons, and cost** — the "we run
+this in production" story is the differentiator, and the evaluation section
+is now half the paper, not a nice-to-have.
+
+Full execution plan (E1–E6 data items, W1–W6 writing items, dependencies):
+`knowledge-base/strategy/plan.md` ("SIGMOD 2027 Industry Track" section) +
+`knowledge-base/strategy/parallel-execution.md` (lane: `sigmod-paper`).
+
+### The original venue ladder (historical — superseded)
 
 Do NOT aim at SOSP/OSDI/CCS for paper #1. That is a 2–5% acceptance fight
 against labs with a decade of related work. The realistic ladder for an
@@ -157,5 +176,15 @@ In order:
 - [ ] Do we have production latency/cost numbers, or do we need to instrument
       and collect them first? (If the latter, that's a multi-week task *before*
       the paper.)
-- [ ] Workshop target: WWW or VLDB, and which year's cycle?
+- [x] Workshop target: WWW or VLDB, and which year's cycle? — **Superseded.**
+      Target is now SIGMOD 2027 industry track, deadline Nov 24, 2026.
 - [ ] Does web10 Inc. have an ORCID / institutional email for submissions?
+- [ ] **Claim framing for industry track:** is the access model still the sole
+      contribution, or does the "one generic node running a full social app"
+      story co-lead? (Working assumption: access model is the contribution;
+      the generic-node operational story is the industry-track differentiator.)
+- [ ] **Authorship:** still Jacob Hoffman + web10 Inc.? (Single founder is
+      fine if the system is real; industry track sometimes prefers 2+ authors.)
+- [ ] **CMT status:** watch for the track opening; submission logistics (PDF,
+      anonymity rules — industry track is typically NOT anonymous, affiliation
+      visible).
