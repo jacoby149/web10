@@ -1215,7 +1215,7 @@ per-user database. CMT is open. This operator-authorized text repair includes
 - [ ] **E3: cost model** — per-user-collection vs. shared-table baseline, cost curve, storage overhead.
 - [ ] **E4: social-app case study** — key-flow latency (feed, post, DM, group read) on web10 vs. a conventional shared-DB backend; wins/losses; what the baseline can't express.
 - [ ] **E5: conformance results** — permission-matrix suite: case count, all passing, I3 negative tests (exploit replayed + denied), revocation bound.
-- [ ] **E6: methodology** — hardware specs, workload description (real/replayed/synthetic — honest), runs + variance, what was NOT measured.
+- [✓ 3.251.0] **E6: methodology** — hardware specs, workload description (real/replayed/synthetic — honest), runs + variance, what was NOT measured. **Harness landed** (3.250.0/3.251.0): `research/experiments/` — spinup/teardown on a Digital Ocean droplet (s-4vcpu-16gb, nyc3), the pre-experiment baby test (s-1vcpu-1gb, nyc1) de-risks the lifecycle, `seed.py` + `bench.py` + `run.sh` orchestrate compose-up → seed → bench → collect → results. Data collection pending: run `run.sh`, scrape the `[query] … timing_ms` logs, compute p50/p95/p99 per phase.
 - [ ] **W1: scaffold `research/sigmod/`** — acmart sigconf, 12-page budget, outline from `draft/outline.md` + a "Lessons from Running It" section (the industry-track differentiator). **Gated on: the open questions in plan.md answered (claim framing, authorship, CMT status).**
 - [ ] **W2: port + expand the workshop sections** — Intro, Access Model, Enforcement, Running Platform. Expand, don't rewrite. **Gated on W1.**
 - [ ] **W3: the Evaluation section** — fill from E1–E6. The load-bearing wall. **Gated on E1–E6.**

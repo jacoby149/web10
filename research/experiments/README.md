@@ -23,10 +23,17 @@ References are to the current source; no code repairs are made here.
 
 ## Intended Experiment
 
-The files are scaffolding: `spinup.sh`/`teardown.sh` manage an instance;
+The files are scaffolding: `spinup.sh`/`teardown.sh` manage a Digital Ocean droplet;
 `seed.py` creates synthetic users/groups/documents; `bench.py` intends to
 generate load and collect phase timings; `run.sh` orchestrates collection.
 Their presence is not evidence these steps work end to end.
+
+Provisioning uses `DO_API_TOKEN`; the main script defaults to `s-4vcpu-16gb`
+in `nyc3` with the `web10-sigmod` tag. The separate
+[`pre-experiment/`](pre-experiment/README.md) baby test defaults to `s-1vcpu-1gb`
+in `nyc1` and exercises provisioning, SSH, Docker success/failure and cleanup.
+That lifecycle test is independent of the query-workload validity gates above;
+passing it would not validate benchmark authentication, timings or results.
 
 web10 uses one shared ClickHouse `documents` table keyed by
 `(author_key, doc_id)`. Per-user namespaces are logical, not separate physical
