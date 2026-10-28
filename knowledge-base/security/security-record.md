@@ -126,8 +126,14 @@ Inventory and line coverage do not establish service PASS or deployment security
 
 ## Protocol L1 Repair Progress
 
+28.10.2026: **S-1** [local repair](scans/2026-10/repair-s1-auth-sender.md)
+binds token handoff to configured window/origin, preserving standalone and
+explicit-login lifecycle plus configured legacy opener support. 246 SDK tests,
+typecheck and five-runtime correspondence pass; fresh same-model review. Browser
+CI/migration/delivery/diverse sign-off remain OPEN; A-01/F-01 and S-6 separate.
+
 27.10.2026: **L1-D-01/D-02 and OAuth occurrence L1-OAUTH-01** share the
-[local freshness repair](scans/2026-10/repair-d01-token-freshness.md). Verified
+[source repair merged #1271](scans/2026-10/repair-d01-token-freshness.md) at b828736b4. Verified
 user decoding/certification enforce parseable ISO expiry at the absolute deadline;
 the oracle classifies invalid/expired before stores. Initial 48 regressions red
 -> green, 92 controls/1,325 API passes plus four subtests, fresh same-model review.

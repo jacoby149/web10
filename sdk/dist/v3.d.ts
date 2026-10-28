@@ -578,7 +578,7 @@ export interface V3Client {
     contractOnReady(contracts: V3CR[], callback?: (response: {
         status: string;
         errors?: string[];
-    }) => void): void;
+    }) => void, authOrigin?: string): void;
     createGroup(name: string, joinPolicy: string, roles: Record<string, unknown>[], members: {
         member_key: string;
         role?: string;

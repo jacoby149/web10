@@ -14,6 +14,12 @@ The consent popup is a door you walk through once, not a toll booth you pay at e
 
 The whole deal is **frictionless by default, controllable on demand.** A user should never feel nagged, and never feel locked out of the controls. Consent is a gate you cross once — not a recurring tax, and not a cage.
 
+Operator clarification, 28.10.2026: user-granted app operations should run without
+repeated consent within their scope; new/revoked grants still require approval,
+and the app cannot exceed the user's authority. This is the delegation direction,
+not a blanket skip-consent flag or a claim of completed management enforcement.
+Neither transport direction nor prior permission bypasses sender/token checks.
+
 ## The Two Contract Types, Two Different Behaviors
 
 Most of the confusion comes from treating both contract types the same. They are not. They answer different questions and behave differently in the consent flow.

@@ -427,6 +427,16 @@ support local repair, not issuer/rollout/diverse sign-off. Dated acceptance cove
 reauth for incompatible legacy tokens and no skew grace; reopen on supported
 issuer-format, clock or browser-recovery failures without restoring fail-open.
 
+### 2026-10-28: Sender trust is distinct from consent permission
+
+[S-1 local repair](scans/2026-10/repair-s1-auth-sender.md) binds the current
+credential window and configured origin, covering both SDK popup openers without
+rewiring fallback lifecycle. Keep contractOnReady metadata; opener tokens require
+explicit trusted-origin configuration. Consent-only windows do not replace login
+trust; throws/blocked replacements clear it. User-granted operations may avoid
+repeat consent, but never authentication checks. 246 SDK passes and same-model
+review do not close real-browser, migration, delivery or diverse-sign-off gates.
+
 ## Known gaps (the "obvious gap" register)
 
 Gaps the orient has surfaced. Each is either a `BP-n` or a standing note:

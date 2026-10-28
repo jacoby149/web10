@@ -322,6 +322,8 @@ does not merge.
 
 ## Auth model
 
+Browser auth-token messages require a bound credential window and configured origin. Legacy contractOnReady metadata stays available; opener token handoff needs its optional trusted-auth-origin argument. User grants may skip repeated consent, never authentication checks.
+
 JWT tokens with `username, site, target, provider, expires`. Server verifies signature, checks app contracts + group membership. Full auth flow: `knowledge-base/web10-v3/auth/auth.md`.
 
 Verified non-anonymous decoding requires a parseable ISO `expires`, with naive UTC or explicit offsets, and rejects at the deadline. Anonymous custom-expiry exemption and unsigned metadata decoding are separate; the latter is never authorization.

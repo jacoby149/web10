@@ -92,13 +92,13 @@ Conditional local facts remain bounded; no production breach is established.
 | B-8 | Source repair merged #1265 at b5d128a52; four red/green CLI cases, 1,180 API tests at repair pin; not B-2/deployment closure |
 | L1-A-02 | OPEN manifest caller-destination routing/JSON proxy primitive; fake HTTP evidence, real network reach not shown; S1 |
 | L1-B-01 | OPEN unsigned remote-helper destination/status trust; actual callers/reach unverified; S3 |
-| L1-D-01 | [Local freshness repair verified](repair-d01-token-freshness.md): verified principal/delegation decoding rejects stale/invalid custom expiry; initial red -> green, 92 controls/1,325 API passes. Integration/rollout/diverse review OPEN; S3 |
+| L1-D-01 | [Source freshness repair merged #1271](repair-d01-token-freshness.md) at b828736b4; 92 controls/1,325 API passes at repair pin, fresh same-model review. Rollout/diverse review OPEN; S3 |
 | L1-D-02 | Same local freshness repair: oracle classifies invalid versus expired and skips stores; no oracle-to-CRUD grant claimed. Integration/rollout/diverse review OPEN; S3 |
 | L1-E-01 | OPEN account token GET-query transport; no theft shown; S7 body-authenticated detail and consumers |
 | L1-G-01 | [Source repair merged #1266](repair-g01-query-logging.md) at b5ebcd7e7: safe query diagnostics; red -> green, 1,216 API passes at repair pin, fresh same-model review. Deployment/diverse sign-off OPEN; S4 |
 | L1-H-01 | OPEN object-signing provenance concern; fake-auth/signer proves forwarding, not private retrieval; S5 |
 | L1-J-01 | [Source repair merged #1267](repair-j01-import-traces.md) at e0c271da1: context-owned traces/pre-lock guards; contamination and lock-cycle red -> green. Nine controls/1,225 API passes at repair pin; deployment/history/diverse sign-off OPEN; S5 |
-| S-1 | OPEN sender-unbound SDK credential message; synthetic acceptance not valid credentials; S2 |
+| S-1 | [Local sender-binding repair verified](repair-s1-auth-sender.md): configured window/origin, explicit/standalone/configured-opener flows; 246 SDK passes/typecheck, five-runtime parity. Browser CI/migration/delivery/diverse review OPEN; no valid credentials/server grants proved; S2 |
 | L1-SDK-A-01/F-01 | OPEN one consent-response integrity class across implementations; origin/window/request/concurrency binding required; S2 |
 | S-6 | OPEN wildcard recipient metadata hygiene, not token exfiltration; S2 |
 | SDK-B-01 | Source/five-runtime repair merged #1255; remaining browser/rollout/sign-off limits retained |

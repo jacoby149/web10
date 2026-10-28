@@ -112,6 +112,21 @@
     return res.json();
   }
 
+  // src/popup.ts
+  var authPopup = null;
+  var expectedOrigin = null;
+  function trackAuthPopup(popup, url) {
+    authPopup = popup;
+    expectedOrigin = null;
+    try {
+      if (popup)
+        expectedOrigin = new URL(url, window.location?.href).origin;
+    } catch {}
+  }
+  function isAuthPopupMessage(event) {
+    return authPopup !== null && expectedOrigin !== null && expectedOrigin !== "null" && event.source === authPopup && event.origin === expectedOrigin;
+  }
+
   // src/token.ts
   function cookieDict() {
     if (typeof document === "undefined")
@@ -845,7 +860,9 @@
             callback({ status: "error", errors: ["Not in a browser"] });
           return;
         }
+        trackAuthPopup(null, authOrigin);
         const popup = window.open(`${authOrigin}`, "web10-consent", "width=480,height=720,scrollbars=yes");
+        trackAuthPopup(popup, authOrigin);
         if (!popup) {
           if (callback)
             callback({ status: "error", errors: ["Popup blocked — allow popups and try again"] });
@@ -879,12 +896,14 @@
           callback?.({ status: "error", errors: ["Auth popup closed — request cancelled"] });
         }, 30000);
       },
-      contractOnReady(contracts, callback) {
+      contractOnReady(contracts, callback, authOrigin) {
         if (typeof window === "undefined" || !window.opener) {
           if (callback)
             callback({ status: "error", errors: ["No opener window — not in a popup"] });
           return;
         }
+        if (authOrigin)
+          trackAuthPopup(window.opener, authOrigin);
         if (callback) {
           const handler = (e) => {
             if (e.data?.type === "contract_response") {
@@ -913,7 +932,11 @@
     const url = `${authOrigin}?redirect=${encodeURIComponent(window.location.href)}${as}${handoff}`;
     console.log("[wapi] openAuthPortal — opening popup:", url, "as:", decoded?.username || "(none)", "handoff:", options.handoff || "token");
     const winName = `web10-auth-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    if (options.handoff !== "none")
+      trackAuthPopup(null, authOrigin);
     _authPopup = window.open(url, winName, "width=480,height=720,scrollbars=yes");
+    if (options.handoff !== "none")
+      trackAuthPopup(_authPopup, authOrigin);
     console.log("[wapi] openAuthPortal — popup returned:", _authPopup ? "open" : "blocked/null");
     _popupReady = false;
     if (_readyListener) {
@@ -934,6 +957,10 @@
   function authListen(onSignedIn) {
     const handler = (e) => {
       if (e.data?.type === "auth" && e.data?.token) {
+        if (!isAuthPopupMessage(e)) {
+          console.warn("[wapi] auth event rejected — unbound popup sender");
+          return;
+        }
         const incoming = decodeJwt(e.data.token);
         const current = readTokenCookie();
         const currentDecoded = current ? decodeJwt(current) : null;
