@@ -103,6 +103,27 @@ Nobody has brought the IAM model to the \emph{user} boundary of a social
 platform---where the user, not the platform, is the principal that holds the
 contracts.
 
+Every serious attempt at user-owned social data has stopped at the same wall,
+and the gaps are specific. \textbf{Solid} gives users personal data stores
+(Pods) and a body of work on building social applications over them, but its
+access control is WebACL---permissions attached to \emph{containers}, with no
+first-class group/role primitive and no way for a person to request, get
+approved, and receive a per-service permission set; and its per-Pod storage
+makes a cross-user feed query intractable, so those social applications remain
+hypothetical. \textbf{ActivityPub} and \textbf{ATProto} federate the activity
+but leave authorization to federation-trust rather than fine-grained,
+user-held contracts. \textbf{Cloud IAM} has exactly the permission language a
+social platform needs---principals, roles, service-scoped operations,
+revocable grants---but it lives at the infrastructure boundary, where the
+provider owns the data and the end user is invisible.
+
+What none of them have is the conjunction web10 ships: \emph{user-owned data,
+with IAM-grade group/role access enforced at the query layer of a single
+columnar store, in a running social platform.} Ownership without sacrificing
+the feed; fine-grained access without a scan penalty; and a product, not a
+protocol proposal. That conjunction---and the architecture that makes it
+possible---is this paper.
+
 \textbf{web10} is a social data platform that makes that move. Every user's
 data lives under their own key in a single columnar store; every access
 decision is a check against two user-held contract layers; and the social
