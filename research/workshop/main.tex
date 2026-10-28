@@ -292,10 +292,22 @@ a tombstone that takes effect on the next read).
 
 \subsection{One columnar table}
 
-All structured user content lives in a single ClickHouse table, keyed by
-\texttt{(author\_key, doc\_id)}; large binary objects (media) live in object
-storage and are \emph{referenced} from this table (\S\ref{sec:enforcement}):
+A social feed is an analytical workload: every read is a join across users,
+groups, and time---filtered, ranked, and paginated---which is OLAP, not OLTP.
+web10 therefore uses a single columnar store for \emph{all} user data, with no
+Postgres, no change-data-capture pipeline, and no separate operational
+database. The ``OLTP'' operations are translated to the columnar model: an
+update is a new row with a higher timestamp, a delete is a tombstone row, a
+point lookup is a primary-key scan, and a counter is a \texttt{count()} at read
+time. This removes the two-database drift (schema divergence, sync lag) that a
+Postgres-to-ClickHouse pipeline would introduce, at the cost of embracing the
+columnar write idioms described below. All structured user content lives in a
+single ClickHouse table, keyed by \texttt{(author\_key, doc\_id)}; large binary
+objects (media) live in object storage and are \emph{referenced} from this
+table (\S\ref{sec:enforcement}):
 
+\begin{center}
+\begin{minipage}{\columnwidth}
 \begin{lstlisting}[style=sql]
 CREATE TABLE documents (
     doc_id          String,
@@ -309,12 +321,86 @@ CREATE TABLE documents (
 ) ENGINE = ReplacingMergeTree(updated_at)
 ORDER BY (author_key, doc_id);
 \end{lstlisting}
+\end{minipage}
+\end{center}
 
 Updates are inserts with a higher \texttt{updated\_at} (the engine keeps the
 latest version); deletes are tombstone rows filtered at read time. Documents
 attach to groups through a small mapping table, and groups carry their
 contracts and members in two more small tables. Content is one wide
 columnar table; \emph{access is a handful of narrow metadata tables}.
+
+\subsection{The query boundary: a wall, not a membrane}
+
+The genericity claim in \S\ref{sec:model} has an obvious objection: if any app
+can write an arbitrary \texttt{SELECT} over a multi-tenant store, how does that
+not leak other users' data? The answer is a constrained query-compilation layer
+that makes the raw tables \emph{unreachable as inputs}, not merely filtered from
+the output. We call this a \emph{wall, not a membrane}: the guarantee is not
+``we filter bad rows out of the result'' but ``the caller's query can only read
+pre-filtered views; the underlying tables are simply not addressable.''
+
+\paragraph{Why output-side filtering is unsound.} The natural design wraps the
+caller's query and filters the \emph{result}, e.g.\
+\texttt{SELECT * FROM (q) WHERE <filter>}. This fails because the caller's
+query has \emph{already read the raw table} inside the parentheses, and an
+outer filter cannot undo an aggregation that baked everyone's data in:
+\begin{lstlisting}[style=sql]
+-- counts every user's comments; the outer group filter is too late
+SELECT author_key, count(*)
+FROM documents WHERE collection_name = 'comments'
+GROUP BY author_key
+\end{lstlisting}
+The aggregate has already collapsed all authors into counts before any row-level
+filter could run. Filtering the output of an aggregation is not access control.
+
+\paragraph{Redirecting the input instead.} web10 parses the caller's SQL to an
+AST (never executing the string), then rewrites every table reference to a
+\emph{boundary CTE}---the service's documents, deduped, joined to
+\texttt{doc\_groups}, and filtered to the caller's readable groups for that
+service, with the block/sharing/hidden exclusions applied. The caller's
+\texttt{SELECT ... FROM posts} now reads that CTE; \texttt{posts} is no longer
+the raw table, it is the caller's own groups and nothing else. Because the raw
+table never appears in the caller's query, there is nothing to aggregate over,
+join, or subquery outside the boundary---aggregation, self-joins, and subqueries
+all stay inside it by construction.
+
+\paragraph{The walk and the backstop.} The compilation is five steps: (1)~parse
+to an AST (unparseable or multi-statement input is rejected); (2)~type-check
+(single \texttt{SELECT} only---\texttt{INSERT}/\texttt{DROP}/\ldots{} rejected);
+(3)~walk every \texttt{Table} node, including inside caller CTEs and subqueries,
+rejecting raw node tables, ungranted services, and table functions
+(\texttt{file()}, \texttt{s3()}, \texttt{numbers()}---the one non-\texttt{Table}
+escape off the node, which surfaces as an empty-named \texttt{Table});
+(4)~inject the needed boundary CTEs ahead of the caller's CTEs and re-emit from
+the validated AST; and (5)~\emph{round-trip}---re-parse the compiled SQL and
+require it to come back as exactly one statement, a backstop against a parser
+mis-read that hides a table reference. String-injection attacks (stacked
+statements, comment-hidden references, gibberish) are neutralized because the
+string is resolved into a tree before any check runs; there is no string
+boundary to jump out of.
+
+\paragraph{Why the database's own RLS does not fit.} A reviewer's next question
+is why not use ClickHouse row-level security or per-account roles. The access
+boundary here is a \emph{dynamic, membership-dependent JOIN predicate}---``the
+documents in the groups I am \emph{currently} a member of, where my effective
+role grants this service.'' Row-level security in an OLAP engine expresses
+\emph{static} row predicates bound to an account; it cannot express a predicate
+that depends on a live membership join evaluated per reader. The boundary
+therefore cannot live in the storage engine; it must be injected by the
+compilation layer, per query, per reader. This is the structural reason the
+security logic sits above the database rather than inside it.
+
+\paragraph{An honest caveat.} The guarantee rests on the SQL parser reading the
+ClickHouse dialect faithfully. An unparseable query is rejected (safe); a
+mis-parsed one is caught by the round-trip re-parse when it is malformed, though
+a subtle semantic mis-parse that hides a table reference is the residual risk.
+The pinned test suite---including an end-to-end run of the compiled SQL against
+a real store with real membership data, asserting that raw tables 403 in every
+shape (top-level, caller CTE, subquery) and that aggregation cannot leak past
+the boundary---is the tripwire. The database account is deliberately \emph{not}
+a backstop: the boundary CTEs legitimately read the raw tables, so the service
+account must be able to; the rewriter is the only wall.
 
 \subsection{The role check never touches the document table}
 
@@ -382,6 +468,23 @@ creator's video the same way they apply to their post. This is also why the
 feed's single request can carry resolved media: the query engine's prepare
 pass mints the per-row object URLs (presigned, or signed manifests for HLS)
 after the SELECT, reusing the read path's access checks verbatim.
+
+\subsection{Data policy, not privacy}
+
+A natural objection is that a node which can read its users' content is not
+really ``user-owned''---that true ownership requires the operator to be
+cryptographically blind. web10 makes the opposite, deliberate choice. The node
+is a \emph{readable, accountable broker}: content is node-readable by design,
+because discovery, search, and auditability all require it, and
+``discoverable'' and ``hidden from the node'' are mutually exclusive. Access is
+controlled by the permission model (I3) and by \emph{terms}, not by
+cryptography: the operator who misuses hosted data is legally liable, whereas a
+system that merely cannot read it offers a weaker promise than one you can take
+your data from and sue. In short, web10 is a \emph{data-policy} platform, not a
+\emph{data-privacy} platform---ownership is defined by key-space, portability,
+and user-held contracts, not by operator-blindness. This is what lets the feed
+be a fast, global, tunable query in the first place; a privacy-first design
+could not do cross-user ranking or attribution without consent plumbing.
 
 %=============================================================================
 \section{A Running Social Platform}
