@@ -457,6 +457,19 @@ status timers need batch ownership. 13 real-hook controls/195 UI passes support
 this preparation only. Legacy wire/retry remains, and SDK stays unversioned until
 no-op/cancellation/account/full-batch and browser integration gates are met.
 
+### 2026-10-28: Consent lifecycle is distinct from strict SDK correlation
+
+[Lifecycle receipt](scans/2026-10/consent-lifecycle.md) records UI handling for
+empty/no-op requests, skip, logout/account change, replacement, in-flight writes,
+approve-all failures and delayed handoff. Preserve the exact requested-permission
+inclusion predicate; an existing grant is usable only for the same confirmed
+principal, and never substitutes for authentication. Unstarted work may be
+reviewed after account selection, while started/partly settled batches terminate
+and require a fresh caller request. This is local responder readiness only:
+SDK strict correlation, generated artifacts, real-browser cohort, deployment and
+model-diverse sign-off remain open. No A-01/F-01 closure or L1 PASS follows from
+this slice.
+
 ## Known gaps (the "obvious gap" register)
 
 Gaps the orient has surfaced. Each is either a `BP-n` or a standing note:
