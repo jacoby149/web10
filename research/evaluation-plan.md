@@ -1,130 +1,98 @@
-# Evaluation Plan — web10 Paper
+# Evaluation Plan - web10 Paper
 
-*The load-bearing wall. Reviewers reject papers without evaluation, and an
-independent author's only defense against "is this a toy?" is real production
-numbers. This file lists the exact metrics to pull from the running system.*
+**Status: results pending.** This is a measurement plan, not evidence of scale,
+performance, security, or a runnable artifact. The current harness has known
+[blocking defects and validity gaps](experiments/README.md#known-blockers).
+Resolve those gates before collecting paper numbers.
 
-**Critical path note:** if we do not already have these numbers, collecting
-them is the FIRST task, not the last. Instrument now, draft later. A multi-week
-data-collection effort must finish before the draft is frozen.
+Target: SIGMOD 2027 industry track; November 24, 2026, 23:59 AoE;
+internal freeze November 20. See [submission requirements](README.md#venue).
 
-**Target: SIGMOD 2027 industry track. Deadline: Nov 24, 2026. Internal freeze:
-Nov 20.** The industry track specifically rewards operational experience,
-scale, deployment lessons, and cost — this section is half the paper, not a
-nice-to-have. Execution plan (E1–E6 items + dependencies):
-`knowledge-base/strategy/plan.md` ("SIGMOD 2027 Industry Track" section).
+## System and Contribution
 
----
+web10 stores documents in one shared ClickHouse `documents` table keyed by
+`(author_key, doc_id)`. A user's namespace is logical, not a separate database
+or physical collection. The systems-integration contribution to evaluate is
+generic query composition with user-managed group/service permissions.
+Neither RBAC nor shared-table tenant isolation is claimed as new.
 
-## 0. Do we have the data yet? (answer first)
+## E1 - Scale and Provenance
 
-- [ ] Access-decision latency: already logged, or must we instrument?
-- [ ] Scale counters (users/collections/docs): queryable today?
-- [ ] Cost data: do we have cloud bills broken down per component?
-- [ ] Baseline: is there a conventional-backend version of the social app to
-      compare against, or must we build one?
+- [ ] Record dated production counts: registered/active users, logical author
+  namespaces, documents, groups, memberships, access volume, media volume,
+  deployment duration and observed uptime (with observation windows).
+- [ ] Label production observations, production replays and synthetic trials
+  separately. Synthetic user counts are not active-user evidence.
+- [ ] Preserve revision, configuration, workload seed and data provenance.
 
-*If any of these are "no," that's a dated engineering task that starts before
-any drafting.*
+## E2 - Query and Authorization Latency
 
----
+- [ ] Measure client latency and server p50/p95/p99, throughput, errors and
+  timeouts across load levels, with warm-up and repeated trials.
+- [ ] Report all query phases, including `auth`, `app_contract`, `candidates`,
+  `readable`, `group_meta`, `compile`, `execute` and `prepare`; identify which
+  phases contain authorization work or mixed responsibilities.
+- [ ] Label `p50(readable) / p50(execute)` only as a phase ratio. It is not
+  total authorization overhead, a percentile of per-request ratios, or a
+  causal estimate. Authorization work is not confined to `readable`.
+- [ ] Measure causal authorization overhead separately using an isolated,
+  synthetic-only ablation with equivalent preauthorized result sets, matched
+  resources/cache conditions and repeated paired trials. Record query-plan
+  changes as part of the treatment and report the total latency delta and checks
+  removed. A separate fixed-plan experiment can isolate metadata orchestration;
+  never disable production checks.
 
-## 1. Scale (prove it's real)
+## E3 - Matched Shared-Table Baseline and Cost
 
-Report honest production numbers:
-- [ ] Number of users (registered / active)
-- [ ] Number of user collections
-- [ ] Total documents stored
-- [ ] Access decisions per day (the volume of authorization work)
-- [ ] Media/blob volume if relevant
-- [ ] Uptime / deployment duration (how long it's been running)
+Both web10 and the baseline must use shared tables with logical tenant keys.
+Compare web10's query-layer policy enforcement with a conventional shared-table
+backend implementing equivalent group/service policies (for example PostgreSQL
+RLS plus the required application logic). No imaginary physical per-user
+database baseline and no assumption that RLS cannot express these policies.
 
-*These are the "it's not a toy" numbers. Even modest ones beat a simulation.*
+- [ ] Match data, access semantics (including private/denied reads), returned
+  rows/fields/order, query functionality, concurrency and resource budgets.
+- [ ] Publish baseline policy/schema/index choices and result-equivalence
+  checks; separate database-engine differences from authorization effects.
+- [ ] Measure storage/metadata, CPU, memory, I/O, latency and throughput over
+  scale. Record actual purchased instance specs, region, dates and invoices;
+  distinguish provisioned capacity cost from per-run spend and media/egress.
+- [ ] Report tradeoffs without claiming isolation or ownership semantics are
+  inexpressible in a shared-table baseline. The baseline is not built yet.
 
----
+## E4 - Application Workload
 
-## 2. Access-control decision latency (the claim's core metric)
+The current nonempty feed path is **three query calls plus a content-views
+request**, with discovery/group resolution and media fetches additional
+(`marketing/web10-social/src/data/feed.ts`, `readFeedPage` and
+`readFeedEngagementCounts`).
+Do not describe the whole page as one request or use historical 267-to-1
+counts as a current end-to-end measurement.
 
-The claim is about the access model, so its performance is the headline:
-- [ ] p50 / p95 / p99 latency of an access decision (token verify + contract
-      check + group membership check)
-- [ ] Latency breakdown: signature verify vs. contract lookup vs. group
-      membership lookup (which part costs what)
-- [ ] Throughput: access decisions / sec sustained
-- [ ] Latency under load (the curve, not a single point)
-- [ ] Comparison: access-decision overhead vs. the underlying data read
-      (is authz the bottleneck or negligible?)
+- [ ] Separate a simplified SQL microbenchmark from the current feed path.
+- [ ] Cover prepare/media/face work, discovery, public/private groups, denied
+  reads, membership changes and revocation; specify the workload mix.
+- [ ] Measure page readiness and request counts, not just one SQL response;
+  compare equivalent baseline outputs and functionality.
 
-*This is the number a DB/security reviewer will stare at. Make it good.*
+## E5 - Bounded Conformance Evidence
 
----
+- [ ] Cite exact revision, executed suites, case counts, results and exclusions.
+- [ ] Test own-author reads and authorized cross-author reads, plus denial
+  without a qualifying grant. I3 permits cross-author access through grants.
+- [ ] Measure revocation visibility and residual media URL validity separately.
 
-## 3. Cost model (per-user-collection vs. shared table)
+Passing cases provide bounded evidence, not proof of all invariants, formal
+security, or completed security review. Report failures and untested paths.
 
-The architecture choice (collection per user) has a cost story. Tell it:
-- [ ] Cost per user / per collection at current scale
-- [ ] Cost curve: how does total cost grow as users grow (linear? superlinear?)
-- [ ] Comparison to a baseline: the same data in a single shared table with
-      row-level authorization — what would it cost?
-- [ ] Storage overhead of the per-collection model (duplication of indexes,
-      metadata, etc.)
-- [ ] The tradeoff made explicit: what we give up (cost/overhead) to get
-      (isolation, ownership, clean authz boundaries)
+## E6 - Validity and Reporting Gates
 
-*This is where the "why not just a shared table with RLS?" question gets
-answered with numbers instead of vibes.*
+- [ ] Clear the harness blockers linked above; validate login, JSON token,
+  Origin/app-contract path, workload coverage and returned results.
+- [ ] Correlate logs to this run's requests; record actual active readers,
+  successes, failures, rate limits, timeouts and sample counts.
+- [ ] Repeat trials with documented warm/cold conditions and uncertainty;
+  archive raw observations, commands, environment and limitations.
 
----
-
-## 4. The social app on web10 vs. a conventional backend (case study)
-
-web10-social is the proof the model supports a real, demanding app:
-- [ ] End-to-end latency for key user flows (load feed, post, DM, group read)
-      on web10
-- [ ] The same flows on a conventional shared-DB social backend (the baseline)
-- [ ] Where web10 wins, where it loses, and why
-- [ ] Any capability the conventional backend *can't* express that web10 can
-      (e.g. a fine-grained group/role contract that has no RLS equivalent)
-
-*This is the "motivating app pays off" section. It's what makes the access
-model concrete.*
-
----
-
-## 5. Correctness / security conformance (the invariants hold)
-
-web10 has security invariants (I1–I6 in the KB) enforced by a conformance /
-permission test suite. Report:
-- [ ] The permission-matrix suite: how many cases, all passing
-- [ ] The specific invariant that no query returns documents for an
-      author_key the token doesn't own (I3) — how it's tested
-- [ ] Any negative tests: the exploit replayed and denied (the repro-gate
-      pattern from the security KB)
-- [ ] Revocability: a revoked token/contract is denied within what bound?
-
-*This converts "we think it's secure" into "here is the test suite that
-proves the invariants hold."*
-
----
-
-## 6. Methodology (how we measured — reviewers will ask)
-
-- [ ] Hardware / cloud instance specs
-- [ ] Workload description (real traffic vs. replayed vs. synthetic — be
-      honest about which)
-- [ ] How many runs, how we report variance
-- [ ] What we did NOT measure (limitations section honesty)
-
----
-
-## The evaluation's one-paragraph promise (for the abstract/intro)
-
-> We evaluate web10 in production: [N] users, [N] collections, [N] documents,
-> [N] access decisions/day. Access decisions complete in [X]ms at p99 with a
-> [Y]% overhead over the underlying read. The per-user-collection model costs
-> [Z] more than a shared-table baseline but provides [isolation/ownership]
-> guarantees the baseline cannot express. The permission-matrix conformance
-> suite ([N] cases) passes, including replayed-exploit denial.
-
-*Fill the brackets from the numbers above. If a bracket can't be filled, that
-metric is on the critical path.*
+Only then fill abstract placeholders with sourced measurements. Production
+experience and synthetic capacity experiments must remain separately labeled.

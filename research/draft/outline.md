@@ -1,79 +1,57 @@
-# Draft — web10 Paper
+# Draft Outline - web10 Industry Paper
 
-*Markdown-first. Convert to the venue's LaTeX template (SIGMOD 2027 industry
-track — ACM sigconf) at submission time. Do not start filling sections until
-`brief.md`'s claim is locked and `related-work.md`'s gap check is [YES].*
+Target: **SIGMOD 2027 industry track**, November 24, 2026, **23:59 AoE**;
+up to **12 pages plus references**, ACM `sigconf`, not anonymous, CMT open
+(verified October 28, 2026; [official CFP](https://2027.sigmod.org/calls_industrial_track_papers.shtml)).
+Internal freeze: November 20. The existing `research/workshop/main.tex` is
+draft material, not a validated account of results. Comparative review and
+evaluation remain pending; see `../brief.md` and `../related-work.md`.
 
-**Target: SIGMOD 2027 industry track. Deadline: Nov 24, 2026. Internal freeze:
-Nov 20.** 12 pages + references. The full paper lives in `research/sigmod/`
-(new — to be scaffolded); the workshop paper (`research/workshop/main.tex`) is
-the draft foundation (~40% of the full paper, in workshop compression).
+## Sections
 
-**Industry-track addition:** the outline below is the research-paper spine.
-For the industry track, add a **"Lessons from Running It"** section (between
-Evaluation and Related Work) — the operational story: what the per-collection
-model gave up, what broke in production, what the genericity (D60) bought.
-This is the industry-track differentiator that the research-paper outline
-doesn't have.
+1. **Abstract:** the systems integration and only measured, sourced results.
+   Write last; no invented headline or universal novelty claim.
+2. **Introduction:** motivate user-managed data/access and generic query
+   composition. State the integration contribution; creator monetization is
+   not the evaluated gap.
+3. **Background and Related Foundations:** RBAC/IAM, Solid WAC/ACP, social
+   protocols, shared-table tenancy and policy-aware querying. Distinguish
+   established primitives from web10's combination.
+4. **System Overview:** one shared ClickHouse `documents` table keyed by
+   `(author_key, doc_id)`; logical per-user namespaces, `doc_groups`,
+   `group_contracts`, `group_members`, app trust and scoped tokens. The node
+    offers generic composition alongside advertising, content-event, media and
+    result-preparation machinery. Node-readable does not mean operator-blind
+    or physically isolated per user.
+5. **Query Composition and Permission Enforcement:** user-managed roles as
+   per-service permission maps; principal classes and public read grants;
+   app-contract checks, query restriction, compilation and prepare/media work.
+   State consistency/revocation limits with evidence, not a formal proof.
+6. **Evaluation:** follow `../evaluation-plan.md`. Separate production
+   observations from synthetic trials. Report full phases and errors; a
+   `readable/execute` phase ratio is not total overhead. Use a separate causal
+   authorization ablation and matched shared-table policy baseline with the
+   same data, access semantics, results and resources. Current nonempty feed:
+   three query calls plus content views; discovery and media work additional.
+   Harness gates in `../experiments/README.md` must close first. Results pending.
+7. **Operational Lessons:** only documented production incidents and measured
+   tradeoffs of shared-table logical namespaces, permission metadata and a
+   generic node. Distinguish observed experience from design expectations.
+8. **Related Work:** source-supported comparisons from `../related-work.md`,
+   including Solid query/access work, Zanzibar, RLS/multi-tenancy and TAO.
+   The verified bibliography does not itself verify a literature gap.
+9. **Limitations:** unmeasured workloads, synthetic/production differences,
+   baseline confounders, consistency/media revocation limits and bounded
+   conformance coverage. Monetization and formal security proof are out of scope.
+10. **Conclusion:** restate the integration and evidence actually obtained.
+11. **References:** use `../references/web10-references.bib` and its mapping;
+    cite each source only for claims it supports.
 
-## Section outline
+## Writing Gates
 
-1. **Abstract** — the claim + the headline evaluation number. 150 words.
-   *(Write last, not first.)*
-2. **Introduction**
-   - The problem: platform silos, coarse access, no ownership, no
-     creator monetization.
-   - The move: bring IAM-grade group/role contracts to the front of a
-     user-owned social data platform.
-   - The claim (one sentence, from `brief.md`).
-   - The contribution list (only #1 is the contribution; the rest are
-     system/app/future-work).
-   - The headline result (one production number).
-3. **Background & Motivation**
-   - Why user-owned data.
-   - Why the access model is the hard part (the gap, from
-     `related-work.md`).
-   - Why now.
-4. **System Overview**
-   - The data model: single ClickHouse `documents` table,
-     `(author_key, doc_id)`, `doc_groups`, `group_contracts`,
-     `group_members`.
-   - The two contract types: app contracts (infrastructure trust, CORS) and
-     group contracts (social access, role-enforced).
-   - The token: scoped, expiring, revocable; `{username, site, target,
-     provider, expires}`.
-   - The node stays generic (D60): universal primitives only; app concepts
-     live client-side.
-5. **The Access Model (THE CLAIM — the deep section)**
-   - Fine-grained group/role contracts as the user-facing primitive.
-   - How "IAM to the front" works: the user (not the platform) holds the
-     contract.
-   - Publicness as a role grant (an `anyone`/`authenticated` member row with a
-     `readAll` role) — no node endpoint, expressed through the primitives.
-   - Revocability and its bound.
-   - The security invariants (I1–I6) and how the model enforces them.
-6. **Evaluation** — from `evaluation-plan.md`.
-    - Scale. Access-decision latency. Cost model. Social-app case study.
-      Conformance suite. Methodology.
-7. **Lessons from Running It** *(industry track)* — the operational story:
-    what the per-collection model gave up, what broke in production, what the
-    genericity (D60) bought, what we'd do differently. The industry-track
-    differentiator.
-8. **Related Work** — from `related-work.md` (decentralized social, cloud IAM,
-   conventional social, DB tenant isolation, creator economics).
-9. **Discussion & Limitations**
-    - What the per-collection model gives up.
-    - What's out of scope (the monetization deep-dive → future EC paper; the
-      formal security proof → future CCS paper).
-10. **Conclusion**
-11. **References**
-
-## Writing rules (from the project's KB method)
-
-- One claim. If a paragraph doesn't serve the claim, cut it or move it to
-  future work.
-- The evaluation is the load-bearing wall — real numbers, not adjectives.
-- Be transparent that web10 Inc. built and runs this. No hiding the COI.
-- Keep the KB aligned: the system described here must match the code + the
-  `knowledge-base/` docs. If the paper says something the KB doesn't, fix one
-  of them.
+- Keep the system description aligned with implementation and the KB.
+- Keep results as pending until validated; do not claim the artifact runnable
+  or reproducible before its gates pass.
+- Include author names/affiliations and disclose system ownership.
+- Acknowledge contrary prior work; an industry integration report does not
+  require an unsupported first-ever claim.

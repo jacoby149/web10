@@ -1,135 +1,79 @@
-# web10 SIGMOD Experiment — Query Engine Evaluation
+# web10 SIGMOD Experiments - Status and Gates
 
-The evaluation harness for the SIGMOD 2027 industry track paper. Measures the
-query engine's phase-level latency (the access decision vs. the data read) on
-a synthetic dataset, on a single cheap VPS. The "lite hardware" story: the
-entire web10 node runs on a small Digital Ocean droplet.
+**BLOCKED: the current harness is not validated as runnable or reproducible.**
+Results are pending. The scripts are an unfinished synthetic query-engine
+experiment, not production measurements or a full social-page benchmark.
+Do not provision a machine expecting the current scripts to produce valid
+paper results without resolving the gates below.
 
-## The experiment
+## Known Blockers
 
-1. **Spin up** a Digital Ocean droplet (s-4vcpu-16gb: 4 vCPU AMD EPYC, 16 GB,
-   ~$0.30/hr, nyc3).
-2. **Clone the repo**, bring up the docker-compose stack (api + clickhouse +
-   minio).
-3. **Seed** a deterministic synthetic dataset (N users, each with a followers
-   group, M posts, K comments/reactions).
-4. **Bench** the query engine: N concurrent readers replay the feed query
-   (the 267→1 query) for T seconds. The API's phase-level timing telemetry
-   (added in 3.247.0) logs each query's per-phase duration.
-5. **Collect** the results: p50/p95/p99 per phase, throughput (qps), memory
-   per container, the hardware spec.
-6. **Tear down** the droplet. Billing stops.
+References are to the current source; no code repairs are made here.
 
-The whole measurement is localhost — no external traffic, no network noise.
-The latency is pure CPU + disk + the docker bridge.
+| Blocker | Source reference | Required gate |
+|---|---|---|
+| Python syntax: `API_BASE` is used before `global API_BASE` in `main` | `bench.py:228-238` | Pass compilation before any live run. |
+| Fake password hash vs real login | `seed.py:94`; `bench.py:179-191,252-267` | Seed valid test credentials and demonstrate intended readers authenticate; do not bypass the seam. |
+| Bearer header vs JSON token API | `bench.py:194-205`; `api/app/v3/endpoints/query.py` (`run_query`, `data.token`) | Send the token in the API's expected JSON field and assert returned rows/denials. |
+| No Origin/app-contract workload | `bench.py:197-204`; `api/app/v3/endpoints/query.py:191-198` | Exercise the intended browser Origin and app grants. The current no-Origin, non-delegated path skips the app-contract check. |
+| No prepare/media/private-access mix | `bench.py:57-78,202`; `seed.py:105-135`; query endpoint prepare branch | Add workload coverage for prepare/media, private and denied reads, membership/revocation and representative query paths. Public grants and simplified SQL do not cover these. |
+| Queued reader tasks do not all execute queries | `bench.py:275-290` | Workers loop until a shared stop; only the first concurrency-sized cohort runs before queued tasks see stop. Verify actual active readers and workload scheduling. |
+| Logs lack run/request filtering | `bench.py:120-138,229,247-250` | Correlate timings to this run's requests; query-ID deduplication alone does not exclude historic or unrelated logs. |
+| Errors and unrepeated trials invalidate headlines | `bench.py:179-191,198-219,283-317`; `run.sh` | Count login/query failures, timeouts and rate limits; validate outputs and sample counts; add warm-up, repeated independent trials and uncertainty reporting. |
 
-## The files
+## Intended Experiment
 
-| File | What it does |
-|---|---|
-| `spinup.sh` | Creates the DO droplet, waits for the IP, prints it. |
-| `teardown.sh` | Destroys the droplet. Billing stops. |
-| `seed.py` | Deterministic synthetic data generator (users, groups, docs). |
-| `bench.py` | Query-engine load generator + phase timing collector. |
-| `run.sh` | The orchestrator: compose up → seed → bench → collect → results. |
-| `results/` | The output: `bench-results.json`, `seed-summary.json`, `docker-stats.txt`, `system-info.txt`. |
-| `pre-experiment/` | The baby test: spin up → docker hello-world → error → teardown. De-risks the lifecycle. |
+The files are scaffolding: `spinup.sh`/`teardown.sh` manage a Digital Ocean droplet;
+`seed.py` creates synthetic users/groups/documents; `bench.py` intends to
+generate load and collect phase timings; `run.sh` orchestrates collection.
+Their presence is not evidence these steps work end to end.
 
-## Quick start (on your machine, to get the box)
+Provisioning uses `DO_API_TOKEN`; the main script defaults to `s-4vcpu-16gb`
+in `nyc3` with the `web10-sigmod` tag. The separate
+[`pre-experiment/`](pre-experiment/README.md) baby test defaults to `s-1vcpu-1gb`
+in `nyc1` and exercises provisioning, SSH, Docker success/failure and cleanup.
+That lifecycle test is independent of the query-workload validity gates above;
+passing it would not validate benchmark authentication, timings or results.
 
-```bash
-export DO_API_TOKEN=<your-digital-ocean-api-token>
-cd research/experiments
-./spinup.sh
-# → prints the IP, e.g. 159.XX.XX.XX
-```
+web10 uses one shared ClickHouse `documents` table keyed by
+`(author_key, doc_id)`. Per-user namespaces are logical, not separate physical
+databases/collections. Proposed scale sweeps are synthetic experiments, not
+measured user counts. **No 100K-user / 2 GB memory result is established.**
 
-## On the box (the go-go-go)
+The current nonempty application feed uses **three query calls plus a
+content-views request**, with discovery/group resolution and media retrieval
+additional (`marketing/web10-social/src/data/feed.ts`). The harness's
+simplified `FEED_SQL` is a microbenchmark, not the complete feed or historical
+267-to-1 request claim. Localhost tests still include scheduling, contention,
+serialization and network-stack overhead; they do not establish browser WAN
+latency or isolate pure CPU/disk time.
 
-```bash
-ssh root@<ip>
-git clone <repo-url> ~/sucre
-cd ~/sucre
-git checkout jacoby149/sigmod-industry-paper   # the branch with the telemetry
-cd research/experiments
+## Metrics and Baseline
 
-# install deps (one-time)
-apt-get update && apt-get install -y python3-pip docker.io docker-compose-v2
-pip3 install clickhouse-connect requests
+The current `overhead_pct` field (`bench.py:159-164`) is
+`p50(readable) / p50(execute) * 100`: a **phase ratio only**. It is neither
+total authorization overhead nor evidence of zero scan-time penalty.
+Other phases contain authorization work; ratios of medians are not
+per-request overhead percentiles.
 
-# run the experiment (defaults: 10K users, 50 posts/user, 100 readers, 20s)
-./run.sh
+Follow `../evaluation-plan.md` for all phases, client latency, errors,
+resource measurements and a separate paired synthetic-only causal ablation.
+The conventional baseline is not built: use matched shared tables and
+equivalent group/service policies, with the same data, permitted results,
+functionality and resource budget. Do not compare with an invented physical
+database-per-user design or attribute engine differences solely to auth.
 
-# or a bigger scale:
-USERS=100000 POSTS=20 READERS=500 CONCURRENCY=50 DURATION=120 ./run.sh
-```
+## Hardware, Cost and Evidence
 
-## Collect the results
+No cheap-VPS price or configured instance label is a measurement. Record the
+**actual purchased instance**: provider/model, observed CPU/vCPU, RAM, storage,
+region, purchase/run dates, currency/tax, billed rate and invoice. Distinguish
+compute from storage, backups and egress; verify deletion and remaining
+billable resources rather than assuming all billing stops.
 
-```bash
-# from your machine:
-scp -r root@<ip>:~/sucre/research/experiments/results/ ./results/
-```
-
-## Tear down
-
-```bash
-export DO_API_TOKEN=<your-token>
-cd research/experiments
-./teardown.sh
-# → "destroyed. billing stopped."
-```
-
-## The scale curve (the paper's E3 cost model)
-
-Run `run.sh` at multiple scales to get the cost + latency curve:
-
-```bash
-# 1K users (the "small creator" case)
-USERS=1000 POSTS=50 ./run.sh
-# copy results/ back, rename to results-1k/
-
-# 10K users (the "mid-tier creator" case)
-USERS=10000 POSTS=50 ./run.sh
-# copy results/ back, rename to results-10k/
-
-# 100K users (the "established creator" case)
-USERS=100000 POSTS=20 ./run.sh
-# copy results/ back, rename to results-100k/
-```
-
-The paper plots: latency (p50/p99) vs. scale, memory vs. scale, cost vs.
-scale. The "scales up like crazy" selling point: at 100K users, ClickHouse
-is using ~2 GB RAM on a 16 GB box. The per-user key-space model doesn't blow
-up memory because it's a single columnar table with an `author_key` filter,
-not a database per user.
-
-## The headline number
-
-The bench computes `overhead_pct` = `readable_p50 / execute_p50 * 100`.
-This is the access-decision overhead as a fraction of the data read. If
-`readable` is 2 ms and `execute` is 15 ms, the access model costs 13%
-overhead. If `readable` is 0.5 ms and `execute` is 15 ms, it's 3%. That's
-the "zero scan-time penalty" claim, with numbers.
-
-## Reproducibility
-
-The experiment is fully reproducible:
-- **Hardware:** Digital Ocean s-4vcpu-16gb (4 vCPU AMD EPYC, 16 GB), nyc3
-  (New York 3). The spec is in `results/system-info.txt`.
-- **Software:** the repo at the commit you cloned. The docker-compose stack
-  (api + clickhouse 24.3 + minio). The ClickHouse schema is in
-  `clickhouse-init/`.
-- **Data:** `seed.py --seed 42` is deterministic. The same seed produces the
-  same dataset. The scale is in `results/seed-summary.json`.
-- **Bench:** `bench.py --readers N --concurrency C --duration T`. The feed
-  query is in `bench.py` (the `FEED_SQL` constant). The timing is parsed
-  from the API's `[query] … timing_ms` log lines.
-
-Anyone can re-run this on a small DO droplet in ~10 minutes.
-
-## The baseline (future)
-
-The head-to-head against a conventional backend (Postgres 16 + RLS per
-group, same seed, same queries) is a second compose file + a second bench
-run. Not built yet — the web10 numbers come first.
+Before making a reproducibility claim, archive the exact revision, images,
+configuration, commands, seed and workload parameters, warm/cold conditions,
+raw run-filtered timings, error counts, result checks, active-reader counts,
+repeated trials and hardware/cost receipts. Keep synthetic results separate
+from dated production observations. All measurements and these gates remain
+pending.
