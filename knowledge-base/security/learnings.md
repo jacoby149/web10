@@ -399,6 +399,22 @@ not preserved; the dated repair records this bounded acceptance and reopen bar.
 Source is local, not merged/deployed; file permissions, defaults, driver errors,
 process arguments, history/rotation and required model-diverse review remain open.
 
+### 2026-10-27: Frozen failures must not trigger unrestricted resolution
+
+[L1-DEPLOY-01 local repair](scans/2026-10/repair-deploy01-frozen-installs.md)
+removes three `frozen || unrestricted` installs. Executing the actual Docker RUN
+commands with an inert Bun proves a locked failure now fails, rather than
+continuing to a second install. Dockerfile paths also trigger the regression CI:
+an exploit test that only runs when its own file changes is not a lasting gate.
+Native frozen installs/builds with unchanged locks support local-package
+compatibility, not Linux-image or dependency-authenticity assurance. Required
+container CI and diverse review remain open; a failed build must be repaired via
+approved inputs/toolchains, not an unrestricted fallback.
+PR verification caught a second coverage gap: social E2E builds a dev Dockerfile,
+not its production image. The latter now has its own Linux Docker matrix entry,
+with source/workflow triggers and a red/green control. Eight controls/1,233 API
+passes do not substitute for the new revision's actual production-image checks.
+
 ## Known gaps (the "obvious gap" register)
 
 Gaps the orient has surfaced. Each is either a `BP-n` or a standing note:

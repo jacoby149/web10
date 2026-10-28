@@ -97,7 +97,7 @@ Conditional local facts remain bounded; no production breach is established.
 | L1-E-01 | OPEN account token GET-query transport; no theft shown; S7 body-authenticated detail and consumers |
 | L1-G-01 | [Source repair merged #1266](repair-g01-query-logging.md) at b5ebcd7e7: safe query diagnostics; red -> green, 1,216 API passes at repair pin, fresh same-model review. Deployment/diverse sign-off OPEN; S4 |
 | L1-H-01 | OPEN object-signing provenance concern; fake-auth/signer proves forwarding, not private retrieval; S5 |
-| L1-J-01 | [Local source repair verified](repair-j01-import-traces.md): unique execution ownership, explicit thumbnail propagation, pre-lock/reentry guards; contamination and lock-cycle red -> green. Nine controls/1,225 API passes, fresh same-model review; integration/deployment/history/diverse sign-off OPEN; S5 |
+| L1-J-01 | [Source repair merged #1267](repair-j01-import-traces.md) at e0c271da1: context-owned traces/pre-lock guards; contamination and lock-cycle red -> green. Nine controls/1,225 API passes at repair pin; deployment/history/diverse sign-off OPEN; S5 |
 | S-1 | OPEN sender-unbound SDK credential message; synthetic acceptance not valid credentials; S2 |
 | L1-SDK-A-01/F-01 | OPEN one consent-response integrity class across implementations; origin/window/request/concurrency binding required; S2 |
 | S-6 | OPEN wildcard recipient metadata hygiene, not token exfiltration; S2 |
@@ -108,7 +108,7 @@ Conditional local facts remain bounded; no production breach is established.
 | STORE-A-SCHEMA | OAuth code DDL references undeclared version column; insert compatibility and existing/fresh schema need real evidence; correctness/reachability, not C+I exploit |
 | L1-PKG-01 | Source repair merged #1265 at b5d128a52: whole URI omitted from audit/stdout/file manifests, 12 red -> green cases and fresh same-model review; [repair](repair-pkg01-mongo-output.md). Deployment/sign-off/history remain open; S1 |
 | L1-PKG-02 | Conditional backup protection risk; actual permissions/symlink/access UNVERIFIED, not a replayed filesystem disclosure |
-| L1-DEPLOY-01 | Frozen-install fallback drops integrity constraint at three sites; conditional supply-chain control finding, no poisoned artifact shown |
+| L1-DEPLOY-01 | [Local repair verified](repair-deploy01-frozen-installs.md): three frozen-only installs, regression CI and actual production-social matrix entry, eight controls/1,233 API passes and native builds. New-revision Linux production-image CI/integration/deployment/diverse sign-off OPEN; no poisoned artifact shown |
 | ART-01 / orphan artifacts | Producer pin/publication drift, six orphan declaration/maps and docs RTC provenance OPEN; hashes not build/publication/deployment assurance |
 | L1-OAUTH-02 | Availability/order observation; C+I UNVERIFIED. Do not count refresh denial as unauthorized grant or access-token revocation |
 | L1-DEPLOY-02 | Deliberate exemption interface with grammar/eligibility policy limitations; not a newly demonstrated application bypass |

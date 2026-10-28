@@ -2,8 +2,8 @@
 
 27.10.2026. Baseline: `b5ebcd7e7a43089ba7232185493bf78b63364f0c` (#1266 merged).
 Author/fresh reviewer: separate OpenCode `openrouter/openai/gpt-6.1-sol` contexts,
-same-model, not model-diverse three-dry review. Source repair verified;
-pending PR review/merge, not deployed. Protocol L1 remains OPEN.
+same-model, not model-diverse three-dry review. Source repair merged #1267 at
+`e0c271da1`; deployment/sign-off not established. Protocol L1 remains OPEN.
 
 ## Boundary And Intent
 

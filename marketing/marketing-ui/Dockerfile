@@ -21,7 +21,7 @@ COPY marketing/marketing-ui/package.json marketing/marketing-ui/bun.lock* ./mark
 # sdk/ COPY below). Resolves to /app/marketing/shared/discover.
 COPY marketing/shared/ ./marketing/shared/
 WORKDIR /app/marketing/marketing-ui
-RUN bun install --frozen-lockfile || bun install
+RUN bun install --frozen-lockfile
 
 # Backend origins are baked at build time (vite). Passed per env by
 # ubuntu-deployment/docker-compose.ecosystem.yml; empty args fall
@@ -52,7 +52,7 @@ COPY marketing/marketing-ui/ ./
 # Build SDK from source so wapi.js is always fresh (never stale from repo).
 COPY sdk/package.json sdk/bun.lock sdk/tsconfig.json sdk/vitest.config.ts /app/sdk/
 WORKDIR /app/sdk
-RUN bun install --frozen-lockfile || bun install
+RUN bun install --frozen-lockfile
 COPY sdk/src/ /app/sdk/src/
 COPY sdk/*.json sdk/*.ts ./
 RUN bun run build:browser
