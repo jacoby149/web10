@@ -45,39 +45,22 @@
 \begin{document}
 
 \begin{abstract}
-Social platforms concentrate user data in platform-controlled silos with
-coarse, platform-defined access: users cannot leave with their data, cannot
-govern who sees what at fine granularity, and cannot monetize their own
-audience. Cloud identity-and-access-management (IAM) solved fine-grained,
-revocable authorization for infrastructure a decade ago, but never exposed
-that model to end users.
+User-owned-data protocols such as Solid and ActivityPub defined the idea---
+your data, your rules---but stopped at the specification: container-level
+access control, no group/role model, and storage that cannot run a real social
+feed. They produced a protocol without a product.
 
-We present \textbf{web10}, a deployed data architecture in which every user
-owns their data and access is governed by fine-grained, revocable,
-group/role-scoped contracts---bringing IAM primitives to the \emph{front} of
-a social data platform. Two trust layers gate every request: an
-\emph{app contract} (which origin may perform which operation on which data
-service) and a \emph{group role} (which principal may do what, expressed as a
-per-service permission map). A role is assigned through an explicit
-\emph{request $\rightarrow$ approve $\rightarrow$ assign} lifecycle inside a
-group---the fine-grained social authorization that prior user-owned-data
-systems such as Solid (WebACL, container-level) do not provide. Publicness is
-not a flag; it is a role grant to a principal class. The entire model is
-enforced at the query layer over a single columnar store, so fine-grained
-authorization is an index lookup into small metadata tables and adds
-\emph{zero scan-time penalty} to the columnar read. Unlike prior work that
-proposes social applications over user-owned data, web10 is a
-\emph{running} social platform (feeds, groups, direct messages, discovery)
-built entirely from these primitives.
+We present \textbf{web10}, a next-generation user-owned-data protocol \emph{and}
+its execution: a running social platform (feeds, groups, direct messages,
+discovery) built end to end on a modern columnar data-lakehouse backend. Access
+is governed by fine-grained, revocable, group/role-scoped contracts---cloud IAM
+primitives brought to the \emph{front} of the user---enforced at the query layer
+so fine-grained authorization costs an index lookup, not a scan.
 
-We demonstrate the model in a \emph{running} social platform---feeds, groups,
-direct messages, discovery---built entirely on these primitives. A single
-query-engine call returns a full feed of 260 assets, each access-checked
-against the reader's effective group/role grants: a commercial-grade feed and
-fine-grained user-gated access coexisting in one query, with the feed's shape
-fully tunable by the application. This is the execution that prior
-user-owned-data systems proposed but did not ship. Scale and latency figures
-from the deployed system appear in the extended version.
+The application is the research. In a single query-engine call, web10 returns a
+full feed of \textbf{260 assets}, each access-checked against the reader's role
+grants: a large, tunable feed and fine-grained user-gated access coexisting in
+one query. That conjunction is what prior systems proposed but could not ship.
 \end{abstract}
 
 \maketitle
@@ -118,12 +101,14 @@ social platform needs---principals, roles, service-scoped operations,
 revocable grants---but it lives at the infrastructure boundary, where the
 provider owns the data and the end user is invisible.
 
-What none of them have is the conjunction web10 ships: \emph{user-owned data,
-with IAM-grade group/role access enforced at the query layer of a single
-columnar store, in a running social platform.} Ownership without sacrificing
-the feed; fine-grained access without a scan penalty; and a product, not a
-protocol proposal. That conjunction---and the architecture that makes it
-possible---is this paper.
+What none of them have is what web10 ships: a \emph{next-generation}
+user-owned-data protocol \emph{and its execution}---the protocol and the
+product as one thing, built end to end on a modern columnar data-lakehouse
+backend. Concretely: user-owned data, with IAM-grade group/role access
+enforced at the query layer of a single columnar store, in a running social
+platform. Ownership without sacrificing the feed; fine-grained access without
+a scan penalty; and a product, not a protocol proposal. That conjunction---and
+the architecture that makes it possible---is this paper.
 
 \textbf{web10} is a social data platform that makes that move. Every user's
 data lives under their own key in a single columnar store; every access
