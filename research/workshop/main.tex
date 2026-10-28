@@ -45,22 +45,26 @@
 \begin{document}
 
 \begin{abstract}
-User-owned-data protocols such as Solid and ActivityPub defined the idea---
-your data, your rules---but stopped at the specification: container-level
-access control, no group/role model, and storage that cannot run a real social
-feed. They produced a protocol without a product.
+Protocols of the decentralized social web---Solid, ActivityPub, and their
+kin---defined the idea: your data, your rules. But they stopped at the
+specification: container-level access control, no group/role model, and
+storage that cannot run a real social feed. They produced a protocol without
+a product.
 
-We present \textbf{web10}, a next-generation user-owned-data protocol \emph{and}
-its execution: a running social platform (feeds, groups, direct messages,
-discovery) built end to end on a modern columnar data-lakehouse backend. Access
-is governed by fine-grained, revocable, group/role-scoped contracts---cloud IAM
-primitives brought to the \emph{front} of the user---enforced at the query layer
-so fine-grained authorization costs an index lookup, not a scan.
+We present \textbf{web10}, a next-generation decentralized social protocol: a
+running social platform (feeds, groups, direct messages, discovery) built end
+to end on a modern columnar data-lakehouse backend. Access is governed by
+fine-grained, revocable, group/role-scoped contracts---cloud IAM primitives
+brought to the \emph{front} of the user---enforced at the query layer so
+fine-grained authorization costs an index lookup, not a scan.
 
-The application is the research. In a single query-engine call, web10 returns a
-full feed of \textbf{260 assets}, each access-checked against the reader's role
-grants: a large, tunable feed and fine-grained user-gated access coexisting in
-one query. That conjunction is what prior systems proposed but could not ship.
+The application is the research. A feed that a naive implementation loads with
+\textbf{267 network requests} (one per profile, media item, avatar, and count)
+loads in \textbf{one} web10 query-engine call---a full page of posts, resolved
+media, engagement counts, and author profiles, each row access-checked against
+the reader's role grants. That conjunction---a large, tunable, fine-grained
+user-gated feed in a single request---is what prior systems proposed but could
+not ship.
 \end{abstract}
 
 \maketitle
@@ -77,6 +81,16 @@ redefine who a ``friend'' or a ``member'' is, cannot contract access
 per-service, and cannot take their data---let alone their audience---
 elsewhere. When the platform changes its rules or goes away, the user's data
 goes with it.
+
+For a subset of users this is not an abstraction---it is a paycheck. Creators
+and influencers build their income on their social graph: their audience is
+the asset, and the platform that hosts it can deplatform them, shadowban their
+reach, reprice their distribution, or take a larger cut, at will, with no
+recourse. Trust in the platform is therefore a financial dependency, not a
+preference. web10 removes that dependency by construction: delivery is
+guaranteed by architecture (the feed is a query over the creator's own data,
+not a platform-controlled ranking), and the audience is portable because it
+lives under the creator's key, not the platform's.
 
 Cloud infrastructure solved the authorization half of this problem long ago.
 AWS IAM and its descendants give operators fine-grained, role-based,
@@ -102,13 +116,12 @@ revocable grants---but it lives at the infrastructure boundary, where the
 provider owns the data and the end user is invisible.
 
 What none of them have is what web10 ships: a \emph{next-generation}
-user-owned-data protocol \emph{and its execution}---the protocol and the
-product as one thing, built end to end on a modern columnar data-lakehouse
-backend. Concretely: user-owned data, with IAM-grade group/role access
-enforced at the query layer of a single columnar store, in a running social
-platform. Ownership without sacrificing the feed; fine-grained access without
-a scan penalty; and a product, not a protocol proposal. That conjunction---and
-the architecture that makes it possible---is this paper.
+decentralized social protocol---built end to end on a modern columnar
+data-lakehouse backend. Concretely: user-owned data, with IAM-grade group/role
+access enforced at the query layer of a single columnar store, in a running
+social platform. Ownership without sacrificing the feed; fine-grained access
+without a scan penalty; and a product, not a protocol proposal. That
+conjunction---and the architecture that makes it possible---is this paper.
 
 \textbf{web10} is a social data platform that makes that move. Every user's
 data lives under their own key in a single columnar store; every access
@@ -130,10 +143,10 @@ makes three contributions:
   filter. Fine-grained control, zero scan-time penalty.
   \item \textbf{A running social platform} (\S\ref{sec:eval}) built entirely
   on these primitives---feeds, groups, direct messages, discovery---in which a
-  single query-engine call returns a full feed of 260 assets, each access-
-  checked against the reader's effective group/role grants. This is the
-  commercial-grade execution of user-owned social data that prior protocol-
-  first systems proposed but did not ship.
+  feed that naively loads in 267 network requests loads in a single query-
+  engine call, every row access-checked against the reader's role grants. This
+  is the commercial-grade execution of user-owned social data that prior
+  protocol-first systems proposed but did not ship.
 \end{enumerate}
 
 The remainder of this paper: \S\ref{sec:model} defines the access model;
@@ -341,35 +354,61 @@ must be large, tunable, and access-controlled simultaneously.
 
 \subsection{The feed as a query}
 
-A single call to the query engine returns a full feed of \textbf{260 assets}
-(posts, media, and comments) for the reader. Three properties hold at once in
-that one call:
+A naive social feed is a stack of N+1 fan-outs: one call per author profile,
+per post's media, per avatar, per engagement count. Measured on web10's first
+feed implementation, loading a single page issued \textbf{267 network
+requests}. The fix was not more batching on a bespoke endpoint---it was making
+the feed an ordinary query over the columnar store, so that one request returns
+the whole page. Three properties hold at once in that single call:
 
 \begin{enumerate}[leftmargin=*,nosep]
-  \item \textbf{It is a real feed, not a demo.} 260 assets is a commercial-
-  grade feed payload, not a three-item sample. The feed is a SQL query over
-  the single columnar \texttt{documents} table, unioned across the reader's
-  own key-space and their cleared groups.
-  \item \textbf{It is fully user-gated.} Every one of the 260 assets passed
-  the access model on its way out: the query engine applied invariant I3
-  (no document for an \texttt{author\_key} the token does not own) plus the
-  reader's effective group/role grants (\S\ref{sec:model}). The result is not
-  260 arbitrary documents; it is exactly the set the reader's role clears.
+  \item \textbf{It collapses the fan-out.} The 267 requests become
+  \textbf{one}: a single query-engine call returns the full page---posts with
+  resolved media and streaming manifests, exact like/comment counts, author
+  profiles and avatars, and attached ads---as one envelope, keyset-cursor
+  paged. The engine's \emph{prepare pass} mints the per-row capabilities
+  (presigned media URLs, ad attachment, author face) after the SELECT, reusing
+  the read path verbatim, so the one request carries everything the old 267 did.
+  \item \textbf{It is fully user-gated.} Every row in that single response
+  passed the access model on its way out: the query's boundary CTEs apply
+  invariant I3 (no document for an \texttt{author\_key} the token does not own)
+  plus the reader's effective group/role grants (\S\ref{sec:model}). The result
+  is not an arbitrary batch; it is exactly the set the reader's role clears.
   Fine-grained social access and a large feed coexist in one query---the
   conjunction that is this paper's core claim.
-  \item \textbf{It is tunable.} The feed's shape---what it contains, how it is
-  ranked and filtered---is a query the \emph{application} writes, not logic
-  hardcoded in the node. A different query is a different feed. Because the
-  substrate is a single columnar store, ranking, filtering, engagement
-  counts, and discovery are all ordinary queries the app can compose, which
-  is what makes a Facebook-shaped feed achievable on user-owned data.
+  \item \textbf{It is tunable---and generic.} The feed's shape---what it
+  contains, how it is ranked and filtered---is a query the \emph{application}
+  writes, not logic hardcoded in the node. A different query is a different
+  feed. Crucially, this goes through the \emph{general} query engine, not a
+  social-specific endpoint: the node never learns what a ``feed'' is (D60). Any
+  app can issue its own ranked, resolved, access-checked read the same way; the
+  social feed is the reference example.
 \end{enumerate}
 
 This is the ``because of the columnar backend'' point made concrete: Solid's
 per-Pod architecture makes a cross-user feed query intractable (each Pod is a
 separate server), so its social applications remain hypothetical. web10's
-single table makes the feed a first-class, tunable query while the access
-model stays a filter list with zero scan penalty.
+single table makes the feed a first-class, tunable query---267 requests reduced
+to 1---while the access model stays a filter list with zero scan penalty.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{figs/fig-feed.png}
+  \caption{The web10 feed. The reader chooses the ranking (Most Recent / Most
+  Liked / Most Commented / Balanced) and filters (tags); each is a different
+  query over the same columnar store, every result access-checked against the
+  reader's role grants.}
+  \label{fig:feed}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{figs/fig-groups.png}
+  \caption{A group---``a shared space on your node.'' Membership, roles, and
+  per-post visibility (Public / node / group) are the group/role contracts of
+  \S\ref{sec:model}, expressed in the UI.}
+  \label{fig:groups}
+\end{figure}
 
 \subsection{Durability and extensibility}
 
@@ -447,10 +486,11 @@ service-scoped operations, revocable grants---to the user boundary of a
 social data platform, and enforces it at the query layer of a single
 columnar store so that fine-grained authorization costs an index lookup, not
 a scan. We demonstrate the model in a running social platform whose feed is a
-tunable query returning 260 fully access-checked assets in a single call---the
-commercial-grade execution of user-owned social data that protocol-first
-systems proposed but did not ship. The extended version adds scale and latency
-figures and the cost comparison against row-level-security baselines.
+tunable query that collapses 267 network requests into one, every row access-
+checked---the commercial-grade execution of user-owned social data that
+protocol-first systems proposed but did not ship. The extended version adds
+scale and latency figures and the cost comparison against row-level-security
+baselines.
 
 %=============================================================================
 \bibliographystyle{ACM-Reference-Format}
