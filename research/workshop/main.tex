@@ -109,10 +109,12 @@ authorization stops at follow/block and collection-level control, with no
 fine-grained group/role contracts and no request/approve/assign lifecycle, and
 their data models are shaped to one app (a microblog or a post graph) rather
 than a platform that hosts many. \textbf{Solid} goes further on ownership
-(personal data stores, WebACL) but its container-level ACLs still lack a
-group/role primitive, and its per-Pod storage makes a cross-user feed query
-intractable, so its social applications never reached the scale of Mastodon or
-Bluesky. \textbf{Cloud IAM} has exactly the permission language a social
+(personal data stores, Web Access Control~\cite{wac2022}) but its
+resource-level ACLs still lack a group/role primitive, and its per-Pod storage
+makes a cross-user feed query expensive---each Pod is a separate server---so a
+feed at Mastodon or Bluesky scale is not demonstrated in the cited Solid
+systems~\cite{solid2016, css2024}. \textbf{Cloud IAM} has exactly the
+permission language a social
 platform needs---principals, roles, service-scoped operations, revocable
 grants---but it lives at the infrastructure boundary, where the provider owns
 the data and the end user is invisible.
@@ -302,8 +304,9 @@ point lookup is a primary-key scan, and a counter is a \texttt{count()} at read
 time. This removes the two-database drift (schema divergence, sync lag) that a
 Postgres-to-ClickHouse pipeline would introduce, at the cost of embracing the
 columnar write idioms described below. All structured user content lives in a
-single ClickHouse table, keyed by \texttt{(author\_key, doc\_id)}; large binary
-objects (media) live in object storage and are \emph{referenced} from this
+single ClickHouse~\cite{clickhouse2024} table, keyed by
+\texttt{(author\_key, doc\_id)}; large binary objects (media) live in object
+storage and are \emph{referenced} from this
 table (\S\ref{sec:enforcement}):
 
 \begin{center}
@@ -521,8 +524,11 @@ the whole page. Three properties hold at once in that single call:
   invariant I3 (no document for an \texttt{author\_key} the token does not own)
   plus the reader's effective group/role grants (\S\ref{sec:model}). The result
   is not an arbitrary batch; it is exactly the set the reader's role clears.
-  Fine-grained social access and a large feed coexist in one query---the
-  conjunction that is this paper's core claim.
+  This is the read-time privacy check TAO performs at social-graph
+  scale~\cite{tao2013}---every item checked for the viewer on its way out---
+  applied here to a single columnar store. Fine-grained social access and a
+  large feed coexist in one query---the conjunction that is this paper's core
+  claim.
   \item \textbf{It is tunable---and generic.} The feed's shape---what it
   contains, how it is ranked and filtered---is a query the \emph{application}
   writes, not logic hardcoded in the node. A different query is a different
@@ -533,9 +539,10 @@ the whole page. Three properties hold at once in that single call:
 \end{enumerate}
 
 This is the ``because of the columnar backend'' point made concrete: Solid's
-per-Pod architecture makes a cross-user feed query intractable (each Pod is a
-separate server), so its social applications remain hypothetical. web10's
-single table makes the feed a first-class, tunable query---267 requests reduced
+per-Pod architecture makes a cross-user feed query expensive (each Pod is a
+separate server), and no cited Solid system demonstrates a feed at this
+scale~\cite{css2024}. web10's single table makes the feed a first-class,
+tunable query---267 requests reduced
 to 1---while the access model stays a filter list with zero scan penalty.
 
 \begin{figure}[t]
@@ -585,44 +592,61 @@ and the full permission-matrix conformance results.
 
 \textbf{Decentralized social data.} web10 is in the lineage of the running,
 non-cryptographic decentralized social protocols and builds on it.
-ActivityPub~\cite{activitypub} (Mastodon) and
-ATProto~\cite{atproto} are live systems with large user bases; both are
-deliberately blockchain-free---no gas fees, no wallet-gated feeds---the same
-practical stance web10 takes. Solid~\cite{solid} goes furthest on ownership
-(personal data stores, WebACL) and has produced a body of work on building
-social applications over them. All four establish that a user can \emph{own}
-their data without a ledger.
+ActivityPub~\cite{activitypub2018} (Mastodon) and the AT
+Protocol~\cite{kleppmann2024} (Bluesky) are live systems with large user
+bases; both are deliberately blockchain-free---no gas fees, no wallet-gated
+feeds---the same practical stance web10 takes. Solid~\cite{solid2016} goes
+furthest on ownership (personal data stores, Web
+Access Control~\cite{wac2022}) and has produced a body of work on building
+social applications over them~\cite{solid-apps2016}, with a maintained
+reference server~\cite{css2024}. All four establish that a user can
+\emph{own} their data without a ledger.
 
 The gap web10 addresses is authorization granularity and generality.
-ActivityPub and ATProto authorize at the level of follows and collection-level
-visibility; neither has fine-grained group/role contracts or a request
+ActivityPub and the AT Protocol authorize at the level of follows and
+collection-level visibility as deployed~\cite{activitypub2018,
+kleppmann2024}; neither has fine-grained group/role contracts or a request
 $\rightarrow$ approve $\rightarrow$ assign-role lifecycle, and each data model
-is shaped to one app. Solid's WebACL answers ``who may read or write this
-container?''---a coarse, resource-level question---with no first-class
-\emph{group} primitive carrying \emph{roles}. web10's contribution is exactly
-this missing layer: access as \emph{person $\rightarrow$ role $\rightarrow$
-per-service operations}, granted \emph{inside} a group through an explicit
-join-request and approval flow, where a role is a map from data service to the
-operations it grants (\S\ref{sec:model}). On top of that, web10's node is
+is shaped to one app. Solid's Web Access Control answers ``who may read or
+write this resource?''---a coarse, resource-level question; it names
+\texttt{acl:agentGroup} but does not carry \emph{roles} (per-service
+permission maps) on a group, nor the request $\rightarrow$ approve
+$\rightarrow$ assign-role lifecycle~\cite{wac2022}. (Solid's newer Access
+Control Policy adds a client dimension that parallels web10's outer app-trust
+layer~\cite{acp2022}.) web10's contribution is exactly this missing layer:
+access as \emph{person $\rightarrow$ role $\rightarrow$ per-service
+operations}, granted \emph{inside} a group through an explicit join-request
+and approval flow, where a role is a map from data service to the operations
+it grants (\S\ref{sec:model}). On top of that, web10's node is
 generic---its primitives support arbitrary app shapes, not just the one social
 app each earlier protocol was built around---and it does so on a running
 platform whose feed collapses 267 requests into one.
 
-\textbf{Cloud IAM.} AWS IAM~\cite{awsiam} and the RBAC/ABAC
-literature~\cite{rbac} define the permission language web10 reuses at the
-user boundary: principals, roles, service-scoped operations, revocable
-grants. The move in this paper is directional---the same policy shape, held
-by the end user about their own data, enforced by the data layer rather than
-a control plane.
+\textbf{Cloud IAM.} AWS IAM (documentation)~\cite{awsiam} and the
+RBAC/ABAC literature~\cite{ferraiolo1992, sandhu1996, abac2014} define the
+permission language web10 reuses at the user boundary: principals, roles,
+service-scoped operations, revocable grants. The move in this paper is
+directional---the same policy shape, held by the end user about their own
+data, enforced by the data layer rather than a control plane. At industrial
+scale, relationship-based authorization (Zanzibar~\cite{zanzibar2019}) shows
+a uniform ACL data model and consistency as a first-class problem; web10's
+tombstone / next-read revocation bound is the small-system analogue, and its
+numbers must be read against that precedent, not implied equivalent to it.
 
 \textbf{Multi-tenant isolation.} The database literature on tenant
-isolation---schema-per-tenant, database-per-tenant, and row-level
-security~\cite{rls}---is the closest systems ancestor. web10's key-space
-per user is tenant-per-end-user taken to its limit: the tenant is the
-\emph{end user}, and the isolation is expressed as the query's
-\texttt{author\_key} filter plus group-grant list rather than a physical
-boundary. The cost tradeoff of that choice is measured in the extended
-version.
+isolation---shared tables with an organization identifier
+(Force.com~\cite{force2009}), schema-mapping techniques
+~\cite{aulbach2008}, and the shared-versus-separate spectrum
+~\cite{jacobs2007}---is the closest systems ancestor. web10's key-space per
+user is tenant-per-end-user taken to its limit: the tenant is the \emph{end
+user}, and the isolation is expressed as the query's \texttt{author\_key}
+filter plus group-grant list rather than a physical boundary. Row-level
+security (PostgreSQL documentation)~\cite{postgres-rls} is the named
+alternative web10 differs from---per-row policy evaluation versus a
+precomputed cleared-group filter list---and is the baseline the extended
+version cost-compares against. The columnar store itself is
+ClickHouse~\cite{clickhouse2024}; the access model is web10's layer on top of
+it, and the two claims are kept in separate sentences with separate cites.
 
 %=============================================================================
 \section{Conclusion}
@@ -641,42 +665,6 @@ baselines.
 
 %=============================================================================
 \bibliographystyle{ACM-Reference-Format}
-\begin{thebibliography}{9}
-
-\bibitem{solid}
-T.\ Berners-Lee.
-\newblock Solid: A distributed social web protocol.
-\newblock \emph{Solid Project / W3C}, 2014--present.
-\newblock \url{https://solidproject.org}.
-
-\bibitem{activitypub}
-M.\ Sporny, D.\ Wilson, R.\ Smith, and D.\ Sadok.
-\newblock ActivityPub: A protocol for distributed federated publishing, archiving, and sharing.
-\newblock \emph{IETF Internet-Draft}, 2023.
-
-\bibitem{atproto}
-D.\ Holman and M.\ Roth.
-\newblock AT Protocol: A personal data protocol for social applications.
-\newblock \emph{Bluesky Technologies}, 2022--present.
-\newblock \url{https://github.com/bluesky-social/atproto}.
-
-\bibitem{awsiam}
-Amazon Web Services.
-\newblock AWS Identity and Access Management (IAM) user guide.
-\newblock \emph{Amazon Web Services}, 2025.
-\newblock \url{https://docs.aws.amazon.com/IAM/latest/UserGuide/introduction.html}.
-
-\bibitem{rbac}
-R.\ Sandhu, E.\ Coyne, H.\ Feinstein, and C.\ Youman.
-\newblock Role-based access control models.
-\newblock \emph{IEEE Computer}, 29(2):38--47, 1996.
-
-\bibitem{rls}
-A.\ Kemper and S.\ Lott.
-\newblock Row-level security in PostgreSQL.
-\newblock \emph{PostgreSQL Documentation}, 2024.
-\newblock \url{https://www.postgresql.org/docs/current/ddl-rowsecurity.html}.
-
-\end{thebibliography}
+\bibliography{../references/web10-references}
 
 \end{document}

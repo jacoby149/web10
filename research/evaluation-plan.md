@@ -8,6 +8,12 @@ numbers. This file lists the exact metrics to pull from the running system.*
 them is the FIRST task, not the last. Instrument now, draft later. A multi-week
 data-collection effort must finish before the draft is frozen.
 
+**Target: SIGMOD 2027 industry track. Deadline: Nov 24, 2026. Internal freeze:
+Nov 20.** The industry track specifically rewards operational experience,
+scale, deployment lessons, and cost — this section is half the paper, not a
+nice-to-have. Execution plan (E1–E6 items + dependencies):
+`knowledge-base/strategy/plan.md` ("SIGMOD 2027 Industry Track" section).
+
 ---
 
 ## 0. Do we have the data yet? (answer first)

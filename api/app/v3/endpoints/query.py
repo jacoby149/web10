@@ -178,8 +178,10 @@ def run_query(request: Request, data: QueryRequest):
     with the same skip rule as the read path (no Origin header = same-origin
     / direct call = no contract check).
     """
+    t0 = time.perf_counter()
     reader = user_or_anon(data)
     authenticated = reader != "anon"
+    t_auth = time.perf_counter() - t0
 
     # Per-user rate limit (D65) — fail fast before any contract/group/query
     # work. Keyed on the verified user_key; anon is skipped.
@@ -189,6 +191,7 @@ def run_query(request: Request, data: QueryRequest):
     # grants readAll on. Origin→client_id re-keying (D92, O3): a delegated
     # token (client_id) is always gated on its client_id contract — even with
     # no Origin; a browser token keeps the Origin path (skipped when no Origin).
+    t1 = time.perf_counter()
     origin = request.headers.get("origin", "")
     delegated_client_id = client_id_of(data) if authenticated else None
     if authenticated and (delegated_client_id or origin):
@@ -196,23 +199,30 @@ def run_query(request: Request, data: QueryRequest):
         allowed = frozenset(svc for svc, ops in perms.items() if "readAll" in (ops or []))
     else:
         allowed = None  # unrestricted: any non-raw table name is a service
+    t_app_contract = time.perf_counter() - t1
 
     # Which services does the query touch? Parse + validate first — an unsafe
     # query is rejected before any group lookup happens.
+    t2 = time.perf_counter()
     try:
         needed = sq.query_services(data.sql, allowed, group_meta=bool(data.withGroupMeta))
     except sq.UnsafeQueryError as e:
         raise HTTPException(status_code=403, detail=str(e))
+    t_parse_validate = time.perf_counter() - t2
 
     # Candidate groups: explicit `groups`, or all the reader's groups (the
     # "me" semantics of the group read).
+    t3 = time.perf_counter()
     if data.groups:
         candidates = data.groups
     else:
         candidates = [g["group_id"] for g in ch.get_user_groups(reader)]
+    t_candidates = time.perf_counter() - t3
 
     # The D58 read gate, per service the query actually uses.
+    t4 = time.perf_counter()
     readable = {svc: ch.readable_groups(reader, svc, authenticated, candidates) for svc in needed}
+    t_readable = time.perf_counter() - t4
 
     # QE-A: the group_meta readable set. When the caller opts in, the endpoint
     # computes the reader's readable groups for the metadata CTE (parallel to
@@ -223,6 +233,7 @@ def run_query(request: Request, data: QueryRequest):
     # service-agnostic). build_safe_query injects the CTE only if the query
     # actually references group_meta, so this is a no-op for queries that opt
     # in but don't join it.
+    t5 = time.perf_counter()
     group_meta = None
     if data.withGroupMeta:
         if readable:
@@ -231,6 +242,7 @@ def run_query(request: Request, data: QueryRequest):
             my_groups = {g["group_id"] for g in ch.get_user_groups(reader)}
             readable_meta = [g for g in candidates if g in my_groups]
         group_meta = (readable_meta, candidates)
+    t_group_meta = time.perf_counter() - t5
 
     # D42 (the read endpoint's rule, generalized): an explicit group request
     # that the reader's effective role grants read on NONE of (for every
@@ -245,6 +257,7 @@ def run_query(request: Request, data: QueryRequest):
             detail="not a member of the requested group",
         )
 
+    t6 = time.perf_counter()
     try:
         compiled = sq.build_safe_query(
             data.sql,
@@ -256,6 +269,7 @@ def run_query(request: Request, data: QueryRequest):
         )
     except sq.UnsafeQueryError as e:
         raise HTTPException(status_code=403, detail=str(e))
+    t_compile = time.perf_counter() - t6
 
     diagnostic_id = uuid4().hex
     log.info(
@@ -268,20 +282,21 @@ def run_query(request: Request, data: QueryRequest):
         _query_shape(compiled),
     )
 
-    started = time.perf_counter()
+    t7 = time.perf_counter()
     try:
         column_names, rows = ch.execute_query(compiled, settings={"max_execution_time": MAX_EXECUTION_TIME_S})
     except ch.QueryExecutionError as e:
         # The compiled query is structurally safe; a ClickHouse failure here
         # is the caller's SQL (a column the boundary CTE doesn't expose, a
         # bad function arg, ...).
-        log.warning(
-            "[query] id=%s execution failed duration_ms=%.2f", diagnostic_id, (time.perf_counter() - started) * 1000
-        )
+        log.warning("[query] id=%s execution failed duration_ms=%.2f", diagnostic_id, (time.perf_counter() - t7) * 1000)
         raise HTTPException(status_code=400, detail=f"query execution failed: {e}")
+    t_execute = time.perf_counter() - t7
 
-    duration_ms = (time.perf_counter() - started) * 1000
+    t8 = time.perf_counter()
+    duration_ms = (time.perf_counter() - t7) * 1000
     out = [_serialize_row(dict(zip(column_names, row))) for row in rows]
+    t_serialize = time.perf_counter() - t8
     # D86: a content query is a content view (the feed-as-query, D73) — log a
     # delivery impression per returned doc (the server-side, un-gameable floor).
     # The query engine can't reference content_events (a raw node table), so the
@@ -304,6 +319,35 @@ def run_query(request: Request, data: QueryRequest):
     # so the query returns render-ready rows in one round-trip (the feed-as-
     # query pattern). The boundary CTEs already gated the rows (I3); the mint
     # only touches docs in the result.
+    t9 = time.perf_counter()
     if data.prepare:
         out = _prepare_rows(out, reader, data.prepare, authenticated)
+    t_prepare = time.perf_counter() - t9
+
+    # Phase-level timing telemetry (the paper's evaluation data): where does
+    # the time go? auth (token verify), app_contract (the app-contract gate),
+    # parse_validate (AST parse + table walk), candidates (get_user_groups),
+    # readable (the D58 read gate — the access decision), group_meta (QE-A),
+    # compile (CTE injection + round-trip), execute (ClickHouse), serialize
+    # (row serialization), prepare (the D73 mint pass). Metadata only — no
+    # SQL, no content, no caller input (the security boundary in
+    # knowledge-base/web10-v3/security/logging.md).
+    total_ms = (time.perf_counter() - t0) * 1000
+    log.info(
+        "[query] id=%s timing_ms auth=%.2f app_contract=%.2f parse_validate=%.2f "
+        "candidates=%.2f readable=%.2f group_meta=%.2f compile=%.2f execute=%.2f "
+        "serialize=%.2f prepare=%.2f total=%.2f",
+        diagnostic_id,
+        t_auth * 1000,
+        t_app_contract * 1000,
+        t_parse_validate * 1000,
+        t_candidates * 1000,
+        t_readable * 1000,
+        t_group_meta * 1000,
+        t_compile * 1000,
+        t_execute * 1000,
+        t_serialize * 1000,
+        t_prepare * 1000,
+        total_ms,
+    )
     return {"rows": out, "count": len(out)}

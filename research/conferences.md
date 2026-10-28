@@ -7,6 +7,12 @@ The lead claim is the **access model** (see `README.md`). Venues are grouped
 by which part of the system they'd evaluate, then ranked by fit for an
 independent author with a real system submitting paper #1.
 
+> **Current target: SIGMOD 2027 industry track.** Deadline: Nov 24, 2026,
+> 11:59pm AoE. 12 pages + references. The tier rankings below are the
+> historical analysis; the venue decision has moved to the industry track
+> (see `README.md` for the change and `knowledge-base/strategy/plan.md` for
+> the execution plan).
+
 ---
 
 ## Tier 1 — Primary targets (realistic for paper #1)
@@ -60,7 +66,10 @@ independent author with a real system submitting paper #1.
 
 ### SIGMOD (ACM)
 - The DB flagship. Hardest. Want a deep, novel DB contribution + strong eval.
-- Not paper #1.
+- **The industry track is the realistic entry point** — it rewards operational
+  experience, scale, deployment lessons, and cost, which is exactly what a
+  deployed system has. The research track is still not paper #1.
+- **Current target: SIGMOD 2027 industry track, deadline Nov 24, 2026.**
 
 ### CCS (ACM Computing Security Conference)
 - Top security venue. Strong access-control/credentials work.
@@ -96,7 +105,9 @@ independent author with a real system submitting paper #1.
 
 ---
 
-## The recommended path (repeated from README for clarity)
+## The recommended path (historical — superseded)
+
+The original path was:
 
 1. **Workshop paper** (3–6 pages) at a **WWW or VLDB workshop** — learn the
    bar, get feedback, put the name out.
@@ -104,14 +115,20 @@ independent author with a real system submitting paper #1.
 3. **Later:** CCS/USENIX Sec (if security model matures), EC (if monetization
    matures), SIGMOD/SOSP (if the architecture becomes canonical).
 
+**Superseded:** the target is now the **SIGMOD 2027 industry track** (a single
+submission, not a two-step workshop→full-paper ladder). The workshop paper
+(`workshop/main.tex`) was written under the old plan and serves as the draft
+foundation for the full paper.
+
 ---
 
-## Deadlines — TO FILL
+## Deadlines
 
-Venue cycles move; confirm before committing. As of planning:
+Venue cycles move; confirm before committing.
 
-| Venue | Typical cycle | Deadline (TBD) | Notes |
+| Venue | Typical cycle | Deadline | Notes |
 |---|---|---|---|
+| **SIGMOD 2027 industry track** | 1/yr | **Nov 24, 2026, 11:59pm AoE** | **Current target.** CMT not yet open. 12 pages + refs. |
 | WWW workshop | ~2 cycles/yr | TBD | Confirm co-located workshop + date |
 | CIDR | 1/yr | TBD | Usually ~Oct/Nov for following spring |
 | VLDB | 2/yr (PVLDB vols) | TBD | Rolling volumes |
@@ -120,7 +137,7 @@ Venue cycles move; confirm before committing. As of planning:
 | CCS | 1/yr | TBD | Usually ~Jan/Feb |
 | EC | 1/yr | TBD | Usually ~Oct |
 
-**Action:** pin the exact next deadline for the chosen Step-1 workshop and the
-Step-2 full venue, and work backwards from there. The evaluation data
-collection (see `evaluation-plan.md`) is on the critical path — if we don't
-have production numbers yet, that collection starts *now*, not at draft time.
+**Action:** the SIGMOD 2027 industry track deadline is pinned (Nov 24, 2026).
+The evaluation data collection (see `evaluation-plan.md`) is on the critical
+path — if we don't have production numbers yet, that collection starts *now*,
+not at draft time.

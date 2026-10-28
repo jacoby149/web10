@@ -1,0 +1,299 @@
+% web10 SIGMOD 2027 Industrial Track — reference pack
+% 26 entries. Verified against publisher / W3C / NIST / USENIX / ACM sources
+% on 28 Oct 2026. Placement guide: research/references/citation-mapping.md.
+%
+% Status flags (from the source pack):
+%   KEEP    -- already in the draft, verified as written
+%   FIX     -- the draft entry was wrong/incomplete; this replaces it
+%   NEW     -- not in the draft
+%   WEAK    -- project page / preprint / documentation, not peer-reviewed;
+%              use sparingly, and say what it is in the text.
+
+% ------------------------------------------------------------------
+% 1. Decentralized / user-owned social data
+% ------------------------------------------------------------------
+
+% FIX: replaces the draft's non-citable "solid" entry (Berners-Lee only).
+@techreport{solid2016,
+  author      = {Andrei Vlad Sambra and Essam Mansour and Sandro Hawke and Maged Zereba and Nicola Greco and Abdurrahman Ghanem and Dmitri Zagidulin and Ashraf Aboulnaga and Tim Berners-Lee},
+  title       = {Solid: A Platform for Decentralized Social Applications Based on Linked Data},
+  institution = {MIT CSAIL and Qatar Computing Research Institute},
+  year        = {2016},
+  url         = {http://emansour.com/research/lusail/solid_protocols.pdf},
+}
+
+@inproceedings{solid-demo2016,
+  author    = {Essam Mansour and Andrei Vlad Sambra and Sandro Hawke and Maged Zereba and Sarven Capadisli and Abdurrahman Ghanem and Ashraf Aboulnaga and Tim Berners-Lee},
+  title     = {A Demonstration of the Solid Platform for Social Web Applications},
+  booktitle = {Proceedings of the 25th International Conference Companion on World Wide Web},
+  series    = {WWW '16 Companion},
+  pages     = {223--226},
+  year      = {2016},
+  publisher = {ACM},
+  doi       = {10.1145/2872518.2890529},
+}
+
+@inproceedings{solid-apps2016,
+  author    = {Andrei Sambra and Amy Guy and Sarven Capadisli and Nicola Greco},
+  title     = {Building Decentralized Applications for the Social Web},
+  booktitle = {Proceedings of the 25th International Conference Companion on World Wide Web},
+  series    = {WWW '16 Companion},
+  pages     = {1033--1034},
+  year      = {2016},
+  publisher = {ACM},
+}
+
+% NEW: current protocol spec (Draft Community Group Report, not a W3C Rec).
+@misc{solid-protocol2024,
+  author       = {Sarven Capadisli and Tim Berners-Lee and Kjetil Kjernsmo},
+  title        = {Solid Protocol},
+  howpublished = {W3C Solid Community Group, Draft Community Group Report, Version 0.11.0},
+  year         = {2024},
+  url          = {https://solidproject.org/TR/protocol},
+}
+
+% NEW: WAC is the access-control spec the WebACL sentence needs.
+@misc{wac2022,
+  author       = {Sarven Capadisli},
+  title        = {Web Access Control},
+  howpublished = {W3C Solid Community Group, Version 1.0.0-cr-1},
+  year         = {2022},
+  url          = {https://solidproject.org/TR/wac},
+}
+
+% NEW: ACP, the newer Solid access-control spec (editor's draft).
+@misc{acp2022,
+  author       = {Matthieu Bosquet},
+  title        = {Access Control Policy (ACP)},
+  howpublished = {W3C Solid Community Group, Editor's Draft},
+  year         = {2022},
+  url          = {https://solid.github.io/authorization-panel/acp-specification/},
+}
+
+@article{css2024,
+  author  = {Joachim Van Herwegen and Ruben Verborgh},
+  title   = {The Community Solid Server: Supporting Research and Development in an Evolving Ecosystem},
+  journal = {Semantic Web},
+  volume  = {15},
+  number  = {6},
+  pages   = {2597--2611},
+  year    = {2024},
+  doi     = {10.3233/SW-243726},
+}
+
+% FIX: replaces the draft's wrong "activitypub" entry (wrong authors/venue).
+% It is a W3C Recommendation, 2018.
+@misc{activitypub2018,
+  author       = {Christine Lemmer-Webber and Jessica Tallon and Erin Shepherd and Amy Guy and Evan Prodromou},
+  title        = {ActivityPub},
+  howpublished = {W3C Recommendation},
+  year         = {2018},
+  month        = {January},
+  url          = {https://www.w3.org/TR/activitypub/},
+  note         = {Editors: Christine Lemmer-Webber and Jessica Tallon},
+}
+
+% FIX: replaces the draft's unverifiable "atproto" entry (Holman and Roth).
+% Use the peer-reviewed Bluesky/AT Protocol paper.
+@inproceedings{kleppmann2024,
+  author    = {Martin Kleppmann and Paul Frazee and Jake Gold and Jay Graber and Daniel Holmgren and Devin Ivy and Jeromy Johnson and Bryan Newbold and Jaz Volpert},
+  title     = {Bluesky and the AT Protocol: Usable Decentralized Social Media},
+  booktitle = {Proceedings of the ACM CoNEXT-2024 Workshop on the Decentralization of the Internet},
+  series    = {DIN '24},
+  pages     = {9},
+  year      = {2024},
+  publisher = {ACM},
+  doi       = {10.1145/3694809.3700740},
+  note      = {Extended version: arXiv:2402.03239},
+}
+
+% NEW, WEAK: preprint (arXiv, May 2025), not yet peer-reviewed. Useful only
+% for the four-protocol comparison framing; do not lean a technical claim on it.
+@misc{oshinowo2025,
+  author = {Tolulope Oshinowo and Sohyeon Hwang and Amy X. Zhang and Andr\'es Monroy-Hern\'andez},
+  title  = {Seeing the Politics of Decentralized Social Media Protocols},
+  year   = {2025},
+  note   = {arXiv:2505.22962},
+  url    = {https://arxiv.org/abs/2505.22962},
+}
+
+% NEW, WEAK: a project/framework, not a paper. Cite only to name the
+% Solid + ActivityPub combination; say it is a framework.
+@misc{activitypods,
+  title        = {ActivityPods: ActivityPub + Solid Pods},
+  howpublished = {Project website},
+  year         = {2025},
+  url          = {https://activitypods.org},
+  note         = {Accessed October 2026},
+}
+
+% ------------------------------------------------------------------
+% 2. Access control: RBAC / ABAC / IAM / ReBAC / credentials
+% ------------------------------------------------------------------
+
+% NEW: the original RBAC paper.
+@inproceedings{ferraiolo1992,
+  author    = {David F. Ferraiolo and David R. Kuhn},
+  title     = {Role-Based Access Controls},
+  booktitle = {Proceedings of the 15th National Computer Security Conference},
+  pages     = {554--563},
+  year      = {1992},
+}
+
+% KEEP (already in draft, verified).
+@article{sandhu1996,
+  author  = {Ravi S. Sandhu and Edward J. Coyne and Hal L. Feinstein and Charles E. Youman},
+  title   = {Role-Based Access Control Models},
+  journal = {IEEE Computer},
+  volume  = {29},
+  number  = {2},
+  pages   = {38--47},
+  year    = {1996},
+}
+
+% NEW: NIST RBAC standard proposal.
+@inproceedings{sandhu2000,
+  author    = {Ravi S. Sandhu and David F. Ferraiolo and David R. Kuhn},
+  title     = {The NIST Model for Role Based Access Control: Toward a Unified Standard},
+  booktitle = {Proceedings of the 5th ACM Workshop on Role-Based Access Control},
+  pages     = {47--63},
+  year      = {2000},
+}
+
+% NEW: ABAC definition/guide. Use alongside RBAC so the paper does not
+% imply roles are the only policy language.
+@techreport{abac2014,
+  author      = {Vincent C. Hu and David F. Ferraiolo and David R. Kuhn and Adam Schnitzer and Kenneth Sandlin and Robert Miller and Karen Scarfone},
+  title       = {Guide to Attribute Based Access Control (ABAC) Definition and Considerations},
+  institution = {National Institute of Standards and Technology},
+  number      = {SP 800-162},
+  year        = {2014},
+  note        = {Includes updates as of August 2019},
+}
+
+% NEW: the industrial-scale relationship-based authorization system.
+% Closest deployed ancestor to group/role grants at scale.
+@inproceedings{zanzibar2019,
+  author    = {Ruoming Pang and Ramon Caceres and Mike Burrows and Zhifeng Chen and Pratik Dave and Nathan Germer and Alexander Golynski and Kevin Graney and Nina Kang and Lea Kissner and Jeffrey L. Korn and Abhishek Parmar and Christina D. Richards and Mengzhi Wang},
+  title     = {Zanzibar: Google's Consistent, Global Authorization System},
+  booktitle = {Proceedings of the 2019 USENIX Annual Technical Conference},
+  series    = {USENIX ATC '19},
+  year      = {2019},
+  publisher = {USENIX Association},
+  url       = {https://www.usenix.org/system/files/atc19-pang.pdf},
+}
+
+% NEW: attenuable bearer credentials; relevant to the scoped/expiring/
+% revocable token discussion.
+@inproceedings{macaroons2014,
+  author    = {Arnar Birgisson and Joe Gibbs Politz and Ulfar Erlingsson and Ankur Taly and Michael Vrable and Mark Lentczner},
+  title     = {Macaroons: Cookies with Contextual Caveats for Decentralized Authorization in the Cloud},
+  booktitle = {Proceedings of the Network and Distributed System Security Symposium},
+  series    = {NDSS '14},
+  year      = {2014},
+}
+
+% NEW: scoped delegated access; the standard web10's token flow resembles.
+@misc{oauth2012,
+  author       = {Dick Hardt},
+  title        = {The OAuth 2.0 Authorization Framework},
+  howpublished = {IETF RFC 6749, Standards Track},
+  year         = {2012},
+  month        = {October},
+  doi          = {10.17487/RFC6749},
+  url          = {https://www.rfc-editor.org/info/rfc6749},
+}
+
+% KEEP, WEAK (documentation, not a paper): say so in the text.
+@misc{awsiam,
+  author       = {{Amazon Web Services}},
+  title        = {{AWS} Identity and Access Management (IAM) User Guide},
+  howpublished = {Amazon Web Services documentation},
+  year         = {2025},
+  url          = {https://docs.aws.amazon.com/IAM/latest/UserGuide/introduction.html},
+}
+
+% ------------------------------------------------------------------
+% 3. Multi-tenant isolation, row-level security, and the store
+% ------------------------------------------------------------------
+
+% NEW: the "ruminations" paper behind the shared vs. separate tenant
+% schema discussion.
+@inproceedings{jacobs2007,
+  author    = {Dean Jacobs and Stefan Aulbach},
+  title     = {Ruminations on Multi-Tenant Databases},
+  booktitle = {Proceedings of BTW 2007},
+  pages     = {514--521},
+  year      = {2007},
+}
+
+% NEW: schema-mapping techniques for multi-tenant SaaS (Chunk Folding).
+@inproceedings{aulbach2008,
+  author    = {Stefan Aulbach and Torsten Grust and Dean Jacobs and Alfons Kemper and Jan Rittinger},
+  title     = {Multi-Tenant Databases for Software as a Service: Schema-Mapping Techniques},
+  booktitle = {Proceedings of the 2008 ACM SIGMOD International Conference on Management of Data},
+  series    = {SIGMOD '08},
+  pages     = {1195--1206},
+  year      = {2008},
+  publisher = {ACM},
+}
+
+% NEW: the other SIGMOD '09 SaaS-schema paper. Redundant with aulbach2008
+% for this paper's purposes; keep only if a flexible-schema discussion is added.
+@inproceedings{aulbach2009,
+  author    = {Stefan Aulbach and Dean Jacobs and Alfons Kemper and Michael Seibold},
+  title     = {A Comparison of Flexible Schemas for Software as a Service},
+  booktitle = {Proceedings of the 2009 ACM SIGMOD International Conference on Management of Data},
+  series    = {SIGMOD '09},
+  year      = {2009},
+  publisher = {ACM},
+  doi       = {10.1145/1559845.1559941},
+}
+
+% NEW: canonical shared-table multi-tenant system; OrgID isolation is the
+% direct ancestor of the author_key filter argument.
+@inproceedings{force2009,
+  author    = {Craig D. Weissman and Steve Bobrowski},
+  title     = {The Design of the Force.com Multitenant Internet Application Development Platform},
+  booktitle = {Proceedings of the 2009 ACM SIGMOD International Conference on Management of Data},
+  series    = {SIGMOD '09},
+  pages     = {889--896},
+  year      = {2009},
+  publisher = {ACM},
+  doi       = {10.1145/1559845.1559942},
+}
+
+% FIX: replaces the draft's unverifiable "rls" entry (Kemper and Lott).
+% Cite the PostgreSQL documentation as documentation.
+@misc{postgres-rls,
+  author       = {{PostgreSQL Global Development Group}},
+  title        = {PostgreSQL Documentation: Row Security Policies},
+  howpublished = {PostgreSQL documentation},
+  url          = {https://www.postgresql.org/docs/current/ddl-rowsecurity.html},
+  note         = {Accessed October 2026},
+}
+
+% NEW: privacy-checked feed reads at social-graph scale; the closest
+% deployed system to "check every item for the viewer at read time."
+@inproceedings{tao2013,
+  author    = {Nathan Bronson and Zach Amsden and George Cabrera and Prasad Chakka and Peter Dimov and Hui Ding and Jack Ferris and Anthony Giardullo and Sachin Kulkarni and Harry C. Li and Mark Marchukov and Dmitri Petrov and Lovro Puzar and Yee Jiun Song and Venkateshwaran Venkataramani},
+  title     = {TAO: Facebook's Distributed Data Store for the Social Graph},
+  booktitle = {Proceedings of the 2013 USENIX Annual Technical Conference},
+  series    = {USENIX ATC '13},
+  pages     = {49--60},
+  year      = {2013},
+  publisher = {USENIX Association},
+}
+
+% NEW: the columnar store the paper actually runs on. Cite for the
+% single-table / index-lookup enforcement claim, not for authorization.
+@article{clickhouse2024,
+  author  = {Robert Schulze and Tom Schreiber and Ilya Yatsishin and Ryadh Dahimene and Alexey Milovidov},
+  title   = {ClickHouse: Lightning Fast Analytics for Everyone},
+  journal = {Proceedings of the VLDB Endowment},
+  volume  = {17},
+  number  = {12},
+  pages   = {3731--3744},
+  year    = {2024},
+  doi     = {10.14778/3685800.3685802},
+}

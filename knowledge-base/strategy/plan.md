@@ -1072,3 +1072,82 @@ docs before code, per the rule at the top.
 - [ ] **KB: the v2→v3 CONTENT migration model** (`knowledge-base/web10-v3/migration/`) — the other half of the old "data migration model" item, now split out. What maps to what for the *content*: v2 services/collections → v3 `documents` + `collection_name`; v2 terms/ACL → v3 group contracts; the v2 discovery ledger → dropped or re-derived (decide, with the D30/D32/D34/D35 public-by-default calls in mind); media blobs → re-pointed by object key, not copied. Name what is lossy, what is dropped, and what is re-derived. Gated on the account migration landing (a user must be able to sign in before their content is ported into their profile).
 - [ ] (scope when the gate clears) migration tooling + a rehearsal against a staging copy of the prod mongo (docker volume), then the cutover and the dev→main merge.
 - [ ] (scope when the gate clears) SMS cutover notice — text all 580 users (phone numbers live in the v2 star records) that they were migrated, over the existing Twilio send path. Needs: the send list (deduped, verified numbers only), the message copy, and a delivery check. Runs after the data flip — the notice says "you're migrated," not "you will be." Copy can be drafted pre-gate.
+
+## SIGMOD 2027 Industry Track — the full paper (research/)
+
+**Deadline: Tuesday, Nov 24, 2026, 11:59pm AoE** (6:59am ET Wed Nov 25). Up to
+**12 pages + references** (10 is fine — it does not have to be exactly 10).
+CMT has not opened for this track yet. **Target internal freeze: Nov 20** —
+evaluation numbers and formatting always take longer than expected.
+
+**The venue change:** the original plan (`research/README.md`) aimed at a
+workshop first, then CIDR. That ladder is dead — the target is now the
+**SIGMOD 2027 industry track**, which changes the paper's center of gravity:
+industry track rewards **operational experience, scale, deployment lessons,
+and cost** — the "we run this in production" story is the differentiator, and
+the workshop draft's deferred evaluation section (`research/workshop/main.tex`
+§"Scale and latency (extended version)") is now half the paper.
+
+**What exists:** `research/workshop/main.tex` — a ~5-page workshop draft
+("Your Data, Your Rules, One Query") with the access model, query-layer
+enforcement (wall-not-membrane), and the 267→1 feed number. That is ~40% of
+the full paper, in workshop compression. The full paper is a new file in
+`research/sigmod/` (keep the workshop paper intact as the short version),
+extending the same spine: Intro → Access Model → Enforcement → Running
+Platform → **Evaluation (the new load-bearing section)** → Related Work →
+Lessons → Conclusion.
+
+**The critical path is data, not writing.** `research/evaluation-plan.md` is
+all unchecked boxes. The numbers the industry track will demand:
+
+- [ ] **E1: scale counters** — users, collections/groups, documents, access
+  decisions/day, deployment duration. Queryable from the running node today?
+  If not, the queries + a dated snapshot.
+- [ ] **E2: access-decision latency** — p50/p95/p99 of the resolve+compute
+  phase (token verify + contract check + group membership), the breakdown
+  (signature verify vs. contract lookup vs. membership lookup), throughput,
+  and the overhead vs. the underlying data read. Instrument if not logged.
+- [ ] **E3: cost model** — per-user-collection vs. shared-table baseline;
+  cost curve as users grow; storage overhead of the per-user key-space.
+- [ ] **E4: the social-app case study** — end-to-end latency for key flows
+  (load feed, post, DM, group read) on web10 vs. a conventional shared-DB
+  backend; where it wins, where it loses, what the conventional backend
+  cannot express.
+- [ ] **E5: conformance results** — the permission-matrix suite: case count,
+  all passing, the I3 negative tests (exploit replayed and denied),
+  revocation bound.
+- [ ] **E6: methodology** — hardware/instance specs, workload description
+  (real traffic vs. replayed vs. synthetic — honest), runs + variance, what
+  was NOT measured.
+
+**The writing plan (after the data lands):**
+
+- [ ] **W1: scaffold `research/sigmod/`** — acmart sigconf, 12-page budget,
+  section outline from `research/draft/outline.md` expanded for industry
+  track (add a "Lessons from Running It" section — the industry-track
+  differentiator).
+- [ ] **W2: port + expand the workshop sections** — Intro, Access Model,
+  Enforcement, Running Platform. Expand, don't rewrite; the workshop prose is
+  the draft.
+- [ ] **W3: the Evaluation section** — fill from E1–E6. The load-bearing wall.
+  Real numbers, not adjectives.
+- [ ] **W4: Related Work** — from `research/related-work.md` (the gap check
+  must be `[YES]` before this section freezes).
+- [ ] **W5: Lessons + Conclusion** — the operational story: what the
+  per-collection model gave up, what broke in production, what the genericity
+  (D60) bought.
+- [ ] **W6: formatting + page budget** — 12 pages + refs, ACM sigconf,
+  figures (the two workshop figs + new eval figures), references complete.
+  Freeze Nov 20.
+
+**Open questions (answer before W1):**
+- Do we have the production numbers (E1–E3) or must we instrument first?
+  (If the latter, E1–E3 start NOW — they are the critical path.)
+- Is the claim still the access model (IAM-to-the-front), or does the
+  industry framing co-lead with the generic-node + columnar story? (Working
+  assumption: access model is the contribution; the "one generic node running
+  a full social app" is the operational novelty that industry track rewards.)
+- Authorship: still Jacob Hoffman + web10 Inc.? (Single founder is fine if
+  the system is real; industry track sometimes prefers 2+ authors.)
+- CMT: watch for the track opening; submission logistics (PDF, anonymity
+  rules — industry track is typically NOT anonymous, affiliation visible).
