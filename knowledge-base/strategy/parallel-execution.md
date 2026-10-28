@@ -67,6 +67,10 @@ next. Historical coverage ticks below are not finding closure or security PASS.
 central record/learnings/plan/changelog updates serialized by the scan coordinator.
 API files are read-only. Do not implement extraction-lane fixes in scan PRs.
 
+- [~ 3.249.1] **PROTOCOL-01/SOL-RESUME: resume Sol protocol revalidation** — local pinned API/SDK/edge receipts and fresh same-model replay complete; publication pending, campaign OPEN. See `knowledge-base/security/scans/2026-10/l1-current-index.md`. Not a whole-project rescan or diverse sign-off.
+- [ ] **PROTOCOL-01/L1-VAL-01: prevent validation credential copies** — S1 owns `api/app/main.py` validation-handler hunks and focused tests; redact input/exception content from logs and define safe client errors without changing 422 semantics. Gate: actual-route synthetic token/password/content red -> denied green, legitimate 422/401/success controls, fresh design-intent review, KB write-back, <=500 changed lines, all checks green.
+- [ ] **PROTOCOL-01/L1-OAUTH-SOURCE-01: validate source delegation authority** — S3 owns OAuth authorization/auth-service hunks and tests; resolve certify/authorize source-client inconsistency with revoked-source denial and valid delegation controls. Inert-store finding only; do not claim contract escape. Gates: exploit-red/denied-green, product-aligned delegation policy, fresh design-intent review, <=500 changed lines, KB write-back and all checks green.
+
 - [✓ 3.235.4] **L1-001: middleware** — receipt merged in PR #1199; all 143 lines at `d86658be6`, B-4 reproduced and still OPEN; `knowledge-base/security/scans/2026-10/l1-middleware.md`.
 - [✓ 3.235.5] **L1-002: settings** — receipt merged in PR #1201; all 140 lines at `8704e9f5c`; B-2/B-8 remain OPEN, boolean type erasure handed to L2.
 - [✓ 3.235.6] **L1-003: main** — all 176 lines covered within A; receipt merged #1202, alongside B/D. No runtime fixes or security PASS.

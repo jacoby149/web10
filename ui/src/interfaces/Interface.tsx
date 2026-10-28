@@ -1272,9 +1272,7 @@ function applyACR(cr: any) {
                 // lazy popup opened from a button click.) The short delay lets
                 // the token message deliver before the window goes away.
                 console.log('[auth-ui] goToApp — auth token sent, closing popup (self-contained)')
-                setTimeout(() => {
-                    if (consentBatch.current === batch && principal() === account) window.close();
-                }, 300);
+                setTimeout(() => window.close(), 300);
             } catch (err) {
                 console.error('[auth-ui] goToApp — postMessage failed:', err)
                 I.setStatus("Failed to connect to app.");

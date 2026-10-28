@@ -1,3 +1,6 @@
+3.249.1 || 28.10.2026
+docs(security): **resume protocol scan with GPT-6.1 Sol** — preserve historical Luna attribution; add pinned API/SDK/deployment resumption receipts and fresh same-model review. Reproduce validation credential logging and OAuth source-client authority inconsistency; retain consent correlation debt. 167 focused API tests plus four subtests pass; SDK runners unavailable, offline parity/probes pass. No runtime changes, whole-project completion, L1 PASS, rollout or model-diverse sign-off.
+
 3.246.1 || 28.10.2026
 fix(ui): **settle consent lifecycle paths before strict SDK correlation** — preserve #1277 owned indexed replies while covering empty/no-op batches, same-principal grants, skip, logout/account change, replacement, in-flight failures, delayed handoff and lazy follow-up requests. CI E2E exposed same-account relogin cancellation and a prior handoff timer closing the subsequent group popup; both have focused regression tests and fixes. 29 focused consent tests/211 UI tests, TypeScript and production build pass. Luna is weaker than Sol; this is a useful floor, not equivalent assurance. Fresh browser shard confirmation is pending; strict SDK/artifact/browser cohort integration, model-diverse review, A-01/F-01 closure and L1 PASS remain OPEN.
 3.249.0 || 28.10.2026

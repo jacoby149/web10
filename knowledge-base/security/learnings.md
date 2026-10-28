@@ -471,6 +471,20 @@ for local E2E, and the first two CI E2E attempts still failed these paths, so th
 browser confirmation remains OPEN. Strict SDK/artifact integration and diverse
 sign-off remain separate gates; no A-01/F-01 closure or L1 PASS.
 
+### 2026-10-28: Sol resumption distinguishes identity from live authority
+
+The [Sol API replay](scans/2026-10/sol-resumption-api.md) demonstrates two
+residuals, independently repeated by a fresh Sol context: missing-field validation
+can stringify the entire credential-bearing input into ERROR logs and a 422
+response (**L1-VAL-01**); OAuth authorize accepts a signed, fresh delegation that
+certify rejects for a missing/revoked source client (**L1-OAUTH-SOURCE-01**).
+Metadata-only middleware does not protect other log producers, and signature plus
+freshness is not live delegation authority. Response echo alone is not cross-user
+disclosure; inert registry/storage does not prove durable code issuance or contract
+escape. Both remain OPEN, assigned to S1/S3 respectively, not repaired by this scan.
+SDK sender checks still do not correlate concurrent requests. Same-model replay
+and local green controls do not replace deployment or different-family review.
+
 ## Known gaps (the "obvious gap" register)
 
 Gaps the orient has surfaced. Each is either a `BP-n` or a standing note:

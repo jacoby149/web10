@@ -15,6 +15,17 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Sol Resumption (28.10.2026)
+
+At `49178a87dcd651337e7f17dea68b66f377ae2e05`, bounded Sol revalidation and
+fresh same-model review confirm validation credential copies (L1-VAL-01), an
+OAuth source-client authority inconsistency (L1-OAUTH-SOURCE-01), and remaining
+consent correlation debt. [Ledger and scope receipts](scans/2026-10/l1-current-index.md)
+record exact fresh reads, 167 focused API passes plus four subtests, SDK runner
+limitations, artifact comparison and offline edge controls. Historical coverage
+is not a fresh whole-project scan; all these units remain **OPEN**, with no L2
+advancement, deployment assertion or model-diverse convergence credit.
+
 ## Current Protocol L1 Read Pass (27.10.2026)
 
 [Current index/ledger](scans/2026-10/l1-current-index.md) records the exhaustive
