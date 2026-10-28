@@ -1,5 +1,5 @@
 import ipaddress
-from datetime import datetime
+from datetime import UTC, datetime
 from urllib.parse import urlparse
 
 import bcrypt
@@ -33,6 +33,21 @@ def get_password_hash(password: str) -> str:
     return bcrypt.hashpw(_to_bcrypt_bytes(password), bcrypt.gensalt()).decode("utf-8")
 
 
+def _check_token_expiry(data: TokenData) -> None:
+    if data.username == "anon":
+        return
+    try:
+        expires = datetime.fromisoformat(data.expires)
+    except (TypeError, ValueError):
+        raise jwt.InvalidTokenError("invalid token expiry") from None
+    # Node minters use naive UTC; offset-bearing ISO timestamps denote the
+    # same absolute deadline. A valid signature alone never makes it fresh.
+    if expires.tzinfo is None:
+        expires = expires.replace(tzinfo=UTC)
+    if datetime.now(UTC) >= expires:
+        raise jwt.ExpiredSignatureError("token expired")
+
+
 def decode_token(token: str, private_key: bool = False) -> TokenData:
     if private_key:
         payload = jwt.decode(token, settings.PRIVATE_KEY, algorithms=[settings.ALGORITHM])
@@ -40,6 +55,8 @@ def decode_token(token: str, private_key: bool = False) -> TokenData:
         payload = jwt.decode(token, options={"verify_signature": False})
     token_data = TokenData()
     token_data.populate_from_payload(payload)
+    if private_key:
+        _check_token_expiry(token_data)
     return token_data
 
 
@@ -95,8 +112,7 @@ def certify(token: Token) -> bool:
             raise Exception("TOKEN")
         if token_data.username is None:
             raise Exception("TOKEN")
-        if token_data.username != "anon" and datetime.utcnow() > datetime.fromisoformat(token_data.expires):
-            raise Exception("TOKEN")
+        _check_token_expiry(token_data)
         # OAuth 2.0 delegation (D92): a token carrying a client_id is a
         # delegated token — the client must exist and be active (not
         # tombstoned). Tokens without a client_id (the popup flow) skip this

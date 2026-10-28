@@ -126,14 +126,22 @@ Inventory and line coverage do not establish service PASS or deployment security
 
 ## Protocol L1 Repair Progress
 
-27.10.2026: **L1-DEPLOY-01** [local repair](scans/2026-10/repair-deploy01-frozen-installs.md)
+27.10.2026: **L1-D-01/D-02 and OAuth occurrence L1-OAUTH-01** share the
+[local freshness repair](scans/2026-10/repair-d01-token-freshness.md). Verified
+user decoding/certification enforce parseable ISO expiry at the absolute deadline;
+the oracle classifies invalid/expired before stores. Initial 48 regressions red
+-> green, 92 controls/1,325 API passes plus four subtests, fresh same-model review.
+Anonymous and unsigned metadata contracts preserved. Integration/rollout/diverse
+review remain OPEN; no HS256/issuer, purpose, provider or revocation assurance.
+
+27.10.2026: **L1-DEPLOY-01** [source repair merged #1268](scans/2026-10/repair-deploy01-frozen-installs.md)
 removes three fail-open install fallbacks and pins Dockerfile-only CI triggering.
 Eight controls and 1,233 API tests plus four subtests pass; native frozen installs/
 builds retain manifests/locks and local dependencies, fresh same-model review.
-Linux image CI, integration/deployment and diverse sign-off remain open. No Docker
-daemon available locally; native success does not waive container verification.
-Production social was added to the Docker matrix: E2E's separate dev image is
-not production-image evidence. New-revision production build checks are required.
+Merged at c6f9cc85d. Actual production Linux builds for marketing and social passed
+on 8a420f767, with all applicable PR checks green; source build/CI inputs are
+byte-identical in the squash merge. E2E's dev image is not credited as production
+evidence. Deployment, dependency authenticity and diverse sign-off remain open.
 
 27.10.2026: **L1-J-01** [source repair merged #1267](scans/2026-10/repair-j01-import-traces.md)
 denies cross-context trace copying while preserving owned diagnostics/tracebacks

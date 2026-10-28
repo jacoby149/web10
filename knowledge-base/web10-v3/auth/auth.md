@@ -230,7 +230,23 @@ function isTokenExpired(token: string): boolean {
 }
 ```
 
-Fail-open: if the token has no `expires` claim, it's treated as valid (matches server behavior for "anon" tokens).
+SDK-side metadata expiry checking is fail-open when `expires` is missing. This is
+not the server's user-token rule; only anonymous tokens have the deliberate
+server custom-expiry exemption below.
+
+Server freshness contract (L1-D-01/D-02 and OAuth occurrence L1-OAUTH-01):
+signature-verified decoding of a non-anonymous token must require a parseable ISO
+`expires`, and reject it at or after that instant. Missing/malformed values are
+invalid, not immortal sessions. Naive timestamps minted by this node mean UTC;
+explicit offsets represent the same absolute UTC instant. Standard JWT `exp`,
+when present, remains independently enforced by PyJWT; it does not replace
+`expires`. Unsigned metadata decoding is not an authorization gate and keeps its
+existing behavior. Anonymous tokens retain their deliberate custom-expiry
+exemption; missing tokens still use the bounded anonymous path where supported.
+The session oracle classifies expired versus invalid consistently and skips
+user/contract lookups for either. The [local freshness repair](../../security/scans/2026-10/repair-d01-token-freshness.md)
+enforces this at verified decoding/certification; integration/rollout/sign-off
+remain open. It is not issuer, provider, purpose or delegated-revocation assurance.
 
 ## ACR (App Contract Request)
 

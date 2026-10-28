@@ -92,8 +92,8 @@ Conditional local facts remain bounded; no production breach is established.
 | B-8 | Source repair merged #1265 at b5d128a52; four red/green CLI cases, 1,180 API tests at repair pin; not B-2/deployment closure |
 | L1-A-02 | OPEN manifest caller-destination routing/JSON proxy primitive; fake HTTP evidence, real network reach not shown; S1 |
 | L1-B-01 | OPEN unsigned remote-helper destination/status trust; actual callers/reach unverified; S3 |
-| L1-D-01 | OPEN expired signed principal production; S3 freshness foundation with explicit valid/anonymous controls |
-| L1-D-02 | OPEN null/malformed-expiry session classification; no oracle-to-CRUD grant proved; S3 |
+| L1-D-01 | [Local freshness repair verified](repair-d01-token-freshness.md): verified principal/delegation decoding rejects stale/invalid custom expiry; initial red -> green, 92 controls/1,325 API passes. Integration/rollout/diverse review OPEN; S3 |
+| L1-D-02 | Same local freshness repair: oracle classifies invalid versus expired and skips stores; no oracle-to-CRUD grant claimed. Integration/rollout/diverse review OPEN; S3 |
 | L1-E-01 | OPEN account token GET-query transport; no theft shown; S7 body-authenticated detail and consumers |
 | L1-G-01 | [Source repair merged #1266](repair-g01-query-logging.md) at b5ebcd7e7: safe query diagnostics; red -> green, 1,216 API passes at repair pin, fresh same-model review. Deployment/diverse sign-off OPEN; S4 |
 | L1-H-01 | OPEN object-signing provenance concern; fake-auth/signer proves forwarding, not private retrieval; S5 |
@@ -102,13 +102,13 @@ Conditional local facts remain bounded; no production breach is established.
 | L1-SDK-A-01/F-01 | OPEN one consent-response integrity class across implementations; origin/window/request/concurrency binding required; S2 |
 | S-6 | OPEN wildcard recipient metadata hygiene, not token exfiltration; S2 |
 | SDK-B-01 | Source/five-runtime repair merged #1255; remaining browser/rollout/sign-off limits retained |
-| L1-OAUTH-01 | New OAuth occurrence of D-01 root: actual handler accepts expired signed principal and returns/stores code at fake sink; no durable issuance/account takeover shown |
+| L1-OAUTH-01 | OAuth occurrence of D-01 root: local repair denies expired/malformed users before code storage in real HTTP/inert-store controls; valid code flow preserved. Integration/rollout/diverse review OPEN; no live takeover/issuance claim |
 | L1-CURRENT-STORE-B-01 | Conditional single-use code consumption failure: two forced active snapshots both return user. Actual schema/ClickHouse/endpoint issuance unverified |
 | L1-CURRENT-STORE-B-02 | Bulk revoke/cleanup SQL omits delegated client identity; actual default/merge/authorization impact UNVERIFIED, not proven revoke bypass |
 | STORE-A-SCHEMA | OAuth code DDL references undeclared version column; insert compatibility and existing/fresh schema need real evidence; correctness/reachability, not C+I exploit |
 | L1-PKG-01 | Source repair merged #1265 at b5d128a52: whole URI omitted from audit/stdout/file manifests, 12 red -> green cases and fresh same-model review; [repair](repair-pkg01-mongo-output.md). Deployment/sign-off/history remain open; S1 |
 | L1-PKG-02 | Conditional backup protection risk; actual permissions/symlink/access UNVERIFIED, not a replayed filesystem disclosure |
-| L1-DEPLOY-01 | [Local repair verified](repair-deploy01-frozen-installs.md): three frozen-only installs, regression CI and actual production-social matrix entry, eight controls/1,233 API passes and native builds. New-revision Linux production-image CI/integration/deployment/diverse sign-off OPEN; no poisoned artifact shown |
+| L1-DEPLOY-01 | [Source repair merged #1268](repair-deploy01-frozen-installs.md) at c6f9cc85d: frozen-only installs and actual production-social matrix, eight controls/1,233 API passes at repair pin; both production-image CI jobs passed on 8a420f767. Deployment/diverse sign-off OPEN; no poisoned artifact shown |
 | ART-01 / orphan artifacts | Producer pin/publication drift, six orphan declaration/maps and docs RTC provenance OPEN; hashes not build/publication/deployment assurance |
 | L1-OAUTH-02 | Availability/order observation; C+I UNVERIFIED. Do not count refresh denial as unauthorized grant or access-token revocation |
 | L1-DEPLOY-02 | Deliberate exemption interface with grammar/eligibility policy limitations; not a newly demonstrated application bypass |
