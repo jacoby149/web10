@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - api/**
+      - marketing/marketing-ui/Dockerfile
+      - marketing/web10-social/Dockerfile
       - .github/workflows/api.yml
 
 concurrency:

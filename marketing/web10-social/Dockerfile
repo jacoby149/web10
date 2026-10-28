@@ -13,7 +13,7 @@ COPY sdk/dist/ /sdk/dist/
 # bun install (run in /app) resolves it to /shared/discover, so COPY
 # marketing/shared/ there (same pattern as the sdk/ COPY above).
 COPY marketing/shared/ /shared/
-RUN bun install --frozen-lockfile || bun install
+RUN bun install --frozen-lockfile
 COPY marketing/web10-social/ .
 
 # Backend origins are baked at build time (vite), passed by

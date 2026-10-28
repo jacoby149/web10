@@ -126,11 +126,18 @@ Inventory and line coverage do not establish service PASS or deployment security
 
 ## Protocol L1 Repair Progress
 
-27.10.2026: **L1-J-01** [local repair](scans/2026-10/repair-j01-import-traces.md)
+27.10.2026: **L1-DEPLOY-01** [local repair](scans/2026-10/repair-deploy01-frozen-installs.md)
+removes three fail-open install fallbacks and pins Dockerfile-only CI triggering.
+Seven controls and 1,232 API tests plus four subtests pass; native frozen installs/
+builds retain manifests/locks and local dependencies, fresh same-model review.
+Linux image CI, integration/deployment and diverse sign-off remain open. No Docker
+daemon available locally; native success does not waive container verification.
+
+27.10.2026: **L1-J-01** [source repair merged #1267](scans/2026-10/repair-j01-import-traces.md)
 denies cross-context trace copying while preserving owned diagnostics/tracebacks
 and thumbnail work. Pre-lock filtering plus reentry suppression resolves the
 reviewed concurrent store-failure deadlock. Nine controls, 1,225 API passes plus
-four subtests and fresh same-model review; integration/deployment/history/diverse
+four subtests and fresh same-model review; merged at e0c271da1, deployment/history/diverse
 sign-off remain OPEN, not whole-worker or L1 PASS.
 
 27.10.2026: **L1-G-01** [source repair merged #1266](scans/2026-10/repair-g01-query-logging.md)
