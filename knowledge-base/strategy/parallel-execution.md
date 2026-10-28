@@ -1194,6 +1194,8 @@ starting.
 - [ ] **H: the two-node test harness** (`api2.localhost`, a second `docker-compose` node + a test that spins it up) — the foundation that makes A/B/C/D/E testable. A second node (`api2.localhost`) on a separate ClickHouse + MinIO, brought up alongside the first, with a test that signs up on both + verifies a token from one is accepted by the other (once B lands). **Independent — can land first to de-risk the foundation.**
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
+
+- [✓ 3.249.2] **Python implementation rationale (supporting note)** — operator-requested `research/why-python.md`; no workshop draft edits. Covers FastAPI/ClickHouse responsibilities, commercial suitability, inspection/security tradeoffs, profiling before rewriting and fair evaluation. Documentation only; E/W data and paper gates remain open.
 **Owns:** `research/sigmod/` (new — the full paper), `research/evaluation-plan.md` (tick boxes as data lands), `research/related-work.md` (gap check), `research/draft/outline.md` (expand for industry track). **Does NOT own** `research/workshop/` (the workshop paper stays intact as the short version) or any `api/`/`ui/`/`sdk/` source — instrumentation for E2/E3 is a cross-lane seam (file a note in `.context/` if new logging is needed in `api/`). **Deadline: Nov 24, 2026 11:59pm AoE. Internal freeze: Nov 20.** Plan: the "SIGMOD 2027 Industry Track" section in `plan.md`.
 
 **The critical path is data (E1–E6), not writing (W1–W6).** E and W can run in parallel once E1–E3 land; W3 (Evaluation) is gated on all of E.

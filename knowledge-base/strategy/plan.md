@@ -1126,6 +1126,8 @@ all unchecked boxes. The numbers the industry track will demand:
 
 **The writing plan (after the data lands):**
 
+- [✓ 3.249.2] **Python implementation rationale (supporting note)** — `research/why-python.md` covers FastAPI/ClickHouse responsibilities, commercial suitability, security visibility, rewrite tradeoffs and evaluation requirements. Draft untouched; E1–E6/W1–W6 not completed by this note.
+
 - [ ] **W1: scaffold `research/sigmod/`** — acmart sigconf, 12-page budget,
   section outline from `research/draft/outline.md` expanded for industry
   track (add a "Lessons from Running It" section — the industry-track

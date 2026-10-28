@@ -1,3 +1,6 @@
+3.249.2 || 28.10.2026
+docs(research): **explain the Python implementation choice** — add `research/why-python.md`: FastAPI/ClickHouse division of work, commercial suitability, inspection/security tradeoffs, profiling before a Go rewrite, fair baseline requirements and conference framing. Distinguish architecture from measured load and phase ratios from total authorization cost. Paper draft unchanged; no benchmark results claimed.
+
 3.249.1 || 28.10.2026
 docs(security): **resume protocol scan with GPT-6.1 Sol** — preserve historical Luna attribution; add pinned API/SDK/deployment resumption receipts and fresh same-model review. Reproduce validation credential logging and OAuth source-client authority inconsistency; retain consent correlation debt. 167 focused API tests plus four subtests pass; SDK runners unavailable, offline parity/probes pass. No runtime changes, whole-project completion, L1 PASS, rollout or model-diverse sign-off.
 
