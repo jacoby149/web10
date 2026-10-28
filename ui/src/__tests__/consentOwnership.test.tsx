@@ -383,7 +383,7 @@ it('a replacement request fences the previous delayed close', async () => {
   expect(I.current.pendingContracts).toHaveLength(1)
 })
 
-it('a lazy group request replaces the completed app batch before its close timer fires', async () => {
+it('a lazy group request opens a separate consent popup after app login', async () => {
   const I = mount(), app = { postMessage: vi.fn() }, group = { postMessage: vi.fn() }
   const opener = { postMessage: vi.fn() }
   const close = vi.spyOn(window, 'close').mockImplementation(() => {})
@@ -391,10 +391,11 @@ it('a lazy group request replaces the completed app batch before its close timer
   receive(app, [], 'app-login')
   act(() => I.current.setUserConfirmed(true))
   act(() => I.current.goToApp())
-  receive(group, [{ kind: 'group', name: 'lazy-group' }], 'lazy-group')
   expect(opener.postMessage.mock.calls.filter(([payload]) => payload.type === 'auth')).toHaveLength(1)
   await act(async () => { vi.advanceTimersByTime(300) })
-  expect(close).not.toHaveBeenCalled()
+  expect(close).toHaveBeenCalledOnce()
+  act(() => I.current.initAuthenticator())
+  receive(group, [{ kind: 'group', name: 'lazy-group' }], 'lazy-group')
   expect(I.current.pendingContracts).toHaveLength(1)
 })
 

@@ -204,7 +204,6 @@ function useInterface() {
     // GCR: { app_origin, action, params } — group contract (who can see my content)
     [I.pendingContracts, I.setPendingContracts] = React.useState<any[]>([]);
     const consentBatch = React.useRef<any>(null);
-    const consentGeneration = React.useRef(0);
     const currentInterface = React.useRef(I);
     currentInterface.current = I;
     const principal = () => {
@@ -415,7 +414,6 @@ function useInterface() {
                     seenRequests.current.set(e.source, seen);
                 }
                 console.log('[auth-ui] contract message received — raw data:', JSON.stringify(e.data))
-                consentGeneration.current++;
                 cancelConsent('Request replaced');
                 const batch = { rows: [] as any[], source: e.source, origin: e.origin, requestId, emptySettled: false };
                 const normalized = normalizeContracts(e.data, e.source, e.origin, batch, requestId);
@@ -1255,7 +1253,6 @@ function applyACR(cr: any) {
     I.goToApp = function () {
         const batch = consentBatch.current;
         const account = principal();
-        const generation = consentGeneration.current;
         if (batch?.requestId) {
             if (batch.handedOff || !I.completeConsent()) return;
             batch.handedOff = true;
@@ -1276,8 +1273,7 @@ function applyACR(cr: any) {
                 // the token message deliver before the window goes away.
                 console.log('[auth-ui] goToApp — auth token sent, closing popup (self-contained)')
                 setTimeout(() => {
-                    if (consentGeneration.current === generation && consentBatch.current === batch && principal() === account)
-                        window.close();
+                    if (consentBatch.current === batch && principal() === account) window.close();
                 }, 300);
             } catch (err) {
                 console.error('[auth-ui] goToApp — postMessage failed:', err)
