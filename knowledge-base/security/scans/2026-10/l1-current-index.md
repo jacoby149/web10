@@ -98,8 +98,8 @@ Conditional local facts remain bounded; no production breach is established.
 | L1-G-01 | [Source repair merged #1266](repair-g01-query-logging.md) at b5ebcd7e7: safe query diagnostics; red -> green, 1,216 API passes at repair pin, fresh same-model review. Deployment/diverse sign-off OPEN; S4 |
 | L1-H-01 | OPEN object-signing provenance concern; fake-auth/signer proves forwarding, not private retrieval; S5 |
 | L1-J-01 | [Source repair merged #1267](repair-j01-import-traces.md) at e0c271da1: context-owned traces/pre-lock guards; contamination and lock-cycle red -> green. Nine controls/1,225 API passes at repair pin; deployment/history/diverse sign-off OPEN; S5 |
-| S-1 | [Local sender-binding repair verified](repair-s1-auth-sender.md): configured window/origin, explicit/standalone/configured-opener flows; 246 SDK passes/typecheck, five-runtime parity. Browser CI/migration/delivery/diverse review OPEN; no valid credentials/server grants proved; S2 |
-| L1-SDK-A-01/F-01 | OPEN one consent-response integrity class across implementations; origin/window/request/concurrency binding required; S2 |
+| S-1 | [Source repair merged #1273](repair-s1-auth-sender.md) at c258ce048; 246 SDK passes at repair pin, browser/package/Docker/security CI passed on identical a2262c620 inputs. Migration/delivery/diverse review OPEN; S2 |
+| L1-SDK-A-01/F-01 | OPEN: [local sender slice verified](repair-consent-senders.md), 19 new cases/265 SDK passes. Request/batch correlation remains locally reproduced: one matching reply satisfies two pending callbacks. Browser CI/rollout/diverse review pending; S2 |
 | S-6 | OPEN wildcard recipient metadata hygiene, not token exfiltration; S2 |
 | SDK-B-01 | Source/five-runtime repair merged #1255; remaining browser/rollout/sign-off limits retained |
 | L1-OAUTH-01 | OAuth occurrence of D-01 root: local repair denies expired/malformed users before code storage in real HTTP/inert-store controls; valid code flow preserved. Integration/rollout/diverse review OPEN; no live takeover/issuance claim |

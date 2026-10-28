@@ -32,7 +32,7 @@
  */
 
 import { authPost, authGet, Web10Error } from './http'
-import { trackAuthPopup } from './popup'
+import { isPopupMessage, trackAuthPopup } from './popup'
 import { cookieDict, decodeJwt, readTokenCookie, setTokenCookie, scrubTokenCookie } from './token'
 import type { TokenPayload } from './types'
 
@@ -1742,8 +1742,9 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       }
 
       // Listen for contract_response from the auth UI
+      let contractSent = false
       const responseHandler = (e: MessageEvent) => {
-        if (e.data?.type === 'contract_response') {
+        if (e.data?.type === 'contract_response' && contractSent && isPopupMessage(e, popup, authOrigin)) {
           window.removeEventListener('message', responseHandler)
           window.removeEventListener('message', readyHandler)
           clearTimeout(timeoutId)
@@ -1754,10 +1755,11 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
 
       // Wait for auth UI to signal readiness before sending contracts
       const readyHandler = (e: MessageEvent) => {
-        if (e.data?.type === 'auth_ready') {
+        if (e.data?.type === 'auth_ready' && isPopupMessage(e, popup, authOrigin)) {
           window.removeEventListener('message', readyHandler)
           try {
             popup.postMessage({ type: 'contract', contracts }, authOrigin)
+            contractSent = true
           } catch {
             window.removeEventListener('message', responseHandler)
             clearTimeout(timeoutId)
@@ -1788,17 +1790,22 @@ contracts: V3CR[],
         if (callback) callback({ status: 'error', errors: ['No opener window — not in a popup'] })
         return
       }
-      if (authOrigin) trackAuthPopup(window.opener, authOrigin)
+      const opener = window.opener
+      if (authOrigin) trackAuthPopup(opener, authOrigin)
+      if (callback && !authOrigin) {
+        callback({ status: 'error', errors: ['Trusted auth origin required for consent responses'] })
+        return
+      }
       if (callback) {
         const handler = (e: MessageEvent) => {
-          if (e.data?.type === 'contract_response') {
+          if (e.data?.type === 'contract_response' && isPopupMessage(e, opener, authOrigin)) {
             window.removeEventListener('message', handler)
             callback(e.data)
           }
         }
         window.addEventListener('message', handler)
       }
-      window.opener.postMessage(
+      opener.postMessage(
         { type: 'contract', contracts },
         '*',
       )

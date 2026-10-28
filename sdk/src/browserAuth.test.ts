@@ -10,8 +10,11 @@ const runtimes = ['source', 'dist/browser.js', 'dist/wapi.js',
   '../marketing/web10-social/public/wapi.js', '../marketing/marketing-ui/public/docs/wapi.js']
 const authOrigin = 'https://auth.invalid'
 let canonical: string
+let canonicalEsm: string
 beforeAll(() => {
   canonical = execFileSync('bun', ['build', 'src/browser.ts', '--target', 'browser', '--format', 'iife'],
+    { cwd: sdk, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
+  canonicalEsm = execFileSync('bun', ['build', 'src/index.ts', '--target', 'browser', '--format', 'esm'],
     { cwd: sdk, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
 })
 const jwt = (name = 'alice', version = 1) => `e30.${Buffer.from(JSON.stringify({ username: name, provider: 'node.invalid', version })).toString('base64url')}.synthetic`
@@ -36,7 +39,9 @@ function realm(runtime: string) {
     web10: undefined as unknown as typeof import('./browser').default,
   }
   const fetch = vi.fn(async () => ({ ok: true, json: async (): Promise<unknown> => [] }))
-  runInNewContext(runtime === 'source' ? canonical : readFileSync(new URL(runtime, `file://${sdk}`), 'utf8'), {
+  let code = runtime === 'source' ? canonical : runtime === 'esm-source' ? canonicalEsm : readFileSync(new URL(runtime, `file://${sdk}`), 'utf8')
+  if (runtime === 'esm-source' || runtime === 'dist/index.js') code = code.replace(/\nexport \{[\s\S]*\};?\s*$/, '\nwindow.web10 = { createV3Client };')
+  runInNewContext(code, {
     window: host, location: host.location, URL, atob,
     document: { get cookie() { return cookie }, set cookie(value: string) { cookie = value.split(';')[0] } },
     console: { log() {}, warn() {}, error() {} }, fetch,
@@ -44,7 +49,7 @@ function realm(runtime: string) {
     clearTimeout: (id: number) => timers.delete(id),
   })
   return {
-    api: host.web10, opened, timers, fetch, host,
+    api: host.web10, opened, timers, fetch, host, listeners,
     emit: (data: object, origin = authOrigin, source: object | null = opened.at(-1) ?? null) => {
       for (const handler of [...listeners]) handler({ data, origin, source })
     },
@@ -153,11 +158,8 @@ it.each(runtimes)('%s retains opener handoff only with configured trust', (runti
   r.host.opener = opener
   r.api.authListen(signed)
   const client = r.api.createV3Client({ apiOrigin: 'https://node.invalid' })
-  const response = vi.fn()
-  client.contractOnReady([], response)
+  client.contractOnReady([])
   expect(opener.postMessage).toHaveBeenCalledWith({ type: 'contract', contracts: [] }, '*')
-  r.emit({ type: 'contract_response', status: 'approved' }, authOrigin, opener)
-  expect(response).toHaveBeenCalledTimes(1)
   r.emit({ type: 'auth', token: jwt() }, authOrigin, opener)
   expect(r.api.readTokenCookie()).toBeNull()
   client.contractOnReady([], undefined, `${authOrigin}/signin`)
@@ -168,4 +170,83 @@ it.each(runtimes)('%s retains opener handoff only with configured trust', (runti
   r.emit({ type: 'auth', token: jwt() }, authOrigin, opener)
   expect(r.api.readTokenCookie()).toBe(jwt())
   expect(signed).toHaveBeenCalledTimes(1)
+})
+
+it.each(runtimes)('%s binds reused-popup readiness and approval to its sender', (runtime) => {
+  const r = realm(runtime), response = vi.fn()
+  r.api.openAuthPortal(authOrigin)
+  r.api.createV3Client({ apiOrigin: 'https://node.invalid' }).contractRequest([], authOrigin, response)
+  r.emit({ type: 'contract_response', status: 'approved' }, 'https://attacker.invalid', {})
+  expect(response).not.toHaveBeenCalled()
+  r.emit({ type: 'contract_response', status: 'approved' })
+  expect(response).not.toHaveBeenCalled()
+  r.emit({ type: 'auth_ready' }, authOrigin, {})
+  expect(r.opened[0].postMessage).not.toHaveBeenCalled()
+  r.emit({ type: 'auth_ready' })
+  for (const [origin, source] of [[authOrigin, {}], ['https://attacker.invalid', r.opened[0]], ['', r.opened[0]]] as const) {
+    r.emit({ type: 'contract_response', status: 'approved' }, origin, source)
+    expect(response).not.toHaveBeenCalled()
+  }
+  r.opened[0].closed = true
+  r.emit({ type: 'contract_response', status: 'approved' })
+  r.emit({ type: 'contract_response', status: 'approved' })
+  expect(response).toHaveBeenCalledTimes(1)
+})
+
+const consentRuntimes = [...runtimes, 'esm-source', 'dist/index.js']
+it.each(consentRuntimes)('%s binds standalone consent readiness and approval', (runtime) => {
+  const r = realm(runtime), response = vi.fn()
+  r.api.createV3Client({ apiOrigin: 'https://node.invalid' }).contractRequest([], authOrigin, response)
+  r.emit({ type: 'contract_response', status: 'approved' }, 'https://attacker.invalid', {})
+  expect(response).not.toHaveBeenCalled()
+  r.emit({ type: 'contract_response', status: 'approved' })
+  expect(response).not.toHaveBeenCalled()
+  r.emit({ type: 'auth_ready' }, 'https://attacker.invalid')
+  expect(r.opened[0].postMessage).not.toHaveBeenCalled()
+  r.emit({ type: 'auth_ready' })
+  r.emit({ type: 'contract_response', status: 'approved' }, authOrigin, {})
+  r.emit({ type: 'contract_response', status: 'approved' }, 'https://attacker.invalid')
+  expect(response).not.toHaveBeenCalled()
+  expect(r.timers.size).toBe(1)
+  r.emit({ type: 'contract_response', status: 'denied' })
+  expect(response).toHaveBeenCalledTimes(1)
+  expect(response.mock.calls[0][0].status).toBe('denied')
+  expect(r.timers.size).toBe(0)
+  for (const configured of [authOrigin, 'data:text/html,opaque', 'https://[invalid']) {
+    const pending = realm(runtime), expired = vi.fn()
+    pending.api.createV3Client({ apiOrigin: 'https://node.invalid' }).contractRequest([], configured, expired)
+    if (configured !== authOrigin) {
+      pending.emit({ type: 'auth_ready' }, 'null')
+      expect(pending.opened[0].postMessage).not.toHaveBeenCalled()
+    }
+    const [id, fire] = [...pending.timers][0]
+    pending.timers.delete(id)
+    fire()
+    expect(expired.mock.calls[0][0].status).toBe('error')
+    expect(pending.listeners.size).toBe(0)
+    pending.emit({ type: 'contract_response', status: 'approved' })
+    expect(expired).toHaveBeenCalledTimes(1)
+  }
+})
+
+it.each(consentRuntimes)('%s requires configured opener trust for consent callbacks', (runtime) => {
+  const r = realm(runtime), response = vi.fn(), opener = { postMessage: vi.fn() }
+  r.host.opener = opener
+  const client = r.api.createV3Client({ apiOrigin: 'https://node.invalid' })
+  client.contractOnReady([], response)
+  expect(response.mock.calls[0]?.[0].status).toBe('error')
+  expect(opener.postMessage).not.toHaveBeenCalled()
+  expect(r.listeners.size).toBe(0)
+  r.emit({ type: 'contract_response', status: 'approved' }, 'https://attacker.invalid', {})
+  expect(response).toHaveBeenCalledTimes(1)
+  response.mockClear()
+  client.contractOnReady([], response, authOrigin)
+  r.host.opener = { postMessage: vi.fn() }
+  r.emit({ type: 'contract_response', status: 'approved' }, authOrigin, r.host.opener)
+  expect(response).not.toHaveBeenCalled()
+  r.emit({ type: 'contract_response', status: 'approved' }, 'https://attacker.invalid', opener)
+  r.emit({ type: 'contract_response', status: 'approved' }, authOrigin, {})
+  expect(response).not.toHaveBeenCalled()
+  r.emit({ type: 'contract_response', status: 'approved' }, authOrigin, opener)
+  expect(response).toHaveBeenCalledTimes(1)
 })

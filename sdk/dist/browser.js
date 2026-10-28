@@ -126,6 +126,16 @@
   function isAuthPopupMessage(event) {
     return authPopup !== null && expectedOrigin !== null && expectedOrigin !== "null" && event.source === authPopup && event.origin === expectedOrigin;
   }
+  function isPopupMessage(event, source, url) {
+    if (!source || !url)
+      return false;
+    try {
+      const origin = new URL(url, window.location?.href).origin;
+      return origin !== "null" && event.source === source && event.origin === origin;
+    } catch {
+      return false;
+    }
+  }
 
   // src/token.ts
   function cookieDict() {
@@ -868,8 +878,9 @@
             callback({ status: "error", errors: ["Popup blocked — allow popups and try again"] });
           return;
         }
+        let contractSent = false;
         const responseHandler = (e) => {
-          if (e.data?.type === "contract_response") {
+          if (e.data?.type === "contract_response" && contractSent && isPopupMessage(e, popup, authOrigin)) {
             window.removeEventListener("message", responseHandler);
             window.removeEventListener("message", readyHandler);
             clearTimeout(timeoutId);
@@ -878,10 +889,11 @@
         };
         window.addEventListener("message", responseHandler);
         const readyHandler = (e) => {
-          if (e.data?.type === "auth_ready") {
+          if (e.data?.type === "auth_ready" && isPopupMessage(e, popup, authOrigin)) {
             window.removeEventListener("message", readyHandler);
             try {
               popup.postMessage({ type: "contract", contracts }, authOrigin);
+              contractSent = true;
             } catch {
               window.removeEventListener("message", responseHandler);
               clearTimeout(timeoutId);
@@ -902,18 +914,23 @@
             callback({ status: "error", errors: ["No opener window — not in a popup"] });
           return;
         }
+        const opener = window.opener;
         if (authOrigin)
-          trackAuthPopup(window.opener, authOrigin);
+          trackAuthPopup(opener, authOrigin);
+        if (callback && !authOrigin) {
+          callback({ status: "error", errors: ["Trusted auth origin required for consent responses"] });
+          return;
+        }
         if (callback) {
           const handler = (e) => {
-            if (e.data?.type === "contract_response") {
+            if (e.data?.type === "contract_response" && isPopupMessage(e, opener, authOrigin)) {
               window.removeEventListener("message", handler);
               callback(e.data);
             }
           };
           window.addEventListener("message", handler);
         }
-        window.opener.postMessage({ type: "contract", contracts }, "*");
+        opener.postMessage({ type: "contract", contracts }, "*");
       }
     };
     pingAppRegister();
@@ -944,7 +961,7 @@
       console.log("[wapi] openAuthPortal — removed old auth_ready listener");
     }
     _readyListener = (e) => {
-      if (e.data?.type === "auth_ready") {
+      if (e.data?.type === "auth_ready" && isPopupMessage(e, _authPopup, authOrigin)) {
         console.log("[wapi] message event received — type: auth_ready, source:", e.source, "origin:", e.origin);
         _popupReady = true;
         console.log("[wapi] auth_ready — popup is ready, flag set");
@@ -1006,7 +1023,7 @@
           let readyHandler = null;
           let timeoutId = null;
           const responseHandler = (e) => {
-            if (e.data?.type === "contract_response") {
+            if (e.data?.type === "contract_response" && contractSent && isPopupMessage(e, popup, authOrigin)) {
               console.log("[wapi] contract_response received:", e.data);
               window.removeEventListener("message", responseHandler);
               if (readyHandler)
@@ -1042,7 +1059,7 @@
             return;
           }
           readyHandler = (e) => {
-            if (e.data?.type === "auth_ready" && !contractSent) {
+            if (e.data?.type === "auth_ready" && !contractSent && isPopupMessage(e, popup, authOrigin)) {
               console.log("[wapi] auth_ready received, sending contract to popup");
               sendContract();
             }

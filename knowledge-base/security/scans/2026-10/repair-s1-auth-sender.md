@@ -2,8 +2,13 @@
 
 28.10.2026. Baseline `b828736b426e4d36b9fbc334f2b142e9468b9856` (#1271 merged).
 Author/fresh reviewers: separate OpenCode `openrouter/openai/gpt-6.1-sol`
-contexts, same-model, not diverse three-dry review. Source repair verified;
-pending merge/browser CI/deployment, protocol L1 OPEN.
+contexts, same-model, not diverse three-dry review. Source repair merged #1273
+at `c258ce048`; delivery/diverse sign-off pending, protocol L1 OPEN.
+
+Publication: [all four browser E2E shards](https://github.com/jacoby149/web10/actions/runs/40634797677)
+and applicable SDK/package/Docker/security checks passed on a2262c620 without
+reruns. SDK, browser copies and sharing fixture are byte-identical in the merge.
+This is current CI evidence, not external legacy migration or deployment proof.
 
 ## Boundary And Repair
 

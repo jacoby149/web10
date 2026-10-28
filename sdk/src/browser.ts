@@ -18,7 +18,7 @@ import {
   isTokenExpired,
 } from './token'
 import { Web10Error } from './http'
-import { isAuthPopupMessage, trackAuthPopup } from './popup'
+import { isAuthPopupMessage, isPopupMessage, trackAuthPopup } from './popup'
 
 // ── Popup auth helpers (browser-only) ───────────────────────────────────────
 
@@ -70,7 +70,7 @@ function openAuthPortal(authOrigin: string, options: { handoff?: 'token' | 'none
   }
   // Listen for auth_ready — popup sends it once on mount
   _readyListener = (e: MessageEvent) => {
-    if (e.data?.type === 'auth_ready') {
+    if (e.data?.type === 'auth_ready' && isPopupMessage(e, _authPopup, authOrigin)) {
       console.log('[wapi] message event received — type: auth_ready, source:', e.source, 'origin:', e.origin)
       _popupReady = true
       console.log('[wapi] auth_ready — popup is ready, flag set')
@@ -185,7 +185,7 @@ function createV3Client(options?: Parameters<typeof _createV3Client>[0]): V3Clie
       let timeoutId: ReturnType<typeof setTimeout> | null = null
 
       const responseHandler = (e: MessageEvent) => {
-        if (e.data?.type === 'contract_response') {
+        if (e.data?.type === 'contract_response' && contractSent && isPopupMessage(e, popup, authOrigin)) {
           console.log('[wapi] contract_response received:', e.data)
           window.removeEventListener('message', responseHandler)
           if (readyHandler) window.removeEventListener('message', readyHandler)
@@ -223,7 +223,7 @@ function createV3Client(options?: Parameters<typeof _createV3Client>[0]): V3Clie
 
       // Otherwise wait for auth_ready
       readyHandler = (e: MessageEvent) => {
-        if (e.data?.type === 'auth_ready' && !contractSent) {
+        if (e.data?.type === 'auth_ready' && !contractSent && isPopupMessage(e, popup, authOrigin)) {
           console.log('[wapi] auth_ready received, sending contract to popup')
           sendContract()
         }
