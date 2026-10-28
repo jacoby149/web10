@@ -3,12 +3,12 @@
 The evaluation harness for the SIGMOD 2027 industry track paper. Measures the
 query engine's phase-level latency (the access decision vs. the data read) on
 a synthetic dataset, on a single cheap VPS. The "lite hardware" story: the
-entire web10 node runs on a €5/mo box.
+entire web10 node runs on a small Digital Ocean droplet.
 
 ## The experiment
 
-1. **Spin up** a Hetzner Cloud server (cx42: 4 vCPU AMD EPYC, 16 GB, 80 GB
-   NVMe, ~€0.0075/hr).
+1. **Spin up** a Digital Ocean droplet (s-4vcpu-16gb: 4 vCPU AMD EPYC, 16 GB,
+   ~$0.30/hr, nyc3).
 2. **Clone the repo**, bring up the docker-compose stack (api + clickhouse +
    minio).
 3. **Seed** a deterministic synthetic dataset (N users, each with a followers
@@ -18,7 +18,7 @@ entire web10 node runs on a €5/mo box.
    (added in 3.247.0) logs each query's per-phase duration.
 5. **Collect** the results: p50/p95/p99 per phase, throughput (qps), memory
    per container, the hardware spec.
-6. **Tear down** the server. Billing stops.
+6. **Tear down** the droplet. Billing stops.
 
 The whole measurement is localhost — no external traffic, no network noise.
 The latency is pure CPU + disk + the docker bridge.
@@ -27,20 +27,21 @@ The latency is pure CPU + disk + the docker bridge.
 
 | File | What it does |
 |---|---|
-| `spinup.sh` | Creates the Hetzner server, waits for the IP, prints it. |
-| `teardown.sh` | Deletes the server. Billing stops. |
+| `spinup.sh` | Creates the DO droplet, waits for the IP, prints it. |
+| `teardown.sh` | Destroys the droplet. Billing stops. |
 | `seed.py` | Deterministic synthetic data generator (users, groups, docs). |
 | `bench.py` | Query-engine load generator + phase timing collector. |
 | `run.sh` | The orchestrator: compose up → seed → bench → collect → results. |
 | `results/` | The output: `bench-results.json`, `seed-summary.json`, `docker-stats.txt`, `system-info.txt`. |
+| `pre-experiment/` | The baby test: spin up → docker hello-world → error → teardown. De-risks the lifecycle. |
 
 ## Quick start (on your machine, to get the box)
 
 ```bash
-export HCLOUD_TOKEN=<your-hetzner-cloud-api-token>
+export DO_API_TOKEN=<your-digital-ocean-api-token>
 cd research/experiments
 ./spinup.sh
-# → prints the IP, e.g. 159.69.XX.XX
+# → prints the IP, e.g. 159.XX.XX.XX
 ```
 
 ## On the box (the go-go-go)
@@ -73,10 +74,10 @@ scp -r root@<ip>:~/sucre/research/experiments/results/ ./results/
 ## Tear down
 
 ```bash
-export HCLOUD_TOKEN=<your-token>
+export DO_API_TOKEN=<your-token>
 cd research/experiments
 ./teardown.sh
-# → "deleted. billing stopped."
+# → "destroyed. billing stopped."
 ```
 
 ## The scale curve (the paper's E3 cost model)
@@ -114,8 +115,8 @@ the "zero scan-time penalty" claim, with numbers.
 ## Reproducibility
 
 The experiment is fully reproducible:
-- **Hardware:** Hetzner cx42 (4 vCPU AMD EPYC, 16 GB, 80 GB NVMe), fsn1
-  (Falkenstein, DE). The spec is in `results/system-info.txt`.
+- **Hardware:** Digital Ocean s-4vcpu-16gb (4 vCPU AMD EPYC, 16 GB), nyc3
+  (New York 3). The spec is in `results/system-info.txt`.
 - **Software:** the repo at the commit you cloned. The docker-compose stack
   (api + clickhouse 24.3 + minio). The ClickHouse schema is in
   `clickhouse-init/`.
@@ -125,7 +126,7 @@ The experiment is fully reproducible:
   query is in `bench.py` (the `FEED_SQL` constant). The timing is parsed
   from the API's `[query] … timing_ms` log lines.
 
-Anyone can re-run this on a €5/mo box in ~10 minutes.
+Anyone can re-run this on a small DO droplet in ~10 minutes.
 
 ## The baseline (future)
 

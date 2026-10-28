@@ -1,61 +1,64 @@
 #!/usr/bin/env bash
-# web10 SIGMOD experiment — Hetzner Cloud spin-up.
+# web10 SIGMOD experiment — Digital Ocean spin-up.
 #
 # Usage:
-#   export HCLOUD_TOKEN=<your-token>
+#   export DO_API_TOKEN=<your-token>
 #   ./spinup.sh
 #
-# Creates a cx42 (4 vCPU AMD EPYC, 16 GB, 80 GB NVMe) in fsn1 (Falkenstein),
-# Ubuntu 24.04. Waits for the IP, prints it. Tagged web10-sigmod so
-# teardown.sh finds it. Hourly billing — destroy when done.
+# Creates a s-4vcpu-16gb droplet in nyc3 (Ubuntu 24.04), waits for SSH,
+# prints the IP. The droplet is tagged web10-sigmod so teardown.sh finds it.
+# Hourly billing — destroy when done.
 #
-# The box is the experiment host: the web10 node runs in docker compose on it,
-# the bench hammers localhost, no external traffic during measurement.
+# The droplet is the experiment host: the web10 node runs in docker compose on
+# it, the bench hammers localhost, no external traffic during measurement.
 
 set -euo pipefail
 
-: "${HCLOUD_TOKEN:?error: HCLOUD_TOKEN not set (https://console.hetzner.cloud → API tokens)}"
+: "${DO_API_TOKEN:?error: DO_API_TOKEN not set (Digital Ocean → API → Tokens)}"
 
-REGION="${REGION:-fsn1}"
-SERVER_TYPE="${SERVER_TYPE:-cx42}"
-IMAGE="${IMAGE:-ubuntu-24.04}"
-LABEL="web10-sigmod-$(date +%Y%m%d-%H%M%S)"
-API="https://api.hetzner.cloud/v1"
+REGION="${REGION:-nyc3}"
+SIZE="${SIZE:-s-4vcpu-16gb}"
+IMAGE="${IMAGE:-ubuntu-24-04-x64}"
+SLUG="web10-sigmod-$(date +%m%d%H%M)"
+API="https://api.digitalocean.com/v2"
 
-echo "creating server: ${LABEL} (${SERVER_TYPE}, ${REGION}, ${IMAGE})"
+echo "creating droplet: ${SLUG} (${SIZE}, ${REGION}, ${IMAGE})"
 
-CREATE=$(curl -s -X POST \
-  -H "Authorization: Bearer ${HCLOUD_TOKEN}" \
+DROPLET_ID=$(curl -s -X POST \
+  -H "Authorization: Bearer ${DO_API_TOKEN}" \
   -H "Content-Type: application/json" \
   -d "{
-    \"server\": {
-      \"name\": \"${LABEL}\",
-      \"server_type\": \"${SERVER_TYPE}\",
-      \"image\": \"${IMAGE}\",
-      \"location\": \"${REGION}\",
-      \"labels\": {\"web10-sigmod\": \"1\"},
-      \"public_net\": {\"ipv4\": true}
-    }
+    \"name\": \"${SLUG}\",
+    \"region\": \"${REGION}\",
+    \"size\": \"${SIZE}\",
+    \"image\": \"${IMAGE}\",
+    \"tags\": [\"web10-sigmod\"],
+    \"ssh_keys\": [],
+    \"monitoring\": true
   }" \
-  "${API}/servers")
+  "${API}/droplets" | python3 -c "import sys,json; print(json.load(sys.stdin).get('droplet',{}).get('id',''))")
 
-SERVER_ID=$(echo "$CREATE" | python3 -c "import sys,json; print(json.load(sys.stdin)['server']['id'])")
-echo "server id: ${SERVER_ID}"
-echo "waiting for ip..."
+if [[ -z "$DROPLET_ID" ]]; then
+  echo "error: could not create droplet" >&2
+  exit 1
+fi
+echo "droplet id: ${DROPLET_ID}"
+echo "waiting for active + public_ip..."
 
 for i in $(seq 1 60); do
-  IP=$(curl -s -H "Authorization: Bearer ${HCLOUD_TOKEN}" \
-    "${API}/servers/${SERVER_ID}" | python3 -c "
+  STATE=$(curl -s -H "Authorization: Bearer ${DO_API_TOKEN}" \
+    "${API}/droplets/${DROPLET_ID}" | python3 -c "
 import sys, json
-s = json.load(sys.stdin)['server']
-for n in s.get('public_net', {}).get('ipv4', []):
-    if n.get('ip'):
-        print(n['ip']); break
+d = json.load(sys.stdin).get('droplet', {})
+v4 = [n['ip_address'] for n in d.get('networks',{}).get('v4',[]) if n.get('type')=='primary']
+print(d.get('status',''), v4[0] if v4 else '')
 ")
-  if [[ -n "$IP" ]]; then
-    echo "ip: ${IP}"
+  STATUS=$(echo "$STATE" | awk '{print $1}')
+  IP=$(echo "$STATE" | awk '{print $2}')
+  if [[ "$STATUS" == "active" && -n "$IP" ]]; then
+    echo "active: ${IP}"
     echo "${IP}" > /tmp/web10-sigmod-ip
-    echo "${SERVER_ID}" > /tmp/web10-sigmod-id
+    echo "${DROPLET_ID}" > /tmp/web10-sigmod-id
     echo ""
     echo "done. the box is at ${IP}"
     echo "next:"
@@ -67,5 +70,5 @@ for n in s.get('public_net', {}).get('ipv4', []):
   sleep 5
 done
 
-echo "error: no ip after 300s" >&2
+echo "error: droplet not active after 300s" >&2
 exit 1
