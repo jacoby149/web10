@@ -2,9 +2,9 @@
 
 27.10.2026. Baseline `e0c271da1585dec8c9f736424b6a4589da519e3b` (#1267 merged).
 Author/fresh reviewer: separate OpenCode `openrouter/openai/gpt-6.1-sol` contexts;
-same-model, not model-diverse three-dry sign-off. Source repair verified locally;
-pending PR review/merge, not deployed. Linux container compatibility remains a CI
-gate; no L1 PASS or full supply-chain assurance.
+same-model, not model-diverse three-dry sign-off. Source repair merged #1268 at
+`c6f9cc85d`; deployment/diverse review not established. Required Linux image CI
+passed on the equivalent pre-merge source revision; no L1 PASS or supply-chain assurance.
 
 ## Finding And Repair
 
@@ -63,6 +63,15 @@ also has pre-existing correspondence differences; Bun acceptance is not a claim
 that all local-package metadata or external dependency code is certified.
 
 ## DESIGN-INTENT REVIEW
+
+Publication follow-up: #1268 revision `8a420f767` passed both actual production
+Linux image checks: [marketing](https://github.com/jacoby149/web10/actions/runs/40623442891/job/122602657638)
+and [social](https://github.com/jacoby149/web10/actions/runs/40623442891/job/122602658011),
+plus all four E2E shards and other applicable checks. Compared the merge commit's
+two Dockerfiles, API/Docker workflows and focused test against that revision:
+byte-identical. This satisfies the earlier pending image CI gate for those inputs,
+not deployment, external dependency authenticity or diverse sign-off. The original
+local native-only evidence above is retained as history, not current CI status.
 
 - Intent: ship marketing/social and the marketing SDK producer using locked inputs, supported local packages and operator-selected origins.
 - Delta: locked-install failure stops a build instead of silently resolving unrestricted dependencies; successful build flow is unchanged.

@@ -415,6 +415,18 @@ not its production image. The latter now has its own Linux Docker matrix entry,
 with source/workflow triggers and a red/green control. Eight controls/1,233 API
 passes do not substitute for the new revision's actual production-image checks.
 
+### 2026-10-27: A verified signature is not freshness
+
+[D-01/D-02 local repair](scans/2026-10/repair-d01-token-freshness.md) enforces
+custom ISO expiry at verified decoding, covering direct OAuth/account callers
+as well as principal helpers and the session oracle. Missing/malformed user
+expiry is invalid, equality is expired, naive timestamps mean UTC and offsets
+are absolute instants. Anonymous exemption/unsigned metadata/standard-exp checks
+stay distinct. Initial 48 failures turn green; 92 controls and 1,325 API passes
+support local repair, not issuer/rollout/diverse sign-off. Dated acceptance covers
+reauth for incompatible legacy tokens and no skew grace; reopen on supported
+issuer-format, clock or browser-recovery failures without restoring fail-open.
+
 ## Known gaps (the "obvious gap" register)
 
 Gaps the orient has surfaced. Each is either a `BP-n` or a standing note:

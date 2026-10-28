@@ -15,7 +15,6 @@ every user into a re-auth loop.
 """
 
 import logging
-from datetime import datetime
 
 import jwt
 from fastapi import APIRouter, Request
@@ -48,16 +47,8 @@ def _check_token(token: str | None) -> tuple[str, str | None, str | None]:
     if not decoded.username or decoded.username == "anon":
         # Well-formed but not a user session.
         return "invalid", None, None
-    # User tokens carry a custom `expires` claim (ISO string), NOT the standard
-    # `exp` — PyJWT doesn't check it, so check it here. This mirrors the SDK's
-    # isTokenExpired (the client-side check); the server otherwise would report
-    # a lapsed token as "valid".
-    if decoded.expires:
-        try:
-            if datetime.utcnow() >= datetime.fromisoformat(decoded.expires):
-                return "expired", None, None
-        except ValueError:
-            pass  # unparseable expires — signature still valid, not expired
+    # Verified decode enforces custom ISO expiry as well as JWT `exp`; the
+    # exception branches above distinguish expired from malformed/missing.
     provider = decoded.provider or settings.PROVIDER
     return "valid", decoded.username, provider
 
