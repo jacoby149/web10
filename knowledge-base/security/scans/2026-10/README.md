@@ -11,6 +11,24 @@ that are confirmed bugs get a lane item + a fix PR; the audit doc is the record.
 
 ## Scope and method
 
+### Model transition: gpt-6.1-sol to gpt-6-luna
+
+On 28.10.2026 the operator changed the model for the remaining security sweep
+from `openai/gpt-6.1-sol` to `openai/gpt-6-luna` (routed as
+`openrouter/openai/gpt-6-luna`) because Sol is oversubscribed and Luna is more
+economical. The operator's assessment is that Luna is weaker than Sol: this
+trade lowers the reliability of model-based discovery/review, but still sets a
+useful security floor rather than providing no sweep. It does not change the
+security method, scope, evidence bar, finding dispositions, or acceptance
+criteria, and it is not grounds to claim the resulting assurance is equivalent
+to a Sol-led sweep. Earlier scan receipts and reviews remain attributed to the
+model actually used; they are not relabeled as Luna work. Luna-authored work
+must record its exact model identifier, pin, scope, and reviewer in its own
+receipt. A fresh review by Luna is not a different-model-family review relative
+to Luna-authored work, and does not satisfy the required model-diverse three-dry
+sign-off. Keep that gate explicitly OPEN until reviewers from distinct model
+families complete it.
+
 **Method (AI-use-theory applied to security):** the KB is the target. The
 invariants I1–I6 in `knowledge-base/web10-v3/security/overview.md` are the
 specification; the code is what is being checked against it. A finding is
