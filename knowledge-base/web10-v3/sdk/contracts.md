@@ -299,6 +299,13 @@ One request per operation. Granular consent. The user can approve some and deny 
 
 ## Contract Listen
 
+`contractOnReady` remains available for an authenticator that opened the app.
+Its two-argument metadata handshake is unchanged. For browser auth-token handoff,
+call `w.contractOnReady(contracts, onResponse, AUTH_ORIGIN)` with an authenticator
+origin from trusted app configuration. It binds window.opener plus the canonical
+origin; an unconfigured opener is not authorized to write the token cookie.
+Normal app-opened login/contractRequest flows register their popup automatically.
+
 The consent protocol. When an app requests access, it sends contract data to the authenticator via `contractOnReady`. The authenticator listens for these requests via `contractListen`. One unified listener for both app contracts and group contracts.
 
 ```ts

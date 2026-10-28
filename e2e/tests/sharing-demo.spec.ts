@@ -475,27 +475,31 @@ test.describe('Sharing demo — browser gauntlet', () => {
     // login popup AND the lazy group popup each send an `auth` message, so the
     // demo can receive the same token twice. Re-running initApp on the second
     // delivery used to append "sharing group ready" a second time.
-    await setupSignedInDemo(page, context, request, true);
+    const { token } = await setupSignedInDemo(page, context, request, true);
     const full = captureFull(page);
 
     await page.goto(`${MARKETING_BASE}/docs/sharing/`);
     await page.waitForLoadState('networkidle');
     await expect(page.locator('#message')).toContainText('sharing group ready', { timeout: 10000 });
 
-    // Simulate the duplicate delivery: post the current cookie's token as an
-    // `auth` message, exactly as the popup's goToApp would on a second
-    // "return to app". The SDK dedupes it (same user already in the cookie) —
-    // it refreshes the cookie but does NOT re-fire the signed-in callback, so
-    // the demo never re-inits.
-    await page.evaluate(() => {
-      const m = document.cookie.match(/(?:^|;\s*)token=([^;]+)/);
-      window.postMessage({ type: 'auth', token: m ? m[1] : null }, '*');
-    });
+    // The app itself is not an authenticator sender, even for the same token.
+    await page.evaluate((token) => window.postMessage({ type: 'auth', token }, '*'), token);
+    await expect.poll(() => full.console.some((l) => l.includes('auth event rejected'))).toBeTruthy();
+
+    // Inject only the duplicate-delivery fixture at document start in a real,
+    // SDK-opened auth-origin popup. This is not a login/consent-flow test.
+    await context.addInitScript(({ token, auth, target }) => {
+      if (location.origin === auth && window.opener) window.opener.postMessage({ type: 'auth', token }, target);
+    }, { token, auth: AUTH_BASE, target: MARKETING_BASE });
+    const popupPromise = page.waitForEvent('popup');
+    await page.evaluate((auth) => (window as any).web10.openAuthPortal(auth), AUTH_BASE);
+    const popup = await popupPromise;
 
     // The SDK receives the redundant event and skips the callback...
     await expect
       .poll(() => full.console.some((l) => l.includes('same user — skipping signed-in callback')))
       .toBeTruthy();
+    if (!popup.isClosed()) await popup.close();
 
     // ...so "sharing group ready" appears exactly once.
     const readyCount = await page.evaluate(

@@ -18,6 +18,7 @@ import {
   isTokenExpired,
 } from './token'
 import { Web10Error } from './http'
+import { isAuthPopupMessage, trackAuthPopup } from './popup'
 
 // ── Popup auth helpers (browser-only) ───────────────────────────────────────
 
@@ -53,11 +54,13 @@ function openAuthPortal(authOrigin: string, options: { handoff?: 'token' | 'none
   // A unique name per call guarantees a fresh window. The SDK reuses the popup
   // via the `_authPopup` reference (not the name), so this is safe.
   const winName = `web10-auth-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+  if (options.handoff !== 'none') trackAuthPopup(null, authOrigin)
   _authPopup = window.open(
     url,
     winName,
     'width=480,height=720,scrollbars=yes',
   )
+  if (options.handoff !== 'none') trackAuthPopup(_authPopup, authOrigin)
   console.log('[wapi] openAuthPortal — popup returned:', _authPopup ? 'open' : 'blocked/null')
   _popupReady = false
   // Clean up old listener
@@ -86,6 +89,10 @@ function authListen(
 ): () => void {
   const handler = (e: MessageEvent) => {
     if (e.data?.type === 'auth' && e.data?.token) {
+      if (!isAuthPopupMessage(e)) {
+        console.warn('[wapi] auth event rejected — unbound popup sender')
+        return
+      }
       // Identity check (D42 + the cookie-torture anti-tests): the popup acts for
       // its OWN cookie's user. If that user differs from the one this app is
       // already acting as, storing the token would silently hijack the app's

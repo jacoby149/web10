@@ -67,6 +67,18 @@ async function authGet(url, params) {
   return res.json();
 }
 
+// src/popup.ts
+var authPopup = null;
+var expectedOrigin = null;
+function trackAuthPopup(popup, url) {
+  authPopup = popup;
+  expectedOrigin = null;
+  try {
+    if (popup)
+      expectedOrigin = new URL(url, window.location?.href).origin;
+  } catch {}
+}
+
 // src/token.ts
 function cookieDict() {
   if (typeof document === "undefined")
@@ -836,7 +848,9 @@ function createV3Client(options = {}) {
           callback({ status: "error", errors: ["Not in a browser"] });
         return;
       }
+      trackAuthPopup(null, authOrigin);
       const popup = window.open(`${authOrigin}`, "web10-consent", "width=480,height=720,scrollbars=yes");
+      trackAuthPopup(popup, authOrigin);
       if (!popup) {
         if (callback)
           callback({ status: "error", errors: ["Popup blocked — allow popups and try again"] });
@@ -870,12 +884,14 @@ function createV3Client(options = {}) {
         callback?.({ status: "error", errors: ["Auth popup closed — request cancelled"] });
       }, 30000);
     },
-    contractOnReady(contracts, callback) {
+    contractOnReady(contracts, callback, authOrigin) {
       if (typeof window === "undefined" || !window.opener) {
         if (callback)
           callback({ status: "error", errors: ["No opener window — not in a popup"] });
         return;
       }
+      if (authOrigin)
+        trackAuthPopup(window.opener, authOrigin);
       if (callback) {
         const handler = (e) => {
           if (e.data?.type === "contract_response") {

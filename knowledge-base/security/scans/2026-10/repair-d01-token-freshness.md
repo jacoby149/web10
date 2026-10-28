@@ -3,7 +3,7 @@
 27.10.2026. Baseline `c6f9cc85dad79dc8b7d2b621940adc8bb121bf0d` (#1268 merged).
 Author/fresh reviewer: separate OpenCode `openrouter/openai/gpt-6.1-sol` contexts,
 same-model, not model-diverse three-dry sign-off. Source repair verified locally;
-pending PR review/merge, not deployed. Overall protocol L1 gate remains OPEN.
+merged #1271 at `b828736b4`; deployment/diverse sign-off not established. Overall L1 OPEN.
 
 ## One Root, Three Observations
 

@@ -32,6 +32,7 @@
  */
 
 import { authPost, authGet, Web10Error } from './http'
+import { trackAuthPopup } from './popup'
 import { cookieDict, decodeJwt, readTokenCookie, setTokenCookie, scrubTokenCookie } from './token'
 import type { TokenPayload } from './types'
 
@@ -1728,11 +1729,13 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
         return
       }
 
+      trackAuthPopup(null, authOrigin)
       const popup = window.open(
         `${authOrigin}`,
         'web10-consent',
         'width=480,height=720,scrollbars=yes',
       )
+      trackAuthPopup(popup, authOrigin)
       if (!popup) {
         if (callback) callback({ status: 'error', errors: ['Popup blocked — allow popups and try again'] })
         return
@@ -1779,11 +1782,13 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
     contractOnReady(
 contracts: V3CR[],
       callback?: (response: { status: string; errors?: string[] }) => void,
+      authOrigin?: string,
     ): void {
       if (typeof window === 'undefined' || !window.opener) {
         if (callback) callback({ status: 'error', errors: ['No opener window — not in a popup'] })
         return
       }
+      if (authOrigin) trackAuthPopup(window.opener, authOrigin)
       if (callback) {
         const handler = (e: MessageEvent) => {
           if (e.data?.type === 'contract_response') {
@@ -1865,7 +1870,7 @@ export interface V3Client {
   contractRequest(contracts: V3CR[], authOrigin: string, callback?: (response: { status: string; errors?: string[] }) => void): void
 
   // Legacy: send contracts to the opener (authenticator that opened this app)
-  contractOnReady(contracts: V3CR[], callback?: (response: { status: string; errors?: string[] }) => void): void
+  contractOnReady(contracts: V3CR[], callback?: (response: { status: string; errors?: string[] }) => void, authOrigin?: string): void
 
   // Groups
   createGroup(name: string, joinPolicy: string, roles: Record<string, unknown>[], members: { member_key: string; role?: string }[], opts?: { discoverable?: boolean; tags?: string[]; membership_visibility?: string }): Promise<{ group_id: string }>
