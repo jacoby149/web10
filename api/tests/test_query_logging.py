@@ -123,15 +123,21 @@ def test_execution_records_share_server_generated_id_and_keep_useful_signal(quer
     client, _ = query_client
     client.post("/v3/query", json={"sql": "SELECT 1"})
     records = [record for record in caplog.records if record.name == endpoint.__name__]
-    assert len(records) == 2
+    # 3 records: the shape log, the rows/duration log, and the timing log.
+    assert len(records) == 3
     diagnostic_id = records[0].args[0]
     assert len(diagnostic_id) == 32
     assert int(diagnostic_id, 16) >= 0
     assert records[1].args[0] == diagnostic_id
+    assert records[2].args[0] == diagnostic_id
     assert records[0].args[-2]["nodes"][0] == (None, "Select")
     assert records[0].args[-1]["nodes"][0] == (None, "Select")
     assert records[1].args[1:3] == (1, 1)
     assert records[1].args[3] >= 0
+    # The timing log: 11 phase durations + total, all non-negative.
+    timing_args = records[2].args[1:]
+    assert len(timing_args) == 11
+    assert all(a >= 0 for a in timing_args)
 
 
 def test_unsafe_query_still_rejected_before_execution(query_client, caplog):

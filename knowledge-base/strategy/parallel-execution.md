@@ -1195,7 +1195,7 @@ starting.
 **The critical path is data (E1–E6), not writing (W1–W6).** E and W can run in parallel once E1–E3 land; W3 (Evaluation) is gated on all of E.
 
 - [ ] **E1: scale counters** — users, collections/groups, documents, access decisions/day, deployment duration. The "it's not a toy" numbers. Query from the running node; snapshot with a date.
-- [ ] **E2: access-decision latency** — p50/p95/p99 of resolve+compute (token verify + contract check + membership), the breakdown, throughput, overhead vs. the underlying read. Instrument if not logged (seam: `api/`).
+- [~ 3.247.0] **E2: access-decision latency** — p50/p95/p99 of resolve+compute (token verify + contract check + membership), the breakdown, throughput, overhead vs. the underlying read. Instrument if not logged (seam: `api/`). **Instrumentation landed** (3.247.0): 10 phase timers in `run_query` (auth, app_contract, parse_validate, candidates, readable, group_meta, compile, execute, serialize, prepare) + total. **Data collection pending**: run the node under load, scrape the `[query] … timing_ms` logs, compute p50/p95/p99 per phase. The `readable` phase is the access decision (the claim's core metric); `execute` is the ClickHouse scan; `compile` is the AST + CTE injection.
 - [ ] **E3: cost model** — per-user-collection vs. shared-table baseline, cost curve, storage overhead.
 - [ ] **E4: social-app case study** — key-flow latency (feed, post, DM, group read) on web10 vs. a conventional shared-DB backend; wins/losses; what the baseline can't express.
 - [ ] **E5: conformance results** — permission-matrix suite: case count, all passing, I3 negative tests (exploit replayed + denied), revocation bound.
