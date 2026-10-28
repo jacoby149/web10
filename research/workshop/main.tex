@@ -8,6 +8,7 @@
 \usepackage{microtype}
 \usepackage{xcolor}
 \usepackage{listings}
+\usepackage{graphicx}
 
 \lstdefinestyle{sql}{
   language={},
@@ -170,14 +171,15 @@ asks two independent questions, and \emph{both} must pass:
 
 \begin{center}
 \small
-\begin{tabular}{ll}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{@{}ll@{}}
 \toprule
 \textbf{Layer} & \textbf{Question} \\
 \midrule
 App trust (outer wall)   & Can this \emph{app} perform $O$ on $S$? \\
 Person trust (inner wall) & Can this \emph{principal}'s effective role in $G$ grant $O$ on $S$? \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{center}
 
 The app contract is \emph{infrastructure trust}: which origins may touch
