@@ -3,7 +3,7 @@
 27.10.2026; baseline `f7aabdb26346752141f46f19c393dbadfd25ddd2` (#1255 merged).
 Author/reviewer: separate OpenCode `gpt-6.1 sol` contexts
 (`openrouter/openai/gpt-6.1-sol`), same-model, not model-diverse three-dry sign-off.
-Status: source repair verified; pending PR integration/merge, not deployed.
+Status: source repair merged #1265 at `b5d128a52`; deployment/sign-off not established.
 
 ## Scope And Order
 

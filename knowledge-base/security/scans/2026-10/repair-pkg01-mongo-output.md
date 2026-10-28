@@ -2,7 +2,7 @@
 
 27.10.2026. Baseline `c893f2f66` (open #1265); this repair is a separately
 recorded follow-up on the same branch, included in #1265 by the operator's
-commit-and-push request. Pending merge/deployment. Model: OpenCode
+commit-and-push request. Merged #1265 at `b5d128a52`; deployment/sign-off not established. Model: OpenCode
 `openrouter/openai/gpt-6.1-sol`; fresh same-model reviewer, no diversity credit.
 
 ## Boundary And Intent

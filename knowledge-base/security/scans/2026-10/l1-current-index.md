@@ -89,13 +89,13 @@ Conditional local facts remain bounded; no production breach is established.
 | B-4 | Source repair merged #1225; other loggers/history/exposure remain separate |
 | B-5 | OPEN wildcard-CORS credential-boundary pinning obligation; no demonstrated wildcard exploit |
 | B-6 | OPEN unscoped-getter/capability caller handoff, not independently a data leak |
-| B-8 | Local source repair verified, pending merge; four red/green CLI cases, 1,180 API tests; not B-2 closure |
+| B-8 | Source repair merged #1265 at b5d128a52; four red/green CLI cases, 1,180 API tests at repair pin; not B-2/deployment closure |
 | L1-A-02 | OPEN manifest caller-destination routing/JSON proxy primitive; fake HTTP evidence, real network reach not shown; S1 |
 | L1-B-01 | OPEN unsigned remote-helper destination/status trust; actual callers/reach unverified; S3 |
 | L1-D-01 | OPEN expired signed principal production; S3 freshness foundation with explicit valid/anonymous controls |
 | L1-D-02 | OPEN null/malformed-expiry session classification; no oracle-to-CRUD grant proved; S3 |
 | L1-E-01 | OPEN account token GET-query transport; no theft shown; S7 body-authenticated detail and consumers |
-| L1-G-01 | OPEN caller/compiled SQL INFO logging; [operator-agreed repair strategy](../../../web10-v3/security/logging.md#query-diagnostics-strategy): safe parser-derived shape/metadata, no automatic raw values. Not implemented, SQL injection or observed retained credential theft; S4 |
+| L1-G-01 | [Local source repair verified](repair-g01-query-logging.md): safe topology/metadata for submitted/compiled paths, no column/error/parser-fallback echoes; red -> green, 1,216 API passes, fresh same-model review. Integration/deployment/diverse sign-off OPEN; not SQL injection or observed credential theft; S4 |
 | L1-H-01 | OPEN object-signing provenance concern; fake-auth/signer proves forwarding, not private retrieval; S5 |
 | L1-J-01 | OPEN overlapping import-job trace contamination; synchronized actual-handler/inert-insert proof; S5 |
 | S-1 | OPEN sender-unbound SDK credential message; synthetic acceptance not valid credentials; S2 |
@@ -106,7 +106,7 @@ Conditional local facts remain bounded; no production breach is established.
 | L1-CURRENT-STORE-B-01 | Conditional single-use code consumption failure: two forced active snapshots both return user. Actual schema/ClickHouse/endpoint issuance unverified |
 | L1-CURRENT-STORE-B-02 | Bulk revoke/cleanup SQL omits delegated client identity; actual default/merge/authorization impact UNVERIFIED, not proven revoke bypass |
 | STORE-A-SCHEMA | OAuth code DDL references undeclared version column; insert compatibility and existing/fresh schema need real evidence; correctness/reachability, not C+I exploit |
-| L1-PKG-01 | Local repair verified: whole URI omitted from audit/stdout/file manifests, 12 red -> green cases and fresh same-model review; [repair](repair-pkg01-mongo-output.md). Pending source integration/deployment/sign-off, not historical exposure closure; S1 |
+| L1-PKG-01 | Source repair merged #1265 at b5d128a52: whole URI omitted from audit/stdout/file manifests, 12 red -> green cases and fresh same-model review; [repair](repair-pkg01-mongo-output.md). Deployment/sign-off/history remain open; S1 |
 | L1-PKG-02 | Conditional backup protection risk; actual permissions/symlink/access UNVERIFIED, not a replayed filesystem disclosure |
 | L1-DEPLOY-01 | Frozen-install fallback drops integrity constraint at three sites; conditional supply-chain control finding, no poisoned artifact shown |
 | ART-01 / orphan artifacts | Producer pin/publication drift, six orphan declaration/maps and docs RTC provenance OPEN; hashes not build/publication/deployment assurance |
