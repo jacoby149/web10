@@ -1,10 +1,16 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { act, cleanup, renderHook } from '@testing-library/react'
+import { act, cleanup, renderHook, render, fireEvent, screen } from '@testing-library/react'
 import useInterface from '../interfaces/Interface'
+import ConsentView from '../components/Consent/ConsentView'
+import { vaultToken } from '../lib/tokenVault'
+
+const session = vi.hoisted(() => ({ username: 'alice', token: 'synthetic-token' as string | null }))
 
 vi.mock('../interfaces/authAdapter', () => ({ default: () => ({ v3: {
-  state: { token: 'synthetic-token' },
-  readToken: () => ({ username: 'alice', provider: 'api.localhost', expires: '2099-01-01' }),
+  state: { get token() { return session.token } },
+  readToken: () => ({ username: session.username, provider: 'api.localhost', expires: '2099-01-01' }),
+  signOut: () => { session.token = null },
+  setToken: (token: string) => { session.token = token; session.username = 'bob' },
   getProfile: async () => ({}),
 } }) }))
 
@@ -12,6 +18,7 @@ const ok = (value: unknown = []) => ({ ok: true, json: async () => value })
 let apply = vi.fn()
 let subscriptions: ReturnType<typeof vi.spyOn>
 beforeEach(() => {
+  session.username = 'alice'; session.token = 'synthetic-token'
   vi.useFakeTimers()
   apply = vi.fn(async () => ok({}))
   vi.stubGlobal('fetch', vi.fn((url: string) => url.endsWith('/app-contracts/add') ? apply() : Promise.resolve(ok())))
@@ -120,7 +127,7 @@ it('keeps legacy response shape and refuses malformed indexed downgrade', async 
   receive(source, [appContract()])
   const row = I.current.pendingContracts[0]
   for (const bad of ['', 42, 'x'.repeat(129)]) receive(source, [appContract()], bad)
-  for (const contracts of [[], [null], [undefined], new Array(1)]) receive(source, contracts as object[], 'invalid-shape')
+  for (const contracts of [[null], [undefined], new Array(1)]) receive(source, contracts as object[], 'invalid-shape')
   expect(I.current.pendingContracts[0]).toBe(row)
   await act(async () => { I.current.approveContract(row) })
   expect(source.postMessage).toHaveBeenCalledWith({ type: 'contract_response', status: 'approved', errors: undefined }, '*')
@@ -135,7 +142,7 @@ it('does not confuse the same ID on another window with a replay', async () => {
   await act(async () => { I.current.approveContract(old) })
   expect(apply).not.toHaveBeenCalled()
   act(() => I.current.denyContract(I.current.pendingContracts[0]))
-  expect(a.postMessage).not.toHaveBeenCalled()
+  expect(a.postMessage.mock.calls[0][0]).toMatchObject({ requestId: 'shared-id', status: 'error' })
   expect(b.postMessage.mock.calls[0][0]).toMatchObject({ requestId: 'shared-id', status: 'denied' })
 })
 
@@ -197,4 +204,185 @@ it('group writes exclude reply ownership metadata', async () => {
   const write = vi.mocked(fetch).mock.calls.find(([url]) => String(url).endsWith('/groups/create'))
   expect(Object.keys(JSON.parse(write![1]!.body as string)).sort()).toEqual(['join_policy', 'members', 'name', 'roles', 'token'])
   expect(source.postMessage.mock.calls[0][0]).toMatchObject({ requestId: 'group-batch', contractIndex: 0, status: 'approved' })
+})
+
+it('replacement terminates the old request, including in-flight rows, exactly once', async () => {
+  const I = mount(), source = { postMessage: vi.fn() }, pending = deferred()
+  apply.mockReturnValueOnce(pending.promise)
+  receive(source, [appContract(), appContract()], 'old')
+  await act(async () => { I.current.approveContract(I.current.pendingContracts[0]) })
+  receive(source, [appContract()], 'new')
+  expect(source.postMessage.mock.calls.map(([p]) => [p.requestId, p.contractIndex, p.status]))
+    .toEqual([['old', 0, 'error'], ['old', 1, 'error']])
+  await act(async () => { pending.resolve(ok()) })
+  expect(source.postMessage).toHaveBeenCalledTimes(2)
+  expect(I.current._userConfirmed).toBe(false)
+})
+
+it('logout cancels in-flight work and blocks late confirmation and token handoff', async () => {
+  const I = mount(), source = { postMessage: vi.fn() }, pending = deferred()
+  apply.mockReturnValueOnce(pending.promise)
+  receive(source, [appContract()], 'logout')
+  await act(async () => { I.current.approveContract(I.current.pendingContracts[0]) })
+  act(() => I.current.logout())
+  expect(source.postMessage.mock.calls[0][0]).toMatchObject({ requestId: 'logout', status: 'error' })
+  await act(async () => { pending.resolve(ok()) })
+  expect(source.postMessage).toHaveBeenCalledTimes(1)
+  expect(I.current._userConfirmed).toBe(false)
+  expect(I.current._contractReceived).toBe(true) // Login can still hand off credentials, not cancelled consent.
+})
+
+it('account change cannot report an earlier account operation as approved', async () => {
+  const I = mount(), source = { postMessage: vi.fn() }, pending = deferred()
+  apply.mockReturnValueOnce(pending.promise)
+  receive(source, [appContract()], 'account')
+  await act(async () => { I.current.approveContract(I.current.pendingContracts[0]) })
+  session.username = 'bob'
+  await act(async () => { pending.resolve(ok()) })
+  expect(source.postMessage.mock.calls[0][0]).toMatchObject({ requestId: 'account', status: 'error' })
+  expect(I.current._userConfirmed).toBe(false)
+})
+
+function mountView() {
+  render(<Harness />)
+  function Harness() {
+    const I = useInterface(); window.I = I
+    return <ConsentView I={I} />
+  }
+  act(() => window.I.initAuthenticator())
+}
+
+it('real consent view acknowledges already-granted rows only after identity confirmation', async () => {
+  mountView()
+  const source = { postMessage: vi.fn() }
+  act(() => window.I.setV3Contracts([{ allowed_origin: 'https://grant.invalid', permissions: { notes: ['readAll'] } }]))
+  receive(source, [appContract()], 'no-op')
+  expect(source.postMessage).not.toHaveBeenCalled()
+  await act(async () => { fireEvent.click(screen.getByTestId('consent-continue-as')) })
+  expect(source.postMessage.mock.calls[0][0]).toMatchObject({ requestId: 'no-op', contractIndex: 0, status: 'approved' })
+  expect(apply).not.toHaveBeenCalled()
+})
+
+it('real consent view settles an empty indexed batch without granting anything', async () => {
+  mountView()
+  const source = { postMessage: vi.fn() }
+  receive(source, [], 'empty')
+  expect(source.postMessage).not.toHaveBeenCalled()
+  await act(async () => { fireEvent.click(screen.getByTestId('consent-continue-as')) })
+  expect(source.postMessage).toHaveBeenCalledWith({ type: 'contract_response', requestId: 'empty', status: 'approved', contractCount: 0 }, 'https://caller.invalid')
+  expect(apply).not.toHaveBeenCalled()
+})
+
+it('real consent skip denies outstanding rows rather than leaving the caller waiting', async () => {
+  mountView()
+  const source = { postMessage: vi.fn() }
+  receive(source, [appContract(), appContract()], 'skip')
+  await act(async () => { fireEvent.click(screen.getByTestId('consent-skip')) })
+  expect(source.postMessage.mock.calls.map(([p]) => [p.contractIndex, p.status])).toEqual([[0, 'denied'], [1, 'denied']])
+  expect(apply).not.toHaveBeenCalled()
+})
+
+it('vaulted account selection preserves unstarted requests for the selected account', async () => {
+  const I = mount(), source = { postMessage: vi.fn() }
+  vaultToken({ username: 'bob', provider: 'api.localhost', token: 'synthetic-bob' })
+  receive(source, [appContract()], 'switch')
+  act(() => I.current.switchAccount('bob', 'api.localhost'))
+  expect(I.current.pendingContracts).toHaveLength(1)
+  expect(I.current._contractReceived).toBe(true)
+  expect(source.postMessage).not.toHaveBeenCalled()
+  await act(async () => { I.current.approveContract(I.current.pendingContracts[0]) })
+  expect(source.postMessage.mock.calls[0][0]).toMatchObject({ requestId: 'switch', status: 'approved' })
+})
+
+it('login does not adopt the previous account grants or its late grant response', async () => {
+  const I = mount(), source = { postMessage: vi.fn() }, pending = deferred()
+  act(() => I.current.setV3Contracts([{ allowed_origin: 'https://grant.invalid', permissions: { notes: ['readAll'] } }]))
+  vi.mocked(fetch).mockImplementationOnce(() => pending.promise as Promise<Response>)
+  act(() => I.current.v3ContractsLoad())
+  receive(source, [appContract()], 'login')
+  session.username = 'bob'; session.token = 'synthetic-bob'
+  act(() => I.current.finishLogin())
+  await act(async () => { pending.resolve(ok([{ allowed_origin: 'https://grant.invalid', permissions: { notes: ['readAll'] } }])) })
+  expect(I.current.v3Contracts).toEqual([])
+  expect(I.current.isContractGranted(I.current.pendingContracts[0])).toBe(false)
+  expect(source.postMessage).not.toHaveBeenCalled()
+})
+
+it('mixed approve-all acknowledges a hidden subset grant without overwriting its superset', async () => {
+  mountView()
+  const source = { postMessage: vi.fn() }, pending = deferred()
+  act(() => window.I.setV3Contracts([{ allowed_origin: 'https://grant.invalid', permissions: { notes: ['readAll', 'create'] } }]))
+  receive(source, [appContract(), { kind: 'group', name: 'synthetic' }], 'mixed-no-op')
+  const transport = vi.mocked(fetch).getMockImplementation()!
+  vi.mocked(fetch).mockImplementation((...args) => String(args[0]).endsWith('/groups/create') ? pending.promise as Promise<Response> : transport(...args))
+  await act(async () => { fireEvent.click(screen.getByTestId('consent-approve-all')) })
+  expect(apply).not.toHaveBeenCalled()
+  expect(source.postMessage.mock.calls.map(([p]) => p.contractIndex)).toEqual([0])
+  await act(async () => { pending.resolve(ok()) })
+  expect(source.postMessage.mock.calls.map(([p]) => p.contractIndex)).toEqual([0, 1])
+})
+
+it('a delayed close cannot close a newly selected account or replacement batch', async () => {
+  const I = mount(), source = { postMessage: vi.fn() }, close = vi.spyOn(window, 'close').mockImplementation(() => {})
+  window.opener = { postMessage: vi.fn() }
+  receive(source, [], 'closing')
+  act(() => I.current.setUserConfirmed(true))
+  act(() => I.current.goToApp())
+  session.username = 'bob'; session.token = 'synthetic-bob'
+  act(() => I.current.finishLogin())
+  await act(async () => { vi.advanceTimersByTime(300) })
+  expect(close).not.toHaveBeenCalled()
+})
+
+it('logout then login keeps unstarted consent reviewable without the previous grants', async () => {
+  const I = mount(), source = { postMessage: vi.fn() }
+  receive(source, [appContract()], 'relogin')
+  act(() => I.current.logout())
+  expect(I.current.pendingContracts).toHaveLength(1)
+  session.username = 'bob'; session.token = 'synthetic-bob'
+  act(() => I.current.finishLogin())
+  expect(I.current.v3Contracts).toEqual([])
+  await act(async () => { I.current.approveContract(I.current.pendingContracts[0]) })
+  expect(source.postMessage.mock.calls[0][0]).toMatchObject({ requestId: 'relogin', status: 'approved' })
+})
+
+it('real approve-all failure settles every row exactly once without retrying failed writes', async () => {
+  mountView()
+  const source = { postMessage: vi.fn() }
+  apply.mockRejectedValueOnce(new Error('synthetic failure'))
+  receive(source, [appContract(), appContract()], 'partial-failure')
+  await act(async () => { fireEvent.click(screen.getByTestId('consent-approve-all')) })
+  expect(source.postMessage.mock.calls.map(([p]) => [p.contractIndex, p.status]).sort())
+    .toEqual([[0, 'error'], [1, 'approved']])
+  expect(apply).toHaveBeenCalledTimes(2)
+})
+
+it('a replacement request fences the previous delayed close', async () => {
+  const I = mount(), source = { postMessage: vi.fn() }, close = vi.spyOn(window, 'close').mockImplementation(() => {})
+  window.opener = { postMessage: vi.fn() }
+  receive(source, [], 'closing')
+  act(() => I.current.setUserConfirmed(true))
+  act(() => I.current.goToApp())
+  receive(source, [appContract()], 'replacement')
+  await act(async () => { vi.advanceTimersByTime(300) })
+  expect(close).not.toHaveBeenCalled()
+  expect(I.current.pendingContracts).toHaveLength(1)
+})
+
+it('a completed empty batch does not prevent a new account credential handoff', async () => {
+  const I = mount(), source = { postMessage: vi.fn() }, opener = { postMessage: vi.fn() }
+  window.opener = opener
+  const close = vi.spyOn(window, 'close').mockImplementation(() => {})
+  receive(source, [], 'empty-handoff')
+  act(() => I.current.setUserConfirmed(true))
+  act(() => I.current.goToApp())
+  act(() => I.current.logout())
+  session.username = 'bob'; session.token = 'synthetic-bob'
+  act(() => I.current.finishLogin())
+  act(() => I.current.goToApp())
+  expect(opener.postMessage.mock.calls.filter(([p]) => p.type === 'auth').map(([p]) => p.token))
+    .toEqual(['synthetic-token', 'synthetic-bob'])
+  expect(source.postMessage).toHaveBeenCalledTimes(1)
+  await act(async () => { vi.advanceTimersByTime(300) })
+  expect(close).toHaveBeenCalledTimes(1)
 })
