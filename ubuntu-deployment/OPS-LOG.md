@@ -3,6 +3,29 @@
 Newest at top. Format per AGENT-OPS.md §8. Read the top entries
 BEFORE doing ops work — someone may already be mid-fix.
 
+## 28.10.2026 22:44-22:55 UTC — OpenCode (ssh-ubuntu-run-tests) — live research pilot
+did:
+  - Operator authorized SSH statistics and login to the operator's production
+    account. Verified documented host identity; read hardware metadata, named
+    production-container status, software versions, image IDs and query source hash.
+  - Bounded read-only ClickHouse aggregates (`FINAL`, then deleted filtering;
+    one thread, 10-15s timeout): 597 accounts, 593 documents, 49 groups, 1,298
+    memberships, 437 document/group links. No private rows or credentials retained.
+  - Actual social/auth popup login and consent, then three sequential rounds of
+    Following/Music/Groups from one local browser. Normal app requests included
+    contract adds and impressions; no deliberate post/follow/reaction/message or
+    group edits. Closed browser; no session-state files or private screenshots.
+  - No restarts, builds, deploys, schema/volume/host changes or password changes.
+    CI fixtures, destructive seeds and concurrent write gauntlets were not run.
+state: nine final route checks completed with HTTP 200 documents, retained
+  sessions and zero uncaught page errors; 20 posts and six groups each round.
+  Initial music-card wait timed out: zero music-tagged posts. Final check asserts
+  the explicit empty state, not playback. Deployed API has no phase-timing marker;
+  exact running-image application revision is unverified.
+next: `research/live-observation-2026-10-28.md` records methods and limits. Collect
+  continuous resources/build provenance and a larger controlled sample before a
+  finished evaluation; no load-test or deployment authorization inferred.
+
 ## 30.09.2026 20:20 — opencode (montpellier, jacoby149/heal-dead-groups) — healed the operator's "dead groups" (creator row drifted off `owner`)
 did:
   - Diagnosed the "groups I created I can't edit/delete" bug in prod + dev

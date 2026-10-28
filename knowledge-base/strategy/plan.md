@@ -1104,9 +1104,13 @@ Lessons → Conclusion.
 **The critical path is data, not writing.** `research/evaluation-plan.md` is
 all unchecked boxes. The numbers the industry track will demand:
 
-- [ ] **E1: scale counters** — users, collections/groups, documents, access
+- [~] **E1: scale counters** — users, collections/groups, documents, access
   decisions/day, deployment duration. Queryable from the running node today?
-  If not, the queries + a dated snapshot.
+  If not, the queries + a dated snapshot. Initial live Ubuntu snapshot collected
+  28.10.2026: 597 accounts, 593 documents, 49 groups, 1,298 membership rows;
+  activity, media-volume/window and exact running-build evidence remain open.
+  `research/live-observation-2026-10-28.md` includes three rounds of authenticated
+  Following/Music-empty/Groups browsing; no load or phase-timing completion.
 - [ ] **E2: access-decision latency** — p50/p95/p99 of the resolve+compute
   phase (token verify + contract check + group membership), the breakdown
   (signature verify vs. contract lookup vs. membership lookup), throughput,
@@ -1130,6 +1134,8 @@ all unchecked boxes. The numbers the industry track will demand:
   `[query] … timing_ms` logs, compute p50/p95/p99 per phase.
 
 **The writing plan (after the data lands):**
+
+- [✓ 3.251.6] **Live Ubuntu pilot observation** — collect aggregate production stats and bounded account-authorized browser checks without fixtures, direct data mutation or redeployment. Record initial empty-music selector failure, readiness samples, resource snapshots and missing deployed phase telemetry; formal evaluation remains open.
 
 - [✓ 3.251.5] **Direct technical prose and consolidated scope** — remove repeated defensive framing from the paper; retain specific behavior and pending results, gather open security/adoption/parity limits in one subsection. No E1–E6 completion or runtime changes.
 

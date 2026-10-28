@@ -1,7 +1,10 @@
 # Evaluation Plan - web10 Paper
 
-**Status: results pending.** This is a measurement plan, not evidence of scale,
-performance, security, or a runnable artifact. The current harness has known
+**Status: partial live observations collected; formal evaluation pending.**
+The [28 October Ubuntu pilot](live-observation-2026-10-28.md) records 597 live
+account rows, 593 live documents, 49 groups and nine authenticated browsing
+checks, with exact readiness definitions and limits. It supplies neither active
+user counts nor phase/capacity/comparative results. The current harness has known
 [blocking defects and validity gaps](experiments/README.md#known-blockers).
 Resolve those gates before collecting paper numbers.
 
@@ -17,6 +20,10 @@ generic query composition with user-managed group/service permissions.
 Neither RBAC nor shared-table tenant isolation is claimed as new.
 
 ## E1 - Scale and Provenance
+
+- [✓] Pilot snapshot: hardware, software, live account/document/group/membership
+  counts and three repeated route observations recorded on 28 October; see the
+  linked report. Complete E1 still needs activity/volume/window and build evidence.
 
 - [ ] Record dated production counts: registered/active users, logical author
   namespaces, documents, groups, memberships, access volume, media volume,
