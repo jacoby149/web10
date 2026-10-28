@@ -78,6 +78,16 @@ function trackAuthPopup(popup, url) {
       expectedOrigin = new URL(url, window.location?.href).origin;
   } catch {}
 }
+function isPopupMessage(event, source, url) {
+  if (!source || !url)
+    return false;
+  try {
+    const origin = new URL(url, window.location?.href).origin;
+    return origin !== "null" && event.source === source && event.origin === origin;
+  } catch {
+    return false;
+  }
+}
 
 // src/token.ts
 function cookieDict() {
@@ -856,8 +866,9 @@ function createV3Client(options = {}) {
           callback({ status: "error", errors: ["Popup blocked — allow popups and try again"] });
         return;
       }
+      let contractSent = false;
       const responseHandler = (e) => {
-        if (e.data?.type === "contract_response") {
+        if (e.data?.type === "contract_response" && contractSent && isPopupMessage(e, popup, authOrigin)) {
           window.removeEventListener("message", responseHandler);
           window.removeEventListener("message", readyHandler);
           clearTimeout(timeoutId);
@@ -866,10 +877,11 @@ function createV3Client(options = {}) {
       };
       window.addEventListener("message", responseHandler);
       const readyHandler = (e) => {
-        if (e.data?.type === "auth_ready") {
+        if (e.data?.type === "auth_ready" && isPopupMessage(e, popup, authOrigin)) {
           window.removeEventListener("message", readyHandler);
           try {
             popup.postMessage({ type: "contract", contracts }, authOrigin);
+            contractSent = true;
           } catch {
             window.removeEventListener("message", responseHandler);
             clearTimeout(timeoutId);
@@ -890,18 +902,23 @@ function createV3Client(options = {}) {
           callback({ status: "error", errors: ["No opener window — not in a popup"] });
         return;
       }
+      const opener = window.opener;
       if (authOrigin)
-        trackAuthPopup(window.opener, authOrigin);
+        trackAuthPopup(opener, authOrigin);
+      if (callback && !authOrigin) {
+        callback({ status: "error", errors: ["Trusted auth origin required for consent responses"] });
+        return;
+      }
       if (callback) {
         const handler = (e) => {
-          if (e.data?.type === "contract_response") {
+          if (e.data?.type === "contract_response" && isPopupMessage(e, opener, authOrigin)) {
             window.removeEventListener("message", handler);
             callback(e.data);
           }
         };
         window.addEventListener("message", handler);
       }
-      window.opener.postMessage({ type: "contract", contracts }, "*");
+      opener.postMessage({ type: "contract", contracts }, "*");
     }
   };
   pingAppRegister();

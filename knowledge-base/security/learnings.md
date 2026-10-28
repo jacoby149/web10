@@ -437,6 +437,16 @@ trust; throws/blocked replacements clear it. User-granted operations may avoid
 repeat consent, but never authentication checks. 246 SDK passes and same-model
 review do not close real-browser, migration, delivery or diverse-sign-off gates.
 
+### 2026-10-28: Consent sender checks do not prove request attribution
+
+[Consent sender slice](scans/2026-10/repair-consent-senders.md) denies unrelated
+readiness/replies across reused, standalone and configured legacy windows.
+Modern replies require send completion; legacy callbacks require explicit origin
+and fail immediately without it, while no-callback metadata remains. 265 SDK
+passes/typecheck/parity support that slice. Independent replay still shows one
+matching response settling two pending requests on the same window: correlation
+is local L1 debt, not repaired or deferred by sender binding. Keep A-01/F-01 OPEN.
+
 ## Known gaps (the "obvious gap" register)
 
 Gaps the orient has surfaced. Each is either a `BP-n` or a standing note:

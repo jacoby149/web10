@@ -322,7 +322,7 @@ does not merge.
 
 ## Auth model
 
-Browser auth-token messages require a bound credential window and configured origin. Legacy contractOnReady metadata stays available; opener token handoff needs its optional trusted-auth-origin argument. User grants may skip repeated consent, never authentication checks.
+Browser auth-token messages require a bound credential window and configured origin. Legacy contractOnReady no-callback metadata stays available; opener callbacks and token handoff require its trusted-auth-origin argument. User grants may skip repeated consent, never authentication checks.
 
 JWT tokens with `username, site, target, provider, expires`. Server verifies signature, checks app contracts + group membership. Full auth flow: `knowledge-base/web10-v3/auth/auth.md`.
 

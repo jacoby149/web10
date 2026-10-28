@@ -16,3 +16,13 @@ export function isAuthPopupMessage(event: MessageEvent): boolean {
   // Do not test .closed: a genuine queued message can outlive its sender.
   return authPopup !== null && expectedOrigin !== null && expectedOrigin !== 'null' && event.source === authPopup && event.origin === expectedOrigin
 }
+
+export function isPopupMessage(event: MessageEvent, source: MessageEventSource | null, url?: string): boolean {
+  if (!source || !url) return false
+  try {
+    const origin = new URL(url, window.location?.href).origin
+    return origin !== 'null' && event.source === source && event.origin === origin
+  } catch {
+    return false
+  }
+}

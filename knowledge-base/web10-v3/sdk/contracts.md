@@ -300,11 +300,18 @@ One request per operation. Granular consent. The user can approve some and deny 
 ## Contract Listen
 
 `contractOnReady` remains available for an authenticator that opened the app.
-Its two-argument metadata handshake is unchanged. For browser auth-token handoff,
+No-callback metadata fire-and-forget remains supported. Consent callbacks and
+browser auth-token handoff require configured trust:
 call `w.contractOnReady(contracts, onResponse, AUTH_ORIGIN)` with an authenticator
 origin from trusted app configuration. It binds window.opener plus the canonical
-origin; an unconfigured opener is not authorized to write the token cookie.
+origin; an unconfigured opener cannot write the token cookie or approve a callback.
+`contractOnReady(contracts, callback)` now returns a configuration error immediately,
+without sending or listening. Migrate callback callers to the three-argument form.
 Normal app-opened login/contractRequest flows register their popup automatically.
+
+Consent replies also require the intended sender/origin and a sent request.
+Request/batch correlation is still open local security work: matching a window
+does not yet distinguish overlapping requests sharing it.
 
 The consent protocol. When an app requests access, it sends contract data to the authenticator via `contractOnReady`. The authenticator listens for these requests via `contractListen`. One unified listener for both app contracts and group contracts.
 

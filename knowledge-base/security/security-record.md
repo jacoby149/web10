@@ -126,11 +126,17 @@ Inventory and line coverage do not establish service PASS or deployment security
 
 ## Protocol L1 Repair Progress
 
-28.10.2026: **S-1** [local repair](scans/2026-10/repair-s1-auth-sender.md)
+28.10.2026: **A-01/F-01 sender slice** [verified locally](scans/2026-10/repair-consent-senders.md):
+bound readiness/replies, pre-send guard, configured legacy callback migration;
+19 new runtime cases red -> green, 265 SDK passes/typecheck and five-runtime parity.
+Request correlation remains demonstrated local debt (one matching reply invokes
+two callbacks); class and L1 OPEN. Browser CI/rollout/diverse review pending.
+
+28.10.2026: **S-1** [source repair merged #1273](scans/2026-10/repair-s1-auth-sender.md) at c258ce048
 binds token handoff to configured window/origin, preserving standalone and
 explicit-login lifecycle plus configured legacy opener support. 246 SDK tests,
 typecheck and five-runtime correspondence pass; fresh same-model review. Browser
-CI/migration/delivery/diverse sign-off remain OPEN; A-01/F-01 and S-6 separate.
+CI passed on identical a2262c620 inputs; migration/delivery/diverse sign-off remain OPEN; A-01/F-01 and S-6 separate.
 
 27.10.2026: **L1-D-01/D-02 and OAuth occurrence L1-OAUTH-01** share the
 [source repair merged #1271](scans/2026-10/repair-d01-token-freshness.md) at b828736b4. Verified
