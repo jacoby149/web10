@@ -2,8 +2,10 @@ import logging
 import time
 from datetime import datetime
 from decimal import Decimal
+from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Request
+from sqlglot import ErrorLevel, exp, parse_one
 
 import app.exceptions as exceptions
 import app.v3.services.safe_query as sq
@@ -29,6 +31,29 @@ MAX_EXECUTION_TIME_S = 10
 _QUERY_WINDOW_S = 60
 _MAX_QUERIES_PER_WINDOW = 60
 _query_log: dict[str, list[float]] = {}
+
+
+def _query_shape(sql: str) -> dict:
+    """Diagnostic AST topology only; never serialize SQL or caller AST text."""
+    try:
+        # Parser fallback warnings must not echo SQL either. Errors are caught
+        # without logging their potentially content-bearing messages.
+        tree = parse_one(sql, read=sq.DIALECT, error_level=ErrorLevel.RAISE, error_message_context=0)
+        if not isinstance(tree, exp.Query):
+            return {"status": "unavailable"}
+        nodes, literals, indexes = [], [], {}
+        for index, node in enumerate(tree.walk()):
+            if index == 128:
+                return {"status": "truncated", "nodes": nodes, "literals": literals}
+            indexes[id(node)] = index
+            nodes.append((indexes.get(id(node.parent)), type(node).__name__))
+            if isinstance(node, exp.Literal):
+                literals.append((index, "string" if node.is_string else "number", len(node.this)))
+            elif isinstance(node, (exp.Boolean, exp.Null)):
+                literals.append((index, "boolean" if isinstance(node, exp.Boolean) else "null", None))
+        return {"status": "ok", "nodes": nodes, "literals": literals}
+    except Exception:
+        return {"status": "unavailable"}
 
 
 def _check_query_rate_limit(reader: str) -> None:
@@ -232,25 +257,30 @@ def run_query(request: Request, data: QueryRequest):
     except sq.UnsafeQueryError as e:
         raise HTTPException(status_code=403, detail=str(e))
 
+    diagnostic_id = uuid4().hex
     log.info(
-        "[query] reader=%s services=%s group_meta=%s candidates=%d sql=%s compiled=%s",
-        reader,
-        sorted(needed),
+        "[query] id=%s services=%d group_meta=%s candidates=%d shape=%s compiled_shape=%s",
+        diagnostic_id,
+        len(needed),
         bool(data.withGroupMeta),
         len(candidates),
-        data.sql[:200],
-        compiled[:400],
+        _query_shape(data.sql),
+        _query_shape(compiled),
     )
 
+    started = time.perf_counter()
     try:
         column_names, rows = ch.execute_query(compiled, settings={"max_execution_time": MAX_EXECUTION_TIME_S})
     except ch.QueryExecutionError as e:
         # The compiled query is structurally safe; a ClickHouse failure here
         # is the caller's SQL (a column the boundary CTE doesn't expose, a
         # bad function arg, ...).
-        log.warning("[query] execution failed reader=%s: %s", reader, e)
+        log.warning(
+            "[query] id=%s execution failed duration_ms=%.2f", diagnostic_id, (time.perf_counter() - started) * 1000
+        )
         raise HTTPException(status_code=400, detail=f"query execution failed: {e}")
 
+    duration_ms = (time.perf_counter() - started) * 1000
     out = [_serialize_row(dict(zip(column_names, row))) for row in rows]
     # D86: a content query is a content view (the feed-as-query, D73) — log a
     # delivery impression per returned doc (the server-side, un-gameable floor).
@@ -262,17 +292,13 @@ def run_query(request: Request, data: QueryRequest):
     if data.surface and data.content_service and reader != "anon" and out:
         doc_ids = [r["doc_id"] for r in out if isinstance(r, dict) and r.get("doc_id")]
         ch.log_content_deliveries(doc_ids, data.content_service, reader, data.surface)
-    # The result column names are the row→client contract: the prepare pass
-    # and the client duck-type on `body` / `author_key` / `ad_mode`. A mangled
-    # name (ClickHouse qualifies a result column `p.body` when another joined
-    # table in scope exposes a same-named column) fails SILENTLY downstream —
-    # empty feed, no error anywhere. Logging the names makes that class of
-    # bug visible at the source.
+    # Column aliases can contain caller input too; retain counts, not names.
     log.info(
-        "[query] reader=%s rows=%d columns=%s",
-        reader,
+        "[query] id=%s rows=%d columns=%d duration_ms=%.2f",
+        diagnostic_id,
         len(rows),
-        column_names,
+        len(column_names),
+        duration_ms,
     )
     # The prepare pass (D73): mint media + HLS + ads + face on the result rows
     # so the query returns render-ready rows in one round-trip (the feed-as-

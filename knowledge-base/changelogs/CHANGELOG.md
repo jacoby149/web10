@@ -1,3 +1,6 @@
+3.245.5 || 27.10.2026
+fix(api): **L1-G-01 safe query diagnostics** — replace submitted/compiled SQL, result-column and execution-error echoes with bounded AST topology/literal metadata, counts, timing and server-generated correlation IDs; parser command-fallback warnings omit raw SQL at all three validation/compiler parse sites. Real compiler/HTTP/inert-driver disclosure regressions turn red -> green; 24 focused cases, 1,216 API tests plus four subtests, lint/format and fresh same-model review pass. Client queries/results/errors/access preserved; diagnostic compatibility/private-parser-hook risks recorded. #1265 source repairs and coverage publication marked merged; no deployment, model-diverse sign-off or L1 PASS.
+
 3.245.4 || 27.10.2026
 docs(security): **record operator-agreed SQL diagnostic strategy for L1-G-01** — preserve safe parser-derived query shape and execution metadata, omit literals/comments/content-bearing identifiers, and fail closed on diagnostic normalization. Exact-value reproduction stays synthetic or deliberately operator-controlled, not automatic raw-query retention. Repair and verification remain OPEN; no runtime changes or L1 closure.
 

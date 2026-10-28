@@ -134,8 +134,16 @@ input. Comments and quoted identifiers can carry content too; masking literals
 alone is insufficient. Exact-value debugging uses synthetic input or a deliberate
 controlled operator session, not blanket raw-query retention. See the
 [repair strategy and acceptance gates](../web10-v3/security/logging.md#query-diagnostics-strategy).
-This records intent only; implementation, red/green verification and closure
-remain OPEN.
+The [local repair](scans/2026-10/repair-g01-query-logging.md) now implements the
+agreed direction. Review also caught raw rejected-command fallback warnings in
+sqlglot: parser-derived diagnostics are not safe if the parser itself echoes
+input first. Fixed warnings cover all validation/compiler parses; explicit
+ClickHouse dialect configuration preserves null ordering and client error text.
+Original LogRecord fields, aliases/error echoes and normalization-failure paths
+are pinned alongside actual compiler/HTTP controls. Fresh same-model review and
+1,216 API passes do not close rollout or required diverse sign-off. Dated risks
+cover reduced diagnostic detail, external log consumers and the private parser
+hook; query execution/permissions and client responses are unchanged.
 
 ### 2026-10-18: import traces and compiler L1 receipts
 

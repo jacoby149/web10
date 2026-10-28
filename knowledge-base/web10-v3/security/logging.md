@@ -42,8 +42,8 @@ imply whole-file PASS, deployment closure or model-diverse three-dry sign-off.
 
 ## Query Diagnostics Strategy
 
-Agreed with the operator, 27.10.2026, for L1-G-01. This is the repair target,
-not implemented behavior or finding closure. Open-source SQL structure is not
+Agreed with the operator, 27.10.2026, for L1-G-01. The [local repair](../../security/scans/2026-10/repair-g01-query-logging.md)
+implements this target; integration/deployment/sign-off remain open. Open-source SQL structure is not
 secret; values in an individual user's query can be private input. Node-readable
 execution is intentional, automatic duplication into retained logs is not.
 
@@ -57,3 +57,11 @@ quoted identifiers and failure paths to be absent from captured logs, while
 useful query-shape/execution diagnostics and legitimate query results remain.
 Use real parser/compiler paths where feasible, red -> green evidence and fresh
 design-intent review. Historical logs/retention and deployment remain separate.
+
+Local implementation records AST node class/parent topology, not re-emitted SQL:
+all scalar names/values and comments are omitted, literal categories/lengths
+retained, with a 128-node truncation marker. Parser fallback warnings, execution
+errors and result aliases cannot reintroduce those values in these diagnostic
+records. Exact names/values remain available to query execution and its caller,
+not automatically copied into logs. The repair receipt records lost diagnostic
+detail, external-parser compatibility and dependency-upgrade risks.
