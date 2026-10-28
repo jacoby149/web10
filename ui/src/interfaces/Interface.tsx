@@ -203,6 +203,8 @@ function useInterface() {
     // ACR: { allowed_origin, permissions } — app contract (what can this app do)
     // GCR: { app_origin, action, params } — group contract (who can see my content)
     [I.pendingContracts, I.setPendingContracts] = React.useState<any[]>([]);
+    const consentBatch = React.useRef<object | null>(null);
+    const seenRequests = React.useRef(new WeakMap<Window, Set<string>>());
     // D42: has this popup received a contract yet? React state, NOT a plain
     // property — `I` is recreated every render, and the contract listener
     // (attached once, capturing the first render's `I`) would set the flag on
@@ -281,8 +283,12 @@ function useInterface() {
     // contractListen delivers { contracts } where each CR is either:
     //   V3AppCR: { kind: 'app', app_origin, permissions }
     //   V3GroupCR: { kind: 'group', app_origin, action, name?, join_policy?, roles?, members?, group_id? }
-    function normalizeContracts(cData: any, windowSource?: MessageEventSource | null) {
+    function normalizeContracts(cData: any, windowSource: MessageEventSource | null, origin: string, batch: object, requestId?: string) {
         const contracts: any[] = [];
+        const owned = () => contracts.map((contract, index) => ({
+            ...contract, _windowSource: windowSource,
+            _consent: { batch, index, count: contracts.length, requestId, origin, started: false, settled: false },
+        }));
         // Handle unified CR format: { contracts: [...] }
         if (Array.isArray(cData?.contracts)) {
             for (const cr of cData.contracts) {
@@ -327,7 +333,7 @@ function useInterface() {
                 }
                 contracts.push(entry);
             }
-            return contracts;
+            return owned();
         }
         // Fallback: legacy SMR { sirs, scrs } format (app contract only)
         const allRequests = [
@@ -352,7 +358,7 @@ function useInterface() {
                 });
             }
         }
-        return contracts;
+        return owned();
     }
 
     // v3 contract listening — direct postMessage, no wapiAuth wrapper
@@ -377,10 +383,29 @@ function useInterface() {
             if (!e.origin) return;
             console.log('[auth-ui] message event — type:', e.data?.type, 'origin:', e.origin)
             if (e.data?.type === 'acr' || e.data?.type === 'contract') {
+                const indexed = Object.prototype.hasOwnProperty.call(e.data, 'requestId');
+                const requestId = indexed ? e.data.requestId : undefined;
+                if (indexed) {
+                    if (typeof requestId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(requestId) ||
+                        !Array.isArray(e.data.contracts) || !e.data.contracts.length ||
+                        [...e.data.contracts].some(c => !c || typeof c !== 'object' || Array.isArray(c)) ||
+                        !isPostableWindow(e.source) || e.origin === 'null') {
+                        console.warn('[auth-ui] invalid indexed consent envelope; ignored');
+                        return;
+                    }
+                    const seen = seenRequests.current.get(e.source) || new Set<string>();
+                    const key = JSON.stringify([e.origin, requestId]);
+                    if (seen.has(key)) { console.log('[auth-ui] duplicate consent request; ignored'); return; }
+                    seen.add(key);
+                    seenRequests.current.set(e.source, seen);
+                }
                 console.log('[auth-ui] contract message received — raw data:', JSON.stringify(e.data))
-                const normalized = normalizeContracts(e.data, e.source);
+                const batch = {};
+                const normalized = normalizeContracts(e.data, e.source, e.origin, batch, requestId);
+                consentBatch.current = batch;
                 console.log('[auth-ui] normalized contracts:', toLogString(normalized))
                 I.setPendingContracts(normalized);
+                I.setStatus(null);
                 // D42: a contract was sent to this popup. The auto-complete
                 // (zero-UI token + close) only fires once a contract has been
                 // received AND needs no approval — never before the contract
@@ -967,16 +992,26 @@ function applyACR(cr: any) {
     }
 
     // Send contract response back to the requesting app window
-    function sendContractResponse(windowSource: MessageEventSource | null, status: string, errors?: string[]) {
+    function sendContractResponse(contract: any, status: string, errors?: string[]) {
+        const windowSource = contract._windowSource;
+        const owner = contract._consent;
+        if (owner?.settled) return;
+        if (owner) {
+            // Preserve retries for old clients; an indexed terminal error needs
+            // a fresh request, never a later approval under the same ID.
+            owner.settled = status !== 'error' || !!owner.requestId;
+            owner.started = false;
+        }
         console.log('[auth-ui] sendContractResponse — status:', status, 'errors:', errors)
         if (!windowSource) {
             console.warn('[auth-ui] sendContractResponse — no windowSource, cannot send response')
             return
         }
         try {
-            const target = '*';
+            const target = owner?.requestId ? owner.origin : '*';
             if (isPostableWindow(windowSource)) {
-                const payload = { type: 'contract_response', status, errors }
+                const payload = { type: 'contract_response', status, errors,
+                    ...(owner?.requestId ? { requestId: owner.requestId, contractIndex: owner.index } : {}), }
                 console.log('[auth-ui] sendContractResponse — posting:', JSON.stringify(payload))
                 windowSource.postMessage(payload, target);
             } else {
@@ -992,36 +1027,46 @@ function applyACR(cr: any) {
     // two forks can't diverge — approve-all used to drop the app-contract
     // response entirely, so the opener's callback only fired late, mis-delivered
     // from the group's response. Re-throws on failure so the caller can react.
-    function approveOne(contract: any): Promise<void> {
-        const windowSource = contract._windowSource;
-        const apply = contract.kind === 'group' ? applyGCR(contract) : applyACR(contract);
-        return apply
+    function approveOne(contract: any): Promise<void> | null {
+        const owner = contract._consent;
+        if (owner && (owner.batch !== consentBatch.current || owner.started || owner.settled)) return null;
+        if (owner) owner.started = true;
+        let apply;
+        try { apply = contract.kind === 'group' ? applyGCR(contract) : applyACR(contract); }
+        catch (e) { apply = Promise.reject(e); }
+        return Promise.resolve(apply)
             .then(() => {
                 // Approving a contract is an identity confirmation (the user is
                 // acting as this account) — let the popup settle once the pending
                 // list empties, even when the opener is signed out.
-                I.setUserConfirmed(true);
-                sendContractResponse(windowSource, 'approved');
+                if (!owner || owner.batch === consentBatch.current) I.setUserConfirmed(true);
+                sendContractResponse(contract, 'approved');
             })
             .catch((e: any) => {
-                sendContractResponse(windowSource, 'error', [e.message || String(e)]);
+                sendContractResponse(contract, 'error', [e.message || String(e)]);
                 throw e;
             });
     }
 
     // Approve a single contract (app or group).
     I.approveContract = function (contract: any) {
+        const operation = approveOne(contract);
+        if (!operation) return;
         console.log('[auth-ui] approveContract — kind:', contract.kind, 'origin:', contract.app_origin)
         I.setStatus(contract.kind === 'group' ? "Creating group..." : "Approving contract...");
-        approveOne(contract)
+        operation
             .then(() => {
+                if (contract._consent && contract._consent.batch !== consentBatch.current) return;
                 console.log('[auth-ui] approveContract — applied successfully')
                 I.setStatus(contract.kind === 'group' ? "Group created!" : "Contract granted!");
                 if (contract.kind === 'app') I.v3ContractsLoad?.();
                 I.removePendingContract(contract);
-                setTimeout(() => I.setStatus(null), 2000);
+                const completedBatch = consentBatch.current;
+                setTimeout(() => { if (consentBatch.current === completedBatch) I.setStatus(null); }, 2000);
             })
             .catch((e) => {
+                if (contract._consent && contract._consent.batch !== consentBatch.current) return;
+                if (contract._consent?.requestId) I.removePendingContract(contract);
                 console.error('[auth-ui] approveContract — failed:', e)
                 I.setStatus((contract.kind === 'group' ? "Failed to create group: " : "Failed to approve: ") + (e.message || String(e)));
             });
@@ -1031,6 +1076,7 @@ function applyACR(cr: any) {
     I.removePendingContract = function (contract: any) {
         const source = contract._source;
         I.setPendingContracts((prev: any[]) => {
+            if (contract._consent) return prev.filter(c => c._consent !== contract._consent);
             if (source) {
                 return prev.filter((c: any) => c._source !== source);
             }
@@ -1043,29 +1089,42 @@ function applyACR(cr: any) {
 
     // Deny a contract — just remove it from the pending list.
     I.denyContract = function (contract: any) {
+        const owner = contract._consent;
+        if (owner && (owner.batch !== consentBatch.current || owner.started || owner.settled)) return;
         console.log('[auth-ui] denyContract — kind:', contract.kind, 'origin:', contract.app_origin)
         // Denying is also an identity confirmation — let the popup settle once
         // the pending list empties (the "continue without sharing" path).
         I.setUserConfirmed(true);
-        const windowSource = contract._windowSource;
         I.removePendingContract(contract);
-        sendContractResponse(windowSource, 'denied');
+        sendContractResponse(contract, 'denied');
         I.setStatus("Request denied.");
     }
 
     // Approve every pending contract in one shot, then return to the app.
     I.approveAll = function () {
         if (!I.pendingContracts || I.pendingContracts.length === 0) { I.goToApp(); return; }
+        const batch = consentBatch.current;
         I.setStatus("Approving all…");
         // approveOne sends each contract's own response (approve-all used to
         // drop the app-contract response — see the helper's comment).
-        const ops: Promise<any>[] = I.pendingContracts.map((c: any) => approveOne(c));
-        Promise.allSettled(ops)
-            .then(() => {
+        const work = I.pendingContracts.map((contract: any) => ({ contract, operation: approveOne(contract) }))
+            .filter((entry: any) => entry.operation);
+        if (!work.length) return;
+        Promise.allSettled(work.map((entry: any) => entry.operation))
+            .then((results) => {
+                if (consentBatch.current !== batch) return;
+                results.forEach((result, index) => {
+                    if (result.status === 'fulfilled' || work[index].contract._consent?.settled)
+                        I.removePendingContract(work[index].contract);
+                });
                 I.v3ContractsLoad?.();
                 I.v3GroupsLoad?.();
                 I.v3GroupsManagesLoad?.();
-                I.setPendingContracts([]);
+                if (results.some(result => result.status === 'rejected')) {
+                    I.setStatus("Some requests failed. Start a new request from the app.");
+                    return;
+                }
+                if (I.pendingContracts.some((c: any) => c._consent && !c._consent.settled)) return;
                 I.setStatus(null);
                 I.goToApp();
             })

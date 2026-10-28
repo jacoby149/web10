@@ -313,6 +313,17 @@ Consent replies also require the intended sender/origin and a sent request.
 Request/batch correlation is still open local security work: matching a window
 does not yet distinguish overlapping requests sharing it.
 
+Correlation preparation: the local UI foundation preserves an optional envelope
+`requestId` and original `contractIndex` in owned per-contract decisions. IDs are
+attribution, never permission; internal ownership must not enter node API writes.
+Unversioned clients keep unversioned replies. Malformed indexed envelopes must
+not downgrade to legacy approval. This UI-first foundation does not activate a
+strict SDK or claim complete-batch support: no-op acknowledgements, cancellation,
+full lifecycle, SDK/artifact integration and browser rollout remain close gates.
+The indexed preparation profile accepts nonempty unified `contracts` arrays and
+1–128-character `[A-Za-z0-9_-]` IDs; indexed legacy SMR expansion is not supported.
+This validates the envelope/container, not every contract's semantic authority.
+
 The consent protocol. When an app requests access, it sends contract data to the authenticator via `contractOnReady`. The authenticator listens for these requests via `contractListen`. One unified listener for both app contracts and group contracts.
 
 ```ts

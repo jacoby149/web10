@@ -447,6 +447,16 @@ passes/typecheck/parity support that slice. Independent replay still shows one
 matching response settling two pending requests on the same window: correlation
 is local L1 debt, not repaired or deferred by sender binding. Keep A-01/F-01 OPEN.
 
+### 2026-10-28: Reply correlation starts before filtering or async application
+
+[Local UI foundation](scans/2026-10/consent-ui-ownership-foundation.md) preserves
+original row/batch identity and captures actual requester/origin. Replies echo
+indices only for valid indexed envelopes; IDs grant no authority and never enter
+API bodies. Duplicate/alias/stale outcomes must not remove newer work; even old
+status timers need batch ownership. 13 real-hook controls/195 UI passes support
+this preparation only. Legacy wire/retry remains, and SDK stays unversioned until
+no-op/cancellation/account/full-batch and browser integration gates are met.
+
 ## Known gaps (the "obvious gap" register)
 
 Gaps the orient has surfaced. Each is either a `BP-n` or a standing note:

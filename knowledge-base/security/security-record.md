@@ -126,11 +126,20 @@ Inventory and line coverage do not establish service PASS or deployment security
 
 ## Protocol L1 Repair Progress
 
-28.10.2026: **A-01/F-01 sender slice** [verified locally](scans/2026-10/repair-consent-senders.md):
+28.10.2026: **UI correlation preparation** [verified locally](scans/2026-10/consent-ui-ownership-foundation.md):
+owned indexed replies, exact removal, replay/duplicate guards and superseded-batch
+completion/timer fences. Seven corrected baseline cases and a timer regression
+red -> green; 13 real-hook controls, 195 UI tests/typecheck/build, unchanged SDK
+265 tests/typecheck and fresh same-model review. SDK remains unversioned; no-op,
+cancellation/account/batch lifecycle and actual browser integration remain gates.
+No complete correlation, A-01/F-01, deployment or L1 PASS.
+
+28.10.2026: **A-01/F-01 sender slice** [source merged #1275](scans/2026-10/repair-consent-senders.md) at 40a515fcc:
 bound readiness/replies, pre-send guard, configured legacy callback migration;
 19 new runtime cases red -> green, 265 SDK passes/typecheck and five-runtime parity.
 Request correlation remains demonstrated local debt (one matching reply invokes
-two callbacks); class and L1 OPEN. Browser CI/rollout/diverse review pending.
+two callbacks); class and L1 OPEN. Applicable browser/package/build/security CI
+passed on identical db5703900 inputs; rollout/diverse review remain pending.
 
 28.10.2026: **S-1** [source repair merged #1273](scans/2026-10/repair-s1-auth-sender.md) at c258ce048
 binds token handoff to configured window/origin, preserving standalone and
