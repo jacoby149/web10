@@ -1,3 +1,6 @@
+3.245.4 || 27.10.2026
+docs(security): **record operator-agreed SQL diagnostic strategy for L1-G-01** — preserve safe parser-derived query shape and execution metadata, omit literals/comments/content-bearing identifiers, and fail closed on diagnostic normalization. Exact-value reproduction stays synthetic or deliberately operator-controlled, not automatic raw-query retention. Repair and verification remain OPEN; no runtime changes or L1 closure.
+
 3.245.3 || 27.10.2026
 fix(tools): **L1-PKG-01 omit Mongo connection secrets from audit/export output** — remove whole URI diagnostic/manifest metadata rather than redact selected components; keep database/count/checksum, account hashes/rows and connection arguments. Twelve audit/stdout/file cases fail before and pass after; fresh same-model replay and migration controls confirm preserved account data. Host identification/external output-parser compatibility tradeoff recorded explicitly. Local successor to open #1265, not merged/deployed; backup protection, defaults, historical exposure and model-diverse sign-off remain open, no L1 PASS.
 

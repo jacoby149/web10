@@ -125,6 +125,18 @@ in INFO logging with separate request/stub-compiled assertions, not SQL injectio
 or demonstrated credential theft. Actual compiler preservation, log access and
 retention remain unverified. F's unchecked helper boundaries remain L2 debt.
 
+### 2026-10-27: agreed SQL diagnostic repair direction
+
+Operator direction, 27.10.2026, for L1-G-01: retain useful parser-derived query
+shape and execution metadata, not automatic raw submitted/compiled SQL. Literals
+help reproduce bugs, but routine logs must not become a second store of user
+input. Comments and quoted identifiers can carry content too; masking literals
+alone is insufficient. Exact-value debugging uses synthetic input or a deliberate
+controlled operator session, not blanket raw-query retention. See the
+[repair strategy and acceptance gates](../web10-v3/security/logging.md#query-diagnostics-strategy).
+This records intent only; implementation, red/green verification and closure
+remain OPEN.
+
 ### 2026-10-18: import traces and compiler L1 receipts
 
 L1-J-01 reproduces cross-job log attribution using two synchronized synthetic

@@ -95,7 +95,7 @@ Conditional local facts remain bounded; no production breach is established.
 | L1-D-01 | OPEN expired signed principal production; S3 freshness foundation with explicit valid/anonymous controls |
 | L1-D-02 | OPEN null/malformed-expiry session classification; no oracle-to-CRUD grant proved; S3 |
 | L1-E-01 | OPEN account token GET-query transport; no theft shown; S7 body-authenticated detail and consumers |
-| L1-G-01 | OPEN caller/compiled SQL INFO logging; not SQL injection or observed retained credential theft; S4 |
+| L1-G-01 | OPEN caller/compiled SQL INFO logging; [operator-agreed repair strategy](../../../web10-v3/security/logging.md#query-diagnostics-strategy): safe parser-derived shape/metadata, no automatic raw values. Not implemented, SQL injection or observed retained credential theft; S4 |
 | L1-H-01 | OPEN object-signing provenance concern; fake-auth/signer proves forwarding, not private retrieval; S5 |
 | L1-J-01 | OPEN overlapping import-job trace contamination; synchronized actual-handler/inert-insert proof; S5 |
 | S-1 | OPEN sender-unbound SDK credential message; synthetic acceptance not valid credentials; S2 |
