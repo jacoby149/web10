@@ -1,3 +1,12 @@
+3.251.5 || 28.10.2026
+docs(research): **remove defensive prose while retaining factual boundaries** — replace repeated rebuttals and proof/certification disclaimers with direct descriptions of authorization, compilation, deployment and application composition; consolidate open security/adoption/parity scope into one evaluation subsection. Preserve membership and Origin behavior, media-signing concern, single-node scope and pending empirical results. No runtime or evidence-status changes.
+
+3.251.4 || 28.10.2026
+docs(research): **explain the social killer-app hypothesis and media breadth** — describe web10-social as the adoption-oriented demonstration for an open application ecosystem, not an already popular network; map implemented community/text, image, short-video, long-video and audio surfaces to familiar Facebook/Threads, Instagram, TikTok, YouTube and YouTube Music patterns with pinned source links. Distinguish functional breadth from exhaustive feature parity, adoption, recommendation/catalog quality and scale. No runtime or experimental-result changes.
+
+3.251.3 || 28.10.2026
+docs(research): **make the static social application demonstration explicit** — describe web10 APIs/SDK as web10-social's data/authentication backend, distinguish its static browser build from crawler presentation and direct media/peer traffic, and add commit-pinned API/SDK/compiler/feed/experiment/gauntlet links throughout the paper. Count 46,285 app-local frontend physical lines across 141 files, with test/preview counts and reproducible scope/exclusions in `research/source-map.md`. No new experiment/deployment results or runtime changes.
+
 3.251.2 || 28.10.2026
 docs(research): **give the paper a direct, contribution-led voice** — simplify the abstract, ground the introduction in reusable audience relationships, present the deployed application as the third contribution and replace argumentative disclaimers with affirmative architectural comparisons. Frame evaluation around practical feasibility and costs, with further optimization as follow-up work. Preserve actual feed/access behavior, pending measurements and security/portability limits; fresh prose review incorporated.
 

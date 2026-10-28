@@ -1131,6 +1131,12 @@ all unchecked boxes. The numbers the industry track will demand:
 
 **The writing plan (after the data lands):**
 
+- [✓ 3.251.5] **Direct technical prose and consolidated scope** — remove repeated defensive framing from the paper; retain specific behavior and pending results, gather open security/adoption/parity limits in one subsection. No E1–E6 completion or runtime changes.
+
+- [✓ 3.251.4] **Killer-app demonstration and media breadth** — paper/source map explain web10-social as an adoption hypothesis and broad client application over web10 APIs; source-linked media-pattern table, not mass-adoption or exhaustive competitor-parity evidence. No evaluation completion.
+
+- [✓ 3.251.3] **Demonstration implementation and source map** — document web10-social's static frontend and web10 data/auth backend, scope the preview/media/peer exceptions, add pinned component/experiment links and reproducible frontend/test/preview line counts. No benchmark completion; `research/source-map.md` records the snapshot and method.
+
 - [✓ 3.251.2] **Paper contribution-led voice** — simplify abstract/introduction/contributions/conclusion and related-work comparisons; preserve 3.251.1 factual corrections. Feasibility and operational costs are the evaluation goal; maximum performance is not a prerequisite. No new novelty priority or measured-result claims; E1–E6 remain open.
 
 - [✓ 3.251.1] **Paper factual alignment** — operator-authorized repair of `research/workshop/main.tex` and research notes: current feed call count, shared-table namespaces, actual app/group gates, bounded security/portability, fair RLS comparison and pending evidence. This is text repair, not E1–E6 completion or final submission readiness. `research/experiments/README.md` records harness blockers; fix code before collecting results.

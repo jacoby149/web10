@@ -52,6 +52,7 @@ the official CFP governs current logistics.
 | Path | Purpose |
 |---|---|
 | `brief.md` | Bounded claim, scope and outstanding gates |
+| `source-map.md` | Commit-pinned demonstration source counts, backend boundary and artifact links |
 | `related-work.md` | Explicitly unverified comparison tasks, using the verified citation pack |
 | `references/web10-references.bib` | Verified bibliography; not a completed gap analysis |
 | `references/citation-mapping.md` | Placement guidance and unsupported-claim warnings |

@@ -1195,6 +1195,12 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+- [✓ 3.251.5] **Direct technical prose and consolidated scope** — operator-authorized paper prose pass: affirmative system descriptions, one scope/open-boundaries subsection, unchanged factual caveats and evidence status. Runtime and evaluation work remain separate.
+
+- [✓ 3.251.4] **Killer-app demonstration and media breadth** — operator-authorized paper/source-map text: adoption goal, implemented text/community/image/short-video/long-video/audio patterns and pinned surface links. No popularity, exhaustive parity or capacity claim; runtime and evaluation gates unchanged.
+
+- [✓ 3.251.3] **Demonstration implementation and source map** — operator-authorized paper/source-map addition: app-local source accounting, static frontend using web10 data/auth APIs and pinned implementation/experiment links. Presentation/media/peer boundaries explicit; no new measurement results or runtime changes.
+
 - [✓ 3.251.2] **Paper contribution-led voice** — operator-authorized prose pass in `research/workshop/main.tex`; positive architectural contribution and deployed application case study, feasibility-first evaluation, optimization as follow-up. Preserve factual corrections and pending evidence; no runtime changes or E/W result completion.
 
 - [✓ 3.251.1] **Paper factual alignment** — operator-authorized edits to the existing workshop draft and research notes; shared-table/query composition, current feed calls, actual authorization gates, bounded ownership/security and fair comparisons. Text only; E/W results remain open. Harness repair is the immediate prerequisite to measurements; blockers in `research/experiments/README.md`.

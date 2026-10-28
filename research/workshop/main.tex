@@ -10,6 +10,12 @@
 \usepackage{listings}
 \usepackage{graphicx}
 
+% Pin implementation links and source-size accounting to the reviewed snapshot.
+\newcommand{\artifactbase}{https://github.com/jacoby149/web10}
+\newcommand{\artifactrev}{317fa349eae714ddde07f249ca65cdaa34b6459b}
+\newcommand{\artifactdir}[2]{\href{\artifactbase/tree/\artifactrev/#1}{#2}}
+\newcommand{\artifactfile}[2]{\href{\artifactbase/blob/\artifactrev/#1}{#2}}
+
 \lstdefinestyle{sql}{
   language={},
   basicstyle=\ttfamily\footnotesize,
@@ -53,7 +59,9 @@ platform stores documents under logical user namespaces in ClickHouse and
 exposes generic groups, service-scoped roles, app contracts, and a query API.
 Its central mechanism is a query boundary: application queries name services,
 and the node supplies filtered relations for the reader before executing joins
-and aggregations. A deployed social application uses this mechanism to combine
+and aggregations. The demonstration application, web10-social, uses web10 APIs
+as its data and authentication backend, with social behavior implemented in a
+static browser frontend. It uses this mechanism to combine
 ranked posts, engagement, and profiles, with media capabilities prepared by the
 node. We describe the access model, query compilation, and application
 composition, including the costs of metadata resolution and the consistency
@@ -163,16 +171,14 @@ an origin-keyed contract when an HTTP \texttt{Origin} is present; without that
 header, this app-contract check is skipped. Anonymous queries also skip it.
 OAuth-delegated tokens instead select a \texttt{client\_id}-keyed contract,
 including when no Origin is present. The node enables wildcard, non-credentialed
-CORS; endpoint code enforces application grants separately. CORS is not
-cryptographic client authentication and does not constrain a non-browser
-client's choice of headers. Thus the outer layer is not a universal gate on
-every API call. Identity verification and document/group authorization remain
-distinct from this calling-context policy.
+CORS; endpoint code enforces application grants separately. Origin identifies
+the browser calling context, while the delegated token carries the OAuth client
+identity. Non-browser clients control their own Origin headers. Identity
+verification and document/group authorization are separate checks.
 
 The group layer expresses trust in people. The split lets a user revoke an
 app grant without leaving a group, or leave a group without changing app
-grants. Describing this policy decomposition does not certify all issuance,
-consent, and delegation paths (\S\ref{sec:method}).
+grants.
 
 \subsection{Roles are per-service permission maps}
 
@@ -198,14 +204,13 @@ Two properties keep the model small. First, the role map is the
 \emph{same shape} as the app-contract permission object: there is one
 permission language across both trust layers. Second, a person holds
 \emph{one explicit member role} per group; compound permissions can be placed
-in that role rather than stacked through multiple assignments. This positive
-grant model does not express every policy, such as explicit deny or arbitrary
-context-dependent conditions. Roles are generic---a group defines
+in that role rather than stacked through multiple assignments. Policies use
+positive grants; explicit deny and context-dependent conditions are outside
+this model. A group defines
 whatever roles fit its purpose (\texttt{owner}, \texttt{moderator},
 \texttt{page-curator}, \texttt{member}, or \texttt{dj}, \texttt{listener})---
 and applications supply their role definitions. Some lifecycle operations use
-conventional names such as \texttt{member}; the extensibility claim is not that
-every role name is unknown to the implementation.
+conventional names such as \texttt{member}.
 
 \subsection{Principal classes and effective permissions}
 
@@ -247,19 +252,17 @@ $\quad \cup\ \big(P \in \texttt{authenticated} \;?\; \mathrm{grant}(G,\ \texttt{
 $\quad \cup\ \big(P \in \texttt{member}(G) \;?\; \mathrm{grant}(G,\ \mathrm{role}(P)) : \emptyset\big)$
 \end{center}
 
-This equation describes the union of explicit grants, not the whole current
-content gate. In the implemented \texttt{can\_read\_group} and
+The content gate combines this grant union with membership admission. In
+\texttt{can\_read\_group} and
 \texttt{can\_write\_group} helpers, an active member is admitted for content
 reads and creates without requiring service-specific \texttt{readAll} or
 \texttt{create} in that member's role. For non-members, the class grants supply
-those permissions. Other role-controlled operations still require their own
-checks. In particular, omitting \texttt{readAll} from a member role is not a
-way to hide that service from the member in these paths.
+those permissions. Other role-controlled operations use their respective
+permission checks.
 
 The union is monotone across principal classes under otherwise equal
-conditions. Actual visibility also depends on blocks, sharing state, hidden
-documents, and node moderation; the equation alone is not a theorem that every
-member sees a superset of every stranger's results.
+conditions. Blocks, sharing state, hidden documents, and node moderation apply
+additional visibility restrictions to the resulting content.
 
 \subsection{Publicness is a grant, not a flag}
 
@@ -275,10 +278,9 @@ This is the sense in which web10 brings IAM to the front: the operations a
 cloud operator would express as policies---\emph{principal class, service,
 operation, grant}---are the operations an \emph{end user} expresses about
 their own data. A grant is represented by metadata rows and revoked through
-tombstones. Subsequent checks use latest-row resolution, but an end-to-end
-revocation bound must also account for concurrent checks, database visibility,
-and already issued capabilities; it is not established merely by writing a
-tombstone.
+tombstones. Subsequent checks use latest-row resolution. End-to-end revocation
+latency comprises database visibility, concurrent checks, in-flight requests,
+and the remaining lifetime of issued capabilities.
 
 %=============================================================================
 \section{Enforcement at the Query Layer}
@@ -288,8 +290,8 @@ tombstone.
 
 A ranked feed has analytical components: joins across authors and engagement,
 filtering, aggregation, and sorting. A social application also has point reads,
-updates, and coordination-heavy operations; calling the entire workload OLAP
-would conceal that mixture. web10 chooses ClickHouse~\cite{clickhouse2024} for
+updates, and coordination-heavy operations. web10 chooses
+ClickHouse~\cite{clickhouse2024} for
 both structured content and operational metadata rather than maintaining a
 separate Postgres-to-ClickHouse replication pipeline. User content occupies
 one shared \texttt{documents} table keyed by \texttt{(author\_key, doc\_id)}.
@@ -321,15 +323,14 @@ alone do not establish read correctness: reads must select the latest version
 before deduplication can resurrect the previous version. Documents attach to
 groups through \texttt{doc\_groups}; \texttt{group\_contracts} and
 \texttt{group\_members} hold contracts and assignments. These are narrower
-metadata tables, not necessarily small or constant-cost at all scales.
+metadata tables whose size grows with groups and memberships.
 
-One structured store removes a cross-database synchronization dependency, but
-does not remove operational tradeoffs. Version accumulation, merge pressure,
-read-time deduplication, point-query latency, and shared-resource contention
-matter. Multi-row content/membership changes and concurrent revocation require
-explicit consistency reasoning rather than an assumed transactional boundary.
-Backup, restore, and recovery must cover both database metadata and object
-storage. These are design obligations, not newly measured production incidents.
+One structured store removes a cross-database synchronization dependency.
+Its operational costs include version accumulation, merge pressure, read-time
+deduplication, point-query latency, and shared-resource contention. Multi-row
+content/membership changes and concurrent revocation require explicit
+consistency handling. Backup and recovery span database metadata and object
+storage; these are requirements of the design.
 
 \subsection{The query boundary: a wall, not a membrane}
 
@@ -377,20 +378,20 @@ rejecting raw node tables, ungranted services, and table functions
 validated parser shapes as empty-named \texttt{Table} nodes);
 (4)~inject the needed boundary CTEs ahead of the caller's CTEs and re-emit from
 the validated AST; and (5)~\emph{round-trip}---re-parse the compiled SQL and
-require it to come back as exactly one statement. This catches malformed
-composition, not every semantic discrepancy between SQLGlot and ClickHouse.
-Re-emission avoids directly concatenating the submitted query string, but
-does not by itself prove the absence of injection or dialect escapes.
+require it to come back as exactly one statement. The round-trip checks
+composition syntax. Targeted parser/engine tests exercise selected dialect and
+name-resolution cases. The executed query is emitted from
+the validated AST.
 
 \paragraph{Why place policy above ClickHouse?} web10 uses a shared database
 service account and constructs a reader-specific boundary combining membership,
 class grants, and visibility exclusions. This design puts policy orchestration
 in the application rather than provisioning a database account and policy for
-each end user. It is a ClickHouse integration choice, not a general limitation
-of row-level security. PostgreSQL policies can use expressions, functions, and
+each end user. PostgreSQL policies offer another enforcement placement, using
+expressions, functions, and
 subqueries to consult dynamic authorization state~\cite{postgres-rls}; an
-equivalent membership policy is a legitimate comparison baseline. No
-expressiveness impossibility or cost advantage over such policies is claimed.
+equivalent membership policy provides a comparison baseline for the cost of
+these enforcement placements.
 
 \paragraph{Trusted implementation.} The parser, validator, generated CTEs,
 identity resolution, metadata checks, and ClickHouse name-resolution semantics
@@ -398,8 +399,7 @@ are in the trusted computing base. The service account must read raw tables to
 execute generated CTEs; its privileges do not independently enforce each
 reader's boundary. Repository tests cover selected top-level, caller-CTE,
 subquery, table-function, and aggregation cases, with a live-node E2E gauntlet
-for supported shapes. These are regression controls, not an exhaustive proof
-over the ClickHouse SQL language. Parser and engine upgrades require renewed
+for supported shapes. Parser and engine upgrades require renewed
 compatibility and adversarial testing.
 
 \subsection{Metadata resolution and relational cost}
@@ -420,8 +420,7 @@ The read path is the heart of the design:
 
 For $s$ referenced services and $g$ candidate groups, this path performs up to
 $s g$ group-gate evaluations, with early membership success reducing work
-within a check. This counts evaluations, not constant-time index lookups or a
-latency bound. The repository also has a batched helper used elsewhere; the
+within a check. The repository also has a batched helper used elsewhere; the
 query endpoint currently uses the per-group helper. Role resolution does not
 need content bodies, but its metadata I/O and the generated relational work
 both contribute to authorization cost.
@@ -430,20 +429,18 @@ The document-to-group join can yield multiple rows for one document attached
 to several readable groups. Applications must choose whether to retain those
 associations or deduplicate before counting and pagination. CTE expansion,
 join cardinalities, exclusions, and sorting can change database work and query
-plans. A cleared-group list is therefore neither a zero-cost filter nor proof
-of negligible scan overhead.
+plans. Evaluation accounts for both metadata resolution and this relational
+work.
 
-\subsection{Intended invariant and tested scope}
+\subsection{Isolation rule and regression coverage}
 
 The intended isolation rule is that another author's document requires an
 authorized group path, including public or authenticated-class grants
-(invariant I3). The query path implements this through service CTEs; CRUD,
-directory, group-attachment, preparation, and media paths have separate call
-graphs that must be checked rather than inferred correct from the compiler.
-Permission-matrix and exploit-regression tests provide evidence for their
-named cases. This draft reports neither a fresh whole-system conformance run
-nor a security certification. In particular, passing compiler tests does not
-establish end-to-end credential, delegation, or object-signing safety.
+(invariant I3). The query path implements this through service CTEs.
+Permission-matrix and exploit-regression tests exercise the compiler and
+endpoint boundaries. CRUD, directory, group-attachment, preparation, and media
+paths have separate test scopes; \S\ref{sec:limits} records the current coverage
+and open boundaries.
 
 \subsection{Document-linked media capabilities}
 
@@ -454,16 +451,12 @@ short-lived signed manifests and segment capabilities, with document checks
 on manifest access. Expiry limits capability lifetime but does not retract
 bytes already fetched or guarantee immediate revocation.
 
-The query prepare pass reuses media-resolution and HLS-signing helpers, as
-well as advertising and avatar preparation. Reusing helpers is useful
-engineering, not proof that arbitrary result projections or every signing
-endpoint preserve document-to-object authorization. An unresolved source-level
-concern in a separate read-URL handler forwards caller-selected keys to signing
-without an intervening object check; the recorded probe is not proof of live
-private-object retrieval. Consequently this paper does not assert uniform
-authorization over every media path. Such coverage must include key ownership,
-authorized cross-user references, projections, public thumbnails, and stale
-capabilities.
+The query prepare pass combines media resolution, HLS signing, advertising,
+and avatar preparation. This keeps capability issuance next to result
+preparation while object storage serves the media bytes. Its authorization
+boundary includes key ownership, authorized cross-user references, result
+projections, public thumbnails, and stale capabilities
+(\S\ref{sec:limits}).
 
 \subsection{Data policy, not privacy}
 
@@ -483,29 +476,105 @@ the demonstrated single-node architecture.
 
 Python/FastAPI handles request validation, identity and permission orchestration,
 SQLGlot parsing/compilation, serialization, and result preparation. ClickHouse's
-native engine performs scans, joins, aggregation, filtering, and sorting. The
-production API command configures four Gunicorn processes with Uvicorn workers;
-this permits multi-process execution but does not establish linear scaling.
-This is a conventional service/database division of work suitable for commercial
-application development. Its capacity remains workload-dependent: complex parsing, metadata round
-trips, large responses, and preparation can dominate some workloads. Profiling
-must distinguish API CPU, database CPU, I/O waits, and queueing before motivating
-a language rewrite or attributing performance to the columnar store.
+native engine performs scans, joins, aggregation, filtering, and sorting.
+The \artifactdir{api/app}{node API source} and
+\artifactdir{sdk/src}{TypeScript SDK} are available alongside the
+\artifactfile{api/app/v3/endpoints/query.py}{query endpoint} and
+\artifactfile{api/app/v3/services/safe_query.py}{boundary compiler}.
+The production API command configures four Gunicorn processes with Uvicorn
+workers. This service/database division of work puts query execution in
+ClickHouse and orchestration in Python. Profiling separates API CPU, database
+CPU, I/O waits, and queueing to locate the costs of parsing, metadata round
+trips, response serialization, and preparation.
 
 %=============================================================================
 \section{A Running Social Platform}
 \label{sec:eval}
 
-web10-social exercises the architecture through feeds, social groups, direct
+\artifactdir{marketing/web10-social/src}{web10-social} is the demonstration
+application built on web10: its persistent social data and authentication use
+web10 APIs and the SDK rather than a separate social-data backend. It exercises
+the architecture through feeds, social groups, direct
 messages, and discovery. These features require different content shapes and
 audience relationships over the same document and group substrate. The feed is
 a useful case study because it combines ranking, relationships, media, and
 multiple authorization scopes. We examine its query composition here; workload
 capacity is the subject of \S\ref{sec:method}.
 
+\subsection{The killer-app hypothesis}
+
+web10-social is also the project's attempt at a \emph{killer app}: an application
+compelling enough to attract users to a new platform. The longer-term vision is
+an open, decentralized ecosystem in which many applications reuse a shared data
+and access substrate. Social is the initial adoption vehicle and a demanding
+demonstration of that substrate. Adoption remains an open product goal; the
+case study examines the implemented application breadth.
+
+The application spans a media spectrum from text and social relationships to
+images, short-form video, long-form video, and audio. Facebook, Instagram,
+Threads, TikTok, YouTube, and YouTube Music provide familiar reference points
+for these interaction patterns. Table~\ref{tab:media-spectrum} maps them to
+the demonstration's implemented surfaces. These reference points describe
+interaction patterns; the case study evaluates their composition on web10.
+
+\begin{table}[t]
+  \caption{Media and interaction patterns covered by the demonstration.
+  Platform names identify familiar interaction patterns.}
+  \label{tab:media-spectrum}
+  \small
+  \begin{tabular}{@{}p{0.54\columnwidth}p{0.40\columnwidth}@{}}
+    \toprule
+    \textbf{Demonstration surface} & \textbf{Familiar reference} \\
+    \midrule
+    \artifactdir{marketing/web10-social/src/components/Groups}{Communities}, text posts and discussions & Facebook, Threads \\
+    \artifactdir{marketing/web10-social/src/components/Feed}{Image and mixed-media posts} & Instagram \\
+    \artifactfile{marketing/web10-social/src/components/Shorts/ShortsScreen.tsx}{Vertical short-video browsing} & TikTok \\
+    \artifactfile{marketing/web10-social/src/components/Watch/WatchScreen.tsx}{Long-form video watch pages} & YouTube \\
+    \artifactfile{marketing/web10-social/src/components/Music/MusicScreen.tsx}{Audio-track browsing and playback} & YouTube Music \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Different media and interaction patterns share document storage, audience relationships,
+engagement records, and access machinery, while their presentation and queries
+are defined by the client. The architectural demonstration is that this range
+of social experiences can be built on web10's APIs. A successful adoption
+vehicle would bring those users and their relationships into the wider
+application ecosystem.
+
+\subsection{A frontend application over the shared node}
+
+The application is a React/TypeScript SPA. Its
+\artifactfile{marketing/web10-social/src/data/v3.ts}{data client} connects to
+the node; social operations express posts, conversations, relationships, and
+feeds through web10's document, group, query, and media interfaces. This is
+backendless from the application developer's perspective: web10 supplies the
+backend, while the application supplies its data conventions, queries, and
+interface. The browser build consists of static assets and can be hosted
+independently, for example in S3 behind HTTPS/CDN and SPA route handling.
+
+The \artifactfile{marketing/web10-social/Dockerfile}{current deployment} also
+includes a small Node link-preview renderer for crawlers. That presentation
+component uses web10 APIs and holds no separate social-data store; a static-only
+deployment needs a separate arrangement for crawler cards. Media bytes transfer
+through API-issued object-storage URLs, and real-time peer traffic uses the
+SDK's RTC support. Telemetry and external embeds are additional network paths.
+Application data and authentication use the node; media delivery and these
+ancillary connections follow their respective transport paths.
+
+At source revision \texttt{317fa349e}, the application-local frontend contains
+\textbf{46,285 physical source lines across 141 files}: 45,846 TypeScript/TSX
+lines and 439 CSS lines under \texttt{src/}, excluding tests. Its local tests
+contain another 31,060 lines in 105 files; the link-preview renderer is 431 lines
+in three JavaScript modules. Counts include comments, blank lines, and local
+type declarations. They exclude public/generated assets, dependencies,
+configuration, tooling, and sibling shared-library and SDK implementations.
+All implementation links use the same pinned revision.
+
 \subsection{The feed as a query}
 
-The application builds a query over \texttt{posts}, \texttt{reactions},
+The application's \artifactfile{marketing/web10-social/src/data/feed.ts}{feed implementation}
+builds a query over \texttt{posts}, \texttt{reactions},
 \texttt{comments}, and \texttt{profile}. It chooses chronological or weighted
 ranking, joins engagement aggregates and author profiles, and supplies cursor
 conditions. The node resolves those service names through the boundary CTEs.
@@ -528,19 +597,16 @@ Three implementation observations define the scope of the case study:
   live in the discovery group. The follow-up queries use the union of feed
   groups and discovery to populate displayed counts. Counts are relative to
   readable relations, not necessarily global totals. The displayed counts
-  can therefore differ from the counts used by the main ranking query; the
-  composition does not automatically guarantee scope-consistent ranking.
+  can therefore differ from the counts used by the main ranking query.
   \item \textbf{The query is application-defined.} Ranking and filtering can
   change without adding a dedicated node feed endpoint. Applications can select
   their ranking and projections while reusing the same boundary construction
   and preparation services.
 \end{enumerate}
 
-The evaluation must account for this complete application path as well as the
-main query in isolation. Client-call counts and internal work are separate
-metrics: one API call can perform many metadata queries and substantial database
-work. A smaller number of client requests is not by itself a latency or
-throughput result.
+Evaluation will measure both the complete page-assembly path and its main query,
+recording client-call counts, internal metadata queries, and database work
+separately alongside latency and throughput.
 
 \begin{figure}[t]
   \centering
@@ -567,18 +633,16 @@ throughput result.
 Application-named services let different clients interpret documents without
 changing the shared document schema. A conversation can be a group with message
 documents; a music library can define track services and listener roles; a
-shop can define catalog services. These are compositional possibilities, not
-evidence that every application's requirements fit unchanged. Transactions,
-payment workflows, search indexes, schema evolution, and external integrations
-may still require additional machinery.
+shop can define catalog services. Domain-specific transactions, payment
+workflows, search indexes, schema evolution, and external integrations can
+extend this common substrate.
 
 The durable separation is between stored content/access relationships and a
 particular frontend. Replacing a frontend can reuse those primitives when it
 understands their semantics. Moving providers is a larger task: identity
 continuity, document references, group grants, media, and remote relationships
-must survive export/import. This paper does not demonstrate complete migration
-or federation, and a single-node relational query should not be interpreted as
-a cross-node query protocol.
+must survive export/import. The implemented query boundary is single-node;
+provider migration and federation are future work.
 
 %=============================================================================
 \section{Evaluation Status and Methodology}
@@ -586,22 +650,28 @@ a cross-node query protocol.
 
 \subsection{Evidence available and pending}
 
-The evidence here is the implemented architecture, repository tests for named
-paths, and a deployed motivating application. The repository includes a
-deterministic synthetic-data/load harness and query-phase telemetry. Their
-existence is not a completed experiment. This draft has no verified production
-scale snapshot, latency distribution, saturation curve, recovery measurement,
-or matched baseline result. Empirical evaluation remains pending; neither
-commercial capacity nor comparative superiority follows from the screenshots.
-Commercial use is the motivation, and measurable service behavior is the bar.
+The current case study documents the implemented architecture, repository tests
+for named paths, and a deployed application. Empirical evaluation is pending.
+The planned measurements assess workload-specific feasibility and costs:
+production observations, latency distributions, throughput, resource use,
+revocation visibility, and matched baseline behavior.
+
+The \artifactdir{research/experiments}{DigitalOcean experiment scaffold}
+includes provisioning, collection scripts, and a documented blocker list;
+the \artifactfile{research/evaluation-plan.md}{evaluation plan} defines the
+required workload and measurement checks. Existing
+\artifactdir{e2e/tests/gauntlets}{social gauntlets} provide reusable correctness
+scenarios for following, posting, and concurrent engagement. These artifacts
+support construction of the connected application workload; execution and
+result collection remain pending.
 
 An industry evaluation needs dated production observations separated from
 synthetic runs. Production observations should identify deployment duration,
 registered and active users, live and versioned document counts, services,
-groups, membership distributions, object volume, and operation rates. Counts
-of logical user namespaces must not be presented as physical databases. Any
-availability, recovery, or operating-cost claim needs its own observation
-window, failure definition, and accounting boundary.
+groups, membership distributions, object volume, and operation rates. Logical
+user namespaces are counted separately from physical storage. Availability,
+recovery, and operating costs use explicit observation windows, failure
+definitions, and accounting boundaries.
 
 \subsection{Workloads and measurement}
 
@@ -635,20 +705,20 @@ Instrumentation coverage, including work outside named phases, must be stated.
 
 \subsection{Baselines and correctness}
 
-A conventional shared-table backend with dynamic PostgreSQL RLS is a feasible
-baseline~\cite{postgres-rls}, not an intentionally weaker access model. Match
+A conventional shared-table backend with dynamic PostgreSQL RLS provides a
+baseline~\cite{postgres-rls}. Match
 returned content, membership/class grants, visibility exclusions, ranking,
 pagination, preparation, consistency requirements, and hardware/resource
 budgets. Document indexes, caching, batching, and implementation differences.
-Compare full flows as well as database queries. Since web10 already uses a
-shared table, the comparison is not ``per-user databases versus shared RLS.''
+Compare full flows as well as database queries. Both systems use shared tables
+and logical user namespaces.
 
-An authorization-disabled ablation may isolate some costs on synthetic data in
-an isolated environment, but is not a functionally equivalent product baseline.
-It must account for both metadata orchestration and changes to generated query
-plans. Distributed Pod or federated architectures offer different placement
-and autonomy properties; any comparison must describe those tradeoffs rather
-than infer inferior performance from topology alone.
+A separate authorization-disabled ablation on isolated synthetic data can
+measure the cost of checks removed from an otherwise matched request. Account
+for both metadata orchestration and changes to generated query plans; retain
+equivalent access semantics for the product baseline. Comparisons with Pod or
+federated architectures also account for placement, autonomy, caching, and
+network topology.
 
 Correctness evaluation should publish a pinned test matrix and actual results,
 distinguishing unit tests, mocked endpoints, and live-store and browser tests. Cover
@@ -656,10 +726,25 @@ principal classes, membership admission, service permissions, tombstones,
 multi-group rows, aggregations, nested SQL, denied raw tables/functions, and
 capability issuance. Revocation experiments must race grant changes with reads
 and measure stale access through metadata visibility, in-flight requests, and
-issued URLs/manifests. Current security work retains unresolved credential,
-consent/delegation, and media-boundary questions; regression tests on selected
-query paths do not close them. The paper requires measured outcomes and bounded
-coverage statements, not a blanket security label or a promised later report.
+issued URLs/manifests.
+
+\subsection{Scope and open boundaries}
+\label{sec:limits}
+
+This case study covers a single-node architecture and implemented application
+patterns. Production-scale adoption, exhaustive competitor feature parity,
+catalog and recommendation quality, and cross-node migration are outside the
+evaluation. Performance results will be reported for the measured workloads
+and configurations.
+
+Security evidence consists of regression tests for named paths. Whole-system
+conformance and the ongoing credential, consent/delegation, and media reviews
+remain open. In particular, a separate read-URL handler forwards caller-selected
+keys to signing without an intervening object check. The recorded local probe
+demonstrates that forwarding; actual private-object retrieval remains
+unverified. Parser/engine semantic differences and result-projection provenance
+also require targeted testing. These boundaries are part of the follow-up
+correctness work alongside performance optimization.
 
 %=============================================================================
 \section{Related Work}
