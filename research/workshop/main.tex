@@ -45,22 +45,24 @@
 \begin{document}
 
 \begin{abstract}
-User-owned-data protocols such as Solid and ActivityPub defined the idea---
-your data, your rules---but stopped at the specification: container-level
-access control, no group/role model, and storage that cannot run a real social
-feed. They produced a protocol without a product.
+Protocols of the decentralized social web---Solid, ActivityPub, and their
+kin---defined the idea: your data, your rules. But they stopped at the
+specification: container-level access control, no group/role model, and
+storage that cannot run a real social feed. They produced a protocol without
+a product.
 
-We present \textbf{web10}, a next-generation user-owned-data protocol \emph{and}
-its execution: a running social platform (feeds, groups, direct messages,
-discovery) built end to end on a modern columnar data-lakehouse backend. Access
-is governed by fine-grained, revocable, group/role-scoped contracts---cloud IAM
-primitives brought to the \emph{front} of the user---enforced at the query layer
-so fine-grained authorization costs an index lookup, not a scan.
+We present \textbf{web10}, a next-generation decentralized social protocol: a
+running social platform (feeds, groups, direct messages, discovery) built end
+to end on a modern columnar data-lakehouse backend. Access is governed by
+fine-grained, revocable, group/role-scoped contracts---cloud IAM primitives
+brought to the \emph{front} of the user---enforced at the query layer so
+fine-grained authorization costs an index lookup, not a scan.
 
-The application is the research. In a single query-engine call, web10 returns a
-full feed of \textbf{260 assets}, each access-checked against the reader's role
-grants: a large, tunable feed and fine-grained user-gated access coexisting in
-one query. That conjunction is what prior systems proposed but could not ship.
+The application is the research. In a single query-engine call, web10 returns
+a full feed of \textbf{260 assets}, each access-checked against the reader's
+role grants: a large, tunable feed and fine-grained user-gated access
+coexisting in one query. That conjunction is what prior systems proposed but
+could not ship.
 \end{abstract}
 
 \maketitle
@@ -102,13 +104,12 @@ revocable grants---but it lives at the infrastructure boundary, where the
 provider owns the data and the end user is invisible.
 
 What none of them have is what web10 ships: a \emph{next-generation}
-user-owned-data protocol \emph{and its execution}---the protocol and the
-product as one thing, built end to end on a modern columnar data-lakehouse
-backend. Concretely: user-owned data, with IAM-grade group/role access
-enforced at the query layer of a single columnar store, in a running social
-platform. Ownership without sacrificing the feed; fine-grained access without
-a scan penalty; and a product, not a protocol proposal. That conjunction---and
-the architecture that makes it possible---is this paper.
+decentralized social protocol---built end to end on a modern columnar
+data-lakehouse backend. Concretely: user-owned data, with IAM-grade group/role
+access enforced at the query layer of a single columnar store, in a running
+social platform. Ownership without sacrificing the feed; fine-grained access
+without a scan penalty; and a product, not a protocol proposal. That
+conjunction---and the architecture that makes it possible---is this paper.
 
 \textbf{web10} is a social data platform that makes that move. Every user's
 data lives under their own key in a single columnar store; every access
