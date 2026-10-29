@@ -1,5 +1,6 @@
-3.252.3 || 29.10.2026
+3.252.8 || 29.10.2026
 fix(sdk): **pass selected ICE through PeerJS configuration** — use config.iceServers in RTC core/minimal types and regenerate RTC ESM/declarations/docs IIFE only. Nine consumed-config regressions fail before repair; final 19 RTC controls, 284 SDK tests and typecheck pass, with fresh same-model upstream-contract/design review. Dependency fixture is not real PeerJS/network execution; connected demo, images, rollout/diverse review and L1 remain OPEN.
+
 3.252.7 || 29.10.2026
 docs(security): **count only repairs from the recent security campaign** — replace the broad security index with fifteen evidence-linked source repair outcomes from the October L1-L4 process; exclude earlier development, scans/plans and build-only correspondence work. Separate the security ledger from general AI Use Theory wins, retain corrective work and open integration/rollout/sign-off gates, and state that protocol L1 and deeper levels remain incomplete. Documentation only.
 
