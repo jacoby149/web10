@@ -167,10 +167,11 @@ async def bare_exception_handler(request: Request, exc: Exception):
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    exc_str = f"{exc}".replace("\n", " ").replace("   ", " ")
-    logging.error(f"{request}: {exc_str}")
+    # Validation text, locations and context can all contain caller secrets.
+    error_id = uuid.uuid4().hex[:12]
+    logging.error("[validation] id=%s errors=%d", error_id, len(exc.errors()))
     return JSONResponse(
-        content={"status_code": 10422, "message": exc_str, "data": None},
+        content={"status_code": 10422, "message": "request validation failed", "data": None, "error_id": error_id},
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         headers=_with_cors(),
     )

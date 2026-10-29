@@ -1,3 +1,6 @@
+3.251.10 || 28.10.2026
+fix(api): **L1-VAL-01 omit validation credential copies** — replace exception/request echoes with fixed 422 message, correlation ID and error count; retain application code, null data and CORS. Three actual-route disclosure cases red -> green; malformed-JSON, 401 and nonempty-result controls, 1,331 API tests plus four subtests and fresh same-model review pass. Diagnostic/message compatibility tradeoff recorded; deployment/history/diverse sign-off and protocol L1 remain OPEN.
+
 3.251.9 || 28.10.2026
 test(research): **add cross-app interoperability correctness harness** — extend the isolated social evaluation with distinct-Origin score/profile and listing/profile joins over social-written profiles, exact cross-author results, missing app grant/regrant/revocation and independent private-profile membership removal. Add failure-injection, result-corruption, Origin and pacing regressions; confirm outsider profile persistence before closing its browser and pace reader queries outside reload measurements. Node suite: 20 passed; runner suite: 24 passed; Playwright discovery, Bash syntax and diff checks pass. Docker daemon unavailable: connected API/ClickHouse execution, static app UI/consent and E4b evidence remain pending. No node, SDK or social runtime changes.
 

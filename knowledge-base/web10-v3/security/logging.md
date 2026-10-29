@@ -28,6 +28,15 @@ authorization boundary rather than reintroducing unsigned body-derived metadata.
 
 ## Limits
 
+L1-VAL-01: request-validation handling in `main.py` logs only a generated
+correlation ID and error count. HTTP 422 retains `status_code: 10422` and
+`data: null`, with fixed `message: "request validation failed"` and `error_id`.
+Do not stringify validation exceptions or copy their inputs, locations, messages,
+context, request URLs or headers. Locations and validator messages may themselves
+carry caller input. Field-level debugging uses synthetic reproductions and the
+request schema, not retained private input. Other exception handlers remain a
+separate review obligation.
+
 This contract covers automatic middleware rows and their insert-failure logger,
 not every logger in the application. Main exception handling, explicit SDK/E2E
 log intake, query SQL logging and import traces have separate findings/handoffs.

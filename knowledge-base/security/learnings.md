@@ -487,6 +487,18 @@ and local green controls do not replace deployment or different-family review.
 
 ## Known gaps (the "obvious gap" register)
 
+### 2026-10-28: Validation metadata must not serialize exceptions
+
+[L1-VAL-01 local repair](scans/2026-10/repair-val01-validation.md) replaces
+validation exception echoes with a fixed message, generated correlation ID and
+error count. Missing-field errors can copy the whole credential-bearing body;
+locations/messages/context are not safe merely because `input` is omitted.
+Three actual-route disclosure regressions fail before and pass after; malformed
+JSON, 401 and nonempty-result controls preserve bounded legitimate behavior.
+Loss of field-level diagnostics/message parsing is a dated accepted tradeoff in
+the receipt. Other exception handlers, deployment/history and diverse review
+remain OPEN; this does not pass protocol L1.
+
 Gaps the orient has surfaced. Each is either a `BP-n` or a standing note:
 
 - **Supply chain is not in the invariants.** I1–I6 are C+I of the *node's own code
