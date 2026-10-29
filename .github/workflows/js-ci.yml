@@ -34,7 +34,10 @@ jobs:
         with:
           filters: |
             ui: ui/**
-            sdk: sdk/**
+            sdk:
+              - sdk/**
+              - marketing/marketing-ui/public/docs/rtc.js
+              - marketing/marketing-ui/Dockerfile
             web10-social: marketing/web10-social/**
             marketing-ui: marketing/marketing-ui/**
             rtc: api/rtc/**

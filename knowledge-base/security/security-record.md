@@ -15,6 +15,20 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Docs RTC Producer (29.10.2026)
+
+L1 artifact disposition remains **OPEN**. [Provenance research](scans/2026-10/l1-artifact-provenance-followup.md)
+traces retained declarations and the stale docs RTC consumer; the
+[local producer repair](scans/2026-10/repair-docs-rtc-producer.md) adds a tracked
+wrapper, pinned build and parity/CI controls without deleting legacy outputs.
+Five stale-output failures become 14 passing controls; 279 SDK tests/typecheck
+and fresh same-model review pass. Review identifies separate effective ICE debt:
+PeerJS consumes `options.config.iceServers`, not the core's top-level option.
+PR #1294 initial source `3f481eb2f` passed all production Docker builds and four
+E2E shards; this is CI evidence, not deployed/cache or diverse-sign-off closure.
+The initial method check correctly rejected the missing central record update;
+this entry supplies it without changing the gate or claiming L1 PASS.
+
 ## Sol Resumption (28.10.2026)
 
 CORRELATION/STALE-READS [local repair](scans/2026-10/repair-account-read-ownership.md):
