@@ -4,12 +4,12 @@ import useInterface from '../interfaces/Interface'
 import ConsentView from '../components/Consent/ConsentView'
 import { vaultToken } from '../lib/tokenVault'
 
-const session = vi.hoisted(() => ({ username: 'alice', token: 'synthetic-token' as string | null }))
+const session = vi.hoisted(() => ({ username: 'alice', token: 'synthetic-token' as string | null, snapshot: false }))
 
 vi.mock('../interfaces/authAdapter', () => ({ default: () => ({ v3: {
-  state: { get token() { return session.token } },
-  readToken: () => ({ username: session.username, provider: 'api.localhost', expires: '2099-01-01' }),
-  signOut: () => {},
+  state: session.snapshot ? { token: session.token } : { get token() { return session.token } },
+  readToken: () => session.token ? ({ username: session.username, provider: 'api.localhost', expires: '2099-01-01' }) : null,
+  signOut: () => { session.token = null },
   setToken: (token: string) => { session.token = token; session.username = 'bob' },
   getProfile: async () => ({}),
 } }) }))
@@ -19,6 +19,7 @@ let apply = vi.fn()
 let subscriptions: ReturnType<typeof vi.spyOn>
 beforeEach(() => {
   session.username = 'alice'; session.token = 'synthetic-token'
+  session.snapshot = false
   vi.useFakeTimers()
   apply = vi.fn(async () => ok({}))
   vi.stubGlobal('fetch', vi.fn((url: string) => url.endsWith('/app-contracts/add') ? apply() : Promise.resolve(ok())))
@@ -334,30 +335,49 @@ it('a delayed close cannot close a newly selected account or replacement batch',
   expect(close).not.toHaveBeenCalled()
 })
 
-it('logout then login keeps unstarted consent reviewable without the previous grants', async () => {
+it('explicit logout cancels unstarted consent instead of moving it to another account', async () => {
   const I = mount(), source = { postMessage: vi.fn() }
   receive(source, [appContract()], 'relogin')
   act(() => I.current.logout())
-  expect(I.current.pendingContracts).toHaveLength(1)
+  expect(I.current.pendingContracts).toEqual([])
+  expect(source.postMessage.mock.calls[0][0]).toMatchObject({ requestId: 'relogin', status: 'error' })
   session.username = 'bob'; session.token = 'synthetic-bob'
   act(() => I.current.finishLogin())
   expect(I.current.v3Contracts).toEqual([])
-  await act(async () => { I.current.approveContract(I.current.pendingContracts[0]) })
-  expect(source.postMessage.mock.calls[0][0]).toMatchObject({ requestId: 'relogin', status: 'approved' })
+  expect(I.current.pendingContracts).toEqual([])
+  expect(apply).not.toHaveBeenCalled()
+  expect(source.postMessage).toHaveBeenCalledTimes(1)
 })
 
-it('logout then same-account login preserves an unstarted request for handoff', async () => {
+it('logout cancels an empty indexed request but same-account login can still hand off credentials', async () => {
   const I = mount(), source = { postMessage: vi.fn() }, opener = { postMessage: vi.fn() }
   window.opener = opener
   receive(source, [], 'same-account-relogin')
   act(() => I.current.logout())
+  session.token = 'synthetic-token'
   act(() => I.current.finishLogin())
-  expect(source.postMessage).not.toHaveBeenCalled()
   act(() => I.current.goToApp())
   expect(source.postMessage).toHaveBeenCalledWith({
-    type: 'contract_response', requestId: 'same-account-relogin', status: 'approved', contractCount: 0,
+    type: 'contract_response', requestId: 'same-account-relogin', status: 'error', contractCount: 0,
   }, 'https://caller.invalid')
+  expect(source.postMessage).toHaveBeenCalledTimes(1)
   expect(opener.postMessage.mock.calls.some(([payload]) => payload.type === 'auth')).toBe(true)
+})
+
+it.each([undefined, 'indexed-logout'])('real view hands off after nonempty logout/relogin without granting cancelled consent (%s)', async requestId => {
+  const source = { postMessage: vi.fn() }, opener = { postMessage: vi.fn() }
+  window.opener = opener
+  mountView()
+  receive(source, [appContract()], requestId)
+  expect(screen.getByTestId('consent-req-0')).toBeInTheDocument()
+  act(() => { fireEvent.click(screen.getByTestId('consent-logout')) })
+  expect(window.I.pendingContracts).toEqual([])
+  expect(opener.postMessage).not.toHaveBeenCalled()
+  session.token = 'synthetic-token'
+  act(() => window.I.finishLogin())
+  expect(opener.postMessage.mock.calls.filter(([p]) => p.type === 'auth')).toHaveLength(1)
+  expect(source.postMessage.mock.calls.map(([p]) => p.status)).toEqual(['error'])
+  expect(apply).not.toHaveBeenCalled()
 })
 
 it('real approve-all failure settles every row exactly once without retrying failed writes', async () => {
@@ -397,6 +417,44 @@ it('a lazy group request opens a separate consent popup after app login', async 
   act(() => I.current.initAuthenticator())
   receive(group, [{ kind: 'group', name: 'lazy-group' }], 'lazy-group')
   expect(I.current.pendingContracts).toHaveLength(1)
+})
+
+it('a lazy group batch arriving during the login close delay is not closed by that timer', async () => {
+  const I = mount(), source = { postMessage: vi.fn() }, close = vi.spyOn(window, 'close').mockImplementation(() => {})
+  window.opener = { postMessage: vi.fn() }
+  receive(source, [], 'login-close')
+  act(() => I.current.setUserConfirmed(true))
+  act(() => I.current.goToApp())
+  receive(source, [{ kind: 'group', name: 'lazy-group' }], 'lazy-overlap')
+  await act(async () => { vi.advanceTimersByTime(300) })
+  expect(close).not.toHaveBeenCalled()
+  act(() => I.current.denyContract(I.current.pendingContracts[0]))
+  expect(source.postMessage.mock.calls.map(([p]) => [p.requestId, p.status]))
+    .toEqual([['login-close', 'approved'], ['lazy-overlap', 'denied']])
+})
+
+it('a token replacement fences an older close even for the same principal', async () => {
+  session.snapshot = true
+  const I = mount(), close = vi.spyOn(window, 'close').mockImplementation(() => {})
+  window.opener = { postMessage: vi.fn() }
+  receive({ postMessage: vi.fn() }, [], 'same-principal-close')
+  act(() => I.current.setUserConfirmed(true))
+  act(() => I.current.goToApp())
+  session.token = 'replacement-token'
+  act(() => I.current.setStatus('New render with replacement client'))
+  await act(async () => { vi.advanceTimersByTime(300) })
+  expect(close).not.toHaveBeenCalled()
+})
+
+it('logout fences a no-batch handoff even if the identical account and token are restored', async () => {
+  const I = mount(), close = vi.spyOn(window, 'close').mockImplementation(() => {})
+  window.opener = { postMessage: vi.fn() }
+  act(() => I.current.goToApp())
+  act(() => I.current.logout())
+  session.token = 'synthetic-token'
+  act(() => I.current.finishLogin())
+  await act(async () => { vi.advanceTimersByTime(300) })
+  expect(close).not.toHaveBeenCalled()
 })
 
 it('a completed empty batch does not prevent a new account credential handoff', async () => {

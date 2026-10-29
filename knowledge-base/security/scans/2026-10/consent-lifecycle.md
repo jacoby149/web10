@@ -7,6 +7,12 @@ not equivalent assurance or a substitute for model-diverse review.
 
 ## Scope And Behavior
 
+Post-merge Sol repair: [logout and close ownership](repair-consent-postmerge.md).
+Source #1282 retained the logout/browser mismatch and lost the close guard; the
+earlier test-pass numbers below are historical author-reported evidence, not a
+fresh source guarantee. Current local suite: 216 UI tests, 34 ownership cases;
+connected E2E remains blocked locally by the unavailable Docker daemon.
+
 This slice covers authenticator UI lifecycle over the owned indexed replies
 prepared by #1277. It does not activate strict SDK correlation or alter SDK
 artifacts. IDs remain attribution only; the server remains the authority.
@@ -15,10 +21,14 @@ artifacts. IDs remain attribution only; the server remains the authority.
 - Already-granted rows are acknowledged only for the confirmed same principal
   and only when existing permissions include the exact requested permission set.
 - Skip denies outstanding work. In-flight writes cannot be silently skipped.
-- Logout and account change clear grant identity. Unstarted work can survive a
-  same-account re-login; starting under another account clears old grants.
-- Replacement terminates prior requests exactly once; stale completions and reads
-  cannot settle or populate state for a later request/account.
+- Explicit logout clears grant identity and cancels all pending consent. Account
+  selection without logout may preserve untouched work for review as that account.
+- Replacement terminates prior requests exactly once; stale consent completions
+  cannot settle later work. Contract reads have a token fence; profile/group/admin
+  read ownership is separate unresolved lifecycle debt, not covered by this claim.
+  Follow-up [account-read repair](repair-account-read-ownership.md) now covers
+  those five read paths locally; connected browser and broader mutation gates
+  remain open, not implied by consent completion tests.
 - A completed app-login transaction cannot close a popup after a new lazy group
   request has started; close timers are fenced by the consent generation.
 
