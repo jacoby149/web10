@@ -1,6 +1,24 @@
 # Multi-App Generality Demonstration
 
-**Status: planned; not yet built.**
+**Status: correctness harness implemented; connected execution and static apps pending.**
+
+The first executable slice is `experiments/social/interop.mjs`, run after feed
+measurements by the isolated social scenario. It reads profiles produced by real
+web10-social sign-in and joins them to app-B `snake_scores` and
+`marketplace_listings` documents created through ordinary CRUD. Both joins assert
+exact document IDs, authors, profile bodies, row counts and ordering. Missing app
+permission and revocation must deny queries; a separate synthetic private profile
+tests membership removal while scores remain readable. No original social profile
+is modified. These service names are the harness's app-specific namespaces, not
+new node tables or endpoints.
+
+This slice uses HTTP requests carrying a distinct `http://snake.localhost` Origin;
+owner requests from the configured authenticator Origin install the app grants.
+It does not yet exercise a second browser app, its SDK login/consent, avatars or
+wall links. Offline orchestration tests pass, but are not connected evidence.
+See `experiments/social/README.md` for the disposable-host gate. Shared document
+format knowledge is required; no bespoke inter-app API is required. The developer
+labels below describe application roles, not an independent-developer user study.
 
 This document specifies the paper's generality proof: a demonstration that web10
 is a *data platform*, not a *social backend*. The claim is that independent

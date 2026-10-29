@@ -92,6 +92,12 @@ counts as a current end-to-end measurement.
 
 Full specification: [`multi-app-demonstration.md`](multi-app-demonstration.md).
 
+Correctness tooling now exists in `experiments/social/interop.mjs`: distinct-Origin
+score/profile and listing/profile joins over social-produced profiles, app-grant
+denial/regrant/revocation and independent private-group exclusion. Offline tests
+verify orchestration only. Connected execution and browser app artifacts remain
+open; run through the disposable-host gate in `experiments/social/README.md`.
+
 The paper claims the node is a generic data platform, not a social backend.
 A single demonstrated application (web10-social) does not establish that claim.
 E4b specifies a three-part demonstration:

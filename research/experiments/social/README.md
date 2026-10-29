@@ -9,12 +9,18 @@ Chromium guard tests. A complete Docker-stack/droplet run has not been verified
 in the implementation workspace because its Docker daemon is unavailable.
 Do not cite implemented tests as completed experiment results.
 
-Implementation verification on 28 October 2026: 13 Node tests (zero skipped,
+Original harness verification on 28 October 2026: 13 Node tests (zero skipped,
 including isolated Chromium and real subprocess interruption), 24 mocked Python
 orchestration tests, Compose configuration validation, Bash syntax and discovery
 of the single Playwright scenario pass. A fresh source review found no remaining
 blocking integration issue after repairs. Image builds/startup and the connected
 application run still require the actual disposable host.
+
+Interoperability extension checks in this workspace: all 20 Node tests (including
+7 interoperability/pacing regressions and the isolated Chromium guard), all 24
+Python runner tests, and Playwright discovery (1 scenario) pass with the locked
+e2e dependencies installed. Docker's CLI is installed but its daemon is
+unreachable. No connected execution is claimed.
 
 ## Scenario
 
@@ -27,6 +33,9 @@ old gauntlet feed-truth helper as a substitute for the current application.
    actual signup/login APIs. Fixture setup is recorded separately from samples.
 2. Log each account into the real social frontend through its authenticator popup
    and consent UI. No browser token-cookie injection or mocked API responses.
+   Keep the outsider context open until its social-written profile is readable
+   through `/v3/read`; the app's fire-and-forget profile seed must finish before
+   closing the browser that performs it.
 3. Publish a synthetic public post through the real composer; verify its exact
    persisted text, author and returned document identity through the API.
 4. Follow through the reader's UI, verify the post appears, and verify reload
@@ -38,6 +47,41 @@ old gauntlet feed-truth helper as a substitute for the current application.
 6. Collect repeated genuine empty-Following samples, then provision exactly 20
    connected creator posts through the API, follow again and collect nonempty
    samples using the actual UI's complete feed path.
+7. After all measurements, run HTTP-only app B interoperability checks: normal
+   CRUD writes of two Snake scores and two marketplace listings, by two authors,
+   joined to the actual social-written profiles from the popup-login journey.
+
+## Interoperability Scope
+
+`interop.mjs` reuses the scenario's guarded API, poll and metadata-only operation
+journal. App B requests always carry the distinct `http://snake.localhost`
+Origin and real account tokens. This name is an HTTP header only, not a browser
+fixture or routed host; no hosts/proxy changes are needed. Grants are configured
+with each owner's token from `http://auth.localhost`, not through app B UI consent.
+This tests the HTTP authorization/data seam, not a Snake or marketplace UI.
+
+Both joins assert exact ordered rows/counts, document IDs, authors and complete
+bodies against the profiles social actually wrote. Missing profile app permission
+must return 403; granting it enables both joins; revoking the reader's B contract
+must return 403 again. Queries use ClickHouse `JSONExtractInt`, explicit aliases
+and explicit group scopes, not the research spec's illustrative SQL.
+
+A separate, explicitly synthetic private `profile` fixture tests the independent
+group gate. With B's profile app permission present, the reader is denied a direct
+private read; the score/profile inner join is empty while both scores remain
+readable. Owner-granted membership enables the exact join; membership revocation
+empties it again without hiding scores. This synthetic profile is not the main
+cross-app reuse evidence and never replaces or modifies a social profile.
+
+All three B contracts are revoked in `finally`, attempting every cleanup even
+after failure. Disposable-stack teardown removes fixture documents/groups.
+Interoperability operations are correctness-only and run after feed samples;
+their failures still fail the overall run. No tokens, SQL or content are added
+to the journal. The collector automatically hashes the new module and tests.
+
+Offline orchestration mocks in `interop.test.mjs` are **not connected evidence**.
+The actual API/compiler/ClickHouse joins and their denial/recovery cycles remain
+unverified until the disposable-stack scenario executes successfully.
 
 The creator is the synthetic bootstrap admin, which is recorded as a fixture
 limitation. Reader and outsider are ordinary accounts. All accounts have P2P
@@ -113,6 +157,19 @@ and no mutation retries. The initial connected correctness journey must pass
 before either distribution can support a successful run. A run that fails or
 collects too few samples exits nonzero rather than reporting a partial pass.
 
+The node limits each authenticated reader to 60 queries per minute. Reader-context
+browser query requests and explicit reader-token API queries share a numeric
+counter (no token or payload logging). At 45 requests, the harness waits 61 quiet
+seconds before the next operation, leaving 15 queries for an operation's fan-out.
+Background query arrivals during that wait require another quiet window. Explicit
+API queries also drain the budget before sending, and are forbidden inside timed
+measurement operations. Between-operation cooldowns precede journal starts, so measured
+reload durations exclude these waits. This adds roughly one minute of wall time
+per 45 accumulated queries, rather than one minute per reload. Query-poll failures
+still fail the run; this does not retry HTTP 429s or waive readiness checks.
+Playwright's timeout includes a repetition-scaled cooldown allowance (within the
+collector's one-hour test limit); wall time is not a throughput measurement.
+
 The runner builds the production Dockerfiles, starts fresh project-scoped storage,
 initializes the checked-in schema templates, checks service readiness, samples
 container resources during the test, and tears down only its generated
@@ -170,7 +227,7 @@ These check orchestration and measurement logic without creating a droplet:
 
 ```bash
 python3 research/experiments/social/runner.test.py
-node --test research/experiments/social/metrics.test.mjs
+node --test research/experiments/social/*.test.mjs
 bash -n research/experiments/social/run.sh
 ```
 
