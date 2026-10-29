@@ -64,6 +64,9 @@ reuses `POST /v3/app-contracts/revoke`. Full spec:
 
 ## L1 Security Scans
 
+- [✓ 3.252.4 local docs] **AI-WINS: plain improvement ledger** — `knowledge-base/ai_wins/` collects 558 dated records with PR/source, KB/code/tests labels and fix/feature/evolutionary/revolutionary types; measurement rules reserve revolutionary for fundamental system changes. Documentation complete locally, not merged or campaign closure.
+- [✓ 3.252.1 local docs] **SECURITY-WINS: document AI-assisted security improvements** — completed retrospective, now at `knowledge-base/ai_wins/security-wins.md`, linked from Written Security; separates merged-source repairs from local passing controls and links evidence/remaining gates. Documentation complete locally, not a merged-status or security-gate tick.
+
 **Campaign order:** [security strategy](../security/strategy.md): API + SDK +
 RTC through L1-L4 first, then everything else through L1-L4. The completed
 receipts below tick coverage only. Protocol L1 findings/repair disposition is

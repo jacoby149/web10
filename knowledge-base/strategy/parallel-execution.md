@@ -60,6 +60,10 @@ route + the screenshot harness).
 - [✓ 3.238.0] **A product can be deleted — the Products tab gains the delete affordance (D89 CRUD completes)** — the product maker had create + edit but no delete, so a product made in error (or whose affiliate link died) sat in the Products tab + the storefront forever. `deleteProduct` (`data/ads-catalog.ts`) tombstones the product's `posts` doc through the normal CRUD path (the owner has `deleteAll` on their followers group — the same authorization as the ad retire); ads that reference the product by `product_id` keep their denormalized offer snapshot, so the public feed's ad block still renders. `ProductsSection.tsx` gains a per-tile delete (trash) affordance + a confirm dialog (the product's name + the "ads keep their own link" note; a failed delete keeps the dialog open). `adsCatalog.test.ts` +1, `monetization.test.tsx` +3; 1519 green, `tsc` clean; screenshots `monetize-products-{desktop,375}.png` + `product-delete-{desktop,375}.png`.
 
 ### Lane: security-l1-scans
+
+- [✓ 3.252.4 local docs] **AI-WINS: plain improvement ledger** — 558 dated records with PR/source, KB/code/tests labels and fix/feature/evolutionary/revolutionary types; measurement rules reserve revolutionary for fundamental system changes. Documentation complete locally, not merged or campaign closure.
+- [✓ 3.252.1 local docs] **SECURITY-WINS: document AI-assisted security improvements** — completed evidence-linked retrospective, now in `knowledge-base/ai_wins/security-wins.md`, with Written Security index link; merged/local distinction and remaining gates preserved. Documentation complete locally, not merged or campaign closure.
+
 **Campaign order:** [security strategy](../security/strategy.md): protocol/API +
 SDK + RTC L1-L4 first; remaining project surfaces L1-L4 second. PROTOCOL-01 is
 next. Historical coverage ticks below are not finding closure or security PASS.
