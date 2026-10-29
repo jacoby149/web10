@@ -61,9 +61,12 @@ route + the screenshot harness).
 
 ### Lane: security-l1-scans
 
-- [✓ 3.252.4 local docs] **AI-WINS: plain improvement ledger** — 558 dated records with PR/source, KB/code/tests labels and fix/feature/evolutionary/revolutionary types; measurement rules reserve revolutionary for fundamental system changes. Documentation complete locally, not merged or campaign closure.
-- [✓ 3.252.1 local docs] **SECURITY-WINS: document AI-assisted security improvements** — completed evidence-linked retrospective, now in `knowledge-base/ai_wins/security-wins.md`, with Written Security index link; merged/local distinction and remaining gates preserved. Documentation complete locally, not merged or campaign closure.
+- [✓ 3.252.6 local docs] **AI-WINS: plain improvement ledger** — 558 dated records with PR/source, KB/code/tests labels and fix/feature/evolutionary/revolutionary types; measurement rules reserve revolutionary for fundamental system changes. Documentation complete locally, not merged or campaign closure.
+- [✓ 3.252.3 local docs] **SECURITY-WINS: document AI-assisted security improvements** — completed evidence-linked retrospective, now in `knowledge-base/ai_wins/security-wins.md`, with Written Security index link; merged/local distinction and remaining gates preserved. Documentation complete locally, not merged or campaign closure.
 
+- [✓ 3.252.2 local] **PROTOCOL-01/RTC-PRODUCER: reproducible docs RTC wrapper** — pinned producer/Docker/CI wiring; five baseline failures, 14 final controls and 279 SDK tests/typecheck pass. `knowledge-base/security/scans/2026-10/repair-docs-rtc-producer.md`; connected/image/diverse gates remain OPEN.
+- [ ] **PROTOCOL-01/RTC-ICE: pass ICE through PeerJS configuration** — separate core repair; pin `options.config.iceServers` with a PeerJS-compatible red/green control, regenerate affected RTC outputs and verify connected demo behavior. Current correspondence controls do not prove effective ICE. Own SDK RTC source/tests/generated RTC and serialized docs output; no admission changes. Gates: <=500-line fix, intent review, KB write-back, all checks green.
+- [✓ 3.252.1] **PROTOCOL-01/ART-PROVENANCE: trace legacy declarations and docs RTC** — bounded read-only history/consumer research and six inert-peer controls; `knowledge-base/security/scans/2026-10/l1-artifact-provenance-followup.md`. Producer/parity repair, explicit retirement decision and integration/sign-off remain OPEN; no runtime change or L1 closure.
 **Campaign order:** [security strategy](../security/strategy.md): protocol/API +
 SDK + RTC L1-L4 first; remaining project surfaces L1-L4 second. PROTOCOL-01 is
 next. Historical coverage ticks below are not finding closure or security PASS.
