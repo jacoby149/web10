@@ -1,6 +1,7 @@
 import { test, type BrowserContext, type Page } from '../../../e2e/node_modules/@playwright/test';
 import { randomBytes } from 'node:crypto';
-import { allowedTarget, blockPeerConnections, configuration, definitions, feedNetworkReady, hosts, journal, networkStage, summarize, validMarker, writeResult } from './metrics.mjs';
+import { allowedApiOrigin, allowedTarget, blockPeerConnections, configuration, definitions, feedNetworkReady, hosts, journal, networkStage, queryBudget, summarize, validMarker, writeResult } from './metrics.mjs';
+import { runInteroperability } from './interop.mjs';
 
 const social = 'http://social.localhost';
 const discover = 'api.localhost/groups/web10/discover';
@@ -17,6 +18,7 @@ test('isolated connected social correctness and Following readiness', async ({ b
   const contexts: BrowserContext[] = [];
   const account = () => ({ username: `eval-${randomBytes(9).toString('hex')}`, password: randomBytes(24).toString('hex'), token: '' });
   const creator = account(), reader = account(), outsider = account();
+  const readerQueries = queryBudget();
   const followers = `api.localhost/groups/users/${creator.username}/followers`;
   const text = 'Synthetic connected evaluation public post';
   const comment = 'Synthetic connected evaluation comment';
@@ -30,8 +32,13 @@ test('isolated connected social correctness and Following readiness', async ({ b
     check(validMarker(response.status(), await response.json()));
   }
   async function api(path: string, data: object, status = 200, origin = social) {
-    check(origin === social || origin === 'http://auth.localhost');
+    check(allowedApiOrigin(origin));
     check(/^\/(v3\/[a-z/-]+|setup(?:\/configure)?|config(?:\/update)?)$/.test(path));
+    if (path === '/v3/query' && (data as { token?: string }).token === reader.token) {
+      check(current?.phase !== 'measurement');
+      await readerQueries.drain();
+      readerQueries.record();
+    }
     if (['/setup/configure', '/v3/signup', '/v3/login', '/config/update'].includes(path)) await marker();
     if (current) current.requests++;
     const counts = current?.network[networkStage(`http://api.localhost${path}`)!];
@@ -62,6 +69,7 @@ test('isolated connected social correctness and Following readiness', async ({ b
     throw Object.assign(new Error('Readiness'), { name: 'TimeoutError' });
   }
   async function op(name: string, phase: string, action: () => Promise<any>, options = {}) {
+    await readerQueries.drain();
     return log.run(name, phase, async (row: any) => {
       current = row;
       try {
@@ -72,12 +80,13 @@ test('isolated connected social correctness and Following readiness', async ({ b
       } finally { row.blocked_external = blocked; row.peer_attempts = peerAttempts; current = undefined; }
     }, options);
   }
-  async function guardedPage() {
+  async function guardedPage(user: typeof creator) {
     const context = await browser.newContext({ serviceWorkers: 'block' });
     contexts.push(context);
     await context.exposeBinding('__web10EvalPeerAttempt', () => { peerAttempts++; });
     await context.addInitScript(blockPeerConnections);
     context.on('request', req => {
+      if (user === reader && req.method() === 'POST' && networkStage(req.url()) === 'query') readerQueries.record();
       if (current) current.requests++;
       const stage = networkStage(req.url(), req.method());
       if (stage !== null) {
@@ -220,11 +229,19 @@ test('isolated connected social correctness and Following readiness', async ({ b
         });
       } finally { await api('/v3/app-contracts/revoke', { token: user.token, allowed_origin: auth }, 200, auth); }
     });
-    const cp = await guardedPage(), rp = await guardedPage();
+    const cp = await guardedPage(creator), rp = await guardedPage(reader);
     await op('creator.popup-login-consent', 'preauth', () => signIn(cp, creator));
     await op('reader.popup-login-consent', 'preauth', () => signIn(rp, reader));
     await op('outsider.popup-login-consent', 'preauth', async () => {
-      const page = await guardedPage(); await signIn(page, outsider); await page.context().close();
+      const page = await guardedPage(outsider); await signIn(page, outsider);
+      await poll(async () => {
+        const docs = await read(outsider.token, 'profile', {
+          groups: [`api.localhost/groups/users/${outsider.username}/followers`],
+        });
+        return docs.length === 1 && docs[0].author_key === outsider.username &&
+          docs[0].body.display_name === outsider.username && typeof docs[0].doc_id === 'string';
+      });
+      await page.context().close();
     });
     await op('following.empty', 'correctness', () => feed(rp, []));
     let postId = '';
@@ -311,6 +328,7 @@ test('isolated connected social correctness and Following readiness', async ({ b
       await rp.goto(`${social}/feed?tab=following`); await feed(rp, expectedTexts);
     });
     await samples(rp, expectedTexts);
+    await runInteroperability({ api, poll, op, accounts: { creator, reader, outsider }, followers });
   } catch (error) {
     await log.run('scenario.failure', 'correctness', async () => { throw error; }).catch(() => {});
     throw new Error('SocialEvaluationFailed');

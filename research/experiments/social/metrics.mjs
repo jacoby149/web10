@@ -2,6 +2,25 @@ import { closeSync, fsyncSync, lstatSync, openSync, readFileSync, realpathSync, 
 import { isAbsolute, join, resolve } from 'node:path';
 
 export const hosts = ['social.localhost', 'auth.localhost', 'api.localhost', 'rtc.localhost'];
+// HTTP fixture calls only; this does not expand the browser/network allowlist.
+export function allowedApiOrigin(origin) {
+  return ['http://social.localhost', 'http://auth.localhost', 'http://snake.localhost'].includes(origin);
+}
+// Reserve 15 of the node's 60 queries/minute for one browser operation's fan-out.
+export function queryBudget(sleep = ms => new Promise(resolve => setTimeout(resolve, ms))) {
+  let count = 0;
+  return {
+    record() { count++; },
+    async drain() {
+      while (count >= 45) {
+        const before = count;
+        await sleep(61_000);
+        // A background request during cooldown starts a fresh quiet window.
+        if (count === before) count = 0;
+      }
+    },
+  };
+}
 export function allowedTarget(value, websocket = false) {
   try {
     const u = new URL(value);

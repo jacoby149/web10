@@ -24,7 +24,7 @@ class RunnerTests(unittest.TestCase):
         self.here.mkdir(parents=True)
         (self.here / "playwright.config.ts").touch()
         for name in ('compose.yml', 'proxy.conf', 'run.sh', 'collector.py', 'runner.test.py',
-                     'scenario.spec.ts', 'reporter.ts', 'metrics.mjs'):
+                     'scenario.spec.ts', 'reporter.ts', 'metrics.mjs', 'interop.mjs', 'interop.test.mjs'):
             (self.here / name).touch()
         cli = self.root / "e2e/node_modules/@playwright/test/cli.js"
         cli.parent.mkdir(parents=True)
@@ -269,7 +269,7 @@ class RunnerTests(unittest.TestCase):
         after = runner.source_hashes()
         key = 'research/experiments/social/scenario.spec.ts'
         self.assertNotEqual(before[key], after[key])
-        for name in ('playwright.config.ts', 'reporter.ts', 'metrics.mjs', 'runner.test.py',
+        for name in ('playwright.config.ts', 'reporter.ts', 'metrics.mjs', 'interop.mjs', 'interop.test.mjs', 'runner.test.py',
                      'collector.py', 'run.sh', 'proxy.conf', 'compose.yml'):
             self.assertIn('research/experiments/social/' + name, after)
         self.assertIn('e2e/package.json', after)
