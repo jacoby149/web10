@@ -1,6 +1,15 @@
 (() => {
-  // sdk/src/rtc/index.ts
+  // src/rtc/index.ts
   var PeerClass = null;
+  function defaultIceServers() {
+    return [
+      { urls: "stun:stun.l.google.com:19302" },
+      { urls: "stun:stun1.l.google.com:19302" },
+      { urls: "stun:stun2.l.google.com:19302" },
+      { urls: "stun:stun3.l.google.com:19302" },
+      { urls: "stun:stun4.l.google.com:19302" }
+    ];
+  }
   function setPeer(Peer) {
     PeerClass = Peer;
   }
@@ -15,24 +24,37 @@
     let peer = null;
     const outbound = new Map;
     const inbound = new Map;
+    let onInboundRef = null;
     const connector = {
       peerId(provider, user, origin, label = "") {
         return `${provider} ${user} ${origin} ${label}`.replaceAll(".", "_");
       },
-      initP2P(onInbound, label = "", secure = true) {
+      async initP2P(onInbound, label = "", secure = true) {
         const PC = getPeer();
         const token = wapi.readToken();
         if (!token)
           throw new Error("Cannot init P2P without a token");
         const id = this.peerId(token.provider, token.username, token.site, label);
+        let iceServers;
+        if (wapi.state.iceServers && wapi.state.iceServers.length > 0) {
+          iceServers = wapi.state.iceServers;
+        } else {
+          try {
+            iceServers = await wapi.getIceServers();
+          } catch {
+            iceServers = defaultIceServers();
+          }
+        }
         peer = new PC(id, {
           host: wapi.state.rtcServer,
           secure,
           port: secure ? 443 : 80,
           path: "/",
-          token: `${wapi.state.token}~${label}`
+          token: `${wapi.state.token}~${label}`,
+          iceServers
         });
         if (onInbound && peer) {
+          onInboundRef = onInbound;
           peer.on("connection", (raw) => {
             const conn = raw;
             inbound.set(conn.peer, conn);
@@ -62,6 +84,10 @@
           return existing;
         const conn = peer.connect(id);
         outbound.set(conn.peer, conn);
+        conn.on("data", (data) => {
+          if (onInboundRef)
+            onInboundRef(conn, data);
+        });
         conn.on("close", () => outbound.delete(conn.peer));
         return conn;
       },
@@ -79,7 +105,6 @@
     return connector;
   }
 
-  // Attach to window for the vanilla-JS demos (served at /docs/rtc.js).
-  // Build: bun build <wrapper importing sdk/src/rtc> --target browser --format iife
+  // src/rtc/browser.ts
   window.web10rtc = { createRTC, setPeer };
 })();

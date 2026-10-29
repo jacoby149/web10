@@ -488,6 +488,23 @@ and local green controls do not replace deployment or different-family review.
 
 ## Known gaps (the "obvious gap" register)
 
+### 2026-10-29: Historical origin is not a current artifact producer
+
+[Local producer repair](scans/2026-10/repair-docs-rtc-producer.md) makes the docs
+RTC asset reproduce current source; 14 controls/279 SDK tests pass. Fresh review
+found source parity is not dependency compatibility: PeerJS consumes ICE through
+`options.config`, not the core's top-level `iceServers`. Keep effective ICE as a
+separate repair. Accept producer-only scope with real signaling/image checks open;
+reopen on helper stalls, browser failures or toolchain changes. No L1 closure.
+
+[Artifact follow-up](scans/2026-10/l1-artifact-provenance-followup.md) traces six
+legacy declarations/maps to source retired in #547. Non-clean builds retain them;
+unexported package paths do not rule out external static/direct-file consumers.
+Docs RTC is actively loaded by the messages demo but lacks a tracked current
+producer. Six inert-peer controls establish ICE/outbound-reply drift, not a
+network exploit. Repair its producer/parity separately; decide legacy retirement
+explicitly rather than deleting by inference. Integration/diverse sign-off OPEN.
+
 ### 2026-10-28: A read belongs to both an identity and a request
 
 [Account-read ownership repair](scans/2026-10/repair-account-read-ownership.md)
