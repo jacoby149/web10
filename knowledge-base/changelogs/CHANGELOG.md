@@ -1,3 +1,18 @@
+3.252.7 || 29.10.2026
+docs(security): **count only repairs from the recent security campaign** — replace the broad security index with fifteen evidence-linked source repair outcomes from the October L1-L4 process; exclude earlier development, scans/plans and build-only correspondence work. Separate the security ledger from general AI Use Theory wins, retain corrective work and open integration/rollout/sign-off gates, and state that protocol L1 and deeper levels remain incomplete. Documentation only.
+
+3.252.6 || 29.10.2026
+docs(ai-wins): **reserve revolutionary for fundamental system changes** — audit all three monthly ledgers against fix/feature/evolutionary/revolutionary definitions; products remain a feature, substantial existing-system changes become evolutionary. Update measurement rules and summaries: 558 records, 250 fixes, 276 features, 27 evolutionary and five revolutionary records (including decision/implementation stages, not five independent revolutions). Documentation only.
+
+3.252.5 || 29.10.2026
+docs(ai-wins): **collect the actual improvements in plain sentences** — replace the abstract nine-example scorecard with dated August/September/October ledgers: 558 recorded changes, each with improvement ID, verified PR or explicit missing reference, revolutionary/feature/fix label, KB/code/tests labels and source. Keep pre-adoption work out, preserve follow-up fixes and reversals, and simplify the security index and entry rules. Historical collection only, not measured AI savings or new runtime verification.
+
+3.252.4 || 29.10.2026
+docs(ai-wins): **measure meaningful outcomes instead of code volume** — create `knowledge-base/ai_wins/` leadership home, measurement rules and nine-family AI Use Theory retrospective; relocate/reframe security wins there with fifteen bounded improvements. Separate knowledge, code and verification maturity; track rework under its parent outcome, preserve July failures/August adoption chronology and avoid unmeasured savings or causal productivity claims. Selected retrospective only; no runtime or new audit results.
+
+3.252.3 || 29.10.2026
+docs(security): **collect AI-assisted security wins** — add `knowledge-base/security/security-wins.md` and link it from Written Security: twelve merged-source improvements plus three local repairs, each with risk reduction and recorded regression evidence. Explain AI's role in reproduction, repair, review and knowledge retention; preserve rollout, historical-exposure, independent-review and open-campaign limits. Documentation only; no new audit, runtime changes or tests claimed.
+
 3.252.2 || 29.10.2026
 fix(sdk): **produce the docs RTC bundle from tracked source** — preserve window.web10rtc with a pinned Bun wrapper, Docker generation and SDK CI asset-path coverage. Five stale-output controls fail before regeneration; final 14 RTC controls, 279 SDK tests and typecheck pass with fresh same-model review. Review identifies pre-existing PeerJS ICE option-shape debt; tests prove selection/correspondence, not effective ICE. Docker/connected browser, rollout and diverse sign-off remain OPEN; legacy declarations untouched, no L1 closure.
 
