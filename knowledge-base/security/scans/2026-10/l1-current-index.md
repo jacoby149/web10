@@ -110,6 +110,13 @@ merge effects. Fenced probes read pinned Git objects; never print captured secre
 
 ## Current Disposition Ledger
 
+28.10.2026 overlay: **L1-VAL-01 locally source-repaired**;
+[receipt](repair-val01-validation.md) records three actual-route red/green cases,
+1,331 API passes plus four subtests and fresh same-model review. No deployed,
+historical exposure or model-diverse closure. Next bounded repair is
+L1-OAUTH-SOURCE-01; protocol L1 remains OPEN. Historical resumption text above
+describes its scan pin, not this repair overlay.
+
 Merged repair means source repaired, NOT rollout/exposure/model-diverse sign-off.
 Conditional local facts remain bounded; no production breach is established.
 
