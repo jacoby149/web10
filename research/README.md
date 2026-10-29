@@ -61,7 +61,7 @@ the official CFP governs current logistics.
 | `references/web10-references.bib` | Verified bibliography; not a completed gap analysis |
 | `references/citation-mapping.md` | Placement guidance and unsupported-claim warnings |
 | `evaluation-plan.md` | Production/synthetic separation, fair baselines, measurement gates, and the E4b multi-app generality demonstration |
-| `multi-app-demonstration.md` | Three-part generality proof: web10-social + "Most Popular" probe + Developer B's Snake/Marketplace reading social profiles cross-app |
+| `multi-app-demonstration.md` | Three-part generality proof: web10-social + "Most Popular" probe + Developer B's Snake/Marketplace reading social profiles cross-app. Snake + Marketplace are built and hosted at `/docs/snake/` + `/docs/marketplace/` on the marketing UI, with the `/docs/interop` story page and an e2e gauntlet capturing screenshots |
 | `experiments/README.md` | Known harness blockers; no runnable/reproducible claim yet |
 | `draft/outline.md` | Industry-paper section plan |
 | `workshop/main.tex` | Existing compressed draft, not evidence of completed evaluation |
