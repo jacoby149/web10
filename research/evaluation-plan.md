@@ -88,6 +88,41 @@ counts as a current end-to-end measurement.
 - [ ] Measure page readiness and request counts, not just one SQL response;
   compare equivalent baseline outputs and functionality.
 
+## E4b - Multi-App Generality Demonstration
+
+Full specification: [`multi-app-demonstration.md`](multi-app-demonstration.md).
+
+The paper claims the node is a generic data platform, not a social backend.
+A single demonstrated application (web10-social) does not establish that claim.
+E4b specifies a three-part demonstration:
+
+1. **web10-social (Developer A)** — the full social app, already built. The star.
+2. **"Most Popular on web10"** — a same-domain analytics probe: one query over
+   the same services, author-aggregation semantics instead of reader-scoped feed.
+3. **Developer B's apps (Snake + Marketplace)** — cross-domain, cross-developer:
+   a game and a commerce app that read web10-social's `profile` documents
+   (avatars, walls) and store their own domain data (`high_scores`, `listings`).
+   web10-social is unchanged. No inter-app API agreement.
+
+The critical property: Developer B's applications read Developer A's data
+through the user's grants and the same query boundary, with zero changes to
+Developer A's application. The data is the user's, not the app's.
+
+- [ ] Validate the "Most Popular" leaderboard query against the live node.
+- [ ] Build the "Most Popular" static page.
+- [ ] Write the seed script for `high_scores` and `listings` documents.
+- [ ] Build the Snake static page (cross-domain join: `high_scores` + `profile`).
+- [ ] Build the Marketplace static page (cross-domain join: `listings` + `profile`).
+- [ ] Validate the combined "Friends & Scores" query against the live node.
+- [ ] Confirm the node has no app-specific surface for games/commerce/leaderboards (D60).
+- [ ] Screenshot each page (desktop + 375px mobile).
+- [ ] Draft the §3.4/§3.5 expansion with the multi-app table and narrative.
+- [ ] Link all static pages as paper artifacts (pinned revision).
+- [ ] Decide title: "Social Data Platform" vs. "User Data Platform".
+
+This is a generality demonstration, not a performance comparison. The game and
+marketplace are not workloads for E2/E3. Their smallness is the argument.
+
 ## E5 - Bounded Conformance Evidence
 
 - [ ] Cite exact revision, executed suites, case counts, results and exclusions.
