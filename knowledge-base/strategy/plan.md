@@ -1131,7 +1131,8 @@ all unchecked boxes. The numbers the industry track will demand:
   pre-experiment baby test (s-1vcpu-1gb, nyc1) de-risks the lifecycle,
   `seed.py` + `bench.py` + `run.sh` orchestrate compose-up → seed → bench →
   collect → results. Data collection pending: run `run.sh`, scrape the
-  `[query] … timing_ms` logs, compute p50/p95/p99 per phase.
+   `[query] … timing_ms` logs, compute p50/p95/p99 per phase.
+- [ ] **E2E CI blocker: ClickHouse `group_contracts.tags` schema race** (found via PR #1292, pre-existing on `dev`) — e2e shards 1/4 and 2/4 fail on a fresh stack with `Code: 47. DB::Exception: Unknown expression identifier 'tags' in scope … FROM group_contracts` (surfaced on `POST /setup/configure` 500, and downstream via the missing `updated_at` version column). The `tags` column is added by a boot-time `ALTER TABLE` self-heal in `api/app/v3/services/clickhouse.py` (3.116.1, D78), but a query can run against `group_contracts` before that ALTER has committed, so the column is absent. **Fix:** make the `tags` (and `updated_at`/`membership_visibility`/`discoverable`) column additions synchronous + guaranteed before any `group_contracts` read, or add the columns to the initial DDL template so they exist at table creation; add a regression test that boots a fresh ClickHouse and immediately runs a `group_contracts` read. **Gates:** the full e2e suite green on a clean stack. **Acceptance bar:** a fresh e2e run (all four shards) passes with no `Unknown expression identifier` errors on `group_contracts`.
 
 **The writing plan (after the data lands):**
 
