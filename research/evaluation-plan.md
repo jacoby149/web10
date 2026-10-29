@@ -11,6 +11,12 @@ Resolve those gates before collecting paper numbers.
 Target: SIGMOD 2027 industry track; November 24, 2026, 23:59 AoE;
 internal freeze November 20. See [submission requirements](README.md#venue).
 
+The [connected social runner](experiments/social/README.md) supplies an isolated
+application/correctness and timed-reload procedure, separate from the legacy
+query harness. It is implemented, not yet a completed droplet experiment. It
+excludes P2P/media playback and capacity/scaling comparisons; E2-E5 remain open
+until the required workloads run and their evidence is reviewed.
+
 ## System and Contribution
 
 web10 stores documents in one shared ClickHouse `documents` table keyed by

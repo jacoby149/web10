@@ -1,7 +1,18 @@
 # web10 SIGMOD Experiments - Status and Gates
 
-**BLOCKED: the current harness is not validated as runnable or reproducible.**
-Results are pending. The scripts are an unfinished synthetic query-engine
+## Connected Application Evaluation
+
+The [new isolated social runner](social/README.md) exercises actual browser
+login/consent, composing, following, engagement, private-access denial and
+revocation, then collects timed empty and 20-post Following reloads with resource
+sampling. It uses production builds and fresh disposable storage, with explicit
+target guards. Local regressions are not completed droplet results; run and retain
+the manifest/artifacts before citing measurements.
+
+## Legacy Query Harness
+
+**BLOCKED: the legacy seed/bench/run harness is not validated as runnable or reproducible.**
+Results are pending. Those scripts are an unfinished synthetic query-engine
 experiment, not production measurements or a full social-page benchmark.
 Do not provision a machine expecting the current scripts to produce valid
 paper results without resolving the gates below.
