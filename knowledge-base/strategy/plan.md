@@ -1135,6 +1135,8 @@ all unchecked boxes. The numbers the industry track will demand:
 
 **The writing plan (after the data lands):**
 
+- [✓ 3.251.7] **Connected droplet evaluation runner** — implement `research/experiments/social/` isolated production-build scenario and evidence collector; real browser/auth/data paths, separate setup/warmups, exact expected outcomes, durable failures and project-only cleanup. This completes tooling only: Docker/droplet execution and E2–E5 evidence remain open. Gates/commands: `research/experiments/social/README.md`.
+
 - [✓ 3.251.6] **Live Ubuntu pilot observation** — collect aggregate production stats and bounded account-authorized browser checks without fixtures, direct data mutation or redeployment. Record initial empty-music selector failure, readiness samples, resource snapshots and missing deployed phase telemetry; formal evaluation remains open.
 
 - [✓ 3.251.5] **Direct technical prose and consolidated scope** — remove repeated defensive framing from the paper; retain specific behavior and pending results, gather open security/adoption/parity limits in one subsection. No E1–E6 completion or runtime changes.

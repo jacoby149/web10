@@ -1195,6 +1195,8 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+- [✓ 3.251.7] **Connected droplet evaluation runner** — operator-authorized `research/experiments/social/` tooling: production builds, real UI journey, warmup-separated timing and safe evidence/cleanup. No live deployment changes, cloud provisioning or completed droplet results; E2–E5 remain open until executed artifacts are reviewed. Test/runtime ownership is restricted to this research harness.
+
 - [✓ 3.251.6] **Live Ubuntu pilot observation** — operator-authorized actual production login and nine route checks plus read-only aggregate/host snapshots, recorded in `research/live-observation-2026-10-28.md`. No stress/write gauntlets, deployment changes or full evaluation closure; missing phase instrumentation and exact build provenance retained.
 
 - [✓ 3.251.5] **Direct technical prose and consolidated scope** — operator-authorized paper prose pass: affirmative system descriptions, one scope/open-boundaries subsection, unchanged factual caveats and evidence status. Runtime and evaluation work remain separate.
