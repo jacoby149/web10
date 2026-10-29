@@ -324,6 +324,10 @@ does not merge.
 
 Consent correlation is staged: the UI can prepare owned indexed replies for ID-bearing unified batches, but the SDK is not yet strict. IDs grant no authority; no-op/cancellation/account/batch lifecycle and SDK/browser integration remain close conditions.
 
+Explicit authenticator logout cancels pending consent, including unstarted work; a later login may hand back credentials but cannot approve the cancelled request. Account-picker selection can still review untouched requests. Delayed popup closes are bound to the current handoff generation, batch, principal and token.
+
+Authenticator profile/admin/contracts/group display reads are owned by the current identity generation and per-surface request sequence. Logout/login/picker transitions invalidate old reads and debounce callbacks; retained callbacks use the current client, not an older render's credential snapshot.
+
 Browser auth-token messages require a bound credential window and configured origin. Legacy contractOnReady no-callback metadata stays available; opener callbacks and token handoff require its trusted-auth-origin argument. User grants may skip repeated consent, never authentication checks.
 
 JWT tokens with `username, site, target, provider, expires`. Server verifies signature, checks app contracts + group membership. Full auth flow: `knowledge-base/web10-v3/auth/auth.md`.

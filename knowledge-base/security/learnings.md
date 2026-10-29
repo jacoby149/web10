@@ -462,9 +462,10 @@ no-op/cancellation/account/full-batch and browser integration gates are met.
 The local lifecycle candidate covers empty/no-op, skip, logout/account change,
 replacement, approve-all failure and delayed handoff. Preserve the exact
 requested-permission inclusion predicate; grants apply only to the same confirmed
-principal and do not authenticate. Logout followed by same-account login must
-not cancel an unstarted request, while a different principal must not inherit
-grants. A completed app-login batch also must not let its delayed close timer
+principal and do not authenticate. The earlier candidate retained unstarted
+requests across logout; the post-merge repair below supersedes that behavior:
+explicit logout cancels them, while picker selection may retain untouched work.
+A different principal must not inherit grants. A completed app-login batch also must not let its delayed close timer
 terminate a subsequent lazy group-consent batch. Focused unit/browser evidence
 must pin both transitions. The unit suite passes locally; Docker was unavailable
 for local E2E, and the first two CI E2E attempts still failed these paths, so the
@@ -486,6 +487,28 @@ SDK sender checks still do not correlate concurrent requests. Same-model replay
 and local green controls do not replace deployment or different-family review.
 
 ## Known gaps (the "obvious gap" register)
+
+### 2026-10-28: A read belongs to both an identity and a request
+
+[Account-read ownership repair](scans/2026-10/repair-account-read-ownership.md)
+rejects old responses even after identical-token relogin; token equality alone
+does not establish lifecycle ownership. A session fence also cannot order two
+requests in the same session: use a per-surface latest-request sequence. Retained
+methods must capture ownership and sent credentials from the same current client,
+and signed-out branches must not clear a newly signed-in account's lists. Initial
+24 failing controls and reviewer replays pin local state misattribution, not API
+authority escalation. New reads hydrate the current account; connected browser
+and asynchronous mutations outside these five display reads remain unverified.
+
+### 2026-10-28: Explicit logout is not account selection
+
+[Post-merge consent repair](scans/2026-10/repair-consent-postmerge.md) separates
+terminal logout from choosing an account to review untouched requests. Cancelling
+consent must leave credential login alive without implicitly granting cancelled
+rows. A timer's token fence must read the current client, not an older render's
+snapshot; equality alone misses identical-token logout/relogin, so identity resets
+and newer handoffs invalidate its generation. Real-view and snapshot-client
+controls support local repair, not connected E2E or complete stale-read fencing.
 
 ### 2026-10-28: OAuth code minting needs source certification
 
