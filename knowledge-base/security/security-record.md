@@ -17,6 +17,13 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 
 ## Docs RTC Producer (29.10.2026)
 
+RTC-ICE [local repair](scans/2026-10/repair-rtc-ice.md) now passes selected ICE
+through PeerJS's consumed `config.iceServers`. Nine baseline failures become
+19 passing RTC controls; 284 SDK tests/typecheck and fresh same-model contract/
+design review pass. RTC outputs regenerated with main SDK/legacy artifacts
+untouched. Dependency-contract fixture only, not actual PeerJS/network proof;
+connected/image/rollout/diverse gates remain **OPEN**, no C+I exploit or L1 closure.
+
 L1 artifact disposition remains **OPEN**. [Provenance research](scans/2026-10/l1-artifact-provenance-followup.md)
 traces retained declarations and the stale docs RTC consumer; the
 [local producer repair](scans/2026-10/repair-docs-rtc-producer.md) adds a tracked

@@ -490,6 +490,14 @@ and local green controls do not replace deployment or different-family review.
 
 ### 2026-10-29: Historical origin is not a current artifact producer
 
+[RTC-ICE source repair](scans/2026-10/repair-rtc-ice.md) uses nested
+`config.iceServers`, matching independently checked PeerJS 1.5.5 constructor and
+negotiator behavior. Nine baseline failures, final 19 RTC/284 SDK passes pin local
+consumed-option behavior and artifact parity. This is compatibility evidence,
+not real candidate gathering, relay use or security sign-off. Supplied servers
+now override dependency defaults intentionally; reopen on version/configuration
+or connected-demo failure. Network/image/rollout/diverse gates remain OPEN.
+
 [Local producer repair](scans/2026-10/repair-docs-rtc-producer.md) makes the docs
 RTC asset reproduce current source; 14 controls/279 SDK tests pass. Fresh review
 found source parity is not dependency compatibility: PeerJS consumes ICE through

@@ -126,7 +126,7 @@ export function createRTC(wapi: V3Client): RTCConnector {
         port: secure ? 443 : 80,
         path: '/',
         token: `${wapi.state.token}~${label}`,
-        iceServers,
+        config: { iceServers },
       })
       if (onInbound && peer) {
         onInboundRef = onInbound
@@ -207,7 +207,7 @@ interface PeerJSOptions {
   port: number
   path: string
   token: string
-  iceServers?: RTCIceServer[]
+  config?: { iceServers?: RTCIceServer[] }
 }
 
 interface PeerConnection {

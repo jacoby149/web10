@@ -12,6 +12,7 @@ import type { V3Client } from '../v3'
 
 const sdk = fileURLToPath(new URL('../../', import.meta.url))
 const shipped = readFileSync(join(sdk, '../marketing/marketing-ui/public/docs/rtc.js'), 'utf8')
+const esm = await import('../../dist/rtc/index.js')
 let directory: string
 let canonical: string
 
@@ -24,6 +25,8 @@ beforeAll(() => {
   mkdirSync(output, { recursive: true })
   execFileSync('bun', ['run', 'build:rtc:browser'], { cwd: staging, stdio: 'pipe' })
   canonical = readFileSync(join(output, 'rtc.js'), 'utf8')
+  execFileSync('bun', ['build', 'src/rtc/index.ts', '--outdir', 'dist/rtc', '--target', 'browser', '--format', 'esm'], { cwd: staging, stdio: 'pipe' })
+  expect(readFileSync(join(staging, 'dist/rtc/index.js'), 'utf8')).toBe(readFileSync(join(sdk, 'dist/rtc/index.js'), 'utf8'))
 })
 afterAll(() => rmSync(directory, { recursive: true, force: true }))
 
@@ -53,7 +56,26 @@ class Channel extends Events {
   close() { this.emit('close') }
 }
 
+// Dependency-contract fixture, not signaling/WebRTC integration. PeerJS is an
+// optional, uninstalled dependency here. The demo uses 1.5.5; verified sources:
+// https://github.com/peers/peerjs/blob/v1.5.5/lib/peer.ts (constructor defaults)
+// https://github.com/peers/peerjs/blob/v1.5.5/lib/negotiator.ts (_startPeerConnection)
+// The peer defaults config, then the negotiator passes provider.options.config
+// to RTCPeerConnection. A sentinel replaces unrelated upstream default servers.
+function consumePeerJSConfiguration(options: { config?: unknown }) {
+  const provider = { options: { config: { iceServers: [{ urls: 'stun:peerjs-default.invalid' }] }, ...options } }
+  class InertRTCPeerConnection {
+    constructor(public configuration: unknown) {}
+  }
+  return new InertRTCPeerConnection(provider.options.config).configuration
+}
+
 describe('docs RTC producer and runtime parity', () => {
+  it('dependency contract ignores top-level ICE but consumes nested config', () => {
+    const iceServers = [{ urls: 'stun:synthetic.invalid' }]
+    expect(consumePeerJSConfiguration({ iceServers } as object)).not.toEqual({ iceServers })
+    expect(consumePeerJSConfiguration({ config: { iceServers } })).toEqual({ iceServers })
+  })
   it('builds the public RTC asset in Docker and gates marketing-only changes in SDK CI', () => {
     const docker = readFileSync(join(sdk, '../marketing/marketing-ui/Dockerfile'), 'utf8')
     expect(docker).toContain('RUN bunx bun@1.3.14 run build:rtc:browser')
@@ -70,9 +92,9 @@ describe('docs RTC producer and runtime parity', () => {
     expect(hash(shipped)).toBe(hash(canonical))
   })
 
-  for (const runtime of ['source', 'fresh', 'shipped'] as const) {
+  for (const runtime of ['source', 'esm', 'fresh', 'shipped'] as const) {
     it(`${runtime}: forwards replies on an outbound channel`, async () => {
-      const api = runtime === 'source' ? { createRTC, setPeer } : browserAPI(runtime === 'fresh' ? canonical : shipped)
+      const api = runtime === 'source' ? { createRTC, setPeer } : runtime === 'esm' ? esm : browserAPI(runtime === 'fresh' ? canonical : shipped)
       const channel = new Channel('remote')
       class Peer extends Events {
         id = 'local'
@@ -93,12 +115,16 @@ describe('docs RTC producer and runtime parity', () => {
 
     for (const ice of ['explicit', 'fetched', 'fallback'] as const) {
       it(`${runtime}: ${ice} ICE, constructor, callbacks, cache/close and send`, async () => {
-        const api = runtime === 'source' ? { createRTC, setPeer } : browserAPI(runtime === 'fresh' ? canonical : shipped)
+        const api = runtime === 'source' ? { createRTC, setPeer } : runtime === 'esm' ? esm : browserAPI(runtime === 'fresh' ? canonical : shipped)
         const peers: Peer[] = []
+        const consumedConfigurations: unknown[] = []
         class Peer extends Events {
           open = true
-          connect = vi.fn((id: string) => new Channel(id))
-          constructor(public id: string, public options: unknown) { super(); peers.push(this) }
+          connect = vi.fn((id: string) => {
+            consumedConfigurations.push(consumePeerJSConfiguration(this.options))
+            return new Channel(id)
+          })
+          constructor(public id: string, public options: { config?: unknown }) { super(); peers.push(this) }
         }
         api.setPeer(Peer)
         expect(peers).toHaveLength(0)
@@ -120,7 +146,6 @@ describe('docs RTC producer and runtime parity', () => {
         const peer = peers[0]
         expect(peers).toHaveLength(1)
         expect(peer.id).toBe('node_invalid alice app_invalid demo')
-        expect(peer.options).toEqual({ host: 'rtc.invalid', secure: false, port: 80, path: '/', token: 'SYNTHETIC~demo', iceServers: ice === 'fallback' ? defaultIceServers() : servers })
         expect(getIceServers).toHaveBeenCalledTimes(ice === 'explicit' ? 0 : 1)
         const incoming = new Channel('incoming')
         peer.emit('connection', incoming)
@@ -129,6 +154,9 @@ describe('docs RTC producer and runtime parity', () => {
         incoming.close()
         const args = ['node.invalid', 'bob', 'app.invalid', 'demo'] as const
         const outgoing = rtc.connect(...args) as Channel
+        expect(consumedConfigurations.at(-1)).toEqual({ iceServers: ice === 'fallback' ? defaultIceServers() : servers })
+        expect(peer.options).toEqual({ host: 'rtc.invalid', secure: false, port: 80, path: '/', token: 'SYNTHETIC~demo', config: { iceServers: ice === 'fallback' ? defaultIceServers() : servers } })
+        expect(w.state.iceServers).toEqual(ice === 'explicit' ? servers : [])
         expect(outgoing.peer).toBe('node_invalid bob app_invalid demo')
         expect(rtc.connect(...args)).toBe(outgoing)
         expect(peer.connect).toHaveBeenCalledTimes(1)
