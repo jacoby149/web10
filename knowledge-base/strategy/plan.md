@@ -1135,6 +1135,8 @@ all unchecked boxes. The numbers the industry track will demand:
 
 **The writing plan (after the data lands):**
 
+- [~ 3.251.7] **Multi-app generality demonstration (E4b) — spec** — new `research/multi-app-demonstration.md` plans the paper's proof that web10 is a data platform, not a social backend: web10-social (Developer A, the star, unchanged) + a "Most Popular on web10" same-domain analytics probe + Developer B's Snake game and Marketplace reading web10-social's `profile` documents (avatars, walls) cross-app with zero changes to Developer A and no inter-app API agreement. Records the combined "Friends & Scores" cross-developer join, the node "must NOT have" D60 checklist, seed shape, paper §3.4/§3.5 table + narrative, and the title decision (Social vs. User Data Platform). `evaluation-plan.md` gains E4b pointing at the spec; README research map updated. Planning only — nothing built, no node or app changes. Build is the follow-up (validate queries against the live node, then the static pages + seed).
+
 - [✓ 3.251.6] **Live Ubuntu pilot observation** — collect aggregate production stats and bounded account-authorized browser checks without fixtures, direct data mutation or redeployment. Record initial empty-music selector failure, readiness samples, resource snapshots and missing deployed phase telemetry; formal evaluation remains open.
 
 - [✓ 3.251.5] **Direct technical prose and consolidated scope** — remove repeated defensive framing from the paper; retain specific behavior and pending results, gather open security/adoption/parity limits in one subsection. No E1–E6 completion or runtime changes.
