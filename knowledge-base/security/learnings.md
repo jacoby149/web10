@@ -487,6 +487,18 @@ and local green controls do not replace deployment or different-family review.
 
 ## Known gaps (the "obvious gap" register)
 
+### 2026-10-28: OAuth code minting needs source certification
+
+[L1-OAUTH-SOURCE-01 local repair](scans/2026-10/repair-oauth-source01.md)
+uses existing certify before authorize's verified claims decode. A target-client
+lookup does not establish a source delegation's live registry authority. Missing/
+revoked source doubles and a between-request revocation replay now deny code
+writes; browser and distinct active-source delegation preserve binding/state.
+Certification also enforces local provider, not just signature/freshness. This
+does not implement source-contract narrowing or prove real tombstone visibility.
+Twelve new cases and 1,343 API tests plus four subtests pass; dated operational/
+compatibility tradeoff and same-model review recorded, rollout/diverse review OPEN.
+
 ### 2026-10-28: Validation metadata must not serialize exceptions
 
 [L1-VAL-01 local repair](scans/2026-10/repair-val01-validation.md) replaces

@@ -110,6 +110,14 @@ merge effects. Fenced probes read pinned Git objects; never print captured secre
 
 ## Current Disposition Ledger
 
+28.10.2026 overlay: **L1-OAUTH-SOURCE-01 locally source-repaired** through
+[existing certification before minting](repair-oauth-source01.md). Twelve new
+controls/1,343 API passes plus four subtests; source-contract narrowing, actual
+registry/code-store behavior, rollout and model-diverse review remain OPEN.
+Validation repair below is now source-merged #1290 (`0f559ddfe`); API/security/
+Docker CI passed, but E2E shard 1 retained the documented logout/relogin failure.
+Merged does not mean all-green CI, deployment or complete security assurance.
+
 28.10.2026 overlay: **L1-VAL-01 locally source-repaired**;
 [receipt](repair-val01-validation.md) records three actual-route red/green cases,
 1,331 API passes plus four subtests and fresh same-model review. No deployed,
