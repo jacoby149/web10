@@ -1,3 +1,6 @@
+3.251.11 || 28.10.2026
+fix(api): **L1-OAUTH-SOURCE-01 certify authorization sources** — use existing source certification before code minting; deny missing/revoked source clients and nonlocal provider claims while preserving browser/active delegated sources, target binding, state and TTL. Initial source replay five failures/five passes; twelve final controls and 1,343 API tests plus four subtests pass, with fresh same-model intent review. Adjust freshness TestClient to inspect mapped HTTP errors without weakening assertions. Registry/code-store integration, broader delegation policy, rollout and diverse sign-off remain OPEN; validation #1290 marked source-merged with its E2E failure retained.
+
 3.251.10 || 28.10.2026
 fix(api): **L1-VAL-01 omit validation credential copies** — replace exception/request echoes with fixed 422 message, correlation ID and error count; retain application code, null data and CORS. Three actual-route disclosure cases red -> green; malformed-JSON, 401 and nonempty-result controls, 1,331 API tests plus four subtests and fresh same-model review pass. Diagnostic/message compatibility tradeoff recorded; deployment/history/diverse sign-off and protocol L1 remain OPEN.
 

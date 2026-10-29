@@ -41,7 +41,8 @@ def token(expires=MISSING, **extra):
 
 @pytest.fixture
 def client():
-    with patch.object(ch, "client"), TestClient(app) as api:
+    # Certify's bare TOKEN exception is mapped by the outer HTTP error handler.
+    with patch.object(ch, "client"), TestClient(app, raise_server_exceptions=False) as api:
         yield api
 
 

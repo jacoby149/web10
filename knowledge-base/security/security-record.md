@@ -17,6 +17,12 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 
 ## Sol Resumption (28.10.2026)
 
+L1-OAUTH-SOURCE-01: [local source certification repair](scans/2026-10/repair-oauth-source01.md)
+denies uncertifiable sources before code minting; twelve new controls and 1,343
+API tests plus four subtests pass. Fresh same-model review only. Real registry/
+code-store behavior, broader delegation authority and rollout/diverse sign-off
+remain OPEN; no full OAuth or protocol L1 PASS.
+
 L1-VAL-01 has a [local source repair and red/green receipt](scans/2026-10/repair-val01-validation.md):
 three actual-route disclosure cases denied, 1,331 API tests plus four subtests pass,
 fresh same-model review. Deployment/history/model-diverse sign-off remain OPEN;
