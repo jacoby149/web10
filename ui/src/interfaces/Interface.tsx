@@ -212,6 +212,9 @@ function useInterface() {
     };
     const grantsPrincipal = React.useRef<string | null>(null);
     const confirmedPrincipal = React.useRef<string | null>(principal());
+    const handoffGeneration = React.useRef(0);
+    const accountReadGeneration = React.useRef(0);
+    const accountReadSequences = React.useRef<Record<string, number>>({});
     const seenRequests = React.useRef(new WeakMap<Window, Set<string>>());
     // D42: has this popup received a contract yet? React state, NOT a plain
     // property — `I` is recreated every render, and the contract listener
@@ -466,24 +469,60 @@ function useInterface() {
     const _servicesLoadTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
     const _checkAdminTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    function ownAccountRead(kind: string) {
+        const generation = accountReadGeneration.current;
+        const sequence = (accountReadSequences.current[kind] || 0) + 1;
+        accountReadSequences.current[kind] = sequence;
+        const account = principal();
+        const token = currentInterface.current.v3.state?.token;
+        return () => {
+            const current = currentInterface.current;
+            const owned = !!(current.auth && token && generation === accountReadGeneration.current &&
+                sequence === accountReadSequences.current[kind] &&
+                account === principal() && current.v3.state?.token === token);
+            if (!owned) console.log('[auth-ui] ignoring stale account read');
+            return owned;
+        };
+    }
+
+    function resetAccountReads() {
+        accountReadGeneration.current++;
+        if (_servicesLoadTimer.current) clearTimeout(_servicesLoadTimer.current);
+        if (_checkAdminTimer.current) clearTimeout(_checkAdminTimer.current);
+        _servicesLoadTimer.current = _checkAdminTimer.current = null;
+        I.setIsAdmin(false);
+        I.setPhone('');
+        I.setVerified(false);
+        I.setV3Groups([]);
+        I.setV3ManagedGroups([]);
+        I.setV3Contracts([]);
+        console.log('[auth-ui] reset account reads and display state');
+    }
+
     I.servicesLoad = function () {
-        if (!I.auth) {
+        if (!currentInterface.current.auth) {
             I.setServices([]);
             return;
         }
         if (_servicesLoadTimer.current) clearTimeout(_servicesLoadTimer.current);
+        const owns = ownAccountRead('profile');
         _servicesLoadTimer.current = setTimeout(() => {
             _servicesLoadTimer.current = null;
-            I.v3ContractsLoad();
-            I.v3GroupsLoad();
-            I.v3GroupsManagesLoad();
+            if (!owns()) return;
+            const current = currentInterface.current;
+            current.v3ContractsLoad();
+            current.v3GroupsLoad();
+            current.v3GroupsManagesLoad();
 
-            I.v3.getProfile()
+            console.log('[auth-ui] profile read started');
+            current.v3.getProfile()
                 .then((profile: any) => {
+                    if (!owns()) return;
                     I.setPhone(profile?.phone || "");
-                    if (profile?.phone_verified) I.setVerified(true);
+                    I.setVerified(!!profile?.phone_verified);
+                    console.log('[auth-ui] profile read applied');
                 })
-                .catch(console.error);
+                .catch(() => { if (owns()) console.warn('[auth-ui] profile read failed'); });
         }, 50);
     }
 
@@ -537,38 +576,44 @@ function useInterface() {
     // POST /am_admin is the purpose-built check (returns {admin: bool},
     // never errors) — not /v3/apps/admin, which is the app-store admin list.
     I.checkAdmin = function () {
-        const decoded = I.v3.readToken?.();
+        const current = currentInterface.current;
+        const decoded = current.v3.readToken?.();
         if (!decoded) {
             I.setIsAdmin(false);
             return;
         }
         const origin = v3ApiOrigin(decoded);
-        const token = I.v3.state?.token ?? I.v3.readToken?.();
+        const token = current.v3.state?.token ?? current.v3.readToken?.();
         if (!token) {
             I.setIsAdmin(false);
             return;
         }
         // Debounce: re-triggered on load/login; collapse into one call.
         if (_checkAdminTimer.current) clearTimeout(_checkAdminTimer.current);
+        const owns = ownAccountRead('admin');
         _checkAdminTimer.current = setTimeout(() => {
             _checkAdminTimer.current = null;
+            if (!owns()) return;
+            console.log('[auth-ui] admin read started');
             fetch(`${origin}/am_admin`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ token }),
             })
-                .then((r) => {
-                    if (r.ok) return r.json().then((d) => I.setIsAdmin(!!d?.admin));
-                    I.setIsAdmin(false);
+                .then(async (r) => {
+                    const data = r.ok ? await r.json() : null;
+                    if (!owns()) return;
+                    I.setIsAdmin(!!data?.admin);
+                    console.log('[auth-ui] admin read applied');
                 })
-                .catch(() => I.setIsAdmin(false));
+                .catch(() => { if (owns()) I.setIsAdmin(false); });
         }, 50);
     }
 
     I.finishLogin = function () {
         const account = principal();
         const sameAccount = confirmedPrincipal.current === account;
-        if (!sameAccount) I.setV3Contracts([]);
+        resetAccountReads();
         confirmedPrincipal.current = account;
         console.log('[auth-ui] finishLogin — setting auth=true, mode=contracts')
         I.setAuth(true);
@@ -627,6 +672,8 @@ function useInterface() {
 
     I.logout = function () {
         confirmedPrincipal.current = principal();
+        // Explicit logout terminates consent, unlike choosing an account to review it.
+        cancelConsent('Logged out');
         resetConsentIdentity();
         I.v3.signOut();
         I.setAuth(false);
@@ -636,7 +683,7 @@ function useInterface() {
         I.setVerified(false);
         I.setServices([]);
         I.setRequests([]);
-        I.setPendingACRs(consentBatch.current?.rows || []);
+        I.setPendingACRs([]);
         I.setV3Contracts([]);
         I.setV3Groups([]);
         I.setV3ManagedGroups([]);
@@ -714,18 +761,19 @@ function useInterface() {
 
     // Load app contracts from the ClickHouse-backed API.
     I.v3ContractsLoad = function () {
-        if (!I.auth) {
+        if (!currentInterface.current.auth) {
             I.setV3Contracts([]);
             return;
         }
-        const token = I.v3.state?.token;
+        const owns = ownAccountRead('contracts');
+        if (!owns()) return;
         v3Post('app-contracts/list', {})
             .then((contracts: any[]) => {
-                if (currentInterface.current.v3.state?.token !== token) return;
+                if (!owns()) return;
                 I.setV3Contracts(contracts || []);
             })
             .catch((e) => {
-                if (currentInterface.current.v3.state?.token !== token) return;
+                if (!owns()) return;
                 console.warn('v3 app-contracts/list failed:', e);
                 I.setV3Contracts([]);
             });
@@ -788,15 +836,19 @@ function useInterface() {
 
     // Load the groups the user belongs to (v3).
     I.v3GroupsLoad = function () {
-        if (!I.auth) {
+        if (!currentInterface.current.auth) {
             I.setV3Groups([]);
             return;
         }
+        const owns = ownAccountRead('groups');
+        if (!owns()) return;
         v3Post('groups/list', {})
             .then((groups: any[]) => {
+                if (!owns()) return;
                 I.setV3Groups(groups || []);
             })
             .catch((e) => {
+                if (!owns()) return;
                 console.warn('v3 groups/list failed:', e);
                 I.setV3Groups([]);
             });
@@ -804,15 +856,19 @@ function useInterface() {
 
     // Load groups where the user has management permissions.
     I.v3GroupsManagesLoad = async function () {
-        if (!I.auth) {
+        if (!currentInterface.current.auth) {
             I.setV3ManagedGroups([]);
             return [];
         }
+        const owns = ownAccountRead('managed-groups');
+        if (!owns()) return [];
         try {
             const groups = await v3Post('groups/manages', {});
+            if (!owns()) return [];
             I.setV3ManagedGroups(groups || []);
             return groups || [];
         } catch (e) {
+            if (!owns()) return [];
             console.warn('v3 groups/manages failed:', e);
             I.setV3ManagedGroups([]);
             return [];
@@ -1019,6 +1075,8 @@ function applyACR(cr: any) {
 
     // Send contract response back to the requesting app window
     function resetConsentIdentity() {
+        handoffGeneration.current++;
+        resetAccountReads();
         const batch = consentBatch.current;
         // Unstarted requests can still be reviewed as the chosen account.
         // Dispatched/partly decided indexed batches must be retried by the app.
@@ -1272,7 +1330,15 @@ function applyACR(cr: any) {
                 // lazy popup opened from a button click.) The short delay lets
                 // the token message deliver before the window goes away.
                 console.log('[auth-ui] goToApp — auth token sent, closing popup (self-contained)')
-                setTimeout(() => window.close(), 300);
+                const generation = ++handoffGeneration.current;
+                setTimeout(() => {
+                    if (handoffGeneration.current !== generation || consentBatch.current !== batch ||
+                        principal() !== account || currentInterface.current.v3.state?.token !== token) {
+                        console.log('[auth-ui] goToApp — ignoring stale popup close');
+                        return;
+                    }
+                    window.close();
+                }, 300);
             } catch (err) {
                 console.error('[auth-ui] goToApp — postMessage failed:', err)
                 I.setStatus("Failed to connect to app.");

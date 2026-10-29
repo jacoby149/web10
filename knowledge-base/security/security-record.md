@@ -17,6 +17,19 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 
 ## Sol Resumption (28.10.2026)
 
+CORRELATION/STALE-READS [local repair](scans/2026-10/repair-account-read-ownership.md):
+five account display reads plus service/admin timers now use identity generation,
+current principal/token and per-surface ordering. Initial 24 failing cases, final
+52 account-read/268 total UI passes and build; fresh same-model retained-client/
+ordering replays pass. Connected browser, mutation coverage, rollout/diverse
+review and L1/class sign-off remain OPEN; no server auth bypass claimed.
+
+Consent lifecycle [post-merge repair](scans/2026-10/repair-consent-postmerge.md):
+explicit logout cancels untouched requests; popup close checks current-client
+token, principal, batch and handoff generation. Seven initial failing controls
+repaired, 216 UI tests/34 ownership cases and build pass locally. Fresh same-model
+review; connected E2E and broader stale-read ownership remain OPEN, no class PASS.
+
 L1-OAUTH-SOURCE-01: [local source certification repair](scans/2026-10/repair-oauth-source01.md)
 denies uncertifiable sources before code minting; twelve new controls and 1,343
 API tests plus four subtests pass. Fresh same-model review only. Real registry/
