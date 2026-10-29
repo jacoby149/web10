@@ -1,3 +1,6 @@
+3.252.3 || 29.10.2026
+fix(sdk): **pass selected ICE through PeerJS configuration** — use config.iceServers in RTC core/minimal types and regenerate RTC ESM/declarations/docs IIFE only. Nine consumed-config regressions fail before repair; final 19 RTC controls, 284 SDK tests and typecheck pass, with fresh same-model upstream-contract/design review. Dependency fixture is not real PeerJS/network execution; connected demo, images, rollout/diverse review and L1 remain OPEN.
+
 3.252.2 || 29.10.2026
 fix(sdk): **produce the docs RTC bundle from tracked source** — preserve window.web10rtc with a pinned Bun wrapper, Docker generation and SDK CI asset-path coverage. Five stale-output controls fail before regeneration; final 14 RTC controls, 279 SDK tests and typecheck pass with fresh same-model review. Review identifies pre-existing PeerJS ICE option-shape debt; tests prove selection/correspondence, not effective ICE. Docker/connected browser, rollout and diverse sign-off remain OPEN; legacy declarations untouched, no L1 closure.
 

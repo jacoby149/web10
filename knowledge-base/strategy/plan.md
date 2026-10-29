@@ -65,7 +65,8 @@ reuses `POST /v3/app-contracts/revoke`. Full spec:
 ## L1 Security Scans
 
 - [✓ 3.252.2 local] **PROTOCOL-01/RTC-PRODUCER: reproducible docs RTC wrapper** — pinned producer/Docker/CI wiring; five baseline failures, 14 final controls and 279 SDK tests/typecheck pass. [Receipt](../security/scans/2026-10/repair-docs-rtc-producer.md). Connected/image/diverse gates remain OPEN.
-- [ ] **PROTOCOL-01/RTC-ICE: pass ICE through PeerJS configuration** — separate core repair; pin `options.config.iceServers` with a PeerJS-compatible red/green control, regenerate affected RTC outputs and verify connected demo behavior. Current correspondence controls do not prove effective ICE.
+- [~ 3.252.3 local] **PROTOCOL-01/RTC-ICE: pass ICE through PeerJS configuration** — source/config types and RTC outputs repaired; nine initial failures, 19 RTC controls/284 SDK passes and fresh same-model review. [Receipt](../security/scans/2026-10/repair-rtc-ice.md). Connected demo/image verification and diverse sign-off OPEN; contract fixture is not real PeerJS/network proof.
+- [✓ 3.252.3 local] **RTC-ICE/SOURCE: nested configuration and regenerated RTC outputs** — red/green dependency-contract/parity controls and SDK typecheck pass; no main bundle/legacy/admission changes. Parent connected acceptance remains OPEN.
 
 - [✓ 3.252.1] **PROTOCOL-01/ART-PROVENANCE: trace legacy declarations and docs RTC** — bounded read-only history/consumer research and six inert-peer controls; [receipt](../security/scans/2026-10/l1-artifact-provenance-followup.md). Producer/parity repair, explicit retirement decision and integration/sign-off remain OPEN; no runtime change or L1 closure.
 
