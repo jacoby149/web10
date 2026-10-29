@@ -39,7 +39,7 @@ is protocol L1 disposition/repairs, not the authenticator UI's broad L1 scan.
 
 | Path | What it is |
 |---|---|
-| [`../ai_wins/security-wins.md`](../ai_wins/security-wins.md) | **The leadership readout.** Meaningful security outcomes, recorded evidence and remaining gates, within the shared AI wins portfolio. |
+| [`../ai_wins/security-wins.md`](../ai_wins/security-wins.md) | **The repaired behaviors.** Actual security improvements from the October L1-L4 campaign, with findings, PRs, regression evidence and remaining gates; separate from general AI Use Theory wins. |
 | [`strategy.md`](./strategy.md) | **The execution order.** Protocol/API+SDK first through all four levels, then the remaining surfaces through all four; gates and honest scope limits. |
 | [`learnings.md`](./learnings.md) | **The knowledge.** The security memory the orient reads first: the invariants as they've evolved, every finding→fix as a dated learning, the known gaps, and the considered-and-declined list. Every fix writes back here. |
 | [`security-record.md`](./security-record.md) | **The coverage.** One row per (unit, level): what was scanned, by which model, when, against which commit, and the status (PASS / OPEN / STALE). |

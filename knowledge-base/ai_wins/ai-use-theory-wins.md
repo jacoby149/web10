@@ -20,5 +20,6 @@ written design or added missing checks. All remain visible, including reversals
 and incomplete work. "After AI Use Theory" describes the period, not proof that
 the method caused every change.
 
-See [the collection](README.md) and [adding entries](measurement.md). Security
-changes are in the same monthly tables, with a [security index](security-wins.md).
+See [the collection](README.md) and [adding entries](measurement.md). The separate
+[security wins](security-wins.md) list tracks only actual repairs from the later
+October L1-L4 campaign, not every security-related change after AI Use Theory.

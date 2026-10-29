@@ -60,3 +60,15 @@ The Changed column stays separate: a revolutionary decision recorded only in
 the KB is still knowledge work, not an implemented revolution. Decision and
 implementation rows may describe the same change at different stages, so totals
 are records, not a count of distinct system revolutions.
+
+## Security Wins Are Separate
+
+The general ledger starts after AI Use Theory's August introduction. The security
+ledger starts with repairs produced by the later October L1-L4 campaign.
+Include a security row only when it has a campaign finding, changed unsafe
+behavior and failing-before/passing-after evidence. Link the repair receipt.
+
+Do not count scans, finding reports, plans, earlier security-related development,
+or tests without a repaired unsafe behavior. Keep corrective attempts under the
+same repair. State source-merge and remaining verification limits separately;
+never imply the L1-L4 process is complete because some repairs have landed.

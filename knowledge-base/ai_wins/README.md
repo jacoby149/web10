@@ -44,8 +44,12 @@ judgments, not scores. Sources and qualifications are in the monthly files.
 The earlier draft picked nine examples and called them outcome families. That
 was unnecessary jargon, not nine classes of work. This list replaces it.
 
-See [AI Use Theory wins](ai-use-theory-wins.md), [security wins](security-wins.md)
-and [adding entries](measurement.md).
+See [AI Use Theory wins](ai-use-theory-wins.md) and [adding entries](measurement.md).
+
+[Security wins](security-wins.md) is a separate list: 15 actual repair outcomes
+from the later October L1-L4 campaign, not security-related work from the whole
+AI Use Theory period. It excludes scans, plans and older development work.
+Overlapping October records are not extra improvements to add to the total above.
 
 July's repeated fixing is in the [older changelog](../changelogs/changelog-archives/2ba7fa98-17.08.2026.md).
 The original MongoDB-to-ClickHouse rebuild predates this collection; September's

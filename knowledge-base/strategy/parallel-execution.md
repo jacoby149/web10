@@ -61,6 +61,8 @@ route + the screenshot harness).
 
 ### Lane: security-l1-scans
 
+- [✓ 3.252.7 local docs] **SECURITY-WINS/SCOPE: count actual campaign repairs only** — fifteen October finding/PR/repro-linked repairs, separate from general AI Use Theory history; no scan/planning or whole-campaign completion claims. Documentation complete locally, not campaign closure.
+
 - [✓ 3.252.6 local docs] **AI-WINS: plain improvement ledger** — 558 dated records with PR/source, KB/code/tests labels and fix/feature/evolutionary/revolutionary types; measurement rules reserve revolutionary for fundamental system changes. Documentation complete locally, not merged or campaign closure.
 - [✓ 3.252.3 local docs] **SECURITY-WINS: document AI-assisted security improvements** — completed evidence-linked retrospective, now in `knowledge-base/ai_wins/security-wins.md`, with Written Security index link; merged/local distinction and remaining gates preserved. Documentation complete locally, not merged or campaign closure.
 

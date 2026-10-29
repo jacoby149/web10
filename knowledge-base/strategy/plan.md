@@ -64,6 +64,8 @@ reuses `POST /v3/app-contracts/revoke`. Full spec:
 
 ## L1 Security Scans
 
+- [✓ 3.252.7 local docs] **SECURITY-WINS/SCOPE: count actual campaign repairs only** — separate October L1-L4-produced repairs from general AI Use Theory history; fifteen finding/PR/repro-linked outcomes, excluding scan/planning output and preserving open gates. Documentation complete locally, not campaign closure.
+
 - [✓ 3.252.6 local docs] **AI-WINS: plain improvement ledger** — `knowledge-base/ai_wins/` collects 558 dated records with PR/source, KB/code/tests labels and fix/feature/evolutionary/revolutionary types; measurement rules reserve revolutionary for fundamental system changes. Documentation complete locally, not merged or campaign closure.
 - [✓ 3.252.3 local docs] **SECURITY-WINS: document AI-assisted security improvements** — completed retrospective, now at `knowledge-base/ai_wins/security-wins.md`, linked from Written Security; separates merged-source repairs from local passing controls and links evidence/remaining gates. Documentation complete locally, not a merged-status or security-gate tick.
 - [✓ 3.252.2 local] **PROTOCOL-01/RTC-PRODUCER: reproducible docs RTC wrapper** — pinned producer/Docker/CI wiring; five baseline failures, 14 final controls and 279 SDK tests/typecheck pass. [Receipt](../security/scans/2026-10/repair-docs-rtc-producer.md). Connected/image/diverse gates remain OPEN.

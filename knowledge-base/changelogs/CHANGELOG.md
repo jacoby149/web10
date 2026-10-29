@@ -1,3 +1,6 @@
+3.252.7 || 29.10.2026
+docs(security): **count only repairs from the recent security campaign** — replace the broad security index with fifteen evidence-linked source repair outcomes from the October L1-L4 process; exclude earlier development, scans/plans and build-only correspondence work. Separate the security ledger from general AI Use Theory wins, retain corrective work and open integration/rollout/sign-off gates, and state that protocol L1 and deeper levels remain incomplete. Documentation only.
+
 3.252.6 || 29.10.2026
 docs(ai-wins): **reserve revolutionary for fundamental system changes** — audit all three monthly ledgers against fix/feature/evolutionary/revolutionary definitions; products remain a feature, substantial existing-system changes become evolutionary. Update measurement rules and summaries: 558 records, 250 fixes, 276 features, 27 evolutionary and five revolutionary records (including decision/implementation stages, not five independent revolutions). Documentation only.
 
