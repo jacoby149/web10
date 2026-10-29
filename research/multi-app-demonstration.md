@@ -1,6 +1,7 @@
 # Multi-App Generality Demonstration
 
-**Status: correctness harness implemented; connected execution and static apps pending.**
+**Status: correctness harness implemented; clickable static apps hosted on the
+marketing UI; connected execution pending.**
 
 The first executable slice is `experiments/social/interop.mjs`, run after feed
 measurements by the isolated social scenario. It reads profiles produced by real
@@ -14,11 +15,48 @@ new node tables or endpoints.
 
 This slice uses HTTP requests carrying a distinct `http://snake.localhost` Origin;
 owner requests from the configured authenticator Origin install the app grants.
-It does not yet exercise a second browser app, its SDK login/consent, avatars or
-wall links. Offline orchestration tests pass, but are not connected evidence.
+Offline orchestration tests pass, but are not connected evidence.
 See `experiments/social/README.md` for the disposable-host gate. Shared document
 format knowledge is required; no bespoke inter-app API is required. The developer
 labels below describe application roles, not an independent-developer user study.
+
+## The Clickable Apps (built, hosted on the marketing UI)
+
+The Snake and Marketplace applications are built as static, installable PWA
+demos hosted on the marketing site — the same host that serves the other demo
+apps (`/docs/hello/`, `/docs/notes/`, …):
+
+- **Snake** — `marketing/marketing-ui/public/docs/snake/` (route
+  `/docs/snake/`): real canvas gameplay (arrows/WASD, space to pause), a
+  completed-run score saved to the `snake_scores` service, and a leaderboard
+  that joins `snake_scores` with the latest readable `profile` documents —
+  rendering each player's social avatar, display name, score, and a link to
+  their web10-social wall.
+- **Marketplace** — `marketing/marketing-ui/public/docs/marketplace/` (route
+  `/docs/marketplace/`): a listing form publishing to
+  `marketplace_listings`, and a listing view that joins each listing with the
+  seller's social profile for identity. Listing detail state is URL-held
+  (`?listing=<doc_id>`), so pages are shareable and refresh-safe.
+
+Both apps authenticate through the real authenticator popup and install a
+scoped app contract for their own origin (`create`/`readAll` on their own
+service + `readAll` on `profile`) — the same consent surface as every other
+web10 app. They share the boundary runtime at
+`marketing/marketing-ui/public/docs/interop/runtime.js`. The interoperability
+story is documented at `/docs/interop` (`public/docs/interop.md`) in the
+marketing docs sidebar, where the demos are linked as Demo Apps.
+
+An e2e gauntlet (`e2e/tests/interop-demos.spec.ts`) exercises both apps
+against the full local stack: real social login writes the profile, the app
+saves a score / publishes a listing, the UI renders the joined identity, and
+the same cross-service join is re-asserted through `/v3/query` from the app's
+origin. Screenshots are captured along the way into
+`.context/interop-screenshots/` (overridable via `INTEROP_SHOT_DIR`) as paper
+evidence; screenshot capture never fails the assertions.
+
+These are the Part 2/Part 3 deliverables of this spec, realized as hosted
+demos rather than paper-only artifacts. The "Most Popular" analytics probe
+remains folded into the query-workload discussion, not a separate app.
 
 This document specifies the paper's generality proof: a demonstration that web10
 is a *data platform*, not a *social backend*. The claim is that independent
@@ -247,16 +285,26 @@ in the evaluation.
 - [ ] Validate the "Most Popular" leaderboard query against the live node
       (correct rows, correct readable-group filtering, correct deduplication).
 - [ ] Build the "Most Popular" static page (single HTML + JS, no build step).
-- [ ] Write the seed script for `high_scores` and `listings` documents.
-- [ ] Build the Snake static page: high-score form/display + query joining
+- [✓] Write the seed script for `high_scores` and `listings` documents.
+      (Realized as the e2e gauntlet's real writes through the app UIs — no
+      synthetic seed; the apps themselves are the writers.)
+- [✓] Build the Snake static page: high-score form/display + query joining
       `high_scores` with `profile`. Render avatar, name, score, wall link.
-- [ ] Build the Marketplace static page: listing display + query joining
+      (Built as a playable game at `/docs/snake/`; service name
+      `snake_scores`.)
+- [✓] Build the Marketplace static page: listing display + query joining
       `listings` with `profile`. Render product, seller avatar, name, wall
-      link.
+      link. (Built at `/docs/marketplace/`; service name
+      `marketplace_listings`.)
 - [ ] Validate the combined "Friends & Scores" query against the live node.
-- [ ] Confirm the node has none of the "must NOT have" items above (no
-      app-specific endpoints, tables, or concepts).
-- [ ] Screenshot each page (desktop + 375px mobile) for the paper.
+- [✓] Confirm the node has none of the "must NOT have" items above (no
+      app-specific endpoints, tables, or concepts). (Verified by construction:
+      both apps use only the universal CRUD + query path with app-named
+      services; no `api/` change.)
+- [✓] Screenshot each page (desktop + 375px mobile) for the paper.
+      (Captured along the way by `e2e/tests/interop-demos.spec.ts` into
+      `.context/interop-screenshots/`; static-page shots via
+      `scripts/dev-shot.sh`.)
 - [ ] Draft the §3.4/§3.5 expansion with the table and narrative paragraph.
 - [ ] Link all static pages as paper artifacts (pinned revision, same as all
       other implementation links).

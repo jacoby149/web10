@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Snake | web10 Demo</title>
+  <meta name="description" content="Play Snake. Save earned scores on your node and read shared social identities.">
+  <link rel="manifest" href="manifest.json"><link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-192.png"><link rel="stylesheet" href="../interop/style.css">
+</head>
+<body><main data-testid="snake-demo">
+  <header><div class="brand"><img src="icon.svg" alt=""><div><h1>Snake</h1><span class="muted">A small game. Your own score.</span></div></div>
+    <div class="toolbar"><button id="authButton" data-testid="auth-button">Log in</button><button id="signOut" class="secondary" data-testid="sign-out" hidden>Sign out</button></div>
+  </header>
+  <p id="status" class="status" role="status" aria-live="polite" data-testid="status"></p>
+  <div class="columns"><section class="panel" aria-labelledby="game-title">
+    <h2 id="game-title">Stay in the game.</h2><p class="muted">Arrow keys or WASD to turn. Space to pause. Eat a dot for 10 points. Walls and your own tail end the run.</p>
+    <p class="score">Score <output id="score" data-testid="snake-score">0</output></p>
+    <canvas id="board" width="400" height="400" tabindex="0" aria-label="Snake game board. Use arrow keys or WASD; Space pauses." data-testid="snake-board"></canvas>
+    <p id="gameState" role="status" data-testid="snake-state">Ready to play.</p>
+    <div class="toolbar"><button id="start" data-testid="snake-start">Start game</button><button id="pause" class="secondary" data-testid="snake-pause" disabled>Pause</button><button id="submit" class="secondary" data-testid="snake-submit" disabled>Save earned score</button></div>
+    <div class="directions" aria-label="Direction controls">
+      <button type="button" data-direction="up" data-testid="snake-up" aria-label="Turn up">Up</button>
+      <button type="button" data-direction="left" data-testid="snake-left" aria-label="Turn left">Left</button>
+      <button type="button" data-direction="down" data-testid="snake-down" aria-label="Turn down">Down</button>
+      <button type="button" data-direction="right" data-testid="snake-right" aria-label="Turn right">Right</button>
+    </div>
+    <p class="muted">Only completed runs are saved, when you choose. Signing out discards an unsaved run.</p>
+  </section><section class="panel" aria-labelledby="leaders-title"><h2 id="leaders-title">Leaderboard</h2><p class="muted">Best earned score per player, joined with the latest readable social profile.</p><button id="refresh" class="secondary" data-testid="refresh" disabled>Refresh leaderboard</button><div id="leaders" class="stack" data-testid="snake-leaderboard"></div></section></div>
+  <footer>No social profile is required. No profile is written. Scores are public; this client-side demo is not cheat-resistant.</footer>
+</main><script src="../wapi.js"></script><script src="../interop/runtime.js"></script><script src="script.js"></script></body>
+</html>

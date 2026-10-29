@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en"><head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Marketplace | web10 Demo</title><meta name="description" content="Public listings on your node, with seller identities from readable social profiles.">
+  <link rel="manifest" href="manifest.json"><link rel="icon" href="icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="icon-192.png"><link rel="stylesheet" href="../interop/style.css">
+</head><body><main data-testid="marketplace-demo">
+  <header><div class="brand"><img src="icon.svg" alt=""><div><h1>Marketplace</h1><span class="muted">Your listings. Your identity.</span></div></div><div class="toolbar"><button id="authButton" data-testid="auth-button">Log in</button><button id="signOut" class="secondary" data-testid="sign-out" hidden>Sign out</button></div></header>
+  <p id="status" class="status" role="status" aria-live="polite" data-testid="status"></p>
+  <div class="columns"><section class="panel"><h2>Create a listing</h2><p class="muted">Published listings are public. Seller identity comes from your readable social profile, if one exists.</p>
+    <form id="listingForm" data-testid="marketplace-form"><fieldset id="fields" disabled><legend>Listing details</legend>
+      <label for="title">Title</label><input id="title" name="title" maxlength="120" required data-testid="marketplace-title">
+      <label for="price">Price (USD)</label><input id="price" name="price" type="number" min="0" max="999999999" step="0.01" inputmode="decimal" required data-testid="marketplace-price">
+      <label for="description">Description</label><textarea id="description" name="description" maxlength="4000" required data-testid="marketplace-description"></textarea>
+      <button type="submit" id="publish" data-testid="marketplace-publish">Publish listing</button>
+    </fieldset></form>
+  </section><section class="panel" aria-labelledby="listings-title"><h2 id="listings-title">On the market</h2><div class="toolbar"><button id="refresh" class="secondary" data-testid="refresh" disabled>Refresh listings</button><button id="back" class="secondary" data-testid="marketplace-back" hidden>All listings</button></div><div id="listings" class="stack" data-testid="marketplace-listings"></div></section></div>
+  <footer>A listing demo, not a checkout or payment service. Profiles are never written or required.</footer>
+</main><script src="../wapi.js"></script><script src="../interop/runtime.js"></script><script src="script.js"></script></body></html>
