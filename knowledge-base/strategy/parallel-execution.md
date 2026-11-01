@@ -1208,6 +1208,8 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+- [✓ 3.252.9] **DO experiment pre-mortem** — `research/digital-ocean-thinking.md`: what each harness can claim, epistemic boundaries, cost/evidence rules, decision points (which harness first, droplet count, repetitions, failure handling) and open questions (fresh-boot `group_contracts.tags` race, wall-time vs the one-hour limit, token custody). Thinking only; no harness changes or provisioning.
+
 - [✓ 3.252.0] **E4b clickable demo apps on the marketing UI** — Snake (playable game, earned score → `snake_scores`, leaderboard joined to social-written `profile` docs) at `/docs/snake/` + Marketplace (listing publish → `marketplace_listings`, seller identity joined from `profile`) at `/docs/marketplace/`; static PWAs, shared boundary runtime, SVG/192/512 icons, `/docs/interop` story page + Demo Apps sidebar entries; e2e gauntlet with real social popup login, app consent, save/publish, UI + `/v3/query` join assertions, screenshots captured along the way as paper evidence. D60: no `api/` change. Owns `marketing/marketing-ui/public/docs/{snake,marketplace,interop}`, `marketing/marketing-ui/src/pages/Docs.tsx`, `e2e/tests/interop-demos.spec.ts`, `research/multi-app-demonstration.md`.
 
 - [✓ 3.251.9] **E4b interoperability correctness tooling** — research-only HTTP score/profile and listing/profile joins using social-produced profiles, explicit app Origin, app-contract denial/regrant/revoke and independent private-group denial/grant/revoke. Offline gates pass; connected execution is not claimed. Owns `research/experiments/social/`; no node/SDK/social runtime changes.
