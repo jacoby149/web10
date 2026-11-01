@@ -23,6 +23,8 @@ dependencies = [
     "twilio>=9",
     "python-multipart>=0.0.10",
     "requests>=2.32",
+    # Manifest fetching relies directly on urllib3's pinned-IP/TLS APIs.
+    "urllib3==2.7.0",
 ]
 
 [project.optional-dependencies]
