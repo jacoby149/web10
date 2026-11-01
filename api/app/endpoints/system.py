@@ -1,7 +1,12 @@
+import ipaddress
 import json
 import logging
+import re
+import socket
+import ssl
+from urllib.parse import urlsplit
 
-import requests
+import urllib3
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
@@ -279,32 +284,82 @@ def pwa_listing(url: str):
     from the browser. Manifest URL = {url without trailing slash} +
     /manifest.json — so a registered path with or without a trailing slash
     resolves the same (a path IS an app, D47).
+
+    Only approved registrations with exclusively public destinations qualify.
+    Fetch the canonical app identity without redirects or ambient credentials.
     """
-    manifest_url = url.rstrip("/") + "/manifest.json"
-    # Hard cap on manifest size (hardening #7): a real PWA manifest is a few
-    # KB; an unbounded read is a memory spike the store would absorb on every
-    # render. Over the cap → treat as no manifest.
-    _MANIFEST_MAX_BYTES = 256 * 1024
+    pool = resp = None
     try:
-        with requests.get(manifest_url, headers={"Accept": "application/json"}, timeout=1, stream=True) as resp:
-            resp.raise_for_status()
-            chunks = []
-            total = 0
-            for chunk in resp.iter_content(chunk_size=8192):
-                total += len(chunk)
-                if total > _MANIFEST_MAX_BYTES:
-                    raise exceptions.NO_PWA
-                chunks.append(chunk)
-            return json.loads(b"".join(chunks))
-    except requests.exceptions.RequestException:
-        log.info("[pwa_listing] fetch failed for %s — NO_PWA", manifest_url)
+        # Reject parser repairs/ambiguous authorities BEFORE registry normalization.
+        if any(ord(c) <= 32 or ord(c) >= 127 for c in url) or any(c in url for c in "\\?#"):
+            raise ValueError("ambiguous URL")
+        parsed = urlsplit(url)
+        host = parsed.hostname or ""
+        if parsed.scheme not in ("http", "https") or not host or parsed.username is not None or parsed.password is not None:
+            raise ValueError("invalid authority")
+        if "%" in host or parsed.netloc.endswith(":"):
+            raise ValueError("ambiguous host")
+        authority = f"[{host}]" if ":" in host else host
+        if parsed.port is not None:
+            authority += f":{parsed.port}"
+        if parsed.netloc.lower() != authority or not url.startswith(parsed.scheme + "://"):
+            raise ValueError("ambiguous authority")
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+        if parsed.port == 0:
+            raise ValueError("invalid port")
+        host = host.removeprefix("www.")
+        try:
+            literal = ipaddress.ip_address(host)
+        except ValueError:
+            literal = None
+            if not re.fullmatch(r"[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?", host) or any(
+                not label or len(label) > 63 or label.startswith("-") or label.endswith("-")
+                for label in host.split(".")
+            ):
+                raise ValueError("invalid DNS name") from None
+        canonical = ch._canonical_app_url(url)
+        app = ch.get_app(url)
+        if not app or not app.get("approved"):
+            raise exceptions.NO_PWA
+        addresses = [literal] if literal is not None else [
+            ipaddress.ip_address(answer[4][0])
+            for answer in socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+        ]
+        if not addresses or any(
+            not addr.is_global or addr.is_multicast or addr.is_reserved or addr.is_unspecified
+            or (isinstance(addr, ipaddress.IPv6Address) and (addr.ipv4_mapped or addr.sixtofour or addr.teredo))
+            for addr in addresses
+        ):
+            raise exceptions.NO_PWA
+        # Connect only to the validated numeric address; never re-resolve the app.
+        tls = {"server_hostname": host, "assert_hostname": host, "cert_reqs": ssl.CERT_REQUIRED}
+        pool_type = urllib3.HTTPSConnectionPool if parsed.scheme == "https" else urllib3.HTTPConnectionPool
+        pool = pool_type(str(addresses[0]), port=port, timeout=urllib3.Timeout(connect=1, read=1),
+                         retries=False, **(tls if parsed.scheme == "https" else {}))
+        authority = f"[{host}]" if ":" in host else host
+        if port != (443 if parsed.scheme == "https" else 80):
+            authority += f":{port}"
+        path = urlsplit(canonical).path.rstrip("/") + "/manifest.json"
+        log.info("[pwa_listing] fetching validated public destination")
+        resp = pool.urlopen("GET", path, headers={"Host": authority, "Accept": "application/json"},
+                            redirect=False, retries=False, preload_content=False)
+        if not 200 <= resp.status < 300:
+            raise exceptions.NO_PWA
+        # read(amt) bounds DECODED bytes, including compressed responses.
+        body = resp.read(256 * 1024 + 1, decode_content=True)
+        if len(body) > 256 * 1024:
+            raise exceptions.NO_PWA
+        result = json.loads(body)
+        log.info("[pwa_listing] manifest loaded")
+        return result
+    except (ValueError, UnicodeError, OSError, urllib3.exceptions.HTTPError):
+        log.info("[pwa_listing] invalid destination or fetch failed - NO_PWA")
         raise exceptions.NO_PWA
-    except (json.JSONDecodeError, UnicodeDecodeError):
-        # A 200 with a non-JSON body (an SPA fallback returning HTML, a text
-        # file, ...) means there is no manifest at that path — the store
-        # falls back to the registered name. Not a server error.
-        log.info("[pwa_listing] non-JSON manifest body at %s — NO_PWA", manifest_url)
-        raise exceptions.NO_PWA
+    finally:
+        if resp is not None:
+            resp.close()
+        if pool is not None:
+            pool.close()
 
 
 # --- Issue Tracking (bug reports) ---

@@ -64,6 +64,9 @@ reuses `POST /v3/app-contracts/revoke`. Full spec:
 
 ## L1 Security Scans
 
+- [✓ 3.252.9 local] **PROTOCOL-01/L1-A-02-REPLAY: real HTTP manifest destination proof** — eight loopback-only controls reproduce direct/redirect JSON reads and preserve path/boundary/error behavior; fresh same-model review. [Receipt](../security/scans/2026-10/l1-manifest-destination-followup.md). Evidence complete locally, not a repair or L1 closure.
+- [✓ 3.252.10 local] **PROTOCOL-01/L1-A-02-REPAIR: restrict manifest destinations** — approved registry/public-address checks, numeric pinning, Host/TLS verification and redirect refusal; four exploit failures become denied-green, 70 focused/1,407 API tests plus four subtests and Ruff pass. [Receipt](../security/scans/2026-10/repair-a02-manifest.md). Fresh same-model review/ephemeral TLS probes; real registry, retained TLS/path integration, CI/deployment/diverse sign-off remain OPEN. Local source repair, not merged or L1 closure.
+
 - [✓ 3.252.7 local docs] **SECURITY-WINS/SCOPE: count actual campaign repairs only** — separate October L1-L4-produced repairs from general AI Use Theory history; fifteen finding/PR/repro-linked outcomes, excluding scan/planning output and preserving open gates. Documentation complete locally, not campaign closure.
 
 - [✓ 3.252.6 local docs] **AI-WINS: plain improvement ledger** — `knowledge-base/ai_wins/` collects 558 dated records with PR/source, KB/code/tests labels and fix/feature/evolutionary/revolutionary types; measurement rules reserve revolutionary for fundamental system changes. Documentation complete locally, not merged or campaign closure.

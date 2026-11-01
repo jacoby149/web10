@@ -35,6 +35,27 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-01: A manifest proxy can follow an internal redirect
+
+The [local source repair](scans/2026-10/repair-a02-manifest.md) now checks
+approved registration/all public DNS answers and connects only to a validated
+numeric IP with canonical Host and verified TLS identity, never redirects.
+Four exploit failures become denied-green; 70 focused controls and 1,407 API
+tests plus four subtests pass. Validating DNS then connecting to the original
+hostname would leave rebinding open; direct pools also avoid ambient proxies.
+Fresh same-model review ran ephemeral actual-TLS success/mismatch/untrusted
+controls. Retained TLS/path coverage, registry/CI/deployment and diverse review
+remain open. Earlier proof below describes the vulnerable pin, not current code.
+
+[L1-A-02 follow-up](scans/2026-10/l1-manifest-destination-followup.md)
+replaces stub-only routing evidence with real Requests against disposable local
+HTTP fixtures: direct loopback and relative-redirect internal JSON are returned.
+No deployed access or real data tested. Restricting only the starting host would
+not address redirects; approved registration alone does not establish public
+connection authority. Eight controls include valid exact/over-cap JSON, because
+oversized invalid JSON cannot isolate the cap. Same-model review supports this
+bounded proof only. The local repair above does not close protocol L1.
+
 Seeded from the October 2026 audit
 ([`scans/2026-10/`](./scans/2026-10/README.md)). **Honesty note:** the hardening
 (PR 1157/1159) is **in flight, not merged** — so these are *learned* but not yet

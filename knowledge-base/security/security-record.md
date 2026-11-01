@@ -15,7 +15,23 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Manifest Destination Follow-Up (01.11.2026)
+
+L1-A-02 [local source repair](scans/2026-10/repair-a02-manifest.md): approved
+public-only registration/DNS, numeric connection pinning, canonical Host/TLS
+verification and redirect refusal. Four initial exploit failures denied; 70 focused
+controls, 1,407 API tests plus four subtests/Ruff pass, fresh same-model review
+and ephemeral actual-TLS probes. Retained TLS/path integration, actual registry,
+CI/deployment/history and diverse sign-off remain OPEN; no L1 PASS.
+
+01.11.2026 L1-A-02 [bounded follow-up](scans/2026-10/l1-manifest-destination-followup.md):
+real Requests/loopback HTTP reproduces direct and redirected internal JSON reads
+from the actual handler body; eight controls pass after same-model review.
+That historical follow-up made no runtime fix or deployed/whole-file claim;
+the local repair above supersedes its vulnerable behavior, not the L1 OPEN status.
+
 ## Docs RTC Producer (29.10.2026)
+
 
 RTC-ICE [local repair](scans/2026-10/repair-rtc-ice.md) now passes selected ICE
 through PeerJS's consumed `config.iceServers`. Nine baseline failures become

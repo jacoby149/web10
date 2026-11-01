@@ -1,3 +1,9 @@
+3.252.10 || 01.11.2026
+fix(api): **restrict app manifest proxy destinations** — require approved registration and exclusively public DNS/literals, pin numeric connections with canonical Host/TLS verification, refuse redirects/ambient credentials and preserve decoded size/error fallback. Four exploit failures become denied-green; 70 focused controls, 1,407 API tests plus four subtests and Ruff pass. Fresh same-model review includes ephemeral real TLS checks; retained TLS/path integration, real registry, CI/deployment/diverse sign-off remain OPEN. No L1 closure.
+
+3.252.9 || 01.11.2026
+test(security): **replay manifest destination reads over real loopback HTTP** — L1-A-02 follow-up executes the current handler with real Requests against disposable fixtures; direct internal JSON and automatic redirect reads reproduced, path forms/exact size boundary/error fallbacks retained. Eight controls pass after fresh same-model review corrected a confounded size test. Evidence only: no runtime repair, production exposure claim, L1 closure or diverse sign-off.
+
 3.252.8 || 29.10.2026
 fix(sdk): **pass selected ICE through PeerJS configuration** — use config.iceServers in RTC core/minimal types and regenerate RTC ESM/declarations/docs IIFE only. Nine consumed-config regressions fail before repair; final 19 RTC controls, 284 SDK tests and typecheck pass, with fresh same-model upstream-contract/design review. Dependency fixture is not real PeerJS/network execution; connected demo, images, rollout/diverse review and L1 remain OPEN.
 
