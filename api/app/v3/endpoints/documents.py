@@ -351,12 +351,42 @@ def read_documents(request: Request, data: ReadDocuments):
 
 @router.post("/update")
 def update_document(request: Request, data: UpdateDocument):
-    """Update a document (new version + optional group changes)."""
+    """Update a document (new version + optional group changes).
+
+    Group-as-author: a group-authored post (author_key = group_id) can be
+    updated by the human who posted it (posted_by = username) when they hold
+    a role in the group that grants `create` on the service. The lookup is
+    two-pass: first by author_key (the normal path), then by posted_by (the
+    group-post path). The write uses the doc's actual author_key (the group),
+    preserving the identity.
+    """
     author = _user(data)
     existing = ch.get_document(data.doc_id, author)
     if not existing:
-        raise exceptions.ENTRY_NOT_FOUND
-    _check_app_permission(request, author, existing["service"], "updateOwn", client_id_of(data))
+        # Group-as-author fallback: the doc's author_key is a group_id and
+        # the caller is the human who posted it (posted_by = their username).
+        # Find the doc by scanning for one where posted_by matches. We use a
+        # targeted query rather than a table scan — the doc_id is known.
+        result_rows = ch.client.query(
+            "SELECT author_key FROM documents WHERE doc_id = %(doc_id)s AND posted_by = %(poster)s AND deleted = 0 ORDER BY updated_at DESC LIMIT 1",
+            {"doc_id": data.doc_id, "poster": author},
+        )
+        if result_rows.result_rows:
+            group_author = result_rows.result_rows[0][0]
+            existing = ch.get_document(data.doc_id, group_author)
+            if existing:
+                # Gate: the caller must hold a role in the group that grants
+                # `create` on the service (same as Gate 1 on create).
+                perms = ch.effective_role_perms(group_author, author, authenticated=True)
+                if not ch._effective_allows(perms, existing["service"], "create"):
+                    raise HTTPException(
+                        status_code=403,
+                        detail="no permission to edit this group post",
+                    )
+                author = group_author  # the write uses the group's key
+        else:
+            raise exceptions.ENTRY_NOT_FOUND
+    _check_app_permission(request, _user(data), existing["service"], "updateOwn", client_id_of(data))
 
     merged_body = {**existing["body"], **data.body}
     # Preserve the existing ad preference unless the update sets one.

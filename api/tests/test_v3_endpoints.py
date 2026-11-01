@@ -497,6 +497,137 @@ class TestUpdate:
         inserted_row = doc_inserts[0].args[1][0]
         assert inserted_row[4] == "target-9"
 
+    def test_update_group_post_by_poster(self, client, token):
+        """Group-as-author: a moderator who posted as the group can edit their
+        own post. The doc's author_key is the group_id; posted_by is the
+        username. The update path finds it via the posted_by fallback, checks
+        the caller's role in the group (Gate 1), and writes with the group's
+        author_key (preserving the identity)."""
+        group_id = "web10.app/groups/users/testuser/mygroup"
+        original_created = datetime(2026, 1, 1)
+        # Query sequence (dispatched by SQL content):
+        # - get_document (by username or group_id): "FROM documents WHERE doc_id"
+        # - posted_by fallback: "WHERE doc_id = %(doc_id)s AND posted_by"
+        # - get_group: "FROM group_contracts WHERE group_id"
+        # - get_group_member: "FROM group_members WHERE group_id"
+        doc_row = (
+            "doc-1",
+            group_id,
+            "posts",
+            '{"text":"old"}',
+            "",
+            [],
+            original_created,
+            original_created,
+            "none",
+            "",
+            "testuser",
+        )
+        group_row = (
+            group_id,
+            '[{"name": "owner", "permissions": {"*": ["readAll", "create", "updateOwn", "deleteOwn"]}}]',
+            "open",
+            0,
+            [],
+            "hidden",
+            original_created,
+            original_created,
+        )
+
+        def dispatch(sql, params=None):
+            if "AND posted_by = %(poster)s" in sql:
+                return MagicMock(result_rows=[(group_id,)])
+            if "FROM documents WHERE doc_id" in sql:
+                # First call (by username): miss. Second call (by group_id): hit.
+                if not hasattr(dispatch, "_doc_calls"):
+                    dispatch._doc_calls = 0
+                dispatch._doc_calls += 1
+                if dispatch._doc_calls == 1:
+                    return MagicMock(result_rows=[])
+                return MagicMock(result_rows=[doc_row])
+            if "FROM group_contracts WHERE group_id" in sql:
+                return MagicMock(result_rows=[group_row])
+            if "FROM group_members WHERE group_id" in sql:
+                return MagicMock(result_rows=[("testuser", "owner", "2026-01-01T00:00:00Z")])
+            if "FROM doc_groups WHERE doc_id" in sql:
+                return MagicMock(result_rows=[(group_id,)])
+            raise AssertionError(f"unexpected query: {sql[:80]}")
+
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.side_effect = dispatch
+            resp = client.post(
+                "/v3/update",
+                json={
+                    "token": token,
+                    "doc_id": "doc-1",
+                    "body": {"text": "updated"},
+                },
+            )
+        assert resp.status_code == 200
+        data = resp.json()
+        # The write used the group's author_key (not the username)
+        assert data["author_key"] == group_id
+
+    def test_update_group_post_by_non_member_403(self, client, token):
+        """Group-as-author: a user who did NOT post the group post (and has no
+        role in the group) gets a 403 — the posted_by fallback finds the doc
+        but the Gate 1 check fails."""
+        group_id = "web10.app/groups/users/otheruser/theirgroup"
+        original_created = datetime(2026, 1, 1)
+        doc_row = (
+            "doc-1",
+            group_id,
+            "posts",
+            '{"text":"old"}',
+            "",
+            [],
+            original_created,
+            original_created,
+            "none",
+            "",
+            "someoneelse",
+        )
+        group_row = (
+            group_id,
+            '[{"name": "owner", "permissions": {"*": ["readAll", "create"]}}]',
+            "open",
+            0,
+            [],
+            "hidden",
+            original_created,
+            original_created,
+        )
+
+        def dispatch(sql, params=None):
+            if "AND posted_by = %(poster)s" in sql:
+                return MagicMock(result_rows=[(group_id,)])
+            if "FROM documents WHERE doc_id" in sql:
+                if not hasattr(dispatch, "_doc_calls"):
+                    dispatch._doc_calls = 0
+                dispatch._doc_calls += 1
+                if dispatch._doc_calls == 1:
+                    return MagicMock(result_rows=[])
+                return MagicMock(result_rows=[doc_row])
+            if "FROM group_contracts WHERE group_id" in sql:
+                return MagicMock(result_rows=[group_row])
+            if "FROM group_members WHERE group_id" in sql:
+                return MagicMock(result_rows=[])  # no role for testuser
+            if "FROM doc_groups WHERE doc_id" in sql:
+                return MagicMock(result_rows=[(group_id,)])
+            raise AssertionError(f"unexpected query: {sql[:80]}")
+
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.side_effect = dispatch
+            resp = client.post(
+                "/v3/update",
+                json={
+                    "token": token,
+                    "doc_id": "doc-1",
+                    "body": {"text": "hacked"},
+                },
+            )
+        assert resp.status_code == 403
+
 
 class TestDelete:
     def test_delete(self, client, token):
