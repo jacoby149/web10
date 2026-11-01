@@ -502,6 +502,8 @@ function createV3Client(options = {}) {
         payload.ad_preference = opts.ad_preference;
       if (opts?.ref_value)
         payload.ref_value = opts.ref_value;
+      if (opts?.author_as)
+        payload.author_as = opts.author_as;
       return v3Post("create", payload);
     },
     async read(collection, opts) {
