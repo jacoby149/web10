@@ -273,13 +273,7 @@ def run_query(request: Request, data: QueryRequest):
     # service-free queries (`SELECT 1`) are exempt: an empty result is valid
     # there. Exempt under QUERY_EVAL_NO_POLICY too: the baseline (line A) runs
     # unscoped by definition, so the membership 403 does not apply.
-    if (
-        not settings.QUERY_EVAL_NO_POLICY
-        and data.groups
-        and authenticated
-        and needed
-        and not any(readable.values())
-    ):
+    if not settings.QUERY_EVAL_NO_POLICY and data.groups and authenticated and needed and not any(readable.values()):
         raise HTTPException(
             status_code=403,
             detail="not a member of the requested group",
@@ -336,7 +330,9 @@ def run_query(request: Request, data: QueryRequest):
             # The compiled query is structurally safe; a ClickHouse failure here
             # is the caller's SQL (a column the boundary CTE doesn't expose, a
             # bad function arg, ...).
-            log.warning("[query] id=%s execution failed duration_ms=%.2f", diagnostic_id, (time.perf_counter() - t7) * 1000)
+            log.warning(
+                "[query] id=%s execution failed duration_ms=%.2f", diagnostic_id, (time.perf_counter() - t7) * 1000
+            )
             raise HTTPException(status_code=400, detail=f"query execution failed: {e}")
     t_execute = time.perf_counter() - t7
 
