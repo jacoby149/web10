@@ -121,6 +121,30 @@ IMPORT_STUCK_AFTER_MINUTES = int(os.getenv("IMPORT_STUCK_AFTER_MINUTES", "10"))
 # How often the stuck-job sweep runs (seconds).
 IMPORT_STUCK_SWEEP_SECONDS = int(os.getenv("IMPORT_STUCK_SWEEP_SECONDS", "300"))
 
+# ── Query-engine evaluation seams (the paper's access-control cost function) ──
+# Test-mode flags for the three-line ablation (research/digital-ocean-thinking.md).
+# All default OFF: production behavior is unchanged unless a flag is set. They
+# exist so the experiment can measure the access-control layer in isolation
+# (C: stub the scan), the causal overhead against a no-policy baseline (A), and
+# the per-group vs. batched readable-resolution cost. The KB records the cost +
+# the fix (query-engine.md §"Readable-set resolution"); these are the seams the
+# experiment drives. Never enable in a public node — A bypasses the I3 boundary
+# and C returns synthetic rows.
+# C: stub the columnar scan. When truthy, /v3/query returns a fixed N-row
+# synthetic result instead of running the compiled SQL — isolates the policy
+# layer (auth→…→compile→serialize) from the engine. N = QUERY_EVAL_STUB_ROWS.
+QUERY_EVAL_STUB_EXECUTE = os.getenv("QUERY_EVAL_STUB_EXECUTE", "").lower() in ("1", "true", "yes")
+QUERY_EVAL_STUB_ROWS = int(os.getenv("QUERY_EVAL_STUB_ROWS", "20"))
+# A: the no-policy baseline. When truthy, /v3/query skips the readable-set
+# resolution + the boundary-CTE scoping (runs the caller's SQL unscoped) — the
+# credited ClickHouse baseline the causal overhead (B−A) is computed against.
+QUERY_EVAL_NO_POLICY = os.getenv("QUERY_EVAL_NO_POLICY", "").lower() in ("1", "true", "yes")
+# readable resolution: "per-group" (the current O(K) round-trip path) or
+# "batched" (the O(1)-round-trip readable_groups_batched). The experiment plots
+# both against K; the production default stays per-group until the batched
+# wiring is a deliberate, reviewed change.
+QUERY_EVAL_READABLE_MODE = os.getenv("QUERY_EVAL_READABLE_MODE", "per-group").lower()
+
 # Load environment variables into settings params.
 for v in list(globals()):
     env_val = os.getenv(v)
