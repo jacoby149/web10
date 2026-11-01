@@ -131,6 +131,15 @@ access-controlled location, never the repo, never a PR. The tool prints a
 checksum + row count and refuses to run if a user has no star record or no
 `hashed_password` (those are the rows that would silently lose a login).
 
+File-output safety: create a private (`0600`) temporary file in the destination
+directory, write and flush the complete manifest, then publish without replacing
+any existing destination. Existing files and symlinks must cause refusal, leaving
+the prior backup untouched; choose a fresh filename for every extraction. Failed
+writes must not publish a partial final manifest. This requires a trusted,
+access-controlled destination directory and POSIX same-filesystem hard-link
+support; it does not verify encryption or secure attacker-writable ancestors.
+Stdout output and the complete JSON/hash/checksum format remain unchanged.
+
 **Gate:** the manifest row count matches `audit_mongo.py`'s user-collection
 count, and zero users are flagged missing-a-hash. If it doesn't, stop — the
 extraction is wrong and nothing else runs.
