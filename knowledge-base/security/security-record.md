@@ -26,17 +26,36 @@ per-service role map); (2) the group must be able to write in each target group
 pointed at the group instead of the user). The app-contract gate runs on the
 real author (the token holder), not the group. Moderation checks the real
 author (`posted_by`), not the group. The `posted_by` column is server-set from
-the JWT — the client cannot forge it. 1343 API tests green (including the
-existing permission-matrix suite). L1 file-scan of `documents.py` +
-`clickhouse.py`: no new trust-boundary surface beyond the two existing gates;
-the `author_as` field is validated before any write; the `posted_by` column is
-never read from client input. **OPEN**: L2 call-graph scan (the import worker +
-bugbot also call `insert_document` — they pass `posted_by=""` which is correct
-for non-group posts but not explicitly tested); L3 service-scan; L4
-project-wide. No C+I exploit replay (no new exploit class — the gates are
-existing primitives re-pointed at a new principal).
+the JWT — the client cannot forge it. 1345 API tests green (including the
+existing permission-matrix suite + two new update-path tests). L1 file-scan of
+`documents.py` + `clickhouse.py`: no new trust-boundary surface beyond the two
+existing gates; the `author_as` field is validated before any write; the
+`posted_by` column is never read from client input. The `POST /v3/update`
+endpoint gains a two-pass lookup for group-authored posts (first by author_key,
+then by posted_by) with the same Gate 1 check — a moderator who posted as the
+group can edit their post; a non-member gets a 403. **OPEN**: L2 call-graph
+scan (the import worker + bugbot also call `insert_document` — they pass
+`posted_by=""` which is correct for non-group posts but not explicitly tested);
+L3 service-scan; L4 project-wide. No C+I exploit replay (no new exploit class —
+the gates are existing primitives re-pointed at a new principal).
+
+## Manifest Destination Follow-Up (01.11.2026)
+
+L1-A-02 [local source repair](scans/2026-10/repair-a02-manifest.md): approved
+public-only registration/DNS, numeric connection pinning, canonical Host/TLS
+verification and redirect refusal. Four initial exploit failures denied; 70 focused
+controls, 1,407 API tests plus four subtests/Ruff pass, fresh same-model review
+and ephemeral actual-TLS probes. Retained TLS/path integration, actual registry,
+CI/deployment/history and diverse sign-off remain OPEN; no L1 PASS.
+
+01.11.2026 L1-A-02 [bounded follow-up](scans/2026-10/l1-manifest-destination-followup.md):
+real Requests/loopback HTTP reproduces direct and redirected internal JSON reads
+from the actual handler body; eight controls pass after same-model review.
+That historical follow-up made no runtime fix or deployed/whole-file claim;
+the local repair above supersedes its vulnerable behavior, not the L1 OPEN status.
 
 ## Docs RTC Producer (29.10.2026)
+
 
 RTC-ICE [local repair](scans/2026-10/repair-rtc-ice.md) now passes selected ICE
 through PeerJS's consumed `config.iceServers`. Nine baseline failures become

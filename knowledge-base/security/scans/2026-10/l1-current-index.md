@@ -137,7 +137,7 @@ Conditional local facts remain bounded; no production breach is established.
 | B-5 | OPEN wildcard-CORS credential-boundary pinning obligation; no demonstrated wildcard exploit |
 | B-6 | OPEN unscoped-getter/capability caller handoff, not independently a data leak |
 | B-8 | Source repair merged #1265 at b5d128a52; four red/green CLI cases, 1,180 API tests at repair pin; not B-2/deployment closure |
-| L1-A-02 | OPEN manifest caller-destination routing/JSON proxy primitive; fake HTTP evidence, real network reach not shown; S1 |
+| L1-A-02 | [Local source repair](repair-a02-manifest.md): approved/public-only numeric connections, verified Host/TLS and no redirects; four exploit failures denied, 70 focused/1,407 API tests plus four subtests, fresh same-model review and ephemeral TLS probes. Retained TLS/path, real registry/CI/deployment/history/diverse gates OPEN |
 | L1-B-01 | OPEN unsigned remote-helper destination/status trust; actual callers/reach unverified; S3 |
 | L1-D-01 | [Source freshness repair merged #1271](repair-d01-token-freshness.md) at b828736b4; 92 controls/1,325 API passes at repair pin, fresh same-model review. Rollout/diverse review OPEN; S3 |
 | L1-D-02 | Same local freshness repair: oracle classifies invalid versus expired and skips stores; no oracle-to-CRUD grant claimed. Integration/rollout/diverse review OPEN; S3 |

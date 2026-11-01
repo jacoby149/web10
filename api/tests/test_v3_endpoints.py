@@ -2011,59 +2011,64 @@ class TestMediaDelete:
 class TestPwaListing:
     """GET /pwa_listing — the store's manifest proxy (D47: a path is an app)."""
 
+    @pytest.fixture(autouse=True)
+    def public_app(self):
+        with (
+            patch("app.endpoints.system.ch.get_app", return_value={"approved": True}),
+            patch("app.endpoints.system.socket.getaddrinfo", return_value=[(2, 1, 6, "", ("8.8.8.8", 443))]),
+            patch("app.endpoints.system.urllib3.HTTPSConnectionPool") as pool,
+        ):
+            self.pool = pool.return_value
+            yield
+
     def _ok_manifest(self, payload: dict | None = None):
         import json as _json
 
         fake = MagicMock()
-        # pwa_listing uses requests.get(..., stream=True) as a context manager
-        # and reads via iter_content (hardening #7 byte cap).
-        fake.__enter__ = MagicMock(return_value=fake)
-        fake.__exit__ = MagicMock(return_value=False)
-        fake.raise_for_status = MagicMock()
-        fake.iter_content = MagicMock(return_value=iter([_json.dumps(payload or {"name": "Notes"}).encode()]))
+        fake.status = 200
+        fake.read.return_value = _json.dumps(payload or {"name": "Notes"}).encode()
         return fake
 
     def test_manifest_url_with_trailing_slash(self, client):
-        with patch("app.endpoints.system.requests.get", return_value=self._ok_manifest()) as mock_get:
+        with patch.object(self.pool, "urlopen", return_value=self._ok_manifest()) as mock_get:
             resp = client.get("/pwa_listing", params={"url": "https://host/docs/notes/"})
         assert resp.status_code == 200
         assert resp.json() == {"name": "Notes"}
-        assert mock_get.call_args[0][0] == "https://host/docs/notes/manifest.json"
+        assert mock_get.call_args[0][1] == "/docs/notes/manifest.json"
 
     def test_manifest_url_without_trailing_slash(self, client):
         """A registered path without a trailing slash resolves the same."""
-        with patch("app.endpoints.system.requests.get", return_value=self._ok_manifest()) as mock_get:
+        with patch.object(self.pool, "urlopen", return_value=self._ok_manifest()) as mock_get:
             resp = client.get("/pwa_listing", params={"url": "https://host/docs/notes"})
         assert resp.status_code == 200
-        assert mock_get.call_args[0][0] == "https://host/docs/notes/manifest.json"
+        assert mock_get.call_args[0][1] == "/docs/notes/manifest.json"
 
     def test_manifest_url_root(self, client):
-        with patch("app.endpoints.system.requests.get", return_value=self._ok_manifest()) as mock_get:
+        with patch.object(self.pool, "urlopen", return_value=self._ok_manifest()) as mock_get:
             resp = client.get("/pwa_listing", params={"url": "https://host.example.com/"})
         assert resp.status_code == 200
-        assert mock_get.call_args[0][0] == "https://host.example.com/manifest.json"
+        assert mock_get.call_args[0][1] == "/manifest.json"
 
     def test_oversized_manifest_rejected(self, client):
         """Hardening #7: a manifest over the byte cap → NO_PWA (no memory spike)."""
         import json as _json
 
         fake = MagicMock()
-        fake.__enter__ = MagicMock(return_value=fake)
-        fake.__exit__ = MagicMock(return_value=False)
-        fake.raise_for_status = MagicMock()
+        fake.status = 200
         # two chunks that together exceed the 256 KiB cap
         big = _json.dumps({"name": "x", "pad": "a" * (140 * 1024)}).encode()
-        fake.iter_content = MagicMock(return_value=iter([big, big]))
-        with patch("app.endpoints.system.requests.get", return_value=fake):
+        fake.read.return_value = big + big
+        with patch.object(self.pool, "urlopen", return_value=fake):
             resp = client.get("/pwa_listing", params={"url": "https://host/docs/notes/"})
         assert resp.status_code == 401  # NO_PWA
 
     def test_no_manifest_returns_no_pwa(self, client):
-        import requests as req
+        import urllib3
 
-        with patch(
-            "app.endpoints.system.requests.get",
-            side_effect=req.exceptions.RequestException("down"),
+        with patch.object(
+            self.pool,
+            "urlopen",
+            side_effect=urllib3.exceptions.HTTPError("down"),
         ):
             resp = client.get("/pwa_listing", params={"url": "https://host/docs/notes/"})
         assert resp.status_code == 401  # NO_PWA — the store falls back to the registered name
@@ -2076,11 +2081,9 @@ class TestPwaListing:
         fallback answers with HTML + 200 — json.loads used to 500 on it.
         """
         fake = MagicMock()
-        fake.__enter__ = MagicMock(return_value=fake)
-        fake.__exit__ = MagicMock(return_value=False)
-        fake.raise_for_status = MagicMock()
-        fake.iter_content = MagicMock(return_value=iter([b"<!DOCTYPE html><html></html>"]))
-        with patch("app.endpoints.system.requests.get", return_value=fake):
+        fake.status = 200
+        fake.read.return_value = b"<!DOCTYPE html><html></html>"
+        with patch.object(self.pool, "urlopen", return_value=fake):
             resp = client.get("/pwa_listing", params={"url": "https://host/docs/media/index.html"})
         assert resp.status_code == 401  # NO_PWA — never a 500
 
