@@ -62,7 +62,10 @@ the official CFP governs current logistics.
 | `references/citation-mapping.md` | Placement guidance and unsupported-claim warnings |
 | `evaluation-plan.md` | Production/synthetic separation, fair baselines, measurement gates, and the E4b multi-app generality demonstration |
 | `multi-app-demonstration.md` | Three-part generality proof: web10-social + "Most Popular" probe + Developer B's Snake/Marketplace reading social profiles cross-app. Snake + Marketplace are built and hosted at `/docs/snake/` + `/docs/marketplace/` on the marketing UI, with the `/docs/interop` story page and an e2e gauntlet capturing screenshots |
+| `digital-ocean-thinking.md` | Pre-mortem of the droplet evaluation: what each harness can claim, epistemic boundaries, cost/evidence rules, decision points |
+| `cloudflare-plan.md` | Media-delivery offload plan: CDN stack, the free-vs-paid auth decision, Parts A/B/C (images / edge-verified HLS / takedown fast-path), and the dollar answer |
 | `experiments/README.md` | Known harness blockers; no runnable/reproducible claim yet |
+| `experiments/costfn/` | The access-control cost function harness (three-line ablation): metadata-only seed + bench (drives the 3 evaluation flags, A/B/C, per-group vs batched) + run.sh + offline tests. Runnable on one droplet; numbers pending |
 | `draft/outline.md` | Industry-paper section plan |
 | `workshop/main.tex` | Existing compressed draft, not evidence of completed evaluation |
 

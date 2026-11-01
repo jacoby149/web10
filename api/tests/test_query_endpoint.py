@@ -587,3 +587,115 @@ class TestRateLimit:
                 assert client.post("/v3/query", json={"token": token, "sql": "SELECT 1"}).status_code == 200
             resp = client.post("/v3/query", json={"token": token, "sql": "SELECT 1"})
         assert resp.status_code == 429
+
+
+class TestEvaluationSeams:
+    """The three-line ablation seams (research/digital-ocean-thinking.md).
+
+    These are test-mode flags that default OFF (production behavior is
+    unchanged). They let the access-control cost function experiment measure
+    the policy layer in isolation (C: stub the scan), the causal overhead
+    against a no-policy baseline (A), and the per-group vs. batched
+    readable-resolution cost. The seams must be provably inert when unset and
+    provably active when set — and A must never leak past the boundary in a
+    way the flag doesn't intend (it bypasses I3 *by design*, test-mode only).
+    """
+
+    def setup_method(self):
+        query_ep._query_log.clear()
+
+    def test_flags_default_off_leaves_path_unchanged(self, client, token):
+        # With no flag set, the per-group readable path + real execute run.
+        with (
+            patch("app.v3.services.clickhouse.get_user_groups", return_value=[{"group_id": "g1"}]),
+            patch("app.v3.services.clickhouse.readable_groups", return_value=["g1"]) as mock_pg,
+            patch("app.v3.services.clickhouse.readable_groups_batched", return_value=["g1"]) as mock_batched,
+            patch("app.v3.services.clickhouse.execute_query", return_value=(["doc_id"], [("d1",)])) as mock_exec,
+        ):
+            resp = client.post("/v3/query", json={"token": token, "sql": "SELECT doc_id FROM posts"})
+        assert resp.status_code == 200
+        mock_pg.assert_called()  # per-group is the default
+        mock_batched.assert_not_called()
+        mock_exec.assert_called()  # real scan, not the stub
+
+    def test_stub_execute_returns_fixed_rows_and_skips_scan(self, client, token, monkeypatch):
+        # C: the stub returns N synthetic rows and never calls execute_query.
+        monkeypatch.setattr(settings, "QUERY_EVAL_STUB_EXECUTE", True)
+        monkeypatch.setattr(settings, "QUERY_EVAL_STUB_ROWS", 7)
+        with (
+            patch("app.v3.services.clickhouse.get_user_groups", return_value=[{"group_id": "g1"}]),
+            patch("app.v3.services.clickhouse.readable_groups", return_value=["g1"]),
+            patch("app.v3.services.clickhouse.execute_query") as mock_exec,
+        ):
+            resp = client.post("/v3/query", json={"token": token, "sql": "SELECT doc_id FROM posts"})
+        assert resp.status_code == 200
+        mock_exec.assert_not_called()  # the scan is held out
+        body = resp.json()
+        assert body["count"] == 7
+        assert [r["doc_id"] for r in body["rows"]] == [f"stub-{i:06d}" for i in range(7)]
+
+    def test_no_policy_baseline_bypasses_scoping(self, client, token, monkeypatch):
+        # A: the no-policy baseline runs the caller's SQL unscoped — no
+        # readable resolution, no boundary CTE (compiled == the raw SQL).
+        monkeypatch.setattr(settings, "QUERY_EVAL_NO_POLICY", True)
+        with (
+            patch("app.v3.services.clickhouse.get_user_groups", return_value=[{"group_id": "g1"}]),
+            patch("app.v3.services.clickhouse.readable_groups") as mock_pg,
+            patch("app.v3.services.clickhouse.readable_groups_batched") as mock_batched,
+            patch("app.v3.services.clickhouse.execute_query", return_value=(["doc_id"], [("d1",)])) as mock_exec,
+        ):
+            resp = client.post(
+                "/v3/query",
+                json={"token": token, "sql": "SELECT doc_id FROM posts", "groups": ["g1"]},
+            )
+        assert resp.status_code == 200
+        mock_pg.assert_not_called()  # readable resolution skipped
+        mock_batched.assert_not_called()
+        # The compiled SQL handed to execute is the caller's raw SQL (unscoped).
+        executed_sql = mock_exec.call_args[0][0]
+        assert executed_sql == "SELECT doc_id FROM posts"
+
+    def test_no_policy_baseline_does_not_403_on_explicit_group(self, client, token, monkeypatch):
+        # A: the D42 membership 403 is exempt under no-policy — the baseline
+        # runs unscoped by definition, so an explicit group it can't read is
+        # not an access failure (it's the unscoped baseline).
+        monkeypatch.setattr(settings, "QUERY_EVAL_NO_POLICY", True)
+        with (
+            patch("app.v3.services.clickhouse.get_user_groups", return_value=[{"group_id": "g1"}]),
+            patch("app.v3.services.clickhouse.execute_query", return_value=(["doc_id"], [])),
+        ):
+            resp = client.post(
+                "/v3/query",
+                json={"token": token, "sql": "SELECT doc_id FROM posts", "groups": ["g1"]},
+            )
+        assert resp.status_code == 200  # not the 403 the policy path would raise
+
+    def test_batched_mode_calls_batched_not_per_group(self, client, token, monkeypatch):
+        # readable mode "batched" routes to readable_groups_batched, not the
+        # per-group loop — the experiment plots both against K.
+        monkeypatch.setattr(settings, "QUERY_EVAL_READABLE_MODE", "batched")
+        with (
+            patch("app.v3.services.clickhouse.get_user_groups", return_value=[{"group_id": "g1"}]),
+            patch("app.v3.services.clickhouse.readable_groups", return_value=["g1"]) as mock_pg,
+            patch("app.v3.services.clickhouse.readable_groups_batched", return_value=["g1"]) as mock_batched,
+            patch("app.v3.services.clickhouse.execute_query", return_value=(["doc_id"], [("d1",)])),
+        ):
+            resp = client.post("/v3/query", json={"token": token, "sql": "SELECT doc_id FROM posts"})
+        assert resp.status_code == 200
+        mock_batched.assert_called()  # the batched path is used
+        mock_pg.assert_not_called()  # the per-group loop is not
+
+    def test_per_group_mode_is_the_default_algorithm(self, client, token, monkeypatch):
+        # readable mode "per-group" (the explicit default) routes to the
+        # per-group loop — pinning that the default is unchanged.
+        monkeypatch.setattr(settings, "QUERY_EVAL_READABLE_MODE", "per-group")
+        with (
+            patch("app.v3.services.clickhouse.get_user_groups", return_value=[{"group_id": "g1"}]),
+            patch("app.v3.services.clickhouse.readable_groups", return_value=["g1"]) as mock_pg,
+            patch("app.v3.services.clickhouse.readable_groups_batched", return_value=["g1"]) as mock_batched,
+            patch("app.v3.services.clickhouse.execute_query", return_value=(["doc_id"], [("d1",)])),
+        ):
+            resp = client.post("/v3/query", json={"token": token, "sql": "SELECT doc_id FROM posts"})
+        assert resp.status_code == 200
+        mock_pg.assert_called()
+        mock_batched.assert_not_called()
