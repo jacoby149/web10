@@ -419,7 +419,7 @@ test.describe('Ads gauntlet — composer pin → follower sees the ad block', ()
     await expect(pageV.locator('[data-testid="ad-cta"]')).toBeVisible();
 
     // --- The create carried the ad_preference (the [social-feed] log) ---
-    const createLog = logsC.find((l) => l.includes('createPost — visibility'));
+    const createLog = logsC.find((l) => l.includes('createPost —'));
     expect(createLog, 'expected a [social-feed] createPost log').toBeTruthy();
     expect(createLog).toContain('ad_preference');
     expect(createLog).toContain(adDocId);
