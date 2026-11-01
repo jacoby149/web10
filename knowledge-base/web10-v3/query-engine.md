@@ -186,10 +186,29 @@ function experiment needs. The experiment (see
 policy layer (auth → app_contract → candidates → readable → group_meta →
 compile → serialize) with `execute` held out, and plots the **per-group vs.
 batched** `readable` cost against K so the figure shows the bottleneck and the
-fix on one chart. The experiment's flags (batched-readable, no-policy baseline,
-execute-stub) are test-mode seams; the production default stays the current
-path until the batched wiring is a deliberate, reviewed change — the KB records
-the cost + the fix, the experiment proves it, the wiring is its own PR.
+fix on one chart.
+
+**The three evaluation flags (landed, test-mode, default OFF).** The seams the
+experiment drives are env flags in `settings.py`, read by `run_query`; all
+default OFF so production behavior is unchanged unless one is set:
+- `QUERY_EVAL_STUB_EXECUTE` (+ `QUERY_EVAL_STUB_ROWS`, default 20) — **line C**:
+  return a fixed N-row synthetic result instead of running the compiled SQL,
+  isolating the policy layer from the engine.
+- `QUERY_EVAL_NO_POLICY` — **line A**: skip readable-set resolution + the
+  boundary-CTE scoping (run the caller's SQL unscoped) — the credited
+  ClickHouse baseline the causal overhead (B−A) is computed against. It also
+  exempts the D42 explicit-group membership 403 (the baseline is unscoped by
+  definition).
+- `QUERY_EVAL_READABLE_MODE` (`per-group` default | `batched`) — selects the
+  resolution algorithm so the experiment plots both against K.
+
+These are **test-mode only**: A bypasses the I3 boundary and C returns
+synthetic rows, so neither may be enabled on a public node. The production
+default stays the per-group path; promoting the batched path to the production
+default is a separate, deliberate, reviewed change (the experiment's data is
+what justifies it). Pinned by `test_query_endpoint.py::TestEvaluationSeams`
+(inert when unset; each flag active when set; A unscoped + no 403; batched vs.
+per-group routing).
 
 ## Group scoping (deferred)
 

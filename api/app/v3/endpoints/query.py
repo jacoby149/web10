@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Request
 from sqlglot import ErrorLevel, exp, parse_one
 
 import app.exceptions as exceptions
+import app.settings as settings
 import app.v3.services.safe_query as sq
 from app.v3.endpoints.auth_helper import client_id_of, user_or_anon
 from app.v3.endpoints.documents import _mint_hls_manifest_urls
@@ -220,8 +221,28 @@ def run_query(request: Request, data: QueryRequest):
     t_candidates = time.perf_counter() - t3
 
     # The D58 read gate, per service the query actually uses.
+    #
+    # QUERY_EVAL_NO_POLICY (line A, the no-policy baseline): skip the readable
+    # resolution entirely — every candidate is treated as readable, so the
+    # boundary CTEs scope to the full candidate set (no per-group filtering).
+    # This is the credited ClickHouse baseline the causal overhead (B−A) is
+    # computed against. Test-mode only: it bypasses the I3 boundary, so it must
+    # never be enabled on a public node.
     t4 = time.perf_counter()
-    readable = {svc: ch.readable_groups(reader, svc, authenticated, candidates) for svc in needed}
+    if settings.QUERY_EVAL_NO_POLICY:
+        readable = {svc: list(candidates) for svc in needed}
+    else:
+        # QUERY_EVAL_READABLE_MODE selects the resolution algorithm: "per-group"
+        # (the current O(K) round-trip path) or "batched" (the O(1)-round-trip
+        # readable_groups_batched). Both have identical semantics; the
+        # experiment plots both against K to show the bottleneck + the fix.
+        # Referenced as ch.<name> (attribute lookup at call time) so the test
+        # patches on the clickhouse module apply to whichever is chosen.
+        if settings.QUERY_EVAL_READABLE_MODE == "batched":
+            _resolve = ch.readable_groups_batched
+        else:
+            _resolve = ch.readable_groups
+        readable = {svc: _resolve(reader, svc, authenticated, candidates) for svc in needed}
     t_readable = time.perf_counter() - t4
 
     # QE-A: the group_meta readable set. When the caller opts in, the endpoint
@@ -250,8 +271,15 @@ def run_query(request: Request, data: QueryRequest):
     # not an empty result. The message is the stable contract the demos +
     # e2e key off (`/not a member/i`). The "me" path (no explicit groups) and
     # service-free queries (`SELECT 1`) are exempt: an empty result is valid
-    # there.
-    if data.groups and authenticated and needed and not any(readable.values()):
+    # there. Exempt under QUERY_EVAL_NO_POLICY too: the baseline (line A) runs
+    # unscoped by definition, so the membership 403 does not apply.
+    if (
+        not settings.QUERY_EVAL_NO_POLICY
+        and data.groups
+        and authenticated
+        and needed
+        and not any(readable.values())
+    ):
         raise HTTPException(
             status_code=403,
             detail="not a member of the requested group",
@@ -259,14 +287,21 @@ def run_query(request: Request, data: QueryRequest):
 
     t6 = time.perf_counter()
     try:
-        compiled = sq.build_safe_query(
-            data.sql,
-            readable,
-            member_key=reader,
-            allowed_services=allowed,
-            max_limit=MAX_ROWS,
-            group_meta=group_meta,
-        )
+        if settings.QUERY_EVAL_NO_POLICY:
+            # Line A: the no-policy baseline. Run the caller's SQL unscoped —
+            # no boundary CTEs, no readable-set filtering. This is the
+            # credited ClickHouse baseline (the engine + the SQL shape, with no
+            # access layer). Test-mode only; it bypasses the I3 boundary.
+            compiled = data.sql
+        else:
+            compiled = sq.build_safe_query(
+                data.sql,
+                readable,
+                member_key=reader,
+                allowed_services=allowed,
+                max_limit=MAX_ROWS,
+                group_meta=group_meta,
+            )
     except sq.UnsafeQueryError as e:
         raise HTTPException(status_code=403, detail=str(e))
     t_compile = time.perf_counter() - t6
@@ -283,14 +318,26 @@ def run_query(request: Request, data: QueryRequest):
     )
 
     t7 = time.perf_counter()
-    try:
-        column_names, rows = ch.execute_query(compiled, settings={"max_execution_time": MAX_EXECUTION_TIME_S})
-    except ch.QueryExecutionError as e:
-        # The compiled query is structurally safe; a ClickHouse failure here
-        # is the caller's SQL (a column the boundary CTE doesn't expose, a
-        # bad function arg, ...).
-        log.warning("[query] id=%s execution failed duration_ms=%.2f", diagnostic_id, (time.perf_counter() - t7) * 1000)
-        raise HTTPException(status_code=400, detail=f"query execution failed: {e}")
+    if settings.QUERY_EVAL_STUB_EXECUTE:
+        # Line C: the stubbed scan. Return a fixed N-row synthetic result
+        # instead of running the compiled SQL — isolates the policy layer
+        # (auth→…→compile→serialize) from the columnar engine so the
+        # experiment measures "our part" with the scan held out. The rows are
+        # shape-only (a doc_id + a body) so the serialize/prepare phases still
+        # run over a realistic row count. Test-mode only; never on a public
+        # node (it returns synthetic data, not the reader's).
+        n = settings.QUERY_EVAL_STUB_ROWS
+        column_names = ["doc_id", "body"]
+        rows = [(f"stub-{i:06d}", '{"stub": true}') for i in range(n)]
+    else:
+        try:
+            column_names, rows = ch.execute_query(compiled, settings={"max_execution_time": MAX_EXECUTION_TIME_S})
+        except ch.QueryExecutionError as e:
+            # The compiled query is structurally safe; a ClickHouse failure here
+            # is the caller's SQL (a column the boundary CTE doesn't expose, a
+            # bad function arg, ...).
+            log.warning("[query] id=%s execution failed duration_ms=%.2f", diagnostic_id, (time.perf_counter() - t7) * 1000)
+            raise HTTPException(status_code=400, detail=f"query execution failed: {e}")
     t_execute = time.perf_counter() - t7
 
     t8 = time.perf_counter()
