@@ -120,125 +120,172 @@ the price page.
   to add (one more baby-test-sized run), and it turns "one box" into
   "we checked it wasn't the box." Optional; deadline-dependent.
 
-## The scale-sweep experiment (1k / 10k / 100k / 1M users)
+## The access-control cost function (the real experiment)
 
-The operator's question: *what hardware handles 1k, 10k, 100k, 1M users?*
-That is the E3 cost-curve experiment, and it is the legacy harness's real
-job. The honest framing first, then the design.
+**Reframe (supersedes the lakehouse-ladder sweep above).** Benchmarking
+"how fast is the data lakehouse" is goofy — a reviewer reads "we seeded 1M
+rows and the query was X ms" as a ClickHouse datasheet with extra steps.
+The interesting, ownable system is **the layer we put on top of a fast
+engine that everyone else solves by adding more infrastructure**: user-managed
+access control enforced *inside the query*, on a *shared* table, with
+*logical* (not physical) per-user namespaces. The lakehouse is the
+*enabler*, not the *result*. So the experiment measures **the cost of the
+access-control layer we built** — the Python logic + the Python-issued
+ClickHouse *metadata* queries — and holds the columnar *scan* constant.
 
-**The honest framing.** "Handles N users" is not a property of the data —
-it is a property of the *workload on* the data. The answer is always a
-pair: (instance, sustained QPS at p95 ≤ S ms). A 1M-user dataset is
-cheap to *store*; it is the *query fan-out* that eats hardware, because
-the feed query's cost scales with the reader's follower count and the
-authors' post counts, not with the table size (the `(author_key, doc_id)`
-primary key keeps per-author scans tight). So the sweep must fix the
-workload definition and vary both scale and instance.
+**What "our part" is (the exact boundary the plot depends on).** The Y-axis
+is the sum of the phases that are Python + Python-issued CH metadata, i.e.
+everything the node does *before* it hands a scoped query to the engine:
 
-**Workload definition (fix before running anything).**
-- Seed shape per scale: `posts_per_user=50`, `comments_per_post=2`,
-  `reactions_per_post=3` (the `run.sh` defaults). Document counts:
-  1k → ~90k docs; 10k → ~900k; 100k → ~9M; 1M → ~90M.
-- Reader population: 100 active readers per scale, each following a
-  fixed fan-out (e.g. 50 creators). Fan-out is a *named parameter* — the
-  1M run's cost is dominated by it, and the paper must say which fan-out
-  was used.
-- Offered load: ramp concurrency (20 → 50 → 100 → 200) until p95
-  degrades past the SLO (state the SLO, e.g. p95 ≤ 250 ms), or until a
-  fixed duration per ramp. Record the max sustained QPS per instance.
-- The current `FEED_SQL` in `bench.py` is global — its engagement
-  subqueries aggregate over *all* reactions/comments, so at 1M users the
-  join blows up regardless of the reader's groups. **The query must be
-  scoped to the reader's readable groups before any number is trusted**
-  (this is also blocker #5 in `experiments/README.md`).
-
-**Storage math (the cheap part — plan the disk).**
-Roughly ~90 bytes/row compressed for the synthetic body shape:
-1k ≈ 8 MB, 10k ≈ 80 MB, 100k ≈ 800 MB, 1M ≈ 8 GB of `documents`
-(+ `doc_groups` ~2× rows, `group_members` 2 rows/user). All four scales
-fit on a single 80 GB SSD. **Storage is never the constraint; RAM and
-CPU are.** Do not buy disk for this experiment.
-
-**The instance ladder (DO, nyc3, hourly billing, destroy after each run).**
-
-| Scale | Start here | Why |
+| Phase | What it is | Ours? |
 |---|---|---|
-| 1k | s-2vcpu-4gb (~$0.15/hr) | de-risks the whole pipeline cheaply; if the harness is broken, find it for $0.05 |
-| 10k | s-4vcpu-16gb (~$0.30/hr) | the current default; the baseline point of the curve |
-| 100k | m-4vcpu-16gb (~$0.60/hr) | same RAM, dedicated cores; the first point where ClickHouse memory limits bite |
-| 1M | m-8vcpu-32gb (~$1.20/hr) | ~8 GB dataset must fit in CH's working set; 32 GB leaves headroom for merges + the API |
+| `auth` | JWT verify (`auth.py`) | YES — pure Python |
+| `app_contract` | origin/contract check (Python + CH metadata) | YES |
+| `candidates` | resolve which groups the reader can see (`get_user_groups`) | YES |
+| `readable` | **resolve the readable set of K contracts** — membership rows, `anyone`/`authenticated` grants, per-service role maps | YES — the crown jewel, scales with K |
+| `group_meta` | pull the contracts' role/permission metadata | YES |
+| `compile` | **AST parse + CTE policy injection** (`safe_query.py`) — the "AST logic securing things" | YES — pure Python |
+| `execute` | the actual columnar scan | **NO — stubbed to a fixed constant** |
+| `serialize`/`prepare` | shape the response (Python + CH media minting) | YES |
 
-The curve is the deliverable: for each scale, the smallest instance that
-holds the SLO at the target QPS, with the billed rate next to it. That
-table *is* the paper's E3 cost model. If 1M doesn't hold on
-m-8vcpu-32gb, the next point is m-16vcpu-64gb — record the failure,
-don't hide it.
+Everything above the `execute` stub is web10; we measure web10. The scan is
+held flat and reported separately (one real measurement per scale gives the
+constant the stub stands in for — and shows the policy cost is modest
+*relative to* the real scan, the "the lakehouse is the enabler, not the cost"
+line).
 
-**Run protocol (one droplet per scale, sequential).**
-1. Baby test first (s-1vcpu-1gb) — lifecycle only, as designed.
-2. Per scale: spin up → compose-up (api + clickhouse + minio) → seed
-   (record seed time; at 1M it is the longest phase, budget ~30–60 min)
-   → warm-up (fixed N queries, excluded) → ramp → collect
-   (`results/scale-<N>-<instance>.json` + `docker-stats` + `system-info`)
-   → copy results off → destroy → verify deletion + bill.
-3. Repeated trials: ≥3 independent runs per (scale, instance) point,
-   fresh storage each time. One run is an anecdote.
-4. Record the actual purchased instance, region, dates, billed rate and
-   invoice per point (the E6 gate). The price page is not a measurement.
+**The scale axis is K, not user count.** The pipeline's cost scales with
+**K = the number of group contracts in the reader's readable set for this
+query**, not with "users in the database." A node can hold 1M users and be
+fast if each reader touches 3 groups; it can choke at 10k if one reader's
+feed fans out across 500 contracts. User count is just the knob that gets you
+to a K. **The contract mix is the realism**: a real reader's readable set is
+mixed — contracts they *own* (owner short-circuit, cheapest), contracts they're
+a *member* of (followed creators' followers groups, mid), and contracts read
+via the **`anyone`/`authenticated` principal grant** (public discover, no
+membership row — the D58 path that bit the `/trending` bug). Seed the mix.
 
-**What we measure (the per-point result record).** The deliverable is not
-"a box held the SLO" — it is the *degradation curve* per (scale, instance):
+**Two feeds, opposite K behavior — this is the plot.** Confirmed in
+`marketing/web10-social/src/data/feed.ts`:
+- **Discover feed** (`readDiscoverFeed`, :26) reads from **ONE group** — the
+  node's single discover board — with a `limit` (default 50). **K = 1,
+  constant**, regardless of node size. The board is a single shared group, not
+  "all creator contracts."
+- **Personal feed** (`readFeed`, :343) reads from `getFeedGroups()` = every
+  group the reader belongs to minus discover. **K = the reader's following
+  count** — one followers-group contract per creator followed. This is the one
+  that grows.
 
-- **Latency vs concurrency** — the primary plot. For each concurrency
-  level (20/50/100/200/…), report p50/p95/p99 **per phase** (all ten:
-  auth, app_contract, parse_validate, candidates, readable, group_meta,
-  compile, execute, serialize, prepare) plus total. The paper's figure
-  is p95-total and p95-execute vs concurrency, one line per scale — that
-  shows where the access model bends vs where the scan bends.
-- **Throughput** — sustained QPS per concurrency level, successful only,
-  with the offered load stated (offered ≠ achieved past the knee).
-- **Failure behavior** — counted and classified, never averaged away:
-  HTTP 429 (rate limit), 5xx, client timeout, connection error, and
-  *slow success* (200 but past the SLO — the silent failure mode). The
-  failure curve (failure rate vs concurrency) is a first-class result:
-  an industry track wants to see *how the system fails* (graceful 429
-  backpressure vs 5xx collapse vs latency longtail), not just that it
-  failed.
-- **Resource saturation** — `docker stats` samples (CPU%, MemUsage per
-  container) + host `free`/`df`/load, timestamped and correlated to the
-  concurrency ramp, so the latency knee can be attributed (API CPU?
-  ClickHouse memory? merge activity?).
-- **The knee** — the explicit point per (scale, instance) where p95
-  crosses the SLO or failure rate crosses the threshold (state both
-  thresholds). That point, with its concurrency level and QPS, is the
-  number that goes in the cost table.
+So the figure is **two lines on one chart** (X = K, Y = policy-pipeline cost,
+`execute` stubbed):
+1. **Personal feed: cost vs. K** (K = 10 → 100 → 1,000 followed creators,
+   mixed owned/member/principal). The curve that *moves* — where "following
+   more people" starts to cost. The thesis: *the access-control cost scales
+   with your social graph, not with the node's size.*
+2. **Discover feed: a flat line at K = 1** across 10k/100k/1M *node* users.
+   The other half of the thesis: *the public feed does NOT degrade as the node
+   grows* — because it's one board group + a limit, not a fan-out. **Label the
+   flatness as a design choice** (single board group + `limit`), not a free
+   property: a future discover design that fanned out over per-creator
+   contracts would turn the flat line into a curve.
 
-**What this answers and what it does not.**
-- Answers: "at N users, on instance I, feed-read latency per phase vs
-  concurrency, the sustained QPS at the SLO knee, the failure mode and
-  rate past the knee, and the $/hr of the smallest instance that holds
-  it" — with fan-out F and the full workload stated.
-- Does not answer: active-user scale (synthetic users are not users),
-  write-heavy or media-heavy workloads, WAN latency, or the E3
-  *baseline* comparison (the same sweep must be run against the
-  PostgreSQL-RLS shared-table backend to be a comparison — today it is
-  web10 alone, which is still a legitimate cost curve).
+**The one-sentence claim the plot supports:** *"web10's access-control layer —
+JWT auth, contract checks, readable-set resolution over K group contracts, and
+AST-level query scoping — adds a measured cost in K (the reader's social
+graph), independent of node size; the public discover feed resolves a single
+board contract and stays flat as the node scales; the columnar scan is held
+constant and is not the subject of the measurement."*
+
+**Why this is also the easiest version.** No instance ladder (one box — you're
+not scanning 90M rows). No content seed (metadata only: each creator = a
+followers-group contract + an `anyone` grant + a few posts; the reader follows
+K of them — K is the knob, you don't need 1M *active* users). No storage math,
+no merge-activity variance, no "bad day on the VM" noise (stubbed scan is
+near-deterministic → reproducible, which is what de-risks a solo author who
+can't re-run a 4-box 1M experiment five times). Runs that fit in an afternoon
+on one droplet.
+
+**Honest caveats (so the plot doesn't overclaim).**
+- The personal-feed curve measures **K up to whatever you seed** — showing
+  K=1,000 is fine claims "fine to 1,000 followed creators," not "to infinity."
+  Report the cost function (ms/contract) + the knee if there is one; a
+  linear-in-K curve with a known constant is a *good* result ("following 2×
+  more people costs 2× more policy resolution at X ms/contract — predictable"),
+  not a failure.
+- "Scales" here means **"has a measured, predictable cost function in K,"** not
+  "stays flat to 1M." The wins that *are* flat: discover (K=1 by design) and
+  the scan (stubbed). The thing that *grows*, honestly labeled: the personal
+  feed, with your following.
+- **This is the primary experiment.** The 4-node cross-node fan-out (the direct
+  Solid comparison — they scale 2→128 pods; you'd scale 1→4 nodes with the same
+  question) is a **named follow-up** that reuses this harness once the
+  multi-node read path (the `multi-node.md` phases A–E, `api2.localhost`)
+  exists. Don't let the cool 4-node idea block the cheap number that's the
+  paper's spine.
 
 **Gates before the first dollar (in order).**
-1. Fix the eight legacy-harness blockers in `experiments/README.md`
-   (syntax, real credentials, JSON token transport, Origin/app-contract
-   path, workload mix, reader scheduling, log filtering, repeated
-   trials). The scale sweep inherits all of them.
-2. Scope `FEED_SQL` to the reader's readable groups (above).
-3. Verify the `group_contracts.tags` fresh-boot race is fixed on dev —
-   every scale run boots a fresh ClickHouse.
-4. Confirm `DO_API_TOKEN` custody (operator's machine env only).
+1. The `readable` path must use the **batched** variant for the feed read —
+   see "Does the current code scale?" below; the per-group variant is the
+   thing that won't scale and the experiment would measure the wrong thing.
+2. Stub `execute` (return a fixed-size synthetic result set; skip the real
+   columnar scan) — a test-mode flag, not a production change.
+3. Metadata-only seed: N creators (contract + `anyone` grant + a few posts),
+   one reader following K of them, K ∈ {10, 100, 1,000}; discover board with
+   the node's public creators attached.
+4. One real `execute` measurement per scale to report the stubbed constant.
+5. Verify the `group_contracts.tags` fresh-boot race is fixed on dev; confirm
+   `DO_API_TOKEN` custody.
 
-**Cost ceiling (worst case, all four scales, 3 trials each).**
-1k: 4 × ~$0.10 · 10k: 4 × ~$0.20 · 100k: 4 × ~$0.40 · 1M: 4 × ~$0.80
-≈ **$7–8 total** if every run is ~1 hour including seed. The 1M seed
-time is the swing factor; if it exceeds the hour budget, that is a
-harness finding, not a reason to skip the point.
+**Cost ceiling.** One small box (s-4vcpu-16gb, ~$0.30/hr), metadata-only seeds
+(minutes, not the 30–60 min of a 90M-doc content seed), an afternoon of runs
+across K × {personal, discover} × 3 trials. **Well under $5 total.** The
+expensive lakehouse ladder is gone.
+
+### Does the current code scale? (read before trusting the plot)
+
+Reading `api/app/v3/services/clickhouse.py` + `safe_query.py`:
+
+- **`readable_groups` (:1542) is the risk.** It is
+  `[g for g in candidate_group_ids if can_read_group(g, …)]` — a **Python
+  loop, one effective-role check per candidate group**, and the docstring says
+  it plainly: *"one effective-role check per candidate group (a few small
+  metadata queries each). Correct first; a batched variant is the fast-follow
+  for high-fanout feed reads."* Each `can_read_group` (:1512) does
+  `is_group_member` (a CH query) **and**, for non-members,
+  `effective_role_perms` (more CH queries). So the personal feed's `readable`
+  phase is **O(K) round-trips to ClickHouse from Python** — at K=1,000 that's
+  ~1,000+ small queries per feed load. **This is the thing that will NOT
+  scale, and it's the thing the experiment exists to expose.**
+- **A fix already exists and is not wired into the feed path.**
+  `readable_groups_batched` (:1553) resolves the *whole* candidate set in
+  **three batched queries** (memberships + public-class rows + role
+  definitions) instead of a handful per group — identical semantics,
+  order-preserving. The feed path (`query.py:224`) calls the **per-group**
+  `readable_groups`, not the batched one. So the codebase *knows* the per-group
+  version is the slow path and has the batched replacement — it just isn't
+  used where it matters.
+- **`compile` (the CTE injection) is O(K) in *string size*, not round-trips.**
+  `safe_query.py` builds the boundary CTE with `WHERE dg.group_id IN
+  ('g1','g2',…,'gK')` (`_quote_group_ids`, :127) and the group_meta CTE with
+  `WHERE group_id IN (…candidates…)` (:307,:313). That's a single query whose
+  `IN` list grows with K — fine to a few thousand, but the SQL text (and
+  ClickHouse's parse of a giant `IN`) grows linearly, and there's no chunking.
+  Secondary to the `readable` round-trip problem, but it's the second line on
+  the plot.
+
+**So the honest answer to "does it look like it scales?":** the *design*
+scales (the batched variant proves the O(1)-round-trip version is expressible),
+but the *current feed path* uses the O(K)-round-trip `readable_groups`, so as
+written it will bend early — probably in the low hundreds of K. **That's not a
+reason not to run the experiment; it's the experiment's most valuable
+possible finding.** The plot either (a) shows the per-group path bending at
+some K and the batched path staying flat — a clean "we found the bottleneck,
+here's the one-line fix, here's the before/after" result, or (b) shows both
+flat to K=1,000 — an even better "it just works" result. Either way the figure
+is publishable and the code is honest. **Recommendation: run the experiment on
+*both* the current per-group path and the batched path (a flag), so the plot
+shows the fix, not just the problem.** That turns a potential "it doesn't
+scale" embarrassment into a "here's the bottleneck and the fix" contribution.
 
 ## Will reviewers embarrass us? (the sufficiency pre-mortem)
 
