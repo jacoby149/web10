@@ -241,6 +241,45 @@ on one droplet.
 across K × {personal, discover} × 3 trials. **Well under $5 total.** The
 expensive lakehouse ladder is gone.
 
+**What we are NOT measuring, and why (the paper's scope statement).** The
+evaluation deliberately excludes two large cost centers, and the paper must say
+so *where the claim is made*, not bury it in limitations — a reviewer who sees
+"we didn't benchmark the database or the CDN" without an explanation reads a
+gap; with the explanation reads **scope discipline**. The contribution is the
+security layer we *added*; the things we don't measure are the things that are
+already solved, well-understood, and not ours:
+
+1. **The ClickHouse columnar scan (`execute`) — not measured, held constant.**
+   ClickHouse is a battle-tested OLAP engine; benchmarking *it* is a datasheet,
+   not a result about web10. We stub `execute` to a fixed constant (measured
+   once per scale and reported) so the figure isolates the layer we built. The
+   claim is *not* "the database is fast" — it's "the access-control layer adds
+   a measured, predictable cost *on top of* a fast engine." The engine is the
+   enabler, named and credited, not the subject.
+2. **Media delivery (the CDN) — not measured, offloaded by design.** Per the
+   Cloudflare plan (`cloudflare-plan.md`), images/audio/docs are presigned
+   key-URLs served straight from the origin/CDN (the node mints once, never in
+   the byte path), and video segments are edge-verifiable JWTs (Part B) with the
+   node out of the byte path. Media cost scales with *views/bandwidth* and is
+   absorbed by the CDN + R2 (egress ~$0) — it does not load the node the way
+   feed queries do. Measuring it would be benchmarking Cloudflare/R2, not
+   web10. The paper states: *media delivery is CDN-offloaded by construction;
+   the node's per-view cost is O(capability mints + manifest re-checks), not
+   O(segments); therefore view count is out of scope for the node evaluation.*
+
+**The one-sentence scope line for the paper:** *"We evaluate the access-control
+layer web10 adds — JWT auth, contract checks, readable-set resolution over K
+group contracts, and AST-level query scoping — holding the columnar scan
+constant (a solved, credited dependency) and excluding CDN media delivery
+(offloaded by design, a solved dependency); the contribution is the cost and
+behavior of the layer we built, not the performance of the engines it stands
+on."*
+
+This is also the anti-embarrassment move: it pre-empts "why didn't you measure
+X?" by answering it up front, and it keeps the claim exactly as large as the
+evidence — no bigger (no "the whole system is fast") and no smaller (no hiding
+that we scoped things out).
+
 ### Does the current code scale? (read before trusting the plot)
 
 Reading `api/app/v3/services/clickhouse.py` + `safe_query.py`:
