@@ -7,6 +7,43 @@ columnar scan held out or measured as the credited baseline. Full design + the
 scope statement: [`../../digital-ocean-thinking.md`](../../digital-ocean-thinking.md)
 (§"The access-control cost function"). This file is *how to run it*.
 
+## Cost ceiling + spending safeguards (read before you spend)
+
+This experiment is **cheap by design** — one small box, metadata-only seed, no
+content, no media. The whole point of stubbing the scan (line C) and using tiny
+posts is that you never buy scale hardware. Budget and guardrails:
+
+- **One box only.** s-4vcpu-16gb nyc3 ≈ **$0.30/hr**. No ladder, no 4-box
+  cross-node run (that's a separate follow-up). If you find yourself reaching
+  for a bigger instance, stop — the experiment doesn't need it; something is
+  wrong with the workload.
+- **Hard time cap: ~2 hours wall clock.** compose-up (~5 min) + seed (minutes —
+  metadata only, not a content seed) + bench (15 cells × 20 queries, paced under
+  the 60/min rate limit ≈ 30–60 min) + teardown. Set a timer. **If it's still
+  running at 2 hours, kill it** (`docker compose -p web10-costfn down -v` then
+  destroy the droplet) and investigate — a runaway seed or a stuck cell is
+  burning money for nothing.
+- **Worst case ≈ $1.00** (2 hr × $0.30, rounded up). Three trials = re-run
+  `run.sh` three times on fresh droplets ≈ **$3 total**. That is the entire
+  budget for the paper's headline numbers.
+- **The seed is the only thing that can run long.** It signs up N creators
+  through the real API (rate-limited to 60 ops/min/user). At CREATORS=1000 that's
+  ~17 min; if you raise CREATORS to 10k, expect ~3 hr and a bigger bill — **don't
+  do that for this experiment** (the policy cost depends on K, not creator count;
+  1000 creators is plenty to back K=1000). Keep `CREATORS` ≥ the max K you sweep.
+- **Destroy the droplet when done — verify it.** `run.sh` tears down the local
+  compose stack but does NOT destroy the cloud droplet. After copying
+  `results/` off, destroy the droplet (the DO `teardown.sh` / `../teardown.sh`)
+  and **confirm deletion** (DO console / `doctl compute droplet list`) — local
+  Docker cleanup does not stop the cloud bill. A forgotten droplet is the classic
+  blowout: $0.30/hr × days = a surprise invoice.
+- **No data leaves the box except `results/`.** Copy that one directory off, then
+  destroy. Nothing else is worth keeping.
+
+**TL;DR:** one $0.30/hr box, ~2 hr cap, ~$1 per trial, ~$3 for the full
+3-trial dataset, destroy + verify the droplet after. There is no scenario where
+this costs more than a few dollars unless you leave the box running.
+
 ## What it measures (and what it does not)
 
 - **Measures:** the policy layer, per phase, against **K** (the reader's
