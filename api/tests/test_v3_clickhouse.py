@@ -189,7 +189,17 @@ class TestReadDocuments:
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
                 [
-                    ("doc-1", "alice", "posts", '{"text":"hello"}', "", [], datetime(2026, 1, 1), datetime(2026, 1, 1), "alice"),
+                    (
+                        "doc-1",
+                        "alice",
+                        "posts",
+                        '{"text":"hello"}',
+                        "",
+                        [],
+                        datetime(2026, 1, 1),
+                        datetime(2026, 1, 1),
+                        "alice",
+                    ),
                 ]
             )
             results = ch.read_documents(author_key="alice", service="posts")

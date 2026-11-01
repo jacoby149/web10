@@ -143,7 +143,18 @@ class TestCreate:
         """A reaction/comment references its target post via ref_value."""
         captured = {}
 
-        def fake_insert(author_key, service, body, ref_value="", tags=None, doc_id=None, ad_mode="none", ad_target="", created_at=None, posted_by=""):
+        def fake_insert(
+            author_key,
+            service,
+            body,
+            ref_value="",
+            tags=None,
+            doc_id=None,
+            ad_mode="none",
+            ad_target="",
+            created_at=None,
+            posted_by="",
+        ):
             captured["ref_value"] = ref_value
             captured["posted_by"] = posted_by
             return {"doc_id": "doc-3", "ref_value": ref_value}
@@ -406,7 +417,19 @@ class TestUpdate:
     def test_update_preserves_created_at(self, client, token):
         original_created = datetime(2026, 1, 1)
         mock_rows = [
-            ("doc-1", "testuser", "posts", '{"text":"old"}', "", [], original_created, original_created, "none", "", "testuser"),
+            (
+                "doc-1",
+                "testuser",
+                "posts",
+                '{"text":"old"}',
+                "",
+                [],
+                original_created,
+                original_created,
+                "none",
+                "",
+                "testuser",
+            ),
         ]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
@@ -2422,7 +2445,10 @@ class TestPowerMeanRead:
         # parser reads row[0]..row[8] (ad_mode/ad_target/posted_by included).
         # Projecting fewer makes real ClickHouse rows shorter than the parser
         # expects → IndexError: tuple index out of range.
-        assert "SELECT b.doc_id, b.author_key, b.body, b.tags, b.created_at, b.ref_value, b.ad_mode, b.ad_target, b.posted_by" in sql
+        assert (
+            "SELECT b.doc_id, b.author_key, b.body, b.tags, b.created_at, b.ref_value, b.ad_mode, b.ad_target, b.posted_by"
+            in sql
+        )
         # The sort config rides as params (never interpolated into the SQL).
         assert params["wr"] == 0.0 and params["wl"] == 1.0 and params["wc"] == 0.0
         assert params["hl"] == 0 and params["p"] == 0.0

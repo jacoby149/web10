@@ -725,9 +725,7 @@ def _migrate_posted_by_backfill() -> None:
     )
     if done.result_rows:
         return
-    client.command(
-        "ALTER TABLE documents UPDATE posted_by = author_key WHERE posted_by = ''"
-    )
+    client.command("ALTER TABLE documents UPDATE posted_by = author_key WHERE posted_by = ''")
     client.insert(
         "node_config",
         [[_POSTED_BY_SENTINEL, _json({"done": True}), _now(), 0]],
