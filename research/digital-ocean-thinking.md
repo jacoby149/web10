@@ -240,6 +240,68 @@ don't hide it.
 time is the swing factor; if it exceeds the hour budget, that is a
 harness finding, not a reason to skip the point.
 
+## Will reviewers embarrass us? (the sufficiency pre-mortem)
+
+The scale sweep is *necessary, not sufficient*. Three specific ways this
+evaluation gets torn apart at SIGMOD, and the mitigation for each:
+
+**1. "Synthetic users are not users."** The entire sweep is generated
+data with uniform post counts and a named fan-out. A reviewer will say
+the workload is invented. *Mitigation:* label it synthetic in the
+abstract, not just the limitations; anchor it to the one real
+population we have (the live pilot: 597 accounts, 593 documents, 49
+groups — dated); and state the exact distributional assumptions
+(posts/user, fan-out, comment/reaction ratios) so a reviewer can
+re-run or re-weight. The claim shrinks to "under this stated workload"
+— which is defensible; "scales to 1M users" full stop is not.
+
+**2. "One vendor, one region, one hour."** DO nyc3, one instance per
+point, and a single-digit number of runs invites "that's your box, your
+day, your luck." *Mitigation:* ≥3 independent trials per point with
+variance reported (not just medians); a second region or a second
+provider at *one* scale (the 10k baseline) to show the curve is not a
+box artifact; and the full provenance (revision, images, seed, config,
+invoices) archived so anyone can replay. Cheap variance beats expensive
+n=1.
+
+**3. "Where is the comparison?"** This is the big one. An industry
+track rewards operational experience, but an evaluation with *only*
+web10 numbers is a system description with charts, not an evaluation.
+The E3 baseline (PostgreSQL RLS, same shared-table shape, same data,
+same workload, same box) is what converts "we measured ourselves" into
+"we measured a tradeoff." *Mitigation:* the baseline is the same sweep
+on the same ladder — the workload definition above is deliberately
+engine-agnostic for this reason. If the deadline kills the baseline,
+the paper must say so explicitly ("baseline comparison is future work")
+and the claim must be feasibility/cost-of-web10, not
+web10-vs-conventional. **Do not let the charts imply a comparison the
+text doesn't make.**
+
+**4. (The quiet one) "The numbers came from a harness you wrote to
+produce them."** The harness is ours, the workload is ours, the SLO is
+ours. *Mitigation:* the harness blockers list is public in the repo,
+the failure curves include our own failures, and the connected social
+runner (real browser, real auth, real feed path) is the
+independent-check on the synthetic bench — two harnesses, one of them
+application-real, agreeing in direction. That is the strongest
+anti-embarrassment asset we have and it is already built.
+
+**The sufficiency bar for the paper, stated plainly:**
+- Scale sweep (this design) — the cost/latency/failure curves. ✓ designed
+- Connected social runner execution — application-realism evidence. ✓ built, needs a droplet
+- E3 baseline sweep — the comparison. ✗ unbuilt, deadline risk
+- Live production observations — the real population. ✓ partial (28.10 pilot), needs a second dated snapshot
+- Bounded conformance (E5) — the correctness floor under the same conditions. ✓ suites exist, needs the pinned revision + counts
+
+With all five, the evaluation is sufficient for an industry track:
+feasibility + cost + one real comparison + real deployment + bounded
+correctness, with every limitation named. With the baseline missing,
+it is still submittable *if* the claim is scoped to feasibility and
+cost and the missing comparison is stated as future work in the
+abstract-adjacent text, not discovered in the limitations. The
+embarrassment failure mode is not a weak number — it is a claim/outcome
+mismatch the reviewers notice before we do.
+
 ## The one-paragraph version
 
 The Digital Ocean experiment is a disposable-host, co-located,
@@ -257,6 +319,10 @@ The scale-sweep question ("what hardware handles 1k/10k/100k/1M users?")
 is the legacy harness's job: fix its eight validity gates, scope the feed
 query to the reader's groups, then run a fixed-workload sweep across a
 DO instance ladder (s-2vcpu-4gb → m-8vcpu-32gb) with ≥3 trials per
-point, recording the smallest instance that holds the SLO at the target
-QPS with the billed rate — that table is the E3 cost curve, and it costs
-under $10 to produce.
+point, recording the latency-vs-concurrency curve, the failure curve,
+and the SLO knee with the billed rate — that table is the E3 cost curve,
+and it costs under $10 to produce. It is necessary but not sufficient:
+the sufficiency bar is sweep + connected-runner execution + the E3
+baseline (or an explicitly scoped claim without it) + a second dated
+production snapshot + bounded conformance, with every limitation named
+where the claim is made, not buried in the limitations section.
