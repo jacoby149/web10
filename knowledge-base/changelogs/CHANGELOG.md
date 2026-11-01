@@ -1,3 +1,6 @@
+3.252.13 || 01.11.2026
+fix(api): **declare the manifest transport dependency directly** — pin urllib3 2.7.0 in the API manifest and lock metadata instead of relying on Requests to install it transitively. Keeps the already-tested transport version and behavior unchanged.
+
 3.252.12 || 01.11.2026
 fix(api): **restrict app manifest proxy destinations** — require approved registration and exclusively public DNS/literals, pin numeric connections with canonical Host/TLS verification, refuse redirects/ambient credentials and preserve decoded size/error fallback. Four exploit failures become denied-green; 70 focused controls, 1,407 API tests plus four subtests and Ruff pass. Fresh same-model review includes ephemeral real TLS checks; retained TLS/path integration, real registry, CI/deployment/diverse sign-off remain OPEN. No L1 closure.
 

@@ -64,6 +64,8 @@ reuses `POST /v3/app-contracts/revoke`. Full spec:
 
 ## L1 Security Scans
 
+- [✓ 3.252.13 local] **L1-A-02/DEPENDENCY: declare urllib3 directly** — pin the already-tested 2.7.0 transport in API manifest/lock metadata; lock check, lint/format and 1,407 API tests plus four subtests pass. No transport version or behavior change.
+
 - [✓ 3.252.11 local] **PROTOCOL-01/L1-A-02-REPLAY: real HTTP manifest destination proof** — eight loopback-only controls reproduce direct/redirect JSON reads and preserve path/boundary/error behavior; fresh same-model review. [Receipt](../security/scans/2026-10/l1-manifest-destination-followup.md). Evidence complete locally, not a repair or L1 closure.
 - [✓ 3.252.12 local] **PROTOCOL-01/L1-A-02-REPAIR: restrict manifest destinations** — approved registry/public-address checks, numeric pinning, Host/TLS verification and redirect refusal; four exploit failures become denied-green, 70 focused/1,407 API tests plus four subtests and Ruff pass. [Receipt](../security/scans/2026-10/repair-a02-manifest.md). Fresh same-model review/ephemeral TLS probes; real registry, retained TLS/path integration, CI/deployment/diverse sign-off remain OPEN. Local source repair, not merged or L1 closure.
 

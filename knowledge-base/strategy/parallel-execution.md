@@ -61,6 +61,8 @@ route + the screenshot harness).
 
 ### Lane: security-l1-scans
 
+- [✓ 3.252.13 local] **L1-A-02/DEPENDENCY: declare urllib3 directly** — API manifest/lock pin 2.7.0; lock check, lint/format and 1,407 API tests plus four subtests pass. No runtime transport change.
+
 - [✓ 3.252.11 local] **PROTOCOL-01/L1-A-02-REPLAY: real HTTP manifest destination proof** — eight loopback-only controls and fresh same-model review; `knowledge-base/security/scans/2026-10/l1-manifest-destination-followup.md`. Evidence only, no repair/L1 closure.
 - [✓ 3.252.12 local] **PROTOCOL-01/L1-A-02-REPAIR: restrict manifest destinations** — approved registry/public-address checks, numeric pinning, Host/TLS verification and redirect refusal; four exploit failures become denied-green, 70 focused/1,407 API tests plus four subtests and Ruff pass. `knowledge-base/security/scans/2026-10/repair-a02-manifest.md`; fresh same-model review/ephemeral TLS probes. Real registry, retained TLS/path integration, CI/deployment/diverse sign-off OPEN; no merged/L1 closure claim.
 

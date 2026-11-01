@@ -20,6 +20,8 @@ only to a selected numeric address using urllib3 2.7.0, with canonical Host,
 HTTPS SNI and certificate hostname verification (`CERT_REQUIRED`). No original
 hostname is re-resolved at connection time. Direct pools do not consume Requests
 cookies, environment proxies or netrc. Redirects/retries are disabled.
+The API declares `urllib3==2.7.0` directly, retaining the tested locked version
+rather than relying on Requests' transitive dependency.
 
 Registry canonicalization remains authoritative, including `www.` removal and
 `index.html` folding. Public HTTP and HTTPS remain supported. Responses retain
@@ -64,7 +66,8 @@ they do not prove actual public routing.
 The earlier replay is preserved in commit `d733f7473` as a **historical pinned-source**
 reproduction with four destination/path controls, not duplicated in the final tree.
 Current denial regressions live in pytest. After CI-required Ruff formatting,
-the final code/test delta is 488 lines (additions plus deletions), excluding Markdown.
+the code/test delta was 488 lines; the direct dependency follow-up adds four
+manifest/lock lines, for 492 lines total (additions plus deletions), excluding Markdown.
 PR: https://github.com/jacoby149/web10/pull/1299.
 
 Initial CI passed all six Docker images, all four E2E shards and both security
