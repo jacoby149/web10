@@ -1,3 +1,12 @@
+3.252.13 || 01.11.2026
+fix(api): **declare the manifest transport dependency directly** — pin urllib3 2.7.0 in the API manifest and lock metadata instead of relying on Requests to install it transitively. Keeps the already-tested transport version and behavior unchanged.
+
+3.252.12 || 01.11.2026
+fix(api): **restrict app manifest proxy destinations** — require approved registration and exclusively public DNS/literals, pin numeric connections with canonical Host/TLS verification, refuse redirects/ambient credentials and preserve decoded size/error fallback. Four exploit failures become denied-green; 70 focused controls, 1,407 API tests plus four subtests and Ruff pass. Fresh same-model review includes ephemeral real TLS checks; retained TLS/path integration, real registry, CI/deployment/diverse sign-off remain OPEN. No L1 closure.
+
+3.252.11 || 01.11.2026
+test(security): **replay manifest destination reads over real loopback HTTP** — L1-A-02 follow-up executes the current handler with real Requests against disposable fixtures; direct internal JSON and automatic redirect reads reproduced, path forms/exact size boundary/error fallbacks retained. Eight controls pass after fresh same-model review corrected a confounded size test. Evidence only: no runtime repair, production exposure claim, L1 closure or diverse sign-off.
+
 3.252.9 || 01.11.2026
 docs(strategy): **specify the group-as-author model — post as the group, the group is an identity** — a member with the right role (owner/moderator) posts as the group: `author_key` = the group_id, the post renders with the group's face in the feed, it lives in the group's groups (not the poster's personal followers). The human who hit the button is preserved in a new `posted_by` column — server-set from the JWT, unforgeable, queryable, always populated (a one-time backfill sets `posted_by = author_key` on every existing row). Two independent gates: the caller's role in the group + the group's role in the target. The identity picker in the composer lets the user choose which identity to post as. New plan doc `knowledge-base/strategy/group-as-author.md` (design, current state, 4 locked decisions, 8 bite-sized items A0–A7, acceptance bar); plan.md + parallel-execution.md lane items added. Documentation only — nothing built.
 

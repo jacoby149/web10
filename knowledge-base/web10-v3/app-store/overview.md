@@ -146,10 +146,15 @@ from the host:
    `https://host/docs/notes/manifest.json` for the notes demo.
 2. The marketing site asks the node for it:
    `GET /pwa_listing?url=https://host/docs/notes/`.
-3. The node fetches `{url without trailing slash}/manifest.json` and
+3. For an approved registration, the node fetches the canonical app URL's
+   `/manifest.json` and
    proxies the JSON back. The node is the fetcher, so there is no browser
    CORS problem — a third-party app's manifest is readable by the store
    without the app doing anything.
+   Destinations must have exclusively public IP/DNS answers. Connections are
+   pinned to a validated numeric address with the canonical Host and verified
+   HTTPS identity; redirects are refused. Private development destinations,
+   unapproved apps, ambiguous URLs and fetch errors use the NO_PWA fallback.
 4. The store renders the manifest's `name` (or `short_name`) and picks a
    192/512 icon. If there is no manifest, it falls back to the registered
    `name`, then to the host.
