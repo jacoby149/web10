@@ -1908,7 +1908,8 @@ class TestPwaListing:
         import urllib3
 
         with patch.object(
-            self.pool, "urlopen",
+            self.pool,
+            "urlopen",
             side_effect=urllib3.exceptions.HTTPError("down"),
         ):
             resp = client.get("/pwa_listing", params={"url": "https://host/docs/notes/"})

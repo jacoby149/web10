@@ -9,6 +9,8 @@ Later local [source repair](repair-a02-manifest.md) supersedes the vulnerable
 working-tree behavior described below. The retained replay now loads this
 historical Git pin and keeps four destination/path controls; current pytest
 retains the size/fallback controls and denied-green regressions.
+The standalone replay is preserved in commit `d733f7473`, not duplicated in the
+final tree; current exploit regressions are maintained in the API suite.
 
 ## Intent And Scope
 
@@ -37,7 +39,7 @@ internal services. Availability remains separate from C+I findings.
 ## Execution
 
 ```sh
-python3 -B knowledge-base/security/scans/2026-10/repro_manifest_destination.py
+git show d733f7473:knowledge-base/security/scans/2026-10/repro_manifest_destination.py | python3 -B
 ```
 
 Result: exit 0, **eight controls passed**:

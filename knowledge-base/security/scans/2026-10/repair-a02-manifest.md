@@ -61,10 +61,17 @@ valid exact/over-cap JSON with and without gzip. Real HTTP transport tests map
 the numeric public destination to a disposable local socket only in the test;
 they do not prove actual public routing.
 
-The earlier replay is retained as a **historical pinned-source** reproduction,
-with four destination/path controls. Current denial regressions live in pytest.
-Combined current code/test/replay delta is 497 lines (additions plus deletions),
-not counting Markdown. No PR was created.
+The earlier replay is preserved in commit `d733f7473` as a **historical pinned-source**
+reproduction with four destination/path controls, not duplicated in the final tree.
+Current denial regressions live in pytest. After CI-required Ruff formatting,
+the final code/test delta is 488 lines (additions plus deletions), excluding Markdown.
+PR: https://github.com/jacoby149/web10/pull/1299.
+
+Initial CI passed all six Docker images, all four E2E shards and both security
+checks, but API CI stopped at Ruff formatting. Applied formatting to the three
+affected API files and removed the redundant standalone replay from the final
+tree to retain the <=500-line budget; its full reproduction remains in Git.
+Final CI confirmation is pending at this writing.
 
 ## Fresh Review
 

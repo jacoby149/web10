@@ -75,15 +75,33 @@ def transport():
         yield registry, dns, https, http, response
 
 
-@pytest.mark.parametrize("url", [
-    "https://user:pass@public.example/", "https://public.example/?x=1", "https://public.example/#x",
-    "https://public.example/?", "https://public.example/#", "https://public.example\\@127.0.0.1/",
-    "https://public.example/\n", " https://public.example/", "file:///etc/", "ftp://public.example/",
-    "https://[fe80::1%25eth0]/", "https://%31%32%37.0.0.1/", "https:///public.example/",
-    "https://public.example:/", "https://public.example:0/", "https://public.example:99999/",
-    "https://public..example/", "https://public.example./", "https://public.example\x7f/",
-    "https://[2606:4700:4700::1111]ignored/", "HTTPS://public.example/", "https://public.example:0443/",
-])
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://user:pass@public.example/",
+        "https://public.example/?x=1",
+        "https://public.example/#x",
+        "https://public.example/?",
+        "https://public.example/#",
+        "https://public.example\\@127.0.0.1/",
+        "https://public.example/\n",
+        " https://public.example/",
+        "file:///etc/",
+        "ftp://public.example/",
+        "https://[fe80::1%25eth0]/",
+        "https://%31%32%37.0.0.1/",
+        "https:///public.example/",
+        "https://public.example:/",
+        "https://public.example:0/",
+        "https://public.example:99999/",
+        "https://public..example/",
+        "https://public.example./",
+        "https://public.example\x7f/",
+        "https://[2606:4700:4700::1111]ignored/",
+        "HTTPS://public.example/",
+        "https://public.example:0443/",
+    ],
+)
 def test_ambiguous_input_denied_before_registry_or_network(transport, url):
     registry, dns, https, http, _ = transport
     with pytest.raises(type(exceptions.NO_PWA)) as error:
@@ -95,10 +113,23 @@ def test_ambiguous_input_denied_before_registry_or_network(transport, url):
     http.assert_not_called()
 
 
-@pytest.mark.parametrize("ip", [
-    "127.0.0.1", "10.0.0.1", "169.254.169.254", "192.168.0.1", "100.64.0.1", "0.0.0.0",
-    "224.0.0.1", "::1", "fc00::1", "fe80::1", "::ffff:8.8.8.8", "2002:0808:0808::1",
-])
+@pytest.mark.parametrize(
+    "ip",
+    [
+        "127.0.0.1",
+        "10.0.0.1",
+        "169.254.169.254",
+        "192.168.0.1",
+        "100.64.0.1",
+        "0.0.0.0",
+        "224.0.0.1",
+        "::1",
+        "fc00::1",
+        "fe80::1",
+        "::ffff:8.8.8.8",
+        "2002:0808:0808::1",
+    ],
+)
 def test_nonpublic_dns_or_literal_denied(transport, ip):
     _, dns, https, http, _ = transport
     dns.return_value = [(socket.AF_INET6 if ":" in ip else socket.AF_INET, 1, 6, "", (ip, 443))]
@@ -136,8 +167,12 @@ def test_numeric_pin_host_tls_and_normalized_app_path(transport, scheme, monkeyp
         assert kwargs["server_hostname"] == kwargs["assert_hostname"] == "public.example"
         assert kwargs["cert_reqs"] == ssl.CERT_REQUIRED
     factory.return_value.urlopen.assert_called_once_with(
-        "GET", "/docs/notes/manifest.json", headers={"Host": "public.example:8443", "Accept": "application/json"},
-        redirect=False, retries=False, preload_content=False,
+        "GET",
+        "/docs/notes/manifest.json",
+        headers={"Host": "public.example:8443", "Accept": "application/json"},
+        redirect=False,
+        retries=False,
+        preload_content=False,
     )
     assert response.closed
     factory.return_value.close.assert_called_once()
@@ -165,7 +200,9 @@ def test_decoded_exact_cap_and_one_byte_over(transport, extra, compressed):
     body = json.dumps({"pad": "x" * (256 * 1024 - len(body) + extra)}).encode()
     response = urllib3.HTTPResponse(
         body=io.BytesIO(gzip.compress(body) if compressed else body),
-        headers={"Content-Encoding": "gzip"} if compressed else {}, status=200, preload_content=False,
+        headers={"Content-Encoding": "gzip"} if compressed else {},
+        status=200,
+        preload_content=False,
     )
     https.return_value.urlopen.return_value = response
     if extra:
@@ -177,10 +214,15 @@ def test_decoded_exact_cap_and_one_byte_over(transport, extra, compressed):
     https.return_value.close.assert_called_once()
 
 
-@pytest.mark.parametrize("failure", [
-    urllib3.exceptions.SSLError("certificate mismatch"), urllib3.exceptions.ReadTimeoutError(None, "/", "timeout"),
-    urllib3.exceptions.DecodeError("bad gzip"), OSError("connection failed"),
-])
+@pytest.mark.parametrize(
+    "failure",
+    [
+        urllib3.exceptions.SSLError("certificate mismatch"),
+        urllib3.exceptions.ReadTimeoutError(None, "/", "timeout"),
+        urllib3.exceptions.DecodeError("bad gzip"),
+        OSError("connection failed"),
+    ],
+)
 def test_transport_failures_close_pool(transport, failure):
     _, _, https, _, _ = transport
     https.return_value.urlopen.side_effect = failure
@@ -191,8 +233,9 @@ def test_transport_failures_close_pool(transport, failure):
 
 def test_decode_failure_closes_response_and_pool(transport):
     _, _, https, _, _ = transport
-    response = urllib3.HTTPResponse(body=io.BytesIO(b"not gzip"), status=200,
-                                    headers={"Content-Encoding": "gzip"}, preload_content=False)
+    response = urllib3.HTTPResponse(
+        body=io.BytesIO(b"not gzip"), status=200, headers={"Content-Encoding": "gzip"}, preload_content=False
+    )
     https.return_value.urlopen.return_value = response
     with pytest.raises(type(exceptions.NO_PWA)) as error:
         system.pwa_listing("https://public.example/app")

@@ -295,7 +295,12 @@ def pwa_listing(url: str):
             raise ValueError("ambiguous URL")
         parsed = urlsplit(url)
         host = parsed.hostname or ""
-        if parsed.scheme not in ("http", "https") or not host or parsed.username is not None or parsed.password is not None:
+        if (
+            parsed.scheme not in ("http", "https")
+            or not host
+            or parsed.username is not None
+            or parsed.password is not None
+        ):
             raise ValueError("invalid authority")
         if "%" in host or parsed.netloc.endswith(":"):
             raise ValueError("ambiguous host")
@@ -321,12 +326,18 @@ def pwa_listing(url: str):
         app = ch.get_app(url)
         if not app or not app.get("approved"):
             raise exceptions.NO_PWA
-        addresses = [literal] if literal is not None else [
-            ipaddress.ip_address(answer[4][0])
-            for answer in socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
-        ]
+        addresses = (
+            [literal]
+            if literal is not None
+            else [
+                ipaddress.ip_address(answer[4][0]) for answer in socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+            ]
+        )
         if not addresses or any(
-            not addr.is_global or addr.is_multicast or addr.is_reserved or addr.is_unspecified
+            not addr.is_global
+            or addr.is_multicast
+            or addr.is_reserved
+            or addr.is_unspecified
             or (isinstance(addr, ipaddress.IPv6Address) and (addr.ipv4_mapped or addr.sixtofour or addr.teredo))
             for addr in addresses
         ):
@@ -334,15 +345,26 @@ def pwa_listing(url: str):
         # Connect only to the validated numeric address; never re-resolve the app.
         tls = {"server_hostname": host, "assert_hostname": host, "cert_reqs": ssl.CERT_REQUIRED}
         pool_type = urllib3.HTTPSConnectionPool if parsed.scheme == "https" else urllib3.HTTPConnectionPool
-        pool = pool_type(str(addresses[0]), port=port, timeout=urllib3.Timeout(connect=1, read=1),
-                         retries=False, **(tls if parsed.scheme == "https" else {}))
+        pool = pool_type(
+            str(addresses[0]),
+            port=port,
+            timeout=urllib3.Timeout(connect=1, read=1),
+            retries=False,
+            **(tls if parsed.scheme == "https" else {}),
+        )
         authority = f"[{host}]" if ":" in host else host
         if port != (443 if parsed.scheme == "https" else 80):
             authority += f":{port}"
         path = urlsplit(canonical).path.rstrip("/") + "/manifest.json"
         log.info("[pwa_listing] fetching validated public destination")
-        resp = pool.urlopen("GET", path, headers={"Host": authority, "Accept": "application/json"},
-                            redirect=False, retries=False, preload_content=False)
+        resp = pool.urlopen(
+            "GET",
+            path,
+            headers={"Host": authority, "Accept": "application/json"},
+            redirect=False,
+            retries=False,
+            preload_content=False,
+        )
         if not 200 <= resp.status < 300:
             raise exceptions.NO_PWA
         # read(amt) bounds DECODED bytes, including compressed responses.
