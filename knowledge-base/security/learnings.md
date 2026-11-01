@@ -35,6 +35,21 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-01: The only backup must not be a truncating write
+
+[L1-PKG-02 local repair](scans/2026-10/repair-pkg02-backup-publication.md)
+reproduces `0644` creation under umask `022` and existing-file/symlink writes on
+disposable storage. A post-write chmod is too late, and a prior existence check
+cannot prevent a competing destination. Stage privately with `mkstemp`, write/
+flush/fsync/close, then publish via atomic no-clobber hard link. Failed output
+must not destroy the previous backup or print raw exceptions. Full password
+hashes intentionally remain in the protected manifest; stdout is unchanged.
+45 focused/1,420 API tests plus four subtests and same-model review support local
+source repair only. Trusted ancestors/encryption/ACLs/target filesystem and
+deployment/diverse sign-off remain open, not repaired by mode bits. Initial
+8-fail/1-pass baseline includes absent flush/fsync/link operations, not eight
+demonstrated exploits.
+
 ### 2026-11-01: A manifest proxy can follow an internal redirect
 
 The [local source repair](scans/2026-10/repair-a02-manifest.md) now checks

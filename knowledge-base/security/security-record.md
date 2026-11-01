@@ -15,7 +15,21 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Backup Publication (01.11.2026)
+
+L1-PKG-02 [local repair](scans/2026-10/repair-pkg02-backup-publication.md):
+real filesystem permission/link/overwrite repro, private same-directory staging
+and complete no-clobber publication. Initial 8 failures/1 pass distinguish actual
+behaviors from absent-operation controls; final 45 focused/1,420 API tests plus
+four subtests and lint/format pass, fresh same-model review. Operational storage,
+CI/deployment/history/diverse sign-off and protocol L1 remain OPEN.
+
 ## Manifest Destination Follow-Up (01.11.2026)
+
+Source repair and direct dependency follow-up merged in #1299 at
+`0918a7409141e2b42b3ffa81e9ff585550c3c5ad`; all 13 PR checks passed. Historical
+local wording below describes the repair-stage evidence, not current merge state.
+Rollout, actual registry/retained TLS/path integration and diverse gates remain OPEN.
 
 L1-A-02 [local source repair](scans/2026-10/repair-a02-manifest.md): approved
 public-only registration/DNS, numeric connection pinning, canonical Host/TLS

@@ -64,6 +64,9 @@ reuses `POST /v3/app-contracts/revoke`. Full spec:
 
 ## L1 Security Scans
 
+- [✓ 3.252.14 local] **PROTOCOL-01/L1-PKG-02: private no-clobber backup output** — real filesystem mode/link/overwrite proof; private staging and complete exclusive publication, 45 focused/1,420 API tests plus four subtests, lint/format and fresh same-model review. [Receipt](../security/scans/2026-10/repair-pkg02-backup-publication.md). Trusted storage/CI/deployment/diverse gates OPEN; no L1 closure.
+- **Manifest status:** L1-A-02 repair/dependency merged #1299 at `0918a7409`, all 13 PR checks green; earlier local ticks below are historical, not rollout/sign-off closure.
+
 - [✓ 3.252.13 local] **L1-A-02/DEPENDENCY: declare urllib3 directly** — pin the already-tested 2.7.0 transport in API manifest/lock metadata; lock check, lint/format and 1,407 API tests plus four subtests pass. No transport version or behavior change.
 
 - [✓ 3.252.11 local] **PROTOCOL-01/L1-A-02-REPLAY: real HTTP manifest destination proof** — eight loopback-only controls reproduce direct/redirect JSON reads and preserve path/boundary/error behavior; fresh same-model review. [Receipt](../security/scans/2026-10/l1-manifest-destination-followup.md). Evidence complete locally, not a repair or L1 closure.

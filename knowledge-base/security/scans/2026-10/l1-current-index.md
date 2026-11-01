@@ -137,7 +137,7 @@ Conditional local facts remain bounded; no production breach is established.
 | B-5 | OPEN wildcard-CORS credential-boundary pinning obligation; no demonstrated wildcard exploit |
 | B-6 | OPEN unscoped-getter/capability caller handoff, not independently a data leak |
 | B-8 | Source repair merged #1265 at b5d128a52; four red/green CLI cases, 1,180 API tests at repair pin; not B-2/deployment closure |
-| L1-A-02 | [Local source repair](repair-a02-manifest.md): approved/public-only numeric connections, verified Host/TLS and no redirects; four exploit failures denied, 70 focused/1,407 API tests plus four subtests, fresh same-model review and ephemeral TLS probes. Retained TLS/path, real registry/CI/deployment/history/diverse gates OPEN |
+| L1-A-02 | [Source repair](repair-a02-manifest.md) merged #1299 at 0918a7409, all 13 checks green: approved/public-only numeric connections, verified Host/TLS and no redirects; four exploit failures denied, 70 focused/1,407 API tests plus four subtests, fresh same-model review and ephemeral TLS probes. Retained TLS/path, real registry/deployment/history/diverse gates OPEN |
 | L1-B-01 | OPEN unsigned remote-helper destination/status trust; actual callers/reach unverified; S3 |
 | L1-D-01 | [Source freshness repair merged #1271](repair-d01-token-freshness.md) at b828736b4; 92 controls/1,325 API passes at repair pin, fresh same-model review. Rollout/diverse review OPEN; S3 |
 | L1-D-02 | Same local freshness repair: oracle classifies invalid versus expired and skips stores; no oracle-to-CRUD grant claimed. Integration/rollout/diverse review OPEN; S3 |
@@ -154,7 +154,7 @@ Conditional local facts remain bounded; no production breach is established.
 | L1-CURRENT-STORE-B-02 | Bulk revoke/cleanup SQL omits delegated client identity; actual default/merge/authorization impact UNVERIFIED, not proven revoke bypass |
 | STORE-A-SCHEMA | OAuth code DDL references undeclared version column; insert compatibility and existing/fresh schema need real evidence; correctness/reachability, not C+I exploit |
 | L1-PKG-01 | Source repair merged #1265 at b5d128a52: whole URI omitted from audit/stdout/file manifests, 12 red -> green cases and fresh same-model review; [repair](repair-pkg01-mongo-output.md). Deployment/sign-off/history remain open; S1 |
-| L1-PKG-02 | Conditional backup protection risk; actual permissions/symlink/access UNVERIFIED, not a replayed filesystem disclosure |
+| L1-PKG-02 | [Local source repair](repair-pkg02-backup-publication.md): disposable-filesystem mode/symlink/overwrite proof, private staging/no-clobber publication; 45 focused/1,420 API tests plus four subtests and fresh same-model review. Actual storage encryption/ACLs, hostile ancestors, CI/deployment/history/diverse gates OPEN; no production disclosure claim |
 | L1-DEPLOY-01 | [Source repair merged #1268](repair-deploy01-frozen-installs.md) at c6f9cc85d: frozen-only installs and actual production-social matrix, eight controls/1,233 API passes at repair pin; both production-image CI jobs passed on 8a420f767. Deployment/diverse sign-off OPEN; no poisoned artifact shown |
 | ART-01 / orphan artifacts | Producer pin/publication drift, six orphan declaration/maps and docs RTC provenance OPEN; hashes not build/publication/deployment assurance |
 | L1-OAUTH-02 | Availability/order observation; C+I UNVERIFIED. Do not count refresh denial as unauthorized grant or access-token revocation |

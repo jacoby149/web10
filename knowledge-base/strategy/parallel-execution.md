@@ -61,6 +61,9 @@ route + the screenshot harness).
 
 ### Lane: security-l1-scans
 
+- [✓ 3.252.14 local] **PROTOCOL-01/L1-PKG-02: private no-clobber backup output** — real filesystem proof; 45 focused/1,420 API tests plus four subtests, lint/format and fresh same-model review. `knowledge-base/security/scans/2026-10/repair-pkg02-backup-publication.md`. Trusted storage/CI/deployment/diverse gates OPEN. Own extractor output hunk and focused API tests; no L1 closure.
+- **Manifest status:** L1-A-02 repair/dependency merged #1299 at `0918a7409`, all 13 checks green; historical local ticks below do not close rollout/sign-off.
+
 - [✓ 3.252.13 local] **L1-A-02/DEPENDENCY: declare urllib3 directly** — API manifest/lock pin 2.7.0; lock check, lint/format and 1,407 API tests plus four subtests pass. No runtime transport change.
 
 - [✓ 3.252.11 local] **PROTOCOL-01/L1-A-02-REPLAY: real HTTP manifest destination proof** — eight loopback-only controls and fresh same-model review; `knowledge-base/security/scans/2026-10/l1-manifest-destination-followup.md`. Evidence only, no repair/L1 closure.

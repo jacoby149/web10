@@ -1,3 +1,6 @@
+3.252.14 || 01.11.2026
+fix(tools): **publish account backups privately without overwriting existing files** — stage complete manifests at mode 0600, flush/fsync and hard-link without replacement; refuse existing files/symlinks and return safe nonzero output errors. Real filesystem repro plus absent-operation controls initially 8 failed/1 passed; final 45 focused and 1,420 API tests plus four subtests, Ruff lint/format and fresh same-model review pass. Requires trusted encrypted storage/POSIX hard links; CI, deployment, hostile ancestors and diverse sign-off remain OPEN. No protocol L1 closure.
+
 3.252.13 || 01.11.2026
 fix(api): **declare the manifest transport dependency directly** — pin urllib3 2.7.0 in the API manifest and lock metadata instead of relying on Requests to install it transitively. Keeps the already-tested transport version and behavior unchanged.
 
