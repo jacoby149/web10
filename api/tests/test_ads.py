@@ -107,7 +107,7 @@ class TestAdCreate:
         followers group (delivery by architecture)."""
         captured = {}
 
-        def fake_insert(author_key, service, body, ref_value="", tags=None, doc_id=None, ad_mode="none", ad_target=""):
+        def fake_insert(author_key, service, body, ref_value="", tags=None, doc_id=None, ad_mode="none", ad_target="", created_at=None, posted_by=""):
             captured["author_key"] = author_key
             captured["service"] = service
             captured["body"] = body
@@ -282,8 +282,9 @@ class TestFeedReadQueryIsAdAgnostic:
                 "",
                 "none",
                 "",
+                "alice",
             ),
-            ("post-1", "alice", '{"text":"post"}', [], datetime(2026, 1, 1), "", "none", ""),
+            ("post-1", "alice", '{"text":"post"}', [], datetime(2026, 1, 1), "", "none", "", "alice"),
         ]
         with patch.object(ch, "client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=rows)
@@ -428,7 +429,7 @@ class TestAlbumsDataModel:
         no new endpoint (the API is a scanner)."""
         captured = {}
 
-        def fake_insert(author_key, service, body, ref_value="", tags=None, doc_id=None, ad_mode="none", ad_target=""):
+        def fake_insert(author_key, service, body, ref_value="", tags=None, doc_id=None, ad_mode="none", ad_target="", created_at=None, posted_by=""):
             captured["service"] = service
             captured["body"] = body
             captured["tags"] = tags
@@ -472,7 +473,7 @@ class TestAlbumsDataModel:
         client-side."""
         captured = {}
 
-        def fake_insert(author_key, service, body, ref_value="", tags=None, doc_id=None, ad_mode="none", ad_target=""):
+        def fake_insert(author_key, service, body, ref_value="", tags=None, doc_id=None, ad_mode="none", ad_target="", created_at=None, posted_by=""):
             captured["tags"] = tags
             return {
                 "doc_id": "ad-1",
@@ -514,7 +515,7 @@ class TestAdPreferenceWrite:
         ad_target (the v3 ad preference columns)."""
         captured = {}
 
-        def fake_insert(author_key, service, body, ref_value="", tags=None, doc_id=None, ad_mode="none", ad_target=""):
+        def fake_insert(author_key, service, body, ref_value="", tags=None, doc_id=None, ad_mode="none", ad_target="", created_at=None, posted_by=""):
             captured["ad_mode"] = ad_mode
             captured["ad_target"] = ad_target
             return {

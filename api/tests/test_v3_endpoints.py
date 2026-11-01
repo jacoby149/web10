@@ -143,8 +143,9 @@ class TestCreate:
         """A reaction/comment references its target post via ref_value."""
         captured = {}
 
-        def fake_insert(author_key, service, body, ref_value="", tags=None, doc_id=None, ad_mode="none", ad_target=""):
+        def fake_insert(author_key, service, body, ref_value="", tags=None, doc_id=None, ad_mode="none", ad_target="", created_at=None, posted_by=""):
             captured["ref_value"] = ref_value
+            captured["posted_by"] = posted_by
             return {"doc_id": "doc-3", "ref_value": ref_value}
 
         with patch("app.v3.services.clickhouse.insert_document", side_effect=fake_insert):
@@ -159,13 +160,15 @@ class TestCreate:
             )
         assert resp.status_code == 200
         assert captured["ref_value"] == "target-post"
+        # posted_by is always the JWT username (the test token's user)
+        assert captured["posted_by"] == "testuser"
 
 
 class TestRead:
     def test_personal_read(self, client, token):
         mock_groups = [("g1", "open", [], "member")]
         mock_counts = [("g1", 3)]
-        mock_docs = [("doc-1", "bob", '{"text":"mine"}', [], datetime(2026, 1, 1), "", "none", "")]
+        mock_docs = [("doc-1", "bob", '{"text":"mine"}', [], datetime(2026, 1, 1), "", "none", "", "bob")]
         with (
             patch("app.v3.services.clickhouse.client") as mock_ch,
             # D58 read gate: every candidate group is readable (gate logic is
@@ -191,7 +194,7 @@ class TestRead:
 
     def test_group_read(self, client, token):
         mock_rows = [
-            ("doc-1", "bob", '{"text":"shared"}', [], datetime(2026, 1, 1), "", "none", ""),
+            ("doc-1", "bob", '{"text":"shared"}', [], datetime(2026, 1, 1), "", "none", "", "bob"),
         ]
         with (
             patch("app.v3.services.clickhouse.client") as mock_ch,
@@ -377,7 +380,7 @@ class TestRead:
     def test_me_shorthand(self, client, token):
         mock_groups = [("g1", "open", [], "member")]
         mock_counts = [("g1", 3)]
-        mock_docs = [("doc-1", "bob", '{"text":"hello"}', [], datetime(2026, 1, 1), "", "none", "")]
+        mock_docs = [("doc-1", "bob", '{"text":"hello"}', [], datetime(2026, 1, 1), "", "none", "", "bob")]
         with (
             patch("app.v3.services.clickhouse.client") as mock_ch,
             patch("app.v3.services.clickhouse.readable_groups", side_effect=lambda p, s, a, c: c),
@@ -403,7 +406,7 @@ class TestUpdate:
     def test_update_preserves_created_at(self, client, token):
         original_created = datetime(2026, 1, 1)
         mock_rows = [
-            ("doc-1", "testuser", "posts", '{"text":"old"}', "", [], original_created, original_created, "none", ""),
+            ("doc-1", "testuser", "posts", '{"text":"old"}', "", [], original_created, original_created, "none", "", "testuser"),
         ]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
@@ -451,6 +454,7 @@ class TestUpdate:
                 original_created,
                 "none",
                 "",
+                "testuser",
             ),
         ]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
@@ -2272,7 +2276,7 @@ class TestDiscoverBoardAnonRead:
 
     def test_board_anon_readable(self, client):
         """No token → reads as anon → the discover group's docs come back."""
-        mock_docs = [("doc-1", "alice", '{"text":"hello"}', [], datetime(2026, 1, 1), "", "none", "")]
+        mock_docs = [("doc-1", "alice", '{"text":"hello"}', [], datetime(2026, 1, 1), "", "none", "", "alice")]
         with (
             patch("app.v3.services.clickhouse.client") as mock_ch,
             patch("app.v3.services.clickhouse.readable_groups", side_effect=lambda p, s, a, c: c),
@@ -2397,7 +2401,7 @@ class TestPowerMeanRead:
     def test_sort_path_runs_single_ranked_query(self):
         # A sort read is ONE query (board base + engagement joins + SQL score +
         # SQL paging) — not the v0 three-query fetch-count-sort.
-        posts = [("doc-1", "bob", '{"text":"x"}', [], datetime(2026, 1, 1), "", "none", "")]
+        posts = [("doc-1", "bob", '{"text":"x"}', [], datetime(2026, 1, 1), "", "none", "", "bob")]
         ctx, mock_ch = self._capture_query(posts)
         with ctx:
             read_documents_in_groups(
@@ -2414,12 +2418,11 @@ class TestPowerMeanRead:
         assert "collection_name = 'reactions'" in sql
         assert "collection_name = 'comments'" in sql
         assert "ORDER BY" in sql and "LIMIT %(limit)s OFFSET %(offset)s" in sql
-        # The outer SELECT must project ALL eight board-base columns — the row
-        # parser reads row[0]..row[7] (ad_mode/ad_target included). Projecting
-        # fewer (the old 6-column bug) makes real ClickHouse rows shorter than
-        # the parser expects → IndexError: tuple index out of range (the mock
-        # returns 8-column rows, so it only bites against a live node).
-        assert "SELECT b.doc_id, b.author_key, b.body, b.tags, b.created_at, b.ref_value, b.ad_mode, b.ad_target" in sql
+        # The outer SELECT must project ALL nine board-base columns — the row
+        # parser reads row[0]..row[8] (ad_mode/ad_target/posted_by included).
+        # Projecting fewer makes real ClickHouse rows shorter than the parser
+        # expects → IndexError: tuple index out of range.
+        assert "SELECT b.doc_id, b.author_key, b.body, b.tags, b.created_at, b.ref_value, b.ad_mode, b.ad_target, b.posted_by" in sql
         # The sort config rides as params (never interpolated into the SQL).
         assert params["wr"] == 0.0 and params["wl"] == 1.0 and params["wc"] == 0.0
         assert params["hl"] == 0 and params["p"] == 0.0
@@ -2429,7 +2432,7 @@ class TestPowerMeanRead:
     def test_sort_path_maps_rows_and_hides_score(self):
         # Rows come back mapped (body parsed, service added) with no internal
         # _score leaking into the response.
-        posts = [("doc-1", "bob", '{"text":"x"}', ["t1"], datetime(2026, 1, 1), "ref-9", "none", "")]
+        posts = [("doc-1", "bob", '{"text":"x"}', ["t1"], datetime(2026, 1, 1), "ref-9", "none", "", "bob")]
         ctx, _ = self._capture_query(posts)
         with ctx:
             docs = read_documents_in_groups(
@@ -2449,6 +2452,7 @@ class TestPowerMeanRead:
                 "ref_value": "ref-9",
                 "ad_mode": "none",
                 "ad_target": "",
+                "posted_by": "bob",
                 "service": "posts",
             }
         ]
@@ -2474,8 +2478,8 @@ class TestPowerMeanRead:
         # Without a sort config, the read is the no-sort board query (newest
         # first) — unchanged behavior, and no engagement joins.
         posts = [
-            ("doc-new", "bob", '{"text":"new"}', [], datetime(2026, 1, 1), "", "none", ""),
-            ("doc-old", "alice", '{"text":"old"}', [], datetime(2025, 1, 1), "", "none", ""),
+            ("doc-new", "bob", '{"text":"new"}', [], datetime(2026, 1, 1), "", "none", "", "bob"),
+            ("doc-old", "alice", '{"text":"old"}', [], datetime(2025, 1, 1), "", "none", "", "alice"),
         ]
         ctx, mock_ch = self._capture_query(posts)
         with ctx:
