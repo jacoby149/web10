@@ -165,45 +165,74 @@ a *member* of (followed creators' followers groups, mid), and contracts read
 via the **`anyone`/`authenticated` principal grant** (public discover, no
 membership row — the D58 path that bit the `/trending` bug). Seed the mix.
 
-**Two feeds, opposite K behavior — this is the plot.** Confirmed in
+**Two feeds, opposite K behavior — the axis each one varies.** Confirmed in
 `marketing/web10-social/src/data/feed.ts`:
 - **Discover feed** (`readDiscoverFeed`, :26) reads from **ONE group** — the
   node's single discover board — with a `limit` (default 50). **K = 1,
   constant**, regardless of node size. The board is a single shared group, not
-  "all creator contracts."
+  "all creator contracts." So discover's *policy* cost is flat; the thing that
+  grows with node size is the *scan* (more posts on the board) — which is why
+  discover varies **node size** (10 → 10k creators on the board), not K.
 - **Personal feed** (`readFeed`, :343) reads from `getFeedGroups()` = every
   group the reader belongs to minus discover. **K = the reader's following
   count** — one followers-group contract per creator followed. This is the one
-  that grows.
+  whose *policy* cost grows. So personal varies **K** (10 → 100 → 1,000
+  followed creators).
 
-So the figure is **two lines on one chart** (X = K, Y = policy-pipeline cost,
-`execute` stubbed):
-1. **Personal feed: cost vs. K** (K = 10 → 100 → 1,000 followed creators,
-   mixed owned/member/principal). The curve that *moves* — where "following
-   more people" starts to cost. The thesis: *the access-control cost scales
-   with your social graph, not with the node's size.*
-2. **Discover feed: a flat line at K = 1** across 10k/100k/1M *node* users.
-   The other half of the thesis: *the public feed does NOT degrade as the node
-   grows* — because it's one board group + a limit, not a fan-out. **Label the
-   flatness as a design choice** (single board group + `limit`), not a free
-   property: a future discover design that fanned out over per-creator
-   contracts would turn the flat line into a curve.
+**The figure is a three-line ablation at each scale, not a single curve.**
+"Cover the ground" (measure the real feed queries at scale) without re-introducing
+the goofy lakehouse benchmark: run three lines on the *same* seeded data, and
+make the raw ClickHouse number the **denominator**, not a headline.
 
-**The one-sentence claim the plot supports:** *"web10's access-control layer —
+| Line | What it is | Role in the paper |
+|---|---|---|
+| **A. No policy** | the feed SQL, raw, no `readable`/`compile` scoping (the query ClickHouse would run if there were no access layer) | the **baseline denominator** — "ClickHouse + our SQL shape." Measured, but never the headline. |
+| **B. Policy, real scan** | the full pipeline, real `execute` | the **actual system** end-to-end. |
+| **C. Policy, stubbed scan** | the full pipeline, `execute` stubbed to a fixed constant | **the contribution** — our layer, isolated from the engine. |
+
+The **results** are the *deltas*, not the raw lines:
+- **`B − A` = the causal authorization overhead** — "what the access-control
+  layer costs on top of the raw query." This is the number E2 has been asking
+  for all along ("measure causal authorization overhead separately using an
+  isolated ablation"), and it's the one the stubbed-only (C) experiment *cannot*
+  give — you need the real-scan lines (A and B) to compute the real overhead.
+- **`C` = our layer in isolation** — the cost function in K, engine removed.
+- **`A` (and `B`) as the baseline** — reported so a reviewer sees the baseline
+  was measured (ground covered), but attributed to "the engine + SQL shape,"
+  credited, not claimed as web10's result.
+
+**The two plots (one per feed), each with the three lines:**
+1. **Personal feed — X = K (10 → 100 → 1,000 followed creators).** Lines A/B/C
+   vs. K. The thesis: *the access-control cost (B−A, and C) scales with your
+   social graph K; the raw scan (A) is roughly flat in K* (following more
+   people doesn't make each author's scan bigger — the `(author_key, doc_id)`
+   key keeps per-author scans tight). **Also plot C for the per-group `readable`
+   AND the batched `readable`** (a flag) so the figure shows the bottleneck
+   (per-group bending in K) and the fix (batched flat) — see "Does the current
+   code scale?" below.
+2. **Discover feed — X = node size (10 → 10k creators on the board), K = 1.**
+   Lines A/B/C vs. node size. The money shot: *as the node grows 1000×, the raw
+   scan (A) and the real system (B) grow, but our access-control layer (C, and
+   B−A) stays flat — because it's one board contract, not a fan-out.* **Label
+   the flatness as a design choice** (single board group + `limit`), not a free
+   property: a future discover design that fanned out over per-creator contracts
+   would turn the flat C line into a curve.
+
+**The one-sentence claim the figure supports:** *"web10's access-control layer —
 JWT auth, contract checks, readable-set resolution over K group contracts, and
-AST-level query scoping — adds a measured cost in K (the reader's social
-graph), independent of node size; the public discover feed resolves a single
-board contract and stays flat as the node scales; the columnar scan is held
-constant and is not the subject of the measurement."*
+AST-level query scoping — adds a measured causal overhead (B−A) and an isolated
+cost (C) that scale with the reader's social graph K on the personal feed and
+stay flat as the node grows on the discover feed (one board contract); the
+columnar scan (A) is measured as the credited baseline, not the subject."*
 
-**Why this is also the easiest version.** No instance ladder (one box — you're
-not scanning 90M rows). No content seed (metadata only: each creator = a
-followers-group contract + an `anyone` grant + a few posts; the reader follows
-K of them — K is the knob, you don't need 1M *active* users). No storage math,
-no merge-activity variance, no "bad day on the VM" noise (stubbed scan is
-near-deterministic → reproducible, which is what de-risks a solo author who
-can't re-run a 4-box 1M experiment five times). Runs that fit in an afternoon
-on one droplet.
+**Why this is also the easiest version.** No instance ladder (one box — the
+real-scan lines A/B use a *metadata-only* seed with small posts-per-creator, so
+the scan size is bounded; the *policy* cost depends only on K, not post count).
+No 90M-doc content seed. No storage math, no merge-activity variance dominating
+the policy number (the real-scan lines carry some scan noise, but the
+*contribution* line C is stubbed and near-deterministic → reproducible, which is
+what de-risks a solo author who can't re-run a 4-box 1M experiment five times).
+Runs that fit in an afternoon on one droplet.
 
 **Honest caveats (so the plot doesn't overclaim).**
 - The personal-feed curve measures **K up to whatever you seed** — showing
@@ -213,9 +242,14 @@ on one droplet.
   more people costs 2× more policy resolution at X ms/contract — predictable"),
   not a failure.
 - "Scales" here means **"has a measured, predictable cost function in K,"** not
-  "stays flat to 1M." The wins that *are* flat: discover (K=1 by design) and
-  the scan (stubbed). The thing that *grows*, honestly labeled: the personal
-  feed, with your following.
+  "stays flat to 1M." The wins that *are* flat: discover's policy layer (K=1 by
+  design) and the isolated layer C (stubbed). The things that *grow*, honestly
+  labeled: the personal feed's policy cost (with K), and the raw scan A/B (with
+  node size on discover, with post volume generally) — the latter attributed to
+  the engine, not to web10.
+- **A and B carry real-scan noise** (merge activity, cache, the box's day); C
+  does not (stubbed). Report A/B with their variance; report C as the clean
+  contribution. Don't average the noise away — state it.
 - **This is the primary experiment.** The 4-node cross-node fan-out (the direct
   Solid comparison — they scale 2→128 pods; you'd scale 1→4 nodes with the same
   question) is a **named follow-up** that reuses this harness once the
@@ -224,22 +258,27 @@ on one droplet.
   paper's spine.
 
 **Gates before the first dollar (in order).**
-1. The `readable` path must use the **batched** variant for the feed read —
-   see "Does the current code scale?" below; the per-group variant is the
-   thing that won't scale and the experiment would measure the wrong thing.
-2. Stub `execute` (return a fixed-size synthetic result set; skip the real
-   columnar scan) — a test-mode flag, not a production change.
-3. Metadata-only seed: N creators (contract + `anyone` grant + a few posts),
+1. Wire the **batched** `readable_groups_batched` into the feed path
+   (`query.py:224`) **behind a flag** so both the per-group and batched paths
+   are runnable — see "Does the current code scale?" below; the plot needs both.
+2. Add the **no-policy baseline** path (line A): run the feed SQL with the
+   `readable`/`compile` scoping bypassed (a test-mode flag), so A is measurable
+   on the same data. This is the ablation denominator.
+3. Stub `execute` (line C): return a fixed-size synthetic result set; skip the
+   real columnar scan — a test-mode flag, not a production change.
+4. Metadata-only seed: N creators (contract + `anyone` grant + a few posts),
    one reader following K of them, K ∈ {10, 100, 1,000}; discover board with
-   the node's public creators attached.
-4. One real `execute` measurement per scale to report the stubbed constant.
-5. Verify the `group_contracts.tags` fresh-boot race is fixed on dev; confirm
+   the node's public creators attached, node size ∈ {10, 100, 1,000, 10,000}.
+5. Run all three lines (A/B/C) × {personal@K, discover@node-size} × {per-group,
+   batched} × 3 trials; record the per-phase breakdown every run.
+6. Verify the `group_contracts.tags` fresh-boot race is fixed on dev; confirm
    `DO_API_TOKEN` custody.
 
 **Cost ceiling.** One small box (s-4vcpu-16gb, ~$0.30/hr), metadata-only seeds
-(minutes, not the 30–60 min of a 90M-doc content seed), an afternoon of runs
-across K × {personal, discover} × 3 trials. **Well under $5 total.** The
-expensive lakehouse ladder is gone.
+(minutes — small posts-per-creator keeps the real-scan lines A/B bounded), an
+afternoon of runs across {A,B,C} × {personal@K, discover@node-size} × {per-group,
+batched} × 3 trials. **Well under $10 total** (the real-scan lines add query
+time, not boxes or content). The expensive lakehouse ladder is gone.
 
 **What we are NOT measuring, and why (the paper's scope statement).** The
 evaluation deliberately excludes two large cost centers, and the paper must say
@@ -249,13 +288,19 @@ gap; with the explanation reads **scope discipline**. The contribution is the
 security layer we *added*; the things we don't measure are the things that are
 already solved, well-understood, and not ours:
 
-1. **The ClickHouse columnar scan (`execute`) — not measured, held constant.**
-   ClickHouse is a battle-tested OLAP engine; benchmarking *it* is a datasheet,
-   not a result about web10. We stub `execute` to a fixed constant (measured
-   once per scale and reported) so the figure isolates the layer we built. The
-   claim is *not* "the database is fast" — it's "the access-control layer adds
-   a measured, predictable cost *on top of* a fast engine." The engine is the
-   enabler, named and credited, not the subject.
+1. **The ClickHouse columnar scan (`execute`) — measured as the *baseline*, not
+   the *result*.** ClickHouse is a battle-tested OLAP engine; claiming *its*
+   speed would be a datasheet, not a result about web10. So the scan is
+   measured (line A, the no-policy raw query; and inside line B, the real
+   system) **only as the credited denominator** the access-control overhead is
+   computed against (`B − A`), and isolated out of the contribution line (C,
+   stubbed). The claim is *not* "the database is fast" — it's "the
+   access-control layer adds a measured, predictable cost *on top of* the
+   engine, and here is that cost as a delta." The engine is the enabler, named
+   and credited, not the subject. (This is the refinement from "held constant"
+   to "measured as the ablation baseline" — it covers the ground the raw feed
+   queries at scale, while keeping the contribution the delta, not the raw
+   number.)
 2. **Media delivery (the CDN) — not measured, offloaded by design.** Per the
    Cloudflare plan (`cloudflare-plan.md`), images/audio/docs are presigned
    key-URLs served straight from the origin/CDN (the node mints once, never in
@@ -269,11 +314,11 @@ already solved, well-understood, and not ours:
 
 **The one-sentence scope line for the paper:** *"We evaluate the access-control
 layer web10 adds — JWT auth, contract checks, readable-set resolution over K
-group contracts, and AST-level query scoping — holding the columnar scan
-constant (a solved, credited dependency) and excluding CDN media delivery
-(offloaded by design, a solved dependency); the contribution is the cost and
-behavior of the layer we built, not the performance of the engines it stands
-on."*
+group contracts, and AST-level query scoping — reporting its causal overhead
+(B−A) and isolated cost (C) against a measured, credited columnar-scan baseline
+(A), and excluding CDN media delivery (offloaded by design, a solved
+dependency); the contribution is the cost and behavior of the layer we built,
+not the performance of the engines it stands on."*
 
 This is also the anti-embarrassment move: it pre-empts "why didn't you measure
 X?" by answering it up front, and it keeps the claim exactly as large as the
