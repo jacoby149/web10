@@ -257,6 +257,17 @@ small metadata tables (group_members + group_contracts.roles)
 Fine-grained control lives in the relational layer, where it is an index
 lookup. The scan stays a scan. AWS-level control, zero scan-time penalty.
 
+**The one cost that does scale: resolving the readable set.** The "cheap" above
+is per-group. Resolving *which* of the reader's K candidate groups they can
+read is the `readable` phase, and it has two implementations with identical
+semantics — a **per-group** loop (O(K) ClickHouse round-trips from Python, the
+current feed path) and a **batched** variant (3 round-trips total, O(1) in K).
+The cost is round-trips, not language (the phase is I/O-bound). Full detail +
+the measurement seam for the paper's access-control cost function:
+`../query-engine.md` §"Readable-set resolution: the per-group vs. batched
+cost." The personal feed's K = the reader's following count (grows); the
+discover feed is K=1 (one board group — flat by design).
+
 ## Invariants
 
 - **I3 holds, role-gated.** A content read returns docs only for groups whose

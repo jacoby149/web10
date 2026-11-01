@@ -144,6 +144,53 @@ filter.
   caller forges `Origin` freely, so the node can't rely on it to stop abuse. The
   real boundary is the user's token + app contract (user-centric).
 
+## Readable-set resolution: the per-group vs. batched cost (the access layer's scaling)
+
+The D58 read gate (`readable_groups`, the `readable` phase in the query
+telemetry) is the part of the engine whose cost scales with **K = the number
+of candidate group contracts** in the reader's readable set for the query —
+not with node size. Two implementations exist with identical semantics
+(order-preserving; a group is readable iff the principal is a member, or — for
+a real principal — the group's `anyone`/`authenticated` grant allows `readAll`
+on the service):
+
+- **Per-group** (`readable_groups`, `clickhouse.py`): a Python loop, one
+  `can_read_group` per candidate group. Each `can_read_group` is a membership
+  lookup **plus**, for non-members, an `effective_role_perms` lookup — so the
+  phase is **O(K) ClickHouse round-trips from Python**. Correct first; the
+  docstring names the batched variant as the fast-follow for high-fanout feed
+  reads. This is the path the feed currently takes (`query.py` `run_query` →
+  `ch.readable_groups`).
+- **Batched** (`readable_groups_batched`, `clickhouse.py`): resolves the whole
+  candidate set in **three batched queries** (the principal's active
+  memberships among the candidates; the reserved public-class member rows
+  among the candidates; the role definitions for the candidate groups) and
+  merges them in Python. Same dedup rule as the read path (latest row per
+  (group, member) wins, tombstones included, then `deleted = 0`); unknown
+  groups (no live contract row) are never readable. **O(1) round-trips**
+  regardless of K.
+
+**The cost that matters is round-trips, not language.** The phase is
+I/O-bound (waiting on ClickHouse metadata), so the per-group vs. batched
+choice — an *algorithm* decision — dominates any language constant. The
+batched variant is the fix for high-K personal feeds (K = the reader's
+following count); the discover feed is K=1 (one board group, `feed.ts`
+`readDiscoverFeed`) so its readable cost is flat by design, not by engine
+speed.
+
+**Measurement seam (the paper's evaluation).** The query telemetry
+(`[query] … timing_ms …` in `run_query`) already times the `readable` phase
+separately from `compile` and `execute`, which is what the access-control cost
+function experiment needs. The experiment (see
+`research/digital-ocean-thinking.md`, the three-line ablation) measures the
+policy layer (auth → app_contract → candidates → readable → group_meta →
+compile → serialize) with `execute` held out, and plots the **per-group vs.
+batched** `readable` cost against K so the figure shows the bottleneck and the
+fix on one chart. The experiment's flags (batched-readable, no-policy baseline,
+execute-stub) are test-mode seams; the production default stays the current
+path until the batched wiring is a deliberate, reviewed change — the KB records
+the cost + the fix, the experiment proves it, the wiring is its own PR.
+
 ## Group scoping (deferred)
 
 How a caller scopes *which* groups a read touches. Today: explicit group IDs,
