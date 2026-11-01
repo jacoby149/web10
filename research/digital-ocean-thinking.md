@@ -186,9 +186,38 @@ don't hide it.
 4. Record the actual purchased instance, region, dates, billed rate and
    invoice per point (the E6 gate). The price page is not a measurement.
 
+**What we measure (the per-point result record).** The deliverable is not
+"a box held the SLO" — it is the *degradation curve* per (scale, instance):
+
+- **Latency vs concurrency** — the primary plot. For each concurrency
+  level (20/50/100/200/…), report p50/p95/p99 **per phase** (all ten:
+  auth, app_contract, parse_validate, candidates, readable, group_meta,
+  compile, execute, serialize, prepare) plus total. The paper's figure
+  is p95-total and p95-execute vs concurrency, one line per scale — that
+  shows where the access model bends vs where the scan bends.
+- **Throughput** — sustained QPS per concurrency level, successful only,
+  with the offered load stated (offered ≠ achieved past the knee).
+- **Failure behavior** — counted and classified, never averaged away:
+  HTTP 429 (rate limit), 5xx, client timeout, connection error, and
+  *slow success* (200 but past the SLO — the silent failure mode). The
+  failure curve (failure rate vs concurrency) is a first-class result:
+  an industry track wants to see *how the system fails* (graceful 429
+  backpressure vs 5xx collapse vs latency longtail), not just that it
+  failed.
+- **Resource saturation** — `docker stats` samples (CPU%, MemUsage per
+  container) + host `free`/`df`/load, timestamped and correlated to the
+  concurrency ramp, so the latency knee can be attributed (API CPU?
+  ClickHouse memory? merge activity?).
+- **The knee** — the explicit point per (scale, instance) where p95
+  crosses the SLO or failure rate crosses the threshold (state both
+  thresholds). That point, with its concurrency level and QPS, is the
+  number that goes in the cost table.
+
 **What this answers and what it does not.**
-- Answers: "the smallest DO instance that serves X QPS of feed reads at
-  p95 ≤ S ms over a synthetic N-user dataset with fan-out F, at $/hr."
+- Answers: "at N users, on instance I, feed-read latency per phase vs
+  concurrency, the sustained QPS at the SLO knee, the failure mode and
+  rate past the knee, and the $/hr of the smallest instance that holds
+  it" — with fan-out F and the full workload stated.
 - Does not answer: active-user scale (synthetic users are not users),
   write-heavy or media-heavy workloads, WAN latency, or the E3
   *baseline* comparison (the same sweep must be run against the
