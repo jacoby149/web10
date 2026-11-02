@@ -1697,3 +1697,281 @@ describe('findDanglingGrants (pure — the generic contract-health invariant)', 
     expect(findDanglingGrants([OWNER], undefined)).toEqual([])
   })
 })
+
+// ── OAuth 2.0 delegated access (D92, O10) ───────────────────────────────────
+
+describe('v3 client — oauth (D92 O10)', () => {
+  let w: V3Client
+  const tokenResponse = {
+    access_token: 'delegated-jwt',
+    token_type: 'Bearer',
+    expires_in: 5184000,
+    refresh_token: 'refresh-abc',
+  }
+
+  function makeDelegatedJwt(payload: Record<string, unknown>): string {
+    return `h.${btoa(JSON.stringify(payload))}.s`
+  }
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.spyOn(token, 'readTokenCookie').mockReturnValue(null)
+    vi.spyOn(token, 'decodeJwt').mockReturnValue({ username: 'alice', provider: 'api.localhost', site: 'web10' } as any)
+    vi.spyOn(token, 'setTokenCookie').mockImplementation(() => {})
+    vi.spyOn(token, 'scrubTokenCookie').mockImplementation(() => {})
+    vi.spyOn(http, 'authPost').mockResolvedValue(tokenResponse as any)
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }))
+    w = createV3Client({ apiOrigin: 'http://api.localhost' })
+  })
+
+  it('exposes the oauth surface', () => {
+    expect(w.oauth).toBeDefined()
+    expect(w.oauth.authorize).toBeTypeOf('function')
+    expect(w.oauth.exchangeCode).toBeTypeOf('function')
+    expect(w.oauth.refresh).toBeTypeOf('function')
+    expect(w.oauth.getRefreshToken).toBeTypeOf('function')
+    expect(w.oauth.setRefreshToken).toBeTypeOf('function')
+  })
+
+  describe('authorize', () => {
+    it('builds the consent URL with the required params (openPopup=false)', async () => {
+      const res = await w.oauth.authorize({
+        clientId: 'muse-connector',
+        redirectUri: 'https://muse.example.com/callback',
+        state: 'xyz',
+        openPopup: false,
+      })
+      expect(res).toHaveProperty('url')
+      const url = new URL((res as { url: string }).url)
+      // The consent screen lives on the authenticator host (api → auth swap).
+      expect(url.host).toBe('auth.localhost')
+      expect(url.searchParams.get('oauth')).toBe('1')
+      expect(url.searchParams.get('client_id')).toBe('muse-connector')
+      expect(url.searchParams.get('redirect_uri')).toBe('https://muse.example.com/callback')
+      expect(url.searchParams.get('response_type')).toBe('code')
+      expect(url.searchParams.get('state')).toBe('xyz')
+    })
+
+    it('omits state when not provided', async () => {
+      const res = await w.oauth.authorize({
+        clientId: 'muse-connector',
+        redirectUri: 'https://muse.example.com/callback',
+        openPopup: false,
+      })
+      const url = new URL((res as { url: string }).url)
+      expect(url.searchParams.has('state')).toBe(false)
+    })
+
+    it('honors an explicit authOrigin override', async () => {
+      const res = await w.oauth.authorize({
+        clientId: 'muse-connector',
+        redirectUri: 'https://muse.example.com/callback',
+        authOrigin: 'https://auth.custom.app',
+        openPopup: false,
+      })
+      expect((res as { url: string }).url).toContain('https://auth.custom.app/')
+    })
+
+    it('throws on a missing clientId / redirectUri', () => {
+      expect(() =>
+        w.oauth.authorize({ clientId: '', redirectUri: 'https://x.example.com/cb', openPopup: false }),
+      ).toThrow(/clientId is required/)
+      expect(() =>
+        w.oauth.authorize({ clientId: 'muse', redirectUri: '', openPopup: false }),
+      ).toThrow(/redirectUri is required/)
+    })
+
+    it('resolves { code, state } when the popup lands on the callback with ?code=', async () => {
+      vi.useFakeTimers()
+      const popup = { closed: false, location: { href: 'about:blank' } } as unknown as Window
+      const openSpy = vi.spyOn(window, 'open').mockReturnValue(popup)
+      const p = w.oauth.authorize({
+        clientId: 'muse-connector',
+        redirectUri: 'https://muse.example.com/callback',
+        state: 'xyz',
+      })
+      p.catch(() => {}) // keep the promise handled across the fake-timer ticks
+      // Let the first poll tick run against about:blank.
+      await vi.advanceTimersByTimeAsync(600)
+      // The user approves — the popup navigates to the callback with the code.
+      popup.location.href = 'https://muse.example.com/callback?code=the-code&state=xyz'
+      await vi.advanceTimersByTimeAsync(600)
+      await expect(p).resolves.toEqual({ code: 'the-code', state: 'xyz' })
+      expect(openSpy).toHaveBeenCalledWith(
+        expect.stringContaining('auth.localhost/?'),
+        'web10-oauth-consent',
+        expect.any(String),
+      )
+      vi.useRealTimers()
+    })
+
+    it('rejects when the user denies (?error=access_denied)', async () => {
+      vi.useFakeTimers()
+      const popup = { closed: false, location: { href: 'about:blank' } } as unknown as Window
+      vi.spyOn(window, 'open').mockReturnValue(popup)
+      const p = w.oauth.authorize({
+        clientId: 'muse-connector',
+        redirectUri: 'https://muse.example.com/callback',
+      })
+      p.catch(() => {}) // keep the rejection handled even if the assertion below changes
+      await vi.advanceTimersByTimeAsync(600)
+      popup.location.href = 'https://muse.example.com/callback?error=access_denied&state=xyz'
+      await vi.advanceTimersByTimeAsync(600)
+      await expect(p).rejects.toThrow(/Consent denied by the user/)
+      vi.useRealTimers()
+    })
+
+    it('rejects when the popup is blocked', async () => {
+      vi.spyOn(window, 'open').mockReturnValue(null as unknown as Window)
+      await expect(
+        w.oauth.authorize({ clientId: 'muse-connector', redirectUri: 'https://muse.example.com/callback' }),
+      ).rejects.toThrow(/Popup blocked/)
+    })
+
+    it('rejects on timeout when nothing happens', async () => {
+      vi.useFakeTimers()
+      const popup = { closed: false, location: { href: 'about:blank' } } as unknown as Window
+      vi.spyOn(window, 'open').mockReturnValue(popup)
+      const p = w.oauth.authorize({
+        clientId: 'muse-connector',
+        redirectUri: 'https://muse.example.com/callback',
+        timeoutMs: 1000,
+      })
+      p.catch(() => {}) // keep the rejection handled even if the assertion below changes
+      await vi.advanceTimersByTimeAsync(1100)
+      await expect(p).rejects.toThrow(/Consent timed out/)
+      vi.useRealTimers()
+    })
+  })
+
+  describe('exchangeCode', () => {
+    it('throws on a missing code or clientSecret', () => {
+      expect(() => w.oauth.exchangeCode('', 'https://x.example.com/cb', { clientSecret: 's' })).toThrow(
+        /code is required/,
+      )
+      expect(() => w.oauth.exchangeCode('c', 'https://x.example.com/cb', { clientSecret: '' })).toThrow(
+        /clientSecret is required/,
+      )
+    })
+
+    it('posts the authorization_code grant and stores the tokens', async () => {
+      // A delegated token is already in use (its client_id claim names the client).
+      const delegated = makeDelegatedJwt({
+        username: 'alice',
+        provider: 'api.localhost',
+        site: 'web10',
+        expires: '2999-01-01T00:00:00',
+        client_id: 'muse-connector',
+      })
+      vi.spyOn(token, 'decodeJwt').mockReturnValue(JSON.parse(atob(delegated.split('.')[1])) as any)
+      w.setToken(delegated)
+
+      const res = await w.oauth.exchangeCode('the-code', 'https://muse.example.com/callback', { clientSecret: 'sec' })
+      expect(res).toEqual(tokenResponse)
+      expect(http.authPost).toHaveBeenCalledWith(
+        'http://api.localhost/v3/oauth/token',
+        {
+          grant_type: 'authorization_code',
+          client_id: 'muse-connector',
+          client_secret: 'sec',
+          code: 'the-code',
+          redirect_uri: 'https://muse.example.com/callback',
+        },
+      )
+      // The access token is installed + the refresh token stored.
+      expect(w.readToken()).not.toBeNull()
+      expect(w.oauth.getRefreshToken()).toBe('refresh-abc')
+    })
+
+    it('throws without a delegated token in use', () => {
+      vi.spyOn(token, 'decodeJwt').mockReturnValue({ username: 'alice', provider: 'api.localhost' } as any)
+      expect(() =>
+        w.oauth.exchangeCode('the-code', 'https://muse.example.com/callback', { clientSecret: 'sec' }),
+      ).toThrow(/No delegated token in use/)
+    })
+  })
+
+  describe('refresh', () => {
+    it('throws when the clientSecret is missing', () => {
+      expect(() => w.oauth.refresh({} as any)).toThrow(/clientSecret is required/)
+    })
+
+    it('throws without a stored refresh token', () => {
+      vi.spyOn(token, 'cookieDict').mockReturnValue({}) // no refresh_token cookie
+      const fresh = createV3Client({ apiOrigin: 'http://api.localhost' })
+      const delegated = makeDelegatedJwt({
+        username: 'alice',
+        provider: 'api.localhost',
+        site: 'web10',
+        expires: '2999-01-01T00:00:00',
+        client_id: 'muse-connector',
+      })
+      vi.spyOn(token, 'decodeJwt').mockReturnValue(JSON.parse(atob(delegated.split('.')[1])) as any)
+      fresh.setToken(delegated)
+      expect(() => fresh.oauth.refresh({ clientSecret: 'sec' })).toThrow(/No refresh token stored/)
+    })
+
+    it('posts the refresh_token grant and rotates the stored pair', async () => {
+      const delegated = makeDelegatedJwt({
+        username: 'alice',
+        provider: 'api.localhost',
+        site: 'web10',
+        expires: '2999-01-01T00:00:00',
+        client_id: 'muse-connector',
+      })
+      vi.spyOn(token, 'decodeJwt').mockReturnValue(JSON.parse(atob(delegated.split('.')[1])) as any)
+      w.setToken(delegated)
+      w.oauth.setRefreshToken('old-refresh')
+
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({
+        access_token: 'new-delegated-jwt',
+        token_type: 'Bearer',
+        expires_in: 5184000,
+        refresh_token: 'new-refresh',
+      } as any)
+
+      const res = await w.oauth.refresh({ clientSecret: 'sec' })
+      expect(res.refresh_token).toBe('new-refresh')
+      expect(http.authPost).toHaveBeenCalledWith(
+        'http://api.localhost/v3/oauth/token',
+        {
+          grant_type: 'refresh_token',
+          client_id: 'muse-connector',
+          client_secret: 'sec',
+          refresh_token: 'old-refresh',
+        },
+      )
+      // Rotation: the new refresh token replaces the old one.
+      expect(w.oauth.getRefreshToken()).toBe('new-refresh')
+    })
+
+    it('surfaces the node invalid_grant error (replayed token → family killed)', async () => {
+      const delegated = makeDelegatedJwt({
+        username: 'alice',
+        provider: 'api.localhost',
+        site: 'web10',
+        expires: '2999-01-01T00:00:00',
+        client_id: 'muse-connector',
+      })
+      vi.spyOn(token, 'decodeJwt').mockReturnValue(JSON.parse(atob(delegated.split('.')[1])) as any)
+      w.setToken(delegated)
+      w.oauth.setRefreshToken('stolen-refresh')
+
+      vi.spyOn(http, 'authPost').mockRejectedValueOnce(new (http.Web10Error as any)('invalid_grant', 400))
+      await expect(w.oauth.refresh({ clientSecret: 'sec' })).rejects.toThrow(/invalid_grant/)
+    })
+  })
+
+  describe('refresh-token storage', () => {
+    it('setRefreshToken stores + getRefreshToken returns it', () => {
+      w.oauth.setRefreshToken('rt-123')
+      expect(w.oauth.getRefreshToken()).toBe('rt-123')
+    })
+
+    it('setRefreshToken(null) clears it', () => {
+      w.oauth.setRefreshToken('rt-123')
+      w.oauth.setRefreshToken(null)
+      expect(w.oauth.getRefreshToken()).toBeNull()
+    })
+  })
+})

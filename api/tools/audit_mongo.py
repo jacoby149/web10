@@ -53,7 +53,7 @@ def main():
     print("=" * 60)
     print("WEB10 MONGODB AUDIT (read-only)")
     print("=" * 60)
-    print(f"  URI: {args.uri}")
+    print("  Connection established; URI omitted.")
     print(f"  DB:  {args.db}")
     print()
 

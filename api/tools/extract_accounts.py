@@ -8,6 +8,8 @@ manifest of {username, password_hash, phone, phone_verified, email,
 email_verified}. This manifest is the backup — the only copy of the password
 hashes outside the live mongo. It is PII + credentials and must go to an
 encrypted, access-controlled location. NEVER the repo, NEVER a PR.
+File output requires a fresh destination filename and POSIX hard-link support;
+existing files and symlinks are never replaced.
 
 READ-ONLY: no writes, no updates, no deletes against the mongo.
 
@@ -31,6 +33,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 from datetime import datetime, timezone
 
 import pymongo
@@ -123,11 +126,11 @@ def _sha256_of_rows(rows):
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
-def build_manifest(rows, uri, db_name):
+def build_manifest(rows, db_name):
     """Assemble the manifest envelope around the extracted rows."""
     return {
         "extracted_at": datetime.now(timezone.utc).isoformat(),  # noqa: UP017 — box is Python 3.10 (no datetime.UTC); API is 3.12
-        "source": {"uri": uri, "db": db_name},
+        "source": {"db": db_name},
         "count": len(rows),
         "sha256": _sha256_of_rows(rows),
         "users": rows,
@@ -170,11 +173,34 @@ def _refuse_repo_output(out_path):
         raise SystemExit(2)
 
 
+def _publish_manifest(out_path, payload):
+    """Stage privately, then publish without clobbering in a trusted directory.
+
+    Requires POSIX hard links; this does not secure hostile parent directories
+    or guarantee directory-entry durability across power loss.
+    """
+    fd, temporary = tempfile.mkstemp(prefix=".web10-accounts-", dir=os.path.dirname(os.path.abspath(out_path)))
+    try:
+        try:
+            stream = os.fdopen(fd, "w", encoding="utf-8")
+        except BaseException:
+            os.close(fd)
+            raise
+        with stream:
+            stream.write(payload)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.link(temporary, out_path)
+    finally:
+        # Never remove the destination, even if cleanup fails after publication.
+        os.unlink(temporary)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Extract v2 user accounts (read-only)")
     parser.add_argument("--uri", default="mongodb://192.168.8.25:27017/", help="Mongo URI")
     parser.add_argument("--db", default="deploy", help="Database name (default: deploy)")
-    parser.add_argument("--out", default=None, help="Output JSON path (refused if inside the git repo)")
+    parser.add_argument("--out", default=None, help="Fresh output JSON path (existing paths and repo output refused)")
     parser.add_argument(
         "--allow-repo",
         action="store_true",
@@ -201,11 +227,19 @@ def main(argv=None):
         print("No manifest written. Fix the data (or accept the loss explicitly) and re-run.", file=sys.stderr)
         return 1
 
-    manifest = build_manifest(rows, args.uri, args.db)
+    manifest = build_manifest(rows, args.db)
     payload = json.dumps(manifest, indent=2)
     if args.out:
-        with open(args.out, "w") as f:
-            f.write(payload)
+        try:
+            _publish_manifest(args.out, payload)
+        except OSError:
+            print(
+                "Manifest output failed. An existing destination was not replaced; "
+                "a complete manifest or private temporary file may remain. "
+                "Check the trusted destination directory and choose a fresh filename.",
+                file=sys.stderr,
+            )
+            return 1
         print(f"Wrote {manifest['count']} accounts to {args.out}", file=sys.stderr)
     else:
         print(payload)

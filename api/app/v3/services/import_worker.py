@@ -37,6 +37,8 @@ import traceback
 import uuid
 import zipfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextlib import contextmanager
+from contextvars import ContextVar, copy_context
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -315,6 +317,7 @@ ORDER BY (job_id, seq)
 
 _event_seq: dict[str, int] = {}
 _event_seq_lock = threading.Lock()
+_job_log_context = ContextVar("import_job_log_context", default=None)
 
 
 def ensure_import_events_schema() -> None:
@@ -393,8 +396,8 @@ class _JobLogHandler(logging.Handler):
     """Captures the worker's own log stream (the `web10-import` logger) into the
     job's trace. Every record — including ERROR records with their full
     traceback — becomes a `log` event row, so the trace is a real dump, not a
-    summary. Thread-safe (the handler is attached only to the running job's
-    thread); never raises into the logging machinery.
+    summary. Only records emitted in this handler's execution context enter
+    its trace; never raises into the logging machinery.
 
     The level is set to DEBUG so EVERYTHING the worker logs is captured — the
     whole point is a real dump. (The logger itself emits at the root level;
@@ -405,7 +408,17 @@ class _JobLogHandler(logging.Handler):
         self.job_id = job_id
         self.setFormatter(logging.Formatter("%(levelname)s %(message)s"))
 
+    def filter(self, record: logging.LogRecord) -> bool:
+        # Reject before Handler.handle acquires its lock: a store failure can
+        # reenter the shared logger while another job holds its own lock.
+        return _job_log_context.get() is self and super().filter(record)
+
     def emit(self, record: logging.LogRecord) -> None:
+        if _job_log_context.get() is not self:
+            return
+        # An event-store failure logs through this same logger. Do not capture
+        # those diagnostics recursively (or attribute them to another job).
+        token = _job_log_context.set(None)
         try:
             msg = self.format(record)
             if record.exc_info:
@@ -413,23 +426,24 @@ class _JobLogHandler(logging.Handler):
             record_event(self.job_id, "log", record.levelname.lower(), msg)
         except Exception:
             pass  # the trace must never break the logging call
+        finally:
+            _job_log_context.reset(token)
 
 
+@contextmanager
 def _with_job_logging(job_id: str):
     """Context manager: attach the trace handler to the `web10-import` logger
     for the duration of the job (the raw log stream lands in the trace)."""
 
-    class _Ctx:
-        def __enter__(self):
-            self._handler = _JobLogHandler(job_id)
-            logger.addHandler(self._handler)
-            return self._handler
-
-        def __exit__(self, *exc_info):
-            logger.removeHandler(self._handler)
-            return False
-
-    return _Ctx()
+    handler = _JobLogHandler(job_id)
+    logger.addHandler(handler)
+    token = _job_log_context.set(handler)
+    try:
+        yield handler
+    finally:
+        _job_log_context.reset(token)
+        logger.removeHandler(handler)
+        handler.close()
 
 
 # ---------------------------------------------------------------------------
@@ -904,6 +918,7 @@ def _write_records(
         with ThreadPoolExecutor(max_workers=8) as pool:
             futures = {
                 pool.submit(
+                    copy_context().run,
                     _upload_thumbnail,
                     user,
                     r["media_url"],

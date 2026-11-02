@@ -4,15 +4,176 @@ The altitude. One row per **(unit, level)**. This is the coverage record — the
 thing you point at to prove forward progress. Format, status, and staleness rules
 live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../../ai-pack/ai-security-theory/the-security-record/README.md).
 
-> **Status key:** `PASS` = no open backlog for this unit at this level (everything
-> found is fixed or deferred to a `BP-n`). `OPEN` = scanned, has unfixed/undeferred
-> findings (live scan debt). `STALE` = last check relatively old, re-scan owed.
+> **Status key:** `PASS` requires evidenced current-level disposition and required
+> sign-off under the campaign strategy. A `BP-n` reference or completed read alone
+> does not pass a blocked guarantee. `OPEN` = unresolved findings, coverage or
+> sign-off. `STALE` = evidence invalidated or relatively old, re-scan owed.
 >
 > **Level key (the scope ladder):** `L1` = file-scan (the file itself) · `L2` =
 > call-graph-scan (the file + its direct call graph, one hop) · `L3` = service-scan
 > (the whole service, transitive closure) · `L4` = project-wide-scan (all services,
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
+
+## Group-as-Author Write Gate (01.11.2026)
+
+The `POST /v3/create` endpoint gains an optional `author_as` field (the
+group-as-author delegation path). Two independent gates enforce the trust
+boundary: (1) the caller must hold a role in the group that grants `create` on
+the service (`effective_role_perms` + `_effective_allows` — the D58
+per-service role map); (2) the group must be able to write in each target group
+(`can_write_group`, principal = group_id — the existing D58 write gate, just
+pointed at the group instead of the user). The app-contract gate runs on the
+real author (the token holder), not the group. Moderation checks the real
+author (`posted_by`), not the group. The `posted_by` column is server-set from
+the JWT — the client cannot forge it. 1345 API tests green (including the
+existing permission-matrix suite + two new update-path tests). L1 file-scan of
+`documents.py` + `clickhouse.py`: no new trust-boundary surface beyond the two
+existing gates; the `author_as` field is validated before any write; the
+`posted_by` column is never read from client input. The `POST /v3/update`
+endpoint gains a two-pass lookup for group-authored posts (first by author_key,
+then by posted_by) with the same Gate 1 check — a moderator who posted as the
+group can edit their post; a non-member gets a 403. **OPEN**: L2 call-graph
+scan (the import worker + bugbot also call `insert_document` — they pass
+`posted_by=""` which is correct for non-group posts but not explicitly tested);
+L3 service-scan; L4 project-wide. No C+I exploit replay (no new exploit class —
+the gates are existing primitives re-pointed at a new principal).
+
+## Backup Publication (01.11.2026)
+
+L1-PKG-02 [local repair](scans/2026-10/repair-pkg02-backup-publication.md):
+real filesystem permission/link/overwrite repro, private same-directory staging
+and complete no-clobber publication. Initial 8 failures/1 pass distinguish actual
+behaviors from absent-operation controls; final 45 focused/1,420 API tests plus
+four subtests and lint/format pass, fresh same-model review. Operational storage,
+CI/deployment/history/diverse sign-off and protocol L1 remain OPEN.
+
+## Query-Engine Evaluation Seams (01.11.2026)
+
+`api/app/settings.py` + `api/app/v3/endpoints/query.py` gain three **test-mode**
+env flags for the paper's access-control cost function experiment (the
+three-line ablation, `research/digital-ocean-thinking.md`):
+`QUERY_EVAL_STUB_EXECUTE` (+`QUERY_EVAL_STUB_ROWS`, line C — return a fixed
+synthetic result instead of running the compiled SQL), `QUERY_EVAL_NO_POLICY`
+(line A — skip readable-set resolution + boundary-CTE scoping, run the caller's
+SQL unscoped; also exempts the D42 explicit-group membership 403), and
+`QUERY_EVAL_READABLE_MODE` (`per-group` default | `batched` — select the
+resolution algorithm). **All default OFF: production behavior is unchanged
+unless a flag is set.** The flags are referenced as `ch.<name>` (attribute
+lookup at call time) so existing test patches apply.
+
+**Trust-boundary note (honest scope):** `QUERY_EVAL_NO_POLICY` *bypasses the I3
+boundary* and `QUERY_EVAL_STUB_EXECUTE` *returns synthetic rows* — both are
+deliberately dangerous and gated behind env flags that **must never be enabled
+on a public node**. They exist only so the experiment can measure the policy
+layer in isolation (C) and the causal overhead against a no-policy baseline
+(A). The production default path (per-group readable + real execute + full
+boundary) is untouched. This is an L1 file-scan disposition for the two touched
+files, not an L1 PASS or sign-off on the query service; the I3 conformance suite
+(`api/tests/test_v3_conformance.py`) still passes with the flags unset.
+`test_query_endpoint.py::TestEvaluationSeams` (+6) pins: inert when unset, each
+flag active when set, A unscoped + no 403, batched vs. per-group routing. Full
+API suite 1349 passed + 4 subtests. No new credential surface, no token/payload
+logging, no auth-path change. Deeper (L2/L3) coverage of the query service
+remains separate debt.
+
+## Manifest Destination Follow-Up (01.11.2026)
+
+Source repair and direct dependency follow-up merged in #1299 at
+`0918a7409141e2b42b3ffa81e9ff585550c3c5ad`; all 13 PR checks passed. Historical
+local wording below describes the repair-stage evidence, not current merge state.
+Rollout, actual registry/retained TLS/path integration and diverse gates remain OPEN.
+
+L1-A-02 [local source repair](scans/2026-10/repair-a02-manifest.md): approved
+public-only registration/DNS, numeric connection pinning, canonical Host/TLS
+verification and redirect refusal. Four initial exploit failures denied; 70 focused
+controls, 1,407 API tests plus four subtests/Ruff pass, fresh same-model review
+and ephemeral actual-TLS probes. Retained TLS/path integration, actual registry,
+CI/deployment/history and diverse sign-off remain OPEN; no L1 PASS.
+
+01.11.2026 L1-A-02 [bounded follow-up](scans/2026-10/l1-manifest-destination-followup.md):
+real Requests/loopback HTTP reproduces direct and redirected internal JSON reads
+from the actual handler body; eight controls pass after same-model review.
+That historical follow-up made no runtime fix or deployed/whole-file claim;
+the local repair above supersedes its vulnerable behavior, not the L1 OPEN status.
+
+## Docs RTC Producer (29.10.2026)
+
+RTC-ICE [local repair](scans/2026-10/repair-rtc-ice.md) now passes selected ICE
+through PeerJS's consumed `config.iceServers`. Nine baseline failures become
+19 passing RTC controls; 284 SDK tests/typecheck and fresh same-model contract/
+design review pass. RTC outputs regenerated with main SDK/legacy artifacts
+untouched. Dependency-contract fixture only, not actual PeerJS/network proof;
+connected/image/rollout/diverse gates remain **OPEN**, no C+I exploit or L1 closure.
+
+L1 artifact disposition remains **OPEN**. [Provenance research](scans/2026-10/l1-artifact-provenance-followup.md)
+traces retained declarations and the stale docs RTC consumer; the
+[local producer repair](scans/2026-10/repair-docs-rtc-producer.md) adds a tracked
+wrapper, pinned build and parity/CI controls without deleting legacy outputs.
+Five stale-output failures become 14 passing controls; 279 SDK tests/typecheck
+and fresh same-model review pass. Review identifies separate effective ICE debt:
+PeerJS consumes `options.config.iceServers`, not the core's top-level option.
+PR #1294 initial source `3f481eb2f` passed all production Docker builds and four
+E2E shards; this is CI evidence, not deployed/cache or diverse-sign-off closure.
+The initial method check correctly rejected the missing central record update;
+this entry supplies it without changing the gate or claiming L1 PASS.
+
+## Sol Resumption (28.10.2026)
+
+CORRELATION/STALE-READS [local repair](scans/2026-10/repair-account-read-ownership.md):
+five account display reads plus service/admin timers now use identity generation,
+current principal/token and per-surface ordering. Initial 24 failing cases, final
+52 account-read/268 total UI passes and build; fresh same-model retained-client/
+ordering replays pass. Connected browser, mutation coverage, rollout/diverse
+review and L1/class sign-off remain OPEN; no server auth bypass claimed.
+
+Consent lifecycle [post-merge repair](scans/2026-10/repair-consent-postmerge.md):
+explicit logout cancels untouched requests; popup close checks current-client
+token, principal, batch and handoff generation. Seven initial failing controls
+repaired, 216 UI tests/34 ownership cases and build pass locally. Fresh same-model
+review; connected E2E and broader stale-read ownership remain OPEN, no class PASS.
+
+L1-OAUTH-SOURCE-01: [local source certification repair](scans/2026-10/repair-oauth-source01.md)
+denies uncertifiable sources before code minting; twelve new controls and 1,343
+API tests plus four subtests pass. Fresh same-model review only. Real registry/
+code-store behavior, broader delegation authority and rollout/diverse sign-off
+remain OPEN; no full OAuth or protocol L1 PASS.
+
+L1-VAL-01 has a [local source repair and red/green receipt](scans/2026-10/repair-val01-validation.md):
+three actual-route disclosure cases denied, 1,331 API tests plus four subtests pass,
+fresh same-model review. Deployment/history/model-diverse sign-off remain OPEN;
+this updates the validation finding only, not the historical scan or L1 status.
+
+At `49178a87dcd651337e7f17dea68b66f377ae2e05`, bounded Sol revalidation and
+fresh same-model review confirm validation credential copies (L1-VAL-01), an
+OAuth source-client authority inconsistency (L1-OAUTH-SOURCE-01), and remaining
+consent correlation debt. [Ledger and scope receipts](scans/2026-10/l1-current-index.md)
+record exact fresh reads, 167 focused API passes plus four subtests, SDK runner
+limitations, artifact comparison and offline edge controls. Historical coverage
+is not a fresh whole-project scan; all these units remain **OPEN**, with no L2
+advancement, deployment assertion or model-diverse convergence credit.
+
+## Current Protocol L1 Read Pass (27.10.2026)
+
+[Current index/ledger](scans/2026-10/l1-current-index.md) records the exhaustive
+selected manifest at `f7aabdb26346752141f46f19c393dbadfd25ddd2`: 171 paths/30,451
+logical lines, 105 paths freshly read and 66 byte-equal historical paths. Exact
+1,341-path exclusions, all six classes, runnable evidence and fresh same-model
+reviews are linked there. This is read coverage, NOT L1 security PASS.
+
+New local evidence includes OAuth expired-principal acceptance (same D-01 root),
+conditional code single-use failure and operator Mongo URI credential output.
+Real DB schema/merge/revocation effects and backup protection remain unverified.
+Refresh-family invalidation is not a proven C+I exploit; deliberate gate exemption
+is a policy/control limitation, not accidental auth bypass. All existing open
+protocol findings, separate B-8 integration and required model-diverse review
+remain blockers; no L2 advancement. Scan receipts pending publication. O10
+follow-up at `1332abc678344d24dc6f85227549dda2b0bef9a9` rescans complete SDK v3/index
+and changed artifacts: selected union now 171 paths/31,537 lines, other 160 selected
+paths unchanged. [Fresh O10 review](scans/2026-10/l1-o10-review.md) keeps callback/
+refresh observations conditional, first-use exchange as correctness, inherited
+refresh selection distinct from repaired parsing. No new proven server C+I exploit.
+Operator approved larger evidence PR; code/test CI limit unchanged, no exemption.
 
 ## Seed state — from the October 2026 audit
 
@@ -43,6 +204,7 @@ measure. Re-scan after the hardening merges to flip them.
 | `api/app/services/auth.py :: certify` (delegation gate, D92 O2) | L1 | PASS | `qwen3.8-27b` (OpenCode) | 2026-10-22 | — | auth | OAuth 2.0 delegation gate at the verification seam: `TokenData` gains an optional `client_id` claim; `certify()` verifies — when `client_id` is present — that the client exists and is active (not tombstoned) via `ch.get_oauth_client()`, else `TOKEN` (401). Tokens without a `client_id` (the popup flow) skip the check entirely — today's behavior, byte-for-byte (I1 signature/provider/expiry checks unchanged and run first). Strictly *tightens* the gate for delegated tokens (a revoked/unknown client can no longer certify); no new read surface, no I3 change, no weakening of any existing invariant. The Origin→client_id `has_permission` re-keying is O3 (not yet landed). Repro: `api/tests/test_auth_services.py::TestCertify` (5: normal token passes, active client passes, missing client → TOKEN, tombstoned client → TOKEN, expired token still rejected). |
 | `api/rtc/` (admission) | L4 | **OPEN** | — | — | — | rtc | RTC socket admission / certify gate (cross-service RTC↔API) — see `BP-3`. Hardening in 1159 (unmerged) |
 | `ui/src/components/CredentialPage/` (auth forms) | L1 | PASS | `qwen3.8-27b` (OpenCode) | 2026-10-26 | — | auth-ui | Autofill-hostile formless login repaired (3.242.0): the credential forms (login / signup / recovery / change-password) were divs + a button whose click handler scraped the DOM by id — no `<form>` for a password manager to key off (the 1Password grant landed an empty `web10.app` entry with nothing to fill). Now real `<form>` elements with a `type="submit"` button (`onSubmit` + `preventDefault` keeps the SPA flow) + `name` attrs on the inputs. **No invariant change** — no token/credential handling altered, no new read surface, no I1–I6 surface touched (the values still come from the same DOM the click handler used to scrape). Repro: `ui/src/__tests__/authFormsAutofill.test.tsx` (8: the `<form>` element + `type="submit"` + `name` attrs across all four surfaces; submitting the form drives `login`/`signup`/`recoverRequest`/`recoverVerify`/`recoverComplete`). |
+| `sdk/src/v3.ts :: oauth` (w.oauth(), D92 O10) | L1 | OPEN | Initial `qwen3.8-27b`; fresh `openai/gpt-6.1-sol` (OpenCode) | 2026-10-27 | — | sdk-auth | Shipped in 3.245.0 with 17 mocked helper tests; implementation completion is preserved, but the initial PASS is superseded by the [pinned source/artifact rescan and fresh review](scans/2026-10/l1-o10-review.md). Callback-result binding and refresh/client ownership remain conditional concerns; first-use exchange has a confirmed correctness gap, and inherited refresh selection requires additional ambient pollution. Original tests do not establish initial connection, browser callback integrity, real server authority or model-diverse sign-off. Confidential-client secrets remain caller-supplied; deliberate JS-cookie storage, caller-managed state and restoration semantics are not reversed. No new proven server C+I exploit or protocol PASS. |
 | federation signing (I1) | L4 | **OPEN** | — | — | — | federation | B-1 / D7 — HS256 → RS256/EdDSA + JWKS (cross-node). See `BP-1` |
 | delegation model (I5) | L3 | **OPEN** | — | — | — | auth | scoped app-management delegation (within the API service). See `BP-2`. Hardening in 1157 (unmerged) |
 
@@ -102,6 +264,83 @@ Inventory and line coverage do not establish service PASS or deployment security
 
 ## Protocol L1 Repair Progress
 
+28.10.2026: **UI correlation preparation** [verified locally](scans/2026-10/consent-ui-ownership-foundation.md):
+owned indexed replies, exact removal, replay/duplicate guards and superseded-batch
+completion/timer fences. Seven corrected baseline cases and a timer regression
+red -> green; 13 real-hook controls, 195 UI tests/typecheck/build, unchanged SDK
+265 tests/typecheck and fresh same-model review. SDK remains unversioned; no-op,
+cancellation/account/batch lifecycle and actual browser integration remain gates.
+No complete correlation, A-01/F-01, deployment or L1 PASS.
+
+28.10.2026: **Consent lifecycle disposition** [local receipt](scans/2026-10/consent-lifecycle.md):
+27 focused real-hook/ConsentView tests and 209 UI tests pass; TypeScript and
+production build pass. Empty/no-op, exact same-principal grants, skip,
+logout/account change, replacement, in-flight failure and delayed handoff are
+covered. The responder remains a preparation for strict SDK correlation: SDK,
+artifact, real-browser cohort and deployment gates are not included. A-01/F-01
+and protocol L1 remain OPEN; Luna is weaker than Sol and this is not equivalent
+assurance or model-diverse sign-off.
+
+28.10.2026: **A-01/F-01 sender slice** [source merged #1275](scans/2026-10/repair-consent-senders.md) at 40a515fcc:
+bound readiness/replies, pre-send guard, configured legacy callback migration;
+19 new runtime cases red -> green, 265 SDK passes/typecheck and five-runtime parity.
+Request correlation remains demonstrated local debt (one matching reply invokes
+two callbacks); class and L1 OPEN. Applicable browser/package/build/security CI
+passed on identical db5703900 inputs; rollout/diverse review remain pending.
+
+28.10.2026: **S-1** [source repair merged #1273](scans/2026-10/repair-s1-auth-sender.md) at c258ce048
+binds token handoff to configured window/origin, preserving standalone and
+explicit-login lifecycle plus configured legacy opener support. 246 SDK tests,
+typecheck and five-runtime correspondence pass; fresh same-model review. Browser
+CI passed on identical a2262c620 inputs; migration/delivery/diverse sign-off remain OPEN; A-01/F-01 and S-6 separate.
+
+27.10.2026: **L1-D-01/D-02 and OAuth occurrence L1-OAUTH-01** share the
+[source repair merged #1271](scans/2026-10/repair-d01-token-freshness.md) at b828736b4. Verified
+user decoding/certification enforce parseable ISO expiry at the absolute deadline;
+the oracle classifies invalid/expired before stores. Initial 48 regressions red
+-> green, 92 controls/1,325 API passes plus four subtests, fresh same-model review.
+Anonymous and unsigned metadata contracts preserved. Integration/rollout/diverse
+review remain OPEN; no HS256/issuer, purpose, provider or revocation assurance.
+
+27.10.2026: **L1-DEPLOY-01** [source repair merged #1268](scans/2026-10/repair-deploy01-frozen-installs.md)
+removes three fail-open install fallbacks and pins Dockerfile-only CI triggering.
+Eight controls and 1,233 API tests plus four subtests pass; native frozen installs/
+builds retain manifests/locks and local dependencies, fresh same-model review.
+Merged at c6f9cc85d. Actual production Linux builds for marketing and social passed
+on 8a420f767, with all applicable PR checks green; source build/CI inputs are
+byte-identical in the squash merge. E2E's dev image is not credited as production
+evidence. Deployment, dependency authenticity and diverse sign-off remain open.
+
+27.10.2026: **L1-J-01** [source repair merged #1267](scans/2026-10/repair-j01-import-traces.md)
+denies cross-context trace copying while preserving owned diagnostics/tracebacks
+and thumbnail work. Pre-lock filtering plus reentry suppression resolves the
+reviewed concurrent store-failure deadlock. Nine controls, 1,225 API passes plus
+four subtests and fresh same-model review; merged at e0c271da1, deployment/history/diverse
+sign-off remain OPEN, not whole-worker or L1 PASS.
+
+27.10.2026: **L1-G-01** [source repair merged #1266](scans/2026-10/repair-g01-query-logging.md)
+denies SQL/name/error and parser-fallback log echoes, retaining topology,
+literal metadata, correlation IDs, counts and duration. Original eight cases
+and two later parser-fallback cases red -> green; 24 focused cases, 1,216 API
+tests plus four subtests pass, fresh same-model review. Merged at b5ebcd7e7;
+deployment/diverse review remain open; no whole-query/whole-file or L1 PASS.
+
+27.10.2026: **L1-PKG-01** [local repair](scans/2026-10/repair-pkg01-mongo-output.md)
+omits raw Mongo URI input from audit stdout and both extractor output modes.
+Twelve output regressions red -> green; independent replay and migration controls
+preserve account rows/count/checksum. Fresh same-model design-intent review
+records the deliberate host-diagnostic/external-parser compatibility tradeoff.
+Source repair merged #1265 at b5d128a52; not deployed or L1 PASS.
+Backup protection/defaults/operational exposure and diverse sign-off remain open.
+
+27.10.2026: SDK-B-01 source repair merged #1255 (3.244.1); rollout/sign-off remain
+open. **B-8** [local source repair](scans/2026-10/repair-b8-settings.md) replaces
+the settings globals dump with fixed safe output. Four CLI subcases red -> green,
+import compatibility preserved, 1,180 API tests pass; fresh same-model review.
+Source repair merged #1265 at b5d128a52; deployment/sign-off pending, not whole-settings PASS; B-2 remains OPEN.
+OAuth additions/changed authority paths after the original API pin require delta
+L1 coverage and disposition before advancement; old receipts do not cover them.
+
 **B-4:** [source repair evidence](scans/2026-10/repair-b4-middleware.md) records
 all nine regressions red on the pinned original and green on the candidate fix;
 full API suite 1,138 green after syncing dev on 20.10.2026. This repairs the middleware capture/insert-failure
@@ -110,6 +349,12 @@ import traces, historical data or operational credential exposure. Other protoco
 findings and L1 advancement gates remain open. No model-diverse/three-dry claim.
 
 ## SDK L1 Source Campaign
+
+21.10.2026 repair, merged #1255: SDK-B-01 source/artifact repair verified; [repro and fresh
+review](scans/2026-10/repair-sdk-b01-cookie.md). Own data-property parsing and
+own-token selection deny synthetic inherited tokens in source/five runtimes.
+208 SDK tests and typecheck pass at repair pin. Deployment/sign-off pending; scope B
+remains OPEN for other handoffs, not whole-file PASS. Alignment #1248 merged.
 
 [Source/artifact inventory](scans/2026-10/l1-sdk-index.md), source pin
 `caeed4427`, date 2026-10-18, scanner `gpt-6.1 sol`. Seven non-test source files/

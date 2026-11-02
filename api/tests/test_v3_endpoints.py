@@ -143,8 +143,20 @@ class TestCreate:
         """A reaction/comment references its target post via ref_value."""
         captured = {}
 
-        def fake_insert(author_key, service, body, ref_value="", tags=None, doc_id=None, ad_mode="none", ad_target=""):
+        def fake_insert(
+            author_key,
+            service,
+            body,
+            ref_value="",
+            tags=None,
+            doc_id=None,
+            ad_mode="none",
+            ad_target="",
+            created_at=None,
+            posted_by="",
+        ):
             captured["ref_value"] = ref_value
+            captured["posted_by"] = posted_by
             return {"doc_id": "doc-3", "ref_value": ref_value}
 
         with patch("app.v3.services.clickhouse.insert_document", side_effect=fake_insert):
@@ -159,13 +171,15 @@ class TestCreate:
             )
         assert resp.status_code == 200
         assert captured["ref_value"] == "target-post"
+        # posted_by is always the JWT username (the test token's user)
+        assert captured["posted_by"] == "testuser"
 
 
 class TestRead:
     def test_personal_read(self, client, token):
         mock_groups = [("g1", "open", [], "member")]
         mock_counts = [("g1", 3)]
-        mock_docs = [("doc-1", "bob", '{"text":"mine"}', [], datetime(2026, 1, 1), "", "none", "")]
+        mock_docs = [("doc-1", "bob", '{"text":"mine"}', [], datetime(2026, 1, 1), "", "none", "", "bob")]
         with (
             patch("app.v3.services.clickhouse.client") as mock_ch,
             # D58 read gate: every candidate group is readable (gate logic is
@@ -191,7 +205,7 @@ class TestRead:
 
     def test_group_read(self, client, token):
         mock_rows = [
-            ("doc-1", "bob", '{"text":"shared"}', [], datetime(2026, 1, 1), "", "none", ""),
+            ("doc-1", "bob", '{"text":"shared"}', [], datetime(2026, 1, 1), "", "none", "", "bob"),
         ]
         with (
             patch("app.v3.services.clickhouse.client") as mock_ch,
@@ -377,7 +391,7 @@ class TestRead:
     def test_me_shorthand(self, client, token):
         mock_groups = [("g1", "open", [], "member")]
         mock_counts = [("g1", 3)]
-        mock_docs = [("doc-1", "bob", '{"text":"hello"}', [], datetime(2026, 1, 1), "", "none", "")]
+        mock_docs = [("doc-1", "bob", '{"text":"hello"}', [], datetime(2026, 1, 1), "", "none", "", "bob")]
         with (
             patch("app.v3.services.clickhouse.client") as mock_ch,
             patch("app.v3.services.clickhouse.readable_groups", side_effect=lambda p, s, a, c: c),
@@ -403,7 +417,19 @@ class TestUpdate:
     def test_update_preserves_created_at(self, client, token):
         original_created = datetime(2026, 1, 1)
         mock_rows = [
-            ("doc-1", "testuser", "posts", '{"text":"old"}', "", [], original_created, original_created, "none", ""),
+            (
+                "doc-1",
+                "testuser",
+                "posts",
+                '{"text":"old"}',
+                "",
+                [],
+                original_created,
+                original_created,
+                "none",
+                "",
+                "testuser",
+            ),
         ]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
@@ -451,6 +477,7 @@ class TestUpdate:
                 original_created,
                 "none",
                 "",
+                "testuser",
             ),
         ]
         with patch("app.v3.services.clickhouse.client") as mock_ch:
@@ -469,6 +496,137 @@ class TestUpdate:
         assert doc_inserts, "expected a documents insert"
         inserted_row = doc_inserts[0].args[1][0]
         assert inserted_row[4] == "target-9"
+
+    def test_update_group_post_by_poster(self, client, token):
+        """Group-as-author: a moderator who posted as the group can edit their
+        own post. The doc's author_key is the group_id; posted_by is the
+        username. The update path finds it via the posted_by fallback, checks
+        the caller's role in the group (Gate 1), and writes with the group's
+        author_key (preserving the identity)."""
+        group_id = "web10.app/groups/users/testuser/mygroup"
+        original_created = datetime(2026, 1, 1)
+        # Query sequence (dispatched by SQL content):
+        # - get_document (by username or group_id): "FROM documents WHERE doc_id"
+        # - posted_by fallback: "WHERE doc_id = %(doc_id)s AND posted_by"
+        # - get_group: "FROM group_contracts WHERE group_id"
+        # - get_group_member: "FROM group_members WHERE group_id"
+        doc_row = (
+            "doc-1",
+            group_id,
+            "posts",
+            '{"text":"old"}',
+            "",
+            [],
+            original_created,
+            original_created,
+            "none",
+            "",
+            "testuser",
+        )
+        group_row = (
+            group_id,
+            '[{"name": "owner", "permissions": {"*": ["readAll", "create", "updateOwn", "deleteOwn"]}}]',
+            "open",
+            0,
+            [],
+            "hidden",
+            original_created,
+            original_created,
+        )
+
+        def dispatch(sql, params=None):
+            if "AND posted_by = %(poster)s" in sql:
+                return MagicMock(result_rows=[(group_id,)])
+            if "FROM documents WHERE doc_id" in sql:
+                # First call (by username): miss. Second call (by group_id): hit.
+                if not hasattr(dispatch, "_doc_calls"):
+                    dispatch._doc_calls = 0
+                dispatch._doc_calls += 1
+                if dispatch._doc_calls == 1:
+                    return MagicMock(result_rows=[])
+                return MagicMock(result_rows=[doc_row])
+            if "FROM group_contracts WHERE group_id" in sql:
+                return MagicMock(result_rows=[group_row])
+            if "FROM group_members WHERE group_id" in sql:
+                return MagicMock(result_rows=[("testuser", "owner", "2026-01-01T00:00:00Z")])
+            if "FROM doc_groups WHERE doc_id" in sql:
+                return MagicMock(result_rows=[(group_id,)])
+            raise AssertionError(f"unexpected query: {sql[:80]}")
+
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.side_effect = dispatch
+            resp = client.post(
+                "/v3/update",
+                json={
+                    "token": token,
+                    "doc_id": "doc-1",
+                    "body": {"text": "updated"},
+                },
+            )
+        assert resp.status_code == 200
+        data = resp.json()
+        # The write used the group's author_key (not the username)
+        assert data["author_key"] == group_id
+
+    def test_update_group_post_by_non_member_403(self, client, token):
+        """Group-as-author: a user who did NOT post the group post (and has no
+        role in the group) gets a 403 — the posted_by fallback finds the doc
+        but the Gate 1 check fails."""
+        group_id = "web10.app/groups/users/otheruser/theirgroup"
+        original_created = datetime(2026, 1, 1)
+        doc_row = (
+            "doc-1",
+            group_id,
+            "posts",
+            '{"text":"old"}',
+            "",
+            [],
+            original_created,
+            original_created,
+            "none",
+            "",
+            "someoneelse",
+        )
+        group_row = (
+            group_id,
+            '[{"name": "owner", "permissions": {"*": ["readAll", "create"]}}]',
+            "open",
+            0,
+            [],
+            "hidden",
+            original_created,
+            original_created,
+        )
+
+        def dispatch(sql, params=None):
+            if "AND posted_by = %(poster)s" in sql:
+                return MagicMock(result_rows=[(group_id,)])
+            if "FROM documents WHERE doc_id" in sql:
+                if not hasattr(dispatch, "_doc_calls"):
+                    dispatch._doc_calls = 0
+                dispatch._doc_calls += 1
+                if dispatch._doc_calls == 1:
+                    return MagicMock(result_rows=[])
+                return MagicMock(result_rows=[doc_row])
+            if "FROM group_contracts WHERE group_id" in sql:
+                return MagicMock(result_rows=[group_row])
+            if "FROM group_members WHERE group_id" in sql:
+                return MagicMock(result_rows=[])  # no role for testuser
+            if "FROM doc_groups WHERE doc_id" in sql:
+                return MagicMock(result_rows=[(group_id,)])
+            raise AssertionError(f"unexpected query: {sql[:80]}")
+
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.side_effect = dispatch
+            resp = client.post(
+                "/v3/update",
+                json={
+                    "token": token,
+                    "doc_id": "doc-1",
+                    "body": {"text": "hacked"},
+                },
+            )
+        assert resp.status_code == 403
 
 
 class TestDelete:
@@ -1853,59 +2011,64 @@ class TestMediaDelete:
 class TestPwaListing:
     """GET /pwa_listing — the store's manifest proxy (D47: a path is an app)."""
 
+    @pytest.fixture(autouse=True)
+    def public_app(self):
+        with (
+            patch("app.endpoints.system.ch.get_app", return_value={"approved": True}),
+            patch("app.endpoints.system.socket.getaddrinfo", return_value=[(2, 1, 6, "", ("8.8.8.8", 443))]),
+            patch("app.endpoints.system.urllib3.HTTPSConnectionPool") as pool,
+        ):
+            self.pool = pool.return_value
+            yield
+
     def _ok_manifest(self, payload: dict | None = None):
         import json as _json
 
         fake = MagicMock()
-        # pwa_listing uses requests.get(..., stream=True) as a context manager
-        # and reads via iter_content (hardening #7 byte cap).
-        fake.__enter__ = MagicMock(return_value=fake)
-        fake.__exit__ = MagicMock(return_value=False)
-        fake.raise_for_status = MagicMock()
-        fake.iter_content = MagicMock(return_value=iter([_json.dumps(payload or {"name": "Notes"}).encode()]))
+        fake.status = 200
+        fake.read.return_value = _json.dumps(payload or {"name": "Notes"}).encode()
         return fake
 
     def test_manifest_url_with_trailing_slash(self, client):
-        with patch("app.endpoints.system.requests.get", return_value=self._ok_manifest()) as mock_get:
+        with patch.object(self.pool, "urlopen", return_value=self._ok_manifest()) as mock_get:
             resp = client.get("/pwa_listing", params={"url": "https://host/docs/notes/"})
         assert resp.status_code == 200
         assert resp.json() == {"name": "Notes"}
-        assert mock_get.call_args[0][0] == "https://host/docs/notes/manifest.json"
+        assert mock_get.call_args[0][1] == "/docs/notes/manifest.json"
 
     def test_manifest_url_without_trailing_slash(self, client):
         """A registered path without a trailing slash resolves the same."""
-        with patch("app.endpoints.system.requests.get", return_value=self._ok_manifest()) as mock_get:
+        with patch.object(self.pool, "urlopen", return_value=self._ok_manifest()) as mock_get:
             resp = client.get("/pwa_listing", params={"url": "https://host/docs/notes"})
         assert resp.status_code == 200
-        assert mock_get.call_args[0][0] == "https://host/docs/notes/manifest.json"
+        assert mock_get.call_args[0][1] == "/docs/notes/manifest.json"
 
     def test_manifest_url_root(self, client):
-        with patch("app.endpoints.system.requests.get", return_value=self._ok_manifest()) as mock_get:
+        with patch.object(self.pool, "urlopen", return_value=self._ok_manifest()) as mock_get:
             resp = client.get("/pwa_listing", params={"url": "https://host.example.com/"})
         assert resp.status_code == 200
-        assert mock_get.call_args[0][0] == "https://host.example.com/manifest.json"
+        assert mock_get.call_args[0][1] == "/manifest.json"
 
     def test_oversized_manifest_rejected(self, client):
         """Hardening #7: a manifest over the byte cap → NO_PWA (no memory spike)."""
         import json as _json
 
         fake = MagicMock()
-        fake.__enter__ = MagicMock(return_value=fake)
-        fake.__exit__ = MagicMock(return_value=False)
-        fake.raise_for_status = MagicMock()
+        fake.status = 200
         # two chunks that together exceed the 256 KiB cap
         big = _json.dumps({"name": "x", "pad": "a" * (140 * 1024)}).encode()
-        fake.iter_content = MagicMock(return_value=iter([big, big]))
-        with patch("app.endpoints.system.requests.get", return_value=fake):
+        fake.read.return_value = big + big
+        with patch.object(self.pool, "urlopen", return_value=fake):
             resp = client.get("/pwa_listing", params={"url": "https://host/docs/notes/"})
         assert resp.status_code == 401  # NO_PWA
 
     def test_no_manifest_returns_no_pwa(self, client):
-        import requests as req
+        import urllib3
 
-        with patch(
-            "app.endpoints.system.requests.get",
-            side_effect=req.exceptions.RequestException("down"),
+        with patch.object(
+            self.pool,
+            "urlopen",
+            side_effect=urllib3.exceptions.HTTPError("down"),
         ):
             resp = client.get("/pwa_listing", params={"url": "https://host/docs/notes/"})
         assert resp.status_code == 401  # NO_PWA — the store falls back to the registered name
@@ -1918,11 +2081,9 @@ class TestPwaListing:
         fallback answers with HTML + 200 — json.loads used to 500 on it.
         """
         fake = MagicMock()
-        fake.__enter__ = MagicMock(return_value=fake)
-        fake.__exit__ = MagicMock(return_value=False)
-        fake.raise_for_status = MagicMock()
-        fake.iter_content = MagicMock(return_value=iter([b"<!DOCTYPE html><html></html>"]))
-        with patch("app.endpoints.system.requests.get", return_value=fake):
+        fake.status = 200
+        fake.read.return_value = b"<!DOCTYPE html><html></html>"
+        with patch.object(self.pool, "urlopen", return_value=fake):
             resp = client.get("/pwa_listing", params={"url": "https://host/docs/media/index.html"})
         assert resp.status_code == 401  # NO_PWA — never a 500
 
@@ -2272,7 +2433,7 @@ class TestDiscoverBoardAnonRead:
 
     def test_board_anon_readable(self, client):
         """No token → reads as anon → the discover group's docs come back."""
-        mock_docs = [("doc-1", "alice", '{"text":"hello"}', [], datetime(2026, 1, 1), "", "none", "")]
+        mock_docs = [("doc-1", "alice", '{"text":"hello"}', [], datetime(2026, 1, 1), "", "none", "", "alice")]
         with (
             patch("app.v3.services.clickhouse.client") as mock_ch,
             patch("app.v3.services.clickhouse.readable_groups", side_effect=lambda p, s, a, c: c),
@@ -2397,7 +2558,7 @@ class TestPowerMeanRead:
     def test_sort_path_runs_single_ranked_query(self):
         # A sort read is ONE query (board base + engagement joins + SQL score +
         # SQL paging) — not the v0 three-query fetch-count-sort.
-        posts = [("doc-1", "bob", '{"text":"x"}', [], datetime(2026, 1, 1), "", "none", "")]
+        posts = [("doc-1", "bob", '{"text":"x"}', [], datetime(2026, 1, 1), "", "none", "", "bob")]
         ctx, mock_ch = self._capture_query(posts)
         with ctx:
             read_documents_in_groups(
@@ -2414,12 +2575,14 @@ class TestPowerMeanRead:
         assert "collection_name = 'reactions'" in sql
         assert "collection_name = 'comments'" in sql
         assert "ORDER BY" in sql and "LIMIT %(limit)s OFFSET %(offset)s" in sql
-        # The outer SELECT must project ALL eight board-base columns — the row
-        # parser reads row[0]..row[7] (ad_mode/ad_target included). Projecting
-        # fewer (the old 6-column bug) makes real ClickHouse rows shorter than
-        # the parser expects → IndexError: tuple index out of range (the mock
-        # returns 8-column rows, so it only bites against a live node).
-        assert "SELECT b.doc_id, b.author_key, b.body, b.tags, b.created_at, b.ref_value, b.ad_mode, b.ad_target" in sql
+        # The outer SELECT must project ALL nine board-base columns — the row
+        # parser reads row[0]..row[8] (ad_mode/ad_target/posted_by included).
+        # Projecting fewer makes real ClickHouse rows shorter than the parser
+        # expects → IndexError: tuple index out of range.
+        assert (
+            "SELECT b.doc_id, b.author_key, b.body, b.tags, b.created_at, b.ref_value, b.ad_mode, b.ad_target, b.posted_by"
+            in sql
+        )
         # The sort config rides as params (never interpolated into the SQL).
         assert params["wr"] == 0.0 and params["wl"] == 1.0 and params["wc"] == 0.0
         assert params["hl"] == 0 and params["p"] == 0.0
@@ -2429,7 +2592,7 @@ class TestPowerMeanRead:
     def test_sort_path_maps_rows_and_hides_score(self):
         # Rows come back mapped (body parsed, service added) with no internal
         # _score leaking into the response.
-        posts = [("doc-1", "bob", '{"text":"x"}', ["t1"], datetime(2026, 1, 1), "ref-9", "none", "")]
+        posts = [("doc-1", "bob", '{"text":"x"}', ["t1"], datetime(2026, 1, 1), "ref-9", "none", "", "bob")]
         ctx, _ = self._capture_query(posts)
         with ctx:
             docs = read_documents_in_groups(
@@ -2449,6 +2612,7 @@ class TestPowerMeanRead:
                 "ref_value": "ref-9",
                 "ad_mode": "none",
                 "ad_target": "",
+                "posted_by": "bob",
                 "service": "posts",
             }
         ]
@@ -2474,8 +2638,8 @@ class TestPowerMeanRead:
         # Without a sort config, the read is the no-sort board query (newest
         # first) — unchanged behavior, and no engagement joins.
         posts = [
-            ("doc-new", "bob", '{"text":"new"}', [], datetime(2026, 1, 1), "", "none", ""),
-            ("doc-old", "alice", '{"text":"old"}', [], datetime(2025, 1, 1), "", "none", ""),
+            ("doc-new", "bob", '{"text":"new"}', [], datetime(2026, 1, 1), "", "none", "", "bob"),
+            ("doc-old", "alice", '{"text":"old"}', [], datetime(2025, 1, 1), "", "none", "", "alice"),
         ]
         ctx, mock_ch = self._capture_query(posts)
         with ctx:

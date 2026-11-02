@@ -67,6 +67,28 @@ async function authGet(url, params) {
   return res.json();
 }
 
+// src/popup.ts
+var authPopup = null;
+var expectedOrigin = null;
+function trackAuthPopup(popup, url) {
+  authPopup = popup;
+  expectedOrigin = null;
+  try {
+    if (popup)
+      expectedOrigin = new URL(url, window.location?.href).origin;
+  } catch {}
+}
+function isPopupMessage(event, source, url) {
+  if (!source || !url)
+    return false;
+  try {
+    const origin = new URL(url, window.location?.href).origin;
+    return origin !== "null" && event.source === source && event.origin === origin;
+  } catch {
+    return false;
+  }
+}
+
 // src/token.ts
 function cookieDict() {
   if (typeof document === "undefined")
@@ -77,16 +99,20 @@ function cookieDict() {
       return res;
     const key = c.substring(0, eq).trim();
     const val = c.substring(eq + 1).trim();
+    let value;
     try {
-      res[key] = JSON.parse(decodeURIComponent(val));
+      value = JSON.parse(decodeURIComponent(val));
     } catch {
-      res[key] = decodeURIComponent(val);
+      value = decodeURIComponent(val);
     }
+    Object.defineProperty(res, key, { value, enumerable: true, writable: true, configurable: true });
     return res;
   }, {});
 }
 function readTokenCookie() {
   const cookies = cookieDict();
+  if (!Object.hasOwn(cookies, "token"))
+    return null;
   const raw = cookies["token"];
   if (!raw)
     return null;
@@ -252,6 +278,157 @@ function createV3Client(options = {}) {
       }).catch(() => {});
     } catch {}
   }
+  let lastClientId = null;
+  function currentClientId() {
+    const payload = state.token ? decodeJwt(state.token) : null;
+    const cid = payload?.client_id ?? null;
+    if (cid)
+      lastClientId = cid;
+    return cid;
+  }
+  function readRefreshTokenCookie() {
+    const raw = cookieDict()["refresh_token"];
+    return typeof raw === "string" && raw ? raw : null;
+  }
+  function setRefreshTokenCookie(token) {
+    if (typeof document === "undefined")
+      return;
+    if (!token) {
+      document.cookie = "refresh_token=;max-age=-1;path=/;";
+      return;
+    }
+    const age = 3600 * 24 * 60;
+    const secure = typeof location !== "undefined" && location.protocol === "https:" ? "Secure;" : "";
+    document.cookie = `refresh_token=${encodeURIComponent(token)};${secure}path=/;max-age=${age};SameSite=Lax;`;
+  }
+  const oauthState = { refresh_token: readRefreshTokenCookie() };
+  async function oauthTokenRequest(body) {
+    const res = await authPost(`${apiOrigin}/v3/oauth/token`, body);
+    this.setToken(res.access_token);
+    currentClientId();
+    oauthState.refresh_token = res.refresh_token || null;
+    setRefreshTokenCookie(res.refresh_token || null);
+    return res;
+  }
+  const oauth = {
+    authorize(options2) {
+      const clientId = options2.clientId.trim().toLowerCase();
+      if (!clientId)
+        throw new Web10Error("oauth: clientId is required", 400);
+      if (!options2.redirectUri)
+        throw new Web10Error("oauth: redirectUri is required", 400);
+      const params = new URLSearchParams({
+        oauth: "1",
+        client_id: clientId,
+        redirect_uri: options2.redirectUri,
+        response_type: "code"
+      });
+      if (options2.state != null)
+        params.set("state", options2.state);
+      const host = apiOrigin.replace(/^https?:\/\//, "").split("/")[0];
+      const authHost = host.replace(/^[^.]*\./, "auth.");
+      const protocol = typeof location !== "undefined" ? location.protocol : "https:";
+      const authOrigin = options2.authOrigin ?? `${protocol}//${authHost}`;
+      const url = `${authOrigin}/?${params.toString()}`;
+      const inBrowser = typeof window !== "undefined" && typeof window.open === "function";
+      if (!inBrowser || options2.openPopup === false) {
+        return Promise.resolve({ url });
+      }
+      return new Promise((resolve, reject) => {
+        const popup = window.open(url, "web10-oauth-consent", "width=480,height=720,scrollbars=yes");
+        if (!popup) {
+          reject(new Web10Error("Popup blocked — allow popups and try again", 400));
+          return;
+        }
+        let settled = false;
+        let poll = null;
+        const cleanup = () => {
+          if (poll)
+            clearInterval(poll);
+        };
+        const fail = (message) => {
+          if (settled)
+            return;
+          settled = true;
+          cleanup();
+          reject(new Web10Error(message, 400));
+        };
+        const succeed = (code, state2) => {
+          if (settled)
+            return;
+          settled = true;
+          cleanup();
+          resolve({ code, state: state2 });
+        };
+        poll = setInterval(() => {
+          let href = "";
+          try {
+            href = popup.location?.href ?? "";
+          } catch {
+            return;
+          }
+          if (!href)
+            return;
+          if (popup.closed) {
+            setTimeout(() => fail("Consent window closed"), 250);
+            return;
+          }
+          try {
+            const u = new URL(href);
+            const code = u.searchParams.get("code");
+            if (code) {
+              succeed(code, u.searchParams.get("state"));
+              return;
+            }
+            const error = u.searchParams.get("error");
+            if (error) {
+              fail(error === "access_denied" ? "Consent denied by the user" : `OAuth error: ${error}`);
+            }
+          } catch {}
+        }, 500);
+        setTimeout(() => fail("Consent timed out"), options2.timeoutMs ?? 60000);
+      });
+    },
+    exchangeCode(code, redirectUri, opts) {
+      if (!code)
+        throw new Web10Error("oauth: code is required", 400);
+      if (!opts?.clientSecret)
+        throw new Web10Error("oauth: clientSecret is required", 400);
+      const cid = lastClientId ?? currentClientId();
+      if (!cid)
+        throw new Web10Error("No delegated token in use — run authorize() + exchangeCode() first.", 401);
+      return oauthTokenRequest.call(client, {
+        grant_type: "authorization_code",
+        client_id: cid,
+        client_secret: opts.clientSecret,
+        code,
+        redirect_uri: redirectUri
+      });
+    },
+    refresh(opts) {
+      if (!opts?.clientSecret)
+        throw new Web10Error("oauth: clientSecret is required", 400);
+      const stored = oauthState.refresh_token ?? readRefreshTokenCookie();
+      if (!stored)
+        throw new Web10Error("No refresh token stored. Run authorize() + exchangeCode() first.", 401);
+      const cid = lastClientId ?? currentClientId();
+      if (!cid)
+        throw new Web10Error("No delegated token in use — run authorize() + exchangeCode() first.", 401);
+      return oauthTokenRequest.call(client, {
+        grant_type: "refresh_token",
+        client_id: cid,
+        client_secret: opts.clientSecret,
+        refresh_token: stored
+      });
+    },
+    getRefreshToken() {
+      return oauthState.refresh_token ?? readRefreshTokenCookie();
+    },
+    setRefreshToken(token) {
+      oauthState.refresh_token = token;
+      setRefreshTokenCookie(token);
+    }
+  };
   const client = {
     get state() {
       return { ...state };
@@ -276,6 +453,7 @@ function createV3Client(options = {}) {
     signOut() {
       this.scrubToken();
     },
+    oauth,
     async login(username, password, site) {
       const res = await authPost(`${apiOrigin}/v3/login`, { username, password, site: site ?? window?.location?.hostname ?? "web10" });
       this.setToken(res.token);
@@ -324,6 +502,8 @@ function createV3Client(options = {}) {
         payload.ad_preference = opts.ad_preference;
       if (opts?.ref_value)
         payload.ref_value = opts.ref_value;
+      if (opts?.author_as)
+        payload.author_as = opts.author_as;
       return v3Post("create", payload);
     },
     async read(collection, opts) {
@@ -680,14 +860,17 @@ function createV3Client(options = {}) {
           callback({ status: "error", errors: ["Not in a browser"] });
         return;
       }
+      trackAuthPopup(null, authOrigin);
       const popup = window.open(`${authOrigin}`, "web10-consent", "width=480,height=720,scrollbars=yes");
+      trackAuthPopup(popup, authOrigin);
       if (!popup) {
         if (callback)
           callback({ status: "error", errors: ["Popup blocked — allow popups and try again"] });
         return;
       }
+      let contractSent = false;
       const responseHandler = (e) => {
-        if (e.data?.type === "contract_response") {
+        if (e.data?.type === "contract_response" && contractSent && isPopupMessage(e, popup, authOrigin)) {
           window.removeEventListener("message", responseHandler);
           window.removeEventListener("message", readyHandler);
           clearTimeout(timeoutId);
@@ -696,10 +879,11 @@ function createV3Client(options = {}) {
       };
       window.addEventListener("message", responseHandler);
       const readyHandler = (e) => {
-        if (e.data?.type === "auth_ready") {
+        if (e.data?.type === "auth_ready" && isPopupMessage(e, popup, authOrigin)) {
           window.removeEventListener("message", readyHandler);
           try {
             popup.postMessage({ type: "contract", contracts }, authOrigin);
+            contractSent = true;
           } catch {
             window.removeEventListener("message", responseHandler);
             clearTimeout(timeoutId);
@@ -714,22 +898,29 @@ function createV3Client(options = {}) {
         callback?.({ status: "error", errors: ["Auth popup closed — request cancelled"] });
       }, 30000);
     },
-    contractOnReady(contracts, callback) {
+    contractOnReady(contracts, callback, authOrigin) {
       if (typeof window === "undefined" || !window.opener) {
         if (callback)
           callback({ status: "error", errors: ["No opener window — not in a popup"] });
         return;
       }
+      const opener = window.opener;
+      if (authOrigin)
+        trackAuthPopup(opener, authOrigin);
+      if (callback && !authOrigin) {
+        callback({ status: "error", errors: ["Trusted auth origin required for consent responses"] });
+        return;
+      }
       if (callback) {
         const handler = (e) => {
-          if (e.data?.type === "contract_response") {
+          if (e.data?.type === "contract_response" && isPopupMessage(e, opener, authOrigin)) {
             window.removeEventListener("message", handler);
             callback(e.data);
           }
         };
         window.addEventListener("message", handler);
       }
-      window.opener.postMessage({ type: "contract", contracts }, "*");
+      opener.postMessage({ type: "contract", contracts }, "*");
     }
   };
   pingAppRegister();

@@ -88,6 +88,14 @@ The consent entry point. The external app redirects the user's browser here.
 5. User denies → redirect: `redirect_uri?error=access_denied&state=<state>`.
 
 **Security:**
+- The implemented `POST /v3/oauth/authorize` JSON entry point certifies the source
+  body token before code minting, then reads verified claims. It requires the local
+  provider, a fresh signed non-anonymous identity and, for a delegated source, a
+  live source-client registry lookup. Missing/revoked sources receive 401 without
+  code persistence. Ordinary browser sessions and active delegated sources remain
+  accepted; the source and target client may differ. This is registry authority,
+  not source app-contract narrowing or a new scope/grant model. Real registry
+  visibility, race/schema guarantees and broader delegation policy remain separate.
 - `redirect_uri` must exactly match the registered URI (no prefix matching,
   no wildcards). Mismatch → 400.
 - The authorization code is bound to `(client_id, username, redirect_uri)` —

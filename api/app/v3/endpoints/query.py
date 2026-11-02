@@ -2,10 +2,13 @@ import logging
 import time
 from datetime import datetime
 from decimal import Decimal
+from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Request
+from sqlglot import ErrorLevel, exp, parse_one
 
 import app.exceptions as exceptions
+import app.settings as settings
 import app.v3.services.safe_query as sq
 from app.v3.endpoints.auth_helper import client_id_of, user_or_anon
 from app.v3.endpoints.documents import _mint_hls_manifest_urls
@@ -29,6 +32,29 @@ MAX_EXECUTION_TIME_S = 10
 _QUERY_WINDOW_S = 60
 _MAX_QUERIES_PER_WINDOW = 60
 _query_log: dict[str, list[float]] = {}
+
+
+def _query_shape(sql: str) -> dict:
+    """Diagnostic AST topology only; never serialize SQL or caller AST text."""
+    try:
+        # Parser fallback warnings must not echo SQL either. Errors are caught
+        # without logging their potentially content-bearing messages.
+        tree = parse_one(sql, read=sq.DIALECT, error_level=ErrorLevel.RAISE, error_message_context=0)
+        if not isinstance(tree, exp.Query):
+            return {"status": "unavailable"}
+        nodes, literals, indexes = [], [], {}
+        for index, node in enumerate(tree.walk()):
+            if index == 128:
+                return {"status": "truncated", "nodes": nodes, "literals": literals}
+            indexes[id(node)] = index
+            nodes.append((indexes.get(id(node.parent)), type(node).__name__))
+            if isinstance(node, exp.Literal):
+                literals.append((index, "string" if node.is_string else "number", len(node.this)))
+            elif isinstance(node, (exp.Boolean, exp.Null)):
+                literals.append((index, "boolean" if isinstance(node, exp.Boolean) else "null", None))
+        return {"status": "ok", "nodes": nodes, "literals": literals}
+    except Exception:
+        return {"status": "unavailable"}
 
 
 def _check_query_rate_limit(reader: str) -> None:
@@ -153,8 +179,10 @@ def run_query(request: Request, data: QueryRequest):
     with the same skip rule as the read path (no Origin header = same-origin
     / direct call = no contract check).
     """
+    t0 = time.perf_counter()
     reader = user_or_anon(data)
     authenticated = reader != "anon"
+    t_auth = time.perf_counter() - t0
 
     # Per-user rate limit (D65) — fail fast before any contract/group/query
     # work. Keyed on the verified user_key; anon is skipped.
@@ -164,6 +192,7 @@ def run_query(request: Request, data: QueryRequest):
     # grants readAll on. Origin→client_id re-keying (D92, O3): a delegated
     # token (client_id) is always gated on its client_id contract — even with
     # no Origin; a browser token keeps the Origin path (skipped when no Origin).
+    t1 = time.perf_counter()
     origin = request.headers.get("origin", "")
     delegated_client_id = client_id_of(data) if authenticated else None
     if authenticated and (delegated_client_id or origin):
@@ -171,23 +200,50 @@ def run_query(request: Request, data: QueryRequest):
         allowed = frozenset(svc for svc, ops in perms.items() if "readAll" in (ops or []))
     else:
         allowed = None  # unrestricted: any non-raw table name is a service
+    t_app_contract = time.perf_counter() - t1
 
     # Which services does the query touch? Parse + validate first — an unsafe
     # query is rejected before any group lookup happens.
+    t2 = time.perf_counter()
     try:
         needed = sq.query_services(data.sql, allowed, group_meta=bool(data.withGroupMeta))
     except sq.UnsafeQueryError as e:
         raise HTTPException(status_code=403, detail=str(e))
+    t_parse_validate = time.perf_counter() - t2
 
     # Candidate groups: explicit `groups`, or all the reader's groups (the
     # "me" semantics of the group read).
+    t3 = time.perf_counter()
     if data.groups:
         candidates = data.groups
     else:
         candidates = [g["group_id"] for g in ch.get_user_groups(reader)]
+    t_candidates = time.perf_counter() - t3
 
     # The D58 read gate, per service the query actually uses.
-    readable = {svc: ch.readable_groups(reader, svc, authenticated, candidates) for svc in needed}
+    #
+    # QUERY_EVAL_NO_POLICY (line A, the no-policy baseline): skip the readable
+    # resolution entirely — every candidate is treated as readable, so the
+    # boundary CTEs scope to the full candidate set (no per-group filtering).
+    # This is the credited ClickHouse baseline the causal overhead (B−A) is
+    # computed against. Test-mode only: it bypasses the I3 boundary, so it must
+    # never be enabled on a public node.
+    t4 = time.perf_counter()
+    if settings.QUERY_EVAL_NO_POLICY:
+        readable = {svc: list(candidates) for svc in needed}
+    else:
+        # QUERY_EVAL_READABLE_MODE selects the resolution algorithm: "per-group"
+        # (the current O(K) round-trip path) or "batched" (the O(1)-round-trip
+        # readable_groups_batched). Both have identical semantics; the
+        # experiment plots both against K to show the bottleneck + the fix.
+        # Referenced as ch.<name> (attribute lookup at call time) so the test
+        # patches on the clickhouse module apply to whichever is chosen.
+        if settings.QUERY_EVAL_READABLE_MODE == "batched":
+            _resolve = ch.readable_groups_batched
+        else:
+            _resolve = ch.readable_groups
+        readable = {svc: _resolve(reader, svc, authenticated, candidates) for svc in needed}
+    t_readable = time.perf_counter() - t4
 
     # QE-A: the group_meta readable set. When the caller opts in, the endpoint
     # computes the reader's readable groups for the metadata CTE (parallel to
@@ -198,6 +254,7 @@ def run_query(request: Request, data: QueryRequest):
     # service-agnostic). build_safe_query injects the CTE only if the query
     # actually references group_meta, so this is a no-op for queries that opt
     # in but don't join it.
+    t5 = time.perf_counter()
     group_meta = None
     if data.withGroupMeta:
         if readable:
@@ -206,6 +263,7 @@ def run_query(request: Request, data: QueryRequest):
             my_groups = {g["group_id"] for g in ch.get_user_groups(reader)}
             readable_meta = [g for g in candidates if g in my_groups]
         group_meta = (readable_meta, candidates)
+    t_group_meta = time.perf_counter() - t5
 
     # D42 (the read endpoint's rule, generalized): an explicit group request
     # that the reader's effective role grants read on NONE of (for every
@@ -213,45 +271,75 @@ def run_query(request: Request, data: QueryRequest):
     # not an empty result. The message is the stable contract the demos +
     # e2e key off (`/not a member/i`). The "me" path (no explicit groups) and
     # service-free queries (`SELECT 1`) are exempt: an empty result is valid
-    # there.
-    if data.groups and authenticated and needed and not any(readable.values()):
+    # there. Exempt under QUERY_EVAL_NO_POLICY too: the baseline (line A) runs
+    # unscoped by definition, so the membership 403 does not apply.
+    if not settings.QUERY_EVAL_NO_POLICY and data.groups and authenticated and needed and not any(readable.values()):
         raise HTTPException(
             status_code=403,
             detail="not a member of the requested group",
         )
 
+    t6 = time.perf_counter()
     try:
-        compiled = sq.build_safe_query(
-            data.sql,
-            readable,
-            member_key=reader,
-            allowed_services=allowed,
-            max_limit=MAX_ROWS,
-            group_meta=group_meta,
-        )
+        if settings.QUERY_EVAL_NO_POLICY:
+            # Line A: the no-policy baseline. Run the caller's SQL unscoped —
+            # no boundary CTEs, no readable-set filtering. This is the
+            # credited ClickHouse baseline (the engine + the SQL shape, with no
+            # access layer). Test-mode only; it bypasses the I3 boundary.
+            compiled = data.sql
+        else:
+            compiled = sq.build_safe_query(
+                data.sql,
+                readable,
+                member_key=reader,
+                allowed_services=allowed,
+                max_limit=MAX_ROWS,
+                group_meta=group_meta,
+            )
     except sq.UnsafeQueryError as e:
         raise HTTPException(status_code=403, detail=str(e))
+    t_compile = time.perf_counter() - t6
 
+    diagnostic_id = uuid4().hex
     log.info(
-        "[query] reader=%s services=%s group_meta=%s candidates=%d sql=%s compiled=%s",
-        reader,
-        sorted(needed),
+        "[query] id=%s services=%d group_meta=%s candidates=%d shape=%s compiled_shape=%s",
+        diagnostic_id,
+        len(needed),
         bool(data.withGroupMeta),
         len(candidates),
-        data.sql[:200],
-        compiled[:400],
+        _query_shape(data.sql),
+        _query_shape(compiled),
     )
 
-    try:
-        column_names, rows = ch.execute_query(compiled, settings={"max_execution_time": MAX_EXECUTION_TIME_S})
-    except ch.QueryExecutionError as e:
-        # The compiled query is structurally safe; a ClickHouse failure here
-        # is the caller's SQL (a column the boundary CTE doesn't expose, a
-        # bad function arg, ...).
-        log.warning("[query] execution failed reader=%s: %s", reader, e)
-        raise HTTPException(status_code=400, detail=f"query execution failed: {e}")
+    t7 = time.perf_counter()
+    if settings.QUERY_EVAL_STUB_EXECUTE:
+        # Line C: the stubbed scan. Return a fixed N-row synthetic result
+        # instead of running the compiled SQL — isolates the policy layer
+        # (auth→…→compile→serialize) from the columnar engine so the
+        # experiment measures "our part" with the scan held out. The rows are
+        # shape-only (a doc_id + a body) so the serialize/prepare phases still
+        # run over a realistic row count. Test-mode only; never on a public
+        # node (it returns synthetic data, not the reader's).
+        n = settings.QUERY_EVAL_STUB_ROWS
+        column_names = ["doc_id", "body"]
+        rows = [(f"stub-{i:06d}", '{"stub": true}') for i in range(n)]
+    else:
+        try:
+            column_names, rows = ch.execute_query(compiled, settings={"max_execution_time": MAX_EXECUTION_TIME_S})
+        except ch.QueryExecutionError as e:
+            # The compiled query is structurally safe; a ClickHouse failure here
+            # is the caller's SQL (a column the boundary CTE doesn't expose, a
+            # bad function arg, ...).
+            log.warning(
+                "[query] id=%s execution failed duration_ms=%.2f", diagnostic_id, (time.perf_counter() - t7) * 1000
+            )
+            raise HTTPException(status_code=400, detail=f"query execution failed: {e}")
+    t_execute = time.perf_counter() - t7
 
+    t8 = time.perf_counter()
+    duration_ms = (time.perf_counter() - t7) * 1000
     out = [_serialize_row(dict(zip(column_names, row))) for row in rows]
+    t_serialize = time.perf_counter() - t8
     # D86: a content query is a content view (the feed-as-query, D73) — log a
     # delivery impression per returned doc (the server-side, un-gameable floor).
     # The query engine can't reference content_events (a raw node table), so the
@@ -262,22 +350,47 @@ def run_query(request: Request, data: QueryRequest):
     if data.surface and data.content_service and reader != "anon" and out:
         doc_ids = [r["doc_id"] for r in out if isinstance(r, dict) and r.get("doc_id")]
         ch.log_content_deliveries(doc_ids, data.content_service, reader, data.surface)
-    # The result column names are the row→client contract: the prepare pass
-    # and the client duck-type on `body` / `author_key` / `ad_mode`. A mangled
-    # name (ClickHouse qualifies a result column `p.body` when another joined
-    # table in scope exposes a same-named column) fails SILENTLY downstream —
-    # empty feed, no error anywhere. Logging the names makes that class of
-    # bug visible at the source.
+    # Column aliases can contain caller input too; retain counts, not names.
     log.info(
-        "[query] reader=%s rows=%d columns=%s",
-        reader,
+        "[query] id=%s rows=%d columns=%d duration_ms=%.2f",
+        diagnostic_id,
         len(rows),
-        column_names,
+        len(column_names),
+        duration_ms,
     )
     # The prepare pass (D73): mint media + HLS + ads + face on the result rows
     # so the query returns render-ready rows in one round-trip (the feed-as-
     # query pattern). The boundary CTEs already gated the rows (I3); the mint
     # only touches docs in the result.
+    t9 = time.perf_counter()
     if data.prepare:
         out = _prepare_rows(out, reader, data.prepare, authenticated)
+    t_prepare = time.perf_counter() - t9
+
+    # Phase-level timing telemetry (the paper's evaluation data): where does
+    # the time go? auth (token verify), app_contract (the app-contract gate),
+    # parse_validate (AST parse + table walk), candidates (get_user_groups),
+    # readable (the D58 read gate — the access decision), group_meta (QE-A),
+    # compile (CTE injection + round-trip), execute (ClickHouse), serialize
+    # (row serialization), prepare (the D73 mint pass). Metadata only — no
+    # SQL, no content, no caller input (the security boundary in
+    # knowledge-base/web10-v3/security/logging.md).
+    total_ms = (time.perf_counter() - t0) * 1000
+    log.info(
+        "[query] id=%s timing_ms auth=%.2f app_contract=%.2f parse_validate=%.2f "
+        "candidates=%.2f readable=%.2f group_meta=%.2f compile=%.2f execute=%.2f "
+        "serialize=%.2f prepare=%.2f total=%.2f",
+        diagnostic_id,
+        t_auth * 1000,
+        t_app_contract * 1000,
+        t_parse_validate * 1000,
+        t_candidates * 1000,
+        t_readable * 1000,
+        t_group_meta * 1000,
+        t_compile * 1000,
+        t_execute * 1000,
+        t_serialize * 1000,
+        t_prepare * 1000,
+        total_ms,
+    )
     return {"rows": out, "count": len(out)}

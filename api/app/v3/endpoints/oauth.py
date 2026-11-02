@@ -1,3 +1,4 @@
+import logging
 import secrets
 import uuid
 from datetime import datetime, timedelta
@@ -8,7 +9,7 @@ from fastapi import APIRouter, HTTPException
 import app.exceptions as exceptions
 import app.settings as settings
 from app.models.auth import Token
-from app.services.auth import check_admin, decode_token
+from app.services.auth import certify, check_admin, decode_token
 from app.v3.models import (
     LookupOauthClient,
     OauthAuthorize,
@@ -20,6 +21,7 @@ from app.v3.models.common import TokenOnly
 from app.v3.services import clickhouse as ch
 
 router = APIRouter(tags=["oauth"])
+log = logging.getLogger(__name__)
 
 # Refresh-token lifetime: 60 days (matches the access-token lifetime — a
 # long-lived connection is a chain of 60-day rotations, not one token).
@@ -133,6 +135,10 @@ def oauth_authorize(data: OauthAuthorize):
     if data.redirect_uri not in client["redirect_uris"]:
         raise HTTPException(status_code=400, detail="redirect_uri_mismatch")
     # The user must be signed in (their session token).
+    # Signature/freshness alone do not establish live source-client authority.
+    log.info("[oauth] authorize source certification started")
+    certify(Token(token=data.token))
+    log.info("[oauth] authorize source certification accepted")
     decoded = decode_token(data.token, private_key=True)
     if not decoded.username or decoded.username == "anon":
         raise exceptions.TOKEN

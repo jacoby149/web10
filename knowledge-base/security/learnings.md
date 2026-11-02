@@ -35,6 +35,42 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-01: The only backup must not be a truncating write
+
+[L1-PKG-02 local repair](scans/2026-10/repair-pkg02-backup-publication.md)
+reproduces `0644` creation under umask `022` and existing-file/symlink writes on
+disposable storage. A post-write chmod is too late, and a prior existence check
+cannot prevent a competing destination. Stage privately with `mkstemp`, write/
+flush/fsync/close, then publish via atomic no-clobber hard link. Failed output
+must not destroy the previous backup or print raw exceptions. Full password
+hashes intentionally remain in the protected manifest; stdout is unchanged.
+45 focused/1,420 API tests plus four subtests and same-model review support local
+source repair only. Trusted ancestors/encryption/ACLs/target filesystem and
+deployment/diverse sign-off remain open, not repaired by mode bits. Initial
+8-fail/1-pass baseline includes absent flush/fsync/link operations, not eight
+demonstrated exploits.
+
+### 2026-11-01: A manifest proxy can follow an internal redirect
+
+The [local source repair](scans/2026-10/repair-a02-manifest.md) now checks
+approved registration/all public DNS answers and connects only to a validated
+numeric IP with canonical Host and verified TLS identity, never redirects.
+Four exploit failures become denied-green; 70 focused controls and 1,407 API
+tests plus four subtests pass. Validating DNS then connecting to the original
+hostname would leave rebinding open; direct pools also avoid ambient proxies.
+Fresh same-model review ran ephemeral actual-TLS success/mismatch/untrusted
+controls. Retained TLS/path coverage, registry/CI/deployment and diverse review
+remain open. Earlier proof below describes the vulnerable pin, not current code.
+
+[L1-A-02 follow-up](scans/2026-10/l1-manifest-destination-followup.md)
+replaces stub-only routing evidence with real Requests against disposable local
+HTTP fixtures: direct loopback and relative-redirect internal JSON are returned.
+No deployed access or real data tested. Restricting only the starting host would
+not address redirects; approved registration alone does not establish public
+connection authority. Eight controls include valid exact/over-cap JSON, because
+oversized invalid JSON cannot isolate the cap. Same-model review supports this
+bounded proof only. The local repair above does not close protocol L1.
+
 Seeded from the October 2026 audit
 ([`scans/2026-10/`](./scans/2026-10/README.md)). **Honesty note:** the hardening
 (PR 1157/1159) is **in flight, not merged** — so these are *learned* but not yet
@@ -125,6 +161,26 @@ in INFO logging with separate request/stub-compiled assertions, not SQL injectio
 or demonstrated credential theft. Actual compiler preservation, log access and
 retention remain unverified. F's unchecked helper boundaries remain L2 debt.
 
+### 2026-10-27: agreed SQL diagnostic repair direction
+
+Operator direction, 27.10.2026, for L1-G-01: retain useful parser-derived query
+shape and execution metadata, not automatic raw submitted/compiled SQL. Literals
+help reproduce bugs, but routine logs must not become a second store of user
+input. Comments and quoted identifiers can carry content too; masking literals
+alone is insufficient. Exact-value debugging uses synthetic input or a deliberate
+controlled operator session, not blanket raw-query retention. See the
+[repair strategy and acceptance gates](../web10-v3/security/logging.md#query-diagnostics-strategy).
+The [local repair](scans/2026-10/repair-g01-query-logging.md) now implements the
+agreed direction. Review also caught raw rejected-command fallback warnings in
+sqlglot: parser-derived diagnostics are not safe if the parser itself echoes
+input first. Fixed warnings cover all validation/compiler parses; explicit
+ClickHouse dialect configuration preserves null ordering and client error text.
+Original LogRecord fields, aliases/error echoes and normalization-failure paths
+are pinned alongside actual compiler/HTTP controls. Fresh same-model review and
+1,216 API passes do not close rollout or required diverse sign-off. Dated risks
+cover reduced diagnostic detail, external log consumers and the private parser
+hook; query execution/permissions and client responses are unchanged.
+
 ### 2026-10-18: import traces and compiler L1 receipts
 
 L1-J-01 reproduces cross-job log attribution using two synchronized synthetic
@@ -134,6 +190,17 @@ A and B traces. Concurrency/overlap is a precondition; production concurrency,
 cross-owner endpoint disclosure and historical exposure remain untested. The
 old worker PASS is withdrawn: an owner gate on reads cannot isolate already
 misattributed stored events. Preserve detailed per-job diagnostics in a fix.
+
+27.10.2026 [local repair](scans/2026-10/repair-j01-import-traces.md): bind trace
+capture to a unique execution-context handler and explicitly propagate a fresh
+copy into each thumbnail task. Reject foreign records before acquiring handler
+locks, not just inside emit: review reproduced a concurrent insert-failure lock
+cycle in that first candidate. Its isolated red/green regression now pins liveness;
+temporarily suppress capture during event writing to avoid recursive inserts.
+Nested scopes restore/detach, owned diagnostics/tracebacks and import semantics
+remain. Nine new controls and 1,225 API passes support the bounded local repair,
+not real-service/rollout/history/diverse-sign-off closure. Dated acceptance and
+reopen conditions cover new child execution paths and handler changes.
 
 K's parser still reads the whole remaining stream; that contradicts flat-RAM
 durability prose but is reliability debt, not an added C+I finding. L's compiler
@@ -296,7 +363,237 @@ proven. Revisit on source, toolchain, producer/copy changes or integration failu
 release/deployment evidence and required security sign-off remain open.
 CI's floating Bun 1.4.3 reproduced hash drift; SDK metadata/CI now pin producer 1.3.14. Compiler upgrades must deliberately rebuild artifacts, not weaken equality.
 
+### 2026-10-21: SDK-B-01 own-property repair (local, not deployed)
+
+Alignment #1248 is merged. [Cookie repair](scans/2026-10/repair-sdk-b01-cookie.md)
+uses data-property definitions to prevent inherited setters and an own-token check
+to reject ambient inherited credentials. Keep ordinary objects, existing parsing,
+SSR and own-token coercion; a null-prototype/API change is unnecessary. Source and
+five generated runtimes deny the synthetic exploit; actual cookie planting and
+server authority remain unproven. Source repair merged #1255 (3.244.1); no deployment or security PASS.
+
+Intent-risk acceptance, 21.10.2026: real browser/PWA restoration, supported-engine
+integration and deployed/cached versions remain untested. Accepted for bounded local
+repair because public signatures/own-token behavior and generated correspondence
+are pinned; not acceptance of a deployment guarantee. Reopen on cookie-helper,
+toolchain or browser/session changes/failures; rollout and model-diverse sign-off owed.
+
+### 2026-10-27: B-8 fixed-output settings diagnostic (local)
+
+[B-8 repair](scans/2026-10/repair-b8-settings.md) replaces the globals dump with
+a fixed load-completion message. Script/module canary regressions are red before,
+green after; normal imports/overrides/derived config unchanged. B-2 defaults,
+issuer trust, environment type erasure and historical exposure remain OPEN.
+This independently safe hygiene slice does not discharge higher-impact debt.
+
+Accepted intent risk, 27.10.2026: external tooling parsing the old dump may break;
+retaining credential-bearing output is unsafe and documented admin configuration
+is unchanged. No repository invocation found by fresh review; external/deployed
+consumers unverified. Reopen on an operational dependency with a separately
+specified safe diagnostic, not a globals-dump restoration. Source repair local,
+deployment/log retention/rotation and model-diverse sign-off still owed.
+
+### 2026-10-27: Current L1 read pass and claim calibration
+
+[Current ledger](scans/2026-10/l1-current-index.md) accounts for all selected
+protocol paths, including post-scan OAuth and packaging/artifacts/deploy edges.
+Signature verification again accepted expired custom claims at OAuth authorize
+(D-01 root); fake storage limits issuance claims. A forced two-active-snapshot
+code replay proves missing local atomic consumption, not real ClickHouse issuance.
+Schema/version-column and delegated bulk-tombstone/key defects need real store
+evidence. Operator URI userinfo reaches successful audit/export outputs; protected
+account backup contents are intentional, redundant connection credentials are not.
+
+Fresh same-model review corrected two overclaims: refresh invalidation alone is
+availability/order, not demonstrated C+I; a documented exemption's deliberate skip
+is not an accidental security bypass. Backup mode risk remains conditional absent
+filesystem evidence. Exact copy hashes and lock syntax are not provenance or
+external-code assurance. Keep read completion, finding repair, deployment and
+model-diverse sign-off separate; pending receipts do not pass the L1 gate.
+
+### 2026-10-27: O10 drift rescan
+
+[O10 review](scans/2026-10/l1-o10-review.md) at `1332abc67` verifies new source/
+artifact correspondence without assuming helper safety. Wrong-path/concurrent
+popup acceptance is conditional callback-integrity debt; state is explicitly
+caller-managed, not a mandatory new policy. Refresh material/client cache survives
+signout; a denied-server control leaves access null, so real authority after logout
+is unproved. First-use code exchange requires a prior delegated token: confirmed
+correctness/design blocker, not a security exploit. Inherited refresh selection
+needs separate ambient pollution; repaired cookie parsing did not regress.
+Selected accounting is now 171 paths/31,537 lines, security gate still OPEN.
+
+### 2026-10-27: Mongo connection metadata is not account backup data
+
+[L1-PKG-01 local repair](scans/2026-10/repair-pkg01-mongo-output.md) omits the
+entire URI from audit output and account manifest metadata. Userinfo is not the
+only secret carrier: query options can contain credentials too. Twelve real-CLI
+synthetic output cases fail before and pass after; account hashes, rows and
+checksum behavior are preserved. The connection input is still forwarded intact.
+Host identification and external output-parser compatibility are intentionally
+not preserved; the dated repair records this bounded acceptance and reopen bar.
+Source is local, not merged/deployed; file permissions, defaults, driver errors,
+process arguments, history/rotation and required model-diverse review remain open.
+
+### 2026-10-27: Frozen failures must not trigger unrestricted resolution
+
+[L1-DEPLOY-01 local repair](scans/2026-10/repair-deploy01-frozen-installs.md)
+removes three `frozen || unrestricted` installs. Executing the actual Docker RUN
+commands with an inert Bun proves a locked failure now fails, rather than
+continuing to a second install. Dockerfile paths also trigger the regression CI:
+an exploit test that only runs when its own file changes is not a lasting gate.
+Native frozen installs/builds with unchanged locks support local-package
+compatibility, not Linux-image or dependency-authenticity assurance. Required
+container CI and diverse review remain open; a failed build must be repaired via
+approved inputs/toolchains, not an unrestricted fallback.
+PR verification caught a second coverage gap: social E2E builds a dev Dockerfile,
+not its production image. The latter now has its own Linux Docker matrix entry,
+with source/workflow triggers and a red/green control. Eight controls/1,233 API
+passes do not substitute for the new revision's actual production-image checks.
+
+### 2026-10-27: A verified signature is not freshness
+
+[D-01/D-02 local repair](scans/2026-10/repair-d01-token-freshness.md) enforces
+custom ISO expiry at verified decoding, covering direct OAuth/account callers
+as well as principal helpers and the session oracle. Missing/malformed user
+expiry is invalid, equality is expired, naive timestamps mean UTC and offsets
+are absolute instants. Anonymous exemption/unsigned metadata/standard-exp checks
+stay distinct. Initial 48 failures turn green; 92 controls and 1,325 API passes
+support local repair, not issuer/rollout/diverse sign-off. Dated acceptance covers
+reauth for incompatible legacy tokens and no skew grace; reopen on supported
+issuer-format, clock or browser-recovery failures without restoring fail-open.
+
+### 2026-10-28: Sender trust is distinct from consent permission
+
+[S-1 local repair](scans/2026-10/repair-s1-auth-sender.md) binds the current
+credential window and configured origin, covering both SDK popup openers without
+rewiring fallback lifecycle. Keep contractOnReady metadata; opener tokens require
+explicit trusted-origin configuration. Consent-only windows do not replace login
+trust; throws/blocked replacements clear it. User-granted operations may avoid
+repeat consent, but never authentication checks. 246 SDK passes and same-model
+review do not close real-browser, migration, delivery or diverse-sign-off gates.
+
+### 2026-10-28: Consent sender checks do not prove request attribution
+
+[Consent sender slice](scans/2026-10/repair-consent-senders.md) denies unrelated
+readiness/replies across reused, standalone and configured legacy windows.
+Modern replies require send completion; legacy callbacks require explicit origin
+and fail immediately without it, while no-callback metadata remains. 265 SDK
+passes/typecheck/parity support that slice. Independent replay still shows one
+matching response settling two pending requests on the same window: correlation
+is local L1 debt, not repaired or deferred by sender binding. Keep A-01/F-01 OPEN.
+
+### 2026-10-28: Reply correlation starts before filtering or async application
+
+[Local UI foundation](scans/2026-10/consent-ui-ownership-foundation.md) preserves
+original row/batch identity and captures actual requester/origin. Replies echo
+indices only for valid indexed envelopes; IDs grant no authority and never enter
+API bodies. Duplicate/alias/stale outcomes must not remove newer work; even old
+status timers need batch ownership. 13 real-hook controls/195 UI passes support
+this preparation only. Legacy wire/retry remains, and SDK stays unversioned until
+no-op/cancellation/account/full-batch and browser integration gates are met.
+
+### 2026-10-28: Consent terminal paths must preserve the popup transaction
+
+The local lifecycle candidate covers empty/no-op, skip, logout/account change,
+replacement, approve-all failure and delayed handoff. Preserve the exact
+requested-permission inclusion predicate; grants apply only to the same confirmed
+principal and do not authenticate. The earlier candidate retained unstarted
+requests across logout; the post-merge repair below supersedes that behavior:
+explicit logout cancels them, while picker selection may retain untouched work.
+A different principal must not inherit grants. A completed app-login batch also must not let its delayed close timer
+terminate a subsequent lazy group-consent batch. Focused unit/browser evidence
+must pin both transitions. The unit suite passes locally; Docker was unavailable
+for local E2E, and the first two CI E2E attempts still failed these paths, so the
+browser confirmation remains OPEN. Strict SDK/artifact integration and diverse
+sign-off remain separate gates; no A-01/F-01 closure or L1 PASS.
+
+### 2026-10-28: Sol resumption distinguishes identity from live authority
+
+The [Sol API replay](scans/2026-10/sol-resumption-api.md) demonstrates two
+residuals, independently repeated by a fresh Sol context: missing-field validation
+can stringify the entire credential-bearing input into ERROR logs and a 422
+response (**L1-VAL-01**); OAuth authorize accepts a signed, fresh delegation that
+certify rejects for a missing/revoked source client (**L1-OAUTH-SOURCE-01**).
+Metadata-only middleware does not protect other log producers, and signature plus
+freshness is not live delegation authority. Response echo alone is not cross-user
+disclosure; inert registry/storage does not prove durable code issuance or contract
+escape. Both remain OPEN, assigned to S1/S3 respectively, not repaired by this scan.
+SDK sender checks still do not correlate concurrent requests. Same-model replay
+and local green controls do not replace deployment or different-family review.
+
 ## Known gaps (the "obvious gap" register)
+
+### 2026-10-29: Historical origin is not a current artifact producer
+
+[RTC-ICE source repair](scans/2026-10/repair-rtc-ice.md) uses nested
+`config.iceServers`, matching independently checked PeerJS 1.5.5 constructor and
+negotiator behavior. Nine baseline failures, final 19 RTC/284 SDK passes pin local
+consumed-option behavior and artifact parity. This is compatibility evidence,
+not real candidate gathering, relay use or security sign-off. Supplied servers
+now override dependency defaults intentionally; reopen on version/configuration
+or connected-demo failure. Network/image/rollout/diverse gates remain OPEN.
+
+[Local producer repair](scans/2026-10/repair-docs-rtc-producer.md) makes the docs
+RTC asset reproduce current source; 14 controls/279 SDK tests pass. Fresh review
+found source parity is not dependency compatibility: PeerJS consumes ICE through
+`options.config`, not the core's top-level `iceServers`. Keep effective ICE as a
+separate repair. Accept producer-only scope with real signaling/image checks open;
+reopen on helper stalls, browser failures or toolchain changes. No L1 closure.
+
+[Artifact follow-up](scans/2026-10/l1-artifact-provenance-followup.md) traces six
+legacy declarations/maps to source retired in #547. Non-clean builds retain them;
+unexported package paths do not rule out external static/direct-file consumers.
+Docs RTC is actively loaded by the messages demo but lacks a tracked current
+producer. Six inert-peer controls establish ICE/outbound-reply drift, not a
+network exploit. Repair its producer/parity separately; decide legacy retirement
+explicitly rather than deleting by inference. Integration/diverse sign-off OPEN.
+
+### 2026-10-28: A read belongs to both an identity and a request
+
+[Account-read ownership repair](scans/2026-10/repair-account-read-ownership.md)
+rejects old responses even after identical-token relogin; token equality alone
+does not establish lifecycle ownership. A session fence also cannot order two
+requests in the same session: use a per-surface latest-request sequence. Retained
+methods must capture ownership and sent credentials from the same current client,
+and signed-out branches must not clear a newly signed-in account's lists. Initial
+24 failing controls and reviewer replays pin local state misattribution, not API
+authority escalation. New reads hydrate the current account; connected browser
+and asynchronous mutations outside these five display reads remain unverified.
+
+### 2026-10-28: Explicit logout is not account selection
+
+[Post-merge consent repair](scans/2026-10/repair-consent-postmerge.md) separates
+terminal logout from choosing an account to review untouched requests. Cancelling
+consent must leave credential login alive without implicitly granting cancelled
+rows. A timer's token fence must read the current client, not an older render's
+snapshot; equality alone misses identical-token logout/relogin, so identity resets
+and newer handoffs invalidate its generation. Real-view and snapshot-client
+controls support local repair, not connected E2E or complete stale-read fencing.
+
+### 2026-10-28: OAuth code minting needs source certification
+
+[L1-OAUTH-SOURCE-01 local repair](scans/2026-10/repair-oauth-source01.md)
+uses existing certify before authorize's verified claims decode. A target-client
+lookup does not establish a source delegation's live registry authority. Missing/
+revoked source doubles and a between-request revocation replay now deny code
+writes; browser and distinct active-source delegation preserve binding/state.
+Certification also enforces local provider, not just signature/freshness. This
+does not implement source-contract narrowing or prove real tombstone visibility.
+Twelve new cases and 1,343 API tests plus four subtests pass; dated operational/
+compatibility tradeoff and same-model review recorded, rollout/diverse review OPEN.
+
+### 2026-10-28: Validation metadata must not serialize exceptions
+
+[L1-VAL-01 local repair](scans/2026-10/repair-val01-validation.md) replaces
+validation exception echoes with a fixed message, generated correlation ID and
+error count. Missing-field errors can copy the whole credential-bearing body;
+locations/messages/context are not safe merely because `input` is omitted.
+Three actual-route disclosure regressions fail before and pass after; malformed
+JSON, 401 and nonempty-result controls preserve bounded legitimate behavior.
+Loss of field-level diagnostics/message parsing is a dated accepted tradeoff in
+the receipt. Other exception handlers, deployment/history and diverse review
+remain OPEN; this does not pass protocol L1.
 
 Gaps the orient has surfaced. Each is either a `BP-n` or a standing note:
 

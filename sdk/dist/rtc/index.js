@@ -50,7 +50,7 @@ function createRTC(wapi) {
         port: secure ? 443 : 80,
         path: "/",
         token: `${wapi.state.token}~${label}`,
-        iceServers
+        config: { iceServers }
       });
       if (onInbound && peer) {
         onInboundRef = onInbound;

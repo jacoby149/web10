@@ -39,6 +39,7 @@ const DOC_SECTIONS: { title: string; pages: DocPage[] }[] = [
       { slug: 'sdk', title: 'SDK Guide', file: '/docs/sdk.md' },
       { slug: 'query-engine', title: 'Query Engine', file: '/docs/query-engine.md' },
       { slug: 'app-contracts', title: 'App Contracts', file: '/docs/app-contracts.md' },
+      { slug: 'interop', title: 'Interoperability', file: '/docs/interop.md' },
       { slug: 'media', title: 'Media', file: '/docs/media.md' },
       { slug: 'scaffolding', title: 'Scaffolding', file: '/docs/scaffolding.md' },
       { slug: 'cli-quickstart', title: 'CLI Quickstart', file: '/docs/cli-quickstart.md' },
@@ -155,6 +156,8 @@ const DEMO_APPS = [
   { slug: 'media', title: 'Media (HLS)', url: '/docs/media/' },
   { slug: 'feed', title: 'Feed', url: '/docs/feed/' },
   { slug: 'sharing', title: 'Sharing', url: '/docs/sharing/' },
+  { slug: 'snake', title: 'Snake (interoperability)', url: '/docs/snake/' },
+  { slug: 'marketplace', title: 'Marketplace (interoperability)', url: '/docs/marketplace/' },
 ]
 
 function DocsSidebar() {

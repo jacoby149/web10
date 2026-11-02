@@ -60,7 +60,9 @@ interface PeerJSOptions {
     port: number;
     path: string;
     token: string;
-    iceServers?: RTCIceServer[];
+    config?: {
+        iceServers?: RTCIceServer[];
+    };
 }
 interface PeerConnection {
     peer: string;

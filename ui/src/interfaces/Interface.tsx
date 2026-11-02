@@ -203,6 +203,19 @@ function useInterface() {
     // ACR: { allowed_origin, permissions } — app contract (what can this app do)
     // GCR: { app_origin, action, params } — group contract (who can see my content)
     [I.pendingContracts, I.setPendingContracts] = React.useState<any[]>([]);
+    const consentBatch = React.useRef<any>(null);
+    const currentInterface = React.useRef(I);
+    currentInterface.current = I;
+    const principal = () => {
+        const who = currentInterface.current.v3?.readToken?.();
+        return JSON.stringify([who?.provider, who?.username || who?.sub]);
+    };
+    const grantsPrincipal = React.useRef<string | null>(null);
+    const confirmedPrincipal = React.useRef<string | null>(principal());
+    const handoffGeneration = React.useRef(0);
+    const accountReadGeneration = React.useRef(0);
+    const accountReadSequences = React.useRef<Record<string, number>>({});
+    const seenRequests = React.useRef(new WeakMap<Window, Set<string>>());
     // D42: has this popup received a contract yet? React state, NOT a plain
     // property — `I` is recreated every render, and the contract listener
     // (attached once, capturing the first render's `I`) would set the flag on
@@ -227,6 +240,11 @@ function useInterface() {
 
     // v3 service contracts (ClickHouse-backed — simpler model: origin + service)
     [I.v3Contracts, I.setV3Contracts] = React.useState<any[]>([]);
+    const storeContracts = I.setV3Contracts;
+    I.setV3Contracts = (contracts: any[]) => {
+        grantsPrincipal.current = principal();
+        storeContracts(contracts);
+    };
     // v3 groups the user belongs to
     [I.v3Groups, I.setV3Groups] = React.useState<any[]>([]);
     // v3 groups the user manages (has management permissions)
@@ -264,6 +282,7 @@ function useInterface() {
             return;
         }
         console.log('[auth-ui] switchAccount — adopting vaulted token for', username);
+        resetConsentIdentity();
         I.v3.setToken(token);
         I.setAuth(true);
         I.setUserConfirmed(true);
@@ -281,8 +300,12 @@ function useInterface() {
     // contractListen delivers { contracts } where each CR is either:
     //   V3AppCR: { kind: 'app', app_origin, permissions }
     //   V3GroupCR: { kind: 'group', app_origin, action, name?, join_policy?, roles?, members?, group_id? }
-    function normalizeContracts(cData: any, windowSource?: MessageEventSource | null) {
+    function normalizeContracts(cData: any, windowSource: MessageEventSource | null, origin: string, batch: object, requestId?: string) {
         const contracts: any[] = [];
+        const owned = () => contracts.map((contract, index) => ({
+            ...contract, _windowSource: windowSource,
+            _consent: { batch, index, count: contracts.length, requestId, origin, started: false, settled: false },
+        }));
         // Handle unified CR format: { contracts: [...] }
         if (Array.isArray(cData?.contracts)) {
             for (const cr of cData.contracts) {
@@ -327,7 +350,7 @@ function useInterface() {
                 }
                 contracts.push(entry);
             }
-            return contracts;
+            return owned();
         }
         // Fallback: legacy SMR { sirs, scrs } format (app contract only)
         const allRequests = [
@@ -352,7 +375,7 @@ function useInterface() {
                 });
             }
         }
-        return contracts;
+        return owned();
     }
 
     // v3 contract listening — direct postMessage, no wapiAuth wrapper
@@ -377,10 +400,31 @@ function useInterface() {
             if (!e.origin) return;
             console.log('[auth-ui] message event — type:', e.data?.type, 'origin:', e.origin)
             if (e.data?.type === 'acr' || e.data?.type === 'contract') {
+                const indexed = Object.prototype.hasOwnProperty.call(e.data, 'requestId');
+                const requestId = indexed ? e.data.requestId : undefined;
+                if (indexed) {
+                    if (typeof requestId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(requestId) ||
+                        !Array.isArray(e.data.contracts) ||
+                        [...e.data.contracts].some(c => !c || typeof c !== 'object' || Array.isArray(c)) ||
+                        !isPostableWindow(e.source) || e.origin === 'null') {
+                        console.warn('[auth-ui] invalid indexed consent envelope; ignored');
+                        return;
+                    }
+                    const seen = seenRequests.current.get(e.source) || new Set<string>();
+                    const key = JSON.stringify([e.origin, requestId]);
+                    if (seen.has(key)) { console.log('[auth-ui] duplicate consent request; ignored'); return; }
+                    seen.add(key);
+                    seenRequests.current.set(e.source, seen);
+                }
                 console.log('[auth-ui] contract message received — raw data:', JSON.stringify(e.data))
-                const normalized = normalizeContracts(e.data, e.source);
+                cancelConsent('Request replaced');
+                const batch = { rows: [] as any[], source: e.source, origin: e.origin, requestId, emptySettled: false };
+                const normalized = normalizeContracts(e.data, e.source, e.origin, batch, requestId);
+                batch.rows = normalized;
+                consentBatch.current = batch;
                 console.log('[auth-ui] normalized contracts:', toLogString(normalized))
                 I.setPendingContracts(normalized);
+                I.setStatus(null);
                 // D42: a contract was sent to this popup. The auto-complete
                 // (zero-UI token + close) only fires once a contract has been
                 // received AND needs no approval — never before the contract
@@ -425,24 +469,60 @@ function useInterface() {
     const _servicesLoadTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
     const _checkAdminTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    function ownAccountRead(kind: string) {
+        const generation = accountReadGeneration.current;
+        const sequence = (accountReadSequences.current[kind] || 0) + 1;
+        accountReadSequences.current[kind] = sequence;
+        const account = principal();
+        const token = currentInterface.current.v3.state?.token;
+        return () => {
+            const current = currentInterface.current;
+            const owned = !!(current.auth && token && generation === accountReadGeneration.current &&
+                sequence === accountReadSequences.current[kind] &&
+                account === principal() && current.v3.state?.token === token);
+            if (!owned) console.log('[auth-ui] ignoring stale account read');
+            return owned;
+        };
+    }
+
+    function resetAccountReads() {
+        accountReadGeneration.current++;
+        if (_servicesLoadTimer.current) clearTimeout(_servicesLoadTimer.current);
+        if (_checkAdminTimer.current) clearTimeout(_checkAdminTimer.current);
+        _servicesLoadTimer.current = _checkAdminTimer.current = null;
+        I.setIsAdmin(false);
+        I.setPhone('');
+        I.setVerified(false);
+        I.setV3Groups([]);
+        I.setV3ManagedGroups([]);
+        I.setV3Contracts([]);
+        console.log('[auth-ui] reset account reads and display state');
+    }
+
     I.servicesLoad = function () {
-        if (!I.auth) {
+        if (!currentInterface.current.auth) {
             I.setServices([]);
             return;
         }
         if (_servicesLoadTimer.current) clearTimeout(_servicesLoadTimer.current);
+        const owns = ownAccountRead('profile');
         _servicesLoadTimer.current = setTimeout(() => {
             _servicesLoadTimer.current = null;
-            I.v3ContractsLoad();
-            I.v3GroupsLoad();
-            I.v3GroupsManagesLoad();
+            if (!owns()) return;
+            const current = currentInterface.current;
+            current.v3ContractsLoad();
+            current.v3GroupsLoad();
+            current.v3GroupsManagesLoad();
 
-            I.v3.getProfile()
+            console.log('[auth-ui] profile read started');
+            current.v3.getProfile()
                 .then((profile: any) => {
+                    if (!owns()) return;
                     I.setPhone(profile?.phone || "");
-                    if (profile?.phone_verified) I.setVerified(true);
+                    I.setVerified(!!profile?.phone_verified);
+                    console.log('[auth-ui] profile read applied');
                 })
-                .catch(console.error);
+                .catch(() => { if (owns()) console.warn('[auth-ui] profile read failed'); });
         }, 50);
     }
 
@@ -496,35 +576,45 @@ function useInterface() {
     // POST /am_admin is the purpose-built check (returns {admin: bool},
     // never errors) — not /v3/apps/admin, which is the app-store admin list.
     I.checkAdmin = function () {
-        const decoded = I.v3.readToken?.();
+        const current = currentInterface.current;
+        const decoded = current.v3.readToken?.();
         if (!decoded) {
             I.setIsAdmin(false);
             return;
         }
         const origin = v3ApiOrigin(decoded);
-        const token = I.v3.state?.token ?? I.v3.readToken?.();
+        const token = current.v3.state?.token ?? current.v3.readToken?.();
         if (!token) {
             I.setIsAdmin(false);
             return;
         }
         // Debounce: re-triggered on load/login; collapse into one call.
         if (_checkAdminTimer.current) clearTimeout(_checkAdminTimer.current);
+        const owns = ownAccountRead('admin');
         _checkAdminTimer.current = setTimeout(() => {
             _checkAdminTimer.current = null;
+            if (!owns()) return;
+            console.log('[auth-ui] admin read started');
             fetch(`${origin}/am_admin`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ token }),
             })
-                .then((r) => {
-                    if (r.ok) return r.json().then((d) => I.setIsAdmin(!!d?.admin));
-                    I.setIsAdmin(false);
+                .then(async (r) => {
+                    const data = r.ok ? await r.json() : null;
+                    if (!owns()) return;
+                    I.setIsAdmin(!!data?.admin);
+                    console.log('[auth-ui] admin read applied');
                 })
-                .catch(() => I.setIsAdmin(false));
+                .catch(() => { if (owns()) I.setIsAdmin(false); });
         }, 50);
     }
 
     I.finishLogin = function () {
+        const account = principal();
+        const sameAccount = confirmedPrincipal.current === account;
+        resetAccountReads();
+        confirmedPrincipal.current = account;
         console.log('[auth-ui] finishLogin — setting auth=true, mode=contracts')
         I.setAuth(true);
         // The user just confirmed their identity (a login) — this is what lets
@@ -544,6 +634,7 @@ function useInterface() {
             }
         }
         I.checkAdmin();
+        if (sameAccount) I.v3ContractsLoad();
         I.servicesLoad();
         I.setStatus(null);
         I.setMode("contracts");
@@ -580,6 +671,10 @@ function useInterface() {
     }
 
     I.logout = function () {
+        confirmedPrincipal.current = principal();
+        // Explicit logout terminates consent, unlike choosing an account to review it.
+        cancelConsent('Logged out');
+        resetConsentIdentity();
         I.v3.signOut();
         I.setAuth(false);
         // A logout is not a confirmation — clear the flag so a stale session
@@ -666,15 +761,19 @@ function useInterface() {
 
     // Load app contracts from the ClickHouse-backed API.
     I.v3ContractsLoad = function () {
-        if (!I.auth) {
+        if (!currentInterface.current.auth) {
             I.setV3Contracts([]);
             return;
         }
+        const owns = ownAccountRead('contracts');
+        if (!owns()) return;
         v3Post('app-contracts/list', {})
             .then((contracts: any[]) => {
+                if (!owns()) return;
                 I.setV3Contracts(contracts || []);
             })
             .catch((e) => {
+                if (!owns()) return;
                 console.warn('v3 app-contracts/list failed:', e);
                 I.setV3Contracts([]);
             });
@@ -737,15 +836,19 @@ function useInterface() {
 
     // Load the groups the user belongs to (v3).
     I.v3GroupsLoad = function () {
-        if (!I.auth) {
+        if (!currentInterface.current.auth) {
             I.setV3Groups([]);
             return;
         }
+        const owns = ownAccountRead('groups');
+        if (!owns()) return;
         v3Post('groups/list', {})
             .then((groups: any[]) => {
+                if (!owns()) return;
                 I.setV3Groups(groups || []);
             })
             .catch((e) => {
+                if (!owns()) return;
                 console.warn('v3 groups/list failed:', e);
                 I.setV3Groups([]);
             });
@@ -753,15 +856,19 @@ function useInterface() {
 
     // Load groups where the user has management permissions.
     I.v3GroupsManagesLoad = async function () {
-        if (!I.auth) {
+        if (!currentInterface.current.auth) {
             I.setV3ManagedGroups([]);
             return [];
         }
+        const owns = ownAccountRead('managed-groups');
+        if (!owns()) return [];
         try {
             const groups = await v3Post('groups/manages', {});
+            if (!owns()) return [];
             I.setV3ManagedGroups(groups || []);
             return groups || [];
         } catch (e) {
+            if (!owns()) return [];
             console.warn('v3 groups/manages failed:', e);
             I.setV3ManagedGroups([]);
             return [];
@@ -967,16 +1074,100 @@ function applyACR(cr: any) {
     }
 
     // Send contract response back to the requesting app window
-    function sendContractResponse(windowSource: MessageEventSource | null, status: string, errors?: string[]) {
+    function resetConsentIdentity() {
+        handoffGeneration.current++;
+        resetAccountReads();
+        const batch = consentBatch.current;
+        // Unstarted requests can still be reviewed as the chosen account.
+        // Dispatched/partly decided indexed batches must be retried by the app.
+        if (batch && (batch.emptySettled || batch.handedOff || batch.rows.some((row: any) => row._consent.started || row._consent.settled))) cancelConsent('Account changed');
+        I.setV3Contracts([]);
+        grantsPrincipal.current = null;
+    }
+
+    function cancelConsent(reason: string) {
+        const batch = consentBatch.current;
+        consentBatch.current = null;
+        if (!batch) return;
+        console.log('[auth-ui] cancelling consent batch:', reason);
+        for (const row of batch.rows) {
+            sendContractResponse(row, 'error', [reason]);
+            row._consent.settled = true;
+        }
+        settleEmptyBatch(batch, 'error');
+        I.setPendingContracts([]);
+        // Keep the credential-login roundtrip alive even after consent itself
+        // terminates. The caller must retry a cancelled indexed consent request.
+        I.setUserConfirmed(false);
+    }
+
+    function settleEmptyBatch(batch: any, status: string) {
+        if (!batch.requestId || batch.rows.length || batch.emptySettled) return;
+        batch.emptySettled = true;
+        try {
+            batch.source.postMessage({ type: 'contract_response', requestId: batch.requestId, status, contractCount: 0 }, batch.origin);
+        } catch { console.warn('[auth-ui] empty consent response could not be delivered'); }
+    }
+
+    // This is the same inclusion predicate used by the consent view, not an
+    // origin-only shortcut. An existing grant never confirms an identity.
+    I.isContractGranted = function (contract: any): boolean {
+        if (contract.kind !== 'app') return false;
+        if (grantsPrincipal.current !== principal()) return false;
+        const existing = (I.v3Contracts || []).find((c: any) => c.allowed_origin === (contract.app_origin || contract.allowed_origin));
+        if (!existing) return false;
+        return Object.entries(contract.permissions || {}).every(([service, ops]) =>
+            (ops as string[]).every(perm => (existing.permissions?.[service] || []).includes(perm)));
+    };
+
+    I.completeConsent = function () {
+        if (!I.auth || (!I._expectedUser && !I._userConfirmed)) return false;
+        const username = I.v3.readToken?.()?.username;
+        if (I._expectedUser && I._expectedUser !== username) return false;
+        const batch = consentBatch.current;
+        if (!batch) return true;
+        for (const row of batch.rows) {
+            if (!row._consent.started && !row._consent.settled && I.isContractGranted(row))
+                sendContractResponse(row, 'approved');
+        }
+        if (batch.rows.some((row: any) => !row._consent.settled)) return false;
+        settleEmptyBatch(batch, 'approved');
+        return true;
+    };
+
+    I.skipConsent = function () {
+        const batch = consentBatch.current;
+        if (batch?.rows.some((row: any) => row._consent.started)) {
+            I.setStatus('Wait for the current request to finish.');
+            return;
+        }
+        for (const row of batch?.rows || []) sendContractResponse(row, 'denied');
+        if (batch) settleEmptyBatch(batch, 'denied');
+        I.setUserConfirmed(true);
+        I.setPendingContracts([]);
+        I.goToApp();
+    };
+
+    function sendContractResponse(contract: any, status: string, errors?: string[]) {
+        const windowSource = contract._windowSource;
+        const owner = contract._consent;
+        if (owner?.settled) return;
+        if (owner) {
+            // Preserve retries for old clients; an indexed terminal error needs
+            // a fresh request, never a later approval under the same ID.
+            owner.settled = status !== 'error' || !!owner.requestId;
+            owner.started = false;
+        }
         console.log('[auth-ui] sendContractResponse — status:', status, 'errors:', errors)
         if (!windowSource) {
             console.warn('[auth-ui] sendContractResponse — no windowSource, cannot send response')
             return
         }
         try {
-            const target = '*';
+            const target = owner?.requestId ? owner.origin : '*';
             if (isPostableWindow(windowSource)) {
-                const payload = { type: 'contract_response', status, errors }
+                const payload = { type: 'contract_response', status, errors,
+                    ...(owner?.requestId ? { requestId: owner.requestId, contractIndex: owner.index } : {}), }
                 console.log('[auth-ui] sendContractResponse — posting:', JSON.stringify(payload))
                 windowSource.postMessage(payload, target);
             } else {
@@ -992,36 +1183,52 @@ function applyACR(cr: any) {
     // two forks can't diverge — approve-all used to drop the app-contract
     // response entirely, so the opener's callback only fired late, mis-delivered
     // from the group's response. Re-throws on failure so the caller can react.
-    function approveOne(contract: any): Promise<void> {
-        const windowSource = contract._windowSource;
-        const apply = contract.kind === 'group' ? applyGCR(contract) : applyACR(contract);
-        return apply
+    function approveOne(contract: any): Promise<void> | null {
+        const owner = contract._consent;
+        if (owner && (owner.batch !== consentBatch.current || owner.started || owner.settled)) return null;
+        if (owner) owner.started = true;
+        const account = principal();
+        let apply;
+        try { apply = contract.kind === 'group' ? applyGCR(contract) : applyACR(contract); }
+        catch (e) { apply = Promise.reject(e); }
+        return Promise.resolve(apply)
             .then(() => {
+                if (owner?.settled) return;
+                if (account !== principal()) {
+                    cancelConsent('Account changed');
+                    return;
+                }
                 // Approving a contract is an identity confirmation (the user is
                 // acting as this account) — let the popup settle once the pending
                 // list empties, even when the opener is signed out.
-                I.setUserConfirmed(true);
-                sendContractResponse(windowSource, 'approved');
+                if (!owner || owner.batch === consentBatch.current) I.setUserConfirmed(true);
+                sendContractResponse(contract, 'approved');
             })
             .catch((e: any) => {
-                sendContractResponse(windowSource, 'error', [e.message || String(e)]);
+                sendContractResponse(contract, 'error', [e.message || String(e)]);
                 throw e;
             });
     }
 
     // Approve a single contract (app or group).
     I.approveContract = function (contract: any) {
+        const operation = approveOne(contract);
+        if (!operation) return;
         console.log('[auth-ui] approveContract — kind:', contract.kind, 'origin:', contract.app_origin)
         I.setStatus(contract.kind === 'group' ? "Creating group..." : "Approving contract...");
-        approveOne(contract)
+        operation
             .then(() => {
+                if (contract._consent && contract._consent.batch !== consentBatch.current) return;
                 console.log('[auth-ui] approveContract — applied successfully')
                 I.setStatus(contract.kind === 'group' ? "Group created!" : "Contract granted!");
                 if (contract.kind === 'app') I.v3ContractsLoad?.();
                 I.removePendingContract(contract);
-                setTimeout(() => I.setStatus(null), 2000);
+                const completedBatch = consentBatch.current;
+                setTimeout(() => { if (consentBatch.current === completedBatch) I.setStatus(null); }, 2000);
             })
             .catch((e) => {
+                if (contract._consent && contract._consent.batch !== consentBatch.current) return;
+                if (contract._consent?.requestId) I.removePendingContract(contract);
                 console.error('[auth-ui] approveContract — failed:', e)
                 I.setStatus((contract.kind === 'group' ? "Failed to create group: " : "Failed to approve: ") + (e.message || String(e)));
             });
@@ -1031,6 +1238,7 @@ function applyACR(cr: any) {
     I.removePendingContract = function (contract: any) {
         const source = contract._source;
         I.setPendingContracts((prev: any[]) => {
+            if (contract._consent) return prev.filter(c => c._consent !== contract._consent);
             if (source) {
                 return prev.filter((c: any) => c._source !== source);
             }
@@ -1043,29 +1251,50 @@ function applyACR(cr: any) {
 
     // Deny a contract — just remove it from the pending list.
     I.denyContract = function (contract: any) {
+        const owner = contract._consent;
+        if (owner && (owner.batch !== consentBatch.current || owner.started || owner.settled)) return;
         console.log('[auth-ui] denyContract — kind:', contract.kind, 'origin:', contract.app_origin)
         // Denying is also an identity confirmation — let the popup settle once
         // the pending list empties (the "continue without sharing" path).
         I.setUserConfirmed(true);
-        const windowSource = contract._windowSource;
         I.removePendingContract(contract);
-        sendContractResponse(windowSource, 'denied');
+        sendContractResponse(contract, 'denied');
         I.setStatus("Request denied.");
     }
 
     // Approve every pending contract in one shot, then return to the app.
     I.approveAll = function () {
         if (!I.pendingContracts || I.pendingContracts.length === 0) { I.goToApp(); return; }
+        const batch = consentBatch.current;
         I.setStatus("Approving all…");
         // approveOne sends each contract's own response (approve-all used to
         // drop the app-contract response — see the helper's comment).
-        const ops: Promise<any>[] = I.pendingContracts.map((c: any) => approveOne(c));
-        Promise.allSettled(ops)
-            .then(() => {
+        const work = I.pendingContracts.map((contract: any) => {
+            if (!contract._consent?.started && !contract._consent?.settled && I.isContractGranted(contract)) {
+                I.setUserConfirmed(true);
+                sendContractResponse(contract, 'approved');
+                I.removePendingContract(contract);
+                return { contract, operation: Promise.resolve() };
+            }
+            return { contract, operation: approveOne(contract) };
+        })
+            .filter((entry: any) => entry.operation);
+        if (!work.length) return;
+        Promise.allSettled(work.map((entry: any) => entry.operation))
+            .then((results) => {
+                if (consentBatch.current !== batch) return;
+                results.forEach((result, index) => {
+                    if (result.status === 'fulfilled' || work[index].contract._consent?.settled)
+                        I.removePendingContract(work[index].contract);
+                });
                 I.v3ContractsLoad?.();
                 I.v3GroupsLoad?.();
                 I.v3GroupsManagesLoad?.();
-                I.setPendingContracts([]);
+                if (results.some(result => result.status === 'rejected')) {
+                    I.setStatus("Some requests failed. Start a new request from the app.");
+                    return;
+                }
+                if (I.pendingContracts.some((c: any) => c._consent && !c._consent.settled)) return;
                 I.setStatus(null);
                 I.goToApp();
             })
@@ -1080,6 +1309,12 @@ function applyACR(cr: any) {
     I.removePendingACR = (c: any) => I.removePendingContract({ ...c, kind: c.kind || 'app' });
 
     I.goToApp = function () {
+        const batch = consentBatch.current;
+        const account = principal();
+        if (batch?.requestId) {
+            if (batch.handedOff || !I.completeConsent()) return;
+            batch.handedOff = true;
+        }
         const token = I.v3.state?.token;
         const handoffNone = I._handoff === 'none';
         console.log('[auth-ui] goToApp — token:', token ? 'present' : 'none', 'handoff:', handoffNone ? 'none' : 'token', 'window.opener:', window.opener ? 'present' : 'none')
@@ -1095,7 +1330,15 @@ function applyACR(cr: any) {
                 // lazy popup opened from a button click.) The short delay lets
                 // the token message deliver before the window goes away.
                 console.log('[auth-ui] goToApp — auth token sent, closing popup (self-contained)')
-                setTimeout(() => window.close(), 300);
+                const generation = ++handoffGeneration.current;
+                setTimeout(() => {
+                    if (handoffGeneration.current !== generation || consentBatch.current !== batch ||
+                        principal() !== account || currentInterface.current.v3.state?.token !== token) {
+                        console.log('[auth-ui] goToApp — ignoring stale popup close');
+                        return;
+                    }
+                    window.close();
+                }, 300);
             } catch (err) {
                 console.error('[auth-ui] goToApp — postMessage failed:', err)
                 I.setStatus("Failed to connect to app.");

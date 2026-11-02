@@ -102,8 +102,17 @@ list). The **trace** is the deep zoom — a second ClickHouse table,
   `failed` / `stuck`) with **untruncated** detail (counts, the per-record
   error list), and
 - **the raw worker log stream** — a `logging.Handler` attached to the
-  `web10-import` logger for the duration of the job captures every record
+  `web10-import` logger while the job's capture scope is active captures owned records
   (INFO and ERROR, with **full tracebacks**) as `log` rows.
+
+The [L1-J-01 local repair](../../security/scans/2026-10/repair-j01-import-traces.md)
+binds capture to a unique execution context. Overlapping/nested jobs and unowned
+background output cannot enter another trace; each thumbnail task explicitly
+inherits its parent's context. Foreign records are filtered before handler locks,
+and event-store warning reentry is not itself inserted. Contexts restore and
+handlers detach on exit. Existing cleanup/outer-worker logs outside the scope
+remain general diagnostics; this does not broaden capture to every thread/logger
+or sanitize owned content. New child execution paths must propagate ownership.
 
 This is what makes a prod failure debuggable without docker-log archaeology
 (docker logs rotate; ClickHouse doesn't):

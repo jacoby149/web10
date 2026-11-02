@@ -23,6 +23,8 @@ export const MOCK_WAPI_JS = `
     notes: [],
     messages: [],
     tasks: [],
+    scores: [],
+    listings: [],
     groups: [],
     groupMembers: [],
     fetchCalls: 0,
@@ -79,15 +81,19 @@ export const MOCK_WAPI_JS = `
       if (service === 'web10-docs-note-demo') return Promise.resolve(mockStore.notes.slice());
       if (service === 'web10-docs-message-demo') return Promise.resolve(mockStore.messages.slice());
       if (service === 'web10-docs-task-demo') return Promise.resolve(mockStore.tasks.slice());
+      if (service === 'snake_scores') return Promise.resolve(mockStore.scores.slice());
+      if (service === 'marketplace_listings') return Promise.resolve(mockStore.listings.slice());
       return Promise.resolve([]);
     }
     if (path === 'create') {
       var service = body.service || body.collection || 'default';
       var docId = 'doc_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
-      var created = { doc_id: docId, body: body.body || {}, service: service };
+      var created = { doc_id: docId, author_key: FAKE_PAYLOAD.username, body: body.body || {}, service: service };
       if (service === 'web10-docs-note-demo') mockStore.notes.push(created);
       else if (service === 'web10-docs-message-demo') mockStore.messages.push(created);
       else if (service === 'web10-docs-task-demo') mockStore.tasks.push(created);
+      else if (service === 'snake_scores') mockStore.scores.push(created);
+      else if (service === 'marketplace_listings') mockStore.listings.push(created);
       return Promise.resolve(created);
     }
     if (path === 'update') {
@@ -122,6 +128,36 @@ export const MOCK_WAPI_JS = `
       }
       if (up.indexOf('BOOM') !== -1) {
         return Promise.resolve({ __error: { status: 400, detail: "Unknown expression identifier 'boom' in scope" } });
+      }
+      // Interoperability joins: the app's own service joined to the social
+      // profile document, exactly as the real query layer would return it.
+      if (up.indexOf('SNAKE_SCORES') !== -1) {
+        return Promise.resolve({
+          rows: mockStore.scores.map(function (s) {
+            return {
+              doc_id: s.doc_id,
+              author_key: s.author_key,
+              body: s.body,
+              score: (s.body && s.body.score) || 0,
+              profile_body: { display_name: s.author_key },
+            };
+          }),
+          count: mockStore.scores.length,
+        });
+      }
+      if (up.indexOf('MARKETPLACE_LISTINGS') !== -1) {
+        return Promise.resolve({
+          rows: mockStore.listings.map(function (l) {
+            return {
+              doc_id: l.doc_id,
+              author_key: l.author_key,
+              body: l.body,
+              created_at: '2026-10-28T00:00:00Z',
+              profile_body: { display_name: l.author_key },
+            };
+          }),
+          count: mockStore.listings.length,
+        });
       }
       return Promise.resolve({
         rows: [
@@ -263,14 +299,27 @@ export const MOCK_WAPI_JS = `
     authCallbacks.push(onSignedIn);
     return function() {
       var idx = authCallbacks.indexOf(onSignedIn);
-      if (idx !== -1) authCallbacks.splice(idx, 1);
+      if (idx !== -1) authCallbacks.splice(idx, -1);
     };
+  }
+
+  // The consent handshake: the real SDK opens the authenticator popup and
+  // waits for a contract_response message. In tests the popup is faked —
+  // resolve approved immediately when a token is present, denied otherwise.
+  function contractRequest(contracts, authOrigin, callback) {
+    var token = readTokenCookie();
+    setTimeout(function() {
+      if (typeof callback === 'function') {
+        callback(token ? { status: 'approved' } : { status: 'denied' });
+      }
+    }, 0);
   }
 
   window.web10 = {
     createV3Client: createV3Client,
     openAuthPortal: openAuthPortal,
     authListen: authListen,
+    contractRequest: contractRequest,
     cookieDict: cookieDict,
     readTokenCookie: readTokenCookie,
     setTokenCookie: setTokenCookie,

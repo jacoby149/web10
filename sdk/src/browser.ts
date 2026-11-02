@@ -18,6 +18,7 @@ import {
   isTokenExpired,
 } from './token'
 import { Web10Error } from './http'
+import { isAuthPopupMessage, isPopupMessage, trackAuthPopup } from './popup'
 
 // ── Popup auth helpers (browser-only) ───────────────────────────────────────
 
@@ -53,11 +54,13 @@ function openAuthPortal(authOrigin: string, options: { handoff?: 'token' | 'none
   // A unique name per call guarantees a fresh window. The SDK reuses the popup
   // via the `_authPopup` reference (not the name), so this is safe.
   const winName = `web10-auth-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+  if (options.handoff !== 'none') trackAuthPopup(null, authOrigin)
   _authPopup = window.open(
     url,
     winName,
     'width=480,height=720,scrollbars=yes',
   )
+  if (options.handoff !== 'none') trackAuthPopup(_authPopup, authOrigin)
   console.log('[wapi] openAuthPortal — popup returned:', _authPopup ? 'open' : 'blocked/null')
   _popupReady = false
   // Clean up old listener
@@ -67,7 +70,7 @@ function openAuthPortal(authOrigin: string, options: { handoff?: 'token' | 'none
   }
   // Listen for auth_ready — popup sends it once on mount
   _readyListener = (e: MessageEvent) => {
-    if (e.data?.type === 'auth_ready') {
+    if (e.data?.type === 'auth_ready' && isPopupMessage(e, _authPopup, authOrigin)) {
       console.log('[wapi] message event received — type: auth_ready, source:', e.source, 'origin:', e.origin)
       _popupReady = true
       console.log('[wapi] auth_ready — popup is ready, flag set')
@@ -86,6 +89,10 @@ function authListen(
 ): () => void {
   const handler = (e: MessageEvent) => {
     if (e.data?.type === 'auth' && e.data?.token) {
+      if (!isAuthPopupMessage(e)) {
+        console.warn('[wapi] auth event rejected — unbound popup sender')
+        return
+      }
       // Identity check (D42 + the cookie-torture anti-tests): the popup acts for
       // its OWN cookie's user. If that user differs from the one this app is
       // already acting as, storing the token would silently hijack the app's
@@ -178,7 +185,7 @@ function createV3Client(options?: Parameters<typeof _createV3Client>[0]): V3Clie
       let timeoutId: ReturnType<typeof setTimeout> | null = null
 
       const responseHandler = (e: MessageEvent) => {
-        if (e.data?.type === 'contract_response') {
+        if (e.data?.type === 'contract_response' && contractSent && isPopupMessage(e, popup, authOrigin)) {
           console.log('[wapi] contract_response received:', e.data)
           window.removeEventListener('message', responseHandler)
           if (readyHandler) window.removeEventListener('message', readyHandler)
@@ -216,7 +223,7 @@ function createV3Client(options?: Parameters<typeof _createV3Client>[0]): V3Clie
 
       // Otherwise wait for auth_ready
       readyHandler = (e: MessageEvent) => {
-        if (e.data?.type === 'auth_ready' && !contractSent) {
+        if (e.data?.type === 'auth_ready' && !contractSent && isPopupMessage(e, popup, authOrigin)) {
           console.log('[wapi] auth_ready received, sending contract to popup')
           sendContract()
         }

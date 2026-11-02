@@ -23,6 +23,7 @@
   "scripts": {
     "build": "bun build src/index.ts --outdir dist --target browser --format esm && tsc --emitDeclarationOnly --outDir dist",
     "build:rtc": "bun build src/rtc/index.ts --outdir dist/rtc --target browser --format esm && tsc --emitDeclarationOnly --outDir dist",
+    "build:rtc:browser": "test \"$(bun --version)\" = \"1.3.14\" && bun build src/rtc/browser.ts --outfile ../marketing/marketing-ui/public/docs/rtc.js --target browser --format iife",
     "build:all": "bun run build && bun run build:rtc",
     "build:browser": "bun build src/browser.ts --outdir dist/browser --target browser --format iife && mv dist/browser/browser.js dist/browser.js && rmdir dist/browser && cp dist/browser.js dist/wapi.js",
     "test": "vitest run",

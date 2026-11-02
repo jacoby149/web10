@@ -165,9 +165,9 @@ class TestBuildManifest:
                 "star_shape": "current",
             }
         ]
-        m = ea.build_manifest(rows, "uri", "deploy")
+        m = ea.build_manifest(rows, "deploy")
         assert m["count"] == 1
-        assert m["source"] == {"uri": "uri", "db": "deploy"}
+        assert m["source"] == {"db": "deploy"}
         assert len(m["sha256"]) == 64
 
     def test_fingerprint_is_stable_and_order_sensitive(self):

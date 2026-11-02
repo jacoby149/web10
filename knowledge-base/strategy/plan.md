@@ -60,9 +60,27 @@ reuses `POST /v3/app-contracts/revoke`. Full spec:
 - [✓ 3.244.0] **O7: `POST /oauth/token` (refresh_token grant)** (`api/app/v3/endpoints/oauth.py`) — rotation, family invalidation on replay.
 - [✓ 3.244.0] **O8: Consent UI in `ui/`** (`ui/src/`) — the `/oauth/authorize` screen in the authenticator. Shows the client name, the derived permission list, approve/deny. Reuses `ConsentView` patterns.
 - [✓ 3.244.0] **O9: Revocation UI update** (`ui/src/components/Contracts/ContractPage.tsx`) — shows OAuth clients alongside browser-origin apps. Revoke works for both.
-- [ ] **O10: SDK `w.oauth()` helper (optional, later)** (`sdk/`) — a convenience method for the SDK to drive the authorize flow for non-browser clients. Not blocking.
+- [✓ 3.245.0] **O10: SDK `w.oauth()` helper** (`sdk/`) — `authorize` (consent URL + popup, or `{ url }` for server-side connectors) + `exchangeCode` / `refresh` (both grants against `/v3/oauth/token`) + refresh-token storage (own cookie slot; client_id from the delegated token's claim). D60-clean: no registry management, no consent rendering.
 
 ## L1 Security Scans
+
+- [✓ 3.252.25 local] **PROTOCOL-01/L1-PKG-02: private no-clobber backup output** — real filesystem mode/link/overwrite proof; private staging and complete exclusive publication, 45 focused/1,420 API tests plus four subtests, lint/format and fresh same-model review. [Receipt](../security/scans/2026-10/repair-pkg02-backup-publication.md). Trusted storage/CI/deployment/diverse gates OPEN; no L1 closure.
+- **Manifest status:** L1-A-02 repair/dependency merged #1299 at `0918a7409`, all 13 PR checks green; earlier local ticks below are historical, not rollout/sign-off closure.
+
+- [✓ 3.252.13 local] **L1-A-02/DEPENDENCY: declare urllib3 directly** — pin the already-tested 2.7.0 transport in API manifest/lock metadata; lock check, lint/format and 1,407 API tests plus four subtests pass. No transport version or behavior change.
+
+- [✓ 3.252.11 local] **PROTOCOL-01/L1-A-02-REPLAY: real HTTP manifest destination proof** — eight loopback-only controls reproduce direct/redirect JSON reads and preserve path/boundary/error behavior; fresh same-model review. [Receipt](../security/scans/2026-10/l1-manifest-destination-followup.md). Evidence complete locally, not a repair or L1 closure.
+- [✓ 3.252.12 local] **PROTOCOL-01/L1-A-02-REPAIR: restrict manifest destinations** — approved registry/public-address checks, numeric pinning, Host/TLS verification and redirect refusal; four exploit failures become denied-green, 70 focused/1,407 API tests plus four subtests and Ruff pass. [Receipt](../security/scans/2026-10/repair-a02-manifest.md). Fresh same-model review/ephemeral TLS probes; real registry, retained TLS/path integration, CI/deployment/diverse sign-off remain OPEN. Local source repair, not merged or L1 closure.
+
+- [✓ 3.252.7 local docs] **SECURITY-WINS/SCOPE: count actual campaign repairs only** — separate October L1-L4-produced repairs from general AI Use Theory history; fifteen finding/PR/repro-linked outcomes, excluding scan/planning output and preserving open gates. Documentation complete locally, not campaign closure.
+
+- [✓ 3.252.6 local docs] **AI-WINS: plain improvement ledger** — `knowledge-base/ai_wins/` collects 558 dated records with PR/source, KB/code/tests labels and fix/feature/evolutionary/revolutionary types; measurement rules reserve revolutionary for fundamental system changes. Documentation complete locally, not merged or campaign closure.
+- [✓ 3.252.3 local docs] **SECURITY-WINS: document AI-assisted security improvements** — completed retrospective, now at `knowledge-base/ai_wins/security-wins.md`, linked from Written Security; separates merged-source repairs from local passing controls and links evidence/remaining gates. Documentation complete locally, not a merged-status or security-gate tick.
+- [✓ 3.252.2 local] **PROTOCOL-01/RTC-PRODUCER: reproducible docs RTC wrapper** — pinned producer/Docker/CI wiring; five baseline failures, 14 final controls and 279 SDK tests/typecheck pass. [Receipt](../security/scans/2026-10/repair-docs-rtc-producer.md). Connected/image/diverse gates remain OPEN.
+- [~ 3.252.8 local] **PROTOCOL-01/RTC-ICE: pass ICE through PeerJS configuration** — source/config types and RTC outputs repaired; nine initial failures, 19 RTC controls/284 SDK passes and fresh same-model review. [Receipt](../security/scans/2026-10/repair-rtc-ice.md). Connected demo/image verification and diverse sign-off OPEN; contract fixture is not real PeerJS/network proof.
+- [✓ 3.252.8 local] **RTC-ICE/SOURCE: nested configuration and regenerated RTC outputs** — red/green dependency-contract/parity controls and SDK typecheck pass; no main bundle/legacy/admission changes. Parent connected acceptance remains OPEN.
+
+- [✓ 3.252.1] **PROTOCOL-01/ART-PROVENANCE: trace legacy declarations and docs RTC** — bounded read-only history/consumer research and six inert-peer controls; [receipt](../security/scans/2026-10/l1-artifact-provenance-followup.md). Producer/parity repair, explicit retirement decision and integration/sign-off remain OPEN; no runtime change or L1 closure.
 
 **Campaign order:** [security strategy](../security/strategy.md): API + SDK +
 RTC through L1-L4 first, then everything else through L1-L4. The completed
@@ -72,20 +90,38 @@ next; authenticator UI L1 waits for Wave 2.
 Read-only receipts first; one finding per later fix PR. Scan completion is not
 finding closure, and a single-file scan does not establish whole-API coverage.
 
+- [~ 3.249.1] **PROTOCOL-01/SOL-RESUME: resume Sol protocol revalidation** — local pinned API/SDK/edge receipts and fresh same-model replay complete; publication pending, campaign OPEN. See `knowledge-base/security/scans/2026-10/l1-current-index.md`. Not a whole-project rescan or diverse sign-off.
+- [✓ 3.251.10] **PROTOCOL-01/L1-VAL-01: prevent validation credential copies** — source merged #1290 at 0f559ddfe; three disclosures red -> green, 1,331 API tests plus four subtests and fresh same-model review. API/security/Docker CI passed; logout/relogin E2E shard 1 failed, not all-green. History/deployment/diverse sign-off OPEN. Receipt: `knowledge-base/security/scans/2026-10/repair-val01-validation.md`.
+- [✓ 3.251.11 local] **PROTOCOL-01/L1-OAUTH-SOURCE-01: validate source delegation authority** — local existing-certify gate denies missing/revoked source clients before minting; browser/active delegation and no source-contract narrowing preserved. Twelve controls, 1,343 API tests plus four subtests and fresh same-model intent review. Receipt: `knowledge-base/security/scans/2026-10/repair-oauth-source01.md`. Not merged/deployed; real registry/storage, CI and diverse sign-off OPEN, no contract-escape claim.
+
 - [✓ 3.235.4] **L1-001: middleware** — receipt merged in PR #1199; all 143 lines scanned at `d86658be6`. Existing B-4 remains OPEN. Evidence: `knowledge-base/security/scans/2026-10/l1-middleware.md`.
 - [✓ 3.235.5] **L1-002: settings** — receipt merged #1201; all 140 lines at `8704e9f5c`, B-2/B-8 remain OPEN; `knowledge-base/security/scans/2026-10/l1-settings.md`.
 - [✓ 3.235.6] **L1-003: main** — full 176-line coverage in A, merged #1202 alongside B/D; no runtime fixes or security PASS.
 - [✓ 3.235.11] **L1-004: remaining API app inventory** — all A-R receipts merged #1202-#1207; 59 files/13,236 lines at `8af7e0fce`, no gaps/overlap. `knowledge-base/security/scans/2026-10/l1-api-index.md`; findings, fixes and required security sign-off remain owed, no project-wide completion.
 - [✓ 3.235.13] **L1-005: remaining backend inventory** — merged #1212; 109 selected files/16,362 newlines; all 1,482 tracked paths reconciled at `db325cd3c`. Inventory is not scanning. `knowledge-base/security/scans/2026-10/l1-backend-inventory.md`.
 - [✓ 3.235.15] **L1-006: backend runtime receipts** — RTC/B1 #1212, marketing API #1213 and preview #1214 merged; 33 files/3,739 newlines (3,742 logical lines) at `db325cd3c`. `knowledge-base/security/scans/2026-10/l1-backend-index.md`; source coverage only, no fixes or security PASS.
-- [ ] **L1-007: remaining API packaging and migration tools** — Wave 1 when needed for protocol gates: API packaging/migration tools (7 files/684 newlines at the old pin), with refreshed manifest/counts. The removed marketing packaging scope is retired by D91, not scanned or passed; no unrelated operator-tool sweep ahead of protocol repairs.
+- [✓ 3.245.2] **L1-007: remaining API packaging and migration tools** — read receipt merged #1265: eight files/2,417 lines including uv.lock at f7aabdb26. `knowledge-base/security/scans/2026-10/l1-current-packaging.md`; coverage only, backup risks/sign-off remain OPEN. D91 retirement is not scan PASS.
 - [✓ 3.236.3] **L1-008: exhaustive SDK L1** — source receipts merged #1219/#1220, all checks green; seven files/2,496 logical lines at `caeed4427`, no gaps/overlap. `knowledge-base/security/scans/2026-10/l1-sdk-index.md`; coverage only, not fixes, artifact correspondence or security PASS.
 - [ ] **L1-009: authenticator UI L1** — Wave 2, blocked until the protocol L1-L4 campaign gates are met; then fresh pinned `ui/src/` inventory and complete read-only scopes. Not the current next scan.
-- [~] **L1-010: SDK artifact correspondence** — isolated baseline build proves 16/17 outputs match but browser copies stale; explicit browser alignment implemented locally, pending PR/merge. Five parity regressions and 171 SDK tests/typecheck pass. Six orphan declarations and docs RTC IIFE provenance remain open; no full integrity/sign-off claim. Evidence: `knowledge-base/security/scans/2026-10/sdk-artifact-correspondence.md`.
-- [~] **PROTOCOL-01: close the protocol L1 gate** — B-4 source repair merged #1225; SDK browser alignment prerequisite now pending review/merge before the separate cookie repair. Other findings/advancement gates remain open; coverage and one source fix do not pass L1.
+- [~] **L1-010: SDK artifact correspondence** — browser alignment merged #1248 (3.239.1), five parity tests and pinned Bun producer. Six orphan declarations and docs RTC IIFE provenance remain open; no full integrity/sign-off claim. Evidence: `knowledge-base/security/scans/2026-10/sdk-artifact-correspondence.md`.
+- [~] **PROTOCOL-01: close the protocol L1 gate** — B-4 #1225, alignment #1248, SDK-B-01 #1255, B-8/L1-PKG-01 plus receipts #1265, L1-G-01 #1266, L1-J-01 #1267 and L1-DEPLOY-01 #1268 merged. D-01/D-02 freshness/OAuth occurrence locally repaired; remaining findings, integration/deployment and required sign-off remain open. These fixes do not pass L1.
 - [✓ 3.238.1] **PROTOCOL-01/B-4: automatic HTTP log capture** — source repair merged #1225; repro gate met, no deployment/historical-data/security-sign-off closure.
-- [ ] **PROTOCOL-01/SDK-B-01: cookie dictionary integrity** — next repair after browser-alignment prerequisite: safe own-property parsing/own-token selection while preserving the public ordinary-object/JSON/URI/SSR contract; red -> denied green and regenerate all evidenced affected outputs, no bundled decoder/TTL/popup changes.
+- [✓ 3.244.1] **PROTOCOL-01/SDK-B-01: cookie dictionary integrity** — source repair merged #1255; 208 SDK tests/typecheck and source/artifact red -> green proof. Deployment, broader findings and required sign-off remain open. `knowledge-base/security/scans/2026-10/repair-sdk-b01-cookie.md`.
+- [✓ 3.245.1] **PROTOCOL-01/B-8: settings CLI secret dump** — source repair merged #1265, four CLI subcases red -> green, preserved imports/overrides and fresh same-model review. Deployment/B-2/issuer/history/sign-off separate. `knowledge-base/security/scans/2026-10/repair-b8-settings.md`.
+- [✓ 3.245.2] **PROTOCOL-01/DELTA: refresh post-pin API L1** — receipts merged #1265: 171 paths/31,537 lines at1332abc67, exact exclusions and fresh same-model reviews. Coverage/publication only; findings/repairs/model-diverse sign-off OPEN. `knowledge-base/security/scans/2026-10/l1-current-index.md`; no L2/PASS.
+- [✓ 3.245.5] **PROTOCOL-01/L1-G-01: query diagnostic content** — source repair merged #1266; 24 controls, 1,216 API tests plus four subtests at repair pin and fresh same-model review. Rollout/history/diverse sign-off remain open. `knowledge-base/security/scans/2026-10/repair-g01-query-logging.md`.
+- [✓ 3.245.6] **PROTOCOL-01/L1-J-01: import trace attribution** — source repair merged #1267; context-owned capture and pre-lock guards, nine controls/1,225 API passes at repair pin. Deployment/history/diverse review remain OPEN. `knowledge-base/security/scans/2026-10/repair-j01-import-traces.md`.
+- [✓ 3.245.7] **PROTOCOL-01/L1-DEPLOY-01: frozen install enforcement** — source repair merged #1268; eight controls/1,233 API passes at repair pin and actual production Linux image checks for both apps passed on equivalent pre-merge source. Deployment/dependency authenticity/diverse review OPEN. `knowledge-base/security/scans/2026-10/repair-deploy01-frozen-installs.md`.
+- [✓ 3.245.8] **PROTOCOL-01/L1-D-01: verified principal freshness** — source repair merged #1271 at b828736b4; 92 controls/1,325 API passes at repair pin and fresh same-model review. Rollout/diverse review OPEN; no issuer/provider/purpose/revocation assurance. `knowledge-base/security/scans/2026-10/repair-d01-token-freshness.md`.
 - [ ] **PROTOCOL-02: protocol L2** — after the L1 gate: direct-edge scans, bounded fixes and evidence for API/SDK/RTC caller/sink boundaries.
+- [✓ 3.245.9] **PROTOCOL-01/S-1: SDK auth sender binding** — source repair merged #1273; 246 SDK tests at repair pin and applicable browser/package/Docker/security CI passed on identical inputs. Delivery/migration/diverse review OPEN. `knowledge-base/security/scans/2026-10/repair-s1-auth-sender.md`.
+- [✓ 3.245.10] **PROTOCOL-01/A-01-F-01-SENDER: consent sender slice** — source merged #1275 at 40a515fcc, applicable CI green on identical inputs. Request correlation/class/rollout/diverse review remain OPEN. `knowledge-base/security/scans/2026-10/repair-consent-senders.md`.
+- [~] **PROTOCOL-01/A-01-F-01-CORRELATION: bind consent decisions to requests/batches** — UI preparation local, not strict SDK activation or class closure; lifecycle and end-to-end integration below remain local L1 gates, not L2 deferrals.
+- [~] **CORRELATION/UI-OWNER: prepare owned indexed replies** — local 3.246.0 foundation, 13 real-hook controls/195 UI tests/typecheck/build and fresh same-model review; no SDK/artifact changes. `knowledge-base/security/scans/2026-10/consent-ui-ownership-foundation.md`.
+- [~ 3.251.12] **CORRELATION/LIFECYCLE: settle no-op and terminal batch paths before strict SDK** — post-merge logout/close repair locally verified; 34 ownership controls/216 UI tests and typecheck/build pass. Explicit logout terminates untouched consent; picker selection may retain it. Connected E2E confirmation and SDK/artifact/browser cohort integration remain OPEN; no A-01/F-01 closure. `knowledge-base/security/scans/2026-10/repair-consent-postmerge.md`.
+- [✓ 3.251.12 local] **CORRELATION/LOGOUT-CLOSE: repair post-merge logout and close ownership** — seven initial failures repaired, current-client token and generation guards plus real-view nonempty logout controls. Not merged/deployed/browser-verified; no E2E assertion weakening.
+- [✓ 3.251.13 local] **CORRELATION/STALE-READS: fence account-scoped UI reads after logout** — five display reads/timers use identity generation/current principal/token and per-surface sequence; retained callbacks use current clients. Initial 24 failures/12 passes; final 52 account-read controls/268 UI tests and build, fresh same-model review. Receipt: `knowledge-base/security/scans/2026-10/repair-account-read-ownership.md`. Not merged/deployed; connected browser verification and diverse sign-off OPEN, no server auth bypass claim.
+- [✓ 3.245.3] **PROTOCOL-01/L1-PKG-01: Mongo URI output** — source repair merged #1265; 12 red -> green CLI cases, preserved account rows/count/checksum and fresh same-model intent review. Deployment/history/diverse sign-off and L1-PKG-02 separate. `knowledge-base/security/scans/2026-10/repair-pkg01-mongo-output.md`.
 - [ ] **PROTOCOL-03: protocol L3** — after the L2 gate: full service-flow scans and repair/sign-off for API, SDK and RTC.
 - [ ] **PROTOCOL-04: protocol L4** — after the L3 gate: cross-protocol/artifact/issuer/rollout integration and required independent review; not whole-project assurance. Only then advance the remaining surfaces through their L1-L4 wave.
 - [✓ 3.236.1] **D91: remove unused marketing API** — merged #1217; no deployment or shared-finding closure. `knowledge-base/security/marketing-api-retirement.md` retains operational cutover requirements.
@@ -601,6 +637,21 @@ Lane: `discover-ia-consistency` in `parallel-execution.md`.
 
 Lane: `group-as-profile` in `parallel-execution.md`.
 
+## Group as Author: post as the group, the group is an identity
+
+**Operator pass (01.11.2026):** "a person who is in a group, with the right role can post AS the group! where it shows the group itself making a post with the profile of the group" + "group operates as user, that lets 1 web10 account be kind of like 10 web10 accounts, just make 10 groups!" + "it would be good though still to preserve who was the user that did the post" + "this is data not part of the document itself, this is ingrained" + "when you make a post, it asks what identity you want to make the post as! if you have groups with the permission to write on their behalf" + "shouldnt go to your personal followers no. also group shouldnt be allowed to post in groups that it doesnt have the role for". **The full plan (design, current state, locked decisions, bite sizing, acceptance bar): `knowledge-base/strategy/group-as-author.md`.** A group is a **first-class author**: a member with the right role (owner/moderator) posts **as the group** — `author_key` = the group_id, the post renders with the group's face (name + avatar) in the feed, it lives in the group's groups (not the poster's personal followers). The human who hit the button is preserved in a new `posted_by` column — server-set, unforgeable, queryable. **Decisions locked:** (1) `posted_by` is a column, not a body field (server-set from the JWT, unforgeable, queryable, survives body edits); (2) posting as a group = the post lives in the group's world (no personal followers); (3) two independent gates (the caller's role in the group + the group's role in the target); (4) the identity picker is in the composer.
+
+- [✓ 3.253.0] **A0: the `posted_by` column + the `author_as` field (node keystone)** (`api/app/v3/`) — `documents.posted_by` column (boot self-heal); **backfill** (one-time, sentinel-gated: `ALTER TABLE documents UPDATE posted_by = author_key WHERE posted_by = ''` — every existing row gets `posted_by = author_key`); `insert_document` gains `posted_by: str` (no default, always provided); `CreateDocument` gains `author_as`; `create_document` endpoint: the delegation path (Gate 1 + Gate 2 + `posted_by = real_author` always + moderation on `real_author`); the read paths add `posted_by` to the SELECT; `resolve_media_urls_in_docs` uses `posted_by` as the media owner (uniform rule); `/v3/groups/detail` calls `resolve_media_urls_in_docs`. Gates A1, A2, A3.
+- [✓ 3.253.1] **A1: the SDK + data layer** (`sdk/src/v3.ts`, `marketing/web10-social/src/data/`) — SDK `create` gains `author_as`; `V3Document` gains `posted_by`; `createPost` gains `authorAs` (4th param, requires explicit groups, skips ensureFollowers); `fromV3DocToPost` maps `posted_by`; `PostRecord` gains `posted_by` + `group_identity`. Gated on A0.
+- [ ] **A2: the feed query + the group face join** (`marketing/web10-social/src/data/feed.ts`) — the feed query gains the `web10-social-group-identity` LEFT JOIN; `fromFeedQueryRow` maps it to `PostRecord.group_identity`. Gated on A0, A1.
+- [ ] **A3: the post header + the "posted by" subtitle** (`FeedScreen.tsx`, `GroupDetailScreen.tsx`, the shared `PostCard`) — the author header checks: `post.profile` → user face; `post.group_identity` → group face + "posted by {posted_by}" subtitle (tappable → `/u/{posted_by}`); fallback (slug + initials). Gated on A1, A2.
+- [ ] **A4: the identity picker in the composer** (`ComposerContext.tsx`, `PostComposer.tsx`, `NewPostSheet.tsx`) — the `ComposerContext` gains `authorAs`; the `PostComposer` gains the identity picker ("You" + every group where the caller's role grants `create` on `posts`); selecting a group swaps the composer's header + the "Post as [Group]" button; the `groups` argument becomes the group's groups. Gated on A1.
+- [ ] **A5: the group-as-member ops** (`groups.ts`, the Members tab) — the group's Members tab gains an "Add group" option; `addGroupMember(groupId, otherGroupId, role)`; the group's groups read for the identity picker's target groups. Gated on A0.
+- [ ] **A6: the preview card** (`preview/card.mjs`) — `authorAvatarUrl` checks if `authorKey` is a group_id → `readGroupFace` instead of `readAuthorProfile`; `buildPostCard` uses the group's display name. Gated on A0.
+- [ ] **A7: the screenshot pass** (`screenshots/`) — `group-post-as-group-{desktop,375}.png` + `composer-identity-picker-{desktop,375}.png`. Gated on A3, A4.
+
+Lane: `social-v3` + platform (api/sdk) in `parallel-execution.md`.
+
 ## Ads: The Catalog + Composer (D54, D55) — Platform
 
 The creator's ads, **v3 mad simple** (D55 + the v3/v4 dissemination split). An
@@ -1060,3 +1111,120 @@ docs before code, per the rule at the top.
 - [ ] **KB: the v2→v3 CONTENT migration model** (`knowledge-base/web10-v3/migration/`) — the other half of the old "data migration model" item, now split out. What maps to what for the *content*: v2 services/collections → v3 `documents` + `collection_name`; v2 terms/ACL → v3 group contracts; the v2 discovery ledger → dropped or re-derived (decide, with the D30/D32/D34/D35 public-by-default calls in mind); media blobs → re-pointed by object key, not copied. Name what is lossy, what is dropped, and what is re-derived. Gated on the account migration landing (a user must be able to sign in before their content is ported into their profile).
 - [ ] (scope when the gate clears) migration tooling + a rehearsal against a staging copy of the prod mongo (docker volume), then the cutover and the dev→main merge.
 - [ ] (scope when the gate clears) SMS cutover notice — text all 580 users (phone numbers live in the v2 star records) that they were migrated, over the existing Twilio send path. Needs: the send list (deduped, verified numbers only), the message copy, and a delivery check. Runs after the data flip — the notice says "you're migrated," not "you will be." Copy can be drafted pre-gate.
+
+## SIGMOD 2027 Industry Track — the full paper (research/)
+
+**Deadline: Tuesday, Nov 24, 2026, 11:59pm AoE** (6:59am ET Wed Nov 25). Up to
+**12 pages + references** (10 is fine — it does not have to be exactly 10).
+CMT has not opened for this track yet. **Target internal freeze: Nov 20** —
+evaluation numbers and formatting always take longer than expected.
+
+**The venue change:** the original plan (`research/README.md`) aimed at a
+workshop first, then CIDR. That ladder is dead — the target is now the
+**SIGMOD 2027 industry track**, which changes the paper's center of gravity:
+industry track rewards **operational experience, scale, deployment lessons,
+and cost** — the "we run this in production" story is the differentiator, and
+the workshop draft's deferred evaluation section (`research/workshop/main.tex`
+§"Scale and latency (extended version)") is now half the paper.
+
+**What exists:** `research/workshop/main.tex` — a ~5-page workshop draft
+("Your Data, Your Rules, One Query") with the access model, query-layer
+enforcement (wall-not-membrane), and the 267→1 feed number. That is ~40% of
+the full paper, in workshop compression. The full paper is a new file in
+`research/sigmod/` (keep the workshop paper intact as the short version),
+extending the same spine: Intro → Access Model → Enforcement → Running
+Platform → **Evaluation (the new load-bearing section)** → Related Work →
+Lessons → Conclusion.
+
+**The critical path is data, not writing.** `research/evaluation-plan.md` is
+all unchecked boxes. The numbers the industry track will demand:
+
+- [~] **E1: scale counters** — users, collections/groups, documents, access
+  decisions/day, deployment duration. Queryable from the running node today?
+  If not, the queries + a dated snapshot. Initial live Ubuntu snapshot collected
+  28.10.2026: 597 accounts, 593 documents, 49 groups, 1,298 membership rows;
+  activity, media-volume/window and exact running-build evidence remain open.
+  `research/live-observation-2026-10-28.md` includes three rounds of authenticated
+  Following/Music-empty/Groups browsing; no load or phase-timing completion.
+- [ ] **E2: access-decision latency** — p50/p95/p99 of the resolve+compute
+  phase (token verify + contract check + group membership), the breakdown
+  (signature verify vs. contract lookup vs. membership lookup), throughput,
+  and the overhead vs. the underlying data read. Instrument if not logged.
+- [ ] **E3: cost model** — per-user-collection vs. shared-table baseline;
+  cost curve as users grow; storage overhead of the per-user key-space.
+- [ ] **E4: the social-app case study** — end-to-end latency for key flows
+  (load feed, post, DM, group read) on web10 vs. a conventional shared-DB
+  backend; where it wins, where it loses, what the conventional backend
+  cannot express.
+- [ ] **E5: conformance results** — the permission-matrix suite: case count,
+  all passing, the I3 negative tests (exploit replayed and denied),
+  revocation bound.
+- [✓ 3.251.0] **E6: methodology** — hardware/instance specs, workload description
+  (real traffic vs. replayed vs. synthetic — honest), runs + variance, what
+  was NOT measured. **Harness landed** (3.250.0/3.251.0): `research/experiments/`
+  — spinup/teardown on a Digital Ocean droplet (s-4vcpu-16gb, nyc3), the
+  pre-experiment baby test (s-1vcpu-1gb, nyc1) de-risks the lifecycle,
+  `seed.py` + `bench.py` + `run.sh` orchestrate compose-up → seed → bench →
+  collect → results. Data collection pending: run `run.sh`, scrape the
+   `[query] … timing_ms` logs, compute p50/p95/p99 per phase.
+- [ ] **E2E CI blocker: ClickHouse `group_contracts.tags` schema race** (found via PR #1292, pre-existing on `dev`) — e2e shards 1/4 and 2/4 fail on a fresh stack with `Code: 47. DB::Exception: Unknown expression identifier 'tags' in scope … FROM group_contracts` (surfaced on `POST /setup/configure` 500, and downstream via the missing `updated_at` version column). The `tags` column is added by a boot-time `ALTER TABLE` self-heal in `api/app/v3/services/clickhouse.py` (3.116.1, D78), but a query can run against `group_contracts` before that ALTER has committed, so the column is absent. **Fix:** make the `tags` (and `updated_at`/`membership_visibility`/`discoverable`) column additions synchronous + guaranteed before any `group_contracts` read, or add the columns to the initial DDL template so they exist at table creation; add a regression test that boots a fresh ClickHouse and immediately runs a `group_contracts` read. **Gates:** the full e2e suite green on a clean stack. **Acceptance bar:** a fresh e2e run (all four shards) passes with no `Unknown expression identifier` errors on `group_contracts`.
+
+**The writing plan (after the data lands):**
+
+- [✓ 3.251.9] **E4b interoperability correctness tooling** — `research/experiments/social/interop.mjs` joins app-B scores/listings to actual social-written profiles with distinct-Origin app grants and independent group-access checks; offline failure/corruption/pacing regressions pass. Tooling only: Docker execution, clickable apps and E4b empirical evidence remain open. Next: execute the isolated runner on a disposable host and inspect `interop.*` operations before promoting claims.
+
+- [✓ 3.252.0] **E4b clickable demo apps on the marketing UI** — Snake (playable, earned score → `snake_scores`, leaderboard joined to social-written `profile` docs: avatar/name/wall) at `/docs/snake/` + Marketplace (listing publish → `marketplace_listings`, seller identity joined from `profile`) at `/docs/marketplace/`; static PWAs with shared boundary runtime + SVG/192/512 icons; interoperability story at `/docs/interop` with both apps in the docs Demo Apps sidebar; e2e gauntlet (`e2e/tests/interop-demos.spec.ts`) does real social popup login, app consent, save/publish, UI join assertions, `/v3/query` join re-assertion from each app origin, and captures screenshots along the way (`.context/interop-screenshots/`, `INTEROP_SHOT_DIR` override) as paper evidence. D60: no `api/` change.
+
+- [✓ 3.251.8] **Multi-app generality demonstration (E4b) — spec** — new `research/multi-app-demonstration.md` plans the paper's proof that web10 is a data platform, not a social backend: web10-social (Developer A, the star, unchanged) + a "Most Popular on web10" same-domain analytics probe + Developer B's Snake game and Marketplace reading web10-social's `profile` documents (avatars, walls) cross-app with zero changes to Developer A and no inter-app API agreement. Records the combined "Friends & Scores" cross-developer join, the node "must NOT have" D60 checklist, seed shape, paper §3.4/§3.5 table + narrative, and the title decision (Social vs. User Data Platform). `evaluation-plan.md` gains E4b pointing at the spec; README research map updated. Planning only — nothing built, no node or app changes. Build is the follow-up (validate queries against the live node, then the static pages + seed).
+
+- [✓ 3.251.7] **Connected droplet evaluation runner** — implement `research/experiments/social/` isolated production-build scenario and evidence collector; real browser/auth/data paths, separate setup/warmups, exact expected outcomes, durable failures and project-only cleanup. This completes tooling only: Docker/droplet execution and E2–E5 evidence remain open. Gates/commands: `research/experiments/social/README.md`.
+
+- [✓ 3.251.6] **Live Ubuntu pilot observation** — collect aggregate production stats and bounded account-authorized browser checks without fixtures, direct data mutation or redeployment. Record initial empty-music selector failure, readiness samples, resource snapshots and missing deployed phase telemetry; formal evaluation remains open.
+
+- [✓ 3.251.5] **Direct technical prose and consolidated scope** — remove repeated defensive framing from the paper; retain specific behavior and pending results, gather open security/adoption/parity limits in one subsection. No E1–E6 completion or runtime changes.
+
+- [✓ 3.251.4] **Killer-app demonstration and media breadth** — paper/source map explain web10-social as an adoption hypothesis and broad client application over web10 APIs; source-linked media-pattern table, not mass-adoption or exhaustive competitor-parity evidence. No evaluation completion.
+
+- [✓ 3.251.3] **Demonstration implementation and source map** — document web10-social's static frontend and web10 data/auth backend, scope the preview/media/peer exceptions, add pinned component/experiment links and reproducible frontend/test/preview line counts. No benchmark completion; `research/source-map.md` records the snapshot and method.
+
+- [✓ 3.251.2] **Paper contribution-led voice** — simplify abstract/introduction/contributions/conclusion and related-work comparisons; preserve 3.251.1 factual corrections. Feasibility and operational costs are the evaluation goal; maximum performance is not a prerequisite. No new novelty priority or measured-result claims; E1–E6 remain open.
+
+- [✓ 3.251.1] **Paper factual alignment** — operator-authorized repair of `research/workshop/main.tex` and research notes: current feed call count, shared-table namespaces, actual app/group gates, bounded security/portability, fair RLS comparison and pending evidence. This is text repair, not E1–E6 completion or final submission readiness. `research/experiments/README.md` records harness blockers; fix code before collecting results.
+
+Evaluation task wording below is historical shorthand: `research/evaluation-plan.md`
+governs methodology. E3 compares equivalent shared-table policy implementations,
+not physical per-user databases; E2 phase ratios are not total authorization cost.
+The official CMT is open as of 28.10.2026. W1 may be scaffolded independently of
+results, but no evaluation or novelty claim is complete without its evidence.
+
+- [✓ 3.249.2] **Python implementation rationale (supporting note)** — `research/why-python.md` covers FastAPI/ClickHouse responsibilities, commercial suitability, security visibility, rewrite tradeoffs and evaluation requirements. Draft untouched; E1–E6/W1–W6 not completed by this note.
+
+- [ ] **W1: scaffold `research/sigmod/`** — acmart sigconf, 12-page budget,
+  section outline from `research/draft/outline.md` expanded for industry
+  track (add a "Lessons from Running It" section — the industry-track
+  differentiator).
+- [ ] **W2: port + expand the workshop sections** — Intro, Access Model,
+  Enforcement, Running Platform. Expand, don't rewrite; the workshop prose is
+  the draft.
+- [ ] **W3: the Evaluation section** — fill from E1–E6. The load-bearing wall.
+  Real numbers, not adjectives.
+- [ ] **W4: Related Work** — from `research/related-work.md` (the gap check
+  must be `[YES]` before this section freezes).
+- [ ] **W5: Lessons + Conclusion** — the operational story: what the
+  per-collection model gave up, what broke in production, what the genericity
+  (D60) bought.
+- [ ] **W6: formatting + page budget** — 12 pages + refs, ACM sigconf,
+  figures (the two workshop figs + new eval figures), references complete.
+  Freeze Nov 20.
+
+**Open questions (answer before W1):**
+- Do we have the production numbers (E1–E3) or must we instrument first?
+  (If the latter, E1–E3 start NOW — they are the critical path.)
+- Is the claim still the access model (IAM-to-the-front), or does the
+  industry framing co-lead with the generic-node + columnar story? (Working
+  assumption: access model is the contribution; the "one generic node running
+  a full social app" is the operational novelty that industry track rewards.)
+- Authorship: still Jacob Hoffman + web10 Inc.? (Single founder is fine if
+  the system is real; industry track sometimes prefers 2+ authors.)
+- CMT: watch for the track opening; submission logistics (PDF, anonymity
+  rules — industry track is typically NOT anonymous, affiliation visible).

@@ -60,6 +60,28 @@ Popup opens. User authenticates. Server mints a scoped JWT. Popup posts the toke
 
 ### The handoff is idempotent (D45)
 
+Explicit logout in the authenticator terminates its outstanding consent batch
+with cancellation errors, even when no operation has started. A subsequent login
+may complete the credential handoff without approving that cancelled consent;
+the app must submit a new request if it still needs a grant. This is distinct
+from selecting an account in the picker, where untouched requests can still be
+reviewed as that account. Logout does not revoke grants or delete vaulted tokens.
+An already-dispatched API write is not rolled back by cancelling its UI reply.
+
+The delayed token-handoff close belongs to one generation, batch, principal and
+token, checked against the current interface/client when it fires. Logout/account
+reset or a newer handoff invalidates the old generation. Replacement consent or
+credentials must not be closed by the old transaction's timer.
+
+Account display reads (profile, admin, app contracts, member groups and managed
+groups) capture the identity generation, current principal/token and a per-surface
+request sequence. Logout, completed login and picker identity resets invalidate
+old reads and queued service/admin work, clearing the previous display state.
+Only the latest still-owned read may apply success/error results, including after
+JSON decoding. Retained callbacks consult the current client's credentials/auth,
+not their original render. Current reads still hydrate the selected account; this
+does not fence every mutation or change server authorization.
+
 The popup hands the token back on every "return to app," and the app also restores the session from the cookie on page load — so `authListen` can receive a token for a user the app is already acting as. The SDK treats that repeat as a no-op for the callback: it always stores the delivered token in the cookie (a same-user token may carry a newer expiry), but fires the signed-in callback only on a real transition — a first login, when the cookie holds no token yet. A delivery for the user the app is already acting as re-stores the cookie and stops there; a delivery for a *different* user is rejected before that (the D42 identity check), so a stale popup can't hijack the app. Apps should read the callback as "the signed-in user appeared or changed," not "a token arrived."
 
 ### SDK Methods
@@ -230,7 +252,23 @@ function isTokenExpired(token: string): boolean {
 }
 ```
 
-Fail-open: if the token has no `expires` claim, it's treated as valid (matches server behavior for "anon" tokens).
+SDK-side metadata expiry checking is fail-open when `expires` is missing. This is
+not the server's user-token rule; only anonymous tokens have the deliberate
+server custom-expiry exemption below.
+
+Server freshness contract (L1-D-01/D-02 and OAuth occurrence L1-OAUTH-01):
+signature-verified decoding of a non-anonymous token must require a parseable ISO
+`expires`, and reject it at or after that instant. Missing/malformed values are
+invalid, not immortal sessions. Naive timestamps minted by this node mean UTC;
+explicit offsets represent the same absolute UTC instant. Standard JWT `exp`,
+when present, remains independently enforced by PyJWT; it does not replace
+`expires`. Unsigned metadata decoding is not an authorization gate and keeps its
+existing behavior. Anonymous tokens retain their deliberate custom-expiry
+exemption; missing tokens still use the bounded anonymous path where supported.
+The session oracle classifies expired versus invalid consistently and skips
+user/contract lookups for either. The [local freshness repair](../../security/scans/2026-10/repair-d01-token-freshness.md)
+enforces this at verified decoding/certification; integration/rollout/sign-off
+remain open. It is not issuer, provider, purpose or delegated-revocation assurance.
 
 ## ACR (App Contract Request)
 

@@ -79,4 +79,22 @@ describe('Docs — the "who are you?" landing', () => {
     const links = Array.from(section.querySelectorAll('a')).map(a => a.getAttribute('href'));
     expect(links[0]).toBe('/docs/monetization');
   });
+
+  it('lists the Interoperability doc under For Developers', async () => {
+    renderDocs('/docs');
+    await screen.findByRole('heading', { name: /who are you\?/i });
+    const link = screen.getByRole('link', { name: 'Interoperability' });
+    expect(link).toHaveAttribute('href', '/docs/interop');
+    const section = screen.getByRole('heading', { name: /for developers/i }).closest('div')!;
+    expect(Array.from(section.querySelectorAll('a')).map(a => a.getAttribute('href'))).toContain('/docs/interop');
+  });
+
+  it('lists the Snake and Marketplace interoperability demos in the Demo Apps section', async () => {
+    renderDocs('/docs');
+    await screen.findByRole('heading', { name: /who are you\?/i });
+    const snake = screen.getByRole('link', { name: /snake \(interoperability\)/i });
+    expect(snake).toHaveAttribute('href', '/docs/snake/');
+    const marketplace = screen.getByRole('link', { name: /marketplace \(interoperability\)/i });
+    expect(marketplace).toHaveAttribute('href', '/docs/marketplace/');
+  });
 });

@@ -49,12 +49,27 @@ the end is the backstop that catches a malformed result.
 
 from __future__ import annotations
 
+import logging
 import re
 
 import sqlglot
 from sqlglot import exp
+from sqlglot.dialects.clickhouse import ClickHouse
 
 DIALECT = "clickhouse"
+
+
+class _QueryParser(ClickHouse.Parser):
+    def _warn_unsupported(self) -> None:
+        # sqlglot's default warning includes raw SQL. Keep parsing and client
+        # error behavior intact, but never duplicate that content into logs.
+        logging.getLogger(__name__).warning("[query] unsupported syntax; SQL omitted")
+
+
+def _parse_sql(sql: str):
+    dialect = ClickHouse()
+    return _QueryParser(dialect=dialect).parse(dialect.tokenize(sql), sql)
+
 
 # Node infrastructure tables a caller's query must never reference directly.
 # The boundary CTEs (API-built) reference ``documents`` + ``doc_groups`` to
@@ -417,7 +432,7 @@ def query_services(
 
     # 1. Parse into statements. The raw string is never executed.
     try:
-        statements = sqlglot.parse(user_sql, dialect=DIALECT)
+        statements = _parse_sql(user_sql)
     except sqlglot.errors.ParseError as e:
         raise UnsafeQueryError(f"query does not parse: {e}") from e
     statements = [s for s in statements if s is not None]
@@ -486,7 +501,7 @@ def build_safe_query(
 
     # 1. Parse into statements. The raw string is never executed.
     try:
-        statements = sqlglot.parse(user_sql, dialect=DIALECT)
+        statements = _parse_sql(user_sql)
     except sqlglot.errors.ParseError as e:
         raise UnsafeQueryError(f"query does not parse: {e}") from e
     statements = [s for s in statements if s is not None]
@@ -526,7 +541,7 @@ def build_safe_query(
     # 5. Round-trip backstop: the result must re-parse as exactly one
     #    statement (a malformed injection would break this).
     try:
-        reparsed = [s for s in sqlglot.parse(final_sql, dialect=DIALECT) if s is not None]
+        reparsed = [s for s in _parse_sql(final_sql) if s is not None]
     except sqlglot.errors.ParseError as e:
         raise UnsafeQueryError(f"compiled query does not re-parse: {e}") from e
     if len(reparsed) != 1:

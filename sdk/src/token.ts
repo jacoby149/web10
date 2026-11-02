@@ -14,11 +14,14 @@ export function cookieDict(): Record<string, string> {
     if (eq === -1) return res
     const key = c.substring(0, eq).trim()
     const val = c.substring(eq + 1).trim()
+    let value
     try {
-      res[key] = JSON.parse(decodeURIComponent(val))
+      value = JSON.parse(decodeURIComponent(val))
     } catch {
-      res[key] = decodeURIComponent(val)
+      value = decodeURIComponent(val)
     }
+    // Cookie names are data, including __proto__; never invoke inherited setters.
+    Object.defineProperty(res, key, { value, enumerable: true, writable: true, configurable: true })
     return res
   }, {} as Record<string, string>)
 }
@@ -28,6 +31,7 @@ export function cookieDict(): Record<string, string> {
  */
 export function readTokenCookie(): string | null {
   const cookies = cookieDict()
+  if (!Object.hasOwn(cookies, 'token')) return null
   const raw = cookies['token']
   if (!raw) return null
   // The cookie may have been stored as a JSON string
