@@ -15,7 +15,19 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## HLS Variant Provenance (01.11.2026)
+
+H01-HLS-VARIANT [local repair](scans/2026-10/repair-h01-hls-variant.md): two
+actual HTTP/JWT synthetic manifest disclosures denied before storage access.
+Uploader-owned raw key, signed prefix and exact worker rendition key must agree.
+28 new controls; 1,599 API tests plus eight subtests, Ruff and fresh same-model
+review pass. HLS mint/segment provenance, services/CI/deployment/diverse sign-off
+and L1 remain OPEN. This is not a whole-HLS repair.
+
 ## Raw MinIO Ownership (01.11.2026)
+
+Raw repair merged #1307 (GitHub mergedAt `2026-11-02T02:09:20Z`); historical
+local checkpoint below is not deployment evidence.
 
 H01-RAW [local repair](scans/2026-10/repair-h01-raw-owner.md): real synthetic
 SigV4 baseline foreign mint denied; explicit owner and independent document/ad
@@ -29,7 +41,7 @@ services/CI/deployment/history/diverse sign-off and L1 remain OPEN.
 
 Metadata repair merged #1306 at `f3cacbff42a15980969d920d12f9cc9652a4dfda`,
 all 13 checks green on first CI attempt. Earlier local checkpoint wording below
-is historical; the raw sink repair above is not yet merged or deployed.
+is historical; the raw sink repair above is merged, not deployment-verified.
 
 H01-META [local one-sink repair](scans/2026-10/repair-h01-metadata-owner.md):
 original/thumbnail owner namespace enforced before signing; two real synthetic

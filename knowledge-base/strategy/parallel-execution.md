@@ -69,6 +69,9 @@ route + the screenshot harness).
 
 ### Lane: security-l1-scans
 
+- [✓ 3.253.13 local] **PROTOCOL-01/H01-HLS-VARIANT: bind variant fetches to video provenance** — own HLS variant handler/focused tests/security KB; two HTTP/JWT synthetic-object disclosures red -> denied green, 28 new controls, 1,599 API tests plus eight subtests, Ruff and fresh same-model review pass. `knowledge-base/security/scans/2026-10/repair-h01-hls-variant.md`. No mint/segment/schema/SDK policy changes; integration/CI/deployment/diverse/L1 OPEN.
+- **Raw status:** H01-RAW merged #1307; historical local tick below is not deployment evidence.
+
 - [✓ 3.253.12 local] **PROTOCOL-01/H01-RAW: owner-bind recursive MinIO signing** — own raw resolver/ad uploader propagation/focused tests/security KB; real synthetic SigV4 red -> denied green, review-fixed ad-loader compatibility, 347 focused/1,570 API tests plus four subtests and lint/format, fresh same-model recheck. `knowledge-base/security/scans/2026-10/repair-h01-raw-owner.md`. No HLS/schema/SDK changes; other provenance/CI/services/deployment/diverse/L1 OPEN.
 - **Metadata status:** H01-META merged #1306 at `f3cacbff4`, all 13 first-attempt checks green; historical local tick is not remaining-gate closure.
 

@@ -80,6 +80,12 @@ caller-supplied ownership contexts still need their separate checks.
 
 ### Why Video Needs JWT + Middleware
 
+The variant-manifest fetch additionally requires the raw video's key to belong
+to `posted_by or author_key`, its HLS prefix to match the verified stream claims,
+and the selected MinIO key to equal `{prefix}/{variant}/index.m3u8`, the worker's
+output. Failures are denied before storage access. This fetch check does not
+certify mint-time prefix provenance or the separate sig-only segment path.
+
 HLS segments are small (270KB each), numerous (100+), and fetched continuously over minutes. You need auth on every segment without presigning each one.
 
 **The solution:** signed manifest + JWT on every segment.

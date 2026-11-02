@@ -35,6 +35,18 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-01: A readable rendition record is not an object-read grant
+
+[HLS variant repair](scans/2026-10/repair-h01-hls-variant.md) reproduces foreign
+and same-owner/different-tree manifest disclosure through actual HTTP/JWT with
+a key-sensitive synthetic object store. Variant fetches now require an uploader-
+owned raw video key, matching signed prefix and the worker's exact rendition key.
+`posted_by or author_key` is the owner, never the viewer. 28 new controls and
+1,599 API tests plus eight subtests pass, with fresh same-model review. This
+blocks one fetch sink, not foreign-prefix minting or direct signed segment use;
+those remain explicit follow-up work. Persisted injection, actual storage/player,
+CI/deployment and diverse sign-off remain unverified.
+
 ### 2026-11-01: Every recursive signer needs an explicit owner
 
 [H01 raw repair](scans/2026-10/repair-h01-raw-owner.md) reproduces a real
