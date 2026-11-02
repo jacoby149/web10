@@ -5,9 +5,12 @@ up to **12 pages plus references**, ACM `sigconf`, not anonymous, CMT open
 (verified October 28, 2026; [official CFP](https://2027.sigmod.org/calls_industrial_track_papers.shtml)).
 Internal freeze: November 20. The existing `research/workshop/main.tex` is
 draft material, not a validated account of results. Comparative review and
-broader evaluation remain pending; the manuscript now includes one preliminary
-K=10/100 synthetic trial. See `../experiments/costfn/K100-RESULTS.md` for the
-measured values, provenance and limitations.
+broader evaluation remain pending. The manuscript integrates the connected
+interoperability result into its abstract, contributions, application composition,
+evaluation and conclusion, alongside the K=10/100/1000 synthetic trial from
+PR #1313. The older 100-creator trial remains separate, not pooled.
+See `../interoperability-demo/RESULTS.md` and
+`../experiments/costfn/K1000-RESULTS.md` for evidence, provenance and limitations.
 
 ## Sections
 
@@ -35,9 +38,17 @@ measured values, provenance and limitations.
    authorization ablation and matched shared-table policy baseline with the
    same data, access semantics, results and resources. Current nonempty feed:
    three query calls plus content views; discovery and media work additional.
-   Include the preliminary K=10/100 table and the K=1 contrary result, clearly
+   Include the 1,000-creator K=10/100/1000 table and the K=1 contrary result, clearly
    separated from these pending full-flow measurements. Direct scan A is not
    a matched no-policy HTTP baseline; do not label B-minus-A causal overhead.
+   Preserve 20-cell/400-sample accounting and growth in batched costs; K1000
+   is measured, but independent repetitions and full E3 remain open.
+   Lead the composition evidence with actual profile reuse by Snake and
+   Marketplace: producer/consumer service table, abbreviated query, direct
+   screenshot figure and connected desktop/mobile/API controls. Distinguish
+   browser consent from API-installed HTTP fixtures; preserve shared-origin,
+   known-schema and bounded-revocation scope. These are completed correctness
+   cases, not full-feed latency or capacity measurements.
 7. **Operational Lessons:** only documented production incidents and measured
    tradeoffs of shared-table logical namespaces, permission metadata and a
    generic node. Distinguish observed experience from design expectations.

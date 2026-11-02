@@ -1,58 +1,83 @@
 # Interoperability Demo
 
-The paper demonstration: web10-social writes a profile; Snake and Marketplace
-join their own documents to that profile through the generic query boundary.
-This folder owns the browser scenario, standalone Playwright configuration, and
-execution instructions. The hosted apps stay in their existing deployment paths.
+**Connected verification: passed on 2 November 2026.** The real social app writes
+a profile; Snake and Marketplace reuse it through consent and the query boundary.
+See [RESULTS.md](RESULTS.md) for measured evidence, failures, provenance and limits.
 
 ## Run
 
-Use a disposable local Docker stack, never production. The runner creates test
-accounts and documents and calls the first-run node configuration endpoint.
-Start the repository's normal E2E stack first; this command does not provision
-or tear down infrastructure. The stack must route `api.localhost`,
-`auth.localhost`, `social.localhost`, and `marketing.localhost`.
+Use a fresh disposable Ubuntu host, never production or a shared development
+stack. Provisioning is separate: install Git, Node 22+, npm, Docker Engine with
+Compose 2.24.4+ (`!override` support), and authenticate GHCR pulls if required.
+Map `api.localhost`, `auth.localhost`, `social.localhost`, `rtc.localhost`,
+`marketing.localhost` and `sdk.localhost` to `127.0.0.1` on the host.
 
-Install the standard E2E dependencies first (`bun install` in `e2e/`), since
-the runner reuses its node-setup module. Then, from this directory:
+From the repository root:
 
 ```sh
-bun ../../e2e/node_modules/playwright/cli.js install chromium
-bun run test:list
-bun run test
+npm ci --prefix e2e
+node e2e/node_modules/playwright/cli.js install --with-deps chromium
+WEB10_DISPOSABLE=interoperability-demo bash research/interoperability-demo/run.sh
 ```
 
-Set `E2E_HTTP_PORT` if the stack is not on port 80. Run one viewport with
-`bun run test --project=desktop` or `--project=mobile`.
-The normal E2E suite also discovers this scenario through
-`e2e/tests/interop-demos.spec.ts`.
+The runner rejects unrelated running containers and remote Docker routing. It
+uses only the `web10-interop` project, loopback-published ports, fresh storage,
+schema-before-API startup, one worker, and zero retries. It collects results
+before project-only teardown. It never provisions or destroys cloud hosts;
+destroy the purchased host separately after collecting evidence.
+
+No runner filters are accepted: success requires both browser viewports, the HTTP
+correctness case and every expected screenshot. For diagnostic partial runs
+against an already-started disposable stack, use Playwright directly:
+
+```sh
+node e2e/node_modules/playwright/cli.js test \
+  --config research/interoperability-demo/playwright.config.ts --project=desktop
+```
+
+The normal E2E suite also discovers the browser scenario through
+`e2e/tests/interop-demos.spec.ts`. Both runners use the E2E Playwright installation.
+
+## Scenario
+
+- Social popup login and consent, followed by a profile name/bio edit through
+  the real social UI. No browser credential injection or preinstalled app grant.
+- Snake popup consent, one real earned 10-point run, UI and API joins to the
+  exact social-written profile, and a verified wall link.
+- Browser-origin app-contract revocation: API 403 and a cleared leaderboard/error
+  state on a fresh UI request.
+- Marketplace popup consent after sign-out/revocation, a real listing publication,
+  the same profile identity, exact API join, and URL-held detail reload.
+- The existing `experiments/social/interop.mjs` runs against three real accounts:
+  exact two-author score/profile and listing/profile joins, missing app permission,
+  grant/revoke, and an independent private-profile membership grant/removal case.
+
+The HTTP layer's app grants are API fixtures, not browser consent evidence.
+Both clickable apps share `marketing.localhost`; they are not distinct browser
+origins. HTTP cross-author checks use a separate `snake.localhost` Origin header.
+Developer A/B are application roles, not independently recruited developers.
 
 ## Evidence
 
-Outputs are gitignored under `.context/interoperability-demo/`: HTML report,
-failure traces, and screenshots. `INTEROP_SHOT_DIR` overrides the screenshot
-directory. Retain outputs with the exact source revision and stack configuration.
-Inspect desktop and 375px screenshots before using them in the paper.
+Each run writes `.context/interoperability-demo/run-<UTC>-<pid>/`: Playwright JSON
+and log, exact source revision plus patch/overlay, source/config hashes, runtime
+versions, image identities, cleanup status, and screenshots. Traces are disabled
+because they can contain credentials; network requests outside localhost are
+blocked in the synthetic browsers. Screenshots are mandatory, not best effort.
 
-## Current Boundaries
+Desktop app viewport: 1440x1000. Mobile app viewport: 375x812. Authenticator
+popups use their requested 480x720 window dimensions in both projects. Each
+viewport has six complete flow captures and two direct identity-card captures.
 
-This is an inherited scenario, not yet a completed connected demonstration.
-It currently injects token cookies and preinstalls app contracts; it does not
-establish independent app consent. Its app-contract strings include URL paths,
-although the browser runtime requests contracts for `location.origin`. Snake
-and Marketplace currently share that browser origin, not distinct origins.
-Gameplay and responsive selectors also need connected verification. Screenshot
-capture currently warns rather than failing the test.
+Curated paper images live in [figures/](figures/); the final receipt archive lives
+in [evidence/](evidence/). Full captures remain in the local evidence directory.
+All pictured identities, scores and listings are synthetic.
 
-The next implementation step is to replace those shortcuts with real popup
-login/consent and assert exact cross-app results, denied access, regrant and
-revocation. Do not cite test discovery or static screenshots as connected proof.
+Offline checks:
 
-The separate HTTP correctness layer already lives at
-`../experiments/social/interop.mjs`, with its offline controls and disposable
-Ubuntu runner documented in `../experiments/social/README.md`. It covers exact
-two-author joins and independent app/group denial cycles, but is not a browser
-consent demonstration. Reuse it rather than duplicating its assertions.
-
-On 1 November 2026 the local Docker daemon was unreachable. No connected run
-or successful demo screenshots were collected during folder setup.
+```sh
+node --test research/interoperability-demo/marketplace.test.mjs
+bash -n research/interoperability-demo/run.sh
+node e2e/node_modules/playwright/cli.js test \
+  --config research/interoperability-demo/playwright.config.ts --list
+```

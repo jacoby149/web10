@@ -4,9 +4,9 @@
 
 **Target:** SIGMOD 2027 industry track
 
-**Status:** drafting; preliminary K=10/100 trial recorded; broader evaluation and comparative review pending
+**Status:** drafting; K=10/100/1000 trial and connected interoperability demonstration integrated; broader evaluation and comparative review pending
 
-**Updated:** 2026-11-01
+**Updated:** 2026-11-02
 
 ## Paper Scope
 
@@ -29,8 +29,11 @@ for measurements. Formal production characterization, cost and synthetic
 capacity results remain pending. A [live Ubuntu pilot](live-observation-2026-10-28.md)
 now records dated aggregate counts and nine authenticated browsing checks;
 formal capacity and comparative evaluation remain open. A preliminary
-[K=10/100 trial](experiments/costfn/K100-RESULTS.md) now records phase-level
-timings for a simplified query, included in the manuscript's evaluation section.
+[K=10/100 trial](experiments/costfn/K100-RESULTS.md) records earlier phase-level
+timings for a simplified query. The manuscript's main table now uses the later
+[1,000-creator K=10/100/1000 trial](experiments/costfn/K1000-RESULTS.md) from
+PR #1313, with a retained [machine-readable summary receipt](experiments/costfn/evidence/).
+The datasets, hosts and source revisions differ; their samples are not pooled.
 Do not imply that a simplified SQL benchmark measures
 the full feed: the current nonempty path has three query calls plus content
 views, with discovery and media fetches additional.
@@ -67,15 +70,18 @@ the official CFP governs current logistics.
 | `digital-ocean-thinking.md` | Pre-mortem of the droplet evaluation: what each harness can claim, epistemic boundaries, cost/evidence rules, decision points |
 | `cloudflare-plan.md` | Media-delivery offload plan: CDN stack, the free-vs-paid auth decision, Parts A/B/C (images / edge-verified HLS / takedown fast-path), and the dollar answer |
 | `experiments/README.md` | Known harness blockers; no runnable/reproducible claim yet |
-| `experiments/costfn/` | Cost-function harness and preliminary K=10/100 results: one trial, 15 cells, 300 samples. A is a direct precompiled scan baseline; B/C compare per-group and batched policy resolution |
+| `experiments/costfn/` | Cost-function harness and separately recorded 100-creator and 1,000-creator trials. Main paper table: K10/100/1000, 20 cells, 400 samples; A is a direct precompiled scan baseline, B/C compare per-group and batched resolution. Summary receipt and table checker retained |
 | `draft/outline.md` | Industry-paper section plan |
 | `workshop/main.tex` | Existing compressed draft, not evidence of completed evaluation |
 
 ## Remaining Gates
 
 The dedicated browser runner and evidence instructions live in
-[`interoperability-demo/`](interoperability-demo/). Connected execution and
-real independent-app consent remain open.
+[`interoperability-demo/`](interoperability-demo/). Its connected desktop/mobile
+consent and join flows plus independent HTTP app/group controls now pass; see
+[the dated results](interoperability-demo/RESULTS.md). This does not close the
+full social-feed/performance evaluation or establish distinct browser origins
+for the two marketing-hosted demo apps.
 
 - [ ] Complete source-level comparisons, especially Solid WAC/ACP and query
   work, and narrow or withdraw any unsupported novelty distinction.
