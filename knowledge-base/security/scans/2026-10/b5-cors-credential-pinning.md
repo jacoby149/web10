@@ -88,3 +88,9 @@ At the local checkpoint these tests/docs were uncommitted and kept out of decode
 PR #1303. The operator subsequently requested committing and pushing all changes
 on this branch. This slice remains test-only; browser integration and required
 diverse sign-off remain owed rather than deferred out of the L1 gate.
+
+Post-dev-merge integration: group-as-author A0 now passes server-derived
+`posted_by` to document insertion. The CORS positive control initially failed
+its exact-call assertion; added `posted_by="alice"` without weakening the
+identity/permission checks or changing runtime behavior. Full merged suite:
+1,472 API tests plus four subtests pass; lint/format and whitespace checks pass.

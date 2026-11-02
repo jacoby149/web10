@@ -121,6 +121,7 @@ def test_open_cors_preserves_create_permission_gate(monkeypatch, boundary_tokens
             tags=[],
             ad_mode="none",
             ad_target="",
+            posted_by="alice",
         )
     else:
         insert.assert_not_called()

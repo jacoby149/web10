@@ -90,6 +90,24 @@ export interface PostRecord {
   // inline (the server's batched author read — no per-author fan-out).
   profile?: ProfileRecord;
   avatar_url?: string;
+  // Group-as-author: the human who authored the post. Always populated —
+  // for a normal post it equals author_username; for a group-authored post
+  // it is the JWT username while author_key is the group_id. Server-set,
+  // unforgeable. Shown as "posted by {username}" under the group's name.
+  posted_by?: string;
+  // Group-as-author: the group's face (name, avatar_ref, banner_ref) from
+  // the `web10-social-group-identity` service, joined by the feed query when
+  // author_key is a group_id. When present, the post header renders the
+  // group's face instead of the user's profile.
+  group_identity?: {
+    name?: string;
+    description?: string;
+    avatar_ref?: string;
+    banner_ref?: string;
+    website?: string;
+    tags?: string[];
+    kind?: string;
+  };
   // Aliases for backward compat with DiscoveryPost
   author?: string;
   provider?: string;
@@ -152,6 +170,11 @@ export function fromV3DocToPost(doc: V3Document): PostRecord {
     // The raw ad_preference pointer (the pinned ad's doc_id) — for the edit
     // flow's pin picker to pre-select the current pin.
     ad_target: doc.ad_target || undefined,
+    // Group-as-author: the human who authored the post (server-set from the
+    // JWT). Always populated — for a normal post it equals author_username;
+    // for a group-authored post it is the username while author_key is the
+    // group_id.
+    posted_by: doc.posted_by || undefined,
     // Backward compat aliases for DiscoveryPost consumers
     author: username,
     provider,
