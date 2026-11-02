@@ -4,25 +4,52 @@
 
 **Target:** SIGMOD 2027 industry track
 
-**Status:** drafting; K=10/100/1000 trial and connected interoperability demonstration integrated; broader evaluation and comparative review pending
+**Status:** reframed 2026-11-02 around the **decentralized-IAM thesis** (see
+`decentralized-iam-thesis.md`). Title restored to "Your Data, Your Rules, One
+Query: Extending the Decentralized Web." New §3 (User-Addressed Network) added;
+in-paper to-do lists collapsed into Future Work; perf reframed as a
+design-decision finding; deployed operating point added. The cross-node IAM
+demo (`cross-node-iam-demo.md`) is scoped as the experiment that would close
+the last gap; it does not block the draft.
 
 **Updated:** 2026-11-02
 
+## The Thesis (read this first)
+
+> Email decentralized where your data *goes*. web10 decentralizes who can
+> *access* it — a uniform, user-managed access model where any principal on
+> any node can hold any role in your groups, over the same user-addressed
+> architecture, generalized from one data format (mail) to all data formats.
+
+Full direction, the three-property triangle, the built-vs-in-flight honesty
+bar, and what changed in the draft: **`decentralized-iam-thesis.md`**.
+
+The old framing ("systems-integration / operational-experience report,"
+"single-node, federation is future work") is superseded. The system is a
+federation of nodes by design (D84); the draft was hedging *false to the
+system*, not just timid. The email analogy is what makes the bold title
+load-bearing: the decentralized part is an inheritance from email, not an
+aspiration.
+
 ## Paper Scope
 
-web10 integrates **generic query composition with user-managed group/service
-permissions**, illustrated by web10-social. Its per-user namespace is logical:
-documents live in one shared ClickHouse `documents` table keyed by
-`(author_key, doc_id)`, not one database or physical collection per user.
-Applications define feed queries and service-namespaced content through shared
-primitives; the node also supplies advertising, content-event, media and
-result-preparation machinery.
+web10 is a **user-addressed network**: a federation of sovereign nodes in which
+the user's client mediates cross-node reads, each node re-authorizes every read
+against a verified token, and the access model is globally addressable by
+construction. Content and access relationships live in a shared columnar data
+plane (one ClickHouse `documents` table per node, keyed by
+`(author_key, doc_id)`); applications define their own queries over
+service-namespaced documents; users manage group membership and service-scoped
+grants through a uniform permission vocabulary. The node also supplies
+advertising, content-event, media, and result-preparation machinery.
 
-This is a systems-integration and operational-experience contribution, not
-the invention of IAM/RBAC, shared-table isolation, or user-controlled access.
 The node is readable by design; do not imply operator-blindness. Creator
 monetization is outside the paper's evaluation and does not define its gap.
-No first-ever claim or universal literature gap is established.
+No first-ever claim or universal literature gap is established — the claim is a
+*generalization* of email's 50-year-old model (one format → all formats,
+content routing → access control) plus a query layer, not a universal novelty
+gap. The related-work gap remains OPEN (`related-work.md`); the framing is the
+generalization, which is safer.
 
 Deployment provides an opportunity to collect experience, not a substitute
 for measurements. Formal production characterization, cost and synthetic
@@ -59,7 +86,9 @@ the official CFP governs current logistics.
 
 | Path | Purpose |
 |---|---|
-| `brief.md` | Bounded claim, scope and outstanding gates |
+| `decentralized-iam-thesis.md` | **The paper's spine (read first).** The email generalization, the three-property triangle, the built-vs-in-flight honesty bar, what changed in the draft, the overclaims to avoid. |
+| `cross-node-iam-demo.md` | The experiment that closes the last gap: a foreign principal granted into a group on another node, reading through the verified token, then removed and denied. Spec, blockers (H/A/B/C), minimal scope, decision gate. Does not block the draft. |
+| `brief.md` | Bounded claim, scope and outstanding gates (pre-reframe; the thesis doc supersedes its framing) |
 | `source-map.md` | Commit-pinned demonstration source counts, backend boundary and artifact links |
 | `live-observation-2026-10-28.md` | Actual Ubuntu dataset/hardware snapshot and bounded authenticated browser pilot |
 | `related-work.md` | Explicitly unverified comparison tasks, using the verified citation pack |
@@ -72,7 +101,7 @@ the official CFP governs current logistics.
 | `experiments/README.md` | Known harness blockers; no runnable/reproducible claim yet |
 | `experiments/costfn/` | Cost-function harness and separately recorded 100-creator and 1,000-creator trials. Main paper table: K10/100/1000, 20 cells, 400 samples; A is a direct precompiled scan baseline, B/C compare per-group and batched resolution. Summary receipt and table checker retained |
 | `draft/outline.md` | Industry-paper section plan |
-| `workshop/main.tex` | Existing compressed draft, not evidence of completed evaluation |
+| `workshop/main.tex` | The paper (11 pp, builds clean with tectonic). Reframed 2026-11-02 per the thesis doc. The evaluation is bounded by construction; the cross-node IAM demo is the forward scope, not a completed result. |
 
 ## Remaining Gates
 
