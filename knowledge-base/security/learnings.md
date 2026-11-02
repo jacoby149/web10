@@ -35,6 +35,20 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-01: Every reference mint needs its own uploader context
+
+[Reference HLS mint repair](scans/2026-10/repair-h01-hls-ref-mint.md) reproduces
+working foreign-prefix segment capabilities through main, ad and node-ad refs.
+Bind each mint to the same `posted_by or author_key` context used by its metadata
+resolver, never viewer/carrier identity. Drop stored manifest URLs before disabled
+or invalid refs return. Preserve valid siblings without coercing/normalizing keys.
+Actual resolver-to-mint composition checks three distinct uploaders in one output;
+46 new cases and 1,669 API tests plus eight subtests pass with same-model review.
+Owner/key consistency does not prove caller-selected owner provenance; legacy URL
+fields, persisted inputs, live playback, old token TTL and diverse sign-off remain
+open. Earlier direct-mint repair merged #1311; its last observed CI had a repeated
+Discover engagement failure, not an all-green release gate.
+
 ### 2026-11-01: Deny the foreign tree before minting its stream token
 
 [Direct-document HLS mint repair](scans/2026-10/repair-h01-hls-direct-mint.md)

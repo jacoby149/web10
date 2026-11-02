@@ -72,6 +72,9 @@ reuses `POST /v3/app-contracts/revoke`. Full spec:
 
 ## L1 Security Scans
 
+- [✓ 3.253.15 local] **PROTOCOL-01/H01-HLS-REF-MINT: owner-bind reference/ad stream mint** — three foreign segment capabilities denied; independent uploader contexts, stale suppression and valid siblings retained. 46 new controls, actual resolver/mint composition, 1,669 API tests plus eight subtests, Ruff and fresh same-model review pass. [Receipt](../security/scans/2026-10/repair-h01-hls-ref-mint.md). Supplied-owner/legacy-URL provenance, live integration/CI/deployment/diverse/L1 OPEN.
+- **Direct mint status:** H01-HLS-DIRECT-MINT merged #1311 at `3b37e66c4`; last observed CI was 12/13 green with repeat Discover engagement E2E failure, not all-green or deployment evidence.
+
 - [✓ 3.253.14 local] **PROTOCOL-01/H01-HLS-DIRECT-MINT: owner-bind direct-document stream mint** — foreign raw key no longer issues a working segment capability; stored manifest URLs removed, uploader/reader separation preserved. 24 new controls, 1,623 API tests plus eight subtests, Ruff and fresh same-model review pass. [Receipt](../security/scans/2026-10/repair-h01-hls-direct-mint.md). Ref/ad mint, owner provenance, live integration/CI/deployment/diverse/L1 OPEN.
 - **Variant status:** H01-HLS-VARIANT merged #1309 at `1dda69ecf`, all 13 checks passed first attempt; local checkpoint below is historical.
 

@@ -1,3 +1,6 @@
+3.253.15 || 01.11.2026
+fix(media): **owner-bind resolved-reference and ad HLS token minting** — each main/ad/node-ad ref uses its own uploader context; foreign/malformed keys get no capability or stored manifest fallback. Three helper-minted real JWT/HTTP synthetic segment disclosures red -> issuance-denied green; 46 new controls, 1,669 API tests plus eight subtests, Ruff and fresh same-model review pass. Actual resolver/mint composition retains three distinct owners. Supplied-owner/legacy-URL provenance, persisted/live playback, CI/deployment/diverse review and protocol L1 remain OPEN.
+
 3.253.14 || 01.11.2026
 fix(media): **owner-bind direct-document HLS token minting** — require an uploader-owned raw MinIO video before issuing a stream capability and strip stored manifest URLs on denial/disabled settings. Baseline helper-minted real JWT retrieves synthetic foreign segment bytes through HTTP; repair denies issuance. 24 new controls, 1,623 API tests plus eight subtests, Ruff and fresh same-model review pass. Ref/ad minting, supplied-owner provenance, existing token TTL, live integration/CI/deployment/diverse gates and protocol L1 remain OPEN.
 
