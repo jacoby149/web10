@@ -64,6 +64,9 @@ reuses `POST /v3/app-contracts/revoke`. Full spec:
 
 ## L1 Security Scans
 
+- [✓ 3.253.5 local] **PROTOCOL-01/H01-META: bind stored media-reference signing to its owner** — original/thumbnail foreign keys denied before signing, valid/legacy/posted_by preserved; two real synthetic SigV4 baseline failures denied, 335 focused/1,533 API tests plus four subtests and lint/format, fresh same-model review. [Receipt](../security/scans/2026-10/repair-h01-metadata-owner.md). One sink only; recursive minio/other provenance/CI/services/deployment/diverse/L1 OPEN.
+- **Direct signer status:** H01-DIRECT merged #1305 at `d5f06c6d0`, all 13 first-attempt checks green; prior local checkpoint below does not close remaining sinks.
+
 - [✓ 3.253.4 local] **PROTOCOL-01/L1-H-01-DIRECT: owner-only direct media URL refresh** — approved owner-only direct signer, actual JWT/HTTP/real synthetic SigV4 repro denied before bucket/signing; owned unconfirmed/derivative and document/thumbnail paths preserved. 503 focused/1,477 API tests plus four subtests, lint/format and fresh same-model review. [Receipt](../security/scans/2026-10/repair-h01-direct-media.md). Adjacent provenance/service policy, real services/CI/deployment/diverse/L1 gates OPEN.
 - **Decoder/CORS status:** B-3 default/B-5 tests merged #1303 at `e56d25304`, all 13 final checks green after recorded retries; historical local ticks below do not close broader gates.
 

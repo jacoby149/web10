@@ -3498,6 +3498,9 @@ def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
     the document never stores a live URL) — a legacy stored `url` is only
     used when no object_key exists.
 
+    Stored original/thumbnail keys must belong to user_key's object namespace;
+    metadata row ownership alone cannot authorize a foreign object.
+
     Dedups to the LATEST version per doc (the house pattern): `documents`
     is a ReplacingMergeTree, so a transcoded media doc has several live
     rows (created → processing → done) until a background merge collapses
@@ -3531,9 +3534,23 @@ def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
 
     # Fresh presigned URLs for every object_key + thumbnail_object_key
     # (offline — no network call).
-    object_keys = [m.get("object_key") for m in meta_map.values() if m.get("object_key")]
-    thumbnail_keys = [m.get("thumbnail_object_key") for m in meta_map.values() if m.get("thumbnail_object_key")]
+    prefix = user_key + "/" if isinstance(user_key, str) and user_key else None
+
+    def owned_key(key):
+        return isinstance(key, str) and prefix is not None and key.startswith(prefix) and len(key) > len(prefix)
+
+    def resolved_url(key, legacy_url):
+        if key is None or (isinstance(key, str) and key == ""):
+            return legacy_url
+        return presigned.get(key) if owned_key(key) else None
+
+    # Metadata ownership does not authorize arbitrary stored object references.
+    object_keys = [m.get("object_key") for m in meta_map.values() if owned_key(m.get("object_key"))]
+    thumbnail_keys = [
+        m.get("thumbnail_object_key") for m in meta_map.values() if owned_key(m.get("thumbnail_object_key"))
+    ]
     presigned = {}
+    log.info("[media] metadata signing: accepted keys=%d", len(set(object_keys + thumbnail_keys)))
     if object_keys or thumbnail_keys:
         signing_client = get_s3_signing_client()
         for key in dict.fromkeys(object_keys + thumbnail_keys):
@@ -3542,6 +3559,7 @@ def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
                 Params={"Bucket": settings.S3_BUCKET, "Key": key},
                 ExpiresIn=settings.READ_URL_EXPIRY,
             )
+        log.info("[media] metadata signing: completed")
 
     resolved = []
     for mref in media_refs:
@@ -3556,7 +3574,7 @@ def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
                 "mime_type": meta.get("mime_type"),
                 "filename": meta.get("filename"),
                 "size_bytes": meta.get("size_bytes"),
-                "read_url": presigned.get(object_key) if object_key else meta.get("url"),
+                "read_url": resolved_url(object_key, meta.get("url")),
                 # Dimensions + duration + thumbnail: the metadata doc stores
                 # these (the composer measures them on upload), but the read
                 # path used to drop them — so the client fell back to a 1:1
@@ -3565,7 +3583,7 @@ def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
                 "width": meta.get("width"),
                 "height": meta.get("height"),
                 "duration_seconds": meta.get("duration_seconds"),
-                "thumbnail_url": presigned.get(thumbnail_key) if thumbnail_key else meta.get("thumbnail_url"),
+                "thumbnail_url": resolved_url(thumbnail_key, meta.get("thumbnail_url")),
                 # The media doc's transcoding_settings (D44): status +
                 # variants let the client pick the player (hls.js when
                 # done, native <video> otherwise). The read-minted

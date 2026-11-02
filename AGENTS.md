@@ -349,6 +349,11 @@ Foreign viewers obtain fresh media URLs through authorized document/group reads;
 public thumbnails retain their document-access path. This does not certify
 stored object-reference provenance or revoke existing presigned URLs before TTL.
 
+`media_refs` original/thumbnail signing also requires keys in the resolver's
+media-owner namespace; rejected supplied keys get no fresh URL or stale fallback.
+Valid siblings and keyless legacy URLs remain. Recursive raw minio references,
+HLS/legacy URL provenance and caller-selected owner contexts remain separate debt.
+
 Defined in the KB: `knowledge-base/web10-v3/security/overview.md`. Short version — I1: cryptographic issuer verification, I2: no unsigned decode, I3: no query returns documents for an `author_key` the token doesn't own (unless group membership grants access), I4: node-readable by design — operator-blindness is not a goal, access is terms-controlled (D41), I5: scoped/expiring/revocable tokens enforced by app contracts. Enforced by the conformance/permission test suite.
 
 ## Operator code words — recognize instantly, never treat as banter

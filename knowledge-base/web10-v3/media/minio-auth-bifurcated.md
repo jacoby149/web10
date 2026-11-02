@@ -47,6 +47,22 @@ before its TTL. This endpoint restriction does not repair forged foreign keys
 stored in metadata/minio references or certify every resolver; those remain
 separate object-provenance obligations in the security record.
 
+### Stored Media References
+
+For `media_refs`, looking up an owner-scoped metadata row does not authorize
+every key written into that row. `resolve_media_urls(body, media_owner)` may
+mint original and thumbnail URLs only for nonempty keys in that owner's exact
+`username/` namespace. A rejected supplied key yields no URL and cannot fall
+back to a stored URL; an allowed companion key and other references still
+resolve. Genuinely keyless legacy metadata retains its existing URL fallback.
+Keys remain opaque, not decoded or normalized. The owner comes from the already
+authorized document's media-owner context (`posted_by` for group-authored posts),
+not from the viewer, so group-authorized cross-user media remains supported.
+
+This is the metadata-reference signing boundary, not certification of recursive
+raw minio leaves, legacy stored URLs, HLS provenance or caller-selected owner
+columns. Those separate sinks/authority contexts remain recorded security debt.
+
 ### Why Video Needs JWT + Middleware
 
 HLS segments are small (270KB each), numerous (100+), and fetched continuously over minutes. You need auth on every segment without presigning each one.
