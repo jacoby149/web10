@@ -15,6 +15,16 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Pinned-Ad Membership Authority (02.11.2026)
+
+H01-AD-MEMBER [local evidence](scans/2026-10/h01-pinned-membership-proof.md):
+normal group gate denies a removed member while pinned-ad SQL returns its creative
+through the read route with independently verified synthetic SigV4. Four history
+controls pass on SQLite and actual ClickHouse-local 24.8.14.39/reduced Memory
+tables; 1,749 API tests plus eight subtests, Ruff and fresh same-model review pass.
+Finding OPEN, no runtime repair. Production schema/storage/merges, real object
+retrieval, broader creative policy, CI/rollout/diverse and protocol L1 remain OPEN.
+
 ## Canonical Query Faces (02.11.2026)
 
 H01-PREPARE-FACE [local repair](scans/2026-10/repair-h01-query-face.md): two
