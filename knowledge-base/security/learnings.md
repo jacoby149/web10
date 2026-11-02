@@ -35,6 +35,20 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-02: A projected face ref is a request, not a read grant
+
+[Face repair](scans/2026-10/repair-h01-query-face.md) reproduces anonymous and
+authenticated synthetic foreign SigV4 issuance from invented face aliases.
+Exact author/media-field/ref tuples must exist in readable canonical bodies;
+their canonical posted_by/author fallback supplies media ownership. No face ID
+is needed, and a post's ID is not the joined profile's ID. Group in SQL before
+limiting, combine uploader sets across services before resolving, and no-op for
+missing/ambiguous/failed authority. Use opaque UTF-8 hex literals through repeated
+parser passes. Reject output-field collisions rather than dropping result data
+or returning supplied URL fallback. 1,745 API tests plus eight subtests, Ruff and
+same-model re-review pass. Actual ClickHouse/driver/connected rendering, stored
+reference provenance, ad-loader authority, rollout/diverse review and L1 stay OPEN.
+
 ### 2026-11-02: Re-read capability-bearing carriers, not just their IDs
 
 [Canonical carrier repair](scans/2026-10/repair-h01-query-carrier.md) replaces

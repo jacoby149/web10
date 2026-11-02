@@ -265,7 +265,8 @@ as the boundary that fed it:
    through server-written safe queries over the original readable service/group
    sets. Canonical body/uploader/ad preferences replace projections before minting;
    supplied inline ads are dropped. Missing or ambiguous canonical identity denies
-   the request. Face projections and attached-ad loader authorization remain OPEN.
+    the request. Face requests now have independent local canonical binding;
+    attached-ad loader authorization and connected verification remain OPEN.
    Ordinary unprepared SQL, joins, aggregates, public reads and cross-user media
    remain intended behavior. See the [repair receipt](../security/scans/2026-10/repair-h01-query-carrier.md).
 - Media / HLS / ads / face are **universal** primitives (D44 / D49 / D55 /
@@ -300,7 +301,26 @@ shape, but the passes need to find the doc's `body.media_refs` + `author_key`
 2. **Explicit `face` spec.** The author's face lives in a *different* body
    (the JOINed profile), not the row's `body`. The caller declares where:
    `face: { bodyField: 'profile_body', mediaField: 'avatar_ref', … }`. Generic
-   (any app's face service) and explicit (no magic).
+    (any app's face service) and explicit (no magic).
+
+   Face preparation treats the projected author/ref only as a lookup request.
+   Before minting, fresh safe-query reads over the original readable services
+   and groups establish that an authorized canonical body contains the exact
+   requested media-field/ref pair for that author. Derive the media uploader from
+   that canonical document (`posted_by or author_key`), never from projections.
+   Grouped canonical uploader sets are combined across services before signing;
+   an ambiguous uploader yields no face. Exact tuple matching and UTF-8 hex
+   literals keep opaque field/author/ref values intact through SQL round trips.
+   This does not require a face doc_id or infer one from the carrier post ID;
+   standalone people/group faces and joined profiles keep their current shapes.
+   Missing, ambiguous or failed authority degrades to no face, not owner-only
+   reads or unrestricted profile lookup. `urlField` must be a new output column:
+   source/existing-column collisions return 400 from face preparation rather than
+   deleting data or retaining projected output URLs. The original SELECT and any
+   carrier preparation precede this check. No app service/face field is hardcoded.
+   [Local repair evidence](../security/scans/2026-10/repair-h01-query-face.md)
+   uses DB doubles; actual ClickHouse tuple/aggregate execution and connected
+   person/group rendering remain unverified.
 
 **Engine change:** the boundary CTE's exposed columns include `posted_by`
 (the uploader for group-authored documents), `ad_mode` +

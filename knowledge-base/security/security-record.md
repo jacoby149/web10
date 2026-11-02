@@ -15,6 +15,16 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Canonical Query Faces (02.11.2026)
+
+H01-PREPARE-FACE [local repair](scans/2026-10/repair-h01-query-face.md): two
+actual compiler/ASGI/resolver/real synthetic SigV4 disclosures now denied.
+Canonical exact author/ref reads supply uploaders without requiring face IDs;
+missing/ambiguous/error authority no-ops, output-column collisions return 400.
+180 focused/1,745 API tests plus eight subtests, full API Ruff and same-model
+review pass. SQL execution/driver and positive rendering remain doubled/unverified;
+ad-loader/connected/CI/rollout/diverse/L1 gates OPEN. No whole-prepare PASS.
+
 ## Canonical Query Carriers (02.11.2026)
 
 H01-PREPARE carrier [local repair](scans/2026-10/repair-h01-query-carrier.md):

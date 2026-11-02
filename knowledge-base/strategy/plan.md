@@ -31,7 +31,11 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ---
 
-## Phases 
+## Deferred v4
+
+- [✓ 3.254.8 local docs] **Shadowguard deferred to web10 v4** - preserve the 3.254.7 concept in [shadowguard.md](shadowguard.md) and [later.md](later.md#web10-v4-shadowguard); remove its protocol-decision task from the active queue. Not planned any time soon, no release date, research/implementation assignment or dependency for v3. Explicit operator reactivation during v4 planning is required before any work resumes.
+
+## Phases
 
 - [✓ 3.254.3 local] **Batching inventory and execution plan** - source audit of backend database-call loops and client request fan-out, scoped bites and correctness/request-count gates in `batching-performance.md`. Documentation only; not an optimization or benchmark result.
 - [ ] **Execute batching-performance queue** - B01-B09 backend and C01-C14 client items in `batching-performance.md`; prioritize readable-set equivalence/promotion, owner-scoped media/face preparation and acting-identity request deduplication. Claim one sub-bite at a time; existing paint-on-read/E3/security lanes retain their gates.
@@ -85,7 +89,8 @@ reuses `POST /v3/app-contracts/revoke`. Full spec:
 
 - [✓ 3.254.4 local evidence] **PROTOCOL-01/H01-PREPARE-PROOF: replay fabricated query-owner signing** — actual compiler/ASGI/resolver/real synthetic SigV4 with SQLite constant execution; anon/auth foreign issuance and unprepared no-sign control, 1,672 API tests plus eight subtests, Ruff and fresh same-model review pass. [Receipt](../security/scans/2026-10/h01-query-owner-proof.md). Finding OPEN, no runtime repair or ClickHouse/live retrieval claim.
 - [✓ 3.254.5 local carrier] **PROTOCOL-01/H01-PREPARE-REPAIR: bind prepared capabilities to canonical authorized data** — media/ad carrier fields rebound through safe-query reads; retained foreign probes denied, canonical ad/HLS three-uploader composition and aggregate behavior pinned. 163 focused/1,694 API tests plus eight subtests, Ruff and same-model re-review pass. [Receipt](../security/scans/2026-10/repair-h01-query-carrier.md). Carrier slice only; face/ad-loader/ClickHouse/connected/CI/rollout/diverse/L1 gates OPEN.
-- [ ] **PROTOCOL-01/H01-PREPARE-FACE: bind joined face capability authority** — own query face prepare/focused tests/security KB; reproduce projected face authority, canonically bind authorized face bodies/uploaders without breaking joined person/group faces. Gates: red -> denied green, positive public/cross-user/group controls, <=500-line repair, fresh intent review, KB write-back and all CI green. Coordinate shared query ownership; ad-loader authority remains separate.
+- [✓ 3.254.6 local face] **PROTOCOL-01/H01-PREPARE-FACE: bind joined face capability authority** — two synthetic SigV4 disclosures denied via exact canonical author/media-field/ref reads and uploader sets, no face ID; public/group/alias controls and collision rejection. 180 focused/1,745 API tests plus eight subtests, Ruff and same-model re-review pass. [Receipt](../security/scans/2026-10/repair-h01-query-face.md). ClickHouse/connected/CI/rollout/diverse/L1 remain OPEN.
+- [ ] **PROTOCOL-01/H01-AD-AUTHORITY: reconcile attached-ad read authority** — own bounded read-only pinned/node-ad loader follow-up, focused evidence tests and security KB; compare actual loader authorization/latest-state semantics to current reader/app/service/group/visibility rules. Gates: reproduce any disclosure with synthetic offline evidence before separate <=500-line one-finding repair, retain permitted creative attachment and independent uploader contexts, fresh intent review, KB write-back and all CI green. Do not advance L2 or claim whole-prepare closure.
 - **Reference mint status:** H01-HLS-REF-MINT merged #1312 at `66330ed99`, all 13 checks passed first attempt; historical local checkpoint below is not whole-media closure.
 
 - [✓ 3.253.15 local] **PROTOCOL-01/H01-HLS-REF-MINT: owner-bind reference/ad stream mint** — three foreign segment capabilities denied; independent uploader contexts, stale suppression and valid siblings retained. 46 new controls, actual resolver/mint composition, 1,669 API tests plus eight subtests, Ruff and fresh same-model review pass. [Receipt](../security/scans/2026-10/repair-h01-hls-ref-mint.md). Supplied-owner/legacy-URL provenance, live integration/CI/deployment/diverse/L1 OPEN.

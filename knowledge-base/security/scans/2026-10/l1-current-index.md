@@ -6,6 +6,12 @@ Scanners/reviewers: separate OpenCode `openai/gpt-6.1-sol` contexts
 (`openrouter/openai/gpt-6.1-sol`), not different model families.
 **Selected source read coverage complete; protocol L1 security gate OPEN.**
 
+02.11 face overlay: [canonical face repair](repair-h01-query-face.md) denies
+fabricated face capabilities and retains ID-free person/group lookup shapes.
+180 focused/1,745 API tests plus eight subtests, Ruff and same-model review pass.
+Actual ClickHouse/connected/CI/rollout/diverse and attached-ad authority remain
+OPEN. This overlay does not advance L1 or any historical scan denominator.
+
 02.11 carrier overlay: [canonical query repair](repair-h01-query-carrier.md)
 denies projected carrier signing with safe-query rehydration; 1,694 API tests
 plus eight subtests and same-model re-review pass. Face/ad-loader authority,
