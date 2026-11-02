@@ -1477,6 +1477,8 @@ class TestResolvePinnedAdsServiceAgnostic:
             assert "FROM group_members WHERE member_key = %(reader)s" in sql
             assert "PARTITION BY group_id, member_key ORDER BY updated_at DESC, deleted DESC" in sql
             assert "gm.rn = 1" in sql
+            assert "PARTITION BY doc_id, group_id ORDER BY updated_at DESC, deleted DESC" in sql
+            assert "pg.rn = 1" in sql
             assert "ad.deleted = 0" in sql
             # The dedup (latest version of the ad doc) is still there.
             assert "row_number() OVER" in sql

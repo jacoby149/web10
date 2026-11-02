@@ -384,9 +384,10 @@ Face urlField must be a new output column (collisions return 400). Attached-ad
 loader authorization, actual ClickHouse and connected verification remain OPEN.
 Do not claim whole-media or whole-prepare assurance.
 
-Pinned creative membership reads locally rank current reader/group history before
-removal filtering, with deletion winning timestamp ties. This denies reproduced
-stale-membership attachment/signing; doc_groups attachment history and broader
+Pinned creative reads locally rank current reader/group membership and targeted
+document/group attachment history before removal filtering, with deletion winning
+timestamp ties. This denies reproduced stale-membership/link delivery and signing.
+Attachment writers/other readers/shared compiler ties, creative identity, broader
 ad policy, real-schema lifecycle and rollout assurance remain separate OPEN gates.
 
 Defined in the KB: `knowledge-base/web10-v3/security/overview.md`. Short version — I1: cryptographic issuer verification, I2: no unsigned decode, I3: no query returns documents for an `author_key` the token doesn't own (unless group membership grants access), I4: node-readable by design — operator-blindness is not a goal, access is terms-controlled (D41), I5: scoped/expiring/revocable tokens enforced by app contracts. Enforced by the conformance/permission test suite.

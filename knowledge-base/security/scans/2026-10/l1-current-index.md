@@ -6,6 +6,12 @@ Scanners/reviewers: separate OpenCode `openai/gpt-6.1-sol` contexts
 (`openrouter/openai/gpt-6.1-sol`), not different model families.
 **Selected source read coverage complete; protocol L1 security gate OPEN.**
 
+02.11 pinned attachment repair: [bounded source overlay](repair-h01-pinned-attachment.md)
+denies five reproduced removed-link capabilities, preserving legitimate links
+and uploaders. Twelve attachment cases; reviewed 22 link/member cases/backend on
+SQLite/ClickHouse-local; 1,767 API tests plus eight subtests, Ruff and same-model
+review pass. Writer/other-reader/creative-policy/lifecycle/CI/rollout/diverse OPEN.
+
 02.11 pinned attachment overlay: [bounded proof](h01-pinned-attachment-proof.md)
 reproduces removed-link creative/signature delivery despite an absent current
 compiler attachment and live membership. Four cases/backend on SQLite and actual

@@ -40,6 +40,14 @@ import pytest
         "pinned-link-removed",
         "pinned-link-reattached",
         "pinned-link-never",
+        "pinned-link-removed-tie",
+        "pinned-link-removed-other-document",
+        "pinned-link-removed-other-group",
+        "pinned-link-alternate-group",
+        "pinned-link-active-group-uploader",
+        "pinned-link-removed-group-uploader",
+        "pinned-link-active-other-document-removal",
+        "pinned-link-active-other-group-removal",
     ],
 )
 def test_read_url_owner_boundary(case):
@@ -151,8 +159,7 @@ def _probe(case):
         from app.services import config as cfg
         from app.v3.services import clickhouse as ch
 
-        # Retained disclosure replay: removed members must get no creative/capability.
-        # Attachment cases are separate evidence assertions until their source repair.
+        # Retained disclosure replays: removed members/links get no creative/capability.
         is_link = case.startswith("pinned-link-")
         state = case.removeprefix("pinned-link-" if is_link else "pinned-member-")
         connected = os.environ.get("H01_AD_CLICKHOUSE") == "1"
@@ -164,6 +171,11 @@ def _probe(case):
             "ad_mode": "pinned",
             "ad_target": "creative",
         }
+        carriers = [carrier]
+        if is_link and state == "active-other-document-removal":
+            # Include both IDs in the loader's target batch so filtering cannot
+            # hide an incorrect cross-document partition from this control.
+            carriers.append({**carrier, "doc_id": "other-carrier", "ad_target": "other-creative"})
         schemas = [
             "documents (doc_id String, author_key String, body String, tags Array(String), posted_by String, deleted UInt8, updated_at UInt64)",
             "doc_groups (doc_id String, group_id String, deleted UInt8, updated_at UInt64)",
@@ -186,13 +198,22 @@ def _probe(case):
         ]
         if not is_link or state != "never":
             setup.append("INSERT INTO doc_groups VALUES ('creative','creative-group',0,1)")
-        if is_link and state in {"removed", "reattached"}:
-            setup.append("INSERT INTO doc_groups VALUES ('creative','creative-group',1,2)")
+        if is_link and (state.startswith("removed") or state in {"reattached", "alternate-group"}):
+            updated = 1 if state == "removed-tie" else 2
+            setup.append(f"INSERT INTO doc_groups VALUES ('creative','creative-group',1,{updated})")
         if is_link and state == "reattached":
             setup.append("INSERT INTO doc_groups VALUES ('creative','creative-group',0,3)")
+        if is_link and state == "removed-other-document":
+            setup.append("INSERT INTO doc_groups VALUES ('other-creative','creative-group',0,3)")
+        if is_link and state == "removed-other-group":
+            setup.append("INSERT INTO doc_groups VALUES ('creative','unreadable-group',0,3)")
+        if is_link and state == "active-other-document-removal":
+            setup.append("INSERT INTO doc_groups VALUES ('other-creative','creative-group',1,3)")
+        if is_link and state == "active-other-group-removal":
+            setup.append("INSERT INTO doc_groups VALUES ('creative','other-group',1,3)")
         if is_link or state != "never":
             setup.append("INSERT INTO group_members VALUES ('creative-group','alice','reader',1,0,1)")
-        if state.startswith("revoked") or state in {"rejoined", "alternate-group"}:
+        if not is_link and (state.startswith("revoked") or state in {"rejoined", "alternate-group"}):
             updated = 1 if state == "revoked-tie" else 2
             setup.append(f"INSERT INTO group_members VALUES ('creative-group','alice','reader',1,1,{updated})")
         if state == "rejoined":
@@ -253,7 +274,7 @@ def _probe(case):
                 ch, "get_group", return_value={"roles": [{"name": "reader", "permissions": {"posts": ["readAll"]}}]}
             ),
             patch.object(ch, "readable_groups", return_value=["carrier-group"]),
-            patch.object(ch, "read_documents_in_groups", return_value=[carrier]),
+            patch.object(ch, "read_documents_in_groups", return_value=carriers),
             patch.object(ch, "get_s3_signing_client", return_value=signer) as factory,
             patch.object(cfg, "get_config_field", return_value=0),
         ):
@@ -273,7 +294,10 @@ def _probe(case):
                     {"doc_id": "creative", "group_id": "creative-group"},
                 ).result_rows[0][0]
                 current = int(current)  # ClickHouse JSON serializes UInt64 counts as strings.
-                assert bool(current) is (state in {"active", "reattached"})
+                # The shared compiler fragment has no deletion tie-breaker; do not
+                # pretend its same-timestamp result is a deterministic authority.
+                if state != "removed-tie":
+                    assert bool(current) is (state.startswith("active") or state == "reattached")
             if state == "alternate-group":
                 assert ch.can_read_group("alternate-group", "alice", "posts", authenticated=True)
             response = TestClient(app).post(
@@ -282,13 +306,17 @@ def _probe(case):
         db.close()
         assert response.status_code == 200
         doc = response.json()[0]
+        if len(carriers) == 2:
+            assert "ad" not in response.json()[1]
         attaches = (
-            state != "never" if is_link else state in {"active", "rejoined", "alternate-group", "active-group-uploader"}
+            (state.startswith("active") or state in {"reattached", "alternate-group"})
+            if is_link
+            else state in {"active", "rejoined", "alternate-group", "active-group-uploader"}
         )
         if not attaches:
             if "ad" in doc:
                 verify(doc["ad"]["body"]["url"], key)
-                print("removed-member synthetic capability independently verified before denial assertion")
+                print("unauthorized creative capability independently verified before denial assertion")
             assert "ad" not in doc
             factory.assert_not_called()
         else:
