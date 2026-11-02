@@ -187,7 +187,7 @@ try {
         throw new Error(`capture failed on ${view.name}-${label} (diagnostics above)`);
       }
       await page.waitForTimeout(400); // settle skeletons/fonts
-      const out = path.join(__dirname, `${view.name}-${label}.png`);
+      const out = path.join(process.env.SCREENSHOT_OUTPUT_DIR || __dirname, `${view.name}-${label}.png`);
       await page.screenshot({ path: out });
       console.log('wrote', out);
       await page.close();

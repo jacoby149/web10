@@ -8,6 +8,7 @@
 // ?knobs= is the ranking, ?related= is the relatedness. Refresh / back / share
 // all rebuild the exact state.
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useActingAuthor, getActingAuthor, matchesActingAuthor } from '@/data/actingIdentity';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { User } from 'lucide-react';
 import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
@@ -307,6 +308,7 @@ function QueueCard({ post, media, authorName, authorAvatar, onOpen, active }: {
 // ── Main screen ──────────────────────────────────────────────────────────────
 
 export default function WatchScreen() {
+  const actingIdentity = useActingAuthor();
   const { postId } = useParams<{ postId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -455,6 +457,9 @@ export default function WatchScreen() {
         if (records.length) inlineMap[p._id || ''] = records;
       }
       setMediaMap((prev) => ({ ...prev, ...inlineMap }));
+      setProfile(null);
+      setAuthorAvatarUrl(undefined);
+      setFollowing(false);
       setPost(p);
       loadedPostIdRef.current = postId;
       setLoading(false);
@@ -479,7 +484,7 @@ export default function WatchScreen() {
       //    back to the author_key username until it arrives.
       const author = p.author_username || '';
       let profile: ProfileRecord | null = null;
-      if (author) {
+      if (author && !p.author_key?.includes('/groups/')) {
         profile = await readUserProfile(author, p.author_provider).catch(() => null);
         setProfile(profile);
         if (profile?.avatar_ref) {
@@ -545,8 +550,8 @@ export default function WatchScreen() {
         for (const r of reactionDocs) {
           if (r.ref_value !== postId) continue;
           const type = (r.body as Record<string, unknown>)?.type as string | undefined;
-          if (type === 'like') { l++; if (token && extractUsername(r.author_key) === token.username) likedMe = true; }
-          else if (type === 'dislike') { d++; if (token && extractUsername(r.author_key) === token.username) dislikedMe = true; }
+          if (type === 'like') { l++; if (token && matchesActingAuthor(r.author_key, token.username, actingIdentity || null)) likedMe = true; }
+          else if (type === 'dislike') { d++; if (token && matchesActingAuthor(r.author_key, token.username, actingIdentity || null)) dislikedMe = true; }
         }
         // The TOTAL count (top-level + replies): a reply's `ref_value` is its
         // parent comment (comments.md), so key on `body.post_id`.
@@ -554,6 +559,7 @@ export default function WatchScreen() {
           const pid = (cdoc.body as Record<string, unknown>)?.post_id as string | undefined;
           if (pid === postId) c++;
         }
+        if (getActingAuthor() !== actingIdentity) return;
         setLikes(l); setDislikes(d); setComments(c);
         setLiked(likedMe); setDisliked(dislikedMe);
         setReposts(repostCounts[postId] || 0);
@@ -570,7 +576,7 @@ export default function WatchScreen() {
       }
 
       // 7. The following state (the author row's Follow button).
-      if (author && token) {
+      if (author && token && !p.author_key?.includes('/groups/')) {
         try { setFollowing(await isFollowing(author, p.author_provider)); } catch { setFollowing(false); }
       }
     } catch (e) {
@@ -579,7 +585,7 @@ export default function WatchScreen() {
     } finally {
       setLoading(false);
     }
-  }, [postId, knobsKey, relatedness]);
+  }, [postId, knobsKey, relatedness, actingIdentity]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -747,7 +753,7 @@ export default function WatchScreen() {
 
   // ── Follow toggle (the overlay + the author row) ───────────────────────────
   const handleToggleFollow = useCallback(async () => {
-    if (!token || !post?.author_username) return;
+    if (!token || !post?.author_username || post.author_key?.includes('/groups/')) return;
     const author = post.author_username;
     const provider = post.author_provider || '';
     const next = !following;
@@ -810,8 +816,11 @@ export default function WatchScreen() {
   const media = mediaMap[post._id || ''] || [];
   const video = firstVideoMedia(media);
   const author = post.author_username || '';
-  const authorName = profile?.display_name || author.replace(/[-_]/g, ' ') || 'Unknown';
-  const authorAvatar = authorAvatarUrl;
+  const isGroupAuthor = !!post.author_key?.includes('/groups/');
+  const authorName = isGroupAuthor
+    ? post.group_identity?.name || post.author_key?.split('/').pop() || 'Group'
+    : profile?.display_name || author.replace(/[-_]/g, ' ') || 'Unknown';
+  const authorAvatar = isGroupAuthor ? post.avatar_url : authorAvatarUrl;
   // The self case: the video is the viewer's own. You can't follow yourself —
   // the Follow button is hidden (not a "Following" state; you are the author).
   const isOwnAuthor = !!token && author === token.username && (post.author_provider || '') === token.provider;
@@ -854,7 +863,7 @@ export default function WatchScreen() {
             authorAvatar={authorAvatar}
             onAuthorClick={(username, provider) => navigate(`/u/${username}`, { state: { provider: provider || '' } })}
             action={
-              !isAnon && !isOwnAuthor ? (
+              !isAnon && !isOwnAuthor && !isGroupAuthor ? (
                 <Button
                   variant={following ? 'outline' : 'brand'}
                   size="sm"
@@ -975,13 +984,16 @@ export default function WatchScreen() {
             {queue.map((q) => {
               const qMedia = leadMedia(mediaMap[q._id || ''] || []);
               const qAuthor = q.author_username || '';
-              const qName = qAuthor ? qAuthor.replace(/[-_]/g, ' ') : 'Unknown';
+              const qName = q.author_key?.includes('/groups/')
+                ? q.group_identity?.name || q.author_key.split('/').pop() || 'Group'
+                : q.profile?.display_name || (qAuthor ? qAuthor.replace(/[-_]/g, ' ') : 'Unknown');
               return (
                 <QueueCard
                   key={q._id}
                   post={q}
                   media={qMedia}
                   authorName={qName}
+                  authorAvatar={q.avatar_url}
                   onOpen={() => openQueuePost(q)}
                   active={q._id === post._id}
                 />

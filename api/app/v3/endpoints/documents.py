@@ -238,6 +238,10 @@ def create_document(request: Request, data: CreateDocument):
     # display author. The contract is the app's trust in the USER, not the group.
     _check_app_permission(request, real_author, data.service, "create", client_id_of(data))
 
+    writable = [g for g in data.groups or [] if ch.can_write_group(g, display_author, data.service)]
+    if data.groups and not writable:
+        raise HTTPException(status_code=403, detail="no write access to the requested group")
+
     result = ch.insert_document(
         author_key=display_author,
         service=data.service,
@@ -256,12 +260,6 @@ def create_document(request: Request, data: CreateDocument):
         # role grants `create` on this service. A bystander with no write grant
         # to any requested group gets a 403; non-writable groups are dropped
         # from the attachment.
-        writable = [g for g in data.groups if ch.can_write_group(g, display_author, data.service)]
-        if not writable:
-            raise HTTPException(
-                status_code=403,
-                detail="no write access to the requested group",
-            )
         ch.attach_doc_to_groups(doc_id, writable)
         result["groups"] = writable
         # Moderation: check the REAL author (the human), not the group.
@@ -293,6 +291,9 @@ def read_documents(request: Request, data: ReadDocuments):
         doc = ch.read_document_by_id(data.doc_id, reader, data.service, authenticated)
         if not doc:
             raise exceptions.ENTRY_NOT_FOUND
+        # Return only readable carriers; a public document must not enumerate
+        # private groups it is also attached to. Actions can retain this scope.
+        doc["groups"] = ch.readable_groups(reader, data.service, authenticated, ch.get_doc_groups(data.doc_id))
         # D86: a single-doc read is a content view (the watch/short/permalink
         # surface) — log the delivery impression (the un-gameable floor).
         _log_deliveries([doc], reader, data.service, data.surface)
@@ -387,15 +388,21 @@ def read_documents(request: Request, data: ReadDocuments):
 def update_document(request: Request, data: UpdateDocument):
     """Update a document (new version + optional group changes).
 
-    Group-as-author: a group-authored post (author_key = group_id) can be
-    updated by the human who posted it (posted_by = username) when they hold
-    a role in the group that grants `create` on the service. The lookup is
-    two-pass: first by author_key (the normal path), then by posted_by (the
-    group-post path). The write uses the doc's actual author_key (the group),
-    preserving the identity.
+    Explicit author_as selects the group's document and requires a current
+    updateOwn grant on its service. Original posters may also use the shipped
+    posted_by lookup. Neither path changes the author or original audit actor.
     """
     author = _user(data)
-    existing = ch.get_document(data.doc_id, author)
+    if data.author_as:
+        existing = ch.get_document(data.doc_id, data.author_as)
+        if not existing:
+            raise exceptions.ENTRY_NOT_FOUND
+        perms = ch.effective_role_perms(data.author_as, author, authenticated=True)
+        if not ch.get_group(data.author_as) or not ch._effective_allows(perms, existing["service"], "updateOwn"):
+            raise HTTPException(status_code=403, detail="no permission to update as this group")
+        author = data.author_as
+    else:
+        existing = ch.get_document(data.doc_id, author)
     if not existing:
         # Group-as-author fallback: the doc's author_key is a group_id and
         # the caller is the human who posted it (posted_by = their username).
@@ -409,10 +416,9 @@ def update_document(request: Request, data: UpdateDocument):
             group_author = result_rows.result_rows[0][0]
             existing = ch.get_document(data.doc_id, group_author)
             if existing:
-                # Gate: the caller must hold a role in the group that grants
-                # `create` on the service (same as Gate 1 on create).
+                # Editing requires its own live grant, not a create grant.
                 perms = ch.effective_role_perms(group_author, author, authenticated=True)
-                if not ch._effective_allows(perms, existing["service"], "create"):
+                if not ch._effective_allows(perms, existing["service"], "updateOwn"):
                     raise HTTPException(
                         status_code=403,
                         detail="no permission to edit this group post",
@@ -421,6 +427,8 @@ def update_document(request: Request, data: UpdateDocument):
         else:
             raise exceptions.ENTRY_NOT_FOUND
     _check_app_permission(request, _user(data), existing["service"], "updateOwn", client_id_of(data))
+    if data.groups is not None and any(not ch.can_write_group(g, author, existing["service"]) for g in data.groups):
+        raise HTTPException(status_code=403, detail="no write access to the requested group")
 
     merged_body = {**existing["body"], **data.body}
     # Preserve the existing ad preference unless the update sets one.
@@ -448,12 +456,21 @@ def update_document(request: Request, data: UpdateDocument):
 
 @router.post("/delete")
 def delete_document(request: Request, data: DeleteDocument):
-    """Tombstone a document and its group attachments."""
+    """Tombstone a document; author_as requires a live group deleteOwn grant."""
     author = _user(data)
-    existing = ch.get_document(data.doc_id, author)
+    if data.author_as:
+        existing = ch.get_document(data.doc_id, data.author_as)
+        if not existing:
+            raise exceptions.ENTRY_NOT_FOUND
+        perms = ch.effective_role_perms(data.author_as, author, authenticated=True)
+        if not ch.get_group(data.author_as) or not ch._effective_allows(perms, existing["service"], "deleteOwn"):
+            raise HTTPException(status_code=403, detail="no permission to delete as this group")
+        author = data.author_as
+    else:
+        existing = ch.get_document(data.doc_id, author)
     if not existing:
         raise exceptions.ENTRY_NOT_FOUND
-    _check_app_permission(request, author, existing["service"], "deleteOwn", client_id_of(data))
+    _check_app_permission(request, _user(data), existing["service"], "deleteOwn", client_id_of(data))
 
     ch.delete_document(data.doc_id, author, existing["service"])
     ch.detach_doc_from_groups(data.doc_id)

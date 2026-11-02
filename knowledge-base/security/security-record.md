@@ -15,6 +15,18 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Acting Identity (02.11.2026)
+
+Acting-identity feature boundary work is recorded separately in
+[`acting-identity-review.md`](acting-identity-review.md). State OPEN: local
+endpoint/SDK/social controls, not exhaustive scan coverage, connected storage
+evidence or independent sign-off. No protocol-campaign gate is closed by it.
+Continuation review repaired deletion tombstone audit loss (failing generated-SQL
+regression before repair) and frontend identity/authority mismatches. Final local
+verification: 1,583 API tests plus eight subtests, 285 SDK tests, 1,584 social
+tests, typechecks/build and desktop/mobile switcher inspection. Connected
+multi-operator/revocation/concurrency and independent review remain OPEN.
+
 ## Reference HLS Mint Provenance (01.11.2026)
 
 H01-HLS-REF-MINT [local repair](scans/2026-10/repair-h01-hls-ref-mint.md): three

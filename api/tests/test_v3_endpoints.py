@@ -1590,9 +1590,13 @@ class TestSharing:
 class TestReadById:
     def test_read_by_id(self, client, token):
         mock_rows = [
-            ("doc-1", "bob", '{"text":"hello"}', [], datetime(2026, 1, 1), "", "none", ""),
+            ("doc-1", "bob", '{"text":"hello"}', [], datetime(2026, 1, 1), "", "none", "", "bob"),
         ]
-        with patch("app.v3.services.clickhouse.client") as mock_ch:
+        with (
+            patch("app.v3.services.clickhouse.client") as mock_ch,
+            patch("app.v3.services.clickhouse.get_doc_groups", return_value=["g1"]),
+            patch("app.v3.services.clickhouse.readable_groups", return_value=["g1"]),
+        ):
             mock_ch.query.return_value = MagicMock(result_rows=mock_rows)
             resp = client.post(
                 "/v3/read",

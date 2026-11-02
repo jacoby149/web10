@@ -109,7 +109,7 @@ describe('PostComposer — repost mode (reposts.md)', () => {
     await typeInComposer('love this');
     fireEvent.click(await screen.findByTestId('post-submit'));
     await waitFor(() => {
-      expect(data.createRepost).toHaveBeenCalledWith(ORIGINAL, 'love this');
+      expect(data.createRepost).toHaveBeenCalledWith(ORIGINAL, 'love this', null, undefined);
     });
     // A successful repost clears the repost state + fires onPostCreated.
     expect(onRepostCancel).toHaveBeenCalled();
@@ -127,5 +127,12 @@ describe('PostComposer — repost mode (reposts.md)', () => {
     expect(await screen.findByTestId('composer-error')).toHaveTextContent('boom');
     // The repost context is still present (not cleared on failure).
     expect(screen.getByTestId('repost-context')).toBeInTheDocument();
+  });
+
+  it.each([{ groups: ['destination'] }, { groups: [] }])('forwards explicit repost groups $groups without replacing them', async ({ groups }) => {
+    const { default: PostComposer } = await import('@/components/Feed/PostComposer');
+    render(<PostComposer repostingTo={ORIGINAL} groups={groups} />);
+    fireEvent.click(await screen.findByTestId('post-submit'));
+    await waitFor(() => expect(data.createRepost).toHaveBeenCalledWith(ORIGINAL, '', null, groups));
   });
 });

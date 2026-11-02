@@ -33,6 +33,15 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases 
 
+- [✓ 3.254.3 local] **Batching inventory and execution plan** - source audit of backend database-call loops and client request fan-out, scoped bites and correctness/request-count gates in `batching-performance.md`. Documentation only; not an optimization or benchmark result.
+- [ ] **Execute batching-performance queue** - B01-B09 backend and C01-C14 client items in `batching-performance.md`; prioritize readable-set equivalence/promotion, owner-scoped media/face preparation and acting-identity request deduplication. Claim one sub-bite at a time; existing paint-on-read/E3/security lanes retain their gates.
+
+- [✓ 3.254.0 local] **App-wide acting identity implementation** - navigation switcher and identity-aware posts/comments/reactions/reposts, delegated mutations and membership lookup implemented and locally verified. Details and exact evidence: `acting-identity.md`. Not merged or deployed.
+- [ ] **Connected multi-operator/revocation acceptance** - real-storage shared-reaction, revocation, audit and concurrent-action replay; independent security review remains a release gate (`acting-identity.md`).
+
+Status correction: composer-only A4 exists on open PR #1308, not merged. Its
+historical completion references are superseded by the acting-identity gates.
+
 - [✓ 3.253.16 local] **E3 first K1000 trial** — one 1,000-creator seed measured at K10/100/1000; all 20 cells with 20 samples, 400 measurements. First-attempt seed succeeded, artifacts collected, droplet deleted. See research/experiments/costfn/K1000-RESULTS.md. Single sequential trial, not full E3 completion.
 
 - [✓ 3.253.11 local] **E3 preliminary results in manuscript** — K10/100 B/C median/p95 table and K1 contrary result, bounded abstract/conclusion, setup/provenance and limits. Table checked against report; PDF builds. Repeated trials, full feed and capacity remain open.

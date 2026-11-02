@@ -60,6 +60,9 @@ export interface MediaItem {
  * absent → the thread renders no like UI.
  */
 export interface CommentItem {
+  author_name?: string;
+  author_href?: string;
+  posted_by?: string;
   _id?: string;
   text: string;
   author_username?: string;
@@ -74,6 +77,8 @@ export interface CommentItem {
   /** Whether the reader authored this comment (the app resolves it from the
    *  token). Gates the Edit / Delete actions — absent/`false` → read-only. */
   isOwn?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
   /** The comment's photos, resolved to displayable media (the app maps its
    *  resolved `media_refs` onto `MediaItem`). Absent/empty → no media renders. */
   media?: MediaItem[];
@@ -122,6 +127,7 @@ export type CreateComment = (args: {
   postService?: string;
   groups?: string[];
   mediaRefs?: string[];
+  identity?: string | null;
 }) => Promise<CommentItem | null>;
 
 /**
@@ -248,4 +254,3 @@ export interface RepostOriginal {
  * card renders no embed.
  */
 export type ReadRepostOriginal = (repostOf: string) => Promise<RepostOriginal | null>;
-
