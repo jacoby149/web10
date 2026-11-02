@@ -26,6 +26,10 @@ import pytest
         "query-face-anon",
         "query-face-auth",
         "query-face-unprepared",
+        "pinned-member-active",
+        "pinned-member-revoked",
+        "pinned-member-rejoined",
+        "pinned-member-never",
     ],
 )
 def test_read_url_owner_boundary(case):
@@ -129,6 +133,121 @@ def _probe(case):
             "synthetic-wrong-key-with-sufficient-length" if wrong_key else settings.PRIVATE_KEY,
             algorithm=settings.ALGORITHM,
         )
+
+    if case.startswith("pinned-member-"):
+        import sqlite3
+        from types import SimpleNamespace
+
+        from app.services import config as cfg
+        from app.v3.services import clickhouse as ch
+
+        # Evidence only: current SQL discloses a creative after membership removal.
+        state = case.removeprefix("pinned-member-")
+        connected = os.environ.get("H01_AD_CLICKHOUSE") == "1"
+        key = "bob/private-creative.png"
+        carrier = {
+            "doc_id": "carrier",
+            "author_key": "alice",
+            "body": {"text": "readable carrier"},
+            "ad_mode": "pinned",
+            "ad_target": "creative",
+        }
+        schemas = [
+            "documents (doc_id String, author_key String, body String, tags Array(String), posted_by String, deleted UInt8, updated_at UInt64)",
+            "doc_groups (doc_id String, group_id String, deleted UInt8, updated_at UInt64)",
+            "group_members (group_id String, member_key String, role String, joined_at UInt64, deleted UInt8, updated_at UInt64)",
+        ]
+        body = json.dumps({"text": "synthetic restricted creative", "type": "minio", "value": key})
+        setup = (
+            [f"CREATE TABLE {schema} ENGINE = Memory" for schema in schemas]
+            if connected
+            else [
+                "CREATE TABLE documents (doc_id TEXT, author_key TEXT, body TEXT, tags TEXT, posted_by TEXT, deleted INTEGER, updated_at INTEGER)",
+                "CREATE TABLE doc_groups (doc_id TEXT, group_id TEXT, deleted INTEGER, updated_at INTEGER)",
+                "CREATE TABLE group_members (group_id TEXT, member_key TEXT, role TEXT, joined_at INTEGER, deleted INTEGER, updated_at INTEGER)",
+            ]
+        )
+        tags = "['ad']" if connected else "'[\"ad\"]'"
+        setup += [
+            f"INSERT INTO documents VALUES ('creative','bob','{body}',{tags},'bob',0,1)",
+            "INSERT INTO doc_groups VALUES ('creative','creative-group',0,1)",
+        ]
+        if state != "never":
+            setup.append("INSERT INTO group_members VALUES ('creative-group','alice','reader',1,0,1)")
+        if state in {"revoked", "rejoined"}:
+            setup.append("INSERT INTO group_members VALUES ('creative-group','alice','reader',1,1,2)")
+        if state == "rejoined":
+            setup.append("INSERT INTO group_members VALUES ('creative-group','alice','reader',3,0,3)")
+        db = sqlite3.connect(":memory:", check_same_thread=False)
+        if not connected:
+            db.executescript(";".join(setup) + ";")
+
+        def execute(sql, params):
+            if connected:
+                # Only fixed synthetic string values are bound; no actual driver/HTTP claim.
+                bound = sql % {k: "'" + v.replace("'", "''") + "'" for k, v in params.items()}
+                result = subprocess.run(
+                    [
+                        "docker",
+                        "run",
+                        "--rm",
+                        "-i",
+                        "--network",
+                        "none",
+                        "--memory",
+                        "512m",
+                        "--cpus",
+                        "1",
+                        "--entrypoint",
+                        "clickhouse",
+                        "clickhouse/clickhouse-server:24.8",
+                        "local",
+                        "--multiquery",
+                    ],
+                    input=";".join([*setup, bound + " FORMAT JSONCompact"]) + ";",
+                    text=True,
+                    capture_output=True,
+                    timeout=30,
+                    check=True,
+                )
+                rows = json.loads(result.stdout)["data"]
+            else:
+                import re
+
+                rows = db.execute(re.sub(r"%\((\w+)\)s", r":\1", sql), params).fetchall()
+                if sql.startswith("SELECT ad.doc_id"):
+                    rows = [(*r[:3], json.loads(r[3]), *r[4:]) for r in rows]
+            return SimpleNamespace(result_rows=rows)
+
+        with (
+            patch.object(ch.client, "query", side_effect=execute),
+            patch.object(
+                ch, "get_group", return_value={"roles": [{"name": "reader", "permissions": {"posts": ["readAll"]}}]}
+            ),
+            patch.object(ch, "readable_groups", return_value=["carrier-group"]),
+            patch.object(ch, "read_documents_in_groups", return_value=[carrier]),
+            patch.object(ch, "get_s3_signing_client", return_value=signer) as factory,
+            patch.object(cfg, "get_config_field", return_value=0),
+        ):
+            allowed = ch.can_read_group("creative-group", "alice", "posts", authenticated=True)
+            assert allowed is (state in {"active", "rejoined"})
+            response = TestClient(app).post(
+                "/v3/read", json={"token": token(), "service": "posts", "groups": ["carrier-group"]}
+            )
+        db.close()
+        assert response.status_code == 200
+        doc = response.json()[0]
+        if state == "never":
+            assert "ad" not in doc
+            factory.assert_not_called()
+        else:
+            assert doc["ad"]["body"]["text"] == "synthetic restricted creative"
+            verify(doc["ad"]["body"]["url"], key)
+            factory.assert_called_once()
+        print(
+            f"pinned membership evidence: engine={'ClickHouse-local' if connected else 'SQLite substitute'} state={state} direct_allowed={allowed} inline_ad={'ad' in doc}"
+        )
+        return
 
     if case.startswith(("query-owner-", "query-face-")):
         import sqlite3

@@ -1,3 +1,6 @@
+3.254.9 || 02.11.2026
+test(security): **reproduce pinned-ad disclosure after membership removal** - actual membership predicate denies a synthetic revoked reader while actual loader/ASGI read returns the creative and independently verified real synthetic SigV4 capability. Four history controls pass on SQLite and isolated ClickHouse-local 24.8.14.39 Memory tables; 1,749 API tests plus eight subtests, Ruff and fresh same-model review pass. Evidence only, no runtime repair or real-object/production-storage claim. Pinned membership repair, broader ad policy, rollout/diverse gates and protocol L1 remain OPEN; Shadowguard stays deferred v4.
+
 3.254.8 || 02.11.2026
 docs(strategy): **defer Shadowguard to web10 v4** - preserve the audience/group-permission continuity concept in the later parking lot, mark it outside the active v3 roadmap, and remove its execution lane and queued protocol-decision task. Not planned any time soon; no research/implementation assignment, release date or new dependency for current work. Explicit operator reactivation for v4 planning required. Documentation only.
 
