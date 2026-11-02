@@ -90,24 +90,30 @@ lines ≈ **15 cells**, each `RUNS` queries (default 20 — ≥20 for a p95).
 | `bench.py` | drives the matrix (restarts the api per cell with the flags), scrapes the `[query] … timing_ms …` logs, computes per-phase percentiles + the causal overhead B−A. Pure functions are offline-tested. |
 | `bench.test.py` | **offline regression tests** (no droplet/API/Docker) for the log parser, percentile math, summary, policy-total, B−A delta, matrix expansion, and per-cell env. Run this locally before spending money. |
 | `run.sh` | orchestrator: compose-up (dedicated project) → wait → seed → bench → collect → teardown (only this project). |
+| `RUNBOOK.md` | **the repeatable step-by-step** — provision droplet (doctl flags, SSH-key + region traps), docker + GHCR login, clone, run mini-then-full, collect, destroy+verify. Includes a troubleshooting index of every trap hit on the first connected attempt. **Read this before spending money.** |
 | `results/` | per-cell JSON + `report.json` (generated; gitignored intent — copy off the box). |
 
 ## Run it (on a fresh disposable droplet)
 
-```bash
-# 1. Spin up a droplet (the ../ spinup/teardown or the DO scripts), ssh in, clone.
-cd research/experiments/costfn
+**Start with [`RUNBOOK.md`](RUNBOOK.md)** — it's the full repeatable procedure
+with the doctl flag gotchas, the SSH-reachability check (the #1 trap), the GHCR
+login for the private base images, and a troubleshooting index. The short form:
 
+```bash
+# 0. Verify you can reach DO droplet :22 FIRST (the #1 trap — see RUNBOOK §1d).
+# 1. Provision a droplet WITH your SSH key (RUNBOOK §1), install docker (§2),
+#    log in to GHCR for the private base images (§3), clone + vhosts (§4).
 # 2. Offline check FIRST (no money spent yet): the pure functions are sound.
+cd research/experiments/costfn
 python3 bench.test.py            # must print "all bench offline tests passed"
 
-# 3. Run the experiment (needs Docker + the stack images reachable).
-./run.sh
-# or tune:
-CREATORS=1000 FOLLOW=100 K_VALUES="10 100 1000" RUNS=20 ./run.sh
+# 3. Mini probe first (shake out the first connected run — ~$0.10), then full.
+CREATORS=100 K_VALUES="10 100" RUNS=15 ./run.sh        # probe
+CREATORS=1000 K_VALUES="10 100 1000" RUNS=20 ./run.sh  # full (after probe looks sane)
 
-# 4. Copy results/ OFF the box BEFORE destroying the droplet.
-scp -r <droplet>:.../research/experiments/costfn/results/ ./
+# 4. Copy results/ OFF the box BEFORE destroying the droplet, then destroy + VERIFY.
+scp -r root@<ip>:~/web10/research/experiments/costfn/results/ ./costfn-results/
+doctl compute droplet delete <id> --force && doctl compute droplet list   # must be empty
 ```
 
 ## Reading the output
