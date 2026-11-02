@@ -1,3 +1,6 @@
+3.253.5 || 01.11.2026
+fix(media): **bind stored original and thumbnail signing to the media owner** — owner-scoped metadata no longer grants signing authority for foreign keys; reject each supplied bad key without stale fallback while retaining valid companions, posted_by resolution and keyless legacy behavior. Two independently verified real synthetic SigV4 baseline failures become denied-green; 335 focused/1,533 API tests plus four subtests, lint/format and fresh same-model review pass. One metadata sink only: recursive minio/HLS/legacy-URL/owner-context provenance, CI/services/deployment/diverse gates remain OPEN, no class-wide/L1 closure.
+
 3.253.4 || 01.11.2026
 fix(media): **restrict direct read-URL signing to the caller's object namespace** — operator-approved owner-only refresh rejects foreign/malformed keys before bucket/signing operations; unconfirmed uploads, owned derivatives and opaque keys remain supported. Actual JWT/HTTP plus independently verified real synthetic SigV4 reproduces foreign capability issuance before repair; 503 focused/1,477 API tests plus four subtests, lint/format and fresh same-model review pass. Authorized document/group media paths unchanged; forged-reference/resolver provenance, real services/CI/deployment/diverse gates remain OPEN, no class-wide or L1 closure.
 

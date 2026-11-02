@@ -15,7 +15,20 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Metadata Signing Ownership (01.11.2026)
+
+H01-META [local one-sink repair](scans/2026-10/repair-h01-metadata-owner.md):
+original/thumbnail owner namespace enforced before signing; two real synthetic
+SigV4 baseline mint failures denied, 335 focused/1,533 API tests plus four
+subtests and lint/format pass, fresh same-model review. Valid companions,
+posted_by and keyless legacy paths retained. Recursive minio/other provenance,
+CI/services/deployment/history/diverse sign-off and protocol L1 remain OPEN.
+
 ## Direct Media Signing (01.11.2026)
+
+Direct repair merged #1305 at `d5f06c6d07def9eb7cb78c4480e1d79209c239d0`, all
+13 checks green on first CI attempt. The local wording below is historical;
+other signing sinks, production/rollout and diverse gates remain OPEN.
 
 H-01 [local route repair](scans/2026-10/repair-h01-direct-media.md): actual
 JWT/HTTP plus independently verified real synthetic SigV4 capability on baseline;

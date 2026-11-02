@@ -1,5 +1,6 @@
 """Registered HTTP route + verified JWT + offline real SigV4, isolated from conftest mocks."""
 
+import json
 import os
 import subprocess
 import sys
@@ -8,7 +9,7 @@ from pathlib import Path
 import pytest
 
 
-@pytest.mark.parametrize("case", ["foreign", "owned", "malformed", "tokens"])
+@pytest.mark.parametrize("case", ["foreign", "owned", "malformed", "tokens", "metadata-original", "metadata-thumbnail"])
 def test_read_url_owner_boundary(case):
     result = subprocess.run(
         [sys.executable, str(Path(__file__).resolve()), case],
@@ -111,6 +112,31 @@ def _probe(case):
             algorithm=settings.ALGORITHM,
         )
 
+    if case.startswith("metadata-"):
+        from types import SimpleNamespace
+
+        from app.v3.services import clickhouse as ch
+
+        field = "object_key" if case == "metadata-original" else "thumbnail_object_key"
+        output = "read_url" if field == "object_key" else "thumbnail_url"
+        row = {field: "bob/private.png", "url": "legacy-original", "thumbnail_url": "legacy-thumb"}
+        # Helper-level proof only: no persisted DB row, HTTP auth chain or retrieval.
+        with (
+            patch.object(
+                ch.client,
+                "query",
+                return_value=SimpleNamespace(result_rows=[("m1", json.dumps(row), "media_metadata")]),
+            ),
+            patch.object(ch, "get_s3_signing_client", return_value=signer) as factory,
+        ):
+            resolved = ch.resolve_media_urls({"media_refs": ["m1"]}, "alice")["media_refs"][0]
+        if resolved[output] is not None:
+            verify(resolved[output], row[field])
+            print("metadata foreign capability independently verified")
+        assert resolved[output] is None, "valid foreign capability minted from owner-scoped metadata"
+        factory.assert_not_called()
+        return
+
     records = []
 
     class Capture(logging.Handler):
@@ -187,6 +213,7 @@ def _probe(case):
 
 
 def test_authorized_group_read_resolves_media_as_posted_by(valid_token):
+    from types import SimpleNamespace
     from unittest.mock import patch
 
     from fastapi.testclient import TestClient
@@ -196,18 +223,162 @@ def test_authorized_group_read_resolves_media_as_posted_by(valid_token):
 
     group_id = "web10.app/groups/alice/jazz"
     posts = [{"doc_id": "p1", "author_key": group_id, "posted_by": "alice", "body": {"media_refs": ["m1"]}}]
-    resolved = {"media_refs": [{"object_key": "alice/unconfirmed.png", "read_url": "https://synthetic.invalid/fresh"}]}
+    metadata = {"object_key": "alice/unconfirmed.png", "thumbnail_object_key": "bob/foreign.jpg"}
     with (
         patch.object(ch, "get_group", return_value={"join_policy": "open", "roles": [], "discoverable": False}),
         patch.object(ch, "_get_group_member_counts", return_value={group_id: 1}),
         patch.object(ch, "is_group_member", return_value=True),
         patch.object(ch, "read_documents_in_groups", return_value=posts),
-        patch.object(ch, "resolve_media_urls", return_value=resolved) as resolve,
+        patch.object(
+            ch.client,
+            "query",
+            return_value=SimpleNamespace(result_rows=[("m1", json.dumps(metadata), "media_metadata")]),
+        ) as query,
+        patch.object(ch, "get_s3_signing_client") as factory,
     ):
+        factory.return_value.generate_presigned_url.return_value = "https://synthetic.invalid/fresh"
         response = TestClient(app).get("/v3/groups/detail", params={"group_id": group_id, "token": valid_token})
     assert response.status_code == 200
-    assert response.json()["posts"][0]["body"] == resolved
-    resolve.assert_called_once_with(posts[0]["body"], "alice")
+    ref = response.json()["posts"][0]["body"]["media_refs"][0]
+    assert ref["read_url"] == "https://synthetic.invalid/fresh"
+    assert ref["thumbnail_url"] is None
+    assert query.call_args.args[1]["author_key"] == "alice"
+    assert factory.return_value.generate_presigned_url.call_args.kwargs["Params"]["Key"] == metadata["object_key"]
+
+
+@pytest.mark.parametrize("field,output", [("object_key", "read_url"), ("thumbnail_object_key", "thumbnail_url")])
+@pytest.mark.parametrize(
+    "key", ["bob/x", "alice2/x", "Alice/x", "alice%2Fx", "alice/", 0, False, [], {}, ["alice/x"], {"key": "alice/x"}]
+)
+@pytest.mark.parametrize("mixed", [False, True])
+def test_metadata_rejects_invalid_key_independently(field, output, key, mixed, caplog):
+    import logging
+    from copy import deepcopy
+    from types import SimpleNamespace
+    from unittest.mock import patch
+
+    from app.v3.services import clickhouse as ch
+
+    caplog.set_level(logging.INFO, logger=ch.log.name)
+    companion = "thumbnail_object_key" if field == "object_key" else "object_key"
+    companion_output = "thumbnail_url" if output == "read_url" else "read_url"
+    meta = {
+        field: key,
+        "url": "stale-original",
+        "thumbnail_url": "stale-thumb",
+        "width": 12,
+        "height": 34,
+        "duration_seconds": 2,
+        "mime_type": "video/mp4",
+        "filename": "clip",
+        "size_bytes": 42,
+        "transcoding_settings": {"enabled": True, "status": "done", "variants": [], "manifest_url": "stale"},
+    }
+    if mixed:
+        meta[companion] = "alice/good"
+    rows = [("bad", json.dumps(meta), "media_metadata")]
+    if mixed:
+        rows.append(("good", json.dumps({"object_key": "alice/good"}), "public_media"))
+    body = {"text": "unchanged", "media_refs": ["good", "bad", "bad"] if mixed else ["bad"]}
+    original = deepcopy(body)
+    with (
+        patch.object(ch.client, "query", return_value=SimpleNamespace(result_rows=rows)),
+        patch.object(ch, "get_s3_signing_client") as factory,
+    ):
+        factory.return_value.generate_presigned_url.return_value = "fresh"
+        result = ch.resolve_media_urls(body, "alice")
+    assert body == original and result["text"] == body["text"]
+    assert [r["doc_id"] for r in result["media_refs"]] == body["media_refs"]
+    ref = result["media_refs"][-1]
+    assert ref[output] is None
+    assert ref[companion_output] == (
+        "fresh" if mixed else meta[companion_output if companion_output == "thumbnail_url" else "url"]
+    )
+    if field == "object_key":
+        assert ref["object_key"] == key
+    for name in ("width", "height", "duration_seconds", "mime_type", "filename", "size_bytes"):
+        assert ref[name] == meta[name]
+    assert ref["transcoding_settings"] == {"enabled": True, "status": "done", "variants": []}
+    if mixed:
+        assert result["media_refs"][0]["read_url"] == "fresh"
+        factory.return_value.generate_presigned_url.assert_called_once()
+        assert factory.return_value.generate_presigned_url.call_args.kwargs["Params"]["Key"] == "alice/good"
+    else:
+        factory.assert_not_called()
+    messages = [r.getMessage() for r in caplog.records if r.name == ch.log.name]
+    assert messages == [f"[media] metadata signing: accepted keys={int(mixed)}"] + (
+        ["[media] metadata signing: completed"] if mixed else []
+    )
+
+
+@pytest.mark.parametrize("owner", ["", None, 0, False, [], {}])
+def test_metadata_invalid_owner_never_signs(owner):
+    from types import SimpleNamespace
+    from unittest.mock import patch
+
+    from app.v3.services import clickhouse as ch
+
+    with (
+        patch.object(
+            ch.client,
+            "query",
+            return_value=SimpleNamespace(
+                result_rows=[
+                    ("m", '{"object_key":"alice/x","thumbnail_object_key":"/x","url":"stale"}', "media_metadata")
+                ]
+            ),
+        ),
+        patch.object(ch, "get_s3_signing_client") as factory,
+    ):
+        ref = ch.resolve_media_urls({"media_refs": ["m"]}, owner)["media_refs"][0]
+    assert ref["read_url"] is None and ref["thumbnail_url"] is None
+    factory.assert_not_called()
+
+
+@pytest.mark.parametrize("key", [None, "", "absent"])
+def test_metadata_keyless_legacy_fallback(key):
+    from types import SimpleNamespace
+    from unittest.mock import patch
+
+    from app.v3.services import clickhouse as ch
+
+    meta = {"url": "legacy-original", "thumbnail_url": "legacy-thumbnail"}
+    if key != "absent":
+        meta.update(object_key=key, thumbnail_object_key=key)
+    with (
+        patch.object(
+            ch.client, "query", return_value=SimpleNamespace(result_rows=[("m", json.dumps(meta), "media_metadata")])
+        ),
+        patch.object(ch, "get_s3_signing_client") as factory,
+    ):
+        ref = ch.resolve_media_urls({"media_refs": ["m"]}, "alice")["media_refs"][0]
+    assert ref["read_url"] == meta["url"] and ref["thumbnail_url"] == meta["thumbnail_url"]
+    factory.assert_not_called()
+
+
+def test_metadata_owned_opaque_keys_dedup_and_signer_failure():
+    from types import SimpleNamespace
+    from unittest.mock import patch
+
+    from app.v3.services import clickhouse as ch
+
+    keys = ["alice/unconfirmed", "alice/a%2Fb +?#", "alice/../bob/opaque"]
+    rows = [
+        (str(i), json.dumps({"object_key": key, "thumbnail_object_key": key}), "media_metadata")
+        for i, key in enumerate(keys)
+    ]
+    with (
+        patch.object(ch.client, "query", return_value=SimpleNamespace(result_rows=rows)),
+        patch.object(ch, "get_s3_signing_client") as factory,
+    ):
+        sign = factory.return_value.generate_presigned_url
+        sign.side_effect = lambda operation, Params, ExpiresIn: "fresh:" + Params["Key"]
+        result = ch.resolve_media_urls({"media_refs": ["2", "0", "1", "2"]}, "alice")
+        assert [c.kwargs["Params"]["Key"] for c in sign.call_args_list] == keys
+        assert all(r["read_url"] == r["thumbnail_url"] == "fresh:" + r["object_key"] for r in result["media_refs"])
+        sign.side_effect = RuntimeError("synthetic signer failure")
+        with pytest.raises(RuntimeError, match="synthetic signer failure"):
+            ch.resolve_media_urls({"media_refs": ["0"]}, "alice")
 
 
 if __name__ == "__main__":
