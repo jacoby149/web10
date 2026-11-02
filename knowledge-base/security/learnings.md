@@ -35,6 +35,18 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-02: Authorize pinned creatives from the current membership version
+
+[Local membership repair](scans/2026-10/repair-h01-pinned-membership.md) ranks the
+bound reader's rows per group/member before removal filtering. Deletion wins
+timestamp ties; a newer rejoin restores access. Another live creative-group grant
+still counts, while other members/unrelated groups grant nothing. Five reproduced
+synthetic capabilities become denied-ad/no-signer on SQLite and ClickHouse-local;
+group posted_by signing remains intact. Ten controls per backend, 1,755 API tests
+plus eight subtests and same-model review pass. Attachment history and broader
+role/app/visibility/node-ad policy remain OPEN, as do real-schema lifecycle,
+old-capability TTL, CI/rollout/diverse review and L1. Not whole-ad closure.
+
 ### 2026-11-02: A historical membership row can still authorize an inline creative
 
 [Pinned membership evidence](scans/2026-10/h01-pinned-membership-proof.md) executes
@@ -42,8 +54,8 @@ the actual loader and current membership SQL over synthetic history. The normal
 group predicate denies a removed member, but the pinned loader's undeduplicated
 JOIN finds the old live row; actual read enrichment returns the creative and mints
 an independently verified real synthetic SigV4 capability. Four controls reproduce
-on SQLite and isolated ClickHouse-local Memory tables. Evidence only: the revoked
-probe currently asserts disclosure and must become denial in a separate repair.
+on SQLite and isolated ClickHouse-local Memory tables. At that evidence pin the
+revoked probe asserted disclosure; the local repair above converts it to denial.
 No actual object retrieval, production merge timing or whole-ad assurance. Current
 role/app/service/node-ad policy and attachment/visibility debt remain separate;
 do not use this finding to silently change the membership-first read model.

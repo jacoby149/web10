@@ -1,3 +1,6 @@
+3.254.10 || 02.11.2026
+fix(ads): **honor current membership before pinned creative attachment** - rank reader/group membership history including tombstones, then filter removals, with deletion winning timestamp ties. Five actual ASGI/real synthetic SigV4 disclosures on SQLite and ClickHouse-local become denied-ad/no-signer; active/rejoined/alternate-group and group-uploader controls preserved. Ten cases per backend, 365 focused/1,755 API tests plus eight subtests, Ruff and fresh same-model review pass. Local membership repair only: attachment/role/app/visibility/node-ad, production lifecycle/CI/rollout/diverse and protocol L1 gates remain OPEN.
+
 3.254.9 || 02.11.2026
 test(security): **reproduce pinned-ad disclosure after membership removal** - actual membership predicate denies a synthetic revoked reader while actual loader/ASGI read returns the creative and independently verified real synthetic SigV4 capability. Four history controls pass on SQLite and isolated ClickHouse-local 24.8.14.39 Memory tables; 1,749 API tests plus eight subtests, Ruff and fresh same-model review pass. Evidence only, no runtime repair or real-object/production-storage claim. Pinned membership repair, broader ad policy, rollout/diverse gates and protocol L1 remain OPEN; Shadowguard stays deferred v4.
 
