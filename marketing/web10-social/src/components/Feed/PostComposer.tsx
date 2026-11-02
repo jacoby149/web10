@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { createPost, createRepost, updatePost, uploadMedia, readProfile, resolveMediaRefs, fanOutToFollowers, readMyAds, getWapi } from '@/data';
+import { createPost, createRepost, updatePost, uploadMedia, readProfile, resolveMediaRefs, fanOutToFollowers, readMyAds, getWapi, getGroupsManages, readGroupIdentity, getDiscoverGroupId } from '@/data';
 import type { MediaRecord, ProfileRecord, Visibility, AdRecord, AdAlbum, PostRecord, ResolvedMediaRef } from '@/data';
 import { mediaRefId } from '@/data/types';
 import { readSettings } from '@/data/settings';
@@ -21,7 +21,7 @@ import {
   validateVideoDuration,
 } from '@/lib/mediaProcessing';
 import type { ProcessingError as MediaProcessingError } from '@/lib/mediaProcessing';
-import { Image, X, Send, Loader2, AlertTriangle, GripVertical, Globe, Lock, Megaphone, Scissors, Repeat2, Bold, Italic, Strikethrough, Heading2, List, Code, Link as LinkIcon, Film, Music } from 'lucide-react';
+import { Image, X, Send, Loader2, AlertTriangle, GripVertical, Globe, Lock, Megaphone, Scissors, Repeat2, Bold, Italic, Strikethrough, Heading2, List, Code, Link as LinkIcon, Film, Music, ChevronDown, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AdPicker } from './AdPicker';
 import { VideoEditorSheet } from './VideoEditorSheet';
@@ -402,6 +402,62 @@ export default function PostComposer({
   const [editingMediaId, setEditingMediaId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragIdRef = useRef<number | null>(null);
+
+  // ── Identity picker (group-as-author, A4) ──────────────────────────────────
+  // The groups the caller can post as (owner/moderator role). Loaded once on
+  // mount. The picker is hidden in edit mode + repost mode (you can't change
+  // the author of an existing post, and a repost is always the user).
+  const [authorAs, setAuthorAs] = useState<string | null>(null);
+  const [authorAsGroups, setAuthorAsGroups] = useState<{ groupId: string; name: string; avatarUrl?: string }[]>([]);
+  const [authorAsOpen, setAuthorAsOpen] = useState(false);
+  const authorAsRef = useRef<HTMLDivElement>(null);
+
+  // Load the groups the caller manages (owner/moderator) + their faces.
+  useEffect(() => {
+    if (isEditing || repostingTo) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const managed = await getGroupsManages();
+        if (cancelled || !managed.length) return;
+        // Load each group's face (name + avatar) in parallel.
+        const faces = await Promise.all(
+          managed.map(async (g) => {
+            try {
+              const identity = await readGroupIdentity(g.group_id);
+              let avatarUrl: string | undefined;
+              if (identity.avatar_ref) {
+                const [media] = await resolveMediaRefs([identity.avatar_ref]);
+                avatarUrl = media?.url;
+              }
+              return { groupId: g.group_id, name: identity.name || g.group_id.split('/').pop() || 'Group', avatarUrl };
+            } catch {
+              return { groupId: g.group_id, name: g.group_id.split('/').pop() || 'Group', avatarUrl: undefined };
+            }
+          }),
+        );
+        if (!cancelled) setAuthorAsGroups(faces);
+      } catch (e) {
+        console.warn('[social-composer] identity picker — failed to load groups:', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isEditing, repostingTo]);
+
+  // Close the picker on outside click.
+  useEffect(() => {
+    if (!authorAsOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (authorAsRef.current && !authorAsRef.current.contains(e.target as Node)) {
+        setAuthorAsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [authorAsOpen]);
+
+  // The selected group's face (for the composer header swap).
+  const selectedGroup = authorAsGroups.find((g) => g.groupId === authorAs) || null;
 
   // The caption is a Tiptap editor (D85, rich-text.md "The write side"): the
   // user writes in a WYSIWYG (bold, italic, headings, lists, code, links) and
@@ -948,6 +1004,19 @@ export default function PostComposer({
       // toggle — the tag is the server-side feed filter; the Music feed also
       // re-derives audio/* at render (the tag alone is client-asserted).
       const isMusic = mediaItems.length === 1 && mediaItems[0].isAudio;
+      // When posting as a group, the target groups are the group's groups
+      // (the groups the group is a member of), NOT the user's personal
+      // followers. The group's groups are read from the node (the group's
+      // memberships). For now, use the discover group + the group's own
+      // followers group (if it has one) as the default target.
+      let targetGroups: string[] | undefined = groups;
+      if (authorAs) {
+        // The group's posts go to the discover group (public visibility) +
+        // any groups the group is a member of. The discover group is the
+        // universal public board.
+        targetGroups = [getDiscoverGroupId()];
+      }
+
       const postRecord = await createPost(
         {
           title: title.trim() || undefined,
@@ -957,8 +1026,9 @@ export default function PostComposer({
           created_at: new Date().toISOString(),
           tags: isShort ? ['short'] : isMusic ? ['music'] : undefined,
         },
-        groups,
+        targetGroups,
         pinnedAd ? { mode: 'pinned', target: pinnedAd._id } : undefined,
+        authorAs || undefined,
       );
 
       // Fan-out to followers' inboxes (public posts only)
@@ -977,6 +1047,7 @@ export default function PostComposer({
       setHasText(false);
       setMediaItems([]);
       setPinnedAd(null);
+      setAuthorAs(null);
       onPostCreated?.();
     } catch (e) {
       console.error('Failed to create post:', e);
@@ -1042,23 +1113,29 @@ export default function PostComposer({
           alternate profile. */}
       <div className="mb-3 flex items-center gap-3">
         <Avatar className="h-10 w-10 shrink-0">
-          {avatarUrl ? (
+          {selectedGroup?.avatarUrl ? (
+            <AvatarImage src={selectedGroup.avatarUrl} alt="" />
+          ) : avatarUrl ? (
             <AvatarImage src={avatarUrl} alt="" />
           ) : (
             <AvatarFallback className="bg-brand-muted text-brand-300 text-sm font-semibold">
-              {initials}
+              {selectedGroup ? (selectedGroup.name.charAt(0).toUpperCase()) : initials}
             </AvatarFallback>
           )}
         </Avatar>
         <div className="min-w-0 flex-1">
           <p className="truncate text-[0.9375rem] font-semibold text-foreground" data-testid="composer-author-name">
-            {profile?.display_name || 'You'}
+            {selectedGroup ? selectedGroup.name : (profile?.display_name || 'You')}
           </p>
-          {currentUsername && (
+          {selectedGroup ? (
+            <p className="truncate text-xs text-muted-foreground" data-testid="composer-author-handle">
+              Group
+            </p>
+          ) : currentUsername ? (
             <p className="truncate text-xs text-muted-foreground" data-testid="composer-author-handle">
               @{currentUsername}
             </p>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -1258,6 +1335,93 @@ export default function PostComposer({
                 </div>
               </div>
 
+              {/* Identity picker (group-as-author, A4) — "Post as" dropdown.
+                  Shown only when the caller manages at least one group and
+                  not in edit/repost mode. Selecting a group swaps the
+                  composer's header + changes the Post button label. */}
+              {!isEditing && !repostingTo && authorAsGroups.length > 0 && (
+                <div className="relative" ref={authorAsRef}>
+                  <button
+                    type="button"
+                    onClick={() => setAuthorAsOpen((v) => !v)}
+                    disabled={posting}
+                    aria-label="Post as"
+                    data-testid="identity-picker-button"
+                    className={cn(
+                      'h-10 rounded text-xs font-medium px-2.5 py-2 flex items-center gap-1.5 transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50',
+                      authorAs
+                        ? 'text-brand bg-brand-muted/50 border border-brand/30'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-elevated border border-transparent hover:border-border',
+                    )}
+                  >
+                    <Users className="w-3.5 h-3.5" />
+                    <span className="max-w-24 truncate">
+                      {authorAs ? (selectedGroup?.name || 'Group') : 'You'}
+                    </span>
+                    <ChevronDown className={cn('w-3 h-3 transition-transform', authorAsOpen && 'rotate-180')} />
+                  </button>
+                  {authorAsOpen && (
+                    <div
+                      className="absolute bottom-full left-0 mb-1 w-56 max-h-64 overflow-y-auto rounded-lg border border-border bg-card shadow-lg z-20"
+                      data-testid="identity-picker-menu"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => { setAuthorAs(null); setAuthorAsOpen(false); }}
+                        className={cn(
+                          'w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors hover:bg-elevated',
+                          !authorAs && 'bg-brand-muted/30',
+                        )}
+                        data-testid="identity-option-you"
+                      >
+                        <Avatar className="h-7 w-7 shrink-0">
+                          {avatarUrl ? (
+                            <AvatarImage src={avatarUrl} alt="" />
+                          ) : (
+                            <AvatarFallback className="bg-brand-muted text-brand-300 text-xs font-semibold">
+                              {initials}
+                            </AvatarFallback>
+                          )}
+                        </Avatar>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-foreground font-medium">{profile?.display_name || 'You'}</p>
+                          {currentUsername && (
+                            <p className="truncate text-xs text-muted-foreground">@{currentUsername}</p>
+                          )}
+                        </div>
+                      </button>
+                      <div className="border-t border-border my-1" />
+                      {authorAsGroups.map((g) => (
+                        <button
+                          key={g.groupId}
+                          type="button"
+                          onClick={() => { setAuthorAs(g.groupId); setAuthorAsOpen(false); }}
+                          className={cn(
+                            'w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors hover:bg-elevated',
+                            authorAs === g.groupId && 'bg-brand-muted/30',
+                          )}
+                          data-testid="identity-option-group"
+                        >
+                          <Avatar className="h-7 w-7 shrink-0">
+                            {g.avatarUrl ? (
+                              <AvatarImage src={g.avatarUrl} alt="" />
+                            ) : (
+                              <AvatarFallback className="bg-brand-muted text-brand-300 text-xs font-semibold">
+                                {g.name.charAt(0).toUpperCase()}
+                              </AvatarFallback>
+                            )}
+                          </Avatar>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-foreground font-medium">{g.name}</p>
+                            <p className="truncate text-xs text-muted-foreground">Group</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <Button
                 variant="ghost"
                 size="icon"
@@ -1322,20 +1486,22 @@ export default function PostComposer({
              data-testid="post-submit"
              className="mt-3 h-11 w-full font-semibold"
            >
-             {posting ? (
-               <>
-                 <Loader2 className="w-4 h-4 animate-spin" />
-                 {isEditing ? 'Saving…' : repostingTo ? 'Reposting…' : 'Posting…'}
-               </>
-             ) : (
-               <>
-                 {isEditing
-                   ? 'Save'
-                   : repostingTo
-                     ? <><Repeat2 className="w-3.5 h-3.5" strokeWidth={2} /> Repost</>
-                     : <><Send className="w-3.5 h-3.5" /> Post</>}
-               </>
-             )}
+              {posting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  {isEditing ? 'Saving…' : repostingTo ? 'Reposting…' : 'Posting…'}
+                </>
+              ) : (
+                <>
+                  {isEditing
+                    ? 'Save'
+                    : repostingTo
+                      ? <><Repeat2 className="w-3.5 h-3.5" strokeWidth={2} /> Repost</>
+                      : authorAs
+                        ? <><Send className="w-3.5 h-3.5" /> Post as {selectedGroup?.name || 'Group'}</>
+                        : <><Send className="w-3.5 h-3.5" /> Post</>}
+                </>
+              )}
            </Button>
           </>
           )}
