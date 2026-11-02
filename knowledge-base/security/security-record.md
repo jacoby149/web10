@@ -39,7 +39,50 @@ scan (the import worker + bugbot also call `insert_document` — they pass
 L3 service-scan; L4 project-wide. No C+I exploit replay (no new exploit class —
 the gates are existing primitives re-pointed at a new principal).
 
+## Backup Publication (01.11.2026)
+
+L1-PKG-02 [local repair](scans/2026-10/repair-pkg02-backup-publication.md):
+real filesystem permission/link/overwrite repro, private same-directory staging
+and complete no-clobber publication. Initial 8 failures/1 pass distinguish actual
+behaviors from absent-operation controls; final 45 focused/1,420 API tests plus
+four subtests and lint/format pass, fresh same-model review. Operational storage,
+CI/deployment/history/diverse sign-off and protocol L1 remain OPEN.
+
+## Query-Engine Evaluation Seams (01.11.2026)
+
+`api/app/settings.py` + `api/app/v3/endpoints/query.py` gain three **test-mode**
+env flags for the paper's access-control cost function experiment (the
+three-line ablation, `research/digital-ocean-thinking.md`):
+`QUERY_EVAL_STUB_EXECUTE` (+`QUERY_EVAL_STUB_ROWS`, line C — return a fixed
+synthetic result instead of running the compiled SQL), `QUERY_EVAL_NO_POLICY`
+(line A — skip readable-set resolution + boundary-CTE scoping, run the caller's
+SQL unscoped; also exempts the D42 explicit-group membership 403), and
+`QUERY_EVAL_READABLE_MODE` (`per-group` default | `batched` — select the
+resolution algorithm). **All default OFF: production behavior is unchanged
+unless a flag is set.** The flags are referenced as `ch.<name>` (attribute
+lookup at call time) so existing test patches apply.
+
+**Trust-boundary note (honest scope):** `QUERY_EVAL_NO_POLICY` *bypasses the I3
+boundary* and `QUERY_EVAL_STUB_EXECUTE` *returns synthetic rows* — both are
+deliberately dangerous and gated behind env flags that **must never be enabled
+on a public node**. They exist only so the experiment can measure the policy
+layer in isolation (C) and the causal overhead against a no-policy baseline
+(A). The production default path (per-group readable + real execute + full
+boundary) is untouched. This is an L1 file-scan disposition for the two touched
+files, not an L1 PASS or sign-off on the query service; the I3 conformance suite
+(`api/tests/test_v3_conformance.py`) still passes with the flags unset.
+`test_query_endpoint.py::TestEvaluationSeams` (+6) pins: inert when unset, each
+flag active when set, A unscoped + no 403, batched vs. per-group routing. Full
+API suite 1349 passed + 4 subtests. No new credential surface, no token/payload
+logging, no auth-path change. Deeper (L2/L3) coverage of the query service
+remains separate debt.
+
 ## Manifest Destination Follow-Up (01.11.2026)
+
+Source repair and direct dependency follow-up merged in #1299 at
+`0918a7409141e2b42b3ffa81e9ff585550c3c5ad`; all 13 PR checks passed. Historical
+local wording below describes the repair-stage evidence, not current merge state.
+Rollout, actual registry/retained TLS/path integration and diverse gates remain OPEN.
 
 L1-A-02 [local source repair](scans/2026-10/repair-a02-manifest.md): approved
 public-only registration/DNS, numeric connection pinning, canonical Host/TLS
@@ -55,7 +98,6 @@ That historical follow-up made no runtime fix or deployed/whole-file claim;
 the local repair above supersedes its vulnerable behavior, not the L1 OPEN status.
 
 ## Docs RTC Producer (29.10.2026)
-
 
 RTC-ICE [local repair](scans/2026-10/repair-rtc-ice.md) now passes selected ICE
 through PeerJS's consumed `config.iceServers`. Nine baseline failures become
