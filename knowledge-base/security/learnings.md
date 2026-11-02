@@ -35,6 +35,20 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-01: Deny the foreign tree before minting its stream token
+
+[Direct-document HLS mint repair](scans/2026-10/repair-h01-hls-direct-mint.md)
+replays a helper-minted, cryptographically verified foreign-prefix token against
+the actual segment HTTP endpoint and a key-sensitive synthetic object store.
+Variant denial alone was insufficient: a client can request the segment directly.
+The direct mint now requires an uploader-owned MinIO video key and strips stored
+manifest URLs, including disabled settings, without mutating inputs. Preserve
+`posted_by or author_key`, reader claims and opaque object keys. 24 new controls,
+1,623 API tests plus eight subtests and fresh same-model review support this
+source repair only. Resolved-ref/ad minting is a separate open source of foreign
+prefixes; namespace checks do not prove supplied-owner provenance or revoke old
+capabilities before TTL. Live services/CI/deployment/diverse review remain OPEN.
+
 ### 2026-11-01: A readable rendition record is not an object-read grant
 
 [HLS variant repair](scans/2026-10/repair-h01-hls-variant.md) reproduces foreign

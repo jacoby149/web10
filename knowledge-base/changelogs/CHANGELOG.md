@@ -1,3 +1,6 @@
+3.253.14 || 01.11.2026
+fix(media): **owner-bind direct-document HLS token minting** — require an uploader-owned raw MinIO video before issuing a stream capability and strip stored manifest URLs on denial/disabled settings. Baseline helper-minted real JWT retrieves synthetic foreign segment bytes through HTTP; repair denies issuance. 24 new controls, 1,623 API tests plus eight subtests, Ruff and fresh same-model review pass. Ref/ad minting, supplied-owner provenance, existing token TTL, live integration/CI/deployment/diverse gates and protocol L1 remain OPEN.
+
 3.253.13 || 01.11.2026
 fix(media): **bind HLS variant fetches to the uploader's video tree and stream claims** — reject unrelated rendition keys before storage access; preserve authorized cross-user/group-uploader playback. Two actual HTTP/JWT synthetic-object disclosures red -> denied green; 28 new controls, 1,599 API tests plus eight subtests and Ruff pass. Fresh same-model review finds no blocking defect. HLS mint/segment provenance, live integration, CI/deployment/diverse review and protocol L1 remain OPEN.
 

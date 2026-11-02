@@ -69,6 +69,9 @@ route + the screenshot harness).
 
 ### Lane: security-l1-scans
 
+- [✓ 3.253.14 local] **PROTOCOL-01/H01-HLS-DIRECT-MINT: owner-bind direct-document stream mint** — own direct mint hunk in documents.py, focused HLS tests and security KB; helper-minted JWT/HTTP synthetic foreign retrieval red -> issuance-denied green, 24 new controls, 1,623 API tests plus eight subtests, Ruff and fresh same-model review pass. `knowledge-base/security/scans/2026-10/repair-h01-hls-direct-mint.md`. Ref/ad mint, owner provenance, integration/CI/deployment/diverse/L1 OPEN; no segment policy/schema/SDK changes.
+- **Variant status:** H01-HLS-VARIANT merged #1309 at `1dda69ecf`, all 13 first-attempt checks green; historical local tick below is not broader closure.
+
 - [✓ 3.253.13 local] **PROTOCOL-01/H01-HLS-VARIANT: bind variant fetches to video provenance** — own HLS variant handler/focused tests/security KB; two HTTP/JWT synthetic-object disclosures red -> denied green, 28 new controls, 1,599 API tests plus eight subtests, Ruff and fresh same-model review pass. `knowledge-base/security/scans/2026-10/repair-h01-hls-variant.md`. No mint/segment/schema/SDK policy changes; integration/CI/deployment/diverse/L1 OPEN.
 - **Raw status:** H01-RAW merged #1307; historical local tick below is not deployment evidence.
 
