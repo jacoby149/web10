@@ -1,5 +1,11 @@
 # Access-Control Cost Function Experiment
 
+**K1000 trial complete:** [K=10/100/1000 results](K1000-RESULTS.md) records a
+single 1,000-creator trial, 20 samples in all 20 cells (400 measurements).
+At K1000, B readable medians were 7,535.705 ms per-group versus 213.980 ms
+batched; handler medians 7,644.655 versus 363.305 ms. No startup/seed retry was
+needed; artifacts collected and droplet deleted. This is not capacity evidence.
+
 **First scaling trial:** [K=10/100 results](K100-RESULTS.md) records 100 creators,
 20 samples per cell, all 15 cells complete. It includes the initial seeding
 failure, source provenance and measurement limitations. Full E3 remains open.

@@ -1,5 +1,7 @@
 # Parallel Execution
 
+- [✓ 3.253.16 local] **E3 first K1000 trial** — 1,000 creators, K10/100/1000, all 20 cells complete with 20 samples each. Per-group K1000 B handler median 7.645 s vs batched 363 ms. Source/provenance/limits in research/experiments/costfn/K1000-RESULTS.md; artifacts collected, droplet deleted. Full E3 remains open.
+
 - [✓ 3.253.11 local] **E3 preliminary results in manuscript** — measured K10/100 table, K1 tradeoff and explicit baseline/single-trial limits now in research/workshop/main.tex and rebuilt PDF. No full-E3 completion claim.
 
 - [✓ 3.253.10 local] **E3 first K10/100 trial** — all 15 cells complete, 20 samples each; per-group readable grows roughly linearly across K10/100, batched grows less. See research/experiments/costfn/K100-RESULTS.md for limits and initial seed failure. Artifacts collected and droplet deleted; full E3 remains open.

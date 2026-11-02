@@ -33,6 +33,8 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases 
 
+- [✓ 3.253.16 local] **E3 first K1000 trial** — one 1,000-creator seed measured at K10/100/1000; all 20 cells with 20 samples, 400 measurements. First-attempt seed succeeded, artifacts collected, droplet deleted. See research/experiments/costfn/K1000-RESULTS.md. Single sequential trial, not full E3 completion.
+
 - [✓ 3.253.11 local] **E3 preliminary results in manuscript** — K10/100 B/C median/p95 table and K1 contrary result, bounded abstract/conclusion, setup/provenance and limits. Table checked against report; PDF builds. Repeated trials, full feed and capacity remain open.
 
 - [✓ 3.253.10 local] **E3 first K10/100 trial** — 100 creators, 20 samples in each of 15 cells; results recorded in research/experiments/costfn/K100-RESULTS.md. One failed seed preceded a successful fresh-stack retry; cause unknown. Data collected, droplet deleted. Single sequential trial only; full E3 remains open.
