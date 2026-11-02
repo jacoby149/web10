@@ -28,12 +28,15 @@ web10-v3/
 ├── db/                    ← ClickHouse implementation & setup
 │   └── clickhouse.md      ← complete schema: tables, indexes, patterns
 ├── setup/                 ← node setup & operator config
-│   └── node-config.md     ← the node_config table, admins model, setup flow, /am_admin gate
+│   ├── node-config.md     ← the node_config table, admins model, setup flow, /am_admin gate
+│   └── custom-domain.md   ← claiming your web10 identity on your own domain via a DNS TXT record (Njalla recommended, the DKIM pattern for user identity)
 ├── app-store/             ← the node's public storefront
 │   ├── overview.md        ← registration (a path is an app), visits, PWA manifests, store UI
 │   └── endpoints.md       ← the store's endpoint surface: the product page, ratings, stats
 ├── analytics/             ← the generic content-analytics engine (D86)
 │   └── overview.md        ← per-content performance: the three primitives, the two-tier impression (delivery server-side, viewport client-gated), what a "surface" is, the `trackContentEvent` SDK surface, anti-gaming
+├── identity/              ← domain identity: the DNS TXT claim, the user column, the alias-not-principal rule
+│   └── domain-identity.md ← how a user claims a domain, the TXT record format, the users.domain column, why the domain is an alias not a principal (no backfill)
 ├── groups/                ← groups as a platform primitive
 │   ├── overview.md        ← policy containers, roles, join policies
 │   ├── access.md          ← who can do what in a group (the D58 read/write gate)

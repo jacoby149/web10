@@ -9,6 +9,28 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D93 — Identity registry: DNS-style name resolution for web10 users, hosted on boring infra (Njalla + Cloudflare + Iceland/CH VPS) [decided, v4]
+
+Operator, 02.11.2026: "there needs to be a third party that DNS your username, so you can change what node it points to, that is the missing piece" + "support just regular shmegular dns! njalla!" + "even if the stuff on your site was so controversial then?" (re: Njalla's content policy).
+
+**The decision.** A lightweight, third-party identity-registry service resolves a user's chosen name (`@coolguydavid`) to the node where their data currently lives. The name is stable; the node is a mutable pointer. The user's key (the same account credential the node already uses) signs pointer updates, so a node operator cannot re-point a user's name without the user's cryptographic consent. The registry stores only `{name, node_url, public_key, timestamps}` — no user data, no content, no tokens, no group membership.
+
+**Infrastructure (the "boring DNS, not a blockchain" principle):**
+- **Registrar: Njalla (njal.la, Costa Rica).** Privacy-focused, does not proactively police content (track record: elections, activist sites, leak sites). Only suspension trigger: content affecting "anyone's health or safety" (malware, CSAM). Accepts crypto + PayPal. Costa Rica jurisdiction: no US extradition for political speech, strong privacy laws.
+- **DNS: Cloudflare.** Anycast, fast, DDoS-resistant. Deliberately a different company from the registrar so neither alone can take the registry offline.
+- **Hosting: VPS in Iceland or Switzerland.** Strong privacy jurisdictions, track record of resisting extraterritorial takedowns. At least two instances in different jurisdictions for redundancy.
+- **No crypto wallet UX.** The "crypto" is the Ed25519/ECDSA signature on the pointer update, handled by the node's existing auth layer. The user experience is "change your address in settings," not "open your wallet."
+
+**What the registry does NOT do:** store user data, enforce access control (I1–I6 stay on the node), moderate content, replace node auth, or require a separate wallet. It is a name-resolution service, not a data store or SSO provider.
+
+**Relationship to existing decisions:** completes the "name→node" layer that D84's canonical principal format implies but does not build. The `public_key` field is the node's JWKS key (D7). Consistent with D41 (readable by design, data policy not privacy) and D60 (node stays generic — the registry is a separate service, not a node endpoint). Operationalizes Gap 4 in `ads-october/gaps.md` (the "301 redirect" the operator described).
+
+**Rejects:** (1) a blockchain-based identity layer — the UX cost (wallet, seed phrase, gas) is not justified for a name→node lookup; a signed key-value record on boring infra is sufficient. (2) making the registry a node endpoint — D60; the node stays generic. (3) a single-jurisdiction single-point-of-failure hosting model — two VPS in different jurisdictions, registrar and DNS at different companies. (4) the registry as a content-moderation or data-storage service — it resolves names, nothing else.
+
+**Full spec:** `knowledge-base/web10-v4/identity/registry.md`.
+
+---
+
 ### D92 — OAuth 2.0: delegated access for external apps, one new claim, the locks are already on the rooms [decided]
 
 Operator, 21.10.2026: "we need oauth 2.0" — the Muse AI assistant (and any

@@ -8,6 +8,10 @@ v4 is everything that requires the foundation to be stable first:
 
 - `faq/could-rock-for-finance.md` — using web10 for finance/HFT. Event sourcing, append-only ledgers, compute-on-read balances. Speculative but the patterns work.
 
+## Identity
+
+- `identity/registry.md` — DNS-style name resolution for web10 users. A third-party registry maps `@username` → node URL + public key. The user's key signs pointer updates, so a node can't re-point a name without consent. Boring infra: Njalla registrar, Cloudflare DNS, Iceland/CH VPS. No wallet, no blockchain, no content stored.
+
 ## Future
 
 - `future/federated-groups.md` — cross-provider federation. Groups span providers, ClickHouse `remote()` queries other instances.
