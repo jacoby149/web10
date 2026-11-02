@@ -33,6 +33,12 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases 
 
+- [✓ 3.253.7 local] **E3 preliminary results in manuscript** — K10/100 B/C median/p95 table and K1 contrary result, bounded abstract/conclusion, setup/provenance and limits. Table checked against report; PDF builds. Repeated trials, full feed and capacity remain open.
+
+- [✓ 3.253.6 local] **E3 first K10/100 trial** — 100 creators, 20 samples in each of 15 cells; results recorded in research/experiments/costfn/K100-RESULTS.md. One failed seed preceded a successful fresh-stack retry; cause unknown. Data collected, droplet deleted. Single sequential trial only; full E3 remains open.
+
+- [✓ 3.253.5 local] **E3 connected tiny smoke** — SSH with IPQoS=none, Docker/API/ClickHouse boot, ten creators seeded, ten cells with three samples each and four B-minus-A comparisons. Fixed parsed evaluation settings overwritten as strings; 45 focused tests plus eight subtests pass. Results collected; droplet deleted. Functional smoke only; full E3 remains open.
+
 - [✓ 3.253.4 local] **E3 tiny-smoke harness repair and connection attempt** — dedicated local-only Compose, real seed API schema, baseline pairing and offline regressions. One sfo2 droplet created with the registered SSH key; two TCP/SSH timeouts prevented execution. Deleted and verified no remaining droplets. No measurements; the full E3 experiment remains open.
 
 ## web10-social Product Post Permalink (D89)

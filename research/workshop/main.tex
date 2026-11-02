@@ -66,9 +66,12 @@ ranked posts, engagement, and profiles, with media capabilities prepared by the
 node. We describe the access model, query compilation, and application
 composition, including the costs of metadata resolution and the consistency
 obligations of a shared columnar store. The design separates application-defined
-social queries from shared access enforcement. This draft specifies the
-feasibility evaluation; latency, capacity, revocation, and cost results remain
-pending.
+social queries from shared access enforcement. A preliminary single-node
+microbenchmark shows the cost of metadata fan-out: at 100 candidate groups,
+batching reduced median readable-group resolution from 888 to 45\,ms and
+median query-handler time from 953 to 116\,ms in one sequential trial.
+Repeated trials, full application latency, capacity, revocation, and cost
+evaluation remain pending.
 \end{abstract}
 
 \maketitle
@@ -136,7 +139,8 @@ This paper makes three contributions:
 The evaluation in \S\ref{sec:method} will assess practical operating points
 and characterize the architecture's costs. This submission's goal is feasibility
 and a clear account of tradeoffs; further optimization is follow-up work.
-Measurements remain pending in this draft.
+A preliminary metadata-resolution trial is reported; broader measurements
+remain pending.
 \S\ref{sec:related} relates the design to decentralized storage, IAM, and
 multi-tenant databases; \S\ref{sec:concl} concludes.
 
@@ -569,7 +573,8 @@ contain another 31,060 lines in 105 files; the link-preview renderer is 431 line
 in three JavaScript modules. Counts include comments, blank lines, and local
 type declarations. They exclude public/generated assets, dependencies,
 configuration, tooling, and sibling shared-library and SDK implementations.
-All implementation links use the same pinned revision.
+Implementation links for this application case study use that pinned revision;
+the later experiment snapshot is identified separately in \S\ref{sec:prelim}.
 
 \subsection{The feed as a query}
 
@@ -645,14 +650,16 @@ must survive export/import. The implemented query boundary is single-node;
 provider migration and federation are future work.
 
 %=============================================================================
-\section{Evaluation Status and Methodology}
+\section{Preliminary Evaluation and Methodology}
 \label{sec:method}
 
 \subsection{Evidence available and pending}
 
 The current case study documents the implemented architecture, repository tests
-for named paths, and a deployed application. Empirical evaluation is pending.
-The planned measurements assess workload-specific feasibility and costs:
+for named paths, a deployed application, and one synthetic metadata-resolution
+trial (\S\ref{sec:prelim}). This trial measures a simplified query, not the
+complete application feed. The remaining planned measurements assess
+workload-specific feasibility and costs:
 production observations, latency distributions, throughput, resource use,
 revocation visibility, and matched baseline behavior.
 
@@ -662,8 +669,92 @@ the \artifactfile{research/evaluation-plan.md}{evaluation plan} defines the
 required workload and measurement checks. Existing
 \artifactdir{e2e/tests/gauntlets}{social gauntlets} provide reusable correctness
 scenarios for following, posting, and concurrent engagement. These artifacts
-support construction of the connected application workload; execution and
-result collection remain pending.
+support construction of the connected application workload; complete browser
+workload execution and result collection remain pending. The later cost-function
+harness has executed the preliminary trial below.
+
+\subsection{Preliminary metadata fan-out results}
+\label{sec:prelim}
+
+\textbf{Setup.} We ran one sequential trial on a DigitalOcean sfo2
+\texttt{s-4vcpu-8gb} host (four vCPUs, 8\,GB nominal RAM, Ubuntu 24.04,
+Linux 6.8, Docker 29.1.3), co-locating the API and ClickHouse (configured
+image tag \texttt{24.3}; runtime engine version was not separately recorded).
+The synthetic seed created 100 creators with one small post each and a reader
+who joined their groups; those groups also granted public reads. The reader's
+personal query supplied either $K=10$ or $K=100$ candidate groups. A separate
+discover query supplied one board group ($K=1$) on the same dataset. Queries
+selected document IDs and bodies, ordered by creation time and ID, with a
+limit of 20. They did not execute engagement joins, media preparation or browser
+page assembly. HTTP requests supplied no Origin header, so this trial does not
+exercise the browser-origin app-contract gate.
+
+\textbf{Variants.} The per-group resolver performs point metadata queries for
+each candidate group. The batched resolver fetches memberships, principal-class
+grants and role definitions across the candidate set in three database queries,
+then resolves access in memory. This reduces round trips, not the amount of
+permission metadata to process. We measured each resolver with real document
+execution (B) and a fixed 20-row synthetic scan result (C). C retains the
+policy/compilation path but is not an output-equivalent query execution.
+A third variant (A) precompiles the known-readable projection and times
+ClickHouse execution directly, outside the HTTP handler.
+
+\begin{table*}[t]
+\centering
+\small
+\caption{Preliminary personal-query results from one sequential trial,
+20 samples per cell. B executes the document query; C substitutes a fixed
+20-row result. Times are milliseconds. Readable denotes permission-resolution
+wall time; total denotes internal handler time, not end-to-end HTTP latency.}
+\label{tab:fanout}
+\begin{tabular}{@{}rllrrrr@{}}
+\toprule
+$K$ & Resolver & Variant & Readable median & Readable p95 & Total median & Total p95 \\
+\midrule
+10 & Per-group & B & 83.41 & 97.63 & 147.67 & 171.63 \\
+10 & Batched   & B & 26.99 & 29.42 & 86.20 & 105.78 \\
+100 & Per-group & B & 887.56 & 1042.40 & 952.51 & 1137.54 \\
+100 & Batched   & B & 45.08 & 53.74 & 116.38 & 142.94 \\
+\midrule
+10 & Per-group & C & 87.86 & 96.99 & 123.54 & 150.32 \\
+10 & Batched   & C & 26.46 & 30.44 & 56.86 & 70.66 \\
+100 & Per-group & C & 826.47 & 949.47 & 866.24 & 1008.33 \\
+100 & Batched   & C & 45.75 & 52.74 & 86.93 & 103.56 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\textbf{Observed tradeoff.} Table~\ref{tab:fanout} shows that a tenfold increase
+in $K$ increased B's median readable time by $10.64\times$ for per-group
+resolution, versus $1.67\times$ for batching. At $K=100$, batching reduced
+median readable time by $19.69\times$ and median handler time by $8.18\times$.
+The stubbed-scan variant exhibits the same qualitative separation, supporting
+metadata orchestration as a bottleneck rather than attributing the entire
+difference to document scanning. Batching was not uniformly cheaper: at
+discover's $K=1$, B's readable medians were 9.21\,ms per-group versus
+28.14\,ms batched, with handler medians of 72.17 versus 94.46\,ms.
+Batching has fixed costs and did not exhibit constant latency as $K$ grew.
+
+\textbf{Baseline and scope.} A's median direct-scan time was 30.49\,ms at
+personal $K=10$, 32.26\,ms at $K=100$, and 30.12\,ms for discover. Because A
+excludes authentication, compilation and serialization, subtracting A from B
+is a pipeline-versus-scan comparison, not a matched causal measurement of
+authorization overhead. The 15 cells captured all 300 requested samples:
+240 B/C HTTP requests returned 200 and 60 A executions completed directly.
+Twenty samples per cell provide only a preliminary p95; no independent trials,
+randomized order or explicit warm-up exclusion were used. This does not measure
+concurrent capacity, mixed allowed/denied access, discover scaling across node
+sizes, $K=1000$, or full-feed latency.
+
+\textbf{Provenance.} The trial used source revision
+\texttt{cf7943c88} plus a settings fix preserving parsed evaluation flags;
+the experiment record retains the full revision, settings checksum and cell
+summaries. The summaries and logs are currently retained in the local research
+workspace, not a published archival artifact. An initial fresh-stack seed failed
+with repeated group-creation HTTP 500 responses; server logs were lost during
+automatic cleanup. A second fresh stack on the same host seeded successfully
+and completed the measurements. Its cause remains unknown, so the successful
+trial does not establish unattended startup reliability.
 
 An industry evaluation needs dated production observations separated from
 synthetic runs. Production observations should identify deployment duration,
@@ -808,10 +899,12 @@ service relations before joins and aggregation. The social application shows
 how this separation supports ranked feeds and scoped engagement reads while
 keeping query definitions in the application.
 
-The next step is to establish a practical operating point and characterize
-metadata fan-out, query execution, and revocation under representative workloads.
-Those measurements remain pending. They will provide a baseline for subsequent
-optimization of policy resolution and query processing. The architectural
+The preliminary trial identifies per-group metadata round trips as a concrete
+bottleneck: batching substantially reduced handler time at 100 candidate groups,
+while costing more at one group. This motivates batching as an implementation
+choice, not a claim of unbounded scalability. Repeated trials, representative
+application workloads, concurrent load and revocation measurements remain
+necessary to establish a practical operating point. The architectural
 contribution is this integration: applications compose social views over
 reader-specific service relations in a shared columnar store.
 

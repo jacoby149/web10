@@ -1,5 +1,15 @@
 # Access-Control Cost Function Experiment
 
+**First scaling trial:** [K=10/100 results](K100-RESULTS.md) records 100 creators,
+20 samples per cell, all 15 cells complete. It includes the initial seeding
+failure, source provenance and measurement limitations. Full E3 remains open.
+
+**Connected smoke verified:** 10 creators, K=10, one post/creator, three queries
+per cell completed all 10 cells (30 samples) on one sfo2 4-vCPU/8-GB droplet.
+All four B-minus-A comparisons were populated. This verifies the pipeline, not
+performance or tail latency. The run used `IPQoS=none` for SSH and the settings
+type-preservation fix; the droplet was deleted after collecting results.
+
 The harness for the paper's **access-control cost function** — the three-line
 ablation that measures *the layer web10 adds* (auth → app-contract → candidate
 → readable-set resolution → group-meta → AST compile → serialize), with the

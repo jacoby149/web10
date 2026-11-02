@@ -14,6 +14,13 @@ not a re-discovery.
 
 ## 0. Prerequisites (on the machine driving the run)
 
+**Verified connection workaround:** on this Mac/network, default SSH timed out
+while `ssh -o IPQoS=none` succeeded against the same droplet. The server had
+sshd listening and UFW inactive; external TCP probes also reached port 22.
+Use `-o IPQoS=none` for SSH and SCP below. This does not disable encryption or
+host-key checks; it disables packet QoS markings. The exact filtering device
+is unknown. Allow cloud-init to finish before installing packages.
+
 - **`doctl` installed and authenticated.** `doctl account get` must print your
   account. If not: `doctl auth init` (paste a DO personal access token from
   https://cloud.digitalocean.com/account/api/tokens) or `doctl auth login`.
@@ -69,11 +76,11 @@ blocks until `active`. Note the **ID** and **Public IPv4** from the output.
 ### 1d. Verify SSH before doing anything else
 ```bash
 sleep 30   # sshd takes a moment after "active"
-ssh -o ConnectTimeout=12 -o StrictHostKeyChecking=accept-new root@<IP> "echo OK"
+ssh -o IPQoS=none -o ConnectTimeout=12 -o StrictHostKeyChecking=accept-new root@<IP> "echo OK; cloud-init status --wait"
 ```
 ⚠️ *The trap that stopped the first run:* if this **times out** (ping works,
-`nc -z <ip> 22` may even say open, but the SSH handshake hangs), your egress to
-DO SSH is not usable yet. This does not prove local egress is the cause. Use
+`nc -z <ip> 22` may even say open, but the SSH handshake hangs), SSH is not
+usable yet. This does not prove local egress is the cause. Use
 `ssh -vvv` and the DO console to inspect sshd/firewall state. **Stop.** Destroy the droplet (`doctl compute droplet delete
 <ID> --force`) and fix the network path first — don't keep recreating boxes.
 GitHub:22 working does not mean DO:22 works from your network.
@@ -82,7 +89,7 @@ GitHub:22 working does not mean DO:22 works from your network.
 
 ## 2. Install Docker on the droplet
 ```bash
-ssh root@<IP> 'export DEBIAN_FRONTEND=noninteractive && \
+ssh -o IPQoS=none root@<IP> 'export DEBIAN_FRONTEND=noninteractive && \
   apt-get update -y && apt-get install -y docker.io docker-compose-v2 >/dev/null && \
   systemctl enable --now docker && docker compose version'
 ```
@@ -98,7 +105,7 @@ pull returns 401). The repo itself is public (clone needs no token) — only the
 ```bash
 # From the driving machine, get a token that works for GHCR pulls:
 GH_TOKEN=$(gh auth token)        # a github.com PAT / OAuth token pulls from GHCR
-printf '%s' "$GH_TOKEN" | ssh root@<IP> 'docker login ghcr.io -u jacoby149 --password-stdin'
+printf '%s' "$GH_TOKEN" | ssh -o IPQoS=none root@<IP> 'docker login ghcr.io -u jacoby149 --password-stdin'
 ```
 ⚠️ The token goes to the droplet over SSH at provision time only — **never commit
 it**, and the droplet is destroyed after, so it doesn't persist. If `gh` isn't
@@ -107,14 +114,14 @@ account and use that instead.
 
 Verify the pull works before the full run:
 ```bash
-ssh root@<IP> 'docker pull ghcr.io/jacoby149/base-clickhouse:24.3 && echo PULL_OK'
+ssh -o IPQoS=none root@<IP> 'docker pull ghcr.io/jacoby149/base-clickhouse:24.3 && echo PULL_OK'
 ```
 
 ---
 
 ## 4. Clone the repo + set up vhosts
 ```bash
-ssh root@<IP> 'cd ~ && git clone https://github.com/jacoby149/web10 && cd web10 && \
+ssh -o IPQoS=none root@<IP> 'cd ~ && git clone https://github.com/jacoby149/web10 && cd web10 && \
   git checkout dev && \
   printf "127.0.0.1 api.localhost\n127.0.0.1 minio.localhost\n" >> /etc/hosts && \
   echo CLONE_OK'
@@ -130,7 +137,7 @@ run reproducible against a known-good state: `git checkout <sha>`.)
 
 ### Mini probe first (shake out the first connected run — ~5 min bench, ~$0.10)
 ```bash
-ssh root@<IP> 'cd ~/web10/research/experiments/costfn && \
+ssh -o IPQoS=none root@<IP> 'cd ~/web10/research/experiments/costfn && \
   python3 bench.test.py && \
   CREATORS=10 FOLLOW=10 POSTS_PER_CREATOR=1 K_VALUES=10 RUNS=3 FEEDS="personal discover" \
   MODES="per-group batched" LINES="A B C" ./run.sh 2>&1 | tee run.log'
@@ -141,7 +148,7 @@ far below RUNS, it hit rate-limits/errors — investigate, don't silently re-run
 
 ### Full matrix (after the probe looks sane — ~30–60 min bench, ~$1)
 ```bash
-ssh root@<IP> 'cd ~/web10/research/experiments/costfn && \
+ssh -o IPQoS=none root@<IP> 'cd ~/web10/research/experiments/costfn && \
   CREATORS=1000 K_VALUES="10 100 1000" RUNS=20 ./run.sh 2>&1 | tee run-full.log'
 ```
 ⚠️ Keep `CREATORS` ≥ the max K you sweep (1000 backs K=1000). **Don't raise
@@ -153,7 +160,7 @@ extra signal.
 Set a timer. **Mini probe: ~45 min cap. Full: ~2 hr cap.** If `run.log` shows no
 progress for several minutes (stuck seed or hung cell), kill it:
 ```bash
-ssh root@<IP> 'docker compose -f ~/web10/research/experiments/costfn/compose.yml -p web10-costfn down -v'
+ssh -o IPQoS=none root@<IP> 'docker compose -f ~/web10/research/experiments/costfn/compose.yml -p web10-costfn down -v'
 ```
 then destroy the droplet (§7) and investigate before spending more.
 
@@ -161,7 +168,7 @@ then destroy the droplet (§7) and investigate before spending more.
 
 ## 6. Collect results (BEFORE destroying the box)
 ```bash
-scp -r root@<IP>:~/web10/research/experiments/costfn/results/ ./costfn-results/
+scp -o IPQoS=none -r root@<IP>:~/web10/research/experiments/costfn/results/ ./costfn-results/
 ```
 Sanity-check before you tear down:
 ```bash

@@ -1,5 +1,11 @@
 # Parallel Execution
 
+- [✓ 3.253.7 local] **E3 preliminary results in manuscript** — measured K10/100 table, K1 tradeoff and explicit baseline/single-trial limits now in research/workshop/main.tex and rebuilt PDF. No full-E3 completion claim.
+
+- [✓ 3.253.6 local] **E3 first K10/100 trial** — all 15 cells complete, 20 samples each; per-group readable grows roughly linearly across K10/100, batched grows less. See research/experiments/costfn/K100-RESULTS.md for limits and initial seed failure. Artifacts collected and droplet deleted; full E3 remains open.
+
+- [✓ 3.253.5 local] **E3 connected tiny smoke** — ten creators, K=10, three queries/cell; all ten cells and four B-minus-A comparisons complete. SSH workaround IPQoS=none and settings type preservation verified. Artifacts in .context/costfn-smoke-results/; droplet deleted. Full E3 remains open.
+
 - [✓ 3.253.4 local] **E3 tiny-smoke harness repair and connection attempt** — offline checks pass; 10 creators / K=10 / three queries per cell planned. SSH TCP connection to sfo2 droplet 614912502 timed out twice; deleted and verified empty droplet list. No measurements collected; full E3 remains open.
 
 Companion to `plan.md`. That file says **what** and **why**; this file
