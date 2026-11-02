@@ -72,6 +72,9 @@ reuses `POST /v3/app-contracts/revoke`. Full spec:
 
 ## L1 Security Scans
 
+- [✓ 3.253.14 local] **PROTOCOL-01/H01-HLS-DIRECT-MINT: owner-bind direct-document stream mint** — foreign raw key no longer issues a working segment capability; stored manifest URLs removed, uploader/reader separation preserved. 24 new controls, 1,623 API tests plus eight subtests, Ruff and fresh same-model review pass. [Receipt](../security/scans/2026-10/repair-h01-hls-direct-mint.md). Ref/ad mint, owner provenance, live integration/CI/deployment/diverse/L1 OPEN.
+- **Variant status:** H01-HLS-VARIANT merged #1309 at `1dda69ecf`, all 13 checks passed first attempt; local checkpoint below is historical.
+
 - [✓ 3.253.13 local] **PROTOCOL-01/H01-HLS-VARIANT: bind variant fetches to video provenance** — uploader namespace, signed tree and exact worker rendition key checked before storage; two synthetic-object HTTP/JWT disclosures denied, 28 new controls and 1,599 API tests plus eight subtests, Ruff and fresh same-model review pass. [Receipt](../security/scans/2026-10/repair-h01-hls-variant.md). HLS mint/segment provenance, integration/CI/deployment/diverse/L1 OPEN.
 - **Raw status:** H01-RAW merged #1307; previous local checkpoint below is historical, not deployment evidence.
 

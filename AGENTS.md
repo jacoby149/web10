@@ -358,7 +358,9 @@ HLS/legacy URL provenance and caller-selected owner contexts remain separate deb
 
 HLS variant-manifest fetches bind the uploader-owned raw video, signed prefix
 and exact worker rendition key before storage access. Mint-time/segment-prefix
-provenance remains open; this is not whole-HLS assurance.
+provenance remains open; this is not whole-HLS assurance. Direct-document HLS
+minting also requires an uploader-owned MinIO video and removes stored manifest
+URLs before remint/denial. Resolved-ref/ad mint provenance remains open.
 
 Defined in the KB: `knowledge-base/web10-v3/security/overview.md`. Short version — I1: cryptographic issuer verification, I2: no unsigned decode, I3: no query returns documents for an `author_key` the token doesn't own (unless group membership grants access), I4: node-readable by design — operator-blindness is not a goal, access is terms-controlled (D41), I5: scoped/expiring/revocable tokens enforced by app contracts. Enforced by the conformance/permission test suite.
 

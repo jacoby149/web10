@@ -115,12 +115,28 @@ def _mint_hls_manifest_urls(docs: list[dict], reader_key: str, authenticated: bo
         # (1) the doc itself (a media doc read directly)
         ts = body.get("transcoding_settings") or {}
         video = body.get("video")
-        if ts.get("enabled") and isinstance(video, dict) and video.get("value"):
-            sig = mint_sig(reader_key, doc["doc_id"], hls_prefix(str(video["value"])), authenticated)
-            body["transcoding_settings"] = {
-                **ts,
-                "manifest_url": f"/v3/media/hls/manifest?doc_id={doc['doc_id']}&sig={sig}",
-            }
+        if isinstance(ts, dict) and ts:
+            # Stored URLs are not authority; only this read may mint a fresh one.
+            ts = {k: v for k, v in ts.items() if k != "manifest_url"}
+            body["transcoding_settings"] = ts
+            if ts.get("enabled"):
+                owner = doc.get("posted_by") or doc.get("author_key")
+                key = video.get("value") if isinstance(video, dict) else None
+                if (
+                    isinstance(video, dict)
+                    and video.get("type") == "minio"
+                    and isinstance(owner, str)
+                    and owner
+                    and isinstance(key, str)
+                    and key.startswith(owner + "/")
+                    and len(key) > len(owner) + 1
+                ):
+                    log.info("[media] direct HLS mint: started")
+                    sig = mint_sig(reader_key, doc["doc_id"], hls_prefix(key), authenticated)
+                    ts["manifest_url"] = f"/v3/media/hls/manifest?doc_id={doc['doc_id']}&sig={sig}"
+                    log.info("[media] direct HLS mint: completed")
+                else:
+                    log.info("[media] direct HLS mint: denied invalid owner or video key")
         # (2) the resolved media_refs (the feed path)
         refs = body.get("media_refs")
         if isinstance(refs, list) and any(

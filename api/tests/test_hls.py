@@ -193,6 +193,118 @@ class TestThumbnailDims:
 
 
 class TestMintHlsManifestUrls:
+    @pytest.mark.parametrize(
+        "video",
+        [None, {}, "bad", {"type": "url", "value": "alice/abc/video.mp4"}]
+        + [{"type": "minio", "value": key} for key in [None, {}, 9, "", "alice/", "alice2/x.mp4", "bob/x.mp4"]],
+    )
+    def test_direct_invalid_video_drops_stale_manifest_without_mint(self, video):
+        import copy
+
+        from app.v3.endpoints.documents import _mint_hls_manifest_urls
+
+        doc = _doc_with_hls()
+        doc["body"]["video"] = video
+        doc["body"]["transcoding_settings"]["manifest_url"] = "/stale-capability"
+        original = copy.deepcopy(doc)
+        with patch("app.v3.endpoints.documents.mint_sig") as mint:
+            result = _mint_hls_manifest_urls([doc], "alice", authenticated=True)
+        assert "manifest_url" not in result[0]["body"]["transcoding_settings"]
+        assert result[0]["body"]["transcoding_settings"]["status"] == "done"
+        mint.assert_not_called()
+        assert doc == original
+
+    @pytest.mark.parametrize("owner", [None, "", {}, 9, "bob"])
+    def test_direct_invalid_owner_does_not_mint(self, owner):
+        from app.v3.endpoints.documents import _mint_hls_manifest_urls
+
+        doc = _doc_with_hls()
+        doc["author_key"] = owner
+        with patch("app.v3.endpoints.documents.mint_sig") as mint:
+            result = _mint_hls_manifest_urls([doc], "alice")
+        assert "manifest_url" not in result[0]["body"]["transcoding_settings"]
+        mint.assert_not_called()
+
+    @pytest.mark.parametrize("reader,authenticated", [("bob", True), ("anon", False)])
+    def test_direct_group_uploader_mints_for_authorized_reader(self, reader, authenticated):
+        from app.v3.endpoints.documents import _mint_hls_manifest_urls
+
+        doc = _doc_with_hls()
+        doc.update(author_key="group-id", posted_by="alice")
+        result = _mint_hls_manifest_urls([doc], reader, authenticated)
+        url = result[0]["body"]["transcoding_settings"]["manifest_url"]
+        claims = hls.verify_sig(url.split("sig=")[1], "doc-1")
+        assert claims["username"] == reader
+        assert claims["authenticated"] is authenticated
+        assert claims["prefix"] == "alice/abc/hls"
+
+    def test_direct_disabled_settings_drop_stale_manifest(self):
+        from app.v3.endpoints.documents import _mint_hls_manifest_urls
+
+        doc = _doc_with_hls()
+        doc["body"]["transcoding_settings"].update(enabled=False, manifest_url="/stale-capability")
+        with patch("app.v3.endpoints.documents.mint_sig") as mint:
+            result = _mint_hls_manifest_urls([doc], "alice")
+        assert "manifest_url" not in result[0]["body"]["transcoding_settings"]
+        mint.assert_not_called()
+
+    @pytest.mark.parametrize("key", ["group-id/upload/video.mp4", "bob/upload/video.mp4"])
+    def test_direct_group_key_cannot_override_uploader(self, key):
+        from app.v3.endpoints.documents import _mint_hls_manifest_urls
+
+        doc = _doc_with_hls()
+        doc.update(author_key="group-id", posted_by="alice")
+        doc["body"]["video"]["value"] = key
+        with patch("app.v3.endpoints.documents.mint_sig") as mint:
+            result = _mint_hls_manifest_urls([doc], "bob")
+        assert "manifest_url" not in result[0]["body"]["transcoding_settings"]
+        mint.assert_not_called()
+
+    @pytest.mark.parametrize("posted_by", [None, ""])
+    def test_direct_legacy_owner_and_opaque_key_replace_stale_url(self, posted_by):
+        import copy
+
+        from app.v3.endpoints.documents import _mint_hls_manifest_urls
+
+        doc = _doc_with_hls()
+        doc["posted_by"] = posted_by
+        doc["body"]["video"]["value"] = "alice/a%2Fb/../odd name.mp4"
+        doc["body"]["transcoding_settings"]["manifest_url"] = "/stale-capability"
+        original = copy.deepcopy(doc)
+        result = _mint_hls_manifest_urls([doc], "bob", authenticated=True)
+        url = result[0]["body"]["transcoding_settings"]["manifest_url"]
+        claims = hls.verify_sig(url.split("sig=")[1], "doc-1")
+        assert claims["prefix"] == "alice/a%2Fb/../hls"
+        assert claims["username"] == "bob"
+        assert doc == original
+
+    def test_direct_foreign_prefix_cannot_mint_segment_capability(self, client):
+        from app.v3.endpoints.documents import _mint_hls_manifest_urls
+
+        doc = _doc_with_hls()
+        doc["body"]["video"]["value"] = "bob/private/video.mp4"
+        result = _mint_hls_manifest_urls([doc], "alice", authenticated=True)
+        url = result[0]["body"]["transcoding_settings"].get("manifest_url")
+        if url:
+            sig = url.split("sig=")[1]
+            claims = hls.verify_sig(sig, "doc-1")
+            assert claims["prefix"] == "bob/private/hls"
+            s3 = MagicMock()
+
+            def get_object(**kwargs):
+                assert kwargs["Key"] == "bob/private/hls/360p/seg001.ts"
+                return {"Body": MagicMock(read=lambda: b"SYNTHETIC-FOREIGN-SEGMENT")}
+
+            s3.get_object.side_effect = get_object
+            with patch("app.v3.endpoints.media.get_s3_client", return_value=s3):
+                response = client.get(
+                    "/v3/media/hls/segment",
+                    params={"doc_id": "doc-1", "variant": "360p", "seg": "seg001.ts", "sig": sig},
+                )
+            assert response.status_code == 200
+            assert response.content == b"SYNTHETIC-FOREIGN-SEGMENT"
+        assert url is None, "read mint issued a working foreign-tree segment capability"
+
     def test_doc_itself_mints_manifest_url(self):
         """A direct read of a media doc (video + transcoding_settings) gets a
         manifest_url minted for the reader (the media demo's poll path)."""
