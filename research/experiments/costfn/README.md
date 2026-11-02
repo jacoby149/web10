@@ -59,7 +59,7 @@ this costs more than a few dollars unless you leave the box running.
 
 | Line | Flags set | Meaning |
 |---|---|---|
-| **A** | `QUERY_EVAL_NO_POLICY=1` | no-policy baseline — the caller's SQL runs unscoped (credited ClickHouse baseline; the B−A denominator) |
+| **A** | *(none)* | direct ClickHouse baseline inside the API container; executes the node-generated posts projection with the known-readable seed groups, without runtime permission resolution; HTTP policy remains enabled |
 | **B** | *(none)* | full pipeline, real `execute` — the actual system |
 | **C** | `QUERY_EVAL_STUB_EXECUTE=1` | full pipeline, `execute` stubbed — our layer, isolated from the engine |
 
@@ -68,6 +68,21 @@ The readable-resolution algorithm is varied independently: `per-group`
 O(1) round-trips) — so the figure shows the bottleneck *and* the fix. All three
 flags default OFF in production (`api/app/settings.py`); the bench sets them
 per-cell by restarting the api container.
+
+Line A uses `safe_query.build_safe_query` once outside the timed loop, then
+times `ch.execute_query` directly. This preserves B's `documents`/`doc_groups`
+projection, deduplication, visibility filters and limit. `/v3/query` cannot
+execute the raw projection: its validator rejects physical tables even with
+the no-policy flag. A therefore excludes HTTP/auth/compile/serialization;
+its policy phases are zero, and `queries_completed` counts direct executions
+(`queries_200` is zero). `total_delta_median_ms` reports median B total minus
+median A execute; the existing policy-only delta remains separate. This is a
+scan-only baseline, not an equivalent no-policy HTTP request.
+
+The standalone `compose.yml` publishes only `127.0.0.1:6000`; neither database
+nor object storage publishes ports. Tiny smoke on an existing Docker host:
+`CREATORS=10 FOLLOW=10 POSTS_PER_CREATOR=1 K_VALUES=10 RUNS=3 ./run.sh`.
+This runs three queries per cell, not a statistically meaningful trial.
 
 ## The matrix (what gets run)
 
@@ -79,8 +94,9 @@ For each **feed × K × readable-mode × line**:
 - Line A runs once per (feed, K) (the mode is irrelevant to it); lines B/C run
   per mode.
 
-Default matrix: 2 feeds × (3 K for personal, 1 for discover) × 2 modes × 3
-lines ≈ **15 cells**, each `RUNS` queries (default 20 — ≥20 for a p95).
+Default matrix: (3 personal K values + 1 discover) × (1 A + 2 modes × B/C)
+= **20 cells**, each `RUNS` queries. The tiny K=10 smoke runs 10 cells, three
+queries each; this is a functional check, not evidence for tail latency.
 
 ## Files
 

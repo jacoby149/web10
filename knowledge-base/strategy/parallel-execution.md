@@ -1,5 +1,7 @@
 # Parallel Execution
 
+- [✓ 3.253.3 local] **E3 tiny-smoke harness repair and connection attempt** — offline checks pass; 10 creators / K=10 / three queries per cell planned. SSH TCP connection to sfo2 droplet 614912502 timed out twice; deleted and verified empty droplet list. No measurements collected; full E3 remains open.
+
 Companion to `plan.md`. That file says **what** and **why**; this file
 says what can happen **at the same time**.
 

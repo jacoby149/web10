@@ -33,6 +33,8 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases 
 
+- [✓ 3.253.3 local] **E3 tiny-smoke harness repair and connection attempt** — dedicated local-only Compose, real seed API schema, baseline pairing and offline regressions. One sfo2 droplet created with the registered SSH key; two TCP/SSH timeouts prevented execution. Deleted and verified no remaining droplets. No measurements; the full E3 experiment remains open.
+
 ## web10-social Product Post Permalink (D89)
 
 - [✓ 3.235.17] **A product post's permalink renders the product, not an empty post** — the post-detail layout only rendered `title` / `text` / `media`, so a `posts` doc tagged `product` (D89 — the body IS the product attributes) showed the author row + an empty body + the action bar. `PostRecord.product` (parsed by `parseProductFields`) + the `PostDetail` product card (photo / name / price / badges / affiliate link) + the permalink route resolving `pics[0]` through the owner-scoped media path. Products are inventory like ads — dropped from the standalone feed/profile lists (the storefront + the product card are their public face). All client-side, D60.

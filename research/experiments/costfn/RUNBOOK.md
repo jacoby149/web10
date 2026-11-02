@@ -21,8 +21,8 @@ not a re-discovery.
   You need the **public** key (`~/.ssh/id_ed25519.pub`) to register with DO.
 - **Network egress to DO droplet port 22.** ⚠️ *The #1 trap.* Verify BEFORE you
   spend money: after creating a droplet, `ssh root@<ip>` must work within ~60s.
-  If TCP to :22 times out (but ping works), your network/VPN/firewall is dropping
-  the SSH handshake — no amount of keys/tokens/regions fixes that. Test reachability
+  If TCP to :22 times out, the network path, droplet firewall or sshd readiness
+  needs diagnosis; ping alone does not identify the cause. Test reachability
   first (see §1 step 4). GitHub:22 being reachable does NOT imply DO:22 is.
 - **A GHCR-pull path** for the private base images (see §3). Either the droplet
   can pull `ghcr.io/jacoby149/*` (needs a token), or you pre-load them.
@@ -73,7 +73,8 @@ ssh -o ConnectTimeout=12 -o StrictHostKeyChecking=accept-new root@<IP> "echo OK"
 ```
 ⚠️ *The trap that stopped the first run:* if this **times out** (ping works,
 `nc -z <ip> 22` may even say open, but the SSH handshake hangs), your egress to
-DO:22 is blocked. **Stop.** Destroy the droplet (`doctl compute droplet delete
+DO SSH is not usable yet. This does not prove local egress is the cause. Use
+`ssh -vvv` and the DO console to inspect sshd/firewall state. **Stop.** Destroy the droplet (`doctl compute droplet delete
 <ID> --force`) and fix the network path first — don't keep recreating boxes.
 GitHub:22 working does not mean DO:22 works from your network.
 
@@ -97,11 +98,11 @@ pull returns 401). The repo itself is public (clone needs no token) — only the
 ```bash
 # From the driving machine, get a token that works for GHCR pulls:
 GH_TOKEN=$(gh auth token)        # a github.com PAT / OAuth token pulls from GHCR
-ssh root@<IP> "echo 'oauth2:${GH_TOKEN}' | docker login ghcr.io -u oauth2 --password-stdin"
+printf '%s' "$GH_TOKEN" | ssh root@<IP> 'docker login ghcr.io -u jacoby149 --password-stdin'
 ```
 ⚠️ The token goes to the droplet over SSH at provision time only — **never commit
 it**, and the droplet is destroyed after, so it doesn't persist. If `gh` isn't
-available, generate a fine-grained PAT with `read:packages` on the `jacoby149`
+available, generate a classic PAT with `read:packages` on the `jacoby149`
 account and use that instead.
 
 Verify the pull works before the full run:
@@ -131,10 +132,10 @@ run reproducible against a known-good state: `git checkout <sha>`.)
 ```bash
 ssh root@<IP> 'cd ~/web10/research/experiments/costfn && \
   python3 bench.test.py && \
-  CREATORS=100 K_VALUES="10 100" RUNS=15 FEEDS="personal discover" \
+  CREATORS=10 FOLLOW=10 POSTS_PER_CREATOR=1 K_VALUES=10 RUNS=3 FEEDS="personal discover" \
   MODES="per-group batched" LINES="A B C" ./run.sh 2>&1 | tee run.log'
 ```
-Watch `run.log`: it should show API up → ClickHouse up → seeding 1..100 creators
+Watch `run.log`: it should show API up → ClickHouse up → seeding 10 creators
 → "running cell …" per cell → results written. **If a cell's `timing_samples` is
 far below RUNS, it hit rate-limits/errors — investigate, don't silently re-run.**
 
@@ -152,7 +153,7 @@ extra signal.
 Set a timer. **Mini probe: ~45 min cap. Full: ~2 hr cap.** If `run.log` shows no
 progress for several minutes (stuck seed or hung cell), kill it:
 ```bash
-ssh root@<IP> 'docker compose -f ~/web10/docker-compose.yml -p web10-costfn down -v'
+ssh root@<IP> 'docker compose -f ~/web10/research/experiments/costfn/compose.yml -p web10-costfn down -v'
 ```
 then destroy the droplet (§7) and investigate before spending more.
 
