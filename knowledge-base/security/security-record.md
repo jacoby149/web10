@@ -15,7 +15,21 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Raw MinIO Ownership (01.11.2026)
+
+H01-RAW [local repair](scans/2026-10/repair-h01-raw-owner.md): real synthetic
+SigV4 baseline foreign mint denied; explicit owner and independent document/ad
+contexts, stale suppression and no client for invalid keys. Review identified
+and repaired ad-loader posted_by propagation with two red/green compatibility
+controls. Final 347 focused/1,570 API tests plus four subtests and lint/format
+pass, fresh same-model recheck. Caller-owner authority, HLS/legacy URL provenance,
+services/CI/deployment/history/diverse sign-off and L1 remain OPEN.
+
 ## Metadata Signing Ownership (01.11.2026)
+
+Metadata repair merged #1306 at `f3cacbff42a15980969d920d12f9cc9652a4dfda`,
+all 13 checks green on first CI attempt. Earlier local checkpoint wording below
+is historical; the raw sink repair above is not yet merged or deployed.
 
 H01-META [local one-sink repair](scans/2026-10/repair-h01-metadata-owner.md):
 original/thumbnail owner namespace enforced before signing; two real synthetic
@@ -96,6 +110,15 @@ and complete no-clobber publication. Initial 8 failures/1 pass distinguish actua
 behaviors from absent-operation controls; final 45 focused/1,420 API tests plus
 four subtests and lint/format pass, fresh same-model review. Operational storage,
 CI/deployment/history/diverse sign-off and protocol L1 remain OPEN.
+
+## Evaluation Environment Type Repair (01.11.2026)
+
+Bounded local repair in settings.py: the legacy override loop turned parsed
+QUERY_EVAL flags into truthy strings, including explicit "0". Four subprocess
+environment repro cases fail before the exclusion and pass after; 45 focused
+settings/query tests plus eight subtests and Ruff pass. Connected private smoke
+completes ten cells after repair. No public deployment, whole-service PASS or
+public-node startup guard claimed.
 
 ## Query-Engine Evaluation Seams (01.11.2026)
 

@@ -3199,8 +3199,8 @@ def resolve_pinned_ads(docs: list[dict], reader: str) -> dict[str, dict]:
     placeholders = ", ".join(f"%(t{i})s" for i in range(len(targets)))
     params = {**{f"t{i}": t for i, t in enumerate(targets)}, "reader": reader}
     result = client.query(
-        "SELECT ad.doc_id, ad.author_key, ad.body, ad.tags "
-        "FROM (SELECT doc_id, author_key, body, tags, deleted, "
+        "SELECT ad.doc_id, ad.author_key, ad.body, ad.tags, ad.posted_by "
+        "FROM (SELECT doc_id, author_key, body, tags, deleted, posted_by, "
         "row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
         f"FROM documents WHERE doc_id IN ({placeholders})) ad "
         "WHERE ad.rn = 1 AND ad.deleted = 0 "
@@ -3215,6 +3215,7 @@ def resolve_pinned_ads(docs: list[dict], reader: str) -> dict[str, dict]:
             "author_key": row[1],
             "body": _parse_json(row[2]),
             "tags": list(row[3]),
+            "posted_by": row[4],
         }
         for row in result.result_rows
     }
@@ -3259,8 +3260,8 @@ def get_active_node_ads() -> list[dict]:
     """
     try:
         result = client.query(
-            "SELECT doc_id, author_key, body, tags "
-            "FROM (SELECT doc_id, author_key, body, tags, deleted, updated_at, "
+            "SELECT doc_id, author_key, body, tags, posted_by "
+            "FROM (SELECT doc_id, author_key, body, tags, deleted, updated_at, posted_by, "
             "row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
             "FROM documents "
             "WHERE has(tags, 'node_ad') AND deleted = 0) "
@@ -3280,6 +3281,7 @@ def get_active_node_ads() -> list[dict]:
                         "author_key": row[1],
                         "body": body,
                         "tags": list(row[3]),
+                        "posted_by": row[4],
                     }
                 )
         return ads
@@ -3600,53 +3602,39 @@ def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
     return doc_body
 
 
-def _collect_minio_keys(obj, keys: list):
-    """Collect object keys from every {type: 'minio', value} leaf value (recursive)."""
-    if isinstance(obj, dict):
-        if obj.get("type") == "minio" and obj.get("value"):
-            keys.append(str(obj["value"]))
-        else:
-            for v in obj.values():
-                _collect_minio_keys(v, keys)
-    elif isinstance(obj, list):
-        for item in obj:
-            _collect_minio_keys(item, keys)
+def resolve_minio_types(doc_body: dict, media_owner: str) -> dict:
+    """Sign owned raw MinIO leaves without mutation or rejected-URL fallback."""
+    prefix = media_owner + "/" if isinstance(media_owner, str) and media_owner else None
+    signing_client = None
+    found = False
 
+    def visit(obj):
+        nonlocal signing_client, found
+        if isinstance(obj, dict):
+            if obj.get("type") == "minio":
+                found = True
+                key = obj.get("value")
+                url = None
+                if prefix and isinstance(key, str) and key.startswith(prefix) and len(key) > len(prefix):
+                    log.info("[media] raw signing: started")
+                    if signing_client is None:
+                        signing_client = get_s3_signing_client()
+                    url = signing_client.generate_presigned_url(
+                        "get_object",
+                        Params={"Bucket": settings.S3_BUCKET, "Key": key},
+                        ExpiresIn=settings.READ_URL_EXPIRY,
+                    )
+                    log.info("[media] raw signing: completed")
+                else:
+                    log.info("[media] raw signing: denied invalid owner or key")
+                return {**obj, "url": url}
+            return {k: visit(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [visit(item) for item in obj]
+        return obj
 
-def _resolve_minio_types(obj, signing_client):
-    """Add a fresh presigned `url` to every {type: 'minio', value} leaf value.
-
-    Returns a new structure (does not mutate the input). The `value` (object
-    key) is kept; a time-limited presigned `url` is added alongside it, per the
-    document-typing KB: the API converts a minio type to a presigned URL on read.
-    """
-    if isinstance(obj, dict):
-        if obj.get("type") == "minio" and obj.get("value"):
-            object_key = str(obj["value"])
-            presigned = signing_client.generate_presigned_url(
-                "get_object",
-                Params={"Bucket": settings.S3_BUCKET, "Key": object_key},
-                ExpiresIn=settings.READ_URL_EXPIRY,
-            )
-            return {**obj, "url": presigned}
-        return {k: _resolve_minio_types(v, signing_client) for k, v in obj.items()}
-    if isinstance(obj, list):
-        return [_resolve_minio_types(item, signing_client) for item in obj]
-    return obj
-
-
-def resolve_minio_types(doc_body: dict) -> dict:
-    """Resolve minio types in a document body to fresh presigned URLs.
-
-    A body with no minio types is returned unchanged (and no S3 client is
-    created). Presigned-URL generation is offline (no network call), so this is
-    cheap to run on every read.
-    """
-    keys: list = []
-    _collect_minio_keys(doc_body, keys)
-    if not keys:
-        return doc_body
-    return _resolve_minio_types(doc_body, get_s3_signing_client())
+    resolved = visit(doc_body)
+    return resolved if found else doc_body
 
 
 def resolve_media_urls_in_docs(docs: list[dict]) -> list[dict]:
@@ -3662,14 +3650,14 @@ def resolve_media_urls_in_docs(docs: list[dict]) -> list[dict]:
     resolved = []
     for doc in docs:
         body = doc.get("body", {})
+        author = doc.get("posted_by", "") or doc.get("author_key", "")
         if body.get("media_refs"):
             # The media owner is always posted_by (the human who uploaded it).
             # The backfill guarantees posted_by is populated on every row; the
             # `or author_key` is a safety net for the narrow window between the
             # column add and the backfill completing.
-            author = doc.get("posted_by", "") or doc.get("author_key", "")
             body = resolve_media_urls(body, author)
-        body = resolve_minio_types(body)
+        body = resolve_minio_types(body, author)
         doc_with_media = dict(doc)
         doc_with_media["body"] = body
         # The v3 pinned ad (inline, `doc["ad"]`) — resolve its media the same
@@ -3678,17 +3666,19 @@ def resolve_media_urls_in_docs(docs: list[dict]) -> list[dict]:
         ad = doc.get("ad")
         if ad:
             ad_body = ad.get("body", {})
+            ad_owner = ad.get("posted_by", "") or ad.get("author_key", "")
             if ad_body.get("media_refs"):
-                ad_body = resolve_media_urls(ad_body, ad.get("author_key", ""))
-            ad_body = resolve_minio_types(ad_body)
+                ad_body = resolve_media_urls(ad_body, ad_owner)
+            ad_body = resolve_minio_types(ad_body, ad_owner)
             doc_with_media["ad"] = {**ad, "body": ad_body}
         # The node ad (D57, `doc["node_ad"]`) — resolve its media the same way.
         node_ad = doc.get("node_ad")
         if node_ad:
             na_body = node_ad.get("body", {})
+            na_owner = node_ad.get("posted_by", "") or node_ad.get("author_key", "")
             if na_body.get("media_refs"):
-                na_body = resolve_media_urls(na_body, node_ad.get("author_key", ""))
-            na_body = resolve_minio_types(na_body)
+                na_body = resolve_media_urls(na_body, na_owner)
+            na_body = resolve_minio_types(na_body, na_owner)
             doc_with_media["node_ad"] = {**node_ad, "body": na_body}
         resolved.append(doc_with_media)
     return resolved
