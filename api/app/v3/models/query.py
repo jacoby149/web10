@@ -8,9 +8,11 @@ class PrepareFace(BaseModel):
     For a query that JOINs the author's profile service, this is the avatar:
     ``bodyField`` is the column holding the profile body, ``mediaField`` the
     field in it that is a media ref (``avatar_ref``), ``authorColumn`` the
-    author to scope the presign to (defaults to the row's ``author_key``), and
+    author to request a canonical face read for (defaults to ``author_key``), and
     ``urlField`` the row field to set with the presigned URL (defaults to
-    ``avatar_url``).
+    ``avatar_url``). The output column must not already exist in the input.
+    An exact author/media-field/ref match in the query's readable canonical
+    bodies supplies the uploader; projected owner/body fields grant no authority.
     """
 
     bodyField: str
@@ -25,9 +27,10 @@ class PrepareSpec(BaseModel):
 
     Media/ad document projections are rebound through the query's current full
     read boundary before minting. Canonical body/uploader/ad preference replace
-    projected fields; non-document rows no-op. Joined face authority and the
-    attached-ad loaders remain separate open boundaries, not certified by
-    carrier rebinding. All passes remain generic primitives (D44/D49/D55/D57).
+    projected fields; non-document rows no-op. Faces independently bind their
+    author/ref requests to readable canonical bodies and uploaders. Attached-ad
+    loader authorization remains a separate open boundary. All passes remain
+    generic primitives (D44/D49/D55/D57).
     """
 
     media: bool | None = None

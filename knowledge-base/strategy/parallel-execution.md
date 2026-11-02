@@ -41,6 +41,15 @@ says what can happen **at the same time**.
 
 ## Lanes
 
+### Lane: Shadowguard (proposal only)
+
+**Owns:** `knowledge-base/strategy/shadowguard.md` and scoped planning/decision
+records only. Coordinate identity/federation/auth ownership before claiming any
+runtime files; this proposal does not open another implementation track yet.
+
+- [✓ 3.254.7 local docs] **Shadowguard product proposal** - portable key-based identity and audience continuity, default/DNS/ENS choices, acceptance scenario and unresolved recovery/discovery/protocol decisions recorded. No runtime or security/federation completion claim.
+- [ ] **Shadowguard protocol decision** - compare existing protocols against `shadowguard.md`; document controller/admin powers, custody/recovery, independent follows, stable-principal group grants, verified resolution after creator-host/resolver failure and costs. Acceptance: fresh empty node reaches existing fans without refollowing/export and retains current roles on independent groups without re-invitation; revoked grants stay denied and alias takeover grants no authority. Require explicit tradeoffs and operator-approved selection before code. Do not invent cryptography or assume ENS/Ethereum is required. Coordinate the existing multi-node/federation and auth lanes.
+
 ### Lane: batching-performance (coordination queue)
 
 **Plan:** `batching-performance.md`. **Ownership:** planning record only until a
@@ -97,7 +106,8 @@ route + the screenshot harness).
 
 - [✓ 3.254.4 local evidence] **PROTOCOL-01/H01-PREPARE-PROOF: replay fabricated query-owner signing** — own offline probe extension/security KB only; real compiler/ASGI/resolver/synthetic SigV4, SQLite constant execution. Anon/auth foreign issuance, unprepared no-sign; 1,672 API tests plus eight subtests, Ruff and fresh same-model review pass. `knowledge-base/security/scans/2026-10/h01-query-owner-proof.md`. Finding OPEN; no runtime/ClickHouse/live retrieval/L1 closure.
 - [✓ 3.254.5 local carrier] **PROTOCOL-01/H01-PREPARE-REPAIR: bind prepared capabilities to canonical authorized data** — own query prepare authority hunks/focused tests/security KB; canonical safe-query carrier reads replace projected capability fields before minting. 163 focused/1,694 API tests plus eight subtests, Ruff and same-model re-review pass. `knowledge-base/security/scans/2026-10/repair-h01-query-carrier.md`. Face/ad-loader/ClickHouse/connected/CI/rollout/diverse/L1 gates OPEN; not whole-prepare closure.
-- [ ] **PROTOCOL-01/H01-PREPARE-FACE: bind joined face capability authority** — own query face prepare/focused tests/security KB; reproduce projected face authority, canonically bind authorized face bodies/uploaders without breaking joined person/group faces. Gates: red -> denied green, positive public/cross-user/group controls, <=500-line repair, fresh intent review, KB write-back and all CI green. Coordinate shared query ownership; ad-loader authority remains separate.
+- [✓ 3.254.6 local face] **PROTOCOL-01/H01-PREPARE-FACE: bind joined face capability authority** — own query face prepare/focused tests/security KB; exact canonical author/ref lookup supplies uploaders without face IDs, two real synthetic SigV4 disclosures denied. 180 focused/1,745 API tests plus eight subtests, Ruff and same-model re-review pass. `knowledge-base/security/scans/2026-10/repair-h01-query-face.md`. Actual ClickHouse/connected/CI/rollout/diverse/L1 OPEN; no whole-prepare closure.
+- [ ] **PROTOCOL-01/H01-AD-AUTHORITY: reconcile attached-ad read authority** — own bounded read-only pinned/node-ad loader follow-up, focused evidence tests and security KB; compare actual loader authorization/latest-state semantics to current reader/app/service/group/visibility rules. Gates: reproduce any disclosure with synthetic offline evidence before separate <=500-line one-finding repair, retain permitted creative attachment and independent uploader contexts, fresh intent review, KB write-back and all CI green. Do not advance L2 or claim whole-prepare closure.
 - **Reference mint status:** H01-HLS-REF-MINT merged #1312 at `66330ed99`, all 13 first-attempt checks green; historical local tick below is not broader closure.
 
 - [✓ 3.253.15 local] **PROTOCOL-01/H01-HLS-REF-MINT: owner-bind reference/ad stream mint** — own reference mint helper/call sites in documents.py, focused HLS tests and security KB; three real JWT/HTTP synthetic foreign segment disclosures denied, independent owners/stale suppression, 46 new controls and 1,669 API tests plus eight subtests, Ruff and fresh same-model review pass. `knowledge-base/security/scans/2026-10/repair-h01-hls-ref-mint.md`. Supplied-owner/legacy URL, persisted/live playback, CI/deployment/diverse/L1 OPEN; no schema/SDK/segment policy changes.
