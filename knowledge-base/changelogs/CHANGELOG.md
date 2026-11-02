@@ -1,3 +1,6 @@
+3.254.7 || 02.11.2026
+docs(v3): add custom-domain operator guideline (`setup/custom-domain.md`) — runbook for pointing a user-owned domain (Njalla recommended) at a web10 node: DNS A-record, `cors_service_managers` + `provider` config, TLS via Cloudflare/Let's Encrypt, subdomain layout, Njalla-specific notes (privacy, jurisdiction, payments), troubleshooting table. Docs-only, no code change. Complements the v4 identity registry (D93) as the operator-side half of the "your name, your node" story.
+
 3.254.5 || 02.11.2026
 fix(query): **canonically re-read prepared media/ad carriers before capability minting** — replace projected owner/body/ad preferences through the existing safe-query boundary, drop supplied inline ads and preserve posted_by. Retained foreign-signing probes denied; aggregate compatibility and actual ad/resolver/HLS composition pinned. 163 focused/1,694 API tests plus eight subtests, focused Ruff and same-model re-review pass. Local carrier repair only: face/ad-loader authority, ClickHouse/connected/CI/rollout/diverse gates and protocol L1 remain OPEN.
 

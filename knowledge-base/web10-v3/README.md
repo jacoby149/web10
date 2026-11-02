@@ -28,7 +28,8 @@ web10-v3/
 ├── db/                    ← ClickHouse implementation & setup
 │   └── clickhouse.md      ← complete schema: tables, indexes, patterns
 ├── setup/                 ← node setup & operator config
-│   └── node-config.md     ← the node_config table, admins model, setup flow, /am_admin gate
+│   ├── node-config.md     ← the node_config table, admins model, setup flow, /am_admin gate
+│   └── custom-domain.md   ← running your node on your own domain (Njalla recommended, DNS + CORS + TLS + provider setup)
 ├── app-store/             ← the node's public storefront
 │   ├── overview.md        ← registration (a path is an app), visits, PWA manifests, store UI
 │   └── endpoints.md       ← the store's endpoint surface: the product page, ratings, stats
