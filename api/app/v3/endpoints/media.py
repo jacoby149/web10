@@ -5,6 +5,7 @@ import app.settings as settings
 from app.services import transcode
 from app.services.hls import (
     can_view_doc,
+    hls_prefix,
     rewrite_variant_manifest,
     segment_key,
     synthesize_master_manifest,
@@ -205,8 +206,8 @@ def transcode_media(data: TranscodeRequest):
     return {"doc_id": data.doc_id, "status": "queued"}
 
 
-def _hls_doc(doc_id: str, sig: str) -> dict:
-    """Verify the stream token AND re-check access. Returns the document.
+def _hls_doc(doc_id: str, sig: str) -> tuple[dict, dict]:
+    """Verify the stream token AND re-check access. Returns document and claims.
 
     The sig check is the fast path (JWT, no DB); the access re-check is what
     the 10-minute expiry buys — group membership re-verified on every
@@ -221,14 +222,14 @@ def _hls_doc(doc_id: str, sig: str) -> dict:
     doc = can_view_doc(doc_id, payload["username"], payload.get("authenticated", False))
     if not doc:
         raise HTTPException(status_code=403, detail="not a member of the requested group")
-    return doc
+    return doc, payload
 
 
 @router.get("/hls/manifest")
 def hls_manifest(doc_id: str, sig: str = ""):
     """Master manifest, synthesized from the document's
     `transcoding_settings.variants` (the document is the source of truth)."""
-    doc = _hls_doc(doc_id, sig)
+    doc, _ = _hls_doc(doc_id, sig)
     ts = (doc["body"] or {}).get("transcoding_settings") or {}
     if not ts.get("enabled") or not ts.get("variants"):
         raise HTTPException(status_code=404, detail="document has no HLS stream")
@@ -239,12 +240,35 @@ def hls_manifest(doc_id: str, sig: str = ""):
 @router.get("/hls/variant")
 def hls_variant(doc_id: str, variant: str, sig: str = ""):
     """A rendition's manifest, with every segment rewritten to a signed URL."""
-    doc = _hls_doc(doc_id, sig)
+    doc, payload = _hls_doc(doc_id, sig)
     ts = (doc["body"] or {}).get("transcoding_settings") or {}
     v = next((x for x in ts.get("variants", []) if variant_tag(x) == variant), None)
     if not v:
         raise HTTPException(status_code=404, detail=f"no such variant: {variant}")
-    obj = get_s3_client().get_object(Bucket=settings.S3_BUCKET, Key=str(v["url"]["value"]))
+    video = (doc["body"] or {}).get("video")
+    video = video if isinstance(video, dict) else {}
+    owner = doc.get("posted_by") or doc.get("author_key")
+    key = video.get("value")
+    url = v.get("url")
+    url = url if isinstance(url, dict) else {}
+    # Read access to metadata does not authorize the object it happens to name.
+    if (
+        video.get("type") != "minio"
+        or not isinstance(owner, str)
+        or not owner
+        or not isinstance(key, str)
+        or not key.startswith(owner + "/")
+        or len(key) <= len(owner) + 1
+    ):
+        raise HTTPException(status_code=403, detail="invalid HLS object provenance")
+    prefix = hls_prefix(key)
+    if (
+        payload["prefix"] != prefix
+        or url.get("type") != "minio"
+        or url.get("value") != f"{prefix}/{variant}/index.m3u8"
+    ):
+        raise HTTPException(status_code=403, detail="invalid HLS object provenance")
+    obj = get_s3_client().get_object(Bucket=settings.S3_BUCKET, Key=url["value"])
     manifest_text = obj["Body"].read().decode("utf-8")
     body = rewrite_variant_manifest(doc_id, variant, sig, manifest_text)
     return Response(body, media_type="application/vnd.apple.mpegurl", headers={"Cache-Control": "no-store"})

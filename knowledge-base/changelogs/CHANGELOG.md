@@ -1,3 +1,6 @@
+3.253.13 || 01.11.2026
+fix(media): **bind HLS variant fetches to the uploader's video tree and stream claims** — reject unrelated rendition keys before storage access; preserve authorized cross-user/group-uploader playback. Two actual HTTP/JWT synthetic-object disclosures red -> denied green; 28 new controls, 1,599 API tests plus eight subtests and Ruff pass. Fresh same-model review finds no blocking defect. HLS mint/segment provenance, live integration, CI/deployment/diverse review and protocol L1 remain OPEN.
+
 3.253.12 || 01.11.2026
 fix(media): **owner-bind recursive raw-MinIO signing and preserve ad uploader context** — require explicit owner, suppress foreign/malformed/stale leaf URLs and keep valid siblings; propagate each document/ad uploader, including posted_by through actual ad loaders. Real synthetic SigV4 foreign capability red -> denied green; review caught and repaired two ad compatibility failures. 347 focused/1,570 API tests plus four subtests, lint/format and fresh same-model review pass. Caller-owner authority, HLS/legacy URL provenance, CI/integration/deployment/diverse gates remain OPEN, no whole-media/L1 closure.
 

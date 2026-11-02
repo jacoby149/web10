@@ -72,6 +72,9 @@ reuses `POST /v3/app-contracts/revoke`. Full spec:
 
 ## L1 Security Scans
 
+- [✓ 3.253.13 local] **PROTOCOL-01/H01-HLS-VARIANT: bind variant fetches to video provenance** — uploader namespace, signed tree and exact worker rendition key checked before storage; two synthetic-object HTTP/JWT disclosures denied, 28 new controls and 1,599 API tests plus eight subtests, Ruff and fresh same-model review pass. [Receipt](../security/scans/2026-10/repair-h01-hls-variant.md). HLS mint/segment provenance, integration/CI/deployment/diverse/L1 OPEN.
+- **Raw status:** H01-RAW merged #1307; previous local checkpoint below is historical, not deployment evidence.
+
 - [✓ 3.253.12 local] **PROTOCOL-01/H01-RAW: owner-bind recursive MinIO signing** — explicit owner, foreign/malformed stale suppression, per-entry uploader/ad-loader propagation; real synthetic SigV4 red -> denied green, review-fixed compatibility gap. 347 focused/1,570 API tests plus four subtests and lint/format, fresh same-model recheck. [Receipt](../security/scans/2026-10/repair-h01-raw-owner.md). Other provenance/CI/integration/deployment/diverse/L1 OPEN.
 - **Metadata status:** H01-META merged #1306 at `f3cacbff4`, all 13 first-attempt checks green; historical local tick below is not broader closure.
 

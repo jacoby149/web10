@@ -532,6 +532,88 @@ class TestHlsManifestEndpoint:
 
 
 class TestHlsVariantEndpoint:
+    @pytest.mark.parametrize("field", ["video", "url", "owner", "prefix"])
+    @pytest.mark.parametrize("value", [None, {}, 7, "bob/private/hls"])
+    def test_invalid_provenance_denied(self, client, field, value):
+        doc = _doc_with_hls()
+        sig = _sig()
+        if field == "video":
+            doc["body"]["video"] = {"type": "minio", "value": value}
+        elif field == "url":
+            doc["body"]["transcoding_settings"]["variants"][0]["url"] = {"type": "minio", "value": value}
+        elif field == "owner":
+            doc["author_key"] = value
+        else:
+            # A valid signature alone cannot establish the object's provenance.
+            sig = hls.mint_sig("alice", "doc-1", value)
+        with (
+            patch("app.v3.endpoints.media.can_view_doc", return_value=doc),
+            patch("app.v3.endpoints.media.get_s3_client") as storage,
+        ):
+            res = client.get("/v3/media/hls/variant", params={"doc_id": "doc-1", "variant": "360p", "sig": sig})
+        assert res.status_code == 403
+        storage.assert_not_called()
+
+    @pytest.mark.parametrize("reader,authenticated", [("bob", True), ("anon", False)])
+    def test_group_uploader_not_reader_or_group_owns_tree(self, client, reader, authenticated):
+        doc = _doc_with_hls()
+        doc.update(author_key="group-id", posted_by="alice")
+        s3 = MagicMock()
+        s3.get_object.return_value = {"Body": MagicMock(read=lambda: b"#EXTM3U\nseg001.ts\n")}
+        with (
+            patch("app.v3.endpoints.media.can_view_doc", return_value=doc) as access,
+            patch("app.v3.endpoints.media.get_s3_client", return_value=s3),
+        ):
+            sig = hls.mint_sig(reader, "doc-1", "alice/abc/hls", authenticated=authenticated)
+            res = client.get(f"/v3/media/hls/variant?doc_id=doc-1&variant=360p&sig={sig}")
+        assert res.status_code == 200
+        access.assert_called_once_with("doc-1", reader, authenticated)
+        assert s3.get_object.call_args.kwargs["Key"] == "alice/abc/hls/360p/index.m3u8"
+
+    @pytest.mark.parametrize("field", ["video", "url"])
+    @pytest.mark.parametrize(
+        "ref",
+        [
+            None,
+            "malformed",
+            {"value": "alice/abc/hls/360p/index.m3u8"},
+            {"type": "url", "value": "alice/abc/hls/360p/index.m3u8"},
+        ],
+    )
+    def test_invalid_reference_shape_denied(self, client, field, ref):
+        doc = _doc_with_hls()
+        if field == "video":
+            doc["body"]["video"] = ref
+        else:
+            doc["body"]["transcoding_settings"]["variants"][0]["url"] = ref
+        with (
+            patch("app.v3.endpoints.media.can_view_doc", return_value=doc),
+            patch("app.v3.endpoints.media.get_s3_client") as storage,
+        ):
+            res = client.get(f"/v3/media/hls/variant?doc_id=doc-1&variant=360p&sig={_sig()}")
+        assert res.status_code == 403
+        storage.assert_not_called()
+
+    @pytest.mark.parametrize("key", ["bob/private/hls/360p/index.m3u8", "alice/other/hls/360p/index.m3u8"])
+    def test_unrelated_manifest_is_denied_before_storage(self, client, key):
+        doc = _doc_with_hls()
+        doc["body"]["transcoding_settings"]["variants"][0]["url"]["value"] = key
+        s3 = MagicMock()
+
+        def read_object(**kwargs):
+            assert kwargs["Key"] == key
+            return {"Body": MagicMock(read=lambda: b"#EXTM3U\n#FOREIGN-PRIVATE-MARKER\n")}
+
+        s3.get_object.side_effect = read_object
+        with (
+            patch("app.v3.endpoints.media.can_view_doc", return_value=doc),
+            patch("app.v3.endpoints.media.get_s3_client", return_value=s3) as storage,
+        ):
+            res = client.get(f"/v3/media/hls/variant?doc_id=doc-1&variant=360p&sig={_sig()}")
+        assert res.status_code == 403, res.text
+        assert "FOREIGN-PRIVATE-MARKER" not in res.text
+        storage.assert_not_called()
+
     def test_200_and_segments_rewritten(self, client):
         variant_body = b"#EXTM3U\n#EXT-X-TARGETDURATION:6\n#EXTINF:6.0,\nseg001.ts\n"
         s3 = MagicMock()
