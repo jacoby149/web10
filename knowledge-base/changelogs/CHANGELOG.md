@@ -1,5 +1,6 @@
-3.253.12 || 01.11.2026
+3.253.16 || 01.11.2026
 docs(research): K1000 connected trial completed on one sfo2 4-vCPU/8-GB droplet, source 1a983520e with no local patch, runtime ClickHouse 24.3.18.7. Seed 1,000 creators/one post each and reader follows all: 818.3 seconds, first attempt. All 20 A/B/C cells at personal K10/100/1000 plus discover K1 captured 20 samples each (400 measurements; all 320 B/C HTTP requests 200). K1000 B readable medians 7535.705 vs 213.980 ms, handler 7644.655 vs 363.305 ms per-group/batched. Batching is not constant-cost: readable grows 9.12x from K10 to K1000; per-group grows 100.44x. K1000-RESULTS.md records numbers, limits and provenance. Artifacts collected; droplet 614936287 deleted and empty account list verified. Single sequential trial only, full E3 remains open.
+
 3.253.15 || 01.11.2026
 fix(media): **owner-bind resolved-reference and ad HLS token minting** — each main/ad/node-ad ref uses its own uploader context; foreign/malformed keys get no capability or stored manifest fallback. Three helper-minted real JWT/HTTP synthetic segment disclosures red -> issuance-denied green; 46 new controls, 1,669 API tests plus eight subtests, Ruff and fresh same-model review pass. Actual resolver/mint composition retains three distinct owners. Supplied-owner/legacy-URL provenance, persisted/live playback, CI/deployment/diverse review and protocol L1 remain OPEN.
 
