@@ -80,6 +80,23 @@ caller-supplied ownership contexts still need their separate checks.
 
 ### Why Video Needs JWT + Middleware
 
+Direct-document stream minting requires a string raw MinIO video key in the
+uploader's `posted_by or author_key` namespace. Stored `manifest_url` values are
+removed before the read either mints a fresh reader-bound URL or denies issuance;
+disabled settings do not preserve them. Authorized readers need not be the owner.
+Resolved-reference minting also requires a string key in its metadata resolver's
+uploader namespace. Main, ad and node-ad refs each use their own entry's
+`posted_by or author_key`, never the viewer or carrier's identity. Disabled or
+rejected refs lose stored manifest URLs; valid siblings retain reader-bound minting.
+These gates do not revoke already-issued capabilities before TTL or establish
+supplied-owner provenance, persisted-record validity or legacy URL authority.
+
+The variant-manifest fetch additionally requires the raw video's key to belong
+to `posted_by or author_key`, its HLS prefix to match the verified stream claims,
+and the selected MinIO key to equal `{prefix}/{variant}/index.m3u8`, the worker's
+output. Failures are denied before storage access. This fetch check does not
+certify mint-time prefix provenance or the separate sig-only segment path.
+
 HLS segments are small (270KB each), numerous (100+), and fetched continuously over minutes. You need auth on every segment without presigning each one.
 
 **The solution:** signed manifest + JWT on every segment.

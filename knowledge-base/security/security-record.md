@@ -27,7 +27,43 @@ verification: 1,583 API tests plus eight subtests, 285 SDK tests, 1,584 social
 tests, typechecks/build and desktop/mobile switcher inspection. Connected
 multi-operator/revocation/concurrency and independent review remain OPEN.
 
+## Reference HLS Mint Provenance (01.11.2026)
+
+H01-HLS-REF-MINT [local repair](scans/2026-10/repair-h01-hls-ref-mint.md): three
+helper-minted JWT/HTTP synthetic segment disclosures denied at issuance. Each
+main/ad/node-ad reference uses its own uploader context; stale URLs suppressed.
+46 new controls, actual resolver/mint composition, 1,669 API tests plus eight
+subtests, Ruff and fresh same-model review pass. Supplied-owner/legacy URL,
+persisted/live playback, CI/deployment/diverse gates and L1 remain OPEN.
+
+## Direct HLS Mint Provenance (01.11.2026)
+
+Direct mint merged #1311 at `3b37e66c4`. Last observed CI was 12/13 green with
+repeat Discover engagement E2E failure; merged does not mean all-green/deployed.
+
+H01-HLS-DIRECT-MINT [local repair](scans/2026-10/repair-h01-hls-direct-mint.md):
+helper-minted real foreign-prefix JWT retrieves synthetic segment bytes through
+HTTP on baseline; repair denies issuance and removes stored manifest URLs.
+24 new controls; 1,623 API tests plus eight subtests, Ruff and fresh same-model
+review pass. Ref/ad mint, supplied-owner provenance, existing capability TTL,
+live integration/CI/deployment/diverse review and protocol L1 remain OPEN.
+
+## HLS Variant Provenance (01.11.2026)
+
+Variant repair merged #1309 at `1dda69ecf`, all 13 checks passed on first attempt.
+Historical local results below do not establish deployment or whole-HLS closure.
+
+H01-HLS-VARIANT [local repair](scans/2026-10/repair-h01-hls-variant.md): two
+actual HTTP/JWT synthetic manifest disclosures denied before storage access.
+Uploader-owned raw key, signed prefix and exact worker rendition key must agree.
+28 new controls; 1,599 API tests plus eight subtests, Ruff and fresh same-model
+review pass. HLS mint/segment provenance, services/CI/deployment/diverse sign-off
+and L1 remain OPEN. This is not a whole-HLS repair.
+
 ## Raw MinIO Ownership (01.11.2026)
+
+Raw repair merged #1307 (GitHub mergedAt `2026-11-02T02:09:20Z`); historical
+local checkpoint below is not deployment evidence.
 
 H01-RAW [local repair](scans/2026-10/repair-h01-raw-owner.md): real synthetic
 SigV4 baseline foreign mint denied; explicit owner and independent document/ad
@@ -41,7 +77,7 @@ services/CI/deployment/history/diverse sign-off and L1 remain OPEN.
 
 Metadata repair merged #1306 at `f3cacbff42a15980969d920d12f9cc9652a4dfda`,
 all 13 checks green on first CI attempt. Earlier local checkpoint wording below
-is historical; the raw sink repair above is not yet merged or deployed.
+is historical; the raw sink repair above is merged, not deployment-verified.
 
 H01-META [local one-sink repair](scans/2026-10/repair-h01-metadata-owner.md):
 original/thumbnail owner namespace enforced before signing; two real synthetic

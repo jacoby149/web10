@@ -62,7 +62,7 @@ def _moderate_post(author: str, doc_id: str, service: str, body: dict, groups: l
         log.warning("[moderation] auto-hide failed (non-fatal): %s: %s", type(e).__name__, e)
 
 
-def _mint_ref_manifest(ref, reader_key: str, authenticated: bool = False) -> dict:
+def _mint_ref_manifest(ref, reader_key: str, media_owner: str, authenticated: bool = False) -> dict:
     """Mint a `manifest_url` into a resolved media ref that carries HLS
     settings — the feed path, where the post's media_refs carry the media
     doc's transcoding_settings (resolve_media_urls carries them) and the sig
@@ -71,18 +71,34 @@ def _mint_ref_manifest(ref, reader_key: str, authenticated: bool = False) -> dic
 
     The prefix binds to the ref's object_key — for media_metadata/public_media
     docs that IS the raw video file's key (the flat shape the social app's
-    uploadMedia writes), so it matches the worker's hls_prefix.
+    uploadMedia writes), so it matches the worker's hls_prefix. The resolved
+    key must belong to the same uploader context used by media resolution.
     """
     if not isinstance(ref, dict):
         return ref
     ts = ref.get("transcoding_settings")
-    if not isinstance(ts, dict) or not ts.get("enabled"):
+    if not isinstance(ts, dict):
+        return ref
+    ts = {k: v for k, v in ts.items() if k != "manifest_url"}
+    ref = {**ref, "transcoding_settings": ts}
+    if not ts.get("enabled"):
         return ref
     doc_id = ref.get("doc_id")
     object_key = ref.get("object_key")
-    if not doc_id or not object_key:
+    if (
+        not isinstance(doc_id, str)
+        or not doc_id
+        or not isinstance(media_owner, str)
+        or not media_owner
+        or not isinstance(object_key, str)
+        or not object_key.startswith(media_owner + "/")
+        or len(object_key) <= len(media_owner) + 1
+    ):
+        log.info("[media] reference HLS mint: denied invalid owner or key")
         return ref
-    sig = mint_sig(reader_key, doc_id, hls_prefix(str(object_key)), authenticated)
+    log.info("[media] reference HLS mint: started")
+    sig = mint_sig(reader_key, doc_id, hls_prefix(object_key), authenticated)
+    log.info("[media] reference HLS mint: completed")
     return {
         **ref,
         "transcoding_settings": {
@@ -115,18 +131,35 @@ def _mint_hls_manifest_urls(docs: list[dict], reader_key: str, authenticated: bo
         # (1) the doc itself (a media doc read directly)
         ts = body.get("transcoding_settings") or {}
         video = body.get("video")
-        if ts.get("enabled") and isinstance(video, dict) and video.get("value"):
-            sig = mint_sig(reader_key, doc["doc_id"], hls_prefix(str(video["value"])), authenticated)
-            body["transcoding_settings"] = {
-                **ts,
-                "manifest_url": f"/v3/media/hls/manifest?doc_id={doc['doc_id']}&sig={sig}",
-            }
+        if isinstance(ts, dict) and ts:
+            # Stored URLs are not authority; only this read may mint a fresh one.
+            ts = {k: v for k, v in ts.items() if k != "manifest_url"}
+            body["transcoding_settings"] = ts
+            if ts.get("enabled"):
+                owner = doc.get("posted_by") or doc.get("author_key")
+                key = video.get("value") if isinstance(video, dict) else None
+                if (
+                    isinstance(video, dict)
+                    and video.get("type") == "minio"
+                    and isinstance(owner, str)
+                    and owner
+                    and isinstance(key, str)
+                    and key.startswith(owner + "/")
+                    and len(key) > len(owner) + 1
+                ):
+                    log.info("[media] direct HLS mint: started")
+                    sig = mint_sig(reader_key, doc["doc_id"], hls_prefix(key), authenticated)
+                    ts["manifest_url"] = f"/v3/media/hls/manifest?doc_id={doc['doc_id']}&sig={sig}"
+                    log.info("[media] direct HLS mint: completed")
+                else:
+                    log.info("[media] direct HLS mint: denied invalid owner or video key")
         # (2) the resolved media_refs (the feed path)
         refs = body.get("media_refs")
         if isinstance(refs, list) and any(
             isinstance(r, dict) and isinstance(r.get("transcoding_settings"), dict) for r in refs
         ):
-            body["media_refs"] = [_mint_ref_manifest(r, reader_key, authenticated) for r in refs]
+            owner = doc.get("posted_by") or doc.get("author_key")
+            body["media_refs"] = [_mint_ref_manifest(r, reader_key, owner, authenticated) for r in refs]
         doc["body"] = body
         # (2) the inline ads too — their media_refs are resolved the same way
         for ad_key in ("ad", "node_ad"):
@@ -140,7 +173,8 @@ def _mint_hls_manifest_urls(docs: list[dict], reader_key: str, authenticated: bo
             ):
                 ad = dict(ad)
                 ad_body = dict(ad_body)
-                ad_body["media_refs"] = [_mint_ref_manifest(r, reader_key, authenticated) for r in ad_refs]
+                owner = ad.get("posted_by") or ad.get("author_key")
+                ad_body["media_refs"] = [_mint_ref_manifest(r, reader_key, owner, authenticated) for r in ad_refs]
                 ad["body"] = ad_body
                 doc[ad_key] = ad
         out.append(doc)

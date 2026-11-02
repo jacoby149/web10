@@ -4,7 +4,7 @@
 
 **Target:** SIGMOD 2027 industry track
 
-**Status:** drafting; preliminary K=10/100 trial recorded; broader evaluation and comparative review pending
+**Status:** drafting; K=10/100 and K=10/100/1000 trials recorded; broader evaluation and comparative review pending
 
 **Updated:** 2026-11-01
 
@@ -31,6 +31,8 @@ now records dated aggregate counts and nine authenticated browsing checks;
 formal capacity and comparative evaluation remain open. A preliminary
 [K=10/100 trial](experiments/costfn/K100-RESULTS.md) now records phase-level
 timings for a simplified query, included in the manuscript's evaluation section.
+A subsequent [1,000-creator trial](experiments/costfn/K1000-RESULTS.md) extends
+the measurements to K=1000; the manuscript currently retains the earlier trial.
 Do not imply that a simplified SQL benchmark measures
 the full feed: the current nonempty path has three query calls plus content
 views, with discovery and media fetches additional.
