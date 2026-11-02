@@ -1,3 +1,9 @@
+3.253.17 || 02.11.2026
+fix(query): **canonically re-read prepared media/ad carriers before capability minting** — replace projected owner/body/ad preferences through the existing safe-query boundary, drop supplied inline ads and preserve posted_by. Retained foreign-signing probes denied; aggregate compatibility and actual ad/resolver/HLS composition pinned. 163 focused/1,694 API tests plus eight subtests, focused Ruff and same-model re-review pass. Local carrier repair only: face/ad-loader authority, ClickHouse/connected/CI/rollout/diverse gates and protocol L1 remain OPEN.
+
+3.253.16 || 01.11.2026
+test(security): **reproduce caller-selected prepared-query media authority** — real compiler/ASGI handler/serializer/resolver and independently verified synthetic SigV4 show fabricated owner/body projections mint foreign-key URLs for anon and authenticated callers; unprepared control does not sign. SQLite evaluates the actual compiled table-free SELECT in place of unavailable ClickHouse. Three evidence probes, 1,672 API tests plus eight subtests, Ruff and fresh same-model review pass. Correct the KB's unsupported no-escalation claim. Evidence only: finding remains OPEN; no production repair, real object retrieval, ClickHouse/deployment or L1 closure.
+
 3.253.15 || 01.11.2026
 fix(media): **owner-bind resolved-reference and ad HLS token minting** — each main/ad/node-ad ref uses its own uploader context; foreign/malformed keys get no capability or stored manifest fallback. Three helper-minted real JWT/HTTP synthetic segment disclosures red -> issuance-denied green; 46 new controls, 1,669 API tests plus eight subtests, Ruff and fresh same-model review pass. Actual resolver/mint composition retains three distinct owners. Supplied-owner/legacy-URL provenance, persisted/live playback, CI/deployment/diverse review and protocol L1 remain OPEN.
 

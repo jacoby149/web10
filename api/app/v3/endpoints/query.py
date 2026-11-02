@@ -139,27 +139,82 @@ def _prepare_face(docs: list[dict], face: PrepareFace) -> list[dict]:
     return out
 
 
-def _prepare_rows(rows: list[dict], reader: str, prepare: PrepareSpec, authenticated: bool = False) -> list[dict]:
+def _canonical_prepare_docs(rows: list[dict], reader: str, readable: dict[str, list[str]]) -> list[dict]:
+    """Projection identities request canonical reads; projected fields grant no authority."""
+    ids = {r.get("doc_id") for r in rows if isinstance(r.get("doc_id"), str) and r["doc_id"]}
+    if len(ids) == 0 or any(not isinstance(r.get("doc_id"), str) or not r["doc_id"] for r in rows):
+        raise HTTPException(status_code=403, detail="prepare requires authorized canonical documents")
+    canonical = {}
+    for service, groups in readable.items():
+        if not groups:
+            continue
+        select = (
+            exp.select("doc_id", "author_key", "posted_by", "body", "ad_mode", "ad_target")
+            .from_(exp.Table(this=exp.to_identifier(service, quoted=True)))
+            .where(exp.In(this=exp.column("doc_id"), expressions=[exp.Literal.string(i) for i in sorted(ids)]))
+            .distinct()
+        )
+        compiled = sq.build_safe_query(
+            select.sql(dialect="clickhouse"),
+            {service: groups},
+            member_key=reader,
+            allowed_services=frozenset({service}),
+            max_limit=max(MAX_ROWS, len(ids) + 1),
+        )
+        try:
+            columns, values = ch.execute_query(compiled, settings={"max_execution_time": MAX_EXECUTION_TIME_S})
+        except ch.QueryExecutionError:
+            raise HTTPException(status_code=403, detail="canonical prepare read failed")
+        for values_row in values:
+            doc = _serialize_row(dict(zip(columns, values_row)))
+            doc_id = doc["doc_id"]
+            identity = (service, doc["author_key"])
+            if doc_id in canonical and canonical[doc_id][0] != identity:
+                raise HTTPException(status_code=403, detail="ambiguous canonical prepare identity")
+            canonical[doc_id] = (identity, doc)
+    if not ids <= canonical.keys():
+        raise HTTPException(status_code=403, detail="prepare requires authorized canonical documents")
+    log.info("[query] canonical prepare: bound rows=%d", len(rows))
+    return [
+        {**{k: v for k, v in row.items() if k not in {"ad", "node_ad"}}, **canonical[row["doc_id"]][1]} for row in rows
+    ]
+
+
+def _prepare_rows(
+    rows: list[dict], reader: str, prepare: PrepareSpec, readable: dict[str, list[str]], authenticated: bool = False
+) -> list[dict]:
     """The prepare pass (D73): mint the result rows so a single ``w.query()``
     returns render-ready rows. Reuses the read path's passes verbatim
     (``attach_pinned_ads`` + ``attach_node_ads`` + ``resolve_media_urls_in_docs``
     + ``_mint_hls_manifest_urls``), applied to the query's rows.
 
-    Order matches the read path: ads first (so their media is resolved by the
-    media pass), then media + HLS. The boundary CTEs already proved the reader
-    can read every row, so minting capabilities for them is no escalation.
-    Non-doc rows (aggregates, join columns without ``body``) no-op through the
-    passes (they check ``body`` / ``ad_mode`` and skip).
+    Media/ad rows are rebound through a fresh server-written query using the
+    same service/group/visibility boundary before minting. Face projection
+    binding remains a separate open boundary. Non-document aggregate rows no-op.
     """
     if not rows:
         return rows
-    docs = rows
-    if prepare.ads:
-        docs = ch.attach_pinned_ads(docs, reader)
-        docs = ch.attach_node_ads(docs, reader)
-    if prepare.media:
-        docs = ch.resolve_media_urls_in_docs(docs)
-        docs = _mint_hls_manifest_urls(docs, reader, authenticated)
+    docs = list(rows)
+    if prepare.media or prepare.ads:
+        indexes = [
+            i
+            for i, row in enumerate(rows)
+            if isinstance(row.get("doc_id"), str)
+            and row["doc_id"]
+            and isinstance(row.get("author_key"), str)
+            and row["author_key"]
+            and "body" in row
+        ]
+        if indexes:
+            bound = _canonical_prepare_docs([rows[i] for i in indexes], reader, readable)
+            if prepare.ads:
+                bound = ch.attach_pinned_ads(bound, reader)
+                bound = ch.attach_node_ads(bound, reader)
+            if prepare.media:
+                bound = ch.resolve_media_urls_in_docs(bound)
+                bound = _mint_hls_manifest_urls(bound, reader, authenticated)
+            for i, doc in zip(indexes, bound, strict=True):
+                docs[i] = doc
     if prepare.face:
         docs = _prepare_face(docs, prepare.face)
     return docs
@@ -360,11 +415,11 @@ def run_query(request: Request, data: QueryRequest):
     )
     # The prepare pass (D73): mint media + HLS + ads + face on the result rows
     # so the query returns render-ready rows in one round-trip (the feed-as-
-    # query pattern). The boundary CTEs already gated the rows (I3); the mint
-    # only touches docs in the result.
+    # query pattern). Input scoping does not certify arbitrary output aliases;
+    # media/ad preparation re-reads canonical data before capability issuance.
     t9 = time.perf_counter()
     if data.prepare:
-        out = _prepare_rows(out, reader, data.prepare, authenticated)
+        out = _prepare_rows(out, reader, data.prepare, readable, authenticated)
     t_prepare = time.perf_counter() - t9
 
     # Phase-level timing telemetry (the paper's evaluation data): where does

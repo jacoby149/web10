@@ -5,6 +5,11 @@ Base read pass: `f7aabdb26346752141f46f19c393dbadfd25ddd2` (#1255 merged).
 Scanners/reviewers: separate OpenCode `openai/gpt-6.1-sol` contexts
 (`openrouter/openai/gpt-6.1-sol`), not different model families.
 **Selected source read coverage complete; protocol L1 security gate OPEN.**
+
+02.11 carrier overlay: [canonical query repair](repair-h01-query-carrier.md)
+denies projected carrier signing with safe-query rehydration; 1,694 API tests
+plus eight subtests and same-model re-review pass. Face/ad-loader authority,
+ClickHouse/connected/CI/rollout/diverse review remain OPEN; no L1 advancement.
 No scan runtime changes. B-8 remains a separately recorded repair overlay in this publication.
 
 ## Sol Resumption (28.10.2026)
@@ -174,6 +179,13 @@ historical exposure/rotation, BP-5 coordinated release and BP-6 external audit
 remain obligations. No BP reference alone passes a blocked guarantee.
 
 ## Repair And Publication Gates
+
+H01-PREPARE follow-up: [bounded proof](h01-query-owner-proof.md) now issues
+independently verified real synthetic SigV4 through actual compiler/ASGI/prepare
+with SQLite evaluating table-free literals. Anon/auth fabricated owner/body
+both sign foreign keys; unprepared query does not sign. Supplied-owner authority
+remains OPEN, not a repaired H01 class. #1312 is merged with all thirteen checks
+green; namespace repair did not establish query-output provenance.
 
 Do not advance PROTOCOL-02. To finish L1 assurance: substantively resolve local
 findings one at a time with exploit-red/denied-green plus legitimate behavior,
