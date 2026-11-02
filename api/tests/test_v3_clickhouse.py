@@ -1512,7 +1512,7 @@ class TestResolveMinioTypes:
     def test_no_minio_types_unchanged(self):
         body = {"text": "hello", "age": {"type": "number", "value": 5}}
         with patch.object(ch, "get_s3_signing_client") as mock_signing:
-            result = ch.resolve_minio_types(body)
+            result = ch.resolve_minio_types(body, "alice")
             assert result == body
             mock_signing.assert_not_called()
 
@@ -1522,7 +1522,7 @@ class TestResolveMinioTypes:
             mock_client = MagicMock()
             mock_client.generate_presigned_url.return_value = "http://minio/alice/cat.png?sig=abc"
             mock_signing.return_value = mock_client
-            result = ch.resolve_minio_types(body)
+            result = ch.resolve_minio_types(body, "alice")
             # type + value are kept, a fresh presigned url is added
             assert result["image"]["type"] == "minio"
             assert result["image"]["value"] == "alice/cat.png"
@@ -1544,7 +1544,7 @@ class TestResolveMinioTypes:
             mock_client = MagicMock()
             mock_client.generate_presigned_url.side_effect = lambda *a, **k: f"http://minio/{k['Params']['Key']}?sig=x"
             mock_signing.return_value = mock_client
-            result = ch.resolve_minio_types(body)
+            result = ch.resolve_minio_types(body, "alice")
             assert result["cat-vids"][0]["url"] == "http://minio/alice/henry.mp4?sig=x"
             assert result["cat-vids"][1]["url"] == "http://minio/alice/henry2.mp4?sig=x"
             assert result["nested"]["deep"]["pic"]["url"] == "http://minio/alice/pic.jpg?sig=x"

@@ -69,6 +69,9 @@ route + the screenshot harness).
 
 ### Lane: security-l1-scans
 
+- [✓ 3.253.12 local] **PROTOCOL-01/H01-RAW: owner-bind recursive MinIO signing** — own raw resolver/ad uploader propagation/focused tests/security KB; real synthetic SigV4 red -> denied green, review-fixed ad-loader compatibility, 347 focused/1,570 API tests plus four subtests and lint/format, fresh same-model recheck. `knowledge-base/security/scans/2026-10/repair-h01-raw-owner.md`. No HLS/schema/SDK changes; other provenance/CI/services/deployment/diverse/L1 OPEN.
+- **Metadata status:** H01-META merged #1306 at `f3cacbff4`, all 13 first-attempt checks green; historical local tick is not remaining-gate closure.
+
 - [✓ 3.253.5 local] **PROTOCOL-01/H01-META: bind stored media-reference signing to its owner** — own metadata resolver/reused signature harness/security KB only; two real synthetic SigV4 failures denied, 335 focused/1,533 API tests plus four subtests and lint/format, fresh same-model review. `knowledge-base/security/scans/2026-10/repair-h01-metadata-owner.md`. No recursive-minio/SDK/schema/route changes; other provenance/CI/services/deployment/diverse/L1 OPEN.
 - **Direct signer status:** H01-DIRECT merged #1305 at `d5f06c6d0`, all 13 first-attempt checks green; historical local tick below is not remaining-sink closure.
 

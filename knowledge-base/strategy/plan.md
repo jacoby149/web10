@@ -72,6 +72,9 @@ reuses `POST /v3/app-contracts/revoke`. Full spec:
 
 ## L1 Security Scans
 
+- [✓ 3.253.12 local] **PROTOCOL-01/H01-RAW: owner-bind recursive MinIO signing** — explicit owner, foreign/malformed stale suppression, per-entry uploader/ad-loader propagation; real synthetic SigV4 red -> denied green, review-fixed compatibility gap. 347 focused/1,570 API tests plus four subtests and lint/format, fresh same-model recheck. [Receipt](../security/scans/2026-10/repair-h01-raw-owner.md). Other provenance/CI/integration/deployment/diverse/L1 OPEN.
+- **Metadata status:** H01-META merged #1306 at `f3cacbff4`, all 13 first-attempt checks green; historical local tick below is not broader closure.
+
 - [✓ 3.253.5 local] **PROTOCOL-01/H01-META: bind stored media-reference signing to its owner** — original/thumbnail foreign keys denied before signing, valid/legacy/posted_by preserved; two real synthetic SigV4 baseline failures denied, 335 focused/1,533 API tests plus four subtests and lint/format, fresh same-model review. [Receipt](../security/scans/2026-10/repair-h01-metadata-owner.md). One sink only; recursive minio/other provenance/CI/services/deployment/diverse/L1 OPEN.
 - **Direct signer status:** H01-DIRECT merged #1305 at `d5f06c6d0`, all 13 first-attempt checks green; prior local checkpoint below does not close remaining sinks.
 

@@ -35,6 +35,20 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-01: Every recursive signer needs an explicit owner
+
+[H01 raw repair](scans/2026-10/repair-h01-raw-owner.md) reproduces a real
+synthetic foreign SigV4 capability through the document wrapper. Raw MinIO
+leaves now require explicit owner context, exact namespace and string keys;
+foreign/malformed/missing leaves lose supplied URLs without breaking valid
+siblings. Main docs and ads each use their own posted_by/author fallback. Review
+found actual ad loaders omitted posted_by: synthetic wrapper fixtures alone
+missed it, so projection/mapping and two actual-loader controls were added.
+No access predicates changed. 347 focused/1,570 API tests plus four subtests and
+fresh same-model review support source repair, not real storage integration.
+Key namespace is not proof of owner-context provenance: caller-selected query
+owners, HLS/legacy URL authority and service/CI/rollout/diverse gates remain OPEN.
+
 ### 2026-11-01: Parsed evaluation flags must survive the settings override pass
 
 The legacy environment loop replaced parsed QUERY_EVAL booleans with strings:
