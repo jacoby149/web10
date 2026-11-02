@@ -1,8 +1,15 @@
-# web10 Shadowguard
+# web10 v4: Shadowguard
 
-02.11.2026. **Status: proposed product direction, not implemented.** This note
-captures the operator conversation, not an approved protocol or a security
-guarantee. No blockchain, DID method, wallet provider or contract selected.
+02.11.2026. **Status: deferred web10 v4 concept, not on the active v3 roadmap.**
+The operator explicitly said this is not planned any time soon. This note
+preserves the idea for later, not an implementation assignment, scheduled release,
+approved protocol or security guarantee. No blockchain, DID method, wallet provider
+or contract selected. See the [parking lot](later.md#web10-v4-shadowguard).
+
+Do not start protocol evaluation, implementation or a new execution lane for this
+concept without explicit operator reactivation for v4 planning. Current v3 work,
+including its existing identity/federation and security obligations, is unchanged
+and must not acquire a Shadowguard dependency.
 
 > Change your host. Keep your identity. Keep your audience.
 
@@ -199,6 +206,8 @@ independently resolvable and reachable through compatible clients and an availab
 host. Blockchain/relay availability and network blocking remain dependencies;
 absolute worldwide availability is not an implemented or proven guarantee.
 
-Next step: compare existing protocols against these requirements in a docs-only
-decision bite before selecting infrastructure or writing runtime code. No release
-date, security sign-off or completed portability claim accompanies this proposal.
+If explicitly reactivated for v4, first compare existing protocols against these
+requirements in a docs-only decision bite before selecting infrastructure or
+writing runtime code. That comparison is deferred too, not a next task for the
+current fleet. No release date, security sign-off or completed portability claim
+accompanies this concept.

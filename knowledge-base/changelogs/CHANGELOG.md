@@ -1,3 +1,6 @@
+3.254.8 || 02.11.2026
+docs(strategy): **defer Shadowguard to web10 v4** - preserve the audience/group-permission continuity concept in the later parking lot, mark it outside the active v3 roadmap, and remove its execution lane and queued protocol-decision task. Not planned any time soon; no research/implementation assignment, release date or new dependency for current work. Explicit operator reactivation for v4 planning required. Documentation only.
+
 3.254.7 || 02.11.2026
 docs(strategy): **capture web10 Shadowguard proposal** - deplatforming-resistant audience access and group-permission continuity through independent verifiable identity resolution, persistent follows and stable-principal grants, not historical-data migration. Acceptance: fresh empty node reaches existing fans without refollowing/export, retains current roles on independent group nodes without re-invitation, and cannot revive revoked grants or inherit roles through alias takeover. Optional default/DNS/ENS paths; Ethereum/protocol/custody/recovery/discovery remain decisions. No runtime implementation, administrator-free ENS claim, universal-visibility guarantee or federation/security completion. Link the proposal from plan and execution queue; preserve existing security work.
 

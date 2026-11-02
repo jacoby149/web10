@@ -31,10 +31,11 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ---
 
-## Phases 
+## Deferred v4
 
-- [✓ 3.254.7 local docs] **Shadowguard product proposal** - [shadowguard.md](shadowguard.md) records portable identity/audience intent, optional naming, protocol choices and acceptance/limits. Documentation only, not an implemented or adopted identity protocol.
-- [ ] **Shadowguard protocol decision** - compare existing identity/discovery protocols against `shadowguard.md`, including owner-only control, recovery, independent follows and stable-principal group grants across location changes. Require fresh-node audience/permission continuity after creator-host/resolver loss, without refollowing/re-invitation or reviving revoked grants. Historical-data migration is not required. Docs-only decision bite; no Ethereum/custom-registry commitment or runtime work before explicit selection.
+- [✓ 3.254.8 local docs] **Shadowguard deferred to web10 v4** - preserve the 3.254.7 concept in [shadowguard.md](shadowguard.md) and [later.md](later.md#web10-v4-shadowguard); remove its protocol-decision task from the active queue. Not planned any time soon, no release date, research/implementation assignment or dependency for v3. Explicit operator reactivation during v4 planning is required before any work resumes.
+
+## Phases
 
 - [✓ 3.254.3 local] **Batching inventory and execution plan** - source audit of backend database-call loops and client request fan-out, scoped bites and correctness/request-count gates in `batching-performance.md`. Documentation only; not an optimization or benchmark result.
 - [ ] **Execute batching-performance queue** - B01-B09 backend and C01-C14 client items in `batching-performance.md`; prioritize readable-set equivalence/promotion, owner-scoped media/face preparation and acting-identity request deduplication. Claim one sub-bite at a time; existing paint-on-read/E3/security lanes retain their gates.

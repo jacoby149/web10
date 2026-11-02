@@ -41,14 +41,11 @@ says what can happen **at the same time**.
 
 ## Lanes
 
-### Lane: Shadowguard (proposal only)
-
-**Owns:** `knowledge-base/strategy/shadowguard.md` and scoped planning/decision
-records only. Coordinate identity/federation/auth ownership before claiming any
-runtime files; this proposal does not open another implementation track yet.
-
-- [✓ 3.254.7 local docs] **Shadowguard product proposal** - portable key-based identity and audience continuity, default/DNS/ENS choices, acceptance scenario and unresolved recovery/discovery/protocol decisions recorded. No runtime or security/federation completion claim.
-- [ ] **Shadowguard protocol decision** - compare existing protocols against `shadowguard.md`; document controller/admin powers, custody/recovery, independent follows, stable-principal group grants, verified resolution after creator-host/resolver failure and costs. Acceptance: fresh empty node reaches existing fans without refollowing/export and retains current roles on independent groups without re-invitation; revoked grants stay denied and alias takeover grants no authority. Require explicit tradeoffs and operator-approved selection before code. Do not invent cryptography or assume ENS/Ethereum is required. Coordinate the existing multi-node/federation and auth lanes.
+**Deferred, not a lane:** [Shadowguard](shadowguard.md) is a web10 v4 concept in
+[later.md](later.md#web10-v4-shadowguard), not near-term work. [✓ 3.254.8 local
+docs] its proposal lane and protocol-decision task were removed from this queue.
+No agent should claim research/runtime ownership or emit a kickoff for it without
+explicit operator reactivation during v4 planning. Existing v3 lanes are unchanged.
 
 ### Lane: batching-performance (coordination queue)
 
