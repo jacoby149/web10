@@ -1684,30 +1684,31 @@ describe('GroupDetailScreen', () => {
     expect(writeGroupIdentity).not.toHaveBeenCalled();
   });
 
-  it('the name-taken guard blocks Publish (decision 1, live in edit mode)', async () => {
+  it('an allocated draft permits a display name whose derived slug is taken', async () => {
     vi.mocked(slugTaken).mockResolvedValue(true);
     await renderDraftAt('/groups/x?edit=1');
     await waitFor(() => {
       expect(screen.getByTestId('group-edit-mode')).toBeInTheDocument();
     });
-    // The slug guard resolves (debounced) → the "name already taken" state.
+    fireEvent.change(screen.getByTestId('group-edit-name'), { target: { value: 'Already Used Name' } });
+    fireEvent.click(screen.getByTestId('group-edit-save'));
     await waitFor(() => {
-      expect(screen.getByTestId('group-edit-slug-taken')).toBeInTheDocument();
+      expect(publishGroup).toHaveBeenCalledWith(GROUP_ID, expect.objectContaining({
+        face: expect.objectContaining({ name: 'Already Used Name' }),
+      }));
     });
-    // Publish is blocked while the slug is taken.
-    expect(screen.getByTestId('group-edit-save')).toBeDisabled();
-    expect(publishGroup).not.toHaveBeenCalled();
+    expect(slugTaken).not.toHaveBeenCalled();
   });
 
-  it('a free slug shows the slug preview and Publish stays enabled', async () => {
+  it('a draft shows its fixed allocated ID and Publish stays enabled', async () => {
     vi.mocked(slugTaken).mockResolvedValue(false);
     await renderDraftAt('/groups/x?edit=1');
     await waitFor(() => {
       expect(screen.getByTestId('group-edit-mode')).toBeInTheDocument();
     });
-    // The slug preview shows the derived slug (the group's identity).
+    // The slug preview shows the allocated ID, not a display-name-derived slug.
     await waitFor(() => {
-      expect(screen.getByTestId('group-edit-slug')).toHaveTextContent('gaming-night');
+      expect(screen.getByTestId('group-edit-slug')).toHaveTextContent(GROUP_ID);
     });
     expect(screen.queryByTestId('group-edit-slug-taken')).not.toBeInTheDocument();
     expect(screen.getByTestId('group-edit-save')).toBeEnabled();

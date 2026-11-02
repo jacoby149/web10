@@ -8,8 +8,10 @@ authorized for this work.
 
 Replace the composer-only choice with one navigation-avatar switcher. Personal
 identity is always first. Eligible groups are searchable, pinnable and recent;
-desktop uses a popover and phones a sheet. Always say `Acting as`. Selection is
-per tab and per authenticated account, never a replacement credential. Existing
+desktop uses a popover and phones a sheet. Always say `Acting as`. A confirmed
+identifier is remembered per provider/account across browser reopen, with a
+per-tab snapshot so another tab cannot switch this tab. Store no credentials or
+grants; the selection is never authority. Existing
 post/comment drafts keep the identity under which writing began.
 
 Picker safety: clicking a row previews a choice only. `Use identity` commits it;
@@ -25,9 +27,12 @@ session; being able to read does not authorize the selected group to act there.
 
 ## Verified Dependencies
 
-- Create already accepts generic `author_as`, checks the human's service-specific
-  create grant in that group, checks target access as the group, and sets
-  `posted_by` from the verified session. Preserve these independent gates.
+- Create accepts generic `author_as`, checks the human's effective service-specific
+  create grant in that group and human app contract, and sets `posted_by` from
+  the verified session. That grant permits explicit exact-self attachment;
+  external targets still check the group principal, never human-only membership.
+  Retaining an existing self attachment on explicit delegated update needs
+  updateOwn; adding self also needs create. See `century-club-findings.md`.
 - Composer currently replaces explicit destinations with Discover and runs
   personal follower fan-out for group posts. Neither behavior is acceptable.
 - `groups/list` only lists the authenticated human's memberships; the earlier
@@ -51,13 +56,14 @@ session; being able to read does not authorize the selected group to act there.
    unchanged original `posted_by`. Tests deny revoked authority, foreign
    identity, human-only target membership and forged audit attribution. No
    social-specific endpoints or group credentials.
-3. [x] Shared identity state and navigation switcher: account-scoped session
-   storage, personal-first, pinned/recent/search, loading/error/empty states,
+3. [x] Shared identity state and navigation switcher: account-scoped remembered
+   identifier plus per-tab snapshot, personal-first, pinned/recent/search, loading/error/empty states,
    keyboard dismissal and desktop/mobile presentation. Invalid/revoked choices
    must not silently send an action as the human instead.
 4. [x] Posts and drafts: bind identity at draft start; replace composer picker
    with a display; derive destinations from group memberships, retain explicit
-   destination, reject empty destinations, never fan out to personal followers.
+   destination, include self even without memberships, add Discover for public
+   posts only, reject empty explicit destinations, never fan out to personal followers.
    Reposts use the same draft identity and destination rules.
 5. [x] Comments and reactions: bind comment drafts; use full identity keys for
    writes, reads and selected state; group reactions are shared across human

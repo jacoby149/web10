@@ -41,6 +41,21 @@ says what can happen **at the same time**.
 
 ## Lanes
 
+### Lane: century-club-findings (this workspace)
+
+**Owns:** generic document self-target/current-attachment seam and focused API
+tests; social composer, group editor/detail, profile/follow reads and acting
+identity preference state; serialized KB updates. Split security-boundary work
+from independent UI changes when publishing; no all-scope security PR.
+- [✓ 3.254.18 local] **Publish and related UI repairs** - exact scope/results in `century-club-findings.md`; 1,796 API plus eight subtests, 1,652 social tests, Ruff/build/typecheck and desktop/375px inspection pass. Same-model bounded security/design-intent review, not diverse sign-off. No commit or production writes/deployment.
+- [ ] **Connected acceptance and unresolved reports** - isolated synthetic publish/read to self+Discover, human audit and revoked/bystander denial; coordinated compiler/social deployment, original follower-zero and paste-freeze reproduction. Gates: local repairs above, isolated stack, no production credentials or settings changes. Acceptance: real attachments/audit/rendering proven and original failures reproduced or explicitly left open, not mocked-away. Owns lane paths above and focused e2e tests.
+
+### Lane: people-community-discovery (this workspace)
+
+**Owns:** social `DiscoverExploreTab.tsx`, focused component regressions and
+serialized discovery KB records; screenshot harness only if needed.
+- [✓ 3.254.16 local] **People community membership discovery** - All = memberships plus deduplicated directory; My Groups = memberships regardless listing/status; Discover = directory only. Resolved-name search/navigation, owner/draft semantics, stable empty/error retry and zero-match pagination covered by ten new regressions; 154 focused tests and build/typecheck pass. Seeded desktop/375px screenshots inspected in `.context/people-groups-{desktop,375}.png`. Scope/acceptance: `web10-v3/groups/discoverability.md`. No API/auth/global-search or production changes; no deployment/production acceptance claim. PR #1325 unit follow-up (3.254.17): board-pagination harness isolated; 1,603 social tests pass locally, no functional or e2e changes.
+
 **Deferred, not a lane:** [Shadowguard](shadowguard.md) is a web10 v4 concept in
 [later.md](later.md#web10-v4-shadowguard), not near-term work. [✓ 3.254.8 local
 docs] its proposal lane and protocol-decision task were removed from this queue.

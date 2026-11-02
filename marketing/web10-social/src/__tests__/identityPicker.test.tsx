@@ -29,6 +29,7 @@ vi.mock('@/data/wapi', () => ({ getWapi: () => ({ readToken: () => mock.token })
 beforeEach(() => {
   vi.restoreAllMocks();
   sessionStorage.clear();
+  localStorage.clear();
   vi.clearAllMocks();
   mock.getMyGroups.mockResolvedValue([{ group_id: group, my_role: 'custom-writer' }]);
   mock.getGroup.mockResolvedValue({ group_id: group, roles: [{ name: 'custom-writer', permissions: { posts: ['create'] } }] });
@@ -109,7 +110,7 @@ describe('App-wide acting identity', () => {
     expect(data.fanOutToFollowers).not.toHaveBeenCalled();
   });
 
-  it('uses group memberships instead of Discover when no destination was supplied', async () => {
+  it('keeps group memberships alongside Discover for a public draft without explicit destinations', async () => {
     selectActingAuthor(group);
     mock.getMyGroups.mockResolvedValue([{ group_id: 'team-destination' }]);
     const { default: PostComposer } = await import('@/components/Feed/PostComposer');
@@ -118,7 +119,7 @@ describe('App-wide acting identity', () => {
     fireEvent.click(screen.getByTestId('post-submit'));
     await waitFor(() => expect(data.createPost).toHaveBeenCalled());
     expect(mock.getMyGroups).toHaveBeenCalledWith({ author_as: group, service: 'posts' });
-    expect(vi.mocked(data.createPost).mock.calls[0][1]).toEqual(['team-destination']);
+    expect(vi.mocked(data.createPost).mock.calls[0][1]).toEqual([group, 'team-destination', data.getDiscoverGroupId()]);
   });
 
   it('reposts under the draft identity without personal follower fan-out', async () => {
