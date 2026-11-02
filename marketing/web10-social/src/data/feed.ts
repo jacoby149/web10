@@ -1,8 +1,10 @@
 import { getV3Client } from './v3';
 import type { PowerMeanSort } from './v3';
 import { getDiscoverGroupId, getMyGroups, getFeedGroups, followersGroupId } from './groups';
+import { getActingAuthor, matchesActingAuthor, actingPostGroups } from './actingIdentity';
 import { fromV3DocToPost, fromV3DocToProfile, fromV3FeedPost, extractUsername, mediaRefId, dropAdPosts, type PostRecord, type ResolvedMediaRef } from './types';
-import { resolveMediaRefs } from './posts';
+import { resolveMediaRefs, resolvePostAuthors } from './posts';
+import { readReactionDocuments } from './reactions';
 import type { MediaRecord } from './types';
 import { knobStateToSort } from '@/lib/powerMean';
 
@@ -52,7 +54,7 @@ export async function readDiscoverFeed(
       posts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
     // Ad docs are attached to posts via the join, not standalone feed posts.
-    return dropAdPosts(posts);
+    return resolvePostAuthors(dropAdPosts(posts));
   } catch {
     return [];
   }
@@ -455,7 +457,7 @@ function buildFeedQuery(sort: FeedRanking | null, cursor: { created_at?: string;
   // the client (which duck-type on `body` / `author_key`) would silently see
   // nothing. An explicit `AS body` pins the name regardless of scope.
   return (
-    'SELECT p.doc_id AS doc_id, p.author_key AS author_key, p.body AS body, p.tags AS tags, ' +
+    'SELECT p.doc_id AS doc_id, p.author_key AS author_key, p.posted_by AS posted_by, p.group_id AS group_id, p.body AS body, p.tags AS tags, ' +
     'p.created_at AS created_at, p.ref_value AS ref_value, p.ad_mode AS ad_mode, p.ad_target AS ad_target, ' +
     'coalesce(eng.like_count, 0) AS likes, coalesce(eng.dislike_count, 0) AS dislikes, coalesce(rp.repost_count, 0) AS reposts, coalesce(cmt.comment_count, 0) AS comments, ' +
     `(${score}) AS score, pr.body AS profile_body ` +
@@ -495,6 +497,8 @@ function fromFeedQueryRow(row: Record<string, unknown>): PostRecord {
   const feedPost = {
     doc_id: row.doc_id,
     author_key: row.author_key,
+    posted_by: row.posted_by,
+    groups: row.group_id ? [String(row.group_id)] : undefined,
     body: row.body,
     tags: row.tags,
     created_at: row.created_at,
@@ -667,7 +671,7 @@ export async function readFeedPage(opts: {
     next_cursor = sort ? { score: last.score ?? undefined } : { created_at: last.created_at };
   }
   console.log('[social-feed] readFeedPage — got', page.length, 'posts, has_more:', has_more);
-  return { posts: page, has_more, next_cursor };
+  return { posts: await resolvePostAuthors(page), has_more, next_cursor };
 }
 
 /**
@@ -751,13 +755,13 @@ export async function readFeedReactions(
     // every reaction whose ref_value is one of the feed's posts. The reader is
     // a member of every feed group (followers groups), so the read sees their
     // own reactions on each post.
-    const docs = await w.read('reactions', { groups, ref: postIds });
+    const docs = await readReactionDocuments(postIds, groups);
     const liked: Record<string, boolean> = {};
     const disliked: Record<string, boolean> = {};
     const reposted: Record<string, boolean> = {};
     for (const doc of docs) {
       // v3 ownership — username alone (see above).
-      if (extractUsername(doc.author_key) !== token.username) continue;
+      if (!matchesActingAuthor(doc.author_key, token.username)) continue;
       const type = ((doc.body as Record<string, unknown>).type as string) || 'like';
       const ref = doc.ref_value;
       if (!ref) continue;
@@ -773,9 +777,10 @@ export async function readFeedReactions(
     // and mark each original they've reposted. Scoped to the reader's own
     // followers group (where their posts live).
     try {
-      const myPosts = await w.read('posts', { groups: [followersGroupId(token.username)] });
+      const identity = getActingAuthor();
+      const myPosts = await w.read('posts', { groups: identity ? await actingPostGroups(identity) : [followersGroupId(token.username)] });
       for (const doc of myPosts) {
-        if (extractUsername(doc.author_key) !== token.username) continue;
+        if (!matchesActingAuthor(doc.author_key, token.username)) continue;
         const repostOf = (doc.body as Record<string, unknown>).repost_of as string | undefined;
         if (repostOf) reposted[repostOf] = true;
       }

@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { toast, errorMessage } from '@/components/shared/Toast';
 import { VideoPlayer, sourceFromMedia } from './VideoPlayer';
 import { PostBodyInline } from './PostBody';
+import { useActingAuthor, getActingAuthor, matchesActingAuthor } from '@/data/actingIdentity';
 
 function formatTimeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -45,6 +46,7 @@ function formatTimeAgo(dateStr: string): string {
  *   + media + copy + offer + like, wrapped in the attachment ring.
  */
 export function PostAdCard({ ad, className, standalone = true }: { ad: AdRecord; className?: string; standalone?: boolean }) {
+  const identity = useActingAuthor();
   const isNode = ad.variant === 'node';
   // The horizontal rhythm: the standalone feed card aligns its offer + like
   // rows to the header/copy (px-4); the compact attached card keeps px-3.
@@ -73,6 +75,7 @@ export function PostAdCard({ ad, className, standalone = true }: { ad: AdRecord;
   useEffect(() => {
     let live = true;
     if (!ad._id) return;
+    setLiked(false);
     countReactions('posts', ad._id)
       .then((n) => { if (live) setLikeCount(n); })
       .catch(() => {});
@@ -80,11 +83,11 @@ export function PostAdCard({ ad, className, standalone = true }: { ad: AdRecord;
       .then((rs) => {
         if (!live) return;
         const token = getWapi().readToken();
-        setLiked(rs.some((r) => r.author_username === token?.username));
+        setLiked(rs.some((r) => matchesActingAuthor(r.author_key || r.author_username, token?.username || '', identity || null)));
       })
       .catch(() => {});
     return () => { live = false; };
-  }, [ad._id]);
+  }, [ad._id, identity]);
 
   const handleLike = async () => {
     if (!ad._id || liking) return;
@@ -95,7 +98,7 @@ export function PostAdCard({ ad, className, standalone = true }: { ad: AdRecord;
       setLikeCount(n);
       const token = getWapi().readToken();
       const rs = await readReactions('posts', ad._id);
-      setLiked(rs.some((r) => r.author_username === token?.username));
+      if (getActingAuthor() === identity) setLiked(rs.some((r) => matchesActingAuthor(r.author_key || r.author_username, token?.username || '', identity || null)));
     } catch (e) {
       toast.error(errorMessage(e, 'Could not like this ad.'));
     } finally {

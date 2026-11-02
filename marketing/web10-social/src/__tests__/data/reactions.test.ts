@@ -22,11 +22,41 @@ describe('reactions v3 data layer', () => {
   let mock: ReturnType<typeof mockV3Client>;
 
   beforeEach(() => {
+    sessionStorage.clear();
     mock = mockV3Client();
   });
 
   afterEach(() => {
+    sessionStorage.clear();
     vi.restoreAllMocks();
+  });
+
+  it('removes the shared group reaction made by a different human without touching personal or same-slug group reactions', async () => {
+    const { selectActingAuthor } = await import('../../data/actingIdentity');
+    const identity = 'web10.app/groups/users/alice/team';
+    selectActingAuthor(identity);
+    mock.read.mockResolvedValue([
+      { doc_id: 'shared', author_key: identity, posted_by: 'bob', body: { type: 'like' }, ref_value: 'post' },
+      { doc_id: 'personal', author_key: 'alice', body: { type: 'like' }, ref_value: 'post' },
+      { doc_id: 'other-team', author_key: 'web10.app/groups/users/bob/team', body: { type: 'like' }, ref_value: 'post' },
+    ]);
+    const { toggleReactionKind } = await import('../../data/reactions');
+    expect(await toggleReactionKind('post', 'like')).toBeNull();
+    expect(mock.delete).toHaveBeenCalledExactlyOnceWith('shared', { author_as: identity });
+    expect(mock.create).not.toHaveBeenCalled();
+  });
+
+  it('finds a shared group reaction beyond the first target page', async () => {
+    const { selectActingAuthor } = await import('../../data/actingIdentity');
+    const identity = 'web10.app/groups/users/alice/team';
+    selectActingAuthor(identity);
+    const first = Array.from({ length: 200 }, (_, index) => ({ doc_id: `other-${index}`, author_key: `viewer-${index}`, created_at: '2026-11-01T00:00:00', body: { type: 'like' }, ref_value: 'post' }));
+    mock.read.mockImplementation(async (_service, opts) => opts.cursor ? [{ doc_id: 'shared-late', author_key: identity, posted_by: 'bob', body: { type: 'like' }, ref_value: 'post' }] : first);
+    const { toggleReactionKind } = await import('../../data/reactions');
+    expect(await toggleReactionKind('post', 'like')).toBeNull();
+    expect(mock.delete).toHaveBeenCalledExactlyOnceWith('shared-late', { author_as: identity });
+    expect(mock.create).not.toHaveBeenCalled();
+    expect(mock.read).toHaveBeenCalledWith('reactions', expect.objectContaining({ cursor: '2026-11-01T00:00:00|other-199' }));
   });
 
   describe('createReaction (v3: create in reactions collection)', () => {

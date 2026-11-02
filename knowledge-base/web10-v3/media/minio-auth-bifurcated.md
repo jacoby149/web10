@@ -29,7 +29,73 @@ Browser fetches images → MinIO serves directly → no middleware, no latency
 
 If someone shares a presigned image URL, it expires in an hour. Same as sharing a YouTube link. For social media, that's acceptable.
 
+### Direct Refresh Is Owner-Only
+
+`POST /v3/media/read-url` accepts an object key, not proof that the caller can
+read a carrier document. It may mint a fresh URL only for a key in the verified
+caller's exact `username/` object namespace. This includes uploads awaiting
+metadata confirmation and owned derivatives; metadata presence is not required.
+A viewer cannot refresh somebody else's key directly. To obtain a new URL,
+the viewer re-reads an authorized carrier document, where the document/group
+gate decides whether media may be resolved. Public thumbnails continue through
+their existing document-access path, not through direct key refresh.
+
+Keys are opaque S3 names: ownership checks must not decode or normalize a
+caller key into a different object. Existing URLs remain bearer capabilities
+until expiry; membership removal does not invalidate an already-issued URL
+before its TTL. This endpoint restriction does not repair forged foreign keys
+stored in metadata/minio references or certify every resolver; those remain
+separate object-provenance obligations in the security record.
+
+### Stored Media References
+
+For `media_refs`, looking up an owner-scoped metadata row does not authorize
+every key written into that row. `resolve_media_urls(body, media_owner)` may
+mint original and thumbnail URLs only for nonempty keys in that owner's exact
+`username/` namespace. A rejected supplied key yields no URL and cannot fall
+back to a stored URL; an allowed companion key and other references still
+resolve. Genuinely keyless legacy metadata retains its existing URL fallback.
+Keys remain opaque, not decoded or normalized. The owner comes from the already
+authorized document's media-owner context (`posted_by` for group-authored posts),
+not from the viewer, so group-authorized cross-user media remains supported.
+
+This is the metadata-reference signing boundary, not certification of recursive
+raw minio leaves, legacy stored URLs, HLS provenance or caller-selected owner
+columns. Those separate sinks/authority contexts remain recorded security debt.
+
+### Raw MinIO Leaves
+
+Recursive `{type: "minio", value: object_key}` resolution also requires an
+explicit media-owner context. Only a nonempty string key inside that owner's
+exact `username/` namespace may receive a fresh `url`. Invalid or foreign leaves
+must not retain a supplied stale URL; valid siblings and non-MinIO values remain
+intact, without mutating stored input. No keys are decoded or normalized.
+
+For document reads, the owner is `posted_by or author_key`, not the viewer.
+Inline ads and node ads use their own uploader/author context, never the carrier
+post's owner. This is a signing restriction after the existing document/group
+read gate, not a substitute for that gate. A body with no valid owned keys must
+not create a signing client. HLS provenance, legacy non-MinIO URL fields and
+caller-supplied ownership contexts still need their separate checks.
+
 ### Why Video Needs JWT + Middleware
+
+Direct-document stream minting requires a string raw MinIO video key in the
+uploader's `posted_by or author_key` namespace. Stored `manifest_url` values are
+removed before the read either mints a fresh reader-bound URL or denies issuance;
+disabled settings do not preserve them. Authorized readers need not be the owner.
+Resolved-reference minting also requires a string key in its metadata resolver's
+uploader namespace. Main, ad and node-ad refs each use their own entry's
+`posted_by or author_key`, never the viewer or carrier's identity. Disabled or
+rejected refs lose stored manifest URLs; valid siblings retain reader-bound minting.
+These gates do not revoke already-issued capabilities before TTL or establish
+supplied-owner provenance, persisted-record validity or legacy URL authority.
+
+The variant-manifest fetch additionally requires the raw video's key to belong
+to `posted_by or author_key`, its HLS prefix to match the verified stream claims,
+and the selected MinIO key to equal `{prefix}/{variant}/index.m3u8`, the worker's
+output. Failures are denied before storage access. This fetch check does not
+certify mint-time prefix provenance or the separate sig-only segment path.
 
 HLS segments are small (270KB each), numerous (100+), and fetched continuously over minutes. You need auth on every segment without presigning each one.
 

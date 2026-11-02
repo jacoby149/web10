@@ -68,7 +68,12 @@ $('listingForm').onsubmit = async event => {
 }
 $('refresh').onclick = load; $('back').onclick = () => navigate(null)
 window.addEventListener('popstate', load)
-session('marketplace_listings', async context => { app = context; $('fields').disabled = false; await load() }, () => {
+session('marketplace_listings', async context => {
+  app = context
+  // Initial reads own the status until settled; do not race a publication.
+  await load()
+  if (context.valid()) $('fields').disabled = false
+}, () => {
   app = null; request++; publishing = false; $('fields').disabled = true; $('refresh').disabled = true
   $('listingForm').reset(); $('listings').replaceChildren(); $('back').hidden = true
 })

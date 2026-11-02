@@ -21,6 +21,32 @@ SYNTHETIC = {name: f"SYNTHETIC_{name}_NOT_A_CREDENTIAL" for name in FIELDS}
 
 
 class TestSettingsDiagnostics(unittest.TestCase):
+    def test_query_eval_environment_keeps_parsed_types(self):
+        for value, enabled in (("0", False), ("false", False), ("1", True), ("true", True)):
+            with self.subTest(value=value):
+                probe = f"""
+import app.settings as s
+assert s.QUERY_EVAL_NO_POLICY is {enabled!r}
+assert s.QUERY_EVAL_STUB_EXECUTE is {enabled!r}
+assert s.QUERY_EVAL_STUB_ROWS == 7
+assert isinstance(s.QUERY_EVAL_STUB_ROWS, int)
+assert s.QUERY_EVAL_READABLE_MODE == 'batched'
+"""
+                result = subprocess.run(
+                    [sys.executable, "-c", probe],
+                    cwd=API,
+                    env={
+                        "QUERY_EVAL_NO_POLICY": value,
+                        "QUERY_EVAL_STUB_EXECUTE": value,
+                        "QUERY_EVAL_STUB_ROWS": "7",
+                        "QUERY_EVAL_READABLE_MODE": "BATCHED",
+                    },
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_cli_never_prints_values_or_globals(self):
         for args in ([str(API / "app/settings.py")], ["-m", "app.settings"]):
             for env in ({}, SYNTHETIC):

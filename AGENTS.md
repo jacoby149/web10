@@ -322,6 +322,15 @@ does not merge.
 
 ## Auth model
 
+Social acting identity is account-scoped, per-tab client state, never a replacement
+credential. Generic `author_as` creates as the group with server-set `posted_by`;
+explicit delegated update/delete require current service `updateOwn`/`deleteOwn`
+grants and preserve the original audit actor. App-contract gates still use the
+human. Delegated `groups/list` requires a current create grant on the requested
+service and lists the group's memberships, without human owner self-healing.
+DMs, billing and administration retain personal authority. Local implementation
+and verification status: `knowledge-base/strategy/acting-identity.md`.
+
 Consent correlation is staged: the UI can prepare owned indexed replies for ID-bearing unified batches, but the SDK is not yet strict. IDs grant no authority; no-op/cancellation/account/batch lifecycle and SDK/browser integration remain close conditions.
 
 Explicit authenticator logout cancels pending consent, including unstarted work; a later login may hand back credentials but cannot approve the cancelled request. Account-picker selection can still review untouched requests. Delayed popup closes are bound to the current handoff generation, batch, principal and token.
@@ -334,9 +343,35 @@ JWT tokens with `username, site, target, provider, expires`. Server verifies sig
 
 Verified non-anonymous decoding requires a parseable ISO `expires`, with naive UTC or explicit offsets, and rejects at the deadline. Anonymous custom-expiry exemption and unsigned metadata decoding are separate; the latter is never authorization.
 
+Internal `decode_token()` verifies signature/freshness by default. Unsigned
+metadata callers explicitly pass `private_key=False`; decoding alone does not
+replace provider/client certification or access checks. Legacy remote-provider
+destination trust remains open, not repaired by this default.
+
 OAuth authorization certifies its source token before code minting: local provider, freshness and active source-client registration are required. Active delegated sources remain permitted; this does not add source-contract narrowing or resolve broader delegation authority.
 
 ## Security invariants
+
+Direct `POST /v3/media/read-url` refresh is owner-only: the key must stay in the
+verified caller's exact `username/` namespace, including unconfirmed uploads.
+Foreign viewers obtain fresh media URLs through authorized document/group reads;
+public thumbnails retain their document-access path. This does not certify
+stored object-reference provenance or revoke existing presigned URLs before TTL.
+
+`media_refs` original/thumbnail signing also requires keys in the resolver's
+media-owner namespace; rejected supplied keys get no fresh URL or stale fallback.
+Valid siblings and keyless legacy URLs remain. Recursive raw minio signing also
+requires explicit media owner; rejected leaves get `url=None`. Documents and
+inline ads use their own `posted_by or author_key`, propagated by the ad loaders.
+HLS/legacy URL provenance and caller-selected owner contexts remain separate debt.
+
+HLS variant-manifest fetches bind the uploader-owned raw video, signed prefix
+and exact worker rendition key before storage access. Mint-time/segment-prefix
+provenance remains open; this is not whole-HLS assurance. Direct-document HLS
+minting also requires an uploader-owned MinIO video and removes stored manifest
+URLs before remint/denial. Resolved-ref/ad HLS minting independently applies each
+entry's uploader context and drops stored manifest URLs before denial/disabled
+returns. Supplied-owner provenance, legacy URLs and existing token TTL remain open.
 
 Defined in the KB: `knowledge-base/web10-v3/security/overview.md`. Short version — I1: cryptographic issuer verification, I2: no unsigned decode, I3: no query returns documents for an `author_key` the token doesn't own (unless group membership grants access), I4: node-readable by design — operator-blindness is not a goal, access is terms-controlled (D41), I5: scoped/expiring/revocable tokens enforced by app contracts. Enforced by the conformance/permission test suite.
 

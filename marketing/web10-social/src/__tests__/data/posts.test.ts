@@ -86,6 +86,29 @@ describe('posts v3 data layer', () => {
   });
 
   describe('createRepost (reposts.md: a real post doc referencing the original)', () => {
+    it.each([null, 'web10.app/groups/team'])('preserves explicit destinations for identity %s without deriving defaults', async (author) => {
+      mock.create.mockResolvedValue({ doc_id: 'rp', author_key: author || 'alice', body: {} });
+      await createRepost({ _id: 'original' }, '', author, ['explicit-destination']);
+      expect(mock.create).toHaveBeenCalledWith('posts', expect.objectContaining({ repost_of: 'original' }), {
+        groups: ['explicit-destination'], ...(author ? { author_as: author } : {}),
+      });
+      expect(mock.getMyGroups).not.toHaveBeenCalled();
+    });
+
+    it.each([null, 'web10.app/groups/team'])('rejects explicit empty destinations for identity %s before writing', async (author) => {
+      await expect(createRepost({ _id: 'original' }, '', author, [])).rejects.toThrow(/destination/);
+      expect(mock.create).not.toHaveBeenCalled();
+      expect(mock.getMyGroups).not.toHaveBeenCalled();
+    });
+
+    it('derives group destinations only when destinations are omitted', async () => {
+      mock.getMyGroups.mockResolvedValue([{ group_id: 'membership-destination' }]);
+      mock.create.mockResolvedValue({ doc_id: 'rp', author_key: 'web10.app/groups/team', body: {} });
+      await createRepost({ _id: 'original' }, '', 'web10.app/groups/team');
+      expect(mock.getMyGroups).toHaveBeenCalledWith({ author_as: 'web10.app/groups/team', service: 'posts' });
+      expect(mock.create).toHaveBeenCalledWith('posts', expect.anything(), { groups: ['membership-destination'], author_as: 'web10.app/groups/team' });
+    });
+
     it('creates a post with repost_of set to the original doc_id + the comment as text', async () => {
       const doc = { doc_id: 'rp1', author_key: 'web10.app/users/alice', body: { text: 'great take', repost_of: 'orig1' }, created_at: '2026-07-18T00:00:00Z' };
       mock.create.mockResolvedValue(doc);

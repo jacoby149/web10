@@ -6,6 +6,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useActingAuthor, getActingAuthor, matchesActingAuthor } from '@/data/actingIdentity';
+import { useMutationAuthority } from '@/data/mutationAuthority';
+import { postPath } from '@/lib/postLinks';
 import {
   readFeedPage,
   readFeedReactions,
@@ -391,7 +394,7 @@ export function PostCard({
   onAuthorClick,
   postAuthor,
   postService,
-  groups,
+  groups = post.groups,
   isOwnPost,
   signedIn = false,
   onPostUpdated,
@@ -412,6 +415,7 @@ export function PostCard({
   const cardRef = useRef<HTMLElement | null>(null);
   useDwellTracking(cardRef, post._id, surface || '');
   const [menuOpen, setMenuOpen] = useState(false);
+  const authority = useMutationAuthority(post.author_key || post.author_username, 'posts', menuOpen);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [copied, setCopied] = useState(false);
   const [togglingVisibility, setTogglingVisibility] = useState(false);
@@ -434,7 +438,7 @@ export function PostCard({
 
   async function handleShare() {
     setMenuOpen(false);
-    const url = `${window.location.origin}/u/${postAuthor || authorUsername || 'unknown'}/p/${post._id || 'unknown'}`;
+    const url = `${window.location.origin}${postPath({ ...post, author_username: postAuthor || authorUsername || post.author_username })}`;
     // Share is a link (navigator.share / clipboard) — not a data write. The
     // repost is a separate, tappable signal on the engagement row (reposts.md).
     if (navigator.share) {
@@ -452,7 +456,8 @@ export function PostCard({
 
   async function handleDelete() {
     try {
-      await deletePost(post._id || '');
+      if (post.author_key?.includes('/groups/')) await deletePost(post._id || '', post.author_key);
+      else await deletePost(post._id || '');
       onPostUpdated?.();
     } catch (e) {
       console.error('Failed to delete post:', e);
@@ -496,7 +501,12 @@ export function PostCard({
           )}
         </Avatar>
         <div className="flex-1 min-w-0 flex items-baseline gap-1.5">
-          {authorUsername && onAuthorClick ? (
+          {post.author_key?.includes('/groups/') ? (
+            <div className="min-w-0">
+              <a href={`/groups/${encodeURIComponent(post.author_key)}`} className="block truncate text-sm font-medium text-foreground hover:text-brand-300" data-testid="post-author-link">{post.group_identity?.name || authorName}</a>
+              <span className="text-xs text-muted-foreground">Group{post.posted_by && <> · <a href={`/u/${encodeURIComponent(post.posted_by)}`} className="hover:text-foreground">posted by {post.posted_by}</a></>}</span>
+            </div>
+          ) : authorUsername && onAuthorClick ? (
             <button
               type="button"
               className="font-medium text-sm text-foreground truncate hover:text-brand-300 transition-colors duration-150"
@@ -527,7 +537,7 @@ export function PostCard({
             mobile it's also shown for signed-in visitors — the share + save
             affordances live here on a phone (the row is too narrow for them),
             so a signed-in visitor can still save/share any post. */}
-        {(isOwnPost || (signedIn && isMobile)) && (
+        {(authority.canEdit || authority.canDelete || (signedIn && isMobile)) && (
           <div className="relative shrink-0">
             <button
               type="button"
@@ -578,9 +588,9 @@ export function PostCard({
                       </button>
                     </>
                   )}
-                  {isOwnPost && (
+                  {(authority.canEdit || authority.canDelete) && (
                     <>
-                      <button
+                      {authority.canEdit && <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); setMenuOpen(false); openComposer({ editingPost: post }); }}
                         className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors"
@@ -588,18 +598,18 @@ export function PostCard({
                       >
                         <Edit3 className="w-4 h-4" />
                         Edit post
-                      </button>
-                      <button
+                      </button>}
+                      {authority.canEdit && <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); handleToggleVisibility(); }}
-                        disabled={togglingVisibility}
+                        disabled={togglingVisibility || post.author_key?.includes('/groups/')}
                         className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors disabled:opacity-50"
                         data-testid="post-option-visibility"
                       >
                         {post.visibility === 'public' ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         {togglingVisibility ? 'Updating…' : post.visibility === 'public' ? 'Make private' : 'Make public'}
-                      </button>
-                      {deleteConfirm ? (
+                      </button>}
+                      {authority.canDelete && (deleteConfirm ? (
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); handleDelete(); }}
@@ -619,7 +629,7 @@ export function PostCard({
                           <Trash2 className="w-4 h-4" />
                           Delete post
                         </button>
-                      )}
+                      ))}
                     </>
                   )}
                 </div>
@@ -799,6 +809,8 @@ function FeedSkeleton() {
 }
 
 export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?: (username: string, provider: string) => void; onRepost?: (post: PostRecord) => void }) {
+  const actingIdentity = useActingAuthor();
+  useEffect(() => { setLikedMap({}); setDislikedMap({}); setRepostedMap({}); }, [actingIdentity]);
   const [posts, setPosts] = useState<PostRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -821,7 +833,7 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
   // so `author_provider` is the v2 fallback ('web10') and never equals the
   // token's real provider. Comparing it hid the owner menu on every own post.
   const isOwnPost = (p: PostRecord) =>
-    token && p.author_username === token.username;
+    token && matchesActingAuthor(p.author_key || p.author_username, token.username, actingIdentity || null);
 
   // ── Knob state: URL > saved settings > Newest preset ──────────────────────
   const [searchParams, setSearchParams] = useSearchParams();
@@ -922,10 +934,18 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
   // `knob` is the feed's ranking knobs — passed to the node so it ranks the
   // page server-side (the D36 power-mean sort). The cursor rides on the score
   // when ranked, created_at when chronological (the Newest preset).
+  const engagementGeneration = useRef(0);
+  useEffect(() => {
+    setLoadingMore(false);
+    return () => { engagementGeneration.current++; };
+  }, [actingIdentity, token?.username, token?.provider, knobState]);
+
   const loadFeed = useCallback(async (cursor: { created_at?: string; score?: number } | null = null, knob: KnobState) => {
+    const generation = engagementGeneration.current;
     setLoading(true);
     try {
       const page = await readFeedPage({ limit: 20, cursor, knobState: knob });
+      if (generation !== engagementGeneration.current) return;
       setPosts(page.posts);
       setHasMore(page.has_more);
       setNextCursor(page.next_cursor);
@@ -945,22 +965,26 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
       const { liked, disliked, reposted } = await readFeedReactions(
         page.posts.map((p) => p._id || '').filter(Boolean),
       );
+      if (generation !== engagementGeneration.current || getActingAuthor() !== actingIdentity) return;
       setLikedMap(liked);
       setDislikedMap(disliked);
       setRepostedMap(reposted);
       LOG('loadFeed — page 1:', page.posts.length, 'posts, has_more:', page.has_more);
     } catch (e) {
+      if (generation !== engagementGeneration.current) return;
       console.error('Failed to load feed:', e);
       setPosts([]);
     }
     setLoading(false);
-  }, []);
+  }, [actingIdentity, token?.username, token?.provider]);
 
   const loadMore = useCallback(async () => {
     if (!hasMore || loadingMore || loading) return;
+    const generation = engagementGeneration.current;
     setLoadingMore(true);
     try {
       const page = await readFeedPage({ limit: 20, cursor: nextCursor, knobState: knobState });
+      if (generation !== engagementGeneration.current) return;
       setPosts((prev) => [...prev, ...page.posts]);
       setHasMore(page.has_more);
       setNextCursor(page.next_cursor);
@@ -973,6 +997,7 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
       const { liked, disliked, reposted } = await readFeedReactions(
         page.posts.map((p) => p._id || '').filter(Boolean),
       );
+      if (generation !== engagementGeneration.current) return;
       setLikedMap((prev) => ({ ...prev, ...liked }));
       setDislikedMap((prev) => ({ ...prev, ...disliked }));
       setRepostedMap((prev) => ({ ...prev, ...reposted }));
@@ -983,6 +1008,7 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
       setSearchParams(params, { replace: true });
       LOG('loadMore — appended', page.posts.length, 'posts, has_more:', page.has_more);
     } catch (e) {
+      if (generation !== engagementGeneration.current) return;
       console.error('Failed to load more feed:', e);
     }
     setLoadingMore(false);
@@ -1038,6 +1064,7 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
   // computed 0, so the heart showed 0 instead of 1 — the "0 1 0 1" flicker).
   // Each tally changes by (next flag − old flag) for its own kind.
   async function handleToggleReaction(postId: string, kind: ReactionKind) {
+    const generation = engagementGeneration.current;
     const token = getWapi().readToken();
     if (!token) return;
     const wasLiked = !!likedMap[postId];
@@ -1051,9 +1078,10 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
     setLikeMap((prev) => ({ ...prev, [postId]: Math.max(0, (prev[postId] || 0) + likeDelta) }));
     setDislikeCountMap((prev) => ({ ...prev, [postId]: Math.max(0, (prev[postId] || 0) + dislikeDelta) }));
     try {
-      await toggleReactionKind(postId, kind);
+      await toggleReactionKind(postId, kind, posts.find((post) => post._id === postId)?.groups);
     } catch (e) {
       console.error('Failed to toggle reaction:', e);
+      if (generation !== engagementGeneration.current) return;
       toast.error(errorMessage(e, 'Could not update your reaction.'));
       setLikedMap((prev) => ({ ...prev, [postId]: wasLiked }));
       setDislikedMap((prev) => ({ ...prev, [postId]: wasDisliked }));

@@ -61,6 +61,8 @@ export interface PostRecord {
   // detail is the public face.
   product?: AdProduct;
   // Author info extracted from V3Document.author_key — needed by DiscoverScreen, FeedScreen, etc.
+  author_key?: string;
+  groups?: string[];
   author_username?: string;
   author_provider?: string;
   // Engagement counts (populated by discover/feed queries)
@@ -158,6 +160,8 @@ export function fromV3DocToPost(doc: V3Document): PostRecord {
     // is the public face.
     product: parseProductFields(body),
     author_username: username,
+    author_key: doc.author_key,
+    groups: doc.groups,
     author_provider: provider,
     // The v3 pinned ad (ads-dissemination.md): the read serves a pinned post
     // with its ad inline under `ad` (I3-checked). Mapped to an AdRecord for
@@ -582,6 +586,10 @@ export function fromV3DocToProfile(doc: V3Document): ProfileRecord {
 // ── Comments (refs) ─────────────────────────────────────────────────────────
 
 export interface CommentRecord {
+  author_key?: string;
+  posted_by?: string;
+  author_name?: string;
+  author_href?: string;
   _id?: string;
   post_id: string;
   text: string;
@@ -603,6 +611,9 @@ export function fromV3DocToComment(doc: V3Document): CommentRecord {
   const body = doc.body as Record<string, unknown>;
   return {
     _id: doc.doc_id,
+    author_key: doc.author_key,
+    posted_by: doc.posted_by,
+    author_href: doc.author_key?.includes('/groups/') ? `/groups/${encodeURIComponent(doc.author_key)}` : undefined,
     post_id: doc.ref_value || (body.post_id as string) || '',
     text: (body.text as string) || '',
     created_at: doc.created_at,
@@ -619,6 +630,8 @@ export function fromV3DocToComment(doc: V3Document): CommentRecord {
 // ── Reactions (refs) ────────────────────────────────────────────────────────
 
 export interface ReactionRecord {
+  author_key?: string;
+  posted_by?: string;
   _id?: string;
   target_service: 'posts' | 'comments';
   target_id: string;
@@ -632,6 +645,8 @@ export function fromV3DocToReaction(doc: V3Document): ReactionRecord {
   const body = doc.body as Record<string, unknown>;
   return {
     _id: doc.doc_id,
+    author_key: doc.author_key,
+    posted_by: doc.posted_by,
     target_service: (body.target_service as 'posts' | 'comments') || 'posts',
     target_id: doc.ref_value || (body.target_id as string) || '',
     type: (body.type as string) || 'like',

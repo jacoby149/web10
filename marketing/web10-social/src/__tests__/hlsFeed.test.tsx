@@ -242,7 +242,7 @@ describe('FeedScreen — the reader\'s own like survives a reload (the "forgot m
     fireEvent.click(screen.getByTestId('like-button'));
 
     await waitFor(() => {
-      expect(toggleReactionKind).toHaveBeenCalledWith('p-liked', 'like');
+      expect(toggleReactionKind).toHaveBeenCalledWith('p-liked', 'like', undefined);
     });
     // Optimistic clear: the heart un-fills and the count drops (1 → 0). The
     // count renders as an empty string at 0 (`{reactionCount || ''}`), so

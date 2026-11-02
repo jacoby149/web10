@@ -40,6 +40,9 @@ class UpdateGroup(BaseModel):
 
 class ListMyGroups(BaseModel):
     token: str
+    # Delegated membership metadata, gated by a current create grant on service.
+    author_as: str | None = None
+    service: str = "*"
     # D78: optional server-side tag filter — only groups carrying EVERY given
     # tag are returned (My Groups = `["web10-social-group"]`). None = all.
     tags: list[str] | None = None

@@ -15,6 +15,112 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Acting Identity (02.11.2026)
+
+Acting-identity feature boundary work is recorded separately in
+[`acting-identity-review.md`](acting-identity-review.md). State OPEN: local
+endpoint/SDK/social controls, not exhaustive scan coverage, connected storage
+evidence or independent sign-off. No protocol-campaign gate is closed by it.
+Continuation review repaired deletion tombstone audit loss (failing generated-SQL
+regression before repair) and frontend identity/authority mismatches. Final local
+verification: 1,583 API tests plus eight subtests, 285 SDK tests, 1,584 social
+tests, typechecks/build and desktop/mobile switcher inspection. Connected
+multi-operator/revocation/concurrency and independent review remain OPEN.
+
+## Reference HLS Mint Provenance (01.11.2026)
+
+H01-HLS-REF-MINT [local repair](scans/2026-10/repair-h01-hls-ref-mint.md): three
+helper-minted JWT/HTTP synthetic segment disclosures denied at issuance. Each
+main/ad/node-ad reference uses its own uploader context; stale URLs suppressed.
+46 new controls, actual resolver/mint composition, 1,669 API tests plus eight
+subtests, Ruff and fresh same-model review pass. Supplied-owner/legacy URL,
+persisted/live playback, CI/deployment/diverse gates and L1 remain OPEN.
+
+## Direct HLS Mint Provenance (01.11.2026)
+
+Direct mint merged #1311 at `3b37e66c4`. Last observed CI was 12/13 green with
+repeat Discover engagement E2E failure; merged does not mean all-green/deployed.
+
+H01-HLS-DIRECT-MINT [local repair](scans/2026-10/repair-h01-hls-direct-mint.md):
+helper-minted real foreign-prefix JWT retrieves synthetic segment bytes through
+HTTP on baseline; repair denies issuance and removes stored manifest URLs.
+24 new controls; 1,623 API tests plus eight subtests, Ruff and fresh same-model
+review pass. Ref/ad mint, supplied-owner provenance, existing capability TTL,
+live integration/CI/deployment/diverse review and protocol L1 remain OPEN.
+
+## HLS Variant Provenance (01.11.2026)
+
+Variant repair merged #1309 at `1dda69ecf`, all 13 checks passed on first attempt.
+Historical local results below do not establish deployment or whole-HLS closure.
+
+H01-HLS-VARIANT [local repair](scans/2026-10/repair-h01-hls-variant.md): two
+actual HTTP/JWT synthetic manifest disclosures denied before storage access.
+Uploader-owned raw key, signed prefix and exact worker rendition key must agree.
+28 new controls; 1,599 API tests plus eight subtests, Ruff and fresh same-model
+review pass. HLS mint/segment provenance, services/CI/deployment/diverse sign-off
+and L1 remain OPEN. This is not a whole-HLS repair.
+
+## Raw MinIO Ownership (01.11.2026)
+
+Raw repair merged #1307 (GitHub mergedAt `2026-11-02T02:09:20Z`); historical
+local checkpoint below is not deployment evidence.
+
+H01-RAW [local repair](scans/2026-10/repair-h01-raw-owner.md): real synthetic
+SigV4 baseline foreign mint denied; explicit owner and independent document/ad
+contexts, stale suppression and no client for invalid keys. Review identified
+and repaired ad-loader posted_by propagation with two red/green compatibility
+controls. Final 347 focused/1,570 API tests plus four subtests and lint/format
+pass, fresh same-model recheck. Caller-owner authority, HLS/legacy URL provenance,
+services/CI/deployment/history/diverse sign-off and L1 remain OPEN.
+
+## Metadata Signing Ownership (01.11.2026)
+
+Metadata repair merged #1306 at `f3cacbff42a15980969d920d12f9cc9652a4dfda`,
+all 13 checks green on first CI attempt. Earlier local checkpoint wording below
+is historical; the raw sink repair above is merged, not deployment-verified.
+
+H01-META [local one-sink repair](scans/2026-10/repair-h01-metadata-owner.md):
+original/thumbnail owner namespace enforced before signing; two real synthetic
+SigV4 baseline mint failures denied, 335 focused/1,533 API tests plus four
+subtests and lint/format pass, fresh same-model review. Valid companions,
+posted_by and keyless legacy paths retained. Recursive minio/other provenance,
+CI/services/deployment/history/diverse sign-off and protocol L1 remain OPEN.
+
+## Direct Media Signing (01.11.2026)
+
+Direct repair merged #1305 at `d5f06c6d07def9eb7cb78c4480e1d79209c239d0`, all
+13 checks green on first CI attempt. The local wording below is historical;
+other signing sinks, production/rollout and diverse gates remain OPEN.
+
+H-01 [local route repair](scans/2026-10/repair-h01-direct-media.md): actual
+JWT/HTTP plus independently verified real synthetic SigV4 capability on baseline;
+foreign keys now denied before bucket/signing. Owner unconfirmed/derivative
+and existing document/thumbnail paths retained; 503 focused/1,477 API tests plus
+four subtests and lint/format pass, fresh same-model review. Stored-reference
+provenance, real services/CI/deployment/history/diverse sign-off and L1 OPEN.
+
+## Credential-Free CORS Pin (01.11.2026)
+
+B-3 default and B-5 test work merged #1303 at
+`e56d25304301b0eb4eb502506980dd68563635c6`. All 13 final checks green after
+the documented setup/trending retries; no repaired transient-cause claim.
+The local checkpoint text below is historical; broader gates remain OPEN.
+
+B-5 [local route pin](scans/2026-10/b5-cors-credential-pinning.md) adds 13
+actual-app controls beyond existing preflight coverage. Eighteen CORS/1,470 API
+tests plus four subtests, lint/format and fresh same-model review pass; in-memory
+CORS/principal mutations fail as expected. No runtime fix, browser/whole-API
+assurance, integration/deployment/diverse sign-off or L1 PASS.
+
+## Verified Decoder Default (01.11.2026)
+
+B-3 [local default repair](scans/2026-10/repair-b3-default-decode.md): eight
+default-decoder acceptance failures plus one signature assertion become green;
+31 new/175 focused and 1,457 API tests plus four subtests and lint/format pass.
+Fresh same-model review inventories 13 explicit production choices and preserves
+unsigned metadata behavior. No demonstrated endpoint bypass or issuer migration;
+class-wide authority audit, CI/deployment/diverse sign-off and L1 remain OPEN.
+
 ## Group-as-Author Write Gate (01.11.2026)
 
 The `POST /v3/create` endpoint gains an optional `author_as` field (the
@@ -41,12 +147,26 @@ the gates are existing primitives re-pointed at a new principal).
 
 ## Backup Publication (01.11.2026)
 
+Source repair merged #1301 at `30f9d49fc15b0b3cca0d928b129216f67b21fa69`;
+all 13 final checks passed after dev merge, with 1,426 local API tests plus four
+subtests. Local wording below preserves the earlier checkpoint, not merge status.
+Trusted storage, deployment/history and diverse sign-off remain OPEN.
+
 L1-PKG-02 [local repair](scans/2026-10/repair-pkg02-backup-publication.md):
 real filesystem permission/link/overwrite repro, private same-directory staging
 and complete no-clobber publication. Initial 8 failures/1 pass distinguish actual
 behaviors from absent-operation controls; final 45 focused/1,420 API tests plus
 four subtests and lint/format pass, fresh same-model review. Operational storage,
 CI/deployment/history/diverse sign-off and protocol L1 remain OPEN.
+
+## Evaluation Environment Type Repair (01.11.2026)
+
+Bounded local repair in settings.py: the legacy override loop turned parsed
+QUERY_EVAL flags into truthy strings, including explicit "0". Four subprocess
+environment repro cases fail before the exclusion and pass after; 45 focused
+settings/query tests plus eight subtests and Ruff pass. Connected private smoke
+completes ten cells after repair. No public deployment, whole-service PASS or
+public-node startup guard claimed.
 
 ## Query-Engine Evaluation Seams (01.11.2026)
 
@@ -188,7 +308,7 @@ measure. Re-scan after the hardening merges to flip them.
 | `api/app/services/auth.py :: decode_token` | L1 | **OPEN** | (audit) | 2026-10 | — | auth | B-3 unsigned decode path; B-1 I1 symmetric HS256. Hardening in 1157 (unmerged) |
 | `api/app/settings.py` | L1 | **OPEN** | (audit) | 2026-10 | — | config | B-2 secrets in source (signing key + Stripe/Twilio/CH creds). Hardening in 1157 (unmerged) |
 | `api/app/middleware.py` | L1 | **OPEN** | `gpt-6.1 sol` | 2026-10-18 | — | logging | B-4 source repair merged #1225 with passing repro gate. [Evidence](scans/2026-10/repair-b4-middleware.md). Deployment, historical exposure and required security sign-off remain unclosed; no whole-file PASS. |
-| `api/app/main.py :: CORS` | L1 | **OPEN** | (audit) | 2026-10 | — | boundary | B-5 `allow_origins=["*"]` — load-bearing assumption, needs a pinning test |
+| `api/app/main.py :: CORS` | L1 | **OPEN** | OpenCode / GPT-6.1 Sol | 2026-11-01 | — | boundary | B-5 [selected-route pin](scans/2026-10/b5-cors-credential-pinning.md); existing preflight retained, browser/integration/diverse gates OPEN |
 | `api/app/v3/services/clickhouse.py :: read path` | L1 | PASS | (audit) | 2026-10 | — | query-engine | I3 read gate on lock (the crown jewel holds) — `can_read_group` / `effective_role_perms` |
 | `api/app/v3/services/safe_query.py` | L1 | PASS | (audit) | 2026-10 | — | query-engine | I3 wall for caller SQL on lock — boundary on input CTEs, not output filter |
 | `api/app/v3/services/clickhouse.py :: get_document_any_author` | L1 | **OPEN** | (audit) | 2026-10 | — | media | B-6 reads without author scoping; bounded by doc-bound sig — verify sig checked first |
@@ -231,7 +351,7 @@ three-dry sign-off. No campaign PASS is claimed.
 | B | Same pin/date/model | 622 lines | OPEN: [receipt](scans/2026-10/l1-api-b.md), L1-B-01 unsigned destination/status trust in remote helper; no production reference found. Existing B-1/B-3 bounded evidence, not a live bypass. |
 | D | Same pin/date/model | 695 lines | OPEN: [receipt](scans/2026-10/l1-api-d.md), L1-D-01 expired-token principal production; L1-D-02 malformed/None expiry classified valid. No actual store mutation or CRUD grant demonstrated. |
 | C | Same pin/date/model | 675 lines | [Receipt](scans/2026-10/l1-api-c.md): no confirmed local finding; caller/media provenance handoffs and sign-off pending, not PASS. |
-| H | Same pin/date/model | 614 lines | OPEN: [receipt](scans/2026-10/l1-api-h.md), L1-H-01 handler discards identity and forwards arbitrary object key to signing sink; dynamic proof uses stub auth/signer, not authenticated HTTP/private-object retrieval. |
+| H | Same pin/date/model | 614 lines | OPEN: historical [receipt](scans/2026-10/l1-api-h.md); [local direct-signer repair](scans/2026-10/repair-h01-direct-media.md) adds actual JWT/HTTP/real synthetic SigV4 red -> denied green. Adjacent provenance, live retrieval/rollout/diverse gates remain OPEN; no whole-file refresh/PASS. |
 | I | Same pin/date/model | 705 lines | [Receipt](scans/2026-10/l1-api-i.md): no confirmed local finding; delegated authority/log provenance handoffs and sign-off pending, not PASS. |
 | E | Same pin/date/model | 826 lines | OPEN: [receipt](scans/2026-10/l1-api-e.md), L1-E-01 account bearer accepted in group-detail query parameter; static transport hygiene, not a demonstrated theft/auth exploit; related S7 remains open. |
 | F | Same pin/date/model | 614 lines | [Receipt](scans/2026-10/l1-api-f.md): no confirmed local finding; delegated document authority/preparation handoffs and sign-off pending, not PASS. |

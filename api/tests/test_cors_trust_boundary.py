@@ -19,13 +19,15 @@ These tests pin the intended post-#191 behavior for both halves.
 """
 
 import datetime
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import jwt
+import pytest
 from fastapi.testclient import TestClient
 
 import app.settings as settings
 from app.main import app as fastapi_app
+from app.v3.services import clickhouse as ch
 
 
 def _future_iso(minutes: int = 60) -> str:
@@ -34,6 +36,96 @@ def _future_iso(minutes: int = 60) -> str:
 
 def _token(payload: dict) -> str:
     return jwt.encode(payload, settings.PRIVATE_KEY, algorithm=settings.ALGORITHM)
+
+
+@pytest.fixture
+def boundary_tokens(monkeypatch):
+    monkeypatch.setattr(settings, "PRIVATE_KEY", "synthetic-cors-boundary-signing-key-only-for-tests")
+    monkeypatch.setattr(settings, "ALGORITHM", "HS256")
+    return {
+        user: _token(
+            {
+                "username": user,
+                "site": "https://independent-app.example",
+                "target": settings.PROVIDER,
+                "provider": settings.PROVIDER,
+                "expires": _future_iso(),
+            }
+        )
+        for user in ("alice", "bob")
+    }
+
+
+def _assert_credential_free_cors(response, origin):
+    # Starlette can echo Origin when Cookie is present, even without credentials.
+    assert response.headers.get("access-control-allow-origin") in ("*", origin)
+    assert "access-control-allow-credentials" not in response.headers
+
+
+@pytest.mark.parametrize("ambient", ["cookie", "authorization", "both"])
+@pytest.mark.parametrize("body,status", [({}, 422), ({"token": ""}, 401), ({"token": "malformed"}, 401)])
+def test_profile_requires_body_token(monkeypatch, boundary_tokens, ambient, body, status):
+    origin = "https://independent-app.example"
+    headers = {"Origin": origin}
+    # Explicit delivery tests server behavior, not browser cookie/CORS policy.
+    if ambient in ("cookie", "both"):
+        headers["Cookie"] = f"token={boundary_tokens['bob']}"
+    if ambient in ("authorization", "both"):
+        headers["Authorization"] = f"Bearer {boundary_tokens['bob']}"
+    profile = Mock(return_value={"username": "bob"})
+    monkeypatch.setattr(ch, "get_user_profile", profile)
+    response = TestClient(fastapi_app, raise_server_exceptions=False).post("/v3/profile", json=body, headers=headers)
+    assert response.status_code == status
+    profile.assert_not_called()
+    _assert_credential_free_cors(response, origin)
+
+
+@pytest.mark.parametrize("ambient", [False, True], ids=["body-only", "alice-body-bob-ambient"])
+def test_profile_identity_comes_from_signed_body(monkeypatch, boundary_tokens, ambient):
+    origin = "https://independent-app.example"
+    headers = {"Origin": origin}
+    if ambient:
+        headers.update(Cookie=f"token={boundary_tokens['bob']}", Authorization=f"Bearer {boundary_tokens['bob']}")
+    profile = Mock(return_value={"username": "alice"})
+    monkeypatch.setattr(ch, "get_user_profile", profile)
+    response = TestClient(fastapi_app, raise_server_exceptions=False).post(
+        "/v3/profile", json={"token": boundary_tokens["alice"]}, headers=headers
+    )
+    assert response.status_code == 200
+    assert response.json() == {"username": "alice"}
+    profile.assert_called_once_with("alice")
+    _assert_credential_free_cors(response, origin)
+
+
+@pytest.mark.parametrize("permitted", [False, True], ids=["denied", "granted"])
+def test_open_cors_preserves_create_permission_gate(monkeypatch, boundary_tokens, permitted):
+    origin = "https://independent-app.example"
+    permission = Mock(return_value=permitted)
+    insert = Mock(return_value={"doc_id": "synthetic-note"})
+    monkeypatch.setattr(ch, "has_permission", permission)
+    monkeypatch.setattr(ch, "insert_document", insert)
+    response = TestClient(fastapi_app, raise_server_exceptions=False).post(
+        "/v3/create",
+        json={"token": boundary_tokens["alice"], "service": "notes", "body": {"text": "hello"}},
+        headers={"Origin": origin},
+    )
+    assert response.status_code == (200 if permitted else 403)
+    permission.assert_called_once_with("alice", origin, "notes", "create")
+    if permitted:
+        assert response.json() == {"doc_id": "synthetic-note"}
+        insert.assert_called_once_with(
+            author_key="alice",
+            service="notes",
+            body={"text": "hello"},
+            ref_value="",
+            tags=[],
+            ad_mode="none",
+            ad_target="",
+            posted_by="alice",
+        )
+    else:
+        insert.assert_not_called()
+    _assert_credential_free_cors(response, origin)
 
 
 # ---------------------------------------------------------------------------
