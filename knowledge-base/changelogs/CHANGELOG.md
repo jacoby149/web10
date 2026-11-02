@@ -1,3 +1,6 @@
+3.252.27 || 01.11.2026
+test(security): **pin credential-free CORS on protected routes** — add thirteen actual-app controls for ambient cookie/header rejection, body-token identity and create-route contract enforcement; retain existing preflight tests. Eighteen CORS/1,470 API tests plus four subtests and lint/format pass; fresh same-model review and in-memory CORS/principal mutations confirm sensitivity. Test-only, no vulnerability repair or browser-wide claim; B-5 integration/diverse sign-off and protocol L1 remain OPEN.
+
 3.252.26 || 01.11.2026
 fix(auth): **verify internal JWT decoding by default** — retain explicit unsigned parsing only at the two metadata callers; existing authority callers remain explicitly verified. Initial nine failures (eight decoder acceptances plus one default assertion), final 31 new/175 focused and 1,457 API tests plus four subtests pass, with lint/format and fresh same-model review. No endpoint bypass claim, issuer migration or remote-provider repair; CI/deployment/diverse sign-off and protocol L1 remain OPEN.
 

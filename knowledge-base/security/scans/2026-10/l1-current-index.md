@@ -134,7 +134,7 @@ Conditional local facts remain bounded; no production breach is established.
 | B-2 | OPEN repeatable/source credential defaults; current packaging/deploy correspondence adds evidence, not live validity. S1 provisioning before removal/approved rotation |
 | B-3 | [Default locally repaired](repair-b3-default-decode.md): signature/freshness default True, two explicit metadata opt-outs; 31 new/175 focused and 1,457 API tests plus four subtests, fresh same-model review. No endpoint bypass proved; class-wide authority/issuer/CI/deployment/diverse gates OPEN |
 | B-4 | Source repair merged #1225; other loggers/history/exposure remain separate |
-| B-5 | OPEN wildcard-CORS credential-boundary pinning obligation; no demonstrated wildcard exploit |
+| B-5 | [Selected routes locally pinned](b5-cors-credential-pinning.md): 13 additional actual-app controls, 18 CORS/1,470 API tests plus four subtests and fresh same-model/mutation review; no runtime vulnerability found. Browser/actual contract/SDK/deployment/diverse gates OPEN, not whole-API assurance |
 | B-6 | OPEN unscoped-getter/capability caller handoff, not independently a data leak |
 | B-8 | Source repair merged #1265 at b5d128a52; four red/green CLI cases, 1,180 API tests at repair pin; not B-2/deployment closure |
 | L1-A-02 | [Source repair](repair-a02-manifest.md) merged #1299 at 0918a7409, all 13 checks green: approved/public-only numeric connections, verified Host/TLS and no redirects; four exploit failures denied, 70 focused/1,407 API tests plus four subtests, fresh same-model review and ephemeral TLS probes. Retained TLS/path, real registry/deployment/history/diverse gates OPEN |

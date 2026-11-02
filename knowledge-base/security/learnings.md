@@ -35,6 +35,20 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-01: Open CORS and ambient authentication are different assertions
+
+[B-5 route pin](scans/2026-10/b5-cors-credential-pinning.md) supplements existing
+preflight tests: supplied Cookie/Authorization tokens do not replace profile body
+credentials, mixed credentials select the body identity, and arbitrary-Origin
+create still enforces its app-contract result. No runtime bug found or changed.
+Starlette can echo Origin on cookie-bearing responses while credentials remain
+disabled; assert absent allow-credentials, not universally wildcard origin.
+18 CORS/1,470 API tests plus four subtests and same-model/mutation review support
+the selected ASGI seam only. Browser delivery/readability, actual contract/SDK
+integration and diverse sign-off remain OPEN. A passed TestClient response is
+not proof of browser policy, and supplied Authorization is not automatic bearer
+attachment by a browser.
+
 ### 2026-11-01: Make metadata decoding an explicit choice
 
 [B-3 local default repair](scans/2026-10/repair-b3-default-decode.md) makes
@@ -96,7 +110,7 @@ exploit is replayed and denied.
 | B-2 | 2026-10 | `settings.py` | signing key + Stripe/Twilio/CH creds in source → env-injected, no defaults | OPEN; repeatable defaults confirmed at `8704e9f5c`; [L1 receipt](scans/2026-10/l1-settings.md), no live credential validity claim |
 | B-3 | 2026-10; 2026-11-01 | `auth.py :: decode_token` | unsigned default is a footgun; existing authority callers explicitly verify | [Default locally repaired](scans/2026-10/repair-b3-default-decode.md); broader authority/issuer/integration/diverse gates OPEN, not a demonstrated endpoint bypass |
 | B-4 | 2026-10 | `middleware.py` | arbitrary HTTP content copied into logs -> metadata-only automatic logging; field-name redaction is insufficient | Source repair merged #1225; [repro evidence](scans/2026-10/repair-b4-middleware.md); deployment/exposure/sign-off not closed |
-| B-5 | 2026-10 | `main.py` CORS | `allow_origins=["*"]` defended only by "token in body" → pin the assumption in a test | learned; needs a pinning test |
+| B-5 | 2026-10; 2026-11-01 | `main.py` CORS | open transport is not ambient authentication; selected-route body tokens and contract enforcement pinned | [Local route tests](scans/2026-10/b5-cors-credential-pinning.md); existing preflight coverage retained, browser/integration/diverse gates OPEN |
 | B-6 | 2026-10 | `clickhouse.py :: get_document_any_author` | reads without author scoping, bounded by a doc-bound sig → verify the sig is checked first | learned; verify |
 | B-8 | 2026-10-18 | `settings.py:139-140` | executing the settings CLI prints globals containing environment-injected secrets → separate fix must suppress secrets while preserving nonsecret diagnostics | OPEN; five synthetic credentials recovered from captured stdout at `8704e9f5c`; [PoC + preconditions](scans/2026-10/l1-settings.md) |
 | S-1 | 2026-10 | `sdk/browser.ts :: authListen` | `postMessage` token accepted with no origin check → sender binding required | OPEN; [current pinned A receipt](scans/2026-10/l1-sdk-a.md) reproduces synthetic acceptance, not valid credentials/API access |

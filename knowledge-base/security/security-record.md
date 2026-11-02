@@ -15,6 +15,14 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Credential-Free CORS Pin (01.11.2026)
+
+B-5 [local route pin](scans/2026-10/b5-cors-credential-pinning.md) adds 13
+actual-app controls beyond existing preflight coverage. Eighteen CORS/1,470 API
+tests plus four subtests, lint/format and fresh same-model review pass; in-memory
+CORS/principal mutations fail as expected. No runtime fix, browser/whole-API
+assurance, integration/deployment/diverse sign-off or L1 PASS.
+
 ## Verified Decoder Default (01.11.2026)
 
 B-3 [local default repair](scans/2026-10/repair-b3-default-decode.md): eight
@@ -178,7 +186,7 @@ measure. Re-scan after the hardening merges to flip them.
 | `api/app/services/auth.py :: decode_token` | L1 | **OPEN** | (audit) | 2026-10 | — | auth | B-3 unsigned decode path; B-1 I1 symmetric HS256. Hardening in 1157 (unmerged) |
 | `api/app/settings.py` | L1 | **OPEN** | (audit) | 2026-10 | — | config | B-2 secrets in source (signing key + Stripe/Twilio/CH creds). Hardening in 1157 (unmerged) |
 | `api/app/middleware.py` | L1 | **OPEN** | `gpt-6.1 sol` | 2026-10-18 | — | logging | B-4 source repair merged #1225 with passing repro gate. [Evidence](scans/2026-10/repair-b4-middleware.md). Deployment, historical exposure and required security sign-off remain unclosed; no whole-file PASS. |
-| `api/app/main.py :: CORS` | L1 | **OPEN** | (audit) | 2026-10 | — | boundary | B-5 `allow_origins=["*"]` — load-bearing assumption, needs a pinning test |
+| `api/app/main.py :: CORS` | L1 | **OPEN** | OpenCode / GPT-6.1 Sol | 2026-11-01 | — | boundary | B-5 [selected-route pin](scans/2026-10/b5-cors-credential-pinning.md); existing preflight retained, browser/integration/diverse gates OPEN |
 | `api/app/v3/services/clickhouse.py :: read path` | L1 | PASS | (audit) | 2026-10 | — | query-engine | I3 read gate on lock (the crown jewel holds) — `can_read_group` / `effective_role_perms` |
 | `api/app/v3/services/safe_query.py` | L1 | PASS | (audit) | 2026-10 | — | query-engine | I3 wall for caller SQL on lock — boundary on input CTEs, not output filter |
 | `api/app/v3/services/clickhouse.py :: get_document_any_author` | L1 | **OPEN** | (audit) | 2026-10 | — | media | B-6 reads without author scoping; bounded by doc-bound sig — verify sig checked first |
