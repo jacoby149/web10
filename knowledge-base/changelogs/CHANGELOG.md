@@ -1,5 +1,7 @@
-3.253.12 || 01.11.2026
+3.253.13 || 01.11.2026
 test(research): collect the browser interoperability scenario and standalone desktop/375px runner in `research/interoperability-demo/`, retaining standard E2E discovery through an import and sharing its Playwright installation. Separate viewport screenshot directories and document artifact paths, existing cookie/grant shortcuts, same-origin scope and connected-run prerequisites. Local Docker daemon unavailable; no connected results or screenshots claimed.
+
+3.253.12 || 01.11.2026
 fix(media): **owner-bind recursive raw-MinIO signing and preserve ad uploader context** — require explicit owner, suppress foreign/malformed/stale leaf URLs and keep valid siblings; propagate each document/ad uploader, including posted_by through actual ad loaders. Real synthetic SigV4 foreign capability red -> denied green; review caught and repaired two ad compatibility failures. 347 focused/1,570 API tests plus four subtests, lint/format and fresh same-model review pass. Caller-owner authority, HLS/legacy URL provenance, CI/integration/deployment/diverse gates remain OPEN, no whole-media/L1 closure.
 
 3.253.11 || 01.11.2026
