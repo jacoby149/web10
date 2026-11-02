@@ -59,18 +59,19 @@ platform stores documents under logical user namespaces in ClickHouse and
 exposes generic groups, service-scoped roles, app contracts, and a query API.
 Its central mechanism is a query boundary: application queries name services,
 and the node supplies filtered relations for the reader before executing joins
-and aggregations. The demonstration application, web10-social, uses web10 APIs
-as its data and authentication backend, with social behavior implemented in a
-static browser frontend. It uses this mechanism to combine
-ranked posts, engagement, and profiles, with media capabilities prepared by the
-node. We describe the access model, query compilation, and application
-composition, including the costs of metadata resolution and the consistency
-obligations of a shared columnar store. The design separates application-defined
-social queries from shared access enforcement. A preliminary single-node
-microbenchmark shows the cost of metadata fan-out: at 100 candidate groups,
-batching reduced median readable-group resolution from 888 to 45\,ms and
-median query-handler time from 953 to 116\,ms in one sequential trial.
-Repeated trials, full application latency, capacity, revocation, and cost
+and aggregations. The social application, web10-social, uses this mechanism
+to compose ranked posts, engagement, and profiles in a static browser frontend.
+A connected interoperability demonstration extends the composition to a game
+and a marketplace: both join their own records to social-written profiles without
+changing the social application or adding application-specific node endpoints.
+Desktop and mobile browser flows exercise actual consent and reuse; separate
+cross-author checks exercise app grants and private-group access. We describe
+the access model, query compilation, and the consistency obligations of a shared
+columnar store. A preliminary single-node
+microbenchmark shows the cost of metadata fan-out: at 1,000 candidate groups,
+batching reduced median readable-group resolution from 7,536 to 214\,ms and
+median query-handler time from 7,645 to 363\,ms in one sequential trial.
+Repeated trials, full application latency, capacity, revocation timing, and cost
 evaluation remain pending.
 \end{abstract}
 
@@ -102,6 +103,13 @@ makes eligible posts retrievable without an engagement-based cutoff, subject
 to access and moderation rules. Here distribution means eligibility for
 retrieval; pagination and user attention determine what is actually viewed.
 
+Reusing those relationships also means building applications outside the original
+social interface. A game can show a player's existing social identity alongside
+an earned score; a marketplace can show the same identity beside a listing.
+We implement both cases and verify that their queries reuse social-written
+profiles through the same access boundary. The applications share document
+conventions, not a bespoke social-to-game or social-to-marketplace API.
+
 This work builds on the decentralized social web. ActivityPub defines activity
 delivery APIs~\cite{activitypub2018}; ATProto separates repositories, relays,
 and application views~\cite{kleppmann2024}; Solid separates applications from
@@ -130,17 +138,18 @@ This paper makes three contributions:
   (\S\ref{sec:enforcement}): service references resolve to filtered CTEs before
   caller joins and aggregation. The implementation combines policy resolution,
   SQL validation, and boundary construction above a shared database account.
-  \item \textbf{A deployed social application case study}
-  (\S\ref{sec:eval}): ranked feeds combine content, engagement, profiles, and
-  media through application queries and node preparation. The case study shows
-  how access scope shapes query results and follow-up reads.
+  \item \textbf{Application composition and connected reuse}
+  (\S\ref{sec:eval}, \S\ref{sec:interop-results}): a deployed social frontend
+  composes ranked feeds and scoped engagement reads; a game and marketplace
+  reuse its profile data. Connected browser and cross-author checks exercise
+  this reuse together with consent and independent app/group access controls.
 \end{enumerate}
 
-The evaluation in \S\ref{sec:method} will assess practical operating points
-and characterize the architecture's costs. This submission's goal is feasibility
-and a clear account of tradeoffs; further optimization is follow-up work.
-A preliminary metadata-resolution trial is reported; broader measurements
-remain pending.
+The evaluation in \S\ref{sec:method} reports the connected interoperability
+checks and a preliminary metadata-resolution trial. These establish bounded
+composition behavior and expose an implementation bottleneck; representative
+full-application latency, concurrent capacity, and comparative costs remain
+open measurements.
 \S\ref{sec:related} relates the design to decentralized storage, IAM, and
 multi-tenant databases; \S\ref{sec:concl} concludes.
 
@@ -492,7 +501,7 @@ CPU, I/O waits, and queueing to locate the costs of parsing, metadata round
 trips, response serialization, and preparation.
 
 %=============================================================================
-\section{A Running Social Platform}
+\section{Application Composition}
 \label{sec:eval}
 
 \artifactdir{marketing/web10-social/src}{web10-social} is the demonstration
@@ -574,7 +583,8 @@ in three JavaScript modules. Counts include comments, blank lines, and local
 type declarations. They exclude public/generated assets, dependencies,
 configuration, tooling, and sibling shared-library and SDK implementations.
 Implementation links for this application case study use that pinned revision;
-the later experiment snapshot is identified separately in \S\ref{sec:prelim}.
+the later experiment snapshots are identified separately in
+\S\ref{sec:interop-results} and \S\ref{sec:prelim}.
 
 \subsection{The feed as a query}
 
@@ -633,6 +643,87 @@ separately alongside latency and throughput.
   \label{fig:groups}
 \end{figure}
 
+\subsection{Multiple applications, one data plane}
+\label{sec:interop}
+
+The social application is a producer of reusable data, not the only client of
+the node. Two small static applications consume its \texttt{profile} documents:
+Snake associates completed runs with player identities; Marketplace associates
+listings with seller identities. Each writes its own service and reads the
+existing profile format (Table~\ref{tab:interop-apps}). Neither modifies
+web10-social or adds a game, commerce, leaderboard, or seller-profile endpoint
+to the node. The common dependency is the document convention and access
+primitives, not an application-specific API agreement.
+
+\begin{table}[t]
+  \caption{Data producers and consumers in the connected demonstration.
+  Other social services are omitted.}
+  \label{tab:interop-apps}
+  \small
+  \begin{tabular}{@{}lll@{}}
+    \toprule
+    Application & Writes & Reuses \\
+    \midrule
+    web10-social & \texttt{profile} & --- \\
+    Snake & \texttt{snake\_scores} & \texttt{profile} \\
+    Marketplace & \texttt{marketplace\_listings} & \texttt{profile} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+The following abbreviated leaderboard query illustrates the seam. Both service
+names resolve to reader-filtered relations before the join. The full application
+also selects each player's best score and supplies profile-media preparation.
+
+\begin{lstlisting}[style=sql]
+WITH latest_profiles AS (
+  SELECT author_key, body FROM profile
+  QUALIFY row_number() OVER (
+    PARTITION BY author_key
+    ORDER BY updated_at DESC, created_at DESC,
+             doc_id DESC) = 1
+)
+SELECT s.author_key,
+       JSONExtractInt(s.body, 'score') AS score,
+       p.body AS profile_body
+FROM snake_scores s LEFT JOIN latest_profiles p
+  ON s.author_key = p.author_key
+ORDER BY score DESC LIMIT 50
+\end{lstlisting}
+
+Application permission to read scores does not confer permission to read
+profiles; an app-level profile grant does not itself grant access to a private
+profile group. This outer join can retain a score without a readable profile.
+The independent group control in \S\ref{sec:interop-results} checks the
+corresponding inner-join exclusion while the score records remain readable.
+Applications therefore compose authorized relations, not unrestricted copies
+of another application's data.
+
+Figure~\ref{fig:interop} shows the resulting player and seller identities.
+The synthetic name was edited through the social UI, then read by both
+applications; neither demo writes or recreates the profile. The connected
+checks below verify the underlying records as well as their rendered names.
+
+\begin{figure*}[t]
+  \centering
+  \begin{minipage}[t]{0.46\textwidth}
+    \centering
+    \textbf{Snake: earned score + social identity}\\[4pt]
+    \includegraphics[width=\linewidth]{../interoperability-demo/figures/snake-identity.png}
+  \end{minipage}\hfill
+  \begin{minipage}[t]{0.46\textwidth}
+    \centering
+    \textbf{Marketplace: listing + social identity}\\[4pt]
+    \includegraphics[width=\linewidth]{../interoperability-demo/figures/marketplace-identity.png}
+  \end{minipage}
+  \caption{One social-written profile, two application views. Snake joins an
+  earned score to the player's profile; Marketplace joins a listing to the
+  seller's same profile. These are direct browser element captures, with
+  synthetic account and listing data. Full-page, consent, and denial captures
+  are retained in the artifact.}
+  \label{fig:interop}
+\end{figure*}
+
 \subsection{Durability and extensibility}
 
 Application-named services let different clients interpret documents without
@@ -650,40 +741,72 @@ must survive export/import. The implemented query boundary is single-node;
 provider migration and federation are future work.
 
 %=============================================================================
-\section{Preliminary Evaluation and Methodology}
+\section{Evaluation}
 \label{sec:method}
 
-\subsection{Evidence available and pending}
+The evaluation separates connected composition checks from preliminary
+metadata-resolution measurements. Both use synthetic data on a disposable
+single-node stack; neither is a capacity result for the deployed social service.
 
-The current case study documents the implemented architecture, repository tests
-for named paths, a deployed application, and one synthetic metadata-resolution
-trial (\S\ref{sec:prelim}). This trial measures a simplified query, not the
-complete application feed. The remaining planned measurements assess
-workload-specific feasibility and costs:
-production observations, latency distributions, throughput, resource use,
-revocation visibility, and matched baseline behavior.
+\subsection{Connected interoperability}
+\label{sec:interop-results}
 
-The \artifactdir{research/experiments}{DigitalOcean experiment scaffold}
-includes provisioning, collection scripts, and a documented blocker list;
-the \artifactfile{research/evaluation-plan.md}{evaluation plan} defines the
-required workload and measurement checks. Existing
-\artifactdir{e2e/tests/gauntlets}{social gauntlets} provide reusable correctness
-scenarios for following, posting, and concurrent engagement. These artifacts
-support construction of the connected application workload; complete browser
-workload execution and result collection remain pending. The later cost-function
-harness has executed the preliminary trial below.
+\textbf{Browser reuse.} A fresh account logged into web10-social through its
+authenticator popup and edited its profile name to Alex Morgan. The browser
+approved Snake's app request, earned and saved ten points, and displayed the
+joined profile. After app-contract revocation, a new query returned 403 and a
+leaderboard refresh cleared the result and displayed an access error. After
+sign-out, Marketplace requested its service permission through the popup,
+published a listing, and displayed the same profile. Reloading the listing's
+detail URL preserved that result. API assertions checked exact authors, row
+counts, profile bodies and listing identity, so the username fallback alone
+could not satisfy the test.
+
+\textbf{Independent access controls.} A separate HTTP case used three accounts
+and two social-written profiles. It checked exact two-author score/profile and
+listing/profile joins. With no app permission for \texttt{profile}, both queries
+were denied; granting it enabled the joins, and revoking the app contract denied
+them again. A separately labeled private-profile fixture isolated the group
+gate: membership enabled an exact inner join; removal emptied it while the
+scores remained readable. The fixture did not replace the social-written
+profiles in the reuse checks. HTTP contracts were installed through the API;
+the browser sequence above exercised the actual consent UI.
+
+All three cases---desktop at 1440 pixels, mobile at 375 pixels, and HTTP
+correctness---passed in the final fresh-stack run on 2 November 2026, with
+zero retries or skips. Six flow captures and two identity-card captures per
+viewport were retained and inspected. Iteration exposed a Marketplace race:
+the initial listing read could overwrite a successful publication's status.
+Keeping publication disabled until that read settled repaired it; a focused
+regression failed before the repair and passed afterward.
+
+\textbf{Provenance and scope.} The run used revision \texttt{db897bccb} plus a
+retained patch/source overlay on a four-vCPU, 8-GB DigitalOcean sfo2 host, with
+ClickHouse 24.8.14.39, Playwright 1.63.0 and Chromium 153. The artifact contains
+source/config hashes, image identities, results and all 16 original captures.
+The API, authenticator and social frontend used development configurations;
+the marketing frontend was built. Schema initialization preceded API startup,
+avoiding the inherited fresh-stack ordering failure. Project storage and the
+droplet were removed after collection.
+
+The hosted apps share one browser origin, although the HTTP case supplies a
+separate app Origin. They demonstrate reuse across applications, not separate
+browser-origin isolation or an independently recruited developer study. Clients
+know the profile format; automatic schema discovery is outside this result.
+Initial-letter avatars are not media-delivery evidence. These controls establish
+named grant/revocation behavior, not a stale-access or capability-expiry bound.
 
 \subsection{Preliminary metadata fan-out results}
 \label{sec:prelim}
 
-\textbf{Setup.} We ran one sequential trial on a DigitalOcean sfo2
+\textbf{Setup.} Table~\ref{tab:fanout} reports one sequential trial on a DigitalOcean sfo2
 \texttt{s-4vcpu-8gb} host (four vCPUs, 8\,GB nominal RAM, Ubuntu 24.04,
-Linux 6.8, Docker 29.1.3), co-locating the API and ClickHouse (configured
-image tag \texttt{24.3}; runtime engine version was not separately recorded).
-The synthetic seed created 100 creators with one small post each and a reader
-who joined their groups; those groups also granted public reads. The reader's
-personal query supplied either $K=10$ or $K=100$ candidate groups. A separate
-discover query supplied one board group ($K=1$) on the same dataset. Queries
+Linux 6.8, Docker 29.1.3), co-locating a single Uvicorn process and ClickHouse
+24.3.18.7. The synthetic seed created 1,000 creators with one small post each
+and a reader who joined all their groups; those groups also granted public
+reads. Personal queries supplied $K=10$, $100$, or $1000$ candidate groups
+on this same dataset and host. A separate discover query supplied one board
+group ($K=1$), containing ten additional posts. Queries
 selected document IDs and bodies, ordered by creation time and ID, with a
 limit of 20. They did not execute engagement joins, media preparation or browser
 page assembly. HTTP requests supplied no Origin header, so this trial does not
@@ -702,8 +825,8 @@ ClickHouse execution directly, outside the HTTP handler.
 \begin{table*}[t]
 \centering
 \small
-\caption{Preliminary personal-query results from one sequential trial,
-20 samples per cell. B executes the document query; C substitutes a fixed
+\caption{Personal-query results from one sequential trial on the same
+1,000-creator dataset, 20 samples per cell. B executes the document query; C substitutes a fixed
 20-row result. Times are milliseconds. Readable denotes permission-resolution
 wall time; total denotes internal handler time, not end-to-end HTTP latency.}
 \label{tab:fanout}
@@ -711,50 +834,62 @@ wall time; total denotes internal handler time, not end-to-end HTTP latency.}
 \toprule
 $K$ & Resolver & Variant & Readable median & Readable p95 & Total median & Total p95 \\
 \midrule
-10 & Per-group & B & 83.41 & 97.63 & 147.67 & 171.63 \\
-10 & Batched   & B & 26.99 & 29.42 & 86.20 & 105.78 \\
-100 & Per-group & B & 887.56 & 1042.40 & 952.51 & 1137.54 \\
-100 & Batched   & B & 45.08 & 53.74 & 116.38 & 142.94 \\
+10 & Per-group & B & 75.03 & 93.30 & 129.36 & 171.18 \\
+10 & Batched   & B & 23.47 & 31.17 & 81.28 & 98.91 \\
+100 & Per-group & B & 764.39 & 843.21 & 831.35 & 915.18 \\
+100 & Batched   & B & 41.78 & 51.65 & 99.42 & 139.47 \\
+1000 & Per-group & B & 7535.71 & 8504.61 & 7644.66 & 8679.24 \\
+1000 & Batched   & B & 213.98 & 284.03 & 363.31 & 435.03 \\
 \midrule
-10 & Per-group & C & 87.86 & 96.99 & 123.54 & 150.32 \\
-10 & Batched   & C & 26.46 & 30.44 & 56.86 & 70.66 \\
-100 & Per-group & C & 826.47 & 949.47 & 866.24 & 1008.33 \\
-100 & Batched   & C & 45.75 & 52.74 & 86.93 & 103.56 \\
+10 & Per-group & C & 76.36 & 88.84 & 104.96 & 134.30 \\
+10 & Batched   & C & 27.07 & 33.60 & 59.91 & 85.53 \\
+100 & Per-group & C & 693.68 & 806.76 & 731.74 & 848.74 \\
+100 & Batched   & C & 40.45 & 49.45 & 71.79 & 90.97 \\
+1000 & Per-group & C & 8388.39 & 9102.21 & 8529.75 & 9204.19 \\
+1000 & Batched   & C & 222.57 & 281.20 & 299.59 & 350.27 \\
 \bottomrule
 \end{tabular}
 \end{table*}
 
-\textbf{Observed tradeoff.} Table~\ref{tab:fanout} shows that a tenfold increase
-in $K$ increased B's median readable time by $10.64\times$ for per-group
-resolution, versus $1.67\times$ for batching. At $K=100$, batching reduced
-median readable time by $19.69\times$ and median handler time by $8.18\times$.
-The stubbed-scan variant exhibits the same qualitative separation, supporting
-metadata orchestration as a bottleneck rather than attributing the entire
-difference to document scanning. Batching was not uniformly cheaper: at
-discover's $K=1$, B's readable medians were 9.21\,ms per-group versus
-28.14\,ms batched, with handler medians of 72.17 versus 94.46\,ms.
-Batching has fixed costs and did not exhibit constant latency as $K$ grew.
+\textbf{Observed tradeoff.} Increasing $K$ from 10 to 1,000 increased B's median
+readable time by $100.44\times$ for per-group resolution, versus $9.12\times$
+for batching. At $K=1000$, batching reduced median readable time by
+$35.22\times$ and median handler time by $21.04\times$. The per-group handler
+still completed requests, but its 7.64-second median exposes a practical
+bottleneck for this workload. C shows the same qualitative separation without
+the document scan: handler medians were 8.53\,s per-group and 300\,ms batched.
 
-\textbf{Baseline and scope.} A's median direct-scan time was 30.49\,ms at
-personal $K=10$, 32.26\,ms at $K=100$, and 30.12\,ms for discover. Because A
+Three metadata round trips do not imply constant work. Batched B's handler
+median still grew $4.47\times$ over the 100-fold increase in $K$, and its
+compilation median rose from 13.12 to 48.78\,ms. Batching was not uniformly
+cheaper: at discover's $K=1$, B's readable medians were 9.53\,ms per-group versus
+25.37\,ms batched, with handler medians of 75.98 versus 87.51\,ms. The results
+support reducing large-$K$ metadata fan-out, not a claim of constant latency.
+
+\textbf{Baseline and scope.} A's median direct-scan times were 28.65, 29.99,
+and 54.17\,ms at personal $K=10$, $100$, and $1000$, respectively, and
+29.92\,ms for discover. Because A
 excludes authentication, compilation and serialization, subtracting A from B
 is a pipeline-versus-scan comparison, not a matched causal measurement of
-authorization overhead. The 15 cells captured all 300 requested samples:
-240 B/C HTTP requests returned 200 and 60 A executions completed directly.
+authorization overhead. All 20 cells captured 20 samples each: 400 measurements,
+comprising 320 successful B/C HTTP requests and 80 direct A executions.
 Twenty samples per cell provide only a preliminary p95; no independent trials,
 randomized order or explicit warm-up exclusion were used. This does not measure
 concurrent capacity, mixed allowed/denied access, discover scaling across node
-sizes, $K=1000$, or full-feed latency.
+sizes, or full-feed latency. HTTP success counts alone do not establish result
+equivalence or correctness across all policies.
 
-\textbf{Provenance.} The trial used source revision
-\texttt{cf7943c88} plus a settings fix preserving parsed evaluation flags;
-the experiment record retains the full revision, settings checksum and cell
-summaries. The summaries and logs are currently retained in the local research
-workspace, not a published archival artifact. An initial fresh-stack seed failed
-with repeated group-creation HTTP 500 responses; server logs were lost during
-automatic cleanup. A second fresh stack on the same host seeded successfully
-and completed the measurements. Its cause remains unknown, so the successful
-trial does not establish unattended startup reliability.
+\textbf{Provenance.} This trial used source revision \texttt{1a983520e} with no
+local source patches and seed 42. Seeding completed on the first attempt in
+818.3\,s; artifacts were collected before droplet deletion. The experiment
+record and retained machine-readable report supply cell accounting and phase
+summaries, not raw per-request observations. An earlier 100-creator trial at
+$K=10/100$ showed the same qualitative tradeoff, but used a different dataset,
+host and source snapshot (\texttt{cf7943c88} plus a settings fix). Its samples
+are not pooled with this table or treated as independent repetitions of this
+configuration. That earlier trial's initial seed failed with HTTP 500 responses
+and lost server logs; its cause remains unresolved. The later first-attempt
+success does not establish general unattended startup reliability.
 
 An industry evaluation needs dated production observations separated from
 synthetic runs. Production observations should identify deployment duration,
@@ -764,7 +899,7 @@ user namespaces are counted separately from physical storage. Availability,
 recovery, and operating costs use explicit observation windows, failure
 definitions, and accounting boundaries.
 
-\subsection{Workloads and measurement}
+\subsection{Remaining workload measurements}
 
 Experiments should pin the source revision, dependency and engine versions,
 schema, data generator and seed, hardware, storage, network placement, worker
@@ -794,7 +929,7 @@ not total authorization overhead: policy also changes compilation and the SQL
 executed, and ratios of medians are not distributions of per-request overhead.
 Instrumentation coverage, including work outside named phases, must be stated.
 
-\subsection{Baselines and correctness}
+\subsection{Baselines and broader correctness}
 
 A conventional shared-table backend with dynamic PostgreSQL RLS provides a
 baseline~\cite{postgres-rls}. Match
@@ -811,12 +946,13 @@ equivalent access semantics for the product baseline. Comparisons with Pod or
 federated architectures also account for placement, autonomy, caching, and
 network topology.
 
-Correctness evaluation should publish a pinned test matrix and actual results,
+Beyond the connected controls above, broader correctness evaluation needs a
+pinned test matrix and actual results,
 distinguishing unit tests, mocked endpoints, and live-store and browser tests. Cover
 principal classes, membership admission, service permissions, tombstones,
 multi-group rows, aggregations, nested SQL, denied raw tables/functions, and
-capability issuance. Revocation experiments must race grant changes with reads
-and measure stale access through metadata visibility, in-flight requests, and
+capability issuance. Establishing revocation latency bounds requires racing grant changes with reads
+and measuring stale access through metadata visibility, in-flight requests, and
 issued URLs/manifests.
 
 \subsection{Scope and open boundaries}
@@ -828,7 +964,8 @@ catalog and recommendation quality, and cross-node migration are outside the
 evaluation. Performance results will be reported for the measured workloads
 and configurations.
 
-Security evidence consists of regression tests for named paths. Whole-system
+Security evidence consists of regression tests and the named connected controls.
+Whole-system
 conformance and the ongoing credential, consent/delegation, and media reviews
 remain open. In particular, a separate read-URL handler forwards caller-selected
 keys to signing without an intervening object check. The recorded local probe
@@ -899,8 +1036,15 @@ service relations before joins and aggregation. The social application shows
 how this separation supports ranked feeds and scoped engagement reads while
 keeping query definitions in the application.
 
+The connected game and marketplace extend that separation beyond the social
+interface: each joins its own records to social-written profiles without a new
+node endpoint or a change to the social application. Browser consent and
+cross-author app/group controls make this a demonstrated composition path,
+rather than a hypothetical extension to other application domains.
+
 The preliminary trial identifies per-group metadata round trips as a concrete
-bottleneck: batching substantially reduced handler time at 100 candidate groups,
+bottleneck: at 1,000 candidate groups, batching reduced median handler time
+from 7.64\,s to 363\,ms,
 while costing more at one group. This motivates batching as an implementation
 choice, not a claim of unbounded scalability. Repeated trials, representative
 application workloads, concurrent load and revocation measurements remain

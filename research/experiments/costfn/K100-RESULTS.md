@@ -1,5 +1,9 @@
 # First K=10/100 Connected Trial
 
+Historical trial record. The later [1,000-creator sweep](K1000-RESULTS.md)
+measures K10/100/1000 and is now the manuscript's main table. It does not turn
+this earlier dataset into an independent repetition of the later configuration.
+
 One 100-creator dataset, one post per creator, one reader following all 100.
 Personal queries explicitly select 10 or 100 of those groups; discover selects
 one board group. Groups have public read grants and the reader joins the
