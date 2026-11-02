@@ -79,6 +79,14 @@ incoming changes), retained its changelog entries and renumbered only this repai
 to 3.254.12. API source/tests remain identical; the full 1,755 tests plus eight
 subtests pass again on the combined branch.
 
+Subsequent requested merge: `origin/dev` at `227fed5d8` adds the identity-switch
+confirmation UI. Preserve its 3.254.12 entry and renumber only this repair to
+3.254.13, updating the plan/lane references. No API repair source changes.
+Post-merge API verification again passes 1,755 tests plus eight subtests and
+whitespace checks. Targeted incoming social tests could not start locally:
+`bun run test:run ...` reports `vitest: command not found` (dependencies absent).
+No local social-test pass is claimed for this merge.
+
 The doc_groups attachment subquery is unchanged; attachment tombstone history can
 still require its own evidence/repair. Group/app/service/visibility/class rules,
 node-ad inventory, stored media provenance and old capability TTL remain separate.
