@@ -9,7 +9,10 @@ from pathlib import Path
 import pytest
 
 
-@pytest.mark.parametrize("case", ["foreign", "owned", "malformed", "tokens", "metadata-original", "metadata-thumbnail"])
+@pytest.mark.parametrize(
+    "case",
+    ["foreign", "owned", "malformed", "tokens", "metadata-original", "metadata-thumbnail", "raw-foreign", "raw-owned"],
+)
 def test_read_url_owner_boundary(case):
     result = subprocess.run(
         [sys.executable, str(Path(__file__).resolve()), case],
@@ -111,6 +114,37 @@ def _probe(case):
             "synthetic-wrong-key-with-sufficient-length" if wrong_key else settings.PRIVATE_KEY,
             algorithm=settings.ALGORITHM,
         )
+
+    if case.startswith("raw-"):
+        from app.v3.services import clickhouse as ch
+
+        foreign = case == "raw-foreign"
+        key = "bob/private.png" if foreign else "alice/a%2Fb +?#.png"
+        doc = {
+            "author_key": "group-id",
+            "posted_by": "alice",
+            "body": {"nested": [{"type": "minio", "value": key, "url": "stale"}]},
+        }
+        if not foreign:
+            for field, owner in (("ad", "bob"), ("node_ad", "carol")):
+                doc[field] = {
+                    "author_key": "other-group",
+                    "posted_by": owner,
+                    "body": {"type": "minio", "value": f"{owner}/owned.png"},
+                }
+        with patch.object(ch, "get_s3_signing_client", return_value=signer) as factory:
+            resolved = ch.resolve_media_urls_in_docs([doc])[0]
+        url = resolved["body"]["nested"][0]["url"]
+        if url is not None:
+            verify(url, key)
+            print("raw capability independently verified", flush=True)
+        if foreign:
+            assert url is None, "valid foreign capability minted through document wrapper"
+            factory.assert_not_called()
+        else:
+            for field, owner in (("ad", "bob"), ("node_ad", "carol")):
+                verify(resolved[field]["body"]["url"], f"{owner}/owned.png")
+        return
 
     if case.startswith("metadata-"):
         from types import SimpleNamespace
@@ -379,6 +413,109 @@ def test_metadata_owned_opaque_keys_dedup_and_signer_failure():
         sign.side_effect = RuntimeError("synthetic signer failure")
         with pytest.raises(RuntimeError, match="synthetic signer failure"):
             ch.resolve_media_urls({"media_refs": ["0"]}, "alice")
+
+
+@pytest.mark.parametrize(
+    "key", ["bob/x", "alice2/x", "Alice/x", "alice%2Fx", "alice/", "", None, 0, False, [], {}, ["alice/x"]]
+)
+@pytest.mark.parametrize("mixed", [False, True])
+def test_raw_invalid_leaf_suppresses_stale_url(key, mixed):
+    from copy import deepcopy
+    from unittest.mock import patch
+
+    from app.v3.services import clickhouse as ch
+
+    leaf = {"type": "minio", "value": key, "url": "stale", "label": "keep"}
+    body = {"nested": [[leaf]], "plain": {"type": 0, "value": "alice/x", "url": "keep"}}
+    if mixed:
+        body["nested"][0].append({"type": "minio", "value": "alice/good"})
+    original = deepcopy(body)
+    with patch.object(ch, "get_s3_signing_client") as factory:
+        factory.return_value.generate_presigned_url.return_value = "fresh"
+        result = ch.resolve_minio_types(body, "alice")
+    assert body == original
+    assert result["nested"][0][0] == {**leaf, "url": None}
+    assert result["plain"] == body["plain"]
+    if mixed:
+        assert result["nested"][0][1]["url"] == "fresh"
+        factory.assert_called_once_with()
+    else:
+        factory.assert_not_called()
+
+
+@pytest.mark.parametrize("owner", ["", None, 0, False, [], {}])
+def test_raw_invalid_owner_and_missing_value(owner):
+    from unittest.mock import patch
+
+    from app.v3.services import clickhouse as ch
+
+    body = [{"type": "minio", "value": "alice/x", "url": "stale"}, {"type": "minio", "url": "stale"}]
+    with patch.object(ch, "get_s3_signing_client") as factory:
+        assert ch.resolve_minio_types(body, owner) == [{**leaf, "url": None} for leaf in body]
+    factory.assert_not_called()
+
+
+def test_raw_owned_order_opaque_keys_lazy_factory_and_failure():
+    from copy import deepcopy
+    from unittest.mock import call, patch
+
+    import app.settings as settings
+    from app.v3.services import clickhouse as ch
+
+    keys = ["alice/unconfirmed", "alice/a%2Fb +?#", "alice/../bob/opaque", "alice/unconfirmed"]
+    body = {"nested": [{"type": "minio", "value": key} for key in keys]}
+    original = deepcopy(body)
+    with patch.object(ch, "get_s3_signing_client") as factory:
+        sign = factory.return_value.generate_presigned_url
+        sign.side_effect = lambda operation, Params, ExpiresIn: "fresh:" + Params["Key"]
+        result = ch.resolve_minio_types(body, "alice")
+        assert body == original
+        assert [leaf["url"] for leaf in result["nested"]] == ["fresh:" + key for key in keys]
+        factory.assert_called_once_with()
+        assert sign.call_args_list == [
+            call("get_object", Params={"Bucket": settings.S3_BUCKET, "Key": key}, ExpiresIn=settings.READ_URL_EXPIRY)
+            for key in keys
+        ]
+        sign.side_effect = RuntimeError("synthetic signer failure")
+        with pytest.raises(RuntimeError, match="synthetic signer failure"):
+            ch.resolve_minio_types(body, "alice")
+        factory.reset_mock()
+        plain = {"nested": [{"type": 0, "value": "alice/x"}, None, False, 3]}
+        assert ch.resolve_minio_types(plain, "alice") is plain
+        factory.assert_not_called()
+        with pytest.raises(TypeError):
+            ch.resolve_minio_types(plain)
+        missing = {"type": "minio", "url": "stale", "label": "keep"}
+        assert ch.resolve_minio_types(missing, "alice") == {**missing, "url": None}
+        factory.assert_not_called()
+
+
+@pytest.mark.parametrize("posted_by", ["", "uploader"])
+def test_raw_wrapper_uses_each_entry_owner_for_both_resolvers(posted_by):
+    from copy import deepcopy
+    from unittest.mock import patch
+
+    from app.v3.services import clickhouse as ch
+
+    def entry(author):
+        owner = posted_by or author
+        return {
+            "author_key": author,
+            "posted_by": posted_by,
+            "body": {"media_refs": ["m"], "raw": {"type": "minio", "value": owner + "/x"}},
+        }
+
+    doc = {**entry("alice"), "ad": entry("bob"), "node_ad": entry("carol")}
+    original = deepcopy(doc)
+    with (
+        patch.object(ch, "resolve_media_urls", side_effect=lambda body, owner: body) as metadata,
+        patch.object(ch, "get_s3_signing_client") as factory,
+    ):
+        factory.return_value.generate_presigned_url.return_value = "fresh"
+        result = ch.resolve_media_urls_in_docs([doc])[0]
+    assert doc == original
+    assert [c.args[1] for c in metadata.call_args_list] == [posted_by or a for a in ("alice", "bob", "carol")]
+    assert all(e["body"]["raw"]["url"] == "fresh" for e in (result, result["ad"], result["node_ad"]))
 
 
 if __name__ == "__main__":

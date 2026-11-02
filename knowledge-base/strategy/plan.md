@@ -74,6 +74,18 @@ reuses `POST /v3/app-contracts/revoke`. Full spec:
 
 ## L1 Security Scans
 
+- [✓ 3.253.15 local] **PROTOCOL-01/H01-HLS-REF-MINT: owner-bind reference/ad stream mint** — three foreign segment capabilities denied; independent uploader contexts, stale suppression and valid siblings retained. 46 new controls, actual resolver/mint composition, 1,669 API tests plus eight subtests, Ruff and fresh same-model review pass. [Receipt](../security/scans/2026-10/repair-h01-hls-ref-mint.md). Supplied-owner/legacy-URL provenance, live integration/CI/deployment/diverse/L1 OPEN.
+- **Direct mint status:** H01-HLS-DIRECT-MINT merged #1311 at `3b37e66c4`; last observed CI was 12/13 green with repeat Discover engagement E2E failure, not all-green or deployment evidence.
+
+- [✓ 3.253.14 local] **PROTOCOL-01/H01-HLS-DIRECT-MINT: owner-bind direct-document stream mint** — foreign raw key no longer issues a working segment capability; stored manifest URLs removed, uploader/reader separation preserved. 24 new controls, 1,623 API tests plus eight subtests, Ruff and fresh same-model review pass. [Receipt](../security/scans/2026-10/repair-h01-hls-direct-mint.md). Ref/ad mint, owner provenance, live integration/CI/deployment/diverse/L1 OPEN.
+- **Variant status:** H01-HLS-VARIANT merged #1309 at `1dda69ecf`, all 13 checks passed first attempt; local checkpoint below is historical.
+
+- [✓ 3.253.13 local] **PROTOCOL-01/H01-HLS-VARIANT: bind variant fetches to video provenance** — uploader namespace, signed tree and exact worker rendition key checked before storage; two synthetic-object HTTP/JWT disclosures denied, 28 new controls and 1,599 API tests plus eight subtests, Ruff and fresh same-model review pass. [Receipt](../security/scans/2026-10/repair-h01-hls-variant.md). HLS mint/segment provenance, integration/CI/deployment/diverse/L1 OPEN.
+- **Raw status:** H01-RAW merged #1307; previous local checkpoint below is historical, not deployment evidence.
+
+- [✓ 3.253.12 local] **PROTOCOL-01/H01-RAW: owner-bind recursive MinIO signing** — explicit owner, foreign/malformed stale suppression, per-entry uploader/ad-loader propagation; real synthetic SigV4 red -> denied green, review-fixed compatibility gap. 347 focused/1,570 API tests plus four subtests and lint/format, fresh same-model recheck. [Receipt](../security/scans/2026-10/repair-h01-raw-owner.md). Other provenance/CI/integration/deployment/diverse/L1 OPEN.
+- **Metadata status:** H01-META merged #1306 at `f3cacbff4`, all 13 first-attempt checks green; historical local tick below is not broader closure.
+
 - [✓ 3.253.5 local] **PROTOCOL-01/H01-META: bind stored media-reference signing to its owner** — original/thumbnail foreign keys denied before signing, valid/legacy/posted_by preserved; two real synthetic SigV4 baseline failures denied, 335 focused/1,533 API tests plus four subtests and lint/format, fresh same-model review. [Receipt](../security/scans/2026-10/repair-h01-metadata-owner.md). One sink only; recursive minio/other provenance/CI/services/deployment/diverse/L1 OPEN.
 - **Direct signer status:** H01-DIRECT merged #1305 at `d5f06c6d0`, all 13 first-attempt checks green; prior local checkpoint below does not close remaining sinks.
 
