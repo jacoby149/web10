@@ -1025,6 +1025,9 @@ export async function readFeed(): Promise<unknown[]> { return FEED_POSTS; }
 // — the feed filters out bare string refs), so the harness resolves string
 // refs against DISCOVER_MEDIA here, the same way the node's read does.
 export async function readFeedPage(): Promise<unknown> {
+  if (new URLSearchParams(window.location.search).get('feedError') === '1') {
+    throw new Error('Screenshot fixture: Following feed unavailable');
+  }
   const posts = FEED_POSTS.map((p) => {
     if (!p.media_refs?.length) return p;
     // The real read serves media_refs as ResolvedMediaRef objects (doc_id +

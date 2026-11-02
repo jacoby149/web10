@@ -813,6 +813,7 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
   useEffect(() => { setLikedMap({}); setDislikedMap({}); setRepostedMap({}); }, [actingIdentity]);
   const [posts, setPosts] = useState<PostRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<{ created_at?: string; score?: number } | null>(null);
@@ -943,6 +944,7 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
   const loadFeed = useCallback(async (cursor: { created_at?: string; score?: number } | null = null, knob: KnobState) => {
     const generation = engagementGeneration.current;
     setLoading(true);
+    setLoadFailed(false);
     try {
       const page = await readFeedPage({ limit: 20, cursor, knobState: knob });
       if (generation !== engagementGeneration.current) return;
@@ -962,18 +964,29 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
       // icon on load. Without this the feed "forgot" every like on refresh
       // and the next tap stacked a second doc (the "liked it, shows 2,
       // refresh shows 0" bug).
-      const { liked, disliked, reposted } = await readFeedReactions(
-        page.posts.map((p) => p._id || '').filter(Boolean),
-      );
-      if (generation !== engagementGeneration.current || getActingAuthor() !== actingIdentity) return;
-      setLikedMap(liked);
-      setDislikedMap(disliked);
-      setRepostedMap(reposted);
+      setLikedMap({});
+      setDislikedMap({});
+      setRepostedMap({});
+      try {
+        const { liked, disliked, reposted } = await readFeedReactions(
+          page.posts.map((p) => p._id || '').filter(Boolean),
+        );
+        if (generation !== engagementGeneration.current || getActingAuthor() !== actingIdentity) return;
+        setLikedMap(liked);
+        setDislikedMap(disliked);
+        setRepostedMap(reposted);
+      } catch (e) {
+        if (generation !== engagementGeneration.current) return;
+        console.warn('[social-feed] own reactions unavailable; keeping loaded posts:', e);
+      }
       LOG('loadFeed — page 1:', page.posts.length, 'posts, has_more:', page.has_more);
     } catch (e) {
       if (generation !== engagementGeneration.current) return;
       console.error('Failed to load feed:', e);
       setPosts([]);
+      setHasMore(false);
+      setNextCursor(null);
+      setLoadFailed(true);
     }
     setLoading(false);
   }, [actingIdentity, token?.username, token?.provider]);
@@ -1129,7 +1142,13 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
       </div>
 
       <div className="md:px-0">
-        {!posts.length ? (
+        {loadFailed ? (
+          <div role="alert" data-testid="feed-load-error" className="px-4 py-16 text-center">
+            <p className="text-foreground">Could not load your Following feed.</p>
+            <p className="mt-2 text-sm text-muted-foreground">Your follows have not been changed. Try loading it again.</p>
+            <Button className="mt-4" onClick={() => void loadFeed(null, knobState)}>Try again</Button>
+          </div>
+        ) : !posts.length ? (
           <FeedEmptyState />
         ) : (
           <>
