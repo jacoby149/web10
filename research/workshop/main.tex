@@ -60,31 +60,32 @@
 \begin{document}
 
 \begin{abstract}
-Email decentralized where your data \emph{goes}: a global identifier, sovereign
-per-provider stores, and client-mediated delivery let you message anyone on any
-server. What email did not decentralize is \emph{access}: your permissions,
-contacts, and blocking remain locked to one provider's identity system.
-\textbf{web10} extends the email model to all data formats \emph{and} to the
-access-control layer itself. Content and access relationships live in a shared
-columnar data plane; applications define their own queries over service-
-namespaced documents; and users manage group membership and service-scoped
-grants through a uniform permission vocabulary in which any principal on any
-node can hold any role in a group. The central mechanism is a query boundary:
-application queries name services, and the node supplies reader-filtered
-relations before executing joins and aggregations, so the access decision is
-made on the input, not patched onto the output. The network is user-addressed
-rather than server-federated: a user's client talks directly to the sovereign
-nodes its users follow on, each node re-authorizes every read against a
-verified token, and no node ever queries another node's store. We describe the
-access model, the query boundary, and the user-addressed network model, and we
-report a connected interoperability demonstration in which a game and a
-marketplace reuse social-written profiles through the same access boundary
-without changing the social application or adding node endpoints, with consent
-and revocation exercised in real browser flows. We also report the metadata
-fan-out cost of the access layer and the batching decision that addresses it.
-The cross-node read path---the runtime enforcement of the user-addressed
-model---is the active build on top of an identity and addressing substrate that
-is already in place.
+Email decentralized where your data \emph{goes}; it did not decentralize
+\emph{access}. If a mail provider bans you, you can front an alias and proxy it
+elsewhere---but that is a workaround you build yourself, not something the
+protocol gives you. For social data there is no such escape, and no such
+workaround: permissions, contacts, and blocking live inside one provider's
+identity system, so a single provider can suppress or shadowban a user's
+content and the audience goes with it. \textbf{web10} extends the email model
+to all data formats and to the access-control layer itself: the address is a
+DNS domain that belongs to the user, not the provider, so users own their
+audience and can move between providers without losing reach---and the
+provider cannot touch the DNS. Because follower relationships and access
+grants are the \emph{users'} data on the node, a provider that deletes them to
+ban a user is tampering with other users' data---a legal liability, not a
+platform feature. Content and access
+relationships share one columnar data plane; applications write their own
+queries over service-namespaced documents; and users grant and revoke access
+through a uniform permission vocabulary in which any principal on any node can
+hold any role in a group. The access decision is made at the query boundary:
+the node supplies reader-filtered relations before joins and aggregations run,
+so filtering happens on the input, not the output. The network is
+user-addressed rather than server-federated: a client talks directly to the
+sovereign nodes its users follow on, and no node ever queries another node's
+store. We describe this model and report a connected demonstration in which a
+game and a marketplace reuse social-written profiles through the same access
+boundary without changing the social application or adding node endpoints, with
+consent and revocation exercised in real browser flows.
 \end{abstract}
 
 \maketitle
@@ -446,6 +447,60 @@ targeted, not broadcast. Each node returns its own access-gated result set; the
 client performs a ranked merge. No node proxies or caches another node's data,
 so there is no node-to-node credential to steal and no stale-cache confusion.
 The node remains a dumb broker (D60): it does not learn to ``merge feeds.''
+
+\subsection{Domain as username: the address is portable}
+
+The \texttt{provider/username} principal is the address, but the username need
+not be an opaque string. Through \texttt{auth.web10.app}, a user can hook up a
+DNS domain to serve as their username---the domain \emph{is} the address. web10
+is compatible with any DNS provider: the domain is just a resolvable name, and
+the user can point it at any sovereign node. This makes the address portable in
+the strongest sense: it is a real, resolvable, user-owned identifier that
+survives provider changes by construction, and the user is not locked into any
+particular DNS registrar or hosting provider.
+
+The practical consequence is a new class of hosting: a user whose content has
+been deplatformed by a mainstream platform can point their domain at a
+sovereign node that will not remove it. Njalla, the hosting provider founded by
+the Pirate Bay team, is one such option---it refuses deplatforming
+requests and serves content that mainstream platforms will not host. Because
+web10 works with any DNS provider, a user can keep their domain with Njalla (or
+any other registrar) and point it at whichever sovereign node they choose. A
+normal DNS record just points to a server; it does not own anything. A web10
+domain as username is a \emph{data wallet}: the address, the audience, the
+permissions, and the data all belong to the user and move with them.
+
+The legal distinction is specific: when a mainstream platform ``deplatforms''
+a user, it deletes the follower relationships---but those relationships are
+the \emph{user's} data, not the platform's. The user is following a domain name;
+the following record belongs to the user. A platform that deletes a user's
+follower list is deleting the user's data, which is a different legal category
+than removing the platform's own content. web10 makes this distinction
+concrete: the following relationships are stored in the user's sovereign data
+plane, addressed by the user's domain, and the user can move them to a node
+that will not delete them.
+
+The enforcement path makes this concrete in the UI: web10 apps are implemented
+100\% in the UI, all on top of the web10 API. There is no platform backend in
+the read path. When the social client renders a user's feed, it pulls directly
+from the servers of the domains the user is following---using the domain as the
+address. The read path does not go through the banning API of any mainstream
+platform. The client holds the user's home-node token, groups the following set
+by domain, and queries each domain's node directly. The content arrives as
+authorized data, not as a platform-mediated feed. This is the user-addressed
+model of \S\ref{sec:network} in practice: the address is the domain, the read
+is client-mediated, and no central authority sits between the user and the
+content they follow.
+
+Njalla becomes the vault operator for creators the mainstream platforms have
+abandoned, and the data actually moves with them---not just the server
+pointer, but the identity, the following relationships, and the access grants.
+
+This is the internet-freedom property that the email model proved and the
+social platforms lost: your address is yours, you can switch providers, and no
+single platform can unilaterally erase your inbox or block your senders. web10
+restores that property for social data, and the domain-as-username mechanism
+makes it concrete rather than conceptual.
 
 \subsection{What is running and what is the active build}
 

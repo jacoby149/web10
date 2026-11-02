@@ -3,6 +3,11 @@ docs(v3): add domain-identity spec (`identity/domain-identity.md`) — the autho
 
 3.254.9 || 02.11.2026
 docs(v3): add custom-domain operator guideline (`setup/custom-domain.md`) — claim your web10 identity on your own domain via a DNS TXT record (`web10.v=1;provider=...;user=...;key=...`). The DKIM pattern for user identity: the domain is the claim, the TXT record is the proof, the node's key is the trust anchor. Njalla (njal.la) recommended for registrar (privacy, Costa Rica, no content policing). Authenticator UI flow specified (generate TXT value, display copy-paste instructions, poll for propagation). Docs-only, no code change. Complements the v4 identity registry (D93) as the per-domain half of the "your name, your node" story.
+3.254.6 || 02.11.2026
+docs(v4): add identity-registry spec (D93) — DNS-style name→node resolution for user portability. New `web10-v4/identity/registry.md` defines the registry's role (name lookup, no data storage), user-signed pointer updates, boring-infra hosting (Njalla registrar, Cloudflare DNS, Iceland/CH VPS), and the explicit non-goals (no wallet UX, no content moderation, no access-control enforcement). D93 recorded in decisions.md. Completes the "301 redirect" gap from ads-october/gaps.md.
+3.254.9 || 02.11.2026
+test(security): **reproduce pinned-ad disclosure after membership removal** - actual membership predicate denies a synthetic revoked reader while actual loader/ASGI read returns the creative and independently verified real synthetic SigV4 capability. Four history controls pass on SQLite and isolated ClickHouse-local 24.8.14.39 Memory tables; 1,749 API tests plus eight subtests, Ruff and fresh same-model review pass. Evidence only, no runtime repair or real-object/production-storage claim. Pinned membership repair, broader ad policy, rollout/diverse gates and protocol L1 remain OPEN; Shadowguard stays deferred v4.
+
 3.254.8 || 02.11.2026
 docs(strategy): **defer Shadowguard to web10 v4** - preserve the audience/group-permission continuity concept in the later parking lot, mark it outside the active v3 roadmap, and remove its execution lane and queued protocol-decision task. Not planned any time soon; no research/implementation assignment, release date or new dependency for current work. Explicit operator reactivation for v4 planning required. Documentation only.
 
