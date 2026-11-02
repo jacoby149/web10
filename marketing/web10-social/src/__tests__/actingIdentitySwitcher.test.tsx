@@ -39,6 +39,8 @@ describe('ActingIdentitySwitcher partial loading', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: /^Recovered\s*Group$/ }));
+    expect(mocks.select).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Use identity' }));
     expect(mocks.select).toHaveBeenCalledWith('recovered');
   });
 
@@ -47,7 +49,8 @@ describe('ActingIdentitySwitcher partial loading', () => {
     render(<ActingIdentitySwitcher />);
     fireEvent.click(screen.getByTestId('acting-identity-trigger'));
     expect(await screen.findByRole('alert')).toHaveTextContent('Identities could not be loaded');
-    fireEvent.click(screen.getByRole('button', { name: /alice\s*Personal identity/ }));
-    expect(mocks.select).toHaveBeenCalledWith(undefined);
+    expect(screen.getByRole('button', { name: /alice\s*Personal identity/ })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Use identity' })).toBeDisabled();
+    expect(mocks.select).not.toHaveBeenCalled();
   });
 });
