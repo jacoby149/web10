@@ -15,6 +15,30 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Group-as-Author Write Gate (01.11.2026)
+
+The `POST /v3/create` endpoint gains an optional `author_as` field (the
+group-as-author delegation path). Two independent gates enforce the trust
+boundary: (1) the caller must hold a role in the group that grants `create` on
+the service (`effective_role_perms` + `_effective_allows` — the D58
+per-service role map); (2) the group must be able to write in each target group
+(`can_write_group`, principal = group_id — the existing D58 write gate, just
+pointed at the group instead of the user). The app-contract gate runs on the
+real author (the token holder), not the group. Moderation checks the real
+author (`posted_by`), not the group. The `posted_by` column is server-set from
+the JWT — the client cannot forge it. 1345 API tests green (including the
+existing permission-matrix suite + two new update-path tests). L1 file-scan of
+`documents.py` + `clickhouse.py`: no new trust-boundary surface beyond the two
+existing gates; the `author_as` field is validated before any write; the
+`posted_by` column is never read from client input. The `POST /v3/update`
+endpoint gains a two-pass lookup for group-authored posts (first by author_key,
+then by posted_by) with the same Gate 1 check — a moderator who posted as the
+group can edit their post; a non-member gets a 403. **OPEN**: L2 call-graph
+scan (the import worker + bugbot also call `insert_document` — they pass
+`posted_by=""` which is correct for non-group posts but not explicitly tested);
+L3 service-scan; L4 project-wide. No C+I exploit replay (no new exploit class —
+the gates are existing primitives re-pointed at a new principal).
+
 ## Backup Publication (01.11.2026)
 
 L1-PKG-02 [local repair](scans/2026-10/repair-pkg02-backup-publication.md):

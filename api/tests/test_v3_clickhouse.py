@@ -115,6 +115,7 @@ class TestGetDocument:
                         datetime(2026, 1, 1),
                         "none",
                         "",
+                        "alice",
                     ),
                 ]
             )
@@ -122,6 +123,7 @@ class TestGetDocument:
             assert result["doc_id"] == "doc-1"
             assert result["body"]["text"] == "hello"
             assert result["author_key"] == "alice"
+            assert result["posted_by"] == "alice"
 
     def test_not_found(self):
         with _patch_client() as mock_client:
@@ -146,6 +148,7 @@ class TestUpdateDocument:
                         datetime(2026, 1, 1, 12, 0, 0),
                         "none",
                         "",
+                        "alice",
                     ),
                 ]
             )
@@ -161,6 +164,8 @@ class TestUpdateDocument:
             insert_call = mock_client.insert.call_args[0]
             row = insert_call[1][0]
             assert row[6] == original_created  # created_at position
+            # posted_by is preserved from the existing row (position 11)
+            assert row[11] == "alice"
 
     def test_returns_none_when_not_found(self):
         with _patch_client() as mock_client:
@@ -184,12 +189,23 @@ class TestReadDocuments:
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
                 [
-                    ("doc-1", "alice", "posts", '{"text":"hello"}', "", [], datetime(2026, 1, 1), datetime(2026, 1, 1)),
+                    (
+                        "doc-1",
+                        "alice",
+                        "posts",
+                        '{"text":"hello"}',
+                        "",
+                        [],
+                        datetime(2026, 1, 1),
+                        datetime(2026, 1, 1),
+                        "alice",
+                    ),
                 ]
             )
             results = ch.read_documents(author_key="alice", service="posts")
             assert len(results) == 1
             assert results[0]["doc_id"] == "doc-1"
+            assert results[0]["posted_by"] == "alice"
 
 
 # ---------------------------------------------------------------------------
@@ -1014,7 +1030,7 @@ class TestReadDocumentsInGroups:
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
                 [
-                    ("doc-1", "bob", '{"text":"hello"}', ["test"], datetime(2026, 1, 1), "", "none", ""),
+                    ("doc-1", "bob", '{"text":"hello"}', ["test"], datetime(2026, 1, 1), "", "none", "", "bob"),
                 ]
             )
             results = ch.read_documents_in_groups(
@@ -1074,7 +1090,7 @@ class TestReadDocumentById:
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
                 [
-                    ("doc-1", "bob", '{"text":"hello"}', ["tag1"], datetime(2026, 1, 1), "", "none", ""),
+                    ("doc-1", "bob", '{"text":"hello"}', ["tag1"], datetime(2026, 1, 1), "", "none", "", "bob"),
                 ]
             )
             doc = ch.read_document_by_id("doc-1", "alice", "posts")
@@ -2137,14 +2153,15 @@ class TestMedia:
             assert result["created_at"]
             assert result["updated_at"]
             mock_client.insert.assert_called_once()
-            # Positional insert must match the documents column count (11,
-            # including the v3 ad_preference columns ad_mode/ad_target) — a
-            # short row makes ClickHouse reject the insert (the e2e media
-            # confirm 500'd when the columns were added without this update).
+            # Positional insert must match the documents column count (12,
+            # including the v3 ad_preference columns ad_mode/ad_target +
+            # the group-as-author posted_by column) — a short row makes
+            # ClickHouse reject the insert.
             row = mock_client.insert.call_args[0][1][0]
-            assert len(row) == 11
+            assert len(row) == 12
             assert row[9] == "none"  # ad_mode
             assert row[10] == ""  # ad_target
+            assert row[11] == ""  # posted_by (empty for media docs)
 
     def test_list_media(self):
         with _patch_client() as mock_client:
@@ -2729,7 +2746,7 @@ class TestReadTagFilter:
     the (mocked) result set.
     """
 
-    _ROW = ("doc-1", "alice", '{"text":"hi"}', ["short"], datetime(2026, 1, 1), "", "none", "")
+    _ROW = ("doc-1", "alice", '{"text":"hi"}', ["short"], datetime(2026, 1, 1), "", "none", "", "alice")
 
     def test_single_tag_adds_has_clause_and_param(self):
         with _patch_client() as mock_client:

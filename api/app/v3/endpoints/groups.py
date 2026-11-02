@@ -496,12 +496,16 @@ def group_detail(group_id: str, token: str | None = None):
         "posts": [],
     }
     if is_member:
-        out["posts"] = ch.read_documents_in_groups(
+        posts = ch.read_documents_in_groups(
             group_ids=[group_id],
             member_key=principal,
             service="posts",
             limit=20,
         )
+        # Resolve media URLs server-side (owner-scoped to posted_by, the
+        # human who uploaded the media). Matches the /v3/read path — the
+        # client renders resolved URLs directly, no client-side fallback.
+        out["posts"] = ch.resolve_media_urls_in_docs(posts)
     return out
 
 

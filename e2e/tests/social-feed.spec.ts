@@ -619,7 +619,7 @@ test.describe('Social feed gauntlet — render → post → reload persists', ()
     expect(createIdx).toBeLessThan(secondReadIdx);
     // The public post targeted the discover board + the viewer's own followers
     // group (the scheme-agnostic shape: discover + a `…/followers` group).
-    const createLog = logs.find((l) => l.includes('createPost — visibility'));
+    const createLog = logs.find((l) => l.includes('createPost —'));
     expect(createLog).toBeTruthy();
     expect(createLog).toContain(DISCOVER_GROUP_ID);
     expect(createLog).toContain('/followers');

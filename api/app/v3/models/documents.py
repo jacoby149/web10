@@ -27,6 +27,12 @@ class CreateDocument(BaseModel):
     # The v3 ad preference (pinned | none). Stored in the ad_mode/ad_target
     # columns; the read serves a pinned doc with its ad inline.
     ad_preference: AdPreference | None = None
+    # Group-as-author: post as a group instead of as yourself. When set, the
+    # doc's author_key is the group_id and posted_by is the JWT username.
+    # The caller must hold a role in the group that grants `create` on the
+    # service (Gate 1), and the group must be able to write in each target
+    # group (Gate 2 — the existing can_write_group check, principal = group_id).
+    author_as: str | None = None
 
 
 class PowerMeanSort(BaseModel):

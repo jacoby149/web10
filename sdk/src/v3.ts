@@ -125,6 +125,11 @@ export interface V3Document {
   // operator's configured percentage. Both `ad` (creator's pinned) and
   // `node_ad` (the node's) can be present on the same doc.
   node_ad?: V3Document
+  // Group-as-author: the human who authored the doc. Always populated —
+  // for a normal post it equals author_key; for a group-authored post it
+  // is the JWT username while author_key is the group_id. Server-set,
+  // unforgeable.
+  posted_by?: string
 }
 
 export interface V3Group {
@@ -1036,7 +1041,7 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
     async create(
       collection: string,
       body: Record<string, unknown>,
-      opts?: { groups?: string[]; ad_preference?: V3AdPreference; ref_value?: string },
+      opts?: { groups?: string[]; ad_preference?: V3AdPreference; ref_value?: string; author_as?: string },
     ): Promise<V3Document> {
       const payload: V3Body = { service: collection, body }
       if (opts?.groups) payload.groups = opts.groups
@@ -1046,6 +1051,12 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       // request (not in the body) — the server stores it in the ref_value
       // column, which the read's ref filter + engagement counts key off.
       if (opts?.ref_value) payload.ref_value = opts.ref_value
+      // Group-as-author: post as a group instead of as yourself. When set,
+      // the doc's author_key is the group_id and posted_by is the JWT
+      // username. The caller must hold a role in the group that grants
+      // `create` on the service (Gate 1), and the group must be able to
+      // write in each target group (Gate 2).
+      if (opts?.author_as) payload.author_as = opts.author_as
       return v3Post<V3Document>('create', payload)
     },
 
@@ -1856,7 +1867,7 @@ export interface V3Client {
   oauth: V3OauthClient
 
   // CRUD with groups
-  create(collection: string, body: Record<string, unknown>, opts?: { groups?: string[]; ad_preference?: V3AdPreference; ref_value?: string }): Promise<V3Document>
+  create(collection: string, body: Record<string, unknown>, opts?: { groups?: string[]; ad_preference?: V3AdPreference; ref_value?: string; author_as?: string }): Promise<V3Document>
   read(collection: string, opts: { groups: string[]; limit?: number; offset?: number; ref?: string | string[]; sort?: PowerMeanSort; tags?: string[]; cursor?: string; order?: "asc" | "desc"; surface?: string }): Promise<V3Document[]>
   readRefCounts(collection: string, opts: { groups: string[]; ref: string | string[] }): Promise<Record<string, number>>
   trackContentEvent(docId: string, opts: { service: string; surface: string; type: string; payload?: string }): Promise<{ doc_id: string; recorded: boolean }>
