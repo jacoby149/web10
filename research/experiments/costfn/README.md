@@ -5,6 +5,7 @@
 At K1000, B readable medians were 7,535.705 ms per-group versus 213.980 ms
 batched; handler medians were 7,644.655 versus 363.305 ms. The paper now uses
 this internally consistent sweep rather than pooling it with the earlier trial.
+No startup/seed retry was needed; artifacts were collected and the droplet deleted.
 The [summary receipt](evidence/) and `check-paper.mjs` retain/verify the numbers.
 This is not capacity evidence; A is not a matched no-policy HTTP baseline and
 B-minus-A is not causal authorization overhead. Full E3 remains open.

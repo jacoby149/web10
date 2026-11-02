@@ -35,6 +35,46 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-01: Every reference mint needs its own uploader context
+
+[Reference HLS mint repair](scans/2026-10/repair-h01-hls-ref-mint.md) reproduces
+working foreign-prefix segment capabilities through main, ad and node-ad refs.
+Bind each mint to the same `posted_by or author_key` context used by its metadata
+resolver, never viewer/carrier identity. Drop stored manifest URLs before disabled
+or invalid refs return. Preserve valid siblings without coercing/normalizing keys.
+Actual resolver-to-mint composition checks three distinct uploaders in one output;
+46 new cases and 1,669 API tests plus eight subtests pass with same-model review.
+Owner/key consistency does not prove caller-selected owner provenance; legacy URL
+fields, persisted inputs, live playback, old token TTL and diverse sign-off remain
+open. Earlier direct-mint repair merged #1311; its last observed CI had a repeated
+Discover engagement failure, not an all-green release gate.
+
+### 2026-11-01: Deny the foreign tree before minting its stream token
+
+[Direct-document HLS mint repair](scans/2026-10/repair-h01-hls-direct-mint.md)
+replays a helper-minted, cryptographically verified foreign-prefix token against
+the actual segment HTTP endpoint and a key-sensitive synthetic object store.
+Variant denial alone was insufficient: a client can request the segment directly.
+The direct mint now requires an uploader-owned MinIO video key and strips stored
+manifest URLs, including disabled settings, without mutating inputs. Preserve
+`posted_by or author_key`, reader claims and opaque object keys. 24 new controls,
+1,623 API tests plus eight subtests and fresh same-model review support this
+source repair only. Resolved-ref/ad minting is a separate open source of foreign
+prefixes; namespace checks do not prove supplied-owner provenance or revoke old
+capabilities before TTL. Live services/CI/deployment/diverse review remain OPEN.
+
+### 2026-11-01: A readable rendition record is not an object-read grant
+
+[HLS variant repair](scans/2026-10/repair-h01-hls-variant.md) reproduces foreign
+and same-owner/different-tree manifest disclosure through actual HTTP/JWT with
+a key-sensitive synthetic object store. Variant fetches now require an uploader-
+owned raw video key, matching signed prefix and the worker's exact rendition key.
+`posted_by or author_key` is the owner, never the viewer. 28 new controls and
+1,599 API tests plus eight subtests pass, with fresh same-model review. This
+blocks one fetch sink, not foreign-prefix minting or direct signed segment use;
+those remain explicit follow-up work. Persisted injection, actual storage/player,
+CI/deployment and diverse sign-off remain unverified.
+
 ### 2026-11-01: Every recursive signer needs an explicit owner
 
 [H01 raw repair](scans/2026-10/repair-h01-raw-owner.md) reproduces a real
