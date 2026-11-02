@@ -621,6 +621,7 @@ export async function readGroupIdentity(groupId: string): Promise<unknown> {
   // Per-group faces so the My Groups list capture shows a mix of face states:
   // nova → banner + avatar, luna → banner only, kai → no face (gradient fallback).
   const faces: Record<string, unknown> = {
+    'web10/groups/users/me/studio': { name: 'Northstar Studio', status: 'published' },
     // The G4 create-flow capture: the draft's face (status:'draft', staged
     // settings in the face — decision 2).
     'web10/groups/users/me/new-group': {
@@ -1050,7 +1051,22 @@ export async function readFeedPage(): Promise<unknown> {
       .filter(Boolean);
     return { ...p, media_refs: resolved };
   });
-  return { posts, has_more: false, next_cursor: null };
+  const actingFixture = new URLSearchParams(window.location.search).get('acting') === '1';
+  const groupPost = {
+    _id: 'acting-post',
+    author_key: 'web10/groups/users/me/studio',
+    author_username: 'studio',
+    author_provider: 'web10',
+    posted_by: 'me',
+    profile: { display_name: 'Northstar Studio' },
+    group_identity: { name: 'Northstar Studio' },
+    text: 'New work from the studio. One shared identity, with the person who published it preserved in the audit trail.',
+    created_at: new Date().toISOString(),
+    likes: 12,
+    comments: 0,
+    reposts: 2,
+  };
+  return { posts: actingFixture ? [groupPost, ...posts] : posts, has_more: false, next_cursor: null };
 }
 export async function getFeedGroups(): Promise<string[]> {
   return FEED_POSTS.map((p) => `web10/groups/users/${p.author_username}/followers`);
@@ -1675,4 +1691,3 @@ const PROFILE_POSTS = [
     tags: ['studio'],
   },
 ];
-

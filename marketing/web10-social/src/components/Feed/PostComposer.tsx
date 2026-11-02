@@ -7,7 +7,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { createPost, createRepost, updatePost, uploadMedia, readProfile, resolveMediaRefs, fanOutToFollowers, readMyAds, getWapi } from '@/data';
+import { createPost, createRepost, updatePost, uploadMedia, readProfile, resolveMediaRefs, fanOutToFollowers, readMyAds, getWapi, readGroupIdentity } from '@/data';
+import { getActingAuthor, actingPostGroups } from '@/data/actingIdentity';
+import { getV3Client } from '@/data/v3';
+import { resolveFaceMedia, GROUP_FACE_SQL } from '@web10/discover/face';
 import type { MediaRecord, ProfileRecord, Visibility, AdRecord, AdAlbum, PostRecord, ResolvedMediaRef } from '@/data';
 import { mediaRefId } from '@/data/types';
 import { readSettings } from '@/data/settings';
@@ -403,6 +406,25 @@ export default function PostComposer({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragIdRef = useRef<number | null>(null);
 
+  // Capture the draft's identity once. Navigation changes never reauthor it.
+  const [authorAs] = useState<string | null>(() => editingPost ? (editingPost.author_key?.includes('/groups/') ? editingPost.author_key : null) : getActingAuthor() || null);
+  const [selectedGroup, setSelectedGroup] = useState<{ name: string; avatarUrl?: string } | null>(authorAs ? { name: authorAs.split('/').pop() || 'Group' } : null);
+  useEffect(() => {
+    if (!authorAs) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const identity = await readGroupIdentity(authorAs);
+        const faces = await resolveFaceMedia(async (sql, scope, prepare) => (await getV3Client().query(sql, { groups: scope, prepare })).rows, GROUP_FACE_SQL, [authorAs], 'group_id');
+        const face = faces.get(authorAs);
+        if (!cancelled) setSelectedGroup({ name: face?.name || identity.name || authorAs.split('/').pop() || 'Group', avatarUrl: face?.avatar_url });
+      } catch (e) {
+        console.warn('[social-composer] draft face unavailable:', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [authorAs, isEditing]);
+
   // The caption is a Tiptap editor (D85, rich-text.md "The write side"): the
   // user writes in a WYSIWYG (bold, italic, headings, lists, code, links) and
   // the markdown is stored under the hood — `text` is the markdown string,
@@ -776,7 +798,7 @@ export default function PostComposer({
       const adPreference = pinnedAd
         ? { mode: 'pinned' as const, target: pinnedAd._id }
         : { mode: 'none' as const };
-      await updatePost(editingPost._id || '', updates, adPreference);
+      await updatePost(editingPost._id || '', updates, adPreference, editingPost.author_key?.includes('/groups/') ? editingPost.author_key : undefined);
       console.log('[social-composer] post saved (edit)', editingPost._id);
       onPostCreated?.();
     } catch (e) {
@@ -798,12 +820,14 @@ export default function PostComposer({
     if (repostingTo) {
       setPosting(true);
       try {
-        await createRepost(repostingTo, markdown);
-        // Fan-out to followers' inboxes (a repost is a public post).
-        try {
-          await fanOutToFollowers({ _id: repostingTo._id, text: markdown || undefined, created_at: new Date().toISOString() });
-        } catch (fanOutErr) {
-          console.warn('Fan-out to followers failed (non-fatal):', fanOutErr);
+        await createRepost(repostingTo, markdown, authorAs, groups);
+        // Group reposts never use the human's follower delivery path.
+        if (!authorAs) {
+          try {
+            await fanOutToFollowers({ _id: repostingTo._id, text: markdown || undefined, created_at: new Date().toISOString() });
+          } catch (fanOutErr) {
+            console.warn('Fan-out to followers failed (non-fatal):', fanOutErr);
+          }
         }
         editor?.commands.clearContent();
         setHasText(false);
@@ -948,6 +972,12 @@ export default function PostComposer({
       // toggle — the tag is the server-side feed filter; the Music feed also
       // re-derives audio/* at render (the tag alone is client-asserted).
       const isMusic = mediaItems.length === 1 && mediaItems[0].isAudio;
+      // Keep explicit destinations; otherwise use the group's memberships.
+      let targetGroups: string[] | undefined = groups;
+      if (authorAs) {
+        targetGroups = groups || await actingPostGroups(authorAs);
+      }
+
       const postRecord = await createPost(
         {
           title: title.trim() || undefined,
@@ -957,12 +987,13 @@ export default function PostComposer({
           created_at: new Date().toISOString(),
           tags: isShort ? ['short'] : isMusic ? ['music'] : undefined,
         },
-        groups,
+        targetGroups,
         pinnedAd ? { mode: 'pinned', target: pinnedAd._id } : undefined,
+        authorAs || undefined,
       );
 
       // Fan-out to followers' inboxes (public posts only)
-      if (visibility === 'public') {
+      if (visibility === 'public' && !authorAs) {
         try {
           await fanOutToFollowers(postRecord);
         } catch (fanOutErr) {
@@ -1042,23 +1073,29 @@ export default function PostComposer({
           alternate profile. */}
       <div className="mb-3 flex items-center gap-3">
         <Avatar className="h-10 w-10 shrink-0">
-          {avatarUrl ? (
+          {selectedGroup?.avatarUrl ? (
+            <AvatarImage src={selectedGroup.avatarUrl} alt="" />
+          ) : !selectedGroup && avatarUrl ? (
             <AvatarImage src={avatarUrl} alt="" />
           ) : (
             <AvatarFallback className="bg-brand-muted text-brand-300 text-sm font-semibold">
-              {initials}
+              {selectedGroup ? (selectedGroup.name.charAt(0).toUpperCase()) : initials}
             </AvatarFallback>
           )}
         </Avatar>
         <div className="min-w-0 flex-1">
           <p className="truncate text-[0.9375rem] font-semibold text-foreground" data-testid="composer-author-name">
-            {profile?.display_name || 'You'}
+            {selectedGroup ? selectedGroup.name : (profile?.display_name || 'You')}
           </p>
-          {currentUsername && (
+          {selectedGroup ? (
+            <p className="truncate text-xs text-muted-foreground" data-testid="composer-author-handle">
+              Group
+            </p>
+          ) : currentUsername ? (
             <p className="truncate text-xs text-muted-foreground" data-testid="composer-author-handle">
               @{currentUsername}
             </p>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -1237,7 +1274,7 @@ export default function PostComposer({
                 </Button>
               )}
 
-              <div className="relative">
+              {authorAs ? <span className="text-xs text-muted-foreground">Group destinations</span> : <div className="relative">
                 <select
                   value={visibility}
                   onChange={(e) => setVisibility(e.target.value as Visibility)}
@@ -1256,7 +1293,9 @@ export default function PostComposer({
                     <Lock className="w-3.5 h-3.5 text-muted-foreground" />
                   )}
                 </div>
-              </div>
+              </div>}
+
+              {!isEditing && <span className="px-2 text-xs text-muted-foreground" data-testid="composer-acting-identity">Draft as {selectedGroup?.name || currentUsername || 'You'}</span>}
 
               <Button
                 variant="ghost"
@@ -1322,20 +1361,22 @@ export default function PostComposer({
              data-testid="post-submit"
              className="mt-3 h-11 w-full font-semibold"
            >
-             {posting ? (
-               <>
-                 <Loader2 className="w-4 h-4 animate-spin" />
-                 {isEditing ? 'Saving…' : repostingTo ? 'Reposting…' : 'Posting…'}
-               </>
-             ) : (
-               <>
-                 {isEditing
-                   ? 'Save'
-                   : repostingTo
-                     ? <><Repeat2 className="w-3.5 h-3.5" strokeWidth={2} /> Repost</>
-                     : <><Send className="w-3.5 h-3.5" /> Post</>}
-               </>
-             )}
+              {posting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  {isEditing ? 'Saving…' : repostingTo ? 'Reposting…' : 'Posting…'}
+                </>
+              ) : (
+                <>
+                  {isEditing
+                    ? 'Save'
+                    : repostingTo
+                      ? <><Repeat2 className="w-3.5 h-3.5" strokeWidth={2} /> Repost</>
+                      : authorAs
+                        ? <><Send className="w-3.5 h-3.5" /> Post as {selectedGroup?.name || 'Group'}</>
+                        : <><Send className="w-3.5 h-3.5" /> Post</>}
+                </>
+              )}
            </Button>
           </>
           )}

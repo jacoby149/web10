@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useActingAuthor, getActingAuthor, matchesActingAuthor } from '@/data/actingIdentity';
 import {
   readDiscoverFeed,
   readProfile,
@@ -391,6 +392,8 @@ function modeFromPath(pathname: string): DiscoverMode {
 }
 
 export default function DiscoverScreen({ mode: modeOverride }: { mode?: DiscoverMode }) {
+  const actingIdentity = useActingAuthor();
+  useEffect(() => { setLikedMap({}); setDislikedMap({}); setRepostedMap({}); }, [actingIdentity]);
   const { pathname } = useLocation();
   // The mode is normally derived from the route path (the path IS the mode).
   // An explicit `mode` override wins — the What's New screen embeds this board
@@ -544,6 +547,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
             // engine's delivery metrics (the same object the dashboard reads).
             readViewCounts(results.map((p) => p._id || '').filter(Boolean), [discoverId]),
           ]);
+          if (getActingAuthor() !== actingIdentity) return;
           const likesByPost: Record<string, number> = {};
           const dislikesByPost: Record<string, number> = {};
           const commentsByPost: Record<string, number> = {};
@@ -563,8 +567,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
               const type = (d.body as Record<string, unknown>)?.type as string | undefined;
               if (type === 'like') likesByPost[d.ref_value] = (likesByPost[d.ref_value] || 0) + 1;
               else if (type === 'dislike') dislikesByPost[d.ref_value] = (dislikesByPost[d.ref_value] || 0) + 1;
-              else if (type === 'repost') legacyRepostedByPost[d.ref_value] = true;
-              if (extractUsername(d.author_key) === token.username) {
+              if (matchesActingAuthor(d.author_key, token.username, actingIdentity || null)) {
                 if (type === 'like') likedByPost[d.ref_value] = true;
                 else if (type === 'dislike') dislikedByPost[d.ref_value] = true;
                 else if (type === 'repost') legacyRepostedByPost[d.ref_value] = true;
@@ -708,7 +711,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
 
       await Promise.all([engagement, profiles, fallbackMedia]);
     })();
-  }, []);
+  }, [actingIdentity]);
 
   // Build the synchronous inline-media map for a page (the node's read path
   // resolves every post's media inline — presigned thumbnail_url + read_url +
@@ -1106,7 +1109,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
                     const authorKey = `${post.author_username}@${post.author_provider}`;
                     const profile = profileMap[authorKey];
                     const mediaItems = mediaMap[post._id || ''] || [];
-                    const authorName = profile?.display_name || (post.author_username || '').replace(/[-_]/g, ' ');
+                    const authorName = post.group_identity?.name || profile?.display_name || (post.author_username || '').replace(/[-_]/g, ' ');
 
                     return (
                       <DiscoverHomeCard
@@ -1122,7 +1125,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
                         liked={!!likedMap[post._id || '']}
                         disliked={!!dislikedMap[post._id || '']}
                         reposted={!!repostedMap[post._id || '']}
-                        onAuthorClick={() => navigateToUserProfile(post.author_username || '', post.author_provider || '')}
+                        onAuthorClick={() => post.author_key?.includes('/groups/') ? navigate(`/groups/${encodeURIComponent(post.author_key)}`) : navigateToUserProfile(post.author_username || '', post.author_provider || '')}
                         onToggleReaction={(kind) => handleToggleReaction(post._id || '', kind)}
                         onToggleRepost={() => handleRepost(post)}
                         priority={index < 6}
@@ -1152,7 +1155,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
                       const authorKey = `${post.author_username}@${post.author_provider}`;
                       const profile = profileMap[authorKey];
                       const mediaItems = mediaMap[post._id || ''] || [];
-                      const authorName = profile?.display_name || (post.author_username || '').replace(/[-_]/g, ' ');
+                      const authorName = post.group_identity?.name || profile?.display_name || (post.author_username || '').replace(/[-_]/g, ' ');
 
                       // Post-format ads (ad-improvements.md): a `post`-format ad
                       // rides the post it's attached to but renders as its OWN
@@ -1170,7 +1173,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
                       // app-level composer — the PostCard's ONE edit path).
                       const isOwnPost =
                         !!getWapi()?.readToken()?.username &&
-                        post.author_username === getWapi()!.readToken()!.username;
+                        matchesActingAuthor(post.author_key || post.author_username, getWapi()!.readToken()!.username, actingIdentity || null);
                       const card = (
                         <PostCard
                           key={post._id || post.created_at}

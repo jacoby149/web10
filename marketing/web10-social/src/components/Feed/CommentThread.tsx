@@ -5,6 +5,7 @@
 // createThreadComment (top-level or reply), and the comment-like writer.
 import { readThreadComments, readThreadReplies, createThreadComment, uploadCommentPhoto, toggleReactionKind, updateComment, deleteComment } from '@/data';
 import { CommentThread as SharedCommentThread } from '@web10/discover';
+import { useActingAuthor } from '@/data/actingIdentity';
 
 interface CommentThreadProps {
   postId: string;
@@ -23,9 +24,11 @@ interface CommentThreadProps {
 }
 
 export function CommentThread(props: CommentThreadProps) {
+  const identity = useActingAuthor();
   return (
     <SharedCommentThread
       {...props}
+      actionIdentity={identity}
       readComments={readThreadComments}
       readReplies={readThreadReplies}
       createComment={createThreadComment}

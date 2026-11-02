@@ -34,6 +34,18 @@ substitutes only for constant SQL execution; no actual ClickHouse or retrieval.
 Three probes, 1,672 API tests plus eight subtests, Ruff and fresh same-model
 review pass. Finding remains OPEN, no runtime repair or protocol L1 advancement.
 
+## Acting Identity (02.11.2026)
+
+Acting-identity feature boundary work is recorded separately in
+[`acting-identity-review.md`](acting-identity-review.md). State OPEN: local
+endpoint/SDK/social controls, not exhaustive scan coverage, connected storage
+evidence or independent sign-off. No protocol-campaign gate is closed by it.
+Continuation review repaired deletion tombstone audit loss (failing generated-SQL
+regression before repair) and frontend identity/authority mismatches. Final local
+verification: 1,583 API tests plus eight subtests, 285 SDK tests, 1,584 social
+tests, typechecks/build and desktop/mobile switcher inspection. Connected
+multi-operator/revocation/concurrency and independent review remain OPEN.
+
 ## Reference HLS Mint Provenance (01.11.2026)
 
 Reference repair merged #1312 at `66330ed99`, all 13 checks passed first attempt.

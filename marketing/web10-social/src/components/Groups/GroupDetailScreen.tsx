@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useActingAuthor, matchesActingAuthor } from '@/data/actingIdentity';
 import {
   readGroupDetail,
   readGroupIdentity,
@@ -108,6 +109,7 @@ function formatCount(n: number): string {
 // the group.
 
 function GroupFeedPost({ post, media, groupId }: { post: PostRecord; media: MediaRecord[]; groupId: string }) {
+  const actingIdentity = useActingAuthor();
   const navigate = useNavigate();
   const { openComposer } = useComposer();
   const author = post.author_username || post.author || 'unknown';
@@ -133,6 +135,9 @@ function GroupFeedPost({ post, media, groupId }: { post: PostRecord; media: Medi
   useEffect(() => {
     let cancelled = false;
     const postId = post._id || '';
+    setLiked(false);
+    setDisliked(false);
+    setReposted(false);
     Promise.all([
       countComments(postId, [groupId]),
       token ? readReactions(postId, undefined, [groupId]) : Promise.resolve([]),
@@ -158,10 +163,10 @@ function GroupFeedPost({ post, media, groupId }: { post: PostRecord; media: Medi
       // v3 ownership is by username alone (a reaction's author_key is the
       // bare username — the provider compare was the v2 rule, 3.79.3 class).
       setLiked(!!reactions.find(
-        r => r.author_username === token.username && r.type === 'like',
+        r => matchesActingAuthor(r.author_key || r.author_username, token.username, actingIdentity || null) && r.type === 'like',
       ));
       setDisliked(!!reactions.find(
-        r => r.author_username === token.username && r.type === 'dislike',
+        r => matchesActingAuthor(r.author_key || r.author_username, token.username, actingIdentity || null) && r.type === 'dislike',
       ));
       // Repost (reposts.md): the count is the number of `repost_of` posts; the
       // fill is the reader's own repost post (the legacy reaction is a
@@ -170,7 +175,7 @@ function GroupFeedPost({ post, media, groupId }: { post: PostRecord; media: Medi
       setReposted(
         myReposts.has(postId) ||
         !!reactions.find(
-          r => r.author_username === token.username && r.type === 'repost',
+          r => matchesActingAuthor(r.author_key || r.author_username, token.username, actingIdentity || null) && r.type === 'repost',
         ),
       );
       // Likes and dislikes are counted separately (the heart and the thumb
@@ -179,7 +184,7 @@ function GroupFeedPost({ post, media, groupId }: { post: PostRecord; media: Medi
       setDislikeCount(reactions.filter((r) => r.type === 'dislike').length);
     }).catch((e) => console.error('Failed to load group post engagement:', e));
     return () => { cancelled = true; };
-  }, [post._id, groupId, token]);
+  }, [post._id, groupId, token, actingIdentity]);
 
   async function handleToggleReaction(kind: ReactionKind) {
     if (!token) return;
@@ -224,7 +229,8 @@ function GroupFeedPost({ post, media, groupId }: { post: PostRecord; media: Medi
   return (
     <PostCard
       post={post}
-      authorName={author}
+      authorName={post.group_identity?.name || author}
+      authorAvatar={post.avatar_url}
       authorUsername={post.author_username}
       authorProvider={post.author_provider}
       mediaItems={media}
@@ -244,7 +250,7 @@ function GroupFeedPost({ post, media, groupId }: { post: PostRecord; media: Medi
       onAuthorClick={(username) => navigate(`/u/${username}`)}
       postAuthor={post.author_username}
       groups={commentGroups}
-      isOwnPost={token ? post.author_username === token.username : false}
+      isOwnPost={token ? matchesActingAuthor(post.author_key || post.author_username, token.username, actingIdentity || null) : false}
       onPostUpdated={() => {}}
       testId="group-post-card"
       surface="group"
@@ -837,11 +843,14 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
   }
 
   const { posts } = detail;
-  const postRecords: PostRecord[] = posts.map(fromV3DocToPost);
   const canJoin = !detail.is_member && detail.join_policy !== 'invite_only';
   const displayName = identity.name || detail.name;
   const bannerUrl = identity.banner_ref ? mediaMap[identity.banner_ref]?.url : undefined;
   const avatarUrl = identity.avatar_ref ? mediaMap[identity.avatar_ref]?.url : undefined;
+  const postRecords: PostRecord[] = posts.map((doc) => {
+    const post = fromV3DocToPost(doc);
+    return doc.author_key === id ? { ...post, group_identity: identity, avatar_url: avatarUrl } : post;
+  });
   const hasAbout = Boolean(identity.description || (identity.tags && identity.tags.length) || identity.website);
   // The group has a "face" when it has any of the rich display metadata.
   const hasFace = Boolean(bannerUrl || avatarUrl || hasAbout);

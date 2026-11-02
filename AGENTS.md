@@ -322,6 +322,15 @@ does not merge.
 
 ## Auth model
 
+Social acting identity is account-scoped, per-tab client state, never a replacement
+credential. Generic `author_as` creates as the group with server-set `posted_by`;
+explicit delegated update/delete require current service `updateOwn`/`deleteOwn`
+grants and preserve the original audit actor. App-contract gates still use the
+human. Delegated `groups/list` requires a current create grant on the requested
+service and lists the group's memberships, without human owner self-healing.
+DMs, billing and administration retain personal authority. Local implementation
+and verification status: `knowledge-base/strategy/acting-identity.md`.
+
 Consent correlation is staged: the UI can prepare owned indexed replies for ID-bearing unified batches, but the SDK is not yet strict. IDs grant no authority; no-op/cancellation/account/batch lifecycle and SDK/browser integration remain close conditions.
 
 Explicit authenticator logout cancels pending consent, including unstarted work; a later login may hand back credentials but cannot approve the cancelled request. Account-picker selection can still review untouched requests. Delayed popup closes are bound to the current handoff generation, batch, principal and token.

@@ -48,6 +48,7 @@ legend { color: var(--color-muted-foreground); }
 .score { font-variant-numeric: tabular-nums; font-size: 1.5rem; }
 canvas { display: block; width: 100%; aspect-ratio: 1; background: var(--color-background); border: 1px solid var(--color-border); border-radius: var(--radius-sm); margin: 16px 0; touch-action: none; }
 .directions { display: grid; grid-template-columns: repeat(3,56px); justify-content: center; gap: 8px; margin-top: 16px; }
+.directions button { padding-inline: 8px; }
 .directions button:first-child { grid-column: 2; } .directions button:nth-child(2) { grid-column: 1; }
 form button { margin-top: 16px; } footer { margin-top: 32px; color: var(--color-muted-foreground); }
 @media(max-width: 767px) { .columns { grid-template-columns: 1fr; } main { padding: 24px 16px; } .panel { padding: 16px; } h1 { font-size: 2rem; } }

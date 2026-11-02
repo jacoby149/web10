@@ -4,6 +4,10 @@ import { fromV3DocToComment, fromResolvedMediaRef, extractUsername, type Comment
 import { sendNotification } from './notifications';
 import { readPostById, uploadMedia } from './posts';
 import { processImage, generateThumbnail, validateMedia } from '@/lib/mediaProcessing';
+import { getActingAuthor, matchesActingAuthor } from './actingIdentity';
+import { resolveFaceMedia, GROUP_FACE_SQL } from '@web10/discover/face';
+import { readReactionDocuments } from './reactions';
+import { readMutationAuthority } from './mutationAuthority';
 
 // ── Comments data layer (v3) ─────────────────────────────────────────────────
 // The threading model (comments.md) — the Facebook/Instagram shape:
@@ -136,6 +140,7 @@ export async function createComment(
   comment: Omit<CommentRecord, '_id'>,
   groupsOrPostAuthor?: string[] | string,
   postService?: string,
+  authorAs: string | null = getActingAuthor() || null,
 ): Promise<CommentRecord> {
   const groups = Array.isArray(groupsOrPostAuthor) ? groupsOrPostAuthor : undefined;
   const w = getV3Client();
@@ -160,7 +165,8 @@ export async function createComment(
   // the parent comment for a reply. Without it the comment is orphaned
   // (ref_value="" → the ref read never finds it).
   const refValue = comment.parent_id || comment.post_id;
-  const doc = await w.create('comments', body, { groups: targetGroups, ref_value: refValue });
+  if (!targetGroups.length) throw new Error('This comment has no authorized destination. Reload the post and try again.');
+  const doc = await w.create('comments', body, { groups: targetGroups, ref_value: refValue, ...(authorAs ? { author_as: authorAs } : {}) });
   // The write side (D69): nudge the right author (best-effort, fire-and-forget —
   // a resolve failure never affects the comment). A reply (parent_id set) →
   // the comment author; a top-level comment → the post author. The target
@@ -213,7 +219,10 @@ export async function updateComment(
   if (updates.text !== undefined) body.text = updates.text;
   if (updates.parent_id !== undefined) body.parent_id = updates.parent_id;
 
-  const doc = await w.update(id, body);
+  const existing = await w.readById(id, 'comments');
+  const groupAuthor = existing?.author_key?.includes('/groups/') ? existing.author_key : undefined;
+  if (!(await readMutationAuthority(existing.author_key, 'comments')).canEdit) throw new Error('Not authorized to edit this comment');
+  const doc = groupAuthor ? await w.update(id, body, { author_as: groupAuthor }) : await w.update(id, body);
   return fromV3DocToComment(doc);
 }
 
@@ -229,7 +238,11 @@ export async function deleteComment(
   _postService?: string,
 ): Promise<void> {
   const w = getV3Client();
-  await w.delete(id);
+  const existing = await w.readById(id, 'comments');
+  const groupAuthor = existing?.author_key?.includes('/groups/') ? existing.author_key : undefined;
+  if (!(await readMutationAuthority(existing.author_key, 'comments')).canDelete) throw new Error('Not authorized to delete this comment');
+  if (groupAuthor) await w.delete(id, { author_as: groupAuthor });
+  else await w.delete(id);
 }
 
 // ── The thread seam (comments.md) ────────────────────────────────────────────
@@ -255,9 +268,10 @@ export async function deleteComment(
 export interface ThreadComment extends CommentRecord {
   likeCount?: number;
   likedByMe?: boolean;
-  /** The reader authored this comment (the Edit/Delete gate, username-alone
-   *  ownership — the post's isOwnPost rule). Resolved in `enrichLikes`. */
+  /** At least one mutation is available; individual controls use the grants below. */
   isOwn?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
   /** The comment's photos, resolved to displayable media for the shared thread
    *  (the node's read path resolves `media_refs`; we map them to `MediaRecord`,
    *  which is structurally the shared package's `MediaItem`). */
@@ -279,12 +293,16 @@ function commentMedia(comment: CommentRecord): MediaRecord[] | undefined {
 
 /** Enrich a page of comments with likeCount + likedByMe (degrading reads). */
 async function enrichLikes(comments: CommentRecord[], groups: string[]): Promise<ThreadComment[]> {
+  const authorAs = getActingAuthor();
   const ids = comments.map((c) => c._id).filter((id): id is string => !!id);
   if (!ids.length) return comments as ThreadComment[];
 
   const w = getV3Client();
   const token = w.readToken();
   const quoted = ids.map((id) => `'${id.replace(/'/g, "''")}'`).join(', ');
+  const authorGroups = [...new Set(comments.map((comment) => comment.author_key).filter((key): key is string => !!key?.includes('/groups/')))];
+  const faces = authorGroups.length ? await resolveFaceMedia(async (sql, scope, prepare) => (await w.query(sql, { groups: scope, prepare })).rows, GROUP_FACE_SQL, authorGroups, 'group_id') : new Map();
+  const authorities = new Map(await Promise.all([...new Set(comments.map((c) => c.author_key || c.author_username))].map(async (author) => [author, await readMutationAuthority(author, 'comments')] as const)));
 
   const [countRows, ownDocs] = await Promise.all([
     w.query(
@@ -296,7 +314,7 @@ async function enrichLikes(comments: CommentRecord[], groups: string[]): Promise
       console.error('[comments] like-count query failed, degrading:', e);
       return { rows: [] as Record<string, unknown>[], count: 0 };
     }),
-    w.read('reactions', { groups, ref: ids }).catch((e) => {
+    readReactionDocuments(ids, groups).catch((e) => {
       console.error('[comments] own-reactions read failed, degrading:', e);
       return [] as Awaited<ReturnType<typeof w.read>>;
     }),
@@ -309,7 +327,7 @@ async function enrichLikes(comments: CommentRecord[], groups: string[]): Promise
   const likedByMe: Record<string, boolean> = {};
   if (token) {
     for (const doc of ownDocs) {
-      if (extractUsername(doc.author_key) !== token.username) continue;
+      if (!matchesActingAuthor(doc.author_key, token.username, authorAs || null)) continue;
       const type = ((doc.body as Record<string, unknown>).type as string) || 'like';
       if (type === 'like' && doc.ref_value) likedByMe[doc.ref_value] = true;
     }
@@ -322,15 +340,14 @@ async function enrichLikes(comments: CommentRecord[], groups: string[]): Promise
     Object.keys(likedByMe).length, 'by me',
   );
 
-  // isOwn (the Edit/Delete gate): the reader authored this comment. v3
-  // ownership is by username alone (the author_key is the bare username; the
-  // token's username is the reader's) — the same rule as the post's
-  // isOwnPost + the like's likedByMe. Absent token (anon) → never own.
+  // Reaction selection follows the acting identity; mutations follow the document.
   return comments.map((c) => ({
     ...c,
+    ...(c.author_key?.includes('/groups/') ? { author_name: faces.get(c.author_key)?.name } : {}),
     likeCount: c._id ? likeCount[c._id] ?? 0 : 0,
     likedByMe: c._id ? !!likedByMe[c._id] : false,
-    isOwn: !!token && !!c.author_username && c.author_username === token.username,
+    isOwn: !!authorities.get(c.author_key || c.author_username)?.canEdit || !!authorities.get(c.author_key || c.author_username)?.canDelete,
+    ...authorities.get(c.author_key || c.author_username),
   }));
 }
 
@@ -386,6 +403,7 @@ export async function readThreadReplies(
  * already uploaded (the app's `uploadMedia` seam).
  */
 export async function createThreadComment(args: {
+  identity?: string | null;
   postId: string;
   text: string;
   parentId?: string;
@@ -404,6 +422,7 @@ export async function createThreadComment(args: {
     },
     args.groups ?? args.postAuthor,
     args.postService,
+    args.identity === undefined ? getActingAuthor() || null : args.identity,
   );
 }
 

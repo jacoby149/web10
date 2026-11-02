@@ -60,6 +60,12 @@ Follow-up review reran all 163 focused cases and found no remaining blocker.
 
 ## Open Boundaries
 
+Publication preparation: merged `origin/dev` at `cd56f06fc`, preserving incoming
+acting-identity records and resolving documentation-only conflicts. Renumbered
+our evidence/repair entries to 3.254.4/3.254.5 without changing incoming history.
+Combined API verification: **1,706 passed plus eight subtests**, full API Ruff and
+whitespace checks pass. Earlier counts above remain the original repair evidence.
+
 Face projection authority and attached-ad loaders' independent access/latest-state
 semantics require separate bounded repairs/evidence. Stored reference provenance,
 legacy URLs, existing capability TTL, persisted ClickHouse inputs, connected

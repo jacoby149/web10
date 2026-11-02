@@ -62,6 +62,31 @@ review and 1,672 API tests plus eight subtests support the bounded evidence, not
 denial, rollout or L1 closure. Existing positive-disclosure assertions must become
 denial controls in the separate repair, not be treated as permanent desired policy.
 
+### 2026-11-02: Tombstones must retain the original audit actor
+
+Acting-identity continuation review found `delete_document` omitted `posted_by`
+from its tombstone INSERT/SELECT, dropping original attribution after replacement.
+Copy the stored column through deletion as well as update. A generated-SQL
+regression failed before repair and passed afterward; connected ClickHouse
+persistence remains unverified. UI mutation controls now resolve service-specific
+update/delete grants for the document author rather than treating navigation
+selection as authority; the node remains the live write gate. See
+`acting-identity-review.md` for bounded evidence and open release gates.
+
+### 2026-11-01: Acting identity is not a credential or a human membership
+
+The acting-identity feature reuses `author_as` rather than minting a group
+session. Creation uses the existing service create grant; delegated mutations
+check current `updateOwn`/`deleteOwn` grants independently and keep the
+app-contract principal human. Membership discovery for the selected group must
+not list or self-heal the human's groups. Reaction ownership must compare full
+group keys, not a slug or `posted_by`: multiple operators share one identity's
+state, while the original audit actor remains unchanged. Target denial must
+happen before insertion. Local tests use signed synthetic JWTs and storage
+doubles; they are not connected storage proof or independent security sign-off.
+Feature review record: `acting-identity-review.md`. Protocol campaign gates
+remain OPEN.
+
 ### 2026-11-01: Every reference mint needs its own uploader context
 
 [Reference HLS mint repair](scans/2026-10/repair-h01-hls-ref-mint.md) reproduces

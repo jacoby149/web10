@@ -33,6 +33,17 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases 
 
+- [✓ 3.254.3 local] **Batching inventory and execution plan** - source audit of backend database-call loops and client request fan-out, scoped bites and correctness/request-count gates in `batching-performance.md`. Documentation only; not an optimization or benchmark result.
+- [ ] **Execute batching-performance queue** - B01-B09 backend and C01-C14 client items in `batching-performance.md`; prioritize readable-set equivalence/promotion, owner-scoped media/face preparation and acting-identity request deduplication. Claim one sub-bite at a time; existing paint-on-read/E3/security lanes retain their gates.
+
+- [✓ 3.254.0 local] **App-wide acting identity implementation** - navigation switcher and identity-aware posts/comments/reactions/reposts, delegated mutations and membership lookup implemented and locally verified. Details and exact evidence: `acting-identity.md`. Not merged or deployed.
+- [ ] **Connected multi-operator/revocation acceptance** - real-storage shared-reaction, revocation, audit and concurrent-action replay; independent security review remains a release gate (`acting-identity.md`).
+
+Status correction: composer-only A4 exists on open PR #1308, not merged. Its
+historical completion references are superseded by the acting-identity gates.
+
+- [✓ 3.253.16 local] **E3 first K1000 trial** — one 1,000-creator seed measured at K10/100/1000; all 20 cells with 20 samples, 400 measurements. First-attempt seed succeeded, artifacts collected, droplet deleted. See research/experiments/costfn/K1000-RESULTS.md. Single sequential trial, not full E3 completion.
+
 - [✓ 3.253.11 local] **E3 preliminary results in manuscript** — K10/100 B/C median/p95 table and K1 contrary result, bounded abstract/conclusion, setup/provenance and limits. Table checked against report; PDF builds. Repeated trials, full feed and capacity remain open.
 
 - [✓ 3.253.10 local] **E3 first K10/100 trial** — 100 creators, 20 samples in each of 15 cells; results recorded in research/experiments/costfn/K100-RESULTS.md. One failed seed preceded a successful fresh-stack retry; cause unknown. Data collected, droplet deleted. Single sequential trial only; full E3 remains open.
@@ -72,8 +83,8 @@ reuses `POST /v3/app-contracts/revoke`. Full spec:
 
 ## L1 Security Scans
 
-- [✓ 3.253.16 local evidence] **PROTOCOL-01/H01-PREPARE-PROOF: replay fabricated query-owner signing** — actual compiler/ASGI/resolver/real synthetic SigV4 with SQLite constant execution; anon/auth foreign issuance and unprepared no-sign control, 1,672 API tests plus eight subtests, Ruff and fresh same-model review pass. [Receipt](../security/scans/2026-10/h01-query-owner-proof.md). Finding OPEN, no runtime repair or ClickHouse/live retrieval claim.
-- [✓ 3.253.17 local carrier] **PROTOCOL-01/H01-PREPARE-REPAIR: bind prepared capabilities to canonical authorized data** — media/ad carrier fields rebound through safe-query reads; retained foreign probes denied, canonical ad/HLS three-uploader composition and aggregate behavior pinned. 163 focused/1,694 API tests plus eight subtests, Ruff and same-model re-review pass. [Receipt](../security/scans/2026-10/repair-h01-query-carrier.md). Carrier slice only; face/ad-loader/ClickHouse/connected/CI/rollout/diverse/L1 gates OPEN.
+- [✓ 3.254.4 local evidence] **PROTOCOL-01/H01-PREPARE-PROOF: replay fabricated query-owner signing** — actual compiler/ASGI/resolver/real synthetic SigV4 with SQLite constant execution; anon/auth foreign issuance and unprepared no-sign control, 1,672 API tests plus eight subtests, Ruff and fresh same-model review pass. [Receipt](../security/scans/2026-10/h01-query-owner-proof.md). Finding OPEN, no runtime repair or ClickHouse/live retrieval claim.
+- [✓ 3.254.5 local carrier] **PROTOCOL-01/H01-PREPARE-REPAIR: bind prepared capabilities to canonical authorized data** — media/ad carrier fields rebound through safe-query reads; retained foreign probes denied, canonical ad/HLS three-uploader composition and aggregate behavior pinned. 163 focused/1,694 API tests plus eight subtests, Ruff and same-model re-review pass. [Receipt](../security/scans/2026-10/repair-h01-query-carrier.md). Carrier slice only; face/ad-loader/ClickHouse/connected/CI/rollout/diverse/L1 gates OPEN.
 - [ ] **PROTOCOL-01/H01-PREPARE-FACE: bind joined face capability authority** — own query face prepare/focused tests/security KB; reproduce projected face authority, canonically bind authorized face bodies/uploaders without breaking joined person/group faces. Gates: red -> denied green, positive public/cross-user/group controls, <=500-line repair, fresh intent review, KB write-back and all CI green. Coordinate shared query ownership; ad-loader authority remains separate.
 - **Reference mint status:** H01-HLS-REF-MINT merged #1312 at `66330ed99`, all 13 checks passed first attempt; historical local checkpoint below is not whole-media closure.
 
@@ -1206,6 +1217,14 @@ all unchecked boxes. The numbers the industry track will demand:
 - [ ] **E2E CI blocker: ClickHouse `group_contracts.tags` schema race** (found via PR #1292, pre-existing on `dev`) — e2e shards 1/4 and 2/4 fail on a fresh stack with `Code: 47. DB::Exception: Unknown expression identifier 'tags' in scope … FROM group_contracts` (surfaced on `POST /setup/configure` 500, and downstream via the missing `updated_at` version column). The `tags` column is added by a boot-time `ALTER TABLE` self-heal in `api/app/v3/services/clickhouse.py` (3.116.1, D78), but a query can run against `group_contracts` before that ALTER has committed, so the column is absent. **Fix:** make the `tags` (and `updated_at`/`membership_visibility`/`discoverable`) column additions synchronous + guaranteed before any `group_contracts` read, or add the columns to the initial DDL template so they exist at table creation; add a regression test that boots a fresh ClickHouse and immediately runs a `group_contracts` read. **Gates:** the full e2e suite green on a clean stack. **Acceptance bar:** a fresh e2e run (all four shards) passes with no `Unknown expression identifier` errors on `group_contracts`.
 
 **The writing plan (after the data lands):**
+
+- [✓ 3.253.21] **Integrate PR #1313 K1000 results into the paper** — use the later 1,000-creator K10/100/1000 sweep as the main twelve-row B/C table; update abstract/conclusion, 20-cell/400-sample accounting, baseline/K1/growth interpretation and provenance. Retain source narrative and machine-readable summary, validate all 48 table values and ratios; earlier trial stays separate. No new run or full E3 closure.
+
+- [✓ 3.253.20] **Integrate E4b into the paper's argument** — connected profile reuse now appears in abstract/introduction/contributions, application service table and abbreviated join, actual screenshot figure, dedicated correctness evaluation and conclusion. Completed composition evidence is separated from pending performance; ten-page PDF built and inspected. Not whole-paper readiness or broader evaluation completion.
+
+- [✓ 3.253.19] **E4b connected interoperability evidence** — dedicated disposable runner executes real desktop/375px popup consent, social-written distinct-name profile reuse in Snake/Marketplace, exact joins, app revocation/UI denial and detail reload; existing two-author HTTP module verifies independent app/group controls. Final fresh-stack matrix: three passed, zero retries/skips, 16 inspected captures, retained patch/overlay and receipts; collect-before-destroy and droplet deletion verified. Marketplace startup race repaired with red/green regression. Paper subsection/figure added. Scope: development stack, synthetic data, same-origin hosted demos; not the complete social-feed timing runner. Details: `research/interoperability-demo/RESULTS.md`.
+
+- [✓ 3.253.18] **E4b dedicated browser-demo folder** — `research/interoperability-demo/` owns the inherited browser scenario, standalone desktop/375px config and evidence instructions. Standard E2E discovery retained. Four viewport/scenario combinations discovered; Docker unavailable, connected evidence and real app-consent repair remain open.
 
 - [✓ 3.251.9] **E4b interoperability correctness tooling** — `research/experiments/social/interop.mjs` joins app-B scores/listings to actual social-written profiles with distinct-Origin app grants and independent group-access checks; offline failure/corruption/pacing regressions pass. Tooling only: Docker execution, clickable apps and E4b empirical evidence remain open. Next: execute the isolated runner on a disposable host and inspect `interop.*` operations before promoting claims.
 

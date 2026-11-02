@@ -1,7 +1,14 @@
 # Multi-App Generality Demonstration
 
-**Status: correctness harness implemented; clickable static apps hosted on the
-marketing UI; connected execution pending.**
+**Status: bounded connected demonstration verified on 2 November 2026.**
+The dedicated [interoperability runner](interoperability-demo/README.md) completed
+real desktop/mobile consent, social-profile reuse, UI/API joins and browser app
+revocation, plus the existing two-author HTTP app/group controls. See
+[RESULTS.md](interoperability-demo/RESULTS.md) for failures, source snapshot,
+cleanup and limits; inspected paper screenshots and receipts are retained there.
+The demos share a browser origin; developer labels are application roles, not an
+independent-developer study. The broader combined posts/profile/scores query and
+Most Popular probe below remain planned, not newly demonstrated.
 
 The first executable slice is `experiments/social/interop.mjs`, run after feed
 measurements by the isolated social scenario. It reads profiles produced by real
@@ -15,7 +22,9 @@ new node tables or endpoints.
 
 This slice uses HTTP requests carrying a distinct `http://snake.localhost` Origin;
 owner requests from the configured authenticator Origin install the app grants.
-Offline orchestration tests pass, but are not connected evidence.
+Offline orchestration tests pass, but are not connected evidence. This module's
+actual joins and controls have now passed through the dedicated demo runner;
+the complete social-feed measurement runner remains a separate execution gate.
 See `experiments/social/README.md` for the disposable-host gate. Shared document
 format knowledge is required; no bespoke inter-app API is required. The developer
 labels below describe application roles, not an independent-developer user study.
@@ -46,13 +55,14 @@ web10 app. They share the boundary runtime at
 story is documented at `/docs/interop` (`public/docs/interop.md`) in the
 marketing docs sidebar, where the demos are linked as Demo Apps.
 
-An e2e gauntlet (`e2e/tests/interop-demos.spec.ts`) exercises both apps
-against the full local stack: real social login writes the profile, the app
-saves a score / publishes a listing, the UI renders the joined identity, and
-the same cross-service join is re-asserted through `/v3/query` from the app's
-origin. Screenshots are captured along the way into
-`.context/interop-screenshots/` (overridable via `INTEROP_SHOT_DIR`) as paper
-evidence; screenshot capture never fails the assertions.
+The browser scenario (`interoperability-demo/interop.spec.ts`, also discovered
+through `e2e/tests/interop-demos.spec.ts`) exercises both apps against the full
+local stack: real social login writes the profile, the app saves a score /
+publishes a listing, the UI renders the joined identity, and the same
+cross-service join is re-asserted through `/v3/query` from the app's origin.
+Mandatory screenshots are captured into each run's
+`.context/interoperability-demo/run-*/screenshots/` directory. The runner fails
+if any required capture or matrix case is missing.
 
 These are the Part 2/Part 3 deliverables of this spec, realized as hosted
 demos rather than paper-only artifacts. The "Most Popular" analytics probe
@@ -302,10 +312,11 @@ in the evaluation.
       both apps use only the universal CRUD + query path with app-named
       services; no `api/` change.)
 - [✓] Screenshot each page (desktop + 375px mobile) for the paper.
-      (Captured along the way by `e2e/tests/interop-demos.spec.ts` into
-      `.context/interop-screenshots/`; static-page shots via
-      `scripts/dev-shot.sh`.)
-- [ ] Draft the §3.4/§3.5 expansion with the table and narrative paragraph.
+      (Actual connected captures from 2 November 2026, desktop + 375px app
+      viewports, in `interoperability-demo/figures/`; all 16 originals retained
+      with the run receipt.)
+- [✓] Draft the multi-app subsection and actual browser-identity figure in
+      `workshop/main.tex`, bounded to profile reuse and verified controls.
 - [ ] Link all static pages as paper artifacts (pinned revision, same as all
       other implementation links).
 - [ ] Decide title: "Social Data Platform" (honest, narrow) vs. "User Data

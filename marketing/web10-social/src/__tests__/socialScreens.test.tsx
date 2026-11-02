@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import '@testing-library/jest-dom';
+import * as v3 from '@/data/v3';
 
 // Mock lucide-react icons as simple span elements (any icon, no manual list)
 import { lucideMock } from './helpers/lucideMock';
@@ -18,6 +19,7 @@ vi.mock('@/data', async (importOriginal) => {
     readPullFeed: vi.fn().mockResolvedValue([]),
     getFeedGroups: vi.fn().mockResolvedValue([]),
     readFeedEngagement: vi.fn().mockResolvedValue({ likes: {}, comments: {} }),
+    readFeedReactions: vi.fn().mockResolvedValue({ liked: {}, disliked: {}, reposted: {} }),
     readSettings: vi.fn().mockResolvedValue({ defaultVisibility: 'public' }),
     saveSettings: vi.fn().mockResolvedValue({ defaultVisibility: 'public' }),
     readPost: vi.fn().mockResolvedValue(null),
@@ -115,7 +117,10 @@ vi.mock('@/data/messagesUnread', () => ({
 describe('FeedScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(v3.getV3Client(), 'readToken').mockReturnValue({ username: 'testuser', provider: 'test.localhost' } as ReturnType<ReturnType<typeof v3.getV3Client>['readToken']>);
   });
+
+  afterEach(() => { vi.restoreAllMocks(); });
 
   it('renders empty state with subtle import link', async () => {
     const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
@@ -402,7 +407,7 @@ describe('FeedScreen', () => {
     // swap lives there, not in the surface).
     fireEvent.click(screen.getByTestId('dislike-button'));
     await waitFor(() => {
-      expect(toggleReactionKind).toHaveBeenCalledWith('p1', 'dislike');
+      expect(toggleReactionKind).toHaveBeenCalledWith('p1', 'dislike', undefined);
     });
   });
 

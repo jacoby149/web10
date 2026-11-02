@@ -12,7 +12,7 @@ vi.mock('@/data', async (importOriginal) => {
   const original = await importOriginal() as Record<string, unknown>;
   return {
     ...original,
-    readThreadComments: vi.fn().mockResolvedValue([]),
+    readThreadComments: vi.fn().mockResolvedValue({ comments: [], nextCursor: null, replyCounts: {} }),
     createThreadComment: vi.fn().mockResolvedValue({ _id: 'c1', text: 'hi' }),
   };
 });
