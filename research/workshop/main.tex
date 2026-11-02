@@ -1121,52 +1121,96 @@ require targeted testing.
 \section{Related Work}
 \label{sec:related}
 
-\textbf{Decentralized social data.} ActivityPub~\cite{activitypub2018} defines
-client/server and federated server/server activity delivery. ATProto's
-repositories, relays, and AppViews separate storage from application views and
-support user agency and provider switching~\cite{kleppmann2024}. web10 focuses
-on query composition within a node: app-defined service queries read a shared
-store through relations filtered for the reader at request time. Federation
-and provider migration address complementary system boundaries.
+The contribution is a \emph{combination}, not a single invention. Each
+capability in Table~\ref{tab:capabilities} has prior art; the gap is that no
+prior system combines all five---user-owned data in any format, user-managed
+fine-grained access, access that is cross-node-addressable, composable
+application-defined query, and a user-addressed network---in one system. We
+position web10 against the closest work in each dimension and state the
+specific gap each leaves.
 
-Solid separates applications from personal data stores~\cite{solid2016}, with
-social application work~\cite{solid-apps2016} and a maintained Community Solid
-Server~\cite{css2024}. WAC supports resource permissions and group agents
-through \texttt{acl:agentGroup}~\cite{wac2022}; ACP includes agent, client, and
-issuer matching~\cite{acp2022}. web10 packages group membership,
-join policies, and per-service role maps with a shared relational query path.
-Pods are logical stores that need not each occupy a separate server; cross-store
-query cost depends on deployment, caching, indexing, and query strategy. The
-comparison here concerns data placement and query interfaces; a performance
-comparison would require a matched workload and deployment.
+\textbf{Decentralized social data.}
+ActivityPub~\cite{activitypub2018} (Mastodon) defines client/server and
+federated server/server activity delivery; its authorization is
+platform-defined---follow/block and collection-level visibility---not
+per-principal grants over application-defined services. ATProto~\cite{kleppmann2024}
+(Bluesky) separates repositories, relays, and AppViews, supporting user agency
+and provider switching; its visibility model is likewise collection-level, with
+AppViews providing application-defined \emph{reads} but not user-managed
+\emph{grants}. Both decentralize the data plane; neither decentralizes the
+access layer. web10's distinction is directional: the access model is
+user-managed and service-scoped, and the query is application-defined, not
+platform-defined.
 
-\textbf{Cloud IAM.} AWS IAM (documentation)~\cite{awsiam} and the
-RBAC/ABAC literature~\cite{ferraiolo1992, sandhu1996, abac2014} provide the
-policy concepts web10 adapts at the user boundary: principals, roles,
-service-scoped operations, revocable grants. The move in this paper is
-directional---a familiar policy vocabulary exposed to users about their own
-content and groups, orchestrated by the API and query layer. At industrial
-scale, relationship-based authorization (Zanzibar~\cite{zanzibar2019}) shows
-a uniform ACL data model and consistency as a first-class problem. Its
-consistency guarantees motivate explicit evaluation of web10's revocation
-visibility. TAO~\cite{tao2013} provides a social-graph storage precedent, whereas
-web10 composes application queries over service-namespaced documents in a
-columnar store.
+\textbf{Solid: the closest prior work.}
+Solid~\cite{solid2016} separates applications from personal data stores (Pods),
+with social application work~\cite{solid-apps2016} and a maintained Community
+Solid Server~\cite{css2024}. Its access model is the most developed of any
+decentralized social system: WAC supports resource permissions and group agents
+through \texttt{acl:agentGroup}~\cite{wac2022}, and ACP adds agent, client, and
+issuer matching with allow/deny mode sets~\cite{acp2022}. web10 does not claim
+Solid lacks group or client authorization; it has both. The distinction is in
+the \emph{shape} of the model. Solid's access control is \emph{resource-centric}
+---ACLs attached to linked-data resources and containers, evaluated per
+resource. web10's is \emph{service-centric} ---a uniform role/grant vocabulary
+(principal class $\times$ service $\times$ operation) in which a role is a
+per-service permission map, the same shape across the app-trust and
+person-trust layers, and the grant is a row naming a globally addressable
+principal. Concretely: Solid answers ``who may read or write this
+\emph{resource}?''; web10 answers ``what \emph{operations} may this
+\emph{principal class} perform on this \emph{service}, in this \emph{group},
+under this \emph{app contract}?'' The latter is the IAM policy shape
+(principal, service, operation, grant) exposed to the end user, not an
+infrastructure operator. A second distinction is the query surface: Solid's
+cross-Pod query cost depends on deployment, caching, and linked-data traversal
+strategy; web10 composes application-defined SQL over a shared columnar store
+with the access decision made on the input (\S\ref{sec:enforcement}). A
+performance comparison would require a matched workload and deployment; we do
+not claim one here.
 
-\textbf{Multi-tenant isolation.} The database literature on tenant
-isolation---shared tables with an organization identifier
-(Force.com~\cite{force2009}), schema-mapping techniques
-~\cite{aulbach2008}, and the shared-versus-separate spectrum
-~\cite{jacobs2007}---is the closest systems ancestor. web10's key-space per
-user makes the \emph{end user} the logical tenant. Authorship uses
+\textbf{Cloud IAM and relationship-based authorization.}
+AWS IAM (documentation)~\cite{awsiam} and the RBAC/ABAC
+literature~\cite{ferraiolo1992, sandhu1996, abac2014} provide the policy
+concepts web10 adapts at the user boundary: principals, roles, service-scoped
+operations, revocable grants. The move is directional---a familiar policy
+vocabulary exposed to \emph{users} about their own content and groups,
+orchestrated by the API and query layer, rather than to infrastructure
+operators about cloud resources. At industrial scale, Zanzibar~\cite{zanzibar2019}
+is the closest prior art in \emph{relationship-based} authorization: a uniform
+ACL data model and configuration language across hundreds of services, with
+consistency as a first-class problem (causal ordering of ACL updates, snapshot
+reads). Zanzibar's model is \emph{infrastructure-side}---the operator defines
+the relationships and the service enforces them; the end user is not the policy
+administrator. web10 inverts the boundary: the \emph{user} defines the grants,
+the \emph{principal is globally addressable across nodes}, and the enforcement
+is at the query layer over a shared columnar store. Zanzibar's consistency
+guarantees motivate the explicit revocation-visibility evaluation we leave as
+forward scope (\S\ref{sec:limits}); we do not claim equivalent consistency
+here. TAO~\cite{tao2013} provides the deployed precedent for \emph{read-time}
+privacy checking at social-graph scale (a billion reads/sec, privacy check per
+item, pull not push); web10's query boundary is the same idea---every row
+access-checked on its way out---applied to service-namespaced documents in a
+columnar store with the check expressed as a reader-filtered CTE rather than a
+per-item predicate.
+
+\textbf{Multi-tenant isolation and row-level security.}
+The database literature on tenant isolation---shared tables with an
+organization identifier (Force.com~\cite{force2009}), schema-mapping
+techniques~\cite{aulbach2008}, and the shared-versus-separate
+spectrum~\cite{jacobs2007}---is the closest systems ancestor. web10's
+key-space per user makes the \emph{end user} the logical tenant, taking the
+spectrum to its limit: not one tenant per organization, but one logical tenant
+per end user, in a shared columnar store. Authorship uses
 \texttt{author\_key}; shared reads use authorized group relations rather than
-a physical database boundary.
-PostgreSQL row-security policies~\cite{postgres-rls} are an alternative location
-for dynamic access enforcement. Matched policy and workload execution
-(\S\ref{sec:method}) can distinguish the costs of these enforcement placements.
-ClickHouse~\cite{clickhouse2024}
-supplies the columnar execution engine; web10 supplies the access orchestration
-above it, including metadata resolution, SQL compilation, and result preparation.
+a physical database boundary. PostgreSQL row-security
+policies~\cite{postgres-rls} are the alternative enforcement location: per-row
+policy evaluation inside the database engine. web10 places enforcement above
+the engine---the reader-filtered CTE is constructed in the application layer
+before the query reaches ClickHouse~\cite{clickhouse2024}---which is what makes
+the access decision composable with application-defined joins and aggregation.
+A matched policy and workload comparison (\S\ref{sec:method}) can distinguish
+the costs of these placements; we report the design difference here and leave
+the cost comparison as forward scope.
 
 %=============================================================================
 \section{Conclusion}
