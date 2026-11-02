@@ -1,4 +1,4 @@
-3.254.0 || 02.11.2026
+3.254.6 || 02.11.2026
 docs(v4): add identity-registry spec (D93) — DNS-style name→node resolution for user portability. New `web10-v4/identity/registry.md` defines the registry's role (name lookup, no data storage), user-signed pointer updates, boring-infra hosting (Njalla registrar, Cloudflare DNS, Iceland/CH VPS), and the explicit non-goals (no wallet UX, no content moderation, no access-control enforcement). D93 recorded in decisions.md. Completes the "301 redirect" gap from ads-october/gaps.md.
 3.254.5 || 02.11.2026
 fix(query): **canonically re-read prepared media/ad carriers before capability minting** — replace projected owner/body/ad preferences through the existing safe-query boundary, drop supplied inline ads and preserve posted_by. Retained foreign-signing probes denied; aggregate compatibility and actual ad/resolver/HLS composition pinned. 163 focused/1,694 API tests plus eight subtests, focused Ruff and same-model re-review pass. Local carrier repair only: face/ad-loader authority, ClickHouse/connected/CI/rollout/diverse gates and protocol L1 remain OPEN.
