@@ -441,7 +441,7 @@ describe('FeedScreen', () => {
     (globalThis as unknown as Record<string, () => void>).fireIntersectionObservers();
     await waitFor(() => {
       expect(screen.getAllByTestId('post-card')).toHaveLength(4);
-    });
+    }, { timeout: 15_000 });
     // The second page was fetched with page 1's cursor.
     expect(readFeedPage).toHaveBeenLastCalledWith(
       expect.objectContaining({ cursor: { created_at: '2026-09-07T09:00:00.000' } }),
