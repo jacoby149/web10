@@ -1,3 +1,6 @@
+3.253.6 || 01.11.2026
+fix(media): **owner-bind recursive raw-MinIO signing and preserve ad uploader context** — require explicit owner, suppress foreign/malformed/stale leaf URLs and keep valid siblings; propagate each document/ad uploader, including posted_by through actual ad loaders. Real synthetic SigV4 foreign capability red -> denied green; review caught and repaired two ad compatibility failures. 347 focused/1,570 API tests plus four subtests, lint/format and fresh same-model review pass. Caller-owner authority, HLS/legacy URL provenance, CI/integration/deployment/diverse gates remain OPEN, no whole-media/L1 closure.
+
 3.253.5 || 01.11.2026
 fix(media): **bind stored original and thumbnail signing to the media owner** — owner-scoped metadata no longer grants signing authority for foreign keys; reject each supplied bad key without stale fallback while retaining valid companions, posted_by resolution and keyless legacy behavior. Two independently verified real synthetic SigV4 baseline failures become denied-green; 335 focused/1,533 API tests plus four subtests, lint/format and fresh same-model review pass. One metadata sink only: recursive minio/HLS/legacy-URL/owner-context provenance, CI/services/deployment/diverse gates remain OPEN, no class-wide/L1 closure.
 
