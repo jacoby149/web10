@@ -30,6 +30,12 @@ import pytest
         "pinned-member-revoked",
         "pinned-member-rejoined",
         "pinned-member-never",
+        "pinned-member-revoked-tie",
+        "pinned-member-revoked-other-member",
+        "pinned-member-revoked-other-group",
+        "pinned-member-alternate-group",
+        "pinned-member-active-group-uploader",
+        "pinned-member-revoked-group-uploader",
     ],
 )
 def test_read_url_owner_boundary(case):
@@ -141,7 +147,7 @@ def _probe(case):
         from app.services import config as cfg
         from app.v3.services import clickhouse as ch
 
-        # Evidence only: current SQL discloses a creative after membership removal.
+        # Retained disclosure replay: removed members must get no creative/capability.
         state = case.removeprefix("pinned-member-")
         connected = os.environ.get("H01_AD_CLICKHOUSE") == "1"
         key = "bob/private-creative.png"
@@ -168,16 +174,27 @@ def _probe(case):
             ]
         )
         tags = "['ad']" if connected else "'[\"ad\"]'"
+        author = "group-author" if state.endswith("group-uploader") else "bob"
         setup += [
-            f"INSERT INTO documents VALUES ('creative','bob','{body}',{tags},'bob',0,1)",
+            f"INSERT INTO documents VALUES ('creative','{author}','{body}',{tags},'bob',0,1)",
             "INSERT INTO doc_groups VALUES ('creative','creative-group',0,1)",
         ]
         if state != "never":
             setup.append("INSERT INTO group_members VALUES ('creative-group','alice','reader',1,0,1)")
-        if state in {"revoked", "rejoined"}:
-            setup.append("INSERT INTO group_members VALUES ('creative-group','alice','reader',1,1,2)")
+        if state.startswith("revoked") or state in {"rejoined", "alternate-group"}:
+            updated = 1 if state == "revoked-tie" else 2
+            setup.append(f"INSERT INTO group_members VALUES ('creative-group','alice','reader',1,1,{updated})")
         if state == "rejoined":
             setup.append("INSERT INTO group_members VALUES ('creative-group','alice','reader',3,0,3)")
+        if state == "revoked-other-member":
+            setup.append("INSERT INTO group_members VALUES ('creative-group','carol','reader',1,0,3)")
+        if state == "revoked-other-group":
+            setup.append("INSERT INTO group_members VALUES ('unrelated-group','alice','reader',1,0,3)")
+        if state == "alternate-group":
+            setup += [
+                "INSERT INTO group_members VALUES ('alternate-group','alice','reader',1,0,3)",
+                "INSERT INTO doc_groups VALUES ('creative','alternate-group',0,3)",
+            ]
         db = sqlite3.connect(":memory:", check_same_thread=False)
         if not connected:
             db.executescript(";".join(setup) + ";")
@@ -230,17 +247,23 @@ def _probe(case):
             patch.object(cfg, "get_config_field", return_value=0),
         ):
             allowed = ch.can_read_group("creative-group", "alice", "posts", authenticated=True)
-            assert allowed is (state in {"active", "rejoined"})
+            assert allowed is (state in {"active", "rejoined", "active-group-uploader"})
+            if state == "alternate-group":
+                assert ch.can_read_group("alternate-group", "alice", "posts", authenticated=True)
             response = TestClient(app).post(
                 "/v3/read", json={"token": token(), "service": "posts", "groups": ["carrier-group"]}
             )
         db.close()
         assert response.status_code == 200
         doc = response.json()[0]
-        if state == "never":
+        if state not in {"active", "rejoined", "alternate-group", "active-group-uploader"}:
+            if "ad" in doc:
+                verify(doc["ad"]["body"]["url"], key)
+                print("removed-member synthetic capability independently verified before denial assertion")
             assert "ad" not in doc
             factory.assert_not_called()
         else:
+            assert doc["ad"]["author_key"] == author and doc["ad"]["posted_by"] == "bob"
             assert doc["ad"]["body"]["text"] == "synthetic restricted creative"
             verify(doc["ad"]["body"]["url"], key)
             factory.assert_called_once()

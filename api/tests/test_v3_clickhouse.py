@@ -1474,7 +1474,9 @@ class TestResolvePinnedAdsServiceAgnostic:
             assert "collection_name = 'posts'" not in sql
             # The I3 boundary is still there: the ad is served only if the
             # reader is a member of the ad's group.
-            assert "gm.member_key = %(reader)s" in sql
+            assert "FROM group_members WHERE member_key = %(reader)s" in sql
+            assert "PARTITION BY group_id, member_key ORDER BY updated_at DESC, deleted DESC" in sql
+            assert "gm.rn = 1" in sql
             assert "ad.deleted = 0" in sql
             # The dedup (latest version of the ad doc) is still there.
             assert "row_number() OVER" in sql

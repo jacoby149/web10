@@ -4,6 +4,11 @@
 plus test-only probes. Author/fresh reviewer: separate
 `openrouter/openai/gpt-6.1-sol` contexts. Finding OPEN; no production repair.
 
+Historical baseline receipt. #1321 merged this evidence; subsequent
+[local membership repair](repair-h01-pinned-membership.md) converts the disclosure
+assertion to denial. The reproduction/results below describe the evidence pin,
+not the repaired working tree or whole-ad authority.
+
 ## Orient And Scope
 
 Checked plan/lane/changelog; face repair is merged and attached-ad authority is
