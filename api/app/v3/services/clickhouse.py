@@ -189,6 +189,14 @@ def ensure_apps_schema():
         # positional and append the values last.
         client.command("ALTER TABLE documents ADD COLUMN IF NOT EXISTS ad_mode String DEFAULT 'none'")
         client.command("ALTER TABLE documents ADD COLUMN IF NOT EXISTS ad_target String DEFAULT ''")
+        # documents.posted_by — the human who authored the doc (group-as-author).
+        # Always populated: for a normal post it equals author_key; for a
+        # group-authored post it is the JWT username while author_key is the
+        # group_id. Server-set only (the CreateDocument model never accepts it
+        # as input). Pre-existing volumes predate the column; ADD COLUMN
+        # appends it at the end, which is why document inserts are positional
+        # and append the values last.
+        client.command("ALTER TABLE documents ADD COLUMN IF NOT EXISTS posted_by String DEFAULT ''")
         # moderation_flags — the content-moderation review queue (D59). An
         # append-only audit log: one row per auto-hidden / flagged post. The
         # review queue is a GROUP BY view over it (no resolved column — the
@@ -312,6 +320,11 @@ def ensure_apps_schema():
         # membership_visibility from their tags (D80) — followers + community
         # groups → public, dm + everything else stays hidden.
         _migrate_membership_visibility_backfill()
+        # Data migration (one-time, sentinel-gated): backfill posted_by =
+        # author_key for every row where posted_by is empty (group-as-author).
+        # After this, every row has posted_by populated — the media resolution
+        # rule is uniformly "use posted_by as the media owner."
+        _migrate_posted_by_backfill()
     except Exception as e:
         # ClickHouse not up yet, or table missing (fresh volume mid-init).
         # The DDL template covers fresh volumes; log and move on.
@@ -690,6 +703,37 @@ def _migrate_d58_role_shape() -> None:
     log.info(f"[v3] D58 role-shape backfill applied ({changed} groups re-shaped)")
 
 
+# Sentinel config_id in node_config marking the posted_by backfill as done.
+_POSTED_BY_SENTINEL = "migration:posted_by_backfill"
+
+
+def _migrate_posted_by_backfill() -> None:
+    """One-time, sentinel-gated data migration (group-as-author).
+
+    Sets ``posted_by = author_key`` for every row where ``posted_by`` is
+    empty. After this, every row has ``posted_by`` populated — the media
+    resolution rule is uniformly "use ``posted_by`` as the media owner."
+
+    Uses a ClickHouse lightweight UPDATE (mutates in-place, no tombstone).
+    Runs exactly once: a ``node_config`` sentinel marks completion. Safe
+    under concurrent workers (a duplicate run is a no-op — the UPDATE
+    matches zero rows when everything is already backfilled).
+    """
+    done = client.query(
+        "SELECT 1 FROM node_config WHERE config_id = %(sentinel)s AND deleted = 0 LIMIT 1",
+        {"sentinel": _POSTED_BY_SENTINEL},
+    )
+    if done.result_rows:
+        return
+    client.command("ALTER TABLE documents UPDATE posted_by = author_key WHERE posted_by = ''")
+    client.insert(
+        "node_config",
+        [[_POSTED_BY_SENTINEL, _json({"done": True}), _now(), 0]],
+        column_names=["config_id", "body", "updated_at", "deleted"],
+    )
+    log.info("[v3] posted_by backfill applied (legacy rows: posted_by = author_key)")
+
+
 # ---------------------------------------------------------------------------
 # Discover group — the node-default universal public board
 # ---------------------------------------------------------------------------
@@ -842,12 +886,18 @@ def insert_document(
     ad_mode: str = "none",
     ad_target: str = "",
     created_at: datetime | None = None,
+    posted_by: str = "",
 ) -> dict:
     """Insert a document into the documents table. Generates doc_id if not provided.
 
     `created_at` backdates the document (the import pipeline lands a catalog
     with its original publish dates — "take your videos exactly"). `updated_at`
     is always now (the write time) — the ReplacingMergeTree dedup keys off it.
+
+    `posted_by` is the human who authored the doc (group-as-author). Always
+    populated: for a normal post it equals author_key; for a group-authored
+    post it is the JWT username while author_key is the group_id. Server-set
+    only — the caller must always provide it.
     """
     now = _now()
     created = created_at or now
@@ -868,6 +918,7 @@ def insert_document(
                 0,
                 ad_mode or "none",
                 ad_target or "",
+                posted_by or "",
             ]
         ],
     )
@@ -880,6 +931,7 @@ def insert_document(
         "tags": tags or [],
         "ad_mode": ad_mode or "none",
         "ad_target": ad_target or "",
+        "posted_by": posted_by or "",
         "created_at": _iso_utc(created),
         "updated_at": _iso_utc(now),
     }
@@ -910,7 +962,7 @@ def read_documents(
 
     result = client.query(
         f"""
-        SELECT doc_id, author_key, collection_name, body, ref_value, tags, created_at, updated_at
+        SELECT doc_id, author_key, collection_name, body, ref_value, tags, created_at, updated_at, posted_by
         FROM (
             SELECT *, row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn
             FROM documents
@@ -935,6 +987,7 @@ def read_documents(
                 "tags": list(row[5]),
                 "created_at": _iso_utc(row[6]),
                 "updated_at": _iso_utc(row[7]),
+                "posted_by": row[8] or "",
             }
         )
     return rows
@@ -949,13 +1002,19 @@ def update_document(
     tags: list[str] | None = None,
     ad_mode: str = "none",
     ad_target: str = "",
+    posted_by: str | None = None,
 ) -> dict:
-    """Update a document (insert new version with higher updated_at, preserve created_at)."""
+    """Update a document (insert new version with higher updated_at, preserve created_at).
+
+    `posted_by` — when None, the existing value is preserved (the update
+    doesn't change who authored the doc). When provided, it overrides.
+    """
     existing = get_document(doc_id, author_key)
     if not existing:
         return None
     now = _now()
     created_at = _from_iso_utc(existing["created_at"])
+    existing_posted_by = existing.get("posted_by", "") or ""
     client.insert(
         "documents",
         [
@@ -971,6 +1030,7 @@ def update_document(
                 0,
                 ad_mode or "none",
                 ad_target or "",
+                posted_by if posted_by is not None else existing_posted_by,
             ]
         ],
     )
@@ -1001,7 +1061,7 @@ def delete_document(doc_id: str, author_key: str, service: str):
 def get_document(doc_id: str, author_key: str) -> dict | None:
     """Get a single document by doc_id and author_key."""
     result = client.query(
-        "SELECT doc_id, author_key, collection_name, body, ref_value, tags, created_at, updated_at, ad_mode, ad_target "
+        "SELECT doc_id, author_key, collection_name, body, ref_value, tags, created_at, updated_at, ad_mode, ad_target, posted_by "
         "FROM documents WHERE doc_id = %(doc_id)s AND author_key = %(author_key)s AND deleted = 0 "
         "ORDER BY updated_at DESC LIMIT 1",
         {"doc_id": doc_id, "author_key": author_key},
@@ -1020,6 +1080,7 @@ def get_document(doc_id: str, author_key: str) -> dict | None:
         "updated_at": _iso_utc(row[7]),
         "ad_mode": row[8] or "none",
         "ad_target": row[9] or "",
+        "posted_by": row[10] or "",
     }
 
 
@@ -2674,8 +2735,8 @@ def _board_base_sql(
     membership_where = "gm.member_key = %(member_key)s AND " if require_membership else ""
     tag_where = " AND (" + " AND ".join(f"has(p.tags, %(tag{i})s)" for i in range(len(tags))) + ")" if tags else ""
     return (
-        "SELECT p.doc_id AS doc_id, p.author_key, p.body, p.tags, p.created_at, p.ref_value, p.ad_mode, p.ad_target "
-        "FROM (SELECT doc_id, author_key, body, tags, created_at, ref_value, ad_mode, ad_target, deleted "
+        "SELECT p.doc_id AS doc_id, p.author_key, p.body, p.tags, p.created_at, p.ref_value, p.ad_mode, p.ad_target, p.posted_by "
+        "FROM (SELECT doc_id, author_key, body, tags, created_at, ref_value, ad_mode, ad_target, posted_by, deleted "
         "FROM (SELECT *, row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
         "FROM documents WHERE collection_name = %(coll)s) "
         "WHERE rn = 1 AND deleted = 0) p "
@@ -2755,6 +2816,7 @@ def _group_docs_query(
             "ref_value": row[5],
             "ad_mode": row[6] or "none",
             "ad_target": row[7] or "",
+            "posted_by": row[8] or "",
             "service": service,
         }
         for row in result.result_rows
@@ -2812,7 +2874,7 @@ def _group_docs_ranked_query(
     }
 
     sql = (
-        "SELECT b.doc_id, b.author_key, b.body, b.tags, b.created_at, b.ref_value, b.ad_mode, b.ad_target "
+        "SELECT b.doc_id, b.author_key, b.body, b.tags, b.created_at, b.ref_value, b.ad_mode, b.ad_target, b.posted_by "
         "FROM (" + _board_base_sql(group_ids, require_membership, tags) + ") b "
         "LEFT JOIN (SELECT ref_value, count() AS reaction_count FROM (SELECT ref_value FROM documents "
         "WHERE deleted = 0 AND collection_name = 'reactions' "
@@ -2836,6 +2898,7 @@ def _group_docs_ranked_query(
             "ref_value": row[5],
             "ad_mode": row[6] or "none",
             "ad_target": row[7] or "",
+            "posted_by": row[8] or "",
             "service": service,
         }
         for row in result.result_rows
@@ -3582,7 +3645,11 @@ def resolve_media_urls_in_docs(docs: list[dict]) -> list[dict]:
     for doc in docs:
         body = doc.get("body", {})
         if body.get("media_refs"):
-            author = doc.get("author_key", "")
+            # The media owner is always posted_by (the human who uploaded it).
+            # The backfill guarantees posted_by is populated on every row; the
+            # `or author_key` is a safety net for the narrow window between the
+            # column add and the backfill completing.
+            author = doc.get("posted_by", "") or doc.get("author_key", "")
             body = resolve_media_urls(body, author)
         body = resolve_minio_types(body)
         doc_with_media = dict(doc)
@@ -4234,12 +4301,13 @@ def confirm_media_upload(user_key: str, metadata: dict) -> dict:
     """
     now = _now()
     doc_id = _gen_doc_id()
-    # Positional insert — must match the documents column count (11, including
-    # the v3 ad_preference columns ad_mode/ad_target). A media doc never
-    # carries an ad, so both are their defaults.
+    # Positional insert — must match the documents column count (12, including
+    # the v3 ad_preference columns ad_mode/ad_target + the group-as-author
+    # posted_by column). A media doc never carries an ad, so both are their
+    # defaults; posted_by is empty (media docs are not authored by a group).
     client.insert(
         "documents",
-        [[doc_id, user_key, "media_metadata", _json(metadata), "", [], now, now, 0, "none", ""]],
+        [[doc_id, user_key, "media_metadata", _json(metadata), "", [], now, now, 0, "none", "", ""]],
     )
     return {
         "doc_id": doc_id,

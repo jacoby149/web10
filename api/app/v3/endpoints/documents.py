@@ -177,26 +177,52 @@ def _check_app_permission(
 
 @router.post("/create")
 def create_document(request: Request, data: CreateDocument):
-    """Create a document in a service. User from JWT. Server generates doc_id."""
-    author = _user(data)
-    _check_app_permission(request, author, data.service, "create", client_id_of(data))
+    """Create a document in a service. User from JWT. Server generates doc_id.
+
+    Group-as-author: when ``author_as`` is set, the doc's ``author_key`` is
+    the group_id and ``posted_by`` is the JWT username. Two gates:
+    (1) the caller holds a role in the group that grants ``create`` on the
+    service; (2) the group can write in each target group (the existing
+    ``can_write_group`` check, principal = group_id).
+    """
+    real_author = _user(data)
+    display_author = data.author_as or real_author
+
+    if data.author_as:
+        # Gate 1: the caller can act as this group. The caller must hold a
+        # role in author_as that grants `create` on the service.
+        if not ch.get_group(data.author_as):
+            raise HTTPException(status_code=404, detail="group not found")
+        perms = ch.effective_role_perms(data.author_as, real_author, authenticated=True)
+        if not ch._effective_allows(perms, data.service, "create"):
+            raise HTTPException(
+                status_code=403,
+                detail="no permission to post as this group",
+            )
+
+    # App-contract gate: runs on the REAL author (the token holder), not the
+    # display author. The contract is the app's trust in the USER, not the group.
+    _check_app_permission(request, real_author, data.service, "create", client_id_of(data))
+
     result = ch.insert_document(
-        author_key=author,
+        author_key=display_author,
         service=data.service,
         body=data.body,
         ref_value=data.ref_value or "",
         tags=data.body.get("tags", []),
         ad_mode=data.ad_preference.mode if data.ad_preference else "none",
         ad_target=(data.ad_preference.target or "") if data.ad_preference else "",
+        posted_by=real_author,
     )
     doc_id = result["doc_id"]
 
     if data.groups:
-        # D58 write gate (closes the attach hole): the author may only attach
-        # the doc to groups their effective role grants `create` on this
-        # service. A bystander with no write grant to any requested group gets
-        # a 403; non-writable groups are dropped from the attachment.
-        writable = [g for g in data.groups if ch.can_write_group(g, author, data.service)]
+        # D58 write gate (closes the attach hole): the DISPLAY author (the
+        # group, or the user) may only attach the doc to groups their effective
+        # role grants `create` on this service. A bystander with no write grant
+        # to any requested group gets a 403; non-writable groups are dropped
+        # from the attachment.
+        writable = [g for g in data.groups if ch.can_write_group(g, display_author, data.service)]
         if not writable:
             raise HTTPException(
                 status_code=403,
@@ -204,7 +230,8 @@ def create_document(request: Request, data: CreateDocument):
             )
         ch.attach_doc_to_groups(doc_id, writable)
         result["groups"] = writable
-        _moderate_post(author, doc_id, data.service, data.body, writable)
+        # Moderation: check the REAL author (the human), not the group.
+        _moderate_post(real_author, doc_id, data.service, data.body, writable)
 
     return result
 
@@ -324,12 +351,42 @@ def read_documents(request: Request, data: ReadDocuments):
 
 @router.post("/update")
 def update_document(request: Request, data: UpdateDocument):
-    """Update a document (new version + optional group changes)."""
+    """Update a document (new version + optional group changes).
+
+    Group-as-author: a group-authored post (author_key = group_id) can be
+    updated by the human who posted it (posted_by = username) when they hold
+    a role in the group that grants `create` on the service. The lookup is
+    two-pass: first by author_key (the normal path), then by posted_by (the
+    group-post path). The write uses the doc's actual author_key (the group),
+    preserving the identity.
+    """
     author = _user(data)
     existing = ch.get_document(data.doc_id, author)
     if not existing:
-        raise exceptions.ENTRY_NOT_FOUND
-    _check_app_permission(request, author, existing["service"], "updateOwn", client_id_of(data))
+        # Group-as-author fallback: the doc's author_key is a group_id and
+        # the caller is the human who posted it (posted_by = their username).
+        # Find the doc by scanning for one where posted_by matches. We use a
+        # targeted query rather than a table scan — the doc_id is known.
+        result_rows = ch.client.query(
+            "SELECT author_key FROM documents WHERE doc_id = %(doc_id)s AND posted_by = %(poster)s AND deleted = 0 ORDER BY updated_at DESC LIMIT 1",
+            {"doc_id": data.doc_id, "poster": author},
+        )
+        if result_rows.result_rows:
+            group_author = result_rows.result_rows[0][0]
+            existing = ch.get_document(data.doc_id, group_author)
+            if existing:
+                # Gate: the caller must hold a role in the group that grants
+                # `create` on the service (same as Gate 1 on create).
+                perms = ch.effective_role_perms(group_author, author, authenticated=True)
+                if not ch._effective_allows(perms, existing["service"], "create"):
+                    raise HTTPException(
+                        status_code=403,
+                        detail="no permission to edit this group post",
+                    )
+                author = group_author  # the write uses the group's key
+        else:
+            raise exceptions.ENTRY_NOT_FOUND
+    _check_app_permission(request, _user(data), existing["service"], "updateOwn", client_id_of(data))
 
     merged_body = {**existing["body"], **data.body}
     # Preserve the existing ad preference unless the update sets one.

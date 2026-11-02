@@ -49,11 +49,19 @@ export function reservedTagViolation(tags?: string[]): string[] {
  * `adPreference` (the v3 ad preference, ads-dissemination.md): when set, the
  * post is created with its `ad_preference` column (`pinned` + the ad's doc_id,
  * or `none`). The read then serves the post with the pinned ad inline.
+ *
+ * `authorAs` (group-as-author): when set to a group_id, the post is authored
+ * as the group — `author_key` = the group_id, `posted_by` = the JWT username.
+ * The caller must hold a role in the group that grants `create` on `posts`
+ * (owner/moderator), and the group must be able to write in each target group.
+ * When set, `groups` MUST be provided (the group's groups, not the user's
+ * personal followers).
  */
 export async function createPost(
   post: Omit<PostRecord, '_id'>,
   groups?: string[],
   adPreference?: { mode: 'none' | 'pinned'; target?: string },
+  authorAs?: string,
 ): Promise<PostRecord> {
   const w = getV3Client();
   const token = w.readToken();
@@ -91,27 +99,38 @@ export async function createPost(
     repost_of: post.repost_of,
   };
 
-  // Default groups based on visibility
-  const visibility = post.visibility || 'public';
-  let targetGroups = groups || determinePostGroups(visibility, token.username);
-
-  // Public/friends posts attach to the user's OWN followers group — ensure it
-  // exists (user as owner) so the post surfaces in the user's own feed (the
-  // feed reads the user's groups minus discover). Best-effort: a failure here
-  // must not block the post (it still lands on discover for public).
-  if (!groups && visibility !== 'private') {
-    try {
-      await ensureFollowers(token.username);
-    } catch (e) {
-      console.warn('[social-feed] createPost — ensureFollowers failed (non-fatal):', e);
+  // Default groups based on visibility. When posting as a group (authorAs),
+  // groups MUST be provided (the group's groups, not the user's personal
+  // followers) — there is no sensible default for a group post.
+  let targetGroups: string[];
+  if (authorAs) {
+    if (!groups?.length) {
+      throw new Error('posting as a group requires explicit target groups');
+    }
+    targetGroups = groups;
+  } else {
+    const visibility = post.visibility || 'public';
+    targetGroups = groups || determinePostGroups(visibility, token.username);
+    // Public/friends posts attach to the user's OWN followers group — ensure
+    // it exists (user as owner) so the post surfaces in the user's own feed
+    // (the feed reads the user's groups minus discover). Best-effort: a
+    // failure here must not block the post (it still lands on discover for
+    // public).
+    if (!groups && visibility !== 'private') {
+      try {
+        await ensureFollowers(token.username);
+      } catch (e) {
+        console.warn('[social-feed] createPost — ensureFollowers failed (non-fatal):', e);
+      }
     }
   }
 
-  console.log('[social-feed] createPost — visibility:', visibility, 'target groups:', JSON.stringify(targetGroups), 'ad_preference:', JSON.stringify(adPreference ?? null));
+  console.log('[social-feed] createPost — authorAs:', authorAs ?? 'self', 'target groups:', JSON.stringify(targetGroups), 'ad_preference:', JSON.stringify(adPreference ?? null));
 
   const doc = await w.create('posts', body, {
     groups: targetGroups,
     ...(adPreference ? { ad_preference: adPreference } : {}),
+    ...(authorAs ? { author_as: authorAs } : {}),
   });
   console.log('[social-feed] createPost — success, doc_id:', doc.doc_id);
   return fromV3DocToPost(doc);

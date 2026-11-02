@@ -83,6 +83,7 @@ export interface V3Document {
     ad_target?: string;
     ad?: V3Document;
     node_ad?: V3Document;
+    posted_by?: string;
 }
 export interface V3Group {
     group_id: string;
@@ -504,6 +505,7 @@ export interface V3Client {
         groups?: string[];
         ad_preference?: V3AdPreference;
         ref_value?: string;
+        author_as?: string;
     }): Promise<V3Document>;
     read(collection: string, opts: {
         groups: string[];
