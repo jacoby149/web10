@@ -15,7 +15,21 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Verified Decoder Default (01.11.2026)
+
+B-3 [local default repair](scans/2026-10/repair-b3-default-decode.md): eight
+default-decoder acceptance failures plus one signature assertion become green;
+31 new/175 focused and 1,457 API tests plus four subtests and lint/format pass.
+Fresh same-model review inventories 13 explicit production choices and preserves
+unsigned metadata behavior. No demonstrated endpoint bypass or issuer migration;
+class-wide authority audit, CI/deployment/diverse sign-off and L1 remain OPEN.
+
 ## Backup Publication (01.11.2026)
+
+Source repair merged #1301 at `30f9d49fc15b0b3cca0d928b129216f67b21fa69`;
+all 13 final checks passed after dev merge, with 1,426 local API tests plus four
+subtests. Local wording below preserves the earlier checkpoint, not merge status.
+Trusted storage, deployment/history and diverse sign-off remain OPEN.
 
 L1-PKG-02 [local repair](scans/2026-10/repair-pkg02-backup-publication.md):
 real filesystem permission/link/overwrite repro, private same-directory staging

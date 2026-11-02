@@ -1,3 +1,6 @@
+3.252.26 || 01.11.2026
+fix(auth): **verify internal JWT decoding by default** — retain explicit unsigned parsing only at the two metadata callers; existing authority callers remain explicitly verified. Initial nine failures (eight decoder acceptances plus one default assertion), final 31 new/175 focused and 1,457 API tests plus four subtests pass, with lint/format and fresh same-model review. No endpoint bypass claim, issuer migration or remote-provider repair; CI/deployment/diverse sign-off and protocol L1 remain OPEN.
+
 3.252.25 || 01.11.2026
 fix(tools): **publish account backups privately without overwriting existing files** — stage complete manifests at mode 0600, flush/fsync and hard-link without replacement; refuse existing files/symlinks and return safe nonzero output errors. Real filesystem repro plus absent-operation controls initially 8 failed/1 passed; final 45 focused and 1,420 API tests plus four subtests, Ruff lint/format and fresh same-model review pass. Requires trusted encrypted storage/POSIX hard links; CI, deployment, hostile ancestors and diverse sign-off remain OPEN. No protocol L1 closure.
 

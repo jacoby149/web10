@@ -64,6 +64,9 @@ reuses `POST /v3/app-contracts/revoke`. Full spec:
 
 ## L1 Security Scans
 
+- [✓ 3.252.26 local] **PROTOCOL-01/B-3-DEFAULT: verify JWT decoding by default** — signature/freshness default True, two explicit metadata opt-outs; 31 new/175 focused and 1,457 API tests plus four subtests, lint/format and fresh same-model review. [Receipt](../security/scans/2026-10/repair-b3-default-decode.md). No endpoint-bypass/issuer/remote-provider closure; CI/deployment/diverse/L1 gates OPEN.
+- **Backup status:** L1-PKG-02 merged #1301 at `30f9d49fc`, all 13 checks green; historical local tick below is not deployment or sign-off closure.
+
 - [✓ 3.252.25 local] **PROTOCOL-01/L1-PKG-02: private no-clobber backup output** — real filesystem mode/link/overwrite proof; private staging and complete exclusive publication, 45 focused/1,420 API tests plus four subtests, lint/format and fresh same-model review. [Receipt](../security/scans/2026-10/repair-pkg02-backup-publication.md). Trusted storage/CI/deployment/diverse gates OPEN; no L1 closure.
 - **Manifest status:** L1-A-02 repair/dependency merged #1299 at `0918a7409`, all 13 PR checks green; earlier local ticks below are historical, not rollout/sign-off closure.
 

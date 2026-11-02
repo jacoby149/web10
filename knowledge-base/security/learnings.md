@@ -35,6 +35,19 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-01: Make metadata decoding an explicit choice
+
+[B-3 local default repair](scans/2026-10/repair-b3-default-decode.md) makes
+`decode_token()` verify signature/freshness unless explicitly disabled. Existing
+authority paths already passed True; only bug attribution and legacy remote
+destination selection needed explicit False. Thirteen production callers are
+now explicit. Wrong-key/unsigned/stale tokens accepted by the old default now
+fail; this proves the default footgun, not an endpoint auth bypass. Decoding
+still does not certify provider/client state or grant access. Preserve intentional
+metadata and anonymous expiry behavior; remote destination trust remains L1-B-01.
+31 new/175 focused and 1,457 API tests plus four subtests pass with same-model
+review. Issuer policy, class-wide authority audit, CI/rollout/diverse gates OPEN.
+
 ### 2026-11-01: The only backup must not be a truncating write
 
 [L1-PKG-02 local repair](scans/2026-10/repair-pkg02-backup-publication.md)
@@ -81,7 +94,7 @@ exploit is replayed and denied.
 |---|---|---|---|---|
 | B-1 | 2026-10 | `auth.py`, federation | I1 symmetric HS256 — one shared key mints any token → RS256/EdDSA + JWKS (D7) | learned; fix in 1157 (unmerged) → `BP-1` |
 | B-2 | 2026-10 | `settings.py` | signing key + Stripe/Twilio/CH creds in source → env-injected, no defaults | OPEN; repeatable defaults confirmed at `8704e9f5c`; [L1 receipt](scans/2026-10/l1-settings.md), no live credential validity claim |
-| B-3 | 2026-10 | `auth.py :: decode_token` | `private_key=False` unsigned decode on an auth path → verify signature before any authz | learned; fix in 1157 (unmerged) |
+| B-3 | 2026-10; 2026-11-01 | `auth.py :: decode_token` | unsigned default is a footgun; existing authority callers explicitly verify | [Default locally repaired](scans/2026-10/repair-b3-default-decode.md); broader authority/issuer/integration/diverse gates OPEN, not a demonstrated endpoint bypass |
 | B-4 | 2026-10 | `middleware.py` | arbitrary HTTP content copied into logs -> metadata-only automatic logging; field-name redaction is insufficient | Source repair merged #1225; [repro evidence](scans/2026-10/repair-b4-middleware.md); deployment/exposure/sign-off not closed |
 | B-5 | 2026-10 | `main.py` CORS | `allow_origins=["*"]` defended only by "token in body" → pin the assumption in a test | learned; needs a pinning test |
 | B-6 | 2026-10 | `clickhouse.py :: get_document_any_author` | reads without author scoping, bounded by a doc-bound sig → verify the sig is checked first | learned; verify |
