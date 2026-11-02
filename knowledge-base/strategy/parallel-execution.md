@@ -61,6 +61,9 @@ route + the screenshot harness).
 
 ### Lane: security-l1-scans
 
+- [✓ 3.253.4 local] **PROTOCOL-01/L1-H-01-DIRECT: owner-only direct media URL refresh** — owner-only direct signer with actual JWT/HTTP/real synthetic SigV4 red -> denied green; no downstream access on denial. 503 focused/1,477 API tests plus four subtests, lint/format and fresh same-model review. `knowledge-base/security/scans/2026-10/repair-h01-direct-media.md`. Own read_url hunk/focused tests/security KB; no SDK wire/schema/resolver redesign. Adjacent provenance/service-policy, services/CI/deployment/diverse/L1 gates OPEN.
+- **Decoder/CORS status:** B-3 default/B-5 tests merged #1303 at `e56d25304`, all 13 final checks green after recorded retries; historical local ticks below are not broader closure.
+
 - [✓ 3.253.3 local tests] **PROTOCOL-01/B-5-PIN: pin credential-free CORS on actual routes** — 13 added profile/create controls, 18 CORS/1,470 API tests plus four subtests and lint/format; fresh same-model/mutation review. `knowledge-base/security/scans/2026-10/b5-cors-credential-pinning.md`. Own CORS test hunk/security KB only; no runtime repair or browser/integration/diverse/L1 closure. Operator requested publication on the current branch after the local checkpoint.
 
 - [✓ 3.253.2 local] **PROTOCOL-01/B-3-DEFAULT: verify JWT decoding by default** — decoder default and two explicit metadata callers; 31 new/175 focused and 1,457 API tests plus four subtests, lint/format and fresh same-model review. `knowledge-base/security/scans/2026-10/repair-b3-default-decode.md`. No endpoint-bypass/issuer/remote-provider closure; CI/deployment/diverse/L1 gates OPEN.

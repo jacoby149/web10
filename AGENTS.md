@@ -343,6 +343,12 @@ OAuth authorization certifies its source token before code minting: local provid
 
 ## Security invariants
 
+Direct `POST /v3/media/read-url` refresh is owner-only: the key must stay in the
+verified caller's exact `username/` namespace, including unconfirmed uploads.
+Foreign viewers obtain fresh media URLs through authorized document/group reads;
+public thumbnails retain their document-access path. This does not certify
+stored object-reference provenance or revoke existing presigned URLs before TTL.
+
 Defined in the KB: `knowledge-base/web10-v3/security/overview.md`. Short version — I1: cryptographic issuer verification, I2: no unsigned decode, I3: no query returns documents for an `author_key` the token doesn't own (unless group membership grants access), I4: node-readable by design — operator-blindness is not a goal, access is terms-controlled (D41), I5: scoped/expiring/revocable tokens enforced by app contracts. Enforced by the conformance/permission test suite.
 
 ## Operator code words — recognize instantly, never treat as banter
