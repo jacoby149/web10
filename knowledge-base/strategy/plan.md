@@ -33,6 +33,14 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases 
 
+- [✓ 3.253.11 local] **E3 preliminary results in manuscript** — K10/100 B/C median/p95 table and K1 contrary result, bounded abstract/conclusion, setup/provenance and limits. Table checked against report; PDF builds. Repeated trials, full feed and capacity remain open.
+
+- [✓ 3.253.10 local] **E3 first K10/100 trial** — 100 creators, 20 samples in each of 15 cells; results recorded in research/experiments/costfn/K100-RESULTS.md. One failed seed preceded a successful fresh-stack retry; cause unknown. Data collected, droplet deleted. Single sequential trial only; full E3 remains open.
+
+- [✓ 3.253.9 local] **E3 connected tiny smoke** — SSH with IPQoS=none, Docker/API/ClickHouse boot, ten creators seeded, ten cells with three samples each and four B-minus-A comparisons. Fixed parsed evaluation settings overwritten as strings; 45 focused tests plus eight subtests pass. Results collected; droplet deleted. Functional smoke only; full E3 remains open.
+
+- [✓ 3.253.8 local] **E3 tiny-smoke harness repair and connection attempt** — dedicated local-only Compose, real seed API schema, baseline pairing and offline regressions. One sfo2 droplet created with the registered SSH key; two TCP/SSH timeouts prevented execution. Deleted and verified no remaining droplets. No measurements; the full E3 experiment remains open.
+
 ## web10-social Product Post Permalink (D89)
 
 - [✓ 3.235.17] **A product post's permalink renders the product, not an empty post** — the post-detail layout only rendered `title` / `text` / `media`, so a `posts` doc tagged `product` (D89 — the body IS the product attributes) showed the author row + an empty body + the action bar. `PostRecord.product` (parsed by `parseProductFields`) + the `PostDetail` product card (photo / name / price / badges / affiliate link) + the permalink route resolving `pics[0]` through the owner-scoped media path. Products are inventory like ads — dropped from the standalone feed/profile lists (the storefront + the product card are their public face). All client-side, D60.
@@ -64,7 +72,7 @@ reuses `POST /v3/app-contracts/revoke`. Full spec:
 
 ## L1 Security Scans
 
-- [✓ 3.253.6 local] **PROTOCOL-01/H01-RAW: owner-bind recursive MinIO signing** — explicit owner, foreign/malformed stale suppression, per-entry uploader/ad-loader propagation; real synthetic SigV4 red -> denied green, review-fixed compatibility gap. 347 focused/1,570 API tests plus four subtests and lint/format, fresh same-model recheck. [Receipt](../security/scans/2026-10/repair-h01-raw-owner.md). Other provenance/CI/integration/deployment/diverse/L1 OPEN.
+- [✓ 3.253.12 local] **PROTOCOL-01/H01-RAW: owner-bind recursive MinIO signing** — explicit owner, foreign/malformed stale suppression, per-entry uploader/ad-loader propagation; real synthetic SigV4 red -> denied green, review-fixed compatibility gap. 347 focused/1,570 API tests plus four subtests and lint/format, fresh same-model recheck. [Receipt](../security/scans/2026-10/repair-h01-raw-owner.md). Other provenance/CI/integration/deployment/diverse/L1 OPEN.
 - **Metadata status:** H01-META merged #1306 at `f3cacbff4`, all 13 first-attempt checks green; historical local tick below is not broader closure.
 
 - [✓ 3.253.5 local] **PROTOCOL-01/H01-META: bind stored media-reference signing to its owner** — original/thumbnail foreign keys denied before signing, valid/legacy/posted_by preserved; two real synthetic SigV4 baseline failures denied, 335 focused/1,533 API tests plus four subtests and lint/format, fresh same-model review. [Receipt](../security/scans/2026-10/repair-h01-metadata-owner.md). One sink only; recursive minio/other provenance/CI/services/deployment/diverse/L1 OPEN.

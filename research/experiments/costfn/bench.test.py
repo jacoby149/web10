@@ -13,6 +13,10 @@ Run:  python3 research/experiments/costfn/bench.test.py
 
 import os
 import sys
+import ast
+import json
+import tempfile
+from unittest.mock import patch, Mock
 
 sys.path.insert(0, os.path.dirname(__file__))
 import bench  # noqa: E402
@@ -108,6 +112,7 @@ def test_causal_overhead():
     check("overhead: B policy median", d["b_policy_median_ms"] == 11.0, f"got {d['b_policy_median_ms']}")
     check("overhead: A policy median", d["a_policy_median_ms"] == 2.5, f"got {d['a_policy_median_ms']}")
     check("overhead: delta = B - A", d["overhead_median_ms"] == 8.5, f"got {d['overhead_median_ms']}")
+    check("overhead: total delta kept separate from policy delta", d["total_delta_median_ms"] == 8.5)
     # per-phase readable delta: median([10,12]) - median([2,3]) = 11 - 2.5 = 8.5
     check("overhead: per-phase delta for readable", d["per_phase_delta_ms"]["readable"] == 8.5,
           f"got {d['per_phase_delta_ms'].get('readable')}")
@@ -138,25 +143,70 @@ def test_expand_matrix():
 def test_env_for_cell():
     base = {"CLICKHOUSE_HOST": "clickhouse"}
     a = bench.env_for_cell({"line": "A", "mode": "n/a"}, base)
-    check("env A: NO_POLICY set", a.get("QUERY_EVAL_NO_POLICY") == "1")
-    check("env A: stub + mode cleared", "QUERY_EVAL_STUB_EXECUTE" not in a and "QUERY_EVAL_READABLE_MODE" not in a)
+    check("env A: HTTP policy remains enabled for direct baseline", a.get("QUERY_EVAL_NO_POLICY") == "0")
+    check("env A: stub off + mode default", a["QUERY_EVAL_STUB_EXECUTE"] == "0" and a["QUERY_EVAL_READABLE_MODE"] == "per-group")
     check("env A: base preserved", a.get("CLICKHOUSE_HOST") == "clickhouse")
 
     c_pg = bench.env_for_cell({"line": "C", "mode": "per-group"}, base)
     check("env C: STUB set", c_pg.get("QUERY_EVAL_STUB_EXECUTE") == "1")
-    check("env C: NO_POLICY cleared", "QUERY_EVAL_NO_POLICY" not in c_pg)
+    check("env C: NO_POLICY off", c_pg["QUERY_EVAL_NO_POLICY"] == "0")
     check("env C: mode per-group", c_pg.get("QUERY_EVAL_READABLE_MODE") == "per-group")
 
     c_bat = bench.env_for_cell({"line": "C", "mode": "batched"}, base)
     check("env C batched: mode batched", c_bat.get("QUERY_EVAL_READABLE_MODE") == "batched")
 
     b = bench.env_for_cell({"line": "B", "mode": "batched"}, base)
-    check("env B: neither flag set", "QUERY_EVAL_NO_POLICY" not in b and "QUERY_EVAL_STUB_EXECUTE" not in b)
+    check("env B: neither flag enabled", b["QUERY_EVAL_NO_POLICY"] == b["QUERY_EVAL_STUB_EXECUTE"] == "0")
     check("env B: mode batched", b.get("QUERY_EVAL_READABLE_MODE") == "batched")
 
     # Line A with a non-n/a mode still clears the mode (A ignores resolution).
     a2 = bench.env_for_cell({"line": "A", "mode": "batched"}, base)
-    check("env A: mode cleared even if set", "QUERY_EVAL_READABLE_MODE" not in a2)
+    check("env A: mode reset even if set", a2["QUERY_EVAL_READABLE_MODE"] == "per-group")
+
+
+def test_orchestration():
+    with patch.object(bench.subprocess, "run") as run:
+        env = bench.env_for_cell({"line": "B", "mode": "batched"}, {"QUERY_EVAL_NO_POLICY": "1"})
+        bench._restart_api('docker compose -f "path with spaces/compose.yml"', env)
+        args, kwargs = run.call_args
+        check("compose: no invalid -e and quoted path preserved", "-e" not in args[0] and "path with spaces/compose.yml" in args[0])
+        check("compose: subprocess environment resets stale flag", kwargs["env"]["QUERY_EVAL_NO_POLICY"] == "0")
+        check("compose: recreate API only", "--no-deps" in args[0])
+    response = Mock(stdout='COSTFN_BASELINE=[{"execute": 2, "total": 2}]\n')
+    with patch.object(bench.subprocess, "run", return_value=response) as run:
+        records = bench.baseline_records("docker compose", bench.PERSONAL_SQL, ["g"], "reader", 1)
+        check("baseline: direct CH scan, no invented posts table", "sq.build_safe_query" in run.call_args.args[0][-2])
+        check("baseline: policy phases zero", bench.policy_total(records[0]) == 0)
+    with tempfile.TemporaryDirectory() as out:
+        manifest = {"seed": 42, "reader": "r", "k": 10, "creators_total": 10, "followed": list(range(10))}
+        path = os.path.join(out, "manifest.json")
+        with open(path, "w") as f:
+            json.dump(manifest, f)
+        def collect(compose, api, manifest, cell, runs, out):
+            return {"cell": cell, "runs_requested": runs, "queries_200": runs,
+                    "queries_completed": runs, "transport": "fixture",
+                    "timing_samples": runs, "summary": {}, "_records": [_rec(0 if cell["line"] == "A" else 5, 2)]}
+        with patch.object(sys, "argv", ["bench.py", "--manifest", path, "--out", out, "--k", "10", "--runs", "3"]), patch.object(bench, "collect_cell", side_effect=collect):
+            bench.main()
+        with open(os.path.join(out, "report.json")) as f:
+            report = json.load(f)
+        check("report: shared A baseline pairs with both B modes and feeds", len(report["causal_overhead_B_minus_A"]) == 4)
+
+
+def test_seed():
+    import seed
+    with patch.object(seed, "_post", return_value={"group_id": "g"}) as post:
+        seed.create_followers_group(None, "token", "followers")
+        payload = post.call_args.args[2]
+        check("seed: real snake_case group schema", payload["join_policy"] == "open" and payload["members"][0] == {"member_key": "anyone", "role": "member"})
+        check("seed: join role defined", any(r["name"] == "member" for r in payload["roles"]))
+        seed.join_group(None, "token", "g")
+        check("seed: join group_id", post.call_args.args[2]["group_id"] == "g")
+        seed.post(None, "token", "g", "text")
+        check("seed: real document endpoint", post.call_args.args[1] == "/v3/create")
+    with open(seed.__file__) as f:
+        ast.parse(f.read())
+    check("seed: imports and compiles", True)
 
 
 def main():
@@ -167,6 +217,8 @@ def main():
     test_causal_overhead()
     test_expand_matrix()
     test_env_for_cell()
+    test_orchestration()
+    test_seed()
     print()
     if FAILED:
         print(f"{len(FAILED)} FAILED: {FAILED}")

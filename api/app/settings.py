@@ -147,6 +147,10 @@ QUERY_EVAL_READABLE_MODE = os.getenv("QUERY_EVAL_READABLE_MODE", "per-group").lo
 
 # Load environment variables into settings params.
 for v in list(globals()):
+    # Evaluation values above already parse their environment types. In
+    # particular, the string "0" must not enable a policy-bypass flag.
+    if v.startswith("QUERY_EVAL_"):
+        continue
     env_val = os.getenv(v)
     if env_val is not None:
         globals()[v] = env_val

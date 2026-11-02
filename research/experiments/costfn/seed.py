@@ -72,7 +72,11 @@ FOLLOWERS_ROLES = [
         },
     },
     {
-        "name": "reader",
+        "name": "writer",
+        "permissions": {"posts": ["readAll", "create"]},
+    },
+    {
+        "name": "member",
         "permissions": {"posts": ["readAll"], "profile": ["readAll"]},
     },
 ]
@@ -85,29 +89,30 @@ def create_followers_group(session, token, name):
         "token": token,
         "name": name,
         "roles": FOLLOWERS_ROLES,
-        "joinPolicy": "open",
+        "join_policy": "open",
         "discoverable": True,
         "tags": ["web10-social-group"],
-        "membershipVisibility": "public",
-        "members": [{"memberKey": "anyone", "role": "reader"}],
+        "membership_visibility": "public",
+        "members": [{"member_key": "anyone", "role": "member"}],
     }
     return _post(session, "/v3/groups/create", body)["group_id"]
 
 
 def join_group(session, token, group_id):
     """The reader joins a creator's followers group (= follows them)."""
-    _post(session, "/v3/groups/join", {"token": token, "groupId": group_id})
+    _post(session, "/v3/groups/join", {"token": token, "group_id": group_id})
 
 
 def post(session, token, group_id, text):
     _post(
         session,
-        "/v3/documents/create",
+        "/v3/create",
         {"token": token, "service": "posts", "body": {"text": text}, "groups": [group_id]},
     )
 
 
 def main():
+    global API_BASE
     p = argparse.ArgumentParser(description="metadata-only seed for the cost-function experiment")
     p.add_argument("--creators", type=int, default=1000, help="number of creators to seed")
     p.add_argument("--follow", type=int, default=100, help="how many creators the reader follows (K)")
@@ -117,7 +122,6 @@ def main():
     p.add_argument("--out", default=os.path.join(os.path.dirname(__file__), "seed-manifest.json"))
     args = p.parse_args()
 
-    global API_BASE
     API_BASE = args.api
     if args.follow > args.creators:
         print(f"error: --follow ({args.follow}) cannot exceed --creators ({args.creators})", file=sys.stderr)
@@ -163,6 +167,10 @@ def main():
     for name in followed_names[: min(10, len(followed_names))]:
         # Re-fetch the creator's token (cheap) to attach to the board.
         ctok = _post(session, "/v3/login", {"username": name, "password": PASSWORD, "site": "costfn"})["token"]
+        _post(session, "/v3/groups/members/add", {
+            "token": reader_token, "group_id": board_gid,
+            "member_key": name, "role": "writer",
+        })
         post(session, ctok, board_gid, f"board post by {name}")
     print(f"[seed] discover board ready: {board_gid}")
 
