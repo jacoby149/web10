@@ -9,6 +9,22 @@ import {
 import type { PostRecord, MediaRecord, MediaUploadRequest, Visibility, ResolvedMediaRef, ProfileRecord } from './types';
 import type { V3Document } from './v3';
 import { fromV3DocToPost, fromV3DocToMedia, fromResolvedMediaRef, fromV3DocToProfile, mediaRefId, extractUsername, dropAdPosts } from './types';
+import { getActingAuthor, actingPostGroups } from './actingIdentity';
+import { resolveFaceMedia, GROUP_FACE_SQL } from '@web10/discover/face';
+
+/** Resolve group faces under their own readable groups, never as user profiles. */
+export async function resolvePostAuthors(posts: PostRecord[]): Promise<PostRecord[]> {
+  const groups = [...new Set(posts.map((post) => post.author_key).filter((key): key is string => !!key?.includes('/groups/')))];
+  if (!groups.length) return posts;
+  const w = getV3Client();
+  const faces = await resolveFaceMedia(async (sql, scope, prepare) => (await w.query(sql, { groups: scope, prepare })).rows, GROUP_FACE_SQL, groups, 'group_id');
+  return posts.map((post) => {
+    if (!post.author_key?.includes('/groups/')) return post;
+    const face = faces.get(post.author_key);
+    const name = face?.name || post.author_key.split('/').pop() || 'Group';
+    return { ...post, group_identity: { name }, profile: { display_name: name }, avatar_url: face?.avatar_url };
+  });
+}
 
 // ── Post data layer (v3) ─────────────────────────────────────────────────────
 // Posts live in the `posts` collection. Visibility is controlled by GROUPS:
@@ -153,15 +169,18 @@ export async function createPost(
 export async function createRepost(
   original: { _id?: string },
   comment: string,
+  authorAs: string | null = getActingAuthor() || null,
+  groups?: string[],
 ): Promise<PostRecord> {
   if (!original._id) throw new Error('cannot repost a post without an id');
+  if (groups && !groups.length) throw new Error('Reposting requires at least one destination group.');
   return createPost({
     text: comment.trim() || undefined,
     media_refs: [],
     created_at: new Date().toISOString(),
     visibility: 'public',
     repost_of: original._id,
-  });
+  }, groups ?? (authorAs ? await actingPostGroups(authorAs) : undefined), undefined, authorAs || undefined);
 }
 
 /**
@@ -227,9 +246,10 @@ export async function readMyRepostedIds(): Promise<Set<string>> {
   const token = w.readToken();
   if (!token) return ids;
   try {
-    const docs = await w.read('posts', { groups: [followersGroupId(token.username)] });
+    const identity = getActingAuthor();
+    const docs = await w.read('posts', { groups: identity ? await actingPostGroups(identity) : [followersGroupId(token.username)] });
     for (const doc of docs) {
-      if (extractUsername(doc.author_key) !== token.username) continue;
+      if (identity ? doc.author_key !== identity : doc.author_key.includes('/groups/') || extractUsername(doc.author_key) !== token.username) continue;
       const repostOf = (doc.body as Record<string, unknown>).repost_of as string | undefined;
       if (repostOf) ids.add(repostOf);
     }
@@ -273,7 +293,7 @@ export async function readPosts(
     // signals are gated on a same-surface delivery.
     ...(opts?.surface ? { surface: opts.surface } : {}),
   });
-  return docs.map(fromV3DocToPost);
+  return resolvePostAuthors(docs.map(fromV3DocToPost));
 }
 
 /**
@@ -305,7 +325,7 @@ export async function readMyPosts(opts?: { limit?: number; surface?: string }): 
   // backstop for the attached-ad join.
   const limit = opts?.limit ?? 50;
   const sql =
-    'SELECT p.doc_id AS doc_id, p.author_key AS author_key, p.body AS body, p.tags AS tags, ' +
+    'SELECT p.doc_id AS doc_id, p.author_key AS author_key, p.posted_by AS posted_by, p.body AS body, p.tags AS tags, ' +
     'p.created_at AS created_at, p.ref_value AS ref_value, p.ad_mode AS ad_mode, p.ad_target AS ad_target ' +
     "FROM posts p WHERE not has(p.tags, 'ad') AND not has(p.tags, 'product') " +
     'ORDER BY toUnixTimestamp64Milli(p.created_at) DESC ' +
@@ -336,7 +356,7 @@ export async function readUserPosts(username: string, optsOrProvider?: { limit?:
   // tiles. The query engine (D73) excludes them before the LIMIT.
   const limit = opts?.limit ?? 50;
   const sql =
-    'SELECT p.doc_id AS doc_id, p.author_key AS author_key, p.body AS body, p.tags AS tags, ' +
+    'SELECT p.doc_id AS doc_id, p.author_key AS author_key, p.posted_by AS posted_by, p.body AS body, p.tags AS tags, ' +
     'p.created_at AS created_at, p.ref_value AS ref_value, p.ad_mode AS ad_mode, p.ad_target AS ad_target ' +
     "FROM posts p WHERE not has(p.tags, 'ad') AND not has(p.tags, 'product') " +
     'ORDER BY toUnixTimestamp64Milli(p.created_at) DESC ' +
@@ -403,7 +423,7 @@ export async function readUserPublicProfile(
   // The posts, author-filtered, scoped to [followers, discover]. The prepare
   // pass mints the rows (media + HLS + ads) — the feed's render-ready shape.
   const postsSql =
-    'SELECT p.doc_id AS doc_id, p.author_key AS author_key, p.body AS body, p.tags AS tags, ' +
+    'SELECT p.doc_id AS doc_id, p.author_key AS author_key, p.posted_by AS posted_by, p.body AS body, p.tags AS tags, ' +
     'p.created_at AS created_at, p.ref_value AS ref_value, p.ad_mode AS ad_mode, p.ad_target AS ad_target ' +
     `FROM posts p WHERE p.author_key = '${escaped}' ` +
     'ORDER BY toUnixTimestamp64Milli(p.created_at) DESC ' +
@@ -457,7 +477,7 @@ export async function readPostById(docId: string, surface?: string): Promise<Pos
     // for this doc (the read path's delivery capture — the watch/short/permalink
     // "view"). The on-surface "N views" is the reach over these deliveries.
     const doc = await w.readById(docId, 'posts', surface ? { surface } : undefined);
-    return fromV3DocToPost(doc);
+    return (await resolvePostAuthors([fromV3DocToPost(doc)]))[0];
   } catch {
     return null;
   }
@@ -475,6 +495,7 @@ export async function updatePost(
   docId: string,
   updates: Partial<PostRecord>,
   adPreference?: { mode: 'none' | 'pinned'; target?: string },
+  authorAs?: string,
 ): Promise<PostRecord> {
   const w = getV3Client();
 
@@ -497,16 +518,17 @@ export async function updatePost(
   if (updates.location !== undefined) body.location = updates.location;
   if (updates.mentions !== undefined) body.mentions = updates.mentions;
 
-  const doc = await w.update(docId, body, adPreference ? { ad_preference: adPreference } : undefined);
+  const doc = await w.update(docId, body, authorAs || adPreference ? { ...(adPreference ? { ad_preference: adPreference } : {}), ...(authorAs ? { author_as: authorAs } : {}) } : undefined);
   return fromV3DocToPost(doc);
 }
 
 /**
  * Delete a post by ID (tombstone).
  */
-export async function deletePost(docId: string): Promise<void> {
+export async function deletePost(docId: string, authorAs?: string): Promise<void> {
   const w = getV3Client();
-  await w.delete(docId);
+  if (authorAs) await w.delete(docId, { author_as: authorAs });
+  else await w.delete(docId);
 }
 
 /**
@@ -515,6 +537,7 @@ export async function deletePost(docId: string): Promise<void> {
  * The group membership is managed by the API's hooks.
  */
 export async function movePostVisibility(post: PostRecord): Promise<PostRecord> {
+  if (post.author_key?.includes('/groups/')) throw new Error('Group post access is controlled by its destination groups.');
   if (!post._id) throw new Error('post has no ID');
   const newVisibility: Visibility = post.visibility === 'public' ? 'private' : 'public';
   return updatePost(post._id, { visibility: newVisibility });

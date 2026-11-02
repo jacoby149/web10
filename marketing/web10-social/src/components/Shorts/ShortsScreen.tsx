@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useActingAuthor, getActingAuthor, matchesActingAuthor } from '@/data/actingIdentity';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Heart, MessageCircle, Share2, X, Volume2, VolumeX, ChevronLeft, Search, BarChart3, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -66,6 +67,7 @@ export default function ShortsScreen() {
  * off-screen slides pause.
  */
 function ShortsLens({ postId }: { postId: string }) {
+  const actingIdentity = useActingAuthor();
   const navigate = useNavigate();
   const [shorts, setShorts] = useState<ShortPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -170,7 +172,7 @@ function ShortsLens({ postId }: { postId: string }) {
             if (type !== 'dislike') {
               likesByPost[d.ref_value] = (likesByPost[d.ref_value] || 0) + 1;
             }
-            if (extractUsername(d.author_key) === token.username && type === 'like') {
+            if (matchesActingAuthor(d.author_key, token.username, actingIdentity || null) && type === 'like') {
               likedByPost[d.ref_value] = true;
             }
           }
@@ -187,6 +189,7 @@ function ShortsLens({ postId }: { postId: string }) {
             s.post.impressions = viewCounts[id]?.impressions || 0;
             s.post.reach = viewCounts[id]?.reach || 0;
           }
+          if (getActingAuthor() !== actingIdentity) return;
           setLikedMap(likedByPost);
           setViewsMap(viewCounts);
           LOG(
@@ -206,7 +209,7 @@ function ShortsLens({ postId }: { postId: string }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [actingIdentity]);
 
   useEffect(() => {
     load();

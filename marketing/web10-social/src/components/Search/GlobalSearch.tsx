@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, X, User, Users, Hash, Video, Smartphone, Flame } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { postPath } from '@/lib/postLinks';
 import { searchPeople, searchGroups, searchPosts, searchVideo, searchShorts } from '@/data/search';
 import type { PersonCard } from '@/data/people';
 import type { GroupDirectoryEntry } from '@/data/groups';
@@ -133,7 +134,7 @@ function GroupRow({ group }: { group: GroupDirectoryEntry }) {
 function PostRow({ post }: { post: PostRecord }) {
   const navigate = useNavigate();
   const author = post.author_username || 'unknown';
-  const href = post._id ? `/u/${author}/p/${post._id}` : `/u/${author}`;
+  const href = post._id ? postPath(post) : `/u/${author}`;
   return (
     <button
       type="button"
@@ -155,7 +156,7 @@ function PostRow({ post }: { post: PostRecord }) {
 function VideoRow({ post }: { post: PostRecord }) {
   const navigate = useNavigate();
   const author = post.author_username || 'unknown';
-  const href = post._id ? `/u/${author}/p/${post._id}` : `/u/${author}`;
+  const href = post._id ? postPath(post) : `/u/${author}`;
   return (
     <button
       type="button"

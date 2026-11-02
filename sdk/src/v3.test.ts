@@ -736,6 +736,16 @@ describe('v3 client', () => {
         expect.objectContaining({ doc_id: 'abc', token: mockToken }),
       )
     })
+
+    it('delegated mutations and membership reads retain the human token', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValue({} as any)
+      await client.update('doc', { text: 'new' }, { author_as: 'team' })
+      await client.delete('doc', { author_as: 'team' })
+      await client.getMyGroups({ author_as: 'team', service: 'notes' })
+      expect(http.authPost).toHaveBeenNthCalledWith(1, 'http://api.localhost/v3/update', expect.objectContaining({ token: mockToken, author_as: 'team', doc_id: 'doc' }))
+      expect(http.authPost).toHaveBeenNthCalledWith(2, 'http://api.localhost/v3/delete', expect.objectContaining({ token: mockToken, author_as: 'team', doc_id: 'doc' }))
+      expect(http.authPost).toHaveBeenNthCalledWith(3, 'http://api.localhost/v3/groups/list', expect.objectContaining({ token: mockToken, author_as: 'team', service: 'notes' }))
+    })
   })
 
   // ── App contracts (per-app with per-service permissions) ──────────────

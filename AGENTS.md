@@ -322,6 +322,15 @@ does not merge.
 
 ## Auth model
 
+Social acting identity is account-scoped, per-tab client state, never a replacement
+credential. Generic `author_as` creates as the group with server-set `posted_by`;
+explicit delegated update/delete require current service `updateOwn`/`deleteOwn`
+grants and preserve the original audit actor. App-contract gates still use the
+human. Delegated `groups/list` requires a current create grant on the requested
+service and lists the group's memberships, without human owner self-healing.
+DMs, billing and administration retain personal authority. Local implementation
+and verification status: `knowledge-base/strategy/acting-identity.md`.
+
 Consent correlation is staged: the UI can prepare owned indexed replies for ID-bearing unified batches, but the SDK is not yet strict. IDs grant no authority; no-op/cancellation/account/batch lifecycle and SDK/browser integration remain close conditions.
 
 Explicit authenticator logout cancels pending consent, including unstarted work; a later login may hand back credentials but cannot approve the cancelled request. Account-picker selection can still review untouched requests. Delayed popup closes are bound to the current handoff generation, batch, principal and token.
@@ -363,6 +372,14 @@ minting also requires an uploader-owned MinIO video and removes stored manifest
 URLs before remint/denial. Resolved-ref/ad HLS minting independently applies each
 entry's uploader context and drops stored manifest URLs before denial/disabled
 returns. Supplied-owner provenance, legacy URLs and existing token TTL remain open.
+
+Prepared query rows are caller projections, not canonical document authority.
+Offline compiler/ASGI/real synthetic signing evidence reproduces foreign-key
+issuance from fabricated owner/body columns (SQLite execution substitute).
+Media/ad carriers now have local canonical safe-query rebinding before minting;
+projected identity/body/ad preferences grant no signing authority. Face projections
+and attached-ad loader authorization remain OPEN, as do actual ClickHouse and
+connected verification. Do not claim whole-media or whole-prepare assurance.
 
 Defined in the KB: `knowledge-base/web10-v3/security/overview.md`. Short version — I1: cryptographic issuer verification, I2: no unsigned decode, I3: no query returns documents for an `author_key` the token doesn't own (unless group membership grants access), I4: node-readable by design — operator-blindness is not a goal, access is terms-controlled (D41), I5: scoped/expiring/revocable tokens enforced by app contracts. Enforced by the conformance/permission test suite.
 

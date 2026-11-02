@@ -563,8 +563,11 @@ export interface V3Client {
     update(docId: string, body: Record<string, unknown>, opts?: {
         groups?: string[];
         ad_preference?: V3AdPreference;
+        author_as?: string;
     }): Promise<V3Document>;
-    delete(docId: string): Promise<{
+    delete(docId: string, opts?: {
+        author_as?: string;
+    }): Promise<{
         doc_id: string;
         status: string;
     }>;
@@ -594,6 +597,8 @@ export interface V3Client {
     getGroup(groupId: string): Promise<V3Group>;
     getMyGroups(opts?: {
         tags?: string[];
+        author_as?: string;
+        service?: string;
     }): Promise<V3Group[]>;
     getGroupsManages(): Promise<V3Group[]>;
     updateGroup(groupId: string, opts?: {

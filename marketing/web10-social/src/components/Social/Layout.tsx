@@ -14,6 +14,8 @@ import NotificationBell from '@/components/Notifications/NotificationBell';
 import NotificationsScreen from '@/components/Notifications/NotificationsScreen';
 import GlobalSearch from '@/components/Search/GlobalSearch';
 import { NewPostFab } from '@/components/Feed/NewPostFab';
+import ActingIdentitySwitcher from './ActingIdentitySwitcher';
+import { useActingAuthor } from '@/data/actingIdentity';
 
 interface LayoutProps {
   onLogout: () => void;
@@ -94,6 +96,7 @@ function Wordmark({ className }: { className?: string }) {
 export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReportBug, children }: LayoutProps) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const actingIdentity = useActingAuthor();
   const token = getWapi().readToken();
   // Anon mode (the operator: "supporting anon login with web10 social"): a
   // signed-out visitor browses the public surfaces (Discover, Shorts,
@@ -296,6 +299,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
           <Wordmark />
         </div>
         <nav className="relative flex-1 px-2 space-y-1" aria-label="Primary">
+          {!isAnon && <div className="mb-3"><ActingIdentitySwitcher personalName={displayName || username} personalAvatar={avatarUrl} /></div>}
           {sidebarNavItems.map(({ path, icon: Icon, label, testId }) => {
             const target = path === '/profile' ? profilePath : path;
             // The profile item shows the user's own name (the operator's call:
@@ -428,7 +432,8 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
 
       <main className="flex-1 flex flex-col min-w-0 min-h-0">
         <header className="md:hidden flex items-center justify-between px-4 h-14 border-b border-border bg-surface/95 backdrop-blur-md sticky top-0 z-20 gap-2">
-          <Wordmark />
+          <Wordmark className="shrink-0 [&>span]:hidden" />
+          {!isAnon && <ActingIdentitySwitcher personalName={displayName || username} personalAvatar={avatarUrl} />}
           <div className="flex items-center gap-1">
             <GlobalSearch variant="mobile" />
             {isAnon ? (
@@ -661,6 +666,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
         )}
 
         <div className={cn('flex-1 min-h-0 overflow-y-auto md:pb-0', isShorts ? '' : 'pb-16')}>
+          {actingIdentity && /^\/(messages|monetize|settings|node-settings)(\/|$)/.test(pathname) && <p className="border-b border-border bg-surface px-4 py-2 text-xs text-muted-foreground" data-testid="personal-authority-notice">This screen uses your personal account: {username}.</p>}
           {children || <Outlet />}
         </div>
 

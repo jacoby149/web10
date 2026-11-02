@@ -5,6 +5,7 @@
 // replyCounts), readThreadReplies (paged "view more replies"),
 // createThreadComment (top-level or reply), and the comment-like writer.
 import { readThreadComments, readThreadReplies, createThreadComment, toggleReactionKind, updateComment, deleteComment } from '@/data';
+import { useActingAuthor } from '@/data/actingIdentity';
 import {
   PostActions as SharedPostActions,
   type PostActionsProps,
@@ -15,9 +16,11 @@ export type { PostActionMode, ReactionKind } from '@web10/discover';
 type LegacyPostActionsProps = Omit<PostActionsProps, 'readComments' | 'readReplies' | 'createComment' | 'remote' | 'remoteHref' | 'onError' | 'onToggleCommentLike' | 'onUpdateComment' | 'onDeleteComment'>;
 
 export function PostActions(props: LegacyPostActionsProps) {
+  const identity = useActingAuthor();
   return (
     <SharedPostActions
       {...props}
+      actionIdentity={identity}
       readComments={readThreadComments}
       readReplies={readThreadReplies}
       createComment={createThreadComment}

@@ -175,6 +175,16 @@ class TestUpdateDocument:
 
 
 class TestDeleteDocument:
+    def test_group_tombstone_copies_original_posted_by(self):
+        group = "node/groups/users/alice/team"
+        with _patch_client() as mock_client:
+            ch.delete_document("group-doc", group, "notes")
+            mock_client.command.assert_called_once()
+            sql, params = mock_client.command.call_args.args
+            assert "updated_at, deleted, posted_by) SELECT" in sql
+            assert "created_at, now64(6), 1, posted_by FROM documents" in sql
+            assert params == {"doc_id": "group-doc", "author_key": group, "service": "notes"}
+
     def test_tombstone(self):
         with _patch_client() as mock_client:
             ch.delete_document("doc-1", "alice", "posts")
@@ -1097,6 +1107,27 @@ class TestReadDocumentById:
             assert doc["doc_id"] == "doc-1"
             assert doc["author_key"] == "bob"
             assert doc["body"]["text"] == "hello"
+
+    def test_single_read_preserves_group_uploader_audit(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows(
+                [
+                    (
+                        "group-doc",
+                        "node/groups/users/alice/team",
+                        '{"text":"hello"}',
+                        [],
+                        datetime(2026, 1, 1),
+                        "",
+                        "none",
+                        "",
+                        "bob",
+                    ),
+                ]
+            )
+            doc = ch.read_document_by_id("group-doc", "alice", "posts", authenticated=True)
+            assert doc["posted_by"] == "bob"
+            assert "p.posted_by" in mock_client.query.call_args.args[0]
 
     def test_not_found(self):
         with _patch_client() as mock_client:

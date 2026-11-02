@@ -11,7 +11,19 @@ import pytest
 
 @pytest.mark.parametrize(
     "case",
-    ["foreign", "owned", "malformed", "tokens", "metadata-original", "metadata-thumbnail", "raw-foreign", "raw-owned"],
+    [
+        "foreign",
+        "owned",
+        "malformed",
+        "tokens",
+        "metadata-original",
+        "metadata-thumbnail",
+        "raw-foreign",
+        "raw-owned",
+        "query-owner-anon",
+        "query-owner-auth",
+        "query-owner-unprepared",
+    ],
 )
 def test_read_url_owner_boundary(case):
     result = subprocess.run(
@@ -114,6 +126,60 @@ def _probe(case):
             "synthetic-wrong-key-with-sufficient-length" if wrong_key else settings.PRIVATE_KEY,
             algorithm=settings.ALGORITHM,
         )
+
+    if case.startswith("query-owner-"):
+        import sqlite3
+
+        from app.v3.services import clickhouse as ch
+        from app.v3.services import safe_query as sq
+
+        # Retained foreign-issuance reproduction, now a denial regression.
+        key = "bob/private.png"
+        body = json.dumps({"type": "minio", "value": key})
+        sql = f"SELECT 'alice' AS author_key, 'bob' AS posted_by, '{body}' AS body"
+        assert sq.query_services(sql, allowed_services=None) == set()
+        executed = []
+
+        def execute_constant(compiled, **kwargs):
+            executed.append(compiled)
+            # Execute the actual compiler output, not a preselected result row.
+            # SQLite is only a stand-in for this table-free literal SELECT.
+            with sqlite3.connect(":memory:") as db:
+                cursor = db.execute(compiled)
+                return [c[0] for c in cursor.description], cursor.fetchall()
+
+        prepared = case != "query-owner-unprepared"
+        request = {"sql": sql, "prepare": {"media": True}} if prepared else {"sql": sql}
+        if case == "query-owner-auth":
+            request["token"] = token()
+        with (
+            patch.object(settings, "QUERY_EVAL_NO_POLICY", False),
+            patch.object(settings, "QUERY_EVAL_STUB_EXECUTE", False),
+            patch.object(ch, "get_user_groups", return_value=[]),
+            patch.object(ch, "readable_groups") as readable,
+            patch.object(ch, "execute_query", side_effect=execute_constant),
+            patch.object(ch, "get_s3_signing_client", return_value=signer) as factory,
+        ):
+            response = TestClient(app).post("/v3/query", json=request)
+        if prepared:
+            assert response.status_code in (200, 403)
+            if response.status_code == 200:
+                url = response.json()["rows"][0]["body"].get("url")
+                if url:
+                    verify(url, key)
+                    print("prepared-query foreign capability independently verified; SQLite execution substitute")
+                assert url is None, "fabricated query owner minted a foreign capability"
+            factory.assert_not_called()
+            return
+        assert response.status_code == 200, response.status_code
+        assert len(executed) == 1 and "LIMIT" in executed[0].upper()
+        readable.assert_not_called()
+        row = response.json()["rows"][0]
+        assert row["author_key"] == "alice" and row["posted_by"] == "bob"
+        assert row["body"]["value"] == key
+        assert "url" not in row["body"]
+        factory.assert_not_called()
+        return
 
     if case.startswith("raw-"):
         from app.v3.services import clickhouse as ch

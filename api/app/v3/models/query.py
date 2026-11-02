@@ -23,12 +23,11 @@ class PrepareSpec(BaseModel):
     """The engine's prepare pass (D73): which post-query minting passes to run
     on the result rows, so a single ``w.query()`` returns render-ready rows.
 
-    The passes operate on the rows the SELECT returned (the boundary CTEs
-    already proved the reader can read them) — they mint capabilities only for
-    docs in the result, never beyond (no escalation). Each is access-bound:
-    ``media`` presigns author-scoped + mints per-reader HLS sigs; ``ads``
-    attaches the I3-checked pinned + node ad; ``face`` presigns the author's
-    face media. All universal primitives (D44/D49/D55/D57).
+    Media/ad document projections are rebound through the query's current full
+    read boundary before minting. Canonical body/uploader/ad preference replace
+    projected fields; non-document rows no-op. Joined face authority and the
+    attached-ad loaders remain separate open boundaries, not certified by
+    carrier rebinding. All passes remain generic primitives (D44/D49/D55/D57).
     """
 
     media: bool | None = None

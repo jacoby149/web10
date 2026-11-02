@@ -35,6 +35,58 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-02: Re-read capability-bearing carriers, not just their IDs
+
+[Canonical carrier repair](scans/2026-10/repair-h01-query-carrier.md) replaces
+projected owner/body/ad preferences with a fresh safe-query read using the original
+readable services/groups. Drop projected inline ads before actual attachment.
+Keep the documented doc_id/author_key/body shape; broad reserved-alias detection
+breaks aggregates. Preserve posted_by and independent ad uploaders. Baseline
+synthetic SigV4 issuance fails the retained denial probe; final 1,694 API tests
+plus eight subtests and same-model re-review pass. Face/attached-ad authority,
+actual ClickHouse/playback, CI/rollout/diverse review and L1 remain OPEN.
+
+### 2026-11-01: Gated SQL inputs do not establish output authority
+
+[Prepared-owner evidence](scans/2026-10/h01-query-owner-proof.md) executes the
+actual compiler's table-free constant SELECT in SQLite, then actual ASGI query
+serialization/preparation and real synthetic signing. Anonymous and authenticated
+callers fabricate Alice author/Bob uploader/Bob key; independently verified SigV4
+URLs are issued. The same SQL without prepare never creates a signing client.
+Namespace checks hold but the supplied owner is invented. This is a current
+OPEN authority gap, not a source repair or actual ClickHouse/object retrieval.
+Canonical gated rehydration is the repair direction; never authorize an ID then
+sign caller-projected body/owner. Keep ordinary SQL and legitimate cross-user
+media intact; face/ad capabilities need independent binding. Fresh same-model
+review and 1,672 API tests plus eight subtests support the bounded evidence, not
+denial, rollout or L1 closure. Existing positive-disclosure assertions must become
+denial controls in the separate repair, not be treated as permanent desired policy.
+
+### 2026-11-02: Tombstones must retain the original audit actor
+
+Acting-identity continuation review found `delete_document` omitted `posted_by`
+from its tombstone INSERT/SELECT, dropping original attribution after replacement.
+Copy the stored column through deletion as well as update. A generated-SQL
+regression failed before repair and passed afterward; connected ClickHouse
+persistence remains unverified. UI mutation controls now resolve service-specific
+update/delete grants for the document author rather than treating navigation
+selection as authority; the node remains the live write gate. See
+`acting-identity-review.md` for bounded evidence and open release gates.
+
+### 2026-11-01: Acting identity is not a credential or a human membership
+
+The acting-identity feature reuses `author_as` rather than minting a group
+session. Creation uses the existing service create grant; delegated mutations
+check current `updateOwn`/`deleteOwn` grants independently and keep the
+app-contract principal human. Membership discovery for the selected group must
+not list or self-heal the human's groups. Reaction ownership must compare full
+group keys, not a slug or `posted_by`: multiple operators share one identity's
+state, while the original audit actor remains unchanged. Target denial must
+happen before insertion. Local tests use signed synthetic JWTs and storage
+doubles; they are not connected storage proof or independent security sign-off.
+Feature review record: `acting-identity-review.md`. Protocol campaign gates
+remain OPEN.
+
 ### 2026-11-01: Every reference mint needs its own uploader context
 
 [Reference HLS mint repair](scans/2026-10/repair-h01-hls-ref-mint.md) reproduces

@@ -1051,8 +1051,8 @@ def update_document(
 def delete_document(doc_id: str, author_key: str, service: str):
     """Tombstone a document (insert deleted=1 version)."""
     client.command(
-        "INSERT INTO documents (doc_id, author_key, collection_name, body, ref_value, tags, created_at, updated_at, deleted) "
-        "SELECT doc_id, author_key, collection_name, body, ref_value, tags, created_at, now64(6), 1 "
+        "INSERT INTO documents (doc_id, author_key, collection_name, body, ref_value, tags, created_at, updated_at, deleted, posted_by) "
+        "SELECT doc_id, author_key, collection_name, body, ref_value, tags, created_at, now64(6), 1, posted_by "
         "FROM documents WHERE doc_id = %(doc_id)s AND author_key = %(author_key)s AND collection_name = %(service)s AND deleted = 0",
         {"doc_id": doc_id, "author_key": author_key, "service": service},
     )
@@ -3145,7 +3145,7 @@ def read_document_by_id(doc_id: str, member_key: str, service: str, authenticate
         **{f"key{i}": k for i, k in enumerate(keys)},
     }
     result = client.query(
-        "SELECT p.doc_id, p.author_key, p.body, p.tags, p.created_at, p.ref_value, p.ad_mode, p.ad_target "
+        "SELECT p.doc_id, p.author_key, p.body, p.tags, p.created_at, p.ref_value, p.ad_mode, p.ad_target, p.posted_by "
         "FROM documents p "
         "LEFT SEMI JOIN ( "
         "SELECT pg.doc_id FROM doc_groups pg "
@@ -3174,6 +3174,7 @@ def read_document_by_id(doc_id: str, member_key: str, service: str, authenticate
         "ref_value": row[5],
         "ad_mode": row[6] or "none",
         "ad_target": row[7] or "",
+        "posted_by": row[8],
         "service": service,
     }
 

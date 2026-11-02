@@ -33,6 +33,15 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases 
 
+- [✓ 3.254.3 local] **Batching inventory and execution plan** - source audit of backend database-call loops and client request fan-out, scoped bites and correctness/request-count gates in `batching-performance.md`. Documentation only; not an optimization or benchmark result.
+- [ ] **Execute batching-performance queue** - B01-B09 backend and C01-C14 client items in `batching-performance.md`; prioritize readable-set equivalence/promotion, owner-scoped media/face preparation and acting-identity request deduplication. Claim one sub-bite at a time; existing paint-on-read/E3/security lanes retain their gates.
+
+- [✓ 3.254.0 local] **App-wide acting identity implementation** - navigation switcher and identity-aware posts/comments/reactions/reposts, delegated mutations and membership lookup implemented and locally verified. Details and exact evidence: `acting-identity.md`. Not merged or deployed.
+- [ ] **Connected multi-operator/revocation acceptance** - real-storage shared-reaction, revocation, audit and concurrent-action replay; independent security review remains a release gate (`acting-identity.md`).
+
+Status correction: composer-only A4 exists on open PR #1308, not merged. Its
+historical completion references are superseded by the acting-identity gates.
+
 - [✓ 3.253.16 local] **E3 first K1000 trial** — one 1,000-creator seed measured at K10/100/1000; all 20 cells with 20 samples, 400 measurements. First-attempt seed succeeded, artifacts collected, droplet deleted. See research/experiments/costfn/K1000-RESULTS.md. Single sequential trial, not full E3 completion.
 
 - [✓ 3.253.11 local] **E3 preliminary results in manuscript** — K10/100 B/C median/p95 table and K1 contrary result, bounded abstract/conclusion, setup/provenance and limits. Table checked against report; PDF builds. Repeated trials, full feed and capacity remain open.
@@ -73,6 +82,11 @@ reuses `POST /v3/app-contracts/revoke`. Full spec:
 - [✓ 3.245.0] **O10: SDK `w.oauth()` helper** (`sdk/`) — `authorize` (consent URL + popup, or `{ url }` for server-side connectors) + `exchangeCode` / `refresh` (both grants against `/v3/oauth/token`) + refresh-token storage (own cookie slot; client_id from the delegated token's claim). D60-clean: no registry management, no consent rendering.
 
 ## L1 Security Scans
+
+- [✓ 3.254.4 local evidence] **PROTOCOL-01/H01-PREPARE-PROOF: replay fabricated query-owner signing** — actual compiler/ASGI/resolver/real synthetic SigV4 with SQLite constant execution; anon/auth foreign issuance and unprepared no-sign control, 1,672 API tests plus eight subtests, Ruff and fresh same-model review pass. [Receipt](../security/scans/2026-10/h01-query-owner-proof.md). Finding OPEN, no runtime repair or ClickHouse/live retrieval claim.
+- [✓ 3.254.5 local carrier] **PROTOCOL-01/H01-PREPARE-REPAIR: bind prepared capabilities to canonical authorized data** — media/ad carrier fields rebound through safe-query reads; retained foreign probes denied, canonical ad/HLS three-uploader composition and aggregate behavior pinned. 163 focused/1,694 API tests plus eight subtests, Ruff and same-model re-review pass. [Receipt](../security/scans/2026-10/repair-h01-query-carrier.md). Carrier slice only; face/ad-loader/ClickHouse/connected/CI/rollout/diverse/L1 gates OPEN.
+- [ ] **PROTOCOL-01/H01-PREPARE-FACE: bind joined face capability authority** — own query face prepare/focused tests/security KB; reproduce projected face authority, canonically bind authorized face bodies/uploaders without breaking joined person/group faces. Gates: red -> denied green, positive public/cross-user/group controls, <=500-line repair, fresh intent review, KB write-back and all CI green. Coordinate shared query ownership; ad-loader authority remains separate.
+- **Reference mint status:** H01-HLS-REF-MINT merged #1312 at `66330ed99`, all 13 checks passed first attempt; historical local checkpoint below is not whole-media closure.
 
 - [✓ 3.253.15 local] **PROTOCOL-01/H01-HLS-REF-MINT: owner-bind reference/ad stream mint** — three foreign segment capabilities denied; independent uploader contexts, stale suppression and valid siblings retained. 46 new controls, actual resolver/mint composition, 1,669 API tests plus eight subtests, Ruff and fresh same-model review pass. [Receipt](../security/scans/2026-10/repair-h01-hls-ref-mint.md). Supplied-owner/legacy-URL provenance, live integration/CI/deployment/diverse/L1 OPEN.
 - **Direct mint status:** H01-HLS-DIRECT-MINT merged #1311 at `3b37e66c4`; last observed CI was 12/13 green with repeat Discover engagement E2E failure, not all-green or deployment evidence.
