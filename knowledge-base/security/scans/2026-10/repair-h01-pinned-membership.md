@@ -74,6 +74,11 @@ Old signed URLs are not revoked before their existing expiry by this repair.
 
 ## Remaining Boundaries
 
+Publication preparation: merged `origin/dev` at `bd9b87ec2` (documentation-only
+incoming changes), retained its changelog entries and renumbered only this repair
+to 3.254.12. API source/tests remain identical; the full 1,755 tests plus eight
+subtests pass again on the combined branch.
+
 The doc_groups attachment subquery is unchanged; attachment tombstone history can
 still require its own evidence/repair. Group/app/service/visibility/class rules,
 node-ad inventory, stored media provenance and old capability TTL remain separate.

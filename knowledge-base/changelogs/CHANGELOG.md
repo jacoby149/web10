@@ -1,6 +1,7 @@
-3.254.10 || 02.11.2026
+3.254.12 || 02.11.2026
 fix(ads): **honor current membership before pinned creative attachment** - rank reader/group membership history including tombstones, then filter removals, with deletion winning timestamp ties. Five actual ASGI/real synthetic SigV4 disclosures on SQLite and ClickHouse-local become denied-ad/no-signer; active/rejoined/alternate-group and group-uploader controls preserved. Ten cases per backend, 365 focused/1,755 API tests plus eight subtests, Ruff and fresh same-model review pass. Local membership repair only: attachment/role/app/visibility/node-ad, production lifecycle/CI/rollout/diverse and protocol L1 gates remain OPEN.
 
+3.254.10 || 02.11.2026
 docs(v3): add domain-identity spec (`identity/domain-identity.md`) — the authoritative reference for the DNS TXT domain claim, the `users.domain` + `users.domain_verified` columns, the verification flow, and the load-bearing decision that the domain is an **alias, not a principal**: groups, tokens, and the I3 read gate key on the username, never the domain. The domain is resolved at display/lookup time, not baked into the data. Explicitly answers the "backfill" question: no backfill — the domain is a pointer, not a replacement (the DNS analogy: changing the IP doesn't rewrite every HTTP request). D60 check passes (account-level identity, same category as `phone`). API surface specified (verify/release/lookup). Complements `setup/custom-domain.md` (the runbook) and `web10-v4/identity/registry.md` (the v4 public registry).
 
 3.254.11 || 02.11.2026
