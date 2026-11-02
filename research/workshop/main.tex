@@ -9,6 +9,15 @@
 \usepackage{xcolor}
 \usepackage{listings}
 \usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{positioning,calc}
+
+% Brand tokens (knowledge-base/strategy/design.md \S13)
+\definecolor{web10bg}{HTML}{09090b}
+\definecolor{web10fg}{HTML}{fafafa}
+\definecolor{web10brand}{HTML}{8b5cf6}
+\definecolor{web10brand300}{HTML}{c4b5fd}
+\definecolor{web10muted}{HTML}{27272a}
 
 % Pin implementation links and source-size accounting to the reviewed snapshot.
 \newcommand{\artifactbase}{https://github.com/jacoby149/web10}
@@ -112,32 +121,52 @@ service, and an operation. Any principal on any node can hold any role in a
 group. The user is the policy administrator for their own data, and that policy
 reaches across the network.
 
-The result is a system with three properties that prior work treats as a
-tradeoff:
+The result is a system that combines properties prior work treats as a
+tradeoff. Table~\ref{tab:capabilities} places the deployed systems and the
+email model that web10 generalizes against five capabilities. The marks are
+\checkmark\ (present), $\times$ (absent), or $\sim$ (partial / scoped).
 
-\begin{center}
-\small
-\begin{tabular}{@{}lll@{}}
+\begin{table}[t]
+\caption{Capability comparison. Email is the model web10 generalizes, not a
+social system. Social platforms decentralize or scale the data plane but keep
+access control platform-defined and coarse-grained; Solid decentralizes data
+\emph{and} some access, but its model is resource-centric. web10 is the only
+system with all five.}
+\label{tab:capabilities}
+\centering
+\scriptsize
+\begin{tabular}{@{}p{3.9cm}ccccc@{}}
 \toprule
-\textbf{Property} & \textbf{Email} & \textbf{web10} \\
+\textbf{Capability} & \textbf{Email} & \textbf{Masto-} & \textbf{Blue-} & \textbf{Solid} & \textbf{web10} \\
+ & & \textbf{don} & \textbf{sky} & & \\
 \midrule
-User-owned data, portable in principle & mail only & all formats \\
-Fine-grained, user-managed access & provider-locked & cross-node-addressable \\
-Composable query over the data & none & application-defined SQL \\
+User-owned data, portable & $\sim$ mail & $\sim$ & $\checkmark$ & $\checkmark$ & $\checkmark$ any \\
+Fine-grained, user-mgmt access & $\times$ & $\times$ & $\times$ & $\sim$ res. & $\checkmark$ role \\
+Access cross-node-addr. & $\sim$ addr & $\times$ & $\times$ & $\sim$ Pod & $\checkmark$ \\
+Composable, app-def.\ query & $\times$ & $\times$ & $\sim$ view & $\sim$ dep. & $\checkmark$ SQL \\
+User-addr.\ net.\ (no fed.) & $\checkmark$ & $\times$ & $\times$ & $\checkmark$ & $\checkmark$ \\
 \bottomrule
 \end{tabular}
-\end{center}
+\end{table}
 
-Email has the first, for one format. Solid~\cite{solid2016} has user-owned data
-and some cross-Pod access~\cite{wac2022,acp2022}, but its access model is
-resource-centric (ACLs on LD resources) rather than a uniform role/grant
-vocabulary over application-defined services, and cross-Pod query cost depends
-on deployment. ActivityPub~\cite{activitypub2018} and ATProto~\cite{kleppmann2024}
-separate storage from application views, but their access relationships are
-platform-defined, not user-managed grants over a shared query surface. web10
-claims the center of the triangle: user-owned data \emph{and} user-managed
-access \emph{and} composable query, over a network that is user-addressed
-rather than server-federated.
+The pattern is the email split, repeated. Email decentralized where data
+\emph{goes}---a global address, sovereign stores, client-mediated delivery---but
+not who may \emph{access} it: you can mail a Yahoo user from Gmail, but you
+cannot grant that user \emph{editor} on your Calendar. The social platforms
+inherit the same split at larger scale. Mastodon~\cite{activitypub2018} and
+Bluesky~\cite{kleppmann2024} let you follow someone on another server and carry
+your data in principle, but their authorization is platform-defined and
+coarse-grained---follow/block and collection-level visibility, not per-principal
+grants over application-defined services. Facebook scales the data plane to a
+massive lakehouse but keeps the access model entirely inside its own platform.
+Solid~\cite{solid2016} is the closest prior work: it decentralizes data
+\emph{and} some access, with WAC group agents~\cite{wac2022} and ACP
+client/issuer matchers~\cite{acp2022}. But its access model is
+\emph{resource-centric}---ACLs on linked-data resources---rather than a uniform
+role/grant vocabulary over services that applications define, and its cross-Pod
+query cost depends on deployment. web10 claims the center: all five
+capabilities at once, over a network that is user-addressed rather than
+server-federated.
 
 The platform is deployed. web10-social is a creator-oriented social application
 ---feeds, groups, direct messages, discovery, short- and long-form video,
