@@ -6,6 +6,12 @@ Scanners/reviewers: separate OpenCode `openai/gpt-6.1-sol` contexts
 (`openrouter/openai/gpt-6.1-sol`), not different model families.
 **Selected source read coverage complete; protocol L1 security gate OPEN.**
 
+02.11 pinned-ad overlay: [membership proof](h01-pinned-membership-proof.md)
+reproduces revoked-reader creative/capability issuance against actual loader SQL,
+including isolated ClickHouse-local Memory-table replay. Test-only; finding OPEN,
+no source repair or L1 advancement. 1,749 API tests plus eight subtests, Ruff and
+fresh same-model review pass; broader ad authority/real-schema/rollout gates remain.
+
 02.11 face overlay: [canonical face repair](repair-h01-query-face.md) denies
 fabricated face capabilities and retains ID-free person/group lookup shapes.
 180 focused/1,745 API tests plus eight subtests, Ruff and same-model review pass.

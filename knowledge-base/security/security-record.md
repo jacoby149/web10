@@ -30,6 +30,16 @@ private-origin denial, browser playback/renewal, key rotation and production log
 verification. No deployment, instant revocation or existing authority-debt closure.
 Contract/gates: [media delivery](../web10-v3/media-delivery.md).
 
+## Pinned-Ad Membership Authority (02.11.2026)
+
+H01-AD-MEMBER [local evidence](scans/2026-10/h01-pinned-membership-proof.md):
+normal group gate denies a removed member while pinned-ad SQL returns its creative
+through the read route with independently verified synthetic SigV4. Four history
+controls pass on SQLite and actual ClickHouse-local 24.8.14.39/reduced Memory
+tables; 1,749 API tests plus eight subtests, Ruff and fresh same-model review pass.
+Finding OPEN, no runtime repair. Production schema/storage/merges, real object
+retrieval, broader creative policy, CI/rollout/diverse and protocol L1 remain OPEN.
+
 ## Canonical Query Faces (02.11.2026)
 
 H01-PREPARE-FACE [local repair](scans/2026-10/repair-h01-query-face.md): two
