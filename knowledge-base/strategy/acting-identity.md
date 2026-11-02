@@ -12,6 +12,12 @@ desktop uses a popover and phones a sheet. Always say `Acting as`. Selection is
 per tab and per authenticated account, never a replacement credential. Existing
 post/comment drafts keep the identity under which writing began.
 
+Picker safety: clicking a row previews a choice only. `Use identity` commits it;
+Close, Escape, outside dismissal and trigger dismissal discard the preview.
+Reopening starts from the active identity, never an abandoned preview. This
+addresses the reported accidental switch while dismissing the picker; the exact
+live click sequence that selected lil-k has not been reproduced.
+
 Posts, comments, likes, dislikes and reposts use the selected identity. DMs,
 billing, account settings, group administration and node administration continue
 to use personal authority. Reading content remains authorized by the human

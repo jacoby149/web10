@@ -41,6 +41,7 @@ If a lower layer contradicts its source above, the source wins. Always.
 - [ ] **Execute batching-performance queue** - B01-B09 backend and C01-C14 client items in `batching-performance.md`; prioritize readable-set equivalence/promotion, owner-scoped media/face preparation and acting-identity request deduplication. Claim one sub-bite at a time; existing paint-on-read/E3/security lanes retain their gates.
 
 - [✓ 3.254.0 local] **App-wide acting identity implementation** - navigation switcher and identity-aware posts/comments/reactions/reposts, delegated mutations and membership lookup implemented and locally verified. Details and exact evidence: `acting-identity.md`. Not merged or deployed.
+- [✓ 3.254.12 local] **Identity picker dismissal safety** - preview row choices and require `Use identity` to commit. Desktop/mobile Close, Escape, outside and trigger dismissal preserve active identity; reopening drops previews. 1,593 social tests and production build pass; desktop/375px screenshots inspected. Exact reported lil-k click sequence and live Discover posting remain unverified; not deployed.
 - [ ] **Connected multi-operator/revocation acceptance** - real-storage shared-reaction, revocation, audit and concurrent-action replay; independent security review remains a release gate (`acting-identity.md`).
 
 Status correction: composer-only A4 exists on open PR #1308, not merged. Its
