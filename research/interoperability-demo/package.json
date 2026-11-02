@@ -1,0 +1,9 @@
+{
+  "name": "web10-interoperability-demo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "../../e2e/node_modules/.bin/playwright test",
+    "test:list": "../../e2e/node_modules/.bin/playwright test --list"
+  }
+}

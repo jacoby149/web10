@@ -1,10 +1,14 @@
 # Access-Control Cost Function Experiment
 
-**K1000 trial complete:** [K=10/100/1000 results](K1000-RESULTS.md) records a
-single 1,000-creator trial, 20 samples in all 20 cells (400 measurements).
+**K1000 trial:** [K=10/100/1000 results](K1000-RESULTS.md), imported from PR
+#1313, records one 1,000-creator trial with all 20 cells complete (400 samples).
 At K1000, B readable medians were 7,535.705 ms per-group versus 213.980 ms
-batched; handler medians 7,644.655 versus 363.305 ms. No startup/seed retry was
-needed; artifacts collected and droplet deleted. This is not capacity evidence.
+batched; handler medians were 7,644.655 versus 363.305 ms. The paper now uses
+this internally consistent sweep rather than pooling it with the earlier trial.
+No startup/seed retry was needed; artifacts were collected and the droplet deleted.
+The [summary receipt](evidence/) and `check-paper.mjs` retain/verify the numbers.
+This is not capacity evidence; A is not a matched no-policy HTTP baseline and
+B-minus-A is not causal authorization overhead. Full E3 remains open.
 
 **First scaling trial:** [K=10/100 results](K100-RESULTS.md) records 100 creators,
 20 samples per cell, all 15 cells complete. It includes the initial seeding
