@@ -11,7 +11,10 @@ ClickHouse rejects it with `Unknown expression identifier 'updated_at'` and
 the try/except swallows it, so node ads silently never attach.
 """
 
+import json
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from app.v3.services import clickhouse as ch
 
@@ -31,12 +34,51 @@ def _body(status="active"):
     return f'{{"status": "{status}"}}'
 
 
+@pytest.mark.parametrize("field", ["ad", "node_ad"])
+def test_group_ad_loader_preserves_uploader_for_media_resolution(field):
+    body = {
+        "status": "active",
+        "media_refs": ["m1"],
+        "raw": [
+            {"type": "minio", "value": "alice/owned", "url": "stale"},
+            {"type": "minio", "value": "bob/foreign", "url": "stale"},
+        ],
+    }
+    carrier = {"author_key": "carrier-owner", "body": {}, "ad_mode": "pinned", "ad_target": "ad-1"}
+    rows = [("ad-1", "group-author", json.dumps(body), ["ad", "node_ad"], "alice")]
+    with (
+        _patch_client() as client,
+        patch.object(ch, "get_s3_signing_client") as factory,
+    ):
+        client.query.side_effect = [
+            _mock_result_rows(rows),
+            _mock_result_rows([("m1", '{"object_key":"alice/metadata"}', "media_metadata")]),
+        ]
+        sign = factory.return_value.generate_presigned_url
+        sign.side_effect = lambda operation, Params, ExpiresIn: "fresh:" + Params["Key"]
+        if field == "ad":
+            carrier = ch.attach_pinned_ads([carrier], "viewer")[0]
+        else:
+            carrier[field] = ch.get_active_node_ads()[0]
+        result = ch.resolve_media_urls_in_docs([carrier])[0][field]
+    assert result["body"]["raw"][0]["url"] == "fresh:alice/owned", result
+    assert result["body"]["raw"][1]["url"] is None
+    assert result["posted_by"] == "alice"
+    assert result["body"]["media_refs"][0]["read_url"] == "fresh:alice/metadata"
+    assert client.query.call_args_list[1].args[1]["author_key"] == "alice"
+    sql = client.query.call_args_list[0].args[0]
+    outer, inner = sql.split("FROM (SELECT", 1)
+    assert outer.split("SELECT", 1)[1].strip().endswith("posted_by")
+    assert "posted_by" in inner.split("row_number()", 1)[0]
+    assert [c.kwargs["Params"]["Key"] for c in sign.call_args_list] == ["alice/metadata", "alice/owned"]
+
+
 class TestGetActiveNodeAds:
     def test_returns_active_node_ads_from_discover_group(self):
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
                 [
-                    ("doc-1", "nodeops@web10", _body("active"), ["ad", "node_ad"]),
+                    ("doc-1", "nodeops@web10", _body("active"), ["ad", "node_ad"], "nodeops@web10"),
                 ]
             )
             ads = ch.get_active_node_ads()
@@ -87,8 +129,8 @@ class TestGetActiveNodeAds:
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
                 [
-                    ("doc-1", "nodeops@web10", _body("active"), ["ad", "node_ad"]),
-                    ("doc-2", "nodeops@web10", _body("paused"), ["ad", "node_ad"]),
+                    ("doc-1", "nodeops@web10", _body("active"), ["ad", "node_ad"], "nodeops@web10"),
+                    ("doc-2", "nodeops@web10", _body("paused"), ["ad", "node_ad"], "nodeops@web10"),
                 ]
             )
             ads = ch.get_active_node_ads()

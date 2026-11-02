@@ -1,3 +1,6 @@
+3.253.12 || 01.11.2026
+fix(media): **owner-bind recursive raw-MinIO signing and preserve ad uploader context** — require explicit owner, suppress foreign/malformed/stale leaf URLs and keep valid siblings; propagate each document/ad uploader, including posted_by through actual ad loaders. Real synthetic SigV4 foreign capability red -> denied green; review caught and repaired two ad compatibility failures. 347 focused/1,570 API tests plus four subtests, lint/format and fresh same-model review pass. Caller-owner authority, HLS/legacy URL provenance, CI/integration/deployment/diverse gates remain OPEN, no whole-media/L1 closure.
+
 3.253.11 || 01.11.2026
 docs(research): incorporate the measured K=10/100 trial into the paper: eight-row B/C median/p95 table, K1 counterexample, setup and source provenance, 300-sample accounting, baseline and single-trial limitations, and the unexplained initial seed failure. Abstract, introduction and conclusion now distinguish preliminary measured results from pending capacity/full-feed/revocation evaluation. Research README/outline aligned. Table values and ratios checked against retained report; Tectonic builds the eight-page PDF with layout/font/BibTeX warnings. Full E3 remains open; no causal authorization-overhead or production scalability claim.
 
