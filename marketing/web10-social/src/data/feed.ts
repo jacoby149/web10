@@ -542,9 +542,9 @@ async function readFeedEngagementCounts(
   postIds: string[],
   feedGroups: string[],
 ): Promise<{
-  likes: Record<string, number>;
-  dislikes: Record<string, number>;
-  comments: Record<string, number>;
+  likes: Record<string, number> | null;
+  dislikes: Record<string, number> | null;
+  comments: Record<string, number> | null;
 }> {
   const empty = { likes: {}, dislikes: {}, comments: {} };
   if (!postIds.length) return empty;
@@ -558,7 +558,10 @@ async function readFeedEngagementCounts(
         "countIf(JSONExtractString(body, 'type') = 'dislike') AS dislike_count " +
         `FROM reactions WHERE ref_value IN (${quoted}) GROUP BY ref_value`,
       { groups },
-    ),
+    ).catch((e) => {
+      console.warn('[social-feed] reaction counts failed (preserving prepared counts):', e);
+      return null;
+    }),
     // The TOTAL count (top-level + replies): a reply's `ref_value` is its
     // parent comment (comments.md, 3.107.0), so `ref_value IN (postIds)` sees
     // only top-level comments. Every comment carries `body.post_id`, so the
@@ -567,17 +570,20 @@ async function readFeedEngagementCounts(
       "SELECT JSONExtractString(body, 'post_id') AS post_id, count() AS comment_count " +
         `FROM comments WHERE JSONExtractString(body, 'post_id') IN (${quoted}) GROUP BY post_id`,
       { groups },
-    ),
+    ).catch((e) => {
+      console.warn('[social-feed] comment counts failed (preserving prepared counts):', e);
+      return null;
+    }),
   ]);
   const likes: Record<string, number> = {};
   const dislikes: Record<string, number> = {};
-  for (const row of reactionRows.rows) {
+  for (const row of reactionRows?.rows ?? []) {
     const ref = String(row.ref_value);
     likes[ref] = Number(row.like_count) || 0;
     dislikes[ref] = Number(row.dislike_count) || 0;
   }
   const comments: Record<string, number> = {};
-  for (const row of commentRows.rows) {
+  for (const row of commentRows?.rows ?? []) {
     comments[String(row.post_id)] = Number(row.comment_count) || 0;
   }
   console.log(
@@ -586,7 +592,11 @@ async function readFeedEngagementCounts(
     Object.values(dislikes).reduce((a, b) => a + b, 0), 'dislikes +',
     Object.values(comments).reduce((a, b) => a + b, 0), 'comments',
   );
-  return { likes, dislikes, comments };
+  return {
+    likes: reactionRows ? likes : null,
+    dislikes: reactionRows ? dislikes : null,
+    comments: commentRows ? comments : null,
+  };
 }
 
 /**
@@ -655,9 +665,9 @@ export async function readFeedPage(opts: {
     ]);
     for (const p of posts) {
       const id = p._id || '';
-      p.likes = counts.likes[id] ?? 0;
-      p.dislikes = counts.dislikes[id] ?? 0;
-      p.comments = counts.comments[id] ?? 0;
+      if (counts.likes) p.likes = counts.likes[id] ?? 0;
+      if (counts.dislikes) p.dislikes = counts.dislikes[id] ?? 0;
+      if (counts.comments) p.comments = counts.comments[id] ?? 0;
       p.impressions = viewCounts[id]?.impressions ?? 0;
       p.reach = viewCounts[id]?.reach ?? 0;
     }
@@ -748,9 +758,9 @@ export async function readFeedReactions(
   // feed is invisible on refresh (the "refresh my like is gone" bug). The
   // reader is a member of the discover group (auto-joined on signup), so the
   // read sees their own reactions there.
-  const groups = [...(await getFeedGroups()), getDiscoverGroupId()];
-  if (!groups.length) return empty;
   try {
+    const groups = [...(await getFeedGroups()), getDiscoverGroupId()];
+    if (!groups.length) return empty;
     // The batched ref read (the engagement-count shape): one request returns
     // every reaction whose ref_value is one of the feed's posts. The reader is
     // a member of every feed group (followers groups), so the read sees their

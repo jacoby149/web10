@@ -29,6 +29,16 @@ fresh same-model design-intent re-review passes the bounded change. Storage/app 
 not whole L1/L2 coverage or a security PASS. Connected persistence/revocation,
 CI/rollout and independent diverse review remain OPEN.
 
+## Pinned-Ad Attachment Authority (02.11.2026)
+
+H01-AD-LINK [local evidence](scans/2026-10/h01-pinned-attachment-proof.md):
+compiler attachment boundary excludes removed link while actual loader/ASGI
+returns/signs its creative. Membership stays live, isolating attachment history
+from repaired membership history. Four cases/backend, 1,759 API tests plus eight
+subtests, Ruff and fresh same-model review pass. Actual ClickHouse-local reduced
+Memory fixtures, not production schema/driver/lifecycle. Finding OPEN; no runtime
+repair, real object retrieval or L1 PASS. Broader ad/CI/rollout/diverse gates OPEN.
+
 ## Pinned-Ad Membership Repair (02.11.2026)
 
 H01-AD-MEMBER [local repair](scans/2026-10/repair-h01-pinned-membership.md):

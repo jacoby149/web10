@@ -194,6 +194,54 @@ describe('feed v3 data layer', () => {
       expect(post.author_username).toBe('bob');
     });
 
+    it.each([
+      { reactionsFail: true, commentsFail: false, empty: false, likes: 5, dislikes: 3, comments: 9 },
+      { reactionsFail: false, commentsFail: true, empty: false, likes: 7, dislikes: 4, comments: 2 },
+      { reactionsFail: true, commentsFail: true, empty: false, likes: 5, dislikes: 3, comments: 2 },
+      { reactionsFail: true, commentsFail: false, empty: true, likes: 5, dislikes: 3, comments: 0 },
+      { reactionsFail: false, commentsFail: true, empty: true, likes: 0, dislikes: 0, comments: 2 },
+      { reactionsFail: false, commentsFail: false, empty: true, likes: 0, dislikes: 0, comments: 0 },
+    ])('preserves only failed service counts ($reactionsFail/$commentsFail), empty=$empty', async ({ reactionsFail, commentsFail, empty, likes, dislikes, comments }) => {
+      mock.query.mockImplementation(async (sql: string) => {
+        if (sql.includes('FROM posts p')) return { rows: [feedRow({ dislikes: 3 })], count: 1 };
+        if (sql.includes('FROM reactions')) {
+          if (reactionsFail) throw new Error('reaction counts unavailable');
+          return { rows: empty ? [] : [{ ref_value: 'p1', like_count: 7, dislike_count: 4 }] };
+        }
+        if (commentsFail) throw new Error('comment counts unavailable');
+        return { rows: empty ? [] : [{ post_id: 'p1', comment_count: 9 }] };
+      });
+      mock.contentViews.mockResolvedValue({ p1: { impressions: 420, reach: 42 } });
+
+      const page = await readFeedPage({ limit: 20 });
+
+      expect(page.posts).toHaveLength(1);
+      expect(page.posts[0]).toMatchObject({
+        _id: 'p1', text: 'a post', likes, dislikes, comments,
+        avatar_url: 'https://cdn/av1', impressions: 420, reach: 42,
+      });
+      expect(page.has_more).toBe(false);
+      expect(page.next_cursor).toBeNull();
+      expect(mock.query).toHaveBeenCalledTimes(3);
+    });
+
+    it('rejects when the primary feed query fails', async () => {
+      const error = new Error('feed unavailable');
+      mock.query.mockRejectedValue(error);
+
+      await expect(readFeedPage({})).rejects.toBe(error);
+      expect(mock.query).toHaveBeenCalledTimes(1);
+      expect(mock.contentViews).not.toHaveBeenCalled();
+    });
+
+    it('rejects when feed memberships fail', async () => {
+      const error = new Error('memberships unavailable');
+      mock.getMyGroups.mockRejectedValue(error);
+
+      await expect(readFeedPage({})).rejects.toBe(error);
+      expect(mock.query).not.toHaveBeenCalled();
+    });
+
     it('computes has_more from the +1 row and the next cursor on created_at (Newest)', async () => {
       // 21 rows for a limit of 20 → has_more, cursor on the 20th row's created_at.
       const rows = Array.from({ length: 21 }, (_, i) =>
@@ -646,6 +694,13 @@ describe('feed v3 data layer', () => {
       const { liked, disliked } = await readFeedReactions(['p1']);
       expect(liked).toEqual({});
       expect(disliked).toEqual({});
+      expect(mock.read).not.toHaveBeenCalled();
+    });
+
+    it('degrades to empty maps when memberships fail', async () => {
+      mock.getMyGroups.mockRejectedValue(new Error('memberships unavailable'));
+
+      await expect(readFeedReactions(['p1'])).resolves.toEqual({ liked: {}, disliked: {}, reposted: {} });
       expect(mock.read).not.toHaveBeenCalled();
     });
 
