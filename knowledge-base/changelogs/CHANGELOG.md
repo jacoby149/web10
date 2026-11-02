@@ -1,3 +1,5 @@
+3.254.6 || 02.11.2026
+docs(v4): add identity-registry spec (D93) — DNS-style name→node resolution for user portability. New `web10-v4/identity/registry.md` defines the registry's role (name lookup, no data storage), user-signed pointer updates, boring-infra hosting (Njalla registrar, Cloudflare DNS, Iceland/CH VPS), and the explicit non-goals (no wallet UX, no content moderation, no access-control enforcement). D93 recorded in decisions.md. Completes the "301 redirect" gap from ads-october/gaps.md.
 3.254.9 || 02.11.2026
 test(security): **reproduce pinned-ad disclosure after membership removal** - actual membership predicate denies a synthetic revoked reader while actual loader/ASGI read returns the creative and independently verified real synthetic SigV4 capability. Four history controls pass on SQLite and isolated ClickHouse-local 24.8.14.39 Memory tables; 1,749 API tests plus eight subtests, Ruff and fresh same-model review pass. Evidence only, no runtime repair or real-object/production-storage claim. Pinned membership repair, broader ad policy, rollout/diverse gates and protocol L1 remain OPEN; Shadowguard stays deferred v4.
 
