@@ -97,6 +97,15 @@ behaviors from absent-operation controls; final 45 focused/1,420 API tests plus
 four subtests and lint/format pass, fresh same-model review. Operational storage,
 CI/deployment/history/diverse sign-off and protocol L1 remain OPEN.
 
+## Evaluation Environment Type Repair (01.11.2026)
+
+Bounded local repair in settings.py: the legacy override loop turned parsed
+QUERY_EVAL flags into truthy strings, including explicit "0". Four subprocess
+environment repro cases fail before the exclusion and pass after; 45 focused
+settings/query tests plus eight subtests and Ruff pass. Connected private smoke
+completes ten cells after repair. No public deployment, whole-service PASS or
+public-node startup guard claimed.
+
 ## Query-Engine Evaluation Seams (01.11.2026)
 
 `api/app/settings.py` + `api/app/v3/endpoints/query.py` gain three **test-mode**

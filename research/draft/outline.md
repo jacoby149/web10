@@ -5,7 +5,9 @@ up to **12 pages plus references**, ACM `sigconf`, not anonymous, CMT open
 (verified October 28, 2026; [official CFP](https://2027.sigmod.org/calls_industrial_track_papers.shtml)).
 Internal freeze: November 20. The existing `research/workshop/main.tex` is
 draft material, not a validated account of results. Comparative review and
-evaluation remain pending; see `../brief.md` and `../related-work.md`.
+broader evaluation remain pending; the manuscript now includes one preliminary
+K=10/100 synthetic trial. See `../experiments/costfn/K100-RESULTS.md` for the
+measured values, provenance and limitations.
 
 ## Sections
 
@@ -33,7 +35,9 @@ evaluation remain pending; see `../brief.md` and `../related-work.md`.
    authorization ablation and matched shared-table policy baseline with the
    same data, access semantics, results and resources. Current nonempty feed:
    three query calls plus content views; discovery and media work additional.
-   Harness gates in `../experiments/README.md` must close first. Results pending.
+   Include the preliminary K=10/100 table and the K=1 contrary result, clearly
+   separated from these pending full-flow measurements. Direct scan A is not
+   a matched no-policy HTTP baseline; do not label B-minus-A causal overhead.
 7. **Operational Lessons:** only documented production incidents and measured
    tradeoffs of shared-table logical namespaces, permission metadata and a
    generic node. Distinguish observed experience from design expectations.

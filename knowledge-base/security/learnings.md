@@ -35,6 +35,16 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-01: Parsed evaluation flags must survive the settings override pass
+
+The legacy environment loop replaced parsed QUERY_EVAL booleans with strings:
+explicit "0" became truthy, enabling the no-policy path and synthetic scan.
+It also replaced the integer stub count, causing a connected smoke HTTP 500.
+Exclude these already-parsed settings from that loop. Four fresh-process
+false/true environment cases reproduce the type failure before the fix and
+pass afterward. Settings/query controls pass; the connected smoke then finishes
+all ten cells. Scope is this settings interaction, not public-node guard coverage.
+
 ### 2026-11-01: Owning metadata is not owning the key it names
 
 [H01 metadata repair](scans/2026-10/repair-h01-metadata-owner.md) reproduces

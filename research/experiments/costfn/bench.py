@@ -10,7 +10,7 @@ restarting the API container with different env, then scrapes the node's
 causal overhead delta.
 
 The three lines (per research/digital-ocean-thinking.md):
-  A = no-policy baseline   (QUERY_EVAL_NO_POLICY=1)      — the credited ClickHouse baseline
+  A = direct scan baseline (precompiled projection)     — the credited ClickHouse baseline
   B = policy, real scan    (no flags)                    — the actual system
   C = policy, stubbed scan (QUERY_EVAL_STUB_EXECUTE=1)   — our layer, isolated
 
@@ -23,7 +23,7 @@ The network/collect half only runs on the experiment host.
 
 Usage (on the experiment host):
   python3 bench.py --manifest ./seed-manifest.json --k 100 \
-      --runs 20 --compose "docker compose -f ../../docker-compose.yml -p web10-costfn" \
+      --runs 20 --compose "docker compose -f compose.yml -p web10-costfn" \
       --out ./results
 """
 
@@ -31,6 +31,7 @@ import argparse
 import json
 import os
 import re
+import shlex
 import statistics
 import subprocess
 import sys
@@ -142,6 +143,9 @@ def causal_overhead(b_records, a_records):
         if bv and av:
             per_phase[phase] = round(percentile(bv, 50) - percentile(av, 50), 3)
     return {
+        "total_delta_median_ms": round(
+            percentile(sorted(r["total"] for r in b_records), 50)
+            - percentile(sorted(r["total"] for r in a_records), 50), 3),
         "b_policy_median_ms": b_med,
         "a_policy_median_ms": a_med,
         "overhead_median_ms": round(b_med - a_med, 3),
@@ -180,25 +184,48 @@ def expand_matrix(k_values, feeds, readable_modes, lines):
 def env_for_cell(cell, base_env):
     """The API container env for one cell (drives the three flags)."""
     env = dict(base_env)
-    if cell["line"] == "A":
-        env["QUERY_EVAL_NO_POLICY"] = "1"
-        env.pop("QUERY_EVAL_STUB_EXECUTE", None)
-        env.pop("QUERY_EVAL_READABLE_MODE", None)
-    elif cell["line"] == "C":
+    env.update(QUERY_EVAL_NO_POLICY="0", QUERY_EVAL_STUB_EXECUTE="0",
+               QUERY_EVAL_READABLE_MODE="per-group", QUERY_EVAL_STUB_ROWS="20")
+    if cell["line"] == "C":
         env["QUERY_EVAL_STUB_EXECUTE"] = "1"
-        env.pop("QUERY_EVAL_NO_POLICY", None)
         env["QUERY_EVAL_READABLE_MODE"] = cell["mode"] if cell["mode"] != "n/a" else "per-group"
-    else:  # B
-        env.pop("QUERY_EVAL_NO_POLICY", None)
-        env.pop("QUERY_EVAL_STUB_EXECUTE", None)
+    elif cell["line"] == "B":
         env["QUERY_EVAL_READABLE_MODE"] = cell["mode"] if cell["mode"] != "n/a" else "per-group"
     return env
 
 
 # ── network/collect half (experiment host only) ──────────────────────────────
 
-PERSONAL_SQL = "SELECT doc_id FROM posts"
-DISCOVER_SQL = "SELECT doc_id FROM posts"
+PERSONAL_SQL = "SELECT doc_id, body FROM posts ORDER BY created_at DESC, doc_id LIMIT 20"
+DISCOVER_SQL = PERSONAL_SQL
+
+# A cannot use /v3/query: its validator forbids physical tables even in eval
+# mode, while its no-policy branch skips the service CTEs. Compile the same
+# posts projection once, with known-readable seed groups, then time only CH.
+BASELINE_SCRIPT = """
+import json, sys, time
+from app.v3.services import clickhouse as ch, safe_query as sq
+sql, groups, reader, runs = json.loads(sys.argv[1])
+compiled = sq.build_safe_query(sql, {'posts': groups}, member_key=reader, max_limit=1000)
+records = []
+for _ in range(runs):
+    start = time.perf_counter()
+    columns, rows = ch.execute_query(compiled, settings={'max_execution_time': 30})
+    elapsed = (time.perf_counter() - start) * 1000
+    records.append({'execute': elapsed, 'total': elapsed})
+    time.sleep(1)
+print('COSTFN_BASELINE=' + json.dumps(records))
+"""
+
+
+def baseline_records(compose_cmd, sql, groups, reader, runs):
+    result = subprocess.run(
+        shlex.split(compose_cmd) + ["exec", "-T", "api", "uv", "run", "python", "-c",
+                                    BASELINE_SCRIPT, json.dumps([sql, groups, reader, runs])],
+        check=True, capture_output=True, text=True,
+    )
+    line = next(line for line in result.stdout.splitlines() if line.startswith("COSTFN_BASELINE="))
+    return [{**dict.fromkeys(PHASES, 0.0), **r} for r in json.loads(line.split("=", 1)[1])]
 
 
 def _api_up(base_url, timeout_s=90):
@@ -217,16 +244,14 @@ def _api_up(base_url, timeout_s=90):
 
 def _restart_api(compose_cmd, env):
     """Restart the api container with the given env (drives the flags)."""
-    cmd = compose_cmd.split()
-    env_args = []
-    for k, v in env.items():
-        env_args += ["-e", f"{k}={v}"]
-    subprocess.run(cmd + ["up", "-d", "--force-recreate"] + env_args + ["api"], check=True, capture_output=True)
+    cmd = shlex.split(compose_cmd)
+    subprocess.run(cmd + ["up", "-d", "--no-deps", "--force-recreate", "api"],
+                   env={**os.environ, **env}, check=True, capture_output=True)
 
 
 def _tail_api_logs(compose_cmd, since_epoch):
-    cmd = compose_cmd.split() + ["logs", "--since", str(since_epoch), "api"]
-    r = subprocess.run(cmd, capture_output=True, text=True)
+    cmd = shlex.split(compose_cmd) + ["logs", "--since", str(since_epoch), "api"]
+    r = subprocess.run(cmd, check=True, capture_output=True, text=True)
     return r.stdout + r.stderr
 
 
@@ -254,8 +279,10 @@ def _run_queries(base_url, token, sql, groups, n, rate_limit_sleep=1.0):
                 ok += 1
             elif r.status_code == 429:
                 time.sleep(rate_limit_sleep * 2)
-        except Exception:
-            time.sleep(1)
+            else:
+                raise RuntimeError(f"query {i + 1}/{n}: HTTP {r.status_code}: {r.text[:300]}")
+        except requests.RequestException as exc:
+            raise RuntimeError(f"query {i + 1}/{n} failed") from exc
         # Pace: 60/min => >=1s between queries stays safely under budget.
         time.sleep(rate_limit_sleep)
     return ok
@@ -278,21 +305,29 @@ def collect_cell(compose_cmd, base_url, manifest, cell, runs, results_dir):
         groups = [manifest["creator_groups"][name] for name in manifest["followed"][: cell["k"]]]
 
     since = int(time.time())
-    ok = _run_queries(base_url, token, sql, groups, runs)
-    time.sleep(2)  # let the last log lines flush
-    logs = _tail_api_logs(compose_cmd, since)
-    records = parse_timing_lines(logs)
+    if cell["line"] == "A":
+        records = baseline_records(compose_cmd, sql, groups, manifest["reader"], runs)
+        ok = len(records)  # direct CH executions, not HTTP responses
+    else:
+        ok = _run_queries(base_url, token, sql, groups, runs)
+        time.sleep(2)  # let the last log lines flush
+        logs = _tail_api_logs(compose_cmd, since)
+        records = parse_timing_lines(logs)
+    if ok != runs or len(records) != runs:
+        raise RuntimeError(f"Incomplete cell {cell}: {ok}/{runs} successful, {len(records)} timings")
 
     summary = summarize(records)
     result = {
         "cell": cell,
         "runs_requested": runs,
-        "queries_200": ok,
+        "queries_200": ok if cell["line"] != "A" else 0,
+        "queries_completed": ok,
+        "transport": "direct-clickhouse" if cell["line"] == "A" else "http",
         "timing_samples": len(records),
         "summary": summary,
         "_records": records,  # retained for the per-record B-A delta (not written to disk)
     }
-    path = os.path.join(results_dir, f"cell-{cell['line']}-{cell['feed']}-k{cell['k']}-{cell['mode']}.json")
+    path = os.path.join(results_dir, f"cell-{cell['line']}-{cell['feed']}-k{cell['k']}-{cell['mode'].replace('/', '-')}.json")
     with open(path, "w") as f:
         json.dump({k: v for k, v in result.items() if k != "_records"}, f, indent=2)
     return result
@@ -307,13 +342,15 @@ def main():
     p.add_argument("--lines", nargs="+", default=["A", "B", "C"])
     p.add_argument("--runs", type=int, default=20, help="queries per cell (>=20 for p95)")
     p.add_argument("--api", default="http://localhost:6000", help="API base URL")
-    p.add_argument("--compose", default="docker compose -f ../../docker-compose.yml -p web10-costfn")
+    p.add_argument("--compose", default=f"docker compose -f {shlex.quote(os.path.join(os.path.dirname(__file__), 'compose.yml'))} -p web10-costfn")
     p.add_argument("--out", default=os.path.join(os.path.dirname(__file__), "results"))
     args = p.parse_args()
 
     os.makedirs(args.out, exist_ok=True)
     with open(args.manifest) as f:
         manifest = json.load(f)
+    if args.runs < 1 or any(k < 1 or k > len(manifest["followed"]) for k in args.k):
+        p.error("runs must be positive and K must fit the seeded followed groups")
 
     cells = expand_matrix(args.k, args.feeds, args.modes, args.lines)
     print(f"[bench] {len(cells)} cells across feeds={args.feeds} k={args.k} modes={args.modes} lines={args.lines}")
@@ -323,23 +360,25 @@ def main():
         print(f"[bench] running cell {cell} ...")
         res = collect_cell(args.compose, args.api, manifest, cell, args.runs, args.out)
         all_cells.append(res)
-        print(f"[bench]   {res['timing_samples']} timing samples, {res['queries_200']} ok")
+        print(f"[bench]   {res['timing_samples']} timing samples")
 
     # Compute the causal overhead (B − A) per (feed, k, mode) where both exist,
     # from the retained per-record data (the true delta, not a summary diff).
     by_key = {}
     for res in all_cells:
         c = res["cell"]
-        key = (c["feed"], c["k"], c["mode"] if c["mode"] != "n/a" else "both")
-        by_key.setdefault(key, {})[c["line"]] = res
+        key = (c["feed"], c["k"])
+        by_key.setdefault(key, {})[(c["line"], c["mode"])] = res
     deltas = {}
     for key, lines in by_key.items():
-        if "B" in lines and "A" in lines:
-            deltas[str(key)] = causal_overhead(lines["B"]["_records"], lines["A"]["_records"])
+        for mode in args.modes:
+            if ("B", mode) in lines and ("A", "n/a") in lines:
+                deltas[str((*key, mode))] = causal_overhead(
+                    lines[("B", mode)]["_records"], lines[("A", "n/a")]["_records"])
 
     report = {
         "manifest": {k: manifest[k] for k in ("seed", "reader", "k", "creators_total")},
-        "cells": [{k: c[k] for k in ("cell", "runs_requested", "queries_200", "timing_samples")} for c in all_cells],
+        "cells": [{k: c[k] for k in ("cell", "runs_requested", "queries_200", "queries_completed", "transport", "timing_samples")} for c in all_cells],
         "summaries": {str(c["cell"]): c["summary"] for c in all_cells},
         "causal_overhead_B_minus_A": deltas,
     }
