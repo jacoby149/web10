@@ -35,6 +35,18 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-02: Current membership does not prove a current creative attachment
+
+[Attachment evidence](scans/2026-10/h01-pinned-attachment-proof.md) holds membership
+live while varying doc_groups history. The actual compiler's extracted attachment
+boundary excludes a removed link; the actual pinned loader still finds its old
+live row, returns the creative through ASGI and issues verified synthetic SigV4.
+Four link histories reproduce on SQLite and ClickHouse-local Memory. This remains
+an OPEN finding: positive-disclosure tests must become denial in a separate repair.
+1,759 API tests plus eight subtests and same-model evidence review pass. No full
+direct-read denial, executed detach lifecycle or real-object claim; role/app/node
+policy, timestamp precision, real schema/rollout/diverse and L1 remain separate.
+
 ### 2026-11-02: Authorize pinned creatives from the current membership version
 
 [Local membership repair](scans/2026-10/repair-h01-pinned-membership.md) ranks the

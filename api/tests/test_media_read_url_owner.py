@@ -36,6 +36,10 @@ import pytest
         "pinned-member-alternate-group",
         "pinned-member-active-group-uploader",
         "pinned-member-revoked-group-uploader",
+        "pinned-link-active",
+        "pinned-link-removed",
+        "pinned-link-reattached",
+        "pinned-link-never",
     ],
 )
 def test_read_url_owner_boundary(case):
@@ -140,7 +144,7 @@ def _probe(case):
             algorithm=settings.ALGORITHM,
         )
 
-    if case.startswith("pinned-member-"):
+    if case.startswith(("pinned-member-", "pinned-link-")):
         import sqlite3
         from types import SimpleNamespace
 
@@ -148,7 +152,9 @@ def _probe(case):
         from app.v3.services import clickhouse as ch
 
         # Retained disclosure replay: removed members must get no creative/capability.
-        state = case.removeprefix("pinned-member-")
+        # Attachment cases are separate evidence assertions until their source repair.
+        is_link = case.startswith("pinned-link-")
+        state = case.removeprefix("pinned-link-" if is_link else "pinned-member-")
         connected = os.environ.get("H01_AD_CLICKHOUSE") == "1"
         key = "bob/private-creative.png"
         carrier = {
@@ -177,9 +183,14 @@ def _probe(case):
         author = "group-author" if state.endswith("group-uploader") else "bob"
         setup += [
             f"INSERT INTO documents VALUES ('creative','{author}','{body}',{tags},'bob',0,1)",
-            "INSERT INTO doc_groups VALUES ('creative','creative-group',0,1)",
         ]
-        if state != "never":
+        if not is_link or state != "never":
+            setup.append("INSERT INTO doc_groups VALUES ('creative','creative-group',0,1)")
+        if is_link and state in {"removed", "reattached"}:
+            setup.append("INSERT INTO doc_groups VALUES ('creative','creative-group',1,2)")
+        if is_link and state == "reattached":
+            setup.append("INSERT INTO doc_groups VALUES ('creative','creative-group',0,3)")
+        if is_link or state != "never":
             setup.append("INSERT INTO group_members VALUES ('creative-group','alice','reader',1,0,1)")
         if state.startswith("revoked") or state in {"rejoined", "alternate-group"}:
             updated = 1 if state == "revoked-tie" else 2
@@ -247,7 +258,22 @@ def _probe(case):
             patch.object(cfg, "get_config_field", return_value=0),
         ):
             allowed = ch.can_read_group("creative-group", "alice", "posts", authenticated=True)
-            assert allowed is (state in {"active", "rejoined", "active-group-uploader"})
+            assert allowed is (is_link or state in {"active", "rejoined", "active-group-uploader"})
+            if is_link:
+                from sqlglot import exp, parse_one
+
+                from app.v3.services import safe_query as sq
+
+                # Execute the actual compiler's attachment boundary, not a copied policy query.
+                tree = parse_one(sq._boundary_cte_sql("posts", ["creative-group"], "alice"), read=sq.DIALECT)
+                boundary = next(q.this for q in tree.find_all(exp.Subquery) if q.alias == "dg")
+                current = execute(
+                    f"SELECT count(*) FROM ({boundary.sql(dialect=sq.DIALECT)}) current_links "
+                    "WHERE doc_id = %(doc_id)s AND group_id = %(group_id)s",
+                    {"doc_id": "creative", "group_id": "creative-group"},
+                ).result_rows[0][0]
+                current = int(current)  # ClickHouse JSON serializes UInt64 counts as strings.
+                assert bool(current) is (state in {"active", "reattached"})
             if state == "alternate-group":
                 assert ch.can_read_group("alternate-group", "alice", "posts", authenticated=True)
             response = TestClient(app).post(
@@ -256,7 +282,10 @@ def _probe(case):
         db.close()
         assert response.status_code == 200
         doc = response.json()[0]
-        if state not in {"active", "rejoined", "alternate-group", "active-group-uploader"}:
+        attaches = (
+            state != "never" if is_link else state in {"active", "rejoined", "alternate-group", "active-group-uploader"}
+        )
+        if not attaches:
             if "ad" in doc:
                 verify(doc["ad"]["body"]["url"], key)
                 print("removed-member synthetic capability independently verified before denial assertion")
@@ -267,9 +296,14 @@ def _probe(case):
             assert doc["ad"]["body"]["text"] == "synthetic restricted creative"
             verify(doc["ad"]["body"]["url"], key)
             factory.assert_called_once()
-        print(
-            f"pinned membership evidence: engine={'ClickHouse-local' if connected else 'SQLite substitute'} state={state} direct_allowed={allowed} inline_ad={'ad' in doc}"
-        )
+        if is_link:
+            print(
+                f"pinned attachment evidence: engine={'ClickHouse-local' if connected else 'SQLite substitute'} state={state} current_attachment={bool(current)} inline_ad={'ad' in doc}"
+            )
+        else:
+            print(
+                f"pinned membership evidence: engine={'ClickHouse-local' if connected else 'SQLite substitute'} state={state} direct_allowed={allowed} inline_ad={'ad' in doc}"
+            )
         return
 
     if case.startswith(("query-owner-", "query-face-")):

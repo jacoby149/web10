@@ -51,6 +51,13 @@ and the [historical proof](../../security/scans/2026-10/h01-pinned-membership-pr
 Attachment history, creative-service app policy, node-inventory exemptions and
 broader visibility/production/rollout gates remain OPEN. Not whole-ad assurance.
 
+**Attachment gap (02.11.2026):** current membership alone is insufficient. A
+removed creative/group link can still authorize inline delivery through retained
+history; [bounded evidence](../../security/scans/2026-10/h01-pinned-attachment-proof.md)
+compares the actual compiler attachment fragment with the actual pinned loader
+on synthetic SQLite/ClickHouse snapshots. Runtime attachment repair remains OPEN;
+this does not change the intended current-access rule or settle broader ad policy.
+
 **Locked (the three open questions, resolved):**
 
 - **`ad_preference` lives in a column on `documents`** — not a body field. The
