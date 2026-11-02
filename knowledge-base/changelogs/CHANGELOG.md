@@ -1,5 +1,7 @@
-3.253.3 || 01.11.2026
+3.253.4 || 01.11.2026
 fix(research): repair cost-function smoke harness: dedicated loopback-only Compose stack, explicit per-cell environment resets, seed syntax/API-schema fixes, baseline/report pairing and incomplete-cell failure. A uses a direct ClickHouse scan of the precompiled projection (not a no-policy HTTP request); README states that measurement distinction. Offline regressions, Python compilation, shell syntax and Compose configuration pass. Tiny connected attempt (10 creators, K=10, three queries per cell) could not start: droplet 614912502 in sfo2 timed out connecting to SSH twice before TCP establishment. Deleted that droplet and verified the account droplet list is empty. No experiment measurements collected; full E3 remains open. GHCR runbook password corrected to token-only stdin. Existing unrelated changelog edits preserved.
+
+3.253.3 || 01.11.2026
 test(security): **pin credential-free CORS on protected routes** — add thirteen actual-app controls for ambient cookie/header rejection, body-token identity and create-route contract enforcement; retain existing preflight tests. Eighteen CORS/1,470 API tests plus four subtests and lint/format pass; fresh same-model review and in-memory CORS/principal mutations confirm sensitivity. Test-only, no vulnerability repair or browser-wide claim; B-5 integration/diverse sign-off and protocol L1 remain OPEN.
 
 3.253.2 || 01.11.2026

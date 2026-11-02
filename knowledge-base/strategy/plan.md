@@ -33,7 +33,7 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases 
 
-- [✓ 3.253.3 local] **E3 tiny-smoke harness repair and connection attempt** — dedicated local-only Compose, real seed API schema, baseline pairing and offline regressions. One sfo2 droplet created with the registered SSH key; two TCP/SSH timeouts prevented execution. Deleted and verified no remaining droplets. No measurements; the full E3 experiment remains open.
+- [✓ 3.253.4 local] **E3 tiny-smoke harness repair and connection attempt** — dedicated local-only Compose, real seed API schema, baseline pairing and offline regressions. One sfo2 droplet created with the registered SSH key; two TCP/SSH timeouts prevented execution. Deleted and verified no remaining droplets. No measurements; the full E3 experiment remains open.
 
 ## web10-social Product Post Permalink (D89)
 
