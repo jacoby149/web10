@@ -1,3 +1,6 @@
+3.254.14 || 02.11.2026
+test(security): **reproduce pinned creative delivery after attachment removal** - actual compiler attachment fragment excludes the removed link while actual loader/ASGI enrichment returns the creative and independently verified real synthetic SigV4. Four link histories pass on SQLite and isolated ClickHouse-local Memory tables; retained membership controls, 1,759 API tests plus eight subtests, Ruff and fresh same-model review pass. Evidence only: no runtime repair, direct-read HTTP-denial, production lifecycle or real object retrieval claim. Attachment repair, broader ad/rollout/diverse gates and protocol L1 remain OPEN.
+
 3.254.13 || 02.11.2026
 fix(ads): **honor current membership before pinned creative attachment** - rank reader/group membership history including tombstones, then filter removals, with deletion winning timestamp ties. Five actual ASGI/real synthetic SigV4 disclosures on SQLite and ClickHouse-local become denied-ad/no-signer; active/rejoined/alternate-group and group-uploader controls preserved. Ten cases per backend, 365 focused/1,755 API tests plus eight subtests, Ruff and fresh same-model review pass. Local membership repair only: attachment/role/app/visibility/node-ad, production lifecycle/CI/rollout/diverse and protocol L1 gates remain OPEN.
 

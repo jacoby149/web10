@@ -15,6 +15,16 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Pinned-Ad Attachment Authority (02.11.2026)
+
+H01-AD-LINK [local evidence](scans/2026-10/h01-pinned-attachment-proof.md):
+compiler attachment boundary excludes removed link while actual loader/ASGI
+returns/signs its creative. Membership stays live, isolating attachment history
+from repaired membership history. Four cases/backend, 1,759 API tests plus eight
+subtests, Ruff and fresh same-model review pass. Actual ClickHouse-local reduced
+Memory fixtures, not production schema/driver/lifecycle. Finding OPEN; no runtime
+repair, real object retrieval or L1 PASS. Broader ad/CI/rollout/diverse gates OPEN.
+
 ## Pinned-Ad Membership Repair (02.11.2026)
 
 H01-AD-MEMBER [local repair](scans/2026-10/repair-h01-pinned-membership.md):
