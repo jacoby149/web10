@@ -151,11 +151,22 @@ def rewrite_variant_manifest(doc_id: str, variant: str, sig: str, manifest_text:
     """Rewrite a variant manifest's bare segment names into signed segment
     URLs. `#`-lines pass through; every other non-empty line is a segment."""
     out = []
+    if settings.MEDIA_DELIVERY_ENABLED:
+        from app.services.media_delivery import get_url
+
+        # Re-verify rather than trusting a caller-supplied parent expiry/prefix.
+        payload = verify_sig(sig, doc_id)
+        if type(payload.get("exp")) is not int or payload["exp"] <= int(time.time()):
+            raise ValueError("missing or expired parent expiry")
     for line in manifest_text.splitlines():
         if line.startswith("#"):
             out.append(line)
         elif line.strip():
-            out.append(f"/v3/media/hls/segment?doc_id={doc_id}&variant={variant}&seg={line.strip()}&sig={sig}")
+            if settings.MEDIA_DELIVERY_ENABLED:
+                key = segment_key(payload["prefix"], variant, line.strip())
+                out.append(get_url(key, parent_exp=payload["exp"]))
+            else:
+                out.append(f"/v3/media/hls/segment?doc_id={doc_id}&variant={variant}&seg={line.strip()}&sig={sig}")
     return "\n".join(out) + "\n"
 
 

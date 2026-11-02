@@ -352,6 +352,13 @@ OAuth authorization certifies its source token before code minting: local provid
 
 ## Security invariants
 
+Protected CDN media delivery is opt-in and disabled by default. Separate media-only
+RS256 capabilities bind exact bucket/key/GET/expiry; the portable edge core verifies
+before every cache lookup, with Cloudflare cache/private-origin adapters. Existing
+node read/owner/provenance checks stay at issuance and HLS manifest reads. No auth
+key migration or immediate revocation guarantee. Local tests are not live CDN or
+playback proof. Contract and production gates: `knowledge-base/web10-v3/media-delivery.md`.
+
 Direct `POST /v3/media/read-url` refresh is owner-only: the key must stay in the
 verified caller's exact `username/` namespace, including unconfirmed uploads.
 Foreign viewers obtain fresh media URLs through authorized document/group reads;

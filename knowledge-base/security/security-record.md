@@ -15,6 +15,21 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Protected Media Delivery (02.11.2026)
+
+New opt-in boundary: `api/app/services/media_delivery.py`, its existing signing
+callers/HLS manifest integration, and `media-delivery/{core,cloudflare}.mjs`.
+Local evidence: 1,786 API tests; 35 edge/cross-runtime tests with real RSA and
+Python issuance, warm-cache denial before I/O, independently recomputed synthetic
+SigV4, range isolation, bounded background caching and streaming-before-EOF.
+Same-model review repaired CORS, premature HLS expiry and blocking cache writes;
+re-review reports no concrete remaining finding in reviewed paths. This is
+bounded implementation review, not complete L1/L2/L3/L4 or diverse-model sign-off.
+State OPEN at all levels pending complete coverage and connected Cloudflare,
+private-origin denial, browser playback/renewal, key rotation and production log
+verification. No deployment, instant revocation or existing authority-debt closure.
+Contract/gates: [media delivery](../web10-v3/media-delivery.md).
+
 ## Canonical Query Faces (02.11.2026)
 
 H01-PREPARE-FACE [local repair](scans/2026-10/repair-h01-query-face.md): two

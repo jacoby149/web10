@@ -9,6 +9,23 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D93 - Portable Protected Media Delivery, Cloudflare First [decided]
+
+Operator, 02.11.2026: implement a Cloudflare adapter while retaining the ability
+to change CDN by replacing adapter code. The node retains live authorization at
+issuance/renewal; separate asymmetric media-only capabilities let the edge verify
+each request before shared-cache access without contacting the node or storage
+on a hit. This is not an authentication-key migration. The protocol and portable
+verification/orchestration core do not name Cloudflare; cache, request-lifetime
+and private-origin integration live in the provider adapter. Storage and DNS are
+independent choices.
+
+Reject origin-check-only shared caching: a hit would bypass authorization. Accept
+bearer sharing and expiry-bounded ordinary revocation, not instant permission
+updates. Urgent revocation/purge is separate work. Local opt-in implementation
+does not authorize production enablement or establish Cloudflare/private-storage
+or playback evidence. Contract: `../web10-v3/media-delivery.md`.
+
 ### D92 — OAuth 2.0: delegated access for external apps, one new claim, the locks are already on the rooms [decided]
 
 Operator, 21.10.2026: "we need oauth 2.0" — the Muse AI assistant (and any

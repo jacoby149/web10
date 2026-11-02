@@ -37,6 +37,9 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
+- [✓ 3.255.0 local] **Portable protected media delivery + Cloudflare adapter** - opt-in separate RS256 exact-object capabilities, existing owner/read gates, node manifests and parent-bounded HLS segment URLs; portable pre-cache authorization core and Cloudflare private-S3/cache adapter. Local API/edge/cross-runtime tests pass. Contract: `../web10-v3/media-delivery.md`. Not deployed or production-approved.
+- [ ] **MEDIA-LIVE: connected Cloudflare delivery acceptance** - verify private-origin denial, authorized miss/hit and expired-token warm-hit denial, browser HLS/range playback and renewal bounds, key rotation, storage interoperability, limits/log redaction and independent security review. Keep issuance disabled until gates pass. MEDIA-C urgent revocation/purge remains separate.
+
 - [✓ 3.254.3 local] **Batching inventory and execution plan** - source audit of backend database-call loops and client request fan-out, scoped bites and correctness/request-count gates in `batching-performance.md`. Documentation only; not an optimization or benchmark result.
 - [ ] **Execute batching-performance queue** - B01-B09 backend and C01-C14 client items in `batching-performance.md`; prioritize readable-set equivalence/promotion, owner-scoped media/face preparation and acting-identity request deduplication. Claim one sub-bite at a time; existing paint-on-read/E3/security lanes retain their gates.
 

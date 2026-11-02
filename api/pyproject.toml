@@ -8,7 +8,7 @@ dependencies = [
     "pydantic>=2",
     "uvicorn[standard]>=0.32",
     "gunicorn>=23",
-    "PyJWT>=2.9",
+    "PyJWT[crypto]>=2.9",
     "clickhouse-connect>=0.8",
     # The flexible-read boundary (safe_query.py) parses caller SQL into an AST
     # and injects the group filter; sqlglot's ClickHouse dialect is the parser.

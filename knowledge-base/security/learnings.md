@@ -35,6 +35,23 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-02: Protected cache hits need their own authorization gate
+
+The historical CDN research proposed path-keyed shared caching with origin-only
+authorization. That design cannot enforce expiry on a hit. The new opt-in
+[delivery boundary](../web10-v3/media-delivery.md) verifies a separate RS256
+media-only exact-key capability before every cache access. Warm-cache probes
+reject missing/expired/tampered/wrong-scope capabilities without touching cache
+or origin. Public-key-only verification interops with actual Python issuance.
+Local review also caught missing CORS, segment expiry earlier than parent stream
+expiry, and awaited cache population blocking streaming; retained regressions
+now cover each repaired path. Browser no-store differs from internal cache TTL;
+neither makes bearer capabilities instantly revocable. Cache scheduling belongs
+to each request's lifetime, and large/unknown objects bypass cloning. Local
+synthetic storage/cache tests and same-model review do not certify Cloudflare,
+private-origin enforcement, playback, production logs or full scan coverage.
+Those gates and independent model-diverse review remain OPEN; production OFF.
+
 ### 2026-11-02: A projected face ref is a request, not a read grant
 
 [Face repair](scans/2026-10/repair-h01-query-face.md) reproduces anonymous and
