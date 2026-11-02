@@ -1,3 +1,6 @@
+3.254.3 || 02.11.2026
+docs(performance): add project batching inventory and execution queue (`strategy/batching-performance.md`): B01-B09 backend database round trips and C01-C14 client fan-out, scoped sub-bites, source-derived budgets, dependencies and permission/revocation/owner-isolation gates. Cover readable-set production promotion, page-wide media/face preparation, group self-heal/creation, HLS/carrier/media read checks, multi-destination write checks, imports/moderation, acting identity, comments, search, media refresh, feeds/profiles, people, collections, messages, authenticator and marketing directory. Distinguish already-batched operations, offline signing, parallelism and existing paint-on-read work; retain single-trial K1000 limits and flag source/plan reconciliation. Link plan/lane/acting-identity records. Planning only: no runtime change, benchmark, cloud spend or completed optimization claim.
+
 3.254.2 || 02.11.2026
 chore: merge origin/dev into the acting-identity branch; retain both planning/security histories and incoming HLS provenance repairs. Renumber our historical composer-only A4 entry to 3.254.1 to resolve its collision with dev's 3.253.13 HLS entry; acting-identity remains 3.254.0. No deployment or connected-service acceptance claim.
 

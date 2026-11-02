@@ -41,6 +41,19 @@ says what can happen **at the same time**.
 
 ## Lanes
 
+### Lane: batching-performance (coordination queue)
+
+**Plan:** `batching-performance.md`. **Ownership:** planning record only until a
+sub-bite is claimed; reserve exact functions with existing API/media/security,
+acting-identity, social/paint-on-read, UI and marketing lanes. Never assign all of
+`api/`, SDK and frontends to one optimization PR. No runtime work in this audit.
+
+- [✓ 3.254.3 local] **Batching source audit and plan** - B01-B09/C01-C14 evidence, source-derived call budgets, sub-bites, dependencies, negative controls and exclusions recorded; existing batched paths and paint-on-read overlap distinguished. No measured speedup claim.
+- [ ] **B01a: readable-set scalar/batch equivalence and command budgets** - task/gates in `batching-performance.md` B01 and common gates. Reserve `api/app/v3/services/clickhouse.py` policy helpers plus focused API tests; request-local only, no production promotion yet. Acceptance: allowed/denied/revoked/tombstoned/reserved-class/service/wildcard/order cases equivalent, K1 tradeoff measured, DB call ceilings pinned at K1/10/100/1000. Follow security method; <=500 code/test lines per PR.
+- [ ] **B02a/B03a: main-document media batching and face dedupe** - separate claims/PRs, B02/B03 in plan; reserve resolver versus query-prepare functions, serialize common helper edits. Acceptance: owner/ref tuple isolation, foreign-key denial/stale suppression, bounded metadata queries, output equivalence.
+- [ ] **C01a: acting-identity authority read single-flight** - reserve social `data/mutationAuthority.ts` and focused tests, coordinate acting-identity lane. Acceptance: one concurrent raw group read per credential/group, separate service grants, fresh focus/retry/token-change behavior, no persistent permission cache or removed server gate.
+- [ ] **Remaining B/C sub-bites** - all checkboxes in `batching-performance.md` remain open. Promote one exact sub-bite into this queue before starting; preserve its source anchors, call-budget target, authority/invalidation gates and owning directories. C02/C03 identity, C04 comments, C05 search, C06 media, C07-C12 social lists, C13 authenticator and C14 marketing are independent claims, not one fleet-wide rewrite.
+
 ### Lane: acting-identity (current workspace)
 **Owns:** social identity/navigation/composer/action consumers in
 `marketing/web10-social/`; generic delegated-document and group-list seams in

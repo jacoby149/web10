@@ -78,6 +78,12 @@ session; being able to read does not authorize the selected group to act there.
 
 ## Remaining Release Gates
 
+Performance follow-up: `batching-performance.md` C01-C04 records authority-read
+single-flight, eligible-identity metadata batching, avatar-only preparation and
+comment enrichment fan-out. Local functional verification above is not a
+large-identity-count performance claim. These items retain live server write
+checks and credential/identity-generation invalidation.
+
 - [ ] Connected multi-operator/revocation acceptance - exercise real API/storage
   with two operators sharing group reactions, revoke one operator, verify denied
   writes and preserved audit attribution, and replay concurrent actions. Local
