@@ -35,6 +35,8 @@ web10-v3/
 │   └── endpoints.md       ← the store's endpoint surface: the product page, ratings, stats
 ├── analytics/             ← the generic content-analytics engine (D86)
 │   └── overview.md        ← per-content performance: the three primitives, the two-tier impression (delivery server-side, viewport client-gated), what a "surface" is, the `trackContentEvent` SDK surface, anti-gaming
+├── identity/              ← domain identity: the DNS TXT claim, the user column, the alias-not-principal rule
+│   └── domain-identity.md ← how a user claims a domain, the TXT record format, the users.domain column, why the domain is an alias not a principal (no backfill)
 ├── groups/                ← groups as a platform primitive
 │   ├── overview.md        ← policy containers, roles, join policies
 │   ├── access.md          ← who can do what in a group (the D58 read/write gate)
