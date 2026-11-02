@@ -377,9 +377,12 @@ Prepared query rows are caller projections, not canonical document authority.
 Offline compiler/ASGI/real synthetic signing evidence reproduces foreign-key
 issuance from fabricated owner/body columns (SQLite execution substitute).
 Media/ad carriers now have local canonical safe-query rebinding before minting;
-projected identity/body/ad preferences grant no signing authority. Face projections
-and attached-ad loader authorization remain OPEN, as do actual ClickHouse and
-connected verification. Do not claim whole-media or whole-prepare assurance.
+projected identity/body/ad preferences grant no signing authority. Faces locally
+bind exact author/media-field/ref requests to authorized canonical uploader sets,
+without requiring a face doc_id; missing/ambiguous/error authority yields no face.
+Face urlField must be a new output column (collisions return 400). Attached-ad
+loader authorization, actual ClickHouse and connected verification remain OPEN.
+Do not claim whole-media or whole-prepare assurance.
 
 Defined in the KB: `knowledge-base/web10-v3/security/overview.md`. Short version — I1: cryptographic issuer verification, I2: no unsigned decode, I3: no query returns documents for an `author_key` the token doesn't own (unless group membership grants access), I4: node-readable by design — operator-blindness is not a goal, access is terms-controlled (D41), I5: scoped/expiring/revocable tokens enforced by app contracts. Enforced by the conformance/permission test suite.
 

@@ -23,6 +23,9 @@ import pytest
         "query-owner-anon",
         "query-owner-auth",
         "query-owner-unprepared",
+        "query-face-anon",
+        "query-face-auth",
+        "query-face-unprepared",
     ],
 )
 def test_read_url_owner_boundary(case):
@@ -127,16 +130,22 @@ def _probe(case):
             algorithm=settings.ALGORITHM,
         )
 
-    if case.startswith("query-owner-"):
+    if case.startswith(("query-owner-", "query-face-")):
         import sqlite3
+        from types import SimpleNamespace
 
         from app.v3.services import clickhouse as ch
         from app.v3.services import safe_query as sq
 
         # Retained foreign-issuance reproduction, now a denial regression.
         key = "bob/private.png"
-        body = json.dumps({"type": "minio", "value": key})
-        sql = f"SELECT 'alice' AS author_key, 'bob' AS posted_by, '{body}' AS body"
+        is_face = case.startswith("query-face-")
+        body = json.dumps({"avatar_ref": "private-media"} if is_face else {"type": "minio", "value": key})
+        sql = (
+            f"SELECT 'bob' AS face_owner, '{body}' AS profile_body"
+            if is_face
+            else f"SELECT 'alice' AS author_key, 'bob' AS posted_by, '{body}' AS body"
+        )
         assert sq.query_services(sql, allowed_services=None) == set()
         executed = []
 
@@ -148,23 +157,35 @@ def _probe(case):
                 cursor = db.execute(compiled)
                 return [c[0] for c in cursor.description], cursor.fetchall()
 
-        prepared = case != "query-owner-unprepared"
-        request = {"sql": sql, "prepare": {"media": True}} if prepared else {"sql": sql}
-        if case == "query-owner-auth":
+        prepared = not case.endswith("unprepared")
+        prepare = (
+            {"face": {"bodyField": "profile_body", "mediaField": "avatar_ref", "authorColumn": "face_owner"}}
+            if is_face
+            else {"media": True}
+        )
+        request = {"sql": sql, "prepare": prepare} if prepared else {"sql": sql}
+        if case.endswith("-auth"):
             request["token"] = token()
+
+        def face_metadata(sql, params):
+            assert params == {"author_key": "bob", "r0": "private-media"}
+            return SimpleNamespace(result_rows=[("private-media", json.dumps({"object_key": key}), "media_metadata")])
+
         with (
             patch.object(settings, "QUERY_EVAL_NO_POLICY", False),
             patch.object(settings, "QUERY_EVAL_STUB_EXECUTE", False),
             patch.object(ch, "get_user_groups", return_value=[]),
             patch.object(ch, "readable_groups") as readable,
             patch.object(ch, "execute_query", side_effect=execute_constant),
+            patch.object(ch.client, "query", side_effect=face_metadata),
             patch.object(ch, "get_s3_signing_client", return_value=signer) as factory,
         ):
             response = TestClient(app).post("/v3/query", json=request)
         if prepared:
             assert response.status_code in (200, 403)
             if response.status_code == 200:
-                url = response.json()["rows"][0]["body"].get("url")
+                row = response.json()["rows"][0]
+                url = row.get("avatar_url") if is_face else row["body"].get("url")
                 if url:
                     verify(url, key)
                     print("prepared-query foreign capability independently verified; SQLite execution substitute")
@@ -175,6 +196,11 @@ def _probe(case):
         assert len(executed) == 1 and "LIMIT" in executed[0].upper()
         readable.assert_not_called()
         row = response.json()["rows"][0]
+        if is_face:
+            assert row["face_owner"] == "bob" and json.loads(row["profile_body"]) == {"avatar_ref": "private-media"}
+            assert "avatar_url" not in row
+            factory.assert_not_called()
+            return
         assert row["author_key"] == "alice" and row["posted_by"] == "bob"
         assert row["body"]["value"] == key
         assert "url" not in row["body"]

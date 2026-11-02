@@ -434,7 +434,14 @@ class TestPrepare:
         with (
             patch("app.v3.services.clickhouse.get_user_groups", return_value=[{"group_id": "g1"}]),
             patch("app.v3.services.clickhouse.readable_groups", return_value=["g1"]),
-            patch("app.v3.services.clickhouse.execute_query", return_value=self._doc_rows()),
+            patch(
+                "app.v3.services.clickhouse.execute_query",
+                side_effect=lambda sql, **kwargs: (
+                    (["author_key", "media_ref", "media_owners"], [("alice", "av1", ["alice"])])
+                    if "media_owners" in sql
+                    else self._doc_rows()
+                ),
+            ),
         ):
             return client.post("/v3/query", json=payload)
 

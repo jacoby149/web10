@@ -101,41 +101,97 @@ def _serialize_row(row: dict) -> dict:
     return out
 
 
-def _prepare_face(docs: list[dict], face: PrepareFace) -> list[dict]:
-    """Mint the author's face media (D73): presign ``<bodyField>.<mediaField>``,
-    author-scoped to ``<authorColumn>``, set on ``<urlField>``.
-
-    For a query that JOINs the author's profile service, this is the avatar
-    (``profile_body.avatar_ref`` → ``avatar_url``). The face body may be a
-    parsed dict or a JSON string (an aliased ``body`` column the row serializer
-    doesn't parse) — both are handled. A resolve failure degrades to no face
-    (the client renders the fallback initials) — the face is an enhancement.
-    """
+def _prepare_face(docs: list[dict], face: PrepareFace, reader: str, readable: dict[str, list[str]]) -> list[dict]:
+    """Only mint references found in canonical authorized bodies; missing faces no-op."""
     author_col = face.authorColumn or "author_key"
-    out = []
-    for doc in docs:
-        doc = dict(doc)
+    if face.urlField in {face.bodyField, author_col} or any(face.urlField in doc for doc in docs):
+        raise HTTPException(status_code=400, detail="face urlField must be a new output column")
+    out, requests = [], {}
+    for i, doc in enumerate(docs):
+        out.append(dict(doc))
         raw = doc.get(face.bodyField)
-        face_body = raw
         if isinstance(raw, str):
             try:
-                face_body = ch._parse_json(raw)
+                raw = ch._parse_json(raw)
             except (ValueError, TypeError):
-                face_body = None
-        if not isinstance(face_body, dict):
-            out.append(doc)
+                raw = None
+        ref = raw.get(face.mediaField) if isinstance(raw, dict) else None
+        author = doc.get(author_col)
+        if isinstance(author, str) and author and isinstance(ref, str) and ref:
+            requests[i] = (author, ref)
+    if not requests:
+        return out
+
+    pairs = set(requests.values())
+    owners = {pair: set() for pair in pairs}
+
+    def literal(value):
+        # Hex survives repeated SQL parser/generator passes without quote reinterpretation.
+        return exp.func("unhex", exp.Literal.string(value.encode("utf-8").hex()))
+
+    media = exp.func("JSONExtractString", exp.column("body"), literal(face.mediaField))
+    uploader = exp.func(
+        "coalesce", exp.func("nullIf", exp.column("posted_by"), exp.Literal.string("")), exp.column("author_key")
+    )
+    # Group in SQL so multiple documents/groups cannot truncate another requested pair.
+    for service, groups in readable.items():
+        if not groups:
             continue
-        media_ref = face_body.get(face.mediaField)
-        author = doc.get(author_col) or ""
-        if media_ref and author:
-            try:
-                resolved = ch.resolve_media_urls({"media_refs": [media_ref]}, author)
-                refs = resolved.get("media_refs") or []
-                if refs and isinstance(refs[0], dict) and refs[0].get("read_url"):
-                    doc[face.urlField] = refs[0]["read_url"]
-            except Exception as e:
-                log.warning("[query] face resolve failed author=%s: %s", author, e)
-        out.append(doc)
+        select = (
+            exp.select(
+                "author_key",
+                media.copy().as_("media_ref"),
+                exp.func("groupUniqArray", uploader.copy()).as_("media_owners"),
+            )
+            .from_(exp.Table(this=exp.to_identifier(service, quoted=True)))
+            .where(
+                exp.In(
+                    this=exp.Tuple(expressions=[exp.column("author_key"), media.copy()]),
+                    expressions=[
+                        exp.Tuple(expressions=[literal(author), literal(ref)]) for author, ref in sorted(pairs)
+                    ],
+                )
+            )
+            .group_by("author_key", media.copy())
+        )
+        compiled = sq.build_safe_query(
+            select.sql(dialect="clickhouse"),
+            {service: groups},
+            member_key=reader,
+            allowed_services=frozenset({service}),
+            max_limit=max(MAX_ROWS, len(pairs)),
+        )
+        log.info("[query] canonical face read: started pairs=%d", len(pairs))
+        try:
+            columns, values = ch.execute_query(compiled, settings={"max_execution_time": MAX_EXECUTION_TIME_S})
+        except ch.QueryExecutionError:
+            log.warning("[query] canonical face read: failed; no faces minted")
+            return out
+        for values_row in values:
+            row = dict(zip(columns, values_row))
+            pair = (row["author_key"], row["media_ref"])
+            if pair in owners:
+                owners[pair].update(row["media_owners"])
+        log.info("[query] canonical face read: completed rows=%d", len(values))
+
+    urls = {}
+    for pair, uploaders in owners.items():
+        if len(uploaders) != 1:
+            continue
+        owner = next(iter(uploaders))
+        if not isinstance(owner, str) or not owner:
+            continue
+        try:
+            resolved = ch.resolve_media_urls({"media_refs": [pair[1]]}, owner)
+            refs = resolved.get("media_refs") or []
+            if refs and isinstance(refs[0], dict) and refs[0].get("read_url"):
+                urls[pair] = refs[0]["read_url"]
+        except Exception:
+            log.warning("[query] canonical face resolve: failed")
+    for i, pair in requests.items():
+        if pair in urls:
+            out[i][face.urlField] = urls[pair]
+    log.info("[query] canonical face prepare: requested=%d resolved=%d", len(pairs), len(urls))
     return out
 
 
@@ -189,8 +245,8 @@ def _prepare_rows(
     + ``_mint_hls_manifest_urls``), applied to the query's rows.
 
     Media/ad rows are rebound through a fresh server-written query using the
-    same service/group/visibility boundary before minting. Face projection
-    binding remains a separate open boundary. Non-document aggregate rows no-op.
+    same service/group/visibility boundary before minting. Faces independently
+    bind requested author/ref pairs. Non-document aggregate rows no-op.
     """
     if not rows:
         return rows
@@ -216,7 +272,7 @@ def _prepare_rows(
             for i, doc in zip(indexes, bound, strict=True):
                 docs[i] = doc
     if prepare.face:
-        docs = _prepare_face(docs, prepare.face)
+        docs = _prepare_face(docs, prepare.face, reader, readable)
     return docs
 
 
