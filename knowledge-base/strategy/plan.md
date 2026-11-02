@@ -37,6 +37,8 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
+- [✓ 3.254.14 local] **Following feed failure isolation** - reproduced optional engagement/membership failures blanking valid posts; preserve content and independently successful counts, and show a retryable error for primary read failures. 44 focused tests/build pass; desktop/375px error screenshots inspected. Full-suite run timed out with follow/Shorts failures. Exact jacoby149 production request and rollout remain unverified; this is not production incident closure.
+
 - [✓ 3.254.3 local] **Batching inventory and execution plan** - source audit of backend database-call loops and client request fan-out, scoped bites and correctness/request-count gates in `batching-performance.md`. Documentation only; not an optimization or benchmark result.
 - [ ] **Execute batching-performance queue** - B01-B09 backend and C01-C14 client items in `batching-performance.md`; prioritize readable-set equivalence/promotion, owner-scoped media/face preparation and acting-identity request deduplication. Claim one sub-bite at a time; existing paint-on-read/E3/security lanes retain their gates.
 
