@@ -92,7 +92,9 @@ def test_external_target_cannot_borrow_human_membership(storage, target):
     attach.assert_not_called()
 
 
-@pytest.mark.parametrize("case", ["no-grant", "owner-without-create", "service-mismatch", "bystander", "foreign", "missing"])
+@pytest.mark.parametrize(
+    "case", ["no-grant", "owner-without-create", "service-mismatch", "bystander", "foreign", "missing"]
+)
 def test_self_target_requires_live_service_authority(storage, case):
     groups, members, insert, attach, _ = storage
     options = {}
@@ -203,9 +205,7 @@ def edit(targets=None):
     }
     if targets is not None:
         payload["groups"] = targets
-    return TestClient(app).post(
-        "/v3/update", headers={"Origin": "https://synthetic-app.example"}, json=payload
-    )
+    return TestClient(app).post("/v3/update", headers={"Origin": "https://synthetic-app.example"}, json=payload)
 
 
 @pytest.mark.parametrize("explicit", [False, True])
@@ -237,7 +237,9 @@ def test_new_self_attachment_needs_create_as_well_as_update(lifecycle, create_gr
         replace_groups.assert_not_called()
 
 
-@pytest.mark.parametrize("case", ["revoked", "wrong-service", "app-denied", "human-only", "near-match", "external-revoked"])
+@pytest.mark.parametrize(
+    "case", ["revoked", "wrong-service", "app-denied", "human-only", "near-match", "external-revoked"]
+)
 def test_update_self_exception_preserves_other_gates(lifecycle, case):
     groups, members, _, targets, update, replace_groups, app_gate = lifecycle
     assert create(targets=[TEAM]).status_code == 200
@@ -260,7 +262,9 @@ def test_update_self_exception_preserves_other_gates(lifecycle, case):
     replace_groups.assert_not_called()
 
 
-@pytest.mark.parametrize("history", ["detached", "tie-delete-first", "tie-live-first", "reattached", "active", "other-doc"])
+@pytest.mark.parametrize(
+    "history", ["detached", "tie-delete-first", "tie-live-first", "reattached", "active", "other-doc"]
+)
 def test_update_self_retention_uses_current_attachment_sql(storage, monkeypatch, history):
     groups, members, _, attach, _ = storage
     groups[TEAM]["roles"] = [{"name": "owner", "permissions": {"notes": ["create", "updateOwn"]}}]
