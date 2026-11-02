@@ -11,6 +11,21 @@ import { vi } from 'vitest';
 // load-dependent flake class. Individual tests can still override it.
 configure({ asyncUtilTimeout: 5000 });
 
+// jsdom does not evaluate media queries. Tests default to the desktop branch;
+// mobile portal geometry is checked by the real-browser screenshot harness.
+Object.defineProperty(window, 'matchMedia', {
+  configurable: true,
+  writable: true,
+  value: (media: string) => ({
+    media,
+    matches: false,
+    onchange: null,
+    addEventListener() {},
+    removeEventListener() {},
+    dispatchEvent: () => true,
+  }),
+});
+
 // jsdom has no real network. A global fetch mock that rejects immediately so
 // components that fetch (e.g. a stats bar → `POST /v3/stats`) degrade
 // gracefully (no bar) instead of leaving an in-flight request that races the

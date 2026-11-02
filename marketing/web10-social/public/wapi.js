@@ -617,14 +617,19 @@
       },
       async update(docId, body, opts) {
         const payload = { doc_id: docId, body };
+        if (opts?.author_as)
+          payload.author_as = opts.author_as;
         if (opts?.groups)
           payload.groups = opts.groups;
         if (opts?.ad_preference)
           payload.ad_preference = opts.ad_preference;
         return v3Post("update", payload);
       },
-      async delete(docId) {
-        return v3Post("delete", { doc_id: docId });
+      async delete(docId, opts) {
+        const payload = { doc_id: docId };
+        if (opts?.author_as)
+          payload.author_as = opts.author_as;
+        return v3Post("delete", payload);
       },
       async addAppContract(allowedOrigin, permissions) {
         return v3Post("app-contracts/add", {
@@ -663,6 +668,10 @@
         const payload = {};
         if (opts?.tags)
           payload.tags = opts.tags;
+        if (opts?.author_as)
+          payload.author_as = opts.author_as;
+        if (opts?.service)
+          payload.service = opts.service;
         return v3Post("groups/list", payload);
       },
       async getGroupsManages() {

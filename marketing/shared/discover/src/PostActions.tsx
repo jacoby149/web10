@@ -34,6 +34,7 @@ export type ReactionKind = 'like' | 'dislike';
 export type PostActionMode = 'interactive' | 'display' | 'none';
 
 export interface PostActionsProps {
+  actionIdentity?: string;
   postId: string;
   liked: boolean;
   disliked: boolean;
@@ -115,6 +116,7 @@ export interface PostActionsProps {
 }
 
 export function PostActions({
+  actionIdentity,
   postId,
   liked,
   disliked,
@@ -371,6 +373,7 @@ export function PostActions({
       highlightedCommentId={highlightedCommentId}
       groups={groups}
       readComments={readComments}
+      actionIdentity={actionIdentity}
       readReplies={readReplies}
       createComment={createComment}
       onToggleCommentLike={onToggleCommentLike}

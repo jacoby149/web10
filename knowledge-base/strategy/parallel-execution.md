@@ -39,6 +39,17 @@ says what can happen **at the same time**.
 
 ## Lanes
 
+### Lane: acting-identity (current workspace)
+**Owns:** social identity/navigation/composer/action consumers in
+`marketing/web10-social/`; generic delegated-document and group-list seams in
+`api/` and `sdk/`, with focused tests and serialized KB updates.
+
+- [✓ 3.254.0 local] **App-wide acting identity implementation** - `acting-identity.md` gates 2-7 locally verified. Personal authority remains for DMs/billing/admin. Full API/SDK/social suites and social build pass; desktop/mobile switcher inspected. Not published, merged or deployed.
+- [ ] **Connected multi-operator/revocation acceptance** - exercise real API/storage with two operators sharing group reactions, revoke one operator, verify denied writes and preserved audit attribution, and replay concurrent actions. Gates: local 3.254.0 implementation, isolated test stack, no production credentials, retained request/storage evidence; independent security review before release. Owns: the acting-identity lane directories above plus focused integration tests. Acceptance: both operators see one shared identity state, revocation denies writes without personal fallback, audit survives update/delete, and concurrency behavior is recorded without claiming atomic uniqueness.
+
+The earlier social-v3 A4 tick records composer code on open PR #1308, not a
+merge. It is superseded, not a completion signal for this lane.
+
 ### Lane: oauth-2-0 (D92)
 **Owns:** `api/app/v3/endpoints/oauth.py` (new), `api/app/models/auth.py`
 (TokenData), `api/app/services/auth.py` (certify), `api/app/v3/endpoints/

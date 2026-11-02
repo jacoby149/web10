@@ -115,6 +115,7 @@ class UpdateDocument(BaseModel):
 
     token: str
     doc_id: str
+    author_as: str | None = None
     body: dict
     groups: list[str] | None = None
     # The v3 ad preference (pinned | none). If omitted, the existing
@@ -127,6 +128,7 @@ class DeleteDocument(BaseModel):
 
     token: str
     doc_id: str
+    author_as: str | None = None
 
 
 class TrackContentEvent(BaseModel):

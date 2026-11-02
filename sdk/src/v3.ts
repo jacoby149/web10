@@ -1318,16 +1318,19 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
     async update(
       docId: string,
       body: Record<string, unknown>,
-      opts?: { groups?: string[]; ad_preference?: V3AdPreference },
+      opts?: { groups?: string[]; ad_preference?: V3AdPreference; author_as?: string },
     ): Promise<V3Document> {
       const payload: V3Body = { doc_id: docId, body }
+      if (opts?.author_as) payload.author_as = opts.author_as
       if (opts?.groups) payload.groups = opts.groups
       if (opts?.ad_preference) payload.ad_preference = opts.ad_preference
       return v3Post<V3Document>('update', payload)
     },
 
-    async delete(docId: string): Promise<{ doc_id: string; status: string }> {
-      return v3Post<{ doc_id: string; status: string }>('delete', { doc_id: docId })
+    async delete(docId: string, opts?: { author_as?: string }): Promise<{ doc_id: string; status: string }> {
+      const payload: V3Body = { doc_id: docId }
+      if (opts?.author_as) payload.author_as = opts.author_as
+      return v3Post<{ doc_id: string; status: string }>('delete', payload)
     },
 
     // ── App contracts (per-app with per-service permissions) ──────────────
@@ -1380,9 +1383,11 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       return v3Post<V3Group>('groups/get', { group_id: groupId })
     },
 
-    async getMyGroups(opts?: { tags?: string[] }): Promise<V3Group[]> {
+    async getMyGroups(opts?: { tags?: string[]; author_as?: string; service?: string }): Promise<V3Group[]> {
       const payload: V3Body = {}
       if (opts?.tags) payload.tags = opts.tags
+      if (opts?.author_as) payload.author_as = opts.author_as
+      if (opts?.service) payload.service = opts.service
       return v3Post<V3Group[]>('groups/list', payload)
     },
 
@@ -1876,8 +1881,8 @@ export interface V3Client {
   readById(docId: string, collection: string, opts?: { surface?: string }): Promise<V3Document>
   query(sql: string, opts?: { groups?: string[]; prepare?: V3Prepare; withGroupMeta?: boolean; surface?: string; contentService?: string }): Promise<V3QueryResult>
   listPeopleDirectory(opts?: { limit?: number; offset?: number }): Promise<V3PeoplePage>
-  update(docId: string, body: Record<string, unknown>, opts?: { groups?: string[]; ad_preference?: V3AdPreference }): Promise<V3Document>
-  delete(docId: string): Promise<{ doc_id: string; status: string }>
+  update(docId: string, body: Record<string, unknown>, opts?: { groups?: string[]; ad_preference?: V3AdPreference; author_as?: string }): Promise<V3Document>
+  delete(docId: string, opts?: { author_as?: string }): Promise<{ doc_id: string; status: string }>
 
   // App contracts (per-app with per-service permissions)
   addAppContract(allowedOrigin: string, permissions: Record<string, string[]>): Promise<V3ServiceContract>
@@ -1893,7 +1898,7 @@ export interface V3Client {
   // Groups
   createGroup(name: string, joinPolicy: string, roles: Record<string, unknown>[], members: { member_key: string; role?: string }[], opts?: { discoverable?: boolean; tags?: string[]; membership_visibility?: string }): Promise<{ group_id: string }>
   getGroup(groupId: string): Promise<V3Group>
-  getMyGroups(opts?: { tags?: string[] }): Promise<V3Group[]>
+  getMyGroups(opts?: { tags?: string[]; author_as?: string; service?: string }): Promise<V3Group[]>
   getGroupsManages(): Promise<V3Group[]>
   updateGroup(groupId: string, opts?: { join_policy?: string; roles?: Record<string, unknown>[]; discoverable?: boolean; tags?: string[]; membership_visibility?: string }): Promise<V3Group>
   /** Reconcile a group contract against a canonical spec — additive, non-

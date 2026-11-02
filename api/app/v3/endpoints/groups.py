@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 import app.exceptions as exceptions
 from app.models.auth import Token
@@ -192,6 +192,13 @@ def get_my_groups(data: ListMyGroups):
     owner or the contract defines no owner role.
     """
     user = _user(data)
+    if data.author_as:
+        if not ch.get_group(data.author_as):
+            raise HTTPException(status_code=404, detail="group not found")
+        perms = ch.effective_role_perms(data.author_as, user, authenticated=True)
+        if not ch._effective_allows(perms, data.service, "create"):
+            raise HTTPException(status_code=403, detail="no permission to act as this group")
+        return ch.get_user_groups(data.author_as, data.tags)
     groups = ch.get_user_groups(user, data.tags)
     for g in groups:
         creator, _slug = _parse_group_id(g["group_id"])

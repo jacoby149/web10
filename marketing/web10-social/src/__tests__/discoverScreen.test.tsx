@@ -3,6 +3,10 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import '@testing-library/jest-dom';
 import * as data from '@/data';
+vi.mock('@/data/v3', async (original) => {
+  const actual = await original<typeof import('@/data/v3')>();
+  return { ...actual, getV3Client: () => data.getV3Client() };
+});
 
 // Mock lucide-react icons as simple span elements (any icon, no manual list)
 import { lucideMock } from './helpers/lucideMock';

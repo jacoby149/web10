@@ -170,6 +170,50 @@ beforeEach(() => {
 });
 
 describe('WatchScreen (the watch page)', () => {
+  it('uses the group face and route without personal profile or follow operations', async () => {
+    const groupId = 'test.localhost/groups/climbing-club';
+    const post = {
+      ...data.fromV3DocToPost(CURRENT as never),
+      author_key: groupId,
+      author_username: 'climbing-club',
+      posted_by: 'test.localhost/users/alex',
+      group_identity: { name: 'Climbing Club' },
+      avatar_url: 'https://cdn/group-face.jpg',
+    };
+    vi.mocked(data.readPostById).mockResolvedValue(post);
+    vi.mocked(data.readDiscoverFeed).mockResolvedValue([{ ...post, _id: 'group-next' }]);
+    await renderWatch();
+    await screen.findByTestId('watch-queue');
+    const row = screen.getByTestId('watch-author-row');
+    expect(row).toHaveTextContent('Climbing Club');
+    expect(screen.getByTestId('watch-author')).toHaveAttribute('href', `/groups/${encodeURIComponent(groupId)}`);
+    expect(screen.queryByTestId('watch-follow-button')).not.toBeInTheDocument();
+    expect(data.readUserProfile).not.toHaveBeenCalled();
+    expect(data.isFollowing).not.toHaveBeenCalled();
+    expect(data.followUser).not.toHaveBeenCalled();
+    expect(data.unfollowUser).not.toHaveBeenCalled();
+    const card = screen.getByTestId('watch-queue-card');
+    expect(card).toHaveTextContent('Climbing Club');
+    expect(card.querySelector('img[src="https://cdn/group-face.jpg"]')).not.toBeNull();
+    expect(card).not.toHaveTextContent('Alex Honnold');
+  });
+
+  it('falls back to the group slug, never a personal profile, when the group face is missing', async () => {
+    const post = {
+      ...data.fromV3DocToPost(CURRENT as never),
+      author_key: 'test.localhost/groups/climbing-club',
+      author_username: 'alex',
+    };
+    vi.mocked(data.readPostById).mockResolvedValue(post);
+    vi.mocked(data.readDiscoverFeed).mockResolvedValue([{ ...post, _id: 'group-next' }]);
+    await renderWatch();
+    await screen.findByTestId('watch-queue');
+    expect(screen.getByTestId('watch-author')).toHaveTextContent('climbing-club');
+    expect(screen.getByTestId('watch-queue-card')).toHaveTextContent('climbing-club');
+    expect(data.readUserProfile).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('watch-follow-button')).not.toBeInTheDocument();
+  });
+
   it('renders the player, the title, and the author row (under the video)', async () => {
     await renderWatch();
     // The player (a landscape file source → the native full player).

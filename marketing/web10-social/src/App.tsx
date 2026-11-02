@@ -27,7 +27,7 @@ import { ReportBug } from '@/components/shared/ReportBug';
 import { Toaster } from '@/components/shared/Toast';
 import { InstallPrompt } from '@/components/shared/InstallPrompt';
 import { getWapi, getV3Client, verifyAndRecover, Web10Error, ensureProfile } from '@/data';
-import { resolveMediaRefs } from '@/data/posts';
+import { resolveMediaRefs, resolvePostAuthors } from '@/data/posts';
 import { readSettings } from '@/data/settings';
 import { initP2P, teardownP2P, setPeer } from '@/data/p2p';
 import { initNotifications, teardownNotifications } from '@/data/notifications';
@@ -39,8 +39,8 @@ import { ComposerProvider } from '@/context/ComposerContext';
 import { SaveProvider } from '@/context/SaveContext';
 import { NewPostSheet } from '@/components/Feed/NewPostSheet';
 import { SaveSheet } from '@/components/Feed/SaveSheet';
-import type { PostRecord, MediaRecord, Visibility, ResolvedMediaRef } from '@/data/types';
-import { fromResolvedMediaRef, parseProductFields } from '@/data/types';
+import type { PostRecord, MediaRecord, ResolvedMediaRef } from '@/data/types';
+import { fromResolvedMediaRef, fromV3DocToPost } from '@/data/types';
 
 const LOG = (...args: unknown[]) => console.log('[social]', ...args);
 const LOG_ERR = (...args: unknown[]) => console.error('[social]', ...args);
@@ -149,7 +149,7 @@ function GroupSavedCollectionRoute() {
 }
 
 function UserProfilePostLinkRoute() {
-  const { username, postId } = useParams();
+  const { username, postId, groupId } = useParams();
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -172,7 +172,7 @@ function UserProfilePostLinkRoute() {
         let p: PostRecord | null = null;
         try {
           const doc = await w.readById(postId, 'posts');
-          p = { _id: doc.doc_id, text: (doc.body.text as string) || undefined, media_refs: (doc.body.media_refs as (string | ResolvedMediaRef)[]) || undefined, created_at: doc.created_at, updated_at: doc.updated_at, visibility: (doc.body.visibility as Visibility) || undefined, tags: doc.tags || (doc.body.tags as string[]) || undefined, product: parseProductFields(doc.body) };
+          p = (await resolvePostAuthors([fromV3DocToPost(doc)]))[0];
         } catch { /* not found */ }
         if (!cancelled && p) {
           setPost(p);
@@ -189,10 +189,11 @@ function UserProfilePostLinkRoute() {
             if (token) {
               // Signed-in: the cross-user `public_media` path mints fresh
               // presigned URLs (the owner's own media uses the `media` service).
+              const uploader = p.posted_by || p.author_username || username!;
               const media = await resolveMediaRefs(
                 refIds,
-                { username: username!, provider: provider || token.provider },
-                username === token.username ? 'media' : 'public_media',
+                { username: uploader, provider: provider || token.provider },
+                uploader === token.username ? 'media' : 'public_media',
               );
               for (const m of media) {
                 if (m._id) flat[m._id] = m;
@@ -217,10 +218,13 @@ function UserProfilePostLinkRoute() {
       if (!cancelled) setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [username, postId, provider]);
+  }, [username, postId, provider, groupId]);
+
+  const authorGroup = post?.author_key?.includes('/groups/') ? post.author_key : groupId;
 
   if (loading) {
     return (
+      groupId ? <GroupDetailScreen groupId={groupId} /> :
       <UserProfileScreen
         username={username!}
         provider={provider}
@@ -231,19 +235,18 @@ function UserProfilePostLinkRoute() {
 
   return (
     <>
-      <UserProfileScreen
+      {authorGroup ? <GroupDetailScreen groupId={authorGroup} /> : <UserProfileScreen
         username={username!}
         provider={provider}
         onBack={() => navigate(-1)}
-      />
+      />}
       {post && (
         <PostLightbox
           post={post}
           mediaMap={mediaMap}
-          onClose={() => navigate(`/u/${username}`)}
+          onClose={() => navigate(authorGroup ? `/groups/${encodeURIComponent(authorGroup)}` : `/u/${username}`)}
           postAuthor={username}
           postService={post._id ? 'public_posts' : undefined}
-          isOwner={false}
           highlightedCommentId={highlightedCommentId}
         />
       )}
@@ -497,6 +500,7 @@ function App() {
           <Route path="/u/:username/followers" element={isAnon ? <Navigate to="/video" replace /> : <UserFollowersRoute />} />
           <Route path="/u/:username/following" element={isAnon ? <Navigate to="/video" replace /> : <UserFollowingRoute />} />
           <Route path="/u/:username/p/:postId" element={<UserProfilePostLinkRoute />} />
+          <Route path="/groups/:groupId/p/:postId" element={<UserProfilePostLinkRoute />} />
           <Route path="/staging" element={isAnon ? <Navigate to="/video" replace /> : <StagingScreen />} />
           <Route path="/monetize" element={isAnon ? <Navigate to="/video" replace /> : <MonetizationScreen />} />
           <Route path="/settings" element={isAnon ? <Navigate to="/video" replace /> : <SettingsScreen onLogout={handleLogout} onReportBug={() => handleReportBug('button')} />} />

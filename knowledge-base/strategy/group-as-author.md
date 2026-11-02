@@ -1,5 +1,14 @@
 # Group as Author — post as the group, the group is an identity
 
+**01.11.2026 scope correction:** `acting-identity.md` supersedes the composer-only
+picker decision and A4 UX below. Selection is now app-wide and per tab; drafts
+keep their originating identity. The old `getMyGroups(member_key=...)` assumption
+was incorrect: the implemented generic seam is authorized
+`getMyGroups({ author_as, service })`. Create permission is service-specific,
+not an owner/moderator-name test. Explicit update/delete require their own live
+service grants. PR #1308 remains open; its historical A4 tick is not merged
+completion of the broader acting-identity work.
+
 **Status: PLANNED.** A group is a **first-class author**. A member with the
 right role (owner / moderator) can post **as the group** — the post's
 `author_key` is the group_id, it renders with the group's face (name + avatar)
