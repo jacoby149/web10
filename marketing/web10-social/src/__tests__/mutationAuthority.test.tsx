@@ -19,6 +19,7 @@ function grants(permissions: Record<string, string[]>) {
 beforeEach(() => {
   vi.clearAllMocks();
   sessionStorage.clear();
+  localStorage.clear();
   client.getGroup.mockResolvedValue(grants({}));
   client.query.mockResolvedValue({ rows: [], count: 0 });
   client.read.mockResolvedValue([]);

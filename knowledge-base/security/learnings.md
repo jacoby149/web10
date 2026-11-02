@@ -35,6 +35,27 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-02: Self-target authority is not inherited external membership
+
+The group publish 403 reproduces when the group is not a member of itself.
+The [bounded repair](group-author-self-target.md) allows exact-self create only
+after live effective service create and human app gates. External targets still
+use the group principal; unrelated human memberships never transfer. Explicit
+updates retain stored self attachments with updateOwn, but a new self attachment
+also needs create. Effective unions may retain principal-class authority after
+explicit member removal; do not call that a revocation bypass. The canonical
+Discover anyone role already grants create, confirmed read-only on production;
+missing explicit group enrollment is not missing permission. Client defaults
+must include self and public Discover even when group memberships are empty.
+Remembered identity IDs are untrusted preferences, never persisted permissions.
+Same-model review found and pinned the update lifecycle; connected persistence,
+concurrent revocation, rollout and diverse review remain open.
+That review also reproduced historical doc_groups rows authorizing a detached
+self reattachment with updateOwn alone. `get_doc_groups` now ranks all versions
+before filtering tombstones, with deletion winning timestamp ties. Six actual-SQL
+signed-route cases pin detach denial, tie order, newer reattachment and unrelated
+document isolation. Other direct attachment readers/writers remain separate scope.
+
 ### 2026-11-02: Authorize pinned creatives from the current membership version
 
 [Local membership repair](scans/2026-10/repair-h01-pinned-membership.md) ranks the

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -248,6 +248,8 @@ export function WallTile({ media, testId, title, caption, postId, multiCount, on
 export default function UserProfileScreen({ username, provider, onBack }: UserProfileScreenProps) {
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
   const [posts, setPosts] = useState<PostRecord[]>([]);
+  const [postsError, setPostsError] = useState(false);
+  const loadGeneration = useRef(0);
   const [mediaMap, setMediaMap] = useState<Record<string, MediaRecord>>({});
   const [loading, setLoading] = useState(true);
   const [followRecord, setFollowRecord] = useState<FollowRecord | null>(null);
@@ -335,10 +337,16 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
 
   useEffect(() => {
     loadData();
+    return () => { loadGeneration.current++; };
   }, [username, provider]);
 
   const loadData = useCallback(async () => {
+    const generation = ++loadGeneration.current;
+    const current = () => generation === loadGeneration.current;
+    let postsFailed = false;
     setLoading(true);
+    setPostsError(false);
+    setFollowingCountError(false);
     try {
       const token = getWapi().readToken();
       // v3 ownership is by username alone: a post's/author's `author_key` is
@@ -376,6 +384,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
           }),
           readMyPosts({ surface: 'profile' }).catch((e) => {
             console.error('[social] loadData — readMyPosts failed:', e);
+            postsFailed = true;
             return [];
           }),
           countFollows().catch((e) => {
@@ -391,6 +400,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
             return 0;
           }),
         ]);
+        if (!current()) return;
         profile = p;
         postsData = postsRes || [];
         if (fC === null) {
@@ -403,12 +413,12 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         setStagingCount(stgCount);
         // Saved collections (D88) — the owner's playlists for the Saved tab.
         // Isolated: a failure degrades the tab to empty, never the profile.
-        setCollections(
-          await getMyCollections().catch((e) => {
-            console.error('[social] loadData — getMyCollections failed:', e);
-            return [] as CollectionRecord[];
-          }),
-        );
+        const loadedCollections = await getMyCollections().catch((e) => {
+          console.error('[social] loadData — getMyCollections failed:', e);
+          return [] as CollectionRecord[];
+        });
+        if (!current()) return;
+        setCollections(loadedCollections);
       } else {
         // Viewer path (anon or a signed-in non-owner): read the author's
         // PUBLIC profile through the D73 query engine (readUserPublicProfile).
@@ -423,9 +433,11 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
           readFollow(username).catch(() => null),
           readUserPublicProfile(username, provider, 50, 'profile').catch((e) => {
             console.error('[social] loadData — readUserPublicProfile failed:', e);
+            postsFailed = true;
             return { posts: [] as PostRecord[], avatarUrl: undefined, bannerUrl: undefined };
           }),
         ]);
+        if (!current()) return;
         profile = p;
         setFollowRecord(fr);
         setFollowing(fr?.status === 'active' || false);
@@ -435,12 +447,12 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         // membership_visibility='public' groups, so a private collection never
         // surfaces. Isolated: a failure degrades the tab to absent, never the
         // profile.
-        setCollections(
-          await readUserPublicCollections(username, provider).catch((e) => {
-            console.error('[social] loadData — readUserPublicCollections failed:', e);
-            return null;
-          }),
-        );
+        const loadedCollections = await readUserPublicCollections(username, provider).catch((e) => {
+          console.error('[social] loadData — readUserPublicCollections failed:', e);
+          return null;
+        });
+        if (!current()) return;
+        setCollections(loadedCollections);
         // The face (avatar / banner) — presigned URLs the query engine minted
         // (author-scoped, so they render for any viewer, not just the owner).
         // Build the media map from the posts' inline-resolved media + the face
@@ -467,6 +479,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         } catch {
           // Ledger unavailable — fCount stays null (hide tile)
         }
+        if (!current()) return;
 
         // Following count from the public ledger (per-user, never the viewer's).
         // D80: the REAL following read (who X follows) — the old
@@ -474,10 +487,12 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         try {
           fc = await countUserFollowingReal(username, provider);
         } catch {
-          setFollowingCountError(true);
+          if (current()) setFollowingCountError(true);
         }
       }
 
+      if (!current()) return;
+      setPostsError(postsFailed);
       setProfile(profile);
       if (isOwn) {
         setDraft(profile || {});
@@ -505,12 +520,12 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
             console.error('[social] loadData — media resolution failed (degraded):', e);
           }
         }
-        setMediaMap(mediaMapInit);
+        if (current()) setMediaMap(mediaMapInit);
       }
     } catch (e) {
       console.error('Failed to load user profile:', e);
     }
-    setLoading(false);
+    if (current()) setLoading(false);
   }, [username, provider]);
 
   // The app-level New Post sheet fires `post-created` (NewPostSheet) when a
@@ -899,7 +914,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                 Following counts are clickable → the dedicated list screens. */}
             <div className="mt-3 flex gap-6" data-testid="user-profile-stats">
               <div>
-                <span className="tabular-nums font-display font-bold text-foreground text-lg block">{posts.length}</span>
+                <span className="tabular-nums font-display font-bold text-foreground text-lg block">{postsError ? '-' : posts.length}</span>
                 <span className="text-xs text-muted-foreground">Posts</span>
               </div>
               {followerCount !== null && followerCount !== undefined && (
@@ -1114,6 +1129,11 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
             collections={collections}
             onOpenCollection={openCollection}
           />
+        ) : postsError ? (
+          <div role="alert" className="py-16 text-center" data-testid="profile-posts-error">
+            <p className="mb-3 text-sm text-muted-foreground">Posts could not be loaded.</p>
+            <Button variant="outline" onClick={() => void loadData()}>Retry posts</Button>
+          </div>
         ) : activeTab === 'posts' ? (
           <>
           {/* The composer is NOT inline (the operator: "it should be

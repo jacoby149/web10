@@ -1187,7 +1187,12 @@ def replace_doc_groups(doc_id: str, group_ids: list[str]):
 def get_doc_groups(doc_id: str) -> list[str]:
     """Get active group IDs for a document."""
     result = client.query(
-        "SELECT group_id FROM doc_groups WHERE doc_id = %(doc_id)s AND deleted = 0",
+        # Rank tombstones too: an old live attachment is not current authority.
+        "SELECT group_id FROM ("
+        "SELECT group_id, deleted, row_number() OVER ("
+        "PARTITION BY doc_id, group_id ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM doc_groups WHERE doc_id = %(doc_id)s"
+        ") WHERE rn = 1 AND deleted = 0",
         {"doc_id": doc_id},
     )
     return [row[0] for row in result.result_rows]

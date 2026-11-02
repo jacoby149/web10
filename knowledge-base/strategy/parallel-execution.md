@@ -41,6 +41,15 @@ says what can happen **at the same time**.
 
 ## Lanes
 
+### Lane: century-club-findings (this workspace)
+
+**Owns:** generic document self-target/current-attachment seam and focused API
+tests; social composer, group editor/detail, profile/follow reads and acting
+identity preference state; serialized KB updates. Split security-boundary work
+from independent UI changes when publishing; no all-scope security PR.
+- [✓ 3.254.16 local] **Publish and related UI repairs** - exact scope/results in `century-club-findings.md`; 1,796 API plus eight subtests, 1,652 social tests, Ruff/build/typecheck and desktop/375px inspection pass. Same-model bounded security/design-intent review, not diverse sign-off. No commit or production writes/deployment.
+- [ ] **Connected acceptance and unresolved reports** - isolated synthetic publish/read to self+Discover, human audit and revoked/bystander denial; coordinated compiler/social deployment, original follower-zero and paste-freeze reproduction. Gates: local repairs above, isolated stack, no production credentials or settings changes. Acceptance: real attachments/audit/rendering proven and original failures reproduced or explicitly left open, not mocked-away. Owns lane paths above and focused e2e tests.
+
 ### Lane: people-community-discovery (this workspace)
 
 **Owns:** social `DiscoverExploreTab.tsx`, focused component regressions and

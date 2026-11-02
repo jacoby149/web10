@@ -37,6 +37,9 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
+- [✓ 3.254.16 local] **Century Club publish and related UI repairs** - exact-self authorization/current attachment history, empty-membership public Discover defaults, settings/save/draft races, composer name/audience, remembered identity and honest profile/count reads. `century-club-findings.md` records each finding and bounded evidence. 1,796 API plus eight subtests and 1,652 social tests pass; builds/lint and seeded desktop/375px inspection pass. Not committed, deployed or connected-publication accepted.
+- [ ] **Century Club connected acceptance and remaining reports** - isolated synthetic own-group-plus-Discover publish/read/audit/revocation, coordinated API/social deployment for posted_by profile query, exact signed-in follower-zero and paste-freeze reproduction. No production visibility changes without operator approval; see `century-club-findings.md`.
+
 - [✓ 3.254.14 local] **People community membership discovery** - implemented the All/My Groups/Discover composition and resolved-name search acceptance in `web10-v3/groups/discoverability.md`; 154 focused tests, build/typecheck and seeded desktop/375px inspection pass. No production writes or API/global-search changes; not deployed or production-verified. PR #1325 unit follow-up (3.254.15): isolate board-pagination observer/fixtures and cold import; 1,603 social tests pass locally, unchanged functional intent.
 
 - [✓ 3.254.3 local] **Batching inventory and execution plan** - source audit of backend database-call loops and client request fan-out, scoped bites and correctness/request-count gates in `batching-performance.md`. Documentation only; not an optimization or benchmark result.

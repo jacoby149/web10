@@ -23,11 +23,13 @@ describe('reactions v3 data layer', () => {
 
   beforeEach(() => {
     sessionStorage.clear();
+    localStorage.clear();
     mock = mockV3Client();
   });
 
   afterEach(() => {
     sessionStorage.clear();
+    localStorage.clear();
     vi.restoreAllMocks();
   });
 
