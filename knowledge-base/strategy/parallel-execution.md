@@ -61,6 +61,11 @@ route + the screenshot harness).
 
 ### Lane: security-l1-scans
 
+- [✓ 3.253.3 local tests] **PROTOCOL-01/B-5-PIN: pin credential-free CORS on actual routes** — 13 added profile/create controls, 18 CORS/1,470 API tests plus four subtests and lint/format; fresh same-model/mutation review. `knowledge-base/security/scans/2026-10/b5-cors-credential-pinning.md`. Own CORS test hunk/security KB only; no runtime repair or browser/integration/diverse/L1 closure. Operator requested publication on the current branch after the local checkpoint.
+
+- [✓ 3.253.2 local] **PROTOCOL-01/B-3-DEFAULT: verify JWT decoding by default** — decoder default and two explicit metadata callers; 31 new/175 focused and 1,457 API tests plus four subtests, lint/format and fresh same-model review. `knowledge-base/security/scans/2026-10/repair-b3-default-decode.md`. No endpoint-bypass/issuer/remote-provider closure; CI/deployment/diverse/L1 gates OPEN.
+- **Backup status:** L1-PKG-02 merged #1301 at `30f9d49fc`, all 13 checks green; earlier local tick is historical, not deployment/sign-off closure.
+
 - [✓ 3.252.25 local] **PROTOCOL-01/L1-PKG-02: private no-clobber backup output** — real filesystem proof; 45 focused/1,420 API tests plus four subtests, lint/format and fresh same-model review. `knowledge-base/security/scans/2026-10/repair-pkg02-backup-publication.md`. Trusted storage/CI/deployment/diverse gates OPEN. Own extractor output hunk and focused API tests; no L1 closure.
 - **Manifest status:** L1-A-02 repair/dependency merged #1299 at `0918a7409`, all 13 checks green; historical local ticks below do not close rollout/sign-off.
 

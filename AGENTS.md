@@ -334,6 +334,11 @@ JWT tokens with `username, site, target, provider, expires`. Server verifies sig
 
 Verified non-anonymous decoding requires a parseable ISO `expires`, with naive UTC or explicit offsets, and rejects at the deadline. Anonymous custom-expiry exemption and unsigned metadata decoding are separate; the latter is never authorization.
 
+Internal `decode_token()` verifies signature/freshness by default. Unsigned
+metadata callers explicitly pass `private_key=False`; decoding alone does not
+replace provider/client certification or access checks. Legacy remote-provider
+destination trust remains open, not repaired by this default.
+
 OAuth authorization certifies its source token before code minting: local provider, freshness and active source-client registration are required. Active delegated sources remain permitted; this does not add source-contract narrowing or resolve broader delegation authority.
 
 ## Security invariants
