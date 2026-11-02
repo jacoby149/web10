@@ -29,6 +29,24 @@ Browser fetches images → MinIO serves directly → no middleware, no latency
 
 If someone shares a presigned image URL, it expires in an hour. Same as sharing a YouTube link. For social media, that's acceptable.
 
+### Direct Refresh Is Owner-Only
+
+`POST /v3/media/read-url` accepts an object key, not proof that the caller can
+read a carrier document. It may mint a fresh URL only for a key in the verified
+caller's exact `username/` object namespace. This includes uploads awaiting
+metadata confirmation and owned derivatives; metadata presence is not required.
+A viewer cannot refresh somebody else's key directly. To obtain a new URL,
+the viewer re-reads an authorized carrier document, where the document/group
+gate decides whether media may be resolved. Public thumbnails continue through
+their existing document-access path, not through direct key refresh.
+
+Keys are opaque S3 names: ownership checks must not decode or normalize a
+caller key into a different object. Existing URLs remain bearer capabilities
+until expiry; membership removal does not invalidate an already-issued URL
+before its TTL. This endpoint restriction does not repair forged foreign keys
+stored in metadata/minio references or certify every resolver; those remain
+separate object-provenance obligations in the security record.
+
 ### Why Video Needs JWT + Middleware
 
 HLS segments are small (270KB each), numerous (100+), and fetched continuously over minutes. You need auth on every segment without presigning each one.

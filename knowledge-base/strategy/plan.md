@@ -64,6 +64,9 @@ reuses `POST /v3/app-contracts/revoke`. Full spec:
 
 ## L1 Security Scans
 
+- [✓ 3.253.4 local] **PROTOCOL-01/L1-H-01-DIRECT: owner-only direct media URL refresh** — approved owner-only direct signer, actual JWT/HTTP/real synthetic SigV4 repro denied before bucket/signing; owned unconfirmed/derivative and document/thumbnail paths preserved. 503 focused/1,477 API tests plus four subtests, lint/format and fresh same-model review. [Receipt](../security/scans/2026-10/repair-h01-direct-media.md). Adjacent provenance/service policy, real services/CI/deployment/diverse/L1 gates OPEN.
+- **Decoder/CORS status:** B-3 default/B-5 tests merged #1303 at `e56d25304`, all 13 final checks green after recorded retries; historical local ticks below do not close broader gates.
+
 - [✓ 3.253.3 local tests] **PROTOCOL-01/B-5-PIN: pin credential-free CORS on actual routes** — thirteen added profile/create controls, 18 CORS/1,470 API tests plus four subtests and lint/format pass; fresh same-model and mutation review. [Receipt](../security/scans/2026-10/b5-cors-credential-pinning.md). Test-only selected-route coverage; browser/integration/diverse/L1 gates OPEN, not a runtime repair.
 
 - [✓ 3.253.2 local] **PROTOCOL-01/B-3-DEFAULT: verify JWT decoding by default** — signature/freshness default True, two explicit metadata opt-outs; 31 new/175 focused and 1,457 API tests plus four subtests, lint/format and fresh same-model review. [Receipt](../security/scans/2026-10/repair-b3-default-decode.md). No endpoint-bypass/issuer/remote-provider closure; CI/deployment/diverse/L1 gates OPEN.

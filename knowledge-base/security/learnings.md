@@ -35,6 +35,20 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-01: A signed-in caller is not an arbitrary-object reader
+
+[H-01 direct signer repair](scans/2026-10/repair-h01-direct-media.md) upgrades
+the fake-signer proof: actual JWT/HTTP on baseline mints an independently verified
+real synthetic SigV4 capability for another user's key. No live object retrieval
+or IAM authority tested. The operator approved exact owner namespace on direct
+refresh; foreign viewers must re-read group-authorized carrier documents. Check
+before all bucket/signing calls, preserve owned unconfirmed uploads/derivatives,
+and keep S3 keys opaque. Metadata ownership alone cannot validate stored object
+references. Five new pytest cases, 503 focused/1,477 API tests plus four subtests
+and fresh same-model review support local route repair only. Stored foreign-key
+metadata/minio references, service policy, TTL revocation and browser/service/
+CI/deployment/diverse gates remain explicit, not repaired by this prefix gate.
+
 ### 2026-11-01: Open CORS and ambient authentication are different assertions
 
 [B-5 route pin](scans/2026-10/b5-cors-credential-pinning.md) supplements existing

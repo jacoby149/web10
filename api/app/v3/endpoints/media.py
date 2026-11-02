@@ -65,18 +65,28 @@ def upload_url(data: UploadUrlRequest):
 
 @router.post("/read-url")
 def read_url(data: ReadUrlRequest):
-    """Request a presigned GET URL for reading a file from S3."""
-    _user(data)  # validate token
+    """Request a presigned GET URL for a caller-owned S3 key."""
+    import logging
+
+    logger = logging.getLogger("web10-media")
+    user = _user(data)
     object_key = data.body.get("object_key")
-    if not object_key:
+    if not isinstance(object_key, str) or not object_key or object_key == user + "/":
+        logger.info("[media] read-url denied: invalid key")
         raise HTTPException(status_code=400, detail="object_key is required")
+    if not object_key.startswith(user + "/"):
+        logger.info("[media] read-url denied: foreign namespace")
+        raise HTTPException(status_code=403, detail="object_key must be caller-owned")
+    logger.info("[media] read-url accepted: owner namespace")
 
     ensure_bucket(get_s3_client())
+    logger.info("[media] read-url signing: started")
     presigned_url = get_s3_signing_client().generate_presigned_url(
         "get_object",
         Params={"Bucket": settings.S3_BUCKET, "Key": object_key},
         ExpiresIn=settings.READ_URL_EXPIRY,
     )
+    logger.info("[media] read-url signing: completed")
     return {
         "read_url": presigned_url,
         "expires_in": settings.READ_URL_EXPIRY,

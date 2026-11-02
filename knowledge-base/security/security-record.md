@@ -15,7 +15,21 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Direct Media Signing (01.11.2026)
+
+H-01 [local route repair](scans/2026-10/repair-h01-direct-media.md): actual
+JWT/HTTP plus independently verified real synthetic SigV4 capability on baseline;
+foreign keys now denied before bucket/signing. Owner unconfirmed/derivative
+and existing document/thumbnail paths retained; 503 focused/1,477 API tests plus
+four subtests and lint/format pass, fresh same-model review. Stored-reference
+provenance, real services/CI/deployment/history/diverse sign-off and L1 OPEN.
+
 ## Credential-Free CORS Pin (01.11.2026)
+
+B-3 default and B-5 test work merged #1303 at
+`e56d25304301b0eb4eb502506980dd68563635c6`. All 13 final checks green after
+the documented setup/trending retries; no repaired transient-cause claim.
+The local checkpoint text below is historical; broader gates remain OPEN.
 
 B-5 [local route pin](scans/2026-10/b5-cors-credential-pinning.md) adds 13
 actual-app controls beyond existing preflight coverage. Eighteen CORS/1,470 API
@@ -253,7 +267,7 @@ three-dry sign-off. No campaign PASS is claimed.
 | B | Same pin/date/model | 622 lines | OPEN: [receipt](scans/2026-10/l1-api-b.md), L1-B-01 unsigned destination/status trust in remote helper; no production reference found. Existing B-1/B-3 bounded evidence, not a live bypass. |
 | D | Same pin/date/model | 695 lines | OPEN: [receipt](scans/2026-10/l1-api-d.md), L1-D-01 expired-token principal production; L1-D-02 malformed/None expiry classified valid. No actual store mutation or CRUD grant demonstrated. |
 | C | Same pin/date/model | 675 lines | [Receipt](scans/2026-10/l1-api-c.md): no confirmed local finding; caller/media provenance handoffs and sign-off pending, not PASS. |
-| H | Same pin/date/model | 614 lines | OPEN: [receipt](scans/2026-10/l1-api-h.md), L1-H-01 handler discards identity and forwards arbitrary object key to signing sink; dynamic proof uses stub auth/signer, not authenticated HTTP/private-object retrieval. |
+| H | Same pin/date/model | 614 lines | OPEN: historical [receipt](scans/2026-10/l1-api-h.md); [local direct-signer repair](scans/2026-10/repair-h01-direct-media.md) adds actual JWT/HTTP/real synthetic SigV4 red -> denied green. Adjacent provenance, live retrieval/rollout/diverse gates remain OPEN; no whole-file refresh/PASS. |
 | I | Same pin/date/model | 705 lines | [Receipt](scans/2026-10/l1-api-i.md): no confirmed local finding; delegated authority/log provenance handoffs and sign-off pending, not PASS. |
 | E | Same pin/date/model | 826 lines | OPEN: [receipt](scans/2026-10/l1-api-e.md), L1-E-01 account bearer accepted in group-detail query parameter; static transport hygiene, not a demonstrated theft/auth exploit; related S7 remains open. |
 | F | Same pin/date/model | 614 lines | [Receipt](scans/2026-10/l1-api-f.md): no confirmed local finding; delegated document authority/preparation handoffs and sign-off pending, not PASS. |

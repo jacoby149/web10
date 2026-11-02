@@ -1,3 +1,6 @@
+3.253.4 || 01.11.2026
+fix(media): **restrict direct read-URL signing to the caller's object namespace** — operator-approved owner-only refresh rejects foreign/malformed keys before bucket/signing operations; unconfirmed uploads, owned derivatives and opaque keys remain supported. Actual JWT/HTTP plus independently verified real synthetic SigV4 reproduces foreign capability issuance before repair; 503 focused/1,477 API tests plus four subtests, lint/format and fresh same-model review pass. Authorized document/group media paths unchanged; forged-reference/resolver provenance, real services/CI/deployment/diverse gates remain OPEN, no class-wide or L1 closure.
+
 3.253.3 || 01.11.2026
 test(security): **pin credential-free CORS on protected routes** — add thirteen actual-app controls for ambient cookie/header rejection, body-token identity and create-route contract enforcement; retain existing preflight tests. Eighteen CORS/1,470 API tests plus four subtests and lint/format pass; fresh same-model review and in-memory CORS/principal mutations confirm sensitivity. Test-only, no vulnerability repair or browser-wide claim; B-5 integration/diverse sign-off and protocol L1 remain OPEN.
 
