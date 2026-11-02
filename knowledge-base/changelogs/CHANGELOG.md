@@ -1,3 +1,6 @@
+3.253.12 || 01.11.2026
+test(research): collect the browser interoperability scenario and standalone desktop/375px runner in `research/interoperability-demo/`, retaining standard E2E discovery through an import and sharing its Playwright installation. Separate viewport screenshot directories and document artifact paths, existing cookie/grant shortcuts, same-origin scope and connected-run prerequisites. Local Docker daemon unavailable; no connected results or screenshots claimed.
+
 3.253.11 || 01.11.2026
 docs(research): incorporate the measured K=10/100 trial into the paper: eight-row B/C median/p95 table, K1 counterexample, setup and source provenance, 300-sample accounting, baseline and single-trial limitations, and the unexplained initial seed failure. Abstract, introduction and conclusion now distinguish preliminary measured results from pending capacity/full-feed/revocation evaluation. Research README/outline aligned. Table values and ratios checked against retained report; Tectonic builds the eight-page PDF with layout/font/BibTeX warnings. Full E3 remains open; no causal authorization-overhead or production scalability claim.
 

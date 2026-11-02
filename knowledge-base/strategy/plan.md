@@ -1190,6 +1190,8 @@ all unchecked boxes. The numbers the industry track will demand:
 
 **The writing plan (after the data lands):**
 
+- [✓ 3.253.12] **E4b dedicated browser-demo folder** — `research/interoperability-demo/` owns the inherited browser scenario, standalone desktop/375px config and evidence instructions. Standard E2E discovery retained. Four viewport/scenario combinations discovered; Docker unavailable, connected evidence and real app-consent repair remain open.
+
 - [✓ 3.251.9] **E4b interoperability correctness tooling** — `research/experiments/social/interop.mjs` joins app-B scores/listings to actual social-written profiles with distinct-Origin app grants and independent group-access checks; offline failure/corruption/pacing regressions pass. Tooling only: Docker execution, clickable apps and E4b empirical evidence remain open. Next: execute the isolated runner on a disposable host and inspect `interop.*` operations before promoting claims.
 
 - [✓ 3.252.0] **E4b clickable demo apps on the marketing UI** — Snake (playable, earned score → `snake_scores`, leaderboard joined to social-written `profile` docs: avatar/name/wall) at `/docs/snake/` + Marketplace (listing publish → `marketplace_listings`, seller identity joined from `profile`) at `/docs/marketplace/`; static PWAs with shared boundary runtime + SVG/192/512 icons; interoperability story at `/docs/interop` with both apps in the docs Demo Apps sidebar; e2e gauntlet (`e2e/tests/interop-demos.spec.ts`) does real social popup login, app consent, save/publish, UI join assertions, `/v3/query` join re-assertion from each app origin, and captures screenshots along the way (`.context/interop-screenshots/`, `INTEROP_SHOT_DIR` override) as paper evidence. D60: no `api/` change.

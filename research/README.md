@@ -73,6 +73,10 @@ the official CFP governs current logistics.
 
 ## Remaining Gates
 
+The dedicated browser runner and evidence instructions live in
+[`interoperability-demo/`](interoperability-demo/). Connected execution and
+real independent-app consent remain open.
+
 - [ ] Complete source-level comparisons, especially Solid WAC/ACP and query
   work, and narrow or withdraw any unsupported novelty distinction.
 - [ ] Clear harness blockers before relying on experiment output.
