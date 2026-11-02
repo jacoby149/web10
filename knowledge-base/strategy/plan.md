@@ -33,13 +33,13 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases 
 
-- [✓ 3.253.7 local] **E3 preliminary results in manuscript** — K10/100 B/C median/p95 table and K1 contrary result, bounded abstract/conclusion, setup/provenance and limits. Table checked against report; PDF builds. Repeated trials, full feed and capacity remain open.
+- [✓ 3.253.11 local] **E3 preliminary results in manuscript** — K10/100 B/C median/p95 table and K1 contrary result, bounded abstract/conclusion, setup/provenance and limits. Table checked against report; PDF builds. Repeated trials, full feed and capacity remain open.
 
-- [✓ 3.253.6 local] **E3 first K10/100 trial** — 100 creators, 20 samples in each of 15 cells; results recorded in research/experiments/costfn/K100-RESULTS.md. One failed seed preceded a successful fresh-stack retry; cause unknown. Data collected, droplet deleted. Single sequential trial only; full E3 remains open.
+- [✓ 3.253.10 local] **E3 first K10/100 trial** — 100 creators, 20 samples in each of 15 cells; results recorded in research/experiments/costfn/K100-RESULTS.md. One failed seed preceded a successful fresh-stack retry; cause unknown. Data collected, droplet deleted. Single sequential trial only; full E3 remains open.
 
-- [✓ 3.253.5 local] **E3 connected tiny smoke** — SSH with IPQoS=none, Docker/API/ClickHouse boot, ten creators seeded, ten cells with three samples each and four B-minus-A comparisons. Fixed parsed evaluation settings overwritten as strings; 45 focused tests plus eight subtests pass. Results collected; droplet deleted. Functional smoke only; full E3 remains open.
+- [✓ 3.253.9 local] **E3 connected tiny smoke** — SSH with IPQoS=none, Docker/API/ClickHouse boot, ten creators seeded, ten cells with three samples each and four B-minus-A comparisons. Fixed parsed evaluation settings overwritten as strings; 45 focused tests plus eight subtests pass. Results collected; droplet deleted. Functional smoke only; full E3 remains open.
 
-- [✓ 3.253.4 local] **E3 tiny-smoke harness repair and connection attempt** — dedicated local-only Compose, real seed API schema, baseline pairing and offline regressions. One sfo2 droplet created with the registered SSH key; two TCP/SSH timeouts prevented execution. Deleted and verified no remaining droplets. No measurements; the full E3 experiment remains open.
+- [✓ 3.253.8 local] **E3 tiny-smoke harness repair and connection attempt** — dedicated local-only Compose, real seed API schema, baseline pairing and offline regressions. One sfo2 droplet created with the registered SSH key; two TCP/SSH timeouts prevented execution. Deleted and verified no remaining droplets. No measurements; the full E3 experiment remains open.
 
 ## web10-social Product Post Permalink (D89)
 
@@ -71,6 +71,12 @@ reuses `POST /v3/app-contracts/revoke`. Full spec:
 - [✓ 3.245.0] **O10: SDK `w.oauth()` helper** (`sdk/`) — `authorize` (consent URL + popup, or `{ url }` for server-side connectors) + `exchangeCode` / `refresh` (both grants against `/v3/oauth/token`) + refresh-token storage (own cookie slot; client_id from the delegated token's claim). D60-clean: no registry management, no consent rendering.
 
 ## L1 Security Scans
+
+- [✓ 3.253.5 local] **PROTOCOL-01/H01-META: bind stored media-reference signing to its owner** — original/thumbnail foreign keys denied before signing, valid/legacy/posted_by preserved; two real synthetic SigV4 baseline failures denied, 335 focused/1,533 API tests plus four subtests and lint/format, fresh same-model review. [Receipt](../security/scans/2026-10/repair-h01-metadata-owner.md). One sink only; recursive minio/other provenance/CI/services/deployment/diverse/L1 OPEN.
+- **Direct signer status:** H01-DIRECT merged #1305 at `d5f06c6d0`, all 13 first-attempt checks green; prior local checkpoint below does not close remaining sinks.
+
+- [✓ 3.253.4 local] **PROTOCOL-01/L1-H-01-DIRECT: owner-only direct media URL refresh** — approved owner-only direct signer, actual JWT/HTTP/real synthetic SigV4 repro denied before bucket/signing; owned unconfirmed/derivative and document/thumbnail paths preserved. 503 focused/1,477 API tests plus four subtests, lint/format and fresh same-model review. [Receipt](../security/scans/2026-10/repair-h01-direct-media.md). Adjacent provenance/service policy, real services/CI/deployment/diverse/L1 gates OPEN.
+- **Decoder/CORS status:** B-3 default/B-5 tests merged #1303 at `e56d25304`, all 13 final checks green after recorded retries; historical local ticks below do not close broader gates.
 
 - [✓ 3.253.3 local tests] **PROTOCOL-01/B-5-PIN: pin credential-free CORS on actual routes** — thirteen added profile/create controls, 18 CORS/1,470 API tests plus four subtests and lint/format pass; fresh same-model and mutation review. [Receipt](../security/scans/2026-10/b5-cors-credential-pinning.md). Test-only selected-route coverage; browser/integration/diverse/L1 gates OPEN, not a runtime repair.
 

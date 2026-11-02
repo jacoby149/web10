@@ -29,6 +29,40 @@ Browser fetches images → MinIO serves directly → no middleware, no latency
 
 If someone shares a presigned image URL, it expires in an hour. Same as sharing a YouTube link. For social media, that's acceptable.
 
+### Direct Refresh Is Owner-Only
+
+`POST /v3/media/read-url` accepts an object key, not proof that the caller can
+read a carrier document. It may mint a fresh URL only for a key in the verified
+caller's exact `username/` object namespace. This includes uploads awaiting
+metadata confirmation and owned derivatives; metadata presence is not required.
+A viewer cannot refresh somebody else's key directly. To obtain a new URL,
+the viewer re-reads an authorized carrier document, where the document/group
+gate decides whether media may be resolved. Public thumbnails continue through
+their existing document-access path, not through direct key refresh.
+
+Keys are opaque S3 names: ownership checks must not decode or normalize a
+caller key into a different object. Existing URLs remain bearer capabilities
+until expiry; membership removal does not invalidate an already-issued URL
+before its TTL. This endpoint restriction does not repair forged foreign keys
+stored in metadata/minio references or certify every resolver; those remain
+separate object-provenance obligations in the security record.
+
+### Stored Media References
+
+For `media_refs`, looking up an owner-scoped metadata row does not authorize
+every key written into that row. `resolve_media_urls(body, media_owner)` may
+mint original and thumbnail URLs only for nonempty keys in that owner's exact
+`username/` namespace. A rejected supplied key yields no URL and cannot fall
+back to a stored URL; an allowed companion key and other references still
+resolve. Genuinely keyless legacy metadata retains its existing URL fallback.
+Keys remain opaque, not decoded or normalized. The owner comes from the already
+authorized document's media-owner context (`posted_by` for group-authored posts),
+not from the viewer, so group-authorized cross-user media remains supported.
+
+This is the metadata-reference signing boundary, not certification of recursive
+raw minio leaves, legacy stored URLs, HLS provenance or caller-selected owner
+columns. Those separate sinks/authority contexts remain recorded security debt.
+
 ### Why Video Needs JWT + Middleware
 
 HLS segments are small (270KB each), numerous (100+), and fetched continuously over minutes. You need auth on every segment without presigning each one.

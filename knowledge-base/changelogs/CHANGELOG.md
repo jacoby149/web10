@@ -1,16 +1,22 @@
-3.253.7 || 01.11.2026
+3.253.11 || 01.11.2026
 docs(research): incorporate the measured K=10/100 trial into the paper: eight-row B/C median/p95 table, K1 counterexample, setup and source provenance, 300-sample accounting, baseline and single-trial limitations, and the unexplained initial seed failure. Abstract, introduction and conclusion now distinguish preliminary measured results from pending capacity/full-feed/revocation evaluation. Research README/outline aligned. Table values and ratios checked against retained report; Tectonic builds the eight-page PDF with layout/font/BibTeX warnings. Full E3 remains open; no causal authorization-overhead or production scalability claim.
 
-3.253.6 || 01.11.2026
+3.253.10 || 01.11.2026
 docs(research): first connected K=10/100 trial on one sfo2 4-vCPU/8-GB droplet: 100 creators, one post each, 20 samples/cell, all 15 cells complete (300 measurements; all 240 B/C HTTP requests 200). Personal B readable medians: per-group 83.410 -> 887.560 ms, batched 26.985 -> 45.080 ms; K100 B total 952.505 vs 116.375 ms. Discover K1 favors per-group. K100-RESULTS.md records provenance, initial failed seed (unknown HTTP 500 cause; fresh-stack retry succeeded), sequential/single-trial limits and direct-scan A caveat. Local results/logs collected; droplet 614918237 deleted and empty account list verified. No capacity, K1000, full E3 or clean unattended-run claim.
 
-3.253.5 || 01.11.2026
+3.253.9 || 01.11.2026
 fix(api,research): preserve parsed QUERY_EVAL environment types through the legacy settings override loop. Explicit "0" no longer becomes a truthy bypass/stub flag, and stub row counts remain integers. Four subprocess repro cases fail before the fix; 45 settings/query tests plus eight subtests and Ruff pass after. SSH succeeds with IPQoS=none (same-host default timed out); runbook records the workaround. Connected tiny DO smoke: 10 creators, K=10, one post/creator, three queries per cell; all ten A/B/C cells and four B-minus-A pairs completed on sfo2 4-vCPU/8-GB. A is the direct precompiled scan baseline, not an equivalent no-policy HTTP request. Artifacts retained in .context/costfn-smoke-results/ and .context/costfn-smoke.log. Droplet 614915129 deleted; empty account droplet list verified. run.sh executable bit fixed. Functional evidence only; full E3 figures/trials remain open.
 
 Verification after the connected run: full API suite 1,473 passed plus eight subtests; offline harness tests and shell syntax pass. Smoke results are functional checks only, not statistically meaningful latency estimates.
 
-3.253.4 || 01.11.2026
+3.253.8 || 01.11.2026
 fix(research): repair cost-function smoke harness: dedicated loopback-only Compose stack, explicit per-cell environment resets, seed syntax/API-schema fixes, baseline/report pairing and incomplete-cell failure. A uses a direct ClickHouse scan of the precompiled projection (not a no-policy HTTP request); README states that measurement distinction. Offline regressions, Python compilation, shell syntax and Compose configuration pass. Tiny connected attempt (10 creators, K=10, three queries per cell) could not start: droplet 614912502 in sfo2 timed out connecting to SSH twice before TCP establishment. Deleted that droplet and verified the account droplet list is empty. No experiment measurements collected; full E3 remains open. GHCR runbook password corrected to token-only stdin. Existing unrelated changelog edits preserved.
+
+3.253.5 || 01.11.2026
+fix(media): **bind stored original and thumbnail signing to the media owner** — owner-scoped metadata no longer grants signing authority for foreign keys; reject each supplied bad key without stale fallback while retaining valid companions, posted_by resolution and keyless legacy behavior. Two independently verified real synthetic SigV4 baseline failures become denied-green; 335 focused/1,533 API tests plus four subtests, lint/format and fresh same-model review pass. One metadata sink only: recursive minio/HLS/legacy-URL/owner-context provenance, CI/services/deployment/diverse gates remain OPEN, no class-wide/L1 closure.
+
+3.253.4 || 01.11.2026
+fix(media): **restrict direct read-URL signing to the caller's object namespace** — operator-approved owner-only refresh rejects foreign/malformed keys before bucket/signing operations; unconfirmed uploads, owned derivatives and opaque keys remain supported. Actual JWT/HTTP plus independently verified real synthetic SigV4 reproduces foreign capability issuance before repair; 503 focused/1,477 API tests plus four subtests, lint/format and fresh same-model review pass. Authorized document/group media paths unchanged; forged-reference/resolver provenance, real services/CI/deployment/diverse gates remain OPEN, no class-wide or L1 closure.
 
 3.253.3 || 01.11.2026
 test(security): **pin credential-free CORS on protected routes** — add thirteen actual-app controls for ambient cookie/header rejection, body-token identity and create-route contract enforcement; retain existing preflight tests. Eighteen CORS/1,470 API tests plus four subtests and lint/format pass; fresh same-model review and in-memory CORS/principal mutations confirm sensitivity. Test-only, no vulnerability repair or browser-wide claim; B-5 integration/diverse sign-off and protocol L1 remain OPEN.

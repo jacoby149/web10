@@ -45,6 +45,34 @@ false/true environment cases reproduce the type failure before the fix and
 pass afterward. Settings/query controls pass; the connected smoke then finishes
 all ten cells. Scope is this settings interaction, not public-node guard coverage.
 
+### 2026-11-01: Owning metadata is not owning the key it names
+
+[H01 metadata repair](scans/2026-10/repair-h01-metadata-owner.md) reproduces
+real synthetic original/thumbnail SigV4 capabilities from Alice metadata naming
+Bob keys. Bind both fields independently to the resolver's media-owner namespace
+before signing, deduplication or dict lookup. A rejected supplied key gets no URL
+and no stale fallback; valid siblings and genuinely keyless legacy metadata
+remain. Validate types before hashing, and keep keys opaque. Media owner is the
+authorized document's uploader context, not viewer; `posted_by` matters for
+group-authored posts. 56 new cases, 335 focused/1,533 API tests plus four subtests
+and fresh same-model review support one-sink repair only. Query/storage doubles
+do not prove persisted injection or retrieval. Recursive minio, HLS/legacy URL/
+caller-owner provenance and real services/CI/deployment/diverse gates stay OPEN.
+
+### 2026-11-01: A signed-in caller is not an arbitrary-object reader
+
+[H-01 direct signer repair](scans/2026-10/repair-h01-direct-media.md) upgrades
+the fake-signer proof: actual JWT/HTTP on baseline mints an independently verified
+real synthetic SigV4 capability for another user's key. No live object retrieval
+or IAM authority tested. The operator approved exact owner namespace on direct
+refresh; foreign viewers must re-read group-authorized carrier documents. Check
+before all bucket/signing calls, preserve owned unconfirmed uploads/derivatives,
+and keep S3 keys opaque. Metadata ownership alone cannot validate stored object
+references. Five new pytest cases, 503 focused/1,477 API tests plus four subtests
+and fresh same-model review support local route repair only. Stored foreign-key
+metadata/minio references, service policy, TTL revocation and browser/service/
+CI/deployment/diverse gates remain explicit, not repaired by this prefix gate.
+
 ### 2026-11-01: Open CORS and ambient authentication are different assertions
 
 [B-5 route pin](scans/2026-10/b5-cors-credential-pinning.md) supplements existing

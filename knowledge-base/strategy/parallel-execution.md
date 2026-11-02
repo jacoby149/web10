@@ -1,12 +1,12 @@
 # Parallel Execution
 
-- [✓ 3.253.7 local] **E3 preliminary results in manuscript** — measured K10/100 table, K1 tradeoff and explicit baseline/single-trial limits now in research/workshop/main.tex and rebuilt PDF. No full-E3 completion claim.
+- [✓ 3.253.11 local] **E3 preliminary results in manuscript** — measured K10/100 table, K1 tradeoff and explicit baseline/single-trial limits now in research/workshop/main.tex and rebuilt PDF. No full-E3 completion claim.
 
-- [✓ 3.253.6 local] **E3 first K10/100 trial** — all 15 cells complete, 20 samples each; per-group readable grows roughly linearly across K10/100, batched grows less. See research/experiments/costfn/K100-RESULTS.md for limits and initial seed failure. Artifacts collected and droplet deleted; full E3 remains open.
+- [✓ 3.253.10 local] **E3 first K10/100 trial** — all 15 cells complete, 20 samples each; per-group readable grows roughly linearly across K10/100, batched grows less. See research/experiments/costfn/K100-RESULTS.md for limits and initial seed failure. Artifacts collected and droplet deleted; full E3 remains open.
 
-- [✓ 3.253.5 local] **E3 connected tiny smoke** — ten creators, K=10, three queries/cell; all ten cells and four B-minus-A comparisons complete. SSH workaround IPQoS=none and settings type preservation verified. Artifacts in .context/costfn-smoke-results/; droplet deleted. Full E3 remains open.
+- [✓ 3.253.9 local] **E3 connected tiny smoke** — ten creators, K=10, three queries/cell; all ten cells and four B-minus-A comparisons complete. SSH workaround IPQoS=none and settings type preservation verified. Artifacts in .context/costfn-smoke-results/; droplet deleted. Full E3 remains open.
 
-- [✓ 3.253.4 local] **E3 tiny-smoke harness repair and connection attempt** — offline checks pass; 10 creators / K=10 / three queries per cell planned. SSH TCP connection to sfo2 droplet 614912502 timed out twice; deleted and verified empty droplet list. No measurements collected; full E3 remains open.
+- [✓ 3.253.8 local] **E3 tiny-smoke harness repair and connection attempt** — offline checks pass; 10 creators / K=10 / three queries per cell planned. SSH TCP connection to sfo2 droplet 614912502 timed out twice; deleted and verified empty droplet list. No measurements collected; full E3 remains open.
 
 Companion to `plan.md`. That file says **what** and **why**; this file
 says what can happen **at the same time**.
@@ -68,6 +68,12 @@ route + the screenshot harness).
 - [✓ 3.238.0] **A product can be deleted — the Products tab gains the delete affordance (D89 CRUD completes)** — the product maker had create + edit but no delete, so a product made in error (or whose affiliate link died) sat in the Products tab + the storefront forever. `deleteProduct` (`data/ads-catalog.ts`) tombstones the product's `posts` doc through the normal CRUD path (the owner has `deleteAll` on their followers group — the same authorization as the ad retire); ads that reference the product by `product_id` keep their denormalized offer snapshot, so the public feed's ad block still renders. `ProductsSection.tsx` gains a per-tile delete (trash) affordance + a confirm dialog (the product's name + the "ads keep their own link" note; a failed delete keeps the dialog open). `adsCatalog.test.ts` +1, `monetization.test.tsx` +3; 1519 green, `tsc` clean; screenshots `monetize-products-{desktop,375}.png` + `product-delete-{desktop,375}.png`.
 
 ### Lane: security-l1-scans
+
+- [✓ 3.253.5 local] **PROTOCOL-01/H01-META: bind stored media-reference signing to its owner** — own metadata resolver/reused signature harness/security KB only; two real synthetic SigV4 failures denied, 335 focused/1,533 API tests plus four subtests and lint/format, fresh same-model review. `knowledge-base/security/scans/2026-10/repair-h01-metadata-owner.md`. No recursive-minio/SDK/schema/route changes; other provenance/CI/services/deployment/diverse/L1 OPEN.
+- **Direct signer status:** H01-DIRECT merged #1305 at `d5f06c6d0`, all 13 first-attempt checks green; historical local tick below is not remaining-sink closure.
+
+- [✓ 3.253.4 local] **PROTOCOL-01/L1-H-01-DIRECT: owner-only direct media URL refresh** — owner-only direct signer with actual JWT/HTTP/real synthetic SigV4 red -> denied green; no downstream access on denial. 503 focused/1,477 API tests plus four subtests, lint/format and fresh same-model review. `knowledge-base/security/scans/2026-10/repair-h01-direct-media.md`. Own read_url hunk/focused tests/security KB; no SDK wire/schema/resolver redesign. Adjacent provenance/service-policy, services/CI/deployment/diverse/L1 gates OPEN.
+- **Decoder/CORS status:** B-3 default/B-5 tests merged #1303 at `e56d25304`, all 13 final checks green after recorded retries; historical local ticks below are not broader closure.
 
 - [✓ 3.253.3 local tests] **PROTOCOL-01/B-5-PIN: pin credential-free CORS on actual routes** — 13 added profile/create controls, 18 CORS/1,470 API tests plus four subtests and lint/format; fresh same-model/mutation review. `knowledge-base/security/scans/2026-10/b5-cors-credential-pinning.md`. Own CORS test hunk/security KB only; no runtime repair or browser/integration/diverse/L1 closure. Operator requested publication on the current branch after the local checkpoint.
 
