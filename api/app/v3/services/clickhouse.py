@@ -3189,6 +3189,8 @@ def resolve_pinned_ads(docs: list[dict], reader: str) -> dict[str, dict]:
 
     Membership versions are ranked before removal filtering; a historical live
     row cannot override the current tombstone. A newer rejoin still grants access.
+    Attachment versions likewise rank per document/group before removal filtering;
+    deleted wins timestamp ties, and a strictly newer reattachment remains valid.
 
     Service-agnostic (D75): the ad is whatever doc `ad_target` references — the
     node does not vet its `collection_name`. The `ad` tag + the `ad_preference`
@@ -3202,21 +3204,23 @@ def resolve_pinned_ads(docs: list[dict], reader: str) -> dict[str, dict]:
         return {}
     placeholders = ", ".join(f"%(t{i})s" for i in range(len(targets)))
     params = {**{f"t{i}": t for i, t in enumerate(targets)}, "reader": reader}
-    log.info("[ads] pinned membership read: started targets=%d", len(targets))
+    log.info("[ads] pinned access read: started targets=%d", len(targets))
     result = client.query(
         "SELECT ad.doc_id, ad.author_key, ad.body, ad.tags, ad.posted_by "
         "FROM (SELECT doc_id, author_key, body, tags, deleted, posted_by, "
         "row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
         f"FROM documents WHERE doc_id IN ({placeholders})) ad "
         "WHERE ad.rn = 1 AND ad.deleted = 0 "
-        "AND ad.doc_id IN (SELECT pg.doc_id FROM doc_groups pg "
+        "AND ad.doc_id IN (SELECT pg.doc_id FROM (SELECT doc_id, group_id, deleted, "
+        "row_number() OVER (PARTITION BY doc_id, group_id ORDER BY updated_at DESC, deleted DESC) AS rn "
+        f"FROM doc_groups WHERE doc_id IN ({placeholders})) pg "
         "JOIN (SELECT group_id, deleted, "
         "row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC, deleted DESC) AS rn "
         "FROM group_members WHERE member_key = %(reader)s) gm ON pg.group_id = gm.group_id "
-        "WHERE gm.rn = 1 AND pg.deleted = 0 AND gm.deleted = 0)",
+        "WHERE pg.rn = 1 AND gm.rn = 1 AND pg.deleted = 0 AND gm.deleted = 0)",
         params,
     )
-    log.info("[ads] pinned membership read: completed creatives=%d", len(result.result_rows))
+    log.info("[ads] pinned access read: completed creatives=%d", len(result.result_rows))
     return {
         row[0]: {
             "doc_id": row[0],

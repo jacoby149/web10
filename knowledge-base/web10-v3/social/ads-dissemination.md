@@ -51,12 +51,15 @@ and the [historical proof](../../security/scans/2026-10/h01-pinned-membership-pr
 Attachment history, creative-service app policy, node-inventory exemptions and
 broader visibility/production/rollout gates remain OPEN. Not whole-ad assurance.
 
-**Attachment gap (02.11.2026):** current membership alone is insufficient. A
-removed creative/group link can still authorize inline delivery through retained
-history; [bounded evidence](../../security/scans/2026-10/h01-pinned-attachment-proof.md)
-compares the actual compiler attachment fragment with the actual pinned loader
-on synthetic SQLite/ClickHouse snapshots. Runtime attachment repair remains OPEN;
-this does not change the intended current-access rule or settle broader ad policy.
+**Local attachment repair (02.11.2026):** pinned reads independently rank
+document/group attachment versions before filtering removal, with deletion-winning
+ties. Five reproduced removed-link disclosures now deny before attachment/signing;
+current/reattached/alternate-group links and uploader attribution remain. See
+[repair evidence](../../security/scans/2026-10/repair-h01-pinned-attachment.md)
+and the [historical proof](../../security/scans/2026-10/h01-pinned-attachment-proof.md).
+The writer, other attachment readers/shared compiler ties, creative identity and
+broader app/role/visibility/node-ad policy remain separate OPEN obligations.
+This is not whole-ad or production lifecycle assurance.
 
 **Locked (the three open questions, resolved):**
 

@@ -4,6 +4,11 @@
 plus test-only probe extension. Author/fresh reviewer: separate
 `openrouter/openai/gpt-6.1-sol` contexts. Finding OPEN; no runtime repair.
 
+Historical baseline receipt: #1327 merged this evidence. The subsequent
+[local pinned attachment repair](repair-h01-pinned-attachment.md) converts the
+removed-link assertion to denied-ad/no-signer. Results below describe the evidence
+pin, not the repaired working tree or whole-ad assurance.
+
 ## Orient And Scope
 
 Checked plan/lane/changelog and merged membership repair. Read learnings,

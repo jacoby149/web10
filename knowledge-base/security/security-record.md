@@ -15,6 +15,17 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Pinned-Ad Attachment Repair (02.11.2026)
+
+H01-AD-LINK [local repair](scans/2026-10/repair-h01-pinned-attachment.md):
+latest document/group versions before removal filtering, deletion-winning ties,
+unchanged current-member join. Five synthetic disclosures denied on SQLite and
+actual ClickHouse-local Memory tables. Twelve attachment cases; reviewer reruns
+22 link/member cases per backend. 1,767 API tests plus eight subtests, Ruff and
+fresh same-model review pass. Writer precision, other readers/shared compiler ties,
+creative identity/broader ad policy, production lifecycle/CI/rollout/diverse and L1
+remain OPEN. Not whole-pinned-ad PASS.
+
 ## Pinned-Ad Attachment Authority (02.11.2026)
 
 H01-AD-LINK [local evidence](scans/2026-10/h01-pinned-attachment-proof.md):
