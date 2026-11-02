@@ -8,6 +8,31 @@ This doc is about the **directory** (the list) and the `discoverable` flag. The 
 
 ## The Two Controls
 
+### People > Groups: Membership Is Not Listing
+
+The signed-in social browser composes two existing reads. **All** shows the
+reader's community memberships first, then the public directory, deduplicated
+by full group ID with the membership row taking precedence. **My Groups** shows
+only community memberships, including private, unlisted and draft groups.
+**Discover** shows only the public directory. Listing and publication are not
+prerequisites for finding your own community membership.
+
+Membership entries retain the My Groups card's owner controls, draft badge and
+direct `/groups/:encodedId` navigation. Search matches the resolved identity
+name displayed on the card, with group ID/slug fallback; directory search also
+retains owner/tag matching. Filtering loaded pages must not hide View more.
+Membership loading has explicit loading, empty and error/retry states: an empty
+result or error settles until an explicit retry, not an automatic fetch loop.
+Unmounted membership/identity reads must not update this browser.
+
+Focused acceptance: own unlisted/published and draft communities appear in All
+and My Groups, not Discover unless independently listed; duplicate IDs render
+once; resolved-name searches open the correct group; empty/error reads remain
+stable across filter changes and retry works. Verify component regressions,
+production build/typecheck and desktop/375px screenshots where feasible.
+This is a frontend composition fix only: no production writes, publishing,
+listing changes, API/auth changes or global-search-dropdown expansion.
+
 ```
 listed in directory   ⟺  group_contracts.discoverable == true
 reader can read posts ⟺  reader's effective role grants readAll on posts  — access.md

@@ -41,6 +41,12 @@ says what can happen **at the same time**.
 
 ## Lanes
 
+### Lane: people-community-discovery (this workspace)
+
+**Owns:** social `DiscoverExploreTab.tsx`, focused component regressions and
+serialized discovery KB records; screenshot harness only if needed.
+- [✓ 3.254.12 local] **People community membership discovery** - All = memberships plus deduplicated directory; My Groups = memberships regardless listing/status; Discover = directory only. Resolved-name search/navigation, owner/draft semantics, stable empty/error retry and zero-match pagination covered by ten new regressions; 154 focused tests and build/typecheck pass. Seeded desktop/375px screenshots inspected in `.context/people-groups-{desktop,375}.png`. Scope/acceptance: `web10-v3/groups/discoverability.md`. No API/auth/global-search or production changes; no deployment/production acceptance claim.
+
 **Deferred, not a lane:** [Shadowguard](shadowguard.md) is a web10 v4 concept in
 [later.md](later.md#web10-v4-shadowguard), not near-term work. [✓ 3.254.8 local
 docs] its proposal lane and protocol-decision task were removed from this queue.

@@ -37,6 +37,8 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
+- [✓ 3.254.12 local] **People community membership discovery** - implemented the All/My Groups/Discover composition and resolved-name search acceptance in `web10-v3/groups/discoverability.md`; 154 focused tests, build/typecheck and seeded desktop/375px inspection pass. No production writes or API/global-search changes; not deployed or production-verified.
+
 - [✓ 3.254.3 local] **Batching inventory and execution plan** - source audit of backend database-call loops and client request fan-out, scoped bites and correctness/request-count gates in `batching-performance.md`. Documentation only; not an optimization or benchmark result.
 - [ ] **Execute batching-performance queue** - B01-B09 backend and C01-C14 client items in `batching-performance.md`; prioritize readable-set equivalence/promotion, owner-scoped media/face preparation and acting-identity request deduplication. Claim one sub-bite at a time; existing paint-on-read/E3/security lanes retain their gates.
 
