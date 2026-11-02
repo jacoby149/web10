@@ -15,7 +15,19 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Reference HLS Mint Provenance (01.11.2026)
+
+H01-HLS-REF-MINT [local repair](scans/2026-10/repair-h01-hls-ref-mint.md): three
+helper-minted JWT/HTTP synthetic segment disclosures denied at issuance. Each
+main/ad/node-ad reference uses its own uploader context; stale URLs suppressed.
+46 new controls, actual resolver/mint composition, 1,669 API tests plus eight
+subtests, Ruff and fresh same-model review pass. Supplied-owner/legacy URL,
+persisted/live playback, CI/deployment/diverse gates and L1 remain OPEN.
+
 ## Direct HLS Mint Provenance (01.11.2026)
+
+Direct mint merged #1311 at `3b37e66c4`. Last observed CI was 12/13 green with
+repeat Discover engagement E2E failure; merged does not mean all-green/deployed.
 
 H01-HLS-DIRECT-MINT [local repair](scans/2026-10/repair-h01-hls-direct-mint.md):
 helper-minted real foreign-prefix JWT retrieves synthetic segment bytes through

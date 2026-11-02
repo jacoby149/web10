@@ -84,8 +84,12 @@ Direct-document stream minting requires a string raw MinIO video key in the
 uploader's `posted_by or author_key` namespace. Stored `manifest_url` values are
 removed before the read either mints a fresh reader-bound URL or denies issuance;
 disabled settings do not preserve them. Authorized readers need not be the owner.
-Resolved-ref/ad mint provenance remains separate open work; this gate does not
-revoke already-issued capabilities before TTL or establish supplied-owner trust.
+Resolved-reference minting also requires a string key in its metadata resolver's
+uploader namespace. Main, ad and node-ad refs each use their own entry's
+`posted_by or author_key`, never the viewer or carrier's identity. Disabled or
+rejected refs lose stored manifest URLs; valid siblings retain reader-bound minting.
+These gates do not revoke already-issued capabilities before TTL or establish
+supplied-owner provenance, persisted-record validity or legacy URL authority.
 
 The variant-manifest fetch additionally requires the raw video's key to belong
 to `posted_by or author_key`, its HLS prefix to match the verified stream claims,
