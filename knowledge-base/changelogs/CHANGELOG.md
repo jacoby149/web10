@@ -1,4 +1,4 @@
-3.254.7 || 02.11.2026
+3.254.9 || 02.11.2026
 docs(v3): add custom-domain operator guideline (`setup/custom-domain.md`) — claim your web10 identity on your own domain via a DNS TXT record (`web10.v=1;provider=...;user=...;key=...`). The DKIM pattern for user identity: the domain is the claim, the TXT record is the proof, the node's key is the trust anchor. Njalla (njal.la) recommended for registrar (privacy, Costa Rica, no content policing). Authenticator UI flow specified (generate TXT value, display copy-paste instructions, poll for propagation). Docs-only, no code change. Complements the v4 identity registry (D93) as the per-domain half of the "your name, your node" story.
 3.254.8 || 02.11.2026
 docs(strategy): **defer Shadowguard to web10 v4** - preserve the audience/group-permission continuity concept in the later parking lot, mark it outside the active v3 roadmap, and remove its execution lane and queued protocol-decision task. Not planned any time soon; no research/implementation assignment, release date or new dependency for current work. Explicit operator reactivation for v4 planning required. Documentation only.
