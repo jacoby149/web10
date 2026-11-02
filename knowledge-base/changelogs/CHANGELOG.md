@@ -1,5 +1,7 @@
-3.254.14 || 02.11.2026
+3.254.15 || 02.11.2026
 test(security): **reproduce pinned creative delivery after attachment removal** - actual compiler attachment fragment excludes the removed link while actual loader/ASGI enrichment returns the creative and independently verified real synthetic SigV4. Four link histories pass on SQLite and isolated ClickHouse-local Memory tables; retained membership controls, 1,759 API tests plus eight subtests, Ruff and fresh same-model review pass. Evidence only: no runtime repair, direct-read HTTP-denial, production lifecycle or real object retrieval claim. Attachment repair, broader ad/rollout/diverse gates and protocol L1 remain OPEN.
+
+3.254.14 || 02.11.2026
 fix(social): isolate Following engagement-count and own-reaction failures from successfully loaded posts; preserve prepared counts for failed services and successful independent tallies. Primary feed failures now show an explicit retryable error rather than the normal empty state. Eight new regressions reproduced red then pass; 44 focused tests and production build pass, desktop/375px error screenshots inspected in `.context/following-error-{desktop,375}.png`. Full social run hit the 120s timeout after failures in follow/Shorts tests; no full-suite pass, production-account reproduction or deployment claimed. Report: jacoby149's empty Following feed on web10.app; the exact live failing request remains unverified.
 
 3.254.13 || 02.11.2026

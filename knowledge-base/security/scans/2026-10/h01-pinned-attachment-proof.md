@@ -88,6 +88,11 @@ reattached/alternate-group access and uploader identity. No product behavior cha
 
 ## Next Gate
 
+Publication preparation: merged origin/dev at `345674b54` after PR creation;
+incoming Following-feed changes leave API source/tests unchanged. Restore the
+incoming changelog header and renumber only this evidence entry to 3.254.15,
+with matching plan/lane references. This merge does not repair the finding.
+
 Separate bounded repair of pinned doc_groups history: rank current document/group
 versions before removal filtering, deny the retained removed-link replay before
 creative/signing, and retain legitimate current links. Add isolation, reattachment,
