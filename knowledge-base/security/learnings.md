@@ -35,6 +35,33 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-02: A historical membership row can still authorize an inline creative
+
+[Pinned membership evidence](scans/2026-10/h01-pinned-membership-proof.md) executes
+the actual loader and current membership SQL over synthetic history. The normal
+group predicate denies a removed member, but the pinned loader's undeduplicated
+JOIN finds the old live row; actual read enrichment returns the creative and mints
+an independently verified real synthetic SigV4 capability. Four controls reproduce
+on SQLite and isolated ClickHouse-local Memory tables. Evidence only: the revoked
+probe currently asserts disclosure and must become denial in a separate repair.
+No actual object retrieval, production merge timing or whole-ad assurance. Current
+role/app/service/node-ad policy and attachment/visibility debt remain separate;
+do not use this finding to silently change the membership-first read model.
+
+### 2026-11-02: A projected face ref is a request, not a read grant
+
+[Face repair](scans/2026-10/repair-h01-query-face.md) reproduces anonymous and
+authenticated synthetic foreign SigV4 issuance from invented face aliases.
+Exact author/media-field/ref tuples must exist in readable canonical bodies;
+their canonical posted_by/author fallback supplies media ownership. No face ID
+is needed, and a post's ID is not the joined profile's ID. Group in SQL before
+limiting, combine uploader sets across services before resolving, and no-op for
+missing/ambiguous/failed authority. Use opaque UTF-8 hex literals through repeated
+parser passes. Reject output-field collisions rather than dropping result data
+or returning supplied URL fallback. 1,745 API tests plus eight subtests, Ruff and
+same-model re-review pass. Actual ClickHouse/driver/connected rendering, stored
+reference provenance, ad-loader authority, rollout/diverse review and L1 stay OPEN.
+
 ### 2026-11-02: Re-read capability-bearing carriers, not just their IDs
 
 [Canonical carrier repair](scans/2026-10/repair-h01-query-carrier.md) replaces
