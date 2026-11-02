@@ -1,3 +1,6 @@
+3.254.20 || 02.11.2026
+chore(api): format the group-author self-target regression file with Ruff after the production-promotion gate found PR #1325's API format check still red. Formatting only; all 41 self-target cases, full API Ruff lint and format checks pass. The merged PR's separate oversized trust-boundary method failure remains historical and is not waived or repaired by this formatting change; dev-to-main promotion is blocked pending explicit operator disposition.
+
 3.254.19 || 02.11.2026
 chore: merge origin/dev into the group-publishing branch, preserving both planning/security histories and incoming Following-feed isolation/attachment evidence. Renumber this branch's discovery, pagination and publish entries to 3.254.16/17/18; incoming entries retain their versions. Align follow-screen empty-state fixtures with explicit successful readFeedPage results now that feed errors no longer masquerade as empty. Post-merge verification: 1,800 API tests plus eight subtests, 1,663 social tests in 113 files, social typecheck/production build and whitespace checks pass. No production changes or deployment claim.
 
