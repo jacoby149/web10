@@ -26,6 +26,16 @@ A web10 JWT carries these claims:
 
 **Note:** web10 uses `expires` (ISO string), not the standard JWT `exp` (numeric). The SDK parses `expires` with `Date.parse()`. `target` is a legacy optional claim on cross-node tokens — the permission check still honors it while cross-node federation (I1) is in flight, but a v3 node's minter (`auth.py` / `recovery.py`) writes only the four claims above.
 
+The node's internal `decode_token()` verifies the configured signature and
+non-anonymous expiry by default. Deliberate unsigned metadata reads must pass
+`private_key=False` explicitly; those claims never establish authority. Current
+metadata uses are untrusted bug-report attribution and the legacy remote-provider
+destination selector. The latter's destination/remote trust remains an open
+finding, not made safe by spelling out its unsigned read. Decoding is not full
+certification: provider, active-client and access checks still belong to their
+existing gates. This does not change token format, issuer keys or accepted
+anonymous expiry semantics.
+
 ## Auth Flow
 
 ```mermaid

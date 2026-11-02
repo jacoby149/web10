@@ -132,9 +132,9 @@ Conditional local facts remain bounded; no production breach is established.
 |---|---|
 | B-1 / BP-1 | OPEN architectural issuer trust; S3 per-node keys/JWKS foundation and coordinated release |
 | B-2 | OPEN repeatable/source credential defaults; current packaging/deploy correspondence adds evidence, not live validity. S1 provisioning before removal/approved rotation |
-| B-3 | OPEN unsigned-default decoder footgun; authoritative callers vs metadata extraction need S3 separation, not assumed bypass |
+| B-3 | [Default locally repaired](repair-b3-default-decode.md): signature/freshness default True, two explicit metadata opt-outs; 31 new/175 focused and 1,457 API tests plus four subtests, fresh same-model review. No endpoint bypass proved; class-wide authority/issuer/CI/deployment/diverse gates OPEN |
 | B-4 | Source repair merged #1225; other loggers/history/exposure remain separate |
-| B-5 | OPEN wildcard-CORS credential-boundary pinning obligation; no demonstrated wildcard exploit |
+| B-5 | [Selected routes locally pinned](b5-cors-credential-pinning.md): 13 additional actual-app controls, 18 CORS/1,470 API tests plus four subtests and fresh same-model/mutation review; no runtime vulnerability found. Browser/actual contract/SDK/deployment/diverse gates OPEN, not whole-API assurance |
 | B-6 | OPEN unscoped-getter/capability caller handoff, not independently a data leak |
 | B-8 | Source repair merged #1265 at b5d128a52; four red/green CLI cases, 1,180 API tests at repair pin; not B-2/deployment closure |
 | L1-A-02 | [Source repair](repair-a02-manifest.md) merged #1299 at 0918a7409, all 13 checks green: approved/public-only numeric connections, verified Host/TLS and no redirects; four exploit failures denied, 70 focused/1,407 API tests plus four subtests, fresh same-model review and ephemeral TLS probes. Retained TLS/path, real registry/deployment/history/diverse gates OPEN |
@@ -154,7 +154,7 @@ Conditional local facts remain bounded; no production breach is established.
 | L1-CURRENT-STORE-B-02 | Bulk revoke/cleanup SQL omits delegated client identity; actual default/merge/authorization impact UNVERIFIED, not proven revoke bypass |
 | STORE-A-SCHEMA | OAuth code DDL references undeclared version column; insert compatibility and existing/fresh schema need real evidence; correctness/reachability, not C+I exploit |
 | L1-PKG-01 | Source repair merged #1265 at b5d128a52: whole URI omitted from audit/stdout/file manifests, 12 red -> green cases and fresh same-model review; [repair](repair-pkg01-mongo-output.md). Deployment/sign-off/history remain open; S1 |
-| L1-PKG-02 | [Local source repair](repair-pkg02-backup-publication.md): disposable-filesystem mode/symlink/overwrite proof, private staging/no-clobber publication; 45 focused/1,420 API tests plus four subtests and fresh same-model review. Actual storage encryption/ACLs, hostile ancestors, CI/deployment/history/diverse gates OPEN; no production disclosure claim |
+| L1-PKG-02 | [Source repair](repair-pkg02-backup-publication.md) merged #1301 at 30f9d49fc, all 13 checks green: disposable-filesystem proof/private staging/no-clobber publication; 45 focused/1,420 API tests plus four subtests at repair checkpoint, 1,426 after dev merge. Actual storage encryption/ACLs, hostile ancestors, deployment/history/diverse gates OPEN |
 | L1-DEPLOY-01 | [Source repair merged #1268](repair-deploy01-frozen-installs.md) at c6f9cc85d: frozen-only installs and actual production-social matrix, eight controls/1,233 API passes at repair pin; both production-image CI jobs passed on 8a420f767. Deployment/diverse sign-off OPEN; no poisoned artifact shown |
 | ART-01 / orphan artifacts | Producer pin/publication drift, six orphan declaration/maps and docs RTC provenance OPEN; hashes not build/publication/deployment assurance |
 | L1-OAUTH-02 | Availability/order observation; C+I UNVERIFIED. Do not count refresh denial as unauthorized grant or access-token revocation |
