@@ -1051,8 +1051,8 @@ def update_document(
 def delete_document(doc_id: str, author_key: str, service: str):
     """Tombstone a document (insert deleted=1 version)."""
     client.command(
-        "INSERT INTO documents (doc_id, author_key, collection_name, body, ref_value, tags, created_at, updated_at, deleted) "
-        "SELECT doc_id, author_key, collection_name, body, ref_value, tags, created_at, now64(6), 1 "
+        "INSERT INTO documents (doc_id, author_key, collection_name, body, ref_value, tags, created_at, updated_at, deleted, posted_by) "
+        "SELECT doc_id, author_key, collection_name, body, ref_value, tags, created_at, now64(6), 1, posted_by "
         "FROM documents WHERE doc_id = %(doc_id)s AND author_key = %(author_key)s AND collection_name = %(service)s AND deleted = 0",
         {"doc_id": doc_id, "author_key": author_key, "service": service},
     )
@@ -3145,7 +3145,7 @@ def read_document_by_id(doc_id: str, member_key: str, service: str, authenticate
         **{f"key{i}": k for i, k in enumerate(keys)},
     }
     result = client.query(
-        "SELECT p.doc_id, p.author_key, p.body, p.tags, p.created_at, p.ref_value, p.ad_mode, p.ad_target "
+        "SELECT p.doc_id, p.author_key, p.body, p.tags, p.created_at, p.ref_value, p.ad_mode, p.ad_target, p.posted_by "
         "FROM documents p "
         "LEFT SEMI JOIN ( "
         "SELECT pg.doc_id FROM doc_groups pg "
@@ -3174,6 +3174,7 @@ def read_document_by_id(doc_id: str, member_key: str, service: str, authenticate
         "ref_value": row[5],
         "ad_mode": row[6] or "none",
         "ad_target": row[7] or "",
+        "posted_by": row[8],
         "service": service,
     }
 
@@ -3199,8 +3200,8 @@ def resolve_pinned_ads(docs: list[dict], reader: str) -> dict[str, dict]:
     placeholders = ", ".join(f"%(t{i})s" for i in range(len(targets)))
     params = {**{f"t{i}": t for i, t in enumerate(targets)}, "reader": reader}
     result = client.query(
-        "SELECT ad.doc_id, ad.author_key, ad.body, ad.tags "
-        "FROM (SELECT doc_id, author_key, body, tags, deleted, "
+        "SELECT ad.doc_id, ad.author_key, ad.body, ad.tags, ad.posted_by "
+        "FROM (SELECT doc_id, author_key, body, tags, deleted, posted_by, "
         "row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
         f"FROM documents WHERE doc_id IN ({placeholders})) ad "
         "WHERE ad.rn = 1 AND ad.deleted = 0 "
@@ -3215,6 +3216,7 @@ def resolve_pinned_ads(docs: list[dict], reader: str) -> dict[str, dict]:
             "author_key": row[1],
             "body": _parse_json(row[2]),
             "tags": list(row[3]),
+            "posted_by": row[4],
         }
         for row in result.result_rows
     }
@@ -3259,8 +3261,8 @@ def get_active_node_ads() -> list[dict]:
     """
     try:
         result = client.query(
-            "SELECT doc_id, author_key, body, tags "
-            "FROM (SELECT doc_id, author_key, body, tags, deleted, updated_at, "
+            "SELECT doc_id, author_key, body, tags, posted_by "
+            "FROM (SELECT doc_id, author_key, body, tags, deleted, updated_at, posted_by, "
             "row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
             "FROM documents "
             "WHERE has(tags, 'node_ad') AND deleted = 0) "
@@ -3280,6 +3282,7 @@ def get_active_node_ads() -> list[dict]:
                         "author_key": row[1],
                         "body": body,
                         "tags": list(row[3]),
+                        "posted_by": row[4],
                     }
                 )
         return ads
@@ -3498,6 +3501,9 @@ def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
     the document never stores a live URL) — a legacy stored `url` is only
     used when no object_key exists.
 
+    Stored original/thumbnail keys must belong to user_key's object namespace;
+    metadata row ownership alone cannot authorize a foreign object.
+
     Dedups to the LATEST version per doc (the house pattern): `documents`
     is a ReplacingMergeTree, so a transcoded media doc has several live
     rows (created → processing → done) until a background merge collapses
@@ -3531,9 +3537,23 @@ def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
 
     # Fresh presigned URLs for every object_key + thumbnail_object_key
     # (offline — no network call).
-    object_keys = [m.get("object_key") for m in meta_map.values() if m.get("object_key")]
-    thumbnail_keys = [m.get("thumbnail_object_key") for m in meta_map.values() if m.get("thumbnail_object_key")]
+    prefix = user_key + "/" if isinstance(user_key, str) and user_key else None
+
+    def owned_key(key):
+        return isinstance(key, str) and prefix is not None and key.startswith(prefix) and len(key) > len(prefix)
+
+    def resolved_url(key, legacy_url):
+        if key is None or (isinstance(key, str) and key == ""):
+            return legacy_url
+        return presigned.get(key) if owned_key(key) else None
+
+    # Metadata ownership does not authorize arbitrary stored object references.
+    object_keys = [m.get("object_key") for m in meta_map.values() if owned_key(m.get("object_key"))]
+    thumbnail_keys = [
+        m.get("thumbnail_object_key") for m in meta_map.values() if owned_key(m.get("thumbnail_object_key"))
+    ]
     presigned = {}
+    log.info("[media] metadata signing: accepted keys=%d", len(set(object_keys + thumbnail_keys)))
     if object_keys or thumbnail_keys:
         signing_client = get_s3_signing_client()
         for key in dict.fromkeys(object_keys + thumbnail_keys):
@@ -3542,6 +3562,7 @@ def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
                 Params={"Bucket": settings.S3_BUCKET, "Key": key},
                 ExpiresIn=settings.READ_URL_EXPIRY,
             )
+        log.info("[media] metadata signing: completed")
 
     resolved = []
     for mref in media_refs:
@@ -3556,7 +3577,7 @@ def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
                 "mime_type": meta.get("mime_type"),
                 "filename": meta.get("filename"),
                 "size_bytes": meta.get("size_bytes"),
-                "read_url": presigned.get(object_key) if object_key else meta.get("url"),
+                "read_url": resolved_url(object_key, meta.get("url")),
                 # Dimensions + duration + thumbnail: the metadata doc stores
                 # these (the composer measures them on upload), but the read
                 # path used to drop them — so the client fell back to a 1:1
@@ -3565,7 +3586,7 @@ def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
                 "width": meta.get("width"),
                 "height": meta.get("height"),
                 "duration_seconds": meta.get("duration_seconds"),
-                "thumbnail_url": presigned.get(thumbnail_key) if thumbnail_key else meta.get("thumbnail_url"),
+                "thumbnail_url": resolved_url(thumbnail_key, meta.get("thumbnail_url")),
                 # The media doc's transcoding_settings (D44): status +
                 # variants let the client pick the player (hls.js when
                 # done, native <video> otherwise). The read-minted
@@ -3582,53 +3603,39 @@ def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
     return doc_body
 
 
-def _collect_minio_keys(obj, keys: list):
-    """Collect object keys from every {type: 'minio', value} leaf value (recursive)."""
-    if isinstance(obj, dict):
-        if obj.get("type") == "minio" and obj.get("value"):
-            keys.append(str(obj["value"]))
-        else:
-            for v in obj.values():
-                _collect_minio_keys(v, keys)
-    elif isinstance(obj, list):
-        for item in obj:
-            _collect_minio_keys(item, keys)
+def resolve_minio_types(doc_body: dict, media_owner: str) -> dict:
+    """Sign owned raw MinIO leaves without mutation or rejected-URL fallback."""
+    prefix = media_owner + "/" if isinstance(media_owner, str) and media_owner else None
+    signing_client = None
+    found = False
 
+    def visit(obj):
+        nonlocal signing_client, found
+        if isinstance(obj, dict):
+            if obj.get("type") == "minio":
+                found = True
+                key = obj.get("value")
+                url = None
+                if prefix and isinstance(key, str) and key.startswith(prefix) and len(key) > len(prefix):
+                    log.info("[media] raw signing: started")
+                    if signing_client is None:
+                        signing_client = get_s3_signing_client()
+                    url = signing_client.generate_presigned_url(
+                        "get_object",
+                        Params={"Bucket": settings.S3_BUCKET, "Key": key},
+                        ExpiresIn=settings.READ_URL_EXPIRY,
+                    )
+                    log.info("[media] raw signing: completed")
+                else:
+                    log.info("[media] raw signing: denied invalid owner or key")
+                return {**obj, "url": url}
+            return {k: visit(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [visit(item) for item in obj]
+        return obj
 
-def _resolve_minio_types(obj, signing_client):
-    """Add a fresh presigned `url` to every {type: 'minio', value} leaf value.
-
-    Returns a new structure (does not mutate the input). The `value` (object
-    key) is kept; a time-limited presigned `url` is added alongside it, per the
-    document-typing KB: the API converts a minio type to a presigned URL on read.
-    """
-    if isinstance(obj, dict):
-        if obj.get("type") == "minio" and obj.get("value"):
-            object_key = str(obj["value"])
-            presigned = signing_client.generate_presigned_url(
-                "get_object",
-                Params={"Bucket": settings.S3_BUCKET, "Key": object_key},
-                ExpiresIn=settings.READ_URL_EXPIRY,
-            )
-            return {**obj, "url": presigned}
-        return {k: _resolve_minio_types(v, signing_client) for k, v in obj.items()}
-    if isinstance(obj, list):
-        return [_resolve_minio_types(item, signing_client) for item in obj]
-    return obj
-
-
-def resolve_minio_types(doc_body: dict) -> dict:
-    """Resolve minio types in a document body to fresh presigned URLs.
-
-    A body with no minio types is returned unchanged (and no S3 client is
-    created). Presigned-URL generation is offline (no network call), so this is
-    cheap to run on every read.
-    """
-    keys: list = []
-    _collect_minio_keys(doc_body, keys)
-    if not keys:
-        return doc_body
-    return _resolve_minio_types(doc_body, get_s3_signing_client())
+    resolved = visit(doc_body)
+    return resolved if found else doc_body
 
 
 def resolve_media_urls_in_docs(docs: list[dict]) -> list[dict]:
@@ -3644,14 +3651,14 @@ def resolve_media_urls_in_docs(docs: list[dict]) -> list[dict]:
     resolved = []
     for doc in docs:
         body = doc.get("body", {})
+        author = doc.get("posted_by", "") or doc.get("author_key", "")
         if body.get("media_refs"):
             # The media owner is always posted_by (the human who uploaded it).
             # The backfill guarantees posted_by is populated on every row; the
             # `or author_key` is a safety net for the narrow window between the
             # column add and the backfill completing.
-            author = doc.get("posted_by", "") or doc.get("author_key", "")
             body = resolve_media_urls(body, author)
-        body = resolve_minio_types(body)
+        body = resolve_minio_types(body, author)
         doc_with_media = dict(doc)
         doc_with_media["body"] = body
         # The v3 pinned ad (inline, `doc["ad"]`) — resolve its media the same
@@ -3660,17 +3667,19 @@ def resolve_media_urls_in_docs(docs: list[dict]) -> list[dict]:
         ad = doc.get("ad")
         if ad:
             ad_body = ad.get("body", {})
+            ad_owner = ad.get("posted_by", "") or ad.get("author_key", "")
             if ad_body.get("media_refs"):
-                ad_body = resolve_media_urls(ad_body, ad.get("author_key", ""))
-            ad_body = resolve_minio_types(ad_body)
+                ad_body = resolve_media_urls(ad_body, ad_owner)
+            ad_body = resolve_minio_types(ad_body, ad_owner)
             doc_with_media["ad"] = {**ad, "body": ad_body}
         # The node ad (D57, `doc["node_ad"]`) — resolve its media the same way.
         node_ad = doc.get("node_ad")
         if node_ad:
             na_body = node_ad.get("body", {})
+            na_owner = node_ad.get("posted_by", "") or node_ad.get("author_key", "")
             if na_body.get("media_refs"):
-                na_body = resolve_media_urls(na_body, node_ad.get("author_key", ""))
-            na_body = resolve_minio_types(na_body)
+                na_body = resolve_media_urls(na_body, na_owner)
+            na_body = resolve_minio_types(na_body, na_owner)
             doc_with_media["node_ad"] = {**node_ad, "body": na_body}
         resolved.append(doc_with_media)
     return resolved

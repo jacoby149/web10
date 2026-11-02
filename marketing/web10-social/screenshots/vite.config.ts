@@ -18,6 +18,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: [
+      { find: /^(?:@\/data\/v3|\.\/v3)$/, replacement: path.resolve(here, './harness/mock-v3.ts') },
       { find: '@/data/wapi', replacement: path.resolve(here, './harness/mock-wapi.ts') },
       { find: /^@\/data\/settings$/, replacement: path.resolve(here, './harness/mock-settings.ts') },
       { find: /^@\/data\/p2p$/, replacement: path.resolve(here, './harness/mock-p2p.ts') },

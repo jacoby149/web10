@@ -659,7 +659,7 @@ describe('AdForm — the scope conversion (node admin, edit mode)', () => {
     // The scope toggle appears once the async admin check resolves. Switch to
     // node → the conversion hint appears → save converts.
     fireEvent.click(await screen.findByTestId('ad-scope-node'));
-    expect(screen.getByTestId('ad-scope-converting')).toBeInTheDocument();
+    expect(await screen.findByTestId('ad-scope-converting')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('ad-save'));
     await waitFor(() => expect(convertAdScope).toHaveBeenCalled());
     const call = (convertAdScope as any).mock.calls[0];
@@ -676,7 +676,7 @@ describe('AdForm — the scope conversion (node admin, edit mode)', () => {
     await screen.findByTestId('ad-edit-form');
     // A node ad seeds the toggle to "Node". Switch to personal → save converts.
     fireEvent.click(await screen.findByTestId('ad-scope-personal'));
-    expect(screen.getByTestId('ad-scope-converting')).toBeInTheDocument();
+    expect(await screen.findByTestId('ad-scope-converting')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('ad-save'));
     await waitFor(() => expect(convertAdScope).toHaveBeenCalled());
     const call = (convertAdScope as any).mock.calls[0];

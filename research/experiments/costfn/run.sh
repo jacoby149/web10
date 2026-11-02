@@ -21,7 +21,7 @@
 #   6. Tears down ONLY the web10-costfn project + its volumes.
 #
 # Everything runs on localhost. The three QUERY_EVAL_* flags are set per-cell
-# via `docker compose -e`; they default OFF, so a stray flag never leaks into
+# via subprocess env + compose interpolation; they default OFF, so flags never leak into
 # another cell. When done, the box is destroyed by the caller (spinup/teardown
 # in ../ or the DO scripts) — this script only manages the local compose stack.
 
@@ -30,7 +30,7 @@ cd "$(dirname "$0")"
 
 # ── config (override via env) ───────────────────────────────────────────────
 CREATORS="${CREATORS:-1000}"
-FOLLOW="${FOLLOW:-100}"
+FOLLOW="${FOLLOW:-$CREATORS}"
 POSTS_PER_CREATOR="${POSTS_PER_CREATOR:-5}"
 SEED="${SEED:-42}"
 K_VALUES="${K_VALUES:-10 100 1000}"
@@ -38,14 +38,16 @@ FEEDS="${FEEDS:-personal discover}"
 MODES="${MODES:-per-group batched}"
 LINES="${LINES:-A B C}"
 RUNS="${RUNS:-20}"
-API_PORT="${API_PORT:-6000}"
-API_BASE="http://localhost:${API_PORT}"
-COMPOSE_FILE="${COMPOSE_FILE:-../../docker-compose.yml}"
+API_BASE="http://localhost:6000"
+COMPOSE_FILE="$(pwd)/compose.yml"
+export QUERY_EVAL_NO_POLICY=0 QUERY_EVAL_STUB_EXECUTE=0
+export QUERY_EVAL_READABLE_MODE=per-group QUERY_EVAL_STUB_ROWS=20
 COMPOSE_PROJECT="${COMPOSE_PROJECT:-web10-costfn}"
 COMPOSE="docker compose -f ${COMPOSE_FILE} -p ${COMPOSE_PROJECT}"
 RESULTS_DIR="$(pwd)/results"
 MANIFEST="$(pwd)/seed-manifest.json"
 
+docker info >/dev/null
 mkdir -p "$RESULTS_DIR"
 
 echo "============================================"
@@ -67,6 +69,7 @@ echo "============================================"
 # ── 1. bring up the stack (only what the bench needs) ───────────────────────
 echo ""
 echo "[run] bringing up ${COMPOSE_PROJECT} (api + clickhouse + minio)..."
+trap '$COMPOSE down -v --remove-orphans' EXIT
 $COMPOSE up -d api clickhouse minio
 
 echo "[run] waiting for the API to be healthy..."
@@ -139,7 +142,8 @@ cat "${RESULTS_DIR}/system-info.txt"
 # ── 5. teardown (ONLY this project + its volumes) ───────────────────────────
 echo ""
 echo "[run] tearing down ${COMPOSE_PROJECT}..."
-$COMPOSE down -v --remove-orphans || true
+$COMPOSE down -v --remove-orphans
+trap - EXIT
 
 echo ""
 echo "============================================"

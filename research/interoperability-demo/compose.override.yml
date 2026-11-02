@@ -1,0 +1,7 @@
+# Merge with e2e/docker-compose.yml on a fresh disposable host only.
+# Browsers run on that host; no application or storage ports need public access.
+services:
+  proxy:
+    ports: !override ["127.0.0.1:80:80"]
+  minio:
+    ports: !override ["127.0.0.1:9000:9000"]

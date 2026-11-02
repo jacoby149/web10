@@ -33,6 +33,25 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases 
 
+- [✓ 3.254.3 local] **Batching inventory and execution plan** - source audit of backend database-call loops and client request fan-out, scoped bites and correctness/request-count gates in `batching-performance.md`. Documentation only; not an optimization or benchmark result.
+- [ ] **Execute batching-performance queue** - B01-B09 backend and C01-C14 client items in `batching-performance.md`; prioritize readable-set equivalence/promotion, owner-scoped media/face preparation and acting-identity request deduplication. Claim one sub-bite at a time; existing paint-on-read/E3/security lanes retain their gates.
+
+- [✓ 3.254.0 local] **App-wide acting identity implementation** - navigation switcher and identity-aware posts/comments/reactions/reposts, delegated mutations and membership lookup implemented and locally verified. Details and exact evidence: `acting-identity.md`. Not merged or deployed.
+- [ ] **Connected multi-operator/revocation acceptance** - real-storage shared-reaction, revocation, audit and concurrent-action replay; independent security review remains a release gate (`acting-identity.md`).
+
+Status correction: composer-only A4 exists on open PR #1308, not merged. Its
+historical completion references are superseded by the acting-identity gates.
+
+- [✓ 3.253.16 local] **E3 first K1000 trial** — one 1,000-creator seed measured at K10/100/1000; all 20 cells with 20 samples, 400 measurements. First-attempt seed succeeded, artifacts collected, droplet deleted. See research/experiments/costfn/K1000-RESULTS.md. Single sequential trial, not full E3 completion.
+
+- [✓ 3.253.11 local] **E3 preliminary results in manuscript** — K10/100 B/C median/p95 table and K1 contrary result, bounded abstract/conclusion, setup/provenance and limits. Table checked against report; PDF builds. Repeated trials, full feed and capacity remain open.
+
+- [✓ 3.253.10 local] **E3 first K10/100 trial** — 100 creators, 20 samples in each of 15 cells; results recorded in research/experiments/costfn/K100-RESULTS.md. One failed seed preceded a successful fresh-stack retry; cause unknown. Data collected, droplet deleted. Single sequential trial only; full E3 remains open.
+
+- [✓ 3.253.9 local] **E3 connected tiny smoke** — SSH with IPQoS=none, Docker/API/ClickHouse boot, ten creators seeded, ten cells with three samples each and four B-minus-A comparisons. Fixed parsed evaluation settings overwritten as strings; 45 focused tests plus eight subtests pass. Results collected; droplet deleted. Functional smoke only; full E3 remains open.
+
+- [✓ 3.253.8 local] **E3 tiny-smoke harness repair and connection attempt** — dedicated local-only Compose, real seed API schema, baseline pairing and offline regressions. One sfo2 droplet created with the registered SSH key; two TCP/SSH timeouts prevented execution. Deleted and verified no remaining droplets. No measurements; the full E3 experiment remains open.
+
 ## web10-social Product Post Permalink (D89)
 
 - [✓ 3.235.17] **A product post's permalink renders the product, not an empty post** — the post-detail layout only rendered `title` / `text` / `media`, so a `posts` doc tagged `product` (D89 — the body IS the product attributes) showed the author row + an empty body + the action bar. `PostRecord.product` (parsed by `parseProductFields`) + the `PostDetail` product card (photo / name / price / badges / affiliate link) + the permalink route resolving `pics[0]` through the owner-scoped media path. Products are inventory like ads — dropped from the standalone feed/profile lists (the storefront + the product card are their public face). All client-side, D60.
@@ -63,6 +82,29 @@ reuses `POST /v3/app-contracts/revoke`. Full spec:
 - [✓ 3.245.0] **O10: SDK `w.oauth()` helper** (`sdk/`) — `authorize` (consent URL + popup, or `{ url }` for server-side connectors) + `exchangeCode` / `refresh` (both grants against `/v3/oauth/token`) + refresh-token storage (own cookie slot; client_id from the delegated token's claim). D60-clean: no registry management, no consent rendering.
 
 ## L1 Security Scans
+
+- [✓ 3.253.15 local] **PROTOCOL-01/H01-HLS-REF-MINT: owner-bind reference/ad stream mint** — three foreign segment capabilities denied; independent uploader contexts, stale suppression and valid siblings retained. 46 new controls, actual resolver/mint composition, 1,669 API tests plus eight subtests, Ruff and fresh same-model review pass. [Receipt](../security/scans/2026-10/repair-h01-hls-ref-mint.md). Supplied-owner/legacy-URL provenance, live integration/CI/deployment/diverse/L1 OPEN.
+- **Direct mint status:** H01-HLS-DIRECT-MINT merged #1311 at `3b37e66c4`; last observed CI was 12/13 green with repeat Discover engagement E2E failure, not all-green or deployment evidence.
+
+- [✓ 3.253.14 local] **PROTOCOL-01/H01-HLS-DIRECT-MINT: owner-bind direct-document stream mint** — foreign raw key no longer issues a working segment capability; stored manifest URLs removed, uploader/reader separation preserved. 24 new controls, 1,623 API tests plus eight subtests, Ruff and fresh same-model review pass. [Receipt](../security/scans/2026-10/repair-h01-hls-direct-mint.md). Ref/ad mint, owner provenance, live integration/CI/deployment/diverse/L1 OPEN.
+- **Variant status:** H01-HLS-VARIANT merged #1309 at `1dda69ecf`, all 13 checks passed first attempt; local checkpoint below is historical.
+
+- [✓ 3.253.13 local] **PROTOCOL-01/H01-HLS-VARIANT: bind variant fetches to video provenance** — uploader namespace, signed tree and exact worker rendition key checked before storage; two synthetic-object HTTP/JWT disclosures denied, 28 new controls and 1,599 API tests plus eight subtests, Ruff and fresh same-model review pass. [Receipt](../security/scans/2026-10/repair-h01-hls-variant.md). HLS mint/segment provenance, integration/CI/deployment/diverse/L1 OPEN.
+- **Raw status:** H01-RAW merged #1307; previous local checkpoint below is historical, not deployment evidence.
+
+- [✓ 3.253.12 local] **PROTOCOL-01/H01-RAW: owner-bind recursive MinIO signing** — explicit owner, foreign/malformed stale suppression, per-entry uploader/ad-loader propagation; real synthetic SigV4 red -> denied green, review-fixed compatibility gap. 347 focused/1,570 API tests plus four subtests and lint/format, fresh same-model recheck. [Receipt](../security/scans/2026-10/repair-h01-raw-owner.md). Other provenance/CI/integration/deployment/diverse/L1 OPEN.
+- **Metadata status:** H01-META merged #1306 at `f3cacbff4`, all 13 first-attempt checks green; historical local tick below is not broader closure.
+
+- [✓ 3.253.5 local] **PROTOCOL-01/H01-META: bind stored media-reference signing to its owner** — original/thumbnail foreign keys denied before signing, valid/legacy/posted_by preserved; two real synthetic SigV4 baseline failures denied, 335 focused/1,533 API tests plus four subtests and lint/format, fresh same-model review. [Receipt](../security/scans/2026-10/repair-h01-metadata-owner.md). One sink only; recursive minio/other provenance/CI/services/deployment/diverse/L1 OPEN.
+- **Direct signer status:** H01-DIRECT merged #1305 at `d5f06c6d0`, all 13 first-attempt checks green; prior local checkpoint below does not close remaining sinks.
+
+- [✓ 3.253.4 local] **PROTOCOL-01/L1-H-01-DIRECT: owner-only direct media URL refresh** — approved owner-only direct signer, actual JWT/HTTP/real synthetic SigV4 repro denied before bucket/signing; owned unconfirmed/derivative and document/thumbnail paths preserved. 503 focused/1,477 API tests plus four subtests, lint/format and fresh same-model review. [Receipt](../security/scans/2026-10/repair-h01-direct-media.md). Adjacent provenance/service policy, real services/CI/deployment/diverse/L1 gates OPEN.
+- **Decoder/CORS status:** B-3 default/B-5 tests merged #1303 at `e56d25304`, all 13 final checks green after recorded retries; historical local ticks below do not close broader gates.
+
+- [✓ 3.253.3 local tests] **PROTOCOL-01/B-5-PIN: pin credential-free CORS on actual routes** — thirteen added profile/create controls, 18 CORS/1,470 API tests plus four subtests and lint/format pass; fresh same-model and mutation review. [Receipt](../security/scans/2026-10/b5-cors-credential-pinning.md). Test-only selected-route coverage; browser/integration/diverse/L1 gates OPEN, not a runtime repair.
+
+- [✓ 3.253.2 local] **PROTOCOL-01/B-3-DEFAULT: verify JWT decoding by default** — signature/freshness default True, two explicit metadata opt-outs; 31 new/175 focused and 1,457 API tests plus four subtests, lint/format and fresh same-model review. [Receipt](../security/scans/2026-10/repair-b3-default-decode.md). No endpoint-bypass/issuer/remote-provider closure; CI/deployment/diverse/L1 gates OPEN.
+- **Backup status:** L1-PKG-02 merged #1301 at `30f9d49fc`, all 13 checks green; historical local tick below is not deployment or sign-off closure.
 
 - [✓ 3.252.25 local] **PROTOCOL-01/L1-PKG-02: private no-clobber backup output** — real filesystem mode/link/overwrite proof; private staging and complete exclusive publication, 45 focused/1,420 API tests plus four subtests, lint/format and fresh same-model review. [Receipt](../security/scans/2026-10/repair-pkg02-backup-publication.md). Trusted storage/CI/deployment/diverse gates OPEN; no L1 closure.
 - **Manifest status:** L1-A-02 repair/dependency merged #1299 at `0918a7409`, all 13 PR checks green; earlier local ticks below are historical, not rollout/sign-off closure.
@@ -1170,6 +1212,14 @@ all unchecked boxes. The numbers the industry track will demand:
 - [ ] **E2E CI blocker: ClickHouse `group_contracts.tags` schema race** (found via PR #1292, pre-existing on `dev`) — e2e shards 1/4 and 2/4 fail on a fresh stack with `Code: 47. DB::Exception: Unknown expression identifier 'tags' in scope … FROM group_contracts` (surfaced on `POST /setup/configure` 500, and downstream via the missing `updated_at` version column). The `tags` column is added by a boot-time `ALTER TABLE` self-heal in `api/app/v3/services/clickhouse.py` (3.116.1, D78), but a query can run against `group_contracts` before that ALTER has committed, so the column is absent. **Fix:** make the `tags` (and `updated_at`/`membership_visibility`/`discoverable`) column additions synchronous + guaranteed before any `group_contracts` read, or add the columns to the initial DDL template so they exist at table creation; add a regression test that boots a fresh ClickHouse and immediately runs a `group_contracts` read. **Gates:** the full e2e suite green on a clean stack. **Acceptance bar:** a fresh e2e run (all four shards) passes with no `Unknown expression identifier` errors on `group_contracts`.
 
 **The writing plan (after the data lands):**
+
+- [✓ 3.253.21] **Integrate PR #1313 K1000 results into the paper** — use the later 1,000-creator K10/100/1000 sweep as the main twelve-row B/C table; update abstract/conclusion, 20-cell/400-sample accounting, baseline/K1/growth interpretation and provenance. Retain source narrative and machine-readable summary, validate all 48 table values and ratios; earlier trial stays separate. No new run or full E3 closure.
+
+- [✓ 3.253.20] **Integrate E4b into the paper's argument** — connected profile reuse now appears in abstract/introduction/contributions, application service table and abbreviated join, actual screenshot figure, dedicated correctness evaluation and conclusion. Completed composition evidence is separated from pending performance; ten-page PDF built and inspected. Not whole-paper readiness or broader evaluation completion.
+
+- [✓ 3.253.19] **E4b connected interoperability evidence** — dedicated disposable runner executes real desktop/375px popup consent, social-written distinct-name profile reuse in Snake/Marketplace, exact joins, app revocation/UI denial and detail reload; existing two-author HTTP module verifies independent app/group controls. Final fresh-stack matrix: three passed, zero retries/skips, 16 inspected captures, retained patch/overlay and receipts; collect-before-destroy and droplet deletion verified. Marketplace startup race repaired with red/green regression. Paper subsection/figure added. Scope: development stack, synthetic data, same-origin hosted demos; not the complete social-feed timing runner. Details: `research/interoperability-demo/RESULTS.md`.
+
+- [✓ 3.253.18] **E4b dedicated browser-demo folder** — `research/interoperability-demo/` owns the inherited browser scenario, standalone desktop/375px config and evidence instructions. Standard E2E discovery retained. Four viewport/scenario combinations discovered; Docker unavailable, connected evidence and real app-consent repair remain open.
 
 - [✓ 3.251.9] **E4b interoperability correctness tooling** — `research/experiments/social/interop.mjs` joins app-B scores/listings to actual social-written profiles with distinct-Origin app grants and independent group-access checks; offline failure/corruption/pacing regressions pass. Tooling only: Docker execution, clickable apps and E4b empirical evidence remain open. Next: execute the isolated runner on a disposable host and inspect `interop.*` operations before promoting claims.
 

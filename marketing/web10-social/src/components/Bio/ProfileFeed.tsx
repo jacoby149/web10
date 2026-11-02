@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useActingAuthor, matchesActingAuthor } from '@/data/actingIdentity';
 import {
   countComments,
   readReactions,
@@ -71,6 +72,10 @@ export function ProfileFeed({
   const postsKey = posts.map((p) => p._id || '').join('|');
   const token = getWapi().readToken();
   const tokenUsername = token?.username;
+  const identity = useActingAuthor();
+  const engagementGeneration = useRef(0);
+  useEffect(() => () => { engagementGeneration.current++; }, [identity, tokenUsername, token?.provider, postsKey]);
+  useEffect(() => { setLikedMap({}); setDislikedMap({}); setRepostedMap({}); }, [identity]);
 
   useEffect(() => {
     let cancelled = false;
@@ -109,13 +114,13 @@ export function ProfileFeed({
             const dislikeCount = reactions.filter((r) => r.type === 'dislike').length;
             const mine = tokenUsername
               ? reactions.find(
-                  (r) => r.author_username === tokenUsername && (r.type === 'like' || r.type === 'dislike'),
+                  (r) => matchesActingAuthor(r.author_key || r.author_username, tokenUsername, identity || null) && (r.type === 'like' || r.type === 'dislike'),
                 )
               : undefined;
             // The repost fill: the reader's own repost post, OR a legacy
             // `type:'repost'` reaction (old data, read-only fallback).
             const mineRepost = tokenUsername
-              ? reactions.find((r) => r.author_username === tokenUsername && r.type === 'repost')
+              ? reactions.find((r) => matchesActingAuthor(r.author_key || r.author_username, tokenUsername, identity || null) && r.type === 'repost')
               : undefined;
             setLikeMap((prev) => ({ ...prev, [id]: likeCount }));
             setDislikeCountMap((prev) => ({ ...prev, [id]: dislikeCount }));
@@ -144,7 +149,7 @@ export function ProfileFeed({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [postsKey, tokenUsername]);
+  }, [postsKey, tokenUsername, token?.provider, identity]);
 
   // Reset the engagement maps when the post set changes (a profile switch must
   // not show the previous profile's counts on the new cards for a frame).
@@ -163,6 +168,7 @@ export function ProfileFeed({
   }
 
   async function handleToggleReaction(postId: string, kind: ReactionKind) {
+    const generation = engagementGeneration.current;
     const wasLiked = !!likedMap[postId];
     const wasDisliked = !!dislikedMap[postId];
     const nextLiked = kind === 'like' ? !wasLiked : false;
@@ -180,6 +186,7 @@ export function ProfileFeed({
       await toggleReactionKind(postId, kind);
     } catch (e) {
       console.error('Failed to toggle reaction:', e);
+      if (generation !== engagementGeneration.current) return;
       toast.error(errorMessage(e, 'Could not update your reaction.'));
       setLikedMap((prev) => ({ ...prev, [postId]: wasLiked }));
       setDislikedMap((prev) => ({ ...prev, [postId]: wasDisliked }));

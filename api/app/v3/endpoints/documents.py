@@ -62,7 +62,7 @@ def _moderate_post(author: str, doc_id: str, service: str, body: dict, groups: l
         log.warning("[moderation] auto-hide failed (non-fatal): %s: %s", type(e).__name__, e)
 
 
-def _mint_ref_manifest(ref, reader_key: str, authenticated: bool = False) -> dict:
+def _mint_ref_manifest(ref, reader_key: str, media_owner: str, authenticated: bool = False) -> dict:
     """Mint a `manifest_url` into a resolved media ref that carries HLS
     settings — the feed path, where the post's media_refs carry the media
     doc's transcoding_settings (resolve_media_urls carries them) and the sig
@@ -71,18 +71,34 @@ def _mint_ref_manifest(ref, reader_key: str, authenticated: bool = False) -> dic
 
     The prefix binds to the ref's object_key — for media_metadata/public_media
     docs that IS the raw video file's key (the flat shape the social app's
-    uploadMedia writes), so it matches the worker's hls_prefix.
+    uploadMedia writes), so it matches the worker's hls_prefix. The resolved
+    key must belong to the same uploader context used by media resolution.
     """
     if not isinstance(ref, dict):
         return ref
     ts = ref.get("transcoding_settings")
-    if not isinstance(ts, dict) or not ts.get("enabled"):
+    if not isinstance(ts, dict):
+        return ref
+    ts = {k: v for k, v in ts.items() if k != "manifest_url"}
+    ref = {**ref, "transcoding_settings": ts}
+    if not ts.get("enabled"):
         return ref
     doc_id = ref.get("doc_id")
     object_key = ref.get("object_key")
-    if not doc_id or not object_key:
+    if (
+        not isinstance(doc_id, str)
+        or not doc_id
+        or not isinstance(media_owner, str)
+        or not media_owner
+        or not isinstance(object_key, str)
+        or not object_key.startswith(media_owner + "/")
+        or len(object_key) <= len(media_owner) + 1
+    ):
+        log.info("[media] reference HLS mint: denied invalid owner or key")
         return ref
-    sig = mint_sig(reader_key, doc_id, hls_prefix(str(object_key)), authenticated)
+    log.info("[media] reference HLS mint: started")
+    sig = mint_sig(reader_key, doc_id, hls_prefix(object_key), authenticated)
+    log.info("[media] reference HLS mint: completed")
     return {
         **ref,
         "transcoding_settings": {
@@ -115,18 +131,35 @@ def _mint_hls_manifest_urls(docs: list[dict], reader_key: str, authenticated: bo
         # (1) the doc itself (a media doc read directly)
         ts = body.get("transcoding_settings") or {}
         video = body.get("video")
-        if ts.get("enabled") and isinstance(video, dict) and video.get("value"):
-            sig = mint_sig(reader_key, doc["doc_id"], hls_prefix(str(video["value"])), authenticated)
-            body["transcoding_settings"] = {
-                **ts,
-                "manifest_url": f"/v3/media/hls/manifest?doc_id={doc['doc_id']}&sig={sig}",
-            }
+        if isinstance(ts, dict) and ts:
+            # Stored URLs are not authority; only this read may mint a fresh one.
+            ts = {k: v for k, v in ts.items() if k != "manifest_url"}
+            body["transcoding_settings"] = ts
+            if ts.get("enabled"):
+                owner = doc.get("posted_by") or doc.get("author_key")
+                key = video.get("value") if isinstance(video, dict) else None
+                if (
+                    isinstance(video, dict)
+                    and video.get("type") == "minio"
+                    and isinstance(owner, str)
+                    and owner
+                    and isinstance(key, str)
+                    and key.startswith(owner + "/")
+                    and len(key) > len(owner) + 1
+                ):
+                    log.info("[media] direct HLS mint: started")
+                    sig = mint_sig(reader_key, doc["doc_id"], hls_prefix(key), authenticated)
+                    ts["manifest_url"] = f"/v3/media/hls/manifest?doc_id={doc['doc_id']}&sig={sig}"
+                    log.info("[media] direct HLS mint: completed")
+                else:
+                    log.info("[media] direct HLS mint: denied invalid owner or video key")
         # (2) the resolved media_refs (the feed path)
         refs = body.get("media_refs")
         if isinstance(refs, list) and any(
             isinstance(r, dict) and isinstance(r.get("transcoding_settings"), dict) for r in refs
         ):
-            body["media_refs"] = [_mint_ref_manifest(r, reader_key, authenticated) for r in refs]
+            owner = doc.get("posted_by") or doc.get("author_key")
+            body["media_refs"] = [_mint_ref_manifest(r, reader_key, owner, authenticated) for r in refs]
         doc["body"] = body
         # (2) the inline ads too — their media_refs are resolved the same way
         for ad_key in ("ad", "node_ad"):
@@ -140,7 +173,8 @@ def _mint_hls_manifest_urls(docs: list[dict], reader_key: str, authenticated: bo
             ):
                 ad = dict(ad)
                 ad_body = dict(ad_body)
-                ad_body["media_refs"] = [_mint_ref_manifest(r, reader_key, authenticated) for r in ad_refs]
+                owner = ad.get("posted_by") or ad.get("author_key")
+                ad_body["media_refs"] = [_mint_ref_manifest(r, reader_key, owner, authenticated) for r in ad_refs]
                 ad["body"] = ad_body
                 doc[ad_key] = ad
         out.append(doc)
@@ -204,6 +238,10 @@ def create_document(request: Request, data: CreateDocument):
     # display author. The contract is the app's trust in the USER, not the group.
     _check_app_permission(request, real_author, data.service, "create", client_id_of(data))
 
+    writable = [g for g in data.groups or [] if ch.can_write_group(g, display_author, data.service)]
+    if data.groups and not writable:
+        raise HTTPException(status_code=403, detail="no write access to the requested group")
+
     result = ch.insert_document(
         author_key=display_author,
         service=data.service,
@@ -222,12 +260,6 @@ def create_document(request: Request, data: CreateDocument):
         # role grants `create` on this service. A bystander with no write grant
         # to any requested group gets a 403; non-writable groups are dropped
         # from the attachment.
-        writable = [g for g in data.groups if ch.can_write_group(g, display_author, data.service)]
-        if not writable:
-            raise HTTPException(
-                status_code=403,
-                detail="no write access to the requested group",
-            )
         ch.attach_doc_to_groups(doc_id, writable)
         result["groups"] = writable
         # Moderation: check the REAL author (the human), not the group.
@@ -259,6 +291,9 @@ def read_documents(request: Request, data: ReadDocuments):
         doc = ch.read_document_by_id(data.doc_id, reader, data.service, authenticated)
         if not doc:
             raise exceptions.ENTRY_NOT_FOUND
+        # Return only readable carriers; a public document must not enumerate
+        # private groups it is also attached to. Actions can retain this scope.
+        doc["groups"] = ch.readable_groups(reader, data.service, authenticated, ch.get_doc_groups(data.doc_id))
         # D86: a single-doc read is a content view (the watch/short/permalink
         # surface) — log the delivery impression (the un-gameable floor).
         _log_deliveries([doc], reader, data.service, data.surface)
@@ -353,15 +388,21 @@ def read_documents(request: Request, data: ReadDocuments):
 def update_document(request: Request, data: UpdateDocument):
     """Update a document (new version + optional group changes).
 
-    Group-as-author: a group-authored post (author_key = group_id) can be
-    updated by the human who posted it (posted_by = username) when they hold
-    a role in the group that grants `create` on the service. The lookup is
-    two-pass: first by author_key (the normal path), then by posted_by (the
-    group-post path). The write uses the doc's actual author_key (the group),
-    preserving the identity.
+    Explicit author_as selects the group's document and requires a current
+    updateOwn grant on its service. Original posters may also use the shipped
+    posted_by lookup. Neither path changes the author or original audit actor.
     """
     author = _user(data)
-    existing = ch.get_document(data.doc_id, author)
+    if data.author_as:
+        existing = ch.get_document(data.doc_id, data.author_as)
+        if not existing:
+            raise exceptions.ENTRY_NOT_FOUND
+        perms = ch.effective_role_perms(data.author_as, author, authenticated=True)
+        if not ch.get_group(data.author_as) or not ch._effective_allows(perms, existing["service"], "updateOwn"):
+            raise HTTPException(status_code=403, detail="no permission to update as this group")
+        author = data.author_as
+    else:
+        existing = ch.get_document(data.doc_id, author)
     if not existing:
         # Group-as-author fallback: the doc's author_key is a group_id and
         # the caller is the human who posted it (posted_by = their username).
@@ -375,10 +416,9 @@ def update_document(request: Request, data: UpdateDocument):
             group_author = result_rows.result_rows[0][0]
             existing = ch.get_document(data.doc_id, group_author)
             if existing:
-                # Gate: the caller must hold a role in the group that grants
-                # `create` on the service (same as Gate 1 on create).
+                # Editing requires its own live grant, not a create grant.
                 perms = ch.effective_role_perms(group_author, author, authenticated=True)
-                if not ch._effective_allows(perms, existing["service"], "create"):
+                if not ch._effective_allows(perms, existing["service"], "updateOwn"):
                     raise HTTPException(
                         status_code=403,
                         detail="no permission to edit this group post",
@@ -387,6 +427,8 @@ def update_document(request: Request, data: UpdateDocument):
         else:
             raise exceptions.ENTRY_NOT_FOUND
     _check_app_permission(request, _user(data), existing["service"], "updateOwn", client_id_of(data))
+    if data.groups is not None and any(not ch.can_write_group(g, author, existing["service"]) for g in data.groups):
+        raise HTTPException(status_code=403, detail="no write access to the requested group")
 
     merged_body = {**existing["body"], **data.body}
     # Preserve the existing ad preference unless the update sets one.
@@ -414,12 +456,21 @@ def update_document(request: Request, data: UpdateDocument):
 
 @router.post("/delete")
 def delete_document(request: Request, data: DeleteDocument):
-    """Tombstone a document and its group attachments."""
+    """Tombstone a document; author_as requires a live group deleteOwn grant."""
     author = _user(data)
-    existing = ch.get_document(data.doc_id, author)
+    if data.author_as:
+        existing = ch.get_document(data.doc_id, data.author_as)
+        if not existing:
+            raise exceptions.ENTRY_NOT_FOUND
+        perms = ch.effective_role_perms(data.author_as, author, authenticated=True)
+        if not ch.get_group(data.author_as) or not ch._effective_allows(perms, existing["service"], "deleteOwn"):
+            raise HTTPException(status_code=403, detail="no permission to delete as this group")
+        author = data.author_as
+    else:
+        existing = ch.get_document(data.doc_id, author)
     if not existing:
         raise exceptions.ENTRY_NOT_FOUND
-    _check_app_permission(request, author, existing["service"], "deleteOwn", client_id_of(data))
+    _check_app_permission(request, _user(data), existing["service"], "deleteOwn", client_id_of(data))
 
     ch.delete_document(data.doc_id, author, existing["service"])
     ch.detach_doc_from_groups(data.doc_id)

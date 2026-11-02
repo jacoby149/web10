@@ -9,6 +9,15 @@ Chromium guard tests. A complete Docker-stack/droplet run has not been verified
 in the implementation workspace because its Docker daemon is unavailable.
 Do not cite implemented tests as completed experiment results.
 
+**Interoperability update, 2 November 2026:** the separate
+[`research/interoperability-demo/`](../../interoperability-demo/RESULTS.md) runner
+has executed this directory's `interop.mjs` successfully against real
+API/ClickHouse with social-written profiles and all app/group controls. It also
+verified the clickable apps' real browser consent and joins. This is connected
+evidence for that module, not execution of the full social-feed timing scenario
+described below; the earlier pending statements about the module are superseded
+by that dated receipt.
+
 Original harness verification on 28 October 2026: 13 Node tests (zero skipped,
 including isolated Chromium and real subprocess interruption), 24 mocked Python
 orchestration tests, Compose configuration validation, Bash syntax and discovery

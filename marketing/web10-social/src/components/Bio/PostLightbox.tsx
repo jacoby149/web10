@@ -5,6 +5,9 @@ import { Button } from '@/components/ui/button';
 import type { PostRecord, MediaRecord } from '@/data/types';
 import { mediaRefId } from '@/data/types';
 import { getWapi } from '@/data/wapi';
+import { useActingAuthor, matchesActingAuthor } from '@/data/actingIdentity';
+import { useMutationAuthority } from '@/data/mutationAuthority';
+import { postPath } from '@/lib/postLinks';
 import {
   toggleReactionKind,
   readReactions,
@@ -130,14 +133,11 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   // Share state
   const [copied, setCopied] = useState(false);
 
-  // Check ownership: explicit prop wins, otherwise derive it from the post's
-  // author (v3: author_key is the bare username, so compare usernames — the
-  // same rule as the feed's isOwnPost). The old `token !== null` fallback
-  // showed the owner menu on every post while signed in (the discover bug).
+  // Profile ownership and the navigation identity are not mutation authority.
   const token = getWapi().readToken();
-  const isOwner = isOwnerProp !== undefined
-    ? isOwnerProp
-    : token !== null && post.author_username === token.username;
+  const identity = useActingAuthor();
+  const authority = useMutationAuthority(post.author_key || post.author_username, 'posts');
+  const isOwner = authority.canEdit || authority.canDelete;
 
   // The swipeable media strip (mobile): a scroll-snap row of the post's frames.
   // Swiping the strip (native scroll-snap) + the arrows + the keyboard all
@@ -218,12 +218,15 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   useEffect(() => {
     let cancelled = false;
     const postId = currentPost._id || '';
+    setLiked(false);
+    setDisliked(false);
+    setReposted(false);
     Promise.all([
-      token ? readReactions('posts', postId) : Promise.resolve([]),
-      countComments(postId),
-      readRepostCounts([postId], [getDiscoverGroupId()]),
+      token ? readReactions('posts', postId, currentPost.groups) : Promise.resolve([]),
+      countComments(postId, currentPost.groups),
+      readRepostCounts([postId], currentPost.groups || [getDiscoverGroupId()]),
       readMyRepostedIds(),
-      readViewCount(postId, [getDiscoverGroupId()]),
+      readViewCount(postId, currentPost.groups || [getDiscoverGroupId()]),
     ]).then(([reactions, cCount, repostCounts, myReposts, vCount]) => {
       if (cancelled) return;
       setLikeCount(reactions.filter((r) => r.type === 'like').length);
@@ -234,10 +237,10 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
       // heart un-filled on a post the user had already liked (same class as
       // the feed's isOwnPost fix, 3.79.3).
       setLiked(!!reactions.find(
-        r => r.author_username === token.username && r.type === 'like',
+        r => matchesActingAuthor(r.author_key || r.author_username, token.username, identity || null) && r.type === 'like',
       ));
       setDisliked(!!reactions.find(
-        r => r.author_username === token.username && r.type === 'dislike',
+        r => matchesActingAuthor(r.author_key || r.author_username, token.username, identity || null) && r.type === 'dislike',
       ));
       // Repost (reposts.md): the count is the number of `repost_of` posts; the
       // fill is the reader's own repost post (the legacy reaction is a
@@ -246,7 +249,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
       setReposted(
         myReposts.has(postId) ||
         !!reactions.find(
-          r => r.author_username === token.username && r.type === 'repost',
+          r => matchesActingAuthor(r.author_key || r.author_username, token.username, identity || null) && r.type === 'repost',
         ),
       );
       setCommentCount(cCount);
@@ -258,7 +261,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
       // recorded the delivery, and a client write would be redundant + gameable.
     }).catch(console.error);
     return () => { cancelled = true; };
-  }, [currentPost._id, token]);
+  }, [currentPost._id, token, identity]);
 
   // The reaction pair (post-actions.md): like XOR dislike. Optimistic update
   // of both flags + both counts, rollback on error. The data layer
@@ -279,7 +282,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
     setLikeCount(prev => Math.max(0, prev + likeDelta));
     setDislikeCount(prev => Math.max(0, prev + dislikeDelta));
     try {
-      await toggleReactionKind(currentPost._id || '', kind);
+      await toggleReactionKind(currentPost._id || '', kind, currentPost.groups);
     } catch (e) {
       console.error('Failed to toggle reaction:', e);
       toast.error(errorMessage(e, 'Could not update your reaction.'));
@@ -305,7 +308,8 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
 
   async function handleDelete() {
     try {
-      await deletePost(currentPost._id || '');
+      if (currentPost.author_key?.includes('/groups/')) await deletePost(currentPost._id || '', currentPost.author_key);
+      else await deletePost(currentPost._id || '');
       onClose();
       onReload?.();
     } catch (e) {
@@ -333,7 +337,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   }
 
   async function handleShare() {
-    const url = `${window.location.origin}/u/${postAuthor || 'unknown'}/p/${currentPost._id || 'unknown'}${highlightedCommentId ? `?comment=${highlightedCommentId}` : ''}`;
+    const url = `${window.location.origin}${postPath({ ...currentPost, author_username: postAuthor || currentPost.author_username })}${highlightedCommentId ? `?comment=${encodeURIComponent(highlightedCommentId)}` : ''}`;
     // Share is a link (navigator.share / clipboard) — not a data write. The
     // repost is a separate, tappable signal on the engagement row (reposts.md).
     if (navigator.share) {
@@ -455,6 +459,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
             swipeable carousel) is injected between the body and the stats row. */}
         <div className="min-h-0 overflow-y-auto p-5 pr-14">
           <PostDetail
+            groups={currentPost.groups}
             post={currentPost}
             authorName={postAuthor}
             authorAvatar={currentPost.avatar_url}
@@ -477,10 +482,10 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
             postService={postService}
             highlightedCommentId={highlightedCommentId}
             onAuthorClick={(username) => navigate(`/u/${username}`)}
-            onEdit={() => openComposer({ editingPost: currentPost })}
-            onToggleVisibility={handleToggleVisibility}
+            onEdit={authority.canEdit ? () => openComposer({ editingPost: currentPost }) : undefined}
+            onToggleVisibility={!authority.canEdit || currentPost.author_key?.includes('/groups/') ? undefined : handleToggleVisibility}
             visibilityToggling={togglingVisibility}
-            onDelete={handleDelete}
+            onDelete={authority.canDelete ? handleDelete : undefined}
             media={mediaPane}
             productPic={productPic}
             testId="post-lightbox-detail"

@@ -175,6 +175,16 @@ class TestUpdateDocument:
 
 
 class TestDeleteDocument:
+    def test_group_tombstone_copies_original_posted_by(self):
+        group = "node/groups/users/alice/team"
+        with _patch_client() as mock_client:
+            ch.delete_document("group-doc", group, "notes")
+            mock_client.command.assert_called_once()
+            sql, params = mock_client.command.call_args.args
+            assert "updated_at, deleted, posted_by) SELECT" in sql
+            assert "created_at, now64(6), 1, posted_by FROM documents" in sql
+            assert params == {"doc_id": "group-doc", "author_key": group, "service": "notes"}
+
     def test_tombstone(self):
         with _patch_client() as mock_client:
             ch.delete_document("doc-1", "alice", "posts")
@@ -1098,6 +1108,27 @@ class TestReadDocumentById:
             assert doc["author_key"] == "bob"
             assert doc["body"]["text"] == "hello"
 
+    def test_single_read_preserves_group_uploader_audit(self):
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows(
+                [
+                    (
+                        "group-doc",
+                        "node/groups/users/alice/team",
+                        '{"text":"hello"}',
+                        [],
+                        datetime(2026, 1, 1),
+                        "",
+                        "none",
+                        "",
+                        "bob",
+                    ),
+                ]
+            )
+            doc = ch.read_document_by_id("group-doc", "alice", "posts", authenticated=True)
+            assert doc["posted_by"] == "bob"
+            assert "p.posted_by" in mock_client.query.call_args.args[0]
+
     def test_not_found(self):
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows([])
@@ -1512,7 +1543,7 @@ class TestResolveMinioTypes:
     def test_no_minio_types_unchanged(self):
         body = {"text": "hello", "age": {"type": "number", "value": 5}}
         with patch.object(ch, "get_s3_signing_client") as mock_signing:
-            result = ch.resolve_minio_types(body)
+            result = ch.resolve_minio_types(body, "alice")
             assert result == body
             mock_signing.assert_not_called()
 
@@ -1522,7 +1553,7 @@ class TestResolveMinioTypes:
             mock_client = MagicMock()
             mock_client.generate_presigned_url.return_value = "http://minio/alice/cat.png?sig=abc"
             mock_signing.return_value = mock_client
-            result = ch.resolve_minio_types(body)
+            result = ch.resolve_minio_types(body, "alice")
             # type + value are kept, a fresh presigned url is added
             assert result["image"]["type"] == "minio"
             assert result["image"]["value"] == "alice/cat.png"
@@ -1544,7 +1575,7 @@ class TestResolveMinioTypes:
             mock_client = MagicMock()
             mock_client.generate_presigned_url.side_effect = lambda *a, **k: f"http://minio/{k['Params']['Key']}?sig=x"
             mock_signing.return_value = mock_client
-            result = ch.resolve_minio_types(body)
+            result = ch.resolve_minio_types(body, "alice")
             assert result["cat-vids"][0]["url"] == "http://minio/alice/henry.mp4?sig=x"
             assert result["cat-vids"][1]["url"] == "http://minio/alice/henry2.mp4?sig=x"
             assert result["nested"]["deep"]["pic"]["url"] == "http://minio/alice/pic.jpg?sig=x"

@@ -78,6 +78,7 @@ export interface CommentNode extends CommentItem {
 // ── The thread ───────────────────────────────────────────────────────────────
 
 export interface CommentThreadProps {
+  actionIdentity?: string;
   postId: string;
   isOpen: boolean;
   count: number;
@@ -129,6 +130,7 @@ export interface CommentThreadProps {
 }
 
 export function CommentThread({
+  actionIdentity,
   postId,
   isOpen,
   onCountChange,
@@ -158,6 +160,12 @@ export function CommentThread({
   const [replyingTo, setReplyingTo] = useState<CommentItem | null>(null);
   /** Photos picked for the draft (local previews; uploaded on send). */
   const [attached, setAttached] = useState<AttachedPhoto[]>([]);
+  const draftIdentity = useRef<{ identity: string | null } | null>(null);
+  useEffect(() => {
+    if (draft || attached.length) {
+      draftIdentity.current ??= { identity: actionIdentity || null };
+    } else draftIdentity.current = null;
+  }, [draft, attached.length, actionIdentity]);
   /** The comment being edited (absent = no edit in progress). Editing reuses
    *  the single compose box, retargeted — the same idiom as "Reply". */
   const [editing, setEditing] = useState<CommentItem | null>(null);
@@ -250,6 +258,11 @@ export function CommentThread({
   // groups; the array itself is only read inside the callbacks (below), where
   // a fresh identity is harmless.
   const groupsKey = useMemo(() => (groups ? groups.join('\u0000') : ''), [groups]);
+  const engagementGeneration = useRef(0);
+  useEffect(() => {
+    setLoadingMore(false);
+    return () => { engagementGeneration.current++; };
+  }, [isOpen, postId, groupsKey, actionIdentity]);
 
   // Initial load: the first page of top-level comments (+ their first reply
   // pages, when the reader provides replyCounts).
@@ -268,6 +281,7 @@ export function CommentThread({
           // Marketing mode: the whole flat conversation — build the tree.
           nodes = buildTree(page.comments);
         }
+        if (cancelled) return;
         setTopLevel(nodes);
         setTopCursor(page.nextCursor);
         onCountChange(countTree(nodes));
@@ -284,7 +298,7 @@ export function CommentThread({
     // `groupsKey` carries. The same guard the watch page applies to its post
     // load (stable primitives, never fresh objects).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, postId, groupsKey]);
+  }, [isOpen, postId, groupsKey, actionIdentity]);
 
   // Scroll to + flash the anchored comment once comments are loaded
   useEffect(() => {
@@ -315,6 +329,7 @@ export function CommentThread({
   // seam returns the write's promise so the thread can roll back on failure).
   async function handleToggleLike(id: string) {
     if (!onToggleCommentLike) return;
+    const generation = engagementGeneration.current;
     const prev = findNode(topLevel, id);
     if (!prev) return;
     const prevLiked = !!prev.likedByMe;
@@ -328,6 +343,7 @@ export function CommentThread({
       await onToggleCommentLike(id);
     } catch (e) {
       console.error('[discover:comments] like toggle failed, rolling back:', e);
+      if (generation !== engagementGeneration.current) return;
       setTopLevel((list) => mapNode(list, id, (n) => ({
         ...n,
         likedByMe: prevLiked,
@@ -409,15 +425,18 @@ export function CommentThread({
   // "View more comments" — load the next top-level page and append.
   async function handleViewMoreComments() {
     if (!topCursor || loadingMore) return;
+    const generation = engagementGeneration.current;
     setLoadingMore(true);
     try {
       const page = await readComments(postId, groups, { cursor: topCursor });
+      if (generation !== engagementGeneration.current) return;
       let nodes: CommentNode[];
       if (page.replyCounts) {
         nodes = await prefetchReplies(page.comments.map(toNode), page.replyCounts);
       } else {
         nodes = page.comments.map(toNode);
       }
+      if (generation !== engagementGeneration.current) return;
       setTopLevel((prev) => {
         const next = [...prev, ...nodes];
         onCountChange(countTree(next));
@@ -425,20 +444,23 @@ export function CommentThread({
       });
       setTopCursor(page.nextCursor);
     } catch (e) {
+      if (generation !== engagementGeneration.current) return;
       console.error('[discover:comments] failed to load more:', e);
       onError?.('Could not load more comments.');
     } finally {
-      setLoadingMore(false);
+      if (generation === engagementGeneration.current) setLoadingMore(false);
     }
   }
 
   // "View more replies" — load the next reply page for one comment + append.
   async function handleViewMoreReplies(parentId: string) {
     if (!readReplies) return;
+    const generation = engagementGeneration.current;
     const parent = findNode(topLevel, parentId);
     if (!parent || !parent.replyCursor || parent.hasMoreReplies === false) return;
     try {
       const page = await readReplies(parentId, groups, { cursor: parent.replyCursor });
+      if (generation !== engagementGeneration.current) return;
       const nodes = page.comments.map(toNode);
       setTopLevel((prev) => {
         const next = prev.map((n) =>
@@ -455,6 +477,7 @@ export function CommentThread({
         return next;
       });
     } catch (e) {
+      if (generation !== engagementGeneration.current) return;
       console.error('[discover:comments] failed to load replies:', e);
       onError?.('Could not load more replies.');
     }
@@ -515,6 +538,7 @@ export function CommentThread({
         postService,
         groups,
         mediaRefs,
+        ...(actionIdentity !== undefined || draftIdentity.current?.identity ? { identity: draftIdentity.current?.identity ?? null } : {}),
       });
       if (created) {
         // Show the new comment's photos immediately from the local previews —
@@ -683,6 +707,7 @@ export function CommentThread({
               ))}
             </div>
           )}
+          {!editing && (actionIdentity || draftIdentity.current?.identity) && <p className="mb-2 text-xs text-muted-foreground" data-testid="comment-draft-identity">Draft as {(draftIdentity.current ? draftIdentity.current.identity : actionIdentity)?.split('/').pop() || 'your personal identity'}</p>}
           <div className="flex items-center gap-2">
             {uploadMedia && !editing && attached.length < MAX_COMMENT_PHOTOS && (
               <IconBtn
@@ -838,8 +863,8 @@ function CommentNodeRow({ node, depth, highlightedCommentId, canWrite, setRef, o
   const isEditing = id === editingId;
   const isBusy = busyId !== null;
   const isArmed = id === deleteArmed;
-  const showEdit = canEdit && isOwn && !isEditing && !isBusy;
-  const showDelete = canDelete && isOwn && !isEditing && !isBusy;
+  const showEdit = canEdit && (node.canEdit ?? isOwn) && !isEditing && !isBusy;
+  const showDelete = canDelete && (node.canDelete ?? isOwn) && !isEditing && !isBusy;
 
   return (
     <li
@@ -858,7 +883,7 @@ function CommentNodeRow({ node, depth, highlightedCommentId, canWrite, setRef, o
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-brand-300">
-              {node.author_username ? (
+              {node.author_href ? <a href={node.author_href} data-testid={id ? `comment-author-${id}` : undefined} className="rounded hover:underline focus-visible:ring-2 focus-visible:ring-ring">{node.author_name || node.author_username || 'Group'}<span className="ml-1 text-xs text-muted-foreground">Group{node.posted_by ? ` · posted by ${node.posted_by}` : ''}</span></a> : node.author_username ? (
                 onAuthorClick ? (
                   <button
                     type="button"

@@ -3,6 +3,24 @@ import { getDiscoverGroupId } from './groups';
 import { fromV3DocToReaction, type ReactionRecord } from './types';
 import { sendNotification } from './notifications';
 import { readPostById } from './posts';
+import { getActingAuthor, matchesActingAuthor } from './actingIdentity';
+import type { V3Document } from './v3';
+
+/** Keyset-page target reactions so an identity beyond the first page is found. */
+export async function readReactionDocuments(ref: string | string[], groups: string[]): Promise<V3Document[]> {
+  const w = getV3Client();
+  const docs = new Map<string, V3Document>();
+  let cursor: string | undefined;
+  for (;;) {
+    const page = await w.read('reactions', { groups, ref, limit: 200, ...(cursor ? { cursor } : {}) });
+    for (const doc of page) docs.set(doc.doc_id, doc);
+    if (page.length < 200) return [...docs.values()];
+    const last = page[page.length - 1];
+    const next = `${last.created_at}|${last.doc_id}`;
+    if (next === cursor) throw new Error('Reaction paging did not advance. Try again.');
+    cursor = next;
+  }
+}
 
 // ── Reactions data layer (v3) ────────────────────────────────────────────────
 // Reactions are documents in the `reactions` collection with `ref_value`
@@ -20,12 +38,11 @@ export async function readReactions(
   groups?: string[],
 ): Promise<ReactionRecord[]> {
   const actualTargetId = targetId || targetServiceOrId;
-  const w = getV3Client();
   const targetGroups = groups || [getDiscoverGroupId()];
   // The ref filter (the flexible read, phase 1): the server returns only the
   // reactions whose ref_value = targetId (via the safe-query engine), not all
   // reactions in the group. No client-side filter needed.
-  const docs = await w.read('reactions', { groups: targetGroups, ref: actualTargetId });
+  const docs = await readReactionDocuments(actualTargetId, targetGroups);
   return docs.map(fromV3DocToReaction);
 }
 
@@ -39,6 +56,7 @@ export async function createReaction(
   reaction: Omit<ReactionRecord, '_id'>,
   groupsOrPostAuthor?: string[] | string,
   postService?: string,
+  authorAs: string | null = getActingAuthor() || null,
 ): Promise<ReactionRecord> {
   const w = getV3Client();
   const token = w.readToken();
@@ -53,10 +71,11 @@ export async function createReaction(
   };
 
   const targetGroups = Array.isArray(groupsOrPostAuthor) ? groupsOrPostAuthor : [getDiscoverGroupId()];
+  if (!targetGroups.length) throw new Error('This reaction has no authorized destination. Reload the post and try again.');
   // ref_value (the target's doc_id) is a top-level create field — the server
   // stores it in the ref_value column, which the ref read + counts key off.
   // Without this the reaction is orphaned (ref_value="" → never found).
-  const doc = await w.create('reactions', body, { groups: targetGroups, ref_value: reaction.target_id });
+  const doc = await w.create('reactions', body, { groups: targetGroups, ref_value: reaction.target_id, ...(authorAs ? { author_as: authorAs } : {}) });
   // The write side (D69): nudge the post author (best-effort, fire-and-forget —
   // a resolve failure never affects the reaction). The target provider is the
   // NODE's provider (token.provider), NOT post.author_provider: v3 author_keys
@@ -93,6 +112,7 @@ export async function toggleReaction(
   postService?: string,
   groups?: string[],
 ): Promise<boolean> {
+  const authorAs = getActingAuthor() || null;
   // Detect v2 signature (7 args, first is targetService)
   if (targetServiceOrId === 'posts' || targetServiceOrId === 'comments') {
     // v2: (targetService, targetId, type, authorUsername, authorProvider, postAuthor, postService)
@@ -103,12 +123,11 @@ export async function toggleReaction(
     const existing = await readReactions(targetServiceOrId, actualTargetId);
     const mine = existing.find(
       (r) =>
-        r.author_username === actualAuthorUsername &&
-        r.author_provider === actualAuthorProvider &&
+        matchesActingAuthor(r.author_key || r.author_username, actualAuthorUsername, authorAs) &&
         r.type === actualType,
     );
     if (mine?._id) {
-      await deleteReaction(mine._id);
+      await deleteReaction(mine._id, authorAs);
       return false;
     }
     await createReaction({
@@ -118,7 +137,7 @@ export async function toggleReaction(
       created_at: new Date().toISOString(),
       author_username: actualAuthorUsername,
       author_provider: actualAuthorProvider,
-    });
+    }, undefined, undefined, authorAs);
     return true;
   }
   // v3: (targetId, type, authorUsername, authorProvider, groups)
@@ -129,12 +148,11 @@ export async function toggleReaction(
   const existing = await readReactions(actualTargetId, undefined, groups);
   const mine = existing.find(
     (r) =>
-      r.author_username === actualAuthorUsername &&
-      r.author_provider === actualAuthorProvider &&
+      matchesActingAuthor(r.author_key || r.author_username, actualAuthorUsername, authorAs) &&
       r.type === actualType,
   );
   if (mine?._id) {
-    await deleteReaction(mine._id);
+    await deleteReaction(mine._id, authorAs);
     return false;
   }
   await createReaction({
@@ -144,16 +162,17 @@ export async function toggleReaction(
     created_at: new Date().toISOString(),
     author_username: actualAuthorUsername,
     author_provider: actualAuthorProvider,
-  });
+  }, groups, undefined, authorAs);
   return true;
 }
 
 /**
  * Delete a reaction by ID.
  */
-export async function deleteReaction(id: string): Promise<void> {
+export async function deleteReaction(id: string, authorAs: string | null = getActingAuthor() || null): Promise<void> {
   const w = getV3Client();
-  await w.delete(id);
+  if (authorAs) await w.delete(id, { author_as: authorAs });
+  else await w.delete(id);
 }
 
 export type ReactionKind = 'like' | 'dislike';
@@ -183,6 +202,7 @@ export async function setReaction(
   kind: ReactionKind | null,
   groups?: string[],
   targetService: 'posts' | 'comments' = 'posts',
+  authorAs: string | null = getActingAuthor() || null,
 ): Promise<ReactionKind | null> {
   const w = getV3Client();
   const token = w.readToken();
@@ -202,7 +222,7 @@ export async function setReaction(
   // duplicates to one.
   const mine = existing.filter(
     (r) =>
-      r.author_username === token.username &&
+      matchesActingAuthor(r.author_key || r.author_username, token.username, authorAs) &&
       (r.type === 'like' || r.type === 'dislike'),
   );
 
@@ -212,31 +232,10 @@ export async function setReaction(
   // until the user next interacts with the post. This is that interaction:
   // the moment setReaction runs, the duplicates are gone. Idempotent — with
   // zero or one doc per type the filter is a no-op.
-  const byType = new Map<ReactionKind, typeof mine>();
-  for (const r of mine) {
-    const k = r.type as ReactionKind;
-    const arr = byType.get(k) || [];
-    arr.push(r);
-    byType.set(k, arr);
-  }
-  const toDelete: string[] = [];
-  for (const arr of byType.values()) {
-    if (arr.length > 1) {
-      arr.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
-      for (let i = 1; i < arr.length; i++) {
-        if (arr[i]._id) toDelete.push(arr[i]._id);
-      }
-    }
-  }
-  if (toDelete.length > 0) {
-    await Promise.all(toDelete.map((id) => deleteReaction(id)));
-  }
-
-  const primary = mine[0];
-  if (primary && primary.type !== kind) {
-    await deleteReaction(primary._id!);
-  }
-  if (kind && (!primary || primary.type !== kind)) {
+  mine.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+  const retained = kind ? mine.find((reaction) => reaction.type === kind) : undefined;
+  await Promise.all(mine.filter((reaction) => reaction !== retained && reaction._id).map((reaction) => deleteReaction(reaction._id!, authorAs)));
+  if (kind && !retained) {
     await createReaction({
       target_service: targetService,
       target_id: targetId,
@@ -244,7 +243,7 @@ export async function setReaction(
       created_at: new Date().toISOString(),
       author_username: token.username,
       author_provider: token.provider,
-    }, groups);
+    }, groups, undefined, authorAs);
   }
   return kind;
 }
@@ -264,6 +263,7 @@ export async function toggleReactionKind(
   groups?: string[],
   targetService: 'posts' | 'comments' = 'posts',
 ): Promise<ReactionKind | null> {
+  const authorAs = getActingAuthor() || null;
   const w = getV3Client();
   const token = w.readToken();
   if (!token) throw new Error('not authenticated');
@@ -274,12 +274,12 @@ export async function toggleReactionKind(
   // decision (clear vs set) must see the full picture.
   const mine = existing.filter(
     (r) =>
-      r.author_username === token.username &&
+      matchesActingAuthor(r.author_key || r.author_username, token.username, authorAs) &&
       (r.type === 'like' || r.type === 'dislike'),
   );
 
   const next: ReactionKind | null = mine.length > 0 && mine[0].type === kind ? null : kind;
-  return setReaction(targetId, next, groups, targetService);
+  return setReaction(targetId, next, groups, targetService, authorAs);
 }
 
 /**
@@ -311,24 +311,25 @@ export async function toggleRepost(
   targetId: string,
   groups?: string[],
 ): Promise<boolean> {
+  const authorAs = getActingAuthor() || null;
   const w = getV3Client();
   const token = w.readToken();
   if (!token) throw new Error('not authenticated');
 
   const existing = await readReactions(targetId, undefined, groups);
   const mine = existing.filter(
-    (r) => r.author_username === token.username && r.type === 'repost',
+    (r) => matchesActingAuthor(r.author_key || r.author_username, token.username, authorAs) && r.type === 'repost',
   );
 
   // Self-heal: keep the newest, delete the rest (the 28-likes class).
   if (mine.length > 1) {
     mine.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
     const toDelete = mine.slice(1).map((r) => r._id).filter((id): id is string => !!id);
-    await Promise.all(toDelete.map((id) => deleteReaction(id)));
+    await Promise.all(toDelete.map((id) => deleteReaction(id, authorAs)));
   }
 
   if (mine.length > 0) {
-    await deleteReaction(mine[0]._id!);
+    await deleteReaction(mine[0]._id!, authorAs);
     return false;
   }
 
@@ -342,7 +343,7 @@ export async function toggleRepost(
       author_username: token.username,
       author_provider: token.provider,
     },
-    { groups: targetGroups, ref_value: targetId },
+    { groups: targetGroups, ref_value: targetId, ...(authorAs ? { author_as: authorAs } : {}) },
   );
   return true;
 }

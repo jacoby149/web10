@@ -404,7 +404,7 @@ def submit_bug_report(req: dict):
     username = ""
     if req.get("token"):
         try:
-            decoded = decode_token(req["token"])
+            decoded = decode_token(req["token"], private_key=False)  # Untrusted report attribution only.
             username = decoded.username if decoded.username and decoded.username != "anon" else ""
         except Exception:
             pass

@@ -48,7 +48,7 @@ def _check_token_expiry(data: TokenData) -> None:
         raise jwt.ExpiredSignatureError("token expired")
 
 
-def decode_token(token: str, private_key: bool = False) -> TokenData:
+def decode_token(token: str, private_key: bool = True) -> TokenData:
     if private_key:
         payload = jwt.decode(token, settings.PRIVATE_KEY, algorithms=[settings.ALGORITHM])
     else:
@@ -91,7 +91,7 @@ def _validate_provider_url(url: str) -> str:
 
 
 def certify_with_remote_provider(token: Token) -> bool:
-    decoded = decode_token(token.token)
+    decoded = decode_token(token.token, private_key=False)  # Untrusted destination metadata, not local authority.
     base = _validate_provider_url(decoded.provider)
     url = f"{base}/certify"
     response = requests.post(url, json=token.model_dump(), timeout=10)

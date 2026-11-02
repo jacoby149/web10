@@ -35,6 +35,150 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-02: Tombstones must retain the original audit actor
+
+Acting-identity continuation review found `delete_document` omitted `posted_by`
+from its tombstone INSERT/SELECT, dropping original attribution after replacement.
+Copy the stored column through deletion as well as update. A generated-SQL
+regression failed before repair and passed afterward; connected ClickHouse
+persistence remains unverified. UI mutation controls now resolve service-specific
+update/delete grants for the document author rather than treating navigation
+selection as authority; the node remains the live write gate. See
+`acting-identity-review.md` for bounded evidence and open release gates.
+
+### 2026-11-01: Acting identity is not a credential or a human membership
+
+The acting-identity feature reuses `author_as` rather than minting a group
+session. Creation uses the existing service create grant; delegated mutations
+check current `updateOwn`/`deleteOwn` grants independently and keep the
+app-contract principal human. Membership discovery for the selected group must
+not list or self-heal the human's groups. Reaction ownership must compare full
+group keys, not a slug or `posted_by`: multiple operators share one identity's
+state, while the original audit actor remains unchanged. Target denial must
+happen before insertion. Local tests use signed synthetic JWTs and storage
+doubles; they are not connected storage proof or independent security sign-off.
+Feature review record: `acting-identity-review.md`. Protocol campaign gates
+remain OPEN.
+
+### 2026-11-01: Every reference mint needs its own uploader context
+
+[Reference HLS mint repair](scans/2026-10/repair-h01-hls-ref-mint.md) reproduces
+working foreign-prefix segment capabilities through main, ad and node-ad refs.
+Bind each mint to the same `posted_by or author_key` context used by its metadata
+resolver, never viewer/carrier identity. Drop stored manifest URLs before disabled
+or invalid refs return. Preserve valid siblings without coercing/normalizing keys.
+Actual resolver-to-mint composition checks three distinct uploaders in one output;
+46 new cases and 1,669 API tests plus eight subtests pass with same-model review.
+Owner/key consistency does not prove caller-selected owner provenance; legacy URL
+fields, persisted inputs, live playback, old token TTL and diverse sign-off remain
+open. Earlier direct-mint repair merged #1311; its last observed CI had a repeated
+Discover engagement failure, not an all-green release gate.
+
+### 2026-11-01: Deny the foreign tree before minting its stream token
+
+[Direct-document HLS mint repair](scans/2026-10/repair-h01-hls-direct-mint.md)
+replays a helper-minted, cryptographically verified foreign-prefix token against
+the actual segment HTTP endpoint and a key-sensitive synthetic object store.
+Variant denial alone was insufficient: a client can request the segment directly.
+The direct mint now requires an uploader-owned MinIO video key and strips stored
+manifest URLs, including disabled settings, without mutating inputs. Preserve
+`posted_by or author_key`, reader claims and opaque object keys. 24 new controls,
+1,623 API tests plus eight subtests and fresh same-model review support this
+source repair only. Resolved-ref/ad minting is a separate open source of foreign
+prefixes; namespace checks do not prove supplied-owner provenance or revoke old
+capabilities before TTL. Live services/CI/deployment/diverse review remain OPEN.
+
+### 2026-11-01: A readable rendition record is not an object-read grant
+
+[HLS variant repair](scans/2026-10/repair-h01-hls-variant.md) reproduces foreign
+and same-owner/different-tree manifest disclosure through actual HTTP/JWT with
+a key-sensitive synthetic object store. Variant fetches now require an uploader-
+owned raw video key, matching signed prefix and the worker's exact rendition key.
+`posted_by or author_key` is the owner, never the viewer. 28 new controls and
+1,599 API tests plus eight subtests pass, with fresh same-model review. This
+blocks one fetch sink, not foreign-prefix minting or direct signed segment use;
+those remain explicit follow-up work. Persisted injection, actual storage/player,
+CI/deployment and diverse sign-off remain unverified.
+
+### 2026-11-01: Every recursive signer needs an explicit owner
+
+[H01 raw repair](scans/2026-10/repair-h01-raw-owner.md) reproduces a real
+synthetic foreign SigV4 capability through the document wrapper. Raw MinIO
+leaves now require explicit owner context, exact namespace and string keys;
+foreign/malformed/missing leaves lose supplied URLs without breaking valid
+siblings. Main docs and ads each use their own posted_by/author fallback. Review
+found actual ad loaders omitted posted_by: synthetic wrapper fixtures alone
+missed it, so projection/mapping and two actual-loader controls were added.
+No access predicates changed. 347 focused/1,570 API tests plus four subtests and
+fresh same-model review support source repair, not real storage integration.
+Key namespace is not proof of owner-context provenance: caller-selected query
+owners, HLS/legacy URL authority and service/CI/rollout/diverse gates remain OPEN.
+
+### 2026-11-01: Parsed evaluation flags must survive the settings override pass
+
+The legacy environment loop replaced parsed QUERY_EVAL booleans with strings:
+explicit "0" became truthy, enabling the no-policy path and synthetic scan.
+It also replaced the integer stub count, causing a connected smoke HTTP 500.
+Exclude these already-parsed settings from that loop. Four fresh-process
+false/true environment cases reproduce the type failure before the fix and
+pass afterward. Settings/query controls pass; the connected smoke then finishes
+all ten cells. Scope is this settings interaction, not public-node guard coverage.
+
+### 2026-11-01: Owning metadata is not owning the key it names
+
+[H01 metadata repair](scans/2026-10/repair-h01-metadata-owner.md) reproduces
+real synthetic original/thumbnail SigV4 capabilities from Alice metadata naming
+Bob keys. Bind both fields independently to the resolver's media-owner namespace
+before signing, deduplication or dict lookup. A rejected supplied key gets no URL
+and no stale fallback; valid siblings and genuinely keyless legacy metadata
+remain. Validate types before hashing, and keep keys opaque. Media owner is the
+authorized document's uploader context, not viewer; `posted_by` matters for
+group-authored posts. 56 new cases, 335 focused/1,533 API tests plus four subtests
+and fresh same-model review support one-sink repair only. Query/storage doubles
+do not prove persisted injection or retrieval. Recursive minio, HLS/legacy URL/
+caller-owner provenance and real services/CI/deployment/diverse gates stay OPEN.
+
+### 2026-11-01: A signed-in caller is not an arbitrary-object reader
+
+[H-01 direct signer repair](scans/2026-10/repair-h01-direct-media.md) upgrades
+the fake-signer proof: actual JWT/HTTP on baseline mints an independently verified
+real synthetic SigV4 capability for another user's key. No live object retrieval
+or IAM authority tested. The operator approved exact owner namespace on direct
+refresh; foreign viewers must re-read group-authorized carrier documents. Check
+before all bucket/signing calls, preserve owned unconfirmed uploads/derivatives,
+and keep S3 keys opaque. Metadata ownership alone cannot validate stored object
+references. Five new pytest cases, 503 focused/1,477 API tests plus four subtests
+and fresh same-model review support local route repair only. Stored foreign-key
+metadata/minio references, service policy, TTL revocation and browser/service/
+CI/deployment/diverse gates remain explicit, not repaired by this prefix gate.
+
+### 2026-11-01: Open CORS and ambient authentication are different assertions
+
+[B-5 route pin](scans/2026-10/b5-cors-credential-pinning.md) supplements existing
+preflight tests: supplied Cookie/Authorization tokens do not replace profile body
+credentials, mixed credentials select the body identity, and arbitrary-Origin
+create still enforces its app-contract result. No runtime bug found or changed.
+Starlette can echo Origin on cookie-bearing responses while credentials remain
+disabled; assert absent allow-credentials, not universally wildcard origin.
+18 CORS/1,470 API tests plus four subtests and same-model/mutation review support
+the selected ASGI seam only. Browser delivery/readability, actual contract/SDK
+integration and diverse sign-off remain OPEN. A passed TestClient response is
+not proof of browser policy, and supplied Authorization is not automatic bearer
+attachment by a browser.
+
+### 2026-11-01: Make metadata decoding an explicit choice
+
+[B-3 local default repair](scans/2026-10/repair-b3-default-decode.md) makes
+`decode_token()` verify signature/freshness unless explicitly disabled. Existing
+authority paths already passed True; only bug attribution and legacy remote
+destination selection needed explicit False. Thirteen production callers are
+now explicit. Wrong-key/unsigned/stale tokens accepted by the old default now
+fail; this proves the default footgun, not an endpoint auth bypass. Decoding
+still does not certify provider/client state or grant access. Preserve intentional
+metadata and anonymous expiry behavior; remote destination trust remains L1-B-01.
+31 new/175 focused and 1,457 API tests plus four subtests pass with same-model
+review. Issuer policy, class-wide authority audit, CI/rollout/diverse gates OPEN.
+
 ### 2026-11-01: The only backup must not be a truncating write
 
 [L1-PKG-02 local repair](scans/2026-10/repair-pkg02-backup-publication.md)
@@ -81,9 +225,9 @@ exploit is replayed and denied.
 |---|---|---|---|---|
 | B-1 | 2026-10 | `auth.py`, federation | I1 symmetric HS256 — one shared key mints any token → RS256/EdDSA + JWKS (D7) | learned; fix in 1157 (unmerged) → `BP-1` |
 | B-2 | 2026-10 | `settings.py` | signing key + Stripe/Twilio/CH creds in source → env-injected, no defaults | OPEN; repeatable defaults confirmed at `8704e9f5c`; [L1 receipt](scans/2026-10/l1-settings.md), no live credential validity claim |
-| B-3 | 2026-10 | `auth.py :: decode_token` | `private_key=False` unsigned decode on an auth path → verify signature before any authz | learned; fix in 1157 (unmerged) |
+| B-3 | 2026-10; 2026-11-01 | `auth.py :: decode_token` | unsigned default is a footgun; existing authority callers explicitly verify | [Default locally repaired](scans/2026-10/repair-b3-default-decode.md); broader authority/issuer/integration/diverse gates OPEN, not a demonstrated endpoint bypass |
 | B-4 | 2026-10 | `middleware.py` | arbitrary HTTP content copied into logs -> metadata-only automatic logging; field-name redaction is insufficient | Source repair merged #1225; [repro evidence](scans/2026-10/repair-b4-middleware.md); deployment/exposure/sign-off not closed |
-| B-5 | 2026-10 | `main.py` CORS | `allow_origins=["*"]` defended only by "token in body" → pin the assumption in a test | learned; needs a pinning test |
+| B-5 | 2026-10; 2026-11-01 | `main.py` CORS | open transport is not ambient authentication; selected-route body tokens and contract enforcement pinned | [Local route tests](scans/2026-10/b5-cors-credential-pinning.md); existing preflight coverage retained, browser/integration/diverse gates OPEN |
 | B-6 | 2026-10 | `clickhouse.py :: get_document_any_author` | reads without author scoping, bounded by a doc-bound sig → verify the sig is checked first | learned; verify |
 | B-8 | 2026-10-18 | `settings.py:139-140` | executing the settings CLI prints globals containing environment-injected secrets → separate fix must suppress secrets while preserving nonsecret diagnostics | OPEN; five synthetic credentials recovered from captured stdout at `8704e9f5c`; [PoC + preconditions](scans/2026-10/l1-settings.md) |
 | S-1 | 2026-10 | `sdk/browser.ts :: authListen` | `postMessage` token accepted with no origin check → sender binding required | OPEN; [current pinned A receipt](scans/2026-10/l1-sdk-a.md) reproduces synthetic acceptance, not valid credentials/API access |

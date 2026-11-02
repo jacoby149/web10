@@ -145,6 +145,10 @@ function ActionBtn({
 
 export interface PostIdentityRowProps {
   post: {
+    author_key?: string;
+    posted_by?: string;
+    group_identity?: { name?: string };
+    avatar_url?: string;
     created_at: string;
     visibility?: string;
     author_username?: string;
@@ -191,7 +195,8 @@ export function PostIdentityRow({
 }: PostIdentityRowProps) {
   const username = post.author_username || '';
   const provider = post.author_provider || '';
-  const name = authorName || username || 'Unknown';
+  const name = post.group_identity?.name || authorName || username || 'Unknown';
+  const faceAvatar = post.author_key?.includes('/groups/') ? post.avatar_url : authorAvatar;
   const isPublic = post.visibility !== 'private';
 
   const [menuOpen, setMenuOpen] = useState(false);
@@ -210,8 +215,8 @@ export function PostIdentityRow({
   return (
     <div className="flex items-center gap-2.5" data-testid={`${testId}-identity`}>
       <Avatar className="h-9 w-9 shrink-0">
-        {authorAvatar ? (
-          <AvatarImage src={authorAvatar} alt={name} />
+        {faceAvatar ? (
+          <AvatarImage src={faceAvatar} alt={name} />
         ) : (
           <AvatarFallback className="bg-brand-muted text-brand-300 text-sm font-semibold">
             {name.charAt(0).toUpperCase()}
@@ -219,7 +224,7 @@ export function PostIdentityRow({
         )}
       </Avatar>
       <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-1.5 gap-y-0">
-        {username && onAuthorClick ? (
+        {post.author_key?.includes('/groups/') ? <a href={`/groups/${encodeURIComponent(post.author_key)}`} data-testid={`${testId}-author`} className="truncate text-sm font-medium text-foreground hover:text-brand-300">{name}</a> : username && onAuthorClick ? (
           <button
             type="button"
             data-testid={`${testId}-author`}
@@ -232,7 +237,7 @@ export function PostIdentityRow({
         ) : (
           <span className="truncate font-medium text-sm text-foreground">{name}</span>
         )}
-        {username && (
+        {post.author_key?.includes('/groups/') ? <span className="text-xs text-muted-foreground">Group{post.posted_by ? ` · posted by ${post.posted_by}` : ''}</span> : username && (
           <span className="truncate text-[0.8125rem] text-muted-foreground">@{username}</span>
         )}
         <span className="shrink-0 text-[0.8125rem] text-muted-foreground">· {formatTimeAgo(post.created_at)}</span>
@@ -500,14 +505,10 @@ export function PostActionBar({
 }
 
 export interface PostDetailProps {
-  post: {
+  post: PostIdentityRowProps['post'] & {
     _id?: string;
     title?: string;
     text?: string;
-    created_at: string;
-    visibility?: string;
-    author_username?: string;
-    author_provider?: string;
     /** A product (D89): a `posts` doc tagged `product` — its body IS the
      *  product attributes. When present, the detail renders the product card. */
     product?: AdProduct;
