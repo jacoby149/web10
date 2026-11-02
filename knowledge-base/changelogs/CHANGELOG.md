@@ -1,3 +1,6 @@
+3.254.0 || 02.11.2026
+docs(v4): add identity-registry spec (D93) — DNS-style name→node resolution for user portability. New `web10-v4/identity/registry.md` defines the registry's role (name lookup, no data storage), user-signed pointer updates, boring-infra hosting (Njalla registrar, Cloudflare DNS, Iceland/CH VPS), and the explicit non-goals (no wallet UX, no content moderation, no access-control enforcement). D93 recorded in decisions.md. Completes the "301 redirect" gap from ads-october/gaps.md.
+
 3.253.21 || 02.11.2026
 docs(research): incorporate PR #1313's K10/100/1000 trial into the manuscript: twelve-row B/C median/p95 table on one 1,000-creator dataset, 400-sample accounting, queried engine/source provenance, K1 counterexample and growing batched compilation/handler costs. Abstract/conclusion now report K1000 readable 7536 -> 214 ms and handler 7645 -> 363 ms. Import the source report narrative unchanged, retain its machine-readable summary receipt, and add a checker for all 48 table values, ratios and counts. Earlier 100-creator data stays separate, not pooled or treated as same-configuration repetitions. Ten-page PDF rebuilds with font/BibTeX/layout warnings. No new run, PR merge, causal-overhead/capacity or full-E3 completion claim.
 
