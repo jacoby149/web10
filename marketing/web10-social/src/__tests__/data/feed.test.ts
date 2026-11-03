@@ -529,11 +529,11 @@ describe('feed v3 data layer', () => {
       );
     });
 
-    it('the render-time gate drops fakes among the tagged posts (video / image / multi-media)', async () => {
+    it('the render-time gate drops fakes among the tagged posts (image / multi-media)', async () => {
       // p1: audio/mpeg, tagged music       → TRACK
-      // p2: video/mp4, tagged music        → NOT (video faked as track)
-      // p3: image/jpeg, tagged music       → NOT (image faked as track)
-      // p4: audio + video, tagged music    → NOT (a track is a single audio)
+      // p2: video/mp4, tagged music        → TRACK (a video CAN be music)
+      // p3: image/jpeg, tagged music       → NOT (image is not music)
+      // p4: audio + video, tagged music    → NOT (a track is a single media)
       serverFilteredRead([
         discoverPost('p1', ['m1'], ['music']),
         discoverPost('p2', ['m2'], ['music']),
@@ -551,9 +551,11 @@ describe('feed v3 data layer', () => {
       const tracks = await readMusicFeed(50);
       const ids = tracks.map((t) => t.post._id).sort();
 
-      expect(ids).toEqual(['p1']);
+      expect(ids).toEqual(['p1', 'p2']);
       const p1 = tracks.find((t) => t.post._id === 'p1')!;
       expect(p1.media.mime_type).toBe('audio/mpeg');
+      const p2 = tracks.find((t) => t.post._id === 'p2')!;
+      expect(p2.media.mime_type).toBe('video/mp4');
     });
 
     it('an untagged audio post is not a track (the server tag filter is the inclusion rule)', async () => {
@@ -573,10 +575,10 @@ describe('feed v3 data layer', () => {
 
     it('returns an empty list when no post is a genuine track', async () => {
       serverFilteredRead([
-        discoverPost('p1', ['m1'], ['music']), // video faked as track
+        discoverPost('p1', ['m1'], ['music']), // image — not a track
         discoverPost('p2', [], ['music']), // no media
       ]);
-      mock.listMedia.mockResolvedValue([mediaDoc('m1', 'video/mp4')]);
+      mock.listMedia.mockResolvedValue([mediaDoc('m1', 'image/jpeg')]);
 
       const tracks = await readMusicFeed(50);
       expect(tracks).toEqual([]);

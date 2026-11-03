@@ -31,12 +31,15 @@ describe('Top10Sidebar (the shared rail)', () => {
     expect(first).toHaveTextContent('Jacob Hoffman');
     expect(first).toHaveTextContent('shemoneeh');
     expect(first).toHaveTextContent('12');
+    expect(screen.getByText('Likes + comments + reposts')).toBeInTheDocument();
+    expect(screen.getByLabelText('12 interactions')).toBeInTheDocument();
   });
 
   it('renders a dash for a zero tally', () => {
     render(<Top10Sidebar entries={entries} onSelect={() => {}} testId="top10-sidebar" />);
     const third = screen.getAllByTestId('top10-sidebar-entry')[2];
     expect(third).toHaveTextContent('—');
+    expect(screen.getByLabelText('0 interactions')).toHaveAttribute('title', 'Likes + comments + reposts: 0');
   });
 
   it('compacts tallies at 1000+ (the shared formatCount)', () => {

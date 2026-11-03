@@ -35,6 +35,47 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-03: Filtering inventory eligibility before ranking revives older creatives
+
+[Document history evidence](scans/2026-10/h01-node-document-proof.md) holds the
+Discover link live while varying creative versions. Newer deletion or node_ad
+removal disappears before node-loader ranking; actual ASGI enrichment returns old
+content and independently verified synthetic SigV4. Three disclosures include a
+group-author/Bob-uploader case. Pause denies correctly; restoration/reactivation/
+retagging select the latest active content. Eight cases pass on SQLite and
+ClickHouse-local; 1,894 API tests plus eight subtests, one lifecycle skip, Ruff and
+fresh same-model review pass. Evidence only: document repair remains OPEN. Public
+inventory is intentional, not an owner-only/membership gap. Real writer/merge/tie
+behavior, provenance, broader authority/CI/rollout/diverse and L1 remain separate.
+
+### 2026-11-02: Node inventory must rank its own Discover attachment history
+
+[Local node attachment repair](scans/2026-10/repair-h01-node-attachment.md) ranks
+document/group history before removal filtering, with deletion-winning ties.
+Seven reproduced synthetic signing disclosures now deny before attachment/signing;
+active/newer reattached public inventory and independent uploaders survive. Other
+live groups cannot substitute for Discover, nor can unrelated rows resurrect a
+removed link or suppress an active one. Twelve node cases pass on SQLite and
+ClickHouse-local; 1,886 API tests plus eight subtests, one opt-in lifecycle test
+skipped, full Ruff and fresh same-model intent review pass. Document delete/detag
+prefilters, inventory provenance, real lifecycle/CI/rollout/diverse and broader
+ad/L1 gates remain OPEN. Public inventory still needs no viewer membership.
+
+### 2026-11-02: Public inventory still needs a current Discover attachment
+
+[Node attachment evidence](scans/2026-10/h01-node-attachment-proof.md) reproduces
+delivery/signing after Discover detach: the actual compiler current-link fragment
+excludes the link, but the actual node loader/read route still returns the creative
+and independently verified synthetic SigV4. Six cases pass on SQLite/ClickHouse-local,
+including intended active/reattached public delivery without explicit membership,
+never-attached denial and independent group uploader controls. Public inventory is
+intentional; adding viewer membership or owner-only restrictions would change intent.
+This is evidence only: stale-link runtime repair remains OPEN. Node document
+delete/detag prefilters and inventory provenance are separate source candidates,
+not demonstrated exploits. 1,880 API tests plus eight subtests, one opt-in test
+skipped, Ruff and fresh same-model evidence review pass. Real lifecycle/rollout/
+diverse, broader attached-ad policy and protocol L1 remain OPEN.
+
 ### 2026-11-02: Rank creative attachments before granting inline delivery
 
 [Local attachment repair](scans/2026-10/repair-h01-pinned-attachment.md) ranks

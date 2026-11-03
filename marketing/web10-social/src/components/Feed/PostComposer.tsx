@@ -32,6 +32,7 @@ import type { VideoEditResult } from './VideoEditorSheet';
 import { editVideo, isNoopEdit } from '@/lib/videoEditing';
 import { markdownToHtml } from '@/lib/markdownHtml';
 import { DiscoverAudience } from './DiscoverAudience';
+import { MusicTagToggle } from './MusicTagToggle';
 
 let nextMediaId = 0;
 
@@ -408,6 +409,11 @@ export default function PostComposer({
   const [albums, setAlbums] = useState<AdAlbum[]>([]);
   const [loadingAds, setLoadingAds] = useState(false);
   const [editingMediaId, setEditingMediaId] = useState<number | null>(null);
+  // The "mark as music" toggle (music.md): opt-in, shown when the post has
+  // video media attached. A video CAN be music — checking this sets the same
+  // `music` tag the dedicated audio flow sets, so the post appears in the
+  // Music tab and the author's profile Music section.
+  const [markAsMusic, setMarkAsMusic] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragIdRef = useRef<number | null>(null);
 
@@ -982,6 +988,11 @@ export default function PostComposer({
       // toggle — the tag is the server-side feed filter; the Music feed also
       // re-derives audio/* at render (the tag alone is client-asserted).
       const isMusic = mediaItems.length === 1 && mediaItems[0].isAudio;
+      // The "mark as music" toggle: a video (or any media) the user explicitly
+      // flagged as music. A video CAN be music — this is opt-in, never
+      // automatic. The same `music` tag puts the post in the Music tab.
+      const hasVideo = mediaItems.some((m) => m.isVideo);
+      const isMarkedMusic = markAsMusic && hasVideo;
       // Keep explicit destinations; otherwise use the group's memberships.
       let targetGroups: string[] | undefined = groups;
       if (authorAs) {
@@ -1006,7 +1017,7 @@ export default function PostComposer({
           media_refs: mediaRecords.map((m) => m._id!).filter(Boolean),
           visibility,
           created_at: new Date().toISOString(),
-          tags: isShort ? ['short'] : isMusic ? ['music'] : undefined,
+          tags: isShort ? ['short'] : isMusic ? ['music'] : isMarkedMusic ? ['music'] : undefined,
         },
         targetGroups,
         pinnedAd ? { mode: 'pinned', target: pinnedAd._id } : undefined,
@@ -1193,6 +1204,48 @@ export default function PostComposer({
                     />
                   ))}
                 </div>
+              )}
+
+              {/* The "mark as music" toggle (music.md): opt-in, shown when the
+                  post has video media. A video CAN be music — checking this
+                  sets the same `music` tag the audio flow sets, so the post
+                  appears in the Music tab and the author's profile Music
+                  section. No audio file, album art, or metadata required. */}
+              {mediaItems.some((m) => m.isVideo) && !isEditing && (
+                <label className="mt-3 flex items-center gap-2 rounded-lg border border-border bg-surface p-3 cursor-pointer select-none" data-testid="mark-as-music-toggle">
+                  <input
+                    type="checkbox"
+                    checked={markAsMusic}
+                    onChange={(e) => setMarkAsMusic(e.target.checked)}
+                    disabled={posting || uploading}
+                    className="h-4 w-4 rounded border-border text-brand focus:ring-brand"
+                    aria-label="Mark as music"
+                  />
+                  <Music className="w-4 h-4 text-muted-foreground" strokeWidth={1.75} />
+                  <span className="text-sm text-foreground">Mark as music</span>
+                  <span className="text-xs text-muted-foreground ml-auto">Appears in the Music tab</span>
+                </label>
+              )}
+
+              {/* The "mark as music" toggle in edit mode (music.md): shown when
+                  the post has video media. Saves separately from post content
+                  (like the Discover audience control) — toggling writes the
+                  `music` tag via updatePost. A video CAN be music. */}
+              {isEditing && editMedia.some((m) => m.mime_type?.startsWith('video/')) && (
+                <section className="rounded-lg border border-border bg-surface p-3 space-y-2" aria-label="Mark as music" data-testid="edit-mark-as-music">
+                  <div className="flex items-center gap-2">
+                    <Music className="w-4 h-4 text-muted-foreground" strokeWidth={1.75} />
+                    <p className="text-sm font-medium">Mark as music</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Appears in the Music tab and the author's profile Music section. This saves separately from post content.</p>
+                  <MusicTagToggle
+                    docId={editingPost._id || ''}
+                    initialTags={editingPost.tags || []}
+                    authorAs={authorAs || undefined}
+                    disabled={posting}
+                    onBusyChange={setAudienceBusy}
+                  />
+                </section>
               )}
 
               {/* Edit mode: the post's current media, remove-only (you can't
