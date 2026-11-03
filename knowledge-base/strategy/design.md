@@ -45,9 +45,9 @@ disciplines:
   default form controls on showcase surfaces.
 - Every async surface has a designed loading state (skeletons, not
   spinners), a designed error state, and a designed empty state.
-  Empty states are story beats, not gray voids — a fresh feed points
-  at the importer ("import your life"), an empty studio points at the
-  first monetization card.
+   Empty states are story beats, not gray voids — a fresh feed points
+   at the first post, an empty studio points at the
+   first monetization card.
 - Nothing shifts. Reserve space for images and async content; no
   layout jump on load, ever.
 - Alignment is exact. Everything sits on the 4px grid (§6). "One
@@ -384,7 +384,7 @@ Media-forward feed (images/video lead, chrome recedes), tight
 avatar/name/timestamp system on the small type step, a composer that
 feels like publishing rather than filling a form, DMs with presence
 polish, profile as a creator page (banner, stats row, grid). First-run
-empty states are the story: point at the importer. Fix the wiring
+empty states are the story: point at the first post. Fix the wiring
 gaps: `@tailwindcss/vite` plugin is missing from `vite.config.ts`
 (the build pipeline is half-connected) and Inter is declared but never
 loaded. Finish evicting the excluded legacy `rectangles-npm`/

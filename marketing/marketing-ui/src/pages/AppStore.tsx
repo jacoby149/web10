@@ -283,14 +283,7 @@ function AppStore() {
         visits: consoleMetric?.visits ?? 0,
         appId: consoleMetric?.appId,
       },
-      {
-        name: 'The importer',
-        description: 'Pulls your Instagram, Facebook, and YouTube history into your node in one pass.',
-        href: '/import',
-        iconSrc: ICON_PATH,
-        users_30d: 0,
-        visits: 0,
-      },
+
     ]
   }, [apps, consoleMetric, flagshipMetric])
 
@@ -388,7 +381,7 @@ function AppStore() {
 
         {/* Browse — search + uniform small cards, paginated */}
         <div className="reveal mt-12" data-testid="browse-section">
-          {!loading && gridApps.length > 0 && (
+          {!loading && (
             <div className="relative mb-6">
               <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" strokeWidth={2} />
               <input

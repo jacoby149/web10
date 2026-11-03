@@ -122,7 +122,6 @@ describe('DiscoverScreen', () => {
       expect(screen.getByTestId('discover-empty')).toBeInTheDocument();
     });
     expect(screen.getByText('Nothing trending yet')).toBeInTheDocument();
-    expect(screen.getByTestId('discover-empty-follow-cta')).toBeInTheDocument();
   });
 
   it('renders discover header with preset chips', async () => {

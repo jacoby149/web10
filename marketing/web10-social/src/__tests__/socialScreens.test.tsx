@@ -132,7 +132,6 @@ describe('FeedScreen', () => {
     await waitFor(() => {
       expect(screen.getByText(/Your feed will appear here/)).toBeInTheDocument();
     });
-    expect(screen.getByText('import your existing posts')).toBeInTheDocument();
   });
 
   it('renders feed media at the natural aspect ratio (not a forced 1:1 crop)', async () => {
@@ -501,7 +500,6 @@ describe('DmsScreen', () => {
     await waitFor(() => {
       expect(screen.getByText(/No conversations yet/)).toBeInTheDocument();
     });
-    expect(screen.getByText('import your contacts')).toBeInTheDocument();
   });
 
   it('shows new message button in empty state', async () => {

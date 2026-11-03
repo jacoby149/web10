@@ -11,7 +11,7 @@ import AppStore from './pages/AppStore'
 import AppDetail from './pages/AppDetail'
 import GroupDetail from './pages/GroupDetail'
 import Freedom from './pages/Freedom'
-import Exporter from './pages/Exporter'
+
 import Links from './pages/Links'
 import Everything from './pages/Everything'
 
@@ -53,7 +53,7 @@ function App() {
         <Route path="/docs/:page" element={<Docs />} />
         <Route path="/app-store" element={<AppStore />} />
         <Route path="/app-store/app/:id" element={<AppDetail />} />
-        <Route path="/import" element={<Exporter />} />
+
       </Routes>
       <DeployStatus />
     </StarsProvider>

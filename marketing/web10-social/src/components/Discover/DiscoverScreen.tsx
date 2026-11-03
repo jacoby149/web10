@@ -37,7 +37,6 @@ import {
   X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { MARKETING_ORIGIN } from '@/lib/origins';
 import { PRESETS, getPreset, knobStateToSort, scorePost, FIXED_CHARACTER_DETEENT, type PresetId, type KnobState, type PowerMeanSortConfig, defaultKnobState } from '@/lib/powerMean';
 import { KnobRack } from './KnobRack';
 import { HotGossipSidebar } from './HotGossipSidebar';
@@ -177,22 +176,11 @@ function DiscoverEmptyState() {
         Nothing trending yet
       </h2>
       <p className="mt-2 text-sm text-muted-foreground max-w-sm">
-        The network is quiet. Follow some people or import your existing
-        posts to get things moving.
+        The network is quiet. Follow some people to get things moving.
       </p>
       <div className="mt-6 flex flex-col sm:flex-row items-center gap-3">
-        <Button
-          variant="brand"
-          size="sm"
-          data-testid="discover-empty-follow-cta"
-          onClick={() => window.open(`${MARKETING_ORIGIN}/import`, '_blank', 'noopener,noreferrer')}
-          className="gap-2"
-        >
-          <Users className="h-4 w-4" strokeWidth={1.75} />
-          Import your posts
-        </Button>
         <span className="text-xs text-muted-foreground">
-          or follow personas to fill your feed
+          Follow personas to fill your feed
         </span>
       </div>
     </div>
