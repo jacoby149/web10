@@ -1,5 +1,7 @@
-3.257.7 || 03.11.2026
+3.257.8 || 03.11.2026
 docs(research): tighten the abstract around the access-control contribution and connected cross-app evidence, removing the email/DNS/legal detour. Repair column overflow with a fallback line-breaking pass, a rewritten introduction sentence, breakable DNS-record fields and a narrower capability-table label column; preserve ACM margins, fonts and review numbering. Rebuild and inspect all 12 PDF pages (references begin on page 11): no overfull horizontal boxes remain; font, underfull-box and a 1.166pt final vertical-box warning remain. No new evaluation or submission-readiness claim.
+
+3.257.7 || 03.11.2026
 fix(social): render identity-picker group pictures from the shared resolver's `avatar_url`, not the nonexistent `avatarUrl`. Use the shared FaceUrls type and strengthen the existing regression to assert the actual group image URL instead of only a lookup request; it fails before repair and passes afterward. All 19 picker tests and production typecheck/build pass (bundling warnings); seeded desktop/375px screenshots inspected in `.context/picker-avatar-*`. Screenshot settings background logs a missing mock getGroupsManages method; picker resolution succeeds. No API/auth changes, deployment or live-account verification.
 
 3.257.6 || 03.11.2026

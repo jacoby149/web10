@@ -1331,7 +1331,7 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
-- [✓ 3.257.7 local] **Abstract and PDF layout repair** - operator-authorized existing `research/workshop/` edit: shorter contribution/evidence-led abstract and repaired prose/DNS/table overflow without margin/font changes; retain review numbering. Twelve PDF pages inspected; no overfull horizontal boxes remain. No W1/E3 completion or submission-readiness claim.
+- [✓ 3.257.8 local] **Abstract and PDF layout repair** - operator-authorized existing `research/workshop/` edit: shorter contribution/evidence-led abstract and repaired prose/DNS/table overflow without margin/font changes; retain review numbering. Twelve PDF pages inspected; no overfull horizontal boxes remain. No W1/E3 completion or submission-readiness claim.
 
 - [✓ 3.253.21] **Integrate PR #1313 K1000 results into the paper** — `research/workshop/main.tex`, outline and research records: twelve-row B/C table from one 1,000-creator K10/100/1000 trial, updated headline/interpretation/provenance and 400-sample accounting, retained summary receipt and arithmetic checker. Earlier 100-creator samples are not pooled; full E3/repetition/capacity gates remain open. Evidence import only, not a new run or merge of #1313.
 
