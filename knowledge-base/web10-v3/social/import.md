@@ -1,5 +1,15 @@
 # Web10 Import (port your YouTube)
 
+> **Superseded (D94, 03.11.2026).** The bulk import is cut — the operator's
+> call: onboarding is "get the creator on the platform," not "port their whole
+> back catalog." Migration is a commodity now (Meta Muse / ChatGPT / Grok —
+> an AI assistant moves the catalog over a few days), so the node doesn't
+> ship a bespoke import pipeline for it. The pipeline described below
+> (`/v3/imports*`, `import_worker.py`, the YouTube parser, `staging_posts`)
+> is removed in the D94 code gut (tracked in the `import` lane in
+> `strategy/parallel-execution.md`). This doc is the historical record of the
+> model — do not build on it.
+
 An import is **a creator's existing catalog, moved onto their node** — exported
 from another platform (today: YouTube, via Google Takeout), parsed, and written
 into the node's own store so the creator can triage and publish it. The whole

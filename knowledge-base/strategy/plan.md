@@ -37,6 +37,10 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
+- [✓ 3.259.0] **Import Your Life removed (D94)** - the `/import` marketing page, the import docs, the empty-state import CTAs and the export-link health check are gone; the node import pipeline + social app Import tab + staging surface are cut separately (the D94 code gut, tracked in the `import` lane).
+
+- [✓ 3.259.1] **The D94 docs reframe** - decisions/plan/outreach/gaps/timeline/business-plan: onboarding is "get the creator on the platform," not "port their catalog" — migration is a commodity an AI assistant does.
+
 - [✓ 3.258.0 local] **Music listening experience** - `music-listening.md`: persistent occurrence-aware queue/transport, compact rows and overflow sheet, URL search/views/track links, Saved Music and existing collection playlists. All 1,761 social tests, production build/typecheck and seeded desktop/375px inspection pass; silent-fixture browser menu/navigation smoke passes. Connected collection persistence, real playback, mobile background and rollout gates remain open. No deployment or production writes.
 
 - [✓ 3.258.1 local] **Music supporting images** - accept tagged Discover posts with exactly one resolved audio/video plus images; reject multiple playables, unresolved and unsupported attachments. Reproduced Century Club's MP4-plus-WebP exclusion in regression; all 1,689 social tests and production build/typecheck pass. No deployment or production writes/playback verification.
@@ -1045,7 +1049,7 @@ were never built (the changelog's "the API is 3.37.0" was wrong). Lane is
 
 ## YouTube Importer (port your YouTube) — Platform [CUT — D94]
 
-**Status: cut (D94, 03.11.2026).** The operator decided the bulk "import your life" surface is not product focus and that an AI assistant can help creators post their catalog over a few days instead. The `/import` marketing page, the `import-from-other-platforms` / `export-guidance` docs, the node pipeline (`POST /v3/imports*`, `import_worker.py`, the YouTube parser, `import_jobs`/`import_events`), the social app's `Settings → Import` tab, the empty-state import CTAs, the `staging_posts` review surface, the e2e gauntlet and the export-link health check are all removed. The reach-gap / owned-audience pitch is unchanged; only the bulk-port mechanism is gone. The items below are historical and now void.
+**Status: cut (D94, 03.11.2026).** The operator decided the bulk "import your life" surface is not product focus and that an AI assistant can help creators post their catalog over a few days instead. The `/import` marketing page, the `import-from-other-platforms` / `export-guidance` docs, the node pipeline (`POST /v3/imports*`, `import_worker.py`, the YouTube parser, `import_jobs`/`import_events`), the social app's `Settings → Import` tab, the empty-state import CTAs, the `staging_posts` review surface, the e2e gauntlet and the export-link health check are all cut: the marketing/docs/CTA half landed in 3.259.0, and the node + social-app code gut is the tracked follow-up (the "code gut (D94)" item in the `import` lane of `parallel-execution.md`). The reach-gap / owned-audience pitch is unchanged; only the bulk-port mechanism is gone. The items below are historical and now void.
 
 **The target: YouTubers, narrowly.** Operator: "porting your youtube eventually right! want to narrowly target youtubers only since google has such a great export import thing!" The first import target is **YouTubers specifically** — not all platforms. Two reasons: (1) a YouTuber is the ideal web10 user — they have a big audience (subscribers) they don't own (it's Google's), and the web10 pitch is "own your audience" (the reach gap: 1M subs, 300k reach). Porting to web10 = they own their audience, 100% delivery, no shadow ban. (2) **Google Takeout is a great export** — the data is already easy to get (`export-guidance.md` already documents the YouTube export).
 
