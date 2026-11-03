@@ -1,7 +1,10 @@
-3.259.10 || 03.11.2026
+3.259.14 || 03.11.2026
 test(research): add isolated two-node IAM harness and one completed synthetic correctness result, integrated into the paper's abstract, architecture, evaluation §6.2 and limits. Separate API/ClickHouse/MinIO, distinct HS256 keys and real test-CA HTTPS exercise read/query deny→grant→allow→remove→deny→regrant, local namesake isolation, independent app-contract query gating and rejected B-signed foreign-provider forgery. Issuer receipts contain one 200 and one 401 across positive/negative cache controls. Retain failed initial import attempt, exact successful base 04da544442c3 plus owner-list repair patch (#1360), executable/input/image receipts and verified container/network/volume/image/private-material cleanup; selected archive excludes credentials. Fresh bounded review supports the empirical claim, not full federation; later diagnostic-failure teardown repair passes fault injection. Current branch requires #1360 before clean-base replay. Rebuild and inspect all 12 PDF pages; no horizontal overflow, existing font/underfull and 1.138pt final vertical-box warning remain. Correct SMTP/client-transport and owner-namespace prose without claiming full migration, browser foreign enrollment, production key provisioning, deployment, capacity or submission readiness.
 
 Post-merge verification after retaining newer dev/CDN work: frozen-environment API suite 2,018 passed plus eight subtests, one opt-in skip; full API/harness Ruff passes. The system Python lacked dev's new cryptography dependency; rerun with the locked project environment succeeds. Original connected receipt remains base-plus-patch, not a new merged-source experiment.
+
+Merge follow-up: retain origin/dev's import-removal changes and all release records; renumber only this branch's research entry and planning references to 3.259.14 above the merged 3.259.10–3.259.13 entries. No new connected run or changed evidence provenance.
+
 3.259.13 || 03.11.2026
 chore: remove a trailing blank line left by the marketing-origin cleanup. Fresh post-merge marketing tests and production build, social production build, API Ruff lint/format and branch whitespace checks pass. API/social full-suite results and CI remain pending at this entry; no backend import-removal or deployment claim.
 
