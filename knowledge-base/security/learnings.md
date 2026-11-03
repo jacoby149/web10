@@ -37,6 +37,12 @@ that matters for orient:
 
 ### 2026-11-03: A local discovery read must not manufacture a second principal
 
+Committed-source follow-up: `3be1f1ec10fd` merges current dev into the owner-fix
+branch and passes the actual two-node scenario with an empty patch. The retained
+34 events, source/input hashes, single positive/single negative issuer receipt
+and cleanup flags pass fresh bounded review. This is not merged-origin/dev
+replay while #1360 remains open, and it does not reconcile historical duplicates.
+
 #1351 merged before its final e2e result: group lifecycle expected the creator's
 single bare owner key but received a second qualified owner. Its list self-heal
 was healing both names despite Phase A remaining open. The corrected focused

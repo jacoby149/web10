@@ -7,8 +7,9 @@
 **Status:** title "Your Data, Your Rules: Extending the Decentralized Web."
 The bounded [two-node IAM run](federation-demo/RESULTS.md) now exercises real
 HTTPS home certification and owner-granted foreign access, removal and regrant
-under cached identity. Its tested source includes the owner-list repair in
-#1360; clean-base replay after that prerequisite merges remains open. The
+under cached identity. Two runs pass: the latest uses committed revision
+`3be1f1ec10fd` with an empty patch on the #1360 owner-fix branch; replay of
+merged `origin/dev` after that prerequisite merges remains open. The
 12-page manuscript includes this evidence without claiming full migration,
 foreign self-join, browser enrollment or production federation.
 
@@ -88,7 +89,7 @@ the official CFP governs current logistics.
 |---|---|
 | `decentralized-iam-thesis.md` | **The paper's spine (read first).** The email generalization, the three-property triangle, the built-vs-in-flight honesty bar, what changed in the draft, the overclaims to avoid. |
 | `cross-node-iam-demo.md` | The experiment that closes the last gap: a foreign principal granted into a group on another node, reading through the verified token, then removed and denied. Spec, blockers (H/A/B/C), minimal scope, decision gate. Does not block the draft. |
-| `federation-demo/` | Local two-node TLS correctness harness, one completed base-plus-patch run, status-only receipts and independent key/group/app/namesake controls. Depends on owner-list repair #1360; not clean-base/public-deployment evidence. |
+| `federation-demo/` | Local two-node TLS correctness harness: initial base-plus-patch and latest empty-patch committed-owner-branch runs pass, with retained key/group/app/namesake/cache controls and cleanup receipts. #1360 remains unmerged; not merged-dev/public-deployment evidence. |
 | `brief.md` | Bounded claim, scope and outstanding gates (pre-reframe; the thesis doc supersedes its framing) |
 | `source-map.md` | Commit-pinned demonstration source counts, backend boundary and artifact links |
 | `live-observation-2026-10-28.md` | Actual Ubuntu dataset/hardware snapshot and bounded authenticated browser pilot |

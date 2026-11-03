@@ -2,12 +2,13 @@
 
 ## 03.11.2026 execution scope
 
-**Result:** one completed isolated run passed; see
+**Result:** two completed isolated runs passed; see
 [`federation-demo/RESULTS.md`](federation-demo/RESULTS.md) and its retained
 receipts. The initial cold-boot attempt failed on a scenario import before IAM
-operations. The successful run used revision `04da544442c3` plus the exact
-owner-list repair patch now proposed in **#1360**; this branch without that
-prerequisite has not passed clean-base replay. Read/query grant, removal,
+operations. The first pass used revision `04da544442c3` plus the exact
+owner-list repair patch in **#1360**; the latest uses committed revision
+`3be1f1ec10fd` with an empty patch. That owner-fix branch contains current dev,
+but #1360 is not merged: merged-`origin/dev` replay stays open. Read/query grant, removal,
 regrant, namesake isolation and the separate app gate are demonstrated in that
 bounded run. Neither foreign self-join nor production federation is completed.
 
