@@ -1,7 +1,13 @@
-3.259.10 || 03.11.2026
+3.259.15 || 03.11.2026
+chore: merge latest origin/dev into the media deployment-wiring branch. Preserve the incoming import-removal changes and all existing CDN settings; no manual source conflict was required. Resolve the union-merge release collision by renumbering only this branch's wiring entry to 3.259.14 and updating its plan/lane references; already-merged entries remain unchanged. No production configuration or rollout change.
+
+Post-merge verification: seven Compose/runtime regressions and all 43 edge/interoperability tests pass; full API Ruff lint/format, conflict-marker and whitespace checks pass. Complete upstream changelog retained unchanged.
+
+3.259.14 || 03.11.2026
 fix(deploy): forward all seven MEDIA_DELIVERY_* settings through the canonical API Compose environment; old private env files and both examples keep issuance off with direct TTL 60. Six real-Compose configuration failures become seven passing regressions covering omitted/default settings, multiline synthetic PEM, actual runtime validation, missing-key denial, rollback, no frontend/build-arg key exposure and ignored private stack files. Extend the API CI path filter to Compose/env-example changes and document per-stack secret provisioning, shell precedence and API-only rollback. No live deployment, credential/bucket/DNS changes, billing action or production promotion; deployed dev acceptance remains next.
 
 Local verification: 2,025 API tests plus eight subtests pass, one opt-in skip; all 43 edge/interoperability tests, full API Ruff lint/format, security-gate self-tests and whitespace checks pass. Tests render synthetic configuration only; no live stack or secret is used.
+
 3.259.13 || 03.11.2026
 chore: remove a trailing blank line left by the marketing-origin cleanup. Fresh post-merge marketing tests and production build, social production build, API Ruff lint/format and branch whitespace checks pass. API/social full-suite results and CI remain pending at this entry; no backend import-removal or deployment claim.
 
