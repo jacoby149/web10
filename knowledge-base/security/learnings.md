@@ -35,6 +35,24 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-03: A local discovery read must not manufacture a second principal
+
+Committed-source follow-up: `3be1f1ec10fd` merges current dev into the owner-fix
+branch and passes the actual two-node scenario with an empty patch. The retained
+34 events, source/input hashes, single positive/single negative issuer receipt
+and cleanup flags pass fresh bounded review. This is not merged-origin/dev
+replay while #1360 remains open, and it does not reconcile historical duplicates.
+
+#1351 merged before its final e2e result: group lifecycle expected the creator's
+single bare owner key but received a second qualified owner. Its list self-heal
+was healing both names despite Phase A remaining open. The corrected focused
+assertion fails before repair and passes after healing only the existing local
+key; all 1,977 API tests plus eight subtests pass. A separately retained two-node
+scenario also checks one owner after list. This prevents new duplicate creation;
+it does not delete already-created canonical rows or complete migration. Fresh
+bounded design-intent review agrees; CI and historical method disposition remain
+separate. Merging #1351 did not retroactively pass its failed method check.
+
 ### 2026-11-03: Feature retirement is not permission to purge stored data
 
 D95 removes the bulk importer, including its startup resubmission and trace

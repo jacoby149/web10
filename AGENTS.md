@@ -363,11 +363,15 @@ The issuer endpoint itself remains local-only. Issuer transport derives HTTPS
 from host-only providers, pins public DNS answers with issuer TLS verification
 and never follows redirects. Private/HTTP development peers are unsupported by
 this production path. Separate-node key provisioning, connected two-node
-verification remain OPEN; #1351's historical method failure is not waived by
-its merge. The bounded H run in `research/federation-demo/RESULTS.md` exercises
+verification remain OPEN; #1351's historical method-size failure is not waived
+by its merge. Local group-list owner healing uses only the existing bare key
+and does not create a duplicate qualified owner before Phase A.
+The bounded H runs in `research/federation-demo/RESULTS.md` exercise
 real test-CA HTTPS and owner-managed foreign grants with independent synthetic
-keys, but its exact source includes #1360's owner-list repair. Clean-base replay
-requires that merge; this is not Phase A/C or production federation assurance.
+keys. The latest passes from committed owner-fix revision `3be1f1ec10fd` with
+an empty patch; #1360 is not merged, so merged-dev replay remains open. This is
+not Phase A/C or production federation assurance, and existing duplicate rows
+are not removed by the owner-list repair.
 
 Verified non-anonymous decoding requires a parseable ISO `expires`, with naive UTC or explicit offsets, and rejects at the deadline. Anonymous custom-expiry exemption and unsigned metadata decoding are separate; the latter is never authorization.
 

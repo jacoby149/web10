@@ -1226,7 +1226,8 @@ docs before code, per the rule at the top.
 
 ## SIGMOD 2027 Industry Track — the full paper (research/)
 
-- [ ] **H-REPLAY: clean-base two-node evidence** — gated on #1360 merging; run the complete harness on merged dev without a runtime overlay, review retained source/issuer/lifecycle/cleanup receipts, then update manuscript provenance and pass all PR checks. Scope and acceptance: multi-node-federation lane; not full migration, self-join or production federation.
+- [✓ 4.0.1 local] **Owner-list compatibility follow-up** — reproduce #1351's final e2e duplicate-owner failure; heal only the existing bare owner key pending Phase A. All 1,977 API tests plus eight subtests pass; fresh bounded review confirms intent. Existing duplicate rows are not removed. Follow-up CI remains required; no historical method waiver.
+- [~ 4.0.1 committed-source pass] **H-REPLAY: clean-base two-node evidence** — full scenario passes on committed owner-fix branch revision 3be1f1ec10fd with an empty patch; receipts and bounded review pass. #1360 remains unmerged, so merged-dev replay/normal CI gate is still OPEN. After merge rerun without an overlay, retain/review provenance and cleanup, then close the gate; not full migration, self-join or production federation.
 
 - [✓ 3.259.14 local evidence; dependency #1360] **Isolated cross-node IAM result and paper integration** — two actual APIs/databases/storage, independent keys, real test-CA HTTPS, read/query grant/removal/regrant under cached identity, namesake/app controls and retained receipts. One completed base-plus-patch run after an initial import failure; exact owner repair is #1360. Current-branch clean-base replay and broader federation/security gates remain OPEN; H is not Phase A/C completion.
 
