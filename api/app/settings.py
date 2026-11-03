@@ -109,30 +109,6 @@ HLS_WORKER_CONCURRENCY = int(os.getenv("HLS_WORKER_CONCURRENCY", "1"))
 # Per-rendition ffmpeg wall-clock cap (seconds).
 HLS_FFMPEG_TIMEOUT = int(os.getenv("HLS_FFMPEG_TIMEOUT", "600"))
 
-# Import worker (the YouTube importer — plan "port your YouTube"). Concurrent
-# import jobs. 1 keeps a single node's disk + network from being eaten by a
-# multi-part Takeout extraction (a 2GB-split export streams + unpacks in the
-# worker thread, not the request pool).
-IMPORT_WORKER_CONCURRENCY = int(os.getenv("IMPORT_WORKER_CONCURRENCY", "1"))
-# Max export parts per job (a Takeout split into ~2GB parts; 10 parts = ~20GB,
-# far beyond any realistic channel export).
-IMPORT_MAX_PARTS = int(os.getenv("IMPORT_MAX_PARTS", "10"))
-# Debug kill-switch: when truthy, the raw export parts are NOT deleted from
-# MinIO when a job finishes (success OR error) — they stay at
-# imports/{user}/{job_id}/part-NNN so a failed import can be re-run against the
-# exact same bytes without a re-upload. The privacy promise (the node never
-# keeps the raw export) holds in prod: this defaults OFF and is meant for
-# debugging a first real-world import, after which the parts should be deleted
-# by hand.
-KEEP_IMPORT_EXPORTS = os.getenv("KEEP_IMPORT_EXPORTS", "").lower() in ("1", "true", "yes")
-# A `processing` job whose heartbeat (updated_at) is older than this is stuck
-# (the worker thread died without marking it — an OOM kill, a deploy, a hang).
-# The boot resubmit + the periodic sweep re-queue it; the pipeline is
-# idempotent, so the re-run is safe.
-IMPORT_STUCK_AFTER_MINUTES = int(os.getenv("IMPORT_STUCK_AFTER_MINUTES", "10"))
-# How often the stuck-job sweep runs (seconds).
-IMPORT_STUCK_SWEEP_SECONDS = int(os.getenv("IMPORT_STUCK_SWEEP_SECONDS", "300"))
-
 # ── Query-engine evaluation seams (the paper's access-control cost function) ──
 # Test-mode flags for the three-line ablation (research/digital-ocean-thinking.md).
 # All default OFF: production behavior is unchanged unless a flag is set. They

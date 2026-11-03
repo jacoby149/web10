@@ -53,6 +53,13 @@ class TestEnsureAppsSchema:
 
 
 class TestInsertDocument:
+    def test_insert_uses_write_time_for_both_timestamps(self):
+        with _patch_client() as mock_client:
+            result = ch.insert_document(author_key="alice", service="posts", body={})
+        row = mock_client.insert.call_args[0][1][0]
+        assert row[6] == row[7]
+        assert result["created_at"] == result["updated_at"]
+
     def test_insert_with_explicit_id(self):
         with _patch_client() as mock_client:
             result = ch.insert_document(

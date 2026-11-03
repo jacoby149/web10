@@ -76,7 +76,6 @@ vi.mock('@/data', async (importOriginal) => {
       },
     ]),
     fetchDiscoveryPost: vi.fn().mockResolvedValue(null),
-    countStagingPosts: vi.fn().mockResolvedValue(0),
   };
 });
 

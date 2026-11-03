@@ -62,7 +62,6 @@
         "social-notifications.spec.ts",
         "hls.spec.ts",
         "media-demo.spec.ts",
-        "yt-import.spec.ts",
         "gauntlet.spec.ts"
       ]
     }

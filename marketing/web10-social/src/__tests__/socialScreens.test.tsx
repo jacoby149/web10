@@ -43,7 +43,6 @@ vi.mock('@/data', async (importOriginal) => {
     startConversation: vi.fn().mockResolvedValue({ conversation: 'test.localhost/testuser--test.localhost/other', message: {} }),
     addContact: vi.fn().mockResolvedValue({}),
     conversationKey: vi.fn().mockReturnValue('test.localhost/testuser--test.localhost/other'),
-    countStagingPosts: vi.fn().mockResolvedValue(0),
     // Group chat (group-chat.md, D77)
     getMyGroupChats: vi.fn().mockResolvedValue([]),
     readGroupChatFace: vi.fn().mockResolvedValue({ name: 'The Crew' }),

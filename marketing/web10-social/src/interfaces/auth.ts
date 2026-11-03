@@ -54,7 +54,6 @@ const SOCIAL_SERVICES = [
   'comments',
   'reactions',
   'contacts',
-  'staging_posts',
   // The group's face (D60) — documents in an app-named service, written by
   // the create-group flow + the face editor (writeGroupIdentity). Without it
   // in the contract, every group create/edit 403s at the app-contract gate
