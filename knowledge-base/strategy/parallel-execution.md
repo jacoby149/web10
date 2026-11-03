@@ -41,6 +41,12 @@ says what can happen **at the same time**.
 
 ## Lanes
 
+### Lane: social-test-stability
+
+**Owns:** social Vitest worker configuration and serialized verification records.
+- [✓ 3.257.2 local] **Social test worker budget** - default to two workers after unbounded execution reproduced widespread timeouts; retain five-second test timeout and all assertions.
+- [ ] **Promotion security-method disposition** - resolve merged PRs #1332/#1334 method-gate failures before dev-to-main promotion, or obtain explicit operator override naming those failures. No implicit waiver from green unit tests.
+
 ### Lane: century-club-findings (this workspace)
 
 - [✓ 3.256.2 bounded local] **Existing-post media preservation** - original refs minus explicit removals, independent of pending/failed/partial preview display. Five new red/green cases; 70 focused and all 1,673 social tests (114 files, two workers/20s) plus build/typecheck pass. No visual/backend/production changes; audience protocol and connected/review gates remain open.

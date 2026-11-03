@@ -1,3 +1,6 @@
+3.257.2 || 02.11.2026
+test(social): bound Vitest to two workers by default. Unbounded local execution reproduces widespread five-second timeouts and exceeds 200 seconds; the same 1,679 tests pass with two workers and unchanged assertion/test timeouts. No runtime behavior or security-gate waiver. Dev-to-main promotion remains blocked by merged PRs #1332/#1334 security-method failures.
+
 3.257.1 || 02.11.2026
 fix(ads): rank current pinned-creative attachments before tombstone filtering, with deletion-winning ties. Retained removed-link disclosures now deny before attachment/signing; reattachments, alternate-group grants, pair isolation and independent uploaders preserved. Twelve attachment plus ten membership probes pass on SQLite and isolated ClickHouse-local; 1,865 API tests plus eight subtests, full Ruff and fresh same-model intent review pass. Local repair only: other readers' tie ordering, real-schema lifecycle, broader ad policy, CI/rollout/diverse review and protocol L1 remain OPEN. No commit, PR or deployment.
 
