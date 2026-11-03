@@ -1490,20 +1490,22 @@ class TestCanReadCarrierPost:
         — the SAME predicate the read path uses, so a public board's reader
         (not a member; reads through the group's `anyone` grant) passes."""
         with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([("api.web10.app/groups/web10/discover",)])
+            mock_client.query.side_effect = [
+                _mock_result_rows([("post-1", "alice", "posts", "api.web10.app/groups/web10/discover")]),
+                _mock_result_rows([("post-1",)]),
+            ]
             with patch.object(ch, "can_read_group", return_value=True) as crg:
                 assert ch.can_read_carrier_post("media-1", "alice", "bob") is True
-        sql = mock_client.query.call_args[0][0]
-        params = mock_client.query.call_args[0][1]
+        sql = mock_client.query.call_args_list[0].args[0]
+        params = mock_client.query.call_args_list[0].args[1]
         # D75 — service-agnostic: the node does NOT vet the carrier's
         # collection (any doc that carries the media in a readable group
         # grants the stream). "A carrier is a post" is a web10-social shape,
         # not a protocol rule.
         assert "collection_name = 'posts'" not in sql
-        # Still scoped to the media doc's AUTHOR's docs (a doc can only carry
-        # its own author's media — resolution is author-scoped).
-        assert "author_key = %(author)s" in sql
-        assert "has(JSONExtractArrayRaw(body, 'media_refs'), %(media)s)" in sql
+        # The server-set uploader, not the carrier's group identity, owns media.
+        assert "coalesce(nullIf(p.posted_by, ''), p.author_key) = %(author)s" in sql
+        assert "has(JSONExtractArrayRaw(p.body, 'media_refs'), %(media)s)" in sql
         # The house dedup pattern (latest version of the carrier doc).
         assert "row_number() OVER" in sql
         # The reader is NOT a SQL parameter anymore — readability is decided
@@ -1512,6 +1514,8 @@ class TestCanReadCarrierPost:
         assert params == {"media": '"media-1"', "author": "alice"}
         assert "group_members" not in sql
         crg.assert_called_once_with("api.web10.app/groups/web10/discover", "bob", "posts", False)
+        boundary = mock_client.query.call_args_list[1].args[0]
+        assert "group_hidden_docs" in boundary and "user_group_sharing" in boundary
 
     def test_false_when_no_carrier_post(self):
         with _patch_client() as mock_client:
@@ -1524,7 +1528,9 @@ class TestCanReadCarrierPost:
         """I3 at the stream layer: the carrier exists, but the reader's
         effective role grants no read on its group → no stream."""
         with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([("api.web10.app/groups/web10/private",)])
+            mock_client.query.return_value = _mock_result_rows(
+                [("post-1", "alice", "posts", "api.web10.app/groups/web10/private")]
+            )
             with patch.object(ch, "can_read_group", return_value=False):
                 assert ch.can_read_carrier_post("media-1", "alice", "bob") is False
 
@@ -1535,7 +1541,10 @@ class TestCanReadCarrierPost:
         check must hand `anon` to the same gate the read path uses, with
         authenticated=False (the sig's mint-time flag)."""
         with _patch_client() as mock_client:
-            mock_client.query.return_value = _mock_result_rows([("api.web10.app/groups/web10/discover",)])
+            mock_client.query.side_effect = [
+                _mock_result_rows([("post-1", "alice", "posts", "api.web10.app/groups/web10/discover")]),
+                _mock_result_rows([("post-1",)]),
+            ]
             with patch.object(ch, "can_read_group", return_value=True) as crg:
                 assert ch.can_read_carrier_post("media-1", "alice", "anon", False) is True
         crg.assert_called_once_with("api.web10.app/groups/web10/discover", "anon", "posts", False)

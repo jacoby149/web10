@@ -15,6 +15,14 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Group Media Carrier Playback (03.11.2026)
+
+[Bounded repair/evidence](scans/2026-10/group-media-carrier-repair.md): human
+uploader identity, current carrier/link tuples and actual service/visibility gates.
+Synthetic signed-manifest/SQL red-green plus isolated real production handler
+reads restore four existing videos without data changes. Same-model review only;
+serving rollout/browser playback, cost, diverse review and broader L1 remain OPEN.
+
 ## Node-Ad Document Authority (03.11.2026)
 
 H01-NODE-DOC [evidence](scans/2026-10/h01-node-document-proof.md): current
