@@ -15,9 +15,27 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## DNS Account-Alias Verification (02.11.2026)
+
+New trust-boundary surface: `POST /v3/domains/verify` + `release` (certified
+token; the node resolves `web10.<domain>` itself via dnspython — bounded
+records/size, exactly one claim, exact `web10.v=1;provider=...;user=...`
+format, provider + username must match the authenticated caller) and public
+`GET /v3/users/{username}/domain`. L2 evidence: 81 tests in
+`api/tests/test_domains.py` — auth denied before any DNS lookup (missing/bad/
+expired/anon/foreign/inactive/revoked-client), forged-claim parsing
+(wrong provider/user, duplicate keys, multiple claims, oversized/non-ASCII
+records), domain normalization (IDNA, IP literals, URLs), release mismatch,
+row-copy SQL preserving the domain, and tombstone-safe reads on SQLite.
+1,806 API tests + 287 UI tests, Ruff clean. The domain is an alias, not a
+principal: usernames, tokens, groups and the I3 read gate are unchanged.
+DNS/transfer trust limits (compromised resolver, domain transfer, no
+permanent ownership guarantee) remain OPEN per
+`web10-v3/identity/domain-identity.md`; not a whole-L2 PASS.
+
 ## Group Author Self-Target (02.11.2026)
 
-3.256.0 bounded attachment continuation (OpenAI GPT-6.1): inspected the new
+3.257.0 bounded attachment continuation (OpenAI GPT-6.1): inspected the new
 single-target route/model, direct role/app/storage calls, SDK and composer.
 Signed-route denial controls include retained external create revocation red/green,
 wrong service/role/app, human membership isolation, self lifecycle and removal
@@ -29,7 +47,7 @@ review or security PASS claim. Finalization has shell, file and GitHub tooling,
 but no reviewer-task/subagent interface; independent review remains unperformed.
 Connected browser/revocation, same-target/legacy writer races and rollout stay OPEN.
 
-Client mutation-affordance continuation (3.255.0, OpenAI GPT-6.1): inspected
+Client mutation-affordance continuation (3.256.1, OpenAI GPT-6.1): inspected
 groups/get and groups/list handlers, mutationAuthority, shared card/lightbox
 consumers and document read/update attachment behavior. Corrected API-shape tests
 reproduce false-denied edit controls (eight failures); membership-role repair

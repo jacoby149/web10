@@ -38,7 +38,7 @@ original ref unless the operator explicitly removes that ref. Pin this before
 claiming nonempty-media edit safety; explicit removals must retain unresolved
 siblings and remain retryable after a failed save.
 
-3.255.1 bounded local repair: explicit removed IDs now drive surviving original
+3.256.2 bounded local repair: explicit removed IDs now drive surviving original
 refs independently of preview state. Five pending/failed/empty/partial-preview
 and removal-plus-retry regressions reproduced the loss, then pass. The real
 group composer-to-updatePost fixture now has nonempty unresolved media refs.
@@ -66,7 +66,7 @@ filters those to the human's readable carriers. /v3/update returns all carriers,
 but only after a write; it supplies no revision/conditional replacement gate.
 A preliminary no-op/content update is not a read seam and would permit partial
 success on later audience failure. The former contract blocker is now approved
-as the bounded per-target seam above. Implemented locally in 3.256.0 with signed API,
+as the bounded per-target seam above. Implemented locally in 3.257.0 with signed API,
 SDK and composer regression coverage; connected verification and independent review
 remain open. No permissions
 or social-specific API may be added as a workaround. Personal audience editing
