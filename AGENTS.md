@@ -355,6 +355,16 @@ Browser auth-token messages require a bound credential window and configured ori
 
 JWT tokens with `username, site, target, provider, expires`. Server verifies signature, checks app contracts + group membership. Full auth flow: `knowledge-base/web10-v3/auth/auth.md`.
 
+Cross-node Phase B (PR #1351, unmerged) routes foreign tokens to their home
+node's `/certify`; successful answers are cached per JWT until expiry, never
+as an access grant. Foreign read seams use `{provider}/users/{username}`;
+local readers/joins retain bare keys until the coordinated Phase A migration.
+The issuer endpoint itself remains local-only. Issuer transport derives HTTPS
+from host-only providers, pins public DNS answers with issuer TLS verification
+and never follows redirects. Private/HTTP development peers are unsupported by
+this production path. Separate-node key provisioning, connected two-node
+verification and the PR's method-size disposition remain OPEN.
+
 Verified non-anonymous decoding requires a parseable ISO `expires`, with naive UTC or explicit offsets, and rejects at the deadline. Anonymous custom-expiry exemption and unsigned metadata decoding are separate; the latter is never authorization.
 
 Internal `decode_token()` verifies signature/freshness by default. Unsigned
@@ -371,6 +381,10 @@ verified caller's exact `username/` namespace, including unconfirmed uploads.
 Foreign viewers obtain fresh media URLs through authorized document/group reads;
 public thumbnails retain their document-access path. This does not certify
 stored object-reference provenance or revoke existing presigned URLs before TTL.
+
+HLS carrier reads use server-set `posted_by or author_key` upload ownership,
+current document/attachment history and actual service/read/visibility gates;
+group-authored posts do not move the human's upload or require public enrollment.
 
 `media_refs` original/thumbnail signing also requires keys in the resolver's
 media-owner namespace; rejected supplied keys get no fresh URL or stale fallback.

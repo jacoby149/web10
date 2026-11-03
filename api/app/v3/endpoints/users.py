@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.v3.endpoints.auth_helper import user_or_anon
+from app.v3.endpoints.auth_helper import principal, user_or_anon
 from app.v3.models import ListPeopleDirectory
 from app.v3.services import clickhouse as ch
 
@@ -19,7 +19,9 @@ def list_people_directory(data: ListPeopleDirectory):
     read gate + profile faces + follower counts, so the client never fans out
     to N per-user reads.
     """
-    principal = user_or_anon(data)
-    authenticated = principal != "anon"
-    users = ch.list_public_users(principal, authenticated, data.limit, data.offset)
+    reader = user_or_anon(data)
+    authenticated = reader != "anon"
+    if authenticated:
+        reader = principal(data)
+    users = ch.list_public_users(reader, authenticated, data.limit, data.offset)
     return {"users": users, "limit": data.limit, "offset": data.offset}

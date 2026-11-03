@@ -109,5 +109,8 @@ def test_single_read_exposes_only_readable_carriers(anonymous):
         )
     assert result["groups"] == ["public"]
     ch.readable_groups.assert_called_once_with(
-        "anon" if anonymous else "operator", "notes", not anonymous, ["private", "public"]
+        "anon" if anonymous else "operator",
+        "notes",
+        not anonymous,
+        ["private", "public"],
     )

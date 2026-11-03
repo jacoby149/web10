@@ -35,6 +35,50 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-03: Route by issuer, retain the reader identity through every gate
+
+Interrupted PR #1351's local-first decode rejected independently signed tokens;
+three helpers instead accepted foreign-provider claims whenever the local key
+verified them. Seven retained regressions fail before the bounded continuation
+repair and pass afterward, including premature local reader/join key changes
+and `/certify` recursively vouching for another issuer. The provider claim
+selects the verifier, not authority; foreign credentials always need their home
+node's answer. The issuer endpoint itself never forwards. Cache successes until
+JWT expiry as the operator chose; this deliberately does not promise immediate
+issuer-side revocation.
+
+The verified foreign principal must also reach app-contract, prepare, ad, HLS
+and delivery seams, not only the first membership filter. Two namesake app
+denials pin the canonical foreign key instead of borrowing a local alice's
+grant. Local readers and joins retain bare keys until Phase A migrates all
+writers/readers together. Fresh review found the same namesake leak in the
+directory: two actual-composition regressions fail before repair and now pass.
+
+The newly activated legacy transport also admitted alternate loopback spellings,
+private/mixed DNS answers and redirects, while rejecting deployed host-only
+providers. Thirteen intercepted-transport regressions fail before repair; no
+exploit requests were sent. HTTPS is derived without rewriting provider identity;
+all DNS answers must be public, and the connection pins a validated numeric IP
+with the issuer's SNI/certificate hostname. Redirects/retries are disabled; only
+the token is sent, with response/pool closure. HTTP/private development peers
+are deliberately not supported by this production transport. Full API: 1,977
+passed plus eight subtests, one opt-in skip; Ruff passes. Fresh same-model bounded
+re-review finds no further runtime defect, not model-diverse convergence. PR
+remains unmerged; independent signing secrets/default-key provisioning, real
+TLS/two-node grant/read/remove/deny, CI and method-size disposition remain OPEN.
+The inherited agent-written `SECURITY-GATE-EXEMPT` is not an operator waiver.
+This is not L1–L4 or federation assurance.
+
+### 2026-11-03: Group media carriers retain human upload ownership
+
+[Carrier repair](scans/2026-10/group-media-carrier-repair.md) aligns HLS with
+`posted_by or author_key`, current carrier/link history, actual service grants and
+the shared visibility boundary. Production public post reads succeeded while
+fresh streams 403'd; isolated repaired handlers serve all four existing videos.
+Eight carriers/eleven refs have intact metadata/namespaces; raw URLs all 206, so
+no ownership/publicness backfill is justified. Serving deployment/browser playback,
+cost and diverse review remain OPEN; not whole-media/L1 assurance.
+
 ### 2026-11-03: Filtering inventory eligibility before ranking revives older creatives
 
 [Document history evidence](scans/2026-10/h01-node-document-proof.md) holds the

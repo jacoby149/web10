@@ -41,6 +41,9 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 - [✓ 3.259.1] **The D94 docs reframe** - decisions/plan/outreach/gaps/timeline/business-plan: onboarding is "get the creator on the platform," not "port their catalog" — migration is a commodity an AI assistant does.
 
+- [✓ 3.258.2 local] **Group media publication/playback repair** - HLS carrier authority now matches server-set uploader identity, current history, actual service/read/visibility gates. 36 focused cases and all 1,930 API tests plus eight subtests pass, one opt-in skip; Ruff passes. Production inventory: eight carriers/eleven intact uploads, no data backfill candidates; isolated repaired handlers read all four existing streams successfully. Not deployed; see security/scans/2026-10/group-media-carrier-repair.md.
+- [ ] **Group media rollout/connected acceptance** - deploy the reviewed bounded carrier repair through the normal dev→main promotion path; re-read existing public movie/music-video posts as another account and anonymous visitor, verify browser playback and private/revoked denial. Confirm audio/image/document access and URL renewal independently. No blanket data migration; cost and diverse-review gates remain open.
+
 - [✓ 3.258.0 local] **Music listening experience** - `music-listening.md`: persistent occurrence-aware queue/transport, compact rows and overflow sheet, URL search/views/track links, Saved Music and existing collection playlists. All 1,761 social tests, production build/typecheck and seeded desktop/375px inspection pass; silent-fixture browser menu/navigation smoke passes. Connected collection persistence, real playback, mobile background and rollout gates remain open. No deployment or production writes.
 
 - [✓ 3.258.1 local] **Music supporting images** - accept tagged Discover posts with exactly one resolved audio/video plus images; reject multiple playables, unresolved and unsupported attachments. Reproduced Century Club's MP4-plus-WebP exclusion in regression; all 1,689 social tests and production build/typecheck pass. No deployment or production writes/playback verification.
@@ -1209,6 +1212,8 @@ docs before code, per the rule at the top.
 - [ ] (scope when the gate clears) SMS cutover notice — text all 580 users (phone numbers live in the v2 star records) that they were migrated, over the existing Twilio send path. Needs: the send list (deduped, verified numbers only), the message copy, and a delivery check. Runs after the data flip — the notice says "you're migrated," not "you will be." Copy can be drafted pre-gate.
 
 ## SIGMOD 2027 Industry Track — the full paper (research/)
+
+- [✓ 3.258.4 local; PR #1351 unmerged] **Cross-node certification continuation repairs** — independent-key routing, issuer-only `/certify`, local membership compatibility, foreign-reader continuity including directory and pinned public HTTPS issuer transport. 1,977 API tests plus eight subtests pass; fresh same-model bounded re-review passes. Method-size/CI, independent secrets and connected two-node gates remain OPEN; no Phase A or submission-readiness claim.
 
 - [✓ 3.257.11 local] **Shorten paper title** - use "Your Data, Your Rules: Extending the Decentralized Web", align the thesis rationale and rebuild the PDF; no evidence or contribution changes.
 

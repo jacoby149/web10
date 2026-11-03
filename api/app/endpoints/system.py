@@ -11,6 +11,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
 import app.exceptions as exceptions
+import app.settings as settings
 from app.models.auth import Token
 from app.models.config import (
     ConfigUpdate,
@@ -48,6 +49,10 @@ def certify_endpoint(token: Token):
     and expiry. A forged / cross-node / expired token raises ``TOKEN`` → 401,
     so the signaling server drops the socket.
     """
+    # This is the issuer's answer, not a federation proxy. Never recurse to
+    # another provider (including on a coincidentally shared signing key).
+    if token.token and decode_token(token.token, private_key=False).provider != settings.PROVIDER:
+        raise exceptions.TOKEN
     certify(token)
     return {"status": "ok"}
 
