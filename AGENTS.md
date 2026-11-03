@@ -322,8 +322,14 @@ does not merge.
 
 ## Auth model
 
-Social acting identity is account-scoped, per-tab client state, never a replacement
-credential. Generic `author_as` creates as the group with server-set `posted_by`;
+Social acting identity remembers only a confirmed provider/account-scoped identifier
+across browser reopen, with independent per-tab snapshots, never a replacement
+credential or persisted grant. Generic `author_as` creates as the group with server-set `posted_by`;
+live human service-create/app authority permits explicit exact-self attachment
+without self-membership; external targets never borrow human memberships.
+Explicit delegated updates retain existing self attachments with updateOwn;
+adding self also requires create. Public social group posts retain self and add
+Discover through its existing anyone create grant, not per-group enrollment;
 explicit delegated update/delete require current service `updateOwn`/`deleteOwn`
 grants and preserve the original audit actor. App-contract gates still use the
 human. Delegated `groups/list` requires a current create grant on the requested
@@ -383,6 +389,11 @@ without requiring a face doc_id; missing/ambiguous/error authority yields no fac
 Face urlField must be a new output column (collisions return 400). Attached-ad
 loader authorization, actual ClickHouse and connected verification remain OPEN.
 Do not claim whole-media or whole-prepare assurance.
+
+Pinned creative membership reads locally rank current reader/group history before
+removal filtering, with deletion winning timestamp ties. This denies reproduced
+stale-membership attachment/signing; doc_groups attachment history and broader
+ad policy, real-schema lifecycle and rollout assurance remain separate OPEN gates.
 
 Defined in the KB: `knowledge-base/web10-v3/security/overview.md`. Short version — I1: cryptographic issuer verification, I2: no unsigned decode, I3: no query returns documents for an `author_key` the token doesn't own (unless group membership grants access), I4: node-readable by design — operator-blindness is not a goal, access is terms-controlled (D41), I5: scoped/expiring/revocable tokens enforced by app contracts. Enforced by the conformance/permission test suite.
 

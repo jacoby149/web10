@@ -216,8 +216,8 @@ def create_document(request: Request, data: CreateDocument):
     Group-as-author: when ``author_as`` is set, the doc's ``author_key`` is
     the group_id and ``posted_by`` is the JWT username. Two gates:
     (1) the caller holds a role in the group that grants ``create`` on the
-    service; (2) the group can write in each target group (the existing
-    ``can_write_group`` check, principal = group_id).
+    service; (2) external targets require ``can_write_group`` as the group.
+    The live grant in (1) also permits an explicit self-target attachment.
     """
     real_author = _user(data)
     display_author = data.author_as or real_author
@@ -238,7 +238,14 @@ def create_document(request: Request, data: CreateDocument):
     # display author. The contract is the app's trust in the USER, not the group.
     _check_app_permission(request, real_author, data.service, "create", client_id_of(data))
 
-    writable = [g for g in data.groups or [] if ch.can_write_group(g, display_author, data.service)]
+    # Gate 1 already authorizes this service in the acting group itself;
+    # no self-membership row is needed. Never inherit human external grants.
+    writable = [
+        g
+        for g in data.groups or []
+        if (data.author_as and g == data.author_as) or ch.can_write_group(g, display_author, data.service)
+    ]
+    log.info("[documents] create target authorization: requested=%d writable=%d", len(data.groups or []), len(writable))
     if data.groups and not writable:
         raise HTTPException(status_code=403, detail="no write access to the requested group")
 
@@ -427,8 +434,17 @@ def update_document(request: Request, data: UpdateDocument):
         else:
             raise exceptions.ENTRY_NOT_FOUND
     _check_app_permission(request, _user(data), existing["service"], "updateOwn", client_id_of(data))
-    if data.groups is not None and any(not ch.can_write_group(g, author, existing["service"]) for g in data.groups):
-        raise HTTPException(status_code=403, detail="no write access to the requested group")
+    if data.groups is not None:
+        stored_groups = ch.get_doc_groups(data.doc_id) if data.author_as and author in data.groups else []
+        for group in data.groups:
+            if data.author_as and group == author:
+                # Live updateOwn already passed. Retaining self needs no new
+                # create grant; adding self does, even with self-membership.
+                allowed = group in stored_groups or ch._effective_allows(perms, existing["service"], "create")
+            else:
+                allowed = ch.can_write_group(group, author, existing["service"])
+            if not allowed:
+                raise HTTPException(status_code=403, detail="no write access to the requested group")
 
     merged_body = {**existing["body"], **data.body}
     # Preserve the existing ad preference unless the update sets one.

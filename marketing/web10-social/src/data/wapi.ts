@@ -112,9 +112,9 @@ export async function countFollows(): Promise<number> {
 }
 
 /** @deprecated use getFollowersCount from follows.ts */
-export async function countFollowers(username: string, _provider?: string): Promise<number> {
+export async function countFollowers(username: string, provider?: string): Promise<number> {
   const { getFollowersCount } = await import('./follows');
-  return getFollowersCount(username);
+  return getFollowersCount(username, provider);
 }
 
 /** @deprecated use getFollowingCount from follows.ts */

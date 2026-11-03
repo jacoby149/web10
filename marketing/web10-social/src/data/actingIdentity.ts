@@ -7,18 +7,27 @@ function storageKey() {
   return token ? `social:acting:${token.provider}:${token.username}` : null;
 }
 
-/** A tab-local choice, never a token or proof of authorization. */
+/** A tab-local snapshot of an account preference, never proof of authorization. */
 export function getActingAuthor(): string | undefined {
   const key = storageKey();
   if (!key) return undefined;
-  try { return sessionStorage.getItem(key) || undefined; } catch { return undefined; }
+  try {
+    let author = sessionStorage.getItem(key);
+    if (author === null) {
+      try { author = localStorage.getItem(key) || ''; } catch { author = ''; }
+      // Snapshot personal too: another tab must not replace this tab's choice.
+      sessionStorage.setItem(key, author);
+    }
+    return author || undefined;
+  } catch { return undefined; }
 }
 
 export function selectActingAuthor(author?: string) {
   const key = storageKey();
   if (!key) return;
-  if (author) sessionStorage.setItem(key, author);
-  else sessionStorage.removeItem(key);
+  sessionStorage.setItem(key, author || '');
+  try { localStorage.setItem(key, author || ''); }
+  catch { console.warn('[social-identity] remembered preference unavailable; keeping tab selection'); }
   console.log('[social-identity] selection changed', { group: !!author });
   for (const listener of listeners) listener();
 }
@@ -39,6 +48,6 @@ export function matchesActingAuthor(key: string | undefined, username: string, a
 
 export async function actingPostGroups(author: string): Promise<string[]> {
   const groups = await getV3Client().getMyGroups({ author_as: author, service: 'posts' });
-  if (!groups.length) throw new Error('This identity has no posting destinations. Add it to a group first.');
-  return groups.map((group) => group.group_id);
+  // The delegated lookup checks current create authority even with no memberships.
+  return [...new Set([author, ...groups.map((group) => group.group_id)])];
 }

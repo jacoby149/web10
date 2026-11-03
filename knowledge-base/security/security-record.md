@@ -15,6 +15,40 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Group Author Self-Target (02.11.2026)
+
+[Bounded authorization repair](group-author-self-target.md): actual ASGI/signed
+synthetic auth and real effective-role/write helpers reproduce self-target 403
+and dropped attachment. Exact-self exception follows live human service/app
+gates, with external-target isolation and server-set audit preserved. Explicit
+update lifecycle, principal-class/wildcard and attachment-history controls added
+after fresh same-model review. Retained-self authority now ranks current
+attachments before tombstone filtering; actual SQL synthetic replay denies stale
+reattachment. 635 focused/1,796 API tests plus eight subtests and full Ruff pass;
+fresh same-model design-intent re-review passes the bounded change. Storage/app lookup doubles,
+not whole L1/L2 coverage or a security PASS. Connected persistence/revocation,
+CI/rollout and independent diverse review remain OPEN.
+
+## Pinned-Ad Attachment Authority (02.11.2026)
+
+H01-AD-LINK [local evidence](scans/2026-10/h01-pinned-attachment-proof.md):
+compiler attachment boundary excludes removed link while actual loader/ASGI
+returns/signs its creative. Membership stays live, isolating attachment history
+from repaired membership history. Four cases/backend, 1,759 API tests plus eight
+subtests, Ruff and fresh same-model review pass. Actual ClickHouse-local reduced
+Memory fixtures, not production schema/driver/lifecycle. Finding OPEN; no runtime
+repair, real object retrieval or L1 PASS. Broader ad/CI/rollout/diverse gates OPEN.
+
+## Pinned-Ad Membership Repair (02.11.2026)
+
+H01-AD-MEMBER [local repair](scans/2026-10/repair-h01-pinned-membership.md):
+latest reader/group membership before tombstone filtering, deletion-winning ties.
+Five synthetic capability disclosures denied before attachment/signing on SQLite
+and actual ClickHouse-local Memory tables. Ten cases/backend, 365 focused/1,755
+API tests plus eight subtests, Ruff and fresh same-model review pass. Attachment,
+broader creative policies, real-schema lifecycle, old URL TTL, CI/rollout/diverse
+and L1 remain OPEN. Not whole-pinned-ad PASS.
+
 ## Pinned-Ad Membership Authority (02.11.2026)
 
 H01-AD-MEMBER [local evidence](scans/2026-10/h01-pinned-membership-proof.md):

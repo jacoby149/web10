@@ -27,13 +27,49 @@ vi.mock('@/data/settings', () => ({ readSettings: vi.fn().mockResolvedValue({}) 
 vi.mock('@/data/wapi', () => ({ getWapi: () => ({ readToken: () => mock.token }), resetWapi: vi.fn() }));
 
 beforeEach(() => {
+  vi.restoreAllMocks();
   sessionStorage.clear();
+  localStorage.clear();
   vi.clearAllMocks();
   mock.getMyGroups.mockResolvedValue([{ group_id: group, my_role: 'custom-writer' }]);
   mock.getGroup.mockResolvedValue({ group_id: group, roles: [{ name: 'custom-writer', permissions: { posts: ['create'] } }] });
 });
 
 describe('App-wide acting identity', () => {
+  it.each([false, true].flatMap((mobile) => ['close', 'escape', 'outside', 'trigger'].map((dismissal) => ({ mobile, dismissal }))))('discards a provisional group choice on $dismissal dismissal (mobile=$mobile)', async ({ mobile, dismissal }) => {
+    vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: mobile, addEventListener: vi.fn(), removeEventListener: vi.fn() } as unknown as MediaQueryList);
+    render(<ActingIdentitySwitcher />);
+    fireEvent.click(screen.getByTestId('acting-identity-trigger'));
+    fireEvent.click(await screen.findByText('Team'));
+    expect(getActingAuthor()).toBeUndefined();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    if (dismissal === 'close') fireEvent.click(screen.getByRole('button', { name: 'Close identities' }));
+    else if (dismissal === 'escape') fireEvent.keyDown(document, { key: 'Escape' });
+    else if (dismissal === 'outside') fireEvent.mouseDown(document.body);
+    else fireEvent.click(screen.getByTestId('acting-identity-trigger'));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(getActingAuthor()).toBeUndefined();
+    fireEvent.click(screen.getByTestId('acting-identity-trigger'));
+    expect(screen.getByRole('button', { name: /testuser\s*Personal identity/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Use identity' })).toBeDisabled();
+  });
+
+  it('preserves an active group when a personal preview is cancelled, and applies personal only on confirmation', async () => {
+    selectActingAuthor(group);
+    render(<ActingIdentitySwitcher />);
+    fireEvent.click(screen.getByTestId('acting-identity-trigger'));
+    await screen.findByRole('button', { name: /^Team\s*Group$/ });
+    fireEvent.click(screen.getByRole('button', { name: /testuser\s*Personal identity/ }));
+    expect(getActingAuthor()).toBe(group);
+    fireEvent.click(screen.getByRole('button', { name: 'Close identities' }));
+    expect(getActingAuthor()).toBe(group);
+    fireEvent.click(screen.getByTestId('acting-identity-trigger'));
+    expect(screen.getByRole('button', { name: /^Team\s*Group$/ })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: /testuser\s*Personal identity/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Use identity' }));
+    expect(getActingAuthor()).toBeUndefined();
+  });
+
   it('lists personal first, filters by permissions rather than managing-role names, and selects a group', async () => {
     render(<ActingIdentitySwitcher />);
     fireEvent.click(screen.getByTestId('acting-identity-trigger'));
@@ -41,6 +77,7 @@ describe('App-wide acting identity', () => {
     const buttons = screen.getByRole('dialog').querySelectorAll('button');
     expect(buttons[1]).toHaveTextContent('testuser');
     fireEvent.click(screen.getByText('Team'));
+    fireEvent.click(screen.getByRole('button', { name: 'Use identity' }));
     expect(getActingAuthor()).toBe(group);
     expect(screen.getByTestId('acting-identity-trigger')).toHaveTextContent('Acting as');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -73,7 +110,7 @@ describe('App-wide acting identity', () => {
     expect(data.fanOutToFollowers).not.toHaveBeenCalled();
   });
 
-  it('uses group memberships instead of Discover when no destination was supplied', async () => {
+  it('keeps group memberships alongside Discover for a public draft without explicit destinations', async () => {
     selectActingAuthor(group);
     mock.getMyGroups.mockResolvedValue([{ group_id: 'team-destination' }]);
     const { default: PostComposer } = await import('@/components/Feed/PostComposer');
@@ -82,7 +119,7 @@ describe('App-wide acting identity', () => {
     fireEvent.click(screen.getByTestId('post-submit'));
     await waitFor(() => expect(data.createPost).toHaveBeenCalled());
     expect(mock.getMyGroups).toHaveBeenCalledWith({ author_as: group, service: 'posts' });
-    expect(vi.mocked(data.createPost).mock.calls[0][1]).toEqual(['team-destination']);
+    expect(vi.mocked(data.createPost).mock.calls[0][1]).toEqual([group, 'team-destination', data.getDiscoverGroupId()]);
   });
 
   it('reposts under the draft identity without personal follower fan-out', async () => {

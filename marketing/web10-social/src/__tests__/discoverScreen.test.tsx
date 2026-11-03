@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeAll, beforeEach, onTestFinished } from 'vitest';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import '@testing-library/jest-dom';
 import * as data from '@/data';
@@ -61,6 +61,11 @@ function lastDiscoverSort(): unknown {
   return calls[calls.length - 1][0];
 }
 
+let DiscoverScreen: typeof import('@/components/Discover/DiscoverScreen').default;
+beforeAll(async () => {
+  DiscoverScreen = (await import('@/components/Discover/DiscoverScreen')).default;
+});
+
 describe('DiscoverScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -74,7 +79,7 @@ describe('DiscoverScreen', () => {
   });
 
   it('renders skeleton while loading', async () => {
-    const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
+    vi.mocked(data.readDiscoverFeed).mockImplementationOnce(() => new Promise(() => {}));
     render(
       <MemoryRouter initialEntries={['/hot-gossip']}>
         <DiscoverScreen />
@@ -2203,6 +2208,18 @@ describe('DiscoverScreen — the control rows keep the desktop gutter (operator 
   });
 
   it('infinite scroll: the board pages (the sentinel loads the next page and appends)', async () => {
+    let intersect: IntersectionObserverCallback | undefined;
+    const OriginalObserver = globalThis.IntersectionObserver;
+    const observerSpy = vi.spyOn(globalThis, 'IntersectionObserver').mockImplementation(function (callback, options) {
+      const observer = new OriginalObserver(callback, options);
+      const observe = observer.observe.bind(observer);
+      observer.observe = (target) => {
+        if (target.getAttribute('data-testid') === 'discover-board-sentinel') intersect = callback;
+        observe(target);
+      };
+      return observer;
+    });
+    onTestFinished(() => observerSpy.mockRestore());
     // The operator: "if paging here, lets page on all surfaces … if the videos
     // tab … arent paging on their first page." The Hot Gossip board (and the
     // Video wall) page the discover board until it's exhausted. A full page
@@ -2211,6 +2228,8 @@ describe('DiscoverScreen — the control rows keep the desktop gutter (operator 
       author: `creator-${i}`,
       provider: 'api.web10.app',
       post_id: `p-${i}`,
+      _id: `p-${i}`,
+      author_username: `creator-${i}`,
       text: `board post ${i}`,
       tags: ['cooking'],
       created_at: new Date(Date.now() - i * 3600000).toISOString(),
@@ -2240,7 +2259,10 @@ describe('DiscoverScreen — the control rows keep the desktop gutter (operator 
 
     // The sentinel is visible → the observer fires → loadMore appends page 2
     // (offset 50).
-    (globalThis as unknown as Record<string, () => void>).fireIntersectionObservers();
+    expect(intersect).toBeDefined();
+    await act(async () => {
+      intersect!([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver);
+    });
     await waitFor(() => expect(screen.getAllByTestId('discover-card')).toHaveLength(52));
     // The second page was fetched with the next board offset (PAGE_SIZE = 50).
     expect(data.readDiscoverFeed).toHaveBeenLastCalledWith(expect.anything(), 50, undefined, 50);

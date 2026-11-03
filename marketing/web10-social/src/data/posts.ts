@@ -180,7 +180,7 @@ export async function createRepost(
     created_at: new Date().toISOString(),
     visibility: 'public',
     repost_of: original._id,
-  }, groups ?? (authorAs ? await actingPostGroups(authorAs) : undefined), undefined, authorAs || undefined);
+  }, groups ?? (authorAs ? [...new Set([...await actingPostGroups(authorAs), getDiscoverGroupId()])] : undefined), undefined, authorAs || undefined);
 }
 
 /**
@@ -426,6 +426,7 @@ export async function readUserPublicProfile(
     'SELECT p.doc_id AS doc_id, p.author_key AS author_key, p.posted_by AS posted_by, p.body AS body, p.tags AS tags, ' +
     'p.created_at AS created_at, p.ref_value AS ref_value, p.ad_mode AS ad_mode, p.ad_target AS ad_target ' +
     `FROM posts p WHERE p.author_key = '${escaped}' ` +
+    "AND NOT has(p.tags, 'ad') AND NOT has(p.tags, 'product') " +
     'ORDER BY toUnixTimestamp64Milli(p.created_at) DESC ' +
     `LIMIT ${limit}`;
   // The face (avatar + banner) — two queries over the `profile` row, each with
@@ -440,8 +441,14 @@ export async function readUserPublicProfile(
     // delivery impression per returned post (the query path's delivery capture)
     // — the profile surface's delivery, which gates the card's dwell signals.
     w.query(postsSql, { groups, prepare: { media: true, ads: true }, ...(surface ? { surface, contentService: 'posts' } : {}) }),
-    w.query(faceSql, { groups, prepare: { face: { bodyField: 'body', mediaField: 'avatar_ref', urlField: 'avatar_url' } } }),
-    w.query(faceSql, { groups, prepare: { face: { bodyField: 'body', mediaField: 'banner_ref', urlField: 'banner_url' } } }),
+    w.query(faceSql, { groups, prepare: { face: { bodyField: 'body', mediaField: 'avatar_ref', urlField: 'avatar_url' } } }).catch(() => {
+      console.warn('[profile] optional avatar read failed; retaining posts');
+      return { rows: [] };
+    }),
+    w.query(faceSql, { groups, prepare: { face: { bodyField: 'body', mediaField: 'banner_ref', urlField: 'banner_url' } } }).catch(() => {
+      console.warn('[profile] optional banner read failed; retaining posts');
+      return { rows: [] };
+    }),
   ]);
 
   const posts = postsRes.rows.map((r) => fromV3DocToPost(r as unknown as import('./v3').V3Document));

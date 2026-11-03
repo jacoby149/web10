@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { createPost, createRepost, updatePost, uploadMedia, readProfile, resolveMediaRefs, fanOutToFollowers, readMyAds, getWapi, readGroupIdentity } from '@/data';
+import { createPost, createRepost, updatePost, uploadMedia, readProfile, resolveMediaRefs, fanOutToFollowers, readMyAds, getWapi, readGroupIdentity, getDiscoverGroupId } from '@/data';
 import { getActingAuthor, actingPostGroups } from '@/data/actingIdentity';
 import { getV3Client } from '@/data/v3';
 import { resolveFaceMedia, GROUP_FACE_SQL } from '@web10/discover/face';
@@ -391,7 +391,8 @@ export default function PostComposer({
   const [focused, setFocused] = useState(false);
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
-  const [visibility, setVisibility] = useState<Visibility>(editingPost?.visibility || 'public');
+  const [visibility, setVisibility] = useState<Visibility>(editingPost?.visibility || (groups && !groups.includes(getDiscoverGroupId()) ? 'private' : 'public'));
+  const visibilityTouched = useRef(false);
   // In edit mode the pinned ad is pre-filled from the post's ad_target (a
   // minimal stub — the chip shows "Pinned ad"; the real ad object is only
   // needed for the picker, which loads lazily).
@@ -408,18 +409,20 @@ export default function PostComposer({
 
   // Capture the draft's identity once. Navigation changes never reauthor it.
   const [authorAs] = useState<string | null>(() => editingPost ? (editingPost.author_key?.includes('/groups/') ? editingPost.author_key : null) : getActingAuthor() || null);
-  const [selectedGroup, setSelectedGroup] = useState<{ name: string; avatarUrl?: string } | null>(authorAs ? { name: authorAs.split('/').pop() || 'Group' } : null);
+  const [selectedGroup, setSelectedGroup] = useState<{ name: string; avatarUrl?: string } | null>(authorAs ? { name: 'Loading group...' } : null);
   useEffect(() => {
     if (!authorAs) return;
     let cancelled = false;
     (async () => {
       try {
         const identity = await readGroupIdentity(authorAs);
+        if (!cancelled) setSelectedGroup({ name: identity.name || 'Group' });
         const faces = await resolveFaceMedia(async (sql, scope, prepare) => (await getV3Client().query(sql, { groups: scope, prepare })).rows, GROUP_FACE_SQL, [authorAs], 'group_id');
         const face = faces.get(authorAs);
-        if (!cancelled) setSelectedGroup({ name: face?.name || identity.name || authorAs.split('/').pop() || 'Group', avatarUrl: face?.avatar_url });
+        if (!cancelled) setSelectedGroup({ name: face?.name || identity.name || 'Group', avatarUrl: face?.avatar_url });
       } catch (e) {
         console.warn('[social-composer] draft face unavailable:', e);
+        if (!cancelled) setSelectedGroup((current) => current?.name === 'Loading group...' ? { name: 'Group' } : current);
       }
     })();
     return () => { cancelled = true; };
@@ -524,7 +527,7 @@ export default function PostComposer({
 
     readSettings()
       .then((s) => {
-        if (s.defaultVisibility === 'private') {
+        if (!isEditing && !groups && !visibilityTouched.current && s.defaultVisibility === 'private') {
           setVisibility('private');
         }
       })
@@ -977,6 +980,17 @@ export default function PostComposer({
       if (authorAs) {
         targetGroups = groups || await actingPostGroups(authorAs);
       }
+      // Explicit destinations retain their audience unless the author opts in
+      // to Discover. A body visibility field alone does not enforce access.
+      if (targetGroups && (authorAs || groups)) {
+        if (!targetGroups.length) throw new Error('Choose a destination before posting.');
+        const discover = getDiscoverGroupId();
+        targetGroups = visibility === 'private'
+          ? targetGroups.filter((group) => group !== discover)
+          : [...new Set([...targetGroups, discover])];
+        if (!targetGroups.length) throw new Error('Choose a destination before posting.');
+        console.log('[social-composer] audience resolved', { public: visibility === 'public', destinations: targetGroups.length });
+      }
 
       const postRecord = await createPost(
         {
@@ -1257,7 +1271,7 @@ export default function PostComposer({
               </div>
 
           <div className="mt-4 border-t border-border pt-3">
-            <div className="flex items-center gap-1">
+            <div className="flex flex-wrap items-center gap-1">
               {/* Attach media is create-only — you can't add new media to an
                   existing post in edit mode (media is remove-only there). */}
               {!isEditing && (
@@ -1274,17 +1288,17 @@ export default function PostComposer({
                 </Button>
               )}
 
-              {authorAs ? <span className="text-xs text-muted-foreground">Group destinations</span> : <div className="relative">
+              {!isEditing && !repostingTo && <div className="relative">
                 <select
                   value={visibility}
-                  onChange={(e) => setVisibility(e.target.value as Visibility)}
-                  disabled={posting}
+                  onChange={(e) => { visibilityTouched.current = true; setVisibility(e.target.value as Visibility); }}
+                  disabled={posting || uploading}
                   aria-label="Post visibility"
                   data-testid="visibility-selector"
                   className="h-10 rounded text-xs font-medium bg-transparent px-2.5 py-2 text-muted-foreground hover:text-foreground hover:bg-elevated border border-transparent hover:border-border transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50 appearance-none cursor-pointer pr-7"
                 >
-                  <option value="public">Public</option>
-                  <option value="private">Private</option>
+                  <option value="public">{authorAs || groups ? 'Public + Discover' : 'Public'}</option>
+                  <option value="private">{authorAs || groups ? 'Group audience only' : 'Private'}</option>
                 </select>
                 <div className="pointer-events-none absolute inset-y-0 right-1 flex items-center">
                   {visibility === 'public' ? (

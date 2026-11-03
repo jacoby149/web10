@@ -57,9 +57,25 @@ export async function isFollowing(username: string, provider?: string): Promise<
 /**
  * Get the number of followers for a user.
  */
-export async function getFollowersCount(username: string): Promise<number> {
-  const members = await getGroupMembers(followersGroupId(username));
-  return members.length;
+export async function getFollowersCount(username: string, provider?: string): Promise<number> {
+  const w = getV3Client();
+  const groupId = followersGroupId(username, provider);
+  const node = groupId.split('/groups/')[0];
+  const excluded = new Set([username, `${node}/${username}`, `${node}/users/${username}`, 'anyone', 'authenticated', 'anon']);
+  const seen = new Set<string>();
+  let count = 0;
+  for (let offset = 0; ; offset += 100) {
+    console.log('[social-follows] reading follower count page', { offset });
+    const members = await w.getGroupMembers(groupId, { limit: 100, offset });
+    console.log('[social-follows] follower count page read', { offset, rows: members.length });
+    for (const member of members) {
+      // Offset pagination can race membership changes; never publish a partial count.
+      if (seen.has(member.member_key)) throw new Error('Membership changed while counting followers. Retry.');
+      seen.add(member.member_key);
+      if (member.role === 'member' && !excluded.has(member.member_key)) count++;
+    }
+    if (members.length < 100) return count;
+  }
 }
 
 /**
@@ -133,15 +149,25 @@ export async function listUserFollowers(
 
 /**
  * D80: the count of who `username` follows (the real following count, for the
- * profile's Following tile). The length of the following read (one page — the
- * count is a display figure; the list screen pages separately).
+ * profile's Following tile). Counts all visible pages, never owned groups or
+ * failed/partial reads. Hidden memberships remain outside this public read.
  */
 export async function countUserFollowingReal(username: string, provider?: string): Promise<number> {
-  try {
-    const follows = await listUserFollowing(username, provider, { limit: 1000 });
-    return follows.length;
-  } catch {
-    return 0;
+  const w = getV3Client();
+  const seen = new Set<string>();
+  let count = 0;
+  for (let offset = 0; ; offset += 100) {
+    console.log('[social-follows] reading following count page', { offset });
+    const page = await w.byUserGroups(provider ? `${provider}/${username}` : username, {
+      tag: GROUP_TAG.followers, limit: 100, offset,
+    });
+    console.log('[social-follows] following count page read', { offset, rows: page.groups.length });
+    for (const group of page.groups) {
+      if (seen.has(group.group_id)) throw new Error('Membership changed while counting following. Retry.');
+      seen.add(group.group_id);
+      if (group.role === 'member') count++;
+    }
+    if (page.groups.length < 100) return count;
   }
 }
 
@@ -159,8 +185,8 @@ export async function countFollows(): Promise<number> {
 }
 
 /** @deprecated use getFollowersCount */
-export async function countFollowers(username: string, _provider?: string): Promise<number> {
-  return getFollowersCount(username);
+export async function countFollowers(username: string, provider?: string): Promise<number> {
+  return getFollowersCount(username, provider);
 }
 
 /** @deprecated use getFollowingCount */

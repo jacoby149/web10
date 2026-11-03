@@ -13,6 +13,7 @@ vi.mock('@/data', async (importOriginal) => {
   return {
     ...original,
     readFeed: vi.fn().mockResolvedValue([]),
+    readFeedPage: vi.fn().mockResolvedValue({ posts: [], has_more: false, next_cursor: null }),
     getFeedGroups: vi.fn().mockResolvedValue([]),
     readFeedEngagement: vi.fn().mockResolvedValue({ likes: {}, comments: {} }),
     readSettings: vi.fn().mockResolvedValue({ defaultVisibility: 'public' }),
@@ -537,12 +538,12 @@ describe('UserProfileScreen loadData — per-read isolation (one bad read never 
       </MemoryRouter>,
     );
 
-    // Profile renders; the posts grid shows the empty state.
+    // Profile renders; a failed read is not an empty collection.
     await waitFor(() => {
       expect(screen.getByText('Me')).toBeInTheDocument();
     });
     await waitFor(() => {
-      expect(screen.getByTestId('profile-posts-empty')).toBeInTheDocument();
+      expect(screen.getByTestId('profile-posts-error')).toBeInTheDocument();
     });
   });
 });

@@ -35,6 +35,51 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-02: Self-target authority is not inherited external membership
+
+The group publish 403 reproduces when the group is not a member of itself.
+The [bounded repair](group-author-self-target.md) allows exact-self create only
+after live effective service create and human app gates. External targets still
+use the group principal; unrelated human memberships never transfer. Explicit
+updates retain stored self attachments with updateOwn, but a new self attachment
+also needs create. Effective unions may retain principal-class authority after
+explicit member removal; do not call that a revocation bypass. The canonical
+Discover anyone role already grants create, confirmed read-only on production;
+missing explicit group enrollment is not missing permission. Client defaults
+must include self and public Discover even when group memberships are empty.
+Remembered identity IDs are untrusted preferences, never persisted permissions.
+Same-model review found and pinned the update lifecycle; connected persistence,
+concurrent revocation, rollout and diverse review remain open.
+That review also reproduced historical doc_groups rows authorizing a detached
+self reattachment with updateOwn alone. `get_doc_groups` now ranks all versions
+before filtering tombstones, with deletion winning timestamp ties. Six actual-SQL
+signed-route cases pin detach denial, tie order, newer reattachment and unrelated
+document isolation. Other direct attachment readers/writers remain separate scope.
+
+### 2026-11-02: Current membership does not prove a current creative attachment
+
+[Attachment evidence](scans/2026-10/h01-pinned-attachment-proof.md) holds membership
+live while varying doc_groups history. The actual compiler's extracted attachment
+boundary excludes a removed link; the actual pinned loader still finds its old
+live row, returns the creative through ASGI and issues verified synthetic SigV4.
+Four link histories reproduce on SQLite and ClickHouse-local Memory. This remains
+an OPEN finding: positive-disclosure tests must become denial in a separate repair.
+1,759 API tests plus eight subtests and same-model evidence review pass. No full
+direct-read denial, executed detach lifecycle or real-object claim; role/app/node
+policy, timestamp precision, real schema/rollout/diverse and L1 remain separate.
+
+### 2026-11-02: Authorize pinned creatives from the current membership version
+
+[Local membership repair](scans/2026-10/repair-h01-pinned-membership.md) ranks the
+bound reader's rows per group/member before removal filtering. Deletion wins
+timestamp ties; a newer rejoin restores access. Another live creative-group grant
+still counts, while other members/unrelated groups grant nothing. Five reproduced
+synthetic capabilities become denied-ad/no-signer on SQLite and ClickHouse-local;
+group posted_by signing remains intact. Ten controls per backend, 1,755 API tests
+plus eight subtests and same-model review pass. Attachment history and broader
+role/app/visibility/node-ad policy remain OPEN, as do real-schema lifecycle,
+old-capability TTL, CI/rollout/diverse review and L1. Not whole-ad closure.
+
 ### 2026-11-02: A historical membership row can still authorize an inline creative
 
 [Pinned membership evidence](scans/2026-10/h01-pinned-membership-proof.md) executes
@@ -42,8 +87,8 @@ the actual loader and current membership SQL over synthetic history. The normal
 group predicate denies a removed member, but the pinned loader's undeduplicated
 JOIN finds the old live row; actual read enrichment returns the creative and mints
 an independently verified real synthetic SigV4 capability. Four controls reproduce
-on SQLite and isolated ClickHouse-local Memory tables. Evidence only: the revoked
-probe currently asserts disclosure and must become denial in a separate repair.
+on SQLite and isolated ClickHouse-local Memory tables. At that evidence pin the
+revoked probe asserted disclosure; the local repair above converts it to denial.
 No actual object retrieval, production merge timing or whole-ad assurance. Current
 role/app/service/node-ad policy and attachment/visibility debt remain separate;
 do not use this finding to silently change the membership-first read model.

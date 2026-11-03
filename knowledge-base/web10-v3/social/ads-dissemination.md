@@ -42,13 +42,21 @@ doesn't). Every pinned post shows its ad, every time.
   see → the doc comes back with no ad. This is required, not optional — it's a
   security invariant, not a nicety.
 
-**Current implementation gap (02.11.2026):** pinned-ad membership lookup can use
-an old live row after a newer removal tombstone, even though the current group
-gate denies the reader. [Bounded evidence](../../security/scans/2026-10/h01-pinned-membership-proof.md)
-reproduces inline creative and synthetic media-capability issuance with SQLite
-and ClickHouse-local synthetic history. The required current-access rule above
-is unchanged; repair is OPEN. This does not settle creative-service app policy,
-node-inventory exemptions or broader visibility rules.
+**Local membership repair (02.11.2026):** pinned-ad lookup ranks reader/group
+membership versions before filtering tombstones, with deletion winning timestamp
+ties. Historical membership can no longer authorize the reproduced removed-reader
+disclosure; active/rejoined and legitimate alternate-group access remain. See
+[repair evidence](../../security/scans/2026-10/repair-h01-pinned-membership.md)
+and the [historical proof](../../security/scans/2026-10/h01-pinned-membership-proof.md).
+Attachment history, creative-service app policy, node-inventory exemptions and
+broader visibility/production/rollout gates remain OPEN. Not whole-ad assurance.
+
+**Attachment gap (02.11.2026):** current membership alone is insufficient. A
+removed creative/group link can still authorize inline delivery through retained
+history; [bounded evidence](../../security/scans/2026-10/h01-pinned-attachment-proof.md)
+compares the actual compiler attachment fragment with the actual pinned loader
+on synthetic SQLite/ClickHouse snapshots. Runtime attachment repair remains OPEN;
+this does not change the intended current-access rule or settle broader ad policy.
 
 **Locked (the three open questions, resolved):**
 
