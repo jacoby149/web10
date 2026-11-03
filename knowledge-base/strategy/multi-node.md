@@ -1,6 +1,6 @@
 # Multi-Node Federation — how web10 nodes work together (operator pass, 29.09.2026)
 
-**Status: federation planned; Phase B in PR #1351, not merged or connected-verified.** web10 is a **federation of
+**Status: Phase B merged in #1351; bounded H evidence is recorded in `research/federation-demo/RESULTS.md`, with prerequisite #1360 and broader gates OPEN.** web10 is a **federation of
 nodes**, not one node. This doc is the authoritative reference for *how* the
 nodes work together — the read model, the cross-node boundary, the security
 invariants, and the phase sequencing. It is the "how" companion to **D84**
@@ -317,18 +317,21 @@ The attack requires breaking one of the two I6 rules. We hold both.
 Each is its own PR/lane (see `parallel-execution.md` → `multi-node-federation
 (D84)`). This doc scopes them; it does not build them.
 
-- **H — the two-node test harness** (`api2.localhost`). A second node on a
+- **H — the two-node test harness** (bounded evidence in `research/federation-demo/`). A second node on a
   **separate** ClickHouse + MinIO, brought up alongside the first, so the
-  multi-node work is testable. Independent — can land first to de-risk. It does
-  not show federation working; it proves two nodes are *distinct* (a user on A
-  is not a user on B; a token minted by A is rejected by B until B lands).
+  multi-node work is testable. The retained run
+  shows the owner-managed foreign read/grant/removal correctness slice with
+  real home certification and independent signing keys. Its successful source
+  includes the owner-list repair in #1360; clean-base replay remains gated on
+  that merge. It does not complete migration A, foreign self-join C or public
+  deployment. Full scope/receipts: `research/federation-demo/RESULTS.md`.
 - **A — the canonical principal format + migration.** Rewrite `author_key`,
   every `group_members.member_key`, and the reader principal to
   `{provider}/users/{username}`. A **data migration** (insert new-format rows,
   tombstone the old — the ReplacingMergeTree pattern), not a schema change.
   **Reverses the 3.179.1 `/by-user` stopgap** (which collapsed to the bare
   form) — after A, `provider/username` is the real stored form. **Gates C, D.**
-- **B — cross-node token verification** (PR #1351, not merged; 03.11.2026 — the live
+- **B — cross-node token verification** (merged PR #1351; 03.11.2026 — the live
   /certify model, operator-decided over JWKS). A token whose `provider` is not
   this node is certified at its home node via `POST {provider}/certify`
   (the pre-existing endpoint the RTC server already uses), with a cached yes
