@@ -27,7 +27,7 @@ interface HotGossipSidebarProps {
 function HotGossipSidebar({ entries, onSelect }: HotGossipSidebarProps) {
   const sharedEntries: Top10SidebarEntry[] = entries.map(({ post, rank, score }) => ({
     id: post._id || '',
-    name: post.author_username || 'unknown',
+    name: post.group_identity?.name || post.profile?.display_name || post.author_username || 'unknown',
     text: post.text || '(no text)',
     score,
     rank,

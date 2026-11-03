@@ -101,7 +101,7 @@ the official CFP governs current logistics.
 | `experiments/README.md` | Known harness blockers; no runnable/reproducible claim yet |
 | `experiments/costfn/` | Cost-function harness and separately recorded 100-creator and 1,000-creator trials. Main paper table: K10/100/1000, 20 cells, 400 samples; A is a direct precompiled scan baseline, B/C compare per-group and batched resolution. Summary receipt and table checker retained |
 | `draft/outline.md` | Industry-paper section plan |
-| `workshop/main.tex` | The paper (11 pp, builds clean with tectonic). Reframed 2026-11-02 per the thesis doc. The evaluation is bounded by construction; the cross-node IAM demo is the forward scope, not a completed result. |
+| `workshop/main.tex` | The paper (12 pp including references, builds with tectonic; no horizontal overflow, remaining font/underfull and small final vertical-box warnings). Reframed 2026-11-02 per the thesis doc; abstract/layout tightened 2026-11-03. The evaluation is bounded by construction; the cross-node IAM demo is the forward scope, not a completed result. |
 
 ## Remaining Gates
 

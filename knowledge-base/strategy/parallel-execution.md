@@ -1,5 +1,7 @@
 # Parallel Execution
 
+- [✓ 3.257.7 local] **Identity picker resolved-picture repair** (`marketing/web10-social/`) - consume the shared resolver's `avatar_url` using FaceUrls; rendered-image regression reproduces the previous field mismatch. All 19 picker tests, production build/typecheck and seeded desktop/375px inspection pass. Resolver batches avatar and banner separately, not one HTTP request. No API/auth changes, deployment or live-account verification.
+
 - [✓ 3.253.16 local] **E3 first K1000 trial** — 1,000 creators, K10/100/1000, all 20 cells complete with 20 samples each. Per-group K1000 B handler median 7.645 s vs batched 363 ms. Source/provenance/limits in research/experiments/costfn/K1000-RESULTS.md; artifacts collected, droplet deleted. Full E3 remains open.
 
 - [✓ 3.253.11 local] **E3 preliminary results in manuscript** — measured K10/100 table, K1 tradeoff and explicit baseline/single-trial limits now in research/workshop/main.tex and rebuilt PDF. No full-E3 completion claim.
@@ -40,6 +42,11 @@ says what can happen **at the same time**.
 ---
 
 ## Lanes
+
+### Lane: discover-group-presentation
+
+**Owns:** social Discover avatar/Top 10 mappings and focused tests, shared Top10Sidebar labeling, marketing FeedPreview/Trending attribution and focused tests, seeded capture fixtures and serialized KB records.
+- [✓ 3.257.5 local] **Discover group author presentation** - preserve prepared social group faces, hydrate marketing feed/search public faces through the existing resolver, use group author links and resolved rail names, and label the unchanged interaction tally. Gates: exact group-ID batching and missing/denied/failed-face fallback, ordinary-user preservation, focused/full tests, both builds and desktop/375px screenshot inspection. Acceptance met locally: 1,681 social and 302 marketing tests pass; both builds pass. Screenshots in `.context/discover-group-*` and `.context/marketing-trending-groups-*`. No API/auth change or production/deployment claim.
 
 ### Lane: social-test-stability
 
@@ -128,6 +135,12 @@ route + the screenshot harness).
 - [✓ 3.238.0] **A product can be deleted — the Products tab gains the delete affordance (D89 CRUD completes)** — the product maker had create + edit but no delete, so a product made in error (or whose affiliate link died) sat in the Products tab + the storefront forever. `deleteProduct` (`data/ads-catalog.ts`) tombstones the product's `posts` doc through the normal CRUD path (the owner has `deleteAll` on their followers group — the same authorization as the ad retire); ads that reference the product by `product_id` keep their denormalized offer snapshot, so the public feed's ad block still renders. `ProductsSection.tsx` gains a per-tile delete (trash) affordance + a confirm dialog (the product's name + the "ads keep their own link" note; a failed delete keeps the dialog open). `adsCatalog.test.ts` +1, `monetization.test.tsx` +3; 1519 green, `tsc` clean; screenshots `monetize-products-{desktop,375}.png` + `product-delete-{desktop,375}.png`.
 
 ### Lane: security-l1-scans
+
+- [✓ 3.257.9 local evidence] **PROTOCOL-01/H01-NODE-DOC-PROOF: replay deleted/detagged node creative delivery** - own tests/security KB; live Discover link, actual compiler document subquery versus loader/ASGI/verified synthetic SigV4. Three disclosures/eight SQLite/ClickHouse-local cases; 1,894 API tests plus eight subtests, one lifecycle skip, Ruff and fresh same-model intent review pass. `knowledge-base/security/scans/2026-10/h01-node-document-proof.md`. Evidence only, finding/L1 OPEN.
+- [ ] **PROTOCOL-01/H01-NODE-DOC-REPAIR: honor current document eligibility in node-ad reads** - own node-ad document-ranking SQL hunk, retained probes and security KB; rank complete history before deletion/tag eligibility and convert three disclosures to no-node-ad/no-signer. Preserve public active/paused/reactivated/restored/retagged inventory, identity isolation and independent uploaders. Gates: <=500 code/test lines, exploit red -> denied green, fresh intent review, KB write-back and every CI check green. Writer precision/real merge lifecycle, provenance, broader ad policy/rollout/diverse/L1 remain separate.
+
+- [✓ 3.257.3 local evidence] **PROTOCOL-01/H01-NODE-LINK-PROOF: replay removed-Discover node creative delivery** - own test/security KB only; actual compiler current-link excludes removed attachment while loader/ASGI returns/signs the creative. Six cases pass on SQLite/ClickHouse-local, 1,880 API tests plus eight subtests, one opt-in lifecycle test skipped, Ruff and fresh same-model intent review pass. `knowledge-base/security/scans/2026-10/h01-node-attachment-proof.md`. Evidence only, finding OPEN; H01-AD-AUTHORITY partial, no L1 closure.
+- [✓ 3.257.4 local attachment] **PROTOCOL-01/H01-NODE-LINK-REPAIR: honor current Discover attachments in node-ad reads** - own node-ad doc_groups SQL hunk, retained probes and security KB; current pair ranking with deletion-winning ties denies seven synthetic capability disclosures. Twelve node cases pass on SQLite/ClickHouse-local, 169 focused/1,886 API tests plus eight subtests, one opt-in lifecycle skip, Ruff and fresh same-model intent review pass. `knowledge-base/security/scans/2026-10/repair-h01-node-attachment.md`. Public inventory/pair isolation/uploaders preserved; document delete/detag, provenance, real lifecycle/CI/rollout/diverse/L1 OPEN. Local only, not merged/deployed.
 
 - [✓ 3.254.15 local evidence] **PROTOCOL-01/H01-AD-LINK-PROOF: replay removed-attachment pinned creative delivery** - own test/security KB only; live membership plus absent compiler current-link still delivers/signs the creative. Four SQLite/ClickHouse-local histories, 1,759 API tests plus eight subtests, Ruff and same-model review pass. `knowledge-base/security/scans/2026-10/h01-pinned-attachment-proof.md`. Finding OPEN, no runtime repair or L1 advancement.
 - [✓ 3.257.1 local attachment] **PROTOCOL-01/H01-AD-LINK-REPAIR: honor current attachments in pinned-ad reads** - own pinned doc_groups SQL hunk, retained probes and security KB; current attachment ranking with deletion-winning ties denies removed-link signing, retaining reattachment/alternate-group/pair/uploader controls. Twelve attachment plus ten membership cases pass on SQLite/ClickHouse-local, 1,865 API tests plus eight subtests, Ruff and fresh same-model intent review pass. `knowledge-base/security/scans/2026-10/repair-h01-pinned-attachment.md`. Writer precision/other readers' ties/role/app/node-ad policy, production lifecycle/CI/rollout/diverse/L1 OPEN; local only, not merged/deployed.
@@ -1320,6 +1333,8 @@ starting.
 - [ ] **H: the two-node test harness** (`api2.localhost`, a second `docker-compose` node + a test that spins it up) — the foundation that makes A/B/C/D/E testable. A second node (`api2.localhost`) on a separate ClickHouse + MinIO, brought up alongside the first, with a test that signs up on both + verifies a token from one is accepted by the other (once B lands). **Independent — can land first to de-risk the foundation.**
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
+
+- [✓ 3.257.8 local] **Abstract and PDF layout repair** - operator-authorized existing `research/workshop/` edit: shorter contribution/evidence-led abstract and repaired prose/DNS/table overflow without margin/font changes; retain review numbering. Twelve PDF pages inspected; no overfull horizontal boxes remain. No W1/E3 completion or submission-readiness claim.
 
 - [✓ 3.253.21] **Integrate PR #1313 K1000 results into the paper** — `research/workshop/main.tex`, outline and research records: twelve-row B/C table from one 1,000-creator K10/100/1000 trial, updated headline/interpretation/provenance and 400-sample accounting, retained summary receipt and arithmetic checker. Earlier 100-creator samples are not pooled; full E3/repetition/capacity gates remain open. Evidence import only, not a new run or merge of #1313.
 
