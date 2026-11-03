@@ -35,6 +35,19 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-03: Filtering inventory eligibility before ranking revives older creatives
+
+[Document history evidence](scans/2026-10/h01-node-document-proof.md) holds the
+Discover link live while varying creative versions. Newer deletion or node_ad
+removal disappears before node-loader ranking; actual ASGI enrichment returns old
+content and independently verified synthetic SigV4. Three disclosures include a
+group-author/Bob-uploader case. Pause denies correctly; restoration/reactivation/
+retagging select the latest active content. Eight cases pass on SQLite and
+ClickHouse-local; 1,894 API tests plus eight subtests, one lifecycle skip, Ruff and
+fresh same-model review pass. Evidence only: document repair remains OPEN. Public
+inventory is intentional, not an owner-only/membership gap. Real writer/merge/tie
+behavior, provenance, broader authority/CI/rollout/diverse and L1 remain separate.
+
 ### 2026-11-02: Node inventory must rank its own Discover attachment history
 
 [Local node attachment repair](scans/2026-10/repair-h01-node-attachment.md) ranks

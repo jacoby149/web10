@@ -1,3 +1,6 @@
+3.257.9 || 03.11.2026
+test(security): reproduce older node-creative delivery/signing after newer document deletion or node_ad removal, holding Discover attachment live. Actual compiler document subquery and loader/ASGI/real synthetic SigV4 expose three disclosures; eight SQLite/ClickHouse-local cases preserve pause suppression and latest restored/reactivated/retagged/public/uploader controls. Full API: 1,894 passed plus eight subtests, one opt-in lifecycle skip; full Ruff and fresh same-model review pass. Evidence only, no runtime repair; queue bounded document-history repair. Real writer/merge/tie lifecycle, provenance, broader ad/CI/rollout/diverse and protocol L1 remain OPEN.
+
 3.257.8 || 03.11.2026
 docs(research): tighten the abstract around the access-control contribution and connected cross-app evidence, removing the email/DNS/legal detour. Repair column overflow with a fallback line-breaking pass, a rewritten introduction sentence, breakable DNS-record fields and a narrower capability-table label column; preserve ACM margins, fonts and review numbering. Rebuild and inspect all 12 PDF pages (references begin on page 11): no overfull horizontal boxes remain; font, underfull-box and a 1.166pt final vertical-box warning remain. No new evaluation or submission-readiness claim.
 

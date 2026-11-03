@@ -15,6 +15,18 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Node-Ad Document Authority (03.11.2026)
+
+H01-NODE-DOC [evidence](scans/2026-10/h01-node-document-proof.md): current
+compiler document subquery excludes deletion and returns latest declassified
+tags; reference tag/status evaluation marks inventory ineligible, while actual
+node loader/ASGI returns older content and verified synthetic SigV4.
+Three disclosures; eight SQLite/ClickHouse-local cases retain pause suppression
+and latest reactivation/restoration/retagging/public/uploader controls. Full API:
+1,894 plus eight subtests, one opt-in lifecycle skip; Ruff and fresh same-model
+review pass. No runtime repair, actual writer lifecycle or real-object retrieval.
+Provenance/broader policy/CI/rollout/diverse/L1 OPEN; no L2 advancement.
+
 ## Node-Ad Attachment Authority (02.11.2026)
 
 H01-NODE-LINK [local repair](scans/2026-10/repair-h01-node-attachment.md): current
