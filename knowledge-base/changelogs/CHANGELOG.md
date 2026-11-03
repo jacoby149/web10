@@ -1,3 +1,6 @@
+3.257.12 || 03.11.2026
+fix(social): retain the acting-identity trigger's border/background and replace desktop padding on mobile with a fixed 44px touch target and 8px horizontal padding, restoring vertical breathing room inside the 56px header. Operator clarification: the border is wanted; its collision with the header edges is not. Desktop card styling and picker behavior remain unchanged. All 15 identity-picker tests pass again after clarification; production typecheck/build passed before the border restoration (bundling warnings). Updated desktop/375px header screenshots inspected in `.context/mobile-identity-header-*`. Settings screenshot fixture logs its missing getGroupsManages mock; header renders correctly. No deployment.
+
 3.257.11 || 03.11.2026
 docs(research): shorten the paper title to "Your Data, Your Rules: Extending the Decentralized Web" at the operator's request; align the thesis title rationale and rebuild the PDF. No contribution or evaluation changes.
 
