@@ -1,5 +1,7 @@
-3.257.7 || 03.11.2026
+3.257.8 || 03.11.2026
 test(security): reproduce older node-creative delivery/signing after newer document deletion or node_ad removal, holding Discover attachment live. Actual compiler document subquery and loader/ASGI/real synthetic SigV4 expose three disclosures; eight SQLite/ClickHouse-local cases preserve pause suppression and latest restored/reactivated/retagged/public/uploader controls. Full API: 1,894 passed plus eight subtests, one opt-in lifecycle skip; full Ruff and fresh same-model review pass. Evidence only, no runtime repair; queue bounded document-history repair. Real writer/merge/tie lifecycle, provenance, broader ad/CI/rollout/diverse and protocol L1 remain OPEN.
+
+3.257.7 || 03.11.2026
 fix(social): render identity-picker group pictures from the shared resolver's `avatar_url`, not the nonexistent `avatarUrl`. Use the shared FaceUrls type and strengthen the existing regression to assert the actual group image URL instead of only a lookup request; it fails before repair and passes afterward. All 19 picker tests and production typecheck/build pass (bundling warnings); seeded desktop/375px screenshots inspected in `.context/picker-avatar-*`. Screenshot settings background logs a missing mock getGroupsManages method; picker resolution succeeds. No API/auth changes, deployment or live-account verification.
 
 3.257.6 || 03.11.2026
