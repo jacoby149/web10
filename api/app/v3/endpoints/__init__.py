@@ -10,6 +10,7 @@ from . import (
     blocking,
     contracts,
     documents,
+    domains,
     groups,
     imports,
     logs,
@@ -29,6 +30,7 @@ router.include_router(auth.router, prefix="")
 
 # Account management — profile, password, phone, email
 router.include_router(account.router, prefix="")
+router.include_router(domains.router, prefix="")
 
 # Account recovery — phone → code → pick account → sign in (unauthenticated)
 router.include_router(recovery.router, prefix="")
