@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 import app.exceptions as exceptions
 from app.services.hls import hls_prefix, mint_sig
-from app.v3.endpoints.auth_helper import client_id_of, user_or_anon
+from app.v3.endpoints.auth_helper import client_id_of, principal, user_or_anon
 from app.v3.endpoints.auth_helper import user as _user
 from app.v3.models import (
     ContentAnalyticsRequest,
@@ -15,6 +15,7 @@ from app.v3.models import (
     TrackContentEvent,
     UpdateDocument,
 )
+from app.v3.models.documents import DocumentAttachment
 from app.v3.services import clickhouse as ch
 from app.v3.services import moderation
 
@@ -216,8 +217,8 @@ def create_document(request: Request, data: CreateDocument):
     Group-as-author: when ``author_as`` is set, the doc's ``author_key`` is
     the group_id and ``posted_by`` is the JWT username. Two gates:
     (1) the caller holds a role in the group that grants ``create`` on the
-    service; (2) the group can write in each target group (the existing
-    ``can_write_group`` check, principal = group_id).
+    service; (2) external targets require ``can_write_group`` as the group.
+    The live grant in (1) also permits an explicit self-target attachment.
     """
     real_author = _user(data)
     display_author = data.author_as or real_author
@@ -238,7 +239,14 @@ def create_document(request: Request, data: CreateDocument):
     # display author. The contract is the app's trust in the USER, not the group.
     _check_app_permission(request, real_author, data.service, "create", client_id_of(data))
 
-    writable = [g for g in data.groups or [] if ch.can_write_group(g, display_author, data.service)]
+    # Gate 1 already authorizes this service in the acting group itself;
+    # no self-membership row is needed. Never inherit human external grants.
+    writable = [
+        g
+        for g in data.groups or []
+        if (data.author_as and g == data.author_as) or ch.can_write_group(g, display_author, data.service)
+    ]
+    log.info("[documents] create target authorization: requested=%d writable=%d", len(data.groups or []), len(writable))
     if data.groups and not writable:
         raise HTTPException(status_code=403, detail="no write access to the requested group")
 
@@ -284,16 +292,22 @@ def read_documents(request: Request, data: ReadDocuments):
     # token (a real user, not anon) — it selects the `authenticated` principal
     # class in the effective-role union.
     authenticated = reader != "anon"
+    # D84: foreign readers use a provider-qualified key at every downstream
+    # gate; local keys stay aligned with the existing membership writers.
+    reader_principal = principal(data) if authenticated else "anon"
+    reader = reader_principal
     if authenticated:
         _check_app_permission(request, reader, data.service, "readAll", client_id_of(data))
 
     if data.doc_id:
-        doc = ch.read_document_by_id(data.doc_id, reader, data.service, authenticated)
+        doc = ch.read_document_by_id(data.doc_id, reader_principal, data.service, authenticated)
         if not doc:
             raise exceptions.ENTRY_NOT_FOUND
         # Return only readable carriers; a public document must not enumerate
         # private groups it is also attached to. Actions can retain this scope.
-        doc["groups"] = ch.readable_groups(reader, data.service, authenticated, ch.get_doc_groups(data.doc_id))
+        doc["groups"] = ch.readable_groups(
+            reader_principal, data.service, authenticated, ch.get_doc_groups(data.doc_id)
+        )
         # D86: a single-doc read is a content view (the watch/short/permalink
         # surface) — log the delivery impression (the un-gameable floor).
         _log_deliveries([doc], reader, data.service, data.surface)
@@ -309,13 +323,13 @@ def read_documents(request: Request, data: ReadDocuments):
 
     if "me" in data.groups:
         # "my groups" = the groups my effective role can read this service in.
-        candidates = [g["group_id"] for g in ch.get_user_groups(reader)]
-        group_ids = ch.readable_groups(reader, data.service, authenticated, candidates)
+        candidates = [g["group_id"] for g in ch.get_user_groups(reader_principal)]
+        group_ids = ch.readable_groups(reader_principal, data.service, authenticated, candidates)
     else:
         # D58 read gate: filter to the groups the reader's effective role
         # grants readAll on this service (members via their role, bystanders
         # via the anyone/authenticated grant).
-        group_ids = ch.readable_groups(reader, data.service, authenticated, data.groups)
+        group_ids = ch.readable_groups(reader_principal, data.service, authenticated, data.groups)
         # D42: distinguish "group missing / not a member" from "no notes yet"
         # (which returns an empty list). If the reader's effective role grants
         # readAll on NONE of the requested groups, this is an access failure the
@@ -339,7 +353,7 @@ def read_documents(request: Request, data: ReadDocuments):
                 service=data.service,
                 ref_values=data.ref,
                 group_ids=group_ids,
-                member_key=reader,
+                member_key=reader_principal,
             )
         # The ref filter (the flexible read, phase 1): "give me the
         # comments/reactions for these posts." Routed through the safe-query
@@ -350,7 +364,7 @@ def read_documents(request: Request, data: ReadDocuments):
             service=data.service,
             ref_values=data.ref,
             group_ids=group_ids,
-            member_key=reader,
+            member_key=reader_principal,
             limit=data.limit,
             cursor=data.cursor,
             order=data.order,
@@ -361,7 +375,7 @@ def read_documents(request: Request, data: ReadDocuments):
 
     docs = ch.read_documents_in_groups(
         group_ids=group_ids,
-        member_key=reader,
+        member_key=reader_principal,
         service=data.service,
         limit=data.limit,
         offset=data.offset,
@@ -427,8 +441,17 @@ def update_document(request: Request, data: UpdateDocument):
         else:
             raise exceptions.ENTRY_NOT_FOUND
     _check_app_permission(request, _user(data), existing["service"], "updateOwn", client_id_of(data))
-    if data.groups is not None and any(not ch.can_write_group(g, author, existing["service"]) for g in data.groups):
-        raise HTTPException(status_code=403, detail="no write access to the requested group")
+    if data.groups is not None:
+        stored_groups = ch.get_doc_groups(data.doc_id) if data.author_as and author in data.groups else []
+        for group in data.groups:
+            if data.author_as and group == author:
+                # Live updateOwn already passed. Retaining self needs no new
+                # create grant; adding self does, even with self-membership.
+                allowed = group in stored_groups or ch._effective_allows(perms, existing["service"], "create")
+            else:
+                allowed = ch.can_write_group(group, author, existing["service"])
+            if not allowed:
+                raise HTTPException(status_code=403, detail="no write access to the requested group")
 
     merged_body = {**existing["body"], **data.body}
     # Preserve the existing ad preference unless the update sets one.
@@ -452,6 +475,37 @@ def update_document(request: Request, data: UpdateDocument):
         result["groups"] = ch.get_doc_groups(data.doc_id)
 
     return result
+
+
+@router.post("/attachment")
+def document_attachment(request: Request, data: DocumentAttachment):
+    """Read/set one attachment, never a read-filtered replacement list."""
+    human = _user(data)
+    author = data.author_as or human
+    existing = ch.get_document(data.doc_id, author)
+    if not existing:
+        raise exceptions.ENTRY_NOT_FOUND
+    service = existing["service"]
+    perms = None
+    if data.author_as:
+        perms = ch.effective_role_perms(author, human, authenticated=True)
+        if not ch.get_group(author) or not ch._effective_allows(perms, service, "updateOwn"):
+            raise HTTPException(status_code=403, detail="no permission to update as this group")
+    _check_app_permission(request, human, service, "updateOwn", client_id_of(data))
+    attached = data.group_id in ch.get_doc_groups(data.doc_id)
+    if data.attached is True:
+        allowed = (
+            attached or ch._effective_allows(perms, service, "create")
+            if data.author_as and data.group_id == author
+            else ch.can_write_group(data.group_id, author, service)
+        )
+        if not allowed:
+            raise HTTPException(status_code=403, detail="no write access to the requested group")
+    if data.attached is not None:
+        ch.set_doc_attachment(data.doc_id, data.group_id, data.attached)
+        attached = data.attached
+    log.info("[documents] attachment: mutation=%s attached=%s", data.attached is not None, attached)
+    return {"doc_id": data.doc_id, "group_id": data.group_id, "attached": attached}
 
 
 @router.post("/delete")
@@ -548,10 +602,12 @@ def content_views(request: Request, data: ContentViewsRequest):
     """
     reader = user_or_anon(data)
     authenticated = reader != "anon"
+    reader_principal = principal(data) if authenticated else "anon"
+    reader = reader_principal
     if authenticated:
         _check_app_permission(request, reader, data.service, "readAll", client_id_of(data))
     # D58 read gate: filter to the groups the reader's effective role grants
     # readAll on this service (the same gate the group read uses). Anon reads
     # the public board (the `anyone` grant).
-    group_ids = ch.readable_groups(reader, data.service, authenticated, data.groups)
+    group_ids = ch.readable_groups(reader_principal, data.service, authenticated, data.groups)
     return ch.content_event_views_for_docs(data.doc_ids, data.service, group_ids)

@@ -306,6 +306,8 @@ CREATE TABLE users (
     phone_verified UInt8 DEFAULT 0,
     email String DEFAULT '',
     email_verified UInt8 DEFAULT 0,
+    domain String DEFAULT '',
+    domain_verified UInt8 DEFAULT 0,
     created_at DateTime64(3),
     updated_at DateTime64(3),
     deleted UInt8 DEFAULT 0
@@ -314,6 +316,9 @@ ORDER BY username;
 ```
 
 **Primary key:** `username` — unique, fast lookup.
+
+**Domain:** the claimed DNS alias (`domain` + `domain_verified`) — the
+account-level analog of `phone`; see `../identity/domain-identity.md`.
 
 **Tombstones:** account deletion is `deleted = 1`. Queries filter `WHERE deleted = 0`.
 

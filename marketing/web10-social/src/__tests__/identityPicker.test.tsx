@@ -10,11 +10,12 @@ const mock = vi.hoisted(() => ({
   token: { provider: 'test.localhost', username: 'testuser' },
   getMyGroups: vi.fn(),
   getGroup: vi.fn(),
+  query: vi.fn(),
+  readGroupIdentity: vi.fn(),
 }));
 const group = 'test.localhost/groups/users/testuser/team';
-vi.mock('@/data/v3', async (original) => ({ ...await original<typeof import('@/data/v3')>(), getV3Client: () => ({ readToken: () => mock.token, getMyGroups: mock.getMyGroups, getGroup: mock.getGroup }) }));
-vi.mock('@/data/groups', async (original) => ({ ...await original<typeof import('@/data/groups')>(), readGroupIdentity: vi.fn().mockResolvedValue({ name: 'Team' }) }));
-vi.mock('@/data', async (original) => ({
+vi.mock('@/data/v3', async (original) => ({ ...await original<typeof import('@/data/v3')>(), getV3Client: () => ({ readToken: () => mock.token, getMyGroups: mock.getMyGroups, getGroup: mock.getGroup, query: mock.query }) }));
+vi.mock('@/data/groups', async (original) => ({ ...await original<typeof import('@/data/groups')>(), readGroupIdentity: mock.readGroupIdentity }));vi.mock('@/data', async (original) => ({
   ...await original<typeof import('@/data')>(),
   createPost: vi.fn().mockResolvedValue({ _id: 'post' }),
   createRepost: vi.fn().mockResolvedValue({ _id: 'repost' }),
@@ -29,9 +30,12 @@ vi.mock('@/data/wapi', () => ({ getWapi: () => ({ readToken: () => mock.token })
 beforeEach(() => {
   vi.restoreAllMocks();
   sessionStorage.clear();
+  localStorage.clear();
   vi.clearAllMocks();
   mock.getMyGroups.mockResolvedValue([{ group_id: group, my_role: 'custom-writer' }]);
   mock.getGroup.mockResolvedValue({ group_id: group, roles: [{ name: 'custom-writer', permissions: { posts: ['create'] } }] });
+  mock.query.mockResolvedValue({ rows: [] });
+  mock.readGroupIdentity.mockResolvedValue({ name: 'Team' });
 });
 
 describe('App-wide acting identity', () => {
@@ -109,7 +113,7 @@ describe('App-wide acting identity', () => {
     expect(data.fanOutToFollowers).not.toHaveBeenCalled();
   });
 
-  it('uses group memberships instead of Discover when no destination was supplied', async () => {
+  it('keeps group memberships alongside Discover for a public draft without explicit destinations', async () => {
     selectActingAuthor(group);
     mock.getMyGroups.mockResolvedValue([{ group_id: 'team-destination' }]);
     const { default: PostComposer } = await import('@/components/Feed/PostComposer');
@@ -118,7 +122,7 @@ describe('App-wide acting identity', () => {
     fireEvent.click(screen.getByTestId('post-submit'));
     await waitFor(() => expect(data.createPost).toHaveBeenCalled());
     expect(mock.getMyGroups).toHaveBeenCalledWith({ author_as: group, service: 'posts' });
-    expect(vi.mocked(data.createPost).mock.calls[0][1]).toEqual(['team-destination']);
+    expect(vi.mocked(data.createPost).mock.calls[0][1]).toEqual([group, 'team-destination', data.getDiscoverGroupId()]);
   });
 
   it('reposts under the draft identity without personal follower fan-out', async () => {

@@ -423,6 +423,15 @@ describe('v3 client', () => {
   describe('CRUD', () => {
     beforeEach(() => client.setToken(mockToken))
 
+    it('attachment reads and sets only the named target, including false', async () => {
+      http.authPost.mockResolvedValue({ doc_id: 'doc', group_id: 'target', attached: false })
+      await client.documentAttachment('doc', 'target', { author_as: 'team' })
+      await client.documentAttachment('doc', 'target', { author_as: 'team', attached: false })
+      expect(http.authPost).toHaveBeenLastCalledWith('http://api.localhost/v3/attachment', expect.objectContaining({ doc_id: 'doc', group_id: 'target', author_as: 'team', attached: false }))
+      expect(http.authPost.mock.calls[0][1]).not.toHaveProperty('attached')
+      expect(http.authPost.mock.calls[1][1]).not.toHaveProperty('groups')
+    })
+
     it('create sends service, body, and groups', async () => {
       const mockResponse = { doc_id: 'abc123', collection_name: 'notes', body: { text: 'hello' } }
       vi.spyOn(http, 'authPost').mockResolvedValueOnce(mockResponse as any)

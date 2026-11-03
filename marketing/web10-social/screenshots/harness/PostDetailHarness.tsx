@@ -31,12 +31,12 @@ const POST: PostRecord = {
   author_provider: 'web10',
 };
 
-export function PostDetailHarness() {
+export function PostDetailHarness({ group = false }: { group?: boolean }) {
   return (
     <MemoryRouter>
       <div className="flex min-h-screen items-center justify-center bg-background" data-testid="post-detail-harness">
         <PostLightbox
-          post={POST}
+          post={group ? { ...POST, author_key: 'web10/groups/users/me/studio', author_username: 'Northstar Studio', posted_by: 'another-operator' } : POST}
           mediaMap={{}}
           onClose={() => {}}
           postAuthor="nova"

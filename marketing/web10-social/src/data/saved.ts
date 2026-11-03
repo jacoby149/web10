@@ -142,8 +142,9 @@ export interface CollectionContents {
  */
 export async function createCollection(
   name: string,
-  opts: { visibility?: CollectionVisibility; slug?: string } = {},
+  opts: { visibility?: CollectionVisibility; slug?: string; assertCurrent?: () => void } = {},
 ): Promise<string> {
+  opts.assertCurrent?.();
   const w = getV3Client();
   const owner = ownerUsername();
   const visibility: CollectionVisibility = opts.visibility ?? 'private';
@@ -174,11 +175,13 @@ export async function createCollection(
   const groupId = res.group_id;
   LOG('createCollection — created', groupId);
 
+  opts.assertCurrent?.();
   await writeGroupIdentity(groupId, {
     name,
     kind: 'saved',
     visibility,
   });
+  opts.assertCurrent?.();
   LOG('createCollection — face written', groupId);
   return groupId;
 }
@@ -516,12 +519,15 @@ export async function savePostToCollection(
   groupId: string,
   postId: string,
   note?: string,
+  assertCurrent?: () => void,
 ): Promise<boolean> {
+  assertCurrent?.();
   const w = getV3Client();
   if (!postId) throw new Error('cannot save a post without an id');
   LOG('savePostToCollection — start', { groupId, postId });
 
   const existing = await findSavedDoc(groupId, postId);
+  assertCurrent?.();
   if (existing) {
     LOG('savePostToCollection — already saved, no-op', postId);
     return false;
@@ -529,11 +535,13 @@ export async function savePostToCollection(
   const body: Record<string, unknown> = { post_id: postId };
   if (note) body.note = note;
   await w.create(SAVED_SERVICE, body, { groups: [groupId], ref_value: postId });
+  assertCurrent?.();
   LOG('savePostToCollection — saved', postId);
   // The collection's thumbnail defaults to the first thing saved into it (the
   // owner can later pin any item via "Set as cover"). Best-effort — it never
   // fails the save.
-  await ensureCollectionCover(groupId, postId);
+  await ensureCollectionCover(groupId, postId, assertCurrent);
+  assertCurrent?.();
   return true;
 }
 
@@ -544,18 +552,24 @@ export async function savePostToCollection(
  * wins) or the post has no media (a text-only post can't be a cover). Never
  * throws — a cover failure degrades to the brand-tinted placeholder.
  */
-async function ensureCollectionCover(groupId: string, postId: string): Promise<void> {
+async function ensureCollectionCover(groupId: string, postId: string, assertCurrent?: () => void): Promise<void> {
+  assertCurrent?.();
   try {
     const face = await readGroupIdentity(groupId);
+    assertCurrent?.();
     if (face.avatar_ref) return; // an explicit cover already — don't clobber it
     const post = await readPostById(postId);
+    assertCurrent?.();
     const firstRef = post?.media_refs?.[0];
     if (!firstRef) return; // a text-only post can't be a cover
     const mediaId = mediaRefId(firstRef);
     if (!mediaId) return;
     await writeGroupIdentity(groupId, { ...face, avatar_ref: mediaId });
+    assertCurrent?.();
     LOG('ensureCollectionCover — set cover', groupId, mediaId);
   } catch (e) {
+    // Cover errors remain best-effort, but cancellation must reach the caller.
+    assertCurrent?.();
     LOG('ensureCollectionCover — failed (degrading)', groupId, (e as Error)?.message);
   }
 }
@@ -564,15 +578,18 @@ async function ensureCollectionCover(groupId: string, postId: string): Promise<v
  * Remove a post from a collection (delete the `saved` doc). A no-op when the
  * post is not in the collection.
  */
-export async function removePostFromCollection(groupId: string, postId: string): Promise<void> {
+export async function removePostFromCollection(groupId: string, postId: string, assertCurrent?: () => void): Promise<void> {
+  assertCurrent?.();
   const w = getV3Client();
   LOG('removePostFromCollection — start', { groupId, postId });
   const existing = await findSavedDoc(groupId, postId);
+  assertCurrent?.();
   if (!existing) {
     LOG('removePostFromCollection — not saved, no-op', postId);
     return;
   }
   await w.delete(existing.doc_id);
+  assertCurrent?.();
   LOG('removePostFromCollection — removed', postId);
 }
 

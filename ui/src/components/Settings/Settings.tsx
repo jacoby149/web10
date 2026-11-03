@@ -6,6 +6,7 @@ import VerifyPhone from './VerifyPhone';
 import DevPay from './DevPay';
 import Changelog from './Changelog';
 import RecoveryContact from './RecoveryContact';
+import ClaimDomain from './ClaimDomain';
 import { cn } from '@/lib/utils';
 
 type Tab = 'settings' | 'changes';
@@ -16,11 +17,14 @@ function Settings({ I }: { I: Record<string, any> }) {
   // Deep-link: ?section=recovery scrolls to / focuses the recovery card
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('section') === 'recovery') {
+    if (params.get('section') === 'recovery' || window.location.hash === '#domain') {
       setTab('settings');
-      const el = document.querySelector('[data-testid="recovery-contact-section"]');
+      const el = window.location.hash === '#domain' ? document.getElementById('domain') : document.querySelector('[data-testid="recovery-contact-section"]');
       el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
+    const onHash = () => { if (window.location.hash === '#domain') setTab('settings'); };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
   return (
@@ -50,6 +54,7 @@ function Settings({ I }: { I: Record<string, any> }) {
       </div>
       {tab === 'settings' ? (
         <div className="space-y-4">
+          <ClaimDomain I={I} />
           <RecoveryContact I={I} />
           {I.isVerified() ? <ChangePhone I={I} /> : <VerifyPhone I={I} />}
           <ChangePass I={I} />

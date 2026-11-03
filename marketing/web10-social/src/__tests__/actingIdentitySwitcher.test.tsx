@@ -3,11 +3,11 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import ActingIdentitySwitcher from '@/components/Social/ActingIdentitySwitcher';
 
 const mocks = vi.hoisted(() => ({
-  getMyGroups: vi.fn(), getGroup: vi.fn(), readGroupIdentity: vi.fn(), select: vi.fn(),
+  getMyGroups: vi.fn(), getGroup: vi.fn(), readGroupIdentity: vi.fn(), select: vi.fn(), query: vi.fn(),
 }));
 vi.mock('@/data/v3', () => ({ getV3Client: () => ({
   readToken: () => ({ provider: 'test', username: 'alice' }),
-  getMyGroups: mocks.getMyGroups, getGroup: mocks.getGroup,
+  getMyGroups: mocks.getMyGroups, getGroup: mocks.getGroup, query: mocks.query,
 }) }));
 vi.mock('@/data/groups', () => ({ readGroupIdentity: mocks.readGroupIdentity }));
 vi.mock('@/data/actingIdentity', () => ({ useActingAuthor: () => undefined, selectActingAuthor: mocks.select }));
@@ -25,6 +25,7 @@ describe('ActingIdentitySwitcher partial loading', () => {
       if (id === 'face-fails') throw new Error('face unavailable');
       return { name: `Group ${id}` };
     });
+    mocks.query.mockResolvedValue({ rows: [] });
   });
 
   it('retains valid choices on detail and face failures and retries missing choices', async () => {
@@ -52,5 +53,28 @@ describe('ActingIdentitySwitcher partial loading', () => {
     expect(screen.getByRole('button', { name: /alice\s*Personal identity/ })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Use identity' })).toBeDisabled();
     expect(mocks.select).not.toHaveBeenCalled();
+  });
+
+  it('shows the personal avatar and each group face in the menu', async () => {
+    mocks.query.mockResolvedValue({ rows: [{ group_id: 'good', avatar_url: 'https://cdn.example/face-good.jpg' }] });
+    render(<ActingIdentitySwitcher personalAvatar="https://cdn.example/face-alice.jpg" personalName="Alice" />);
+    fireEvent.click(screen.getByTestId('acting-identity-trigger'));
+    await screen.findByRole('button', { name: /^Group good\s*Group$/ });
+    expect(mocks.query).toHaveBeenCalled();
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.querySelector('img[src="https://cdn.example/face-alice.jpg"]')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('button', { name: /^Group good\s*Group$/ }).querySelector('img'))
+      .toHaveAttribute('src', 'https://cdn.example/face-good.jpg'));
+    expect(mocks.query).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ groups: expect.arrayContaining(['good']) }));
+  });
+
+  it('keeps the initial fallback when a group face is unavailable', async () => {
+    mocks.query.mockResolvedValue({ rows: [] });
+    render(<ActingIdentitySwitcher />);
+    fireEvent.click(screen.getByTestId('acting-identity-trigger'));
+    await screen.findByRole('button', { name: /^Group good\s*Group$/ });
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.querySelector('img')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Group good\s*Group$/ }).querySelector('div')).toHaveTextContent('G');
   });
 });

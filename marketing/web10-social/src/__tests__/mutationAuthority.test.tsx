@@ -2,24 +2,27 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { PostCard } from '@/components/Feed/FeedScreen';
+import { PostLightbox } from '@/components/Bio/PostLightbox';
 import { readMutationAuthority, useMutationAuthority } from '@/data/mutationAuthority';
 import { selectActingAuthor } from '@/data/actingIdentity';
 import { deleteComment, readThreadComments, updateComment } from '@/data/comments';
 
 const client = vi.hoisted(() => ({
   readToken: vi.fn(() => ({ username: 'alice', provider: 'node' })),
-  getGroup: vi.fn(), readById: vi.fn(), update: vi.fn(), delete: vi.fn(),
-  read: vi.fn(), query: vi.fn(), readRefCounts: vi.fn(),
+  getGroup: vi.fn(), getMyGroups: vi.fn(), readById: vi.fn(), update: vi.fn(), delete: vi.fn(),
+  read: vi.fn(), query: vi.fn(), readRefCounts: vi.fn(), contentViews: vi.fn(async () => ({})),
 }));
 vi.mock('@/data/v3', () => ({ getV3Client: () => client }));
 const group = 'node/groups/team';
 function grants(permissions: Record<string, string[]>) {
-  return { my_role: 'operator', roles: [{ name: 'operator', permissions }] };
+  return { roles: [{ name: 'operator', permissions }] };
 }
 beforeEach(() => {
   vi.clearAllMocks();
   sessionStorage.clear();
+  localStorage.clear();
   client.getGroup.mockResolvedValue(grants({}));
+  client.getMyGroups.mockResolvedValue([{ group_id: group, my_role: 'operator' }]);
   client.query.mockResolvedValue({ rows: [], count: 0 });
   client.read.mockResolvedValue([]);
   client.readRefCounts.mockResolvedValue({});
@@ -74,10 +77,36 @@ it.each([
 
 it('denies failed or revoked membership without treating the selected group as proof', async () => {
   selectActingAuthor(group);
-  client.getGroup.mockResolvedValue({ ...grants({ '*': ['updateOwn', 'deleteOwn'] }), my_role: '' });
+  client.getGroup.mockResolvedValue(grants({ '*': ['updateOwn', 'deleteOwn'] }));
+  client.getMyGroups.mockResolvedValue([]);
   expect(await readMutationAuthority(group, 'posts')).toEqual({ canEdit: false, canDelete: false });
   client.getGroup.mockRejectedValue(new Error('revoked'));
   expect(await readMutationAuthority(group, 'posts')).toEqual({ canEdit: false, canDelete: false });
+});
+
+it('does not borrow another group membership or trust a caller-specific role on the contract', async () => {
+  client.getGroup.mockResolvedValue({ ...grants({ posts: ['updateOwn'] }), my_role: 'operator' });
+  client.getMyGroups.mockResolvedValue([{ group_id: 'node/groups/other', my_role: 'operator' }]);
+  expect(await readMutationAuthority(group, 'posts')).toEqual({ canEdit: false, canDelete: false });
+  client.getMyGroups.mockRejectedValue(new Error('membership unavailable'));
+  expect(await readMutationAuthority(group, 'posts')).toEqual({ canEdit: false, canDelete: false });
+});
+
+it.each([true, false])('grid/media lightbox resolves edit controls from real membership shape: %s', async (allowed) => {
+  selectActingAuthor('node/groups/other');
+  client.getGroup.mockResolvedValue(grants({ posts: allowed ? ['updateOwn'] : ['create'] }));
+  render(<MemoryRouter><PostLightbox
+    post={{ _id: 'p', author_key: group, posted_by: 'bob', text: 'Original post', created_at: '2026-11-01' }}
+    mediaMap={{}} onClose={vi.fn()}
+  /></MemoryRouter>);
+  await waitFor(() => expect(client.getMyGroups).toHaveBeenCalled());
+  if (!allowed) {
+    expect(screen.queryByTestId('post-option-edit')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('post-options-button')).not.toBeInTheDocument();
+    return;
+  }
+  fireEvent.click(await screen.findByTestId('post-options-button'));
+  await waitFor(() => expect(!!screen.queryByTestId('post-option-edit')).toBe(allowed));
 });
 
 it('refreshes group grants and ignores a pending result for a previous author', async () => {
@@ -89,6 +118,7 @@ it('refreshes group grants and ignores a pending result for a previous author', 
   await act(async () => resolve(grants({ posts: ['updateOwn', 'deleteOwn'] })));
   expect(result.current).toEqual({ canEdit: false, canDelete: false });
   client.getGroup.mockResolvedValue(grants({ posts: ['deleteOwn'] }));
+  client.getMyGroups.mockResolvedValue([{ group_id: 'node/groups/other', my_role: 'operator' }]);
   act(() => window.dispatchEvent(new Event('focus')));
   await waitFor(() => expect(result.current.canDelete).toBe(true));
 });

@@ -443,3 +443,13 @@ const ratings = await w.getAppRatings('https://myapp.com')
 ## Source
 
 The SDK source lives in [`sdk/`](https://github.com/jacoby149/web10/tree/dev/sdk) in this repository.
+
+## Change One Document Audience
+
+Use `w.documentAttachment(docId, groupId)` to read a single attachment, or pass
+`{ attached: true }` / `{ attached: false }` to add/remove it. For a group-authored
+document include `author_as: originalAuthorGroup`. Other attachments and content
+are untouched; do not replace groups from a normal read's filtered list.
+This requires live document update authority; adding checks the document author's
+destination create permission. Removal does not require create. Concurrent changes
+to different targets are disjoint, but this is not same-target CAS or a transaction.

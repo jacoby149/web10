@@ -13,6 +13,8 @@ import DiscoverScreen from '@/components/Discover/DiscoverScreen';
 import WatchScreen from '@/components/Watch/WatchScreen';
 import ShortsScreen from '@/components/Shorts/ShortsScreen';
 import MusicScreen from '@/components/Music/MusicScreen';
+import MusicPlayer from '@/components/Music/MusicPlayer';
+import { MusicProvider } from '@/context/MusicContext';
 import GroupsScreen from '@/components/Groups/GroupsScreen';
 import GroupDetailScreen from '@/components/Groups/GroupDetailScreen';
 import DmsScreen from '@/components/Chat/DmsScreen';
@@ -269,6 +271,10 @@ function App() {
   // is a cookie read (no side effects), so deriving initial state from it is
   // safe. The mount effect still runs the access recovery + authListen.
   const [signedIn, setSignedIn] = useState(() => getSocialAuth().isSignedIn());
+  const [musicSession, setMusicSession] = useState(() => {
+    const who = getSocialAuth().readToken();
+    return who ? JSON.stringify([who.provider, who.username, getV3Client().readToken()?.expires ?? null]) : 'anonymous';
+  });
   const [showReportBug, setShowReportBug] = useState(false);
   const [reportTrigger, setReportTrigger] = useState<'button' | 'error-boundary'>('button');
   // The access recovery's manual-fallback banner (set when a recovery is in
@@ -309,6 +315,7 @@ function App() {
       setSessionAlert(null);
       trackEvent('login');
       const who = auth.readToken();
+      setMusicSession(who ? JSON.stringify([who.provider, who.username, getV3Client().readToken()?.expires ?? null]) : 'anonymous');
       if (who) hotjarIdentify(who.username);
       // The sign-in (or a reauth) IS the recovery — no need to re-verify here.
       // Verifying during the sign-in transition hits a "Failed to fetch" (the
@@ -318,6 +325,7 @@ function App() {
     // The recovery's terminal signout (user not found) clears the cookie and
     // signals us to show the login screen.
     const onSignedOut = () => {
+      setMusicSession('anonymous');
       setSignedIn(false);
       setSessionAlert(null);
     };
@@ -422,6 +430,7 @@ function App() {
 
   function handleLogout() {
     getSocialAuth().signOut();
+    setMusicSession('anonymous');
     setSignedIn(false);
   }
 
@@ -472,6 +481,7 @@ function App() {
       <RepostProvider>
       <ComposerProvider>
       <SaveProvider>
+      <MusicProvider sessionKey={musicSession}>
       <Routes>
         <Route element={<Layout onLogout={handleLogout} onLogin={handleLogin} isAnon={isAnon} onReportBug={() => handleReportBug('button')} />}>
           <Route path="/feed" element={<PostsScreen onAuthorClick={handleAuthorClick} />} />
@@ -508,6 +518,7 @@ function App() {
           <Route path="*" element={<Navigate to="/feed" replace />} />
         </Route>
       </Routes>
+       <MusicPlayer />
       {/* The app-level composer (the "New Post" sheet) — one composer for the
           whole app, opened by the Layout's floating "+" button, a group
           feed's "Post to this group", or a repeat icon (repost mode). The
@@ -516,7 +527,8 @@ function App() {
        <NewPostSheet />
        {/* The app-level "Save to…" sheet (D88) — one sheet for the whole app,
            opened by a post surface's kebab (the feed card's Save control). */}
-       <SaveSheet />
+        <SaveSheet />
+        </MusicProvider>
        </SaveProvider>
        </ComposerProvider>
        </RepostProvider>

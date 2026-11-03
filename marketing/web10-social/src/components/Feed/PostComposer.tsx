@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { createPost, createRepost, updatePost, uploadMedia, readProfile, resolveMediaRefs, fanOutToFollowers, readMyAds, getWapi, readGroupIdentity } from '@/data';
+import { createPost, createRepost, updatePost, uploadMedia, readProfile, resolveMediaRefs, fanOutToFollowers, readMyAds, getWapi, readGroupIdentity, getDiscoverGroupId } from '@/data';
 import { getActingAuthor, actingPostGroups } from '@/data/actingIdentity';
 import { getV3Client } from '@/data/v3';
 import { resolveFaceMedia, GROUP_FACE_SQL } from '@web10/discover/face';
@@ -31,6 +31,8 @@ import { VideoEditorSheet } from './VideoEditorSheet';
 import type { VideoEditResult } from './VideoEditorSheet';
 import { editVideo, isNoopEdit } from '@/lib/videoEditing';
 import { markdownToHtml } from '@/lib/markdownHtml';
+import { DiscoverAudience } from './DiscoverAudience';
+import { MusicTagToggle } from './MusicTagToggle';
 
 let nextMediaId = 0;
 
@@ -384,14 +386,18 @@ export default function PostComposer({
   // media to an existing post). Resolved from `editingPost.media_refs` on
   // mount; the surviving items are written back on save.
   const [editMedia, setEditMedia] = useState<MediaRecord[]>([]);
+  const [removedEditMediaIds, setRemovedEditMediaIds] = useState<Set<string>>(() => new Set());
+  const retainedEditRefs = (editingPost?.media_refs || []).filter((ref) => !removedEditMediaIds.has(mediaRefId(ref)));
   const [uploading, setUploading] = useState(false);
   const [posting, setPosting] = useState(false);
+  const [audienceBusy, setAudienceBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [focused, setFocused] = useState(false);
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
-  const [visibility, setVisibility] = useState<Visibility>(editingPost?.visibility || 'public');
+  const [visibility, setVisibility] = useState<Visibility>(editingPost?.visibility || (groups && !groups.includes(getDiscoverGroupId()) ? 'private' : 'public'));
+  const visibilityTouched = useRef(false);
   // In edit mode the pinned ad is pre-filled from the post's ad_target (a
   // minimal stub — the chip shows "Pinned ad"; the real ad object is only
   // needed for the picker, which loads lazily).
@@ -403,23 +409,30 @@ export default function PostComposer({
   const [albums, setAlbums] = useState<AdAlbum[]>([]);
   const [loadingAds, setLoadingAds] = useState(false);
   const [editingMediaId, setEditingMediaId] = useState<number | null>(null);
+  // The "mark as music" toggle (music.md): opt-in, shown when the post has
+  // video media attached. A video CAN be music — checking this sets the same
+  // `music` tag the dedicated audio flow sets, so the post appears in the
+  // Music tab and the author's profile Music section.
+  const [markAsMusic, setMarkAsMusic] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragIdRef = useRef<number | null>(null);
 
   // Capture the draft's identity once. Navigation changes never reauthor it.
   const [authorAs] = useState<string | null>(() => editingPost ? (editingPost.author_key?.includes('/groups/') ? editingPost.author_key : null) : getActingAuthor() || null);
-  const [selectedGroup, setSelectedGroup] = useState<{ name: string; avatarUrl?: string } | null>(authorAs ? { name: authorAs.split('/').pop() || 'Group' } : null);
+  const [selectedGroup, setSelectedGroup] = useState<{ name: string; avatarUrl?: string } | null>(authorAs ? { name: 'Loading group...' } : null);
   useEffect(() => {
     if (!authorAs) return;
     let cancelled = false;
     (async () => {
       try {
         const identity = await readGroupIdentity(authorAs);
+        if (!cancelled) setSelectedGroup({ name: identity.name || 'Group' });
         const faces = await resolveFaceMedia(async (sql, scope, prepare) => (await getV3Client().query(sql, { groups: scope, prepare })).rows, GROUP_FACE_SQL, [authorAs], 'group_id');
         const face = faces.get(authorAs);
-        if (!cancelled) setSelectedGroup({ name: face?.name || identity.name || authorAs.split('/').pop() || 'Group', avatarUrl: face?.avatar_url });
+        if (!cancelled) setSelectedGroup({ name: face?.name || identity.name || 'Group', avatarUrl: face?.avatar_url });
       } catch (e) {
         console.warn('[social-composer] draft face unavailable:', e);
+        if (!cancelled) setSelectedGroup((current) => current?.name === 'Loading group...' ? { name: 'Group' } : current);
       }
     })();
     return () => { cancelled = true; };
@@ -524,7 +537,7 @@ export default function PostComposer({
 
     readSettings()
       .then((s) => {
-        if (s.defaultVisibility === 'private') {
+        if (!isEditing && !groups && !visibilityTouched.current && s.defaultVisibility === 'private') {
           setVisibility('private');
         }
       })
@@ -535,6 +548,7 @@ export default function PostComposer({
   // remove-only grid can show them. Runs once per post being edited.
   useEffect(() => {
     if (!editingPost) return;
+    setRemovedEditMediaIds(new Set());
     const refs = (editingPost.media_refs || []).filter(Boolean) as (string | ResolvedMediaRef)[];
     let cancelled = false;
     if (!refs.length) {
@@ -543,7 +557,12 @@ export default function PostComposer({
     }
     resolveMediaRefs(refs)
       .then((media) => { if (!cancelled) setEditMedia(media); })
-      .catch(() => { if (!cancelled) setEditMedia([]); });
+      .catch(() => {
+        if (!cancelled) {
+          console.warn('[social-composer] edit media preview failed; original refs retained', { refCount: refs.length });
+          setEditMedia([]);
+        }
+      });
     return () => { cancelled = true; };
   }, [editingPost?._id]);
 
@@ -777,7 +796,7 @@ export default function PostComposer({
   async function handleSaveEdit() {
     if (!editingPost) return;
     const markdown = getMarkdown();
-    if (!markdown && !title.trim() && !editMedia.length) return;
+    if (!markdown && !title.trim() && !retainedEditRefs.length) return;
     setError(null);
     setPosting(true);
     try {
@@ -786,23 +805,20 @@ export default function PostComposer({
         text: markdown,
         updated_at: new Date().toISOString(),
       };
-      // Media: only send `media_refs` when it actually changed (the owner
-      // removed some). The surviving refs are the post's original refs minus
-      // the ones dropped from `editMedia` (matched by doc_id).
-      const keptIds = new Set(editMedia.map((m) => m._id).filter(Boolean));
+      // Preview resolution is not removal intent: unresolved siblings survive.
       const originalRefs = editingPost.media_refs || [];
-      const survivingRefs = originalRefs.filter((ref) => keptIds.has(mediaRefId(ref)));
-      if (survivingRefs.length !== originalRefs.length) {
-        updates.media_refs = survivingRefs;
+      if (retainedEditRefs.length !== originalRefs.length) {
+        updates.media_refs = retainedEditRefs;
       }
       const adPreference = pinnedAd
         ? { mode: 'pinned' as const, target: pinnedAd._id }
         : { mode: 'none' as const };
+      console.log('[social-composer] saving existing post', { groupAuthor: !!authorAs, mediaChanged: updates.media_refs !== undefined });
       await updatePost(editingPost._id || '', updates, adPreference, editingPost.author_key?.includes('/groups/') ? editingPost.author_key : undefined);
       console.log('[social-composer] post saved (edit)', editingPost._id);
       onPostCreated?.();
     } catch (e) {
-      console.error('Failed to save edit:', e);
+      console.error('[social-composer] edit failed; retaining draft', { errorType: e instanceof Error ? e.name : 'unknown' });
       setError(e instanceof Error ? e.message : 'Something went wrong. Try again.');
     } finally {
       setPosting(false);
@@ -972,10 +988,26 @@ export default function PostComposer({
       // toggle — the tag is the server-side feed filter; the Music feed also
       // re-derives audio/* at render (the tag alone is client-asserted).
       const isMusic = mediaItems.length === 1 && mediaItems[0].isAudio;
+      // The "mark as music" toggle: a video (or any media) the user explicitly
+      // flagged as music. A video CAN be music — this is opt-in, never
+      // automatic. The same `music` tag puts the post in the Music tab.
+      const hasVideo = mediaItems.some((m) => m.isVideo);
+      const isMarkedMusic = markAsMusic && hasVideo;
       // Keep explicit destinations; otherwise use the group's memberships.
       let targetGroups: string[] | undefined = groups;
       if (authorAs) {
         targetGroups = groups || await actingPostGroups(authorAs);
+      }
+      // Explicit destinations retain their audience unless the author opts in
+      // to Discover. A body visibility field alone does not enforce access.
+      if (targetGroups && (authorAs || groups)) {
+        if (!targetGroups.length) throw new Error('Choose a destination before posting.');
+        const discover = getDiscoverGroupId();
+        targetGroups = visibility === 'private'
+          ? targetGroups.filter((group) => group !== discover)
+          : [...new Set([...targetGroups, discover])];
+        if (!targetGroups.length) throw new Error('Choose a destination before posting.');
+        console.log('[social-composer] audience resolved', { public: visibility === 'public', destinations: targetGroups.length });
       }
 
       const postRecord = await createPost(
@@ -985,7 +1017,7 @@ export default function PostComposer({
           media_refs: mediaRecords.map((m) => m._id!).filter(Boolean),
           visibility,
           created_at: new Date().toISOString(),
-          tags: isShort ? ['short'] : isMusic ? ['music'] : undefined,
+          tags: isShort ? ['short'] : isMusic ? ['music'] : isMarkedMusic ? ['music'] : undefined,
         },
         targetGroups,
         pinnedAd ? { mode: 'pinned', target: pinnedAd._id } : undefined,
@@ -1025,7 +1057,7 @@ export default function PostComposer({
   // content. Otherwise the post needs text or media. In edit mode, a save is
   // valid as long as the post still has some content (text / title / media).
   const canPost = isEditing
-    ? (hasText || title.trim() || editMedia.length) && !posting
+    ? (hasText || title.trim() || retainedEditRefs.length) && !posting && !audienceBusy
     : (hasText || title.trim() || mediaItems.length || !!repostingTo) && !uploading && !posting;
   const hasErroredMedia = mediaItems.some((item) => item.error);
   const initials = (profile?.display_name || '?').charAt(0).toUpperCase();
@@ -1039,7 +1071,7 @@ export default function PostComposer({
   // full form when it has focus or content (the Discover surface — the video
   // wall is the hero, not the composer). The full form is always shown for a
   // repost (the context block must be visible) or when not compact.
-  const hasContent = hasText || title.trim().length > 0 || mediaItems.length > 0 || editMedia.length > 0;
+  const hasContent = hasText || title.trim().length > 0 || mediaItems.length > 0 || retainedEditRefs.length > 0;
   const expanded = !compact || focused || hasContent || !!repostingTo || isEditing;
 
   return (
@@ -1174,9 +1206,52 @@ export default function PostComposer({
                 </div>
               )}
 
+              {/* The "mark as music" toggle (music.md): opt-in, shown when the
+                  post has video media. A video CAN be music — checking this
+                  sets the same `music` tag the audio flow sets, so the post
+                  appears in the Music tab and the author's profile Music
+                  section. No audio file, album art, or metadata required. */}
+              {mediaItems.some((m) => m.isVideo) && !isEditing && (
+                <label className="mt-3 flex items-center gap-2 rounded-lg border border-border bg-surface p-3 cursor-pointer select-none" data-testid="mark-as-music-toggle">
+                  <input
+                    type="checkbox"
+                    checked={markAsMusic}
+                    onChange={(e) => setMarkAsMusic(e.target.checked)}
+                    disabled={posting || uploading}
+                    className="h-4 w-4 rounded border-border text-brand focus:ring-brand"
+                    aria-label="Mark as music"
+                  />
+                  <Music className="w-4 h-4 text-muted-foreground" strokeWidth={1.75} />
+                  <span className="text-sm text-foreground">Mark as music</span>
+                  <span className="text-xs text-muted-foreground ml-auto">Appears in the Music tab</span>
+                </label>
+              )}
+
+              {/* The "mark as music" toggle in edit mode (music.md): shown when
+                  the post has video media. Saves separately from post content
+                  (like the Discover audience control) — toggling writes the
+                  `music` tag via updatePost. A video CAN be music. */}
+              {isEditing && editMedia.some((m) => m.mime_type?.startsWith('video/')) && (
+                <section className="rounded-lg border border-border bg-surface p-3 space-y-2" aria-label="Mark as music" data-testid="edit-mark-as-music">
+                  <div className="flex items-center gap-2">
+                    <Music className="w-4 h-4 text-muted-foreground" strokeWidth={1.75} />
+                    <p className="text-sm font-medium">Mark as music</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Appears in the Music tab and the author's profile Music section. This saves separately from post content.</p>
+                  <MusicTagToggle
+                    docId={editingPost._id || ''}
+                    initialTags={editingPost.tags || []}
+                    authorAs={authorAs || undefined}
+                    disabled={posting}
+                    onBusyChange={setAudienceBusy}
+                  />
+                </section>
+              )}
+
               {/* Edit mode: the post's current media, remove-only (you can't
                   attach new media to an existing post). Each item has a remove
                   button; the survivors are written back on save. */}
+              {editingPost?._id && <DiscoverAudience docId={editingPost._id} authorAs={authorAs || undefined} disabled={posting} onBusyChange={setAudienceBusy} />}
               {isEditing && editMedia.length > 0 && (
                 <div className="mt-3" data-testid="edit-media-grid">
                   <p className="mb-2 text-xs font-medium text-muted-foreground">Media — tap × to remove</p>
@@ -1197,7 +1272,12 @@ export default function PostComposer({
                         )}
                         <button
                           type="button"
-                          onClick={() => setEditMedia((prev) => prev.filter((x) => x !== m))}
+                          onClick={() => {
+                            const id = m._id;
+                            if (!id) return;
+                            setRemovedEditMediaIds((prev) => new Set([...prev, id]));
+                            setEditMedia((prev) => prev.filter((x) => x._id !== id));
+                          }}
                           disabled={posting}
                           aria-label="Remove media"
                           data-testid={`composer-edit-remove-media-${i}`}
@@ -1257,7 +1337,7 @@ export default function PostComposer({
               </div>
 
           <div className="mt-4 border-t border-border pt-3">
-            <div className="flex items-center gap-1">
+            <div className="flex flex-wrap items-center gap-1">
               {/* Attach media is create-only — you can't add new media to an
                   existing post in edit mode (media is remove-only there). */}
               {!isEditing && (
@@ -1274,17 +1354,17 @@ export default function PostComposer({
                 </Button>
               )}
 
-              {authorAs ? <span className="text-xs text-muted-foreground">Group destinations</span> : <div className="relative">
+              {!isEditing && !repostingTo && <div className="relative">
                 <select
                   value={visibility}
-                  onChange={(e) => setVisibility(e.target.value as Visibility)}
-                  disabled={posting}
+                  onChange={(e) => { visibilityTouched.current = true; setVisibility(e.target.value as Visibility); }}
+                  disabled={posting || uploading}
                   aria-label="Post visibility"
                   data-testid="visibility-selector"
                   className="h-10 rounded text-xs font-medium bg-transparent px-2.5 py-2 text-muted-foreground hover:text-foreground hover:bg-elevated border border-transparent hover:border-border transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50 appearance-none cursor-pointer pr-7"
                 >
-                  <option value="public">Public</option>
-                  <option value="private">Private</option>
+                  <option value="public">{authorAs || groups ? 'Public + Discover' : 'Public'}</option>
+                  <option value="private">{authorAs || groups ? 'Group audience only' : 'Private'}</option>
                 </select>
                 <div className="pointer-events-none absolute inset-y-0 right-1 flex items-center">
                   {visibility === 'public' ? (

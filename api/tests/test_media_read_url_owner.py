@@ -30,6 +30,44 @@ import pytest
         "pinned-member-revoked",
         "pinned-member-rejoined",
         "pinned-member-never",
+        "pinned-member-revoked-tie",
+        "pinned-member-revoked-other-member",
+        "pinned-member-revoked-other-group",
+        "pinned-member-alternate-group",
+        "pinned-member-active-group-uploader",
+        "pinned-member-revoked-group-uploader",
+        "pinned-link-active",
+        "pinned-link-removed",
+        "pinned-link-reattached",
+        "pinned-link-never",
+        "pinned-link-removed-tie",
+        "pinned-link-removed-tie-reversed",
+        "pinned-link-removed-other-document",
+        "pinned-link-removed-other-group",
+        "pinned-link-removed-crossed-grants",
+        "pinned-link-alternate-group",
+        "pinned-link-active-group-uploader",
+        "pinned-link-removed-group-uploader",
+        "node-link-active",
+        "node-link-removed",
+        "node-link-reattached",
+        "node-link-never",
+        "node-link-active-group-uploader",
+        "node-link-removed-group-uploader",
+        "node-link-removed-tie",
+        "node-link-removed-tie-reversed",
+        "node-link-removed-other-document",
+        "node-link-removed-other-group",
+        "node-link-alternate-group",
+        "node-link-active-other-document-removal",
+        "node-doc-active",
+        "node-doc-deleted",
+        "node-doc-detagged",
+        "node-doc-paused",
+        "node-doc-reactivated",
+        "node-doc-restored",
+        "node-doc-retagged",
+        "node-doc-deleted-group-uploader",
     ],
 )
 def test_read_url_owner_boundary(case):
@@ -134,30 +172,34 @@ def _probe(case):
             algorithm=settings.ALGORITHM,
         )
 
-    if case.startswith("pinned-member-"):
+    if case.startswith(("pinned-member-", "pinned-link-", "node-link-", "node-doc-")):
         import sqlite3
         from types import SimpleNamespace
 
         from app.services import config as cfg
         from app.v3.services import clickhouse as ch
 
-        # Evidence only: current SQL discloses a creative after membership removal.
-        state = case.removeprefix("pinned-member-")
+        # Retained disclosure replays must deny removed membership/attachment capabilities.
+        is_doc = case.startswith("node-doc-")
+        is_node = is_doc or case.startswith("node-link-")
+        is_link = is_node or case.startswith("pinned-link-")
+        prefix = "node-doc-" if is_doc else "node-link-" if is_node else "pinned-link-" if is_link else "pinned-member-"
+        state = case.removeprefix(prefix)
         connected = os.environ.get("H01_AD_CLICKHOUSE") == "1"
         key = "bob/private-creative.png"
         carrier = {
             "doc_id": "carrier",
             "author_key": "alice",
             "body": {"text": "readable carrier"},
-            "ad_mode": "pinned",
-            "ad_target": "creative",
+            "ad_mode": "none" if is_node else "pinned",
+            "ad_target": "" if is_node else "creative",
         }
         schemas = [
             "documents (doc_id String, author_key String, body String, tags Array(String), posted_by String, deleted UInt8, updated_at UInt64)",
             "doc_groups (doc_id String, group_id String, deleted UInt8, updated_at UInt64)",
             "group_members (group_id String, member_key String, role String, joined_at UInt64, deleted UInt8, updated_at UInt64)",
         ]
-        body = json.dumps({"text": "synthetic restricted creative", "type": "minio", "value": key})
+        body = json.dumps({"text": "synthetic restricted creative", "type": "minio", "value": key, "status": "active"})
         setup = (
             [f"CREATE TABLE {schema} ENGINE = Memory" for schema in schemas]
             if connected
@@ -167,19 +209,97 @@ def _probe(case):
                 "CREATE TABLE group_members (group_id TEXT, member_key TEXT, role TEXT, joined_at INTEGER, deleted INTEGER, updated_at INTEGER)",
             ]
         )
+        if is_doc:
+            # Add compiler projection columns before inserting any history rows.
+            for name, default in [
+                ("collection_name", "posts"),
+                ("ref_value", ""),
+                ("created_at", ""),
+                ("ad_mode", "none"),
+                ("ad_target", ""),
+            ]:
+                setup.append(
+                    f"ALTER TABLE documents ADD COLUMN {name} {'String' if connected else 'TEXT'} DEFAULT '{default}'"
+                )
         tags = "['ad']" if connected else "'[\"ad\"]'"
+        if is_node:
+            tags = "['ad','node_ad']" if connected else '\'["ad","node_ad"]\''
+        author = "group-author" if state.endswith("group-uploader") else "bob"
         setup += [
-            f"INSERT INTO documents VALUES ('creative','bob','{body}',{tags},'bob',0,1)",
-            "INSERT INTO doc_groups VALUES ('creative','creative-group',0,1)",
+            "INSERT INTO documents (doc_id,author_key,body,tags,posted_by,deleted,updated_at) "
+            f"VALUES ('creative','{author}','{body}',{tags},'bob',0,1)",
         ]
-        if state != "never":
+        if not is_link or state != "never":
+            setup.append("INSERT INTO doc_groups VALUES ('creative','creative-group',0,1)")
+        if is_link and (state.startswith("removed") or state == "reattached"):
+            updated = 1 if state.startswith("removed-tie") else 2
+            tombstone = f"INSERT INTO doc_groups VALUES ('creative','creative-group',1,{updated})"
+            if state == "removed-tie-reversed":
+                setup.insert(-1, tombstone)
+            else:
+                setup.append(tombstone)
+        if is_link and state == "reattached":
+            setup.append("INSERT INTO doc_groups VALUES ('creative','creative-group',0,3)")
+        if is_link and state == "removed-other-document":
+            setup.append("INSERT INTO doc_groups VALUES ('unrelated','creative-group',0,3)")
+        if is_link and state == "removed-other-group":
+            setup.append("INSERT INTO doc_groups VALUES ('creative','unrelated-group',0,3)")
+        if is_node and state == "active-other-document-removal":
+            setup.append("INSERT INTO doc_groups VALUES ('unrelated','creative-group',1,3)")
+        if is_link and state == "removed-crossed-grants":
+            setup += [
+                "INSERT INTO doc_groups VALUES ('creative','alternate-group',0,3)",
+                "INSERT INTO group_members VALUES ('alternate-group','alice','reader',1,0,1)",
+                "INSERT INTO group_members VALUES ('alternate-group','alice','reader',1,1,2)",
+            ]
+        if is_link and state == "alternate-group":
+            setup.append("INSERT INTO doc_groups VALUES ('creative','creative-group',1,2)")
+        if is_link or state != "never":
             setup.append("INSERT INTO group_members VALUES ('creative-group','alice','reader',1,0,1)")
-        if state in {"revoked", "rejoined"}:
-            setup.append("INSERT INTO group_members VALUES ('creative-group','alice','reader',1,1,2)")
+        if state.startswith("revoked") or state == "rejoined" or (not is_link and state == "alternate-group"):
+            updated = 1 if state == "revoked-tie" else 2
+            setup.append(f"INSERT INTO group_members VALUES ('creative-group','alice','reader',1,1,{updated})")
         if state == "rejoined":
             setup.append("INSERT INTO group_members VALUES ('creative-group','alice','reader',3,0,3)")
+        if state == "revoked-other-member":
+            setup.append("INSERT INTO group_members VALUES ('creative-group','carol','reader',1,0,3)")
+        if state == "revoked-other-group":
+            setup.append("INSERT INTO group_members VALUES ('unrelated-group','alice','reader',1,0,3)")
+        if state == "alternate-group":
+            setup += [
+                "INSERT INTO group_members VALUES ('alternate-group','alice','reader',1,0,3)",
+                "INSERT INTO doc_groups VALUES ('creative','alternate-group',0,3)",
+            ]
+        creative_group = ch.DISCOVER_GROUP_ID if is_node else "creative-group"
+        if is_node:
+            # Public inventory does not require an explicit reader-membership row.
+            setup = [
+                sql.replace("creative-group", creative_group) for sql in setup if "INSERT INTO group_members" not in sql
+            ]
+        if is_doc:
+            if state != "active":
+                deleted = int(state.startswith("deleted") or state == "restored")
+                current_tags = ("['ad']" if connected else "'[\"ad\"]'") if state in {"detagged", "retagged"} else tags
+                current_body = json.dumps(
+                    {
+                        **json.loads(body),
+                        "text": "newer creative",
+                        "status": "paused" if state in {"paused", "reactivated"} else "active",
+                    }
+                )
+                setup.append(
+                    "INSERT INTO documents (doc_id,author_key,body,tags,posted_by,deleted,updated_at) "
+                    f"VALUES ('creative','{author}','{current_body}',{current_tags},'bob',{deleted},2)"
+                )
+                if state in {"reactivated", "restored", "retagged"}:
+                    current_body = json.dumps({**json.loads(body), "text": "latest active creative"})
+                    setup.append(
+                        "INSERT INTO documents (doc_id,author_key,body,tags,posted_by,deleted,updated_at) "
+                        f"VALUES ('creative','{author}','{current_body}',{tags},'bob',0,3)"
+                    )
         db = sqlite3.connect(":memory:", check_same_thread=False)
         if not connected:
+            db.create_function("has", 2, lambda tags, tag: tag in json.loads(tags))
             db.executescript(";".join(setup) + ";")
 
         def execute(sql, params):
@@ -215,7 +335,7 @@ def _probe(case):
                 import re
 
                 rows = db.execute(re.sub(r"%\((\w+)\)s", r":\1", sql), params).fetchall()
-                if sql.startswith("SELECT ad.doc_id"):
+                if sql.startswith(("SELECT ad.doc_id", "SELECT doc_id, author_key, body, tags, posted_by")):
                     rows = [(*r[:3], json.loads(r[3]), *r[4:]) for r in rows]
             return SimpleNamespace(result_rows=rows)
 
@@ -227,26 +347,121 @@ def _probe(case):
             patch.object(ch, "readable_groups", return_value=["carrier-group"]),
             patch.object(ch, "read_documents_in_groups", return_value=[carrier]),
             patch.object(ch, "get_s3_signing_client", return_value=signer) as factory,
-            patch.object(cfg, "get_config_field", return_value=0),
+            patch.object(
+                cfg,
+                "get_config_field",
+                side_effect=lambda name, default=None: 100 if is_node and name == "node_ad_percentage" else 0,
+            ),
         ):
-            allowed = ch.can_read_group("creative-group", "alice", "posts", authenticated=True)
-            assert allowed is (state in {"active", "rejoined"})
+            allowed = None if is_node else ch.can_read_group("creative-group", "alice", "posts", authenticated=True)
+            if not is_node:
+                assert allowed is (is_link or state in {"active", "rejoined", "active-group-uploader"})
+            if is_link:
+                from sqlglot import exp, parse_one
+
+                from app.v3.services import safe_query as sq
+
+                # Execute the actual compiler's attachment boundary, not a copied policy query.
+                tree = parse_one(sq._boundary_cte_sql("posts", [creative_group], "alice"), read=sq.DIALECT)
+                boundary = next(q.this for q in tree.find_all(exp.Subquery) if q.alias == "dg")
+                current = execute(
+                    f"SELECT count(*) FROM ({boundary.sql(dialect=sq.DIALECT)}) current_links "
+                    "WHERE doc_id = %(doc_id)s AND group_id = %(group_id)s",
+                    {"doc_id": "creative", "group_id": creative_group},
+                ).result_rows[0][0]
+                current = int(current)  # ClickHouse JSON serializes UInt64 counts as strings.
+                # The compiler's timestamp-only ordering is not a tie-policy oracle.
+                if not state.startswith("removed-tie"):
+                    assert bool(current) is (
+                        is_doc
+                        or state in {"active", "reattached", "active-group-uploader", "active-other-document-removal"}
+                    )
+                if is_doc:
+                    document_boundary = next(q.this for q in tree.find_all(exp.Subquery) if q.alias == "d")
+                    canonical = execute(
+                        f"SELECT doc_id, tags, body FROM ({document_boundary.sql(dialect=sq.DIALECT)}) current_docs "
+                        "WHERE doc_id = %(doc_id)s AND author_key = %(author)s",
+                        {"doc_id": "creative", "author": author},
+                    ).result_rows
+                    assert bool(canonical) is (not state.startswith("deleted"))
+                    canonical_tags = (
+                        (canonical[0][1] if connected else json.loads(canonical[0][1])) if canonical else []
+                    )
+                    current_inventory = (
+                        bool(canonical)
+                        and "node_ad" in canonical_tags
+                        and json.loads(canonical[0][2])["status"] == "active"
+                    )
+                    assert current_inventory is (state in {"active", "reactivated", "restored", "retagged"})
+            if state == "alternate-group" and not is_node:
+                assert ch.can_read_group("alternate-group", "alice", "posts", authenticated=True)
             response = TestClient(app).post(
                 "/v3/read", json={"token": token(), "service": "posts", "groups": ["carrier-group"]}
             )
         db.close()
         assert response.status_code == 200
         doc = response.json()[0]
-        if state == "never":
+        if is_doc:
+            # Evidence only: deleted/detagged versions currently resurrect older inventory.
+            assert "ad" not in doc
+            if state == "paused":
+                assert "node_ad" not in doc
+                factory.assert_not_called()
+            else:
+                creative = doc["node_ad"]
+                assert creative["author_key"] == author and creative["posted_by"] == "bob"
+                assert creative["body"]["text"] == (
+                    "latest active creative"
+                    if state in {"reactivated", "restored", "retagged"}
+                    else "synthetic restricted creative"
+                )
+                verify(creative["body"]["url"], key)
+                factory.assert_called_once()
+            print(
+                f"node document evidence: state={state} current_inventory={current_inventory} inline_node_ad={'node_ad' in doc}"
+            )
+            return
+        if is_node:
+            # Retained disclosure replay: only current Discover attachments can authorize signing.
+            assert "ad" not in doc
+            if state not in {"active", "reattached", "active-group-uploader", "active-other-document-removal"}:
+                if "node_ad" in doc:
+                    verify(doc["node_ad"]["body"]["url"], key)
+                    print("removed-Discover synthetic capability independently verified before denial assertion")
+                assert "node_ad" not in doc
+                factory.assert_not_called()
+            else:
+                assert doc["node_ad"]["author_key"] == author and doc["node_ad"]["posted_by"] == "bob"
+                verify(doc["node_ad"]["body"]["url"], key)
+                factory.assert_called_once()
+            print(
+                f"node attachment evidence: engine={'ClickHouse-local' if connected else 'SQLite substitute'} state={state} current_attachment={bool(current)} inline_node_ad={'node_ad' in doc}"
+            )
+            return
+        attaches = (
+            state in {"active", "reattached", "alternate-group", "active-group-uploader"}
+            if is_link
+            else state in {"active", "rejoined", "alternate-group", "active-group-uploader"}
+        )
+        if not attaches:
+            if "ad" in doc:
+                verify(doc["ad"]["body"]["url"], key)
+                print("removed-authority synthetic capability independently verified before denial assertion")
             assert "ad" not in doc
             factory.assert_not_called()
         else:
+            assert doc["ad"]["author_key"] == author and doc["ad"]["posted_by"] == "bob"
             assert doc["ad"]["body"]["text"] == "synthetic restricted creative"
             verify(doc["ad"]["body"]["url"], key)
             factory.assert_called_once()
-        print(
-            f"pinned membership evidence: engine={'ClickHouse-local' if connected else 'SQLite substitute'} state={state} direct_allowed={allowed} inline_ad={'ad' in doc}"
-        )
+        if is_link:
+            print(
+                f"pinned attachment evidence: engine={'ClickHouse-local' if connected else 'SQLite substitute'} state={state} current_attachment={bool(current)} inline_ad={'ad' in doc}"
+            )
+        else:
+            print(
+                f"pinned membership evidence: engine={'ClickHouse-local' if connected else 'SQLite substitute'} state={state} direct_allowed={allowed} inline_ad={'ad' in doc}"
+            )
         return
 
     if case.startswith(("query-owner-", "query-face-")):

@@ -61,6 +61,24 @@ it('does not restore the old identity reaction when a pending write fails', asyn
   expect(screen.getByTestId('like-button')).toHaveAttribute('aria-pressed', 'false');
 });
 
+it('keeps loaded posts when optional own-reaction loading fails', async () => {
+  vi.mocked(data.readFeedReactions).mockRejectedValueOnce(new Error('membership unavailable'));
+  render(view());
+  await screen.findByTestId('post-card');
+  expect(screen.getByText('First post')).toBeInTheDocument();
+  expect(screen.queryByText(/Your feed will appear here/)).not.toBeInTheDocument();
+});
+
+it('shows a retryable load error instead of claiming the feed is empty', async () => {
+  vi.mocked(data.readFeedPage).mockRejectedValueOnce(new Error('query unavailable'));
+  render(view());
+  await screen.findByRole('alert');
+  expect(screen.queryByText(/Your feed will appear here/)).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+  await screen.findByTestId('post-card');
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+});
+
 it('discards a pending page from the previous identity', async () => {
   const pending = deferred<typeof page>();
   const { rerender } = render(view());

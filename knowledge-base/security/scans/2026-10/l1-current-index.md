@@ -6,6 +6,18 @@ Scanners/reviewers: separate OpenCode `openai/gpt-6.1-sol` contexts
 (`openrouter/openai/gpt-6.1-sol`), not different model families.
 **Selected source read coverage complete; protocol L1 security gate OPEN.**
 
+02.11 pinned attachment overlay: [bounded proof](h01-pinned-attachment-proof.md)
+reproduces removed-link creative/signature delivery despite an absent current
+compiler attachment and live membership. Four cases/backend on SQLite and actual
+ClickHouse-local Memory; 1,759 API tests plus eight subtests, Ruff and same-model
+review pass. Test-only, finding/attachment repair/real-schema/rollout/diverse OPEN.
+
+02.11 pinned membership repair: [bounded source overlay](repair-h01-pinned-membership.md)
+denies five reproduced removed-member capability issuances; ten cases/backend
+on SQLite/ClickHouse-local, 1,755 API tests plus eight subtests, Ruff and fresh
+same-model review pass. Attachment/other ad authority and production lifecycle/
+CI/rollout/diverse gates remain OPEN. No L1 advancement.
+
 02.11 pinned-ad overlay: [membership proof](h01-pinned-membership-proof.md)
 reproduces revoked-reader creative/capability issuance against actual loader SQL,
 including isolated ClickHouse-local Memory-table replay. Test-only; finding OPEN,

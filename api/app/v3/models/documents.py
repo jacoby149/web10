@@ -1,4 +1,13 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+
+class DocumentAttachment(BaseModel):
+    token: str
+    doc_id: str
+    group_id: str = Field(min_length=1)
+    author_as: str | None = None
+    # Omitted reads this target only; a boolean sets its desired state.
+    attached: bool | None = None
 
 
 class AdPreference(BaseModel):
@@ -29,9 +38,9 @@ class CreateDocument(BaseModel):
     ad_preference: AdPreference | None = None
     # Group-as-author: post as a group instead of as yourself. When set, the
     # doc's author_key is the group_id and posted_by is the JWT username.
-    # The caller must hold a role in the group that grants `create` on the
-    # service (Gate 1), and the group must be able to write in each target
-    # group (Gate 2 — the existing can_write_group check, principal = group_id).
+    # The human needs effective service `create` authority (Gate 1), which
+    # permits explicit exact-self attachment. External targets still check
+    # can_write_group as the group principal (Gate 2), never human memberships.
     author_as: str | None = None
 
 

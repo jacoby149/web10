@@ -54,6 +54,15 @@ function App() {
   const [checkingSetup, setCheckingSetup] = React.useState(true);
 
   React.useEffect(() => {
+    const openDomain = () => {
+      if (window.location.hash === '#domain' && I.isAuthenticated()) I.setMode('settings');
+    };
+    openDomain();
+    window.addEventListener('hashchange', openDomain);
+    return () => window.removeEventListener('hashchange', openDomain);
+  }, [I.auth]);
+
+  React.useEffect(() => {
     if (I.isMock) {
       setCheckingSetup(false);
       return;

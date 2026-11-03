@@ -322,14 +322,28 @@ does not merge.
 
 ## Auth model
 
-Social acting identity is account-scoped, per-tab client state, never a replacement
-credential. Generic `author_as` creates as the group with server-set `posted_by`;
+Social acting identity remembers only a confirmed provider/account-scoped identifier
+across browser reopen, with independent per-tab snapshots, never a replacement
+credential or persisted grant. Generic `author_as` creates as the group with server-set `posted_by`;
+live human service-create/app authority permits explicit exact-self attachment
+without self-membership; external targets never borrow human memberships.
+Explicit delegated updates retain existing self attachments with updateOwn;
+adding self also requires create. Public social group posts retain self and add
+Discover through its existing anyone create grant, not per-group enrollment;
 explicit delegated update/delete require current service `updateOwn`/`deleteOwn`
 grants and preserve the original audit actor. App-contract gates still use the
 human. Delegated `groups/list` requires a current create grant on the requested
 service and lists the group's memberships, without human owner self-healing.
 DMs, billing and administration retain personal authority. Local implementation
 and verification status: `knowledge-base/strategy/acting-identity.md`.
+
+Generic `/v3/attachment` reads/sets one named document/group link under live
+human app updateOwn and explicit group-author service updateOwn. True external
+targets require the document author's create grant, not borrowed human authority;
+retained self needs updateOwn, new self also create. False never needs destination
+create. It never rewrites content/audit/other links. Independent target writes
+are disjoint; same-target CAS and cross-check/write transactions are not promised.
+Contract: `knowledge-base/web10-v3/db/attachments.md`.
 
 Consent correlation is staged: the UI can prepare owned indexed replies for ID-bearing unified batches, but the SDK is not yet strict. IDs grant no authority; no-op/cancellation/account/batch lifecycle and SDK/browser integration remain close conditions.
 
@@ -340,6 +354,16 @@ Authenticator profile/admin/contracts/group display reads are owned by the curre
 Browser auth-token messages require a bound credential window and configured origin. Legacy contractOnReady no-callback metadata stays available; opener callbacks and token handoff require its trusted-auth-origin argument. User grants may skip repeated consent, never authentication checks.
 
 JWT tokens with `username, site, target, provider, expires`. Server verifies signature, checks app contracts + group membership. Full auth flow: `knowledge-base/web10-v3/auth/auth.md`.
+
+Cross-node Phase B (PR #1351, unmerged) routes foreign tokens to their home
+node's `/certify`; successful answers are cached per JWT until expiry, never
+as an access grant. Foreign read seams use `{provider}/users/{username}`;
+local readers/joins retain bare keys until the coordinated Phase A migration.
+The issuer endpoint itself remains local-only. Issuer transport derives HTTPS
+from host-only providers, pins public DNS answers with issuer TLS verification
+and never follows redirects. Private/HTTP development peers are unsupported by
+this production path. Separate-node key provisioning, connected two-node
+verification and the PR's method-size disposition remain OPEN.
 
 Verified non-anonymous decoding requires a parseable ISO `expires`, with naive UTC or explicit offsets, and rejects at the deadline. Anonymous custom-expiry exemption and unsigned metadata decoding are separate; the latter is never authorization.
 
@@ -364,6 +388,10 @@ verified caller's exact `username/` namespace, including unconfirmed uploads.
 Foreign viewers obtain fresh media URLs through authorized document/group reads;
 public thumbnails retain their document-access path. This does not certify
 stored object-reference provenance or revoke existing presigned URLs before TTL.
+
+HLS carrier reads use server-set `posted_by or author_key` upload ownership,
+current document/attachment history and actual service/read/visibility gates;
+group-authored posts do not move the human's upload or require public enrollment.
 
 `media_refs` original/thumbnail signing also requires keys in the resolver's
 media-owner namespace; rejected supplied keys get no fresh URL or stale fallback.
@@ -390,6 +418,18 @@ without requiring a face doc_id; missing/ambiguous/error authority yields no fac
 Face urlField must be a new output column (collisions return 400). Attached-ad
 loader authorization, actual ClickHouse and connected verification remain OPEN.
 Do not claim whole-media or whole-prepare assurance.
+
+Pinned creative membership reads locally rank current reader/group history before
+removal filtering, with deletion winning timestamp ties. Pinned doc_groups reads
+also rank current document/group attachments before filtering, with deletion-winning
+ties. This denies reproduced stale-membership and removed-attachment signing; broader
+ad policy, real-schema lifecycle and rollout assurance remain separate OPEN gates.
+
+Node-ad inventory locally ranks current Discover attachment history before removal
+filtering, with deletion-winning ties. Removed links cannot authorize reproduced
+creative/signing delivery; public active/reattached inventory remains. Document
+delete/detag prefilters, inventory provenance and broader lifecycle/rollout gates
+remain OPEN; this is not whole-node-ad assurance.
 
 Defined in the KB: `knowledge-base/web10-v3/security/overview.md`. Short version — I1: cryptographic issuer verification, I2: no unsigned decode, I3: no query returns documents for an `author_key` the token doesn't own (unless group membership grants access), I4: node-readable by design — operator-blindness is not a goal, access is terms-controlled (D41), I5: scoped/expiring/revocable tokens enforced by app contracts. Enforced by the conformance/permission test suite.
 

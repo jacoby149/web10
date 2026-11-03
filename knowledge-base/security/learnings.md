@@ -117,6 +117,180 @@ synthetic storage/cache tests and same-model review do not certify Cloudflare,
 private-origin enforcement, playback, production logs or full scan coverage.
 Those gates and independent model-diverse review remain OPEN; production OFF.
 
+### 2026-11-03: Route by issuer, retain the reader identity through every gate
+
+Interrupted PR #1351's local-first decode rejected independently signed tokens;
+three helpers instead accepted foreign-provider claims whenever the local key
+verified them. Seven retained regressions fail before the bounded continuation
+repair and pass afterward, including premature local reader/join key changes
+and `/certify` recursively vouching for another issuer. The provider claim
+selects the verifier, not authority; foreign credentials always need their home
+node's answer. The issuer endpoint itself never forwards. Cache successes until
+JWT expiry as the operator chose; this deliberately does not promise immediate
+issuer-side revocation.
+
+The verified foreign principal must also reach app-contract, prepare, ad, HLS
+and delivery seams, not only the first membership filter. Two namesake app
+denials pin the canonical foreign key instead of borrowing a local alice's
+grant. Local readers and joins retain bare keys until Phase A migrates all
+writers/readers together. Fresh review found the same namesake leak in the
+directory: two actual-composition regressions fail before repair and now pass.
+
+The newly activated legacy transport also admitted alternate loopback spellings,
+private/mixed DNS answers and redirects, while rejecting deployed host-only
+providers. Thirteen intercepted-transport regressions fail before repair; no
+exploit requests were sent. HTTPS is derived without rewriting provider identity;
+all DNS answers must be public, and the connection pins a validated numeric IP
+with the issuer's SNI/certificate hostname. Redirects/retries are disabled; only
+the token is sent, with response/pool closure. HTTP/private development peers
+are deliberately not supported by this production transport. Full API: 1,977
+passed plus eight subtests, one opt-in skip; Ruff passes. Fresh same-model bounded
+re-review finds no further runtime defect, not model-diverse convergence. PR
+remains unmerged; independent signing secrets/default-key provisioning, real
+TLS/two-node grant/read/remove/deny, CI and method-size disposition remain OPEN.
+The inherited agent-written `SECURITY-GATE-EXEMPT` is not an operator waiver.
+This is not L1–L4 or federation assurance.
+
+### 2026-11-03: Group media carriers retain human upload ownership
+
+[Carrier repair](scans/2026-10/group-media-carrier-repair.md) aligns HLS with
+`posted_by or author_key`, current carrier/link history, actual service grants and
+the shared visibility boundary. Production public post reads succeeded while
+fresh streams 403'd; isolated repaired handlers serve all four existing videos.
+Eight carriers/eleven refs have intact metadata/namespaces; raw URLs all 206, so
+no ownership/publicness backfill is justified. Serving deployment/browser playback,
+cost and diverse review remain OPEN; not whole-media/L1 assurance.
+
+### 2026-11-03: Filtering inventory eligibility before ranking revives older creatives
+
+[Document history evidence](scans/2026-10/h01-node-document-proof.md) holds the
+Discover link live while varying creative versions. Newer deletion or node_ad
+removal disappears before node-loader ranking; actual ASGI enrichment returns old
+content and independently verified synthetic SigV4. Three disclosures include a
+group-author/Bob-uploader case. Pause denies correctly; restoration/reactivation/
+retagging select the latest active content. Eight cases pass on SQLite and
+ClickHouse-local; 1,894 API tests plus eight subtests, one lifecycle skip, Ruff and
+fresh same-model review pass. Evidence only: document repair remains OPEN. Public
+inventory is intentional, not an owner-only/membership gap. Real writer/merge/tie
+behavior, provenance, broader authority/CI/rollout/diverse and L1 remain separate.
+
+### 2026-11-02: Node inventory must rank its own Discover attachment history
+
+[Local node attachment repair](scans/2026-10/repair-h01-node-attachment.md) ranks
+document/group history before removal filtering, with deletion-winning ties.
+Seven reproduced synthetic signing disclosures now deny before attachment/signing;
+active/newer reattached public inventory and independent uploaders survive. Other
+live groups cannot substitute for Discover, nor can unrelated rows resurrect a
+removed link or suppress an active one. Twelve node cases pass on SQLite and
+ClickHouse-local; 1,886 API tests plus eight subtests, one opt-in lifecycle test
+skipped, full Ruff and fresh same-model intent review pass. Document delete/detag
+prefilters, inventory provenance, real lifecycle/CI/rollout/diverse and broader
+ad/L1 gates remain OPEN. Public inventory still needs no viewer membership.
+
+### 2026-11-02: Public inventory still needs a current Discover attachment
+
+[Node attachment evidence](scans/2026-10/h01-node-attachment-proof.md) reproduces
+delivery/signing after Discover detach: the actual compiler current-link fragment
+excludes the link, but the actual node loader/read route still returns the creative
+and independently verified synthetic SigV4. Six cases pass on SQLite/ClickHouse-local,
+including intended active/reattached public delivery without explicit membership,
+never-attached denial and independent group uploader controls. Public inventory is
+intentional; adding viewer membership or owner-only restrictions would change intent.
+This is evidence only: stale-link runtime repair remains OPEN. Node document
+delete/detag prefilters and inventory provenance are separate source candidates,
+not demonstrated exploits. 1,880 API tests plus eight subtests, one opt-in test
+skipped, Ruff and fresh same-model evidence review pass. Real lifecycle/rollout/
+diverse, broader attached-ad policy and protocol L1 remain OPEN.
+
+### 2026-11-02: Rank creative attachments before granting inline delivery
+
+[Local attachment repair](scans/2026-10/repair-h01-pinned-attachment.md) ranks
+doc_groups per document/group before removal filtering, with deletion-winning
+ties. Removed links now deny before creative attachment/signing; reattachment and
+independent live alternate-group access survive. Crossed grants cannot combine a
+live attachment in one group with live membership in another. Twelve attachment
+and ten membership probes pass on SQLite and ClickHouse-local; 1,865 API tests plus
+eight subtests and Ruff pass. Fresh same-model intent review found no blocker.
+The compiler reference still orders ties by timestamp alone: do not generalize
+this loader's tie guarantee to other readers. Real-schema writer/merge lifecycle,
+broader ad authority, CI/rollout/diverse review and L1 remain OPEN.
+
+### 2026-11-02: Mutate attachment keys, not filtered sets
+
+The approved generic attachment seam changes only the named doc/group row. Live
+human app updateOwn and group-author service updateOwn precede storage. External
+true uses the group principal create grant, including retained external targets;
+an initial retained-target shortcut returned 200 after revocation, reproduced red
+then denied. False deliberately does not require destination create. Exact-self
+retention/new-self creation follow the existing bounded rule. Hidden attachments,
+original actor and content are never reconstructed. Sequential millisecond version
+advancement passes real isolated ReplacingMergeTree add/remove/re-add/FINAL checks;
+different targets are disjoint, not a transaction or same-target CAS. Existing
+replacement/delete writers, check/write revocation races, connected acceptance and
+independent review remain OPEN. No full L1-L4 or whole-media assurance.
+
+### 2026-11-02: Contract metadata is not human membership or complete attachments
+
+The group edit affordance expected my_role in groups/get, which returns only
+the contract. Reading groups/list supplies the human's exact membership; resolve
+its role against the contract and exact service/operation, never the navigation
+selection or posted_by. Eight corrected-shape tests reproduced the false denial
+before repair; denial controls still hold. This is a client affordance fix, not
+a backend authorization change or security PASS. Effective principal-class
+grants without an explicit membership remain outside these affordances.
+
+Single-document read groups are filtered to readable carriers, not a complete
+attachment list even for a manager of the authoring group. Never replace all
+attachments from that projection: it can erase hidden destinations. The update
+response is complete only after writing, not a read-only snapshot or a CAS token.
+The approved per-target seam now avoids replacement entirely; connected acceptance
+and independent review remain OPEN. No preliminary write workaround.
+
+### 2026-11-02: Self-target authority is not inherited external membership
+
+The group publish 403 reproduces when the group is not a member of itself.
+The [bounded repair](group-author-self-target.md) allows exact-self create only
+after live effective service create and human app gates. External targets still
+use the group principal; unrelated human memberships never transfer. Explicit
+updates retain stored self attachments with updateOwn, but a new self attachment
+also needs create. Effective unions may retain principal-class authority after
+explicit member removal; do not call that a revocation bypass. The canonical
+Discover anyone role already grants create, confirmed read-only on production;
+missing explicit group enrollment is not missing permission. Client defaults
+must include self and public Discover even when group memberships are empty.
+Remembered identity IDs are untrusted preferences, never persisted permissions.
+Same-model review found and pinned the update lifecycle; connected persistence,
+concurrent revocation, rollout and diverse review remain open.
+That review also reproduced historical doc_groups rows authorizing a detached
+self reattachment with updateOwn alone. `get_doc_groups` now ranks all versions
+before filtering tombstones, with deletion winning timestamp ties. Six actual-SQL
+signed-route cases pin detach denial, tie order, newer reattachment and unrelated
+document isolation. Other direct attachment readers/writers remain separate scope.
+
+### 2026-11-02: Current membership does not prove a current creative attachment
+
+[Attachment evidence](scans/2026-10/h01-pinned-attachment-proof.md) holds membership
+live while varying doc_groups history. The actual compiler's extracted attachment
+boundary excludes a removed link; the actual pinned loader still finds its old
+live row, returns the creative through ASGI and issues verified synthetic SigV4.
+Four link histories reproduce on SQLite and ClickHouse-local Memory. This remains
+an OPEN finding: positive-disclosure tests must become denial in a separate repair.
+1,759 API tests plus eight subtests and same-model evidence review pass. No full
+direct-read denial, executed detach lifecycle or real-object claim; role/app/node
+policy, timestamp precision, real schema/rollout/diverse and L1 remain separate.
+
+### 2026-11-02: Authorize pinned creatives from the current membership version
+
+[Local membership repair](scans/2026-10/repair-h01-pinned-membership.md) ranks the
+bound reader's rows per group/member before removal filtering. Deletion wins
+timestamp ties; a newer rejoin restores access. Another live creative-group grant
+still counts, while other members/unrelated groups grant nothing. Five reproduced
+synthetic capabilities become denied-ad/no-signer on SQLite and ClickHouse-local;
+group posted_by signing remains intact. Ten controls per backend, 1,755 API tests
+plus eight subtests and same-model review pass. Attachment history and broader
+role/app/visibility/node-ad policy remain OPEN, as do real-schema lifecycle,
+old-capability TTL, CI/rollout/diverse review and L1. Not whole-ad closure.
+
 ### 2026-11-02: A historical membership row can still authorize an inline creative
 
 [Pinned membership evidence](scans/2026-10/h01-pinned-membership-proof.md) executes
@@ -124,8 +298,8 @@ the actual loader and current membership SQL over synthetic history. The normal
 group predicate denies a removed member, but the pinned loader's undeduplicated
 JOIN finds the old live row; actual read enrichment returns the creative and mints
 an independently verified real synthetic SigV4 capability. Four controls reproduce
-on SQLite and isolated ClickHouse-local Memory tables. Evidence only: the revoked
-probe currently asserts disclosure and must become denial in a separate repair.
+on SQLite and isolated ClickHouse-local Memory tables. At that evidence pin the
+revoked probe asserted disclosure; the local repair above converts it to denial.
 No actual object retrieval, production merge timing or whole-ad assurance. Current
 role/app/service/node-ad policy and attachment/visibility debt remain separate;
 do not use this finding to silently change the membership-first read model.

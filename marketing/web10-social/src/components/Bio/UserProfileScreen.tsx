@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -29,7 +29,7 @@ import { getWapi } from '@/data/wapi';
 import type { ProfileRecord, PostRecord, MediaRecord, FollowRecord } from '@/data/types';
 import type { CollectionRecord } from '@/data/saved';
 import { mediaRefId, fromResolvedMediaRef } from '@/data/types';
-import { MapPin, Globe, Link, Users, UserPlus, UserCheck, Loader2, ArrowLeft, MessageSquare, Play, Camera, Edit3, Check, X, ImagePlus, Inbox, LayoutGrid, Clapperboard, User, Bookmark, Store } from 'lucide-react';
+import { MapPin, Globe, Link, Users, UserPlus, UserCheck, Loader2, ArrowLeft, MessageSquare, Play, Camera, Edit3, Check, X, ImagePlus, Inbox, LayoutGrid, Clapperboard, Music, User, Bookmark, Store } from 'lucide-react';
 import { PostLightbox } from './PostLightbox';
 import { ProfileFeed } from './ProfileFeed';
 import { PostBodyInline } from '@/components/Feed/PostBody';
@@ -248,6 +248,8 @@ export function WallTile({ media, testId, title, caption, postId, multiCount, on
 export default function UserProfileScreen({ username, provider, onBack }: UserProfileScreenProps) {
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
   const [posts, setPosts] = useState<PostRecord[]>([]);
+  const [postsError, setPostsError] = useState(false);
+  const loadGeneration = useRef(0);
   const [mediaMap, setMediaMap] = useState<Record<string, MediaRecord>>({});
   const [loading, setLoading] = useState(true);
   const [followRecord, setFollowRecord] = useState<FollowRecord | null>(null);
@@ -279,10 +281,10 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
   // Deep-link: the active tab from ?tab= (refresh-safe, shareable) — the
   // address bar holds the screen state (the deep-link rule).
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<'posts' | 'media' | 'saved'>(
+  const [activeTab, setActiveTab] = useState<'posts' | 'media' | 'music' | 'saved'>(
     () => {
       const t = searchParams.get('tab');
-      return t === 'media' ? 'media' : t === 'saved' ? 'saved' : 'posts';
+      return t === 'music' ? 'music' : t === 'media' ? 'media' : t === 'saved' ? 'saved' : 'posts';
     },
   );
   // The posts tab's view lens (the "view lenses" idea — rendering only, never
@@ -293,7 +295,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
     () => (searchParams.get('view') === 'feed' ? 'feed' : 'grid'),
   );
 
-  const selectTab = useCallback((tab: 'posts' | 'media' | 'saved') => {
+  const selectTab = useCallback((tab: 'posts' | 'media' | 'music' | 'saved') => {
     setActiveTab(tab);
     const params = new URLSearchParams(searchParams);
     if (tab === 'posts') {
@@ -327,7 +329,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
   // landing on a tab/view).
   useEffect(() => {
     const t = searchParams.get('tab');
-    const current: 'posts' | 'media' | 'saved' = t === 'media' ? 'media' : t === 'saved' ? 'saved' : 'posts';
+    const current = t === 'music' ? 'music' : t === 'media' ? 'media' : t === 'saved' ? 'saved' : 'posts';
     if (activeTab !== current) setActiveTab(current);
     const currentView = searchParams.get('view') === 'feed' ? 'feed' : 'grid';
     if (viewMode !== currentView) setViewMode(currentView);
@@ -335,10 +337,16 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
 
   useEffect(() => {
     loadData();
+    return () => { loadGeneration.current++; };
   }, [username, provider]);
 
   const loadData = useCallback(async () => {
+    const generation = ++loadGeneration.current;
+    const current = () => generation === loadGeneration.current;
+    let postsFailed = false;
     setLoading(true);
+    setPostsError(false);
+    setFollowingCountError(false);
     try {
       const token = getWapi().readToken();
       // v3 ownership is by username alone: a post's/author's `author_key` is
@@ -376,6 +384,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
           }),
           readMyPosts({ surface: 'profile' }).catch((e) => {
             console.error('[social] loadData — readMyPosts failed:', e);
+            postsFailed = true;
             return [];
           }),
           countFollows().catch((e) => {
@@ -391,6 +400,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
             return 0;
           }),
         ]);
+        if (!current()) return;
         profile = p;
         postsData = postsRes || [];
         if (fC === null) {
@@ -403,12 +413,12 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         setStagingCount(stgCount);
         // Saved collections (D88) — the owner's playlists for the Saved tab.
         // Isolated: a failure degrades the tab to empty, never the profile.
-        setCollections(
-          await getMyCollections().catch((e) => {
-            console.error('[social] loadData — getMyCollections failed:', e);
-            return [] as CollectionRecord[];
-          }),
-        );
+        const loadedCollections = await getMyCollections().catch((e) => {
+          console.error('[social] loadData — getMyCollections failed:', e);
+          return [] as CollectionRecord[];
+        });
+        if (!current()) return;
+        setCollections(loadedCollections);
       } else {
         // Viewer path (anon or a signed-in non-owner): read the author's
         // PUBLIC profile through the D73 query engine (readUserPublicProfile).
@@ -423,9 +433,11 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
           readFollow(username).catch(() => null),
           readUserPublicProfile(username, provider, 50, 'profile').catch((e) => {
             console.error('[social] loadData — readUserPublicProfile failed:', e);
+            postsFailed = true;
             return { posts: [] as PostRecord[], avatarUrl: undefined, bannerUrl: undefined };
           }),
         ]);
+        if (!current()) return;
         profile = p;
         setFollowRecord(fr);
         setFollowing(fr?.status === 'active' || false);
@@ -435,12 +447,12 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         // membership_visibility='public' groups, so a private collection never
         // surfaces. Isolated: a failure degrades the tab to absent, never the
         // profile.
-        setCollections(
-          await readUserPublicCollections(username, provider).catch((e) => {
-            console.error('[social] loadData — readUserPublicCollections failed:', e);
-            return null;
-          }),
-        );
+        const loadedCollections = await readUserPublicCollections(username, provider).catch((e) => {
+          console.error('[social] loadData — readUserPublicCollections failed:', e);
+          return null;
+        });
+        if (!current()) return;
+        setCollections(loadedCollections);
         // The face (avatar / banner) — presigned URLs the query engine minted
         // (author-scoped, so they render for any viewer, not just the owner).
         // Build the media map from the posts' inline-resolved media + the face
@@ -467,6 +479,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         } catch {
           // Ledger unavailable — fCount stays null (hide tile)
         }
+        if (!current()) return;
 
         // Following count from the public ledger (per-user, never the viewer's).
         // D80: the REAL following read (who X follows) — the old
@@ -474,10 +487,12 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         try {
           fc = await countUserFollowingReal(username, provider);
         } catch {
-          setFollowingCountError(true);
+          if (current()) setFollowingCountError(true);
         }
       }
 
+      if (!current()) return;
+      setPostsError(postsFailed);
       setProfile(profile);
       if (isOwn) {
         setDraft(profile || {});
@@ -505,12 +520,12 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
             console.error('[social] loadData — media resolution failed (degraded):', e);
           }
         }
-        setMediaMap(mediaMapInit);
+        if (current()) setMediaMap(mediaMapInit);
       }
     } catch (e) {
       console.error('Failed to load user profile:', e);
     }
-    setLoading(false);
+    if (current()) setLoading(false);
   }, [username, provider]);
 
   // The app-level New Post sheet fires `post-created` (NewPostSheet) when a
@@ -599,6 +614,15 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
   }
 
   const mediaPosts = posts.filter((p) => p.media_refs?.length);
+  const seenMusicPosts = new Set<string>();
+  const visiblePosts = activeTab === 'music' ? posts.filter((post) => {
+    if (!post.tags?.includes('music')) return false;
+    if (post._id) {
+      if (seenMusicPosts.has(post._id)) return false;
+      seenMusicPosts.add(post._id);
+    }
+    return true;
+  }) : posts;
   const bannerMedia = profile?.banner_ref ? mediaMap[profile.banner_ref] : undefined;
   const avatarMedia = profile?.avatar_ref ? mediaMap[profile.avatar_ref] : undefined;
 
@@ -899,7 +923,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                 Following counts are clickable → the dedicated list screens. */}
             <div className="mt-3 flex gap-6" data-testid="user-profile-stats">
               <div>
-                <span className="tabular-nums font-display font-bold text-foreground text-lg block">{posts.length}</span>
+                <span className="tabular-nums font-display font-bold text-foreground text-lg block">{postsError ? '-' : posts.length}</span>
                 <span className="text-xs text-muted-foreground">Posts</span>
               </div>
               {followerCount !== null && followerCount !== undefined && (
@@ -1034,7 +1058,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
 
       {/* Tabs (+ the posts tab's view lens: grid | feed). Icon tabs (the
           new-Instagram shape) — Posts (the content wall) | Media (every media
-          item). The view toggle (grid | feed) stays a posts-tab concept. */}
+          item) | Music. The view toggle (grid | feed) stays a posts-tab concept. */}
       <div className="flex items-center border-b border-border">
         <button
           data-testid="profile-tab-posts"
@@ -1067,6 +1091,21 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
           <Clapperboard className="w-4 h-4" strokeWidth={2} />
           Media
           {activeTab === 'media' && (
+            <div className="absolute bottom-0 inset-x-0 h-0.5 bg-gradient-to-r from-brand to-brand-600" />
+          )}
+        </button>
+        <button
+          data-testid="profile-tab-music"
+          aria-current={activeTab === 'music' ? 'true' : undefined}
+          className={cn(
+            'flex-1 min-h-11 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-all duration-150 relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+            activeTab === 'music' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
+          )}
+          onClick={() => selectTab('music')}
+        >
+          <Music className="w-4 h-4" strokeWidth={2} />
+          Music
+          {activeTab === 'music' && (
             <div className="absolute bottom-0 inset-x-0 h-0.5 bg-gradient-to-r from-brand to-brand-600" />
           )}
         </button>
@@ -1114,16 +1153,21 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
             collections={collections}
             onOpenCollection={openCollection}
           />
-        ) : activeTab === 'posts' ? (
+        ) : postsError ? (
+          <div role="alert" className="py-16 text-center" data-testid="profile-posts-error">
+            <p className="mb-3 text-sm text-muted-foreground">Posts could not be loaded.</p>
+            <Button variant="outline" onClick={() => void loadData()}>Retry posts</Button>
+          </div>
+        ) : activeTab === 'posts' || activeTab === 'music' ? (
           <>
           {/* The composer is NOT inline (the operator: "it should be
               invisible") — the app-level New Post sheet (the Layout's
               floating "+" button) is the single compose surface, reachable
               from the profile too. */}
-          {posts.length ? (
-            viewMode === 'feed' ? (
+          {visiblePosts.length ? (
+            activeTab === 'music' || viewMode === 'feed' ? (
               <ProfileFeed
-                posts={posts}
+                posts={visiblePosts}
                 mediaMap={mediaMap}
                 authorName={profile?.display_name || username}
                 authorUsername={username}
@@ -1156,9 +1200,9 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
             </div>
             )
           ) : (
-            <div className="py-16 text-center" data-testid="profile-posts-empty">
-              <p className="text-sm text-muted-foreground mb-2">No posts yet</p>
-              {isOwnProfile && (
+            <div className="py-16 text-center" data-testid={activeTab === 'music' ? 'profile-music-empty' : 'profile-posts-empty'}>
+              <p className="text-sm text-muted-foreground mb-2">{activeTab === 'music' ? 'No music yet' : 'No posts yet'}</p>
+              {isOwnProfile && activeTab === 'posts' && (
                 <p className="text-xs text-muted-foreground/50">
                   Or{' '}
                   <button

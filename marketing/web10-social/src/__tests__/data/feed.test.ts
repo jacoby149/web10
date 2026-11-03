@@ -194,6 +194,54 @@ describe('feed v3 data layer', () => {
       expect(post.author_username).toBe('bob');
     });
 
+    it.each([
+      { reactionsFail: true, commentsFail: false, empty: false, likes: 5, dislikes: 3, comments: 9 },
+      { reactionsFail: false, commentsFail: true, empty: false, likes: 7, dislikes: 4, comments: 2 },
+      { reactionsFail: true, commentsFail: true, empty: false, likes: 5, dislikes: 3, comments: 2 },
+      { reactionsFail: true, commentsFail: false, empty: true, likes: 5, dislikes: 3, comments: 0 },
+      { reactionsFail: false, commentsFail: true, empty: true, likes: 0, dislikes: 0, comments: 2 },
+      { reactionsFail: false, commentsFail: false, empty: true, likes: 0, dislikes: 0, comments: 0 },
+    ])('preserves only failed service counts ($reactionsFail/$commentsFail), empty=$empty', async ({ reactionsFail, commentsFail, empty, likes, dislikes, comments }) => {
+      mock.query.mockImplementation(async (sql: string) => {
+        if (sql.includes('FROM posts p')) return { rows: [feedRow({ dislikes: 3 })], count: 1 };
+        if (sql.includes('FROM reactions')) {
+          if (reactionsFail) throw new Error('reaction counts unavailable');
+          return { rows: empty ? [] : [{ ref_value: 'p1', like_count: 7, dislike_count: 4 }] };
+        }
+        if (commentsFail) throw new Error('comment counts unavailable');
+        return { rows: empty ? [] : [{ post_id: 'p1', comment_count: 9 }] };
+      });
+      mock.contentViews.mockResolvedValue({ p1: { impressions: 420, reach: 42 } });
+
+      const page = await readFeedPage({ limit: 20 });
+
+      expect(page.posts).toHaveLength(1);
+      expect(page.posts[0]).toMatchObject({
+        _id: 'p1', text: 'a post', likes, dislikes, comments,
+        avatar_url: 'https://cdn/av1', impressions: 420, reach: 42,
+      });
+      expect(page.has_more).toBe(false);
+      expect(page.next_cursor).toBeNull();
+      expect(mock.query).toHaveBeenCalledTimes(3);
+    });
+
+    it('rejects when the primary feed query fails', async () => {
+      const error = new Error('feed unavailable');
+      mock.query.mockRejectedValue(error);
+
+      await expect(readFeedPage({})).rejects.toBe(error);
+      expect(mock.query).toHaveBeenCalledTimes(1);
+      expect(mock.contentViews).not.toHaveBeenCalled();
+    });
+
+    it('rejects when feed memberships fail', async () => {
+      const error = new Error('memberships unavailable');
+      mock.getMyGroups.mockRejectedValue(error);
+
+      await expect(readFeedPage({})).rejects.toBe(error);
+      expect(mock.query).not.toHaveBeenCalled();
+    });
+
     it('computes has_more from the +1 row and the next cursor on created_at (Newest)', async () => {
       // 21 rows for a limit of 20 → has_more, cursor on the 20th row's created_at.
       const rows = Array.from({ length: 21 }, (_, i) =>
@@ -445,11 +493,28 @@ describe('feed v3 data layer', () => {
   });
 
   describe('readMusicFeed (the two-layer filter — music.md)', () => {
+    it('resolves a group artist name without replacing its exact group identity', async () => {
+      const group = 'web10.app/groups/users/alice/new-group-6';
+      mock.read.mockResolvedValue([{
+        doc_id: 'group-track', author_key: group,
+        body: { title: 'Hello from the club', media_refs: ['song'], tags: ['music'] },
+        created_at: '2026-11-03T00:00:00Z',
+      }]);
+      mock.query.mockResolvedValue({ rows: [{ group_id: group, author_key: 'alice', body: { name: 'Century Club Music' } }] });
+      mock.listMedia.mockResolvedValue([{ doc_id: 'song', body: { mime_type: 'video/mp4', url: 'https://cdn/song.mp4' } }]);
+
+      const [track] = await readMusicFeed();
+
+      expect(track.post.group_identity?.name).toBe('Century Club Music');
+      expect(track.post.author_key).toBe(group);
+      expect(track.post.author_username).toBe('new-group-6');
+      expect(mock.query).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ groups: [group] }));
+    });
+
     // The filter is two-layered (defense in depth):
     //   1. SERVER — readDiscoverFeed(…, ["music"]) sends has(tags, 'music'), so
     //      the node pulls only tagged tracks (cheap + indexable).
-    //   2. RENDER — the gate re-derives audio/* from the resolved media and
-    //      drops fakes (a doc tagged `music` whose media isn't a real audio file).
+    //   2. RENDER — exactly one resolved audio/video, with optional images.
     function discoverPost(id: string, mediaRefs: string[], tags: string[], author = 'alice') {
       return {
         doc_id: id,
@@ -481,11 +546,11 @@ describe('feed v3 data layer', () => {
       );
     });
 
-    it('the render-time gate drops fakes among the tagged posts (video / image / multi-media)', async () => {
+    it('the render-time gate drops fakes among the tagged posts (image / multi-media)', async () => {
       // p1: audio/mpeg, tagged music       → TRACK
-      // p2: video/mp4, tagged music        → NOT (video faked as track)
-      // p3: image/jpeg, tagged music       → NOT (image faked as track)
-      // p4: audio + video, tagged music    → NOT (a track is a single audio)
+      // p2: video/mp4, tagged music        → TRACK (a video CAN be music)
+      // p3: image/jpeg, tagged music       → NOT (image is not music)
+      // p4: audio + video, tagged music    → NOT (a track is a single media)
       serverFilteredRead([
         discoverPost('p1', ['m1'], ['music']),
         discoverPost('p2', ['m2'], ['music']),
@@ -503,9 +568,51 @@ describe('feed v3 data layer', () => {
       const tracks = await readMusicFeed(50);
       const ids = tracks.map((t) => t.post._id).sort();
 
-      expect(ids).toEqual(['p1']);
+      expect(ids).toEqual(['p1', 'p2']);
       const p1 = tracks.find((t) => t.post._id === 'p1')!;
       expect(p1.media.mime_type).toBe('audio/mpeg');
+      const p2 = tracks.find((t) => t.post._id === 'p2')!;
+      expect(p2.media.mime_type).toBe('video/mp4');
+    });
+
+    it('keeps one playable attachment with supporting images and selects the playable media', async () => {
+      serverFilteredRead([
+        discoverPost('video', ['cover', 'video'], ['music']),
+        discoverPost('audio', ['audio', 'cover', 'photo'], ['music']),
+      ]);
+      mock.listMedia.mockResolvedValue([
+        mediaDoc('cover', 'image/webp'),
+        mediaDoc('video', 'video/mp4'),
+        mediaDoc('audio', 'audio/mpeg'),
+        mediaDoc('photo', 'image/jpeg'),
+      ]);
+
+      const tracks = await readMusicFeed(50);
+      expect(tracks.map((t) => [t.post._id, t.media._id])).toEqual([
+        ['video', 'video'],
+        ['audio', 'audio'],
+      ]);
+    });
+
+    it('rejects ambiguous, unsupported and unresolved supporting attachments', async () => {
+      serverFilteredRead([
+        discoverPost('two-videos', ['v1', 'v2', 'cover'], ['music']),
+        discoverPost('two-audio', ['a1', 'a2', 'cover'], ['music']),
+        discoverPost('missing', ['v1', 'missing'], ['music']),
+        discoverPost('unsupported', ['v1', 'pdf'], ['music']),
+        discoverPost('unknown-type', ['v1', 'unknown'], ['music']),
+      ]);
+      mock.listMedia.mockResolvedValue([
+        mediaDoc('v1', 'video/mp4'),
+        mediaDoc('v2', 'video/mp4'),
+        mediaDoc('a1', 'audio/mpeg'),
+        mediaDoc('a2', 'audio/mpeg'),
+        mediaDoc('cover', 'image/webp'),
+        mediaDoc('pdf', 'application/pdf'),
+        mediaDoc('unknown', ''),
+      ]);
+
+      expect(await readMusicFeed(50)).toEqual([]);
     });
 
     it('an untagged audio post is not a track (the server tag filter is the inclusion rule)', async () => {
@@ -525,10 +632,10 @@ describe('feed v3 data layer', () => {
 
     it('returns an empty list when no post is a genuine track', async () => {
       serverFilteredRead([
-        discoverPost('p1', ['m1'], ['music']), // video faked as track
+        discoverPost('p1', ['m1'], ['music']), // image — not a track
         discoverPost('p2', [], ['music']), // no media
       ]);
-      mock.listMedia.mockResolvedValue([mediaDoc('m1', 'video/mp4')]);
+      mock.listMedia.mockResolvedValue([mediaDoc('m1', 'image/jpeg')]);
 
       const tracks = await readMusicFeed(50);
       expect(tracks).toEqual([]);
@@ -646,6 +753,13 @@ describe('feed v3 data layer', () => {
       const { liked, disliked } = await readFeedReactions(['p1']);
       expect(liked).toEqual({});
       expect(disliked).toEqual({});
+      expect(mock.read).not.toHaveBeenCalled();
+    });
+
+    it('degrades to empty maps when memberships fail', async () => {
+      mock.getMyGroups.mockRejectedValue(new Error('memberships unavailable'));
+
+      await expect(readFeedReactions(['p1'])).resolves.toEqual({ liked: {}, disliked: {}, reposted: {} });
       expect(mock.read).not.toHaveBeenCalled();
     });
 

@@ -1115,44 +1115,78 @@ def get_document_any_author(doc_id: str) -> dict | None:
 
 
 def can_read_carrier_post(media_doc_id: str, media_author: str, reader: str, authenticated: bool = False) -> bool:
-    """True if `reader` can read a doc that carries `media_doc_id` (D68).
+    """Current readable carriers may use their server-set human uploader (D68).
 
-    The cross-user feed path for HLS: a doc whose `media_refs` include the
-    media doc_id, in a group the reader can read. Service-agnostic
-    (D75): the node does not vet the carrier's `collection_name` — any doc that
-    carries the media in a readable group grants the stream (for web10-social
-    the carrier is a `posts` doc; the node doesn't need to know that). The
-    check is scoped to the media doc's AUTHOR's docs: a doc can only carry its
-    own author's media (resolution is author-scoped), which bounds the scan to
-    one user's docs.
-
-    Readability is the D58 effective-role gate (`can_read_group`) — the SAME
-    predicate the read path uses to decide which groups the reader sees.
-    Membership alone would be wrong: the public board's reader is not a
-    member, it reads through the group's `anyone`/`authenticated` grant (the
-    D58 backfill renamed the discover board's `anon` member row to `anyone`,
-    so a literal-membership check 403'd every anon-minted HLS sig — the
-    marketing /trending "can't be played" bug). `authenticated` mirrors the
-    read path's principal-class selection (the sig carries it from mint time,
-    so the re-check can't upgrade an anon read to authenticated grants).
-
-    `body` is a plain String column, so `JSONExtractArrayRaw` yields the
-    RAW array elements — JSON-encoded strings, i.e. WITH their quotes.
-    The match is against the quoted form.
+    Group authorship does not move the upload. Match the same
+    `posted_by or author_key` owner used by media resolution, then recheck
+    the actual carrier service through the normal read/visibility boundary.
+    Candidate tuples rank tombstones first so removed references/links cannot
+    revive, including deletion-winning timestamp ties.
     """
+    from sqlglot import exp
+
+    from app.v3.services.safe_query import build_safe_query
+
+    log.info("[media] carrier access: started")
     result = client.query(
-        "SELECT DISTINCT pg.group_id "
-        "FROM (SELECT doc_id AS post_id FROM ("
-        "SELECT doc_id, row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
-        "FROM documents "
-        "WHERE author_key = %(author)s AND deleted = 0 "
-        "AND has(JSONExtractArrayRaw(body, 'media_refs'), %(media)s)"
-        ") WHERE rn = 1) posts "
-        "JOIN doc_groups pg ON pg.doc_id = posts.post_id AND pg.deleted = 0",
-        {"media": f'"{media_doc_id}"', "author": media_author},
+        "SELECT DISTINCT p.doc_id, p.author_key, p.collection_name, pg.group_id FROM ("
+        "SELECT doc_id, author_key, posted_by, collection_name, body, deleted, "
+        "row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM documents) p JOIN ("
+        "SELECT doc_id, group_id, deleted, row_number() OVER ("
+        "PARTITION BY doc_id, group_id ORDER BY updated_at DESC, deleted DESC) AS rn FROM doc_groups"
+        ") pg ON pg.doc_id = p.doc_id "
+        "WHERE p.rn = 1 AND p.deleted = 0 AND pg.rn = 1 AND pg.deleted = 0 "
+        "AND coalesce(nullIf(p.posted_by, ''), p.author_key) = %(author)s "
+        "AND has(JSONExtractArrayRaw(p.body, 'media_refs'), %(media)s)",
+        {"media": json.dumps(media_doc_id), "author": media_author},
     )
-    group_ids = [row[0] for row in result.result_rows]
-    return any(can_read_group(g, reader, "posts", authenticated) for g in group_ids)
+    candidates: dict[str, list[tuple[str, str, str]]] = {}
+    for doc_id, author, service, group in result.result_rows:
+        candidates.setdefault(service, []).append((doc_id, author, group))
+
+    def literal(value):
+        # Opaque values survive both compiler parser/generator passes.
+        return exp.func("unhex", exp.Literal.string(value.encode("utf-8").hex()))
+
+    for service, tuples in candidates.items():
+        groups = readable_groups(reader, service, authenticated, list(dict.fromkeys(t[2] for t in tuples)))
+        if not groups:
+            continue
+        query = (
+            exp.select("doc_id")
+            .from_(exp.Table(this=exp.to_identifier(service, quoted=True)))
+            .where(
+                exp.In(
+                    this=exp.Tuple(expressions=[exp.column(c) for c in ("doc_id", "author_key", "group_id")]),
+                    expressions=[exp.Tuple(expressions=[literal(v) for v in t]) for t in tuples],
+                )
+            )
+            .where(
+                exp.EQ(
+                    this=exp.func(
+                        "coalesce",
+                        exp.func("nullIf", exp.column("posted_by"), exp.Literal.string("")),
+                        exp.column("author_key"),
+                    ),
+                    expression=literal(media_author),
+                )
+            )
+            .where(
+                exp.func(
+                    "has",
+                    exp.func("JSONExtractArrayRaw", exp.column("body"), exp.Literal.string("media_refs")),
+                    literal(json.dumps(media_doc_id)),
+                )
+            )
+            .limit(1)
+        )
+        compiled = build_safe_query(query.sql(dialect="clickhouse"), {service: groups}, reader)
+        if client.query(compiled).result_rows:
+            log.info("[media] carrier access: allowed")
+            return True
+    log.info("[media] carrier access: denied")
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -1179,6 +1213,21 @@ def detach_doc_from_groups(doc_id: str):
     )
 
 
+def set_doc_attachment(doc_id: str, group_id: str, attached: bool):
+    """Append only this target; sequential versions exceed stored millisecond time.
+
+    Independent targets cannot clobber each other. This is not same-target CAS.
+    """
+    client.command(
+        "INSERT INTO doc_groups (doc_id, group_id, created_at, updated_at, deleted) "
+        "SELECT %(doc_id)s, %(group_id)s, "
+        "if(count() = 0, now64(3), min(created_at)), "
+        "greatest(now64(3), max(updated_at) + INTERVAL 1 MILLISECOND), %(deleted)s "
+        "FROM doc_groups WHERE doc_id = %(doc_id)s AND group_id = %(group_id)s",
+        {"doc_id": doc_id, "group_id": group_id, "deleted": int(not attached)},
+    )
+
+
 def replace_doc_groups(doc_id: str, group_ids: list[str]):
     """Tombstone old group attachments, insert new ones."""
     detach_doc_from_groups(doc_id)
@@ -1188,7 +1237,12 @@ def replace_doc_groups(doc_id: str, group_ids: list[str]):
 def get_doc_groups(doc_id: str) -> list[str]:
     """Get active group IDs for a document."""
     result = client.query(
-        "SELECT group_id FROM doc_groups WHERE doc_id = %(doc_id)s AND deleted = 0",
+        # Rank tombstones too: an old live attachment is not current authority.
+        "SELECT group_id FROM ("
+        "SELECT group_id, deleted, row_number() OVER ("
+        "PARTITION BY doc_id, group_id ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM doc_groups WHERE doc_id = %(doc_id)s"
+        ") WHERE rn = 1 AND deleted = 0",
         {"doc_id": doc_id},
     )
     return [row[0] for row in result.result_rows]
@@ -3188,6 +3242,9 @@ def resolve_pinned_ads(docs: list[dict], reader: str) -> dict[str, dict]:
     (I3: the ad rides the reader's access, not just the doc's). A pinned ad the
     reader can't see is simply not returned (the doc comes back with no ad).
 
+    Membership and attachment versions are ranked before removal filtering;
+    tombstones win timestamp ties. A newer rejoin or reattachment grants access.
+
     Service-agnostic (D75): the ad is whatever doc `ad_target` references — the
     node does not vet its `collection_name`. The `ad` tag + the `ad_preference`
     pointer + group membership (I3) are the whole model; "an ad is a post" is a
@@ -3200,17 +3257,23 @@ def resolve_pinned_ads(docs: list[dict], reader: str) -> dict[str, dict]:
         return {}
     placeholders = ", ".join(f"%(t{i})s" for i in range(len(targets)))
     params = {**{f"t{i}": t for i, t in enumerate(targets)}, "reader": reader}
+    log.info("[ads] pinned membership read: started targets=%d", len(targets))
     result = client.query(
         "SELECT ad.doc_id, ad.author_key, ad.body, ad.tags, ad.posted_by "
         "FROM (SELECT doc_id, author_key, body, tags, deleted, posted_by, "
         "row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
         f"FROM documents WHERE doc_id IN ({placeholders})) ad "
         "WHERE ad.rn = 1 AND ad.deleted = 0 "
-        "AND ad.doc_id IN (SELECT pg.doc_id FROM doc_groups pg "
-        "JOIN group_members gm ON pg.group_id = gm.group_id "
-        "WHERE gm.member_key = %(reader)s AND pg.deleted = 0 AND gm.deleted = 0)",
+        "AND ad.doc_id IN (SELECT pg.doc_id FROM (SELECT doc_id, group_id, deleted, "
+        "row_number() OVER (PARTITION BY doc_id, group_id ORDER BY updated_at DESC, deleted DESC) AS rn "
+        f"FROM doc_groups WHERE doc_id IN ({placeholders})) pg "
+        "JOIN (SELECT group_id, deleted, "
+        "row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM group_members WHERE member_key = %(reader)s) gm ON pg.group_id = gm.group_id "
+        "WHERE pg.rn = 1 AND gm.rn = 1 AND pg.deleted = 0 AND gm.deleted = 0)",
         params,
     )
+    log.info("[ads] pinned membership read: completed creatives=%d", len(result.result_rows))
     return {
         row[0]: {
             "doc_id": row[0],
@@ -3254,6 +3317,9 @@ def get_active_node_ads() -> list[dict]:
     error (node ads are an enhancement, not a critical path — the feed works
     without them).
 
+    Discover attachments are ranked before removal filtering, with deletion
+    winning timestamp ties. Other live group attachments do not grant inventory.
+
     The discover group id is the canonical ``DISCOVER_GROUP_ID`` (derived from
     ``settings.PROVIDER``) — the same source that creates the group and that
     every other read uses. (It was previously derived from the editable
@@ -3261,6 +3327,7 @@ def get_active_node_ads() -> list[dict]:
     deployed nodes → the query matched nothing → node ads never attached.)
     """
     try:
+        log.info("[ads] node inventory read: started")
         result = client.query(
             "SELECT doc_id, author_key, body, tags, posted_by "
             "FROM (SELECT doc_id, author_key, body, tags, deleted, updated_at, posted_by, "
@@ -3268,8 +3335,10 @@ def get_active_node_ads() -> list[dict]:
             "FROM documents "
             "WHERE has(tags, 'node_ad') AND deleted = 0) "
             "WHERE rn = 1 "
-            "AND doc_id IN (SELECT pg.doc_id FROM doc_groups pg "
-            "WHERE pg.group_id = %(discover)s AND pg.deleted = 0) "
+            "AND doc_id IN (SELECT pg.doc_id FROM (SELECT doc_id, group_id, deleted, "
+            "row_number() OVER (PARTITION BY doc_id, group_id ORDER BY updated_at DESC, deleted DESC) AS rn "
+            "FROM doc_groups WHERE group_id = %(discover)s) pg "
+            "WHERE pg.rn = 1 AND pg.deleted = 0) "
             "ORDER BY updated_at DESC LIMIT 20",
             {"discover": DISCOVER_GROUP_ID},
         )
@@ -3286,8 +3355,10 @@ def get_active_node_ads() -> list[dict]:
                         "posted_by": row[4],
                     }
                 )
+        log.info("[ads] node inventory read: completed creatives=%d", len(ads))
         return ads
     except Exception:
+        log.warning("[ads] node inventory read: failed")
         return []
 
 
@@ -3906,6 +3977,17 @@ def create_user(username: str, password_hash: str, phone: str = "", email: str =
     client.insert(
         "users",
         [[username, password_hash, phone, 0, email, 0, now, now, 0]],
+        column_names=[
+            "username",
+            "password_hash",
+            "phone",
+            "phone_verified",
+            "email",
+            "email_verified",
+            "created_at",
+            "updated_at",
+            "deleted",
+        ],
     )
     _ensure_discover_group_contract()
     add_group_member(DISCOVER_GROUP_ID, username, "member")
@@ -3948,6 +4030,17 @@ def migrate_user(
                     now,
                     0,
                 ]
+            ],
+            column_names=[
+                "username",
+                "password_hash",
+                "phone",
+                "phone_verified",
+                "email",
+                "email_verified",
+                "created_at",
+                "updated_at",
+                "deleted",
             ],
         )
     _ensure_discover_group_contract()
@@ -4065,8 +4158,8 @@ def get_user(username: str) -> dict | None:
     """Get a user record."""
     result = client.query(
         "SELECT username, password_hash, phone, phone_verified, email, email_verified, created_at "
-        "FROM users WHERE username = %(username)s AND deleted = 0 "
-        "ORDER BY updated_at DESC LIMIT 1",
+        "FROM (SELECT * FROM users WHERE username = %(username)s ORDER BY updated_at DESC, deleted DESC LIMIT 1) "
+        "WHERE deleted = 0",
         {"username": username},
     )
     if not result.result_rows:
@@ -4093,6 +4186,49 @@ def authenticate_user(username: str, plain_password: str) -> bool:
     return verify_password(plain_password, user["password_hash"])
 
 
+def ensure_users_domain_schema() -> None:
+    """Upgrade existing volumes; fail boot rather than serve a partial schema."""
+    client.command("ALTER TABLE users ADD COLUMN IF NOT EXISTS domain String DEFAULT '' AFTER email_verified")
+    client.command("ALTER TABLE users ADD COLUMN IF NOT EXISTS domain_verified UInt8 DEFAULT 0 AFTER domain")
+
+
+def get_user_domain(username: str) -> dict | None:
+    result = client.query(
+        "SELECT domain, domain_verified FROM "
+        "(SELECT * FROM users WHERE username = %(username)s ORDER BY updated_at DESC, deleted DESC LIMIT 1) "
+        "WHERE deleted = 0",
+        {"username": username},
+    )
+    if not result.result_rows:
+        return None
+    domain, verified = result.result_rows[0]
+    return {"domain": domain or None, "verified": bool(domain and verified)}
+
+
+def domain_claimed_by_other(domain: str, username: str) -> bool:
+    # Deduplicate BEFORE filtering aliases/deletions, so released historical
+    # claims cannot block a new owner. This is not an atomic uniqueness gate.
+    result = client.query(
+        "SELECT username FROM (SELECT username, domain, deleted, "
+        "row_number() OVER (PARTITION BY username ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM users) WHERE rn = 1 AND deleted = 0 AND domain = %(domain)s AND username != %(username)s LIMIT 1",
+        {"domain": domain, "username": username},
+    )
+    return bool(result.result_rows)
+
+
+def set_domain(username: str, domain: str, verified: int) -> None:
+    # DateTime64(3) can collapse immediate verify/release writes into a tie.
+    # Advance beyond the copied version, even within the same millisecond.
+    client.command(
+        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, domain, domain_verified, created_at, updated_at, deleted) "
+        "SELECT username, password_hash, phone, phone_verified, email, email_verified, %(domain)s, %(verified)s, created_at, "
+        "greatest(toDateTime64(%(updated_at)s, 3), addMilliseconds(updated_at, 1)), 0 "
+        "FROM (SELECT * FROM users WHERE username = %(username)s ORDER BY updated_at DESC, deleted DESC LIMIT 1) WHERE deleted = 0",
+        {"username": username, "domain": domain, "verified": verified, "updated_at": _ch_ts(_now())},
+    )
+
+
 def change_password(username: str, new_password_hash: str):
     """Change a user's password.
 
@@ -4105,9 +4241,9 @@ def change_password(username: str, new_password_hash: str):
     (old hash) and the new password 401s (the recovery password-change flake).
     """
     client.command(
-        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
-        "SELECT username, %(new_hash)s, phone, phone_verified, email, email_verified, created_at, %(updated_at)s, 0 "
-        "FROM users WHERE username = %(username)s AND deleted = 0",
+        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, domain, domain_verified, created_at, updated_at, deleted) "
+        "SELECT username, %(new_hash)s, phone, phone_verified, email, email_verified, domain, domain_verified, created_at, %(updated_at)s, 0 "
+        "FROM (SELECT * FROM users WHERE username = %(username)s ORDER BY updated_at DESC, deleted DESC LIMIT 1) WHERE deleted = 0",
         {"username": username, "new_hash": new_password_hash, "updated_at": _ch_ts(_now())},
     )
 
@@ -4120,9 +4256,9 @@ def change_phone(username: str, phone: str):
     dedup read.
     """
     client.command(
-        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
-        "SELECT username, password_hash, %(phone)s, 0, email, email_verified, created_at, %(updated_at)s, 0 "
-        "FROM users WHERE username = %(username)s AND deleted = 0",
+        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, domain, domain_verified, created_at, updated_at, deleted) "
+        "SELECT username, password_hash, %(phone)s, 0, email, email_verified, domain, domain_verified, created_at, %(updated_at)s, 0 "
+        "FROM (SELECT * FROM users WHERE username = %(username)s ORDER BY updated_at DESC, deleted DESC LIMIT 1) WHERE deleted = 0",
         {"username": username, "phone": phone, "updated_at": _ch_ts(_now())},
     )
 
@@ -4135,9 +4271,9 @@ def set_email(username: str, email: str):
     dedup read.
     """
     client.command(
-        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
-        "SELECT username, password_hash, phone, phone_verified, %(email)s, 0, created_at, %(updated_at)s, 0 "
-        "FROM users WHERE username = %(username)s AND deleted = 0",
+        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, domain, domain_verified, created_at, updated_at, deleted) "
+        "SELECT username, password_hash, phone, phone_verified, %(email)s, 0, domain, domain_verified, created_at, %(updated_at)s, 0 "
+        "FROM (SELECT * FROM users WHERE username = %(username)s ORDER BY updated_at DESC, deleted DESC LIMIT 1) WHERE deleted = 0",
         {"username": username, "email": email, "updated_at": _ch_ts(_now())},
     )
 
@@ -4152,9 +4288,9 @@ def verify_phone(username: str):
     ``change_password``) so it strictly outranks the row it copies.
     """
     client.command(
-        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
-        "SELECT username, password_hash, phone, 1, email, email_verified, created_at, %(updated_at)s, 0 "
-        "FROM (SELECT * FROM users WHERE username = %(username)s AND deleted = 0 ORDER BY updated_at DESC LIMIT 1)",
+        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, domain, domain_verified, created_at, updated_at, deleted) "
+        "SELECT username, password_hash, phone, 1, email, email_verified, domain, domain_verified, created_at, %(updated_at)s, 0 "
+        "FROM (SELECT * FROM users WHERE username = %(username)s ORDER BY updated_at DESC, deleted DESC LIMIT 1) WHERE deleted = 0",
         {"username": username, "updated_at": _ch_ts(_now())},
     )
 
@@ -4162,9 +4298,9 @@ def verify_phone(username: str):
 def verify_email(username: str):
     """Mark email as verified (latest row only — see verify_phone)."""
     client.command(
-        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
-        "SELECT username, password_hash, phone, phone_verified, email, 1, created_at, %(updated_at)s, 0 "
-        "FROM (SELECT * FROM users WHERE username = %(username)s AND deleted = 0 ORDER BY updated_at DESC LIMIT 1)",
+        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, domain, domain_verified, created_at, updated_at, deleted) "
+        "SELECT username, password_hash, phone, phone_verified, email, 1, domain, domain_verified, created_at, %(updated_at)s, 0 "
+        "FROM (SELECT * FROM users WHERE username = %(username)s ORDER BY updated_at DESC, deleted DESC LIMIT 1) WHERE deleted = 0",
         {"username": username, "updated_at": _ch_ts(_now())},
     )
 

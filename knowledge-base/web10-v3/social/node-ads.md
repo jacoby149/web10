@@ -76,6 +76,20 @@ node-admin-only affordance.
 
 ## How the Read Attaches Node Ads
 
+**Local attachment repair (02.11.2026):** current Discover attachment history is
+ranked before removal filtering, with deletion-winning ties. Removed links no
+longer authorize reproduced delivery/signing; active/newer reattached public
+inventory and independent uploaders remain. See the
+[repair](../../security/scans/2026-10/repair-h01-node-attachment.md) and
+[historical evidence](../../security/scans/2026-10/h01-node-attachment-proof.md).
+The document tag/deletion prefilters below still contradict dedup-then-filter.
+[Document evidence](../../security/scans/2026-10/h01-node-document-proof.md)
+reproduces older creative delivery/signing after a newer deletion or node_ad
+removal, despite a live Discover link. Pause suppresses correctly; newest
+restored/retagged/reactivated inventory remains. Document runtime repair and
+real lifecycle/rollout/diverse gates remain OPEN.
+Public inventory remains intentional; no per-viewer membership requirement.
+
 The read (`/v3/read`) already resolves `ad_preference` for pinned ads. The
 node ad is a **read-time enrichment** — the same pattern, one more field:
 
@@ -126,8 +140,13 @@ FROM (
 )
 WHERE rn = 1
   AND doc_id IN (
-    SELECT pg.doc_id FROM doc_groups pg
-    WHERE pg.group_id = '<discover group id>' AND pg.deleted = 0
+    SELECT pg.doc_id FROM (
+      SELECT doc_id, group_id, deleted,
+             row_number() OVER (PARTITION BY doc_id, group_id
+                                ORDER BY updated_at DESC, deleted DESC) AS rn
+      FROM doc_groups WHERE group_id = '<discover group id>'
+    ) pg
+    WHERE pg.rn = 1 AND pg.deleted = 0
   )
 ORDER BY updated_at DESC
 LIMIT 20

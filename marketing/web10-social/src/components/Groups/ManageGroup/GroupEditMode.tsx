@@ -19,19 +19,28 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   getGroupMembers,
   writeGroupIdentity,
-  slugTaken as slugTakenCheck,
-  slugify,
   type GroupIdentity,
   type GroupCommitInput,
   type GroupVisibility,
   type GroupJoinPolicy,
 } from '@/data';
-import { getV3Client } from '@/data/v3';
 import { uploadMedia } from '@/data/posts';
 import { errorMessage } from '@/components/shared/Toast';
 import { cn } from '@/lib/utils';
 
 const LOG = (...args: unknown[]) => console.log('[social:groups:edit]', ...args);
+
+// Editor mounts share ordering for the same group. Finished groups leave no state.
+const groupWrites = new Map<string, Promise<void>>();
+function queueGroupWrite(groupId: string, write: () => Promise<void>): Promise<void> {
+  const pending = (groupWrites.get(groupId) ?? Promise.resolve()).then(write);
+  const settled = pending.catch(() => {});
+  groupWrites.set(groupId, settled);
+  void settled.then(() => {
+    if (groupWrites.get(groupId) === settled) groupWrites.delete(groupId);
+  });
+  return pending;
+}
 
 const JOIN_POLICIES = [
   { value: 'open', label: 'Open', icon: LockOpen, hint: 'Anyone can join immediately.' },
@@ -64,11 +73,8 @@ const VISIBILITY_OPTIONS = [
  * settings still only reach the contract on the atomic commit. Published
  * groups never auto-save (the live face is frozen until Save).
  *
- * **The slug guard is live (G4, decision 1).** For a draft, the slug preview
- * (derived from the display name) is checked against `get_group` as you type;
- * an active group at that slug shows "name already taken" and blocks Publish.
- * After create the slug is the group's identity — the display name stays free
- * (decision 4), so the guard is create-time only.
+ * The slug was reserved at draft creation and is fixed. Display names are
+ * free to change; availability checks belong only to draft allocation.
  *
  * **Uploads (decision 3):** picking a cover / avatar starts an async upload;
  * the ref is written to the stage only when it resolves, and **no save while an
@@ -84,8 +90,6 @@ export default function GroupEditMode({
   onUploadingChange,
   onSave,
   onCancel,
-  slugTaken,
-  onSlugTakenChange,
   onDelete,
   deleting,
 }: {
@@ -97,11 +101,8 @@ export default function GroupEditMode({
   onUploadingChange: (uploading: boolean) => void;
   onSave: (staged: GroupCommitInput) => Promise<void>;
   onCancel: () => void;
-  /** The create-time slug guard (G4): true while an active group owns the slug. */
-  slugTaken: boolean;
-  onSlugTakenChange: (taken: boolean) => void;
   /** The lightweight draft-delete (G4) — only wired for drafts. */
-  onDelete?: () => void;
+  onDelete?: () => void | Promise<void>;
   deleting?: boolean;
 }) {
   const [name, setName] = useState(identity.name || '');
@@ -118,7 +119,8 @@ export default function GroupEditMode({
       ? (joinPolicy as GroupJoinPolicy)
       : 'open',
   );
-  const [visibility, setVisibility] = useState<GroupVisibility>('private');
+  const [visibility, setVisibility] = useState<GroupVisibility | null>(isDraft ? identity.visibility ?? 'private' : null);
+  const visibilityEditedRef = useRef(false);
   const [listed, setListed] = useState<boolean>(discoverable);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -132,29 +134,31 @@ export default function GroupEditMode({
   // change — skip it so opening edit mode doesn't rewrite the doc.
   const autoSaveFirstRef = useRef(true);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // The slug guard (G4, decision 1): a debounce for the get_group check.
-  const slugCheckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // The slug the guard last checked (skip redundant checks).
-  const slugCheckedRef = useRef<string | null>(null);
 
   // Derive the current who-can-read from the group's reserved member rows
   // (the D58 read grant — the same derivation the retired Settings section used).
   useEffect(() => {
+    if (isDraft) return;
     let cancelled = false;
+    LOG('visibility initialization - start');
     getGroupMembers(groupId)
-      .catch(() => [] as { member_key: string; role: string }[])
       .then((members: { member_key: string; role: string }[]) => {
-        if (cancelled) return;
+        if (cancelled || visibilityEditedRef.current) return;
         const anyone = members.find((m) => m.member_key === 'anyone');
         const authed = members.find((m) => m.member_key === 'authenticated');
         if (anyone?.role === 'reader') setVisibility('public');
         else if (authed?.role === 'reader') setVisibility('signed_in');
         else setVisibility('private');
+        LOG('visibility initialization - complete');
+      }).catch((e) => {
+        if (cancelled || visibilityEditedRef.current) return;
+        LOG('visibility initialization - failed', e);
+        setError('Could not load visibility. Select who can read before saving.');
       });
     return () => {
       cancelled = true;
     };
-  }, [groupId]);
+  }, [groupId, isDraft]);
 
   // Revoke object URLs on cleanup.
   useEffect(() => {
@@ -179,67 +183,45 @@ export default function GroupEditMode({
       autoSaveFirstRef.current = false;
       return;
     }
-    if (uploading || saving) return;
+    if (uploading || saving || visibility === null) return;
+    let cancelled = false;
     setAutoSave('saving');
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     autoSaveTimerRef.current = setTimeout(async () => {
       LOG('auto-save — writing draft face', { name: name.trim(), visibility, policy, listed });
       try {
-        await writeGroupIdentity(groupId, {
-          ...identity,
-          name: name.trim() || undefined,
-          description: description.trim() || undefined,
-          website: website.trim() || undefined,
-          tags: tags.length ? tags : undefined,
-          banner_ref: bannerRef,
-          avatar_ref: avatarRef,
-          status: 'draft',
-          visibility,
-          join_policy: policy,
-          discoverable: listed,
+        await queueGroupWrite(groupId, async () => {
+          // Cleanup revokes queued work, but cannot cancel a started request.
+          if (cancelled) {
+            LOG('auto-save - discarded obsolete queued write', groupId);
+            return;
+          }
+          await writeGroupIdentity(groupId, {
+            ...identity,
+            name: name.trim() || undefined,
+            description: description.trim() || undefined,
+            website: website.trim() || undefined,
+            tags: tags.length ? tags : undefined,
+            banner_ref: bannerRef,
+            avatar_ref: avatarRef,
+            status: 'draft',
+            visibility,
+            join_policy: policy,
+            discoverable: listed,
+          });
         });
-        setAutoSave('saved');
+        if (!cancelled) setAutoSave('saved');
         LOG('auto-save — saved');
       } catch (e) {
         LOG('auto-save — failed:', e);
-        setAutoSave('idle');
+        if (!cancelled) setAutoSave('idle');
       }
     }, 600);
     return () => {
+      cancelled = true;
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     };
   }, [isDraft, name, description, website, tags, bannerRef, avatarRef, visibility, policy, listed, uploading, saving, groupId, identity]);
-
-  // ── The slug guard, live in edit mode (G4, decision 1) ────────────────────
-  // For a draft, the slug (derived from the display name) is checked against
-  // get_group as you type (debounced). An active group at that slug →
-  // "name already taken" + Publish blocked. A tombstone doesn't count (G0).
-  // The check only runs when the derived slug is non-empty and changed.
-  useEffect(() => {
-    if (!isDraft) return;
-    const slug = slugify(name);
-    if (!slug) {
-      if (slugCheckedRef.current !== null) {
-        slugCheckedRef.current = null;
-        onSlugTakenChange(false);
-      }
-      return;
-    }
-    if (slug === slugCheckedRef.current) return;
-    if (slugCheckTimerRef.current) clearTimeout(slugCheckTimerRef.current);
-    slugCheckTimerRef.current = setTimeout(async () => {
-      slugCheckedRef.current = slug;
-      const owner = getV3Client().readToken()?.username || '';
-      const taken = await slugTakenCheck(slug, owner).catch(() => false);
-      // A newer slug was checked while this one was in flight — stale, drop it.
-      if (slugCheckedRef.current !== slug) return;
-      LOG('slug guard —', slug, taken ? 'TAKEN' : 'free');
-      onSlugTakenChange(taken);
-    }, 400);
-    return () => {
-      if (slugCheckTimerRef.current) clearTimeout(slugCheckTimerRef.current);
-    };
-  }, [isDraft, name, onSlugTakenChange]);
 
   // Pick a cover / avatar → start the async upload (decision 3). The ref lands
   // in the stage only when the upload resolves; `uploading` gates the save.
@@ -308,7 +290,7 @@ export default function GroupEditMode({
         banner_ref: bannerRef,
         avatar_ref: avatarRef,
       },
-      visibility,
+      visibility: visibility!,
       joinPolicy: policy,
       discoverable: listed,
     }),
@@ -316,12 +298,14 @@ export default function GroupEditMode({
   );
 
   const handleSave = useCallback(async () => {
-    if (saving || uploading || (isDraft && slugTaken)) return;
+    if (saving || uploading || visibility === null) return;
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     setSaving(true);
     setError(null);
-    LOG('save — start (atomic commit)', { isDraft, slugBlocked: isDraft && slugTaken });
+    LOG('save — start (atomic commit)', { isDraft, visibility });
     try {
-      await onSave(buildStaged());
+      // Wait for started requests from earlier editor lifetimes too.
+      await queueGroupWrite(groupId, () => onSave(buildStaged()));
       LOG('save — committed');
     } catch (e) {
       LOG('save — failed:', e);
@@ -329,7 +313,23 @@ export default function GroupEditMode({
     } finally {
       setSaving(false);
     }
-  }, [saving, uploading, isDraft, slugTaken, onSave, buildStaged]);
+  }, [saving, uploading, isDraft, visibility, groupId, onSave, buildStaged]);
+
+  const handleDelete = async () => {
+    if (saving || uploading || deleting || !onDelete) return;
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    setSaving(true);
+    setError(null);
+    LOG('delete - waiting for started group writes', groupId);
+    try {
+      await queueGroupWrite(groupId, async () => { await onDelete(); });
+    } catch (e) {
+      LOG('delete - failed', e);
+      setError(errorMessage(e, 'Could not delete the group.'));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const busy = saving || uploading;
 
@@ -395,22 +395,13 @@ export default function GroupEditMode({
           data-testid="group-edit-name"
           className="bg-surface"
         />
-        {/* The slug guard (G4, decision 1): the draft's slug is its identity —
-            shown live as you type, with the create-time collision check. */}
+        {/* The allocated ID is fixed; editing the display name does not rename it. */}
         {isDraft && (
           <p
-            className={cn(
-              'mt-1.5 truncate font-mono text-xs',
-              slugTaken ? 'text-danger' : 'text-muted-foreground',
-            )}
+            className="mt-1.5 truncate font-mono text-xs text-muted-foreground"
             data-testid="group-edit-slug"
           >
-            {slugify(name) ? `web10.app/groups/…/${slugify(name)}` : 'web10.app/groups/…/…'}
-            {slugTaken && (
-              <span className="ml-2 font-sans" data-testid="group-edit-slug-taken">
-                — name already taken
-              </span>
-            )}
+            {groupId}
           </p>
         )}
       </div>
@@ -495,7 +486,11 @@ export default function GroupEditMode({
               <button
                 key={value}
                 type="button"
-                onClick={() => setVisibility(value)}
+                onClick={() => {
+                  visibilityEditedRef.current = true;
+                  setVisibility(value);
+                  LOG('visibility - explicitly selected', value);
+                }}
                 disabled={busy}
                 aria-pressed={active}
                 data-testid={`group-edit-visibility-${value}`}
@@ -591,7 +586,7 @@ export default function GroupEditMode({
             variant="ghost"
             size="sm"
             className="gap-1.5 text-danger hover:text-danger hover:bg-danger-muted"
-            onClick={onDelete}
+            onClick={handleDelete}
             disabled={deleting || busy}
             data-testid="group-edit-delete"
           >
@@ -612,7 +607,7 @@ export default function GroupEditMode({
               variant="brand"
               size="sm"
               onClick={handleSave}
-              disabled={busy || slugTaken}
+              disabled={busy || visibility === null}
               data-testid="group-edit-save"
               className="gap-1.5"
             >
@@ -633,7 +628,7 @@ export default function GroupEditMode({
             <X className="h-3.5 w-3.5" strokeWidth={1.75} />
             Cancel
           </Button>
-          <Button variant="brand" size="sm" onClick={handleSave} disabled={busy} data-testid="group-edit-save" className="gap-1.5">
+          <Button variant="brand" size="sm" onClick={handleSave} disabled={busy || visibility === null} data-testid="group-edit-save" className="gap-1.5">
             {saving ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
             ) : (

@@ -104,12 +104,16 @@ exists but is not live:
   (`visibility` / `join_policy` / `discoverable`) — they ride in the face
   during edit and are applied to the group contract **only on the atomic
   commit** (Publish), never continuously.
-- **The atomic commit is the only write to live.** Publish (a draft going
+- **The ordered commit is the only write to live.** Publish (a draft going
   live) and Save (a published group updating in place) are the same ordered
   sequence: face `status → 'published'` → `update_group` (join_policy +
   discoverable) → the D58 read-grant member rows reconciled to the
-  who-can-read. Name + profile + settings land in one go — never a partial
-  live state.
+  who-can-read. These are sequential requests, not a storage transaction; a
+  failure must remain visible/retryable. The editor serializes in-process writes
+  per group across mounts, cancels obsolete queued autosaves, and waits for
+  started autosaves before Publish/Delete. There is no cross-tab transaction.
+  Late visibility initialization cannot replace an explicit selection, and an
+  unknown initial visibility cannot be saved as a guessed Private value.
 - **The slug is the identity, the display name is free.** The group_id's last
   segment (the slug) is checked against `get_group` at create time — the node's
   `create_group` is a bare INSERT with no collision guard (latest-row-wins), so

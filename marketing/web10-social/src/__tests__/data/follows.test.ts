@@ -109,6 +109,84 @@ describe('follows v3 data layer', () => {
     });
   });
 
+  describe('exact follower counts', () => {
+    it('counts member-role followers, not owners, reserved principals or profile readers', async () => {
+      mock.getGroupMembers.mockResolvedValue([
+        ...['bob', 'other.node/bob', 'node/groups/users/bob/team'].map((member_key) => ({ member_key, role: 'member' })),
+        ...['alice', 'explicit.node/alice', 'explicit.node/users/alice', 'anyone', 'authenticated', 'anon'].map((member_key) => ({ member_key, role: 'member' })),
+        { member_key: 'admin', role: 'owner' }, { member_key: 'public-face', role: 'reader' },
+      ]);
+      await expect(follows.getFollowersCount('alice', 'explicit.node')).resolves.toBe(3);
+      expect(mock.getGroupMembers).toHaveBeenCalledExactlyOnceWith('explicit.node/groups/users/alice/followers', { limit: 100, offset: 0 });
+    });
+
+    it('forwards explicit provider through both count aliases', async () => {
+      mock.getGroupMembers.mockResolvedValue([]);
+      await follows.countFollowers('alice', 'explicit.node');
+      const shim = await import('../../data/wapi');
+      await shim.countFollowers('alice', 'explicit.node');
+      expect(mock.getGroupMembers.mock.calls.map(([id]) => id)).toEqual([
+        'explicit.node/groups/users/alice/followers', 'explicit.node/groups/users/alice/followers',
+      ]);
+    });
+
+    it('defaults provider from the session and returns real zero only for a successful read', async () => {
+      mock.getGroupMembers.mockResolvedValue([{ member_key: 'alice', role: 'owner' }, { member_key: 'anyone', role: 'reader' }]);
+      await expect(follows.getFollowersCount('alice')).resolves.toBe(0);
+      expect(mock.getGroupMembers).toHaveBeenCalledWith('web10.app/groups/users/alice/followers', { limit: 100, offset: 0 });
+    });
+
+    it('pages past full pages, including a final empty page at an exact boundary', async () => {
+      mock.getGroupMembers.mockImplementation(async (_id, { offset }) => offset < 1200
+        ? Array.from({ length: 100 }, (_, i) => ({ member_key: `fan-${offset + i}`, role: 'member' })) : []);
+      await expect(follows.getFollowersCount('alice')).resolves.toBe(1200);
+      expect(mock.getGroupMembers.mock.calls.map(([, options]) => options.offset)).toEqual(Array.from({ length: 13 }, (_, i) => i * 100));
+    });
+
+    it.each([0, 100])('rejects denied/failed page at offset %i instead of returning zero or a partial count', async (failedOffset) => {
+      mock.getGroupMembers.mockImplementation(async (_id, { offset }) => {
+        if (offset === failedOffset) throw new Error('enumeration denied');
+        return Array.from({ length: 100 }, (_, i) => ({ member_key: `fan-${i}`, role: 'member' }));
+      });
+      await expect(follows.getFollowersCount('alice')).rejects.toThrow('enumeration denied');
+    });
+
+    it('rejects repeated pages instead of looping or counting duplicates', async () => {
+      mock.getGroupMembers.mockResolvedValue(Array.from({ length: 100 }, (_, i) => ({ member_key: `fan-${i}`, role: 'member' })));
+      await expect(follows.getFollowersCount('alice')).rejects.toThrow('Membership changed');
+      expect(mock.getGroupMembers).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('honest public following count', () => {
+    it('pages visible memberships and excludes owned/reader groups', async () => {
+      mock.byUserGroups.mockImplementation(async (_key, { offset }) => ({ groups: offset === 0
+        ? Array.from({ length: 100 }, (_, i) => ({ group_id: `group-${i}`, role: i === 0 ? 'owner' : i === 1 ? 'reader' : 'member' }))
+        : [{ group_id: 'last-group', role: 'member' }] }));
+      await expect(follows.countUserFollowingReal('alice', 'explicit.node')).resolves.toBe(99);
+      expect(mock.byUserGroups).toHaveBeenNthCalledWith(2, 'explicit.node/alice', { tag: 'web10-social-followers', limit: 100, offset: 100 });
+    });
+
+    it('returns real zero for a successful empty public read', async () => {
+      mock.byUserGroups.mockResolvedValue({ groups: [] });
+      await expect(follows.countUserFollowingReal('alice')).resolves.toBe(0);
+      expect(mock.byUserGroups).toHaveBeenCalledWith('alice', { tag: 'web10-social-followers', limit: 100, offset: 0 });
+    });
+
+    it.each([0, 100])('propagates failed following page at offset %i', async (failedOffset) => {
+      mock.byUserGroups.mockImplementation(async (_key, { offset }) => {
+        if (offset === failedOffset) throw new Error('following unavailable');
+        return { groups: Array.from({ length: 100 }, (_, i) => ({ group_id: `group-${i}`, role: 'member' })) };
+      });
+      await expect(follows.countUserFollowingReal('alice')).rejects.toThrow('following unavailable');
+    });
+
+    it('rejects repeated following pages', async () => {
+      mock.byUserGroups.mockResolvedValue({ groups: Array.from({ length: 100 }, (_, i) => ({ group_id: `group-${i}`, role: 'member' })) });
+      await expect(follows.countUserFollowingReal('alice')).rejects.toThrow('Membership changed');
+    });
+  });
+
   describe('isFollowing (v3: membership in the followers group)', () => {
     it('true when the followers group is in the user group list', async () => {
       mock.getMyGroups.mockResolvedValue([

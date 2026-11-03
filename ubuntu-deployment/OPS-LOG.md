@@ -180,6 +180,16 @@ round-trip validation before mutation. No server credentials, buckets, policies,
 node configuration or Cloudflare deployments changed during diagnosis. Original
 authentication blocker resolved; synthetic provisioning/live gates still pending.
 
+## 03.11.2026 — OpenCode (mogadishu) — read-only group media incident diagnosis
+did: verified documented host and prod container state; examined deployed carrier
+  code and bounded current metadata. Eight group carriers/eleven refs have matching
+  upload-owner metadata/namespaces; public raw URL range GETs all return 206.
+state: serving HLS denies four group-carried videos. Local repair evaluated only
+  in a short-lived read-only interpreter returns four 200 masters, eight 200
+  variants and eight nonempty 200 sample segments from existing storage. No files,
+  workers, settings, memberships or data changed; no backfill candidates found.
+next: normal reviewed deployment and actual external browser playback acceptance.
+
 ## 28.10.2026 22:44-22:55 UTC — OpenCode (ssh-ubuntu-run-tests) — live research pilot
 did:
   - Operator authorized SSH statistics and login to the operator's production

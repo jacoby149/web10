@@ -7,6 +7,8 @@ import { resolveMediaRefs, resolvePostAuthors } from './posts';
 import { readReactionDocuments } from './reactions';
 import type { MediaRecord } from './types';
 import { knobStateToSort } from '@/lib/powerMean';
+import { musicTrackFromPost, type MusicTrack } from './musicTrack';
+export type { MusicTrack } from './musicTrack';
 
 // ── Feed / Discover data layer (v3) ──────────────────────────────────────────
 // v3 feed: read from groups, not inbox. Discover: read from discover group.
@@ -173,33 +175,41 @@ export async function readShortsFeed(limit = 50, offset = 0): Promise<ShortPost[
 // ── Music feed (music.md) ────────────────────────────────────────────────────
 
 /** A music track: a discover post whose single media is a real audio file. */
-export interface MusicTrack {
-  post: PostRecord;
-  /** The one resolved media record (the audio file). */
-  media: MediaRecord;
-}
 
 export interface MusicPage {
   tracks: MusicTrack[];
   hasMore: boolean;
+  nextOffset?: number;
 }
 
 /**
  * One PAGE of the Music feed (the paged read — the wall's infinite scroll).
- * Returns the genuine audio tracks for the page + `hasMore`.
+ * Returns the genuine music tracks for the page + `hasMore`.
  *
- * A music track is a post with exactly one media that is a **real audio file**
- * — `mime_type` starts with `audio/`. The two-layer model (music.md):
+ * A music track is a post tagged `music` whose single playable media is either:
+ *   - a **real audio file** (`mime_type` starts with `audio/`), or
+ *   - a **video file** (`mime_type` starts with `video/`) that the author
+ *     explicitly marked as music (the "mark as music" toggle — a video CAN be
+ *     music, e.g. a music video).
+ * Supporting images are allowed; all attachments must resolve.
+ *
+ * The two-layer model (music.md):
  *   1. **Server-side** — `readDiscoverFeed(…, ["music"])` sends the generic
  *      tag filter (`has(tags, 'music')`), so the node pulls only tagged tracks.
- *   2. **Render-time** — the audio/* re-derive below (the backstop that drops
- *      fakes: a doc tagged `music` whose media isn't a real audio file).
+ *   2. **Render-time** — the audio/* or video/* re-derive below (the backstop
+ *      that drops fakes: a doc tagged `music` whose media is neither a real
+ *      audio nor a video file).
  */
 export async function readMusicPage(limit = 50, offset = 0): Promise<MusicPage> {
-  const posts = await readDiscoverFeed(null, limit, ['music'], offset, 'music');
-  const hasMore = posts.length >= limit;
+  const docs = await getV3Client().read('posts', {
+    groups: [getDiscoverGroupId()], limit, offset, tags: ['music'], surface: 'music',
+  });
+  const hasMore = docs.length >= limit;
+  const nextOffset = offset + docs.length;
+  const posts = await resolvePostAuthors(dropAdPosts(docs.map(fromV3DocToPost)));
+  posts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   const withMedia = posts.filter((p) => p.media_refs?.length);
-  if (!withMedia.length) return { tracks: [], hasMore };
+  if (!withMedia.length) return { tracks: [], hasMore, nextOffset };
 
   const token = getV3Client().readToken();
   const byAuthor = new Map<string, { posts: PostRecord[]; refs: (string | ResolvedMediaRef)[] }>();
@@ -232,23 +242,19 @@ export async function readMusicPage(limit = 50, offset = 0): Promise<MusicPage> 
         const refIds = new Set((p.media_refs || []).map(mediaRefId));
         mediaByPost[p._id || ''] = media.filter((m) => m._id && refIds.has(m._id));
       }
-    } catch {
-      // Media resolution failed for this author — degrade (no tracks from them).
+    } catch (error) {
+      console.error('[music-feed] media resolution failed', error);
+      throw error;
     }
   }
 
   const tracks: MusicTrack[] = [];
   for (const p of withMedia) {
-    // The render-time gate (music.md): a real audio file, re-derived from the
-    // resolved media — not trusted from the client-asserted `music` tag.
-    const audio = (mediaByPost[p._id || ''] || []).filter(
-      (m) => m.mime_type?.startsWith('audio/'),
-    );
-    if (audio.length === 1 && (p.media_refs?.length ?? 0) === 1) {
-      tracks.push({ post: p, media: audio[0] });
-    }
+    const track = musicTrackFromPost(p, mediaByPost[p._id || ''] || []);
+    if (track) tracks.push(track);
   }
-  return { tracks, hasMore };
+  console.log('[music-feed] attachment gate', { candidates: withMedia.length, tracks: tracks.length });
+  return { tracks, hasMore, nextOffset };
 }
 
 /**
@@ -542,9 +548,9 @@ async function readFeedEngagementCounts(
   postIds: string[],
   feedGroups: string[],
 ): Promise<{
-  likes: Record<string, number>;
-  dislikes: Record<string, number>;
-  comments: Record<string, number>;
+  likes: Record<string, number> | null;
+  dislikes: Record<string, number> | null;
+  comments: Record<string, number> | null;
 }> {
   const empty = { likes: {}, dislikes: {}, comments: {} };
   if (!postIds.length) return empty;
@@ -558,7 +564,10 @@ async function readFeedEngagementCounts(
         "countIf(JSONExtractString(body, 'type') = 'dislike') AS dislike_count " +
         `FROM reactions WHERE ref_value IN (${quoted}) GROUP BY ref_value`,
       { groups },
-    ),
+    ).catch((e) => {
+      console.warn('[social-feed] reaction counts failed (preserving prepared counts):', e);
+      return null;
+    }),
     // The TOTAL count (top-level + replies): a reply's `ref_value` is its
     // parent comment (comments.md, 3.107.0), so `ref_value IN (postIds)` sees
     // only top-level comments. Every comment carries `body.post_id`, so the
@@ -567,17 +576,20 @@ async function readFeedEngagementCounts(
       "SELECT JSONExtractString(body, 'post_id') AS post_id, count() AS comment_count " +
         `FROM comments WHERE JSONExtractString(body, 'post_id') IN (${quoted}) GROUP BY post_id`,
       { groups },
-    ),
+    ).catch((e) => {
+      console.warn('[social-feed] comment counts failed (preserving prepared counts):', e);
+      return null;
+    }),
   ]);
   const likes: Record<string, number> = {};
   const dislikes: Record<string, number> = {};
-  for (const row of reactionRows.rows) {
+  for (const row of reactionRows?.rows ?? []) {
     const ref = String(row.ref_value);
     likes[ref] = Number(row.like_count) || 0;
     dislikes[ref] = Number(row.dislike_count) || 0;
   }
   const comments: Record<string, number> = {};
-  for (const row of commentRows.rows) {
+  for (const row of commentRows?.rows ?? []) {
     comments[String(row.post_id)] = Number(row.comment_count) || 0;
   }
   console.log(
@@ -586,7 +598,11 @@ async function readFeedEngagementCounts(
     Object.values(dislikes).reduce((a, b) => a + b, 0), 'dislikes +',
     Object.values(comments).reduce((a, b) => a + b, 0), 'comments',
   );
-  return { likes, dislikes, comments };
+  return {
+    likes: reactionRows ? likes : null,
+    dislikes: reactionRows ? dislikes : null,
+    comments: commentRows ? comments : null,
+  };
 }
 
 /**
@@ -655,9 +671,9 @@ export async function readFeedPage(opts: {
     ]);
     for (const p of posts) {
       const id = p._id || '';
-      p.likes = counts.likes[id] ?? 0;
-      p.dislikes = counts.dislikes[id] ?? 0;
-      p.comments = counts.comments[id] ?? 0;
+      if (counts.likes) p.likes = counts.likes[id] ?? 0;
+      if (counts.dislikes) p.dislikes = counts.dislikes[id] ?? 0;
+      if (counts.comments) p.comments = counts.comments[id] ?? 0;
       p.impressions = viewCounts[id]?.impressions ?? 0;
       p.reach = viewCounts[id]?.reach ?? 0;
     }
@@ -748,9 +764,9 @@ export async function readFeedReactions(
   // feed is invisible on refresh (the "refresh my like is gone" bug). The
   // reader is a member of the discover group (auto-joined on signup), so the
   // read sees their own reactions there.
-  const groups = [...(await getFeedGroups()), getDiscoverGroupId()];
-  if (!groups.length) return empty;
   try {
+    const groups = [...(await getFeedGroups()), getDiscoverGroupId()];
+    if (!groups.length) return empty;
     // The batched ref read (the engagement-count shape): one request returns
     // every reaction whose ref_value is one of the feed's posts. The reader is
     // a member of every feed group (followers groups), so the read sees their

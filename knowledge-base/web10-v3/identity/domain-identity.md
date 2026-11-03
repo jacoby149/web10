@@ -1,6 +1,6 @@
 # Domain Identity — the DNS TXT claim, the user column, and the alias-not-principal rule
 
-**Status: v3, decided.** This doc is the authoritative reference for how a
+**Status: v3 specification, implemented.** This doc is the authoritative reference for how a
 web10 user claims a domain as their identity, how the node stores and
 verifies it, and — critically — why the domain is an **alias**, not a
 replacement for the username principal.
@@ -63,7 +63,7 @@ rewrite every `member_key` to the domain:
 |---|---|
 | Domain name (`example.com`) | Domain alias (`coolguydavid.com`) |
 | IP address (`93.184.216.34`) | Username principal (`api.web10.app/users/jacoby149`) |
-| A record (domain → IP) | TXT record (domain → principal + key) |
+| A record (domain → IP) | TXT record (domain → provider + username) |
 | You can change the IP without changing the domain | You can change the node without changing the domain |
 | You can change the domain without changing the IP | You can change the domain without changing the username |
 | The IP is what servers actually route to | The username is what groups, tokens, and the read gate actually key on |
@@ -77,15 +77,15 @@ them is the bug.
 
 ## The TXT record (the claim)
 
-The user claims a domain by adding a TXT record to their DNS. The record
-is the **proof** that the domain belongs to the user.
+The user publishes a pointer by adding a TXT record to DNS they control.
+The node binds that pointer to an account through an authenticated verify request.
 
 ### Format
 
 ```
 Type:  TXT
 Name:  web10
-Value: web10.v=1;provider=api.web10.app;user=jacoby149;key=<base64-nopad-ed25519-pubkey>
+Value: web10.v=1;provider=api.web10.app;user=jacoby149
 TTL:   300
 ```
 
@@ -94,7 +94,6 @@ TTL:   300
 | `web10.v` | Version tag. Always `1`. Lets the parser reject unknown formats. |
 | `provider` | The node's API host (the `provider` claim in JWTs). |
 | `user` | The web10 username (the `username` claim in JWTs). |
-| `key` | Base64 (no padding) Ed25519 public key. The key the node uses to sign tokens for this user. |
 
 The record is a single string, semicolon-delimited, no spaces. The
 `web10.v=1` prefix is the namespace tag — it tells a resolver "this TXT
@@ -118,20 +117,18 @@ This is the same pattern the web already uses for identity claims:
 
 ### The trust model
 
-Three separate trust anchors, none of which can forge the others:
+DNS control lets someone publish a pointer to a `provider` and `user`.
+It does not prove that they control the named account. The node-side
+verification authenticates the caller using ordinary auth, looks up the TXT
+record itself, and requires its provider and username to match the node and
+authenticated caller. A client-supplied DNS result is not accepted as proof.
 
-1. **The domain** is the *claim*. Whoever controls the DNS for
-   `coolguydavid.com` can set the TXT record.
-2. **The TXT record** is the *proof*. It names the `provider`, the
-   `user`, and the `key`.
-3. **The node's key** is the *trust anchor*. The node signs tokens with
-   its private key; the public key in the TXT record is what a verifier
-   checks against.
-
-A domain squatter can point `coolguydavid.com` at their own server and
-add their own TXT record. But they cannot sign a token with the real
-`key` — so the node rejects their token. The TXT record is necessary but
-not sufficient: the key is the real trust anchor.
+Ordinary authentication and token verification remain unchanged. DNS lookup
+discovers an identity only: it never grants account login, group rights, or
+principal continuity after a domain transfer. A new domain controller can
+change the pointer, but does not inherit the old account or its permissions.
+Server-side lookup is not protection against compromised DNS or a compromised
+resolver; verification relies on the DNS response the node receives.
 
 ---
 
@@ -180,32 +177,46 @@ Following the existing INSERT-SELECT pattern (the same pattern
 ```python
 def set_domain(username: str, domain: str, verified: int = 0) -> None:
     """Set the user's claimed domain. INSERT-SELECT: copy the latest row,
-    update domain + domain_verified + updated_at."""
+    update domain + domain_verified + updated_at. The timestamp is advanced
+    beyond the copied row (even within the same millisecond) so the new row
+    always wins the ReplacingMergeTree dedup."""
     client.command(
         "INSERT INTO users (username, password_hash, phone, phone_verified, "
         "email, email_verified, domain, domain_verified, created_at, updated_at, deleted) "
         "SELECT username, password_hash, phone, phone_verified, email, email_verified, "
-        "%(domain)s, %(verified)s, created_at, %(updated_at)s, 0 "
-        "FROM users WHERE username = %(username)s AND deleted = 0",
+        "%(domain)s, %(verified)s, created_at, "
+        "greatest(toDateTime64(%(updated_at)s, 3), addMilliseconds(updated_at, 1)), 0 "
+        "FROM (SELECT * FROM users WHERE username = %(username)s "
+        "ORDER BY updated_at DESC, deleted DESC LIMIT 1) WHERE deleted = 0",
         {"username": username, "domain": domain, "verified": verified, "updated_at": _ch_ts(_now())},
     )
 
 def get_user_domain(username: str) -> dict | None:
-    """Read the user's domain + verified flag. Returns None if no domain set."""
+    """Read the user's domain + verified flag from the current (latest,
+    non-deleted) row. Returns None when the account does not exist."""
     result = client.query(
-        "SELECT domain, domain_verified FROM users "
-        "WHERE username = %(username)s AND deleted = 0 "
-        "ORDER BY updated_at DESC LIMIT 1",
+        "SELECT domain, domain_verified FROM "
+        "(SELECT * FROM users WHERE username = %(username)s "
+        "ORDER BY updated_at DESC, deleted DESC LIMIT 1) WHERE deleted = 0",
         {"username": username},
     )
-    row = result.result_rows[0] if result.result_rows else None
-    if row is None or not row[0]:
+    if not result.result_rows:
         return None
-    return {"domain": row[0], "verified": bool(row[1])}
+    domain, verified = result.result_rows[0]
+    return {"domain": domain or None, "verified": bool(domain and verified)}
 
-def clear_domain(username: str) -> None:
-    """Release the domain: set domain = '' and domain_verified = 0."""
-    set_domain(username, "", 0)
+def domain_claimed_by_other(domain: str, username: str) -> bool:
+    """True when another active account's current row claims this domain.
+    Deduplicates to the latest row per username BEFORE filtering, so a
+    released historical claim cannot block a new owner. Not an atomic
+    uniqueness gate — ClickHouse provides no CAS; the endpoint re-checks."""
+    result = client.query(
+        "SELECT username FROM (SELECT username, domain, deleted, "
+        "row_number() OVER (PARTITION BY username ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM users) WHERE rn = 1 AND deleted = 0 AND domain = %(domain)s AND username != %(username)s LIMIT 1",
+        {"domain": domain, "username": username},
+    )
+    return bool(result.result_rows)
 ```
 
 ### Self-heal migration
@@ -215,17 +226,13 @@ existed) need the ALTER. Following the existing self-heal pattern
 (`ensure_apps_schema`, `ensure_discover_group` in `main.py`):
 
 ```python
-def ensure_users_domain_column() -> None:
+def ensure_users_domain_schema() -> None:
     """Idempotent: add domain + domain_verified columns if absent."""
-    client.command(
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS domain String DEFAULT ''"
-    )
-    client.command(
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS domain_verified UInt8 DEFAULT 0"
-    )
+    client.command("ALTER TABLE users ADD COLUMN IF NOT EXISTS domain String DEFAULT '' AFTER email_verified")
+    client.command("ALTER TABLE users ADD COLUMN IF NOT EXISTS domain_verified UInt8 DEFAULT 0 AFTER domain")
 ```
 
-Called at boot, alongside the other `ensure_*` functions.
+Called at boot in `main.py`, alongside the other `ensure_*` functions.
 
 ---
 
@@ -238,16 +245,17 @@ The user goes to their DNS provider (Njalla recommended) and adds:
 ```
 Type:  TXT
 Name:  web10
-Value: web10.v=1;provider=api.web10.app;user=jacoby149;key=<pubkey>
+Value: web10.v=1;provider=api.web10.app;user=jacoby149
 ```
 
-The authenticator UI generates this value for them (it knows the
-`provider`, the `user`, and the node's public key) and displays
-copy-paste instructions.
+The authenticator UI derives this value from the known `provider`
+and authenticated username and displays copy-paste instructions. No separate
+generation endpoint is needed.
 
 ### Step 2: User hits "Verify" in the authenticator
 
-The authenticator calls `POST /v3/domains/verify` with the domain.
+The authenticator calls `POST /v3/domains/verify` with the domain
+and the caller's normal authentication token.
 
 ### Step 3: Node does the DNS lookup
 
@@ -256,18 +264,14 @@ The node:
 2. Parses the TXT record value.
 3. Validates the format:
    - Must start with `web10.v=1;`
-   - Must contain `provider=`, `user=`, `key=`
+   - Must contain `provider=` and `user=`
    - `provider` must match the node's own `provider` (you can only claim
      a domain for your own node)
    - `user` must match the calling user's username (you can only claim a
      domain for yourself)
-   - `key` must be valid base64 (no padding) and decode to a valid
-     Ed25519 public key
-   - `key` must match the node's current signing public key (the key the
-     node actually uses to sign tokens)
 4. If all checks pass: `set_domain(username, domain, verified=1)`.
 5. If any check fails: return the specific failure (no TXT record found,
-   wrong format, wrong provider, wrong user, key mismatch).
+   wrong format, wrong provider, wrong user).
 
 ### Step 4: Node stores the verified domain
 
@@ -280,9 +284,10 @@ The `users` table now has `domain = 'coolguydavid.com'` and
   renders a user's profile can show the domain instead of (or alongside)
   the username. The domain is the *human-facing* address; the username
   is the *machine-facing* principal.
-- **Lookup:** any client can resolve `web10.<domain>` to find the
-  `provider` + `user` + `key`, then authenticate with the node as that
-  user. This is the "find me by my domain" flow.
+- **Lookup:** any client can resolve `web10.<domain>` to discover the
+  `provider` + `user`. This is the "find me by my domain" flow, not
+  authentication as the discovered user. Access still requires ordinary auth
+  and the existing authorization checks.
 - **Share links:** permalinks can use the domain
   (`coolguydavid.com/posts/abc123`) instead of the node URL
   (`api.web10.app/users/jacoby149/posts/abc123`). The domain is the
@@ -373,7 +378,7 @@ Response (failure):
   "domain": "coolguydavid.com",
   "verified": false,
   "error": "txt_record_not_found"
-  // or: "bad_format" | "wrong_provider" | "wrong_user" | "key_mismatch"
+  // or: "bad_format" | "wrong_provider" | "wrong_user"
 }
 ```
 
@@ -430,41 +435,32 @@ A new **Claim Domain** card in the Settings screen
 card pattern (receives `{ I }`, wrapped in `AppShell`):
 
 1. **Input:** the user types their domain (`coolguydavid.com`).
-2. **Generate:** the authenticator calls the node to get the TXT record
-   value (the node knows the `provider`, the `user`, and its public
-   key). The UI displays the value with copy-paste instructions:
+2. **Generate:** the authenticator derives the TXT record value from the
+   known provider and authenticated username, without a generation endpoint.
+   The UI displays the value with copy-paste instructions:
    > "Go to your DNS provider (Njalla recommended: njal.la). Add a TXT
    > record with host `web10` and this value:
-   > `web10.v=1;provider=...;user=...;key=...`"
+   > `web10.v=1;provider=api.web10.app;user=jacoby149`"
 3. **Verify:** the user hits "Verify." The authenticator calls
    `POST /v3/domains/verify`. The node does the DNS lookup + format
    validation. Success → "Your domain is claimed." Failure → the
-   specific error ("TXT record not found," "key mismatch," etc.).
+   specific error ("TXT record not found," "wrong provider," "wrong user," etc.).
 4. **Status:** if the user already has a verified domain, the card shows
    it with a "Release" button.
 
-The user never sees the key, never manages a wallet, never signs a
-transaction. The "crypto" is the TXT record's `key` field, which the
-node generates from its existing key material. The user's action is:
+No signing material or wallet is required for the alias. The user's action is:
 **add a TXT record to their DNS, then hit Verify.**
 
 ---
 
 ## Security considerations
 
-- **The TXT record is public.** Anyone can read it. This is by design —
-  it is an identity claim, not a secret. The `key` field is a *public*
-  key (Ed25519 public keys are meant to be shared). The *private* key
-  stays on the node.
-- **Domain squatters.** Someone else can register `coolguydavid.com`
-  and add their own TXT record. But they cannot sign a token with the
-  real `key` — so the node rejects their token. The TXT record is
-  necessary but not sufficient: the key is the real trust anchor.
-- **Key rotation.** If the node rotates its signing key, the TXT
-  record's `key` field becomes stale. The node operator should update
-  the TXT record (or the user should, if they manage their own DNS).
-  The `web10.v=1` version tag allows for future format changes (e.g.
-  `web10.v=2` with a key-ID field for rotation).
+- **The TXT record is public.** Anyone can read the provider and username.
+  This is an identity pointer, not a secret or a credential.
+- **Domain squatters and transfers.** Whoever controls the domain can publish
+  or replace its pointer. Verification binds the record to the authenticated
+  caller, not to a previous domain owner. Domain takeover grants no login,
+  group rights, or continuity with the previous principal.
 - **One domain per user.** A user can claim one domain. If they want to
   change it, they release the old one and claim the new one. (Multiple
   domains per user is an open question, not a v3 concern.)
@@ -472,10 +468,10 @@ node generates from its existing key material. The user's action is:
   user A claims `coolguydavid.com`, user B cannot claim it (the node
   checks the `users` table for an existing claim on that domain before
   accepting a new one).
-- **DNS spoofing.** The node does the DNS lookup server-side (not
-  client-side), so a malicious client cannot spoof the TXT record. The
-  node queries the real DNS for `web10.<domain>` and validates the
-  response.
+- **DNS trust.** Server-side lookup prevents accepting a client-supplied
+  TXT result as proof. It does not protect against compromised DNS or a
+  compromised resolver. Stored verification is not a permanent ownership
+  guarantee; re-verification and transfer handling remain open below.
 
 ---
 
@@ -485,14 +481,11 @@ node generates from its existing key material. The user's action is:
   node. It does not change the canonical principal format
   (`{provider}/users/{username}`). The domain is a *display* and
   *lookup* layer on top of the principal, not a replacement for it.
-- **D7 (JWKS cross-node token verification):** the TXT record's `key`
-  field is the node's JWKS public key. The domain claim does not change
-  the verification protocol; it adds a domain-bound layer of trust on
-  top.
+- **D7 (cross-node token verification):** ordinary issuer and token
+  verification remain unchanged and independent of the DNS alias.
 - **D41 (readable by design, data policy not privacy):** the domain TXT
   record is public. This is consistent with D41 — the identity claim is
-  not a secret. The *private* key (the node's signing key) is not
-  exposed.
+  not a secret or an authentication credential.
 - **D60 (node stays generic):** the `domain` column on `users` is
   account-level identity, not an app concept. The test passes: a notes
   app, a music app, or a shop would all want to know "does this user
@@ -539,6 +532,6 @@ node generates from its existing key material. The user's action is:
 **The username is the principal. The domain is an alias. Groups,
 tokens, and the read gate key on the username, never the domain. The
 domain is stored on the user's account (`users.domain`), claimed via a
-DNS TXT record (`web10.v=1;provider=...;user=...;key=...`), verified by
+DNS TXT record (`web10.v=1;provider=api.web10.app;user=jacoby149`), verified by
 the node, and resolved at display and lookup time. There is no
 backfill — the domain is a pointer, not a replacement.**

@@ -1,7 +1,7 @@
 """Tests for auth service: certify, certify_with_remote_provider, check_admin."""
 
 from datetime import datetime, timedelta
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -11,6 +11,7 @@ from app.services.auth import (
     certify,
     certify_with_remote_provider,
     check_admin,
+    clear_remote_certify_cache,
     get_password_hash,
     verify_password,
 )
@@ -18,6 +19,13 @@ from app.services.auth import (
 
 def _future_iso(minutes: int = 60) -> str:
     return (datetime.utcnow() + timedelta(minutes=minutes)).isoformat()
+
+
+@pytest.fixture(autouse=True)
+def _clean_remote_cache():
+    clear_remote_certify_cache()
+    yield
+    clear_remote_certify_cache()
 
 
 class TestCertify:
@@ -91,34 +99,116 @@ class TestCertify:
                 certify(token)
 
 
+class TestCertifyCrossNode:
+    """Cross-node certification (D84 Phase B, the live /certify model): a
+    token whose provider is not this node is certified at its home node.
+    The remote answer certifies IDENTITY ONLY — the expiry is re-checked
+    locally, and every access decision still runs in the caller's checks.
+    Yeses are cached until the token's own expiry; noes get a short TTL."""
+
+    def _foreign_decode(self, provider="https://node-a.example", username="alice"):
+        return TokenData(username=username, provider=provider, expires=_future_iso(60), client_id=None)
+
+    def test_foreign_token_certified_by_home_node(self):
+        token = Token(token="foreign_jwt")
+        with (
+            patch("app.services.auth.decode_token", side_effect=[self._foreign_decode(), self._foreign_decode()]),
+            patch("app.services.auth.certify_with_remote_provider", return_value=True) as remote,
+        ):
+            assert certify(token) is True
+            remote.assert_called_once_with(token)
+
+    def test_foreign_token_denied_by_home_node(self):
+        token = Token(token="foreign_jwt")
+        with (
+            patch("app.services.auth.decode_token", side_effect=[self._foreign_decode(), self._foreign_decode()]),
+            patch("app.services.auth.certify_with_remote_provider", return_value=False),
+        ):
+            with pytest.raises(Exception, match="TOKEN"):
+                certify(token)
+
+    def test_foreign_token_remote_error_raises(self):
+        # A home node that is unreachable (timeout / connection error) is a
+        # denial — never a silent pass.
+        token = Token(token="foreign_jwt")
+        with (
+            patch("app.services.auth.decode_token", side_effect=[self._foreign_decode(), self._foreign_decode()]),
+            patch("app.services.auth.certify_with_remote_provider", side_effect=Exception("timeout")),
+        ):
+            with pytest.raises(Exception):
+                certify(token)
+
+    def test_yes_cached_until_token_expiry(self):
+        token = Token(token="foreign_jwt")
+        with (
+            patch("app.services.auth.decode_token", side_effect=[self._foreign_decode(), self._foreign_decode()]),
+            patch("app.services.auth.certify_with_remote_provider", return_value=True) as remote,
+        ):
+            assert certify(token) is True
+        # Second certify of the SAME token: the cache answers, no remote call.
+        with patch("app.services.auth.decode_token", return_value=self._foreign_decode()):
+            assert certify(token) is True
+        remote.assert_called_once()
+
+    def test_negative_cached_briefly(self):
+        token = Token(token="foreign_jwt")
+        with (
+            patch("app.services.auth.decode_token", side_effect=[self._foreign_decode(), self._foreign_decode()]),
+            patch("app.services.auth.certify_with_remote_provider", return_value=False) as remote,
+        ):
+            with pytest.raises(Exception, match="TOKEN"):
+                certify(token)
+        # The no is cached: the immediate retry does not re-hit the home node.
+        with patch("app.services.auth.decode_token", return_value=self._foreign_decode()):
+            with pytest.raises(Exception, match="TOKEN"):
+                certify(token)
+        remote.assert_called_once()
+
+    def test_different_tokens_not_cross_cached(self):
+        t1 = Token(token="jwt_one")
+        t2 = Token(token="jwt_two")
+        with (
+            patch("app.services.auth.decode_token", side_effect=[self._foreign_decode() for _ in range(4)]),
+            patch("app.services.auth.certify_with_remote_provider", return_value=True) as remote,
+        ):
+            assert certify(t1) is True
+            assert certify(t2) is True
+        assert remote.call_count == 2
+
+    def test_local_token_never_hits_remote(self):
+        token = Token(token="local_jwt")
+        with (
+            patch(
+                "app.services.auth.decode_token",
+                return_value=TokenData(username="alice", provider=settings.PROVIDER, expires=_future_iso()),
+            ),
+            patch("app.services.auth.certify_with_remote_provider") as remote,
+        ):
+            assert certify(token) is True
+            remote.assert_not_called()
+
+
 class TestCertifyWithRemoteProvider:
-    def test_remote_certifies(self):
+    def test_remote_certifies(self, mock_certify_post):
         token = Token(token="remote_token")
-        mock_response = MagicMock()
-        mock_response.status_code = 200
         with patch("app.services.auth.decode_token") as mock_decode:
             mock_decode.return_value = TokenData(provider="https://remote.provider")
-            with patch("app.services.auth.requests.post", return_value=mock_response):
-                result = certify_with_remote_provider(token)
-                assert result is True
+            assert certify_with_remote_provider(token) is True
 
-    def test_remote_fails(self):
+    def test_remote_fails(self, mock_certify_post):
         token = Token(token="remote_token")
-        mock_response = MagicMock()
-        mock_response.status_code = 401
+        mock_certify_post.return_value.status = 401
         with patch("app.services.auth.decode_token") as mock_decode:
             mock_decode.return_value = TokenData(provider="https://remote.provider")
-            with patch("app.services.auth.requests.post", return_value=mock_response):
-                result = certify_with_remote_provider(token)
-                assert result is False
+            assert certify_with_remote_provider(token) is False
 
-    def test_remote_request_exception(self):
+    def test_remote_request_exception(self, mock_certify_post):
         token = Token(token="remote_token")
         with patch("app.services.auth.decode_token") as mock_decode:
             mock_decode.return_value = TokenData(provider="https://remote.provider")
-            with patch("app.services.auth.requests.post", side_effect=Exception("timeout")):
-                with pytest.raises(Exception):
-                    certify_with_remote_provider(token)
+            mock_certify_post.side_effect = Exception("timeout")
+            with pytest.raises(Exception):
+                certify_with_remote_provider(token)
 
 
 class TestCheckAdmin:

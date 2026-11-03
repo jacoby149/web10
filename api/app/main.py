@@ -73,6 +73,7 @@ def _start_hls_workers():
     from app.v3.services import clickhouse as ch
 
     ch.ensure_apps_schema()
+    ch.ensure_users_domain_schema()
 
     # The universal discover group is a node default (KB: social-contracts.md):
     # create it if missing, enroll anon, and backfill existing users so every

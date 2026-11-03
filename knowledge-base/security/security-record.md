@@ -64,6 +64,128 @@ so billing/logging audit remains incomplete. Initial document auth certification
 full-player seamless renewal, load/large-response bounds and independent/diverse
 security review remain OPEN; no full level/surface PASS or production claim.
 
+## Group Media Carrier Playback (03.11.2026)
+
+[Bounded repair/evidence](scans/2026-10/group-media-carrier-repair.md): human
+uploader identity, current carrier/link tuples and actual service/visibility gates.
+Synthetic signed-manifest/SQL red-green plus isolated real production handler
+reads restore four existing videos without data changes. Same-model review only;
+serving rollout/browser playback, cost, diverse review and broader L1 remain OPEN.
+
+## Node-Ad Document Authority (03.11.2026)
+
+H01-NODE-DOC [evidence](scans/2026-10/h01-node-document-proof.md): current
+compiler document subquery excludes deletion and returns latest declassified
+tags; reference tag/status evaluation marks inventory ineligible, while actual
+node loader/ASGI returns older content and verified synthetic SigV4.
+Three disclosures; eight SQLite/ClickHouse-local cases retain pause suppression
+and latest reactivation/restoration/retagging/public/uploader controls. Full API:
+1,894 plus eight subtests, one opt-in lifecycle skip; Ruff and fresh same-model
+review pass. No runtime repair, actual writer lifecycle or real-object retrieval.
+Provenance/broader policy/CI/rollout/diverse/L1 OPEN; no L2 advancement.
+
+## Node-Ad Attachment Authority (02.11.2026)
+
+H01-NODE-LINK [local repair](scans/2026-10/repair-h01-node-attachment.md): current
+Discover pair history before removal filtering, deletion-winning ties. Seven
+synthetic capability disclosures now deny before attachment/signing. Twelve node
+cases pass on SQLite/ClickHouse-local; active/reattached public inventory, pair
+isolation and independent uploaders retained. 1,886 API tests plus eight subtests,
+one opt-in lifecycle test skipped, full Ruff and fresh same-model intent review
+pass. Document delete/detag, provenance, real lifecycle/CI/rollout/diverse and L1
+remain OPEN. Historical pre-repair evidence follows; not whole-node-ad assurance.
+
+H01-NODE-LINK [evidence](scans/2026-10/h01-node-attachment-proof.md): current-link
+compiler fragment excludes a removed Discover attachment while actual node loader,
+ASGI enrichment and real synthetic SigV4 still deliver/sign its creative. Six
+cases pass on SQLite/ClickHouse-local, retaining intended public active/reattached
+delivery, never-attached denial and independent uploaders. 1,880 API tests plus
+eight subtests, one opt-in lifecycle test skipped, full Ruff and fresh same-model
+review pass. Evidence only; runtime repair, broader attached-ad authority,
+real-schema lifecycle/CI/rollout/diverse and L1 remain OPEN. No L2 advancement.
+
+## DNS Account-Alias Verification (02.11.2026)
+
+New trust-boundary surface: `POST /v3/domains/verify` + `release` (certified
+token; the node resolves `web10.<domain>` itself via dnspython — bounded
+records/size, exactly one claim, exact `web10.v=1;provider=...;user=...`
+format, provider + username must match the authenticated caller) and public
+`GET /v3/users/{username}/domain`. L2 evidence: 81 tests in
+`api/tests/test_domains.py` — auth denied before any DNS lookup (missing/bad/
+expired/anon/foreign/inactive/revoked-client), forged-claim parsing
+(wrong provider/user, duplicate keys, multiple claims, oversized/non-ASCII
+records), domain normalization (IDNA, IP literals, URLs), release mismatch,
+row-copy SQL preserving the domain, and tombstone-safe reads on SQLite.
+1,806 API tests + 287 UI tests, Ruff clean. The domain is an alias, not a
+principal: usernames, tokens, groups and the I3 read gate are unchanged.
+DNS/transfer trust limits (compromised resolver, domain transfer, no
+permanent ownership guarantee) remain OPEN per
+`web10-v3/identity/domain-identity.md`; not a whole-L2 PASS.
+
+## Group Author Self-Target (02.11.2026)
+
+3.257.0 bounded attachment continuation (OpenAI GPT-6.1): inspected the new
+single-target route/model, direct role/app/storage calls, SDK and composer.
+Signed-route denial controls include retained external create revocation red/green,
+wrong service/role/app, human membership isolation, self lifecycle and removal
+after revocation. Real isolated ClickHouse-local 24.8 ReplacingMergeTree replay
+checks target removal/re-add and FINAL compaction with unrelated targets retained.
+Threaded signed requests test different-target survival over doubled storage;
+not real concurrent-engine proof. No full-file L1, complete L2/L3/L4, independent
+review or security PASS claim. Finalization has shell, file and GitHub tooling,
+but no reviewer-task/subagent interface; independent review remains unperformed.
+Connected browser/revocation, same-target/legacy writer races and rollout stay OPEN.
+
+Client mutation-affordance continuation (3.256.1, OpenAI GPT-6.1): inspected
+groups/get and groups/list handlers, mutationAuthority, shared card/lightbox
+consumers and document read/update attachment behavior. Corrected API-shape tests
+reproduce false-denied edit controls (eight failures); membership-role repair
+passes 65 focused social tests including denied roles, unrelated selected author,
+lightbox/feed controls and real composer-to-updatePost retry. No backend changes,
+new authority or complete L1/L2 scan claim. Safe full-attachment audience editing,
+connected revocation, independent review and full-suite green remain OPEN.
+
+[Bounded authorization repair](group-author-self-target.md): actual ASGI/signed
+synthetic auth and real effective-role/write helpers reproduce self-target 403
+and dropped attachment. Exact-self exception follows live human service/app
+gates, with external-target isolation and server-set audit preserved. Explicit
+update lifecycle, principal-class/wildcard and attachment-history controls added
+after fresh same-model review. Retained-self authority now ranks current
+attachments before tombstone filtering; actual SQL synthetic replay denies stale
+reattachment. 635 focused/1,796 API tests plus eight subtests and full Ruff pass;
+fresh same-model design-intent re-review passes the bounded change. Storage/app lookup doubles,
+not whole L1/L2 coverage or a security PASS. Connected persistence/revocation,
+CI/rollout and independent diverse review remain OPEN.
+
+## Pinned-Ad Attachment Authority (02.11.2026)
+
+H01-AD-LINK [local repair](scans/2026-10/repair-h01-pinned-attachment.md): rank
+current document/group attachments before removal filtering, deletion-winning
+ties. Removed creative delivery/signing now denied; reattachment, alternate-group
+access and uploader controls retained. Twelve attachment plus ten membership
+cases pass on SQLite/ClickHouse-local; 1,865 API tests plus eight subtests and
+Ruff pass. Fresh same-model intent review passes the bounded change. Production
+lifecycle/merges, other readers' ties, broader ad policy, CI/rollout/diverse and L1
+remain OPEN. Historical evidence below describes the pre-repair source.
+
+H01-AD-LINK [local evidence](scans/2026-10/h01-pinned-attachment-proof.md):
+compiler attachment boundary excludes removed link while actual loader/ASGI
+returns/signs its creative. Membership stays live, isolating attachment history
+from repaired membership history. Four cases/backend, 1,759 API tests plus eight
+subtests, Ruff and fresh same-model review pass. Actual ClickHouse-local reduced
+Memory fixtures, not production schema/driver/lifecycle. Finding OPEN; no runtime
+repair, real object retrieval or L1 PASS. Broader ad/CI/rollout/diverse gates OPEN.
+
+## Pinned-Ad Membership Repair (02.11.2026)
+
+H01-AD-MEMBER [local repair](scans/2026-10/repair-h01-pinned-membership.md):
+latest reader/group membership before tombstone filtering, deletion-winning ties.
+Five synthetic capability disclosures denied before attachment/signing on SQLite
+and actual ClickHouse-local Memory tables. Ten cases/backend, 365 focused/1,755
+API tests plus eight subtests, Ruff and fresh same-model review pass. Attachment,
+broader creative policies, real-schema lifecycle, old URL TTL, CI/rollout/diverse
+and L1 remain OPEN. Not whole-pinned-ad PASS.
+
 ## Pinned-Ad Membership Authority (02.11.2026)
 
 H01-AD-MEMBER [local evidence](scans/2026-10/h01-pinned-membership-proof.md):
@@ -416,7 +538,8 @@ measure. Re-scan after the hardening merges to flip them.
 | `api/rtc/` (admission) | L4 | **OPEN** | — | — | — | rtc | RTC socket admission / certify gate (cross-service RTC↔API) — see `BP-3`. Hardening in 1159 (unmerged) |
 | `ui/src/components/CredentialPage/` (auth forms) | L1 | PASS | `qwen3.8-27b` (OpenCode) | 2026-10-26 | — | auth-ui | Autofill-hostile formless login repaired (3.242.0): the credential forms (login / signup / recovery / change-password) were divs + a button whose click handler scraped the DOM by id — no `<form>` for a password manager to key off (the 1Password grant landed an empty `web10.app` entry with nothing to fill). Now real `<form>` elements with a `type="submit"` button (`onSubmit` + `preventDefault` keeps the SPA flow) + `name` attrs on the inputs. **No invariant change** — no token/credential handling altered, no new read surface, no I1–I6 surface touched (the values still come from the same DOM the click handler used to scrape). Repro: `ui/src/__tests__/authFormsAutofill.test.tsx` (8: the `<form>` element + `type="submit"` + `name` attrs across all four surfaces; submitting the form drives `login`/`signup`/`recoverRequest`/`recoverVerify`/`recoverComplete`). |
 | `sdk/src/v3.ts :: oauth` (w.oauth(), D92 O10) | L1 | OPEN | Initial `qwen3.8-27b`; fresh `openai/gpt-6.1-sol` (OpenCode) | 2026-10-27 | — | sdk-auth | Shipped in 3.245.0 with 17 mocked helper tests; implementation completion is preserved, but the initial PASS is superseded by the [pinned source/artifact rescan and fresh review](scans/2026-10/l1-o10-review.md). Callback-result binding and refresh/client ownership remain conditional concerns; first-use exchange has a confirmed correctness gap, and inherited refresh selection requires additional ambient pollution. Original tests do not establish initial connection, browser callback integrity, real server authority or model-diverse sign-off. Confidential-client secrets remain caller-supplied; deliberate JS-cookie storage, caller-managed state and restoration semantics are not reversed. No new proven server C+I exploit or protocol PASS. |
-| federation signing (I1) | L4 | **OPEN** | — | — | — | federation | B-1 / D7 — HS256 → RS256/EdDSA + JWKS (cross-node). See `BP-1` |
+| federation signing (I1) | L4 | **OPEN** | — | — | — | federation | B-1 / D7. PR #1351 implements live home-node certification, not merged or connected-verified. This does NOT close B-1: independent per-node secrets are required; the shared HS256 default still permits cross-node forgery. JWKS is optional for the operator-selected live-call model; issuer certification does not repair signing-secret provisioning. |
+| Phase B certification continuation | L2 | **OPEN** | OpenCode / GPT-6.1 Sol + fresh same-model reviewer | 2026-11-03 | — | federation | Bounded helper/issuer/read/directory/transport repairs; seven initial, two directory and thirteen intercepted-transport repro cases fail before repair. 1,977 API tests plus eight subtests pass, one opt-in skip; Ruff and bounded re-review pass. See learnings 2026-11-03 and test_cross_node_continuation.py/test_certify_transport.py. Not whole-L2/L1–L4 coverage or diverse convergence. Actual TLS/two-node lifecycle, signing secrets, CI and oversized-PR method disposition OPEN; inherited agent exemption is not operator approval. |
 | delegation model (I5) | L3 | **OPEN** | — | — | — | auth | scoped app-management delegation (within the API service). See `BP-2`. Hardening in 1157 (unmerged) |
 
 ## Commit-pinned L1 scans
