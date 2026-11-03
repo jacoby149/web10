@@ -6,7 +6,7 @@ import { readGroupIdentity } from '@/data/groups';
 import { selectActingAuthor, useActingAuthor } from '@/data/actingIdentity';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { resolveFaceMedia, GROUP_FACE_SQL } from '@web10/discover/face';
+import { resolveFaceMedia, GROUP_FACE_SQL, type FaceUrls } from '@web10/discover/face';
 
 type Identity = { id: string; name: string };
 
@@ -22,7 +22,7 @@ export default function ActingIdentitySwitcher({ personalName, personalAvatar }:
   const [loading, setLoading] = useState(false);
   const [retry, setRetry] = useState(0);
   const [selectedFace, setSelectedFace] = useState<{ id: string; name?: string; avatarUrl?: string }>();
-  const [faces, setFaces] = useState<Map<string, { name?: string; avatarUrl?: string }>>(new Map());
+  const [faces, setFaces] = useState<Map<string, FaceUrls>>(new Map());
   const [pins, setPins] = useState<string[]>([]);
   const [recent, setRecent] = useState<string[]>([]);
   const root = useRef<HTMLDivElement>(null);
@@ -88,8 +88,7 @@ export default function ActingIdentitySwitcher({ personalName, personalAvatar }:
           setError('Some identities could not be loaded. Retry to load missing choices.');
         }
       }
-      // Resolve every eligible group's face (avatar) in ONE batched face-prepare
-      // read (the shared @web10/discover resolver, the same one the feed uses).
+      // Resolve eligible faces in batches through the shared feed resolver.
       // A face the reader can't read is absent — the row keeps its initial.
       if (eligible.length) {
         resolveFaceMedia(async (sql, scope, prepare) => (await getV3Client().query(sql, { groups: scope, prepare })).rows, GROUP_FACE_SQL, eligible.map((identity) => identity.id), 'group_id')
@@ -160,7 +159,7 @@ export default function ActingIdentitySwitcher({ personalName, personalAvatar }:
       {error && <div role="alert" className="py-3 text-sm text-danger"><p>{error}</p><Button variant="ghost" onClick={() => setRetry((value) => value + 1)}>Retry</Button></div>}
       {!loading && !error && !choices.length && <p className="py-3 text-sm text-muted-foreground">No eligible groups match. Your personal identity is always available.</p>}
       {choices.map((identity) => <div key={identity.id} className="flex items-center rounded-lg hover:bg-elevated">
-        <button type="button" aria-pressed={pending === identity.id} onClick={() => { setPending(identity.id); console.log('[social-identity] group choice previewed'); }} className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-lg px-3 py-2 text-left focus-visible:ring-2 focus-visible:ring-ring"><Avatar className="h-8 w-8" aria-hidden="true">{faces.get(identity.id)?.avatarUrl && <AvatarImage src={faces.get(identity.id)!.avatarUrl!} alt="" />}<AvatarFallback className="bg-brand-muted text-brand-300">{identity.name.charAt(0).toUpperCase()}</AvatarFallback></Avatar><span className="min-w-0 flex-1"><span className="block truncate text-sm">{identity.name}</span><span className="block text-xs text-muted-foreground">{pins.includes(identity.id) ? 'Pinned' : recent.includes(identity.id) ? 'Recent' : 'Group'}</span></span>{pending === identity.id && <Check className="h-4 w-4 text-brand-300" />}</button>
+        <button type="button" aria-pressed={pending === identity.id} onClick={() => { setPending(identity.id); console.log('[social-identity] group choice previewed'); }} className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-lg px-3 py-2 text-left focus-visible:ring-2 focus-visible:ring-ring"><Avatar className="h-8 w-8" aria-hidden="true">{faces.get(identity.id)?.avatar_url && <AvatarImage src={faces.get(identity.id)!.avatar_url!} alt="" />}<AvatarFallback className="bg-brand-muted text-brand-300">{identity.name.charAt(0).toUpperCase()}</AvatarFallback></Avatar><span className="min-w-0 flex-1"><span className="block truncate text-sm">{identity.name}</span><span className="block text-xs text-muted-foreground">{pins.includes(identity.id) ? 'Pinned' : recent.includes(identity.id) ? 'Recent' : 'Group'}</span></span>{pending === identity.id && <Check className="h-4 w-4 text-brand-300" />}</button>
         <Button variant="ghost" size="icon" aria-label={`${pins.includes(identity.id) ? 'Unpin' : 'Pin'} ${identity.name}`} aria-pressed={pins.includes(identity.id)} onClick={() => { const next = pins.includes(identity.id) ? pins.filter((id) => id !== identity.id) : [...pins, identity.id]; setPins(next); sessionStorage.setItem(preferenceKey, JSON.stringify({ pins: next, recent })); }}><Pin className="h-4 w-4" /></Button>
       </div>)}
       <div className="sticky bottom-0 border-t border-border bg-popover py-3">

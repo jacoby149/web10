@@ -1,5 +1,7 @@
 # Parallel Execution
 
+- [✓ 3.257.6 local] **Identity picker resolved-picture repair** (`marketing/web10-social/`) - consume the shared resolver's `avatar_url` using FaceUrls; rendered-image regression reproduces the previous field mismatch. All 19 picker tests, production build/typecheck and seeded desktop/375px inspection pass. Resolver batches avatar and banner separately, not one HTTP request. No API/auth changes, deployment or live-account verification.
+
 - [✓ 3.253.16 local] **E3 first K1000 trial** — 1,000 creators, K10/100/1000, all 20 cells complete with 20 samples each. Per-group K1000 B handler median 7.645 s vs batched 363 ms. Source/provenance/limits in research/experiments/costfn/K1000-RESULTS.md; artifacts collected, droplet deleted. Full E3 remains open.
 
 - [✓ 3.253.11 local] **E3 preliminary results in manuscript** — measured K10/100 table, K1 tradeoff and explicit baseline/single-trial limits now in research/workshop/main.tex and rebuilt PDF. No full-E3 completion claim.
