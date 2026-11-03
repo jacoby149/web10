@@ -19,7 +19,6 @@ import GroupsScreen from '@/components/Groups/GroupsScreen';
 import GroupDetailScreen from '@/components/Groups/GroupDetailScreen';
 import DmsScreen from '@/components/Chat/DmsScreen';
 import NotificationsScreen from '@/components/Notifications/NotificationsScreen';
-import StagingScreen from '@/components/Staging/StagingScreen';
 import SettingsScreen from '@/components/Settings/SettingsScreen';
 import MonetizationScreen from '@/components/Monetization/MonetizationScreen';
 import StorefrontScreen from '@/components/Monetization/StorefrontScreen';
@@ -460,7 +459,7 @@ function App() {
   // node is readable by design (D41/D58): the discover board + public posts +
   // public profile faces are `anyone`-readable, so the same screens render for
   // anon (the SDK's read path is anon-capable). Signed-in-only surfaces
-  // (feed, messages, notifications, settings, monetize, staging, your own
+  // (feed, messages, notifications, settings, monetize, your own
   // profile) redirect to /discover when there's no session.
   const isAnon = !signedIn;
 
@@ -511,7 +510,6 @@ function App() {
           <Route path="/u/:username/following" element={isAnon ? <Navigate to="/video" replace /> : <UserFollowingRoute />} />
           <Route path="/u/:username/p/:postId" element={<UserProfilePostLinkRoute />} />
           <Route path="/groups/:groupId/p/:postId" element={<UserProfilePostLinkRoute />} />
-          <Route path="/staging" element={isAnon ? <Navigate to="/video" replace /> : <StagingScreen />} />
           <Route path="/monetize" element={isAnon ? <Navigate to="/video" replace /> : <MonetizationScreen />} />
           <Route path="/settings" element={isAnon ? <Navigate to="/video" replace /> : <SettingsScreen onLogout={handleLogout} onReportBug={() => handleReportBug('button')} />} />
           <Route path="/node-settings" element={isAnon ? <Navigate to="/video" replace /> : <NodeSettingsScreen />} />

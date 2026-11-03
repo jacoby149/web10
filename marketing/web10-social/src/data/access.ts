@@ -42,7 +42,6 @@ const SOCIAL_SERVICES = [
   'comments',
   'reactions',
   'contacts',
-  'staging_posts',
   'web10-social-group-identity',
   'notifications',
   // The saved-collection store (D88) — a `saved` doc in a collection group.

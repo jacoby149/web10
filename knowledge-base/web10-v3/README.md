@@ -64,8 +64,7 @@ web10-v3/
 │   ├── pwa.md             ← making web10-social a serious installable app: the real service worker (the keystone) + the install prompt at the moment of value (D72)
 │   ├── share-preview.md   ← the post permalink, rich when shared: the social app's preview server renders OG/Twitter tags for crawlers, the browser gets the SPA
 │   ├── content-moderation.md ← sensitive-language detection + Discover suppression (D59): the flag, the auto-hide, the review queue
-│   ├── bug-reports.md     ← the bugbot (D70): a submitted bug report DMs the node's admins
-│   └── import.md          ← web10 import: a creator's existing catalog (e.g. YouTube) moved onto their node
+│   └── bug-reports.md     ← the bugbot (D70): a submitted bug report DMs the node's admins
   ├── telemetry.md           ← why web10 tracks hard (GA4 + masked Hotjar, platform-wide) and the line it doesn't cross
    ├── p2p-relay.md           ← P2P connectivity for WebRTC: STUN-only, POST /ice, why no TURN relay
   ├── licensing.md           ← why web10 is SSPL with a free, ungated core: the §13 moat, tiers-as-services, the no-gate line (D75)

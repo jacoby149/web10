@@ -41,7 +41,7 @@ const password = 'TestPass123!';
 // matching, so a save without it 403s at the app-contract gate.
 const SOCIAL_SERVICES = [
   'posts', 'media', 'public_media', 'profile', 'settings', 'comments',
-  'reactions', 'contacts', 'staging_posts', 'web10-social-group-identity',
+  'reactions', 'contacts', 'web10-social-group-identity',
   'notifications', 'saved',
 ];
 const SOCIAL_OPERATIONS = ['create', 'readAll', 'updateOwn', 'deleteOwn'];
