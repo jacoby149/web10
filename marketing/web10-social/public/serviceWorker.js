@@ -48,7 +48,6 @@ const DYNAMIC_PREFIXES = [
   '/pwa_listing',
   '/web10token',
   '/auth',
-  '/import',
 ];
 
 self.addEventListener('install', (event) => {

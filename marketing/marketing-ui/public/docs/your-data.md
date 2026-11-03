@@ -65,9 +65,6 @@ data is still fully portable in principle — it lives in plain, standard
 formats on your node, and the export is a download, not a favor. If you run
 your own node, your data is on your infrastructure, full stop.
 
-Want to move your *old* platform's data **in**? See
-[Import from Other Platforms](/docs/import-from-other-platforms).
-
 ## What the node can see (the honest part)
 
 web10 nodes are **readable by design** — the node operator can read the data

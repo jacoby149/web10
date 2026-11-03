@@ -3,7 +3,7 @@ import { useParams, Link, useLocation } from 'react-router-dom'
 import { remark } from 'remark'
 import remarkGfm from 'remark-gfm'
 import remarkHtml from 'remark-html'
-import { FileText, Code, Terminal, ExternalLink, Compass, BookOpen, User, Radio, DollarSign } from 'lucide-react'
+import { FileText, Code, Terminal, ExternalLink, Compass, User, Radio, DollarSign } from 'lucide-react'
 import { trackFunnel } from '../lib/analytics'
 
 type DocPage = { slug: string; title: string; file: string }
@@ -25,8 +25,6 @@ const DOC_SECTIONS: { title: string; pages: DocPage[] }[] = [
       { slug: 'groups-in-plain-terms', title: 'Groups in Plain Terms', file: '/docs/groups-in-plain-terms.md' },
       { slug: 'your-data', title: 'Your Data', file: '/docs/your-data.md' },
       { slug: 'account-recovery', title: 'Account Recovery', file: '/docs/account-recovery.md' },
-      { slug: 'import-from-other-platforms', title: 'Import from Other Platforms', file: '/docs/import-from-other-platforms.md' },
-      { slug: 'export-guidance', title: 'Export Guidance', file: '/docs/export-guidance.md' },
       { slug: 'terms', title: 'Terms of Service', file: '/docs/terms.md' },
     ],
   },
@@ -175,7 +173,7 @@ function DocsSidebar() {
           </h3>
           <nav className="flex flex-col gap-1">
             {section.pages.map(page => {
-              const Icon = page.slug === 'overview' ? Compass : page.slug === 'export-guidance' ? BookOpen : FileText
+              const Icon = page.slug === 'overview' ? Compass : FileText
               return (
                 <Link
                   key={page.slug}
