@@ -11,7 +11,36 @@ import pytest
 
 @pytest.mark.parametrize(
     "case",
-    ["foreign", "owned", "malformed", "tokens", "metadata-original", "metadata-thumbnail", "raw-foreign", "raw-owned"],
+    [
+        "foreign",
+        "owned",
+        "malformed",
+        "tokens",
+        "metadata-original",
+        "metadata-thumbnail",
+        "raw-foreign",
+        "raw-owned",
+        "query-owner-anon",
+        "query-owner-auth",
+        "query-owner-unprepared",
+        "query-face-anon",
+        "query-face-auth",
+        "query-face-unprepared",
+        "pinned-member-active",
+        "pinned-member-revoked",
+        "pinned-member-rejoined",
+        "pinned-member-never",
+        "pinned-member-revoked-tie",
+        "pinned-member-revoked-other-member",
+        "pinned-member-revoked-other-group",
+        "pinned-member-alternate-group",
+        "pinned-member-active-group-uploader",
+        "pinned-member-revoked-group-uploader",
+        "pinned-link-active",
+        "pinned-link-removed",
+        "pinned-link-reattached",
+        "pinned-link-never",
+    ],
 )
 def test_read_url_owner_boundary(case):
     result = subprocess.run(
@@ -114,6 +143,245 @@ def _probe(case):
             "synthetic-wrong-key-with-sufficient-length" if wrong_key else settings.PRIVATE_KEY,
             algorithm=settings.ALGORITHM,
         )
+
+    if case.startswith(("pinned-member-", "pinned-link-")):
+        import sqlite3
+        from types import SimpleNamespace
+
+        from app.services import config as cfg
+        from app.v3.services import clickhouse as ch
+
+        # Retained disclosure replay: removed members must get no creative/capability.
+        # Attachment cases are separate evidence assertions until their source repair.
+        is_link = case.startswith("pinned-link-")
+        state = case.removeprefix("pinned-link-" if is_link else "pinned-member-")
+        connected = os.environ.get("H01_AD_CLICKHOUSE") == "1"
+        key = "bob/private-creative.png"
+        carrier = {
+            "doc_id": "carrier",
+            "author_key": "alice",
+            "body": {"text": "readable carrier"},
+            "ad_mode": "pinned",
+            "ad_target": "creative",
+        }
+        schemas = [
+            "documents (doc_id String, author_key String, body String, tags Array(String), posted_by String, deleted UInt8, updated_at UInt64)",
+            "doc_groups (doc_id String, group_id String, deleted UInt8, updated_at UInt64)",
+            "group_members (group_id String, member_key String, role String, joined_at UInt64, deleted UInt8, updated_at UInt64)",
+        ]
+        body = json.dumps({"text": "synthetic restricted creative", "type": "minio", "value": key})
+        setup = (
+            [f"CREATE TABLE {schema} ENGINE = Memory" for schema in schemas]
+            if connected
+            else [
+                "CREATE TABLE documents (doc_id TEXT, author_key TEXT, body TEXT, tags TEXT, posted_by TEXT, deleted INTEGER, updated_at INTEGER)",
+                "CREATE TABLE doc_groups (doc_id TEXT, group_id TEXT, deleted INTEGER, updated_at INTEGER)",
+                "CREATE TABLE group_members (group_id TEXT, member_key TEXT, role TEXT, joined_at INTEGER, deleted INTEGER, updated_at INTEGER)",
+            ]
+        )
+        tags = "['ad']" if connected else "'[\"ad\"]'"
+        author = "group-author" if state.endswith("group-uploader") else "bob"
+        setup += [
+            f"INSERT INTO documents VALUES ('creative','{author}','{body}',{tags},'bob',0,1)",
+        ]
+        if not is_link or state != "never":
+            setup.append("INSERT INTO doc_groups VALUES ('creative','creative-group',0,1)")
+        if is_link and state in {"removed", "reattached"}:
+            setup.append("INSERT INTO doc_groups VALUES ('creative','creative-group',1,2)")
+        if is_link and state == "reattached":
+            setup.append("INSERT INTO doc_groups VALUES ('creative','creative-group',0,3)")
+        if is_link or state != "never":
+            setup.append("INSERT INTO group_members VALUES ('creative-group','alice','reader',1,0,1)")
+        if state.startswith("revoked") or state in {"rejoined", "alternate-group"}:
+            updated = 1 if state == "revoked-tie" else 2
+            setup.append(f"INSERT INTO group_members VALUES ('creative-group','alice','reader',1,1,{updated})")
+        if state == "rejoined":
+            setup.append("INSERT INTO group_members VALUES ('creative-group','alice','reader',3,0,3)")
+        if state == "revoked-other-member":
+            setup.append("INSERT INTO group_members VALUES ('creative-group','carol','reader',1,0,3)")
+        if state == "revoked-other-group":
+            setup.append("INSERT INTO group_members VALUES ('unrelated-group','alice','reader',1,0,3)")
+        if state == "alternate-group":
+            setup += [
+                "INSERT INTO group_members VALUES ('alternate-group','alice','reader',1,0,3)",
+                "INSERT INTO doc_groups VALUES ('creative','alternate-group',0,3)",
+            ]
+        db = sqlite3.connect(":memory:", check_same_thread=False)
+        if not connected:
+            db.executescript(";".join(setup) + ";")
+
+        def execute(sql, params):
+            if connected:
+                # Only fixed synthetic string values are bound; no actual driver/HTTP claim.
+                bound = sql % {k: "'" + v.replace("'", "''") + "'" for k, v in params.items()}
+                result = subprocess.run(
+                    [
+                        "docker",
+                        "run",
+                        "--rm",
+                        "-i",
+                        "--network",
+                        "none",
+                        "--memory",
+                        "512m",
+                        "--cpus",
+                        "1",
+                        "--entrypoint",
+                        "clickhouse",
+                        "clickhouse/clickhouse-server:24.8",
+                        "local",
+                        "--multiquery",
+                    ],
+                    input=";".join([*setup, bound + " FORMAT JSONCompact"]) + ";",
+                    text=True,
+                    capture_output=True,
+                    timeout=30,
+                    check=True,
+                )
+                rows = json.loads(result.stdout)["data"]
+            else:
+                import re
+
+                rows = db.execute(re.sub(r"%\((\w+)\)s", r":\1", sql), params).fetchall()
+                if sql.startswith("SELECT ad.doc_id"):
+                    rows = [(*r[:3], json.loads(r[3]), *r[4:]) for r in rows]
+            return SimpleNamespace(result_rows=rows)
+
+        with (
+            patch.object(ch.client, "query", side_effect=execute),
+            patch.object(
+                ch, "get_group", return_value={"roles": [{"name": "reader", "permissions": {"posts": ["readAll"]}}]}
+            ),
+            patch.object(ch, "readable_groups", return_value=["carrier-group"]),
+            patch.object(ch, "read_documents_in_groups", return_value=[carrier]),
+            patch.object(ch, "get_s3_signing_client", return_value=signer) as factory,
+            patch.object(cfg, "get_config_field", return_value=0),
+        ):
+            allowed = ch.can_read_group("creative-group", "alice", "posts", authenticated=True)
+            assert allowed is (is_link or state in {"active", "rejoined", "active-group-uploader"})
+            if is_link:
+                from sqlglot import exp, parse_one
+
+                from app.v3.services import safe_query as sq
+
+                # Execute the actual compiler's attachment boundary, not a copied policy query.
+                tree = parse_one(sq._boundary_cte_sql("posts", ["creative-group"], "alice"), read=sq.DIALECT)
+                boundary = next(q.this for q in tree.find_all(exp.Subquery) if q.alias == "dg")
+                current = execute(
+                    f"SELECT count(*) FROM ({boundary.sql(dialect=sq.DIALECT)}) current_links "
+                    "WHERE doc_id = %(doc_id)s AND group_id = %(group_id)s",
+                    {"doc_id": "creative", "group_id": "creative-group"},
+                ).result_rows[0][0]
+                current = int(current)  # ClickHouse JSON serializes UInt64 counts as strings.
+                assert bool(current) is (state in {"active", "reattached"})
+            if state == "alternate-group":
+                assert ch.can_read_group("alternate-group", "alice", "posts", authenticated=True)
+            response = TestClient(app).post(
+                "/v3/read", json={"token": token(), "service": "posts", "groups": ["carrier-group"]}
+            )
+        db.close()
+        assert response.status_code == 200
+        doc = response.json()[0]
+        attaches = (
+            state != "never" if is_link else state in {"active", "rejoined", "alternate-group", "active-group-uploader"}
+        )
+        if not attaches:
+            if "ad" in doc:
+                verify(doc["ad"]["body"]["url"], key)
+                print("removed-member synthetic capability independently verified before denial assertion")
+            assert "ad" not in doc
+            factory.assert_not_called()
+        else:
+            assert doc["ad"]["author_key"] == author and doc["ad"]["posted_by"] == "bob"
+            assert doc["ad"]["body"]["text"] == "synthetic restricted creative"
+            verify(doc["ad"]["body"]["url"], key)
+            factory.assert_called_once()
+        if is_link:
+            print(
+                f"pinned attachment evidence: engine={'ClickHouse-local' if connected else 'SQLite substitute'} state={state} current_attachment={bool(current)} inline_ad={'ad' in doc}"
+            )
+        else:
+            print(
+                f"pinned membership evidence: engine={'ClickHouse-local' if connected else 'SQLite substitute'} state={state} direct_allowed={allowed} inline_ad={'ad' in doc}"
+            )
+        return
+
+    if case.startswith(("query-owner-", "query-face-")):
+        import sqlite3
+        from types import SimpleNamespace
+
+        from app.v3.services import clickhouse as ch
+        from app.v3.services import safe_query as sq
+
+        # Retained foreign-issuance reproduction, now a denial regression.
+        key = "bob/private.png"
+        is_face = case.startswith("query-face-")
+        body = json.dumps({"avatar_ref": "private-media"} if is_face else {"type": "minio", "value": key})
+        sql = (
+            f"SELECT 'bob' AS face_owner, '{body}' AS profile_body"
+            if is_face
+            else f"SELECT 'alice' AS author_key, 'bob' AS posted_by, '{body}' AS body"
+        )
+        assert sq.query_services(sql, allowed_services=None) == set()
+        executed = []
+
+        def execute_constant(compiled, **kwargs):
+            executed.append(compiled)
+            # Execute the actual compiler output, not a preselected result row.
+            # SQLite is only a stand-in for this table-free literal SELECT.
+            with sqlite3.connect(":memory:") as db:
+                cursor = db.execute(compiled)
+                return [c[0] for c in cursor.description], cursor.fetchall()
+
+        prepared = not case.endswith("unprepared")
+        prepare = (
+            {"face": {"bodyField": "profile_body", "mediaField": "avatar_ref", "authorColumn": "face_owner"}}
+            if is_face
+            else {"media": True}
+        )
+        request = {"sql": sql, "prepare": prepare} if prepared else {"sql": sql}
+        if case.endswith("-auth"):
+            request["token"] = token()
+
+        def face_metadata(sql, params):
+            assert params == {"author_key": "bob", "r0": "private-media"}
+            return SimpleNamespace(result_rows=[("private-media", json.dumps({"object_key": key}), "media_metadata")])
+
+        with (
+            patch.object(settings, "QUERY_EVAL_NO_POLICY", False),
+            patch.object(settings, "QUERY_EVAL_STUB_EXECUTE", False),
+            patch.object(ch, "get_user_groups", return_value=[]),
+            patch.object(ch, "readable_groups") as readable,
+            patch.object(ch, "execute_query", side_effect=execute_constant),
+            patch.object(ch.client, "query", side_effect=face_metadata),
+            patch.object(ch, "get_s3_signing_client", return_value=signer) as factory,
+        ):
+            response = TestClient(app).post("/v3/query", json=request)
+        if prepared:
+            assert response.status_code in (200, 403)
+            if response.status_code == 200:
+                row = response.json()["rows"][0]
+                url = row.get("avatar_url") if is_face else row["body"].get("url")
+                if url:
+                    verify(url, key)
+                    print("prepared-query foreign capability independently verified; SQLite execution substitute")
+                assert url is None, "fabricated query owner minted a foreign capability"
+            factory.assert_not_called()
+            return
+        assert response.status_code == 200, response.status_code
+        assert len(executed) == 1 and "LIMIT" in executed[0].upper()
+        readable.assert_not_called()
+        row = response.json()["rows"][0]
+        if is_face:
+            assert row["face_owner"] == "bob" and json.loads(row["profile_body"]) == {"avatar_ref": "private-media"}
+            assert "avatar_url" not in row
+            factory.assert_not_called()
+            return
+        assert row["author_key"] == "alice" and row["posted_by"] == "bob"
+        assert row["body"]["value"] == key
+        assert "url" not in row["body"]
+        factory.assert_not_called()
+        return
 
     if case.startswith("raw-"):
         from app.v3.services import clickhouse as ch

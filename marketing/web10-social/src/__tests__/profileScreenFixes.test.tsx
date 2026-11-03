@@ -29,6 +29,8 @@ const mockRefreshMediaUrls = vi.fn().mockImplementation((records) =>
 const mockResolveMediaRefs = vi.fn().mockResolvedValue([]);
 const mockSaveProfile = vi.fn().mockImplementation((p) => Promise.resolve(p));
 const mockCountStagingPosts = vi.fn().mockResolvedValue(0);
+const mockReadUserPublicProfile = vi.fn().mockResolvedValue({ posts: [] });
+const mockCountUserFollowingReal = vi.fn().mockResolvedValue(0);
 
 vi.mock('@/data', async (importOriginal) => {
   const original = await importOriginal() as Record<string, unknown>;
@@ -43,6 +45,11 @@ vi.mock('@/data', async (importOriginal) => {
     resolveMediaRefs: mockResolveMediaRefs,
     saveProfile: mockSaveProfile,
     countStagingPosts: mockCountStagingPosts,
+    readUserPublicProfile: mockReadUserPublicProfile,
+    readUserProfile: vi.fn().mockResolvedValue(null),
+    readFollow: vi.fn().mockResolvedValue(null),
+    readUserPublicCollections: vi.fn().mockResolvedValue([]),
+    countUserFollowingReal: mockCountUserFollowingReal,
   };
 });
 
@@ -113,6 +120,58 @@ describe('ProfileScreen upload presign fix', () => {
     const refreshed = await mockRefreshMediaUrls([media]);
     expect(refreshed[0].url).not.toBe(media.url);
     expect(refreshed[0].url).toBe('https://presigned.s3.example.com/signed-avatar.png?sig=abc123');
+  });
+});
+
+describe('UserProfileScreen post read failures', () => {
+  it('keeps denied counts unknown and restores genuine zero after a successful refresh', async () => {
+    mockCountFollowers.mockRejectedValueOnce(new Error('hidden membership denied'));
+    mockCountUserFollowingReal.mockRejectedValueOnce(new Error('following unavailable'));
+    const { default: UserProfileScreen } = await import('@/components/Bio/UserProfileScreen');
+    render(<MemoryRouter><UserProfileScreen username="century-club-movies" provider="test.localhost" /></MemoryRouter>);
+    await screen.findByTestId('user-profile-stats');
+    expect(screen.queryByTestId('user-profile-followers-link')).not.toBeInTheDocument();
+    expect(screen.getByTestId('user-profile-following-link')).toHaveTextContent('\u2014');
+    mockCountFollowers.mockResolvedValueOnce(0);
+    act(() => window.dispatchEvent(new Event('post-created')));
+    expect(await screen.findByTestId('user-profile-followers-link')).toHaveTextContent('0Followers');
+    expect(screen.getByTestId('user-profile-following-link')).toHaveTextContent('0Following');
+  });
+
+  it.each(['username change', 'viewer refresh', 'owner refresh'])('ignores obsolete rejection after newer success on %s', async (scenario) => {
+    const owner = scenario === 'owner refresh';
+    let rejectOld!: (reason: Error) => void;
+    const oldRead = new Promise<never>((_resolve, reject) => { rejectOld = reject; });
+    const read = owner ? mockReadMyPosts : mockReadUserPublicProfile;
+    const posts = [{ _id: 'new-post', text: 'Current generation post', created_at: '2026-11-02' }];
+    read.mockImplementationOnce(() => oldRead).mockResolvedValueOnce(owner ? posts : { posts });
+    const { default: UserProfileScreen } = await import('@/components/Bio/UserProfileScreen');
+    const username = owner ? 'testuser' : 'first-user';
+    const view = render(<MemoryRouter><UserProfileScreen username={username} provider="test.localhost" /></MemoryRouter>);
+    if (scenario === 'username change') {
+      view.rerender(<MemoryRouter><UserProfileScreen username="second-user" provider="test.localhost" /></MemoryRouter>);
+    } else {
+      act(() => window.dispatchEvent(new Event('post-created')));
+    }
+    expect(await screen.findByTestId('profile-post-cell')).toHaveTextContent('Current generation post');
+    await act(async () => { rejectOld(new Error('obsolete query failed')); });
+    expect(screen.queryByTestId('profile-posts-error')).not.toBeInTheDocument();
+    expect(screen.getByTestId('profile-post-cell')).toHaveTextContent('Current generation post');
+    expect(screen.getByTestId('user-profile-stats').firstElementChild).toHaveTextContent('1Posts');
+    if (scenario === 'username change') expect(screen.getByTestId('profile-name')).toHaveTextContent('second-user');
+  });
+
+  it.each([true, false])('does not report failed posts as empty and can retry (owner=%s)', async (owner) => {
+    const read = owner ? mockReadMyPosts : mockReadUserPublicProfile;
+    read.mockRejectedValueOnce(new Error('query execution failed'));
+    const { default: UserProfileScreen } = await import('@/components/Bio/UserProfileScreen');
+    render(<MemoryRouter><UserProfileScreen username={owner ? 'testuser' : 'century-club-movies'} provider="test.localhost" /></MemoryRouter>);
+    expect(await screen.findByTestId('profile-posts-error')).toHaveTextContent('Posts could not be loaded.');
+    expect(screen.queryByText('No posts yet')).not.toBeInTheDocument();
+    expect(screen.getByTestId('user-profile-stats').firstElementChild).toHaveTextContent('-Posts');
+    fireEvent.click(screen.getByRole('button', { name: 'Retry posts' }));
+    await waitFor(() => expect(screen.queryByTestId('profile-posts-error')).not.toBeInTheDocument());
+    expect(await screen.findByText('No posts yet')).toBeInTheDocument();
   });
 });
 

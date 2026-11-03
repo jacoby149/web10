@@ -313,9 +313,6 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
   const [uploading, setUploading] = useState(false);
   // The nav-away-mid-upload warning is showing (decision 3).
   const [uploadWarning, setUploadWarning] = useState(false);
-  // The create-time slug guard (G4, decision 1): true while an active group
-  // exists at the draft's slug. Gates Publish (the guard is live in edit mode).
-  const [slugTaken, setSlugTaken] = useState(false);
   // Quick face edit (the profile's face lightbox, shared): tapping the banner
   // or avatar opens the enlarged view + pick-from-posts + crop. The lightbox's
   // upload tile is the file path (the crop step is the single edit surface).
@@ -688,12 +685,6 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
     async (staged: GroupCommitInput) => {
       if (!detail) return;
       const isDraft = identity.status === 'draft';
-      // The create-time slug guard (decision 1) is live in edit mode: a draft
-      // can't publish onto a slug another active group owns.
-      if (isDraft && slugTaken) {
-        LOG('edit save — blocked: slug taken', detail.group_id);
-        return;
-      }
       LOG('edit save — atomic commit', detail.group_id, { isDraft });
       if (isDraft) {
         await publishGroup(detail.group_id, staged);
@@ -703,7 +694,7 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
       setEditing(false);
       await load();
     },
-    [detail, identity.status, slugTaken, load],
+    [detail, identity.status, load],
   );
 
   // Cancel discards the stage (decision 2) — the live state was never touched,
@@ -921,8 +912,6 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
                 onUploadingChange={setUploading}
                 onSave={handleEditSave}
                 onCancel={handleEditCancel}
-                slugTaken={slugTaken}
-                onSlugTakenChange={setSlugTaken}
                 onDelete={handleDeleteDraft}
                 deleting={deletingDraft}
               />

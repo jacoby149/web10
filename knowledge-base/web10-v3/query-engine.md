@@ -244,21 +244,31 @@ those minting passes live on the read endpoints (`/read`, and the now-retired
 `/feed`) as post-query transforms. The prepare pass moves them **into the
 engine**, so a single `w.query()` returns render-ready rows.
 
-**Why it is safe (the load-bearing part).** The prepare pass mints
+**Required authority boundary (currently incomplete).** The prepare pass mints
 *capabilities* (a presigned URL grants access to the media; an HLS sig grants
 access to the stream). A capability-minter on a query surface is only as safe
 as the boundary that fed it:
 
-- The **boundary CTEs already proved** the reader can read every doc in the
-  result (I3 + the D58 read gate + block/sharing/hidden). The prepare pass
-  only ever touches docs *already in the result* — it cannot reach a doc the
-  query couldn't.
-- Each pass is **access-bound**: `resolve_media_urls` is **author-scoped**
-  (presigns only media the doc's author owns, for a doc the reader can read);
-  the HLS sig is **per-reader** (bound to the reader, 10-min TTL = the
-  membership re-check cadence); the ads are **I3-checked** (the reader's ad
-  preference + the node's config). A reader can only mint capabilities for
-  docs they can already read — **no escalation**.
+- Boundary CTEs authorize input documents, not arbitrary output projections.
+  Literal/expression aliases can fabricate `posted_by`, `author_key` and `body`.
+   The previous prepare pass treated these fields as canonical documents. An
+   offline real-compiler/HTTP/signer reproduction issued a synthetic foreign-key
+  capability, including without a token; SQLite substitutes for the table-free
+  SQL execution. Actual ClickHouse execution remains unverified. See
+  [H01 prepared-owner evidence](../security/scans/2026-10/h01-query-owner-proof.md).
+- Namespace checks constrain keys against their supplied owner; they cannot
+  establish that owner's provenance. Before claiming no escalation, preparation
+  must bind capability-bearing fields to canonical documents through the current
+  reader/service/app/group/visibility gates. Checking only an output doc ID while
+  retaining caller-selected owner/body is insufficient. Face/ad authority needs
+   its own binding. The local carrier repair now re-reads document-shaped rows
+   through server-written safe queries over the original readable service/group
+   sets. Canonical body/uploader/ad preferences replace projections before minting;
+   supplied inline ads are dropped. Missing or ambiguous canonical identity denies
+    the request. Face requests now have independent local canonical binding;
+    attached-ad loader authorization and connected verification remain OPEN.
+   Ordinary unprepared SQL, joins, aggregates, public reads and cross-user media
+   remain intended behavior. See the [repair receipt](../security/scans/2026-10/repair-h01-query-carrier.md).
 - Media / HLS / ads / face are **universal** primitives (D44 / D49 / D55 /
   D57), not social. Baking them in keeps the engine generic — a messaging app
   rendering media, or a notes app with attachments, gets the same pass.
@@ -284,16 +294,36 @@ shape, but the passes need to find the doc's `body.media_refs` + `author_key`
 (+ `ad_mode`/`ad_target` for ads). Two rules, in order:
 
 1. **Duck-type default.** If a row carries `doc_id` + `author_key` + `body`,
-   the `media`/`ads` passes mint that row's `body.media_refs` / `ad_mode` /
-   `ad_target`. This is the common case (the feed: `SELECT p.*, …counts…`) and
+   the `media`/`ads` passes first re-read its canonical capability-bearing fields,
+   then mint `body.media_refs` / `ad_mode` / `ad_target`. This is the common case (the feed: `SELECT p.*, …counts…`) and
    needs zero config. A row without those keys (an aggregate, a non-doc join
    column) is skipped — the pass no-ops on it.
 2. **Explicit `face` spec.** The author's face lives in a *different* body
    (the JOINed profile), not the row's `body`. The caller declares where:
    `face: { bodyField: 'profile_body', mediaField: 'avatar_ref', … }`. Generic
-   (any app's face service) and explicit (no magic).
+    (any app's face service) and explicit (no magic).
 
-**Engine change:** the boundary CTE's exposed columns gain `ad_mode` +
+   Face preparation treats the projected author/ref only as a lookup request.
+   Before minting, fresh safe-query reads over the original readable services
+   and groups establish that an authorized canonical body contains the exact
+   requested media-field/ref pair for that author. Derive the media uploader from
+   that canonical document (`posted_by or author_key`), never from projections.
+   Grouped canonical uploader sets are combined across services before signing;
+   an ambiguous uploader yields no face. Exact tuple matching and UTF-8 hex
+   literals keep opaque field/author/ref values intact through SQL round trips.
+   This does not require a face doc_id or infer one from the carrier post ID;
+   standalone people/group faces and joined profiles keep their current shapes.
+   Missing, ambiguous or failed authority degrades to no face, not owner-only
+   reads or unrestricted profile lookup. `urlField` must be a new output column:
+   source/existing-column collisions return 400 from face preparation rather than
+   deleting data or retaining projected output URLs. The original SELECT and any
+   carrier preparation precede this check. No app service/face field is hardcoded.
+   [Local repair evidence](../security/scans/2026-10/repair-h01-query-face.md)
+   uses DB doubles; actual ClickHouse tuple/aggregate execution and connected
+   person/group rendering remain unverified.
+
+**Engine change:** the boundary CTE's exposed columns include `posted_by`
+(the uploader for group-authored documents), `ad_mode` +
 `ad_target` (the ad-attach pass reads them off the row) and `group_id` (the
 group the doc row belongs to — the join key for group metadata; a doc in N
 readable groups surfaces N rows, one per group, each carrying that
@@ -304,10 +334,12 @@ Everything else —
 `attach_node_ads` — is reused verbatim; the prepare pass is a thin orchestration
 over the existing functions, applied to the query's rows.
 
-**What it is not.** Not a second query (one round-trip — the SELECT and the
-mint are one call). Not a way to mint capabilities for docs outside the result
-(the boundary is the wall). Not social-specific (the passes are universal; the
-`face` spec is caller-supplied).
+**What it is not.** Not a second HTTP request: SELECT, canonical reads and mint
+remain one API call. Canonical reads add one database query per nonempty readable
+service; connected multi-service latency remains unmeasured. Document-shaped
+prepared projections receive canonical fields, not caller-transformed body/owner
+values. A concurrent hide/deletion can fail the entire request closed. Not
+social-specific (the passes are universal; the `face` spec is caller-supplied).
 
 ## Group metadata (QE-A)
 

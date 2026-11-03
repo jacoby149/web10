@@ -15,6 +15,79 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Group Author Self-Target (02.11.2026)
+
+[Bounded authorization repair](group-author-self-target.md): actual ASGI/signed
+synthetic auth and real effective-role/write helpers reproduce self-target 403
+and dropped attachment. Exact-self exception follows live human service/app
+gates, with external-target isolation and server-set audit preserved. Explicit
+update lifecycle, principal-class/wildcard and attachment-history controls added
+after fresh same-model review. Retained-self authority now ranks current
+attachments before tombstone filtering; actual SQL synthetic replay denies stale
+reattachment. 635 focused/1,796 API tests plus eight subtests and full Ruff pass;
+fresh same-model design-intent re-review passes the bounded change. Storage/app lookup doubles,
+not whole L1/L2 coverage or a security PASS. Connected persistence/revocation,
+CI/rollout and independent diverse review remain OPEN.
+
+## Pinned-Ad Attachment Authority (02.11.2026)
+
+H01-AD-LINK [local evidence](scans/2026-10/h01-pinned-attachment-proof.md):
+compiler attachment boundary excludes removed link while actual loader/ASGI
+returns/signs its creative. Membership stays live, isolating attachment history
+from repaired membership history. Four cases/backend, 1,759 API tests plus eight
+subtests, Ruff and fresh same-model review pass. Actual ClickHouse-local reduced
+Memory fixtures, not production schema/driver/lifecycle. Finding OPEN; no runtime
+repair, real object retrieval or L1 PASS. Broader ad/CI/rollout/diverse gates OPEN.
+
+## Pinned-Ad Membership Repair (02.11.2026)
+
+H01-AD-MEMBER [local repair](scans/2026-10/repair-h01-pinned-membership.md):
+latest reader/group membership before tombstone filtering, deletion-winning ties.
+Five synthetic capability disclosures denied before attachment/signing on SQLite
+and actual ClickHouse-local Memory tables. Ten cases/backend, 365 focused/1,755
+API tests plus eight subtests, Ruff and fresh same-model review pass. Attachment,
+broader creative policies, real-schema lifecycle, old URL TTL, CI/rollout/diverse
+and L1 remain OPEN. Not whole-pinned-ad PASS.
+
+## Pinned-Ad Membership Authority (02.11.2026)
+
+H01-AD-MEMBER [local evidence](scans/2026-10/h01-pinned-membership-proof.md):
+normal group gate denies a removed member while pinned-ad SQL returns its creative
+through the read route with independently verified synthetic SigV4. Four history
+controls pass on SQLite and actual ClickHouse-local 24.8.14.39/reduced Memory
+tables; 1,749 API tests plus eight subtests, Ruff and fresh same-model review pass.
+Finding OPEN, no runtime repair. Production schema/storage/merges, real object
+retrieval, broader creative policy, CI/rollout/diverse and protocol L1 remain OPEN.
+
+## Canonical Query Faces (02.11.2026)
+
+H01-PREPARE-FACE [local repair](scans/2026-10/repair-h01-query-face.md): two
+actual compiler/ASGI/resolver/real synthetic SigV4 disclosures now denied.
+Canonical exact author/ref reads supply uploaders without requiring face IDs;
+missing/ambiguous/error authority no-ops, output-column collisions return 400.
+180 focused/1,745 API tests plus eight subtests, full API Ruff and same-model
+review pass. SQL execution/driver and positive rendering remain doubled/unverified;
+ad-loader/connected/CI/rollout/diverse/L1 gates OPEN. No whole-prepare PASS.
+
+## Canonical Query Carriers (02.11.2026)
+
+H01-PREPARE carrier [local repair](scans/2026-10/repair-h01-query-carrier.md):
+server-written safe reads replace projected capability fields before media/ad
+minting. Retained foreign-signing probes denied; canonical ad/HLS composition
+preserves three uploaders for anon/auth. 163 focused/1,694 API tests plus eight
+subtests, focused Ruff and same-model review pass. Face and ad-loader authority,
+actual ClickHouse/connected/CI/rollout/diverse gates remain OPEN. No L1 PASS.
+
+## Prepared Query Owner Authority (01.11.2026)
+
+H01-PREPARE [local evidence](scans/2026-10/h01-query-owner-proof.md): compiler,
+ASGI query handler, serializer/resolver and actual synthetic signer issue
+independently verified foreign SigV4 capabilities for caller-fabricated owner/body
+columns. Anonymous/authenticated positives; unprepared no-sign control. SQLite
+substitutes only for constant SQL execution; no actual ClickHouse or retrieval.
+Three probes, 1,672 API tests plus eight subtests, Ruff and fresh same-model
+review pass. Finding remains OPEN, no runtime repair or protocol L1 advancement.
+
 ## Acting Identity (02.11.2026)
 
 Acting-identity feature boundary work is recorded separately in
@@ -28,6 +101,9 @@ tests, typechecks/build and desktop/mobile switcher inspection. Connected
 multi-operator/revocation/concurrency and independent review remain OPEN.
 
 ## Reference HLS Mint Provenance (01.11.2026)
+
+Reference repair merged #1312 at `66330ed99`, all 13 checks passed first attempt.
+Historical local results below do not certify caller-selected owner authority.
 
 H01-HLS-REF-MINT [local repair](scans/2026-10/repair-h01-hls-ref-mint.md): three
 helper-minted JWT/HTTP synthetic segment disclosures denied at issuance. Each

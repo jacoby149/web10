@@ -28,6 +28,14 @@ column — server-set, unforgeable, queryable.
 per-service role maps). This doc is the **authorship** model — the group as
 the `author_key` on a document.
 
+**02.11.2026 publication clarification:** `century-club-findings.md` records the
+exact-self exception and public Discover routing. A live effective service create
+grant plus human app authorization permits explicitly attaching to author_as
+itself; no self-membership is required. External targets keep their own group
+principal gates. The board's canonical anyone create grant already permits all
+group identities; no enrollment or directory-listing change is needed. Local
+repair evidence and open rollout gates: `../security/group-author-self-target.md`.
+
 ---
 
 ## The operator's intent (verbatim)
@@ -61,10 +69,11 @@ the `author_key` on a document.
 2. **Posting as a group = the post lives in the group's world.** No personal
    followers group. The group has its own groups (the ones it's a member of)
    — that's where the post goes. The poster's personal following is untouched.
-3. **Two independent gates, both must pass.** (a) The caller holds a
-   qualifying role in the group they're posting as. (b) The group itself holds
-   a role in each target group that grants `create` on the service. The
-   caller's role in the group does NOT grant the group access to other groups.
+3. **Two independent gates, both must pass.** (a) The caller has an effective
+   service create grant in the acting group. (b) External targets check the
+   group's own write authority. An explicitly requested exact-self target is
+   authorized by (a), without self-membership. The caller's unrelated target
+   memberships never transfer to the group.
 4. **The identity picker is in the composer.** "Post as: [You] | [Group A] |
    [Group B]…" — every group where the caller holds a qualifying role. The
    composer's avatar + name swap to the selected identity before posting.
@@ -193,10 +202,10 @@ result = ch.insert_document(
 )
 
 if data.groups:
-    # Gate 2: the DISPLAY author (the group, or the user) can write in each
-    # target group. Same can_write_group call as today — just the principal
-    # is the group_id when posting as a group.
-    writable = [g for g in data.groups if ch.can_write_group(g, display_author, data.service)]
+    # Gate 1 also permits exact self; external targets use the group principal.
+    writable = [g for g in data.groups
+                if (data.author_as and g == data.author_as)
+                or ch.can_write_group(g, display_author, data.service)]
     if not writable:
         raise HTTPException(403, "no write access to the requested group")
     ch.attach_doc_to_groups(doc_id, writable)
@@ -214,12 +223,13 @@ grant `create` (per `groups/identity.md`). The `page-curator` role does NOT
 (it only grants the identity service) — so a page-curator can edit the group's
 face but can't post as the group. Only owner + moderator.
 
-**Gate 2** (can the group write in the target): `can_write_group(target_group,
-group_id, service)` — the exact same call that runs today, but the principal
-is the group_id. The group must be a **member** of the target group (or the
-target's `anyone`/`authenticated` grant must allow `create`). The caller's
-role in the group does NOT grant the group access — the group's own
-membership is the gate.
+**Gate 2** (can the group write in the target): explicit exact-self attachment
+uses the live service create authority already checked in Gate 1. For every
+external target, `can_write_group(target_group, group_id, service)` retains the
+existing membership-first/principal-class gate. The caller's unrelated target
+membership grants nothing. Discover's anyone role grants create, so public
+posts do not need an individual Discover membership. These are effective unions,
+not mandatory owner labels or explicit human membership rows.
 
 **The app-contract gate** runs on `real_author` (the token holder), not
 `display_author`. The contract is the app's trust in the user's browser/origin

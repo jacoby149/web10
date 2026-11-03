@@ -1187,7 +1187,12 @@ def replace_doc_groups(doc_id: str, group_ids: list[str]):
 def get_doc_groups(doc_id: str) -> list[str]:
     """Get active group IDs for a document."""
     result = client.query(
-        "SELECT group_id FROM doc_groups WHERE doc_id = %(doc_id)s AND deleted = 0",
+        # Rank tombstones too: an old live attachment is not current authority.
+        "SELECT group_id FROM ("
+        "SELECT group_id, deleted, row_number() OVER ("
+        "PARTITION BY doc_id, group_id ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM doc_groups WHERE doc_id = %(doc_id)s"
+        ") WHERE rn = 1 AND deleted = 0",
         {"doc_id": doc_id},
     )
     return [row[0] for row in result.result_rows]
@@ -3187,6 +3192,9 @@ def resolve_pinned_ads(docs: list[dict], reader: str) -> dict[str, dict]:
     (I3: the ad rides the reader's access, not just the doc's). A pinned ad the
     reader can't see is simply not returned (the doc comes back with no ad).
 
+    Membership versions are ranked before removal filtering; a historical live
+    row cannot override the current tombstone. A newer rejoin still grants access.
+
     Service-agnostic (D75): the ad is whatever doc `ad_target` references — the
     node does not vet its `collection_name`. The `ad` tag + the `ad_preference`
     pointer + group membership (I3) are the whole model; "an ad is a post" is a
@@ -3199,6 +3207,7 @@ def resolve_pinned_ads(docs: list[dict], reader: str) -> dict[str, dict]:
         return {}
     placeholders = ", ".join(f"%(t{i})s" for i in range(len(targets)))
     params = {**{f"t{i}": t for i, t in enumerate(targets)}, "reader": reader}
+    log.info("[ads] pinned membership read: started targets=%d", len(targets))
     result = client.query(
         "SELECT ad.doc_id, ad.author_key, ad.body, ad.tags, ad.posted_by "
         "FROM (SELECT doc_id, author_key, body, tags, deleted, posted_by, "
@@ -3206,10 +3215,13 @@ def resolve_pinned_ads(docs: list[dict], reader: str) -> dict[str, dict]:
         f"FROM documents WHERE doc_id IN ({placeholders})) ad "
         "WHERE ad.rn = 1 AND ad.deleted = 0 "
         "AND ad.doc_id IN (SELECT pg.doc_id FROM doc_groups pg "
-        "JOIN group_members gm ON pg.group_id = gm.group_id "
-        "WHERE gm.member_key = %(reader)s AND pg.deleted = 0 AND gm.deleted = 0)",
+        "JOIN (SELECT group_id, deleted, "
+        "row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM group_members WHERE member_key = %(reader)s) gm ON pg.group_id = gm.group_id "
+        "WHERE gm.rn = 1 AND pg.deleted = 0 AND gm.deleted = 0)",
         params,
     )
+    log.info("[ads] pinned membership read: completed creatives=%d", len(result.result_rows))
     return {
         row[0]: {
             "doc_id": row[0],

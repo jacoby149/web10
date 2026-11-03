@@ -106,7 +106,34 @@ describe('posts v3 data layer', () => {
       mock.create.mockResolvedValue({ doc_id: 'rp', author_key: 'web10.app/groups/team', body: {} });
       await createRepost({ _id: 'original' }, '', 'web10.app/groups/team');
       expect(mock.getMyGroups).toHaveBeenCalledWith({ author_as: 'web10.app/groups/team', service: 'posts' });
-      expect(mock.create).toHaveBeenCalledWith('posts', expect.anything(), { groups: ['membership-destination'], author_as: 'web10.app/groups/team' });
+      expect(mock.create).toHaveBeenCalledWith('posts', expect.anything(), { groups: ['web10.app/groups/team', 'membership-destination', 'web10.app/groups/web10/discover'], author_as: 'web10.app/groups/team' });
+    });
+
+    it('defaults a new group public repost to self and Discover with no memberships', async () => {
+      const author = 'web10.app/groups/team';
+      mock.getMyGroups.mockResolvedValue([]);
+      mock.create.mockResolvedValue({ doc_id: 'rp', author_key: author, body: {} });
+      await createRepost({ _id: 'original' }, '', author);
+      expect(mock.getMyGroups).toHaveBeenCalledExactlyOnceWith({ author_as: author, service: 'posts' });
+      expect(mock.create).toHaveBeenCalledExactlyOnceWith('posts', expect.objectContaining({ visibility: 'public', repost_of: 'original' }), {
+        groups: [author, 'web10.app/groups/web10/discover'], author_as: author,
+      });
+    });
+
+    it('deduplicates Discover already present in group memberships', async () => {
+      const author = 'web10.app/groups/team';
+      mock.getMyGroups.mockResolvedValue([{ group_id: 'web10.app/groups/web10/discover' }]);
+      mock.create.mockResolvedValue({ doc_id: 'rp', author_key: author, body: {} });
+      await createRepost({ _id: 'original' }, '', author);
+      expect(mock.create.mock.calls[0][2].groups).toEqual([author, 'web10.app/groups/web10/discover']);
+    });
+
+    it('denies a revoked group repost without writing or retrying as the human', async () => {
+      const author = 'web10.app/groups/team';
+      mock.getMyGroups.mockRejectedValue(new Error('grant revoked'));
+      await expect(createRepost({ _id: 'original' }, '', author)).rejects.toThrow('grant revoked');
+      expect(mock.getMyGroups).toHaveBeenCalledExactlyOnceWith({ author_as: author, service: 'posts' });
+      expect(mock.create).not.toHaveBeenCalled();
     });
 
     it('creates a post with repost_of set to the original doc_id + the comment as text', async () => {

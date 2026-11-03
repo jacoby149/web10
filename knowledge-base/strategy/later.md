@@ -12,6 +12,28 @@ reason it's parked — so it doesn't get re-pitched from scratch every
 six months (same job decisions.md does for settled calls).
 
 
+## web10 v4: Shadowguard
+
+The idea: a portable cryptographic identity keeps a creator's audience and live
+group permissions attached to them when they change servers. Existing fans find
+new posts on a fresh node without refollowing or exporting old content. Optional
+DNS/ENS names aid discovery; no blockchain or identity protocol is selected.
+Full concept and acceptance boundaries: [shadowguard.md](shadowguard.md).
+
+Why it is good: being dropped by one provider must not erase the creator's
+identity, trap their audience or require other groups to re-invite them. The
+valuable asset is the audience, not a backup of old posts.
+
+Why it is parked: the operator explicitly placed it in **web10 v4**, not the
+active v3 plan and not any time soon (02.11.2026). Preserve the concept, but do not
+schedule protocol research or implementation, assign a lane, or block current
+identity/federation/security work on it. No delivery date or v4 release commitment.
+
+Promotion bar: explicit operator reactivation during v4 planning, followed by
+protocol/custody/recovery/discovery decisions before runtime work. Keeping the
+proposal in the KB is not permission for an agent to start building it.
+
+
 ## the lens: feed customizability + the llm chatbox (cut from phase 8, D20)
 
 the idea: the feed algorithm + experience config as a record the user

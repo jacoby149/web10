@@ -44,6 +44,7 @@ const mediaRef = {
 describe('readUserPublicProfile — the anon / non-follower profile read (D73 query engine)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockQuery.mockReset();
     // Anon — no token (the signed-out visitor).
     mockReadToken.mockReturnValue(null);
   });
@@ -93,6 +94,26 @@ describe('readUserPublicProfile — the anon / non-follower profile read (D73 qu
     const [postsSql] = mockQuery.mock.calls[0] as [string];
     expect(postsSql).toContain("p.author_key = 'o''brien'");
     expect(postsSql).not.toContain("o'brien'");
+  });
+
+  it.each([1, 2])('retains posts when optional face query %i fails', async (failed) => {
+    mockQuery.mockImplementation((_sql, options) => {
+      if (options.prepare.media) return Promise.resolve({ rows: [postRow('oct21', 'A real post')] });
+      if (options.prepare.face.mediaField === (failed === 1 ? 'avatar_ref' : 'banner_ref')) return Promise.reject(new Error('face unavailable'));
+      return Promise.resolve({ rows: [] });
+    });
+    const result = await readUserPublicProfile('century-club-movies');
+    expect(result.posts.map((post) => post._id)).toEqual(['oct21']);
+    expect(mockQuery.mock.calls[0][0]).toContain("p.author_key = 'century-club-movies'");
+  });
+
+  it('excludes inventory before limiting content and does not broaden authors to group slugs', async () => {
+    mockQuery.mockResolvedValue({ rows: [] });
+    await readUserPublicProfile('century-club-movies');
+    const sql = mockQuery.mock.calls[0][0] as string;
+    expect(sql.indexOf("NOT has(p.tags, 'ad')")).toBeLessThan(sql.indexOf('LIMIT'));
+    expect(sql).toContain("NOT has(p.tags, 'product')");
+    expect(sql).not.toMatch(/LIKE|endsWith|posted_by\s*=/);
   });
 
   it('returns empty posts + no face when the author has none', async () => {

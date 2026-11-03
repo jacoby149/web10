@@ -105,7 +105,7 @@ RAW_TABLES = frozenset(
 # a doc in N readable groups surfaces N rows, each carrying that group_id. It
 # is NOT a documents column (it lives in doc_groups), so it is added in the
 # CTE's outer SELECT, not here.
-_CTE_COLUMNS = "doc_id, author_key, body, ref_value, tags, created_at, updated_at, ad_mode, ad_target"
+_CTE_COLUMNS = "doc_id, author_key, posted_by, body, ref_value, tags, created_at, updated_at, ad_mode, ad_target"
 
 # The reserved name of the group-metadata boundary CTE (QE-A,
 # engine-group-metadata.md). It is NOT a service: it is an API-built CTE the
@@ -247,7 +247,7 @@ def _boundary_cte_sql(service: str, readable_groups: list[str], member_key: str)
         f"FROM banned_users) WHERE rn = 1 AND deleted = 0)"
     )
     return (
-        f"SELECT d.doc_id, d.author_key, d.body, d.ref_value, d.tags, "
+        f"SELECT d.doc_id, d.author_key, d.posted_by, d.body, d.ref_value, d.tags, "
         f"d.created_at, d.updated_at, d.ad_mode, d.ad_target, dg.group_id FROM ({dedup_docs}) d "
         f"JOIN ({dedup_groups}) dg ON d.doc_id = dg.doc_id "
         f"WHERE dg.group_id IN ({_quote_group_ids(readable_groups)}) "

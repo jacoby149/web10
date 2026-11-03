@@ -70,9 +70,8 @@ const PEOPLE_FILTERS: [PeopleFilter, string][] = [
   ['followers', 'Followers'],
 ];
 
-// The Groups tab filters. `all` is the bare URL (the public directory);
-// `mine` is the groups you're a member of; `discover` is the public directory
-// (the same as `all`'s list, but the explicit "find new groups" framing).
+// All composes community memberships with the public directory; Discover
+// remains directory-only. Membership never requires listing or publication.
 type GroupFilter = 'all' | 'mine' | 'discover';
 
 const GROUP_FILTERS: [GroupFilter, string][] = [
@@ -356,31 +355,34 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
   // ── Groups: My Groups (the groups you're a member of, the "mine" filter) ──
   const [myGroups, setMyGroups] = useState<V3Group[]>([]);
   const [myGroupsLoading, setMyGroupsLoading] = useState(false);
+  const [myGroupsError, setMyGroupsError] = useState(false);
+  const [myGroupsAttempt, setMyGroupsAttempt] = useState(0);
   const [leavingGroups, setLeavingGroups] = useState<Record<string, boolean>>({});
 
-  const loadMyGroups = useCallback(async () => {
-    setMyGroupsLoading(true);
-    LOG('loadMyGroups — start');
-    try {
-      const gs = await getMyCommunityGroups();
-      LOG('loadMyGroups — got', gs.length, 'group(s)');
-      setMyGroups(gs);
-      const entries = await Promise.all(
-        gs.map(async (g): Promise<[string, MyGroupFace]> => [g.group_id, await resolveGroupFace(g.group_id)]),
-      );
-      setGroupFaces((prev) => ({ ...prev, ...Object.fromEntries(entries) }));
-    } catch (e) {
-      LOG('loadMyGroups — failed:', e);
-    } finally {
-      setMyGroupsLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    if (groupFilter === 'mine' && myGroups.length === 0 && !myGroupsLoading) {
-      loadMyGroups();
-    }
-  }, [groupFilter, myGroups.length, myGroupsLoading, loadMyGroups]);
+    let cancelled = false;
+    setMyGroupsLoading(true);
+    setMyGroupsError(false);
+    LOG('loadMyGroups — start');
+    (async () => {
+      try {
+        const gs = await getMyCommunityGroups();
+        if (cancelled) return;
+        LOG('loadMyGroups — got', gs.length, 'group(s)');
+        setMyGroups([...new Map(gs.map((g) => [g.group_id, g])).values()]);
+        const entries = await Promise.all(
+          gs.map(async (g): Promise<[string, MyGroupFace]> => [g.group_id, await resolveGroupFace(g.group_id)]),
+        );
+        if (!cancelled) setGroupFaces((prev) => ({ ...prev, ...Object.fromEntries(entries) }));
+      } catch {
+        LOG('loadMyGroups — failed');
+        if (!cancelled) setMyGroupsError(true);
+      } finally {
+        if (!cancelled) setMyGroupsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [myGroupsAttempt]);
 
   const handleLeaveGroup = useCallback(async (groupId: string) => {
     setLeavingGroups((prev) => ({ ...prev, [groupId]: true }));
@@ -444,11 +446,23 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
     if (!q) return groups;
     return groups.filter(
       (g) =>
+        (groupFaces[g.group_id]?.name ?? '').toLowerCase().includes(q) ||
+        g.group_id.toLowerCase().includes(q) ||
         g.name.toLowerCase().includes(q) ||
         g.owner.toLowerCase().includes(q) ||
         (g.tags ?? []).some((t) => t.toLowerCase().includes(q)),
     );
-  }, [groups, query]);
+  }, [groups, query, groupFaces]);
+
+  const filteredMyGroups = myGroups.filter((g) => {
+    const q = query.trim().toLowerCase();
+    return !q || g.group_id.toLowerCase().includes(q) ||
+      (groupFaces[g.group_id]?.name ?? '').toLowerCase().includes(q);
+  });
+  const ownGroupIds = new Set(myGroups.map((g) => g.group_id));
+  const directoryGroups = [...new Map(filteredGroups
+    .filter((g) => groupFilter !== 'all' || !ownGroupIds.has(g.group_id))
+    .map((g) => [g.group_id, g])).values()];
 
   const peopleNoResults =
     query.trim() !== '' &&
@@ -456,7 +470,8 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
       (personFilter === 'mutuals' && mutualPeople.length === 0) ||
       (personFilter === 'following' && !graphLoading && sortedFollowing.length === 0) ||
       (personFilter === 'followers' && !graphLoading && sortedFollowers.length === 0));
-  const groupsNoResults = query.trim() !== '' && groups.length > 0 && filteredGroups.length === 0;
+  const groupsNoResults = query.trim() !== '' && directoryGroups.length === 0 &&
+    (groupFilter !== 'all' || filteredMyGroups.length === 0);
 
   const peopleList =
     personFilter === 'mutuals'
@@ -713,18 +728,25 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
             </Button>
           </div>
 
-          {groupFilter === 'mine' ? (
+          {groupFilter !== 'discover' && (
             /* My Groups — the groups you're a member of */
-            <div data-testid="explore-groups-mine">
-              {myGroupsLoading ? (
+            <div data-testid="explore-groups-mine" className="mb-3">
+              {myGroupsError ? (
+                <div className="py-4 text-sm text-muted-foreground" data-testid="explore-groups-mine-error">
+                  <p>Couldn't load your groups.</p>
+                  <Button variant="outline" size="sm" className="mt-3 gap-2" onClick={() => setMyGroupsAttempt((n) => n + 1)} data-testid="explore-groups-mine-retry">
+                    <RefreshCw className="h-3.5 w-3.5" />Retry
+                  </Button>
+                </div>
+              ) : myGroupsLoading ? (
                 <div className="space-y-3" data-testid="explore-groups-mine-skeleton">
                   {Array.from({ length: 2 }).map((_, i) => (
                     <MyGroupRowSkeleton key={i} />
                   ))}
                 </div>
-              ) : myGroups.length > 0 ? (
+              ) : filteredMyGroups.length > 0 ? (
                 <div className="space-y-3" data-testid="explore-groups-mine-list">
-                  {myGroups.map((g) => (
+                  {filteredMyGroups.map((g) => (
                     <MyGroupRow
                       key={g.group_id}
                       group={g}
@@ -735,13 +757,14 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
                     />
                   ))}
                 </div>
-              ) : (
+              ) : groupFilter === 'mine' ? (
                 <p className="px-1 py-2 text-sm text-muted-foreground" data-testid="explore-groups-mine-empty">
-                  You're not in any groups yet. Find some in “Discover”.
+                  {query.trim() ? `No groups match "${query.trim()}".` : 'You\'re not in any groups yet. Find some in Discover.'}
                 </p>
-              )}
+              ) : null}
             </div>
-          ) : groupsError ? (
+          )}
+          {groupFilter !== 'mine' && (groupsError ? (
             <div
               data-testid="explore-groups-error"
               className="flex flex-col items-center justify-center py-10 px-8 text-center"
@@ -761,18 +784,20 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
                 <DiscoverGroupCardSkeleton key={i} />
               ))}
             </div>
-          ) : groupsNoResults ? (
+          ) : (
+            <>
+            {groupsNoResults ? (
             <p className="px-1 py-2 text-sm text-muted-foreground" data-testid="explore-groups-no-results">
               No groups match “{query.trim()}”.
             </p>
-          ) : filteredGroups.length === 0 && !query.trim() ? (
+          ) : directoryGroups.length === 0 && !query.trim() && (groupFilter !== 'all' || (!myGroupsLoading && !myGroupsError && myGroups.length === 0)) ? (
             <p className="px-1 py-2 text-sm text-muted-foreground" data-testid="explore-groups-empty">
               No groups listed yet — when a creator lists a group, it shows up here.
             </p>
           ) : (
             <>
               <div className="space-y-3" data-testid="explore-groups-list">
-                {filteredGroups.map((g) => (
+                {directoryGroups.map((g) => (
                   <DiscoverGroupCard
                     key={g.group_id}
                     entry={g}
@@ -783,6 +808,8 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
                   />
                 ))}
               </div>
+            </>
+            )}
               {groupsHasMore && (
                 <div className="mt-4 flex justify-center">
                   <Button
@@ -799,7 +826,7 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
                 </div>
               )}
             </>
-          )}
+          ))}
         </section>
       )}
     </div>

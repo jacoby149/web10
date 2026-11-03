@@ -5,6 +5,35 @@ Base read pass: `f7aabdb26346752141f46f19c393dbadfd25ddd2` (#1255 merged).
 Scanners/reviewers: separate OpenCode `openai/gpt-6.1-sol` contexts
 (`openrouter/openai/gpt-6.1-sol`), not different model families.
 **Selected source read coverage complete; protocol L1 security gate OPEN.**
+
+02.11 pinned attachment overlay: [bounded proof](h01-pinned-attachment-proof.md)
+reproduces removed-link creative/signature delivery despite an absent current
+compiler attachment and live membership. Four cases/backend on SQLite and actual
+ClickHouse-local Memory; 1,759 API tests plus eight subtests, Ruff and same-model
+review pass. Test-only, finding/attachment repair/real-schema/rollout/diverse OPEN.
+
+02.11 pinned membership repair: [bounded source overlay](repair-h01-pinned-membership.md)
+denies five reproduced removed-member capability issuances; ten cases/backend
+on SQLite/ClickHouse-local, 1,755 API tests plus eight subtests, Ruff and fresh
+same-model review pass. Attachment/other ad authority and production lifecycle/
+CI/rollout/diverse gates remain OPEN. No L1 advancement.
+
+02.11 pinned-ad overlay: [membership proof](h01-pinned-membership-proof.md)
+reproduces revoked-reader creative/capability issuance against actual loader SQL,
+including isolated ClickHouse-local Memory-table replay. Test-only; finding OPEN,
+no source repair or L1 advancement. 1,749 API tests plus eight subtests, Ruff and
+fresh same-model review pass; broader ad authority/real-schema/rollout gates remain.
+
+02.11 face overlay: [canonical face repair](repair-h01-query-face.md) denies
+fabricated face capabilities and retains ID-free person/group lookup shapes.
+180 focused/1,745 API tests plus eight subtests, Ruff and same-model review pass.
+Actual ClickHouse/connected/CI/rollout/diverse and attached-ad authority remain
+OPEN. This overlay does not advance L1 or any historical scan denominator.
+
+02.11 carrier overlay: [canonical query repair](repair-h01-query-carrier.md)
+denies projected carrier signing with safe-query rehydration; 1,694 API tests
+plus eight subtests and same-model re-review pass. Face/ad-loader authority,
+ClickHouse/connected/CI/rollout/diverse review remain OPEN; no L1 advancement.
 No scan runtime changes. B-8 remains a separately recorded repair overlay in this publication.
 
 ## Sol Resumption (28.10.2026)
@@ -174,6 +203,13 @@ historical exposure/rotation, BP-5 coordinated release and BP-6 external audit
 remain obligations. No BP reference alone passes a blocked guarantee.
 
 ## Repair And Publication Gates
+
+H01-PREPARE follow-up: [bounded proof](h01-query-owner-proof.md) now issues
+independently verified real synthetic SigV4 through actual compiler/ASGI/prepare
+with SQLite evaluating table-free literals. Anon/auth fabricated owner/body
+both sign foreign keys; unprepared query does not sign. Supplied-owner authority
+remains OPEN, not a repaired H01 class. #1312 is merged with all thirteen checks
+green; namespace repair did not establish query-output provenance.
 
 Do not advance PROTOCOL-02. To finish L1 assurance: substantively resolve local
 findings one at a time with exploit-red/denied-green plus legitimate behavior,
