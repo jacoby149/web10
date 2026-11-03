@@ -305,7 +305,9 @@ def read_documents(request: Request, data: ReadDocuments):
             raise exceptions.ENTRY_NOT_FOUND
         # Return only readable carriers; a public document must not enumerate
         # private groups it is also attached to. Actions can retain this scope.
-        doc["groups"] = ch.readable_groups(reader_principal, data.service, authenticated, ch.get_doc_groups(data.doc_id))
+        doc["groups"] = ch.readable_groups(
+            reader_principal, data.service, authenticated, ch.get_doc_groups(data.doc_id)
+        )
         # D86: a single-doc read is a content view (the watch/short/permalink
         # surface) — log the delivery impression (the un-gameable floor).
         _log_deliveries([doc], reader, data.service, data.surface)

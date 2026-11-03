@@ -100,7 +100,9 @@ def principal(data) -> str:
         if not _is_foreign(data.token):
             _log.info("[auth] principal: local decode failed, not foreign: %r", type(e).__name__)
             raise exceptions.TOKEN
-        _log.info("[auth] principal: local decode failed (%r), foreign token — certifying at home node", type(e).__name__)
+        _log.info(
+            "[auth] principal: local decode failed (%r), foreign token — certifying at home node", type(e).__name__
+        )
         _certify_foreign(data.token)
         decoded = decode_token(data.token, private_key=False)
     if not decoded.username or decoded.username == "anon":
