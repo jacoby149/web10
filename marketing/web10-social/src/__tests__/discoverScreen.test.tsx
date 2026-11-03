@@ -78,6 +78,27 @@ describe('DiscoverScreen', () => {
     });
   });
 
+  it.each(['/hot-gossip', '/video'])('preserves the prepared group face on %s', async (route) => {
+    vi.mocked(data.readDiscoverFeed).mockResolvedValueOnce([{
+      _id: 'group-post',
+      author_key: 'test.localhost/groups/users/testuser/books',
+      author_username: 'books',
+      author_provider: 'test.localhost',
+      group_identity: { name: 'Century Club Literature' },
+      avatar_url: 'https://cdn.example/group-face.png',
+      text: 'A good book',
+      created_at: new Date().toISOString(),
+      media_refs: [{ doc_id: 'clip', read_url: 'https://cdn.example/clip.mp4', mime_type: 'video/mp4', width: 1920, height: 1080 }],
+    }]);
+    render(<MemoryRouter initialEntries={[route]}><DiscoverScreen /></MemoryRouter>);
+    await waitFor(() => {
+      expect(document.querySelector('img[src="https://cdn.example/group-face.png"]')).toBeInTheDocument();
+    });
+    if (route === '/hot-gossip') {
+      expect(screen.getByRole('button', { name: 'Jump to rank 1: Century Club Literature' })).toBeInTheDocument();
+    }
+  });
+
   it('renders skeleton while loading', async () => {
     vi.mocked(data.readDiscoverFeed).mockImplementationOnce(() => new Promise(() => {}));
     render(

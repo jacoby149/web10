@@ -115,7 +115,7 @@ function gossipPostHref(post: FeedPost): string {
 
 function authorProfileHref(post: FeedPost): string {
   if (!post.author) return SOCIAL_ORIGIN;
-  return `${SOCIAL_ORIGIN}/u/${encodeURIComponent(post.author)}`;
+  return `${SOCIAL_ORIGIN}/${post.author.includes('/groups/') ? 'groups' : 'u'}/${encodeURIComponent(post.author)}`;
 }
 
 // ── Matching users row (search's people results) ─────────────────────────────
@@ -802,6 +802,7 @@ function Trending() {
                         <HomeCard
                           key={post.id}
                           post={feedPostToDiscover(post)}
+                          authorAvatar={post.avatarUrl}
                           remote
                           postHref={videoPostHref(post, knobState)}
                           authorHref={authorProfileHref(post)}
@@ -857,6 +858,7 @@ function Trending() {
                         <HomeCard
                           key={post.id}
                           post={feedPostToDiscover(post)}
+                          authorAvatar={post.avatarUrl}
                           remote
                           frame="portrait"
                           postHref={shortsPostHref(post)}
