@@ -258,7 +258,8 @@ Operator, 29.09.2026 — the post UI pass: "something about the post ui with the
 than requiring JWKS; cache a successful answer for that exact JWT until its
 expiry. This certifies identity only, never receiving-node access. Independent
 per-node signing secrets remain required; the shared default is not repaired by
-asking the issuer. PR #1351 remains unmerged. Phase B retains existing local
+asking the issuer. PR #1351 is merged; its historical method gate failed and is
+not waived by that merge. Phase B retains existing local
 bare reader/join keys until Phase A's coordinated migration, while foreign
 readers carry the exact provider-qualified principal through every read seam.
 

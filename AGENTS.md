@@ -355,7 +355,7 @@ Browser auth-token messages require a bound credential window and configured ori
 
 JWT tokens with `username, site, target, provider, expires`. Server verifies signature, checks app contracts + group membership. Full auth flow: `knowledge-base/web10-v3/auth/auth.md`.
 
-Cross-node Phase B (PR #1351, unmerged) routes foreign tokens to their home
+Cross-node Phase B (merged PR #1351) routes foreign tokens to their home
 node's `/certify`; successful answers are cached per JWT until expiry, never
 as an access grant. Foreign read seams use `{provider}/users/{username}`;
 local readers/joins retain bare keys until the coordinated Phase A migration.
@@ -363,7 +363,9 @@ The issuer endpoint itself remains local-only. Issuer transport derives HTTPS
 from host-only providers, pins public DNS answers with issuer TLS verification
 and never follows redirects. Private/HTTP development peers are unsupported by
 this production path. Separate-node key provisioning, connected two-node
-verification and the PR's method-size disposition remain OPEN.
+verification remain OPEN; #1351's historical method-size failure is not waived
+by its merge. Local group-list owner healing uses only the existing bare key
+and does not create a duplicate qualified owner before Phase A.
 
 Verified non-anonymous decoding requires a parseable ISO `expires`, with naive UTC or explicit offsets, and rejects at the deadline. Anonymous custom-expiry exemption and unsigned metadata decoding are separate; the latter is never authorization.
 

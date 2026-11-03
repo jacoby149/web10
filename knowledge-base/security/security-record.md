@@ -469,6 +469,7 @@ measure. Re-scan after the hardening merges to flip them.
 
 | Unit | Level | Status | Model | Date | Last-pass | Sys | Finding / note |
 |---|---|---|---|---|---|---|---|
+| Local group-list owner healing follow-up | L1 | **OPEN** | OpenCode / GPT-6.1 Sol + fresh same-model reviewer | 2026-11-03 | — | groups | #1351 final e2e reproduces an extra qualified local owner; focused assertion fails before bare-only repair. All 1,977 API tests plus eight subtests pass; separate connected fixture observes one owner after list. Prevents new duplicates only; existing-row reconciliation, CI and diverse/full-file assurance remain OPEN. Historical #1351 method failure is not waived. |
 | `api/app/services/auth.py :: decode_token` | L1 | **OPEN** | (audit) | 2026-10 | — | auth | B-3 unsigned decode path; B-1 I1 symmetric HS256. Hardening in 1157 (unmerged) |
 | `api/app/settings.py` | L1 | **OPEN** | (audit) | 2026-10 | — | config | B-2 secrets in source (signing key + Stripe/Twilio/CH creds). Hardening in 1157 (unmerged) |
 | `api/app/middleware.py` | L1 | **OPEN** | `gpt-6.1 sol` | 2026-10-18 | — | logging | B-4 source repair merged #1225 with passing repro gate. [Evidence](scans/2026-10/repair-b4-middleware.md). Deployment, historical exposure and required security sign-off remain unclosed; no whole-file PASS. |

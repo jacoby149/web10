@@ -1,6 +1,6 @@
 # Multi-Node Federation — how web10 nodes work together (operator pass, 29.09.2026)
 
-**Status: federation planned; Phase B in PR #1351, not merged or connected-verified.** web10 is a **federation of
+**Status: federation planned; Phase B merged in PR #1351; broader connected verification remains open.** web10 is a **federation of
 nodes**, not one node. This doc is the authoritative reference for *how* the
 nodes work together — the read model, the cross-node boundary, the security
 invariants, and the phase sequencing. It is the "how" companion to **D84**
@@ -328,7 +328,7 @@ Each is its own PR/lane (see `parallel-execution.md` → `multi-node-federation
   tombstone the old — the ReplacingMergeTree pattern), not a schema change.
   **Reverses the 3.179.1 `/by-user` stopgap** (which collapsed to the bare
   form) — after A, `provider/username` is the real stored form. **Gates C, D.**
-- **B — cross-node token verification** (PR #1351, not merged; 03.11.2026 — the live
+- **B — cross-node token verification** (merged PR #1351; 03.11.2026 — the live
   /certify model, operator-decided over JWKS). A token whose `provider` is not
   this node is certified at its home node via `POST {provider}/certify`
   (the pre-existing endpoint the RTC server already uses), with a cached yes

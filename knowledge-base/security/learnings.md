@@ -35,6 +35,18 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-03: A local discovery read must not manufacture a second principal
+
+#1351 merged before its final e2e result: group lifecycle expected the creator's
+single bare owner key but received a second qualified owner. Its list self-heal
+was healing both names despite Phase A remaining open. The corrected focused
+assertion fails before repair and passes after healing only the existing local
+key; all 1,977 API tests plus eight subtests pass. A separately retained two-node
+scenario also checks one owner after list. This prevents new duplicate creation;
+it does not delete already-created canonical rows or complete migration. Fresh
+bounded design-intent review agrees; CI and historical method disposition remain
+separate. Merging #1351 did not retroactively pass its failed method check.
+
 ### 2026-11-03: Route by issuer, retain the reader identity through every gate
 
 Interrupted PR #1351's local-first decode rejected independently signed tokens;
