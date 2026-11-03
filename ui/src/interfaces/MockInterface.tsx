@@ -34,9 +34,18 @@ function useMockInterface() {
     [I.verified, I.setVerified] = React.useState(false);
     [I.status, I.setStatus] = React.useState<string | null>(null);
     [I.pendingACRs, I.setPendingACRs] = React.useState<any[]>([]);
+    [I.accountReadGeneration] = React.useState(0);
 
     I.wapi = { signOut: () => { }, readToken: () => ({ username: 'creator', provider: 'api.localhost' }) };
     I.wapiAuth = {};
+    I.v3 = {
+        state: { token: 'mock-token', apiOrigin: 'http://api.localhost:8080' },
+        readToken: () => (I.auth ? { username: 'creator', provider: 'api.localhost' } : null),
+    };
+    I.ownAccountRead = function () {
+        const g = I.accountReadGeneration;
+        return () => I.auth && g === I.accountReadGeneration;
+    };
 
     I.verificationChange = function (value: string) {
         if (value.length === 6) I.setVerified(true)

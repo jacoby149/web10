@@ -1,25 +1,27 @@
 # Custom Domain for Your web10 Node
 
-**Status: v3, docs-only.** This is a guideline for node operators and users
+**Status: v3 specification, implemented.** This is a guideline for node operators and users
 who want to claim a web10 identity on their own domain (e.g.
-`coolguydavid.com`) using a DNS TXT record. No code changes are required —
-the node already verifies tokens against its configured key. This doc is
-the operator-facing runbook for the DNS-claim flow.
+`coolguydavid.com`) using a DNS TXT record.
+This is the operator-facing runbook for the DNS-claim flow; see
+`../identity/domain-identity.md` for the specification.
 
 ## Why
 
 A custom domain is the operator's **brand surface** and the user's
-**portable identity anchor**. The domain is the address the world knows;
-the TXT record is the cryptographic claim that binds the domain to a
-specific web10 user on a specific node.
+**portable identity alias**. The domain is the address the world knows;
+DNS control publishes a pointer to a specific web10 user on a specific node.
+The username remains the principal; groups, tokens, and the read gate never
+key on the domain.
 
 This is the same pattern the web already uses for identity claims:
 - **DKIM** — TXT record proving "this email is signed by me"
 - **SPF** — TXT record listing "these servers are authorized for me"
 - **OpenPGPkey** — TXT record for PGP key discovery
 
-web10's version: a TXT record that says "this domain belongs to
-`@username` on `provider`, and here's the public key that proves it."
+web10's version: a TXT record that says "this domain points to
+`@username` on `provider`." An authenticated server verify request binds
+that pointer to the caller's account.
 
 ## The DNS Record
 
@@ -33,7 +35,7 @@ web10 identity data.
 ```
 Type:  TXT
 Name:  web10
-Value: web10.v=1;provider=api.web10.app;user=jacoby149;key=<base64-nopad-ed25519-pubkey>
+Value: web10.v=1;provider=api.web10.app;user=jacoby149
 TTL:   300
 ```
 
@@ -42,7 +44,6 @@ TTL:   300
 | `web10.v` | Version tag. Always `1`. Lets the parser reject unknown formats. | `1` |
 | `provider` | The node's API host (the `provider` claim in JWTs). | `api.web10.app` |
 | `user` | The web10 username (the `username` claim in JWTs). | `jacoby149` |
-| `key` | Base64 (no padding) Ed25519 public key. The key the node uses to sign tokens for this user. | `dGhpcyBpcyBhIGtleQ==` |
 
 The record is a single string, semicolon-delimited, no spaces. The
 `web10.v=1` prefix is the namespace tag — it's what tells a resolver
@@ -59,26 +60,17 @@ other TXT data."
   what an identity claim is. The domain is the *subject*; the TXT
   record is the *predicate*.
 
-### Why the key is in the record
+### How verification binds the account
 
-The key is the trust anchor. When a client wants to verify that
-`@jacoby149` on `api.web10.app` is really the person who owns
-`coolguydavid.com`, the flow is:
+DNS control allows publication of the pointer; it does not prove control of
+the named account. In this flow, the user authenticates normally and
+requests `POST /v3/domains/verify`. The node looks up `web10.<domain>` itself
+and checks that the record's provider matches the node and its username
+matches the authenticated caller. Only then does it store the verified alias.
 
-1. Client reads `web10.coolguydavid.com` (TXT) → gets `provider`,
-   `user`, `key`.
-2. Client asks the node (`provider`) for a token for `user`.
-3. Node signs the token with its private key.
-4. Client verifies the token's signature against `key` from the TXT
-   record.
-5. If the signature matches, the domain's claim is verified: the
-   person who controls the domain (can set the TXT record) is the
-   same person who controls the web10 account (can get the node to
-   sign a token with the matching key).
-
-The domain is the *claim*, the TXT record is the *proof*, and the node
-is the *enforcement*. Three separate trust anchors, none of which can
-forge the others.
+Lookup discovers identity only. DNS never grants account login, group rights,
+or continuity with the previous principal after a domain transfer. Ordinary
+authentication, token verification, and authorization remain unchanged.
 
 ## Prerequisites
 
@@ -91,32 +83,13 @@ forge the others.
 - DNS access for that domain (the ability to add TXT records).
 - A web10 account on a node (you have a `username` and the node has a
   `provider`).
-- The node's Ed25519 public key (the key it uses to sign JWTs). This
-  is in the node's `node_config` (`private_key` field's corresponding
-  public key). Ask the node operator, or read it from the node's
-  JWKS endpoint if one is configured.
 
-## Step 1 — Get your public key
+## Step 1 — Get your provider and username
 
-The `key` field in the TXT record is the **Ed25519 public key** the
-node uses to sign your tokens. This is NOT your personal key — it's
-the node's key, scoped to your user.
-
-How to get it:
-- **From the node operator:** ask them for the public key. It's the
-  counterpart to the `private_key` in `node_config`.
-- **From the JWKS endpoint** (if the node has one configured, per D7):
-  `GET https://api.web10.app/.well-known/jwks.json` → the `n` (modulus)
-  and `e` (exponent) fields, or the `x` field for Ed25519.
-- **From your token:** decode your JWT (it's base64, no signature
-  needed to read the header). The `kid` (key ID) in the header tells
-  you which key signed it. The node operator can give you the
-  corresponding public key.
-
-The key must be **base64-encoded, no padding** (the `=` characters at
-the end are stripped). This is the standard for DNS TXT records (which
-have a 255-character limit per string, and base64-with-padding can
-exceed it).
+Use your account's known provider host and authenticated username. For
+`api.web10.app` and `jacoby149`, the value is
+`web10.v=1;provider=api.web10.app;user=jacoby149`.
+No signing material or record-generation endpoint is required.
 
 ## Step 2 — Add the TXT record
 
@@ -125,7 +98,7 @@ In your DNS provider's control panel, add:
 ```
 Type:  TXT
 Name:  web10
-Value: web10.v=1;provider=api.web10.app;user=jacoby149;key=<YOUR_BASE64_KEY>
+Value: web10.v=1;provider=api.web10.app;user=jacoby149
 TTL:   300
 ```
 
@@ -177,22 +150,18 @@ record without the TXT record (web traffic, no web10 identity claim).
    ```
    dig TXT web10.coolguydavid.com
    ```
-   You should see your `web10.v=1;provider=...;user=...;key=...`
+   You should see your `web10.v=1;provider=api.web10.app;user=jacoby149`
    string in the response.
 
-2. **Verify the key matches:**
-   The `key` in the TXT record should be the same key the node uses to
-   sign your tokens. If you have a token, decode it and check that the
-   signature verifies against the TXT record's key.
+2. **Request server verification (once implemented):**
+   Sign in normally and submit the domain to `POST /v3/domains/verify`
+   using your normal authentication token. The server performs the DNS
+   lookup and requires the provider and username to match the node and
+   authenticated caller. A local `dig` result alone does not verify the account.
 
-3. **Test the full flow** (once the SDK/client supports DNS-claim
-   resolution):
-   - A client resolves `web10.coolguydavid.com` → gets `provider`,
-     `user`, `key`.
-   - The client authenticates with the node (`provider`) as `user`.
-   - The node returns a token signed with its key.
-   - The client verifies the token against the TXT record's `key`.
-   - Match → the domain's identity claim is verified.
+3. **Test lookup (once client resolution is implemented):**
+   A client resolves `web10.coolguydavid.com` to discover `provider` and
+   `user`. This does not authenticate the client as that user or grant access.
 
 ## Step 5 — (Optional) Subdomain layout
 
@@ -210,29 +179,25 @@ The SDK's `API_HOST` should be set to `https://api.coolguydavid.com`.
 The authenticator's origin should be `https://auth.coolguydavid.com`.
 The identity claim lives at `web10.coolguydavid.com` (TXT).
 
-## The Authenticator UI (planned)
+## The Authenticator UI
 
-The authenticator (`auth.web10.app`) will expose a **"Claim your
-domain"** surface in the user settings. The flow:
+The authenticator (`auth.web10.app`) exposes a **"Claim your
+domain"** card in the user settings (the `#domain` deep link opens it). The flow:
 
 1. User enters their domain (`coolguydavid.com`).
-2. The authenticator looks up the node's public key for the user's
-   account (from the node's JWKS or config).
-3. The authenticator generates the TXT record value:
-   `web10.v=1;provider=<node>;user=<username>;key=<pubkey>`.
-4. The authenticator displays the record with copy-paste
+2. The authenticator derives the TXT record value from the known provider
+   and authenticated username, without a separate generation endpoint:
+   `web10.v=1;provider=api.web10.app;user=jacoby149`.
+3. The authenticator displays the record with copy-paste
    instructions: "Go to your DNS provider (Njalla recommended), add a
    TXT record with host `web10` and this value."
-5. The authenticator polls `dig TXT web10.<domain>` until the record
-   appears (propagation check).
-6. Once the record is live, the authenticator confirms: "Your domain
-   is claimed. `@jacoby149` is now verifiably bound to
-   `coolguydavid.com`."
+4. The user hits Verify. The authenticator sends an authenticated request
+   to `POST /v3/domains/verify`; the server looks up and validates the record.
+5. Only after server success does the authenticator confirm: "Your domain
+   is claimed." Otherwise it displays the verification error.
 
-The user never sees the key, never manages a wallet, never signs a
-transaction. The "crypto" is the TXT record's `key` field, which the
-authenticator generates from the node's existing key material. The
-user's action is: **add a TXT record to their DNS.** That's it.
+The user's action is: **add a TXT record to their DNS, then hit Verify
+while signed in.** No wallet or signing material is required.
 
 ## Njalla-specific notes
 
@@ -260,11 +225,9 @@ user's action is: **add a TXT record to their DNS.** That's it.
 
 ## What this is NOT
 
-- **Not a protocol change.** The node's token verification is
-  unchanged. The TXT record is a *client-side* verification aid: the
-  client reads the TXT record to learn which key to verify against.
-  The node still verifies tokens with its own key. The TXT record
-  adds a *domain-bound* layer of trust on top.
+- **Not an auth protocol change.** Ordinary token verification is unchanged.
+  The server verify flow checks an alias pointer against the
+  authenticated caller; DNS lookup is discovery, not authentication.
 - **Not a v4 registry feature.** The v4 identity registry
   (`web10-v4/identity/registry.md`) is a separate, third-party
   name→node resolution service. The TXT record is the *operator's own*
@@ -280,39 +243,35 @@ user's action is: **add a TXT record to their DNS.** That's it.
 
 ## Security considerations
 
-- **The TXT record is public.** Anyone can read it. This is by design —
-  it's an identity claim, not a secret. The `key` field is a *public*
-  key (Ed25519 public keys are meant to be shared). The *private* key
-  stays on the node.
-- **Domain squatters.** Someone else can register `coolguydavid.com`
-  and add their own TXT record. But they can't sign a token with the
-  real `key` — so the node rejects their token. The TXT record is
-  necessary but not sufficient: the key is the real trust anchor.
-- **Key rotation.** If the node rotates its signing key, the TXT
-  record's `key` field becomes stale. The node operator should update
-  the TXT record (or the user should, if they manage their own DNS).
-  The `web10.v=1` version tag allows for future format changes (e.g.
-  `web10.v=2` with a key-ID field for rotation).
+- **The TXT record is public.** Anyone can read the provider and username.
+  It is an identity pointer, not a secret or a credential.
+- **Domain squatters and transfers.** A new controller can replace the
+  pointer, but does not inherit the previous account, login, group rights,
+  or principal continuity. Verification must match the authenticated caller.
+- **DNS trust.** Server-side lookup avoids trusting client-supplied DNS
+  results. It is not protection against compromised DNS or a compromised
+  resolver. Stored verification is not permanent proof of ownership;
+  re-verification and transfer handling remain open in the identity spec.
 - **Multiple users on one domain.** The current format supports one
   user per TXT record. If a domain needs to claim multiple users
-  (e.g. a studio with multiple creators), the format would need to
-  extend to `web10.v=2;users=jacoby149:KEY1,sarah:KEY2`. This is an
-  open question, not a v3 concern.
+  (e.g. a studio with multiple creators), that requires a separate design
+  decision. This is an open question, not a v3 concern.
 
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
 |---|---|---|
 | `dig TXT web10.domain.com` returns nothing | TXT record not added, or wrong host | Check the DNS panel; the host should be `web10`, not `@` or `www` |
-| TXT record visible but key doesn't match | Wrong key in the record | Get the correct public key from the node operator; update the TXT record |
-| Token verification fails | Key in TXT record ≠ key node used to sign | The node rotated its key. Update the TXT record with the new public key |
+| Server returns `wrong_provider` | Provider differs from the verifying node | Use the account's provider host in the TXT record |
+| Server returns `wrong_user` | Username differs from the authenticated caller | Sign in to the intended account and use its username |
 | DNS changes not propagating | TTL too high, or DNS provider caching | Wait for TTL to expire; use `dig +short web10.domain.com` to verify |
-| TXT record too long (>255 chars) | Key is too long, or value has spaces | Base64-encode the key with no padding; ensure no spaces in the value string |
+| Server returns `bad_format` | Missing version/provider/user or malformed value | Use the documented semicolon-delimited format with no spaces |
 
 ## The one-liner
 
 **Add a TXT record at `web10.yourdomain.com` with the value
-`web10.v=1;provider=<node>;user=<username>;key=<pubkey>`. That's the
-claim. The node's key is the proof. The domain is the address. Buy the
+`web10.v=1;provider=api.web10.app;user=jacoby149` (using your provider and
+username), then request authenticated server verification once implemented.
+The domain is an alias, not a principal or a login credential. Buy the
 domain on Njalla (njal.la) if you want it to stay up no matter what
 you post.**
