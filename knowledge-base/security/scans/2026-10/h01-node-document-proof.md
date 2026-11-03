@@ -114,3 +114,7 @@ Operator-requested dev merge includes `b7dcd0961` (identity-picker avatar repair
 Preserve incoming 3.257.7 and renumber only this evidence/plan/lane to 3.257.8.
 API source/tests unchanged. The preceding head's final E2E shard 2 rerun was
 still pending when the operator requested this merge; no all-green claim for it.
+
+Further operator-requested merge includes `e76e6b3c6` (paper abstract/layout only).
+Preserve incoming 3.257.8 and renumber this evidence/plan/lane to 3.257.9.
+No API or test changes arrive in this merge.
