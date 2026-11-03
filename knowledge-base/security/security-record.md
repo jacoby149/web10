@@ -15,6 +15,17 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Node-Ad Attachment Authority (02.11.2026)
+
+H01-NODE-LINK [evidence](scans/2026-10/h01-node-attachment-proof.md): current-link
+compiler fragment excludes a removed Discover attachment while actual node loader,
+ASGI enrichment and real synthetic SigV4 still deliver/sign its creative. Six
+cases pass on SQLite/ClickHouse-local, retaining intended public active/reattached
+delivery, never-attached denial and independent uploaders. 1,880 API tests plus
+eight subtests, one opt-in lifecycle test skipped, full Ruff and fresh same-model
+review pass. Evidence only; runtime repair, broader attached-ad authority,
+real-schema lifecycle/CI/rollout/diverse and L1 remain OPEN. No L2 advancement.
+
 ## DNS Account-Alias Verification (02.11.2026)
 
 New trust-boundary surface: `POST /v3/domains/verify` + `release` (certified

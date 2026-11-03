@@ -35,6 +35,21 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-02: Public inventory still needs a current Discover attachment
+
+[Node attachment evidence](scans/2026-10/h01-node-attachment-proof.md) reproduces
+delivery/signing after Discover detach: the actual compiler current-link fragment
+excludes the link, but the actual node loader/read route still returns the creative
+and independently verified synthetic SigV4. Six cases pass on SQLite/ClickHouse-local,
+including intended active/reattached public delivery without explicit membership,
+never-attached denial and independent group uploader controls. Public inventory is
+intentional; adding viewer membership or owner-only restrictions would change intent.
+This is evidence only: stale-link runtime repair remains OPEN. Node document
+delete/detag prefilters and inventory provenance are separate source candidates,
+not demonstrated exploits. 1,880 API tests plus eight subtests, one opt-in test
+skipped, Ruff and fresh same-model evidence review pass. Real lifecycle/rollout/
+diverse, broader attached-ad policy and protocol L1 remain OPEN.
+
 ### 2026-11-02: Rank creative attachments before granting inline delivery
 
 [Local attachment repair](scans/2026-10/repair-h01-pinned-attachment.md) ranks

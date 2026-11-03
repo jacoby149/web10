@@ -1,3 +1,6 @@
+3.257.2 || 02.11.2026
+test(security): reproduce node-creative delivery and independently verified synthetic SigV4 after Discover attachment removal. Actual compiler current-link fragment excludes the link while actual loader/ASGI enrichment still delivers/signs; six cases pass on SQLite and isolated ClickHouse-local, preserving public active/reattached inventory and independent uploaders. 1,880 API tests plus eight subtests, one opt-in lifecycle test skipped, full Ruff and fresh same-model intent review pass. Evidence only, no runtime repair: queue bounded node attachment repair; broader ad policy, real lifecycle/rollout/diverse and protocol L1 remain OPEN.
+
 3.257.1 || 02.11.2026
 fix(ads): rank current pinned-creative attachments before tombstone filtering, with deletion-winning ties. Retained removed-link disclosures now deny before attachment/signing; reattachments, alternate-group grants, pair isolation and independent uploaders preserved. Twelve attachment plus ten membership probes pass on SQLite and isolated ClickHouse-local; 1,865 API tests plus eight subtests, full Ruff and fresh same-model intent review pass. Local repair only: other readers' tie ordering, real-schema lifecycle, broader ad policy, CI/rollout/diverse review and protocol L1 remain OPEN. No commit, PR or deployment.
 
