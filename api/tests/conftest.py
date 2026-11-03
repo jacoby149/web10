@@ -1,6 +1,7 @@
 """Shared fixtures for the API test suite."""
 
 import datetime
+import socket
 import sys
 import types
 from unittest.mock import MagicMock, patch
@@ -130,9 +131,17 @@ def mock_twilio():
 
 
 @pytest.fixture
-def mock_requests_post():
-    with patch("app.services.auth.requests.post") as m:
-        m.return_value.status_code = 200
+def mock_certify_post():
+    """Pinned HTTPS transport, with deterministic public DNS and no network."""
+    with (
+        patch(
+            "app.services.auth.socket.getaddrinfo",
+            return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443))],
+        ),
+        patch("app.services.auth.urllib3.HTTPSConnectionPool") as pool,
+    ):
+        m = pool.return_value.urlopen
+        m.return_value.status = 200
         yield m
 
 

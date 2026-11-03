@@ -1207,6 +1207,8 @@ docs before code, per the rule at the top.
 
 ## SIGMOD 2027 Industry Track — the full paper (research/)
 
+- [✓ 3.258.4 local; PR #1351 unmerged] **Cross-node certification continuation repairs** — independent-key routing, issuer-only `/certify`, local membership compatibility, foreign-reader continuity including directory and pinned public HTTPS issuer transport. 1,977 API tests plus eight subtests pass; fresh same-model bounded re-review passes. Method-size/CI, independent secrets and connected two-node gates remain OPEN; no Phase A or submission-readiness claim.
+
 - [✓ 3.257.11 local] **Shorten paper title** - use "Your Data, Your Rules: Extending the Decentralized Web", align the thesis rationale and rebuild the PDF; no evidence or contribution changes.
 
 - [✓ 3.257.10 local] **Remove red review line numbers** - operator-requested removal of ACM review mode in `research/workshop/main.tex`; rebuild the 12-page PDF, inspect the first page and verify no red text spans throughout. No manuscript content or evaluation changes.

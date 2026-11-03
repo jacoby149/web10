@@ -10,7 +10,7 @@ from sqlglot import ErrorLevel, exp, parse_one
 import app.exceptions as exceptions
 import app.settings as settings
 import app.v3.services.safe_query as sq
-from app.v3.endpoints.auth_helper import client_id_of, user_or_anon
+from app.v3.endpoints.auth_helper import client_id_of, principal, user_or_anon
 from app.v3.endpoints.documents import _mint_hls_manifest_urls
 from app.v3.models import PrepareFace, PrepareSpec, QueryRequest
 from app.v3.services import clickhouse as ch
@@ -292,6 +292,10 @@ def run_query(request: Request, data: QueryRequest):
     """
     t0 = time.perf_counter()
     reader = user_or_anon(data)
+    reader_principal = principal(data) if reader != "anon" else "anon"
+    # Use the same identity at every downstream seam: app contracts, prepare,
+    # ads, HLS and delivery accounting must not borrow a local namesake.
+    reader = reader_principal
     authenticated = reader != "anon"
     t_auth = time.perf_counter() - t0
 
@@ -328,7 +332,7 @@ def run_query(request: Request, data: QueryRequest):
     if data.groups:
         candidates = data.groups
     else:
-        candidates = [g["group_id"] for g in ch.get_user_groups(reader)]
+        candidates = [g["group_id"] for g in ch.get_user_groups(reader_principal)]
     t_candidates = time.perf_counter() - t3
 
     # The D58 read gate, per service the query actually uses.
@@ -353,7 +357,7 @@ def run_query(request: Request, data: QueryRequest):
             _resolve = ch.readable_groups_batched
         else:
             _resolve = ch.readable_groups
-        readable = {svc: _resolve(reader, svc, authenticated, candidates) for svc in needed}
+        readable = {svc: _resolve(reader_principal, svc, authenticated, candidates) for svc in needed}
     t_readable = time.perf_counter() - t4
 
     # QE-A: the group_meta readable set. When the caller opts in, the endpoint
@@ -371,7 +375,7 @@ def run_query(request: Request, data: QueryRequest):
         if readable:
             readable_meta = sorted({g for groups in readable.values() for g in groups})
         else:
-            my_groups = {g["group_id"] for g in ch.get_user_groups(reader)}
+            my_groups = {g["group_id"] for g in ch.get_user_groups(reader_principal)}
             readable_meta = [g for g in candidates if g in my_groups]
         group_meta = (readable_meta, candidates)
     t_group_meta = time.perf_counter() - t5
@@ -402,7 +406,7 @@ def run_query(request: Request, data: QueryRequest):
             compiled = sq.build_safe_query(
                 data.sql,
                 readable,
-                member_key=reader,
+                member_key=reader_principal,
                 allowed_services=allowed,
                 max_limit=MAX_ROWS,
                 group_meta=group_meta,
