@@ -861,7 +861,12 @@ class TestListGroups:
             resp = client.post("/v3/groups/list", json={"token": token})
         assert resp.status_code == 200
         assert len(resp.json()) == 1
-        mock_heal.assert_called_once_with(group_id, "testuser")
+        # D84: the heal runs under both the legacy bare key and the canonical
+        # principal so existing bare rows and new canonical rows converge.
+        assert mock_heal.call_args_list == [
+            ((group_id, "testuser"), {}),
+            ((group_id, f"{settings.PROVIDER}/users/testuser"), {}),
+        ]
 
     def test_does_not_heal_other_users_groups(self, client, token):
         # Only the creator's own groups are healed — a followed user's
