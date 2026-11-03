@@ -40,10 +40,5 @@ test.describe('marketing-ui route smoke', () => {
     await expect(page.locator('body')).not.toBeEmpty({ timeout: 10000 });
   });
 
-  test('import/exporter route renders', async ({ page }) => {
-    await page.goto(`${BASE}/import`);
-    await expect(page).toHaveTitle(/web10/i);
-    // Page should render without white-screen
-    await expect(page.locator('body')).not.toBeEmpty({ timeout: 10000 });
-  });
+
 });

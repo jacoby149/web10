@@ -13,7 +13,6 @@ import type { ProfileRecord, PostRecord, MediaRecord } from '@/data/types';
 import { mediaRefId } from '@/data/types';
 import { MapPin, Globe, Link, Camera, Edit3, Check, X, ImagePlus, Loader2, AlertTriangle, Inbox, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { MARKETING_ORIGIN } from '@/lib/origins';
 import { PostLightbox } from './PostLightbox';
 import { ProfileMediaLightbox, type ProfileMediaOption, type FaceCropResult } from './ProfileMediaLightbox';
 
@@ -562,16 +561,6 @@ export default function ProfileScreen() {
           ) : (
             <div className="py-16 text-center" data-testid="profile-posts-empty">
               <p className="text-sm text-muted-foreground mb-2">No posts yet</p>
-              <p className="text-xs text-muted-foreground/50">
-                Or{' '}
-                <button
-                  data-testid="profile-import-cta"
-                  className="text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
-                  onClick={() => window.open(`${MARKETING_ORIGIN}/import`, '_blank', 'noopener,noreferrer')}
-                >
-                  import your archive
-                </button>
-              </p>
             </div>
           )
         ) : mediaPosts.length ? (

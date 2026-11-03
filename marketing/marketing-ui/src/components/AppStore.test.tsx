@@ -331,8 +331,6 @@ describe('AppStore page', () => {
     });
     // The node console is the second plug slot (the core management app), not a grid item
     expect(screen.getByTestId('plug-slot-1')).toHaveAttribute('href', 'https://auth.web10.app');
-    // The importer appears in the grid
-    expect(screen.getByText('The importer')).toBeInTheDocument();
   });
 
   it('shows web10 hub as the core management plug slot (not Most Popular)', async () => {
@@ -420,11 +418,9 @@ describe('AppStore page', () => {
     // product, the auth host) is deduped out of the grid, so it never renders
     // a second card.
     expect(screen.getAllByText('web10 hub').length).toBe(1);
-    // No browse card for the auth host.
-    const browseCards = screen.getAllByTestId(/^browse-card-/);
-    for (const card of browseCards) {
-      expect(card.textContent).not.toContain('web10 hub');
-    }
+    // No browse card for the auth host (the grid is empty in this test —
+    // the only registered app is the web10 hub, deduped into the plug slot).
+    expect(screen.queryAllByTestId(/^browse-card-/).length).toBe(0);
   });
 
   it('does not show a registered copy of the flagship in the grid (no duplicate web10 social)', async () => {

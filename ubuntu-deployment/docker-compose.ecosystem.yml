@@ -166,7 +166,6 @@ services:
         VITE_API_ORIGIN: ${API_ORIGIN}
         VITE_AUTH_ORIGIN: ${AUTH_ORIGIN}
         VITE_RTC_ORIGIN: ${RTC_ORIGIN}
-        VITE_MARKETING_ORIGIN: ${MARKETING_UI_ORIGIN:-https://marketing.web10.app}
         # D56: full-platform telemetry (empty = tracking off for this env)
         VITE_GA4_MEASUREMENT_ID: ${GA4_MEASUREMENT_ID:-}
         VITE_HOTJAR_SITE_ID: ${HOTJAR_SITE_ID:-}

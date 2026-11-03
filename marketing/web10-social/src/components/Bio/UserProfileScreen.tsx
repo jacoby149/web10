@@ -39,7 +39,6 @@ import { SavedCollectionsGrid } from './SavedCollectionsGrid';
 import { textTileColor } from './textTileColor';
 import { toast, errorMessage } from '@/components/shared/Toast';
 import { cn } from '@/lib/utils';
-import { MARKETING_ORIGIN } from '@/lib/origins';
 import { requestInstallPrompt, isMobile } from '@/lib/pwa';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -1202,18 +1201,6 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
           ) : (
             <div className="py-16 text-center" data-testid={activeTab === 'music' ? 'profile-music-empty' : 'profile-posts-empty'}>
               <p className="text-sm text-muted-foreground mb-2">{activeTab === 'music' ? 'No music yet' : 'No posts yet'}</p>
-              {isOwnProfile && activeTab === 'posts' && (
-                <p className="text-xs text-muted-foreground/50">
-                  Or{' '}
-                  <button
-                    data-testid="profile-import-cta"
-                    className="text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
-                    onClick={() => window.open(`${MARKETING_ORIGIN}/import`, '_blank', 'noopener,noreferrer')}
-                  >
-                    import your archive
-                  </button>
-                </p>
-              )}
             </div>
           )}
           </>

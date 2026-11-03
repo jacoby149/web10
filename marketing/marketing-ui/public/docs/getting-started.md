@@ -75,5 +75,3 @@ instant.
 - [Your Data](/docs/your-data) — export, the kill switch, blocking, privacy
 - [Account Recovery](/docs/account-recovery) — getting back in when you're
   locked out
-- [Import from Other Platforms](/docs/import-from-other-platforms) — moving
-  your YouTube channel (or anything else) over here
