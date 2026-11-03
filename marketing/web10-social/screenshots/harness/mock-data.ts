@@ -1104,6 +1104,9 @@ export async function readFeedReactions(postIds: string[]): Promise<{ liked: Rec
 
 interface SeedDiscoverPost {
   _id: string;
+  author_key?: string;
+  group_identity?: { name: string };
+  avatar_url?: string;
   author: string;
   author_username: string;
   author_provider: string;
@@ -1230,6 +1233,9 @@ const DISCOVER_POSTS: SeedDiscoverPost[] = [
   {
     _id: 'dp-1',
     author: 'nova',
+    author_key: 'web10/groups/users/nova/northstar',
+    group_identity: { name: 'Northstar Studio' },
+    avatar_url: creative('NS', 400, 400, '#8b5cf6', '#2e1065', 'image/png').url as string,
     author_username: 'nova',
     author_provider: 'web10',
     text: 'Late night synth session — the new drop is almost ready. Feedback welcome 🎧',

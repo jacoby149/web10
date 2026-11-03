@@ -67,6 +67,7 @@ export function Top10Sidebar({
             Top 10
           </h2>
         </div>
+        <p className="mt-1 text-xs text-muted-foreground">Likes + comments + reposts</p>
         <ol className="mt-3 space-y-1">
           {entries.map(({ id, name, text, score, rank }) => {
             const rankTone =
@@ -97,7 +98,11 @@ export function Top10Sidebar({
                       <MarkdownText text={text} />
                     </span>
                   </span>
-                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                  <span
+                    className="shrink-0 text-xs tabular-nums text-muted-foreground"
+                    aria-label={`${score || 0} interactions`}
+                    title={`Likes + comments + reposts: ${score || 0}`}
+                  >
                     {scoreText(score)}
                   </span>
                 </button>
