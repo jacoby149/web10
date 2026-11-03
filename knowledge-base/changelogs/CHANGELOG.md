@@ -1,3 +1,9 @@
+3.257.11 || 03.11.2026
+docs(research): shorten the paper title to "Your Data, Your Rules: Extending the Decentralized Web" at the operator's request; align the thesis title rationale and rebuild the PDF. No contribution or evaluation changes.
+
+3.257.10 || 03.11.2026
+fix(research): remove ACM review-mode red margin line numbers from the manuscript and rebuild `research/workshop/main.pdf`. Inspect the rendered first page and verify no red text spans across all 12 pages. Text, margins and fonts unchanged; existing font/underfull and 1.166pt final vertical-box warnings remain. No submission-readiness claim.
+
 3.257.9 || 03.11.2026
 test(security): reproduce older node-creative delivery/signing after newer document deletion or node_ad removal, holding Discover attachment live. Actual compiler document subquery and loader/ASGI/real synthetic SigV4 expose three disclosures; eight SQLite/ClickHouse-local cases preserve pause suppression and latest restored/reactivated/retagged/public/uploader controls. Full API: 1,894 passed plus eight subtests, one opt-in lifecycle skip; full Ruff and fresh same-model review pass. Evidence only, no runtime repair; queue bounded document-history repair. Real writer/merge/tie lifecycle, provenance, broader ad/CI/rollout/diverse and protocol L1 remain OPEN.
 

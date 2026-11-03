@@ -107,16 +107,17 @@ would be the overclaim that sinks the paper.
 
 ## The title
 
-Restored: **"Your Data, Your Rules, One Query: Extending the Decentralized
-Web."** It is load-bearing because §3 (the User-Addressed Network section)
-delivers on it. "One Query" ties the title to the query-boundary mechanism,
-the other real contribution.
+Current: **"Your Data, Your Rules: Extending the Decentralized Web."**
+The operator shortened the title on 2026-11-03 to emphasize user-managed
+access without suggesting that the whole cross-node system executes in one
+query. Query-boundary enforcement remains a contribution in the paper.
 
 The title history (for the record):
 1. `web10: User-Owned Social Data with IAM-Grade Access Contracts at Zero Scan Penalty`
 2. `Your Data, Your Rules, One Query: A User-Sovereign Social Platform Composed of Generic Lakehouse Primitives`
-3. `Your Data, Your Rules, One Query: Extending the Decentralized Web` ← restored
+3. `Your Data, Your Rules, One Query: Extending the Decentralized Web` (previous title)
 4. `Your Data, Your Rules: Query-Layer Access for a Social Data Platform` (the deflated one, rejected)
+5. `Your Data, Your Rules: Extending the Decentralized Web` (current)
 
 ## What the paper now claims (the three contributions)
 
