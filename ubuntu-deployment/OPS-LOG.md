@@ -3,6 +3,183 @@
 Newest at top. Format per AGENT-OPS.md §8. Read the top entries
 BEFORE doing ops work — someone may already be mid-fix.
 
+## 03.11.2026 22:43–22:45 UTC — OpenCode (charlotte, web10-cdn-setup) — isolated CPU guardrail under accepted overage risk
+did:
+  - Operator explicitly accepted Workers Paid minimum/usage-overage exposure after
+    discussion of the absence of a verified hard monthly cap. Did not infer waived
+    security/playback gates or permission to activate unrelated paid products.
+  - Persisted 50 ms per-invocation CPU in deployment example/private generator and
+    deployed only the existing owned isolated Worker, keeping outer caching and
+    request logging disabled in its configuration. Settings API independently
+    returns cpu_ms=50 and logpush false; absent observability/cache fields remain
+    unknown at the account level. No billing/notification-policy operations performed.
+  - Repeated IAD cache-disable/expired-denial proof (19 requests, safe atomic storage
+    status/policy updates, account restored). Then real local ClickHouse HLS HTTP/
+    desktop/375px browser acceptance passes again (29 probes, four seconds/96 frames).
+    Temporary local API/container removed and absence independently verified.
+  - Aggregate-only CPU GraphQL query returned an error, no usable measurement;
+    no raw logs/URLs requested, no CPU quantile or cost forecast claimed. 43 offline
+    tests and Wrangler dry-run pass; receipts retain actual settings/results.
+state: isolated Worker has 50 ms CPU guardrail; original restricted account and keys
+  remain. No production issuance/DNS, shared passwords/bucket policies, R2 activation,
+  billing subscription or alert changes. A per-request CPU guardrail is NOT a monthly cap.
+next: confirm paid entitlement/alerts via permitted account access, complete safe
+  logging/resource observations, authenticated issuance/full-player renewal and
+  independent security review before any explicitly approved production canary.
+
+## 03.11.2026 22:15–22:25 UTC — OpenCode (charlotte, web10-cdn-setup) — real local DB acceptance / provider audit
+did:
+  - Self-booted local-only, labelled ClickHouse 24.8.14.39 containers and loopback
+    HLS API against actual source functions and existing restricted synthetic
+    MinIO/Cloudflare scope. No production DB, node, policy or Worker changes.
+  - Actual owner/member/carrier public/authenticated grants and revocation pass,
+    including eight-second parent/edge expiry, explicit fresh renewal and revoked
+    renewal denial. Final run: 29 named probes plus desktop/375px live API manifests
+    and two Cloudflare segments/four seconds/96 frames each. One router-adaptation
+    setup failure retained; corrected and subsequent clean runs passed.
+  - Source hashes/engine/image receipt and redacted summary retained. Inspected
+    screenshots; final receipt confirms API stopped and labelled container removed.
+    Independent Docker label listing is empty. Existing unrelated containers untouched.
+  - Read-only Cloudflare script settings show logpush false; subscriptions and
+    account/zone log-export requests return 403. Did not infer absent exports or
+    paid subscription from unavailable reads. No billing/logging settings changed.
+  - Record current first-party terms/prices/limits and pin outer cache/logging off
+    in the disabled deployment example; 43 offline tests, Ruff and Wrangler dry-run
+    pass. The example was not deployed.
+state: original isolated Worker/account/keys remain in prior verified restricted
+  state; synthetic objects unchanged. All new local acceptance resources removed.
+  No SSH host changes, production issuance/DNS, billing, R2 or unrelated-stack changes.
+next: operator confirmation of paid entitlement and log exports, measured resource
+  bounds, initial authenticated document issuance/full-player long-video renewal,
+  independent security review and explicit canary approval remain release gates.
+
+## 03.11.2026 22:00–22:07 UTC — OpenCode (charlotte, web10-cdn-setup) — atomic restriction repair verified
+did:
+  - Operator authorized diagnosis/repair. Read-only audit confirmed exact named
+    account off with an empty policy; fixed null-Statement diagnostic parsing.
+    Captured exact installed mc/MinIO versions without credentials. Upstream source
+    proves status-only updates omit policy, and server IAM store removes the
+    embedded restriction on nil policy, falling back to parent authority.
+  - Added tested isolated-scope helper using official minio==7.2.18 Admin SDK.
+    One-off containers use the existing API image and MinIO network namespace;
+    no running API source/dependency/config changes. Root credentials stay remote
+    in memory/stdin; never passed in command arguments or returned to the client.
+  - Repaired status+exact GetObject policy atomically while account remained off.
+    Controlled atomic enable yielded actual GET 200/hash match and list/write
+    AccessDenied 403. Initial mc post-check rejected its omitted false field;
+    fail-safe disabled the account. Corrected known omitempty parser, reran and
+    independently inspected embedded policy/status before lifting local quarantine.
+  - Repeated 19-request ATL cache disable/restore with atomic updates: warm 200,
+    cold/range 502, expired 403 and restored range 206. Subsequent list/write remain
+    AccessDenied 403; policy still exact, embedded and account on. Desktop/375px
+    Chromium synthetic HLS completes two segments/96 frames/four seconds again;
+    both screenshots inspected. All receipts retained separately, including failures.
+state: isolated Worker restored with restricted original account and original keys;
+  seven synthetic objects retained. No root/shared password or existing bucket-policy
+  changes, production issuance, DNS, R2 or unrelated-container changes. 42 tests
+  include six offline policy regressions; no independent security completion claim.
+next: real-node permission/long-playback renewal, provider logging/limits and
+  independent security review remain MEDIA-LIVE gates before production canary.
+
+## 03.11.2026 21:50–21:57 UTC — OpenCode (charlotte, web10-cdn-setup) — acceptance progress, storage account quarantined
+did:
+  - Added Node-only location evidence and exclusive private per-run receipts;
+    41 edge/interoperability tests pass. One new fetch-pool attempt remained
+    inconclusive; switched the private probe to bounded single-socket keep-alive
+    without dropping location checks. Fresh IAD cache-disable/expired-denial
+    verification passed; restored the test account after that experiment.
+  - Chromium desktop/375px image/range checks passed. Redeployed ONLY the owned
+    isolated Worker through test-key staging, overlap and post-expiry retirement;
+    original smoke public key remained throughout and original key set restored.
+  - Uploaded three exact synthetic HLS fixtures to the isolated bucket. Actual API
+    handlers (synthetic access stub, real MinIO playlist) generated exact-key,
+    parent-bounded capabilities; Chromium played two CDN segments/four seconds/
+    96 frames at both widths. Inspected both screenshots in `.context/cdn-live/`.
+    Initial local script import setup failed, corrected project path and passed.
+  - Negative permission probes using the Worker account returned list 200 and
+    write 200, creating only `policy-probe.txt` with synthetic text. Immediately
+    disabled that exact named account; independent signed origin probe returned
+    403/InvalidAccessKeyId. Marked private state quarantined so normal reuse refuses.
+  - Two guarded read-only policy-inspection attempts failed. Stopped live work at
+    the runbook limit; ineffective-policy cause is not established. No shared/root
+    password rotation, existing bucket-policy edits or other-account operations.
+state: Worker remains deployed with original signing keys, storage account DISABLED
+  and quarantined. Seven known synthetic objects remain, with exact-key cleanup
+  scope recorded privately; no cleanup performed. Read-only/bucket-confined authority
+  is NOT proven. No production-node issuance, DNS, R2 or unrelated-container changes.
+next: operator-authorized policy diagnosis/repair with exact-version mc/MinIO
+  semantics, effective-policy inspection and actual GET/list/write controls before
+  any re-enable. Real-node authorization/renewal, logs/limits and independent
+  security review still gate production. MEDIA-LIVE remains OPEN.
+
+## 03.11.2026 21:33–21:34 UTC — OpenCode (charlotte, web10-cdn-setup) — resume isolated delivery verification
+did:
+  - Reconciled interrupted-session files before provisioning: synthetic bucket,
+    separate service account and isolated workers.dev Worker already existed.
+    Read saved 12:56 deployment/12:57 verification receipts: 15 checks passed at
+    IAD, including account-disabled warm-cache 200, cold/range 502, expired 403
+    and account restoration. Did not reprovision or redeploy.
+  - Explicitly enabled only the recorded test service account through the guarded
+    SSH harness. Two fresh verification attempts failed acceptance: EWR-to-IAD
+    routing change, then EWR-warmed object checked at ATL during account disable
+    returned 502. The second attempt's finally restored the account successfully.
+  - Stopped live retries at the runbook limit. The harness overwrote its old
+    per-stage receipt; transcribed the originally read success and fresh failures
+    in `media-delivery/CONNECTED-ACCEPTANCE.md`, without credentials or signed URLs.
+state: isolated resources remain deployed, account restored; no shared-password,
+  production-node, DNS, existing bucket-policy or unrelated-container changes.
+  Fresh cache proof is inconclusive across locations, not a demonstrated runtime
+  regression. All 36 local edge/interoperability tests pass, including the saved
+  origin-fetch no-store regression; HEAD fails that assertion offline.
+next: preserve immutable receipts and match cache controls by observed location
+  before another operator-authorized live attempt. Browser/HLS, rotation, policy,
+  logging and independent security gates remain open; production issuance stays off.
+
+## 02.11.2026 — OpenCode (charlotte, web10-cdn-setup) — isolated bucket created, account-name limit
+did:
+  - Resumed operator-authorized synthetic provisioning after the credential-alias
+    repair. Created only the recorded random isolated test bucket, explicitly
+    denied anonymous reads and uploaded three synthetic text/image fixtures.
+  - Service-account creation failed twice before successful provisioning. Stopped
+    retries and independently checked exact-version mc/madmin source read-only:
+    account friendly names are limited to 32 characters; harness supplied the
+    41-character bucket name. Client validation occurs before the creation call.
+  - Read-only service-account listing returned no accounts for the parent. Fixed
+    local harness to derive a distinct 26-character account name and use it for
+    both creation and ownership checks. Improved diagnostics; no further retry.
+state: isolated synthetic bucket/fixtures remain for continuation. No service
+  account or Worker deployed; no DNS, existing bucket policy, shared password or
+  node rollout changes. Exact scope retained privately under `.context/cdn-live/`.
+next: resume the corrected account setup with operator authorization, then deploy
+  and verify the isolated Worker; production delivery remains disabled.
+
+## 02.11.2026 — OpenCode (charlotte, web10-cdn-setup) — isolated CDN setup blocked
+did:
+  - Verified SSH host `all-spark`, running web10 MinIO containers and installed
+    `mc`; Cloudflare Wrangler OAuth login succeeded on the operator's machine.
+  - Prepared a private local harness for an isolated synthetic bucket and scoped,
+    two-day read-only service account. Root credentials stay inside the SSH host;
+    requests capture child output rather than printing credentials or signed URLs.
+  - Attempted synthetic provisioning, then read-only diagnostics. MinIO returned
+    `SignatureDoesNotMatch` using the running container's root environment through
+    an ephemeral MC_HOST alias. Stopped after repeated diagnostic failure under
+    AGENT-OPS; do not infer whether this is credential drift or alias encoding.
+state: no Worker deployment, DNS edits, node rollout, credential rotation or
+  confirmed successful storage mutation. Initial provisioning did not complete;
+  local private state retains the exact proposed bucket for later reconciliation.
+next: reconcile the MinIO administration credential/alias path read-only before
+  retrying provisioning; never reset the shared MINIO_PASSWORD as a shortcut.
+  Connected cache/access/playback gates remain open; production delivery OFF.
+
+Read-only follow-up (operator authorized diagnosis): confirmed API/container
+credential equality without printing values; actual API HeadBucket returns 200.
+The temporary harness percent-encoded credentials in MC_HOST; `mc` retained the
+encoded secret literally. A literal-credential alias round-trips both values and
+passes `mc admin info`. Corrected only the private local harness and added alias
+round-trip validation before mutation. No server credentials, buckets, policies,
+node configuration or Cloudflare deployments changed during diagnosis. Original
+authentication blocker resolved; synthetic provisioning/live gates still pending.
+
 ## 03.11.2026 — OpenCode (mogadishu) — read-only group media incident diagnosis
 did: verified documented host and prod container state; examined deployed carrier
   code and bounded current metadata. Eight group carriers/eleven refs have matching

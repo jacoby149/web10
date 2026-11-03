@@ -9,6 +9,23 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D94 - Portable Protected Media Delivery, Cloudflare First [decided]
+
+Operator, 02.11.2026: implement a Cloudflare adapter while retaining the ability
+to change CDN by replacing adapter code. The node retains live authorization at
+issuance/renewal; separate asymmetric media-only capabilities let the edge verify
+each request before shared-cache access without contacting the node or storage
+on a hit. This is not an authentication-key migration. The protocol and portable
+verification/orchestration core do not name Cloudflare; cache, request-lifetime
+and private-origin integration live in the provider adapter. Storage and DNS are
+independent choices.
+
+Reject origin-check-only shared caching: a hit would bypass authorization. Accept
+bearer sharing and expiry-bounded ordinary revocation, not instant permission
+updates. Urgent revocation/purge is separate work. Local opt-in implementation
+does not authorize production enablement or establish Cloudflare/private-storage
+or playback evidence. Contract: `../web10-v3/media-delivery.md`.
+
 ### D93 — Identity registry: DNS-style name resolution for web10 users, hosted on boring infra (Njalla + Cloudflare + Iceland/CH VPS) [decided, v4]
 
 Operator, 02.11.2026: "there needs to be a third party that DNS your username, so you can change what node it points to, that is the missing piece" + "support just regular shmegular dns! njalla!" + "even if the stuff on your site was so controversial then?" (re: Njalla's content policy).
