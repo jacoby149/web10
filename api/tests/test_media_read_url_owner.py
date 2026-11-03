@@ -60,6 +60,14 @@ import pytest
         "node-link-removed-other-group",
         "node-link-alternate-group",
         "node-link-active-other-document-removal",
+        "node-doc-active",
+        "node-doc-deleted",
+        "node-doc-detagged",
+        "node-doc-paused",
+        "node-doc-reactivated",
+        "node-doc-restored",
+        "node-doc-retagged",
+        "node-doc-deleted-group-uploader",
     ],
 )
 def test_read_url_owner_boundary(case):
@@ -164,7 +172,7 @@ def _probe(case):
             algorithm=settings.ALGORITHM,
         )
 
-    if case.startswith(("pinned-member-", "pinned-link-", "node-link-")):
+    if case.startswith(("pinned-member-", "pinned-link-", "node-link-", "node-doc-")):
         import sqlite3
         from types import SimpleNamespace
 
@@ -172,9 +180,11 @@ def _probe(case):
         from app.v3.services import clickhouse as ch
 
         # Retained disclosure replays must deny removed membership/attachment capabilities.
-        is_node = case.startswith("node-link-")
+        is_doc = case.startswith("node-doc-")
+        is_node = is_doc or case.startswith("node-link-")
         is_link = is_node or case.startswith("pinned-link-")
-        state = case.removeprefix("node-link-" if is_node else "pinned-link-" if is_link else "pinned-member-")
+        prefix = "node-doc-" if is_doc else "node-link-" if is_node else "pinned-link-" if is_link else "pinned-member-"
+        state = case.removeprefix(prefix)
         connected = os.environ.get("H01_AD_CLICKHOUSE") == "1"
         key = "bob/private-creative.png"
         carrier = {
@@ -199,12 +209,25 @@ def _probe(case):
                 "CREATE TABLE group_members (group_id TEXT, member_key TEXT, role TEXT, joined_at INTEGER, deleted INTEGER, updated_at INTEGER)",
             ]
         )
+        if is_doc:
+            # Add compiler projection columns before inserting any history rows.
+            for name, default in [
+                ("collection_name", "posts"),
+                ("ref_value", ""),
+                ("created_at", ""),
+                ("ad_mode", "none"),
+                ("ad_target", ""),
+            ]:
+                setup.append(
+                    f"ALTER TABLE documents ADD COLUMN {name} {'String' if connected else 'TEXT'} DEFAULT '{default}'"
+                )
         tags = "['ad']" if connected else "'[\"ad\"]'"
         if is_node:
             tags = "['ad','node_ad']" if connected else '\'["ad","node_ad"]\''
         author = "group-author" if state.endswith("group-uploader") else "bob"
         setup += [
-            f"INSERT INTO documents VALUES ('creative','{author}','{body}',{tags},'bob',0,1)",
+            "INSERT INTO documents (doc_id,author_key,body,tags,posted_by,deleted,updated_at) "
+            f"VALUES ('creative','{author}','{body}',{tags},'bob',0,1)",
         ]
         if not is_link or state != "never":
             setup.append("INSERT INTO doc_groups VALUES ('creative','creative-group',0,1)")
@@ -253,6 +276,27 @@ def _probe(case):
             setup = [
                 sql.replace("creative-group", creative_group) for sql in setup if "INSERT INTO group_members" not in sql
             ]
+        if is_doc:
+            if state != "active":
+                deleted = int(state.startswith("deleted") or state == "restored")
+                current_tags = ("['ad']" if connected else "'[\"ad\"]'") if state in {"detagged", "retagged"} else tags
+                current_body = json.dumps(
+                    {
+                        **json.loads(body),
+                        "text": "newer creative",
+                        "status": "paused" if state in {"paused", "reactivated"} else "active",
+                    }
+                )
+                setup.append(
+                    "INSERT INTO documents (doc_id,author_key,body,tags,posted_by,deleted,updated_at) "
+                    f"VALUES ('creative','{author}','{current_body}',{current_tags},'bob',{deleted},2)"
+                )
+                if state in {"reactivated", "restored", "retagged"}:
+                    current_body = json.dumps({**json.loads(body), "text": "latest active creative"})
+                    setup.append(
+                        "INSERT INTO documents (doc_id,author_key,body,tags,posted_by,deleted,updated_at) "
+                        f"VALUES ('creative','{author}','{current_body}',{tags},'bob',0,3)"
+                    )
         db = sqlite3.connect(":memory:", check_same_thread=False)
         if not connected:
             db.create_function("has", 2, lambda tags, tag: tag in json.loads(tags))
@@ -329,8 +373,26 @@ def _probe(case):
                 # The compiler's timestamp-only ordering is not a tie-policy oracle.
                 if not state.startswith("removed-tie"):
                     assert bool(current) is (
-                        state in {"active", "reattached", "active-group-uploader", "active-other-document-removal"}
+                        is_doc
+                        or state in {"active", "reattached", "active-group-uploader", "active-other-document-removal"}
                     )
+                if is_doc:
+                    document_boundary = next(q.this for q in tree.find_all(exp.Subquery) if q.alias == "d")
+                    canonical = execute(
+                        f"SELECT doc_id, tags, body FROM ({document_boundary.sql(dialect=sq.DIALECT)}) current_docs "
+                        "WHERE doc_id = %(doc_id)s AND author_key = %(author)s",
+                        {"doc_id": "creative", "author": author},
+                    ).result_rows
+                    assert bool(canonical) is (not state.startswith("deleted"))
+                    canonical_tags = (
+                        (canonical[0][1] if connected else json.loads(canonical[0][1])) if canonical else []
+                    )
+                    current_inventory = (
+                        bool(canonical)
+                        and "node_ad" in canonical_tags
+                        and json.loads(canonical[0][2])["status"] == "active"
+                    )
+                    assert current_inventory is (state in {"active", "reactivated", "restored", "retagged"})
             if state == "alternate-group" and not is_node:
                 assert ch.can_read_group("alternate-group", "alice", "posts", authenticated=True)
             response = TestClient(app).post(
@@ -339,6 +401,26 @@ def _probe(case):
         db.close()
         assert response.status_code == 200
         doc = response.json()[0]
+        if is_doc:
+            # Evidence only: deleted/detagged versions currently resurrect older inventory.
+            assert "ad" not in doc
+            if state == "paused":
+                assert "node_ad" not in doc
+                factory.assert_not_called()
+            else:
+                creative = doc["node_ad"]
+                assert creative["author_key"] == author and creative["posted_by"] == "bob"
+                assert creative["body"]["text"] == (
+                    "latest active creative"
+                    if state in {"reactivated", "restored", "retagged"}
+                    else "synthetic restricted creative"
+                )
+                verify(creative["body"]["url"], key)
+                factory.assert_called_once()
+            print(
+                f"node document evidence: state={state} current_inventory={current_inventory} inline_node_ad={'node_ad' in doc}"
+            )
+            return
         if is_node:
             # Retained disclosure replay: only current Discover attachments can authorize signing.
             assert "ad" not in doc

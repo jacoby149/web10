@@ -82,8 +82,12 @@ longer authorize reproduced delivery/signing; active/newer reattached public
 inventory and independent uploaders remain. See the
 [repair](../../security/scans/2026-10/repair-h01-node-attachment.md) and
 [historical evidence](../../security/scans/2026-10/h01-node-attachment-proof.md).
-The document tag/deletion prefilters below still contradict dedup-then-filter;
-that separate candidate and real lifecycle/rollout/diverse gates remain OPEN.
+The document tag/deletion prefilters below still contradict dedup-then-filter.
+[Document evidence](../../security/scans/2026-10/h01-node-document-proof.md)
+reproduces older creative delivery/signing after a newer deletion or node_ad
+removal, despite a live Discover link. Pause suppresses correctly; newest
+restored/retagged/reactivated inventory remains. Document runtime repair and
+real lifecycle/rollout/diverse gates remain OPEN.
 Public inventory remains intentional; no per-viewer membership requirement.
 
 The read (`/v3/read`) already resolves `ad_preference` for pinned ads. The
