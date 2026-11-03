@@ -35,6 +35,19 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-02: Node inventory must rank its own Discover attachment history
+
+[Local node attachment repair](scans/2026-10/repair-h01-node-attachment.md) ranks
+document/group history before removal filtering, with deletion-winning ties.
+Seven reproduced synthetic signing disclosures now deny before attachment/signing;
+active/newer reattached public inventory and independent uploaders survive. Other
+live groups cannot substitute for Discover, nor can unrelated rows resurrect a
+removed link or suppress an active one. Twelve node cases pass on SQLite and
+ClickHouse-local; 1,886 API tests plus eight subtests, one opt-in lifecycle test
+skipped, full Ruff and fresh same-model intent review pass. Document delete/detag
+prefilters, inventory provenance, real lifecycle/CI/rollout/diverse and broader
+ad/L1 gates remain OPEN. Public inventory still needs no viewer membership.
+
 ### 2026-11-02: Public inventory still needs a current Discover attachment
 
 [Node attachment evidence](scans/2026-10/h01-node-attachment-proof.md) reproduces

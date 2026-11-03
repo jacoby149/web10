@@ -3282,6 +3282,9 @@ def get_active_node_ads() -> list[dict]:
     error (node ads are an enhancement, not a critical path — the feed works
     without them).
 
+    Discover attachments are ranked before removal filtering, with deletion
+    winning timestamp ties. Other live group attachments do not grant inventory.
+
     The discover group id is the canonical ``DISCOVER_GROUP_ID`` (derived from
     ``settings.PROVIDER``) — the same source that creates the group and that
     every other read uses. (It was previously derived from the editable
@@ -3289,6 +3292,7 @@ def get_active_node_ads() -> list[dict]:
     deployed nodes → the query matched nothing → node ads never attached.)
     """
     try:
+        log.info("[ads] node inventory read: started")
         result = client.query(
             "SELECT doc_id, author_key, body, tags, posted_by "
             "FROM (SELECT doc_id, author_key, body, tags, deleted, updated_at, posted_by, "
@@ -3296,8 +3300,10 @@ def get_active_node_ads() -> list[dict]:
             "FROM documents "
             "WHERE has(tags, 'node_ad') AND deleted = 0) "
             "WHERE rn = 1 "
-            "AND doc_id IN (SELECT pg.doc_id FROM doc_groups pg "
-            "WHERE pg.group_id = %(discover)s AND pg.deleted = 0) "
+            "AND doc_id IN (SELECT pg.doc_id FROM (SELECT doc_id, group_id, deleted, "
+            "row_number() OVER (PARTITION BY doc_id, group_id ORDER BY updated_at DESC, deleted DESC) AS rn "
+            "FROM doc_groups WHERE group_id = %(discover)s) pg "
+            "WHERE pg.rn = 1 AND pg.deleted = 0) "
             "ORDER BY updated_at DESC LIMIT 20",
             {"discover": DISCOVER_GROUP_ID},
         )
@@ -3314,8 +3320,10 @@ def get_active_node_ads() -> list[dict]:
                         "posted_by": row[4],
                     }
                 )
+        log.info("[ads] node inventory read: completed creatives=%d", len(ads))
         return ads
     except Exception:
+        log.warning("[ads] node inventory read: failed")
         return []
 
 
