@@ -46,6 +46,8 @@ export default defineConfig({
     host: true,
   },
   test: {
+    // Concurrent jsdom/React workers exhaust the host and cause false 5s timeouts.
+    maxWorkers: 2,
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/__tests__/setup.ts',
