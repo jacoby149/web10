@@ -34,7 +34,7 @@ describe('analytics', () => {
     })
 
     it('includes metadata when provided', () => {
-      trackFunnel('exporter_view', { platform: 'instagram' })
+      trackFunnel('landing', { platform: 'instagram' })
       expect(navigator.sendBeacon).toHaveBeenCalledWith(
         expect.stringContaining('/analytics/event'),
         expect.stringContaining('"platform":"instagram"'),

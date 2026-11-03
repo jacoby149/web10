@@ -179,7 +179,7 @@ function Everything() {
               {
                 icon: Smartphone,
                 title: 'You get the social app',
-                desc: 'Sign up, import your life, start posting. Your data lives on your node. You control who sees it, who accesses it. Groups are the primitive — follows, communities, DMs, all the same thing under the hood.',
+                desc: 'Sign up, start posting. Your data lives on your node. You control who sees it, who accesses it. Groups are the primitive — follows, communities, DMs, all the same thing under the hood.',
               },
               {
                 icon: Code2,

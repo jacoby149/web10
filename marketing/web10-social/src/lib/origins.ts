@@ -30,9 +30,4 @@ if (env?.VITE_RTC_ORIGIN) {
 export const RTC_HOST: string = rtcHost;
 export const RTC_ORIGIN: string = `${rtcProtocol}://${rtcHost}`;
 
-// The marketing site (where the importer /import lives). The social app's
-// empty-state CTAs ("import your existing posts" / "import your contacts")
-// open this in a new tab — cross-app origin, so a per-env build arg is
-// required (D14 parameterized the social app's own backend; D19 Phase A
-// extends it to the importer it links out to).
-export const MARKETING_ORIGIN: string = env?.VITE_MARKETING_ORIGIN || 'https://marketing.web10.app';
+
