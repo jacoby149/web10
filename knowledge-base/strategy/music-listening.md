@@ -30,7 +30,7 @@ behavior. Public playlist discovery and catalog-wide indexing stay deferred.
 - URL search filtering over loaded tracks, not a catalog-wide search engine.
 - Generic web10 collections: saved post references, private by default,
   collection creation, public sharing, covers and durable playlist order.
-- Local supporting-image repair in 3.257.12; production rollout is separate.
+- Local supporting-image repair (renumbered 3.258.1 after the dev merge); production rollout is separate.
 
 ## Implemented Scope
 
