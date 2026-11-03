@@ -1,12 +1,12 @@
 # Multi-Node Federation — how web10 nodes work together (operator pass, 29.09.2026)
 
-**Status: PLANNED (foundation set, not built).** web10 is a **federation of
+**Status: federation planned; Phase B in PR #1351, not merged or connected-verified.** web10 is a **federation of
 nodes**, not one node. This doc is the authoritative reference for *how* the
 nodes work together — the read model, the cross-node boundary, the security
 invariants, and the phase sequencing. It is the "how" companion to **D84**
 (`decisions.md` — the decision + the canonical principal format) and **D7**
-(`decisions.md` — HS256 → RS256/EdDSA + JWKS, the cross-node token
-verification, in flight).
+(`decisions.md` — signing-key isolation remains open; live issuer certification
+was chosen for Phase B on 03.11.2026).
 
 > **The one-liner (operator, 29.09.2026):** "we need to make the multi node
 > thing possible, set the foundation, we don't need to show it working right
@@ -33,14 +33,17 @@ both land before any cross-node read works:
    The canonical form is **`{provider}/users/{username}`** everywhere. Without
    this, a node can't tell `alice` on node A from `alice` on node B — the
    exact collision the operator flagged.
-2. **Cross-node token verification** (D7 / I1, in flight). HS256 →
-   RS256/EdDSA + JWKS: each node publishes its public key at a well-known JWKS
-   URL; a node verifies *another* node's token **cryptographically** instead of
-   rejecting it. Today a token from node B fails signature verification on node
-   A (local key only) — that's the wall.
+2. **Cross-node token verification** (Phase B, PR #1351). The receiving node
+   asks the token's home node over its `/certify` endpoint. A successful answer
+   is cached per exact JWT until its expiry; negative answers last 30 seconds.
+   Each node must keep its own signing secret; the current shared default
+   remains a separate OPEN signing-path gap. JWKS is not required for this
+   live-call model.
 
 Neither alone is enough. The canonical format makes a foreign principal
-*addressable*; JWKS makes it *trusted*. Both gate the cross-node work.
+*addressable*; issuer certification authenticates it. Phase B preserves bare
+local reader/join keys until Phase A migrates all writers/readers together;
+only foreign readers use the full provider-qualified key in this slice.
 
 ---
 
@@ -51,7 +54,7 @@ onto when reasoning about any of it.
 
 alice's home node is **A**. She follows bob on **B**. **She never signs up on
 B.** When her client reads bob's posts from B, it presents **her A-token**
-(`provider = A`). B verifies that token via JWKS, recognizes the principal as
+(`provider = A`). B asks A to certify that token, recognizes the principal as
 `A/users/alice`, checks that `A/users/alice` is a member of bob's followers
 group, and serves the posts. No B account, no B password. Her identity is
 **verified, not registered**, on B.
@@ -70,7 +73,7 @@ Consequences:
 ## The cross-node boundary: the HTTP API + a verified token. Never the database.
 
 **A node never queries another node's ClickHouse.** The cross-node boundary is
-the **HTTP API** with a **JWKS-verified token**. Node A (or the browser, see
+the **HTTP API** with a **home-node-certified token**. Node A (or the browser, see
 the read model below) calls B's *API*; B enforces its own I3 on its own data;
 A never sees B's raw ClickHouse.
 
@@ -325,7 +328,7 @@ Each is its own PR/lane (see `parallel-execution.md` → `multi-node-federation
   tombstone the old — the ReplacingMergeTree pattern), not a schema change.
   **Reverses the 3.179.1 `/by-user` stopgap** (which collapsed to the bare
   form) — after A, `provider/username` is the real stored form. **Gates C, D.**
-- **B — cross-node token verification** (landed 3.258.0, 03.11.2026 — the live
+- **B — cross-node token verification** (PR #1351, not merged; 03.11.2026 — the live
   /certify model, operator-decided over JWKS). A token whose `provider` is not
   this node is certified at its home node via `POST {provider}/certify`
   (the pre-existing endpoint the RTC server already uses), with a cached yes
@@ -333,11 +336,21 @@ Each is its own PR/lane (see `parallel-execution.md` → `multi-node-federation
   bound the read path already concedes), a 30s negative cache, LRU-bounded.
   The remote answer certifies IDENTITY ONLY (I6): expiry is re-checked locally
   and every access decision runs in the node's own checks. `auth_helper.
-  principal()` derives the canonical reader principal `{provider}/users/
-  {username}` and the read paths resolve under it. **JWKS (D7) is demoted to a
+  principal()` derives `{provider}/users/{username}` for foreign readers and
+  retains bare local keys pending A. App-contract, query, document, prepare,
+  ad, HLS and delivery seams must all use the same reader identity. `/certify`
+  answers only for its own issuer and never recursively forwards. **JWKS (D7) is demoted to a
   pure latency/availability optimization** (offline verification instead of a
   round trip; shorter revocation if ever wanted) — a future-work note, not a
   load-bearing claim. **Independent of A; unblocks the two-node demo (with H).**
+  Issuer transport derives HTTPS for deployed host-only providers without
+  changing principal strings. DNS answers must all be public; the connection
+  pins a validated numeric IP with issuer SNI, certificate and hostname checks.
+  No redirects, retries, ambient credentials or forwarded query bodies. HTTP
+  and private-address development peers are unsupported by this production path.
+  Independent signing-secret provisioning, real TLS/two-node lifecycle and the
+  PR's method-size disposition remain OPEN; an agent-written exemption is not
+  operator approval.
 - **C — cross-node group membership.** Following someone on another node =
   joining *their* followers group on *their* node (see above). This is where
   the canonical format (A) and cross-node auth (B) meet. **Gates D.**

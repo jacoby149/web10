@@ -2495,7 +2495,7 @@ class TestDiscoverBoardAnonRead:
                 json={"token": token, "service": "posts", "groups": ["g"]},
             )
         assert resp.status_code == 200
-        assert mock_read.call_args[1]["member_key"] == f"{settings.PROVIDER}/users/testuser"
+        assert mock_read.call_args[1]["member_key"] == "testuser"
 
 
 # ---------------------------------------------------------------------------

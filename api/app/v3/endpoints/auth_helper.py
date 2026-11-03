@@ -52,7 +52,7 @@ def _certify_foreign(token: str) -> None:
         # failure: deny, never pass.
         if isinstance(e, HTTPException):
             raise
-        _log.warning("[auth] remote certify failed (principal path): %r %s", type(e).__name__, e)
+        _log.warning("[auth] remote certify failed (principal path): %s", type(e).__name__)
         raise exceptions.TOKEN from None
 
 
@@ -77,38 +77,28 @@ def user(data) -> str:
 
 
 def principal(data) -> str:
-    """The canonical reader principal for permission checks (D84).
+    """Reader key for permission checks (D84 Phase B).
 
-    Local tokens: ``{provider}/users/{username}`` — the same shape the social
-    app already stores in ``group_members.member_key``. Foreign tokens
-    (provider != this node): certified at the home node first, then
-    ``{foreign provider}/users/{username}``. Reserved keys (``anyone`` /
-    ``authenticated``) and ``anon`` never carry a provider, so the
-    ``/users/`` form cannot collide with them.
+    Local readers retain the bare key used by local membership writers until
+    Phase A migrates them together. Foreign readers use the full
+    ``{provider}/users/{username}`` and never borrow a local namesake's rows.
 
     Raises TOKEN if invalid or anon — same contract as :func:`user`.
     """
     if not data.token:
         raise exceptions.TOKEN
-    try:
-        decoded = decode_token(data.token, private_key=True)
-    except jwt.exceptions.PyJWTError as e:
-        # A locally-signed token that fails signature/expiry is invalid, full
-        # stop (the freshness contract). Only a token that names a FOREIGN
-        # provider routes to the home node's /certify (D84 Phase B): the local
-        # key cannot judge it.
-        if not _is_foreign(data.token):
-            _log.info("[auth] principal: local decode failed, not foreign: %r", type(e).__name__)
-            raise exceptions.TOKEN
-        _log.info(
-            "[auth] principal: local decode failed (%r), foreign token — certifying at home node", type(e).__name__
-        )
+    foreign = _is_foreign(data.token)
+    if foreign:
         _certify_foreign(data.token)
         decoded = decode_token(data.token, private_key=False)
+    else:
+        try:
+            decoded = decode_token(data.token, private_key=True)
+        except jwt.exceptions.PyJWTError:
+            raise exceptions.TOKEN from None
     if not decoded.username or decoded.username == "anon":
         raise exceptions.TOKEN
-    provider = decoded.provider or _auth.settings.PROVIDER
-    return f"{provider}/users/{decoded.username}"
+    return f"{decoded.provider}/users/{decoded.username}" if foreign else decoded.username
 
 
 def client_id_of(data) -> str | None:
@@ -125,13 +115,11 @@ def client_id_of(data) -> str | None:
     """
     if not data.token:
         return None
-    try:
-        decoded = decode_token(data.token, private_key=True)
-    except jwt.exceptions.PyJWTError:
-        if not _is_foreign(data.token):
-            raise
+    if _is_foreign(data.token):
         _certify_foreign(data.token)
         decoded = decode_token(data.token, private_key=False)
+    else:
+        decoded = decode_token(data.token, private_key=True)
     return decoded.client_id
 
 
@@ -151,17 +139,11 @@ def user_or_anon(data) -> str:
     """
     if not data.token:
         return "anon"
-    try:
-        decoded = decode_token(data.token, private_key=True)
-    except jwt.exceptions.PyJWTError:
-        # A locally-signed token that fails signature/expiry is invalid, full
-        # stop — the PyJWT error propagates to the 401 handler (the freshness
-        # contract). Only a token that names a FOREIGN provider routes to the
-        # home node's /certify (D84 Phase B): the local key cannot judge it.
-        if not _is_foreign(data.token):
-            raise
+    if _is_foreign(data.token):
         _certify_foreign(data.token)
         decoded = decode_token(data.token, private_key=False)
+    else:
+        decoded = decode_token(data.token, private_key=True)
     if not decoded.username or decoded.username == "anon":
         return "anon"
     return decoded.username

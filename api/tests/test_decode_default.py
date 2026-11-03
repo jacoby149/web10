@@ -1,7 +1,6 @@
 """B-3-DEFAULT: verified by default; deliberate metadata is not authority."""
 
 from inspect import signature
-from types import SimpleNamespace
 from unittest.mock import patch
 
 import jwt
@@ -70,13 +69,14 @@ def test_existing_signature_defaults_to_verification():
 
 
 @pytest.mark.parametrize("status", [200, 401])
-def test_remote_helper_keeps_unsigned_destination_metadata(claims, status):
+def test_remote_helper_keeps_unsigned_destination_metadata(claims, status, mock_certify_post):
     claims.update(provider="https://remote.example.invalid", expires="2000-01-01T00:00:00", exp=0)
     encoded = jwt.encode(claims, "remote-metadata-synthetic-key-at-least-32-bytes", algorithm="HS256")
     request = Token(token=encoded)
-    with patch.object(auth.requests, "post", return_value=SimpleNamespace(status_code=status)) as post:
-        assert auth.certify_with_remote_provider(request) is (status == 200)
-    post.assert_called_once_with("https://remote.example.invalid/certify", json=request.model_dump(), timeout=10)
+    mock_certify_post.return_value.status = status
+    assert auth.certify_with_remote_provider(request) is (status == 200)
+    assert mock_certify_post.call_args.args == ("POST", "/certify")
+    assert mock_certify_post.call_args.kwargs["redirect"] is False
 
 
 @pytest.mark.parametrize("username,attribution", [("alice", "alice"), ("anon", "")])
@@ -95,9 +95,10 @@ def test_public_bug_handler_keeps_untrusted_attribution(claims, username, attrib
 
 
 @pytest.mark.parametrize("gate", ["provider", "missing-client", "active-client"])
-def test_default_decode_is_not_provider_or_client_certification(claims, gate):
+def test_default_decode_is_not_provider_or_client_certification(claims, gate, mock_certify_post):
     if gate == "provider":
         claims["provider"] = "foreign.example.invalid"
+        mock_certify_post.return_value.status = 401
     else:
         claims["client_id"] = "synthetic-client"
     encoded = jwt.encode(claims, settings.PRIVATE_KEY, algorithm="HS256")

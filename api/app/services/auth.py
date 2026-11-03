@@ -1,5 +1,8 @@
 import ipaddress
+import json
 import logging
+import socket
+import ssl
 import threading
 import time
 from collections import OrderedDict
@@ -8,7 +11,7 @@ from urllib.parse import urlparse
 
 import bcrypt
 import jwt
-import requests
+import urllib3
 
 import app.settings as settings
 from app.models.auth import Token, TokenData
@@ -66,42 +69,78 @@ def decode_token(token: str, private_key: bool = True) -> TokenData:
     return token_data
 
 
-def _is_private_ip(host: str) -> bool:
-    """Return True if host resolves to a private, loopback, or link-local address."""
-    try:
-        addr = ipaddress.ip_address(host)
-        return addr.is_private or addr.is_loopback or addr.is_link_local or addr.is_reserved or addr.is_multicast
-    except ValueError:
-        pass
-    # DNS name — reject obvious internal hosts
-    lower = host.lower()
-    return lower in ("localhost", "localhost.localdomain") or lower.endswith(".local")
-
-
 def _validate_provider_url(url: str) -> str:
-    """Validate a provider URL before any outbound fetch.
+    """Derive HTTPS transport without changing the exact provider principal.
 
-    Raises Exception("TOKEN") on any violation.
+    Production JWTs carry host-only providers. An explicit HTTPS URL may also
+    carry a node base path. HTTP cannot authenticate an issuer. DNS/address
+    validation and connection pinning happen immediately before the POST.
     """
-    if not url or len(url) > 2048:
+    if not url or len(url) > 2048 or any(ord(c) <= 32 or ord(c) >= 127 for c in url):
         raise Exception("TOKEN")
+    if any(c in url for c in "\\?#"):
+        raise Exception("TOKEN")
+    if "://" not in url:
+        url = f"https://{url}"
     parsed = urlparse(url)
-    if parsed.scheme not in ("http", "https"):
+    if parsed.scheme != "https" or not url.startswith("https://"):
         raise Exception("TOKEN")
     host = parsed.hostname
-    if not host:
+    if not host or "%" in host or parsed.username is not None or parsed.password is not None:
         raise Exception("TOKEN")
-    if _is_private_ip(host):
+    if parsed.netloc.endswith(":") or parsed.port == 0 or parsed.params:
         raise Exception("TOKEN")
     return f"{parsed.scheme}://{parsed.netloc}{parsed.path}".rstrip("/")
 
 
 def certify_with_remote_provider(token: Token) -> bool:
     decoded = decode_token(token.token, private_key=False)  # Untrusted destination metadata, not local authority.
-    base = _validate_provider_url(decoded.provider)
-    url = f"{base}/certify"
-    response = requests.post(url, json=token.model_dump(), timeout=10)
-    return response.status_code == 200
+    parsed = urlparse(_validate_provider_url(decoded.provider))
+    host, port = parsed.hostname, parsed.port or 443
+    # Resolve once, reject mixed public/private answers, then connect only to
+    # that validated numeric address. TLS still verifies the issuer hostname.
+    addresses = [
+        ipaddress.ip_address(answer[4][0]) for answer in socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+    ]
+    if not addresses or any(
+        not addr.is_global
+        or addr.is_multicast
+        or addr.is_reserved
+        or addr.is_unspecified
+        or (isinstance(addr, ipaddress.IPv6Address) and (addr.ipv4_mapped or addr.sixtofour or addr.teredo))
+        for addr in addresses
+    ):
+        raise Exception("TOKEN")
+    pool = urllib3.HTTPSConnectionPool(
+        str(addresses[0]),
+        port=port,
+        server_hostname=host,
+        assert_hostname=host,
+        cert_reqs=ssl.CERT_REQUIRED,
+        timeout=urllib3.Timeout(connect=3, read=10),
+        retries=False,
+    )
+    response = None
+    authority = f"[{host}]" if ":" in host else host
+    if port != 443:
+        authority += f":{port}"
+    try:
+        log.info("[auth] remote certify request: validated HTTPS destination")
+        response = pool.urlopen(
+            "POST",
+            parsed.path.rstrip("/") + "/certify",
+            body=json.dumps({"token": token.token}).encode(),
+            headers={"Host": authority, "Content-Type": "application/json"},
+            redirect=False,
+            retries=False,
+            preload_content=False,
+        )
+        log.info("[auth] remote certify response status=%d", response.status)
+        return response.status == 200
+    finally:
+        if response is not None:
+            response.close()
+        pool.close()
 
 
 # --- Cross-node certification cache (D84 Phase B — live /certify model) ----
@@ -170,18 +209,12 @@ def certify(token: Token) -> bool:
         if token.token is None:
             token_data = anon_token()
         else:
-            try:
-                token_data = decode_token(token.token, private_key=True)
-            except jwt.ExpiredSignatureError:
-                # A foreign token expired on its HOME node: the local key
-                # cannot verify it, so PyJWT reports expiry before the
-                # signature failure surfaces. Route it to the home node,
-                # which is the only authority on its own tokens.
-                decoded = decode_token(token.token, private_key=False)
-                if decoded.provider and decoded.provider != settings.PROVIDER:
-                    raise Exception("TOKEN")
-                raise
-            if token_data.provider != settings.PROVIDER:
+            # The unsigned provider selects the verifier, never authority.
+            # An independent node's signature cannot pass our local key.
+            token_data = decode_token(token.token, private_key=False)
+            foreign = bool(token_data.provider) and token_data.provider != settings.PROVIDER
+            if foreign:
+                _check_token_expiry(token_data)
                 # Cross-node certification (D84 Phase B): the home node is
                 # the only authority on its own tokens. Ask it (with a
                 # cached yes) — the answer certifies IDENTITY ONLY (I6);
@@ -204,6 +237,10 @@ def certify(token: Token) -> bool:
                     cached = ok
                 if not cached:
                     raise Exception("TOKEN")
+            else:
+                token_data = decode_token(token.token, private_key=True)
+                if token_data.provider != settings.PROVIDER:
+                    raise Exception("TOKEN")
             if token_data.username is None:
                 raise Exception("TOKEN")
             _check_token_expiry(token_data)
@@ -211,13 +248,13 @@ def certify(token: Token) -> bool:
             # delegated token — the client must exist and be active (not
             # tombstoned). Tokens without a client_id (the popup flow) skip this
             # check entirely — today's behavior, byte-for-byte.
-            if token_data.client_id:
+            if token_data.client_id and not foreign:
                 from app.v3.services import clickhouse as ch
 
                 if ch.get_oauth_client(token_data.client_id) is None:
                     raise Exception("TOKEN")
-    except (jwt.exceptions.PyJWTError, ValueError, TypeError):
-        raise Exception("TOKEN")
+    except (jwt.exceptions.PyJWTError, ValueError, TypeError, OSError, urllib3.exceptions.HTTPError):
+        raise Exception("TOKEN") from None
     return True
 
 

@@ -335,10 +335,9 @@ def join_group(data: JoinGroup):
         raise exceptions.ENTRY_NOT_FOUND
 
     if existing["join_policy"] == "open":
-        provider = decode_token(data.token, private_key=False).provider or settings.PROVIDER
-        canonical_user = f"{provider}/users/{user}"
-        ch.add_group_member(data.group_id, canonical_user, "member")
-        return {"group_id": data.group_id, "member_key": canonical_user, "role": "member"}
+        # Keep the same key as list/leave/remove until the Phase A migration.
+        ch.add_group_member(data.group_id, user, "member")
+        return {"group_id": data.group_id, "member_key": user, "role": "member"}
     elif existing["join_policy"] == "request":
         ch.create_join_request(data.group_id, user, "pending")
         return {"group_id": data.group_id, "status": "pending"}

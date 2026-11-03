@@ -293,6 +293,9 @@ def run_query(request: Request, data: QueryRequest):
     t0 = time.perf_counter()
     reader = user_or_anon(data)
     reader_principal = principal(data) if reader != "anon" else "anon"
+    # Use the same identity at every downstream seam: app contracts, prepare,
+    # ads, HLS and delivery accounting must not borrow a local namesake.
+    reader = reader_principal
     authenticated = reader != "anon"
     t_auth = time.perf_counter() - t0
 

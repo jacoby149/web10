@@ -69,9 +69,9 @@ def client():
 
 
 class TestPrincipalDerivation:
-    def test_local_token_canonical_form(self):
+    def test_local_token_retains_existing_key(self):
         data = SimpleNamespace(token=_local_token("alice"))
-        assert auth_helper.principal(data) == f"{settings.PROVIDER}/users/alice"
+        assert auth_helper.principal(data) == "alice"
 
     def test_foreign_token_certifies_then_canonical_form(self):
         data = SimpleNamespace(token=_foreign_token("alice"))
@@ -196,9 +196,8 @@ class TestQueryEndpointForeignReader:
         groups.assert_called_once_with(canonical)
         readable.assert_called_once_with(canonical, "posts", True, ["g1"])
 
-    def test_local_reader_canonical_principal_end_to_end(self, client):
-        """A LOCAL reader now also resolves under the canonical principal —
-        the same shape the social app stores in member_key."""
+    def test_local_reader_existing_principal_end_to_end(self, client):
+        """Local keys stay aligned with existing writers until Phase A."""
         token = _local_token("testuser")
         with (
             patch("app.v3.services.clickhouse.get_user_groups", return_value=[{"group_id": "g1"}]) as groups,
@@ -210,9 +209,8 @@ class TestQueryEndpointForeignReader:
         ):
             resp = client.post("/v3/query", json={"token": token, "sql": "SELECT doc_id FROM posts"})
         assert resp.status_code == 200
-        canonical = f"{settings.PROVIDER}/users/testuser"
-        groups.assert_called_once_with(canonical)
-        readable.assert_called_once_with(canonical, "posts", True, ["g1"])
+        groups.assert_called_once_with("testuser")
+        readable.assert_called_once_with("testuser", "posts", True, ["g1"])
 
 
 class TestReadEndpointForeignReader:

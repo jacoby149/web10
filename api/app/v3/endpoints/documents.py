@@ -292,10 +292,10 @@ def read_documents(request: Request, data: ReadDocuments):
     # token (a real user, not anon) — it selects the `authenticated` principal
     # class in the effective-role union.
     authenticated = reader != "anon"
-    # D84: the canonical principal ({provider}/users/{username}) is what the
-    # group-membership checks match on — the same shape the social app stores
-    # in member_key. Foreign tokens certify at their home node first.
+    # D84: foreign readers use a provider-qualified key at every downstream
+    # gate; local keys stay aligned with the existing membership writers.
     reader_principal = principal(data) if authenticated else "anon"
+    reader = reader_principal
     if authenticated:
         _check_app_permission(request, reader, data.service, "readAll", client_id_of(data))
 
@@ -602,11 +602,12 @@ def content_views(request: Request, data: ContentViewsRequest):
     """
     reader = user_or_anon(data)
     authenticated = reader != "anon"
+    reader_principal = principal(data) if authenticated else "anon"
+    reader = reader_principal
     if authenticated:
         _check_app_permission(request, reader, data.service, "readAll", client_id_of(data))
     # D58 read gate: filter to the groups the reader's effective role grants
     # readAll on this service (the same gate the group read uses). Anon reads
     # the public board (the `anyone` grant).
-    reader_principal = principal(data) if authenticated else "anon"
     group_ids = ch.readable_groups(reader_principal, data.service, authenticated, data.groups)
     return ch.content_event_views_for_docs(data.doc_ids, data.service, group_ids)

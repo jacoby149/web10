@@ -254,6 +254,14 @@ Operator, 29.09.2026 — the post UI pass: "something about the post ui with the
 
 ### D84 — Multi-node federation: one canonical principal format + the foundation [decided, in-progress]
 
+**Phase B operator update, 03.11.2026:** choose live home-node `/certify` rather
+than requiring JWKS; cache a successful answer for that exact JWT until its
+expiry. This certifies identity only, never receiving-node access. Independent
+per-node signing secrets remain required; the shared default is not repaired by
+asking the issuer. PR #1351 remains unmerged. Phase B retains existing local
+bare reader/join keys until Phase A's coordinated migration, while foreign
+readers carry the exact provider-qualified principal through every read seam.
+
 Operator, 29.09.2026 — after the profile Following-tab fix (3.179.1) exposed the member_key format drift: "this doesnt sound good, because the full provider/username should be used, what if eventually people follow two same usernames on different providers?" → "you should do it right now! make it work multi provider, this is the main hangup that stops it from doing so" → "we need to make the multi node thing possible, set the foundation, we don't need to show it working right away, but yes we should be reading the other node's feed some day, multi node feed absolutely, but there is more we need to discuss about how that would work. i.e. does one node query the other node, or does the user query both nodes (the node they're on and the node they're not on)?"
 
 **The decision.** web10 is a **federation of nodes**, not one node. The foundation for that is two things: (1) a **single canonical principal format** across the whole identity layer, and (2) **cross-node token verification** (D7 / I1 — already in flight). This decision locks the canonical format and scopes the foundation; it does **not** build the cross-node read path yet (that is an open question, below).

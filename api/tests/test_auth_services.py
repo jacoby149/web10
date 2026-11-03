@@ -1,7 +1,7 @@
 """Tests for auth service: certify, certify_with_remote_provider, check_admin."""
 
 from datetime import datetime, timedelta
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -189,33 +189,26 @@ class TestCertifyCrossNode:
 
 
 class TestCertifyWithRemoteProvider:
-    def test_remote_certifies(self):
+    def test_remote_certifies(self, mock_certify_post):
         token = Token(token="remote_token")
-        mock_response = MagicMock()
-        mock_response.status_code = 200
         with patch("app.services.auth.decode_token") as mock_decode:
             mock_decode.return_value = TokenData(provider="https://remote.provider")
-            with patch("app.services.auth.requests.post", return_value=mock_response):
-                result = certify_with_remote_provider(token)
-                assert result is True
+            assert certify_with_remote_provider(token) is True
 
-    def test_remote_fails(self):
+    def test_remote_fails(self, mock_certify_post):
         token = Token(token="remote_token")
-        mock_response = MagicMock()
-        mock_response.status_code = 401
+        mock_certify_post.return_value.status = 401
         with patch("app.services.auth.decode_token") as mock_decode:
             mock_decode.return_value = TokenData(provider="https://remote.provider")
-            with patch("app.services.auth.requests.post", return_value=mock_response):
-                result = certify_with_remote_provider(token)
-                assert result is False
+            assert certify_with_remote_provider(token) is False
 
-    def test_remote_request_exception(self):
+    def test_remote_request_exception(self, mock_certify_post):
         token = Token(token="remote_token")
         with patch("app.services.auth.decode_token") as mock_decode:
             mock_decode.return_value = TokenData(provider="https://remote.provider")
-            with patch("app.services.auth.requests.post", side_effect=Exception("timeout")):
-                with pytest.raises(Exception):
-                    certify_with_remote_provider(token)
+            mock_certify_post.side_effect = Exception("timeout")
+            with pytest.raises(Exception):
+                certify_with_remote_provider(token)
 
 
 class TestCheckAdmin:

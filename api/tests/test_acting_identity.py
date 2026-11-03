@@ -108,10 +108,8 @@ def test_single_read_exposes_only_readable_carriers(anonymous):
             ReadDocuments(token=None if anonymous else _make_token("operator"), service="notes", doc_id="doc"),
         )
     assert result["groups"] == ["public"]
-    import app.settings as settings
-
     ch.readable_groups.assert_called_once_with(
-        "anon" if anonymous else f"{settings.PROVIDER}/users/operator",
+        "anon" if anonymous else "operator",
         "notes",
         not anonymous,
         ["private", "public"],

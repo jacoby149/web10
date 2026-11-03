@@ -97,7 +97,7 @@ class TestHappyPath:
         assert resp.status_code == 200
         # Explicit groups: the reader's group list is never consulted.
         mock_groups.assert_not_called()
-        mock_readable.assert_called_once_with(f"{settings.PROVIDER}/users/testuser", "posts", True, ["g1"])
+        mock_readable.assert_called_once_with("testuser", "posts", True, ["g1"])
 
     def test_no_groups_means_the_readers_own_groups(self, client, token):
         with (
@@ -109,8 +109,8 @@ class TestHappyPath:
         ):
             resp = client.post("/v3/query", json={"token": token, "sql": "SELECT doc_id FROM posts"})
         assert resp.status_code == 200
-        mock_groups.assert_called_once_with(f"{settings.PROVIDER}/users/testuser")
-        mock_readable.assert_called_once_with(f"{settings.PROVIDER}/users/testuser", "posts", True, ["g1", "g2"])
+        mock_groups.assert_called_once_with("testuser")
+        mock_readable.assert_called_once_with("testuser", "posts", True, ["g1", "g2"])
 
     def test_explicit_group_with_no_access_is_403_not_empty(self, client, token):
         # D42 (the read endpoint's rule): an explicit group the reader can't
