@@ -70,6 +70,15 @@ CI/rollout and independent diverse review remain OPEN.
 
 ## Pinned-Ad Attachment Authority (02.11.2026)
 
+H01-AD-LINK [local repair](scans/2026-10/repair-h01-pinned-attachment.md): rank
+current document/group attachments before removal filtering, deletion-winning
+ties. Removed creative delivery/signing now denied; reattachment, alternate-group
+access and uploader controls retained. Twelve attachment plus ten membership
+cases pass on SQLite/ClickHouse-local; 1,865 API tests plus eight subtests and
+Ruff pass. Fresh same-model intent review passes the bounded change. Production
+lifecycle/merges, other readers' ties, broader ad policy, CI/rollout/diverse and L1
+remain OPEN. Historical evidence below describes the pre-repair source.
+
 H01-AD-LINK [local evidence](scans/2026-10/h01-pinned-attachment-proof.md):
 compiler attachment boundary excludes removed link while actual loader/ASGI
 returns/signs its creative. Membership stays live, isolating attachment history

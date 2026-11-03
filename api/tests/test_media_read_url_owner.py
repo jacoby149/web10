@@ -40,6 +40,14 @@ import pytest
         "pinned-link-removed",
         "pinned-link-reattached",
         "pinned-link-never",
+        "pinned-link-removed-tie",
+        "pinned-link-removed-tie-reversed",
+        "pinned-link-removed-other-document",
+        "pinned-link-removed-other-group",
+        "pinned-link-removed-crossed-grants",
+        "pinned-link-alternate-group",
+        "pinned-link-active-group-uploader",
+        "pinned-link-removed-group-uploader",
     ],
 )
 def test_read_url_owner_boundary(case):
@@ -151,8 +159,7 @@ def _probe(case):
         from app.services import config as cfg
         from app.v3.services import clickhouse as ch
 
-        # Retained disclosure replay: removed members must get no creative/capability.
-        # Attachment cases are separate evidence assertions until their source repair.
+        # Retained disclosure replays must deny removed membership/attachment capabilities.
         is_link = case.startswith("pinned-link-")
         state = case.removeprefix("pinned-link-" if is_link else "pinned-member-")
         connected = os.environ.get("H01_AD_CLICKHOUSE") == "1"
@@ -186,13 +193,30 @@ def _probe(case):
         ]
         if not is_link or state != "never":
             setup.append("INSERT INTO doc_groups VALUES ('creative','creative-group',0,1)")
-        if is_link and state in {"removed", "reattached"}:
-            setup.append("INSERT INTO doc_groups VALUES ('creative','creative-group',1,2)")
+        if is_link and (state.startswith("removed") or state == "reattached"):
+            updated = 1 if state.startswith("removed-tie") else 2
+            tombstone = f"INSERT INTO doc_groups VALUES ('creative','creative-group',1,{updated})"
+            if state == "removed-tie-reversed":
+                setup.insert(-1, tombstone)
+            else:
+                setup.append(tombstone)
         if is_link and state == "reattached":
             setup.append("INSERT INTO doc_groups VALUES ('creative','creative-group',0,3)")
+        if is_link and state == "removed-other-document":
+            setup.append("INSERT INTO doc_groups VALUES ('unrelated','creative-group',0,3)")
+        if is_link and state == "removed-other-group":
+            setup.append("INSERT INTO doc_groups VALUES ('creative','unrelated-group',0,3)")
+        if is_link and state == "removed-crossed-grants":
+            setup += [
+                "INSERT INTO doc_groups VALUES ('creative','alternate-group',0,3)",
+                "INSERT INTO group_members VALUES ('alternate-group','alice','reader',1,0,1)",
+                "INSERT INTO group_members VALUES ('alternate-group','alice','reader',1,1,2)",
+            ]
+        if is_link and state == "alternate-group":
+            setup.append("INSERT INTO doc_groups VALUES ('creative','creative-group',1,2)")
         if is_link or state != "never":
             setup.append("INSERT INTO group_members VALUES ('creative-group','alice','reader',1,0,1)")
-        if state.startswith("revoked") or state in {"rejoined", "alternate-group"}:
+        if state.startswith("revoked") or state == "rejoined" or (not is_link and state == "alternate-group"):
             updated = 1 if state == "revoked-tie" else 2
             setup.append(f"INSERT INTO group_members VALUES ('creative-group','alice','reader',1,1,{updated})")
         if state == "rejoined":
@@ -273,7 +297,9 @@ def _probe(case):
                     {"doc_id": "creative", "group_id": "creative-group"},
                 ).result_rows[0][0]
                 current = int(current)  # ClickHouse JSON serializes UInt64 counts as strings.
-                assert bool(current) is (state in {"active", "reattached"})
+                # The compiler's timestamp-only ordering is not a tie-policy oracle.
+                if not state.startswith("removed-tie"):
+                    assert bool(current) is (state in {"active", "reattached", "active-group-uploader"})
             if state == "alternate-group":
                 assert ch.can_read_group("alternate-group", "alice", "posts", authenticated=True)
             response = TestClient(app).post(
@@ -283,12 +309,14 @@ def _probe(case):
         assert response.status_code == 200
         doc = response.json()[0]
         attaches = (
-            state != "never" if is_link else state in {"active", "rejoined", "alternate-group", "active-group-uploader"}
+            state in {"active", "reattached", "alternate-group", "active-group-uploader"}
+            if is_link
+            else state in {"active", "rejoined", "alternate-group", "active-group-uploader"}
         )
         if not attaches:
             if "ad" in doc:
                 verify(doc["ad"]["body"]["url"], key)
-                print("removed-member synthetic capability independently verified before denial assertion")
+                print("removed-authority synthetic capability independently verified before denial assertion")
             assert "ad" not in doc
             factory.assert_not_called()
         else:
