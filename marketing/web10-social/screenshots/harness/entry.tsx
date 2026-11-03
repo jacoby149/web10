@@ -22,6 +22,9 @@ import NotificationsScreen from '@/components/Notifications/NotificationsScreen'
 import DiscoverScreen from '@/components/Discover/DiscoverScreen';
 import WatchScreen from '@/components/Watch/WatchScreen';
 import ShortsScreen from '@/components/Shorts/ShortsScreen';
+import MusicScreen from '@/components/Music/MusicScreen';
+import MusicPlayer from '@/components/Music/MusicPlayer';
+import { MusicProvider } from '@/context/MusicContext';
 import UserProfileScreen from '@/components/Bio/UserProfileScreen';
 import SavedCollectionScreen from '@/components/Bio/SavedCollectionScreen';
 import UserFollowListScreen from '@/components/Bio/UserFollowListScreen';
@@ -138,6 +141,12 @@ if (screen === 'post-detail' || screen === 'group-post-detail') {
       : screen === 'notifications-all' ? '/notifications?filter=all'
       : screen === 'discover' ? '/discover'
       : screen === 'video' ? '/video'
+      : screen === 'music' ? '/music'
+      : screen === 'music-saved' ? '/music?view=saved'
+      : screen === 'music-playlists' ? '/music?view=playlists'
+      : screen === 'music-player' ? '/music?track=music-1&panel=player'
+      : screen === 'music-queue' ? '/music?track=music-1&panel=queue'
+      : screen === 'music-playlist' ? '/music?view=playlists&collection=web10%2Fgroups%2Fusers%2Fme%2Fsaved-tour-sets'
       : screen === 'hot-gossip' ? '/hot-gossip'
       : screen === 'discover-searched' ? '/discover?q=lofi'
       : screen === 'discover-people-searched' ? '/discover?tab=explore&q=lofi'
@@ -189,6 +198,7 @@ if (screen === 'post-detail' || screen === 'group-post-detail') {
       <RepostProvider>
       <ComposerProvider>
       <SaveProvider>
+      <MusicProvider sessionKey={anon ? 'anonymous' : 'web10/me'}>
       <Routes>
         <Route element={<Layout onLogout={() => {}} onLogin={() => {}} isAnon={anon} onReportBug={() => {}} />}>
           <Route path="/feed" element={<PostsScreen />} />
@@ -196,6 +206,7 @@ if (screen === 'post-detail' || screen === 'group-post-detail') {
           <Route path="/notifications" element={<NotificationsScreen />} />
           <Route path="/discover" element={<DiscoverScreen />} />
           <Route path="/video" element={<DiscoverScreen />} />
+          <Route path="/music" element={<MusicScreen />} />
           <Route path="/hot-gossip" element={<DiscoverScreen />} />
           <Route path="/watch/:postId" element={<WatchScreen />} />
           <Route path="/shorts" element={<ShortsScreen />} />
@@ -215,12 +226,14 @@ if (screen === 'post-detail' || screen === 'group-post-detail') {
           <Route path="/node-settings" element={<NodeSettingsScreen />} />
         </Route>
       </Routes>
+      <MusicPlayer />
       {/* D72: the install surface — forced open by ?pwa-prompt=1 for the capture. */}
       <InstallPrompt />
       {/* The app-level New Post sheet (the FAB in the Layout opens it). */}
       <NewPostSheet />
       {/* The app-level "Save to…" sheet (D88) — opened by a post's kebab. */}
       <SaveSheet />
+      </MusicProvider>
       </SaveProvider>
       </ComposerProvider>
       </RepostProvider>

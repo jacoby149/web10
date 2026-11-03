@@ -1,7 +1,15 @@
 # Music: The Audio Track Feed — web10-social
 
-A music track is a `posts` doc on the discover group whose single media is a
-**real audio file** (`audio/*`). No new collection, no new group — the Music
+## Listening Experience Extension
+
+The player/library extension contract and bounded verification are in
+[`strategy/music-listening.md`](../../strategy/music-listening.md).
+3.258.0 implements persistent playback and existing saved-collection composition
+locally, without new platform primitives or changes to target access rules.
+
+A music track is a `posts` doc on the discover group tagged `music`, with
+exactly one **audio or video file** (`audio/*` or `video/*`), optionally
+accompanied by images. No new collection, no new group — the Music
 feed is a *view* over the discover group, filtered to music. Same model as
 Shorts (a 9:16 video) and Video (a landscape video): the node stores
 `{service, body}` opaquely; the app writes + reads a `tags` array; the feed
@@ -32,35 +40,53 @@ depth):
 
 1. **Server-side** — `readDiscoverFeed(…, ["music"])` sends the generic tag
    filter (`has(tags, 'music')`), so the node pulls only tagged tracks.
-2. **Render-time** — the gate re-derives `audio/*` from the *resolved* media
-   and drops fakes: a doc tagged `music` whose media isn't a real audio file
-   (a video, an image, or multi-media) is dropped at render. A track is a
-   post with **exactly one** media that is `audio/*`.
+2. **Render-time** — the gate re-derives MIME types from the *resolved* media.
+   Require exactly one audio/video attachment; additional images are allowed.
+   Image-only posts, multiple playable attachments, unsupported types and
+   unresolved attachments are excluded. Missing metadata must not disguise a
+   second playable attachment. A video explicitly marked as music is a track.
 
 The D86 surface label is `'music'` — the read logs a delivery impression per
 returned track (the on-surface "N plays" is the reach over these deliveries).
 
 ## The surface
 
-`/music` → `MusicScreen` — a responsive grid of square album-art tiles
-(2 cols mobile → 5 cols desktop). Each tile shows:
+`/music` renders compact cover/title/artist-duration rows and one overflow
+button per track. Its action sheet offers Play next, Add to queue, Save to
+playlist, Save/remove Saved Music, Share and Go to artist. Anonymous listeners
+can explore/play/share, but cannot save. Group display names stay separate
+from exact group IDs. Desktop Explore has a compact artwork feature; mobile
+prioritizes the track list. Load more is explicit, not infinite scroll.
 
-- **Cover** — the media's `thumbnail_url` (the uploaded album art), or a
-  **default musical-note fallback** (a brand-gradient background + a lucide
-  `Music` icon) when absent.
-- **Title** — the post's `title` (D82), falling back to truncated `text`.
-- **Author** — `@username`.
-- **Duration** — `m:ss` from `duration_seconds`.
-- **Views** — D86 impressions (bar-chart) + reach (person), compact K/M/B.
+The app-level MusicProvider owns one Audio instance, session queue and transport;
+navigation does not dispose playback. The persistent player sits above mobile
+navigation. Seek/time, volume, previous/next, finite shuffle, repeat off/all/one,
+automatic advance and queue removal are session state, never playlist writes.
+Duplicate queue entries retain occurrence identity. Explicit Play next wins
+over shuffle. Playback failure can re-read the original authorized track and
+reload its current URL. Signed URLs/credentials are not persisted. Audible
+competing media pauses Music; muted previews do not. Supported browser Media
+Session actions are registered and cleared with the session.
 
-Tapping a tile plays the track inline: a sticky bottom player bar (play/pause
-toggle, cover, title, author, duration). Only one track plays at a time;
-tapping the current tile toggles play/pause. The player is an `<audio>`
-element (no video, no HLS).
+URL state: `q` is a case-insensitive loaded-track/name search; `view=saved` or
+`view=playlists` selects the library; `collection` is the full collection ID;
+`track` restores one readable track without autoplay; `panel=player|queue`
+opens listening views; `menu` addresses a track action sheet. Search is not
+catalog-wide indexed search. Paging offsets count raw returned rows, not only
+tracks surviving the media gate; read errors show retry, not normal empty UI.
 
-The URL holds the state: `?q=` filters the loaded wall to matching tracks
-(title / text / author, case-insensitive) + shows a query chip (with its X) —
-the same idiom as Shorts / Posts / People.
+Saved Music is a personal normal private-by-default collection created only
+on explicit first save with `createCollection('Saved Music', {slug:'saved-music'})`.
+Its path ends in `saved-saved-music`; the existing collection list strips one
+prefix, so its returned slug is `saved-music`. Display-name changes do not
+change identity. Unsave removes the saved reference, never the original post.
+Playlists list the existing personal web10 collections; collection contents
+are independently hydrated in durable order and gated to music, not intersected
+with the current Discover page. Nonmusic/unavailable items are explained and
+skipped without reordering/deleting them. Existing collection detail handles
+privacy, rename and durable reorder. Account/mount lifecycle guards drop stale
+results and block follow-on mutation steps; already-issued requests cannot be
+undone. Existing collection read caps and lack of atomic save uniqueness remain.
 
 ## Nav
 
@@ -77,6 +103,6 @@ Music is a real destination (not coming-soon):
 All client-side, zero node surface. The node already stores `{service, body}`
 opaquely; `tags` is a platform primitive (a notes app tags `web10-notes-
 pinned`, a shop `web10-shop-catalog`); the media pipeline already handles
-arbitrary mime types (presigned upload + confirm). The render-time gate is
-the anti-hack seam — a faked track (tagged `music` but the media is a video
-or image) is dropped at render, never trusted from the client-asserted tag.
+arbitrary mime types (presigned upload + confirm). The render-time gate checks
+resolved media rather than trusting the client-asserted tag: images alone
+cannot become a track, and multiple playable attachments remain ambiguous.
