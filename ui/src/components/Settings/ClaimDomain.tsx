@@ -122,7 +122,12 @@ function DomainCard({ I }: { I: Record<string, any> }) {
           </div>
           <div className="space-y-3 rounded border border-border bg-muted p-4 text-sm">
             <h3 className="font-medium">2. Add a record at your DNS provider</h3>
-            <p className="text-muted-foreground">Open your domain's DNS management, then add a TXT record:</p>
+            <p className="text-muted-foreground">Don't have a domain yet? Any registrar works — here are two examples:</p>
+            <ul className="list-disc space-y-1 pl-4 text-muted-foreground">
+              <li><a href="https://njal.la" target="_blank" rel="noreferrer" className="rounded-sm text-brand underline-offset-4 hover:underline">Njalla</a> — privacy-first. They register the domain in their own name, so your name never appears in the public WHOIS, and they don't police content. Best if your work might attract a takedown.</li>
+              <li><a href="https://www.godaddy.com" target="_blank" rel="noreferrer" className="rounded-sm text-brand underline-offset-4 hover:underline">GoDaddy</a> — the straightforward option. Easiest to use, but your name is on the registration and they act on copyright complaints.</li>
+            </ul>
+            <p className="text-muted-foreground">Already have a domain, or picked another registrar? Open its DNS management, then add a TXT record:</p>
             <dl className="space-y-2"><div><dt className="text-muted-foreground">Type / TTL</dt><dd className="font-mono">TXT / 300 seconds</dd></div><div><dt className="text-muted-foreground">Host / name</dt><dd className="font-mono">web10</dd><dd className="break-all text-xs text-muted-foreground">Full name: {valid ? `web10.${normalized}` : 'web10.<your domain>'}. Some providers require the full name.</dd></div><div><dt className="text-muted-foreground">Exact value</dt><dd className="mt-1 select-all break-all font-mono" data-testid="domain-txt">{value}</dd></div></dl>
             <Button type="button" variant="outline" className="min-h-11" onClick={copy} data-testid="domain-copy">Copy TXT value</Button>
           </div>
