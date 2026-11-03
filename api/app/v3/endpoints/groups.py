@@ -480,6 +480,13 @@ def group_detail(group_id: str, token: str | None = None):
     a surface fetches the face from the app's service and composes it here.
     """
     principal = user_or_anon(SimpleNamespace(token=token or ""))
+    # D84: the canonical principal is what membership checks match on.
+    # /detail takes a raw token param (no request body), so derive it from the
+    # same token — foreign tokens certify at their home node first.
+    if principal != "anon":
+        from app.v3.endpoints.auth_helper import principal as _principal
+
+        principal = _principal(SimpleNamespace(token=token or ""))
     group = ch.get_group(group_id)
     if not group:
         raise exceptions.ENTRY_NOT_FOUND  # only a non-existent group 404s

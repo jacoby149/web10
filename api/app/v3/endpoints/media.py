@@ -18,8 +18,8 @@ from app.services.media import (
     get_s3_signing_client,
     make_object_key,
 )
+from app.v3.endpoints.auth_helper import principal, user_or_anon
 from app.v3.endpoints.auth_helper import user as _user
-from app.v3.endpoints.auth_helper import user_or_anon
 from app.v3.models import (
     ConfirmMedia,
     DeleteMedia,
@@ -142,13 +142,16 @@ def get_thumbnail(data: ThumbnailRequest):
     """
     reader = user_or_anon(data)
     authenticated = reader != "anon"
+    # D84: canonical principal for the membership gate (foreign tokens
+    # certify at their home node first).
+    reader_principal = principal(data) if authenticated else "anon"
     doc = ch.get_document_any_author(data.doc_id)
     if not doc:
         raise HTTPException(status_code=404, detail="not found")
     service = doc["service"]
     # I3: the reader must be able to read the doc's service in one of its
     # groups (the same gate the read path + the social preview server use).
-    if not any(ch.can_read_group(gid, reader, service, authenticated) for gid in ch.get_doc_groups(data.doc_id)):
+    if not any(ch.can_read_group(gid, reader_principal, service, authenticated) for gid in ch.get_doc_groups(data.doc_id)):
         raise HTTPException(status_code=404, detail="not found")
     body = doc.get("body", {}) or {}
     # A media doc IS the picture — resolve its own object_key to a fresh

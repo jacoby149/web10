@@ -325,9 +325,19 @@ Each is its own PR/lane (see `parallel-execution.md` → `multi-node-federation
   tombstone the old — the ReplacingMergeTree pattern), not a schema change.
   **Reverses the 3.179.1 `/by-user` stopgap** (which collapsed to the bare
   form) — after A, `provider/username` is the real stored form. **Gates C, D.**
-- **B — cross-node token verification** (D7/I1, in flight). HS256 →
-  RS256/EdDSA + JWKS. A node verifies another node's token cryptographically.
-  **Independent of A** (A is data, B is auth) but both are needed before C.
+- **B — cross-node token verification** (landed 3.258.0, 03.11.2026 — the live
+  /certify model, operator-decided over JWKS). A token whose `provider` is not
+  this node is certified at its home node via `POST {provider}/certify`
+  (the pre-existing endpoint the RTC server already uses), with a cached yes
+  until the token's own expiry (revocation propagates at token lifetime — the
+  bound the read path already concedes), a 30s negative cache, LRU-bounded.
+  The remote answer certifies IDENTITY ONLY (I6): expiry is re-checked locally
+  and every access decision runs in the node's own checks. `auth_helper.
+  principal()` derives the canonical reader principal `{provider}/users/
+  {username}` and the read paths resolve under it. **JWKS (D7) is demoted to a
+  pure latency/availability optimization** (offline verification instead of a
+  round trip; shorter revocation if ever wanted) — a future-work note, not a
+  load-bearing claim. **Independent of A; unblocks the two-node demo (with H).**
 - **C — cross-node group membership.** Following someone on another node =
   joining *their* followers group on *their* node (see above). This is where
   the canonical format (A) and cross-node auth (B) meet. **Gates D.**
