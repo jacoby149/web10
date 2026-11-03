@@ -1,4 +1,13 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+
+class DocumentAttachment(BaseModel):
+    token: str
+    doc_id: str
+    group_id: str = Field(min_length=1)
+    author_as: str | None = None
+    # Omitted reads this target only; a boolean sets its desired state.
+    attached: bool | None = None
 
 
 class AdPreference(BaseModel):

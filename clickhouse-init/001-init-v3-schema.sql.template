@@ -156,6 +156,8 @@ CREATE TABLE IF NOT EXISTS users (
     phone_verified UInt8 DEFAULT 0,
     email String DEFAULT '',
     email_verified UInt8 DEFAULT 0,
+    domain String DEFAULT '',
+    domain_verified UInt8 DEFAULT 0,
     created_at DateTime64(3),
     updated_at DateTime64(3),
     deleted UInt8 DEFAULT 0

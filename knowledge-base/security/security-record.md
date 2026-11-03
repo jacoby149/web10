@@ -15,7 +15,46 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## DNS Account-Alias Verification (02.11.2026)
+
+New trust-boundary surface: `POST /v3/domains/verify` + `release` (certified
+token; the node resolves `web10.<domain>` itself via dnspython — bounded
+records/size, exactly one claim, exact `web10.v=1;provider=...;user=...`
+format, provider + username must match the authenticated caller) and public
+`GET /v3/users/{username}/domain`. L2 evidence: 81 tests in
+`api/tests/test_domains.py` — auth denied before any DNS lookup (missing/bad/
+expired/anon/foreign/inactive/revoked-client), forged-claim parsing
+(wrong provider/user, duplicate keys, multiple claims, oversized/non-ASCII
+records), domain normalization (IDNA, IP literals, URLs), release mismatch,
+row-copy SQL preserving the domain, and tombstone-safe reads on SQLite.
+1,806 API tests + 287 UI tests, Ruff clean. The domain is an alias, not a
+principal: usernames, tokens, groups and the I3 read gate are unchanged.
+DNS/transfer trust limits (compromised resolver, domain transfer, no
+permanent ownership guarantee) remain OPEN per
+`web10-v3/identity/domain-identity.md`; not a whole-L2 PASS.
+
 ## Group Author Self-Target (02.11.2026)
+
+3.257.0 bounded attachment continuation (OpenAI GPT-6.1): inspected the new
+single-target route/model, direct role/app/storage calls, SDK and composer.
+Signed-route denial controls include retained external create revocation red/green,
+wrong service/role/app, human membership isolation, self lifecycle and removal
+after revocation. Real isolated ClickHouse-local 24.8 ReplacingMergeTree replay
+checks target removal/re-add and FINAL compaction with unrelated targets retained.
+Threaded signed requests test different-target survival over doubled storage;
+not real concurrent-engine proof. No full-file L1, complete L2/L3/L4, independent
+review or security PASS claim. Finalization has shell, file and GitHub tooling,
+but no reviewer-task/subagent interface; independent review remains unperformed.
+Connected browser/revocation, same-target/legacy writer races and rollout stay OPEN.
+
+Client mutation-affordance continuation (3.256.1, OpenAI GPT-6.1): inspected
+groups/get and groups/list handlers, mutationAuthority, shared card/lightbox
+consumers and document read/update attachment behavior. Corrected API-shape tests
+reproduce false-denied edit controls (eight failures); membership-role repair
+passes 65 focused social tests including denied roles, unrelated selected author,
+lightbox/feed controls and real composer-to-updatePost retry. No backend changes,
+new authority or complete L1/L2 scan claim. Safe full-attachment audience editing,
+connected revocation, independent review and full-suite green remain OPEN.
 
 [Bounded authorization repair](group-author-self-target.md): actual ASGI/signed
 synthetic auth and real effective-role/write helpers reproduce self-target 403
@@ -30,6 +69,15 @@ not whole L1/L2 coverage or a security PASS. Connected persistence/revocation,
 CI/rollout and independent diverse review remain OPEN.
 
 ## Pinned-Ad Attachment Authority (02.11.2026)
+
+H01-AD-LINK [local repair](scans/2026-10/repair-h01-pinned-attachment.md): rank
+current document/group attachments before removal filtering, deletion-winning
+ties. Removed creative delivery/signing now denied; reattachment, alternate-group
+access and uploader controls retained. Twelve attachment plus ten membership
+cases pass on SQLite/ClickHouse-local; 1,865 API tests plus eight subtests and
+Ruff pass. Fresh same-model intent review passes the bounded change. Production
+lifecycle/merges, other readers' ties, broader ad policy, CI/rollout/diverse and L1
+remain OPEN. Historical evidence below describes the pre-repair source.
 
 H01-AD-LINK [local evidence](scans/2026-10/h01-pinned-attachment-proof.md):
 compiler attachment boundary excludes removed link while actual loader/ASGI

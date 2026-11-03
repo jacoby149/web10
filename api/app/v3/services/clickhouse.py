@@ -1178,6 +1178,21 @@ def detach_doc_from_groups(doc_id: str):
     )
 
 
+def set_doc_attachment(doc_id: str, group_id: str, attached: bool):
+    """Append only this target; sequential versions exceed stored millisecond time.
+
+    Independent targets cannot clobber each other. This is not same-target CAS.
+    """
+    client.command(
+        "INSERT INTO doc_groups (doc_id, group_id, created_at, updated_at, deleted) "
+        "SELECT %(doc_id)s, %(group_id)s, "
+        "if(count() = 0, now64(3), min(created_at)), "
+        "greatest(now64(3), max(updated_at) + INTERVAL 1 MILLISECOND), %(deleted)s "
+        "FROM doc_groups WHERE doc_id = %(doc_id)s AND group_id = %(group_id)s",
+        {"doc_id": doc_id, "group_id": group_id, "deleted": int(not attached)},
+    )
+
+
 def replace_doc_groups(doc_id: str, group_ids: list[str]):
     """Tombstone old group attachments, insert new ones."""
     detach_doc_from_groups(doc_id)
@@ -3192,8 +3207,8 @@ def resolve_pinned_ads(docs: list[dict], reader: str) -> dict[str, dict]:
     (I3: the ad rides the reader's access, not just the doc's). A pinned ad the
     reader can't see is simply not returned (the doc comes back with no ad).
 
-    Membership versions are ranked before removal filtering; a historical live
-    row cannot override the current tombstone. A newer rejoin still grants access.
+    Membership and attachment versions are ranked before removal filtering;
+    tombstones win timestamp ties. A newer rejoin or reattachment grants access.
 
     Service-agnostic (D75): the ad is whatever doc `ad_target` references — the
     node does not vet its `collection_name`. The `ad` tag + the `ad_preference`
@@ -3214,11 +3229,13 @@ def resolve_pinned_ads(docs: list[dict], reader: str) -> dict[str, dict]:
         "row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
         f"FROM documents WHERE doc_id IN ({placeholders})) ad "
         "WHERE ad.rn = 1 AND ad.deleted = 0 "
-        "AND ad.doc_id IN (SELECT pg.doc_id FROM doc_groups pg "
+        "AND ad.doc_id IN (SELECT pg.doc_id FROM (SELECT doc_id, group_id, deleted, "
+        "row_number() OVER (PARTITION BY doc_id, group_id ORDER BY updated_at DESC, deleted DESC) AS rn "
+        f"FROM doc_groups WHERE doc_id IN ({placeholders})) pg "
         "JOIN (SELECT group_id, deleted, "
         "row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC, deleted DESC) AS rn "
         "FROM group_members WHERE member_key = %(reader)s) gm ON pg.group_id = gm.group_id "
-        "WHERE gm.rn = 1 AND pg.deleted = 0 AND gm.deleted = 0)",
+        "WHERE pg.rn = 1 AND gm.rn = 1 AND pg.deleted = 0 AND gm.deleted = 0)",
         params,
     )
     log.info("[ads] pinned membership read: completed creatives=%d", len(result.result_rows))
@@ -3925,6 +3942,17 @@ def create_user(username: str, password_hash: str, phone: str = "", email: str =
     client.insert(
         "users",
         [[username, password_hash, phone, 0, email, 0, now, now, 0]],
+        column_names=[
+            "username",
+            "password_hash",
+            "phone",
+            "phone_verified",
+            "email",
+            "email_verified",
+            "created_at",
+            "updated_at",
+            "deleted",
+        ],
     )
     _ensure_discover_group_contract()
     add_group_member(DISCOVER_GROUP_ID, username, "member")
@@ -3967,6 +3995,17 @@ def migrate_user(
                     now,
                     0,
                 ]
+            ],
+            column_names=[
+                "username",
+                "password_hash",
+                "phone",
+                "phone_verified",
+                "email",
+                "email_verified",
+                "created_at",
+                "updated_at",
+                "deleted",
             ],
         )
     _ensure_discover_group_contract()
@@ -4084,8 +4123,8 @@ def get_user(username: str) -> dict | None:
     """Get a user record."""
     result = client.query(
         "SELECT username, password_hash, phone, phone_verified, email, email_verified, created_at "
-        "FROM users WHERE username = %(username)s AND deleted = 0 "
-        "ORDER BY updated_at DESC LIMIT 1",
+        "FROM (SELECT * FROM users WHERE username = %(username)s ORDER BY updated_at DESC, deleted DESC LIMIT 1) "
+        "WHERE deleted = 0",
         {"username": username},
     )
     if not result.result_rows:
@@ -4112,6 +4151,49 @@ def authenticate_user(username: str, plain_password: str) -> bool:
     return verify_password(plain_password, user["password_hash"])
 
 
+def ensure_users_domain_schema() -> None:
+    """Upgrade existing volumes; fail boot rather than serve a partial schema."""
+    client.command("ALTER TABLE users ADD COLUMN IF NOT EXISTS domain String DEFAULT '' AFTER email_verified")
+    client.command("ALTER TABLE users ADD COLUMN IF NOT EXISTS domain_verified UInt8 DEFAULT 0 AFTER domain")
+
+
+def get_user_domain(username: str) -> dict | None:
+    result = client.query(
+        "SELECT domain, domain_verified FROM "
+        "(SELECT * FROM users WHERE username = %(username)s ORDER BY updated_at DESC, deleted DESC LIMIT 1) "
+        "WHERE deleted = 0",
+        {"username": username},
+    )
+    if not result.result_rows:
+        return None
+    domain, verified = result.result_rows[0]
+    return {"domain": domain or None, "verified": bool(domain and verified)}
+
+
+def domain_claimed_by_other(domain: str, username: str) -> bool:
+    # Deduplicate BEFORE filtering aliases/deletions, so released historical
+    # claims cannot block a new owner. This is not an atomic uniqueness gate.
+    result = client.query(
+        "SELECT username FROM (SELECT username, domain, deleted, "
+        "row_number() OVER (PARTITION BY username ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM users) WHERE rn = 1 AND deleted = 0 AND domain = %(domain)s AND username != %(username)s LIMIT 1",
+        {"domain": domain, "username": username},
+    )
+    return bool(result.result_rows)
+
+
+def set_domain(username: str, domain: str, verified: int) -> None:
+    # DateTime64(3) can collapse immediate verify/release writes into a tie.
+    # Advance beyond the copied version, even within the same millisecond.
+    client.command(
+        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, domain, domain_verified, created_at, updated_at, deleted) "
+        "SELECT username, password_hash, phone, phone_verified, email, email_verified, %(domain)s, %(verified)s, created_at, "
+        "greatest(toDateTime64(%(updated_at)s, 3), addMilliseconds(updated_at, 1)), 0 "
+        "FROM (SELECT * FROM users WHERE username = %(username)s ORDER BY updated_at DESC, deleted DESC LIMIT 1) WHERE deleted = 0",
+        {"username": username, "domain": domain, "verified": verified, "updated_at": _ch_ts(_now())},
+    )
+
+
 def change_password(username: str, new_password_hash: str):
     """Change a user's password.
 
@@ -4124,9 +4206,9 @@ def change_password(username: str, new_password_hash: str):
     (old hash) and the new password 401s (the recovery password-change flake).
     """
     client.command(
-        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
-        "SELECT username, %(new_hash)s, phone, phone_verified, email, email_verified, created_at, %(updated_at)s, 0 "
-        "FROM users WHERE username = %(username)s AND deleted = 0",
+        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, domain, domain_verified, created_at, updated_at, deleted) "
+        "SELECT username, %(new_hash)s, phone, phone_verified, email, email_verified, domain, domain_verified, created_at, %(updated_at)s, 0 "
+        "FROM (SELECT * FROM users WHERE username = %(username)s ORDER BY updated_at DESC, deleted DESC LIMIT 1) WHERE deleted = 0",
         {"username": username, "new_hash": new_password_hash, "updated_at": _ch_ts(_now())},
     )
 
@@ -4139,9 +4221,9 @@ def change_phone(username: str, phone: str):
     dedup read.
     """
     client.command(
-        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
-        "SELECT username, password_hash, %(phone)s, 0, email, email_verified, created_at, %(updated_at)s, 0 "
-        "FROM users WHERE username = %(username)s AND deleted = 0",
+        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, domain, domain_verified, created_at, updated_at, deleted) "
+        "SELECT username, password_hash, %(phone)s, 0, email, email_verified, domain, domain_verified, created_at, %(updated_at)s, 0 "
+        "FROM (SELECT * FROM users WHERE username = %(username)s ORDER BY updated_at DESC, deleted DESC LIMIT 1) WHERE deleted = 0",
         {"username": username, "phone": phone, "updated_at": _ch_ts(_now())},
     )
 
@@ -4154,9 +4236,9 @@ def set_email(username: str, email: str):
     dedup read.
     """
     client.command(
-        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
-        "SELECT username, password_hash, phone, phone_verified, %(email)s, 0, created_at, %(updated_at)s, 0 "
-        "FROM users WHERE username = %(username)s AND deleted = 0",
+        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, domain, domain_verified, created_at, updated_at, deleted) "
+        "SELECT username, password_hash, phone, phone_verified, %(email)s, 0, domain, domain_verified, created_at, %(updated_at)s, 0 "
+        "FROM (SELECT * FROM users WHERE username = %(username)s ORDER BY updated_at DESC, deleted DESC LIMIT 1) WHERE deleted = 0",
         {"username": username, "email": email, "updated_at": _ch_ts(_now())},
     )
 
@@ -4171,9 +4253,9 @@ def verify_phone(username: str):
     ``change_password``) so it strictly outranks the row it copies.
     """
     client.command(
-        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
-        "SELECT username, password_hash, phone, 1, email, email_verified, created_at, %(updated_at)s, 0 "
-        "FROM (SELECT * FROM users WHERE username = %(username)s AND deleted = 0 ORDER BY updated_at DESC LIMIT 1)",
+        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, domain, domain_verified, created_at, updated_at, deleted) "
+        "SELECT username, password_hash, phone, 1, email, email_verified, domain, domain_verified, created_at, %(updated_at)s, 0 "
+        "FROM (SELECT * FROM users WHERE username = %(username)s ORDER BY updated_at DESC, deleted DESC LIMIT 1) WHERE deleted = 0",
         {"username": username, "updated_at": _ch_ts(_now())},
     )
 
@@ -4181,9 +4263,9 @@ def verify_phone(username: str):
 def verify_email(username: str):
     """Mark email as verified (latest row only — see verify_phone)."""
     client.command(
-        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, created_at, updated_at, deleted) "
-        "SELECT username, password_hash, phone, phone_verified, email, 1, created_at, %(updated_at)s, 0 "
-        "FROM (SELECT * FROM users WHERE username = %(username)s AND deleted = 0 ORDER BY updated_at DESC LIMIT 1)",
+        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, domain, domain_verified, created_at, updated_at, deleted) "
+        "SELECT username, password_hash, phone, phone_verified, email, 1, domain, domain_verified, created_at, %(updated_at)s, 0 "
+        "FROM (SELECT * FROM users WHERE username = %(username)s ORDER BY updated_at DESC, deleted DESC LIMIT 1) WHERE deleted = 0",
         {"username": username, "updated_at": _ch_ts(_now())},
     )
 

@@ -1497,6 +1497,8 @@ function applyACR(cr: any) {
         acrTick(n => n + 1);
     }
 
+    I.accountReadGeneration = accountReadGeneration.current;
+    I.ownAccountRead = ownAccountRead;
     return I;
 }
 

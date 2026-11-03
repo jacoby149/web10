@@ -90,6 +90,15 @@ session; being able to read does not authorize the selected group to act there.
 
 ## Remaining Release Gates
 
+Existing-post continuation (3.256.1): mutation controls now read the human's
+groups/list membership role against the groups/get contract; the latter never
+returned my_role. Feed/grid/media controls are locally pinned with the actual
+API shapes. Discover audience editing is locally implemented in 3.257.0 through
+the generic per-target attachment read/set seam, not by inferring visibility or
+replacing filtered destinations. Separate audience saves preserve hidden links;
+connected persistence/revocation and independent review remain open.
+See `century-club-findings.md` for acceptance and limits.
+
 Performance follow-up: `batching-performance.md` C01-C04 records authority-read
 single-flight, eligible-identity metadata batching, avatar-only preparation and
 comment enrichment fan-out. Local functional verification above is not a

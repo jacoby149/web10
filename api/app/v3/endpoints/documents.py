@@ -15,6 +15,7 @@ from app.v3.models import (
     TrackContentEvent,
     UpdateDocument,
 )
+from app.v3.models.documents import DocumentAttachment
 from app.v3.services import clickhouse as ch
 from app.v3.services import moderation
 
@@ -468,6 +469,37 @@ def update_document(request: Request, data: UpdateDocument):
         result["groups"] = ch.get_doc_groups(data.doc_id)
 
     return result
+
+
+@router.post("/attachment")
+def document_attachment(request: Request, data: DocumentAttachment):
+    """Read/set one attachment, never a read-filtered replacement list."""
+    human = _user(data)
+    author = data.author_as or human
+    existing = ch.get_document(data.doc_id, author)
+    if not existing:
+        raise exceptions.ENTRY_NOT_FOUND
+    service = existing["service"]
+    perms = None
+    if data.author_as:
+        perms = ch.effective_role_perms(author, human, authenticated=True)
+        if not ch.get_group(author) or not ch._effective_allows(perms, service, "updateOwn"):
+            raise HTTPException(status_code=403, detail="no permission to update as this group")
+    _check_app_permission(request, human, service, "updateOwn", client_id_of(data))
+    attached = data.group_id in ch.get_doc_groups(data.doc_id)
+    if data.attached is True:
+        allowed = (
+            attached or ch._effective_allows(perms, service, "create")
+            if data.author_as and data.group_id == author
+            else ch.can_write_group(data.group_id, author, service)
+        )
+        if not allowed:
+            raise HTTPException(status_code=403, detail="no write access to the requested group")
+    if data.attached is not None:
+        ch.set_doc_attachment(data.doc_id, data.group_id, data.attached)
+        attached = data.attached
+    log.info("[documents] attachment: mutation=%s attached=%s", data.attached is not None, attached)
+    return {"doc_id": data.doc_id, "group_id": data.group_id, "attached": attached}
 
 
 @router.post("/delete")

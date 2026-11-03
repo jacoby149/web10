@@ -99,6 +99,42 @@ describe('PostComposer edit mode — the ONE edit path (title + body + media rem
     expect(call[1].title).toBe('My headline');
   });
 
+  it('retains original nonempty refs when saving before preview resolution', async () => {
+    resolveMediaRefs.mockReturnValueOnce(new Promise(() => {}));
+    renderEdit();
+    fireEvent.change(await screen.findByTestId('composer-title'), { target: { value: 'Edited while loading' } });
+    fireEvent.click(screen.getByTestId('post-submit'));
+    await waitFor(() => expect(updatePost).toHaveBeenCalledOnce());
+    expect(updatePost.mock.calls[0][1]).not.toHaveProperty('media_refs');
+    expect(post.media_refs).toEqual(['media-a', 'media-b']);
+  });
+
+  it.each(['failed', 'empty', 'partial'])('retains original refs after %s preview resolution', async (mode) => {
+    if (mode === 'failed') resolveMediaRefs.mockRejectedValueOnce(new Error('Preview unavailable'));
+    else resolveMediaRefs.mockResolvedValueOnce(mode === 'partial' ? [mediaA] : []);
+    renderEdit();
+    const title = await screen.findByTestId('composer-title');
+    if (mode === 'partial') await screen.findByTestId('composer-edit-remove-media-0');
+    fireEvent.change(title, { target: { value: 'Title only' } });
+    fireEvent.click(screen.getByTestId('post-submit'));
+    await waitFor(() => expect(updatePost).toHaveBeenCalledOnce());
+    expect(updatePost.mock.calls[0][1]).not.toHaveProperty('media_refs');
+  });
+
+  it('explicit removal retains unresolved siblings and survives failed-save retry', async () => {
+    resolveMediaRefs.mockResolvedValueOnce([mediaA]);
+    updatePost.mockRejectedValueOnce(new Error('Save unavailable'));
+    renderEdit();
+    fireEvent.click(await screen.findByTestId('composer-edit-remove-media-0'));
+    fireEvent.click(screen.getByTestId('post-submit'));
+    await screen.findByText('Save unavailable');
+    expect(updatePost.mock.calls[0][1].media_refs).toEqual(['media-b']);
+    expect(post.media_refs).toEqual(['media-a', 'media-b']);
+    fireEvent.click(screen.getByTestId('post-submit'));
+    await waitFor(() => expect(updatePost).toHaveBeenCalledTimes(2));
+    expect(updatePost.mock.calls[1][1].media_refs).toEqual(['media-b']);
+  });
+
   it('clearing the title saves it as undefined (the title is optional)', async () => {
     renderEdit();
     await waitFor(() => expect(screen.getByTestId('composer-edit-remove-media-0')).toBeTruthy());
@@ -129,4 +165,3 @@ describe('PostComposer edit mode — the ONE edit path (title + body + media rem
     expect(caption).not.toHaveTextContent('**');
   });
 });
-

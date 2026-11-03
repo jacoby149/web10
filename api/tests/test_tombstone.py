@@ -288,7 +288,8 @@ class TestUserTombstone:
             result = ch.get_user("alice")
             assert result["username"] == "alice"
             call_args = mock_client.query.call_args[0][0]
-            assert "ORDER BY updated_at DESC LIMIT 1" in call_args
+            assert "ORDER BY updated_at DESC, deleted DESC LIMIT 1) " in call_args
+            assert "WHERE deleted = 0" in call_args.split("LIMIT 1)")[1]
 
     def test_create_user_uniqueness_deduplicates(self):
         """create_user uniqueness check must deduplicate."""

@@ -18,7 +18,7 @@ import path from 'node:path';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
-const PORT = 4500;
+const PORT = Number(process.env.SCREENSHOT_PORT || 4500);
 const URL = `http://localhost:${PORT}/screenshots/harness/index.html`;
 
 const VIEWPORTS = {
@@ -127,7 +127,13 @@ try {
           // search field is hidden at 375px and vice versa).
           for (const action of view.actions ?? []) {
             try {
-              if (action.type === 'click') await page.click(action.sel, { timeout: 3000 });
+              if (action.type === 'click') {
+                // `last=`: responsive views render BOTH a desktop and a mobile
+                // copy of the same control (one hidden by a breakpoint class);
+                // a bare selector clicks the hidden copy first and times out
+                // even though the view rendered fine.
+                await page.click(`${action.sel} >> visible=true >> nth=-1`, { timeout: 3000 });
+              }
               else if (action.type === 'fill') await page.fill(action.sel, action.val, { timeout: 3000 });
               else if (action.type === 'file') await page.setInputFiles(action.sel, action.val, { timeout: 3000 });
             } catch { /* target not visible on this viewport — skip */ }

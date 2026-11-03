@@ -41,7 +41,18 @@ says what can happen **at the same time**.
 
 ## Lanes
 
+### Lane: social-test-stability
+
+**Owns:** social Vitest worker configuration and serialized verification records.
+- [✓ 3.257.2 local] **Social test worker budget** - default to two workers after unbounded execution reproduced widespread timeouts; retain five-second test timeout and all assertions.
+- [ ] **Promotion security-method disposition** - resolve merged PRs #1332/#1334 method-gate failures before dev-to-main promotion, or obtain explicit operator override naming those failures. No implicit waiver from green unit tests.
+
 ### Lane: century-club-findings (this workspace)
+
+- [✓ 3.256.2 bounded local] **Existing-post media preservation** - original refs minus explicit removals, independent of pending/failed/partial preview display. Five new red/green cases; 70 focused and all 1,673 social tests (114 files, two workers/20s) plus build/typecheck pass. No visual/backend/production changes; audience protocol and connected/review gates remain open.
+
+- [✓ 3.256.1 bounded local] **Existing group post edit controls** - actual membership-shape repair shared by feed/grid/media; 65 focused tests/build pass, desktop/375px screenshots inspected. Full suite: 1,666 pass/two fail; failed files pass focused rerun, no full-green claim. No backend or production changes.
+- [✓ 3.257.0 bounded local] **Existing post Discover audience editing** - approved generic API/SDK per-target attachment seam and separate-save composer controls implemented. Hidden destinations, original identity/content/engagement and failed-write retry covered locally; no multi-group picker or Make private promise. Connected persistence/revocation and independent review remain open; see `century-club-findings.md`.
 
 **Owns:** generic document self-target/current-attachment seam and focused API
 tests; social composer, group editor/detail, profile/follow reads and acting
@@ -82,6 +93,7 @@ acting-identity, social/paint-on-read, UI and marketing lanes. Never assign all 
 
 - [✓ 3.254.0 local] **App-wide acting identity implementation** - `acting-identity.md` gates 2-7 locally verified. Personal authority remains for DMs/billing/admin. Full API/SDK/social suites and social build pass; desktop/mobile switcher inspected. Not published, merged or deployed.
 - [✓ 3.254.12 local] **Identity picker dismissal safety** - provisional row choices, explicit `Use identity` confirmation, discard on dismissal/reopen. Desktop/mobile regression gates, 1,593 social tests, production build and inspected screenshots pass. Exact live lil-k sequence and Discover-post proof remain unverified; not deployed.
+- [✓ 3.255.1 local] **Identity picker profile pictures** - the menu shows a face on every row: the personal row's profile avatar + each eligible group's face, resolved in ONE batched author-scoped face-prepare read (shared `@web10/discover` resolver) so the menu shows a face even with an empty search; unreadable faces degrade to the initial fallback (the I3 floor). Two new regressions; 1,665 social tests (two pre-existing newPostSheet/mediaProcessing failures reproduced on the base commit), production typecheck/build, desktop/375px picker screenshots inspected. No API/auth changes; not deployed.
 - [ ] **Connected multi-operator/revocation acceptance** - exercise real API/storage with two operators sharing group reactions, revoke one operator, verify denied writes and preserved audit attribution, and replay concurrent actions. Gates: local 3.254.0 implementation, isolated test stack, no production credentials, retained request/storage evidence; independent security review before release. Owns: the acting-identity lane directories above plus focused integration tests. Acceptance: both operators see one shared identity state, revocation denies writes without personal fallback, audit survives update/delete, and concurrency behavior is recorded without claiming atomic uniqueness.
 
 The earlier social-v3 A4 tick records composer code on open PR #1308, not a
@@ -118,7 +130,7 @@ route + the screenshot harness).
 ### Lane: security-l1-scans
 
 - [✓ 3.254.15 local evidence] **PROTOCOL-01/H01-AD-LINK-PROOF: replay removed-attachment pinned creative delivery** - own test/security KB only; live membership plus absent compiler current-link still delivers/signs the creative. Four SQLite/ClickHouse-local histories, 1,759 API tests plus eight subtests, Ruff and same-model review pass. `knowledge-base/security/scans/2026-10/h01-pinned-attachment-proof.md`. Finding OPEN, no runtime repair or L1 advancement.
-- [ ] **PROTOCOL-01/H01-AD-LINK-REPAIR: honor current attachments in pinned-ad reads** - own pinned doc_groups SQL hunk, retained probes and security KB; rank document/group history before removal filtering and convert removed-link disclosure to denied-ad/no-signer. Preserve active/reattached/alternate live-group access, pair isolation and independent uploaders. Gates: <=500 code/test lines, red -> denied green, fresh intent review, KB write-back and all CI green. Writer precision/other readers/role/app/node-ad policy, production lifecycle/rollout/diverse/L1 remain separate.
+- [✓ 3.257.1 local attachment] **PROTOCOL-01/H01-AD-LINK-REPAIR: honor current attachments in pinned-ad reads** - own pinned doc_groups SQL hunk, retained probes and security KB; current attachment ranking with deletion-winning ties denies removed-link signing, retaining reattachment/alternate-group/pair/uploader controls. Twelve attachment plus ten membership cases pass on SQLite/ClickHouse-local, 1,865 API tests plus eight subtests, Ruff and fresh same-model intent review pass. `knowledge-base/security/scans/2026-10/repair-h01-pinned-attachment.md`. Writer precision/other readers' ties/role/app/node-ad policy, production lifecycle/CI/rollout/diverse/L1 OPEN; local only, not merged/deployed.
 
 - [✓ 3.254.9 local evidence] **PROTOCOL-01/H01-AD-MEMBER-PROOF: replay removed-member pinned creative disclosure** - own test probe/security KB only; actual group gate/loader/ASGI/real synthetic SigV4 mismatch, four histories on SQLite and ClickHouse-local Memory. 1,749 API tests plus eight subtests, Ruff and same-model review pass. `knowledge-base/security/scans/2026-10/h01-pinned-membership-proof.md`. No production repair; broader ad/real-schema/CI/rollout/diverse/L1 OPEN.
 - [✓ 3.254.13 local membership] **PROTOCOL-01/H01-AD-MEMBER-REPAIR: honor current membership in pinned-ad reads** - own pinned SQL/test/security KB only; five synthetic disclosures denied, ten SQLite/ClickHouse-local controls preserve legitimate access and uploaders. 365 focused/1,755 API tests plus eight subtests, Ruff and same-model review pass. `knowledge-base/security/scans/2026-10/repair-h01-pinned-membership.md`. Attachment/other ad/real-schema/CI/rollout/diverse/L1 OPEN; no class-wide closure.

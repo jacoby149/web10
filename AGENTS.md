@@ -337,6 +337,14 @@ service and lists the group's memberships, without human owner self-healing.
 DMs, billing and administration retain personal authority. Local implementation
 and verification status: `knowledge-base/strategy/acting-identity.md`.
 
+Generic `/v3/attachment` reads/sets one named document/group link under live
+human app updateOwn and explicit group-author service updateOwn. True external
+targets require the document author's create grant, not borrowed human authority;
+retained self needs updateOwn, new self also create. False never needs destination
+create. It never rewrites content/audit/other links. Independent target writes
+are disjoint; same-target CAS and cross-check/write transactions are not promised.
+Contract: `knowledge-base/web10-v3/db/attachments.md`.
+
 Consent correlation is staged: the UI can prepare owned indexed replies for ID-bearing unified batches, but the SDK is not yet strict. IDs grant no authority; no-op/cancellation/account/batch lifecycle and SDK/browser integration remain close conditions.
 
 Explicit authenticator logout cancels pending consent, including unstarted work; a later login may hand back credentials but cannot approve the cancelled request. Account-picker selection can still review untouched requests. Delayed popup closes are bound to the current handoff generation, batch, principal and token.
@@ -391,8 +399,9 @@ loader authorization, actual ClickHouse and connected verification remain OPEN.
 Do not claim whole-media or whole-prepare assurance.
 
 Pinned creative membership reads locally rank current reader/group history before
-removal filtering, with deletion winning timestamp ties. This denies reproduced
-stale-membership attachment/signing; doc_groups attachment history and broader
+removal filtering, with deletion winning timestamp ties. Pinned doc_groups reads
+also rank current document/group attachments before filtering, with deletion-winning
+ties. This denies reproduced stale-membership and removed-attachment signing; broader
 ad policy, real-schema lifecycle and rollout assurance remain separate OPEN gates.
 
 Defined in the KB: `knowledge-base/web10-v3/security/overview.md`. Short version — I1: cryptographic issuer verification, I2: no unsigned decode, I3: no query returns documents for an `author_key` the token doesn't own (unless group membership grants access), I4: node-readable by design — operator-blindness is not a goal, access is terms-controlled (D41), I5: scoped/expiring/revocable tokens enforced by app contracts. Enforced by the conformance/permission test suite.

@@ -123,8 +123,8 @@ if (screen === 'install-prompt') {
 }
 // The post-detail capture: the PostLightbox is a fixed overlay, so render it
 // directly (no Layout chrome) — the modal is the whole shot.
-if (screen === 'post-detail') {
-  createRoot(document.getElementById('root')!).render(<PostDetailHarness />);
+if (screen === 'post-detail' || screen === 'group-post-detail') {
+  createRoot(document.getElementById('root')!).render(<PostDetailHarness group={screen === 'group-post-detail'} />);
 } else if (screen === 'product-detail') {
   createRoot(document.getElementById('root')!).render(<ProductDetailHarness />);
 } else {
@@ -192,7 +192,7 @@ if (screen === 'post-detail') {
       <Routes>
         <Route element={<Layout onLogout={() => {}} onLogin={() => {}} isAnon={anon} onReportBug={() => {}} />}>
           <Route path="/feed" element={<PostsScreen />} />
-          <Route path="/composer" element={<PostComposer />} />
+          <Route path="/composer" element={<PostComposer editingPost={params.get('edit') ? { _id: 'audience-example', author_key: 'web10/groups/users/me/studio', posted_by: 'another-operator', title: 'The next chapter', text: 'A new film night, with the same people who made it possible.', created_at: '2026-11-02' } : undefined} />} />
           <Route path="/notifications" element={<NotificationsScreen />} />
           <Route path="/discover" element={<DiscoverScreen />} />
           <Route path="/video" element={<DiscoverScreen />} />
