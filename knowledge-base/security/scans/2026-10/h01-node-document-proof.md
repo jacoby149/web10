@@ -104,3 +104,8 @@ Publication reconciliation: PR #1341 merges dev at `5b910658f`, preserving incom
 Discover UI/planning work; API source/tests are unchanged by that merge. Restore
 incoming changelog 3.257.5 and renumber only this evidence entry and its plan/lane
 references to 3.257.6. This is not runtime repair or rollout assurance.
+
+A second dev merge at `19ebb1085` changes only research/changelog documents.
+Preserve its release 3.257.6 and renumber only this branch's evidence/plan/lane
+to 3.257.7. API source/tests remain unchanged; the first post-reconciliation
+head passed all 13 checks before this second base advance.
