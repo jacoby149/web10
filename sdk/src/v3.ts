@@ -1327,6 +1327,15 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       return v3Post<V3Document>('update', payload)
     },
 
+    /** Read or set one target without enumerating/replacing other attachments. */
+    async documentAttachment(
+      docId: string,
+      groupId: string,
+      opts?: { author_as?: string; attached?: boolean },
+    ): Promise<{ doc_id: string; group_id: string; attached: boolean }> {
+      return v3Post('attachment', { doc_id: docId, group_id: groupId, ...opts })
+    },
+
     async delete(docId: string, opts?: { author_as?: string }): Promise<{ doc_id: string; status: string }> {
       const payload: V3Body = { doc_id: docId }
       if (opts?.author_as) payload.author_as = opts.author_as
@@ -1840,6 +1849,7 @@ contracts: V3CR[],
  * The v3 client interface.
  */
 export interface V3Client {
+  documentAttachment(docId: string, groupId: string, opts?: { author_as?: string; attached?: boolean }): Promise<{ doc_id: string; group_id: string; attached: boolean }>
   state: {
     apiOrigin: string
     token: string | null

@@ -17,6 +17,27 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 
 ## Group Author Self-Target (02.11.2026)
 
+3.256.0 bounded attachment continuation (OpenAI GPT-6.1): inspected the new
+single-target route/model, direct role/app/storage calls, SDK and composer.
+Signed-route denial controls include retained external create revocation red/green,
+wrong service/role/app, human membership isolation, self lifecycle and removal
+after revocation. Real isolated ClickHouse-local 24.8 ReplacingMergeTree replay
+checks target removal/re-add and FINAL compaction with unrelated targets retained.
+Threaded signed requests test different-target survival over doubled storage;
+not real concurrent-engine proof. No full-file L1, complete L2/L3/L4, independent
+review or security PASS claim. Finalization has shell, file and GitHub tooling,
+but no reviewer-task/subagent interface; independent review remains unperformed.
+Connected browser/revocation, same-target/legacy writer races and rollout stay OPEN.
+
+Client mutation-affordance continuation (3.255.0, OpenAI GPT-6.1): inspected
+groups/get and groups/list handlers, mutationAuthority, shared card/lightbox
+consumers and document read/update attachment behavior. Corrected API-shape tests
+reproduce false-denied edit controls (eight failures); membership-role repair
+passes 65 focused social tests including denied roles, unrelated selected author,
+lightbox/feed controls and real composer-to-updatePost retry. No backend changes,
+new authority or complete L1/L2 scan claim. Safe full-attachment audience editing,
+connected revocation, independent review and full-suite green remain OPEN.
+
 [Bounded authorization repair](group-author-self-target.md): actual ASGI/signed
 synthetic auth and real effective-role/write helpers reproduce self-target 403
 and dropped attachment. Exact-self exception follows live human service/app

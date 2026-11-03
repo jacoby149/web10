@@ -43,6 +43,11 @@ says what can happen **at the same time**.
 
 ### Lane: century-club-findings (this workspace)
 
+- [✓ 3.255.1 bounded local] **Existing-post media preservation** - original refs minus explicit removals, independent of pending/failed/partial preview display. Five new red/green cases; 70 focused and all 1,673 social tests (114 files, two workers/20s) plus build/typecheck pass. No visual/backend/production changes; audience protocol and connected/review gates remain open.
+
+- [✓ 3.255.0 bounded local] **Existing group post edit controls** - actual membership-shape repair shared by feed/grid/media; 65 focused tests/build pass, desktop/375px screenshots inspected. Full suite: 1,666 pass/two fail; failed files pass focused rerun, no full-green claim. No backend or production changes.
+- [✓ 3.256.0 bounded local] **Existing post Discover audience editing** - approved generic API/SDK per-target attachment seam and separate-save composer controls implemented. Hidden destinations, original identity/content/engagement and failed-write retry covered locally; no multi-group picker or Make private promise. Connected persistence/revocation and independent review remain open; see `century-club-findings.md`.
+
 **Owns:** generic document self-target/current-attachment seam and focused API
 tests; social composer, group editor/detail, profile/follow reads and acting
 identity preference state; serialized KB updates. Split security-boundary work

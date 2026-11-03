@@ -23,6 +23,60 @@ The node does not hardcode social destinations or automatically attach anything.
 
 ## Findings And Repairs
 
+### Existing Post Edit Acceptance (02.11.2026)
+
+Authorized group operators must edit the original document independently of the
+navigation identity. Use the live membership role and exact service updateOwn
+grant, not a managing-role label or original posted_by. Denied roles retain no
+controls; the server remains the final write authority. Preserve author_key,
+posted_by, engagement, media and unrelated destinations on content-only edits.
+Failed writes leave the original and the editor draft unchanged and retryable.
+Review correction: the initial empty-media edit fixture did not prove preservation
+of nonempty media_refs. Edit preview resolution is optional display state, never
+removal intent: pending, rejected, empty or partial resolution must retain every
+original ref unless the operator explicitly removes that ref. Pin this before
+claiming nonempty-media edit safety; explicit removals must retain unresolved
+siblings and remain retryable after a failed save.
+
+3.255.1 bounded local repair: explicit removed IDs now drive surviving original
+refs independently of preview state. Five pending/failed/empty/partial-preview
+and removal-plus-retry regressions reproduced the loss, then pass. The real
+group composer-to-updatePost fixture now has nonempty unresolved media refs.
+70 focused tests and all 1,673 social tests in 114 files pass with two workers
+and 20s timeout; production typecheck/build pass with bundling warnings. This
+supersedes the earlier full-suite red result for the current local tree, not
+connected persistence or independent review. No visual behavior was changed.
+
+Operator approval (02.11.2026): implement a generic per-target attachment read/set
+seam, not replacement from a filtered projection. The caller needs live human
+app updateOwn and, for group authors, service updateOwn. New external attachments
+check create as the document author, never borrowed human membership; new self
+needs create, retained self needs updateOwn. Removal never needs destination create.
+Only the named attachment changes; hidden and concurrently changed other targets,
+content, audit actor and engagement stay untouched. Separate audience actions from
+content Save, with authoritative target state, explicit success/error and retry.
+Same-target races and authorization-to-write races are not transactional guarantees.
+
+Audience acceptance is Add to Discover / Remove from Discover in the shared
+composer, with explicit copy that other group audiences stay unchanged; never
+promise Make private. This requires authoritative current attachments, preserving
+hidden destinations and failing safely on stale state. It is NOT satisfied by
+body.visibility, default memberships or the groups on a normal read: /v3/read
+filters those to the human's readable carriers. /v3/update returns all carriers,
+but only after a write; it supplies no revision/conditional replacement gate.
+A preliminary no-op/content update is not a read seam and would permit partial
+success on later audience failure. The former contract blocker is now approved
+as the bounded per-target seam above. Implemented locally in 3.256.0 with signed API,
+SDK and composer regression coverage; connected verification and independent review
+remain open. No permissions
+or social-specific API may be added as a workaround. Personal audience editing
+has the same attachment-preservation requirement.
+
+Reproduced menu defect: groups/get returns the contract without my_role, while
+mutationAuthority expected my_role there. groups/list is the existing human
+membership seam and must supply the role used against the current contract.
+Feed cards and grid/media lightboxes share this authority helper.
+
 | Finding | Local disposition |
 |---|---|
 | All group publishes return 403 | Exact self-target authorized after live service create and human app gates; bystanders and unrelated human-only targets still denied. Existing self attachments can be retained with updateOwn; adding a new self attachment also requires create. |
