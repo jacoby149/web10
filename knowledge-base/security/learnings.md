@@ -35,6 +35,22 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-03: Connected foreign identity does not cache local authority
+
+`research/federation-demo/RESULTS.md` records one actual isolated two-node
+read/query grant→allow→removal→deny→regrant lifecycle under the same cached
+home-issued JWT, distinct signing keys and real test-CA HTTPS. A's status-only
+receipt has one positive certification and one rejected B-key forgery (second
+forgery denied from negative cache). Local namesake membership/app grants do not
+authorize the foreign reader; foreign app grant/revoke are explicitly service
+fixtures, not browser enrollment. Exact base 04da544442c3 plus #1360 owner-list
+repair, initial import failure, source/image receipts and verified cleanup are
+retained. Current-branch clean-base replay depends on #1360; no Phase A/C,
+public deployment, production key management, expiry/restart/multiworker/media,
+capacity or broad/diverse assurance. Fresh bounded review supports this claim;
+a later diagnostics-failure cleanup repair passes fault injection, not another
+connected run. Merge does not waive #1351's historical method failure.
+
 ### 2026-11-03: A real HLS permission recheck is separate from initial issuance and player renewal
 
 The [real-database trial](../../media-delivery/CONNECTED-ACCEPTANCE.md) uses actual
