@@ -20,10 +20,11 @@ function formatDuration(seconds: number): string {
 /**
  * The Music destination (music.md) — a wall of track cards.
  *
- * A music track is a `posts` doc on the discover group whose single media is
- * a real audio file (`audio/*`). The feed is a *view* over the discover group,
- * filtered to music — same model as Shorts (a 9:16 video) and Video (a
- * landscape video). No new collection, no new group.
+ * A music track is a `posts` doc on the discover group tagged `music` whose
+ * single media is either a real audio file (`audio/*`) or a video (`video/*`)
+ * that the author marked as music. The feed is a *view* over the discover
+ * group, filtered to music — same model as Shorts (a 9:16 video) and Video
+ * (a landscape video). No new collection, no new group.
  *
  * The wall: a responsive grid of square album-art tiles. Each tile shows the
  * track's cover (the media's `thumbnail_url`, or a default musical-note

@@ -186,14 +186,20 @@ export interface MusicPage {
 
 /**
  * One PAGE of the Music feed (the paged read — the wall's infinite scroll).
- * Returns the genuine audio tracks for the page + `hasMore`.
+ * Returns the genuine music tracks for the page + `hasMore`.
  *
- * A music track is a post with exactly one media that is a **real audio file**
- * — `mime_type` starts with `audio/`. The two-layer model (music.md):
+ * A music track is a post tagged `music` whose single media is either:
+ *   - a **real audio file** (`mime_type` starts with `audio/`), or
+ *   - a **video file** (`mime_type` starts with `video/`) that the author
+ *     explicitly marked as music (the "mark as music" toggle — a video CAN be
+ *     music, e.g. a music video).
+ *
+ * The two-layer model (music.md):
  *   1. **Server-side** — `readDiscoverFeed(…, ["music"])` sends the generic
  *      tag filter (`has(tags, 'music')`), so the node pulls only tagged tracks.
- *   2. **Render-time** — the audio/* re-derive below (the backstop that drops
- *      fakes: a doc tagged `music` whose media isn't a real audio file).
+ *   2. **Render-time** — the audio/* or video/* re-derive below (the backstop
+ *      that drops fakes: a doc tagged `music` whose media is neither a real
+ *      audio nor a video file).
  */
 export async function readMusicPage(limit = 50, offset = 0): Promise<MusicPage> {
   const posts = await readDiscoverFeed(null, limit, ['music'], offset, 'music');
@@ -239,13 +245,14 @@ export async function readMusicPage(limit = 50, offset = 0): Promise<MusicPage> 
 
   const tracks: MusicTrack[] = [];
   for (const p of withMedia) {
-    // The render-time gate (music.md): a real audio file, re-derived from the
-    // resolved media — not trusted from the client-asserted `music` tag.
-    const audio = (mediaByPost[p._id || ''] || []).filter(
-      (m) => m.mime_type?.startsWith('audio/'),
+    // The render-time gate (music.md): a real audio file OR a video file,
+    // re-derived from the resolved media — not trusted from the client-asserted
+    // `music` tag. A video can be music (the "mark as music" toggle).
+    const media = (mediaByPost[p._id || ''] || []).filter(
+      (m) => m.mime_type?.startsWith('audio/') || m.mime_type?.startsWith('video/'),
     );
-    if (audio.length === 1 && (p.media_refs?.length ?? 0) === 1) {
-      tracks.push({ post: p, media: audio[0] });
+    if (media.length === 1 && (p.media_refs?.length ?? 0) === 1) {
+      tracks.push({ post: p, media: media[0] });
     }
   }
   return { tracks, hasMore };
