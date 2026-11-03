@@ -17,6 +17,15 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 
 ## Node-Ad Attachment Authority (02.11.2026)
 
+H01-NODE-LINK [local repair](scans/2026-10/repair-h01-node-attachment.md): current
+Discover pair history before removal filtering, deletion-winning ties. Seven
+synthetic capability disclosures now deny before attachment/signing. Twelve node
+cases pass on SQLite/ClickHouse-local; active/reattached public inventory, pair
+isolation and independent uploaders retained. 1,886 API tests plus eight subtests,
+one opt-in lifecycle test skipped, full Ruff and fresh same-model intent review
+pass. Document delete/detag, provenance, real lifecycle/CI/rollout/diverse and L1
+remain OPEN. Historical pre-repair evidence follows; not whole-node-ad assurance.
+
 H01-NODE-LINK [evidence](scans/2026-10/h01-node-attachment-proof.md): current-link
 compiler fragment excludes a removed Discover attachment while actual node loader,
 ASGI enrichment and real synthetic SigV4 still deliver/sign its creative. Six

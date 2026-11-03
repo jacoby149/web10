@@ -54,6 +54,12 @@ import pytest
         "node-link-never",
         "node-link-active-group-uploader",
         "node-link-removed-group-uploader",
+        "node-link-removed-tie",
+        "node-link-removed-tie-reversed",
+        "node-link-removed-other-document",
+        "node-link-removed-other-group",
+        "node-link-alternate-group",
+        "node-link-active-other-document-removal",
     ],
 )
 def test_read_url_owner_boundary(case):
@@ -215,6 +221,8 @@ def _probe(case):
             setup.append("INSERT INTO doc_groups VALUES ('unrelated','creative-group',0,3)")
         if is_link and state == "removed-other-group":
             setup.append("INSERT INTO doc_groups VALUES ('creative','unrelated-group',0,3)")
+        if is_node and state == "active-other-document-removal":
+            setup.append("INSERT INTO doc_groups VALUES ('unrelated','creative-group',1,3)")
         if is_link and state == "removed-crossed-grants":
             setup += [
                 "INSERT INTO doc_groups VALUES ('creative','alternate-group',0,3)",
@@ -320,8 +328,10 @@ def _probe(case):
                 current = int(current)  # ClickHouse JSON serializes UInt64 counts as strings.
                 # The compiler's timestamp-only ordering is not a tie-policy oracle.
                 if not state.startswith("removed-tie"):
-                    assert bool(current) is (state in {"active", "reattached", "active-group-uploader"})
-            if state == "alternate-group":
+                    assert bool(current) is (
+                        state in {"active", "reattached", "active-group-uploader", "active-other-document-removal"}
+                    )
+            if state == "alternate-group" and not is_node:
                 assert ch.can_read_group("alternate-group", "alice", "posts", authenticated=True)
             response = TestClient(app).post(
                 "/v3/read", json={"token": token(), "service": "posts", "groups": ["carrier-group"]}
@@ -330,9 +340,12 @@ def _probe(case):
         assert response.status_code == 200
         doc = response.json()[0]
         if is_node:
-            # Evidence, not repaired policy: historical Discover links still deliver/sign.
+            # Retained disclosure replay: only current Discover attachments can authorize signing.
             assert "ad" not in doc
-            if state == "never":
+            if state not in {"active", "reattached", "active-group-uploader", "active-other-document-removal"}:
+                if "node_ad" in doc:
+                    verify(doc["node_ad"]["body"]["url"], key)
+                    print("removed-Discover synthetic capability independently verified before denial assertion")
                 assert "node_ad" not in doc
                 factory.assert_not_called()
             else:

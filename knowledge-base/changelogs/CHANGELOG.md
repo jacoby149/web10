@@ -1,3 +1,6 @@
+3.257.4 || 02.11.2026
+fix(ads): rank current Discover attachment history before node-inventory removal filtering, with deletion-winning ties. Seven reproduced synthetic capability disclosures now deny before attachment/signing; active/reattached public inventory, pair isolation and independent uploaders retained without viewer-membership restrictions. Twelve node cases pass on SQLite/isolated ClickHouse-local, 169 focused/1,886 API tests plus eight subtests, one opt-in lifecycle test skipped, full Ruff and fresh same-model intent review pass. Local repair only: document delete/detag, inventory provenance, real lifecycle/CI/rollout/diverse and protocol L1 remain OPEN. No commit, PR or deployment.
+
 3.257.3 || 02.11.2026
 test(security): reproduce node-creative delivery and independently verified synthetic SigV4 after Discover attachment removal. Actual compiler current-link fragment excludes the link while actual loader/ASGI enrichment still delivers/signs; six cases pass on SQLite and isolated ClickHouse-local, preserving public active/reattached inventory and independent uploaders. 1,880 API tests plus eight subtests, one opt-in lifecycle test skipped, full Ruff and fresh same-model intent review pass. Evidence only, no runtime repair: queue bounded node attachment repair; broader ad policy, real lifecycle/rollout/diverse and protocol L1 remain OPEN.
 
