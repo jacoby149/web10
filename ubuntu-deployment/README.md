@@ -47,10 +47,50 @@ resurrect it from this same compose. The legacy staging stack +
 `*.staging` DNS records get decommissioned once dev + prod are live —
 see AGENT-OPS.md §4.)
 
-Env vars per stack live in `env.dev.example` / `env.prod.example` —
-paste ALL of them into the Portainer stack. Every one is required; a
-missing var fails the deploy loudly instead of silently baking wrong
-origins into a frontend bundle.
+Env vars per stack are documented in `env.dev.example` / `env.prod.example`.
+The current SSH-deploy workflow uses private `env.dev` / `env.prod` with
+`docker compose --env-file`; required `${VAR:?}` values fail loudly.
+Optional protected-media settings below default to disabled delivery.
+
+### Protected media deployment wiring (off by default)
+
+The canonical Compose passes `MEDIA_DELIVERY_ENABLED`, `MEDIA_DELIVERY_BASE`,
+`MEDIA_DELIVERY_ISSUER`, `MEDIA_DELIVERY_AUDIENCE`, `MEDIA_DELIVERY_KID`,
+`MEDIA_DELIVERY_PRIVATE_KEY` and `MEDIA_DELIVERY_TTL` into **the API only**.
+Existing private env files may omit all seven: issuance stays false, the direct
+TTL stays 60 seconds and existing MinIO/HLS delivery remains unchanged.
+
+For a later approved dev trial, provision dev-only values in private `env.dev`
+and its authoritative backup at `~/web10-ops/env.dev`; keep `env.prod` disabled.
+The workflow restores a missing local env file from that private backup. The
+issuer/audience/kid and public key must match the separately deployed Worker;
+its origin bucket must match the API's existing S3 bucket. This wiring does not
+provision a Worker, hostname, bucket, storage credential or media-signing key.
+
+Use a **separate media-only RSA key**, never the authentication key. Store its
+entire PEM in a single-quoted dotenv assignment with literal line breaks and the
+trailing newline; do not substitute literal backslash-n sequences. The Compose
+tests verify exact multiline preservation using generated synthetic keys. The
+private stack files are gitignored; do not put the key in examples, frontend build
+args, command-line arguments, chat or logs. Do not print `docker compose config`
+for real secrets; use `config --quiet` when checking a real stack.
+
+Keep media settings out of the shared `ubuntu-deployment/.env`: the SSH workflow
+exports that file, and exported shell variables override per-stack `--env-file`
+values. Set them only in the intended private stack file, with no shared/exported
+media override. The old Portainer re-registration helper is not needed for this
+SSH-deploy path; do not run it just to enable CDN settings.
+
+Rollback after an approved dev trial: set `MEDIA_DELIVERY_ENABLED=false` in both
+private dev env copies and recreate only its API with
+`docker compose -p web10-dev --env-file env.dev -f docker-compose.ecosystem.yml up -d --no-deps api`
+from this directory. Do not rotate shared MinIO passwords or delete volumes.
+Previously issued capabilities remain valid until expiry; rollback is not immediate
+revocation. Invalid enabled media configuration still refuses API startup.
+
+Wiring is not rollout approval. Deployed dev acceptance comes next; promotion to
+`main`, production key/Worker configuration and production enablement are separate.
+Full contract and remaining gates: [media delivery](../knowledge-base/web10-v3/media-delivery.md).
 
 ## URL map — what to visit, per environment
 

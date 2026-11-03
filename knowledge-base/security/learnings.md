@@ -47,6 +47,19 @@ does not revoke stored staging grants. Queued jobs stop resuming after rollout;
 stale clients/bookmarks lose the retired URLs. Generic read/CRUD/media gates
 are retained; removal is not a whole-protocol security repair or rollout proof.
 
+### 2026-11-03: Deployment forwarding must preserve opt-in semantics and multiline keys
+
+The API already understood the media settings, but the ecosystem Compose did not
+forward them. Six real-Compose probes reproduce that missing integration; the
+repair's seven regressions verify both omitted and explicit disabled defaults,
+literal multiline synthetic PEM into fresh runtime settings validation, enabled
+missing-key denial, rollback and no frontend/build-argument exposure. Private
+`env.dev`/`env.prod` now have explicit Git ignores, pinned by a regression.
+Keep media values in per-stack private files: the existing SSH workflow exports
+shared `.env`, whose shell values take precedence over Compose `--env-file`.
+These tests render fake configuration without deployment or host secrets; they
+are not actual dev key provisioning, connected deployment or security sign-off.
+
 ### 2026-11-03: Connected foreign identity does not cache local authority
 
 `research/federation-demo/RESULTS.md` records one actual isolated two-node
