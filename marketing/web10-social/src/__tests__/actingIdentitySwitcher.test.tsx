@@ -63,9 +63,8 @@ describe('ActingIdentitySwitcher partial loading', () => {
     expect(mocks.query).toHaveBeenCalled();
     const dialog = screen.getByRole('dialog');
     expect(dialog.querySelector('img[src="https://cdn.example/face-alice.jpg"]')).toBeInTheDocument();
-    // Radix Avatar only mounts the <img> once the browser reports it loaded
-    // (jsdom never fires load), so the face is asserted as the request the
-    // component made: the face-prepare query scoped to the eligible groups.
+    await waitFor(() => expect(screen.getByRole('button', { name: /^Group good\s*Group$/ }).querySelector('img'))
+      .toHaveAttribute('src', 'https://cdn.example/face-good.jpg'));
     expect(mocks.query).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ groups: expect.arrayContaining(['good']) }));
   });
 
