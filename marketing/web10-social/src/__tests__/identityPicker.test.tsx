@@ -10,11 +10,12 @@ const mock = vi.hoisted(() => ({
   token: { provider: 'test.localhost', username: 'testuser' },
   getMyGroups: vi.fn(),
   getGroup: vi.fn(),
+  query: vi.fn(),
+  readGroupIdentity: vi.fn(),
 }));
 const group = 'test.localhost/groups/users/testuser/team';
-vi.mock('@/data/v3', async (original) => ({ ...await original<typeof import('@/data/v3')>(), getV3Client: () => ({ readToken: () => mock.token, getMyGroups: mock.getMyGroups, getGroup: mock.getGroup }) }));
-vi.mock('@/data/groups', async (original) => ({ ...await original<typeof import('@/data/groups')>(), readGroupIdentity: vi.fn().mockResolvedValue({ name: 'Team' }) }));
-vi.mock('@/data', async (original) => ({
+vi.mock('@/data/v3', async (original) => ({ ...await original<typeof import('@/data/v3')>(), getV3Client: () => ({ readToken: () => mock.token, getMyGroups: mock.getMyGroups, getGroup: mock.getGroup, query: mock.query }) }));
+vi.mock('@/data/groups', async (original) => ({ ...await original<typeof import('@/data/groups')>(), readGroupIdentity: mock.readGroupIdentity }));vi.mock('@/data', async (original) => ({
   ...await original<typeof import('@/data')>(),
   createPost: vi.fn().mockResolvedValue({ _id: 'post' }),
   createRepost: vi.fn().mockResolvedValue({ _id: 'repost' }),
@@ -33,6 +34,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   mock.getMyGroups.mockResolvedValue([{ group_id: group, my_role: 'custom-writer' }]);
   mock.getGroup.mockResolvedValue({ group_id: group, roles: [{ name: 'custom-writer', permissions: { posts: ['create'] } }] });
+  mock.query.mockResolvedValue({ rows: [] });
+  mock.readGroupIdentity.mockResolvedValue({ name: 'Team' });
 });
 
 describe('App-wide acting identity', () => {
