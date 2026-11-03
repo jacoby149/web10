@@ -50,6 +50,9 @@ app.include_router(v3.router)
 
 @app.on_event("startup")
 def _start_hls_workers():
+    from app.services.media_delivery import validate_configuration
+
+    validate_configuration()
     # The in-process HLS transcode worker (D44). Daemon threads, bounded
     # concurrency — started at boot so a misconfigured ffmpeg fails loudly
     # in the boot log, not on the first upload.

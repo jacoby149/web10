@@ -13,6 +13,7 @@ from uuid6 import uuid7
 
 import app.settings as settings
 from app.services.media import get_s3_client, get_s3_signing_client
+from app.services.media_delivery import get_url
 
 log = logging.getLogger(__name__)
 
@@ -3626,13 +3627,9 @@ def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
     presigned = {}
     log.info("[media] metadata signing: accepted keys=%d", len(set(object_keys + thumbnail_keys)))
     if object_keys or thumbnail_keys:
-        signing_client = get_s3_signing_client()
+        signing_client = None if settings.MEDIA_DELIVERY_ENABLED else get_s3_signing_client()
         for key in dict.fromkeys(object_keys + thumbnail_keys):
-            presigned[key] = signing_client.generate_presigned_url(
-                "get_object",
-                Params={"Bucket": settings.S3_BUCKET, "Key": key},
-                ExpiresIn=settings.READ_URL_EXPIRY,
-            )
+            presigned[key] = get_url(key, signing_client)
         log.info("[media] metadata signing: completed")
 
     resolved = []
@@ -3689,13 +3686,9 @@ def resolve_minio_types(doc_body: dict, media_owner: str) -> dict:
                 url = None
                 if prefix and isinstance(key, str) and key.startswith(prefix) and len(key) > len(prefix):
                     log.info("[media] raw signing: started")
-                    if signing_client is None:
+                    if signing_client is None and not settings.MEDIA_DELIVERY_ENABLED:
                         signing_client = get_s3_signing_client()
-                    url = signing_client.generate_presigned_url(
-                        "get_object",
-                        Params={"Bucket": settings.S3_BUCKET, "Key": key},
-                        ExpiresIn=settings.READ_URL_EXPIRY,
-                    )
+                    url = get_url(key, signing_client)
                     log.info("[media] raw signing: completed")
                 else:
                     log.info("[media] raw signing: denied invalid owner or key")
