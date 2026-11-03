@@ -145,7 +145,7 @@ export default function ActingIdentitySwitcher({ personalName, personalAvatar }:
   }
   return <div ref={root} className="relative min-w-0 shrink-0" data-testid="acting-identity">
     <button ref={trigger} type="button" aria-haspopup="dialog" aria-expanded={open} onClick={() => { if (!open) { setPending(selected); setQuery(''); } console.log('[social-identity] picker toggled', { open: !open }); setOpen(!open); }}
-      className="flex min-h-11 items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-left hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="acting-identity-trigger">
+      className="flex h-11 items-center gap-2 rounded-lg border border-border bg-surface px-2 py-0 text-left hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-auto md:min-h-11 md:px-3 md:py-2" data-testid="acting-identity-trigger">
       <Avatar className="h-8 w-8">{selected ? selectedFace?.id === selected && selectedFace.avatarUrl && <AvatarImage src={selectedFace.avatarUrl} alt="" /> : personalAvatar && <AvatarImage src={personalAvatar} alt="" />}<AvatarFallback className="bg-brand-muted text-brand-300">{name?.charAt(0).toUpperCase()}</AvatarFallback></Avatar>
       <span className="min-w-0"><span className="block whitespace-nowrap text-xs text-muted-foreground">Acting as</span><span className="block max-w-24 truncate text-sm font-medium md:max-w-32">{name}</span></span>
       <ChevronDown className="hidden h-4 w-4 text-muted-foreground md:block" />
