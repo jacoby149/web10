@@ -83,6 +83,18 @@ UPLOAD_URL_EXPIRY = int(os.getenv("UPLOAD_URL_EXPIRY", "300"))
 READ_URL_EXPIRY = int(os.getenv("READ_URL_EXPIRY", "60"))
 MAX_UPLOAD_SIZE = int(os.getenv("MAX_UPLOAD_SIZE", "524288000"))
 
+# Separate media-only credentials; never reuse the node authentication key.
+_media_enabled = os.getenv("MEDIA_DELIVERY_ENABLED", "false").strip().lower()
+if _media_enabled not in ("true", "false", "1", "0", "yes", "no"):
+    raise ValueError("invalid MEDIA_DELIVERY_ENABLED")
+MEDIA_DELIVERY_ENABLED = _media_enabled in ("true", "1", "yes")
+MEDIA_DELIVERY_BASE = os.getenv("MEDIA_DELIVERY_BASE", "")
+MEDIA_DELIVERY_ISSUER = os.getenv("MEDIA_DELIVERY_ISSUER", "")
+MEDIA_DELIVERY_AUDIENCE = os.getenv("MEDIA_DELIVERY_AUDIENCE", "")
+MEDIA_DELIVERY_KID = os.getenv("MEDIA_DELIVERY_KID", "")
+MEDIA_DELIVERY_PRIVATE_KEY = os.getenv("MEDIA_DELIVERY_PRIVATE_KEY", "")
+MEDIA_DELIVERY_TTL = int(os.getenv("MEDIA_DELIVERY_TTL", "60"))
+
 # HLS transcoding (D44 — the video spine). Renditions are "WxH@bitrate"
 # pairs, lowest first (the player starts low and adapts up). Override the
 # list per environment (e2e uses fewer/shorter renditions for speed).
@@ -149,7 +161,7 @@ QUERY_EVAL_READABLE_MODE = os.getenv("QUERY_EVAL_READABLE_MODE", "per-group").lo
 for v in list(globals()):
     # Evaluation values above already parse their environment types. In
     # particular, the string "0" must not enable a policy-bypass flag.
-    if v.startswith("QUERY_EVAL_"):
+    if v.startswith(("QUERY_EVAL_", "MEDIA_DELIVERY_")):
         continue
     env_val = os.getenv(v)
     if env_val is not None:

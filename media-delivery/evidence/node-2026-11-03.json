@@ -1,0 +1,63 @@
+{
+  "kind": "redacted summary of retained connected receipt",
+  "sourceReceipt": "node-acceptance-1793744725648-69b11bd4-7fd9-4b1c-a050-ec4641fdaf41.json",
+  "sourceReceiptSha256": "42ff313042334ee4364d8bac48729bc41534c44dff13b707b2b21ec9a6212053",
+  "started": "2026-11-03T22:24:58.408Z",
+  "finished": "2026-11-03T22:25:25.647Z",
+  "ok": true,
+  "probeRequests": 29,
+  "probeCountExcludesBrowserRequests": true,
+  "engine": "24.8.14.39",
+  "image": "sha256:999a072d6f927d54b32742a0ca619a94786a34d6c39bf90caabf0530ec9b076b",
+  "apiStopped": true,
+  "containerRemoved": true,
+  "observedStatuses": {
+    "live-router-health": 200,
+    "owner-master": 200,
+    "owner-variant": 200,
+    "member-master": 200,
+    "member-variant": 200,
+    "outsider-denied": 403,
+    "missing-stream-token": 403,
+    "revoked-member-master": 403,
+    "revoked-member-variant": 403,
+    "preminted-segment-retains-bounded-access": 200,
+    "regranted-member-master": 200,
+    "regranted-member-variant": 200,
+    "public-carrier-anon-master": 200,
+    "public-carrier-anon-variant": 200,
+    "revoked-public-carrier": 403,
+    "unauthenticated-carrier-denied": 403,
+    "authenticated-carrier-master": 200,
+    "authenticated-carrier-variant": 200,
+    "revoked-authenticated-carrier": 403,
+    "short-parent-master": 200,
+    "short-parent-variant": 200,
+    "segment-before-expiry": 200,
+    "expired-parent-master": 403,
+    "expired-parent-variant": 403,
+    "expired-edge-capability": 403,
+    "explicit-renewal-master": 200,
+    "explicit-renewal-variant": 200,
+    "renewed-edge-capability": 200,
+    "revoked-renewal-denied": 403
+  },
+  "browser": [
+    {"viewport": {"width": 1280, "height": 800}, "ended": true, "seconds": 3.999999, "frames": 96, "fatal": false, "manifests": [200, 200], "segments": [200, 200]},
+    {"viewport": {"width": 375, "height": 812}, "ended": true, "seconds": 3.999999, "frames": 96, "fatal": false, "manifests": [200, 200], "segments": [200, 200]}
+  ],
+  "sourceHashes": {
+    "media-delivery/connected-node.mjs": "4e154b28fad1e233cd5fabfa41a77b6a819e6d5e68ba3cae2ae1a566b2689bfa",
+    "media-delivery/connected-node.py": "d366405a6229a6609ac4e408e938eefd56bff8ddd2d1f42b042bb24732793534",
+    "api/app/services/hls.py": "eaba3499851737e1a72ff583b03884ec69ff02b29e3de208ce89d9de55442bc4",
+    "api/app/v3/endpoints/media.py": "48d6838413b30d7cab74f84076e27cd3f6818de31e5b61543170c9230289f245",
+    "api/app/v3/services/clickhouse.py": "bb15b76914db8d3e6f1c08bc56c9d41198d9ea2f9c0106fadf658e6ee9a018ec"
+  },
+  "limits": [
+    "Synthetic stream-token issuer; not initial document CRUD/login/app-contract certification",
+    "Local minimal HLS API and four isolated ClickHouse tables; not deployed production node",
+    "Eight-second parent expiry and explicit renewal; not seamless full-player long-video recovery",
+    "Chromium viewports only; not Safari or a physical mobile device",
+    "No provider logging/cost or independent security completion"
+  ]
+}

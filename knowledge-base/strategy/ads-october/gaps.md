@@ -40,7 +40,7 @@ depends on it.
 > concern from the ads part. were getting there, just getting things great
 > first though."
 
-**The reframe (D94, 03.11.2026):** the bulk import is gone. The operator's call: "our goal isnt to import influencers whole shit that is annoying, just to get them on this thing" + "cool new platform, cool NEW platform, that is what it is." Migration is a commodity now (Meta Muse, ChatGPT, Grok all do it), so web10 doesn't ship a bespoke import pipeline for something an AI assistant already handles. **Onboarding is "get the creator on the platform and start fresh"** — not "port their back catalog." The join path is now the pitch (the manifesto) + white-glove setup (domain, branding, first posts); if a creator wants some of their old content over, they use an AI assistant, not us. The ads experience is still the *stay*; the *join* is the fresh-start pitch, not a migration tool.
+**The reframe (D95, 03.11.2026):** the bulk import is gone. The operator's call: "our goal isnt to import influencers whole shit that is annoying, just to get them on this thing" + "cool new platform, cool NEW platform, that is what it is." Migration is a commodity now (Meta Muse, ChatGPT, Grok all do it), so web10 doesn't ship a bespoke import pipeline for something an AI assistant already handles. **Onboarding is "get the creator on the platform and start fresh"** — not "port their back catalog." The join path is now the pitch (the manifesto) + white-glove setup (domain, branding, first posts); if a creator wants some of their old content over, they use an AI assistant, not us. The ads experience is still the *stay*; the *join* is the fresh-start pitch, not a migration tool.
 
 ---
 
@@ -512,7 +512,7 @@ the build order, but they're not the current focus.
   is the *solo creator* tier.
 
 **The gaps that remain genuinely open:**
-- **Gap 1 (fan migration)** — resolved by D94: the bulk import is cut. Onboarding
+- **Gap 1 (fan migration)** — resolved by D95: the bulk import is cut. Onboarding
   is "get the creator on the platform and start fresh"; if they want old content
   over, an AI assistant (Meta Muse / ChatGPT / Grok) handles it, not us.
 - **Gap 2 (ads platform revenue certainty)** — the positioning ("mastodon-style

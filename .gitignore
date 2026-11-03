@@ -34,6 +34,10 @@ marketing/marketing-ui/test-results/
 .env
 .env.local
 
+# Local CDN acceptance credentials, signing keys and generated Wrangler state
+.context/cdn-live/
+.wrangler/
+
 # org logo overrides (keep the generic defaults)
 ui/public/YourOrgsLogo/*
 !ui/public/YourOrgsLogo/generic*
