@@ -1,3 +1,8 @@
+3.259.10 || 03.11.2026
+fix(deploy): forward all seven MEDIA_DELIVERY_* settings through the canonical API Compose environment; old private env files and both examples keep issuance off with direct TTL 60. Six real-Compose configuration failures become seven passing regressions covering omitted/default settings, multiline synthetic PEM, actual runtime validation, missing-key denial, rollback, no frontend/build-arg key exposure and ignored private stack files. Extend the API CI path filter to Compose/env-example changes and document per-stack secret provisioning, shell precedence and API-only rollback. No live deployment, credential/bucket/DNS changes, billing action or production promotion; deployed dev acceptance remains next.
+
+Local verification: 2,025 API tests plus eight subtests pass, one opt-in skip; all 43 edge/interoperability tests, full API Ruff lint/format, security-gate self-tests and whitespace checks pass. Tests render synthetic configuration only; no live stack or secret is used.
+
 3.259.9 || 03.11.2026
 chore: merge origin/dev into the CDN branch, preserve both sides of security/planning/ops records and retain both media-delivery and foreign-principal imports. Renumber only this branch's CDN entries to 3.259.0–3.259.8 above dev's 3.258.4, keeping already-merged release headers unchanged. No production rollout or CI/security-completion claim.
 

@@ -30,6 +30,14 @@ private-origin denial, browser playback/renewal, key rotation and production log
 verification. No deployment, instant revocation or existing authority-debt closure.
 Contract/gates: [media delivery](../web10-v3/media-delivery.md).
 
+03.11.2026 deployment-wiring bite (GPT-6.1 Sol): inspect canonical Compose media
+environment and SSH-deploy env-file/precedence seam. Six pre-repair real-Compose
+failures become seven passing configuration/runtime probes: disabled/omitted
+behavior, exact multiline synthetic PEM, key only in API environment, no build-arg
+exposure, missing-key validation denial, rollback and ignored private stack files.
+No API permission or signing change, live secrets/deployment or independent review.
+Deployed dev acceptance and the broader release/security gates remain OPEN.
+
 03.11.2026 connected update (GPT-6.1 Sol): fresh isolated IAD cache/origin-denial,
 Chromium desktop/375px image/range and synthetic HLS, deployed test-key rotation
 evidence; 41 local edge/interoperability tests pass. Actual API HLS handlers use
