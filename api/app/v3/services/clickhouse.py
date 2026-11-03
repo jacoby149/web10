@@ -3192,8 +3192,8 @@ def resolve_pinned_ads(docs: list[dict], reader: str) -> dict[str, dict]:
     (I3: the ad rides the reader's access, not just the doc's). A pinned ad the
     reader can't see is simply not returned (the doc comes back with no ad).
 
-    Membership versions are ranked before removal filtering; a historical live
-    row cannot override the current tombstone. A newer rejoin still grants access.
+    Membership and attachment versions are ranked before removal filtering;
+    tombstones win timestamp ties. A newer rejoin or reattachment grants access.
 
     Service-agnostic (D75): the ad is whatever doc `ad_target` references — the
     node does not vet its `collection_name`. The `ad` tag + the `ad_preference`
@@ -3214,11 +3214,13 @@ def resolve_pinned_ads(docs: list[dict], reader: str) -> dict[str, dict]:
         "row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
         f"FROM documents WHERE doc_id IN ({placeholders})) ad "
         "WHERE ad.rn = 1 AND ad.deleted = 0 "
-        "AND ad.doc_id IN (SELECT pg.doc_id FROM doc_groups pg "
+        "AND ad.doc_id IN (SELECT pg.doc_id FROM (SELECT doc_id, group_id, deleted, "
+        "row_number() OVER (PARTITION BY doc_id, group_id ORDER BY updated_at DESC, deleted DESC) AS rn "
+        f"FROM doc_groups WHERE doc_id IN ({placeholders})) pg "
         "JOIN (SELECT group_id, deleted, "
         "row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC, deleted DESC) AS rn "
         "FROM group_members WHERE member_key = %(reader)s) gm ON pg.group_id = gm.group_id "
-        "WHERE gm.rn = 1 AND pg.deleted = 0 AND gm.deleted = 0)",
+        "WHERE pg.rn = 1 AND gm.rn = 1 AND pg.deleted = 0 AND gm.deleted = 0)",
         params,
     )
     log.info("[ads] pinned membership read: completed creatives=%d", len(result.result_rows))

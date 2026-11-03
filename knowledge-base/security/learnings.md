@@ -35,6 +35,19 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-02: Rank creative attachments before granting inline delivery
+
+[Local attachment repair](scans/2026-10/repair-h01-pinned-attachment.md) ranks
+doc_groups per document/group before removal filtering, with deletion-winning
+ties. Removed links now deny before creative attachment/signing; reattachment and
+independent live alternate-group access survive. Crossed grants cannot combine a
+live attachment in one group with live membership in another. Twelve attachment
+and ten membership probes pass on SQLite and ClickHouse-local; 1,865 API tests plus
+eight subtests and Ruff pass. Fresh same-model intent review found no blocker.
+The compiler reference still orders ties by timestamp alone: do not generalize
+this loader's tie guarantee to other readers. Real-schema writer/merge lifecycle,
+broader ad authority, CI/rollout/diverse review and L1 remain OPEN.
+
 ### 2026-11-02: Self-target authority is not inherited external membership
 
 The group publish 403 reproduces when the group is not a member of itself.
