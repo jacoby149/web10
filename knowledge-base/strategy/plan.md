@@ -1216,6 +1216,8 @@ docs before code, per the rule at the top.
 
 ## SIGMOD 2027 Industry Track — the full paper (research/)
 
+- [ ] **H-REPLAY: clean-base two-node evidence** — gated on #1360 merging; run the complete harness on merged dev without a runtime overlay, review retained source/issuer/lifecycle/cleanup receipts, then update manuscript provenance and pass all PR checks. Scope and acceptance: multi-node-federation lane; not full migration, self-join or production federation.
+
 - [✓ 3.259.10 local evidence; dependency #1360] **Isolated cross-node IAM result and paper integration** — two actual APIs/databases/storage, independent keys, real test-CA HTTPS, read/query grant/removal/regrant under cached identity, namesake/app controls and retained receipts. One completed base-plus-patch run after an initial import failure; exact owner repair is #1360. Current-branch clean-base replay and broader federation/security gates remain OPEN; H is not Phase A/C completion.
 
 - [✓ 3.258.4 merged #1351] **Cross-node certification continuation repairs** — independent-key routing, issuer-only `/certify`, local membership compatibility, foreign-reader continuity including directory and pinned public HTTPS issuer transport. 1,977 API tests plus eight subtests pass; fresh same-model bounded re-review passes. Historical method failure, independent secrets and broader connected gates remain OPEN; no Phase A or submission-readiness claim.
