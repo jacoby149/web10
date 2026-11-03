@@ -37,6 +37,10 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
+- [✓ 3.258.0 local] **Music listening experience** - `music-listening.md`: persistent occurrence-aware queue/transport, compact rows and overflow sheet, URL search/views/track links, Saved Music and existing collection playlists. All 1,761 social tests, production build/typecheck and seeded desktop/375px inspection pass; silent-fixture browser menu/navigation smoke passes. Connected collection persistence, real playback, mobile background and rollout gates remain open. No deployment or production writes.
+
+- [✓ 3.258.1 local] **Music supporting images** - accept tagged Discover posts with exactly one resolved audio/video plus images; reject multiple playables, unresolved and unsupported attachments. Reproduced Century Club's MP4-plus-WebP exclusion in regression; all 1,689 social tests and production build/typecheck pass. No deployment or production writes/playback verification.
+
 - [✓ 3.257.12 local] **Mobile acting-identity header spacing** - retain border/background with a 44px trigger and 8px horizontal padding on phones; preserve desktop card styling and picker behavior. All 15 picker tests pass after operator clarification; build/typecheck passed before border restoration. Updated desktop/375px header screenshots inspected. Not deployed.
 
 - [✓ 3.257.7 local] **Identity picker resolved-picture repair** - fix the `avatar_url`/`avatarUrl` consumer mismatch left by 3.255.1; require the rendered group image URL in the regression. Shared FaceUrls type, 19 picker tests, production build and seeded desktop/375px inspection pass. The shared resolver batches avatar and banner queries separately, not one HTTP read. No deployment or live-account verification.

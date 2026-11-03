@@ -65,7 +65,34 @@ screenshots at 1440×900 and 375×812.
   `capture.mjs`.
 - Want different seed content → edit `PEERS` in `harness/mock-data.ts`.
 
-## When a capture fails (read the error — it tells you the fix)
+## Music captures
+
+Music uses the real app-level `MusicProvider` and `MusicPlayer`, with six
+synthetic tracks, inline SVG artwork and a short silent WAV data URL. Restoring
+a track URL selects it without autoplay. Audio duration reflects the one-second
+fixture, not the synthetic catalog metadata; these are not playback evidence.
+Collection saves, removals and creation remain in memory until page reload.
+Tour Sets deliberately preserves collection order and skips two nonmusic or
+unavailable references.
+
+Run from `marketing/web10-social` (set `SCREENSHOT_OUTPUT_DIR` to an existing
+directory to keep PNGs outside the source tree):
+
+```bash
+node screenshots/capture.mjs --name music --route /music --ready '[data-testid="music-screen"]'
+node screenshots/capture.mjs --name music-saved --route /music-saved --ready '[data-testid="music-track-card"]'
+node screenshots/capture.mjs --name music-playlists --route /music-playlists --ready '#playlist-name'
+node screenshots/capture.mjs --name music-player --route /music-player --ready '[data-testid="music-player"]'
+node screenshots/capture.mjs --name music-queue --route /music-queue --ready '[data-testid="music-player"]'
+node screenshots/capture.mjs --name music-playlist --route /music-playlist --ready '[data-testid="music-track-card"]'
+```
+
+`capture.mjs` turns `--route` into a harness screen key, not a literal app URL.
+The keys above map to `/music`, `?view=saved`, `?view=playlists`,
+`?track=music-1&panel=player`, `?track=music-1&panel=queue`, and the seeded
+Tour Sets collection respectively. Each command writes desktop and 375px PNGs.
+
+## Capture diagnostics
 
 `capture.mjs` buffers the page's console + uncaught errors and dumps them on
 any failure, with hints. You do NOT need to hunt for dev-server logs — the
