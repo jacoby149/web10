@@ -29,5 +29,3 @@ if (env?.VITE_RTC_ORIGIN) {
 // The RTC endpoint as a bare host (the SDK's rtc subpath takes a host, not a URL)
 export const RTC_HOST: string = rtcHost;
 export const RTC_ORIGIN: string = `${rtcProtocol}://${rtcHost}`;
-
-

@@ -1,3 +1,6 @@
+3.259.13 || 03.11.2026
+chore: remove a trailing blank line left by the marketing-origin cleanup. Fresh post-merge marketing tests and production build, social production build, API Ruff lint/format and branch whitespace checks pass. API/social full-suite results and CI remain pending at this entry; no backend import-removal or deployment claim.
+
 3.259.12 || 03.11.2026
 chore: merge origin/dev into the import-removal branch, retaining both the CDN and import-cut decisions and planning records. Dev keeps D94 and releases 3.259.0–3.259.9; this branch's import cut becomes D95 with releases 3.259.10/3.259.11. No production rollout or CI-completion claim.
 
