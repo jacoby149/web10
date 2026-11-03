@@ -1,7 +1,22 @@
 # Portable Protected Media Delivery
 
-Status: locally implemented and tested; disabled by default. No CDN deployment or
-connected playback evidence yet. This supersedes the origin-check-only shared
+Status: locally implemented and tested; production disabled by default. An isolated
+Cloudflare Worker has fresh synthetic MinIO cache, Chromium HLS/range and deployed
+test-key rotation evidence, not production approval. Its intended read-only storage
+credential failed list/write denial probes after status-only updates removed its
+embedded policy. Atomic status+policy updates repair that path; the restored account
+passes GET/list/write and repeated cache/playback checks. See the
+[connected record](../../media-delivery/CONNECTED-ACCEPTANCE.md); real-node
+authorization/renewal, logging/limits and independent review remain open.
+
+Further isolated acceptance now exercises actual ClickHouse-backed HLS permission
+checks and loopback HTTP manifests, owner/member and carrier principal-class
+revocation, real edge expiry and explicit fresh-token renewal, plus Chromium
+1280px/375px playback. This replaces the earlier synthetic access stub for that
+bounded HLS path, not initial login/document certification, the full production
+node or seamless long-video player renewal. Provider subscription/log-export audit
+is permission-blocked; details and release gates remain in the connected record.
+This supersedes the origin-check-only shared
 cache proposal in `research/cloudflare-plan.md`.
 
 ## Contract

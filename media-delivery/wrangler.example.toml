@@ -3,6 +3,22 @@ main = "cloudflare.mjs"
 compatibility_date = "2026-10-01"
 workers_dev = false
 preview_urls = false
+logpush = false
+
+# Per-invocation CPU guardrail, not a monthly spending cap. Validate with metrics.
+[limits]
+cpu_ms = 50
+
+# Protected requests must execute the verifier, not an outer response cache.
+[cache]
+enabled = false
+
+[observability]
+enabled = false
+
+[observability.logs]
+enabled = false
+invocation_logs = false
 
 [vars]
 MEDIA_DELIVERY_ENABLED = "false"

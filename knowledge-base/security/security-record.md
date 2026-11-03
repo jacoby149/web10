@@ -30,6 +30,40 @@ private-origin denial, browser playback/renewal, key rotation and production log
 verification. No deployment, instant revocation or existing authority-debt closure.
 Contract/gates: [media delivery](../web10-v3/media-delivery.md).
 
+03.11.2026 connected update (GPT-6.1 Sol): fresh isolated IAD cache/origin-denial,
+Chromium desktop/375px image/range and synthetic HLS, deployed test-key rotation
+evidence; 41 local edge/interoperability tests pass. Actual API HLS handlers use
+synthetic document authority, not real membership. **OPEN finding:** the intended
+read-only Worker credential returns 200 for list and write in the synthetic bucket.
+Exact account disabled, origin denial independently confirmed, local reuse
+quarantined. No root/shared-password or existing-policy changes; broader authority
+and ineffective-policy cause unknown. Two account-inspection attempts failed;
+live diagnosis stopped. [Evidence and remaining gates](../../media-delivery/CONNECTED-ACCEPTANCE.md).
+This is containment, not a repaired finding or complete scan/sign-off.
+
+03.11.2026 follow-up (GPT-6.1 Sol): isolated credential finding repaired and
+connected negative controls rechecked. Exact-version mc status-only updates omit
+policy; MinIO IAM store removes the embedded restriction and inherits parent
+authority. Guarded atomic policy+status official-SDK updates now inspect exact
+scope before restoring delivery. Real GET 200/hash, list/write AccessDenied 403;
+repeat ATL cache disable/restore retains policy and browser synthetic HLS passes.
+42 edge/interoperability tests include six Python policy regressions; Ruff passes.
+Root credentials remain remote; existing bucket policies/passwords unchanged.
+Source links and failure history in the [connected record](../../media-delivery/CONNECTED-ACCEPTANCE.md).
+Finding-specific operational repair only; full scan, real-node permission/renewal,
+provider logs/limits and independent/diverse sign-off remain OPEN.
+
+03.11.2026 additional connected evidence (GPT-6.1 Sol): isolated ClickHouse
+24.8.14.39 and live HTTP HLS endpoint functions exercise actual owner/member/carrier
+public/authenticated checks without permission stubs. Revocation, real parent/edge
+expiry and explicit renewal controls pass; final 29 probes plus desktop/375px
+Chromium playback, source hashes and verified teardown retained in the
+[connected record](../../media-delivery/CONNECTED-ACCEPTANCE.md). Current outer-cache
+and logging-example guards pass; subscription/account/zone export reads are 403,
+so billing/logging audit remains incomplete. Initial document auth certification,
+full-player seamless renewal, load/large-response bounds and independent/diverse
+security review remain OPEN; no full level/surface PASS or production claim.
+
 ## Pinned-Ad Membership Authority (02.11.2026)
 
 H01-AD-MEMBER [local evidence](scans/2026-10/h01-pinned-membership-proof.md):

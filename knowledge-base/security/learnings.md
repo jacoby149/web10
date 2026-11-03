@@ -35,6 +35,71 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-03: A real HLS permission recheck is separate from initial issuance and player renewal
+
+The [real-database trial](../../media-delivery/CONNECTED-ACCEPTANCE.md) uses actual
+ClickHouse owner/member/carrier and public/authenticated gates, not a permission
+stub. Membership/grant removal denies subsequent manifests and renewal attempts;
+already-issued segment capabilities remain usable until real expiry, matching
+the documented bearer model. Eight-second parent/edge expiry and explicit fresh
+authorization pass, but do not prove initial login/document certification or
+seamless long-video recovery in the social player. Keep those release gates open.
+
+Cloudflare's current **Workers Cache** can precede Worker execution; it is not our
+post-verification Cache API. Keep outer caching off and private/no-store responses
+intact. The example and regression now pin that configuration. Account/zone logging
+and subscription API 403s are unknowns, not proof of absent exports or paid service.
+The [provider record](../../media-delivery/PROVIDER-READINESS.md) retains those limits.
+
+### 2026-11-03: Status-only MinIO service-account updates can remove an embedded policy
+
+The credential finding below is repaired for the isolated account. Exact mc
+2025-08-13 sends status without policy; MinIO 2025-09-07's IAM store interprets nil
+session policy as removal and switches to inherited authority. This explains why
+the cache experiment's toggles invalidated the intended restriction. Root-derived
+inheritance is especially dangerous; never assume a status edit preserves scope.
+
+The [connected record](../../media-delivery/CONNECTED-ACCEPTANCE.md) links exact
+source commits. `media-delivery/minio_account.py` submits status+policy atomically
+through the official SDK, checks name/bucket binding and re-reads the embedded
+policy; ambiguous updates request restricted disable. Six offline regressions
+model the exact removal semantics; actual list/write 200 becomes AccessDenied 403
+while GET retains expected bytes. Repeating cache disable/restore, policy inspection
+and Chromium synthetic HLS confirms the harness no longer loses the restriction.
+Account is restored only for isolated delivery; no shared-password/bucket-policy
+changes. Production, real-node permission/renewal, logging/limits and independent
+model-diverse security review remain open; no whole-surface scan/PASS claim.
+
+### 2026-11-03: A requested MinIO session policy is not proof of restricted authority
+
+The [connected delivery trial](../../media-delivery/CONNECTED-ACCEPTANCE.md)
+used a root-derived service account created with an intended GetObject-only
+session policy. Real ListObjectsV2 and PutObject against the isolated synthetic
+bucket both returned 200, not AccessDenied. The creation command and successful
+GET were insufficient evidence. No broader production-object read/write was
+attempted; authority outside the test bucket remains unknown. Disabled the exact
+account, confirmed signed origin GET now returns 403/InvalidAccessKeyId and
+quarantined harness reuse. Policy inspection failed twice; cause and repair remain
+OPEN. Never re-enable it just to make playback green or rotate the shared root
+password as a shortcut. Effective-policy inspection and independent negative
+controls are required before granting a delivery adapter storage credentials.
+
+Location-aware cache verification, Chromium synthetic HLS/range and deployed
+test-key rotation now pass, but performance/playback success does not discharge
+the separate storage-authority boundary. No security-completion claim.
+
+### 2026-11-03: A warm-cache control must match the observed edge location
+
+The [isolated delivery record](../../media-delivery/CONNECTED-ACCEPTANCE.md)
+recovers one IAD run where a disabled origin credential still permits warmed
+bytes but never expired capabilities. Fresh requests moved between EWR/IAD/ATL;
+an origin-disabled request at a different location returned 502, which cannot
+prove failure of the warmed location's cache. Keep location-matched evidence and
+immutable per-run receipts, not just a repeated 200 or overwritten latest-result
+file. The account restoration succeeded; live retries stopped at the ops limit.
+Local option-regression/interoperability tests pass, but browser/HLS, rotation,
+logging review and independent security sign-off still gate production issuance.
+
 ### 2026-11-02: Protected cache hits need their own authorization gate
 
 The historical CDN research proposed path-keyed shared caching with origin-only

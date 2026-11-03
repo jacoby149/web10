@@ -31,7 +31,7 @@ export function createS3Origin({ endpoint, region, accessKeyId, secretAccessKey,
     for (const value of [region, 's3', 'aws4_request']) signingKey = await hmac(signingKey, value);
     const signature = hex(await hmac(signingKey, `AWS4-HMAC-SHA256\n${date}\n${scope}\n${await digest(canonical)}`));
     headers.set('authorization', `AWS4-HMAC-SHA256 Credential=${accessKeyId}/${scope}, SignedHeaders=${signed}, Signature=${signature}`);
-    return fetch(url.href, { method: 'GET', headers, redirect: 'manual', cache: 'no-store', cf: { cacheTtl: 0, cacheEverything: false } });
+    return fetch(url.href, { method: 'GET', headers, redirect: 'manual', cache: 'no-store' });
   };
 }
 

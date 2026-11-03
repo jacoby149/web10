@@ -3,6 +3,109 @@ import assert from 'node:assert/strict';
 import { webcrypto, createHmac, createHash } from 'node:crypto';
 import { createVerifier, createDelivery, encodeKey } from './core.mjs';
 import { createS3Origin, createWorker } from './cloudflare.mjs';
+import { createCacheEvidence, writeRunReceipt } from './acceptance.mjs';
+import { mkdtemp, readFile, stat, readdir, unlink, rmdir } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+
+test('MinIO atomic account updates pass the Python policy-preservation regressions', () => {
+  execFileSync('python3', [fileURLToPath(new URL('./minio_account_test.py', import.meta.url))],
+    { stdio: 'pipe', timeout: 10000 });
+});
+
+test('deployment example preserves CPU guardrail and keeps outer caching and request logs off', async () => {
+  const input = await readFile(new URL('./wrangler.example.toml', import.meta.url), 'utf8');
+  const config = JSON.parse(execFileSync('python3', ['-c',
+    'import json,sys,tomllib; print(json.dumps(tomllib.loads(sys.stdin.read())))'],
+    { input, encoding: 'utf8', timeout: 10000 }));
+  assert.equal(config.cache.enabled, false);
+  assert.equal(config.limits.cpu_ms, 50);
+  assert.equal(config.logpush, false);
+  assert.equal(config.observability.enabled, false);
+  assert.equal(config.observability.logs.enabled, false);
+  assert.equal(config.observability.logs.invocation_logs, false);
+  assert.equal(config.vars.MEDIA_DELIVERY_ENABLED, 'false');
+  assert.equal(config.workers_dev, false);
+});
+
+const sampleHash = 'a'.repeat(64);
+const observation = (colo, status = 200, sha256 = sampleHash) => ({ colo, status, sha256 });
+test('acceptance follows warmed locations instead of assuming routing affinity', () => {
+  const evidence = createCacheEvidence(sampleHash);
+  evidence.warm(observation('EWR'));
+  evidence.warm(observation('IAD'));
+  evidence.control('cold', observation('ATL', 502));
+  evidence.control('range', observation('ATL', 502));
+  evidence.disabled(observation('ATL', 502));
+  assert.equal(evidence.result().outcome, 'inconclusive');
+  evidence.disabled(observation('IAD'));
+  evidence.expired(observation('EWR', 403));
+  assert.equal(evidence.result().outcome, 'inconclusive');
+  evidence.expired(observation('IAD', 403));
+  assert.equal(evidence.result().outcome, 'pass');
+  assert.deepEqual(evidence.result().proven, ['IAD']);
+  assert.deepEqual(evidence.result().unmatched, ['ATL']);
+});
+
+test('acceptance never calls a matched miss or an unmatched hit a proof', () => {
+  const evidence = createCacheEvidence(sampleHash);
+  evidence.warm(observation('EWR'));
+  evidence.disabled(observation('EWR', 502));
+  evidence.disabled(observation('ATL'));
+  evidence.expired(observation('ATL', 403));
+  assert.equal(evidence.result().outcome, 'inconclusive');
+  assert.deepEqual(evidence.result().matchedMisses, ['EWR']);
+});
+
+test('acceptance requires independent cold and range origin-denial controls', () => {
+  const evidence = createCacheEvidence(sampleHash);
+  evidence.warm(observation('EWR'));
+  evidence.disabled(observation('EWR'));
+  evidence.expired(observation('EWR', 403));
+  assert.equal(evidence.result().outcome, 'inconclusive');
+  evidence.control('cold', observation('ATL', 502));
+  assert.equal(evidence.result().outcome, 'inconclusive');
+  evidence.control('range', observation('ATL', 502));
+  assert.equal(evidence.result().outcome, 'pass');
+});
+
+test('acceptance rejects invalid statuses, corrupted bytes and missing location evidence', () => {
+  const evidence = createCacheEvidence(sampleHash);
+  assert.throws(() => evidence.warm(observation(null)), /location/);
+  assert.throws(() => evidence.warm(observation('EWR', 502)), /warming/);
+  assert.throws(() => evidence.disabled(observation('EWR', 200, 'b'.repeat(64))), /body/);
+  assert.throws(() => evidence.disabled(observation('EWR', 503)), /unexpected/);
+  assert.throws(() => evidence.expired(observation('EWR')), /expired/);
+  assert.throws(() => evidence.control('cold', observation('EWR')), /origin control/);
+});
+
+test('acceptance receipts retain failures and successes in distinct private files', async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'media-receipts-'));
+  try {
+    const files = await Promise.all([false, true].map(ok => writeRunReceipt(directory, 'verify', { ok })));
+    assert.notEqual(files[0], files[1]);
+    assert.deepEqual(await Promise.all(files.map(async file => JSON.parse(await readFile(file, 'utf8')))),
+      [{ ok: false }, { ok: true }]);
+    for (const file of files) assert.equal((await stat(file)).mode & 0o777, 0o600);
+    await assert.rejects(writeRunReceipt(directory, '../invalid', {}), /stage/);
+  } finally {
+    for (const name of await readdir(directory)) await unlink(path.join(directory, name));
+    await rmdir(directory);
+  }
+});
+
+test('origin fetch does not combine no-store with a conflicting Cloudflare cache TTL', async () => {
+  const origin = createS3Origin({ endpoint: 'https://storage.example', region: 'us-east-1',
+    accessKeyId: 'synthetic', secretAccessKey: 'synthetic', crypto: webcrypto,
+    fetch: async (_url, init) => {
+      assert.equal(init.cache, 'no-store');
+      assert.equal(init.cf?.cacheTtl, undefined);
+      return new Response('synthetic');
+    } });
+  assert.equal((await origin({ bucket: 'private', key: 'probe.txt', range: null })).status, 200);
+});
 
 const crypto = webcrypto;
 const pair = await crypto.subtle.generateKey({ name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048,

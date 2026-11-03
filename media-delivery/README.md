@@ -4,6 +4,15 @@ Disabled-by-default edge implementation of
 [`media-delivery.md`](../knowledge-base/web10-v3/media-delivery.md).
 The edge code needs no packages or framework and does not deploy itself. The
 node-side issuer is integrated separately in `api/`, also disabled by default.
+An isolated Worker has been deployed against synthetic MinIO fixtures; see the
+[connected acceptance record](CONNECTED-ACCEPTANCE.md) for fresh cache/browser/HLS/
+rotation evidence and the repaired storage-permission finding. The isolated storage
+account is restored with a verified GetObject-only policy; production remains off.
+The [provider-readiness record](PROVIDER-READINESS.md) covers current terms/prices,
+unknown subscription status, incomplete account/zone logging audit and release gates.
+The operator accepts paid usage-overage risk; a 50 ms per-invocation CPU guardrail
+is persisted and verified on the isolated Worker. It is not a monthly spending cap
+or evidence that a paid subscription/alerts have been activated.
 Run with Node 22+ and `uv` available for the cross-runtime check:
 
 ```sh
@@ -12,6 +21,11 @@ node --test api/tests/media_delivery_interop.test.mjs
 ```
 
 ## Boundary
+
+`acceptance.mjs` is Node-only test tooling, never deployed: location-matched cache
+evidence classification and private, uniquely named per-run receipt creation.
+Its regressions run in `delivery.test.mjs`; inconclusive routing is not a cache
+proof, and a matched hit requires expired-token denial plus origin controls.
 
 `core.mjs` uses standard Fetch and WebCrypto APIs. It imports pinned public RSA
 keys once, verifies every GET before any cache lookup, then orchestrates cache
@@ -57,6 +71,13 @@ uploads should be delivered on an isolated, cookieless media domain.
 
 ## Provisioning
 
+MinIO operators: on the tested 2025-09-07 server, status-only service-account
+updates remove embedded policy. Do not use `mc admin user svcacct enable/disable`
+on a root-derived restricted account. Submit status and restriction policy together
+through the official admin SDK and inspect the result. `minio_account.py` provides
+that guarded operation for the isolated smoke bucket only; it is not a production
+provisioner. Its six offline regressions run automatically in `delivery.test.mjs`.
+
 1. Keep both node rollout and `MEDIA_DELIVERY_ENABLED` disabled until connected
    gates pass. This directory does not change existing node delivery, uploads,
    manifests, capability issuance or HLS parent expiry enforcement.
@@ -85,6 +106,42 @@ uploads should be delivered on an isolated, cookieless media domain.
    retain the old key until all its capabilities expire (up to 600 seconds).
    Keep clocks synchronized. No future-iat or expiry grace is allowed.
 
+## Connected real-database harness
+
+`connected-node.mjs` self-boots one local ClickHouse container and a loopback-only
+API using the actual HLS endpoint functions and unmodified database permission
+checks. It reads the already-provisioned **private** acceptance directory; it does
+not provision a Cloudflare account, storage, billing, DNS or production node.
+It requires Docker with ClickHouse 24.8 already cached, Node 22+, API `uv`
+dependencies, Playwright with Chromium, and the verified synthetic bucket/Worker.
+
+```sh
+# PLAYWRIGHT_MODULE may point to an installed Playwright index.mjs when it is not
+# resolvable from this directory. CLICKHOUSE_ACCEPTANCE_IMAGE may select a cached
+# image; its immutable image ID and actual engine version are recorded.
+node media-delivery/connected-node.mjs .context/cdn-live
+```
+
+The private directory must contain `state.json`, `secrets.json`, `private.pem` and
+the existing playback fixture scope. It must stay outside source control; do not
+paste its contents into logs or chat. The runner refuses unverified/quarantined
+state, uses randomized local database credentials, binds ports to loopback, limits
+ClickHouse to one CPU/2 GiB and temporary data/log filesystems, and removes only
+its random ownership-labelled container. Receipts exclude signed URLs/credentials;
+screenshots show only the synthetic clip. There is no automatic cloud/load-test CI
+invocation; the ordinary offline tests need no cloud credentials.
+
+The fixture controller is local test infrastructure, not user authentication or a
+production endpoint. It mints test stream tokens and seeds four isolated tables;
+the actual HLS owner/member/carrier/public/authenticated checks are not stubbed.
+An eight-second parent exercises real expiry and explicit renewal; four-second
+Chromium playback at 1280px/375px is not a long-playback/full-app/Safari claim.
+
+`finally` tears down the local API and container on normal errors. SIGKILL, daemon
+loss or parent-machine failure can bypass cleanup. Recover only the exact container
+in private `local-node-run.json`, first verifying its ownership label; never run
+broad Docker pruning. Connected receipts record verified teardown on completed runs.
+
 ## Operational Bounds
 
 Possession of a capability grants its exact object until expiry. Ordinary
@@ -101,5 +158,6 @@ tests use real RSA signatures and independently recompute SigV4, but use in-memo
 cache and mocked fetch. They are not live CDN, private storage or playback proof.
 Cache lookup failures currently fail closed with 502 rather than bypassing storage.
 Background cache write failures do not fail successful origin delivery.
-There is no stale serving, retry, purge API or request coalescing. No cloud
-resources are provisioned. Keep production rollout disabled.
+There is no stale serving, retry, purge API or request coalescing. No production
+cloud resources are provisioned by the implementation. Isolated test resources
+are recorded separately above. Keep production rollout disabled.
