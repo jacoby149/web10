@@ -1,5 +1,7 @@
-3.257.2 || 02.11.2026
+3.257.3 || 02.11.2026
 test(security): reproduce node-creative delivery and independently verified synthetic SigV4 after Discover attachment removal. Actual compiler current-link fragment excludes the link while actual loader/ASGI enrichment still delivers/signs; six cases pass on SQLite and isolated ClickHouse-local, preserving public active/reattached inventory and independent uploaders. 1,880 API tests plus eight subtests, one opt-in lifecycle test skipped, full Ruff and fresh same-model intent review pass. Evidence only, no runtime repair: queue bounded node attachment repair; broader ad policy, real lifecycle/rollout/diverse and protocol L1 remain OPEN.
+
+3.257.2 || 02.11.2026
 test(social): bound Vitest to two workers by default. Unbounded local execution reproduces widespread five-second timeouts and exceeds 200 seconds; the same 1,679 tests pass with two workers and unchanged assertion/test timeouts. No runtime behavior or security-gate waiver. Dev-to-main promotion remains blocked by merged PRs #1332/#1334 security-method failures.
 
 3.257.1 || 02.11.2026

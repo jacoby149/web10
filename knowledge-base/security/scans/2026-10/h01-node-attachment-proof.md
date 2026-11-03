@@ -102,3 +102,9 @@ production driver or executed detach lifecycle. No timestamp-tie assurance here.
 Document deletion/detag history, inventory provenance, pinned role/class/app/service/
 visibility semantics, real object access, rollout and diverse sign-off remain OPEN.
 H01-AD-AUTHORITY is partial, protocol L1 remains OPEN and L2 stays gated.
+
+Publication reconciliation: PR #1337 merges dev at `74bc109c1` (social test-worker
+configuration and planning records only; API source/tests unchanged). Preserve
+incoming changelog 3.257.2 and renumber only this evidence entry and plan/lane
+references to 3.257.3. This does not change the reproduced finding or close CI,
+rollout, lifecycle or diverse-review gates by itself.
