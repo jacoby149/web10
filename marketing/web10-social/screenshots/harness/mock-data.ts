@@ -3,6 +3,10 @@
 // every data-layer function the messages view imports, so Chat renders with
 // realistic content and no backend. See screenshots/README.md.
 import type { DmRecord, ContactRecord } from '@/data/types';
+import { SAVED_COLLECTIONS } from './mock-music';
+export { readMusicPage, readMusicTrack, readMusicCollection, findSavedMusicCollection, toggleSavedMusic, readSavedPostIds, savePostToCollection, removePostFromCollection, createCollection } from './mock-music';
+export type { MusicTrack } from '../../src/data/musicTrack';
+export { getWapi } from './mock-wapi';
 
 const ME = 'web10/me';
 
@@ -216,11 +220,6 @@ export async function countUserFollowingReal(): Promise<number> { return PEERS.l
 export async function readUserPublicPosts(): Promise<unknown[]> { return PROFILE_POSTS; }
 // D88: saved collections (the profile's Saved tab). Seeded with a few
 // collections so the tab renders with content (the cards + the open view).
-const SAVED_COLLECTIONS = [
-  { groupId: 'web10/groups/users/me/saved-guitar-riffs', name: 'Guitar Riffs', visibility: 'private', itemCount: 3, slug: 'guitar-riffs' },
-  { groupId: 'web10/groups/users/me/saved-tour-sets', name: 'Tour Sets', visibility: 'public', itemCount: 2, slug: 'tour-sets' },
-  { groupId: 'web10/groups/users/me/saved-later', name: 'Watch Later', visibility: 'private', itemCount: 1, slug: 'later' },
-];
 export async function getMyCollections(): Promise<unknown[]> { return SAVED_COLLECTIONS; }
 // D88: the visitor's profile shows the owner's PUBLIC collections (the D80
 // by-user read — only membership_visibility='public' groups surface). Seeded
@@ -236,18 +235,11 @@ export async function readUserPublicCollections(username: string): Promise<unkno
 // The "Save to…" sheet (D88) reads which collections already contain a post.
 // Seed the first feed post (fp-md) as saved in the first collection so the
 // sheet's PR shot shows a filled checkmark.
-export async function readSavedPostIds(groupId: string): Promise<Set<string>> {
-  const first = SAVED_COLLECTIONS[0]?.groupId;
-  return groupId === first ? new Set(['fp-md']) : new Set<string>();
-}
-export async function savePostToCollection(): Promise<boolean> { return true; }
-export async function removePostFromCollection(): Promise<void> {}
 // 3.214.0 (collection thumbnails + playlist reorder) — the harness has no
 // reorder/cover pipeline; the stubs are no-ops so the barrel's named imports
 // resolve (the capture renders the list, not the reorder mode).
 export async function setCollectionCover(): Promise<void> {}
 export async function reorderCollection(): Promise<void> {}
-export async function createCollection(): Promise<string> { return 'web10/groups/users/me/saved-new'; }
 export async function setCollectionVisibility(): Promise<void> {}
 export async function renameCollection(): Promise<void> {}
 export async function deleteCollection(): Promise<void> {}
@@ -416,7 +408,6 @@ export async function fetchDiscoveryPost(): Promise<unknown> { return null; }
 export async function fetchSchema(): Promise<unknown> { return {}; }
 export function getCachedSchema(): unknown { return null; }
 export async function getReactionCounts(): Promise<unknown> { return {}; }
-export function getWapi(): unknown { return null; }
 // The v3 client seam — the Discover + Shorts screens' engagement count reads
 // reactions + comments through it. Synthesizes the docs from the seeded
 // discover posts (each post's `likes` → that many like reactions, `comments`
