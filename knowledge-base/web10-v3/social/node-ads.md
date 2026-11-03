@@ -76,6 +76,14 @@ node-admin-only affordance.
 
 ## How the Read Attaches Node Ads
 
+**OPEN latest-state finding (02.11.2026):** the current loader and the historical
+SQL example below read any old live Discover attachment. A newer detach does not
+prevent inline delivery/fresh signing in six synthetic SQLite/ClickHouse-local
+probes. [Evidence](../../security/scans/2026-10/h01-node-attachment-proof.md), not a
+runtime repair. The example's document tag/deletion prefilters also contradict
+the stated dedup-then-filter invariant; that separate candidate is not reproduced
+here. Public inventory remains intentional; no per-viewer membership requirement.
+
 The read (`/v3/read`) already resolves `ad_preference` for pinned ads. The
 node ad is a **read-time enrichment** — the same pattern, one more field:
 

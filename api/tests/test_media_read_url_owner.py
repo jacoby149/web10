@@ -48,6 +48,12 @@ import pytest
         "pinned-link-alternate-group",
         "pinned-link-active-group-uploader",
         "pinned-link-removed-group-uploader",
+        "node-link-active",
+        "node-link-removed",
+        "node-link-reattached",
+        "node-link-never",
+        "node-link-active-group-uploader",
+        "node-link-removed-group-uploader",
     ],
 )
 def test_read_url_owner_boundary(case):
@@ -152,7 +158,7 @@ def _probe(case):
             algorithm=settings.ALGORITHM,
         )
 
-    if case.startswith(("pinned-member-", "pinned-link-")):
+    if case.startswith(("pinned-member-", "pinned-link-", "node-link-")):
         import sqlite3
         from types import SimpleNamespace
 
@@ -160,23 +166,24 @@ def _probe(case):
         from app.v3.services import clickhouse as ch
 
         # Retained disclosure replays must deny removed membership/attachment capabilities.
-        is_link = case.startswith("pinned-link-")
-        state = case.removeprefix("pinned-link-" if is_link else "pinned-member-")
+        is_node = case.startswith("node-link-")
+        is_link = is_node or case.startswith("pinned-link-")
+        state = case.removeprefix("node-link-" if is_node else "pinned-link-" if is_link else "pinned-member-")
         connected = os.environ.get("H01_AD_CLICKHOUSE") == "1"
         key = "bob/private-creative.png"
         carrier = {
             "doc_id": "carrier",
             "author_key": "alice",
             "body": {"text": "readable carrier"},
-            "ad_mode": "pinned",
-            "ad_target": "creative",
+            "ad_mode": "none" if is_node else "pinned",
+            "ad_target": "" if is_node else "creative",
         }
         schemas = [
             "documents (doc_id String, author_key String, body String, tags Array(String), posted_by String, deleted UInt8, updated_at UInt64)",
             "doc_groups (doc_id String, group_id String, deleted UInt8, updated_at UInt64)",
             "group_members (group_id String, member_key String, role String, joined_at UInt64, deleted UInt8, updated_at UInt64)",
         ]
-        body = json.dumps({"text": "synthetic restricted creative", "type": "minio", "value": key})
+        body = json.dumps({"text": "synthetic restricted creative", "type": "minio", "value": key, "status": "active"})
         setup = (
             [f"CREATE TABLE {schema} ENGINE = Memory" for schema in schemas]
             if connected
@@ -187,6 +194,8 @@ def _probe(case):
             ]
         )
         tags = "['ad']" if connected else "'[\"ad\"]'"
+        if is_node:
+            tags = "['ad','node_ad']" if connected else '\'["ad","node_ad"]\''
         author = "group-author" if state.endswith("group-uploader") else "bob"
         setup += [
             f"INSERT INTO documents VALUES ('creative','{author}','{body}',{tags},'bob',0,1)",
@@ -230,8 +239,15 @@ def _probe(case):
                 "INSERT INTO group_members VALUES ('alternate-group','alice','reader',1,0,3)",
                 "INSERT INTO doc_groups VALUES ('creative','alternate-group',0,3)",
             ]
+        creative_group = ch.DISCOVER_GROUP_ID if is_node else "creative-group"
+        if is_node:
+            # Public inventory does not require an explicit reader-membership row.
+            setup = [
+                sql.replace("creative-group", creative_group) for sql in setup if "INSERT INTO group_members" not in sql
+            ]
         db = sqlite3.connect(":memory:", check_same_thread=False)
         if not connected:
+            db.create_function("has", 2, lambda tags, tag: tag in json.loads(tags))
             db.executescript(";".join(setup) + ";")
 
         def execute(sql, params):
@@ -267,7 +283,7 @@ def _probe(case):
                 import re
 
                 rows = db.execute(re.sub(r"%\((\w+)\)s", r":\1", sql), params).fetchall()
-                if sql.startswith("SELECT ad.doc_id"):
+                if sql.startswith(("SELECT ad.doc_id", "SELECT doc_id, author_key, body, tags, posted_by")):
                     rows = [(*r[:3], json.loads(r[3]), *r[4:]) for r in rows]
             return SimpleNamespace(result_rows=rows)
 
@@ -279,22 +295,27 @@ def _probe(case):
             patch.object(ch, "readable_groups", return_value=["carrier-group"]),
             patch.object(ch, "read_documents_in_groups", return_value=[carrier]),
             patch.object(ch, "get_s3_signing_client", return_value=signer) as factory,
-            patch.object(cfg, "get_config_field", return_value=0),
+            patch.object(
+                cfg,
+                "get_config_field",
+                side_effect=lambda name, default=None: 100 if is_node and name == "node_ad_percentage" else 0,
+            ),
         ):
-            allowed = ch.can_read_group("creative-group", "alice", "posts", authenticated=True)
-            assert allowed is (is_link or state in {"active", "rejoined", "active-group-uploader"})
+            allowed = None if is_node else ch.can_read_group("creative-group", "alice", "posts", authenticated=True)
+            if not is_node:
+                assert allowed is (is_link or state in {"active", "rejoined", "active-group-uploader"})
             if is_link:
                 from sqlglot import exp, parse_one
 
                 from app.v3.services import safe_query as sq
 
                 # Execute the actual compiler's attachment boundary, not a copied policy query.
-                tree = parse_one(sq._boundary_cte_sql("posts", ["creative-group"], "alice"), read=sq.DIALECT)
+                tree = parse_one(sq._boundary_cte_sql("posts", [creative_group], "alice"), read=sq.DIALECT)
                 boundary = next(q.this for q in tree.find_all(exp.Subquery) if q.alias == "dg")
                 current = execute(
                     f"SELECT count(*) FROM ({boundary.sql(dialect=sq.DIALECT)}) current_links "
                     "WHERE doc_id = %(doc_id)s AND group_id = %(group_id)s",
-                    {"doc_id": "creative", "group_id": "creative-group"},
+                    {"doc_id": "creative", "group_id": creative_group},
                 ).result_rows[0][0]
                 current = int(current)  # ClickHouse JSON serializes UInt64 counts as strings.
                 # The compiler's timestamp-only ordering is not a tie-policy oracle.
@@ -308,6 +329,20 @@ def _probe(case):
         db.close()
         assert response.status_code == 200
         doc = response.json()[0]
+        if is_node:
+            # Evidence, not repaired policy: historical Discover links still deliver/sign.
+            assert "ad" not in doc
+            if state == "never":
+                assert "node_ad" not in doc
+                factory.assert_not_called()
+            else:
+                assert doc["node_ad"]["author_key"] == author and doc["node_ad"]["posted_by"] == "bob"
+                verify(doc["node_ad"]["body"]["url"], key)
+                factory.assert_called_once()
+            print(
+                f"node attachment evidence: engine={'ClickHouse-local' if connected else 'SQLite substitute'} state={state} current_attachment={bool(current)} inline_node_ad={'node_ad' in doc}"
+            )
+            return
         attaches = (
             state in {"active", "reattached", "alternate-group", "active-group-uploader"}
             if is_link
