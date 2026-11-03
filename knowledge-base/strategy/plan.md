@@ -1198,6 +1198,8 @@ docs before code, per the rule at the top.
 
 ## SIGMOD 2027 Industry Track — the full paper (research/)
 
+- [✓ 3.257.8 local] **Abstract and PDF layout repair** - operator-requested edit of the existing manuscript: contribution/evidence-led abstract, repaired column overflow and DNS/table wrapping, unchanged ACM margins/fonts and review numbering. Rebuilt 12-page PDF inspected; no overfull horizontal boxes, remaining underfull/font and small final vertical-box warnings recorded. Not W1 or evaluation completion.
+
 **Deadline: Tuesday, Nov 24, 2026, 11:59pm AoE** (6:59am ET Wed Nov 25). Up to
 **12 pages + references** (10 is fine — it does not have to be exactly 10).
 CMT has not opened for this track yet. **Target internal freeze: Nov 20** —

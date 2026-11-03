@@ -6,6 +6,8 @@
 \usepackage{booktabs}
 \usepackage{enumitem}
 \usepackage{microtype}
+% Give narrow columns a fallback line-breaking pass without changing margins.
+\setlength{\emergencystretch}{2em}
 \usepackage{xcolor}
 \usepackage{listings}
 \usepackage{graphicx}
@@ -60,32 +62,19 @@
 \begin{document}
 
 \begin{abstract}
-Email decentralized where your data \emph{goes}; it did not decentralize
-\emph{access}. If a mail provider bans you, you can front an alias and proxy it
-elsewhere---but that is a workaround you build yourself, not something the
-protocol gives you. For social data there is no such escape, and no such
-workaround: permissions, contacts, and blocking live inside one provider's
-identity system, so a single provider can suppress or shadowban a user's
-content and the audience goes with it. \textbf{web10} extends the email model
-to all data formats and to the access-control layer itself: the address is a
-user-owned identifier---backed by a DNS domain the user controls, not the
-provider---so users own their audience and can move between providers without
-losing reach, and the provider cannot touch the DNS record. Because follower relationships and access
-grants are the \emph{users'} data on the node, a provider that deletes them to
-ban a user is tampering with other users' data---a legal liability, not a
-platform feature. Content and access
-relationships share one columnar data plane; applications write their own
-queries over service-namespaced documents; and users grant and revoke access
-through a uniform permission vocabulary in which any principal on any node can
-hold any role in a group. The access decision is made at the query boundary:
-the node supplies reader-filtered relations before joins and aggregations run,
-so filtering happens on the input, not the output. The network is
-user-addressed rather than server-federated: a client talks directly to the
-sovereign nodes its users follow on, and no node ever queries another node's
-store. We describe this model and report a connected demonstration in which a
-game and a marketplace reuse social-written profiles through the same access
-boundary without changing the social application or adding node endpoints, with
-consent and revocation exercised in real browser flows.
+Decentralized platforms distribute data across providers, but access control
+often remains tied to each platform's identity system and application model.
+We present \textbf{web10}, a user-addressed data platform that represents
+content and access relationships in a shared columnar store. Applications
+query service-namespaced documents through a uniform permission model in which
+principals from different nodes can hold roles in user-managed groups. The
+node enforces access at the query boundary by supplying reader-filtered
+relations before joins and aggregations execute. Clients communicate directly
+with the relevant nodes rather than relying on server-to-server content
+federation. We describe the architecture and demonstrate cross-application
+reuse: a game and a marketplace read social-written profiles without modifying
+the social application or adding application-specific node endpoints.
+Connected browser flows exercise consent and revocation.
 \end{abstract}
 
 \maketitle
@@ -107,8 +96,8 @@ permissions live inside one provider's identity system. You can email a Yahoo
 user from Gmail, but you cannot grant that Yahoo user \emph{editor} on your
 Google Calendar. The payload crossed the boundary; the permissions did not.
 Every social platform inherits this split: the content can be portable in
-principle, but the access relationships---who follows whom, who belongs to a
-group, who may read or contribute---are locked to the platform's backend.
+principle, but access relationships remain locked to the platform's backend:
+who follows whom, who belongs to a group, and who may read or contribute.
 
 \textbf{web10} extends the email model in two directions at once. First, it
 generalizes the data plane from one format to \emph{all} formats: a shared
@@ -136,7 +125,8 @@ system with all five.}
 \label{tab:capabilities}
 \centering
 \scriptsize
-\begin{tabular}{@{}p{3.9cm}ccccc@{}}
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{@{}p{3.6cm}ccccc@{}}
 \toprule
 \textbf{Capability} & \textbf{Email} & \textbf{Masto-} & \textbf{Blue-} & \textbf{Solid} & \textbf{web10} \\
  & & \textbf{don} & \textbf{sky} & & \\
@@ -454,7 +444,7 @@ The \texttt{provider/username} principal is the address, but the username need
 not be an opaque string. Through the authenticator's claim flow, a user can
 bind a DNS domain to their account: a TXT record at
 \texttt{web10.\emph{domain}} carries
-\texttt{web10.v=1;provider=\emph{node};user=\emph{username}}, and an
+\texttt{web10.v=1;\allowbreak provider=\emph{node};\allowbreak user=\emph{username}}, and an
 authenticated \texttt{POST /v3/domains/verify} request makes the node perform
 the DNS lookup itself, checking that the record's provider matches the node
 and its username matches the authenticated caller before storing the
