@@ -52,14 +52,15 @@ machine: D4 screens on the new stack. manifesto join page. composer
   parallel: strip user billing → operator-set quotas (credits =
   abuse throttle, space = storage caps), tests stay green.
 founder (~3 hrs): first taste pass on social screens. video
-  storyboard (beats: the story → post → 100% delivery → import).
+   storyboard (beats: the story → post → 100% delivery → start fresh).
 
 ## week 3 (aug 3-10)
 machine: M0 INTEGRATION branch (A3+B3+D4 converge — the board
   predicts a day of glue). theme a demo node with a fake creator
-  brand. seed it via a real takeout import (the video feed must be
-  a lived-in life, not lorem ipsum). deploy to the colo box behind
-  a real domain. off-box backup + restore drill (KNOWN GAPS).
+  brand. seed it with fresh, hand-made posts (a lived-in life, not
+  lorem ipsum; no import pipeline — D94 cut the bulk import).
+  deploy to the colo box behind a real domain. off-box backup +
+  restore drill (KNOWN GAPS).
 founder (~4 hrs): taste pass 2 against the demo test ("credible in
   front of a creator's manager").
 

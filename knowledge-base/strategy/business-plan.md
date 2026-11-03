@@ -502,8 +502,8 @@ money here buys TIME and PROOF-VELOCITY, not survival.
    sending mechanical; the M0 gate has a date.
 2. founding creators sign but don't post (weak-commitment yes):
    mitigation: memberships live at onboarding, white-glove
-   includes a content-import + first-week plan, success metric is
-   posting-within-4-weeks not signing.
+   includes a first-week posting plan (start fresh — no bulk import,
+   D94), success metric is posting-within-4-weeks not signing.
 3. video/streaming costs + polish vs the kick/twitch bar:
    mitigation: creator #1-3 chosen from formats M0 serves (KNOWN
    GAPS); R2-class storage; streaming deferred.
