@@ -99,3 +99,8 @@ actual detach/delete/retag writes or concurrent lifecycle evidence. Carrier read
 are doubled; no full auth boundary, actual object retrieval, deployed exploit or
 whole-node-ad closure. Broader ad authority, provenance, real lifecycle/CI/rollout/
 diverse and protocol L1 remain OPEN; L2 stays gated.
+
+Publication reconciliation: PR #1341 merges dev at `5b910658f`, preserving incoming
+Discover UI/planning work; API source/tests are unchanged by that merge. Restore
+incoming changelog 3.257.5 and renumber only this evidence entry and its plan/lane
+references to 3.257.6. This is not runtime repair or rollout assurance.

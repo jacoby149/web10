@@ -1,5 +1,7 @@
-3.257.5 || 03.11.2026
+3.257.6 || 03.11.2026
 test(security): reproduce older node-creative delivery/signing after newer document deletion or node_ad removal, holding Discover attachment live. Actual compiler document subquery and loader/ASGI/real synthetic SigV4 expose three disclosures; eight SQLite/ClickHouse-local cases preserve pause suppression and latest restored/reactivated/retagged/public/uploader controls. Full API: 1,894 passed plus eight subtests, one opt-in lifecycle skip; full Ruff and fresh same-model review pass. Evidence only, no runtime repair; queue bounded document-history repair. Real writer/merge/tie lifecycle, provenance, broader ad/CI/rollout/diverse and protocol L1 remain OPEN.
+
+3.257.5 || 03.11.2026
 fix(discover): preserve prepared group avatars on social Posts/Video and resolved group names in Top 10. Marketing feed/search batch public group faces through the existing shared owner-scoped resolver, carry names/avatars into cards and link authors to groups rather than user profiles. Label the shared Top 10 tally as likes + comments + reposts; a dash remains zero interactions, not zero views. Two social regressions reproduce missing avatars before repair; six marketing regressions cover transport, exact group batching, fallback, search and group links. All 1,681 social tests pass on full rerun (first run: one monetization timeout), all 302 marketing tests and both production builds pass with bundling warnings. Seeded desktop/375px screenshots inspected in `.context/discover-group-*` and `.context/marketing-trending-groups-*`. No API/auth changes, production-count verification or deployment.
 
 3.257.4 || 02.11.2026
