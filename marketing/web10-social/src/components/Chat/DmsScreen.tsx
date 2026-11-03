@@ -15,7 +15,6 @@ import { Send, ChevronLeft, Plus, X, Search, Users, MoreVertical, Edit3, Trash2,
 import { cn } from '@/lib/utils';
 import { toast, errorMessage } from '@/components/shared/Toast';
 import { TextWithLinks } from '@/components/Feed/LinkEmbed';
-import { MARKETING_ORIGIN } from '@/lib/origins';
 
 // Subscribe to the live P2P presence set (peers we've had a live connection to
 // this session). Returns a fresh Set on each change so the UI re-renders.
@@ -489,16 +488,6 @@ function DmsEmptyState() {
   return (
     <div className="flex flex-col items-center justify-center py-16 px-8 text-center" data-testid="dms-empty">
       <p className="text-sm text-muted-foreground mb-3">No conversations yet. Find someone to message or start a new thread.</p>
-      <p className="text-xs text-muted-foreground/50">
-        Or{' '}
-        <button
-          data-testid="dms-import-cta"
-          className="text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
-          onClick={() => window.open(`${MARKETING_ORIGIN}/import`, '_blank', 'noopener,noreferrer')}
-        >
-          import your contacts
-        </button>
-      </p>
     </div>
   );
 }

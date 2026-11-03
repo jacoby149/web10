@@ -40,21 +40,7 @@ depends on it.
 > concern from the ads part. were getting there, just getting things great
 > first though."
 
-**The reframe:** the migration/importer is a **sales-side** concern, separate
-from the ads experience. It's the "how does the creator's audience actually
-arrive" problem — the importer, the onboarding, the "why join" pitch. It's on
-the roadmap ("we're getting there") but deliberately **deferred** in favor of
-polishing the ads experience first ("just getting things great first"). The
-logic: the ads experience is the *stay* (the creator makes money, so they don't
-leave); the migration is the *join* (the audience arrives). You can't sell the
-join if the stay isn't great. Build the stay, then build the join.
-
-**The implication:** the migration/importer is a **separate work order** (not
-part of the `ads-october/` folder). It's the "sales side" — the creator's
-audience arrives via the importer (the "I'm moving from YouTube" flow), the
-onboarding (the "create your account, follow the creator" flow), and the pitch
-(the "why join" — the manifesto is the join screen, but the *path* to the join
-screen is the missing piece). Capture it when the ads experience is solid.
+**The reframe (D95, 03.11.2026):** the bulk import is gone. The operator's call: "our goal isnt to import influencers whole shit that is annoying, just to get them on this thing" + "cool new platform, cool NEW platform, that is what it is." Migration is a commodity now (Meta Muse, ChatGPT, Grok all do it), so web10 doesn't ship a bespoke import pipeline for something an AI assistant already handles. **Onboarding is "get the creator on the platform and start fresh"** — not "port their back catalog." The join path is now the pitch (the manifesto) + white-glove setup (domain, branding, first posts); if a creator wants some of their old content over, they use an AI assistant, not us. The ads experience is still the *stay*; the *join* is the fresh-start pitch, not a migration tool.
 
 ---
 
@@ -526,8 +512,9 @@ the build order, but they're not the current focus.
   is the *solo creator* tier.
 
 **The gaps that remain genuinely open:**
-- **Gap 1 (fan migration)** — the sales-side concern, deferred ("getting things
-  great first"). The importer + onboarding + "why join" path.
+- **Gap 1 (fan migration)** — resolved by D95: the bulk import is cut. Onboarding
+  is "get the creator on the platform and start fresh"; if they want old content
+  over, an AI assistant (Meta Muse / ChatGPT / Grok) handles it, not us.
 - **Gap 2 (ads platform revenue certainty)** — the positioning ("mastodon-style
   + ads = novel"), the falsification is the plan's §6e.
 - **Gap 6 (the "better-than-life story" question)** — the *sequencing* question:

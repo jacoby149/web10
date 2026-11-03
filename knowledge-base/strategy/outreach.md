@@ -11,12 +11,15 @@ rules for all copy below:
 - lead with THEIR number (subs vs. views). the pitch is their own
   analytics explained.
 - the offer is always white-glove and free for founding creators:
-  we do the port, the domain, the branding. a yes costs them nothing.
+  we do the setup, the domain, the branding. a yes costs them nothing.
 - "founding creator" framing turns earliness from a risk into status.
   scarcity is real: 3 founding slots, one per niche.
 - the ask is ADD, not MOVE. they already post to 5 platforms; this
-  is #6, except they own it. back catalog imports in ~24 hours.
-  never let the pitch sound like "migrate your livelihood."
+  is #6, except they own it. it's a fresh start on a platform they
+  control — no migration of their old catalog (if they want some of
+  their back catalog over, an AI assistant handles that: Meta Muse,
+  ChatGPT, Grok — not our job). never let the pitch sound like
+  "migrate your livelihood."
 
 ---
 
@@ -87,10 +90,11 @@ subject: your last video did [280k]. you have [1.2M] subs.
 > routine changes; this is the one surface nobody can throttle,
 > demonetize, or delete.
 >
-> Onboarding takes about 24 hours: I import your entire back
-> catalog ([PLATFORM] export → your site, one shot), set up your
-> domain and branding, and hand you the keys. Free and white-glove
-> for three founding creators this [season]. One slot per niche.
+> Onboarding is a fresh start: I set up your domain and branding,
+> get you posting, and hand you the keys. Free and white-glove for
+> three founding creators this [season]. One slot per niche. (If you
+> want some of your back catalog over, an AI assistant like Meta Muse
+> or ChatGPT handles that — not our job.)
 >
 > Worth 15 minutes? Or reply "video" and I'll send the 2-minute demo.
 >
@@ -104,7 +108,7 @@ subject: your last video did [280k]. you have [1.2M] subs.
 > gap is [PLATFORM]'s choice, not yours.
 > you already post to 5 platforms — i set up a 6th you actually OWN.
 > your domain, 100% delivery to your followers, your sponsor +
-> member revenue. whole back catalog imported in 24 hours, free,
+> member revenue. fresh start on a platform you control, free setup
 > for 3 founding creators. one per niche.
 > want the 2-min demo video?
 
@@ -125,11 +129,12 @@ subject: owned distribution channel for [CREATOR] — no exclusivity conflict
 > sponsor inventory they control (podcast-grade CPMs, exportable
 > reporting) plus member subscriptions — ~97% payout. It's an
 > additional surface, not a move: [CREATOR] already distributes to
-> five platforms; this is a sixth, with zero exclusivity conflict,
-> and onboarding is ~24 hours (full back-catalog import).
+> five platforms; this is a sixth, with zero exclusivity conflict —
+> a fresh start on a platform they control (no migration of the old
+> catalog; an AI assistant covers that if wanted).
 >
-> For three founding creators we run the entire setup — back
-> catalog, domain, branding — at no cost. The asset appreciates:
+> For three founding creators we run the entire setup — domain,
+> branding, first posts — at no cost. The asset appreciates:
 > the audience relationship becomes something [CREATOR] owns
 > outright, which no algorithm change can reprice.
 >
@@ -143,9 +148,8 @@ subject: owned distribution channel for [CREATOR] — no exclusivity conflict
 You've got [1.2M] subs and [PLATFORM] delivers your posts to about
 a quarter of them. You already post to five platforms — I set up a
 sixth you own: your domain, your brand, every post reaches
-everyone, your sponsors and member revenue. Back catalog imports
-in 24 hours, free for founding creators. Can I send you a
-2-minute video of it working?"
+everyone, your sponsors and member revenue. Free setup for founding
+creators. Can I send you a 2-minute video of it working?"
 (goal of the call is ONLY the yes to the video.)
 
 ---
@@ -181,13 +185,14 @@ in 24 hours, free for founding creators. Can I send you a
   it run for them (hosted), and you can take it anywhere later —
   that portability is the point.
 - "i'm not moving my livelihood." — you're not moving anything.
-  you post to five platforms today; this is a sixth. 24 hours of
-  onboarding, then it's one more surface in the routine you
-  already have — the only one you own.
+  you post to five platforms today; this is a sixth. it's a fresh
+  start on a platform you own, then it's one more surface in the
+  routine you already have — the only one you own.
 - "my audience won't move." — they don't have to. the diehards
   join your home base, everyone else keeps watching where they
-  already do, and the back-catalog import means day one isn't
-  empty.
+  already do. (if some of your back catalog is worth bringing over,
+  an AI assistant like Meta Muse or ChatGPT handles that — not our
+  job.)
 - "what does it cost?" — founding creators: free setup + hosting for
   [period]; after that, hosting at cost + ~3% of revenue through the
   platform. no revenue, no cut.

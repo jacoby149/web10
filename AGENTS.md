@@ -366,6 +366,10 @@ this production path. Separate-node key provisioning, connected two-node
 verification remain OPEN; #1351's historical method-size failure is not waived
 by its merge. Local group-list owner healing uses only the existing bare key
 and does not create a duplicate qualified owner before Phase A.
+The bounded H run in `research/federation-demo/RESULTS.md` exercises
+real test-CA HTTPS and owner-managed foreign grants with independent synthetic
+keys, but its exact source includes #1360's owner-list repair. Clean-base replay
+requires that merge; this is not Phase A/C or production federation assurance.
 
 Verified non-anonymous decoding requires a parseable ISO `expires`, with naive UTC or explicit offsets, and rejects at the deadline. Anonymous custom-expiry exemption and unsigned metadata decoding are separate; the latter is never authorization.
 
