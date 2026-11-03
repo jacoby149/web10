@@ -37,6 +37,8 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
+- [✓ 3.257.12 local] **Mobile acting-identity header spacing** - borderless, transparent 44px trigger with reduced horizontal padding on phones; preserve desktop card styling and picker behavior. All 15 picker tests and production build/typecheck pass; desktop/375px header screenshots inspected. Not deployed.
+
 - [✓ 3.257.7 local] **Identity picker resolved-picture repair** - fix the `avatar_url`/`avatarUrl` consumer mismatch left by 3.255.1; require the rendered group image URL in the regression. Shared FaceUrls type, 19 picker tests, production build and seeded desktop/375px inspection pass. The shared resolver batches avatar and banner queries separately, not one HTTP read. No deployment or live-account verification.
 
 - [✓ 3.257.5 local] **Discover group author presentation** - social Posts/Video retain prepared group avatars; Top 10 uses group names. Marketing feed/search hydrate public group names/avatars and author links target group pages. Top 10 remains an interaction tally (likes + comments + reposts), now explicitly labeled; zero interactions render a dash, independent of views. Acceptance: readable group faces appear without dropping posts on unavailable face reads, ordinary users remain unchanged, exact group IDs stay separate from display names. 1,681 social and 302 marketing tests, both builds and seeded desktop/375px screenshots pass. Not deployed; live view counts unverified.
