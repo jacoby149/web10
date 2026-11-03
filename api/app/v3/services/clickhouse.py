@@ -1178,6 +1178,21 @@ def detach_doc_from_groups(doc_id: str):
     )
 
 
+def set_doc_attachment(doc_id: str, group_id: str, attached: bool):
+    """Append only this target; sequential versions exceed stored millisecond time.
+
+    Independent targets cannot clobber each other. This is not same-target CAS.
+    """
+    client.command(
+        "INSERT INTO doc_groups (doc_id, group_id, created_at, updated_at, deleted) "
+        "SELECT %(doc_id)s, %(group_id)s, "
+        "if(count() = 0, now64(3), min(created_at)), "
+        "greatest(now64(3), max(updated_at) + INTERVAL 1 MILLISECOND), %(deleted)s "
+        "FROM doc_groups WHERE doc_id = %(doc_id)s AND group_id = %(group_id)s",
+        {"doc_id": doc_id, "group_id": group_id, "deleted": int(not attached)},
+    )
+
+
 def replace_doc_groups(doc_id: str, group_ids: list[str]):
     """Tombstone old group attachments, insert new ones."""
     detach_doc_from_groups(doc_id)

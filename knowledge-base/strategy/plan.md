@@ -37,6 +37,11 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
+- [✓ 3.256.2 bounded local] **Existing-post media preservation** - explicit removal IDs, never preview resolution, determine retained original refs; pending/failed/empty/partial previews and removal retry pinned red/green. 70 focused and all 1,673 social tests (114 files) pass; production build/typecheck pass. No connected persistence or audience-edit completion claim.
+
+- [✓ 3.256.1 bounded local] **Existing group post edit controls** - fix the reproduced groups/get versus groups/list membership-shape defect shared by feed and grid/media lightboxes. 65 focused tests and build pass; desktop/375px menu screenshots inspected. Full suite has two failures (1,666 passes), both files pass focused rerun; not a full-suite or connected acceptance claim.
+- [✓ 3.257.0 bounded local] **Existing post Discover audience editing** - approved generic per-target attachment read/set implemented in API/SDK and shared composer, preserving hidden destinations without replacement. Separate audience/content saves; no permission relaxation or social-specific API. Connected persistence/revocation and independent review remain open; see `century-club-findings.md`.
+
 - [✓ 3.254.18 local] **Century Club publish and related UI repairs** - exact-self authorization/current attachment history, empty-membership public Discover defaults, settings/save/draft races, composer name/audience, remembered identity and honest profile/count reads. `century-club-findings.md` records each finding and bounded evidence. 1,796 API plus eight subtests and 1,652 social tests pass; builds/lint and seeded desktop/375px inspection pass. Not committed, deployed or connected-publication accepted.
 - [ ] **Century Club connected acceptance and remaining reports** - isolated synthetic own-group-plus-Discover publish/read/audit/revocation, coordinated API/social deployment for posted_by profile query, exact signed-in follower-zero and paste-freeze reproduction. No production visibility changes without operator approval; see `century-club-findings.md`.
 

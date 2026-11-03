@@ -18,7 +18,7 @@ import path from 'node:path';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
-const PORT = 4500;
+const PORT = Number(process.env.SCREENSHOT_PORT || 4500);
 const URL = `http://localhost:${PORT}/screenshots/harness/index.html`;
 
 const VIEWPORTS = {

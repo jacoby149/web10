@@ -31,6 +31,7 @@ import { VideoEditorSheet } from './VideoEditorSheet';
 import type { VideoEditResult } from './VideoEditorSheet';
 import { editVideo, isNoopEdit } from '@/lib/videoEditing';
 import { markdownToHtml } from '@/lib/markdownHtml';
+import { DiscoverAudience } from './DiscoverAudience';
 
 let nextMediaId = 0;
 
@@ -384,8 +385,11 @@ export default function PostComposer({
   // media to an existing post). Resolved from `editingPost.media_refs` on
   // mount; the surviving items are written back on save.
   const [editMedia, setEditMedia] = useState<MediaRecord[]>([]);
+  const [removedEditMediaIds, setRemovedEditMediaIds] = useState<Set<string>>(() => new Set());
+  const retainedEditRefs = (editingPost?.media_refs || []).filter((ref) => !removedEditMediaIds.has(mediaRefId(ref)));
   const [uploading, setUploading] = useState(false);
   const [posting, setPosting] = useState(false);
+  const [audienceBusy, setAudienceBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -538,6 +542,7 @@ export default function PostComposer({
   // remove-only grid can show them. Runs once per post being edited.
   useEffect(() => {
     if (!editingPost) return;
+    setRemovedEditMediaIds(new Set());
     const refs = (editingPost.media_refs || []).filter(Boolean) as (string | ResolvedMediaRef)[];
     let cancelled = false;
     if (!refs.length) {
@@ -546,7 +551,12 @@ export default function PostComposer({
     }
     resolveMediaRefs(refs)
       .then((media) => { if (!cancelled) setEditMedia(media); })
-      .catch(() => { if (!cancelled) setEditMedia([]); });
+      .catch(() => {
+        if (!cancelled) {
+          console.warn('[social-composer] edit media preview failed; original refs retained', { refCount: refs.length });
+          setEditMedia([]);
+        }
+      });
     return () => { cancelled = true; };
   }, [editingPost?._id]);
 
@@ -780,7 +790,7 @@ export default function PostComposer({
   async function handleSaveEdit() {
     if (!editingPost) return;
     const markdown = getMarkdown();
-    if (!markdown && !title.trim() && !editMedia.length) return;
+    if (!markdown && !title.trim() && !retainedEditRefs.length) return;
     setError(null);
     setPosting(true);
     try {
@@ -789,23 +799,20 @@ export default function PostComposer({
         text: markdown,
         updated_at: new Date().toISOString(),
       };
-      // Media: only send `media_refs` when it actually changed (the owner
-      // removed some). The surviving refs are the post's original refs minus
-      // the ones dropped from `editMedia` (matched by doc_id).
-      const keptIds = new Set(editMedia.map((m) => m._id).filter(Boolean));
+      // Preview resolution is not removal intent: unresolved siblings survive.
       const originalRefs = editingPost.media_refs || [];
-      const survivingRefs = originalRefs.filter((ref) => keptIds.has(mediaRefId(ref)));
-      if (survivingRefs.length !== originalRefs.length) {
-        updates.media_refs = survivingRefs;
+      if (retainedEditRefs.length !== originalRefs.length) {
+        updates.media_refs = retainedEditRefs;
       }
       const adPreference = pinnedAd
         ? { mode: 'pinned' as const, target: pinnedAd._id }
         : { mode: 'none' as const };
+      console.log('[social-composer] saving existing post', { groupAuthor: !!authorAs, mediaChanged: updates.media_refs !== undefined });
       await updatePost(editingPost._id || '', updates, adPreference, editingPost.author_key?.includes('/groups/') ? editingPost.author_key : undefined);
       console.log('[social-composer] post saved (edit)', editingPost._id);
       onPostCreated?.();
     } catch (e) {
-      console.error('Failed to save edit:', e);
+      console.error('[social-composer] edit failed; retaining draft', { errorType: e instanceof Error ? e.name : 'unknown' });
       setError(e instanceof Error ? e.message : 'Something went wrong. Try again.');
     } finally {
       setPosting(false);
@@ -1039,7 +1046,7 @@ export default function PostComposer({
   // content. Otherwise the post needs text or media. In edit mode, a save is
   // valid as long as the post still has some content (text / title / media).
   const canPost = isEditing
-    ? (hasText || title.trim() || editMedia.length) && !posting
+    ? (hasText || title.trim() || retainedEditRefs.length) && !posting && !audienceBusy
     : (hasText || title.trim() || mediaItems.length || !!repostingTo) && !uploading && !posting;
   const hasErroredMedia = mediaItems.some((item) => item.error);
   const initials = (profile?.display_name || '?').charAt(0).toUpperCase();
@@ -1053,7 +1060,7 @@ export default function PostComposer({
   // full form when it has focus or content (the Discover surface — the video
   // wall is the hero, not the composer). The full form is always shown for a
   // repost (the context block must be visible) or when not compact.
-  const hasContent = hasText || title.trim().length > 0 || mediaItems.length > 0 || editMedia.length > 0;
+  const hasContent = hasText || title.trim().length > 0 || mediaItems.length > 0 || retainedEditRefs.length > 0;
   const expanded = !compact || focused || hasContent || !!repostingTo || isEditing;
 
   return (
@@ -1191,6 +1198,7 @@ export default function PostComposer({
               {/* Edit mode: the post's current media, remove-only (you can't
                   attach new media to an existing post). Each item has a remove
                   button; the survivors are written back on save. */}
+              {editingPost?._id && <DiscoverAudience docId={editingPost._id} authorAs={authorAs || undefined} disabled={posting} onBusyChange={setAudienceBusy} />}
               {isEditing && editMedia.length > 0 && (
                 <div className="mt-3" data-testid="edit-media-grid">
                   <p className="mb-2 text-xs font-medium text-muted-foreground">Media — tap × to remove</p>
@@ -1211,7 +1219,12 @@ export default function PostComposer({
                         )}
                         <button
                           type="button"
-                          onClick={() => setEditMedia((prev) => prev.filter((x) => x !== m))}
+                          onClick={() => {
+                            const id = m._id;
+                            if (!id) return;
+                            setRemovedEditMediaIds((prev) => new Set([...prev, id]));
+                            setEditMedia((prev) => prev.filter((x) => x._id !== id));
+                          }}
                           disabled={posting}
                           aria-label="Remove media"
                           data-testid={`composer-edit-remove-media-${i}`}

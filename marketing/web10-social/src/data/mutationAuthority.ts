@@ -15,14 +15,17 @@ export async function readMutationAuthority(author: string | undefined, service:
     return { canEdit: own, canDelete: own };
   }
   try {
-    const group = await w.getGroup(author);
-    const role = group.roles?.find((role) => role.name === group.my_role);
+    console.log('[social-mutation] reading contract and human membership', { service });
+    // groups/get is the contract, not a caller-specific membership response.
+    const [group, memberships] = await Promise.all([w.getGroup(author), w.getMyGroups()]);
+    const membership = memberships.find((entry) => entry.group_id === author);
+    const role = group.roles?.find((role) => role.name === membership?.my_role);
     const permissions = role?.permissions as Record<string, string[]> | undefined;
     const allows = (op: string) => !!(permissions?.[service]?.includes(op) || permissions?.['*']?.includes(op));
-    console.log('[social-mutation] authority resolved', { service });
+    console.log('[social-mutation] authority resolved', { service, member: !!membership });
     return { canEdit: allows('updateOwn'), canDelete: allows('deleteOwn') };
   } catch (error) {
-    console.error('[social-mutation] authority read failed, denying controls', error);
+    console.error('[social-mutation] authority read failed, denying controls', { service, errorType: error instanceof Error ? error.name : 'unknown' });
     return denied;
   }
 }

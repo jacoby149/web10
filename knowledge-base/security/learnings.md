@@ -35,6 +35,37 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-02: Mutate attachment keys, not filtered sets
+
+The approved generic attachment seam changes only the named doc/group row. Live
+human app updateOwn and group-author service updateOwn precede storage. External
+true uses the group principal create grant, including retained external targets;
+an initial retained-target shortcut returned 200 after revocation, reproduced red
+then denied. False deliberately does not require destination create. Exact-self
+retention/new-self creation follow the existing bounded rule. Hidden attachments,
+original actor and content are never reconstructed. Sequential millisecond version
+advancement passes real isolated ReplacingMergeTree add/remove/re-add/FINAL checks;
+different targets are disjoint, not a transaction or same-target CAS. Existing
+replacement/delete writers, check/write revocation races, connected acceptance and
+independent review remain OPEN. No full L1-L4 or whole-media assurance.
+
+### 2026-11-02: Contract metadata is not human membership or complete attachments
+
+The group edit affordance expected my_role in groups/get, which returns only
+the contract. Reading groups/list supplies the human's exact membership; resolve
+its role against the contract and exact service/operation, never the navigation
+selection or posted_by. Eight corrected-shape tests reproduced the false denial
+before repair; denial controls still hold. This is a client affordance fix, not
+a backend authorization change or security PASS. Effective principal-class
+grants without an explicit membership remain outside these affordances.
+
+Single-document read groups are filtered to readable carriers, not a complete
+attachment list even for a manager of the authoring group. Never replace all
+attachments from that projection: it can erase hidden destinations. The update
+response is complete only after writing, not a read-only snapshot or a CAS token.
+The approved per-target seam now avoids replacement entirely; connected acceptance
+and independent review remain OPEN. No preliminary write workaround.
+
 ### 2026-11-02: Self-target authority is not inherited external membership
 
 The group publish 403 reproduces when the group is not a member of itself.
