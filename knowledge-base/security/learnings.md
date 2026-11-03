@@ -35,6 +35,16 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-03: Group media carriers retain human upload ownership
+
+[Carrier repair](scans/2026-10/group-media-carrier-repair.md) aligns HLS with
+`posted_by or author_key`, current carrier/link history, actual service grants and
+the shared visibility boundary. Production public post reads succeeded while
+fresh streams 403'd; isolated repaired handlers serve all four existing videos.
+Eight carriers/eleven refs have intact metadata/namespaces; raw URLs all 206, so
+no ownership/publicness backfill is justified. Serving deployment/browser playback,
+cost and diverse review remain OPEN; not whole-media/L1 assurance.
+
 ### 2026-11-03: Filtering inventory eligibility before ranking revives older creatives
 
 [Document history evidence](scans/2026-10/h01-node-document-proof.md) holds the

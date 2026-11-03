@@ -372,6 +372,10 @@ Foreign viewers obtain fresh media URLs through authorized document/group reads;
 public thumbnails retain their document-access path. This does not certify
 stored object-reference provenance or revoke existing presigned URLs before TTL.
 
+HLS carrier reads use server-set `posted_by or author_key` upload ownership,
+current document/attachment history and actual service/read/visibility gates;
+group-authored posts do not move the human's upload or require public enrollment.
+
 `media_refs` original/thumbnail signing also requires keys in the resolver's
 media-owner namespace; rejected supplied keys get no fresh URL or stale fallback.
 Valid siblings and keyless legacy URLs remain. Recursive raw minio signing also
