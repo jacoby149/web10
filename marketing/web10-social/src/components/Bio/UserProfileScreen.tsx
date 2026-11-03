@@ -13,7 +13,6 @@ import {
   resolveMediaRefs,
   uploadMedia,
   refreshMediaUrls,
-  countStagingPosts,
   followUser,
   unfollowUser,
   readFollow,
@@ -29,7 +28,7 @@ import { getWapi } from '@/data/wapi';
 import type { ProfileRecord, PostRecord, MediaRecord, FollowRecord } from '@/data/types';
 import type { CollectionRecord } from '@/data/saved';
 import { mediaRefId, fromResolvedMediaRef } from '@/data/types';
-import { MapPin, Globe, Link, Users, UserPlus, UserCheck, Loader2, ArrowLeft, MessageSquare, Play, Camera, Edit3, Check, X, ImagePlus, Inbox, LayoutGrid, Clapperboard, Music, User, Bookmark, Store } from 'lucide-react';
+import { MapPin, Globe, Link, Users, UserPlus, UserCheck, Loader2, ArrowLeft, MessageSquare, Play, Camera, Edit3, Check, X, ImagePlus, LayoutGrid, Clapperboard, Music, User, Bookmark, Store } from 'lucide-react';
 import { PostLightbox } from './PostLightbox';
 import { ProfileFeed } from './ProfileFeed';
 import { PostBodyInline } from '@/components/Feed/PostBody';
@@ -269,7 +268,6 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState<Partial<ProfileRecord>>({});
-  const [stagingCount, setStagingCount] = useState<number>(0);
   // Saved collections (D88) — the playlists on the profile's Saved tab.
   // Owner: all of their collections (getMyCollections). Visitor: only the
   // owner's PUBLIC collections (readUserPublicCollections — the node's D80
@@ -376,7 +374,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         // one members/list 401 killed the profile, the posts, and the
         // counts together ("Failed to load user profile" with a half-dead
         // screen).
-        const [p, postsRes, fC, fCnt, stgCount] = await Promise.all([
+        const [p, postsRes, fC, fCnt] = await Promise.all([
           readProfile().catch((e) => {
             console.error('[social] loadData — readProfile failed:', e);
             return null;
@@ -394,10 +392,6 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
             console.error('[social] loadData — countFollowers failed:', e);
             return null;
           }),
-          countStagingPosts().catch((e) => {
-            console.error('[social] loadData — countStagingPosts failed:', e);
-            return 0;
-          }),
         ]);
         if (!current()) return;
         profile = p;
@@ -409,7 +403,6 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
           setFollowingCountError(false);
         }
         fCount = fCnt; // null = ledger unavailable → hide the tile
-        setStagingCount(stgCount);
         // Saved collections (D88) — the owner's playlists for the Saved tab.
         // Isolated: a failure degrades the tab to empty, never the profile.
         const loadedCollections = await getMyCollections().catch((e) => {
@@ -1023,20 +1016,6 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                 </div>
               )}
             </div>
-
-            {/* Staging entry point — only shown to owner when N > 0 */}
-            {isOwnProfile && stagingCount > 0 && (
-              <Button
-                variant="brand_subtle"
-                size="sm"
-                data-testid="review-imports-button"
-                className="mt-3 w-full max-w-xs gap-2"
-                onClick={() => navigate('/staging')}
-              >
-                <Inbox className="w-4 h-4" />
-                Review imports ({stagingCount})
-              </Button>
-            )}
 
             {/* Follow error state */}
             {followError && (

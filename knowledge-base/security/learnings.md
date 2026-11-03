@@ -53,6 +53,18 @@ it does not delete already-created canonical rows or complete migration. Fresh
 bounded design-intent review agrees; CI and historical method disposition remain
 separate. Merging #1351 did not retroactively pass its failed method check.
 
+### 2026-11-03: Feature retirement is not permission to purge stored data
+
+D95 removes the bulk importer, including its startup resubmission and trace
+endpoint. Keep the old trace-isolation evidence as history, not a claim about
+current code. Removing self-heal DDL does not drop existing ClickHouse tables;
+removing the review UI does not delete or publish staged documents. Raw export
+objects also remain untouched. A future cleanup must inventory retained data
+and obtain explicit retention/deletion approval. Dropping future consent requests
+does not revoke stored staging grants. Queued jobs stop resuming after rollout;
+stale clients/bookmarks lose the retired URLs. Generic read/CRUD/media gates
+are retained; removal is not a whole-protocol security repair or rollout proof.
+
 ### 2026-11-03: Deployment forwarding must preserve opt-in semantics and multiline keys
 
 The API already understood the media settings, but the ecosystem Compose did not

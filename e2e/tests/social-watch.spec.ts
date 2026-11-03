@@ -48,7 +48,6 @@ const SOCIAL_SERVICES = [
   'comments',
   'reactions',
   'contacts',
-  'staging_posts',
   'web10-social-group-identity',
   'notifications',
 ];

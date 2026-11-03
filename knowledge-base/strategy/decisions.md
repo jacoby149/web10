@@ -17,7 +17,7 @@ Operator, 03.11.2026 — "the import your life page is just not really a product
 
 **What it rejects.** (1) The "Import Your Life" marketing page as a front-door pitch — the operator's call that it is not product focus and that people don't care. (2) The bulk catalog import as the onboarding hook — replaced by the AI-assistant, post-by-post flow. (3) Keeping the `staging_posts` tier around an empty pipeline — with no importer writing to it, the staging/review surface is dead weight and goes too. **Supersedes** the import half of D90 (the worker durability pass) and the "YouTube Importer (port your YouTube)" plan section; D90's *idiom* (in-process + ClickHouse-queued worker) still stands for any future durable job.
 
-**KB:** `web10-v3/social/import.md` (mark superseded), `plan.md` "YouTube Importer" section (mark cut), `outreach.md` (drop the "back catalog imported in 24 hours" line from the pitch), `ads-october/gaps.md` Gap 1 (the importer is no longer the join path — onboarding is the AI assistant).
+**Implementation disposition.** Marketing/docs merged in #1348; the remaining code gut is tracked in the import lane. Delete the old `web10-v3/social/import.md` implementation guide and its live links. Removing job/event DDL does not authorize dropping existing tables, deleting raw objects or staged documents; any storage cleanup requires a separate inventory and operator approval. Generic CRUD/media/export and the current access model remain. References: `plan.md` "YouTube Importer", `outreach.md`, `ads-october/gaps.md` Gap 1.
 
 ### D94 - Portable Protected Media Delivery, Cloudflare First [decided]
 

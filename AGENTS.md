@@ -271,8 +271,8 @@ you if you arent ok with that." Full model:
   channels, e.g. the messages demo).
 - `marketing/` — everything that makes web10 accessible:
   - `marketing-ui/` — web10 Inc.'s site: landing + docs + App Store +
-    Exporter UI. Vite + React 19 + TS + Bun + react-router.
-  - Marketing and social call the node API directly for imports, reporting and
+    creator discovery. Vite + React 19 + TS + Bun + react-router.
+  - Marketing and social call the node API directly for reporting and
     analytics. The unused `marketing-api/` service was removed (D91).
   - `web10-social/` — the killer app: all-in-one social lens (instagram-
     shaped, video + streaming).

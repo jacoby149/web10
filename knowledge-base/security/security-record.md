@@ -15,6 +15,25 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## D95 bulk-import retirement (03.11.2026)
+
+GPT-6.1 Sol removes the importer rather than changing its permissions: routes,
+models, parser, durable worker/boot hook, DDL/settings and social staging surface.
+The old trace-isolation records below remain historical evidence for removed
+code, not assurance about a currently deployed importer. No storage deletion,
+production change, general auth/read-gate repair or L1–L4 PASS claim.
+Four retired-route probes fail before removal and return 404 afterward; generic
+document/media routes remain. Full API: 1,922 passed plus eight subtests, one skip.
+Operator explicitly approves a deletion-only exception to the 500-line method
+gate for this removal; full tests and other CI remain required. All 1,749 social
+tests pass; PR CI remains a release gate. Existing job
+tables, raw objects and staged documents are not purged or made public.
+Fresh same-model bounded design-intent review finds no runtime defect and flags
+the stale e2e shard entry, now removed. This is not diverse-model convergence or
+a complete security scan. Existing staging grants are not revoked, queued jobs
+stop resuming after rollout, and old clients lose these URLs; ordinary authorized
+CRUD remains the retained-data path.
+
 ## Protected Media Delivery (02.11.2026)
 
 New opt-in boundary: `api/app/services/media_delivery.py`, its existing signing

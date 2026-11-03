@@ -42,7 +42,7 @@ const SOCIAL_ORIGIN = SOCIAL_BASE;
 // 'saved' to the app contract — keep this list in lockstep.)
 const SOCIAL_SERVICES = [
   'posts', 'media', 'public_media', 'profile', 'settings',
-  'comments', 'reactions', 'contacts', 'staging_posts',
+  'comments', 'reactions', 'contacts',
   'web10-social-group-identity', 'notifications', 'saved',
 ];
 const SOCIAL_OPERATIONS = ['create', 'readAll', 'updateOwn', 'deleteOwn'];
@@ -256,6 +256,8 @@ test.describe('Social settings gauntlet — real flow + log sequence', () => {
     await page.goto(`${SOCIAL_BASE}/settings`);
     await expect(page.locator('[data-testid="settings-visibility-public"]')).toBeVisible({ timeout: 20000 });
     await expect(page.locator('[data-testid="settings-visibility-private"]')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Import', exact: true })).toHaveCount(0);
+    await expect(page.locator('input[type="file"]')).toHaveCount(0);
 
     // Fresh user: the default (public) is selected.
     await expect(page.locator('[data-testid="settings-visibility-public"]')).toHaveClass(/bg-brand-muted/);
