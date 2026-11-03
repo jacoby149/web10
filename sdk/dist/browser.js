@@ -625,6 +625,9 @@
           payload.ad_preference = opts.ad_preference;
         return v3Post("update", payload);
       },
+      async documentAttachment(docId, groupId, opts) {
+        return v3Post("attachment", { doc_id: docId, group_id: groupId, ...opts });
+      },
       async delete(docId, opts) {
         const payload = { doc_id: docId };
         if (opts?.author_as)

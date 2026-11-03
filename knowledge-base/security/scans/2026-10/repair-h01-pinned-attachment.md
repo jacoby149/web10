@@ -70,3 +70,12 @@ Creative identity, role/class/app/service/visibility and node-inventory authorit
 existing URL TTL, real-object retrieval, CI, rollout, diverse three-dry review and
 protocol L1 remain OPEN. The operator subsequently requested PR publication;
 publication does not establish deployment or close the remaining assurance gates.
+
+## Publication Reconciliation
+
+PR #1335 targets dev. Merge incoming dev at `96899439e`, preserving both security
+learning histories and incoming attachment API/social work. Renumber only this
+branch's changelog/plan/lane release to 3.257.1 after collision. Post-merge API
+verification: 1,874 passed plus eight subtests, one opt-in ClickHouse test skipped;
+full API Ruff lint/format and whitespace checks pass. Historical 22-probe
+ClickHouse-local evidence above predates this merge; no new lifecycle claim.

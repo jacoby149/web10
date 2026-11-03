@@ -460,6 +460,14 @@ export declare function createV3Client(options?: V3ClientOptions): V3Client;
  * The v3 client interface.
  */
 export interface V3Client {
+    documentAttachment(docId: string, groupId: string, opts?: {
+        author_as?: string;
+        attached?: boolean;
+    }): Promise<{
+        doc_id: string;
+        group_id: string;
+        attached: boolean;
+    }>;
     state: {
         apiOrigin: string;
         token: string | null;
