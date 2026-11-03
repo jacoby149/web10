@@ -1,5 +1,37 @@
 # Cross-Node IAM Demo — Spec
 
+## 03.11.2026 execution scope
+
+**Result:** one completed isolated run passed; see
+[`federation-demo/RESULTS.md`](federation-demo/RESULTS.md) and its retained
+receipts. The initial cold-boot attempt failed on a scenario import before IAM
+operations. The successful run used revision `04da544442c3` plus the exact
+owner-list repair patch now proposed in **#1360**; this branch without that
+prerequisite has not passed clean-base replay. Read/query grant, removal,
+regrant, namesake isolation and the separate app gate are demonstrated in that
+bounded run. Neither foreign self-join nor production federation is completed.
+
+The operator authorized the paper demo after merging #1351. H uses two
+separate API/ClickHouse/MinIO instances and independent synthetic signing keys.
+Use the merged live `/certify` path, not JWKS or shared signing material. The
+first bounded scenario uses Bob's existing owner API to grant/remove Alice's
+exact foreign principal; it does **not** claim the foreign self-join flow in C
+or the full local-principal migration in A. Verify both read and query before
+grant, after grant, after removal and after regrant, with the same cached JWT.
+Pin same-name local identity isolation and the independent app-contract gate.
+
+Transport is real TLS with an ephemeral test CA and issuer hostname checks.
+Docker-internal peers use an explicitly isolated, globally classified test
+subnet so production private-address validation stays enabled and unchanged;
+this is not evidence of public-internet deployment or reachability. All content
+is synthetic and created through the API. A canonical foreign app contract may
+be installed through a labelled setup fixture because foreign browser consent
+and app-contract enrollment are not implemented. Retain exact source/image,
+status-only issuer-call receipts and cleanup evidence; never tokens or keys.
+The older design below is historical scope, not completed evidence. In
+particular, its shared-secret fallback and submission-readiness claims are not
+accepted for this run.
+
 **Goal:** demonstrate the decentralized-IAM claim *in action* across a real
 node boundary. A foreign principal is granted into a group on node B, reads
 through the verified token, then is removed and denied. This is the thing that

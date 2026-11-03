@@ -469,6 +469,7 @@ measure. Re-scan after the hardening merges to flip them.
 
 | Unit | Level | Status | Model | Date | Last-pass | Sys | Finding / note |
 |---|---|---|---|---|---|---|---|
+| H isolated cross-node correctness | L4 | **OPEN** | OpenCode / GPT-6.1 Sol + fresh same-model reviewer | 2026-11-03 | — | federation | Bounded actual TLS/two-node/cache/read/query/namesake/app/grant-removal controls pass on base 04da544442c3 plus #1360 repair, not current-branch clean-base replay. Exact source/initial failure/image/status/cleanup receipts: research/federation-demo/RESULTS.md. Test-CA/internal-network and foreign app service fixtures disclosed. Not complete L4/L1–L4 coverage or model diversity; A/C, production keys/public deployment, browser consent, issuer expiry/revocation, multiworker/restart/media remain OPEN. |
 | `api/app/services/auth.py :: decode_token` | L1 | **OPEN** | (audit) | 2026-10 | — | auth | B-3 unsigned decode path; B-1 I1 symmetric HS256. Hardening in 1157 (unmerged) |
 | `api/app/settings.py` | L1 | **OPEN** | (audit) | 2026-10 | — | config | B-2 secrets in source (signing key + Stripe/Twilio/CH creds). Hardening in 1157 (unmerged) |
 | `api/app/middleware.py` | L1 | **OPEN** | `gpt-6.1 sol` | 2026-10-18 | — | logging | B-4 source repair merged #1225 with passing repro gate. [Evidence](scans/2026-10/repair-b4-middleware.md). Deployment, historical exposure and required security sign-off remain unclosed; no whole-file PASS. |

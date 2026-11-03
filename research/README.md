@@ -4,15 +4,15 @@
 
 **Target:** SIGMOD 2027 industry track
 
-**Status:** reframed 2026-11-02 around the **decentralized-IAM thesis** (see
-`decentralized-iam-thesis.md`). Title restored to "Your Data, Your Rules, One
-Query: Extending the Decentralized Web." New §3 (User-Addressed Network) added;
-in-paper to-do lists collapsed into Future Work; perf reframed as a
-design-decision finding; deployed operating point added. The cross-node IAM
-demo (`cross-node-iam-demo.md`) is scoped as the experiment that would close
-the last gap; it does not block the draft.
+**Status:** title "Your Data, Your Rules: Extending the Decentralized Web."
+The bounded [two-node IAM run](federation-demo/RESULTS.md) now exercises real
+HTTPS home certification and owner-granted foreign access, removal and regrant
+under cached identity. Its tested source includes the owner-list repair in
+#1360; clean-base replay after that prerequisite merges remains open. The
+12-page manuscript includes this evidence without claiming full migration,
+foreign self-join, browser enrollment or production federation.
 
-**Updated:** 2026-11-02
+**Updated:** 2026-11-03
 
 ## The Thesis (read this first)
 
@@ -88,6 +88,7 @@ the official CFP governs current logistics.
 |---|---|
 | `decentralized-iam-thesis.md` | **The paper's spine (read first).** The email generalization, the three-property triangle, the built-vs-in-flight honesty bar, what changed in the draft, the overclaims to avoid. |
 | `cross-node-iam-demo.md` | The experiment that closes the last gap: a foreign principal granted into a group on another node, reading through the verified token, then removed and denied. Spec, blockers (H/A/B/C), minimal scope, decision gate. Does not block the draft. |
+| `federation-demo/` | Local two-node TLS correctness harness, one completed base-plus-patch run, status-only receipts and independent key/group/app/namesake controls. Depends on owner-list repair #1360; not clean-base/public-deployment evidence. |
 | `brief.md` | Bounded claim, scope and outstanding gates (pre-reframe; the thesis doc supersedes its framing) |
 | `source-map.md` | Commit-pinned demonstration source counts, backend boundary and artifact links |
 | `live-observation-2026-10-28.md` | Actual Ubuntu dataset/hardware snapshot and bounded authenticated browser pilot |
@@ -101,7 +102,7 @@ the official CFP governs current logistics.
 | `experiments/README.md` | Known harness blockers; no runnable/reproducible claim yet |
 | `experiments/costfn/` | Cost-function harness and separately recorded 100-creator and 1,000-creator trials. Main paper table: K10/100/1000, 20 cells, 400 samples; A is a direct precompiled scan baseline, B/C compare per-group and batched resolution. Summary receipt and table checker retained |
 | `draft/outline.md` | Industry-paper section plan |
-| `workshop/main.tex` | The paper (12 pp including references, builds with tectonic; no horizontal overflow, remaining font/underfull and small final vertical-box warnings). Reframed 2026-11-02 per the thesis doc; abstract/layout tightened 2026-11-03. The evaluation is bounded by construction; the cross-node IAM demo is the forward scope, not a completed result. |
+| `workshop/main.tex` | The paper (12 pp including references, builds with tectonic; no horizontal overflow, remaining font/underfull and small final vertical-box warnings). Includes cross-app browser evidence and the isolated two-node base-plus-patch correctness result; broader federation/performance/security gates stay open. |
 
 ## Remaining Gates
 
