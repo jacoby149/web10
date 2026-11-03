@@ -1198,6 +1198,10 @@ docs before code, per the rule at the top.
 
 ## SIGMOD 2027 Industry Track — the full paper (research/)
 
+- [✓ 3.257.11 local] **Shorten paper title** - use "Your Data, Your Rules: Extending the Decentralized Web", align the thesis rationale and rebuild the PDF; no evidence or contribution changes.
+
+- [✓ 3.257.10 local] **Remove red review line numbers** - operator-requested removal of ACM review mode in `research/workshop/main.tex`; rebuild the 12-page PDF, inspect the first page and verify no red text spans throughout. No manuscript content or evaluation changes.
+
 - [✓ 3.257.8 local] **Abstract and PDF layout repair** - operator-requested edit of the existing manuscript: contribution/evidence-led abstract, repaired column overflow and DNS/table wrapping, unchanged ACM margins/fonts and review numbering. Rebuilt 12-page PDF inspected; no overfull horizontal boxes, remaining underfull/font and small final vertical-box warnings recorded. Not W1 or evaluation completion.
 
 **Deadline: Tuesday, Nov 24, 2026, 11:59pm AoE** (6:59am ET Wed Nov 25). Up to
