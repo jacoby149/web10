@@ -18,8 +18,9 @@ from app.services.media import (
     get_s3_signing_client,
     make_object_key,
 )
+from app.services.media_delivery import get_url, public_jwks
+from app.v3.endpoints.auth_helper import principal, user_or_anon
 from app.v3.endpoints.auth_helper import user as _user
-from app.v3.endpoints.auth_helper import user_or_anon
 from app.v3.models import (
     ConfirmMedia,
     DeleteMedia,
@@ -33,6 +34,12 @@ from app.v3.services import clickhouse as ch
 from app.v3.services import thumbnail
 
 router = APIRouter(tags=["media"])
+
+
+@router.get("/jwks")
+def media_jwks():
+    """Public media verification key for operator provisioning, not auth keys."""
+    return public_jwks()
 
 
 @router.post("/upload-url")
@@ -82,15 +89,11 @@ def read_url(data: ReadUrlRequest):
 
     ensure_bucket(get_s3_client())
     logger.info("[media] read-url signing: started")
-    presigned_url = get_s3_signing_client().generate_presigned_url(
-        "get_object",
-        Params={"Bucket": settings.S3_BUCKET, "Key": object_key},
-        ExpiresIn=settings.READ_URL_EXPIRY,
-    )
+    presigned_url = get_url(object_key, None if settings.MEDIA_DELIVERY_ENABLED else get_s3_signing_client())
     logger.info("[media] read-url signing: completed")
     return {
         "read_url": presigned_url,
-        "expires_in": settings.READ_URL_EXPIRY,
+        "expires_in": settings.MEDIA_DELIVERY_TTL if settings.MEDIA_DELIVERY_ENABLED else settings.READ_URL_EXPIRY,
     }
 
 
@@ -142,13 +145,18 @@ def get_thumbnail(data: ThumbnailRequest):
     """
     reader = user_or_anon(data)
     authenticated = reader != "anon"
+    # D84: canonical principal for the membership gate (foreign tokens
+    # certify at their home node first).
+    reader_principal = principal(data) if authenticated else "anon"
     doc = ch.get_document_any_author(data.doc_id)
     if not doc:
         raise HTTPException(status_code=404, detail="not found")
     service = doc["service"]
     # I3: the reader must be able to read the doc's service in one of its
     # groups (the same gate the read path + the social preview server use).
-    if not any(ch.can_read_group(gid, reader, service, authenticated) for gid in ch.get_doc_groups(data.doc_id)):
+    if not any(
+        ch.can_read_group(gid, reader_principal, service, authenticated) for gid in ch.get_doc_groups(data.doc_id)
+    ):
         raise HTTPException(status_code=404, detail="not found")
     body = doc.get("body", {}) or {}
     # A media doc IS the picture — resolve its own object_key to a fresh
@@ -270,7 +278,10 @@ def hls_variant(doc_id: str, variant: str, sig: str = ""):
         raise HTTPException(status_code=403, detail="invalid HLS object provenance")
     obj = get_s3_client().get_object(Bucket=settings.S3_BUCKET, Key=url["value"])
     manifest_text = obj["Body"].read().decode("utf-8")
-    body = rewrite_variant_manifest(doc_id, variant, sig, manifest_text)
+    try:
+        body = rewrite_variant_manifest(doc_id, variant, sig, manifest_text)
+    except ValueError:
+        raise HTTPException(status_code=403, detail="invalid HLS segment capability") from None
     return Response(body, media_type="application/vnd.apple.mpegurl", headers={"Cache-Control": "no-store"})
 
 

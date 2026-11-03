@@ -15,6 +15,63 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Protected Media Delivery (02.11.2026)
+
+New opt-in boundary: `api/app/services/media_delivery.py`, its existing signing
+callers/HLS manifest integration, and `media-delivery/{core,cloudflare}.mjs`.
+Local evidence: 1,786 API tests; 35 edge/cross-runtime tests with real RSA and
+Python issuance, warm-cache denial before I/O, independently recomputed synthetic
+SigV4, range isolation, bounded background caching and streaming-before-EOF.
+Same-model review repaired CORS, premature HLS expiry and blocking cache writes;
+re-review reports no concrete remaining finding in reviewed paths. This is
+bounded implementation review, not complete L1/L2/L3/L4 or diverse-model sign-off.
+State OPEN at all levels pending complete coverage and connected Cloudflare,
+private-origin denial, browser playback/renewal, key rotation and production log
+verification. No deployment, instant revocation or existing authority-debt closure.
+Contract/gates: [media delivery](../web10-v3/media-delivery.md).
+
+03.11.2026 connected update (GPT-6.1 Sol): fresh isolated IAD cache/origin-denial,
+Chromium desktop/375px image/range and synthetic HLS, deployed test-key rotation
+evidence; 41 local edge/interoperability tests pass. Actual API HLS handlers use
+synthetic document authority, not real membership. **OPEN finding:** the intended
+read-only Worker credential returns 200 for list and write in the synthetic bucket.
+Exact account disabled, origin denial independently confirmed, local reuse
+quarantined. No root/shared-password or existing-policy changes; broader authority
+and ineffective-policy cause unknown. Two account-inspection attempts failed;
+live diagnosis stopped. [Evidence and remaining gates](../../media-delivery/CONNECTED-ACCEPTANCE.md).
+This is containment, not a repaired finding or complete scan/sign-off.
+
+03.11.2026 follow-up (GPT-6.1 Sol): isolated credential finding repaired and
+connected negative controls rechecked. Exact-version mc status-only updates omit
+policy; MinIO IAM store removes the embedded restriction and inherits parent
+authority. Guarded atomic policy+status official-SDK updates now inspect exact
+scope before restoring delivery. Real GET 200/hash, list/write AccessDenied 403;
+repeat ATL cache disable/restore retains policy and browser synthetic HLS passes.
+42 edge/interoperability tests include six Python policy regressions; Ruff passes.
+Root credentials remain remote; existing bucket policies/passwords unchanged.
+Source links and failure history in the [connected record](../../media-delivery/CONNECTED-ACCEPTANCE.md).
+Finding-specific operational repair only; full scan, real-node permission/renewal,
+provider logs/limits and independent/diverse sign-off remain OPEN.
+
+03.11.2026 additional connected evidence (GPT-6.1 Sol): isolated ClickHouse
+24.8.14.39 and live HTTP HLS endpoint functions exercise actual owner/member/carrier
+public/authenticated checks without permission stubs. Revocation, real parent/edge
+expiry and explicit renewal controls pass; final 29 probes plus desktop/375px
+Chromium playback, source hashes and verified teardown retained in the
+[connected record](../../media-delivery/CONNECTED-ACCEPTANCE.md). Current outer-cache
+and logging-example guards pass; subscription/account/zone export reads are 403,
+so billing/logging audit remains incomplete. Initial document auth certification,
+full-player seamless renewal, load/large-response bounds and independent/diverse
+security review remain OPEN; no full level/surface PASS or production claim.
+
+## Group Media Carrier Playback (03.11.2026)
+
+[Bounded repair/evidence](scans/2026-10/group-media-carrier-repair.md): human
+uploader identity, current carrier/link tuples and actual service/visibility gates.
+Synthetic signed-manifest/SQL red-green plus isolated real production handler
+reads restore four existing videos without data changes. Same-model review only;
+serving rollout/browser playback, cost, diverse review and broader L1 remain OPEN.
+
 ## Node-Ad Document Authority (03.11.2026)
 
 H01-NODE-DOC [evidence](scans/2026-10/h01-node-document-proof.md): current
@@ -481,7 +538,8 @@ measure. Re-scan after the hardening merges to flip them.
 | `api/rtc/` (admission) | L4 | **OPEN** | — | — | — | rtc | RTC socket admission / certify gate (cross-service RTC↔API) — see `BP-3`. Hardening in 1159 (unmerged) |
 | `ui/src/components/CredentialPage/` (auth forms) | L1 | PASS | `qwen3.8-27b` (OpenCode) | 2026-10-26 | — | auth-ui | Autofill-hostile formless login repaired (3.242.0): the credential forms (login / signup / recovery / change-password) were divs + a button whose click handler scraped the DOM by id — no `<form>` for a password manager to key off (the 1Password grant landed an empty `web10.app` entry with nothing to fill). Now real `<form>` elements with a `type="submit"` button (`onSubmit` + `preventDefault` keeps the SPA flow) + `name` attrs on the inputs. **No invariant change** — no token/credential handling altered, no new read surface, no I1–I6 surface touched (the values still come from the same DOM the click handler used to scrape). Repro: `ui/src/__tests__/authFormsAutofill.test.tsx` (8: the `<form>` element + `type="submit"` + `name` attrs across all four surfaces; submitting the form drives `login`/`signup`/`recoverRequest`/`recoverVerify`/`recoverComplete`). |
 | `sdk/src/v3.ts :: oauth` (w.oauth(), D92 O10) | L1 | OPEN | Initial `qwen3.8-27b`; fresh `openai/gpt-6.1-sol` (OpenCode) | 2026-10-27 | — | sdk-auth | Shipped in 3.245.0 with 17 mocked helper tests; implementation completion is preserved, but the initial PASS is superseded by the [pinned source/artifact rescan and fresh review](scans/2026-10/l1-o10-review.md). Callback-result binding and refresh/client ownership remain conditional concerns; first-use exchange has a confirmed correctness gap, and inherited refresh selection requires additional ambient pollution. Original tests do not establish initial connection, browser callback integrity, real server authority or model-diverse sign-off. Confidential-client secrets remain caller-supplied; deliberate JS-cookie storage, caller-managed state and restoration semantics are not reversed. No new proven server C+I exploit or protocol PASS. |
-| federation signing (I1) | L4 | **OPEN** | — | — | — | federation | B-1 / D7 — HS256 → RS256/EdDSA + JWKS (cross-node). See `BP-1` |
+| federation signing (I1) | L4 | **OPEN** | — | — | — | federation | B-1 / D7. PR #1351 implements live home-node certification, not merged or connected-verified. This does NOT close B-1: independent per-node secrets are required; the shared HS256 default still permits cross-node forgery. JWKS is optional for the operator-selected live-call model; issuer certification does not repair signing-secret provisioning. |
+| Phase B certification continuation | L2 | **OPEN** | OpenCode / GPT-6.1 Sol + fresh same-model reviewer | 2026-11-03 | — | federation | Bounded helper/issuer/read/directory/transport repairs; seven initial, two directory and thirteen intercepted-transport repro cases fail before repair. 1,977 API tests plus eight subtests pass, one opt-in skip; Ruff and bounded re-review pass. See learnings 2026-11-03 and test_cross_node_continuation.py/test_certify_transport.py. Not whole-L2/L1–L4 coverage or diverse convergence. Actual TLS/two-node lifecycle, signing secrets, CI and oversized-PR method disposition OPEN; inherited agent exemption is not operator approval. |
 | delegation model (I5) | L3 | **OPEN** | — | — | — | auth | scoped app-management delegation (within the API service). See `BP-2`. Hardening in 1157 (unmerged) |
 
 ## Commit-pinned L1 scans

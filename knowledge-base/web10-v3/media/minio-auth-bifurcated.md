@@ -139,6 +139,19 @@ read time) so the re-check evaluates the same principal classes the read
 did: an anon read re-checks as anon and can never upgrade to
 `authenticated`-only grants.
 
+**Group-authored carriers.** Upload ownership remains the human's account; the
+carrier's server-set `posted_by or author_key` selects that uploader. HLS must
+find current carriers using that same owner, including group-authored documents,
+then apply their actual service's current read and visibility gates. Rank document
+and attachment history before filtering removals or references. A group post does
+not grant access to another uploader's media merely by naming its ID.
+
+Existing correctly linked uploads need no ownership rewrite, public-media copy or
+new group membership: the corrected read path restores them in place. Before any
+backfill, inventory current group carriers, owner-scoped metadata and object keys;
+only demonstrated corrupt records warrant a separately backed-up repair. Do not
+reattach deleted media or expose a private upload as a workaround.
+
 ## The Middleware
 
 The middleware sits in front of MinIO for **HLS paths only**:

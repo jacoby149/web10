@@ -9,6 +9,23 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D94 - Portable Protected Media Delivery, Cloudflare First [decided]
+
+Operator, 02.11.2026: implement a Cloudflare adapter while retaining the ability
+to change CDN by replacing adapter code. The node retains live authorization at
+issuance/renewal; separate asymmetric media-only capabilities let the edge verify
+each request before shared-cache access without contacting the node or storage
+on a hit. This is not an authentication-key migration. The protocol and portable
+verification/orchestration core do not name Cloudflare; cache, request-lifetime
+and private-origin integration live in the provider adapter. Storage and DNS are
+independent choices.
+
+Reject origin-check-only shared caching: a hit would bypass authorization. Accept
+bearer sharing and expiry-bounded ordinary revocation, not instant permission
+updates. Urgent revocation/purge is separate work. Local opt-in implementation
+does not authorize production enablement or establish Cloudflare/private-storage
+or playback evidence. Contract: `../web10-v3/media-delivery.md`.
+
 ### D93 — Identity registry: DNS-style name resolution for web10 users, hosted on boring infra (Njalla + Cloudflare + Iceland/CH VPS) [decided, v4]
 
 Operator, 02.11.2026: "there needs to be a third party that DNS your username, so you can change what node it points to, that is the missing piece" + "support just regular shmegular dns! njalla!" + "even if the stuff on your site was so controversial then?" (re: Njalla's content policy).
@@ -253,6 +270,14 @@ Operator, 29.09.2026 — the post UI pass: "something about the post ui with the
 ---
 
 ### D84 — Multi-node federation: one canonical principal format + the foundation [decided, in-progress]
+
+**Phase B operator update, 03.11.2026:** choose live home-node `/certify` rather
+than requiring JWKS; cache a successful answer for that exact JWT until its
+expiry. This certifies identity only, never receiving-node access. Independent
+per-node signing secrets remain required; the shared default is not repaired by
+asking the issuer. PR #1351 remains unmerged. Phase B retains existing local
+bare reader/join keys until Phase A's coordinated migration, while foreign
+readers carry the exact provider-qualified principal through every read seam.
 
 Operator, 29.09.2026 — after the profile Following-tab fix (3.179.1) exposed the member_key format drift: "this doesnt sound good, because the full provider/username should be used, what if eventually people follow two same usernames on different providers?" → "you should do it right now! make it work multi provider, this is the main hangup that stops it from doing so" → "we need to make the multi node thing possible, set the foundation, we don't need to show it working right away, but yes we should be reading the other node's feed some day, multi node feed absolutely, but there is more we need to discuss about how that would work. i.e. does one node query the other node, or does the user query both nodes (the node they're on and the node they're not on)?"
 

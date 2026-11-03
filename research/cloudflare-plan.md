@@ -1,161 +1,122 @@
-# Cloudflare + Media Delivery Plan
+# Cloudflare + Protected Media Delivery
 
-**Status: plan, not built.** This is the answer to "can we offload media to a
-CDN under web10's security model, what does it cost, and what happens on
-takedown?" It turns the three-part media fix (Parts A/B/C from the
-digital-ocean thinking thread) into a concrete, staged, costed plan.
+**Status: local opt-in implementation, disabled by default; not deployed.**
+No connected CDN or browser-playback result is claimed. The authoritative
+contract is [media-delivery.md](../knowledge-base/web10-v3/media-delivery.md);
+the [adapter README](../media-delivery/README.md) owns provisioning, operational
+bounds and live gates. This research note preserves the offload intent, not an
+alternative deployment recipe.
 
-Grounded in the real code (read before writing this):
-- `api/app/services/media.py` — presigned GET/POST minting; **signs the object
-  KEY + expiry only, no reader identity** (`generate_presigned_url("get_object",
-  Key=object_key, ExpiresIn=...)`). Already has a **public** signing endpoint
-  (`S3_PUBLIC_ENDPOINT`) so the browser can reach MinIO directly.
-- `api/app/v3/endpoints/media.py` — `hls_segment` (:243) does `verify_sig`
-  (JWT, carries the reader username) **then proxies the bytes through the node**
-  via `get_s3_client().get_object()`, `Cache-Control: no-store`. This is the
-  node-in-the-byte-path problem.
-- `api/app/services/hls.py` — the 10-min sig bound to (reader, doc, hls
-  prefix); manifest re-check re-runs `can_view_doc` every sig TTL.
-- `api/app/v3/services/clickhouse.py` — `delete_media` (:4307) +
-  `delete_document` (:991) **tombstone the row only; they never delete the
-  MinIO object.** The takedown fast-path does not exist yet.
-- `docker-compose.yml` — MinIO publishes `9000:9000`; presigned URLs use
-  `minio.localhost` (dev) / `S3_PUBLIC_ENDPOINT` (prod).
+## Goal and Historic Intent
 
-## The three costs, separated (so the money is honest)
+A creator should be able to serve the same image or video to many viewers
+without sending every byte through the node. The original plan split this into
+MEDIA-A (images/audio/documents), MEDIA-B (HLS segments), and MEDIA-C (urgent
+takedown). That division remains useful; its original security and cost
+assumptions do not.
 
-| Cost | What it is | Scales with | Today | After plan |
-|---|---|---|---|---|
-| **Node compute** | API + ClickHouse CPU/RAM | active *queriers* (feed loads), NOT views | video segments proxy through it | drops to O(manifest re-checks/10min) per viewer |
-| **CDN** | edge caching + (optional) edge JWT verify | requests | $0 (none) | $0 free tier; Workers metered only if edge-verify |
-| **Egress bandwidth** | bytes out to viewers | *views* — the scary one | metered by host/MinIO egress | **$0 on R2**; metered on S3 |
+**Origin-only authorization is not sufficient for a signature-stripped shared
+cache.** A cache hit bypasses the origin check. Edge authorization is mandatory,
+not a later paid optimization. Nor does this work assume existing authentication
+or HLS signing is already asymmetric: it introduces a separate media-only RSA
+key, not an authentication-key migration. Earlier free-delivery and price
+estimates are withdrawn.
 
-The comfort: the speedup (Part B) is *negative* node cost. The only new line
-item is egress, and **R2 makes that $0**. No cluster, no enterprise CDN contract.
+## Current Request Path
 
-## The stack (target)
+1. The node applies existing document/group and owner/provenance checks before
+   issuing an exact-object capability through
+   `api/app/services/media_delivery.py`. Uploads are unchanged.
+2. The browser GETs
+   `https://<delivery-host>/media/<canonical-base64url-object-key>?cap=<JWT>`.
+   The media JWT uses RS256 and a separate RSA key of at least 2048 bits, with
+   pinned `kid`, issuer, audience, version, bucket, exact key, method and times.
+   Capabilities live at most 600 seconds.
+3. `media-delivery/core.mjs` verifies the signature and all required claims,
+   including expiry and exact GET/key/bucket binding, **before every cache
+   lookup, including warm hits**. Missing, expired or tampered capabilities
+   fail closed. There is no unsigned fallback or token-selected key URL.
+4. Only after authorization does the core consult the shared bucket/key cache
+   or fetch private storage. `media-delivery/cloudflare.mjs` supplies Cloudflare
+   Cache API and S3 SigV4 adapters; the core uses portable Fetch/WebCrypto APIs.
+   Another CDN replaces adapters, not node permissions or the token contract.
 
+MinIO, S3 and R2 are storage choices, not authorization mechanisms. Storage must
+deny anonymous reads, and no alternate public bucket/proxy/CDN host may bypass
+the edge gate. Read-only origin credentials stay at the edge. A cache rule must
+never serve incoming `/media/*` requests before Worker execution.
+
+Successful full-object responses may share an internal cache entry independently
+of reader tokens. Browser responses remain private/no-store; ranges authorize
+first and bypass caching. Errors, redirects and partial responses do not populate
+the full-object cache. Internal cache lifetime is not an access grant.
+
+### HLS
+
+Master and variant manifests stay on the node with live permission and uploader
+provenance checks. `api/app/services/hls.py` rewrites segment URLs for edge
+delivery only when enabled. Each segment has its own exact-key capability,
+expiring no later than the verified parent stream capability and no more than
+600 seconds after issuance. Segment bytes can then bypass the node; manifests
+do not become shared edge-cached authorization substitutes. Disabled mode keeps
+legacy delivery paths.
+
+## Configuration and Evidence
+
+Use the adapter README's **Provisioning** instructions, not the historic
+MEDIA-A/B rollout steps. Relevant configuration and source locations:
+
+- `api/app/settings.py`: `MEDIA_DELIVERY_ENABLED` defaults to false;
+  `MEDIA_DELIVERY_BASE` is an HTTPS host-only URL. Configure
+  `MEDIA_DELIVERY_ISSUER`, `MEDIA_DELIVERY_AUDIENCE`, `MEDIA_DELIVERY_KID`,
+  `MEDIA_DELIVERY_PRIVATE_KEY`, `MEDIA_DELIVERY_TTL` (default 60, range 1..600)
+  and `S3_BUCKET`. The private media key must be separate from `PRIVATE_KEY`.
+- `api/app/v3/endpoints/media.py`: `/v3/media/jwks` exports media public keys;
+  provision public JWKs out of band into static edge `CAP_JWKS`. The edge does
+  not fetch keys per request. Deploy old+new public keys before changing the
+  issuing kid; retain old keys until outstanding capabilities expire.
+- `media-delivery/wrangler.example.toml`: disabled example with no active route.
+  Match `DELIVERY_ORIGIN`, `CAP_ISSUER`, `CAP_AUDIENCE`, `CAP_JWKS`, `S3_BUCKET`,
+  `S3_ENDPOINT` and `S3_REGION` to the node and private origin. Provision
+  `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` and optional `S3_SESSION_TOKEN` in
+  the edge secret store, with GetObject-only access to the intended scope.
+- `media-delivery/README.md`: dedicated cookieless media host, browser CORS and
+  range constraints, private-origin denial checks, cache bounds, rotation and
+  query/path log redaction. Capabilities are bearer secrets; neither signed
+  URLs nor object keys belong in diagnostic logs.
+
+Run the standalone edge suite from the repository root with Node 22+:
+
+```sh
+node --test media-delivery/delivery.test.mjs
 ```
-Browser
-  │  (1) feed read → node mints capabilities (presigned key-URLs / HLS sig)
-  │  (2) media bytes → straight to Cloudflare edge
-  ▼
-Cloudflare (Free tier)
-  │  TLS + DDoS + cache. Cache key = OBJECT PATH (signature stripped).
-  │  [optional, metered] Worker verifies the HLS JWT at the edge.
-  ▼
-Origin
-  ├─ R2 (preferred) / S3 / MinIO  — blobs. R2 egress = $0.
-  └─ Node  — mints URLs + manifest re-checks ONLY. Out of the byte path.
-```
 
-Two auth models, pick per phase (this is the free-vs-paid decision):
-- **Origin-check (FREE):** CDN is a dumb cache; the presigned S3 sig / the
-  node's manifest endpoint still authorizes. Cache-hit serves from edge;
-  cache-miss falls through to an origin that checks. $0. Start here.
-- **Edge-check (METERED):** a Cloudflare Worker verifies the JWT/sig at the
-  edge before serving. Removes the origin round-trip entirely. Workers free
-  tier = 100k req/day, then ~$5/M. Add only when origin-check load shows it's
-  worth it.
+Node and cross-runtime coverage lives in `api/tests/test_media_delivery.py` and
+`api/tests/media_delivery_interop.test.mjs`. Local tests exercise real signatures,
+warm-cache denial and disabled-mode/HLS integration, but mocked cache/storage
+are not live delivery proof. Keep rollout disabled until actual Cloudflare cache
+behavior and limits, private-origin denial, browser playback/CORS, HLS integration,
+rotation, origin interoperability, cost and independent security review pass the
+gates in the authoritative docs. No cloud resources are provisioned here.
 
-## Part A — Images / audio / docs (config, no `api/` code)
+## MEDIA-C Remains Open
 
-Already off the node: browser → public MinIO/S3 via a presigned **key** URL
-(per-object, not per-user — so it's already cache-friendly; it fragments only
-by expiry timestamp). Work:
-1. Put the public blob host behind Cloudflare (Free). TLS + cache + DDoS.
-2. **Cache policy keyed on the object path**, signature query stripped — so all
-   readers of the same object share one edge copy across expiry windows.
-3. (Preferred) Move blobs MinIO → **R2** (S3-compatible; the node's boto3
-   client just points at the R2 endpoint + keys). Kills egress. MinIO stays
-   for local dev/e2e.
-- **Acceptance bar:** a feed image is served from the CF edge on 2nd+ view
-  (cache HIT in CF analytics) with the node not in the request path; takedown
-  of the doc stops *new* mints immediately (the read 404s → no new URL).
+Capabilities are shareable bearer credentials until expiry. Ordinary permission
+revocation affects issuance/renewal, not every segment request. Browser no-store,
+origin deletion and internal cache expiry do not establish immediate global
+revocation of an already-issued capability or already-cached bytes.
 
-## Part B — Video HLS segments (the real fix; small `api/` change)
+MEDIA-C is separate work: define and verify urgent edge revocation, origin object
+deletion (including renditions/thumbnails), cache purge and failure/retry behavior.
+The current adapter has no purge API. Do not claim instant takedown or a measured
+global purge bound. CDN offloading also does not repair stored-reference or
+attached-ad authority debt, nor optimize database queries.
 
-Today every `.ts` segment round-trips through the node (`media.py:243`). Fix:
-make the segment token **edge-verifiable** so the CDN serves bytes without the node.
-1. **Publish the node's JWT public key** — JWKS at a well-known URL (the sig is
-   already asymmetric-signed, `hls.py:58-69`, `settings.PRIVATE_KEY`/`ALGORITHM`).
-   A Worker/edge can verify signature + `exp` + the doc-bound `prefix`.
-2. **Mint segment URLs that target the CDN origin**, carrying the sig; the edge
-   verifies, then fetches the `.ts` from R2/S3 by the key `segment_key` already
-   computes (pure function of prefix+variant+seg).
-3. **Keep the manifest on the node** (the only DB re-check, 1×/10min/viewer —
-   trivial) or edge-cache it for the sig TTL.
-4. Node per-viewer cost → O(manifest re-checks/10min). Revocation still
-   propagates within one sig TTL via the manifest re-check.
-- **D60 check:** passes — JWKS endpoint + segment-URL minting are generic
-  media-capability plumbing, no app concept.
-- **Acceptance bar:** a segment fetch is served by the edge (CF cache HIT or
-  edge-verified origin pull) with **no node round-trip**; a revoked reader's
-  next manifest re-fetch 403s within one sig TTL; `no-store` removed from
-  segment responses so the edge can cache.
+## Cost and Research Bounds
 
-## Part C — Takedown fast-path (closes the gap you found)
-
-**The gap (confirmed in code):** `delete_media`/`delete_document` tombstone the
-ClickHouse row but **never delete the MinIO/R2 object**. So a taken-down post's
-media stays hot at the origin for the full TTL (1 hr images / 10 min video) and
-the object persists on disk. The TTL is the *policy* revocation (fine for
-ordinary content — D41, "same as a shared YouTube link expiring"); but for
-urgent takedowns (harmful content, paid/subscription churn) "up to 1 hour hot"
-is not defensible.
-
-Fix — make revocation **immediate** for the classes where the TTL isn't enough:
-1. **Origin object purge on takedown:** `delete_media`/`delete_document` (and the
-   block/revote paths) also `delete_object` the `object_key` (+ HLS tree prefix,
-   + thumbnails) from R2/S3. A presigned/sig URL then **falls through to an
-   origin that no longer has the object → immediate 404, TTL or not.** This is
-   the kill switch.
-2. **CDN purge:** Cloudflare cache purge (by object path / by tag) on takedown,
-   so edge copies die too, not just on their own TTL.
-3. **Keep the cheap model for ordinary content:** don't purge on every normal
-   delete if it's not needed — the TTL bound is acceptable there. Purge is the
-   *urgent* path (a `purge=true` flag / a moderation-triggered call), so ordinary
-   deletes stay cheap and harmful/paid takedowns are instant.
-- **Acceptance bar:** after an urgent takedown, (a) a *pre-minted* unexpired
-  presigned image URL 404s (object gone from origin), (b) a *pre-minted* HLS sig
-  stops at the next manifest re-fetch AND its segments 404 at the origin, (c) CF
-  edge copies are purged, (d) the doc row is tombstoned so no *new* capability is
-  minted. Ordinary (non-urgent) delete still relies on the TTL bound and is
-  labeled as such.
-
-## Staging (what to do in what order, by cost/risk)
-
-1. **Now, $0, no code:** Part A on the Free tier (CF in front of the public blob
-   host + path-keyed cache policy). Immediate win: images off the origin on
-   cache-hit.
-2. **Next, $0 storage change:** blobs → R2 (endpoint + keys in settings). Kills
-   egress. MinIO stays for dev/e2e.
-3. **Then, small `api/` PR:** Part B (JWKS + edge-verifiable segment URLs). The
-   video speedup. Start with **origin-check** (free); add the **Worker edge-check**
-   (metered) only if origin load justifies it.
-4. **Then, small `api/` PR:** Part C (object purge + CF purge on urgent takedown).
-   The safety fix.
-5. **Later, under real load:** decide origin-check vs edge-check with numbers;
-   right-size the node (it should shrink, not grow).
-
-## The dollar answer (10k users, 10% online, video)
-
-- **Node:** small box (the sweep sizes it for the *query* path; video no longer
-  loads it). This is the box the scale-sweep buys.
-- **Cloudflare:** **$0** (Free tier: TLS, DDoS, caching, delivery). Workers
-  edge-verify: **$0 until 100k req/day**, then ~$5/M — deferred, optional.
-- **Egress:** **$0 on R2** (the line item that would've scared you). Storage
-  ~$0.015/GB-mo.
-- **Total new spend to start: ~$0.** The first paid line (Workers) appears only
-  at scale and only if edge-verification is chosen over origin-check.
-
-## What this is NOT (scope honesty for the paper)
-
-- Not a claim that web10 is private — it's data-policy (D41): a taken-down
-  object is dead at the origin immediately (Part C) or within TTL (ordinary),
-  and a shared link dies at expiry. That's the *designed* bound, stated as such.
-- Not measured yet — this is the architecture + cost plan. The evaluation
-  scopes video out of the query-path numbers *with this as the stated reason
-  and the named changes (A/B/C) that offload it + close takedown.*
-- Part B/C touch `api/` but stay generic (D60): capability minting + object
-  lifecycle, no app-specific surface.
+Offloading aims to reduce node byte-proxy work, not eliminate node compute or
+prove capacity. Budget storage, storage operations, origin egress, edge requests
+and verification CPU, cache behavior and any purge/control-plane charges
+separately. Check current provider terms, limits and measured workload before
+deployment; no free-delivery claim or current-price guarantee follows from this
+architecture. Query-path measurements are not CDN, playback or cost evidence.
