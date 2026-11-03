@@ -41,6 +41,11 @@ says what can happen **at the same time**.
 
 ## Lanes
 
+### Lane: discover-group-presentation
+
+**Owns:** social Discover avatar/Top 10 mappings and focused tests, shared Top10Sidebar labeling, marketing FeedPreview/Trending attribution and focused tests, seeded capture fixtures and serialized KB records.
+- [✓ 3.257.5 local] **Discover group author presentation** - preserve prepared social group faces, hydrate marketing feed/search public faces through the existing resolver, use group author links and resolved rail names, and label the unchanged interaction tally. Gates: exact group-ID batching and missing/denied/failed-face fallback, ordinary-user preservation, focused/full tests, both builds and desktop/375px screenshot inspection. Acceptance met locally: 1,681 social and 302 marketing tests pass; both builds pass. Screenshots in `.context/discover-group-*` and `.context/marketing-trending-groups-*`. No API/auth change or production/deployment claim.
+
 ### Lane: social-test-stability
 
 **Owns:** social Vitest worker configuration and serialized verification records.

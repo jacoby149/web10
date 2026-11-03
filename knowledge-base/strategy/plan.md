@@ -37,6 +37,8 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
+- [✓ 3.257.5 local] **Discover group author presentation** - social Posts/Video retain prepared group avatars; Top 10 uses group names. Marketing feed/search hydrate public group names/avatars and author links target group pages. Top 10 remains an interaction tally (likes + comments + reposts), now explicitly labeled; zero interactions render a dash, independent of views. Acceptance: readable group faces appear without dropping posts on unavailable face reads, ordinary users remain unchanged, exact group IDs stay separate from display names. 1,681 social and 302 marketing tests, both builds and seeded desktop/375px screenshots pass. Not deployed; live view counts unverified.
+
 - [✓ 3.257.2 local] **Social test worker budget** - reproduce unbounded-worker timeouts and cap default Vitest workers at two without increasing test timeouts. Promotion security-method failures remain separate gates.
 
 - [✓ 3.256.2 bounded local] **Existing-post media preservation** - explicit removal IDs, never preview resolution, determine retained original refs; pending/failed/empty/partial previews and removal retry pinned red/green. 70 focused and all 1,673 social tests (114 files) pass; production build/typecheck pass. No connected persistence or audience-edit completion claim.

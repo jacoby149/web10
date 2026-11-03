@@ -14,6 +14,9 @@ import { getPublicMediaUrl, getPublicMediaThumbnailUrl, resolveMediaRef, clearMe
 // — in `remote` mode (anon, click-through to web10 social).
 import {
   DiscoverCard,
+  GROUP_FACE_SQL,
+  resolveFaceMedia,
+  type FaceQueryTransport,
   type DiscoverPost,
   type MediaItem,
   type ReadComments,
@@ -182,6 +185,8 @@ interface ResolvedMediaRef {
 
 interface DiscoveryPost {
   author: string;
+  display_name?: string;
+  avatar_url?: string;
   service: string;
   post_id: string;
   body_text: string;
@@ -214,6 +219,7 @@ interface DiscoveryPost {
 interface FeedPost {
   id: string;
   name: string;
+  avatarUrl?: string;
   handle: string;
   initial: string;
   avatarColor: string;
@@ -308,7 +314,8 @@ function mapDiscoveryToFeedPost(d: DiscoveryPost): FeedPost {
     : tags.includes('video') ? 'video' : tags.includes('image') ? 'image' : tags.includes('music') ? 'music' : undefined;
   return {
     id: d.post_id,
-    name: name.charAt(0).toUpperCase() + name.slice(1),
+    name: d.display_name || name.charAt(0).toUpperCase() + name.slice(1),
+    avatarUrl: d.avatar_url,
     handle: `@${d.author}`,
     initial: d.author.charAt(0).toUpperCase(),
     avatarColor: hashToColor(d.author),
@@ -385,11 +392,12 @@ function TrendingCard({
       : SOCIAL_ORIGIN);
   const resolvedAuthorHref = authorHref
     || (author
-      ? `${SOCIAL_ORIGIN}/u/${encodeURIComponent(author)}`
+      ? `${SOCIAL_ORIGIN}/${author.includes('/groups/') ? 'groups' : 'u'}/${encodeURIComponent(author)}`
       : SOCIAL_ORIGIN);
   return (
     <DiscoverCard
       post={feedPostToDiscover(post)}
+      authorAvatar={post.avatarUrl}
       rank={rank}
       maxScore={maxScore}
       remote
@@ -587,6 +595,30 @@ function mapV3DocToDiscovery(
   };
 }
 
+// Same anonymous face-prepare transport as ProfilesBrowser; no owner media read.
+const feedFaceTransport: FaceQueryTransport = async (sql, groups, prepare) => {
+  const resp = await fetch(`${API_ORIGIN}/v3/query`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sql, groups, prepare }),
+  });
+  if (!resp.ok) return [];
+  const data = await resp.json();
+  return Array.isArray(data.rows) ? data.rows : [];
+};
+
+async function hydrateGroupAuthors(posts: DiscoveryPost[]): Promise<DiscoveryPost[]> {
+  const groupIds = [...new Set(posts.map((p) => p.author).filter((a) => a.includes('/groups/')))];
+  if (!groupIds.length) return posts;
+  console.log('[trending] resolving group faces', { groups: groupIds.length });
+  const faces = await resolveFaceMedia(feedFaceTransport, GROUP_FACE_SQL, groupIds, 'group_id');
+  console.log('[trending] resolved group faces', { faces: faces.size });
+  return posts.map((post) => {
+    const face = faces.get(post.author);
+    return face ? { ...post, display_name: face.name, avatar_url: face.avatar_url } : post;
+  });
+}
+
 async function fetchDiscoverFeed(sort: 'recent' | 'trending', limit = 6): Promise<DiscoveryPost[]> {
   // v3: the public board is the node-default discover group. Read it through
   // the normal group-read path as anon (no token). Engagement is the
@@ -614,7 +646,7 @@ async function fetchDiscoverFeed(sort: 'recent' | 'trending', limit = 6): Promis
   } else {
     mapped.sort((a, b) => b.created_at.localeCompare(a.created_at));
   }
-  return mapped.slice(0, limit);
+  return hydrateGroupAuthors(mapped.slice(0, limit));
 }
 
 // The marketing search (the social app's `searchPosts` shape, mirrored): read
@@ -644,7 +676,8 @@ async function searchDiscoverPosts(query: string, limit = 50): Promise<FeedPost[
   // Newest first (the board read is unordered for our purposes; the ranked
   // re-sort happens in the page's knob pipeline).
   filtered.sort((a, b) => b.created_at.localeCompare(a.created_at));
-  return filtered.slice(0, limit).map((p) => mapDiscoveryToFeedPost(mapV3DocToDiscovery(p, {}, {})));
+  const hydrated = await hydrateGroupAuthors(filtered.slice(0, limit).map((p) => mapV3DocToDiscovery(p, {}, {})));
+  return hydrated.map(mapDiscoveryToFeedPost);
 }
 
 // ── YouTubeSkeleton (the Home view's loading state) ─────────────────────────

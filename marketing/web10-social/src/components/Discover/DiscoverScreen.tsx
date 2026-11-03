@@ -1116,11 +1116,11 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
                         key={post._id || post.created_at}
                         post={post}
                         authorName={authorName}
-                        authorAvatar={
+                        authorAvatar={post.avatar_url || (
                           profile?.avatar_ref
                             ? mediaItems.find(m => m._id === profile.avatar_ref)?.url
                             : undefined
-                        }
+                        )}
                         mediaItems={mediaItems}
                         liked={!!likedMap[post._id || '']}
                         disliked={!!dislikedMap[post._id || '']}
@@ -1181,11 +1181,11 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
                           authorName={authorName}
                           authorUsername={post.author_username}
                           authorProvider={post.author_provider}
-                          authorAvatar={
+                          authorAvatar={post.avatar_url || (
                             profile?.avatar_ref
                               ? mediaItems.find(m => m._id === profile.avatar_ref)?.url
                               : undefined
-                          }
+                          )}
                           mediaItems={mediaItems}
                            reactionCount={post.likes || 0}
                            dislikeCount={post.dislikes || 0}
