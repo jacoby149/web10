@@ -18,6 +18,7 @@ export * from './settings';
 export * from './staging';
 export * from './imports';
 export * from './feed';
+export * from './music';
 export * from './access';
 export * from './moderation';
 export * from './views';

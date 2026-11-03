@@ -7,6 +7,8 @@ import { resolveMediaRefs, resolvePostAuthors } from './posts';
 import { readReactionDocuments } from './reactions';
 import type { MediaRecord } from './types';
 import { knobStateToSort } from '@/lib/powerMean';
+import { musicTrackFromPost, type MusicTrack } from './musicTrack';
+export type { MusicTrack } from './musicTrack';
 
 // ── Feed / Discover data layer (v3) ──────────────────────────────────────────
 // v3 feed: read from groups, not inbox. Discover: read from discover group.
@@ -173,15 +175,11 @@ export async function readShortsFeed(limit = 50, offset = 0): Promise<ShortPost[
 // ── Music feed (music.md) ────────────────────────────────────────────────────
 
 /** A music track: a discover post whose single media is a real audio file. */
-export interface MusicTrack {
-  post: PostRecord;
-  /** The one resolved media record (the audio file). */
-  media: MediaRecord;
-}
 
 export interface MusicPage {
   tracks: MusicTrack[];
   hasMore: boolean;
+  nextOffset?: number;
 }
 
 /**
@@ -203,10 +201,15 @@ export interface MusicPage {
  *      audio nor a video file).
  */
 export async function readMusicPage(limit = 50, offset = 0): Promise<MusicPage> {
-  const posts = await readDiscoverFeed(null, limit, ['music'], offset, 'music');
-  const hasMore = posts.length >= limit;
+  const docs = await getV3Client().read('posts', {
+    groups: [getDiscoverGroupId()], limit, offset, tags: ['music'], surface: 'music',
+  });
+  const hasMore = docs.length >= limit;
+  const nextOffset = offset + docs.length;
+  const posts = await resolvePostAuthors(dropAdPosts(docs.map(fromV3DocToPost)));
+  posts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   const withMedia = posts.filter((p) => p.media_refs?.length);
-  if (!withMedia.length) return { tracks: [], hasMore };
+  if (!withMedia.length) return { tracks: [], hasMore, nextOffset };
 
   const token = getV3Client().readToken();
   const byAuthor = new Map<string, { posts: PostRecord[]; refs: (string | ResolvedMediaRef)[] }>();
@@ -239,32 +242,19 @@ export async function readMusicPage(limit = 50, offset = 0): Promise<MusicPage> 
         const refIds = new Set((p.media_refs || []).map(mediaRefId));
         mediaByPost[p._id || ''] = media.filter((m) => m._id && refIds.has(m._id));
       }
-    } catch {
-      // Media resolution failed for this author — degrade (no tracks from them).
+    } catch (error) {
+      console.error('[music-feed] media resolution failed', error);
+      throw error;
     }
   }
 
   const tracks: MusicTrack[] = [];
   for (const p of withMedia) {
-    // The render-time gate (music.md): a real audio file OR a video file,
-    // re-derived from the resolved media — not trusted from the client-asserted
-    // `music` tag. A video can be music (the "mark as music" toggle).
-    const resolved = mediaByPost[p._id || ''] || [];
-    const media = resolved.filter(
-      (m) => m.mime_type?.startsWith('audio/') || m.mime_type?.startsWith('video/'),
-    );
-    const allResolved = (p.media_refs || []).every((ref) =>
-      resolved.some((m) => m._id === mediaRefId(ref)),
-    );
-    const supported = resolved.every((m) =>
-      /^(audio|video|image)\//.test(m.mime_type || ''),
-    );
-    if (media.length === 1 && allResolved && supported) {
-      tracks.push({ post: p, media: media[0] });
-    }
+    const track = musicTrackFromPost(p, mediaByPost[p._id || ''] || []);
+    if (track) tracks.push(track);
   }
   console.log('[music-feed] attachment gate', { candidates: withMedia.length, tracks: tracks.length });
-  return { tracks, hasMore };
+  return { tracks, hasMore, nextOffset };
 }
 
 /**

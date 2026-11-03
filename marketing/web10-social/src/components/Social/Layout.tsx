@@ -665,7 +665,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
           </div>
         )}
 
-        <div className={cn('flex-1 min-h-0 overflow-y-auto md:pb-0', isShorts ? '' : 'pb-16')}>
+        <div className={cn('flex-1 min-h-0 overflow-y-auto md:pb-0 [body:has([data-testid=music-player])_&]:pb-48 md:[body:has([data-testid=music-player])_&]:pb-36', isShorts ? '' : 'pb-16')}>
           {actingIdentity && /^\/(messages|monetize|settings|node-settings)(\/|$)/.test(pathname) && <p className="border-b border-border bg-surface px-4 py-2 text-xs text-muted-foreground" data-testid="personal-authority-notice">This screen uses your personal account: {username}.</p>}
           {children || <Outlet />}
         </div>

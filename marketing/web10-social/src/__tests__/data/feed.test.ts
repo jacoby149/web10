@@ -493,6 +493,24 @@ describe('feed v3 data layer', () => {
   });
 
   describe('readMusicFeed (the two-layer filter — music.md)', () => {
+    it('resolves a group artist name without replacing its exact group identity', async () => {
+      const group = 'web10.app/groups/users/alice/new-group-6';
+      mock.read.mockResolvedValue([{
+        doc_id: 'group-track', author_key: group,
+        body: { title: 'Hello from the club', media_refs: ['song'], tags: ['music'] },
+        created_at: '2026-11-03T00:00:00Z',
+      }]);
+      mock.query.mockResolvedValue({ rows: [{ group_id: group, author_key: 'alice', body: { name: 'Century Club Music' } }] });
+      mock.listMedia.mockResolvedValue([{ doc_id: 'song', body: { mime_type: 'video/mp4', url: 'https://cdn/song.mp4' } }]);
+
+      const [track] = await readMusicFeed();
+
+      expect(track.post.group_identity?.name).toBe('Century Club Music');
+      expect(track.post.author_key).toBe(group);
+      expect(track.post.author_username).toBe('new-group-6');
+      expect(mock.query).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ groups: [group] }));
+    });
+
     // The filter is two-layered (defense in depth):
     //   1. SERVER — readDiscoverFeed(…, ["music"]) sends has(tags, 'music'), so
     //      the node pulls only tagged tracks (cheap + indexable).
