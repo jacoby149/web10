@@ -56,6 +56,8 @@ says what can happen **at the same time**.
 
 ### Lane: century-club-findings (this workspace)
 
+- [✓ 3.257.12 local] **Music supporting images** - repaired total-attachment gate for exactly one audio/video plus images, retaining full-resolution/type checks. Read-only production metadata confirms reported shape; red/green regression, 1,689 social tests and production build/typecheck pass. No production writes, deployment or connected playback claim.
+
 - [✓ 3.256.2 bounded local] **Existing-post media preservation** - original refs minus explicit removals, independent of pending/failed/partial preview display. Five new red/green cases; 70 focused and all 1,673 social tests (114 files, two workers/20s) plus build/typecheck pass. No visual/backend/production changes; audience protocol and connected/review gates remain open.
 
 - [✓ 3.256.1 bounded local] **Existing group post edit controls** - actual membership-shape repair shared by feed/grid/media; 65 focused tests/build pass, desktop/375px screenshots inspected. Full suite: 1,666 pass/two fail; failed files pass focused rerun, no full-green claim. No backend or production changes.

@@ -1,3 +1,6 @@
+3.257.12 || 03.11.2026
+fix(social): allow supporting images alongside exactly one resolved audio/video attachment in the Music feed. Read-only production inspection confirmed Century Club Music's tagged Discover post had an MP4 plus WebP; the former total-attachment-count gate excluded it. Reproduce exclusion before repair; cover audio/video with images, playable selection, multiple playables, missing metadata and unsupported types. Preserve tag/Discover/access gates; add aggregate gate diagnostics and align music.md. All 1,689 social tests (116 files), production typecheck/build and whitespace check pass; build retains bundling warnings. Data-layer change only; no production writes, deployment or live playback verification.
+
 3.257.11 || 03.11.2026
 docs(research): shorten the paper title to "Your Data, Your Rules: Extending the Decentralized Web" at the operator's request; align the thesis title rationale and rebuild the PDF. No contribution or evaluation changes.
 

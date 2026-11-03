@@ -1,7 +1,8 @@
 # Music: The Audio Track Feed — web10-social
 
-A music track is a `posts` doc on the discover group whose single media is a
-**real audio file** (`audio/*`). No new collection, no new group — the Music
+A music track is a `posts` doc on the discover group tagged `music`, with
+exactly one **audio or video file** (`audio/*` or `video/*`), optionally
+accompanied by images. No new collection, no new group — the Music
 feed is a *view* over the discover group, filtered to music. Same model as
 Shorts (a 9:16 video) and Video (a landscape video): the node stores
 `{service, body}` opaquely; the app writes + reads a `tags` array; the feed
@@ -32,10 +33,11 @@ depth):
 
 1. **Server-side** — `readDiscoverFeed(…, ["music"])` sends the generic tag
    filter (`has(tags, 'music')`), so the node pulls only tagged tracks.
-2. **Render-time** — the gate re-derives `audio/*` from the *resolved* media
-   and drops fakes: a doc tagged `music` whose media isn't a real audio file
-   (a video, an image, or multi-media) is dropped at render. A track is a
-   post with **exactly one** media that is `audio/*`.
+2. **Render-time** — the gate re-derives MIME types from the *resolved* media.
+   Require exactly one audio/video attachment; additional images are allowed.
+   Image-only posts, multiple playable attachments, unsupported types and
+   unresolved attachments are excluded. Missing metadata must not disguise a
+   second playable attachment. A video explicitly marked as music is a track.
 
 The D86 surface label is `'music'` — the read logs a delivery impression per
 returned track (the on-surface "N plays" is the reach over these deliveries).
@@ -77,6 +79,6 @@ Music is a real destination (not coming-soon):
 All client-side, zero node surface. The node already stores `{service, body}`
 opaquely; `tags` is a platform primitive (a notes app tags `web10-notes-
 pinned`, a shop `web10-shop-catalog`); the media pipeline already handles
-arbitrary mime types (presigned upload + confirm). The render-time gate is
-the anti-hack seam — a faked track (tagged `music` but the media is a video
-or image) is dropped at render, never trusted from the client-asserted tag.
+arbitrary mime types (presigned upload + confirm). The render-time gate checks
+resolved media rather than trusting the client-asserted tag: images alone
+cannot become a track, and multiple playable attachments remain ambiguous.

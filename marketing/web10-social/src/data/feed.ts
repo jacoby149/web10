@@ -188,11 +188,12 @@ export interface MusicPage {
  * One PAGE of the Music feed (the paged read — the wall's infinite scroll).
  * Returns the genuine music tracks for the page + `hasMore`.
  *
- * A music track is a post tagged `music` whose single media is either:
+ * A music track is a post tagged `music` whose single playable media is either:
  *   - a **real audio file** (`mime_type` starts with `audio/`), or
  *   - a **video file** (`mime_type` starts with `video/`) that the author
  *     explicitly marked as music (the "mark as music" toggle — a video CAN be
  *     music, e.g. a music video).
+ * Supporting images are allowed; all attachments must resolve.
  *
  * The two-layer model (music.md):
  *   1. **Server-side** — `readDiscoverFeed(…, ["music"])` sends the generic
@@ -248,13 +249,21 @@ export async function readMusicPage(limit = 50, offset = 0): Promise<MusicPage> 
     // The render-time gate (music.md): a real audio file OR a video file,
     // re-derived from the resolved media — not trusted from the client-asserted
     // `music` tag. A video can be music (the "mark as music" toggle).
-    const media = (mediaByPost[p._id || ''] || []).filter(
+    const resolved = mediaByPost[p._id || ''] || [];
+    const media = resolved.filter(
       (m) => m.mime_type?.startsWith('audio/') || m.mime_type?.startsWith('video/'),
     );
-    if (media.length === 1 && (p.media_refs?.length ?? 0) === 1) {
+    const allResolved = (p.media_refs || []).every((ref) =>
+      resolved.some((m) => m._id === mediaRefId(ref)),
+    );
+    const supported = resolved.every((m) =>
+      /^(audio|video|image)\//.test(m.mime_type || ''),
+    );
+    if (media.length === 1 && allResolved && supported) {
       tracks.push({ post: p, media: media[0] });
     }
   }
+  console.log('[music-feed] attachment gate', { candidates: withMedia.length, tracks: tracks.length });
   return { tracks, hasMore };
 }
 

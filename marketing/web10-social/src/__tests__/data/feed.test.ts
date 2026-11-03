@@ -496,8 +496,7 @@ describe('feed v3 data layer', () => {
     // The filter is two-layered (defense in depth):
     //   1. SERVER — readDiscoverFeed(…, ["music"]) sends has(tags, 'music'), so
     //      the node pulls only tagged tracks (cheap + indexable).
-    //   2. RENDER — the gate re-derives audio/* from the resolved media and
-    //      drops fakes (a doc tagged `music` whose media isn't a real audio file).
+    //   2. RENDER — exactly one resolved audio/video, with optional images.
     function discoverPost(id: string, mediaRefs: string[], tags: string[], author = 'alice') {
       return {
         doc_id: id,
@@ -556,6 +555,46 @@ describe('feed v3 data layer', () => {
       expect(p1.media.mime_type).toBe('audio/mpeg');
       const p2 = tracks.find((t) => t.post._id === 'p2')!;
       expect(p2.media.mime_type).toBe('video/mp4');
+    });
+
+    it('keeps one playable attachment with supporting images and selects the playable media', async () => {
+      serverFilteredRead([
+        discoverPost('video', ['cover', 'video'], ['music']),
+        discoverPost('audio', ['audio', 'cover', 'photo'], ['music']),
+      ]);
+      mock.listMedia.mockResolvedValue([
+        mediaDoc('cover', 'image/webp'),
+        mediaDoc('video', 'video/mp4'),
+        mediaDoc('audio', 'audio/mpeg'),
+        mediaDoc('photo', 'image/jpeg'),
+      ]);
+
+      const tracks = await readMusicFeed(50);
+      expect(tracks.map((t) => [t.post._id, t.media._id])).toEqual([
+        ['video', 'video'],
+        ['audio', 'audio'],
+      ]);
+    });
+
+    it('rejects ambiguous, unsupported and unresolved supporting attachments', async () => {
+      serverFilteredRead([
+        discoverPost('two-videos', ['v1', 'v2', 'cover'], ['music']),
+        discoverPost('two-audio', ['a1', 'a2', 'cover'], ['music']),
+        discoverPost('missing', ['v1', 'missing'], ['music']),
+        discoverPost('unsupported', ['v1', 'pdf'], ['music']),
+        discoverPost('unknown-type', ['v1', 'unknown'], ['music']),
+      ]);
+      mock.listMedia.mockResolvedValue([
+        mediaDoc('v1', 'video/mp4'),
+        mediaDoc('v2', 'video/mp4'),
+        mediaDoc('a1', 'audio/mpeg'),
+        mediaDoc('a2', 'audio/mpeg'),
+        mediaDoc('cover', 'image/webp'),
+        mediaDoc('pdf', 'application/pdf'),
+        mediaDoc('unknown', ''),
+      ]);
+
+      expect(await readMusicFeed(50)).toEqual([]);
     });
 
     it('an untagged audio post is not a track (the server tag filter is the inclusion rule)', async () => {
