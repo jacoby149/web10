@@ -1,6 +1,7 @@
 % web10 paper: text revision for the SIGMOD 2027 industry target
 % Render: tectonic main.tex  (from this directory)
 \documentclass[sigconf, nonacm]{acmart}
+\settopmatter{printfolios=true} % Native ACM bottom-center numbers, including page one.
 
 % --- packages (all in the tectonic bundle) ---
 \usepackage{booktabs}
@@ -26,6 +27,9 @@
 \newcommand{\artifactrev}{317fa349eae714ddde07f249ca65cdaa34b6459b}
 \newcommand{\artifactdir}[2]{\href{\artifactbase/tree/\artifactrev/#1}{#2}}
 \newcommand{\artifactfile}[2]{\href{\artifactbase/blob/\artifactrev/#1}{#2}}
+% Domain prototype: immutable tested code/receipt publication, separate from size snapshot.
+\newcommand{\domainartifactrev}{26720acba859c7eb03fc5d26a6221cdde5b764a1}
+\newcommand{\domainartifactdir}[2]{\href{\artifactbase/tree/\domainartifactrev/#1}{#2}}
 
 \lstdefinestyle{sql}{
   language={},
@@ -77,6 +81,8 @@ the social application or adding application-specific node endpoints.
 Connected browser flows exercise consent and revocation.
 An isolated two-node experiment exercises foreign-principal reads and local
 grant revocation while reusing cached home-node certification.
+A dedicated browser prototype keeps a public domain subscription across an
+account/provider change while the old creator API is unavailable.
 \end{abstract}
 
 \maketitle
@@ -192,6 +198,8 @@ This paper makes three contributions:
   access layer and the batching decision that addresses it, and exercise
   home-node-certified reads across two isolated nodes
   (\S\ref{sec:federation-results}).
+  A separate client prototype exercises domain-based public subscription
+  continuity (\S\ref{sec:domain-results}) without changing node semantics.
 \end{enumerate}
 
 The evaluation in \S\ref{sec:method} reports the connected interoperability
@@ -481,6 +489,11 @@ social platforms lost: your address is yours, you can switch providers, and no
 single platform can unilaterally erase your inbox or block your senders. web10
 restores that property for social data, and the domain-as-alias mechanism makes
 it concrete rather than conceptual.
+The dedicated prototype in \S\ref{sec:domain-results} keeps a domain subscription
+in the reader's private app documents and resolves it before public reads.
+Production web10-social follows remain group-based; the prototype does not
+transfer private grants or replace the username principal.
+
 \subsection{What is running and what is the active build}
 
 The network model is the architecture; runtime maturity is phased. Foreign
@@ -684,8 +697,9 @@ end-to-end encryption.
 Here \emph{user-owned} denotes logical authorship namespaces and user-controlled
 grants. The operator retains physical access to hosted data, and legal remedies
 depend on terms, jurisdiction, and enforceability. Usable export and exit are
-broader product goals. The isolated cross-node read slice is demonstrated in
-\S\ref{sec:federation-results}; interoperable provider migration and production
+broader product goals. The isolated cross-node read and public domain-subscription
+slices are demonstrated in \S\ref{sec:federation-results} and
+\S\ref{sec:domain-results}; complete account/data migration and production
 federation remain forward scope (\S\ref{sec:network}).
 
 \subsection{Implementation boundary}
@@ -949,10 +963,10 @@ That path is the active build (\S\ref{sec:limits}).
 \section{Evaluation}
 \label{sec:method}
 
-The evaluation has four parts: a connected interoperability demonstration
-with real browser consent and revocation, an isolated two-node correctness
-scenario, a measurement of metadata fan-out cost, and a deployed operating
-point. The first three use synthetic data on isolated test stacks; the
+The evaluation has five parts: connected cross-app interoperability,
+isolated two-node authorization, a domain-subscription prototype, metadata
+fan-out cost, and a deployed operating point. The first four use synthetic
+data on isolated test stacks; the
 operating point is a read-only observation of the production node. None is a
 capacity or scale result.
 
@@ -1024,7 +1038,7 @@ Origin-bearing query gate denies a local namesake's app grant, allows a
 qualified foreign app-contract fixture, and denies again after its revocation;
 direct group-authorized reads remain available.
 
-Three isolated correctness runs completed, not deployment or load trials. An
+Three initial isolated correctness runs completed, not deployment or load trials. An
 initial attempt failed on a harness import path before scenario execution.
 The first pass used revision \texttt{04da544442c3} plus the retained owner-list
 repair patch; a second pass used committed revision \texttt{3be1f1ec10fd}
@@ -1036,7 +1050,52 @@ the test CA and network do not establish public-internet interoperability.
 Foreign app grant/revocation use labelled service-function fixtures, not browser
 consent or completed foreign enrollment. Owner grant/removal is not foreign
 self-join. Receipts, executable source, image identities and verified cleanup
-are retained in \artifactdir{research/federation-demo}{the experiment artifact}.
+are retained in \domainartifactdir{research/federation-demo}{the experiment artifact}.
+
+\subsection{Public domain subscriptions across provider loss}
+\label{sec:domain-results}
+
+A separate research client stores only a creator's normalized domain in a
+private app document at the reader's independent home. It freshly resolves the
+existing TXT pointer, checks the selected account's verified alias and reads
+public posts anonymously. It uses ordinary CRUD/groups and the existing
+authenticated domain-verification endpoint, not a new node follow API.
+
+On desktop (1440\,\texttimes\,1000) and mobile (375\,\texttimes\,812), the creator
+logged in, copied/published the TXT and verified the old account through actual
+local UDP DNS. The reader clicked Follow once. After the old API/TLS services
+were stopped, the creator retargeted DNS and verified a new account without
+old-provider approval. Reload and ordinary reader login displayed new public
+posts with the identical stored follow ID/body and one total follow creation
+(Figure~\ref{fig:domain-follow}). No old content was migrated. Explicit old
+private access returned 200; new-target private access remained 403.
+
+Five delayed-real-response identity generations, missing/ambiguous DNS recovery
+and credential-free DNS/alias/public reads also passed. The final committed
+integration is \texttt{0932d6643940}, with an empty patch; two failed harness
+matrices and an earlier working-tree pass remain separate. Exact inputs,
+configuration/port history, ten captures and verified cleanup are retained in
+\domainartifactdir{research/domain-portability-demo}{the prototype artifact}.
+Same-source default IAM compatibility also passes unchanged.
+
+This is a configured two-node client, not deployed social follows or private
+principal continuity. API app/private grants, TTL-zero local DNS, a loopback
+HTTP JSON bridge and browser acceptance of test-certificate errors are explicit
+fixtures. Retained DNS control and available reader/new node/resolver are
+assumptions; domain sale/theft/expiry and public DNS/TLS/availability are not
+solved. The result demonstrates bounded public subscription continuity, not
+absolute unbannability.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=.47\textwidth]{../domain-portability-demo/figures/before-card.png}\hfill
+\includegraphics[width=.47\textwidth]{../domain-portability-demo/figures/after-card.png}
+\caption{Same website, another public account. Exact panel crops from the final
+desktop browser capture, before and after DNS retarget and old API/TLS shutdown.
+The driver verifies the unchanged reader-owned follow ID and no second Follow;
+full captures, authenticated hookup and 375px evidence remain in the artifact.}
+\label{fig:domain-follow}
+\end{figure*}
 
 \subsection{The metadata fan-out cost of the access layer}
 \label{sec:prelim}
@@ -1154,6 +1213,8 @@ The evaluation above is bounded by construction, and the open work is specific.
 \textbf{Federation beyond the correctness slice.} The isolated experiment in
 \S\ref{sec:federation-results} exercises home-issuer certification and
 owner-managed foreign grant/removal, not a complete federated product.
+The domain prototype adds public subscription continuity, not production social
+integration or private-principal portability.
 Independent production signing-key provisioning, complete local-principal
 migration, foreign self-join and app enrollment, multiworker/restart behavior,
 public deployment and client-side feed merging remain open. Cached identity

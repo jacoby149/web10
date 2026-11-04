@@ -9,6 +9,28 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D97 — Public domain-follow continuity demonstration, not a new principal [decided, research scope]
+
+Operator, 03.11.2026: "user uses dns with his web10 account ... point to another
+username, then all his followers follow him by website"; approve the demo of a
+creator moving accounts while their audience keeps following the same website.
+
+The isolated research client stores the reader's subscription to a domain in
+their own private app documents, resolves the existing TXT account pointer at
+read time and anonymously reads the selected account's public posts. The old
+creator provider may disappear without owning that bookmark or approving the
+move. Exercise the implemented authenticated domain claim on both accounts.
+
+This does not change the alias-not-principal rule, D84 membership/token keys or
+web10-social's existing follow graph. DNS redirects grant no private authority;
+domain transfer can change the public subscription destination and does not
+inherit the former account or roles. No production DNS/deployment, migration,
+new node endpoint or deferred Shadowguard/registry work is authorized. The lab
+allows only configured provider targets and never forwards reader credentials
+to a DNS-selected destination. Scope/acceptance: `research/domain-portability-demo/README.md`.
+
+---
+
 ### D96 — Resumable upload state uses private S3 conditional records [in-progress]
 
 R1 uses a separate server-only bucket on the existing S3/MinIO store, with

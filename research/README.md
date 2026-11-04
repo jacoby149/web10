@@ -10,8 +10,15 @@ HTTPS home certification and owner-granted foreign access, removal and regrant
 under cached identity. Three runs pass: the latest uses clean merged-dev
 revision `0acc771e2efc` after #1360, with an empty patch and no overlay. Earlier
 base-plus-patch and owner-branch receipts remain separate history. The
-12-page manuscript includes this evidence without claiming full migration,
+manuscript includes this evidence without claiming full migration,
 foreign self-join, browser enrollment or production federation.
+
+The separate [public domain-follow prototype](domain-portability-demo/RESULTS.md)
+also passes desktop/375px on committed integration `0932d6643940`: the same
+reader-owned website bookmark survives old API/TLS shutdown and DNS retarget to
+a verified new account, without refollowing. It is research-client behavior,
+not an upgrade of existing social follows; client/DNS/browser components land
+separately and their normal CI/merge dependencies remain explicit.
 
 **Updated:** 2026-11-03
 
@@ -90,6 +97,7 @@ the official CFP governs current logistics.
 | `decentralized-iam-thesis.md` | **The paper's spine (read first).** The email generalization, the three-property triangle, the built-vs-in-flight honesty bar, what changed in the draft, the overclaims to avoid. |
 | `cross-node-iam-demo.md` | The experiment that closes the last gap: a foreign principal granted into a group on another node, reading through the verified token, then removed and denied. Spec, blockers (H/A/B/C), minimal scope, decision gate. Does not block the draft. |
 | `federation-demo/` | Local two-node TLS correctness harness: three source-specific runs pass, latest on clean merged dev 0acc771e2efc with an empty patch after #1360. Retains key/group/app/namesake/cache and cleanup controls; not public deployment or broad security evidence. |
+| `domain-portability-demo/` | D97 public website-follow prototype, isolated real DNS/browser matrix and three bounded components. Final integration0932d6643940, source/input/10-capture/cleanup archive and explicit lab/production limits; not private-principal or deployed social portability. |
 | `brief.md` | Bounded claim, scope and outstanding gates (pre-reframe; the thesis doc supersedes its framing) |
 | `source-map.md` | Commit-pinned demonstration source counts, backend boundary and artifact links |
 | `live-observation-2026-10-28.md` | Actual Ubuntu dataset/hardware snapshot and bounded authenticated browser pilot |
@@ -103,7 +111,7 @@ the official CFP governs current logistics.
 | `experiments/README.md` | Known harness blockers; no runnable/reproducible claim yet |
 | `experiments/costfn/` | Cost-function harness and separately recorded 100-creator and 1,000-creator trials. Main paper table: K10/100/1000, 20 cells, 400 samples; A is a direct precompiled scan baseline, B/C compare per-group and batched resolution. Summary receipt and table checker retained |
 | `draft/outline.md` | Industry-paper section plan |
-| `workshop/main.tex` | The paper (12 pp including references, builds with tectonic; no horizontal overflow, remaining font/underfull and small final vertical-box warnings). Includes cross-app browser evidence and the isolated two-node base-plus-patch correctness result; broader federation/performance/security gates stay open. |
+| `workshop/main.tex` | The paper (13 pp including references, which start on page 12; body stays within the 12-page-plus-references budget). Tectonic builds with no horizontal overflow, remaining font/underfull and small final vertical-box warnings. Includes cross-app browser, two-node IAM and public domain-follow prototype evidence; broader deployment/performance/security gates stay open. |
 
 ## Remaining Gates
 

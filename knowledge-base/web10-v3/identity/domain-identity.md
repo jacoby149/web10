@@ -297,6 +297,15 @@ The `users` table now has `domain = 'coolguydavid.com'` and
 
 ## What the domain does NOT do
 
+**Research-only D97 extension:** `research/domain-portability-demo/` stores a
+reader's subscription to a domain in the reader's own private app service,
+then resolves the TXT/verified account alias before anonymous public reads.
+The local prototype demonstrates retargeting with the same bookmark after
+the old creator API disappears. It does not put domains in membership/token
+principals, transfer private authority or upgrade production web10-social's
+existing follows. Source/fixtures/limits: the demo's `RESULTS.md`; bounded
+component merges and normal CI remain separate gates.
+
 - **Does not replace the username in group rows.** `member_key` stays
   `{provider}/users/{username}`. The domain is never written into a
   group membership row.

@@ -1,6 +1,7 @@
 """Local-only, self-cleaning two-node correctness runner; no production targets."""
 
 import hashlib
+import importlib.util
 import json
 import os
 import secrets
@@ -12,8 +13,33 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
+domain_setting = os.environ.get("WEB10_DOMAIN_DEMO", "")
+if domain_setting not in ("", "0", "1"):
+    raise SystemExit("WEB10_DOMAIN_DEMO must be unset, 0 or 1")
+DOMAIN_MODE = domain_setting == "1"
+DOMAIN_ROOT = ROOT / "research/domain-portability-demo"
+domain_hooks = None
+if DOMAIN_MODE:
+    required = (
+        "hooks.py",
+        "dns_fixture.py",
+        "client.mjs",
+        "view.mjs",
+        "index.html",
+        "demo.css",
+        "browser.mjs",
+        "seed.py",
+    )
+    missing = [name for name in required if not (DOMAIN_ROOT / name).is_file()]
+    if missing:
+        raise SystemExit("Domain demo components are not all installed: " + ", ".join(missing))
+    if not (ROOT / "e2e/node_modules/@playwright/test/package.json").is_file():
+        raise SystemExit("Install the locked e2e dependencies before running the domain demo")
+    spec = importlib.util.spec_from_file_location("domain_demo_hooks", DOMAIN_ROOT / "hooks.py")
+    domain_hooks = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(domain_hooks)
 run_id = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime()) + f"-{os.getpid()}"
-OUT = ROOT / ".context/federation-demo" / run_id
+OUT = ROOT / (".context/domain-portability-demo" if DOMAIN_MODE else ".context/federation-demo") / run_id
 PROJECT = f"web10-federation-{run_id.lower()}"
 IMAGE = f"web10-federation-demo:{run_id}"
 OUT.mkdir(parents=True, mode=0o700)
@@ -48,7 +74,10 @@ revision = run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True).stdo
         {
             "revision": revision,
             "runner_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
-            "scenario_sha256": hashlib.sha256((HERE / "scenario.py").read_bytes()).hexdigest(),
+            "scenario_sha256": hashlib.sha256(
+                (DOMAIN_ROOT / "browser.mjs" if DOMAIN_MODE else HERE / "scenario.py").read_bytes()
+            ).hexdigest(),
+            "mode": "domain-portability" if DOMAIN_MODE else "federation-iam",
         }
     )
 )
@@ -60,6 +89,10 @@ for source in [
     *sorted((ROOT / "clickhouse-init").glob("*.template")),
 ]:
     shutil.copyfile(source, OUT / source.name)
+if DOMAIN_MODE:
+    for source in DOMAIN_ROOT.iterdir():
+        if source.is_file() and source.suffix in (".py", ".mjs", ".html", ".css"):
+            shutil.copyfile(source, OUT / ("domain-" + source.name))
 (OUT / "recovery.txt").write_text(
     f"Only inspect/remove resources labelled com.docker.compose.project={PROJECT}; image tag {IMAGE}.\nDocker endpoint: {endpoint}\nNo global prune.\n"
 )
@@ -183,6 +216,8 @@ with (
                 }
             },
         }
+    if DOMAIN_MODE:
+        domain_hooks.configure(services, private, IMAGE, ROOT)
     for service in services.values():
         service.setdefault("networks", ["lab"])
     # Isolated, non-published lab routing; public classification deliberately
@@ -196,6 +231,11 @@ with (
             }
         },
     }
+    if DOMAIN_MODE:
+        # Docker suppresses published ports on an internal-only bridge. Only
+        # the TLS/DNS frontends join this second, loopback-published bridge;
+        # API/database/storage services retain their internal-only network.
+        config["networks"]["browser"] = {"internal": False}
     (OUT / "topology.json").write_text(
         json.dumps(
             {
@@ -203,7 +243,7 @@ with (
                     name: {
                         "image": spec["image"],
                         "networks": spec["networks"],
-                        "published_ports": [],
+                        "published_ports": spec.get("ports", []),
                     }
                     for name, spec in services.items()
                 },
@@ -280,19 +320,22 @@ with (
                 if attempt == 89:
                     raise
                 time.sleep(1)
-        result = subprocess.run(
-            compose + ["exec", "-T", "api-b", "/web10/.venv/bin/python", "/demo/scenario.py"],
-            text=True,
-            capture_output=True,
-        )
-        (OUT / "scenario.json").write_text(result.stdout)
-        (OUT / "scenario.stderr").write_text(result.stderr)
-        assert result.returncode == 0, "scenario failed; see retained scenario.stderr"
-        receipt = dc("exec", "-T", "tls-a", "cat", "/tmp/certify.log", capture_output=True).stdout
-        (OUT / "issuer-calls.txt").write_text(receipt)
-        assert receipt.splitlines() == ["POST /certify 200", "POST /certify 401"], (
-            "expected one positive certification and one negatively cached forgery"
-        )
+        if DOMAIN_MODE:
+            domain_hooks.execute(dc, docker, private, OUT, ROOT)
+        else:
+            result = subprocess.run(
+                compose + ["exec", "-T", "api-b", "/web10/.venv/bin/python", "/demo/scenario.py"],
+                text=True,
+                capture_output=True,
+            )
+            (OUT / "scenario.json").write_text(result.stdout)
+            (OUT / "scenario.stderr").write_text(result.stderr)
+            assert result.returncode == 0, "scenario failed; see retained scenario.stderr"
+            receipt = dc("exec", "-T", "tls-a", "cat", "/tmp/certify.log", capture_output=True).stdout
+            (OUT / "issuer-calls.txt").write_text(receipt)
+            assert receipt.splitlines() == ["POST /certify 200", "POST /certify 401"], (
+                "expected one positive certification and one negatively cached forgery"
+            )
         status["result"] = "passed"
     finally:
         # Do not dump API logs/inspect environment or preserve synthetic keys.

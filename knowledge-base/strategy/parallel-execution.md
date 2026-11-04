@@ -1374,6 +1374,14 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+- [✓ 4.5.3 local] **Domain prototype manuscript and bottom page numbers** — bounded result/figure and immutable artifact links, rebuilt 13-page PDF, verified centered footer sequence 1–13 including page one; references begin on page 12. Runtime and production unchanged.
+
+- [✓ 4.5.2 local prototype] **DOMAIN-PORTABILITY: one website, another account (D97)** — final committed integration0932d6643940 passes desktop1440x1000 and375x812: actual TXT claim, one reader-owned domain-only follow, old API/TLS unavailable, retarget/reverify/reload and new public posts without refollowing. Same ID/body, old-private200/new-private403, five UI lifecycle seams and credential-free reads verified. Exact safe receipts/10 captures/cleanup pass bounded review; components require normal CI/merge order, no production or absolute-unbannability claim.
+- [✓ 4.5.0 local] **D97 client/UI component** — 402 code/test lines, fixed home authority, allowed anonymous targets/verified alias, URL-held views and captured generations; 22 tests and two red→green continuations pass. Production social follows unchanged.
+- [✓ 4.5.1 local] **D97 DNS/runner component** — 462 code/test lines, real local TXT/JSON, secret/path/target controls, frontend-only loopback publishing and safe default mode; four DNS/default topology-fault tests plus committed default IAM regression pass. No host/public DNS or production changes.
+- [✓ 4.5.2 local] **D97 browser/proof component** — actual driver/API fixtures, committed two-viewport proof, two hooks fault tests, immutable archive/config history/screenshots and bounded review pass. Preserve failed and working-tree runs separately; normal component CI/dependencies apply.
+- [ ] **DOMAIN-PORTABILITY-MERGED-REPLAY** — after the client, DNS/runner and browser/proof components merge, run the full unchanged desktop/375px matrix on merged dev with an empty patch. Retain/review source, configuration history, credential/private/lifecycle controls and complete cleanup; update paper/results only to the scope proven. Owns `research/domain-portability-demo/`, bounded runner extension and manuscript records. Gates: components merged, full matrix/no retries, safe receipts and screenshots, bounded review and all PR checks green. Acceptance: same persisted domain-only ID, old provider unavailable, new public posts without refollowing, private authority not inherited; no production/social/DNS rollout or Phase A/C work.
+
 - [✓ 3.257.11 local] **Shorten paper title** - operator-requested title edit in `research/workshop/`, aligned thesis rationale and rebuilt PDF. No evaluation changes.
 
 - [✓ 3.257.10 local] **Remove red review line numbers** - operator-authorized `research/workshop/` formatting fix: remove ACM review mode, rebuild the 12-page PDF, inspect the first page and verify no red text spans across all pages. Content and evaluation scope unchanged.
