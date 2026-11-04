@@ -51,7 +51,6 @@ from app.v3.models.groups import (
     UnhideDoc,
     UpdateGroup,
 )
-from app.v3.models.imports import ImportCreate, ImportJobRef, ImportPart, ImportTraceRef
 from app.v3.models.media import (
     ConfirmMedia,
     DeleteMedia,
@@ -127,10 +126,6 @@ __all__ = [
     "UnhideDoc",
     "ListHiddenDocs",
     # imports (the "port your YouTube" pipeline)
-    "ImportCreate",
-    "ImportJobRef",
-    "ImportPart",
-    "ImportTraceRef",
     # media
     "ConfirmMedia",
     "ListMedia",

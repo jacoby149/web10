@@ -48,7 +48,6 @@ vi.mock('@/data', async (importOriginal) => {
     readFollows: vi.fn().mockResolvedValue([]),
     fetchSuggestedUsers: vi.fn().mockResolvedValue([]),
     fetchDiscoveryPost: vi.fn().mockResolvedValue(null),
-    countStagingPosts: vi.fn().mockResolvedValue(0),
     readRepostCounts: vi.fn().mockResolvedValue({}),
     readMyRepostedIds: vi.fn().mockResolvedValue(new Set<string>()),
     getDiscoverGroupId: vi.fn().mockResolvedValue('discover-group'),

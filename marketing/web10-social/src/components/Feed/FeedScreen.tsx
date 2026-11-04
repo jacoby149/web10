@@ -35,7 +35,6 @@ import {
 import { KnobRack } from '@/components/Discover/KnobRack';
 import { MoreHorizontal, Share2, Check, Edit3, Eye, EyeOff, Trash2, Repeat2, Megaphone, X, Film, Bookmark } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { MARKETING_ORIGIN } from '@/lib/origins';
 import { Textarea } from '@/components/ui/textarea';
 import { PostActions } from './PostActions';
 import { TextWithLinks } from './LinkEmbed';
@@ -774,16 +773,6 @@ function FeedEmptyState() {
   return (
     <div className="flex flex-col items-center justify-center py-16 px-8 text-center" data-testid="feed-empty">
       <p className="text-sm text-muted-foreground mb-3">Your feed will appear here as people you follow post.</p>
-      <p className="text-xs text-muted-foreground/50">
-        Or{' '}
-        <button
-          data-testid="feed-import-cta"
-          className="text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
-          onClick={() => window.open(`${MARKETING_ORIGIN}/import`, '_blank', 'noopener,noreferrer')}
-        >
-          import your existing posts
-        </button>
-      </p>
     </div>
   );
 }

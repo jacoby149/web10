@@ -5,6 +5,8 @@ on:
     paths:
       - api/**
       - media-delivery/**
+      - ubuntu-deployment/docker-compose.ecosystem.yml
+      - ubuntu-deployment/env.*.example
       - marketing/marketing-ui/Dockerfile
       - marketing/web10-social/Dockerfile
       - .github/workflows/api.yml

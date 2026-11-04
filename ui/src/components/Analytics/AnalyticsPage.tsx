@@ -66,7 +66,6 @@ function mockSummary(days: number): Summary {
       { path: '/', count: 5203 },
       { path: '/trending', count: 2891 },
       { path: '/app-store', count: 1764 },
-      { path: '/import', count: 1120 },
       { path: '/docs/sdk', count: 640 },
     ],
     top_referrers: [

@@ -50,7 +50,6 @@ const mockReadMyPosts = vi.fn().mockResolvedValue([
 ]);
 const mockCountFollows = vi.fn().mockResolvedValue(0);
 const mockCountFollowers = vi.fn().mockResolvedValue(0);
-const mockCountStagingPosts = vi.fn().mockResolvedValue(0);
 const mockSaveProfile = vi.fn().mockImplementation((p) => Promise.resolve({ _id: 'profile-1', ...p }));
 // The crop upload — returns a fresh media doc (the crop ships as its own doc).
 const mockUploadMedia = vi.fn().mockResolvedValue({ _id: 'crop-doc-1', object_key: 'obj/crop1' });
@@ -86,7 +85,6 @@ vi.mock('@/data', async (importOriginal) => {
     countFollows: mockCountFollows,
     countFollowers: mockCountFollowers,
     countUserFollowing: vi.fn().mockResolvedValue(0),
-    countStagingPosts: mockCountStagingPosts,
     saveProfile: mockSaveProfile,
     resolveMediaRefs: mockResolveMediaRefs,
     uploadMedia: mockUploadMedia,

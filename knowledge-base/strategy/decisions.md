@@ -9,6 +9,16 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D95 — The bulk import is cut: the "Import Your Life" page and the YouTube import pipeline are removed; onboarding is an AI-assistant flow [decided]
+
+Operator, 03.11.2026 — "the import your life page is just not really a product focus i dont think, people dont care... we should get rid of it" + "i think b, ripping it out makes sense, people could use an ai assistant to import anyways" + "our goal isnt to import influencers whole shit that is annoying, just to get them on this thing".
+
+**The decision.** The whole import surface is removed — the marketing `/import` page (the "Import Your Life" journey), the docs (`import-from-other-platforms.md`, `export-guidance.md`), the node pipeline (`POST /v3/imports*`, the durable `import_worker.py`, the YouTube parser, the `import_jobs`/`import_events` tables), the social app's `Settings → Import` tab, the empty-state import CTAs, the `staging_posts` review surface, the e2e gauntlet, and the nightly export-link health check. **The onboarding goal is "get the creator on the platform," not "port their whole back catalog."** The catalog arrives the ordinary way — an AI assistant helps the creator post over a few days, one by one — which is lower-friction for the creator and drops a large, brittle, multi-GB pipeline from the node. The reach-gap / owned-audience pitch (the 100% delivery, no shadow ban) is untouched; only the *bulk-port* mechanism goes.
+
+**What it rejects.** (1) The "Import Your Life" marketing page as a front-door pitch — the operator's call that it is not product focus and that people don't care. (2) The bulk catalog import as the onboarding hook — replaced by the AI-assistant, post-by-post flow. (3) Keeping the `staging_posts` tier around an empty pipeline — with no importer writing to it, the staging/review surface is dead weight and goes too. **Supersedes** the import half of D90 (the worker durability pass) and the "YouTube Importer (port your YouTube)" plan section; D90's *idiom* (in-process + ClickHouse-queued worker) still stands for any future durable job.
+
+**Implementation disposition.** Marketing/docs merged in #1348; the remaining code gut is tracked in the import lane. Delete the old `web10-v3/social/import.md` implementation guide and its live links. Removing job/event DDL does not authorize dropping existing tables, deleting raw objects or staged documents; any storage cleanup requires a separate inventory and operator approval. Generic CRUD/media/export and the current access model remain. References: `plan.md` "YouTube Importer", `outreach.md`, `ads-october/gaps.md` Gap 1.
+
 ### D94 - Portable Protected Media Delivery, Cloudflare First [decided]
 
 Operator, 02.11.2026: implement a Cloudflare adapter while retaining the ability
@@ -127,7 +137,7 @@ After this retirement, the next security scan priority is exhaustive SDK L1,
 not the removed service's packaging. Remaining node packaging/migration and
 deployment inventory stays open; it is not silently counted as scanned.
 
-### D90 — The import worker's durability pass: streaming extraction, stage checkpoints, the heartbeat sweep, the durable trace, and the keep-exports switch — and the Celery/Redis rejection, on the failure analysis [decided]
+### D90 — The import worker's durability pass: streaming extraction, stage checkpoints, the heartbeat sweep, the durable trace, and the keep-exports switch — and the Celery/Redis rejection, on the failure analysis [superseded by D95]
 
 Operator, 18.10.2026 — after deciding to test the YouTube importer with a real Takeout on prod: "i want it to really keep all the logs though like a real dump of the errors so we know what is up" + "i can just upload the tar on prod and if its going to shit i can ask you to check what happened on the ubuntu deployment" + "the background threads i hope this shit isnt brittle" + "screw celery then! lets do this!"
 
@@ -275,7 +285,8 @@ Operator, 29.09.2026 — the post UI pass: "something about the post ui with the
 than requiring JWKS; cache a successful answer for that exact JWT until its
 expiry. This certifies identity only, never receiving-node access. Independent
 per-node signing secrets remain required; the shared default is not repaired by
-asking the issuer. PR #1351 remains unmerged. Phase B retains existing local
+asking the issuer. PR #1351 is merged; its historical method gate failed and is
+not waived by that merge. Phase B retains existing local
 bare reader/join keys until Phase A's coordinated migration, while foreign
 readers carry the exact provider-qualified principal through every read seam.
 

@@ -5,8 +5,7 @@ import { toast, errorMessage } from '@/components/shared/Toast';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { requestInstallPrompt } from '@/lib/pwa';
-import { Settings as SettingsIcon, User, Database, Info, LogOut, ExternalLink, Shield, Bug, Eye, Lock, Loader2, Zap, Download, UploadCloud, Copyright } from 'lucide-react';
-import { ImportSection } from './ImportSection';
+import { Settings as SettingsIcon, User, Database, Info, LogOut, ExternalLink, Shield, Bug, Eye, Lock, Loader2, Zap, Download, Copyright } from 'lucide-react';
 import { ReportCopyright } from '@/components/shared/ReportCopyright';
 
 const APP_VERSION = import.meta.env?.VITE_GIT_COMMIT || '0.1.0';
@@ -251,10 +250,6 @@ export default function SettingsScreen({ onLogout, onReportBug }: { onLogout: ()
       {!settingsLoading && settings && (
         <RealTimeSection settings={settings} onSave={handleSaveSettings} />
       )}
-
-      <Section title="Import" icon={UploadCloud}>
-        <ImportSection />
-      </Section>
 
       <Section title="Your Data" icon={Database}>
         <div className="px-4 py-3 space-y-2">

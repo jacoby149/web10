@@ -19,7 +19,6 @@ vi.mock('@/data', async (importOriginal) => ({
   countFollows: vi.fn().mockResolvedValue(0),
   countFollowers: vi.fn().mockResolvedValue(0),
   countUserFollowingReal: vi.fn().mockResolvedValue(0),
-  countStagingPosts: vi.fn().mockResolvedValue(0),
   getMyCollections: vi.fn().mockResolvedValue([]),
   readUserPublicCollections: vi.fn().mockResolvedValue([]),
 }));

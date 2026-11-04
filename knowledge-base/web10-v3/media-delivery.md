@@ -101,6 +101,14 @@ refuses startup. `/v3/media/jwks` returns the current media public key for opera
 provisioning; it returns an empty key set while disabled. Stage public keys out
 of band before enabling issuance; edge key rotation retains old+new keys.
 
+Deployment contract: the canonical ecosystem Compose forwards all seven media
+settings only into the API service, with issuance false and direct TTL 60 when
+omitted. Private `env.dev`/`env.prod` hold each stack's own values; no media signing
+key belongs in frontend build arguments, shared unscoped deployment settings or
+source control. Multiline PEM must survive dotenv/Compose interpolation unchanged.
+This wiring does not provision keys/Worker/storage or turn on issuance; deployed
+dev acceptance precedes a separately approved production rollout.
+
 Cloudflare settings and secret provisioning are in
 [`media-delivery/README.md`](../../media-delivery/README.md) and its disabled
 Wrangler example. API defaults preserve existing SigV4 URLs, uploads and HLS
