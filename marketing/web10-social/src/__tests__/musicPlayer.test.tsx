@@ -254,6 +254,28 @@ describe('persistent music playback', () => {
     Reflect.deleteProperty(navigator, 'mediaSession');
   });
 
+  it('exposes the resolved cover as Media Session artwork and omits it when absent', async () => {
+    const session = { setActionHandler: vi.fn(), playbackState: 'none', metadata: null as MediaMetadata | null };
+    Object.defineProperty(navigator, 'mediaSession', { configurable: true, value: session });
+    vi.stubGlobal('MediaMetadata', class { constructor(public metadata: MediaMetadataInit) { Object.assign(this, metadata); } });
+    const view = render(tree());
+    try {
+      const withArt = { ...tracks[0], artworkUrl: 'https://cdn.example/cover.webp' } as MusicTrack;
+      await act(async () => music.play(withArt, [withArt, tracks[1]]));
+      expect(session.metadata?.title).toBe('Track a');
+      expect(session.metadata?.artist).toBe('@artist');
+      expect(session.metadata?.artwork).toEqual([{ src: 'https://cdn.example/cover.webp' }]);
+      await act(async () => music.select(tracks[1], [withArt, tracks[1]]));
+      expect(session.metadata?.title).toBe('Track b');
+      expect(session.metadata?.artwork).toBeUndefined();
+      expect(session.playbackState).toBe('paused');
+    } finally {
+      view.unmount();
+      cleanup();
+      Reflect.deleteProperty(navigator, 'mediaSession');
+    }
+  });
+
   it('advances exact duplicate occurrences and removes only the chosen occurrence', async () => {
     render(tree());
     const queue = [tracks[0], tracks[1], tracks[0], tracks[2]];

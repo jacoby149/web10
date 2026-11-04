@@ -32,21 +32,26 @@ export const MUSIC_TRACKS: MusicTrack[] = [
   ['Last Train Home', 'Synthwave Sessions', 'nova', 'synthwave-sessions', '#701a75', 267],
   ['Blue Hour', 'Lo-fi Study Room', 'kai', 'lofi-study-room', '#1e3a8a', 193],
   ['First Light', 'Northstar Studio', 'me', 'studio', '#881337', 205],
-].map(([title, artist, owner, slug, color, duration], index) => ({
-  post: {
-    _id: `music-${index + 1}`, title: String(title),
-    text: `${title}. An independent late-night session, recorded live in the studio.`,
-    author_username: String(owner), author_provider: 'web10',
-    author_key: `web10/groups/users/${owner}/${slug}`,
-    group_identity: { name: String(artist) }, tags: ['music'],
-    created_at: '2026-11-01T19:00:00Z', media_refs: [`music-audio-${index + 1}`],
-  },
-  media: {
-    _id: `music-audio-${index + 1}`, url: audio, mime_type: 'audio/wav',
-    created_at: '2026-11-01T19:00:00Z', duration_seconds: Number(duration),
-    thumbnail_url: artwork(String(title), String(color), index),
-  },
-}));
+].map(([title, artist, owner, slug, color, duration], index) => {
+  const cover = artwork(String(title), String(color), index);
+  return {
+    post: {
+      _id: `music-${index + 1}`, title: String(title),
+      text: `${title}. An independent late-night session, recorded live in the studio.`,
+      author_username: String(owner), author_provider: 'web10',
+      author_key: `web10/groups/users/${owner}/${slug}`,
+      group_identity: { name: String(artist) }, tags: ['music'],
+      created_at: '2026-11-01T19:00:00Z', media_refs: [`music-audio-${index + 1}`],
+    },
+    media: {
+      _id: `music-audio-${index + 1}`, url: audio, mime_type: 'audio/wav',
+      created_at: '2026-11-01T19:00:00Z', duration_seconds: Number(duration),
+      thumbnail_url: cover,
+    },
+    // The gate computes the shared cover precedence; the mock mirrors it.
+    artworkUrl: cover,
+  };
+});
 
 export const SAVED_COLLECTIONS: CollectionRecord[] = [
   { groupId: 'web10/groups/users/me/saved-guitar-riffs', name: 'Guitar Riffs', visibility: 'private', itemCount: 3, slug: 'guitar-riffs', coverUrl: MUSIC_TRACKS[2].media.thumbnail_url },
@@ -63,14 +68,14 @@ const items = new Map<string, string[]>([
 export async function readMusicPage(limit = 30, offset = 0) {
   const tracks = MUSIC_TRACKS.slice(offset, offset + limit);
   if (new URLSearchParams(window.location.search).has('music-regression') && offset === 0) {
-    tracks[0] = { post: { ...tracks[0].post, title: undefined }, media: { ...tracks[0].media, url: '/music-regression/expired.mp3', thumbnail_url: '/music-regression/missing.webp' } };
+    tracks[0] = { ...tracks[0], post: { ...tracks[0].post, title: undefined }, media: { ...tracks[0].media, url: '/music-regression/expired.mp3', thumbnail_url: '/music-regression/missing.webp' }, artworkUrl: '/music-regression/missing.webp' };
   }
   return { tracks, hasMore: offset + limit < MUSIC_TRACKS.length, nextOffset: offset + limit };
 }
 export async function readMusicTrack(postId: string) {
   const track = MUSIC_TRACKS.find(track => track.post._id === postId) ?? null;
   if (track && new URLSearchParams(window.location.search).has('music-regression')) {
-    return { post: { ...track.post, title: undefined }, media: { ...track.media, url: '/music-regression/fresh.mp3' } };
+    return { ...track, post: { ...track.post, title: undefined }, media: { ...track.media, url: '/music-regression/fresh.mp3' } };
   }
   return track;
 }
