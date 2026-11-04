@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 
@@ -34,6 +36,7 @@ from app.v3.services import clickhouse as ch
 from app.v3.services import thumbnail
 
 router = APIRouter(tags=["media"])
+log = logging.getLogger(__name__)
 
 
 @router.get("/jwks")
@@ -134,9 +137,9 @@ def get_thumbnail(data: ThumbnailRequest):
     Two shapes, both generic:
     - A doc **with media** (a post, an ad): the thumbnail is picked from its
       resolved `media_refs` (the pure ``pick_thumbnail`` selection).
-    - A **media doc** itself (an avatar, a cover — `media_metadata` /
-      `public_media`): the thumbnail is the doc's own image (its `object_key`
-      resolved to a fresh presigned `read_url`). This is what lets an app ask
+    - A **media doc** itself (`media_metadata` / `public_media`): select its
+      own image or video poster through the same pure function, never a raw
+      video/audio file. This is what lets an app ask
       "what's the picture for this avatar?" through the same endpoint.
 
     A thin wrapper over the existing generic primitives: read the doc by id,
@@ -157,31 +160,24 @@ def get_thumbnail(data: ThumbnailRequest):
     if not any(
         ch.can_read_group(gid, reader_principal, service, authenticated) for gid in ch.get_doc_groups(data.doc_id)
     ):
+        log.info("[media] thumbnail: denied document read")
         raise HTTPException(status_code=404, detail="not found")
     body = doc.get("body", {}) or {}
+    # Match normal document reads: group-authored media stays in the human
+    # uploader's namespace. Only the canonical server audit column supplies it.
+    media_owner = doc.get("posted_by") or doc["author_key"]
+    log.info("[media] thumbnail: resolving authorized media")
     # A media doc IS the picture — resolve its own object_key to a fresh
     # presigned read_url (treat the doc as a single-element media_refs list so
     # the existing resolution path mints the URL the same way a post's media
     # is resolved).
     if service in ("media_metadata", "public_media"):
-        resolved = ch.resolve_media_urls({"media_refs": [data.doc_id]}, doc["author_key"])
-        refs = resolved.get("media_refs") or []
-        if refs and isinstance(refs[0], dict) and refs[0].get("read_url"):
-            ref = refs[0]
-            return {
-                "thumbnail": {
-                    "url": ref.get("read_url"),
-                    "alt": ref.get("alt_text"),
-                    "is_video": (ref.get("mime_type") or "").startswith("video/"),
-                    "width": ref.get("width"),
-                    "height": ref.get("height"),
-                    "mime_type": ref.get("mime_type"),
-                }
-            }
-        return {"thumbnail": None}
-    # A doc with media — pick the thumbnail from its resolved media_refs.
-    resolved = ch.resolve_media_urls(body, doc["author_key"])
+        resolved = ch.resolve_media_urls({"media_refs": [data.doc_id]}, media_owner)
+    else:
+        # A doc with media — pick the thumbnail from its resolved media_refs.
+        resolved = ch.resolve_media_urls(body, media_owner)
     thumb = thumbnail.pick_thumbnail(resolved.get("media_refs") or [])
+    log.info("[media] thumbnail: resolved image=%s", thumb is not None)
     return {"thumbnail": thumb}
 
 

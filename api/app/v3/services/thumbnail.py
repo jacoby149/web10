@@ -23,7 +23,7 @@ def pick_thumbnail(resolved_media: list[Any]) -> dict | None:
 
     | Resolved media item | returns |
     |---|---|
-    | First item is an **image** (any non-video with a `read_url`) | that item's `read_url` |
+    | First item is an **image** (or legacy missing MIME) with a `read_url` | that item's `read_url` |
     | First item is a **video** with a `thumbnail_url` (the D44 poster) | the `thumbnail_url` |
     | First item is a **video** with no poster yet (transcode pending) | fall through to the next item |
     | No item yields a usable image | `None` |
@@ -50,7 +50,10 @@ def pick_thumbnail(resolved_media: list[Any]) -> dict | None:
                 }
             # No poster yet (transcode pending) — fall through to the next item.
             continue
-        # An image (or any non-video with a read_url) is a usable thumbnail.
+        # Explicit audio/document MIME types are not displayable artwork.
+        # Preserve the legacy missing-MIME image shape.
+        if mime and not mime.startswith("image/"):
+            continue
         read_url = ref.get("read_url")
         if read_url:
             return {

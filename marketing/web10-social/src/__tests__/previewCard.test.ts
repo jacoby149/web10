@@ -144,6 +144,22 @@ describe('web10-social link-preview card logic (KB: media/thumbnailing.md)', () 
     expect(html).toContain('http://social.test/u/nova/p/p1')
   })
 
+  it.each(['post', 'watch', 'shorts'])('%s share uses the saved headline and matching content poster', async (surface) => {
+    mockPlatform({
+      'read:film': {
+        author_key: 'api.test/groups/users/nova/movies', posted_by: 'nova',
+        body: { title: '**Nosferatu (1922)** — Full Film', text: 'Hello! I post public domain movies.' },
+      },
+      'thumb:film': { thumbnail: { url: 'http://minio.test/nova/film-poster.webp', is_video: true } },
+    })
+    const html = await (surface === 'post' ? postCard('movies', 'film')
+      : surface === 'watch' ? watchCard('film') : shortsCard('film'))
+    expect(html).toContain('"title":"Nosferatu (1922) — Full Film"')
+    expect(html).toContain('"description":"Hello! I post public domain movies."')
+    expect(html).toContain('http://minio.test/nova/film-poster.webp')
+    expect(html).not.toContain('keys-mark.png')
+  })
+
   it('postCard: a public post with no media falls back to the author avatar', async () => {
     mockPlatform({
       'read:p1': { author_key: 'nova', body: { text: 'just words' } },
