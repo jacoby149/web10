@@ -1,4 +1,5 @@
 import { getV3Client } from './v3';
+import { pickThumbnail } from 'web10-npm';
 import {
   slugify,
   writeGroupIdentity,
@@ -246,7 +247,11 @@ async function resolveCoverUrls(records: CollectionRecord[]): Promise<Collection
   let urlByRef: Record<string, string> = {};
   try {
     const media = await resolveMediaRefs(refs);
-    for (const m of media) if (m._id && m.url) urlByRef[m._id] = m.url;
+    for (const m of media) {
+      const thumb = pickThumbnail([{ mime_type: m.mime_type, read_url: m.url, thumbnail_url: m.thumbnail_url }]);
+      if (m._id && thumb?.url) urlByRef[m._id] = thumb.url;
+    }
+    LOG('resolveCoverUrls — complete', { requested: refs.length, resolved: Object.keys(urlByRef).length });
   } catch (e) {
     LOG('resolveCoverUrls — failed (degrading to placeholders)', (e as Error)?.message);
   }

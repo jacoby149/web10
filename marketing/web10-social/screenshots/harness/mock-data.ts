@@ -220,7 +220,14 @@ export async function countUserFollowingReal(): Promise<number> { return PEERS.l
 export async function readUserPublicPosts(): Promise<unknown[]> { return PROFILE_POSTS; }
 // D88: saved collections (the profile's Saved tab). Seeded with a few
 // collections so the tab renders with content (the cards + the open view).
-export async function getMyCollections(): Promise<unknown[]> { return SAVED_COLLECTIONS; }
+export async function getMyCollections(): Promise<unknown[]> {
+  if (new URLSearchParams(window.location.search).has('playlist-art-regression')) {
+    return SAVED_COLLECTIONS.map((collection, index) => index === 1
+      ? { ...collection, coverUrl: '/playlist-art-regression/missing.webp' }
+      : collection);
+  }
+  return SAVED_COLLECTIONS;
+}
 // D88: the visitor's profile shows the owner's PUBLIC collections (the D80
 // by-user read — only membership_visibility='public' groups surface). Seeded
 // for the visitor profile shot (nova); the owner's own profile uses

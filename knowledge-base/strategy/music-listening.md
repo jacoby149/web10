@@ -75,7 +75,11 @@ background-playback acceptance. Those release gates above remain open.
    flow. Music's Playlists view lists existing personal web10 collections;
    selecting one hydrates its saved references and plays eligible music in
    collection order. Nonmusic/unavailable items are skipped with an explanation.
-   Link to existing collection detail for privacy, rename and durable reorder.
+    Link to existing collection detail for privacy, rename and durable reorder.
+    Covers select the resolved audio/video thumbnail, or the resolved image URL,
+    never the raw recording. Missing, denied or failed images keep a reserved
+    square with the designed music fallback; a changed URL may load again. Keep
+    cover-reference choices, collection visibility/order and read gates unchanged.
 6. Browser Media Session metadata/actions when supported. A deliberate audible
    video play pauses Music; muted previews do not. No automatic resume after
    another surface takes playback. Account/session changes clear playback and

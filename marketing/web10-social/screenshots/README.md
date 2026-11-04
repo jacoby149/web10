@@ -92,6 +92,11 @@ synthetic tracks, inline SVG artwork and a short silent WAV data URL. Restoring
 a track URL selects it without autoplay. Audio duration reflects the one-second
 fixture, not the synthetic catalog metadata; these are not playback evidence.
 Collection saves, removals and creation remain in memory until page reload.
+For playlist cover failure, capture `/music-playlists` with
+`--extra 'playlist-art-regression=1'` and wait for
+`button:has-text("Tour Sets") [data-testid="music-artwork-fallback"]`.
+The grid includes valid fixture art, a deliberately missing image and no cover;
+it does not inspect the reported account's private playlists.
 Tour Sets deliberately preserves collection order and skips two nonmusic or
 unavailable references.
 

@@ -185,8 +185,8 @@ export interface V3Thumbnail {
  * Pick the best thumbnail from a list of resolved media refs (KB:
  * media/thumbnailing.md). **Pure** — no I/O, no schema knowledge; it runs on
  * the resolved media the app already has from a doc read. Selection, in order:
- * the first item that is an image (its `read_url`), else a video's poster
- * (`thumbnail_url`), else `null`. A video with no poster yet falls through to
+ * the first item that is an image (its `read_url`), else video/audio artwork
+ * (`thumbnail_url`), else `null`. Media without artwork falls through to
  * the next item.
  *
  * The **fallback is not here.** "No picture → author avatar → brand mark" is an
@@ -199,18 +199,18 @@ export function pickThumbnail(resolvedMedia: V3ResolvedMedia[]): V3Thumbnail | n
     if (!ref || typeof ref !== 'object') continue
     const mime = ref.mime_type ?? ''
     const isVideo = mime.startsWith('video/')
-    if (isVideo) {
+    if (isVideo || mime.startsWith('audio/')) {
       if (ref.thumbnail_url) {
         return {
           url: ref.thumbnail_url,
           alt: ref.alt_text ?? null,
-          is_video: true,
+          is_video: isVideo,
           width: ref.width ?? null,
           height: ref.height ?? null,
           mime_type: mime,
         }
       }
-      // No poster yet (transcode pending) — fall through to the next item.
+      // No artwork — fall through, never select the recording itself.
       continue
     }
     // Audio/documents are not artwork; retain legacy refs without MIME metadata.

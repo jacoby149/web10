@@ -62,6 +62,20 @@ class TestPickThumbnail:
         assert result["url"] == "https://minio/next.jpg"
         assert result["is_video"] is False
 
+    def test_audio_uses_cover_thumbnail_never_the_recording(self):
+        result = thumbnail.pick_thumbnail(
+            [
+                {
+                    "mime_type": "audio/mpeg",
+                    "read_url": "https://minio/track.mp3",
+                    "thumbnail_url": "https://minio/album.webp",
+                },
+            ]
+        )
+        assert result is not None
+        assert result["url"] == "https://minio/album.webp"
+        assert result["is_video"] is False
+
     def test_alt_text_is_carried_when_present(self):
         media = [
             {"mime_type": "image/png", "read_url": "https://minio/img.png", "alt_text": "a cat"},
@@ -123,7 +137,8 @@ def _doc(doc_id="abc123", author="nova", service="posts", media_refs=None):
 class TestThumbnailEndpoint:
     @pytest.mark.parametrize("service", ["posts", "shop-catalog", "media_metadata"])
     @pytest.mark.parametrize("poster_owner", ["nova", "victim"])
-    def test_group_authored_thumbnail_uses_canonical_uploader(self, client, service, poster_owner):
+    @pytest.mark.parametrize("mime", ["video/mp4", "audio/mpeg"])
+    def test_group_authored_thumbnail_uses_canonical_uploader(self, client, service, poster_owner, mime):
         """Drive the route through the real owner-filtered resolver and signer."""
         group = "api.test/groups/users/nova/catalog"
         doc = _doc(author=group, service=service, media_refs=["v1"])
@@ -132,7 +147,7 @@ class TestThumbnailEndpoint:
         doc["body"]["posted_by"] = "victim"
         media_id = "abc123" if service == "media_metadata" else "v1"
         metadata = {
-            "mime_type": "video/mp4",
+            "mime_type": mime,
             "object_key": "nova/film.mp4",
             "thumbnail_object_key": f"{poster_owner}/poster.webp",
         }
@@ -168,7 +183,7 @@ class TestThumbnailEndpoint:
         expected_keys = {"nova/film.mp4"}
         if poster_owner == "nova":
             assert result["url"] == "https://media.test/nova/poster.webp"
-            assert result["is_video"] is True
+            assert result["is_video"] is mime.startswith("video/")
             expected_keys.add("nova/poster.webp")
         else:
             assert result is None
@@ -210,6 +225,7 @@ class TestThumbnailEndpoint:
             ("video/mp4", "https://minio/poster.webp", "https://minio/poster.webp"),
             ("video/mp4", None, None),
             ("audio/mpeg", None, None),
+            ("audio/mpeg", "https://minio/album.webp", "https://minio/album.webp"),
         ],
     )
     def test_media_document_returns_only_a_displayable_image(self, client, mime, poster, expected):
