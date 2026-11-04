@@ -137,6 +137,7 @@ interface WallTileProps {
  */
 export function WallTile({ media, testId, title, caption, postId, multiCount, onClick }: WallTileProps) {
   const video = isVideo(media);
+  const audio = !!media.mime_type?.startsWith('audio/');
   // The text-only tile's heading: the title (D82) when present, else the
   // caption. `ariaLabel` keeps the accessible name stable.
   const heading = title || caption;
@@ -167,6 +168,15 @@ export function WallTile({ media, testId, title, caption, postId, multiCount, on
           playsInline
           muted
         />
+      ) : audio ? (
+        <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-brand-muted p-3" data-testid={`${testId}-audio`}>
+          {media.thumbnail_url ? (
+            <img src={media.thumbnail_url} alt="" className="w-full aspect-square object-cover rounded-lg" loading="lazy" />
+          ) : (
+            <Music className="w-10 h-10 text-brand-300" aria-hidden="true" />
+          )}
+          <p className="text-sm font-medium text-foreground text-center line-clamp-3">{title || caption || 'Audio'}</p>
+        </div>
       ) : media.url ? (
         <img
           src={media.url}
@@ -278,10 +288,10 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
   // Deep-link: the active tab from ?tab= (refresh-safe, shareable) — the
   // address bar holds the screen state (the deep-link rule).
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<'posts' | 'media' | 'music' | 'saved'>(
+  const [activeTab, setActiveTab] = useState<'posts' | 'media' | 'saved'>(
     () => {
       const t = searchParams.get('tab');
-      return t === 'music' ? 'music' : t === 'media' ? 'media' : t === 'saved' ? 'saved' : 'posts';
+      return t === 'music' || t === 'media' ? 'media' : t === 'saved' ? 'saved' : 'posts';
     },
   );
   // The posts tab's view lens (the "view lenses" idea — rendering only, never
@@ -292,7 +302,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
     () => (searchParams.get('view') === 'feed' ? 'feed' : 'grid'),
   );
 
-  const selectTab = useCallback((tab: 'posts' | 'media' | 'music' | 'saved') => {
+  const selectTab = useCallback((tab: 'posts' | 'media' | 'saved') => {
     setActiveTab(tab);
     const params = new URLSearchParams(searchParams);
     if (tab === 'posts') {
@@ -326,11 +336,17 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
   // landing on a tab/view).
   useEffect(() => {
     const t = searchParams.get('tab');
-    const current = t === 'music' ? 'music' : t === 'media' ? 'media' : t === 'saved' ? 'saved' : 'posts';
+    if (t === 'music') {
+      const params = new URLSearchParams(searchParams);
+      params.set('tab', 'media');
+      console.log('[social] profile tab — redirecting legacy Music link to Media');
+      setSearchParams(params, { replace: true });
+    }
+    const current = t === 'music' || t === 'media' ? 'media' : t === 'saved' ? 'saved' : 'posts';
     if (activeTab !== current) setActiveTab(current);
     const currentView = searchParams.get('view') === 'feed' ? 'feed' : 'grid';
     if (viewMode !== currentView) setViewMode(currentView);
-  }, [searchParams, activeTab, viewMode]);
+  }, [searchParams, activeTab, viewMode, setSearchParams]);
 
   useEffect(() => {
     loadData();
@@ -606,15 +622,6 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
   }
 
   const mediaPosts = posts.filter((p) => p.media_refs?.length);
-  const seenMusicPosts = new Set<string>();
-  const visiblePosts = activeTab === 'music' ? posts.filter((post) => {
-    if (!post.tags?.includes('music')) return false;
-    if (post._id) {
-      if (seenMusicPosts.has(post._id)) return false;
-      seenMusicPosts.add(post._id);
-    }
-    return true;
-  }) : posts;
   const bannerMedia = profile?.banner_ref ? mediaMap[profile.banner_ref] : undefined;
   const avatarMedia = profile?.avatar_ref ? mediaMap[profile.avatar_ref] : undefined;
 
@@ -1036,7 +1043,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
 
       {/* Tabs (+ the posts tab's view lens: grid | feed). Icon tabs (the
           new-Instagram shape) — Posts (the content wall) | Media (every media
-          item) | Music. The view toggle (grid | feed) stays a posts-tab concept. */}
+          item) | Saved. The view toggle (grid | feed) stays a posts-tab concept. */}
       <div className="flex items-center border-b border-border">
         <button
           data-testid="profile-tab-posts"
@@ -1069,21 +1076,6 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
           <Clapperboard className="w-4 h-4" strokeWidth={2} />
           Media
           {activeTab === 'media' && (
-            <div className="absolute bottom-0 inset-x-0 h-0.5 bg-gradient-to-r from-brand to-brand-600" />
-          )}
-        </button>
-        <button
-          data-testid="profile-tab-music"
-          aria-current={activeTab === 'music' ? 'true' : undefined}
-          className={cn(
-            'flex-1 min-h-11 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-all duration-150 relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
-            activeTab === 'music' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
-          )}
-          onClick={() => selectTab('music')}
-        >
-          <Music className="w-4 h-4" strokeWidth={2} />
-          Music
-          {activeTab === 'music' && (
             <div className="absolute bottom-0 inset-x-0 h-0.5 bg-gradient-to-r from-brand to-brand-600" />
           )}
         </button>
@@ -1136,16 +1128,16 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
             <p className="mb-3 text-sm text-muted-foreground">Posts could not be loaded.</p>
             <Button variant="outline" onClick={() => void loadData()}>Retry posts</Button>
           </div>
-        ) : activeTab === 'posts' || activeTab === 'music' ? (
+        ) : activeTab === 'posts' ? (
           <>
           {/* The composer is NOT inline (the operator: "it should be
               invisible") — the app-level New Post sheet (the Layout's
               floating "+" button) is the single compose surface, reachable
               from the profile too. */}
-          {visiblePosts.length ? (
-            activeTab === 'music' || viewMode === 'feed' ? (
+          {posts.length ? (
+            viewMode === 'feed' ? (
               <ProfileFeed
-                posts={visiblePosts}
+                posts={posts}
                 mediaMap={mediaMap}
                 authorName={profile?.display_name || username}
                 authorUsername={username}
@@ -1178,8 +1170,8 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
             </div>
             )
           ) : (
-            <div className="py-16 text-center" data-testid={activeTab === 'music' ? 'profile-music-empty' : 'profile-posts-empty'}>
-              <p className="text-sm text-muted-foreground mb-2">{activeTab === 'music' ? 'No music yet' : 'No posts yet'}</p>
+            <div className="py-16 text-center" data-testid="profile-posts-empty">
+              <p className="text-sm text-muted-foreground mb-2">No posts yet</p>
             </div>
           )}
           </>

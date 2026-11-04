@@ -79,6 +79,65 @@ subscription destination, never inherit the old account's private grants.
 Connected prototype/runner components and broader/diverse review remain separate
 gates; this does not change web10-social's existing follows or implement Shadowguard.
 
+### 2026-11-03: Expiry stops new upload work, not observation of an existing result
+
+[R1 session evidence](scans/2026-11/upload-session-r1.md) uses private S3
+create-only/CAS records rather than assuming ClickHouse transactions. A fresh
+same-family review found that character bounds could produce an unreadable
+encoded record, and that expiry could strand an already-successful completion.
+Two local regressions fail before repair; encoded writes now share the reader's
+byte ceiling and a separate observation seam records an independently verified
+existing completion after expiry without authorizing new parts/completion work.
+Actual MinIO record races/lost responses/restart are exercised, but the IDs and
+completion ETags are synthetic. This unexposed store neither authenticates its
+supplied owner nor verifies media provenance. Those R2 gates and model-diverse
+review remain OPEN; this is not deployed-upload security assurance.
+
+Follow-up reviews pin two related lifecycle rules: a reduced admission limit
+must not hide an existing idempotent result, and capacity must be reserved for
+the largest **future** result, not just the current serialized record. A
+nonterminal record that cannot fit its completion result must be rejected before
+mutation. Raw object keys also need encoded S3 byte bounds. Final local evidence:
+24 focused cases, 2,001 API tests plus eight subtests, one opt-in skip, and one
+fresh same-family dry review—not model-diverse convergence or production proof.
+
+### 2026-11-03: A resumable-upload UI is not a saved upload or an auth boundary
+
+The [upload lifecycle inventory](scans/2026-11/resumable-upload-lifecycle.md)
+distinguishes local draft intent, server/storage-confirmed parts and durable
+publication outcomes. The preview originally retained one in-memory queue across
+synthetic accounts and stopped listening to connectivity on navigation away;
+two regressions reproduce those UI defects before repair. Owner partitions and
+session/task-attempt generations now model the intended behavior, but the harness
+holds no credential and makes no API writes: this is not a deployed-auth finding
+or server-security fix. Real recovery needs owner-scoped durable state and live
+server gates; file metadata is not content identity, browser locks are not server
+idempotence, and A→B→A must invalidate old callbacks despite matching names. Real
+persistence, revocation, concurrency and automatic publication remain OPEN.
+
+### 2026-11-04: An HTTPS Worker origin URL does not override Flexible zone SSL
+
+Production edge diagnostics showed an origin 301 despite a literal HTTPS endpoint;
+the same signed S3 adapter outside Cloudflare returned 200. A hostname-only SSL
+Configuration Rule added by the operator resolved delivery without changing the
+zone default or blindly risking other proxied services. Both available API
+credentials lacked Configuration Rules access; actual delivery success is not an
+independent read-back of the selected rule value. Keep redirect refusal intact.
+
+The [production record](../../media-delivery/PRODUCTION-ACCEPTANCE.md) separates
+live owner issuance, byte/range/cache/expiry and synthetic browser evidence from
+full-player renewal and broad security coverage. Canary-scoped instrumentation
+confirms cache hits without disabling a credential now used by live readers;
+expired capabilities are denied before cache/origin access. Normal adapter
+restored. Private env persistence is also distinct from normal release forwarding:
+the pinned-image activation is live, but older main Compose can fall back to legacy
+delivery on redeploy. No broad scan/PASS or immediate-revocation claim.
+
+Follow-up: normal main promotion b4e3b4bd9a84 and its green deployment now preserve
+all seven forwarded media fields on a new API image; active/backup env remain
+identical and actual CDN read/range/expiry/browser checks pass again. This closes
+the specific deployment-forwarding gap, not the broader review/renewal gates.
+
 ### 2026-11-03: Merged-source replay closes a receipt gate, not security coverage
 
 After #1360 merged, the unchanged H scenario passes on clean HEAD exactly

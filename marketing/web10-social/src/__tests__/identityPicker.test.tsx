@@ -26,6 +26,10 @@ vi.mock('@/data/groups', async (original) => ({ ...await original<typeof import(
 }));
 vi.mock('@/data/settings', () => ({ readSettings: vi.fn().mockResolvedValue({}) }));
 vi.mock('@/data/wapi', () => ({ getWapi: () => ({ readToken: () => mock.token }), resetWapi: vi.fn() }));
+vi.mock('@/lib/mediaProcessing', async original => ({
+  ...await original<typeof import('@/lib/mediaProcessing')>(),
+  getVideoInfo: vi.fn().mockResolvedValue({ duration: 5514, width: 640, height: 480 }),
+}));
 
 beforeEach(() => {
   vi.restoreAllMocks();
@@ -123,6 +127,35 @@ describe('App-wide acting identity', () => {
     await waitFor(() => expect(data.createPost).toHaveBeenCalled());
     expect(mock.getMyGroups).toHaveBeenCalledWith({ author_as: group, service: 'posts' });
     expect(vi.mocked(data.createPost).mock.calls[0][1]).toEqual([group, 'team-destination', data.getDiscoverGroupId()]);
+  });
+
+  it('hands a video draft to the queue as its original group after a real picker change; a new composer uses personal', async () => {
+    selectActingAuthor(group);
+    const { default: PostComposer } = await import('@/components/Feed/PostComposer');
+    const queue = vi.fn();
+    const first = render(<><ActingIdentitySwitcher /><PostComposer groups={['destination']} onQueueMediaPost={queue} /></>);
+    await screen.findByTestId('composer-author-name');
+    await waitFor(() => expect(screen.getByTestId('composer-author-name')).toHaveTextContent('Team'));
+    const file = new File(['film'], 'movie.mp4', { type: 'video/mp4' });
+    fireEvent.change(first.container.querySelector('input[type="file"]')!, { target: { files: [file] } });
+    await screen.findByTestId('media-tray');
+    await waitFor(() => expect(screen.getByTestId('media-tray').querySelector('.animate-spin')).toBeNull());
+    fireEvent.click(screen.getByTestId('acting-identity-trigger'));
+    fireEvent.click(await screen.findByRole('button', { name: /testuser\s*Personal identity/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Use identity' }));
+    expect(getActingAuthor()).toBeUndefined();
+    fireEvent.click(screen.getByTestId('post-submit'));
+    await waitFor(() => expect(queue).toHaveBeenCalledTimes(1));
+    expect(queue.mock.calls[0][0]).toMatchObject({ authorAs: group, authorLabel: 'Team', groups: ['destination'] });
+    expect(data.createPost).not.toHaveBeenCalled();
+    first.unmount();
+    const second = render(<PostComposer onQueueMediaPost={queue} />);
+    fireEvent.change(second.container.querySelector('input[type="file"]')!, { target: { files: [file] } });
+    await screen.findByTestId('media-tray');
+    await waitFor(() => expect(screen.getByTestId('media-tray').querySelector('.animate-spin')).toBeNull());
+    fireEvent.click(screen.getByTestId('post-submit'));
+    await waitFor(() => expect(queue).toHaveBeenCalledTimes(2));
+    expect(queue.mock.calls[1][0].authorAs).toBeUndefined();
   });
 
   it('reposts under the draft identity without personal follower fan-out', async () => {

@@ -395,6 +395,14 @@ OAuth authorization certifies its source token before code minting: local provid
 
 ## Security invariants
 
+Resumable uploads are not live yet. R1's internal `upload_sessions.py` stores
+owner/app-scoped, revisioned session records in a separate server-only S3 bucket
+using conditional creation/ETag writes. It is unexposed: supplied owner context
+is trusted adapter input, not authentication. R2 still owes verified caller/app
+gates, bucket policy/provisioning, actual multipart provenance/cleanup and live
+integration. Existing uploads remain single-request; the social resumable flow
+is a preview. Contract: `knowledge-base/web10-v3/media/upload-sessions.md`.
+
 Protected CDN media delivery is opt-in and disabled by default. Separate media-only
 RS256 capabilities bind exact bucket/key/GET/expiry; the portable edge core verifies
 before every cache lookup, with Cloudflare cache/private-origin adapters. Existing

@@ -68,6 +68,15 @@ reload its current URL. Signed URLs/credentials are not persisted. Audible
 competing media pauses Music; muted previews do not. Supported browser Media
 Session actions are registered and cleared with the session.
 
+The first media error during requested playback automatically re-reads the
+original post once, preserving queue occurrence and restoring position after
+metadata loads. Further failure remains visible with explicit retry; selecting
+without playing never triggers automatic playback. Pause/selection/session
+changes invalidate pending recovery. Caption-based titles are shared across
+rows, menus, mini-player and Media Session; failed artwork renders a disc fallback
+and a changed artwork URL can load again. These are client repairs, not evidence
+that a particular production object or phone codec works.
+
 URL state: `q` is a case-insensitive loaded-track/name search; `view=saved` or
 `view=playlists` selects the library; `collection` is the full collection ID;
 `track` restores one readable track without autoplay; `panel=player|queue`
@@ -89,6 +98,13 @@ results and block follow-on mutation steps; already-issued requests cannot be
 undone. Existing collection read caps and lack of atomic save uniqueness remain.
 
 ## Nav
+
+Profiles use Posts, Media and (when available) Saved, not a Music tab: most
+people are not musicians. Music posts remain in Posts, and their audio/video
+attachments appear in Media. Audio tiles show cover art or a musical-note
+fallback and open the original post. Legacy profile `?tab=music` links resolve
+to `?tab=media`, preserving other URL parameters. The dedicated `/music`
+listening destination is unchanged.
 
 Music is a real destination (not coming-soon):
 

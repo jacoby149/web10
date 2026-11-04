@@ -61,10 +61,18 @@ const items = new Map<string, string[]>([
   [SAVED_COLLECTIONS[3].groupId, ['music-1', 'music-2', 'music-5']],
 ]);
 export async function readMusicPage(limit = 30, offset = 0) {
-  return { tracks: MUSIC_TRACKS.slice(offset, offset + limit), hasMore: offset + limit < MUSIC_TRACKS.length, nextOffset: offset + limit };
+  const tracks = MUSIC_TRACKS.slice(offset, offset + limit);
+  if (new URLSearchParams(window.location.search).has('music-regression') && offset === 0) {
+    tracks[0] = { post: { ...tracks[0].post, title: undefined }, media: { ...tracks[0].media, url: '/music-regression/expired.mp3', thumbnail_url: '/music-regression/missing.webp' } };
+  }
+  return { tracks, hasMore: offset + limit < MUSIC_TRACKS.length, nextOffset: offset + limit };
 }
 export async function readMusicTrack(postId: string) {
-  return MUSIC_TRACKS.find(track => track.post._id === postId) ?? null;
+  const track = MUSIC_TRACKS.find(track => track.post._id === postId) ?? null;
+  if (track && new URLSearchParams(window.location.search).has('music-regression')) {
+    return { post: { ...track.post, title: undefined }, media: { ...track.media, url: '/music-regression/fresh.mp3' } };
+  }
+  return track;
 }
 export function findSavedMusicCollection(collections: CollectionRecord[]) {
   return collections.find(collection => collection.slug === 'saved-music');

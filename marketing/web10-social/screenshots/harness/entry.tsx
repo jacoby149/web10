@@ -40,6 +40,8 @@ import { NewPostSheet } from '@/components/Feed/NewPostSheet';
 import { SaveSheet } from '@/components/Feed/SaveSheet';
 import { PostDetailHarness } from './PostDetailHarness';
 import { ProductDetailHarness } from './ProductDetailHarness';
+import { UploadPreviewProvider, UploadPreviewCenter, UploadPreviewComposer, UploadPreviewDock, previewScenario } from './UploadPreview';
+import { previewOwner } from './previewUploadQueue';
 
 // Fake hls.js — the harness has no backend, so the seeded manifest sigs are
 // not valid against the production API (a real hls.js would 403 → the
@@ -137,6 +139,9 @@ if (screen === 'post-detail' || screen === 'group-post-detail') {
     : screen === 'posts' ? '/feed'
     : screen === 'posts-following' ? '/feed?tab=following'
     : screen === 'composer' ? '/composer'
+    : screen === 'uploads' ? `/uploads${params.get('upload') ? `?upload=${encodeURIComponent(params.get('upload')!)}` : ''}`
+    : screen === 'upload-compose' ? '/upload-compose'
+    : screen === 'upload-browse' ? '/feed'
       : screen === 'notifications' ? '/notifications'
       : screen === 'notifications-all' ? '/notifications?filter=all'
       : screen === 'discover' ? '/discover'
@@ -199,9 +204,12 @@ if (screen === 'post-detail' || screen === 'group-post-detail') {
       <ComposerProvider>
       <SaveProvider>
       <MusicProvider sessionKey={anon ? 'anonymous' : 'web10/me'}>
+      <UploadPreviewProvider owner={params.get('signed-out') === '1' ? null : previewOwner} scenario={screen?.startsWith('upload') ? previewScenario(params.get('scenario')) : 'empty'}>
       <Routes>
         <Route element={<Layout onLogout={() => {}} onLogin={() => {}} isAnon={anon} onReportBug={() => {}} />}>
           <Route path="/feed" element={<PostsScreen />} />
+          <Route path="/uploads" element={<UploadPreviewCenter />} />
+          <Route path="/upload-compose" element={<UploadPreviewComposer />} />
           <Route path="/composer" element={<PostComposer editingPost={params.get('edit') ? { _id: 'audience-example', author_key: 'web10/groups/users/me/studio', posted_by: 'another-operator', title: 'The next chapter', text: 'A new film night, with the same people who made it possible.', created_at: '2026-11-02' } : undefined} />} />
           <Route path="/notifications" element={<NotificationsScreen />} />
           <Route path="/discover" element={<DiscoverScreen />} />
@@ -227,12 +235,14 @@ if (screen === 'post-detail' || screen === 'group-post-detail') {
         </Route>
       </Routes>
       <MusicPlayer />
+      <UploadPreviewDock />
       {/* D72: the install surface — forced open by ?pwa-prompt=1 for the capture. */}
       <InstallPrompt />
       {/* The app-level New Post sheet (the FAB in the Layout opens it). */}
       <NewPostSheet />
       {/* The app-level "Save to…" sheet (D88) — opened by a post's kebab. */}
       <SaveSheet />
+      </UploadPreviewProvider>
       </MusicProvider>
       </SaveProvider>
       </ComposerProvider>

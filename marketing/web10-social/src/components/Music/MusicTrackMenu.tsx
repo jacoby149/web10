@@ -1,9 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
-import { Bookmark, Check, Disc3, ListMusic, ListPlus, Share2, SkipForward, UserRound, X } from 'lucide-react';
+import { Bookmark, Check, ListMusic, ListPlus, Share2, SkipForward, UserRound, X } from 'lucide-react';
 import type { MusicTrack } from '@/data';
 import { Button } from '@/components/ui/button';
+import { musicTitle, musicArtist } from '@/data/musicTrack';
+import MusicArtwork from './MusicArtwork';
 
 interface Props {
   track: MusicTrack;
@@ -40,15 +42,15 @@ export default function MusicTrackMenu({ track, saved, signedIn, disabled, messa
     document.body.style.overflow = 'hidden';
     return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = overflow; if (trigger?.isConnected) trigger.focus(); };
   }, []);
-  const name = track.post.title || track.post.text?.slice(0, 60) || 'Untitled track';
-  const artist = track.post.group_identity?.name || track.post.profile?.display_name || `@${track.post.author_username || 'Unknown artist'}`;
+  const name = musicTitle(track);
+  const artist = musicArtist(track);
   const artistLink = track.post.author_key?.includes('/groups/') ? `/groups/${encodeURIComponent(track.post.author_key)}` : `/u/${encodeURIComponent(track.post.author_username || '')}`;
   const actionClass = 'h-12 w-full justify-start gap-4 px-4 text-sm';
   return createPortal(<div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center" data-testid="music-track-menu-backdrop" onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
     <div className="pointer-events-none absolute inset-0 bg-background/80 backdrop-blur-sm" />
     <div ref={panel} role="dialog" aria-modal="true" aria-labelledby="music-menu-title" className="relative max-h-[85dvh] w-full max-w-sm overflow-y-auto rounded-lg border border-border bg-popover pb-3 shadow-xl" data-testid="music-track-menu">
       <div className="flex items-center gap-3 border-b border-border p-4">
-        {track.media.thumbnail_url ? <img src={track.media.thumbnail_url} alt="" className="h-12 w-12 shrink-0 rounded-sm object-cover" /> : <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-sm bg-brand-muted text-brand-300"><Disc3 className="h-6 w-6" /></div>}
+        <MusicArtwork url={track.media.thumbnail_url} className="h-12 w-12 rounded-sm" />
         <div className="min-w-0 flex-1"><h2 id="music-menu-title" className="truncate text-sm font-medium">{name}</h2><p className="mt-1 truncate text-xs text-muted-foreground">{artist}</p></div>
         <Button variant="ghost" size="icon" className="h-11 w-11 shrink-0" aria-label="Close track menu" onClick={onClose}><X className="h-5 w-5" /></Button>
       </div>

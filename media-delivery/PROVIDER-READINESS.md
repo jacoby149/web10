@@ -1,5 +1,12 @@
 # Cloudflare production readiness — 03.11.2026
 
+Update, 04.11.2026: the operator-directed production hookup is now enabled with
+bounded API-issued read/range/cache/expiry and synthetic Chromium playback evidence
+in [Production acceptance](PRODUCTION-ACCEPTANCE.md). This happened before all
+readiness gates below closed; it is not provider, full-player or security sign-off.
+Normal main-deployment persistence is now verified by the subsequent promoted
+release; the other historical audit findings below stand.
+
 The goal is MinIO-backed media delivery without the node carrying every byte.
 Connected acceptance supports the technical path; billing, provider controls and
 client renewal still need their own approval. A green four-second clip is not a
