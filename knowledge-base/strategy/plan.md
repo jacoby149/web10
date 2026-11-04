@@ -1287,10 +1287,10 @@ workshop first, then CIDR. That ladder is dead — the target is now the
 **SIGMOD 2027 industry track**, which changes the paper's center of gravity:
 industry track rewards **operational experience, scale, deployment lessons,
 and cost** — the "we run this in production" story is the differentiator, and
-the workshop draft's deferred evaluation section (`research/workshop/main.tex`
+the workshop draft's deferred evaluation section (`research/first-draft/main.tex`
 §"Scale and latency (extended version)") is now half the paper.
 
-**What exists:** `research/workshop/main.tex` — a ~5-page workshop draft
+**What exists:** `research/first-draft/main.tex` — a ~5-page workshop draft
 ("Your Data, Your Rules, One Query") with the access model, query-layer
 enforcement (wall-not-membrane), and the 267→1 feed number. That is ~40% of
 the full paper, in workshop compression. The full paper is a new file in

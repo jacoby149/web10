@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 
 assert.ok(process.argv[2], 'usage: node check-paper.mjs /path/to/report.json');
 const report = JSON.parse(readFileSync(process.argv[2], 'utf8'));
-const paper = readFileSync(new URL('../../workshop/main.tex', import.meta.url), 'utf8');
+const paper = readFileSync(new URL('../../first-draft/main.tex', import.meta.url), 'utf8');
 assert.equal(report.manifest.creators_total, 1000);
 assert.equal(report.cells.length, 20);
 for (const cell of report.cells) {
