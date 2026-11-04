@@ -1374,6 +1374,8 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+- [✓ 4.5.4 local] **Conference-facing manuscript cleanup** — no internal PR/decision/invariant IDs, commit/patch history or roadmap promises in the narrative; immutable artifacts retain provenance. Scope public continuity/design comparisons without changing measurements. All 12 PDF pages inspected, folios verified, no horizontal overflow; broader evaluation and literature review remain open.
+
 - [✓ 4.5.3 local] **Domain prototype manuscript and bottom page numbers** — bounded result/figure and immutable artifact links, rebuilt 13-page PDF, verified centered footer sequence 1–13 including page one; references begin on page 12. Runtime and production unchanged.
 
 - [✓ 4.5.2 local prototype] **DOMAIN-PORTABILITY: one website, another account (D97)** — final committed integration0932d6643940 passes desktop1440x1000 and375x812: actual TXT claim, one reader-owned domain-only follow, old API/TLS unavailable, retarget/reverify/reload and new public posts without refollowing. Same ID/body, old-private200/new-private403, five UI lifecycle seams and credential-free reads verified. Exact safe receipts/10 captures/cleanup pass bounded review; components require normal CI/merge order, no production or absolute-unbannability claim.

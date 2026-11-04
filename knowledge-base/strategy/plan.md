@@ -1243,6 +1243,8 @@ docs before code, per the rule at the top.
 
 ## SIGMOD 2027 Industry Track — the full paper (research/)
 
+- [✓ 4.5.4 local] **Conference-facing manuscript cleanup** — remove internal PR/decision IDs, development-history narration and roadmap promises; retain source-specific provenance in linked artifacts, scope portability and novelty claims, and preserve all table data/code/figures. Rebuilt 12-page PDF inspected, bottom folios verified and references start on page 12; broader evaluation/literature/submission checks remain open.
+
 - [✓ 4.5.3 local] **Domain prototype manuscript and bottom page numbers** — add the verified public-subscription result, exact browser figure and immutable artifacts with bounded claims; rebuild the 13-page PDF and verify centered bottom numbers 1–13 including page one. References start on page 12; no production integration or submission-readiness claim.
 
 - [✓ 4.5.2 local prototype] **DOMAIN-PORTABILITY: one website, another account (D97)** — committed integration 0932d6643940 passes full desktop/375px real TXT claim, one private domain-only follow, old-provider stop, retarget/reverify/reload and new public posts without refollowing. Same ID/body, private200→403 and five lifecycle controls verified; safe receipts, 10 captures and cleanup pass bounded review. Components land separately under normal CI; not deployed social follows or absolute unbannability.
