@@ -35,6 +35,19 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-03: Merged-source replay closes a receipt gate, not security coverage
+
+After #1360 merged, the unchanged H scenario passes on clean HEAD exactly
+matching origin/dev at `0acc771e2efc`, with an empty patch. Source/input hashes,
+34 events, same-JWT read/query grant-removal-regrant, namesake/app/cache/forgery
+controls and all cleanup receipts pass fresh bounded review. The merged-dev
+archive is separate from the earlier patched/owner-branch successes and initial
+import failure. This satisfies the local H-REPLAY receipt gate; normal PR CI
+remains required. It does not reconcile historical duplicate rows or prove
+production keys/public deployment, Phase A/C, browser foreign enrollment,
+issuer revocation/expiry/restart/multiworker/media, capacity or full/diverse
+L1–L4 assurance. All 1,929 API tests plus eight subtests pass, one opt-in skip.
+
 ### 2026-11-03: A local discovery read must not manufacture a second principal
 
 Committed-source follow-up: `3be1f1ec10fd` merges current dev into the owner-fix
