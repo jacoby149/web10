@@ -8,6 +8,7 @@ import { readReactionDocuments } from './reactions';
 import type { MediaRecord } from './types';
 import { knobStateToSort } from '@/lib/powerMean';
 import { musicTrackFromPost, type MusicTrack } from './musicTrack';
+import { peopleFaceSql, facePrepare } from '@web10/discover/face';
 export type { MusicTrack } from './musicTrack';
 
 // ── Feed / Discover data layer (v3) ──────────────────────────────────────────
@@ -59,6 +60,35 @@ export async function readDiscoverFeed(
     return resolvePostAuthors(dropAdPosts(posts));
   } catch {
     return [];
+  }
+}
+
+/** Optional batched personal identities; callers distinguish pending from absent. */
+export async function resolveDiscoverProfiles(posts: PostRecord[]): Promise<PostRecord[]> {
+  const keys = [...new Set(posts.filter((post) => !post.author_key?.includes('/groups/'))
+    .map((post) => post.author_key || post.author_username || '').filter(Boolean))];
+  if (!keys.length) return posts;
+  const groups = [...new Set(keys.map((key) => {
+    const parts = key.split('/users/');
+    return followersGroupId(parts.length === 2 ? parts[1] : key, parts.length === 2 ? parts[0] : undefined);
+  }))];
+  console.log('[discover] profile batch started', { authors: keys.length });
+  try {
+    const { rows } = await getV3Client().query(peopleFaceSql(keys), {
+      groups, prepare: { face: facePrepare('avatar_ref', 'avatar_url') },
+    });
+    const profiles = new Map(rows.map((row) => [String(row.author_key), row]));
+    console.log('[discover] profile batch completed', { readable: profiles.size });
+    return posts.map((post) => {
+      if (post.author_key?.includes('/groups/')) return post;
+      const row = profiles.get(post.author_key || post.author_username || '');
+      if (!row) return post;
+      return { ...post, profile: fromV3DocToProfile(row as unknown as import('./v3').V3Document),
+        avatar_url: typeof row.avatar_url === 'string' ? row.avatar_url : undefined };
+    });
+  } catch {
+    console.warn('[discover] profile batch unavailable; retaining author fallbacks');
+    return posts;
   }
 }
 
@@ -159,7 +189,36 @@ export async function readShortsPage(limit = 50, offset = 0): Promise<ShortsPage
       shorts.push({ post: p, media: vertical[0] });
     }
   }
-  return { shorts, hasMore };
+  // Group faces were resolved by readDiscoverFeed. Personal profile names
+  // are separate documents, not fields on posts: read them once per page.
+  const keys = [...new Set(shorts.filter((s) => !s.post.author_key?.includes('/groups/') && s.post.author_username)
+    .map((s) => s.post.author_key || s.post.author_username!))];
+  if (!keys.length) return { shorts, hasMore };
+  const groups = [...new Set(keys.map((key) => {
+    const parts = key.split('/users/');
+    return followersGroupId(parts.length === 2 ? parts[1] : key, parts.length === 2 ? parts[0] : undefined);
+  }))];
+  console.log('[shorts] profile read started', { authors: keys.length });
+  try {
+    const { rows } = await getV3Client().query(peopleFaceSql(keys), {
+      groups, prepare: { face: facePrepare('avatar_ref', 'avatar_url') },
+    });
+    const profiles = new Map(rows.map((row) => [String(row.author_key), row]));
+    console.log('[shorts] profile read completed', { readable: profiles.size });
+    return { hasMore, shorts: shorts.map((short) => {
+      if (short.post.author_key?.includes('/groups/')) return short;
+      const row = profiles.get(short.post.author_key || short.post.author_username || '');
+      if (!row) return short;
+      const body = row.body as Record<string, unknown> | undefined;
+      return { ...short, post: { ...short.post,
+        profile: { ...short.post.profile, display_name: typeof body?.display_name === 'string' ? body.display_name : short.post.profile?.display_name },
+        avatar_url: typeof row.avatar_url === 'string' ? row.avatar_url : short.post.avatar_url,
+      } };
+    }) };
+  } catch (error) {
+    console.warn('[shorts] profile read unavailable; keeping author fallbacks', error);
+    return { shorts, hasMore };
+  }
 }
 
 /**

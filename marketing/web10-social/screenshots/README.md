@@ -65,13 +65,38 @@ screenshots at 1440×900 and 375×812.
   `capture.mjs`.
 - Want different seed content → edit `PEERS` in `harness/mock-data.ts`.
 
+## Discover identity-loading captures
+
+For Posts (`--route /hot-gossip`) or Video (`--route /video`),
+`--extra 'discover-face-state=pending'` holds the synthetic personal identity
+lookup indefinitely while content remains visible. Wait/scroll to
+`[data-testid="post-author-avatar-loading"]` or
+`[data-testid="home-author-avatar-loading"]`. For resolved synthetic identities,
+use `--extra 'discover-prepared-faces=1'`; group faces remain separate in both.
+These fixture states verify rendering, not production query timing or real auth.
+Write outputs to `.context/` through `SCREENSHOT_OUTPUT_DIR`.
+
 ## Music captures
+
+The ordinary Discover audio-card fixture is separate from the dedicated queue:
+`--route /hot-gossip --extra 'discover-inline-audio=1' --ready '[data-testid="audio-player"]'`.
+It returns one group-authored post with a real one-second silent WAV data URL.
+This verifies the inline renderer, not the reported production recording.
+Add `discover-inline-art=1` to include the synthetic cover; use
+`--route /posts-following` with the same flags to exercise the Following feed.
+Wait for `[data-testid="audio-artwork"] img.opacity-100` to capture loaded art.
+Without the art flag, the same post exercises the deliberate disc fallback.
 
 Music uses the real app-level `MusicProvider` and `MusicPlayer`, with six
 synthetic tracks, inline SVG artwork and a short silent WAV data URL. Restoring
 a track URL selects it without autoplay. Audio duration reflects the one-second
 fixture, not the synthetic catalog metadata; these are not playback evidence.
 Collection saves, removals and creation remain in memory until page reload.
+For playlist cover failure, capture `/music-playlists` with
+`--extra 'playlist-art-regression=1'` and wait for
+`button:has-text("Tour Sets") [data-testid="music-artwork-fallback"]`.
+The grid includes valid fixture art, a deliberately missing image and no cover;
+it does not inspect the reported account's private playlists.
 Tour Sets deliberately preserves collection order and skips two nonmusic or
 unavailable references.
 

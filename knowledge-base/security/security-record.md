@@ -15,6 +15,43 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Music artwork routing/selection (04.11.2026) — bounded local, OPEN
+
+GPT-6.1 Sol extends the existing preview URL mapping to query-based Music shares
+and repairs pure API/SDK audio-cover selection plus saved-cover presentation.
+The same canonical uploader/read/signing gates remain unchanged. New audio cases
+exercise the existing real route/resolver with query/signing doubles, including
+foreign-thumbnail denial; HTTP 403 stops preview thumbnail/profile calls. Real
+nginx smoke verifies crawler query preservation, browser SPA and denied/bare
+fallbacks against a synthetic API. No new authorization finding, L1–L4 PASS,
+independent/model-diverse review, actual account artwork or rollout/cache claim.
+
+## Content-thumbnail uploader repair (03.11.2026) — bounded local, OPEN
+
+GPT-6.1 Sol reproduces the public Nosferatu watch card's brand fallback: normal
+read carries a working poster, generic thumbnail returns null. Repair the generic
+lookup's missing `posted_by` projection and the endpoint's owner selection without
+changing its read gate or namespace signer. Real getter/route/resolver tests use
+query/signing doubles, including spoofed body actor, foreign poster denial,
+private no-resolution, legacy/personal authors and a non-social service. Initial
+API selection/owner/media-file cases fail eight times; stronger unmocked-getter
+composition independently fails three times before projection repair. Three
+social headline tests also reproduce red before repair. Direct media and SDK/API
+selection now return only image/poster candidates, preserving legacy missing MIME.
+Final verification: 29 thumbnail cases, all 2,045 API tests plus eight subtests
+(one opt-in skip), 1,878 social and 288 SDK tests pass; social/SDK production builds,
+Ruff and whitespace checks pass. Existing deprecation/media/bundling warnings remain.
+
+One fresh same-family read-only design-intent review finds no new defect and
+checks all four getter call sites; not three-dry/model-diverse convergence. Public
+anonymous image GETs download the actual film poster and attached still; watch
+desktop/375px and Video/Posts checks find the exact poster. Initial stale image
+fetches and a group-page browser failure are retained as failed diagnostics, not
+passes; a separate public group detail GET is 200 with `join_to_view`. Full
+deployed endpoint/crawler-cache/signed-in/all-surface and actual ClickHouse proof
+remain OPEN. Existing tombstone prefilter/provenance/lifecycle debt is not repaired;
+no L1–L4 PASS, production write or deployment claim.
+
 ## Social HLS renewal (03.11.2026) — OPEN
 
 [Bounded read/review/browser record](scans/2026-11/watch-hls-renewal.md): original

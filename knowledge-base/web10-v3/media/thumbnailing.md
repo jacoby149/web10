@@ -60,9 +60,10 @@ lifted out of it):
 
 | Resolved media item | `pickThumbnail` returns |
 |---|---|
-| First item is an **image** (`mime_type` `image/*`, or any non-video with a `read_url`) | that item's `read_url` |
-| First item is a **video** with a `thumbnail_url` (the D44 poster) | the `thumbnail_url` |
-| First item is a **video** with no poster yet (transcode pending) | fall through to the next item |
+| First item is an **image** (`mime_type` `image/*`, or legacy missing MIME with a `read_url`) | that item's `read_url` |
+| First item is **video or audio** with a `thumbnail_url` (poster or cover artwork) | the `thumbnail_url`; `is_video` is true only for video |
+| First item is **video or audio** with no thumbnail | fall through to the next item; never use the raw media file |
+| Item has another explicit non-image MIME (PDF, etc.) | skip it; its file URL is not an image |
 | No item yields a usable image | `null` |
 
 The return is `{url, alt, is_video, width, height, mime_type}` or `null`.
@@ -101,6 +102,12 @@ It is a thin wrapper over the existing generic primitives (`read_document_by_id`
 app concept. A doc with no media (or only poster-less video) returns
 `{thumbnail: null}`; a doc the caller cannot read is a normal I3 403/404.
 
+After the existing group/service read gate, resolve media under the canonical
+document's server-set `posted_by or author_key`, exactly as normal document reads
+do. A group author is not the human uploader's object namespace. Body fields and
+request hints supply no owner authority. Media documents use the same selection:
+images return their image URL, videos their poster, never a raw video/audio URL.
+
 Both are universal. A music app thumbnails its track-cover doc the same way a
 social app thumbnails a post. The node never learns what a "post" or a "profile"
 is.
@@ -121,8 +128,8 @@ around. It composes the social card from the platform's thumbnail:
   same post, a different URL shape) is fetched by a crawler, the
   **social app's own preview server** renders the Open Graph / Twitter Card:
   map the permalink → the doc → read it (media resolved) → `pickThumbnail` →
-  the social fallback (author avatar / brand mark) → the card HTML (title from
-  the post text, `og:type`, the canonical URL). The social app owns the
+   the social fallback (author avatar / brand mark) → the card HTML (title from
+   the saved headline or caption, `og:type`, the canonical URL). The social app owns the
   permalink shape, the card shape, and the fallback — all social concepts. The
   platform contributes exactly one thing: the thumbnail.
 

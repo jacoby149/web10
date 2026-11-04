@@ -1419,6 +1419,17 @@ describe('v3 client', () => {
   // ── pickThumbnail — the pure selection (KB: media/thumbnailing.md) ──────
 
   describe('pickThumbnail (pure)', () => {
+    it('uses audio cover artwork without returning the recording as an image', () => {
+      expect(pickThumbnail([{ mime_type: 'audio/mpeg', read_url: 'https://s3/track.mp3', thumbnail_url: 'https://s3/album.webp' }]))
+        .toMatchObject({ url: 'https://s3/album.webp', is_video: false })
+    })
+    it.each(['audio/mpeg', 'application/pdf'])('skips %s files instead of treating them as cover art', (mime) => {
+      const file = { mime_type: mime, read_url: 'https://s3/file' }
+      expect(pickThumbnail([file])).toBeNull()
+      expect(pickThumbnail([file, { mime_type: 'image/webp', read_url: 'https://s3/cover.webp' }])?.url)
+        .toBe('https://s3/cover.webp')
+    })
+
     it('picks the first image read_url', () => {
       const result = pickThumbnail([{ mime_type: 'image/png', read_url: 'https://s3/img.png', width: 100, height: 80 }])
       expect(result).toEqual({ url: 'https://s3/img.png', alt: null, is_video: false, width: 100, height: 80, mime_type: 'image/png' })

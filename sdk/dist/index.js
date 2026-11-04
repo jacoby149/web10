@@ -163,12 +163,12 @@ function pickThumbnail(resolvedMedia) {
       continue;
     const mime = ref.mime_type ?? "";
     const isVideo = mime.startsWith("video/");
-    if (isVideo) {
+    if (isVideo || mime.startsWith("audio/")) {
       if (ref.thumbnail_url) {
         return {
           url: ref.thumbnail_url,
           alt: ref.alt_text ?? null,
-          is_video: true,
+          is_video: isVideo,
           width: ref.width ?? null,
           height: ref.height ?? null,
           mime_type: mime
@@ -176,6 +176,8 @@ function pickThumbnail(resolvedMedia) {
       }
       continue;
     }
+    if (mime && !mime.startsWith("image/"))
+      continue;
     if (ref.read_url) {
       return {
         url: ref.read_url,

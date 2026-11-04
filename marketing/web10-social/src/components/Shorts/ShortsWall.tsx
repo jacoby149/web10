@@ -4,6 +4,7 @@ import { Play, Search, X, Loader2 } from 'lucide-react';
 import { readShortsPage, type ShortPost } from '@/data';
 import { HoverVideo } from '@web10/discover';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { postAuthor } from '@/lib/postAuthor';
 
 const LOG = (...args: unknown[]) => console.log('[shorts-wall]', ...args);
 
@@ -59,6 +60,7 @@ export default function ShortsWall() {
         return (
           (s.post.title && s.post.title.toLowerCase().includes(q)) ||
           (s.post.text && s.post.text.toLowerCase().includes(q)) ||
+          postAuthor(s.post).name.toLowerCase().includes(q) ||
           (s.post.author_username && s.post.author_username.toLowerCase().includes(q))
         );
       })
@@ -226,7 +228,7 @@ export default function ShortsWall() {
             key={short.post._id}
             type="button"
             data-testid={`short-wall-tile-${short.post._id}`}
-            aria-label={`Watch short by @${short.post.author_username}`}
+            aria-label={`Watch short by ${postAuthor(short.post).name}`}
             onClick={() => navigate(`/shorts/${short.post._id}`)}
             className="relative aspect-[9/16] w-full bg-elevated overflow-hidden rounded-lg group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset text-left"
           >
@@ -260,11 +262,11 @@ export default function ShortsWall() {
                     <AvatarImage src={short.post.avatar_url} alt="" />
                   ) : (
                     <AvatarFallback className="bg-brand-muted text-brand-300 text-[0.625rem] font-semibold">
-                      {(short.post.author_username || '?').charAt(0).toUpperCase()}
+                      {postAuthor(short.post).name.replace(/^@/, '').charAt(0).toUpperCase()}
                     </AvatarFallback>
                   )}
                 </Avatar>
-                <p className="text-xs font-medium text-white truncate">@{short.post.author_username}</p>
+                <p className="text-xs font-medium text-white truncate">{postAuthor(short.post).name}</p>
               </div>
               {/* The post's two bodies (D82): the title is the lead line, the
                   caption (`text`) under it. A short with only a caption shows

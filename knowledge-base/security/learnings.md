@@ -35,6 +35,30 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-04: Select the cover, never the recording
+
+The audio exclusion added to prevent raw-file thumbnails also skipped valid audio
+cover thumbnails. Permit an already-resolved audio `thumbnail_url`, keep raw
+audio excluded, and share API/SDK selection with saved-cover presentation. Music
+crawler links use the existing anonymous post read and thumbnail endpoint; a
+denied read still stops before thumbnail/profile requests. Pure selection adds
+no signing authority. Regression coverage is bounded, not a new access-policy
+repair or whole-media assurance; production/account/crawler-cache gates remain.
+
+### 2026-11-03: Thumbnail ownership must survive the canonical lookup
+
+The reported public group-authored movie reads with a valid poster, while the
+thumbnail endpoint returns null and the social card shows the brand mark. The
+thumbnail route used `author_key`, and its canonical lookup did not even project
+the server's `posted_by`. Repair both seams: after the unchanged service/group
+read gate, resolve under canonical `posted_by or author_key`, never body/request
+hints. Regressions drive the real lookup/route/resolver with query/signing doubles;
+private content never resolves and foreign poster keys never sign. Direct media
+documents must select a poster/image too, not their raw video/audio file. Explicit
+audio/PDF MIME types are not artwork in either API or SDK selection. This is a
+bounded correctness repair, not new read authority or whole-media assurance;
+actual deployed thumbnail reads, crawler caches and diverse review remain open.
+
 ### 2026-11-03: Stream renewal must preserve authority and delayed user intent
 
 The [social renewal slice](scans/2026-11/watch-hls-renewal.md) re-reads the original

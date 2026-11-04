@@ -18,6 +18,7 @@ vi.mock('@/data', async (importOriginal) => {
   return {
     ...original,
     readDiscoverFeed: vi.fn().mockResolvedValue([]),
+    resolveDiscoverProfiles: vi.fn(async (posts) => posts),
     readProfile: vi.fn().mockResolvedValue(null),
     readUserProfile: vi.fn().mockResolvedValue(null),
     resolveMediaRefs: vi.fn().mockResolvedValue([]),
@@ -69,6 +70,7 @@ beforeAll(async () => {
 describe('DiscoverScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(data.resolveDiscoverProfiles).mockImplementation(async (posts) => posts);
     // Default v3 client: the discover board's reaction/comment read resolves
     // to nothing (the screen degrades to the payload counts). A test that
     // needs to seed the reader's own reaction overrides this.
@@ -102,7 +104,7 @@ describe('DiscoverScreen', () => {
   it.each([
     ['/hot-gossip', true], ['/video', true],
     ['/hot-gossip', false], ['/video', false],
-  ] as const)('resolves the current profile picture independently of old post attachments on %s (signed in: %s)', async (route, signedIn) => {
+  ] as const)('paints posts with neutral identity skeletons until profiles settle on %s (signed in: %s)', async (route, signedIn) => {
     const query = vi.fn().mockResolvedValue({ rows: [{ author_key: 'jacoby149', avatar_url: 'https://cdn.example/current-avatar.jpg' }] });
     vi.mocked(data.getV3Client).mockReturnValue({
       read: vi.fn().mockResolvedValue([]), query,
@@ -111,20 +113,33 @@ describe('DiscoverScreen', () => {
     const { getWapi } = await import('@/data/wapi');
     vi.mocked(getWapi().readToken).mockReturnValue(signedIn ? { username: 'testuser', provider: 'test.localhost', site: 'social.test.localhost' } : null);
     onTestFinished(() => { vi.mocked(getWapi().readToken).mockReturnValue({ username: 'testuser', provider: 'test.localhost', site: 'social.test.localhost' }); });
-    vi.mocked(data.readUserProfile).mockResolvedValue({ display_name: 'Jacob Hoffman', avatar_ref: 'new-cropped-avatar' });
-    onTestFinished(() => { vi.mocked(data.readUserProfile).mockResolvedValue(null); });
-    vi.mocked(data.readDiscoverFeed).mockResolvedValueOnce(['old-one', 'old-two'].map((_id) => ({
+    let release!: (posts: any) => void;
+    const base = ['old-one', 'old-two'].map((_id) => ({
       _id, author_key: 'jacoby149', author_username: 'jacoby149', author_provider: 'web10',
       text: 'An old post', created_at: '2026-10-01T12:00:00Z',
       media_refs: [{ doc_id: 'old-video', read_url: 'https://cdn.example/old.mp4', mime_type: 'video/mp4', width: 1920, height: 1080 }],
-    })));
+    }));
+    vi.mocked(data.readDiscoverFeed).mockResolvedValueOnce(base);
+    vi.mocked(data.resolveDiscoverProfiles).mockImplementationOnce(() => new Promise((resolve) => { release = resolve; }));
     render(<MemoryRouter initialEntries={[route]}><DiscoverScreen /></MemoryRouter>);
+    await waitFor(() => expect(screen.getAllByTestId(route === '/video' ? 'home-author-avatar-loading' : 'post-author-avatar-loading')).toHaveLength(2));
+    expect(screen.queryByTestId('discover-grid-skeleton')).not.toBeInTheDocument();
+    expect(screen.getAllByText('An old post').length).toBeGreaterThan(0);
+    expect(document.querySelector('button[aria-label="View jacoby149\'s profile"]')).not.toBeInTheDocument();
+    expect(document.querySelector('img[src="https://cdn.example/current-avatar.jpg"]')).not.toBeInTheDocument();
+    release(['old-one', 'old-two'].map((_id) => ({
+      _id, author_key: 'jacoby149', author_username: 'jacoby149', author_provider: 'web10',
+      profile: { display_name: 'Jacob Hoffman', avatar_ref: 'new-cropped-avatar' },
+      avatar_url: 'https://cdn.example/current-avatar.jpg',
+      text: 'An old post', created_at: '2026-10-01T12:00:00Z',
+      media_refs: [{ doc_id: 'old-video', read_url: 'https://cdn.example/old.mp4', mime_type: 'video/mp4', width: 1920, height: 1080 }],
+    })));
     await waitFor(() => expect(document.querySelectorAll('img[src="https://cdn.example/current-avatar.jpg"]')).toHaveLength(2));
-    expect(query.mock.calls.filter(([, options]) => options.prepare?.face)).toHaveLength(1);
-    expect(query).toHaveBeenCalledWith(expect.stringContaining("'jacoby149'"), {
-      groups: [`${signedIn ? 'test.localhost' : 'api.web10.app'}/groups/users/jacoby149/followers`],
-      prepare: { face: { bodyField: 'body', mediaField: 'avatar_ref', urlField: 'avatar_url' } },
-    });
+    expect(screen.queryByTestId(route === '/video' ? 'home-author-avatar-loading' : 'post-author-avatar-loading')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('discover-grid-skeleton')).not.toBeInTheDocument();
+    expect(query.mock.calls.filter(([, options]) => options.prepare?.face)).toHaveLength(0);
+    expect(data.readUserProfile).not.toHaveBeenCalled();
+    expect(data.readProfile).not.toHaveBeenCalled();
     expect(data.resolveMediaRefs).not.toHaveBeenCalled();
   });
 
@@ -137,19 +152,53 @@ describe('DiscoverScreen', () => {
       read: vi.fn().mockResolvedValue([]), query,
       readToken: () => ({ username: 'testuser', provider: 'test.localhost' }),
     } as unknown as ReturnType<typeof data.getV3Client>);
-    vi.mocked(data.readUserProfile).mockResolvedValueOnce({ display_name: 'Jacob Hoffman', avatar_ref: 'not-readable' });
     vi.mocked(data.readDiscoverFeed).mockResolvedValueOnce([{
       _id: 'old-one', author_key: 'jacoby149', author_username: 'jacoby149', author_provider: 'web10',
+      profile: { display_name: 'Jacob Hoffman', avatar_ref: 'not-readable' },
       text: 'Still here', created_at: '2026-10-01T12:00:00Z',
       media_refs: [{ doc_id: 'old-photo', read_url: 'https://cdn.example/old-photo.jpg', mime_type: 'image/jpeg' }],
     }]);
     render(<MemoryRouter initialEntries={['/hot-gossip']}><DiscoverScreen /></MemoryRouter>);
     await waitFor(() => expect(screen.getByRole('button', { name: "View Jacob Hoffman's profile" })).toBeInTheDocument());
-    await waitFor(() => expect(query.mock.calls.some(([, options]) => options.prepare?.face)).toBe(true));
+    expect(query.mock.calls.some(([, options]) => options.prepare?.face)).toBe(false);
     const card = screen.getByTestId('discover-card');
     expect(card).toHaveTextContent('Still here');
     expect(card.querySelector('img[alt="Jacob Hoffman"]')).not.toBeInTheDocument();
     expect(card).toHaveTextContent('J');
+  });
+
+  it.each(['/hot-gossip', '/video'])('shows a settled fallback, not an endless skeleton, when the optional face is absent on %s', async (route) => {
+    let release!: (posts: any) => void;
+    const post = { _id: 'no-face', author_key: 'unavailable', author_username: 'unavailable', author_provider: 'web10',
+      text: 'Content stays visible', created_at: '2026-10-01T12:00:00Z',
+      media_refs: [{ doc_id: 'v', read_url: 'https://cdn.example/v.mp4', mime_type: 'video/mp4', width: 1920, height: 1080 }] };
+    vi.mocked(data.readDiscoverFeed).mockResolvedValueOnce([post]);
+    vi.mocked(data.resolveDiscoverProfiles).mockImplementationOnce(() => new Promise((resolve) => { release = resolve; }));
+    render(<MemoryRouter initialEntries={[route]}><DiscoverScreen /></MemoryRouter>);
+    const loading = route === '/video' ? 'home-author-avatar-loading' : 'post-author-avatar-loading';
+    await screen.findByTestId(loading);
+    expect(screen.getAllByText('Content stays visible').length).toBeGreaterThan(0);
+    release([post]);
+    await waitFor(() => expect(screen.queryByTestId(loading)).not.toBeInTheDocument());
+    expect(screen.getAllByText('unavailable').length).toBeGreaterThan(0);
+    expect(data.readUserProfile).not.toHaveBeenCalled();
+  });
+
+  it('does not let an old page identity lookup overwrite a refreshed face', async () => {
+    let release!: (posts: any) => void;
+    const post = { _id: 'same-post', author_key: 'alex', author_username: 'alex', author_provider: 'web10',
+      text: 'Refresh keeps the current face', created_at: '2026-10-01T12:00:00Z' };
+    vi.mocked(data.readDiscoverFeed).mockResolvedValueOnce([post]).mockResolvedValueOnce([post]);
+    vi.mocked(data.resolveDiscoverProfiles)
+      .mockImplementationOnce(() => new Promise((resolve) => { release = resolve; }))
+      .mockResolvedValueOnce([{ ...post, profile: { display_name: 'Current Alex' }, avatar_url: 'https://cdn.example/current.jpg' }]);
+    render(<MemoryRouter initialEntries={['/hot-gossip']}><DiscoverScreen /></MemoryRouter>);
+    await screen.findByTestId('post-author-avatar-loading');
+    fireEvent.click(screen.getByRole('button', { name: /most recent/i }));
+    await waitFor(() => expect(document.querySelector('img[src="https://cdn.example/current.jpg"]')).toBeInTheDocument(), { timeout: 2000 });
+    release([{ ...post, profile: { display_name: 'Old Alex' }, avatar_url: 'https://cdn.example/old.jpg' }]);
+    await waitFor(() => expect(screen.getByRole('button', { name: "View Current Alex's profile" })).toBeInTheDocument());
+    expect(document.querySelector('img[src="https://cdn.example/old.jpg"]')).not.toBeInTheDocument();
   });
 
   it('renders skeleton while loading', async () => {

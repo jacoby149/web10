@@ -196,6 +196,27 @@ export async function shortsCard(postId) {
   return buildPostCard(postId, canonicalUrl)
 }
 
+// Music shares identify the post in the query string, not a path segment.
+export async function musicCard(postId) {
+  console.log('[preview] music card start', { hasTrack: Boolean(postId) })
+  if (!postId) {
+    const html = await renderCardAnon({
+      title: 'Music on web10',
+      description: 'Open web10 to discover and listen to music.',
+      image: BRAND_IMAGE,
+      image_alt: 'web10',
+      url: `${SOCIAL_ORIGIN}/music`,
+      og_type: 'website',
+    })
+    console.log('[preview] generic music card complete', { rendered: Boolean(html) })
+    return html
+  }
+  const canonicalUrl = `${SOCIAL_ORIGIN}/music?track=${encodeURIComponent(postId)}&panel=player`
+  const html = await buildPostCard(postId, canonicalUrl)
+  console.log('[preview] music card complete', { rendered: Boolean(html) })
+  return html
+}
+
 // The shared post-card logic — reads the post, picks the thumbnail, applies
 // the social fallback, and renders the card. The canonical URL differs per
 // surface (permalink / watch / shorts) but the content is the same post.
@@ -216,6 +237,7 @@ async function buildPostCard(postId, canonicalUrl, usernameHint) {
   // truncating, so the OG / Twitter card never leaks `**` / `#` / `[]()` / ```
   // (the client-side "one touch," D60-clean — the node stores it opaquely).
   const text = stripMarkdown(doc.body?.text) ?? null
+  const headline = stripMarkdown(doc.body?.title)?.trim() || null
   const thumb = await getThumbnailAnon(postId)
   let image = thumb?.url ?? null
   let imageAlt = thumb?.alt ?? null
@@ -228,7 +250,7 @@ async function buildPostCard(postId, canonicalUrl, usernameHint) {
   // Derive the username from the doc's author_key (the last path segment) when
   // no hint is provided (the watch/shorts routes don't carry a username).
   const username = usernameHint ?? (doc.author_key?.split('/').pop() || null)
-  const title = truncate(text, TITLE_LIMIT) ?? (username ? `@${username} on web10` : 'A post on web10')
+  const title = truncate(headline || text, TITLE_LIMIT) ?? (username ? `@${username} on web10` : 'A post on web10')
   const description = truncate(text, DESC_LIMIT) ?? 'A post on web10'
   return renderCardAnon({
     title,

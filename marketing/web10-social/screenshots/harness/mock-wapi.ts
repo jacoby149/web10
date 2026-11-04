@@ -25,7 +25,7 @@ function createMockWrapper(): WapiWrapper {
     isSignedIn: () => !ANON,
     signOut: () => {},
     setToken: () => {},
-    readToken: () => (ANON ? null : TOKEN),
+    readToken: () => (ANON ? null : new URLSearchParams(window.location.search).get('fresh-token') === '1' ? { ...TOKEN } : TOKEN),
     openAuthPortal: () => {},
     authListen: () => {},
 

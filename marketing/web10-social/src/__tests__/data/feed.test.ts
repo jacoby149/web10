@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as v3 from '../../data/v3';
-import { readDiscoverFeed, readShortsFeed, readMusicFeed, readFeedPage, readFeedReactions } from '../../data/feed';
+import { readDiscoverFeed, resolveDiscoverProfiles, readShortsFeed, readMusicFeed, readFeedPage, readFeedReactions } from '../../data/feed';
 import { getFeedGroups } from '../../data/groups';
 
 function mockV3Client() {
@@ -36,6 +36,72 @@ describe('feed v3 data layer', () => {
   });
 
   describe('readDiscoverFeed (v3: read the discover board, server-side ranking)', () => {
+    it.each([1, 10, 100])('uses one personal profile request for %i distinct authors', async (count) => {
+      mock.read.mockResolvedValue(Array.from({ length: count }, (_, i) => ({
+        doc_id: `p${i}`, author_key: `web10.app/users/u${i}`, body: {}, created_at: '2026-10-01T00:00:00Z',
+      })));
+      mock.query.mockResolvedValue({ rows: [] });
+      expect(await resolveDiscoverProfiles(await readDiscoverFeed(null, count))).toHaveLength(count);
+      expect(mock.read).toHaveBeenCalledTimes(1);
+      expect(mock.query).toHaveBeenCalledTimes(1);
+      expect(mock.query.mock.calls[0][1].groups).toHaveLength(count);
+    });
+
+    it.each([true, false])('resolves personal pictures in an optional batch (signed in: %s)', async (signedIn) => {
+      mock.readToken.mockReturnValue(signedIn ? { provider: 'web10.app', username: 'alice' } : null as any);
+      mock.read.mockResolvedValue(['one', 'two'].map((id) => ({
+        doc_id: id, author_key: 'web10.app/users/bob', body: { text: 'Old post' },
+        created_at: '2026-10-01T00:00:00Z',
+      })));
+      let release!: (value: unknown) => void;
+      mock.query.mockImplementation(() => new Promise((resolve) => { release = resolve; }));
+      let settled = false;
+      const pending = readDiscoverFeed(null, 50, undefined, 50, 'video').then(resolveDiscoverProfiles).then((posts) => { settled = true; return posts; });
+      await vi.waitFor(() => expect(mock.query).toHaveBeenCalledTimes(1));
+      expect(settled).toBe(false);
+      expect(mock.read).toHaveBeenCalledWith('posts', expect.objectContaining({ offset: 50, surface: 'video' }));
+      expect(mock.query).toHaveBeenCalledWith(expect.stringContaining("IN ('web10.app/users/bob')"), {
+        groups: ['web10.app/groups/users/bob/followers'],
+        prepare: { face: { bodyField: 'body', mediaField: 'avatar_ref', urlField: 'avatar_url' } },
+      });
+      release({ rows: [{ author_key: 'web10.app/users/bob', body: { display_name: 'Bob', avatar_ref: 'current' }, avatar_url: 'https://cdn/bob' }] });
+      const posts = await pending;
+      expect(posts).toHaveLength(2);
+      for (const post of posts) expect(post).toMatchObject({ avatar_url: 'https://cdn/bob', profile: { display_name: 'Bob' } });
+      expect(mock.listMedia).not.toHaveBeenCalled();
+    });
+
+    it.each(['missing', 'failed'])('keeps posts and group faces when personal profiles are %s', async (outcome) => {
+      const group = 'web10.app/groups/alice/club';
+      mock.read.mockResolvedValue([
+        { doc_id: 'p', author_key: 'bob', body: { text: 'personal' }, created_at: '2026-10-01T00:00:00Z' },
+        { doc_id: 'g', author_key: group, body: { text: 'group' }, created_at: '2026-10-01T00:00:00Z' },
+      ]);
+      mock.query.mockImplementation(async (sql: string) => {
+        if (sql.includes('FROM profile')) {
+          if (outcome === 'failed') throw new Error('offline');
+          return { rows: [] };
+        }
+        return { rows: [{ group_id: group, author_key: 'alice', body: { name: 'Club' }, avatar_url: 'https://cdn/group' }] };
+      });
+      const posts = await resolveDiscoverProfiles(await readDiscoverFeed());
+      expect(posts).toHaveLength(2);
+      expect(mock.query.mock.calls.filter(([sql]) => sql.includes('FROM profile'))).toHaveLength(1);
+      expect(posts.find((p) => p._id === 'p')?.avatar_url).toBeUndefined();
+      expect(posts.find((p) => p._id === 'g')).toMatchObject({ group_identity: { name: 'Club' }, avatar_url: 'https://cdn/group' });
+    });
+
+    it('keeps exact same-handle authors separate and preserves ranked order', async () => {
+      const keys = ['one.example/users/bob', 'two.example/users/bob'];
+      mock.read.mockResolvedValue(keys.map((author_key, i) => ({ doc_id: String(i), author_key, body: {}, created_at: `2026-10-0${i + 1}T00:00:00Z` })));
+      mock.query.mockResolvedValue({ rows: keys.map((author_key, i) => ({ author_key, body: { display_name: `Bob ${i}` }, avatar_url: `https://cdn/${i}` })) });
+      const sort = { recency: 0.6, likes: 0.6, comments: 0.4, half_life_ms: 86400000, character: 0 };
+      const posts = await resolveDiscoverProfiles(await readDiscoverFeed(sort));
+      expect(posts.map((p) => p._id)).toEqual(['0', '1']);
+      expect(posts.map((p) => p.avatar_url)).toEqual(['https://cdn/0', 'https://cdn/1']);
+      expect(mock.query.mock.calls[0][1].groups).toEqual(['one.example/groups/users/bob/followers', 'two.example/groups/users/bob/followers']);
+    });
+
     it('passes a power-mean sort config through to the node', async () => {
       mock.read.mockResolvedValue([]);
       const sort = { recency: 0.6, likes: 0.6, comments: 0.4, half_life_ms: 86400000, character: 0 };
@@ -384,6 +450,48 @@ describe('feed v3 data layer', () => {
   });
 
   describe('readShortsFeed (the two-layer filter — shorts.md v1.5)', () => {
+    it.each([true, false])('batches personal display names by exact author (signed in: %s)', async (signedIn) => {
+      if (!signedIn) mock.readToken.mockReturnValue(null as any);
+      serverFilteredRead([
+        discoverPost('p1', ['m1'], ['short'], 'alice'),
+        discoverPost('p2', ['m1'], ['short'], 'alice'),
+        discoverPost('p3', ['m1'], ['short'], 'bob'),
+      ]);
+      mock.listMedia.mockResolvedValue([mediaDoc('m1', 'video/mp4', 720, 1280)]);
+      mock.query.mockResolvedValue({ rows: [
+        { author_key: 'web10.app/users/alice', body: { display_name: 'Alice Example' }, avatar_url: 'https://cdn/alice' },
+        { author_key: 'web10.app/users/bob', body: { display_name: 'Bob Example' } },
+      ] });
+      const shorts = await readShortsFeed();
+      expect(shorts.map((s) => s.post.profile?.display_name)).toEqual(['Alice Example', 'Alice Example', 'Bob Example']);
+      expect(shorts[0].post.avatar_url).toBe('https://cdn/alice');
+      expect(mock.query).toHaveBeenCalledTimes(1);
+      expect(mock.query).toHaveBeenCalledWith(expect.stringContaining('FROM profile'), expect.objectContaining({
+        groups: ['web10.app/groups/users/alice/followers', 'web10.app/groups/users/bob/followers'],
+      }));
+      expect(shorts[0].post.author_key).toBe('web10.app/users/alice');
+    });
+
+    it.each(['missing', 'failed'])('keeps playable shorts when profile enrichment is %s', async (failure) => {
+      serverFilteredRead([discoverPost('p1', ['m1'], ['short'])]);
+      mock.listMedia.mockResolvedValue([mediaDoc('m1', 'video/mp4', 720, 1280)]);
+      if (failure === 'failed') mock.query.mockRejectedValue(new Error('profile unavailable'));
+      else mock.query.mockResolvedValue({ rows: [] });
+      const shorts = await readShortsFeed();
+      expect(shorts).toHaveLength(1);
+      expect(shorts[0].post.author_username).toBe('alice');
+    });
+
+    it('preserves the readable group name and exact group author without a personal-profile lookup', async () => {
+      const group = 'web10.app/groups/users/alice/new-group-5';
+      serverFilteredRead([{ ...discoverPost('p1', ['m1'], ['short']), author_key: group }]);
+      mock.listMedia.mockResolvedValue([mediaDoc('m1', 'video/mp4', 720, 1280)]);
+      mock.query.mockResolvedValue({ rows: [{ group_id: group, author_key: 'alice', body: { name: 'Century Club Movies' } }] });
+      const shorts = await readShortsFeed();
+      expect(shorts[0].post.group_identity?.name).toBe('Century Club Movies');
+      expect(shorts[0].post.author_key).toBe(group);
+      expect(mock.query.mock.calls.every(([sql]) => !sql.includes('FROM profile'))).toBe(true);
+    });
     // The filter is two-layered (defense in depth):
     //   1. SERVER — readDiscoverFeed(…, ["short"]) sends has(tags, 'short'), so
     //      the node pulls only tagged shorts (cheap + indexable).

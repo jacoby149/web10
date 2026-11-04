@@ -76,7 +76,7 @@ The presigned URL is minted fresh on every request (the document-typing rule —
 | Tag | Value |
 |---|---|
 | `og:type` | `article` (a `video.other` hint when the first item is video) |
-| `og:title` | the post text (markdown-stripped, truncated ~100 chars), else `@{username} on web10` |
+| `og:title` | the saved post title, else caption (markdown-stripped, truncated ~100 chars), else `@{username} on web10` |
 | `og:description` | the post text (markdown-stripped, truncated ~200 chars), else a generic line |
 | `og:image` | the thumbnail (above) |
 | `og:image:alt` | the media's `alt_text`, else the title |
@@ -109,6 +109,21 @@ The preview-server target is injected at deploy time (a `PREVIEW_TARGET` env var
 3. The preview server reads the post by `abc123` (the generic read, anon-capable), sees it is in the discover group (anon `readAll` on `posts`) → public. It resolves the media: the first item is a video with a `thumbnail_object_key` → it mints a fresh presigned `thumbnail_url` over the public MinIO host. It reads the author's profile for the display name.
 4. The preview server returns an HTML document: `og:image` = the poster frame, `og:title` = the caption, `og:description` = the caption, `og:url` = the permalink, `twitter:card` = `summary_large_image`.
 5. iMessage renders the card — the poster frame, the caption, "web10." The friend taps it and lands on the permalink in the app, signed in or not.
+
+## Music track links
+
+Music shares use `/music?track=<postId>&panel=player`. Known crawlers reach the
+same anonymous post-card pipeline as post/watch/shorts links; nginx must retain
+the query string because `track` identifies the post. The generic thumbnail
+selects the audio attachment's album-art thumbnail or a supporting image, never
+the audio file itself. Saved title, caption and existing avatar/brand fallback
+are unchanged. The canonical card URL keeps `track` and `panel=player`, not
+unrelated search, queue or menu state. Browsers still receive the SPA.
+
+An unreadable track uses the existing generic post card without requesting its
+thumbnail or author profile. Bare `/music` and empty `track` render a generic
+Music card without document reads. Deployment and receiving-app cache refresh
+must be verified separately from local routing tests.
 
 ## The profile permalink
 

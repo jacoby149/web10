@@ -44,6 +44,7 @@ describe('web10-social link-preview card logic (KB: media/thumbnailing.md)', () 
   let groupCard: (g: string) => Promise<string>
   let watchCard: (p: string) => Promise<string>
   let shortsCard: (p: string) => Promise<string>
+  let musicCard: (p?: string | null) => Promise<string>
   let truncate: (s: string, n: number) => string | null
   let stripMarkdown: (s: string) => string
 
@@ -55,6 +56,7 @@ describe('web10-social link-preview card logic (KB: media/thumbnailing.md)', () 
     groupCard = mod.groupCard
     watchCard = mod.watchCard
     shortsCard = mod.shortsCard
+    musicCard = mod.musicCard
     truncate = mod.truncate
     stripMarkdown = md.stripMarkdown
   })
@@ -142,6 +144,22 @@ describe('web10-social link-preview card logic (KB: media/thumbnailing.md)', () 
     expect(html).toContain('check out this clip')
     expect(html).toContain('http://minio.test/img.png')
     expect(html).toContain('http://social.test/u/nova/p/p1')
+  })
+
+  it.each(['post', 'watch', 'shorts'])('%s share uses the saved headline and matching content poster', async (surface) => {
+    mockPlatform({
+      'read:film': {
+        author_key: 'api.test/groups/users/nova/movies', posted_by: 'nova',
+        body: { title: '**Nosferatu (1922)** — Full Film', text: 'Hello! I post public domain movies.' },
+      },
+      'thumb:film': { thumbnail: { url: 'http://minio.test/nova/film-poster.webp', is_video: true } },
+    })
+    const html = await (surface === 'post' ? postCard('movies', 'film')
+      : surface === 'watch' ? watchCard('film') : shortsCard('film'))
+    expect(html).toContain('"title":"Nosferatu (1922) — Full Film"')
+    expect(html).toContain('"description":"Hello! I post public domain movies."')
+    expect(html).toContain('http://minio.test/nova/film-poster.webp')
+    expect(html).not.toContain('keys-mark.png')
   })
 
   it('postCard: a public post with no media falls back to the author avatar', async () => {
@@ -282,6 +300,45 @@ describe('web10-social link-preview card logic (KB: media/thumbnailing.md)', () 
     expect(html).toContain(`http://social.test/groups/${encodeURIComponent('api.web10.app/groups/users/bob/secret')}`)
     // The face must not leak.
     expect(html).not.toContain('secret club name')
+  })
+
+  describe('musicCard — the query-based track share link', () => {
+    it('renders the saved title and album art with the canonical player destination', async () => {
+      const fetchMock = mockPlatform({
+        'read:track-1': { author_key: 'api.test/groups/users/nova/music', posted_by: 'nova', body: { title: '**Night Drive**', text: 'A new recording' } },
+        'thumb:track-1': { thumbnail: { url: 'http://minio.test/nova/album.webp', alt: 'Album cover', is_video: false } },
+      })
+      const html = await musicCard('track-1')
+      expect(html).toContain('"title":"Night Drive"')
+      expect(html).toContain('"image":"http://minio.test/nova/album.webp"')
+      expect(html).toContain('"url":"http://social.test/music?track=track-1&panel=player"')
+      expect(fetchMock).toHaveBeenCalledTimes(3)
+      expect(fetchMock.mock.calls.every(([, init]) => !('Authorization' in (init?.headers || {})))).toBe(true)
+    })
+
+    it('does not request thumbnail or author data for a denied track', async () => {
+      const fetchMock = mockPlatform({ 'read:private': null })
+      const html = await musicCard('private')
+      expect(html).toContain('A post on web10')
+      expect(html).toContain('keys-mark.png')
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+      expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/thumbnail'))).toBe(false)
+    })
+
+    it('retains the brand fallback when the track has no art or avatar', async () => {
+      mockPlatform({ 'read:no-art': { author_key: 'nova', body: { title: 'Uncovered' } } })
+      const html = await musicCard('no-art')
+      expect(html).toContain('Uncovered')
+      expect(html).toContain('keys-mark.png')
+    })
+
+    it.each([undefined, null, ''])('renders generic Music without document reads for %s', async (track) => {
+      const fetchMock = mockPlatform({})
+      const html = await musicCard(track)
+      expect(html).toContain('Music on web10')
+      expect(html).toContain('"url":"http://social.test/music"')
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+    })
   })
 
   describe('watchCard — the /watch/:postId share link (the landscape video)', () => {

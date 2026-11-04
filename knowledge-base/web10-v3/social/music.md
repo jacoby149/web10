@@ -51,6 +51,33 @@ returned track (the on-surface "N plays" is the reach over these deliveries).
 
 ## The surface
 
+### Audio on ordinary post cards
+
+Music attachments are playable outside `/music`: marketing Discover's shared
+DiscoverCard and social Feed/PostCard use the shared `AudioPlayer` for resolved
+`audio/*` media. Carousel audio uses the same transport instead of an image tag.
+Resolved MIME takes precedence over a post's `music` tag; supporting images and
+video retain their renderers. No decorative progress bar stands in for a player.
+
+The inline transport has explicit Play/Pause, keyboard/touch seeking and actual
+elapsed/duration state; it does not autoplay or fetch audio on mount
+(`preload="none"`). Another audible media play pauses it; URL replacement or
+unmount retires the old transport. Missing URLs show Audio unavailable; denied,
+unsupported or failed playback shows an error and explicit retry. Retry reuses
+the existing URL, never extends its expiry; refreshing the original post is still
+needed for a fresh expired URL. This is not the dedicated Music queue or its
+automatic authorized renewal. Native-browser fixture evidence is not acceptance
+of a particular production recording.
+
+The feed presentation uses the track's resolved thumbnail as cover art, or a
+resolved supporting image when no thumbnail exists. Audio URLs and author
+avatars are never covers. Reserve the square while loading; missing/failed art
+uses a disc fallback. The card receives the post title and current author label
+from its consumer; these are display metadata, not access authority. Updating
+only artwork/labels must not remount or restart the audio transport.
+
+### Dedicated listening destination
+
 `/music` renders compact cover/title/artist-duration rows and one overflow
 button per track. Its action sheet offers Play next, Add to queue, Save to
 playlist, Save/remove Saved Music, Share and Go to artist. Anonymous listeners

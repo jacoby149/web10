@@ -220,7 +220,14 @@ export async function countUserFollowingReal(): Promise<number> { return PEERS.l
 export async function readUserPublicPosts(): Promise<unknown[]> { return PROFILE_POSTS; }
 // D88: saved collections (the profile's Saved tab). Seeded with a few
 // collections so the tab renders with content (the cards + the open view).
-export async function getMyCollections(): Promise<unknown[]> { return SAVED_COLLECTIONS; }
+export async function getMyCollections(): Promise<unknown[]> {
+  if (new URLSearchParams(window.location.search).has('playlist-art-regression')) {
+    return SAVED_COLLECTIONS.map((collection, index) => index === 1
+      ? { ...collection, coverUrl: '/playlist-art-regression/missing.webp' }
+      : collection);
+  }
+  return SAVED_COLLECTIONS;
+}
 // D88: the visitor's profile shows the owner's PUBLIC collections (the D80
 // by-user read — only membership_visibility='public' groups surface). Seeded
 // for the visitor profile shot (nova); the owner's own profile uses
@@ -349,13 +356,14 @@ export async function countComments(postId?: string): Promise<number> {
   return 0;
 }
 export async function toggleReaction(): Promise<unknown> { return {}; }
-export async function readReactions(postId?: string): Promise<unknown[]> {
-  // The profile's feed view seeds likes (incl. the reader's own — the filled
-  // heart) for its first two posts; other ids (feed/discover) stay empty.
-  if (postId === 'pp-1') {
+export async function readReactions(serviceOrPostId?: string, targetId?: string): Promise<unknown[]> {
+  const postId = targetId ?? serviceOrPostId;
+  // Own-profile and visitor-profile fixtures include the reader's existing
+  // like so the real lightbox can be captured with a filled heart.
+  if (postId === 'pp-1' || postId === 'dp-1') {
     return [
-      { _id: 'pr-1', type: 'like', author_username: 'alina', author_provider: 'web10', target_service: 'posts', target_id: 'pp-1', created_at: minsAgo(30) },
-      { _id: 'pr-2', type: 'like', author_username: 'me', author_provider: 'web10', target_service: 'posts', target_id: 'pp-1', created_at: minsAgo(20) },
+      { _id: 'pr-1', type: 'like', author_username: 'alina', author_provider: 'web10', target_service: 'posts', target_id: postId, created_at: minsAgo(30) },
+      { _id: 'pr-2', type: 'like', author_username: 'me', author_provider: 'web10', target_service: 'posts', target_id: postId, created_at: minsAgo(20) },
     ];
   }
   if (postId === 'pp-2') {
@@ -1014,6 +1022,9 @@ export async function readFeed(): Promise<unknown[]> { return FEED_POSTS; }
 // — the feed filters out bare string refs), so the harness resolves string
 // refs against DISCOVER_MEDIA here, the same way the node's read does.
 export async function readFeedPage(): Promise<unknown> {
+  if (new URLSearchParams(window.location.search).get('discover-inline-audio') === '1') {
+    return { posts: await readDiscoverFeed(), has_more: false, next_cursor: null };
+  }
   if (new URLSearchParams(window.location.search).get('feedError') === '1') {
     throw new Error('Screenshot fixture: Following feed unavailable');
   }
@@ -1345,7 +1356,22 @@ const DISCOVER_POSTS: SeedDiscoverPost[] = [
 // does. The watch page builds its queue's media map from these inline refs
 // (no second media round-trip), so the mock must carry them.
 export async function readDiscoverFeed(): Promise<unknown[]> {
-  return DISCOVER_POSTS.map((p) => {
+  if (new URLSearchParams(window.location.search).get('discover-inline-audio') === '1') {
+    return [{ ...DISCOVER_POSTS[0], _id: 'inline-audio-fixture', title: 'Livery Stable Blues — audio renderer fixture',
+      text: 'Synthetic one-second silent recording. Real inline audio controls, not a loading placeholder.',
+      profile: { display_name: DISCOVER_POSTS[0].group_identity?.name },
+      tags: ['music'], ad: undefined, media_refs: [{ doc_id: 'inline-audio', read_url: MUSIC_TRACKS[0].media.url,
+        mime_type: 'audio/wav', duration_seconds: 1,
+        thumbnail_url: new URLSearchParams(window.location.search).get('discover-inline-art') === '1' ? MUSIC_TRACKS[0].media.thumbnail_url : undefined }] }];
+  }
+  const prepared = new URLSearchParams(window.location.search).get('discover-prepared-faces') === '1';
+  return DISCOVER_POSTS.map((seed) => {
+    // Synthetic already-resolved face fixture, not a production query or
+    // latency measurement. discover-face-state=pending holds only identity.
+    const p = !prepared || seed.author_key?.includes('/groups/') ? seed : {
+      ...seed, profile: { display_name: `${seed.author_username.charAt(0).toUpperCase()}${seed.author_username.slice(1)} Studio` },
+      avatar_url: creative(seed.author_username.slice(0, 2).toUpperCase(), 96, 96, '#134e4a', '#0f766e', 'image/png').url as string,
+    };
     if (!p.media_refs?.length) return p;
     const resolved = p.media_refs
       .map((id) => {
@@ -1368,6 +1394,10 @@ export async function readDiscoverFeed(): Promise<unknown[]> {
     return { ...p, media_refs: resolved };
   });
 }
+export async function resolveDiscoverProfiles(posts: unknown[]): Promise<unknown[]> {
+  if (new URLSearchParams(window.location.search).get('discover-face-state') === 'pending') return new Promise(() => {});
+  return posts;
+}
 // The Shorts feed (shorts.md): the discover board filtered to genuine shorts —
 // a post whose single media is a REAL 9:16 video, re-derived from the resolved
 // media (the render-time gate), not the client-asserted `short` tag.
@@ -1380,7 +1410,21 @@ export async function readShortsFeed(): Promise<{ post: unknown; media: unknown 
       (m) => (m.mime_type as string)?.startsWith('video/') && m.width && m.height && m.width < m.height,
     );
     if (vertical.length === 1 && p.media_refs.length === 1) {
-      shorts.push({ post: p, media: vertical[0] });
+      const named = new URLSearchParams(window.location.search).get('short-author-names') === '1';
+      const post = !named ? p : p._id === 'dp-2' ? {
+        ...p, author_key: 'web10/groups/users/me/new-group-5', author_username: 'new-group-5',
+        group_identity: { name: 'Century Club Movies' },
+      } : { ...p, profile: { display_name: p.author_username === 'luna' ? 'Luna Rivera' : 'Kai Morgan' } };
+      const description = p._id === 'dp-2' && new URLSearchParams(window.location.search).get('short-description-preview') === '1';
+      shorts.push({ post: description ? { ...post, title: 'A night at the movies', text: [
+        'A **classic film**, a room full of friends, and no algorithm between us.',
+        '## Tonight at Century Club',
+        'Join us for a restored silent classic and a conversation about the people who made it. The short is only the invitation — the full story belongs here.',
+        '- Bring a friend\n- Stay for the discussion\n- [Visit the movie club](https://example.com/movies)',
+        '> Great films deserve more than a ten-second caption.',
+        'Find the schedule, screening notes and our next watch party at https://example.com/schedule. This is a synthetic screenshot fixture, not a live event.',
+        'We will talk about the photography, the score and the scenes that stay with you long after the credits. Everyone is welcome, whether you have seen the film a dozen times or are discovering it tonight.',
+      ].join('\n\n') } : post, media: vertical[0] });
     }
   }
   return shorts;
