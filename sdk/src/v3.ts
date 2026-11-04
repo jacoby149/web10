@@ -213,6 +213,8 @@ export function pickThumbnail(resolvedMedia: V3ResolvedMedia[]): V3Thumbnail | n
       // No poster yet (transcode pending) — fall through to the next item.
       continue
     }
+    // Audio/documents are not artwork; retain legacy refs without MIME metadata.
+    if (mime && !mime.startsWith('image/')) continue
     if (ref.read_url) {
       return {
         url: ref.read_url,

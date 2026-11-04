@@ -45,6 +45,12 @@ says what can happen **at the same time**.
 
 ## Lanes
 
+### Lane: content-thumbnails
+
+**Owns:** generic thumbnail endpoint/selector, canonical lookup's `posted_by` projection, SDK selector/build outputs, social preview card/focused regressions and serialized KB records. No permission policy, transcoding, production content or deployment changes.
+- [✓ 4.6.5 local] **Content thumbnails instead of the brand fallback** - canonical uploader resolution fixes the reproduced group-author/null-thumbnail path; media documents select posters rather than raw video, API/SDK skip explicit non-image files, and all three share-card routes prefer the saved title. Local regressions, full suites/builds and bounded same-family review; public read-only watch desktop/375px and Video/Posts exact-poster evidence. Not deployed; group-page/browser and full connected surface coverage remain open.
+- [ ] **Thumbnail rollout and connected surface acceptance** - after normal reviewed deployment, re-crawl post/watch/shorts URLs and fetch their actual image bytes, including the reported Century Club film. Check anonymous/signed-in feed, group/profile/media, Shorts, Saved, Music and analytics with personal/group authors, unavailable media and private/revoked denial. Gates: 4.6.5 implementation, every PR check green, independent review and normal promotion; no production content changes or cache/TTL weakening. Acceptance: content-correct image bytes and private denial on each supported surface; receiving-app cache refresh is separately evidenced.
+
 ### Lane: movie-release-promotion
 
 **Owns:** release ancestry and serialized promotion records only; no application/configuration changes.

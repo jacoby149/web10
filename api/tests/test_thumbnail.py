@@ -11,6 +11,8 @@ Two layers, both universal (no posts/profiles/permalinks):
   call, not the platform's.
 """
 
+import json
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -81,6 +83,17 @@ class TestPickThumbnail:
         assert result is not None
         assert result["url"] == "https://minio/img.png"
 
+    @pytest.mark.parametrize("mime", ["audio/mpeg", "application/pdf"])
+    def test_non_image_files_do_not_hide_later_artwork(self, mime):
+        result = thumbnail.pick_thumbnail(
+            [
+                {"mime_type": mime, "read_url": "https://minio/file"},
+                {"mime_type": "image/webp", "read_url": "https://minio/cover.webp"},
+            ]
+        )
+        assert result["url"] == "https://minio/cover.webp"
+        assert thumbnail.pick_thumbnail([{"mime_type": mime, "read_url": "https://minio/file"}]) is None
+
 
 # ── POST /v3/media/thumbnail — the access-checked convenience endpoint ──────
 
@@ -108,6 +121,111 @@ def _doc(doc_id="abc123", author="nova", service="posts", media_refs=None):
 
 
 class TestThumbnailEndpoint:
+    @pytest.mark.parametrize("service", ["posts", "shop-catalog", "media_metadata"])
+    @pytest.mark.parametrize("poster_owner", ["nova", "victim"])
+    def test_group_authored_thumbnail_uses_canonical_uploader(self, client, service, poster_owner):
+        """Drive the route through the real owner-filtered resolver and signer."""
+        group = "api.test/groups/users/nova/catalog"
+        doc = _doc(author=group, service=service, media_refs=["v1"])
+        doc["posted_by"] = "nova"
+        # A caller-controlled body field must never replace the server audit actor.
+        doc["body"]["posted_by"] = "victim"
+        media_id = "abc123" if service == "media_metadata" else "v1"
+        metadata = {
+            "mime_type": "video/mp4",
+            "object_key": "nova/film.mp4",
+            "thumbnail_object_key": f"{poster_owner}/poster.webp",
+        }
+
+        def query(sql, params):
+            if "author_key" not in params:
+                row = (
+                    doc["doc_id"],
+                    group,
+                    service,
+                    json.dumps(doc["body"]),
+                    "",
+                    [],
+                    doc["created_at"],
+                    doc["updated_at"],
+                )
+                if "posted_by" in sql.split("FROM documents")[0]:
+                    row += ("nova",)
+                return SimpleNamespace(result_rows=[row])
+            rows = [(media_id, json.dumps(metadata), "media_metadata")] if params["author_key"] == "nova" else []
+            return SimpleNamespace(result_rows=rows)
+
+        with (
+            patch("app.v3.services.clickhouse.get_doc_groups", return_value=[group]),
+            patch("app.v3.services.clickhouse.can_read_group", return_value=True),
+            patch("app.v3.services.clickhouse.client.query", side_effect=query) as lookup,
+            patch("app.v3.services.clickhouse.get_s3_signing_client"),
+            patch("app.v3.services.clickhouse.get_url", side_effect=lambda key, _: "https://media.test/" + key) as sign,
+        ):
+            resp = client.post("/v3/media/thumbnail", json={"doc_id": "abc123"})
+        assert resp.status_code == 200
+        result = resp.json()["thumbnail"]
+        expected_keys = {"nova/film.mp4"}
+        if poster_owner == "nova":
+            assert result["url"] == "https://media.test/nova/poster.webp"
+            assert result["is_video"] is True
+            expected_keys.add("nova/poster.webp")
+        else:
+            assert result is None
+        assert lookup.call_args.args[1]["author_key"] == "nova"
+        assert {call.args[0] for call in sign.call_args_list} == expected_keys
+
+    @pytest.mark.parametrize("posted_by", [None, "", "nova"])
+    def test_personal_and_legacy_documents_keep_author_namespace(self, client, posted_by):
+        doc = _doc(media_refs=["m1"])
+        if posted_by is not None:
+            doc["posted_by"] = posted_by
+        with (
+            patch("app.v3.services.clickhouse.get_document_any_author", return_value=doc),
+            patch("app.v3.services.clickhouse.get_doc_groups", return_value=["public"]),
+            patch("app.v3.services.clickhouse.can_read_group", return_value=True),
+            patch("app.v3.services.clickhouse.resolve_media_urls", return_value={}) as resolve,
+        ):
+            resp = client.post("/v3/media/thumbnail", json={"doc_id": "abc123"})
+        assert resp.status_code == 200
+        assert resp.json()["thumbnail"] is None
+        resolve.assert_called_once_with(doc["body"], "nova")
+
+    def test_private_group_author_never_resolves_uploader_media(self, client):
+        doc = _doc(author="api.test/groups/users/nova/private", media_refs=["v1"])
+        doc["posted_by"] = "nova"
+        with (
+            patch("app.v3.services.clickhouse.get_document_any_author", return_value=doc),
+            patch("app.v3.services.clickhouse.get_doc_groups", return_value=[doc["author_key"]]),
+            patch("app.v3.services.clickhouse.can_read_group", return_value=False),
+            patch("app.v3.services.clickhouse.resolve_media_urls") as resolve,
+        ):
+            resp = client.post("/v3/media/thumbnail", json={"doc_id": "abc123"})
+        assert resp.status_code == 404
+        resolve.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "mime,poster,expected",
+        [
+            ("video/mp4", "https://minio/poster.webp", "https://minio/poster.webp"),
+            ("video/mp4", None, None),
+            ("audio/mpeg", None, None),
+        ],
+    )
+    def test_media_document_returns_only_a_displayable_image(self, client, mime, poster, expected):
+        doc = _doc(service="media_metadata")
+        resolved = {"media_refs": [{"mime_type": mime, "read_url": "https://minio/raw", "thumbnail_url": poster}]}
+        with (
+            patch("app.v3.services.clickhouse.get_document_any_author", return_value=doc),
+            patch("app.v3.services.clickhouse.get_doc_groups", return_value=["public"]),
+            patch("app.v3.services.clickhouse.can_read_group", return_value=True),
+            patch("app.v3.services.clickhouse.resolve_media_urls", return_value=resolved),
+        ):
+            resp = client.post("/v3/media/thumbnail", json={"doc_id": "abc123"})
+        assert resp.status_code == 200
+        result = resp.json()["thumbnail"]
+        assert (result["url"] if result else None) == expected
+
     def test_public_doc_returns_its_thumbnail(self, client):
         doc = _doc(media_refs=["m1"])
         resolved = {"media_refs": [{"doc_id": "m1", "mime_type": "image/png", "read_url": "https://minio/img.png"}]}
