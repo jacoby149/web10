@@ -35,6 +35,19 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-03: Requested Docker port bindings are not observed reachability
+
+The D96 lab requested loopback ports, but an internal-only Docker bridge left
+NetworkSettings.Ports empty despite HostConfig.PortBindings being present.
+An owned Alpine probe reproduces that distinction. Attach only TLS/DNS
+frontends to a second browser bridge; APIs/databases/storage remain internal.
+Docker can also assign another random host port on restart: refresh the mapping
+and preserve per-case configuration history instead of assuming the old port.
+Neither startup nor intended configuration proves reachability. DNS parity tests
+compare exact RRset multisets, not unspecified wire order. Four real loopback
+DNS/control tests pin shared TXT/JSON state and denied secret/path/target cases;
+the default runner retains its IAM/issuer assertions and no published ports.
+
 ### 2026-11-03: Domain-follow discovery must not carry home authority
 
 D96's research client stores a domain-only private app bookmark; DNS selects
