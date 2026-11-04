@@ -99,6 +99,59 @@ describe('DiscoverScreen', () => {
     }
   });
 
+  it.each([
+    ['/hot-gossip', true], ['/video', true],
+    ['/hot-gossip', false], ['/video', false],
+  ] as const)('resolves the current profile picture independently of old post attachments on %s (signed in: %s)', async (route, signedIn) => {
+    const query = vi.fn().mockResolvedValue({ rows: [{ author_key: 'jacoby149', avatar_url: 'https://cdn.example/current-avatar.jpg' }] });
+    vi.mocked(data.getV3Client).mockReturnValue({
+      read: vi.fn().mockResolvedValue([]), query,
+      readToken: () => signedIn ? { username: 'testuser', provider: 'test.localhost' } : null,
+    } as unknown as ReturnType<typeof data.getV3Client>);
+    const { getWapi } = await import('@/data/wapi');
+    vi.mocked(getWapi().readToken).mockReturnValue(signedIn ? { username: 'testuser', provider: 'test.localhost', site: 'social.test.localhost' } : null);
+    onTestFinished(() => { vi.mocked(getWapi().readToken).mockReturnValue({ username: 'testuser', provider: 'test.localhost', site: 'social.test.localhost' }); });
+    vi.mocked(data.readUserProfile).mockResolvedValue({ display_name: 'Jacob Hoffman', avatar_ref: 'new-cropped-avatar' });
+    onTestFinished(() => { vi.mocked(data.readUserProfile).mockResolvedValue(null); });
+    vi.mocked(data.readDiscoverFeed).mockResolvedValueOnce(['old-one', 'old-two'].map((_id) => ({
+      _id, author_key: 'jacoby149', author_username: 'jacoby149', author_provider: 'web10',
+      text: 'An old post', created_at: '2026-10-01T12:00:00Z',
+      media_refs: [{ doc_id: 'old-video', read_url: 'https://cdn.example/old.mp4', mime_type: 'video/mp4', width: 1920, height: 1080 }],
+    })));
+    render(<MemoryRouter initialEntries={[route]}><DiscoverScreen /></MemoryRouter>);
+    await waitFor(() => expect(document.querySelectorAll('img[src="https://cdn.example/current-avatar.jpg"]')).toHaveLength(2));
+    expect(query.mock.calls.filter(([, options]) => options.prepare?.face)).toHaveLength(1);
+    expect(query).toHaveBeenCalledWith(expect.stringContaining("'jacoby149'"), {
+      groups: [`${signedIn ? 'test.localhost' : 'api.web10.app'}/groups/users/jacoby149/followers`],
+      prepare: { face: { bodyField: 'body', mediaField: 'avatar_ref', urlField: 'avatar_url' } },
+    });
+    expect(data.resolveMediaRefs).not.toHaveBeenCalled();
+  });
+
+  it.each(['missing', 'failed'] as const)('keeps old posts and initials when the current profile face is %s', async (outcome) => {
+    const query = vi.fn().mockImplementation(async (_sql, options) => {
+      if (options?.prepare?.face && outcome === 'failed') throw new Error('face unavailable');
+      return { rows: [] };
+    });
+    vi.mocked(data.getV3Client).mockReturnValue({
+      read: vi.fn().mockResolvedValue([]), query,
+      readToken: () => ({ username: 'testuser', provider: 'test.localhost' }),
+    } as unknown as ReturnType<typeof data.getV3Client>);
+    vi.mocked(data.readUserProfile).mockResolvedValueOnce({ display_name: 'Jacob Hoffman', avatar_ref: 'not-readable' });
+    vi.mocked(data.readDiscoverFeed).mockResolvedValueOnce([{
+      _id: 'old-one', author_key: 'jacoby149', author_username: 'jacoby149', author_provider: 'web10',
+      text: 'Still here', created_at: '2026-10-01T12:00:00Z',
+      media_refs: [{ doc_id: 'old-photo', read_url: 'https://cdn.example/old-photo.jpg', mime_type: 'image/jpeg' }],
+    }]);
+    render(<MemoryRouter initialEntries={['/hot-gossip']}><DiscoverScreen /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByRole('button', { name: "View Jacob Hoffman's profile" })).toBeInTheDocument());
+    await waitFor(() => expect(query.mock.calls.some(([, options]) => options.prepare?.face)).toBe(true));
+    const card = screen.getByTestId('discover-card');
+    expect(card).toHaveTextContent('Still here');
+    expect(card.querySelector('img[alt="Jacob Hoffman"]')).not.toBeInTheDocument();
+    expect(card).toHaveTextContent('J');
+  });
+
   it('renders skeleton while loading', async () => {
     vi.mocked(data.readDiscoverFeed).mockImplementationOnce(() => new Promise(() => {}));
     render(
