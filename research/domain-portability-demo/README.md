@@ -13,6 +13,8 @@ isolated research client, not a change to web10-social's existing follows.
 ```sh
 npm ci --prefix e2e --ignore-scripts
 node e2e/node_modules/playwright/cli.js install chromium
+test -f research/domain-portability-demo/client.mjs &&
+test -f research/domain-portability-demo/hooks.py &&
 WEB10_DOMAIN_DEMO=1 python3 research/federation-demo/run.py
 ```
 
