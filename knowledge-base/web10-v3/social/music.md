@@ -93,7 +93,13 @@ Duplicate queue entries retain occurrence identity. Explicit Play next wins
 over shuffle. Playback failure can re-read the original authorized track and
 reload its current URL. Signed URLs/credentials are not persisted. Audible
 competing media pauses Music; muted previews do not. Supported browser Media
-Session actions are registered and cleared with the session.
+Session actions are registered and cleared with the session. The session
+metadata also carries the track's resolved cover as artwork — the same shared
+album-art precedence as the cards above (the audio's own thumbnail, otherwise
+the post's supporting image, never the recording URL) — so the phone's system
+media controls (previous/next, pause, scrubber) can render the album art.
+With no cover the artwork entry is omitted, not a broken URL, and a refreshed
+track re-reads its post and lands with the fresh cover URL.
 
 The first media error during requested playback automatically re-reads the
 original post once, preserving queue occurrence and restoring position after

@@ -1,16 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Disc3, Pause, Play, RotateCcw } from 'lucide-react';
 import { Skeleton } from './ui';
-import type { MediaItem } from './types';
 
 const time = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
 const validDuration = (value?: number) => value && Number.isFinite(value) && value > 0 ? value : 0;
 const control = 'flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-muted text-brand-300 transition-colors hover:bg-brand/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50';
 
-export function audioArtwork(media: MediaItem, items: MediaItem[] = []): string | undefined {
-  const image = items.find((item) => item.mime_type?.startsWith('image/'));
-  return (media.thumbnail_url !== media.url ? media.thumbnail_url : undefined) || image?.thumbnail_url || image?.url || undefined;
-}
+// The pure selector lives in ./audioArtwork (the data layer imports that
+// subpath directly — no React barrel); re-exported here for barrel consumers.
+export { audioArtwork } from './audioArtwork';
 
 interface AudioPlayerProps {
   src?: string;
