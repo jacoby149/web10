@@ -37,6 +37,8 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
+- [✓ 4.6.4 ancestry only] **Reconcile main history for the movie-release promotion** - prove prior main/deployed-dev tree equality, preserve current dev's exact tree before the documentation addition, and join main ancestry without replaying old features. Operator explicitly permits the historical #1381 size-only method failure for promotion #1382. Promotion CI, actual dev→main merge-commit and production verification remain pending; no broader waiver or multipart activation.
+
 - [✓ 4.6.2 local] **Discover old-post profile pictures** - reported on production jacoby149 after verifying jacobhoffman.xyz. Resolve current personal avatars through the existing author-scoped face prepare, separately from post attachments. Six regressions cover Posts/Video, anonymous/signed-in readers, batching and unavailable faces; all 1,843 social tests/build and seeded desktop/375px inspection pass. Public production profile/avatar GET succeeds; no domain/principal changes, production writes or deployment.
 
 - [ ] **R2 actual multipart upload path** - `web10-v3/media/multipart-uploads.md`: native S3 operations with authenticated owner/app binding, server-derived keys/parts, exact size/checksum verification, cleanup and disposable real-storage acceptance. Then connect owner-scoped browser recovery/Uppy; no production activation implied.

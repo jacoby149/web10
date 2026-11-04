@@ -45,6 +45,12 @@ says what can happen **at the same time**.
 
 ## Lanes
 
+### Lane: movie-release-promotion
+
+**Owns:** release ancestry and serialized promotion records only; no application/configuration changes.
+- [✓ 4.6.4 ancestry only] Reconcile main history for the movie-release promotion: prior main equals an already-contained dev tree, and the ancestry merge preserves current dev exactly before release documentation. Operator explicitly authorizes the historical #1381 method-size failure only.
+- [ ] Complete promotion #1382 using a merge commit, watch all functional/deployment/image-publication checks and verify production public endpoints/version. No multipart activation or film publication; broader security/real-film/Safari gates remain separate.
+
 ### Lane: resumable-upload-backend (this workspace)
 
 **Owns:** new `api/app/services/upload_sessions.py`, focused upload-session tests
