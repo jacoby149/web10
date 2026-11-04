@@ -245,11 +245,11 @@ design to decentralized storage, IAM, and multi-tenant databases;
 % --- the reads ---
 \draw[arr] (client.south) -- ++(0,-0.35) -| (nodeA.north);
 \draw[arr] (client.south) -- ++(0,-0.35) -| (nodeB.north);
-\node[align=center] at (-1.15,2.66) {authenticated reads};
-\node[align=center] at (1.95,2.66) {client-side fan-out\\(\S\ref{sec:network})};
+\node[align=center] at (-1.7,2.75) {authenticated reads};
+\node[align=center] at (1.7,2.75) {client-side fan-out (\S\ref{sec:network})};
 % --- certification: identity once, access every time ---
-\draw[darr] (nodeB.south) -- ++(0,-0.5) -- (nodeA.south -| nodeB.south) -- (nodeA.south);
-\node[align=center] at (0.5,-1.95)
+\draw[darr] (nodeB.south) -- (2.75,-2.0) -- (-1.7,-2.0) -- (nodeA.south);
+\node[align=center] at (0.5,-2.42)
   {HTTPS \texttt{/certify}: identity is \emph{verified, not registered}\\one cached answer per token; access re-checked on every read};
 \end{tikzpicture}
 \caption{System overview: one client, two sovereign nodes, one access language.
