@@ -92,6 +92,21 @@ The keys above map to `/music`, `?view=saved`, `?view=playlists`,
 `?track=music-1&panel=player`, `?track=music-1&panel=queue`, and the seeded
 Tour Sets collection respectively. Each command writes desktop and 375px PNGs.
 
+The bounded playback regression uses ffmpeg to generate an eight-second MP3,
+native Chromium Audio and intercepted HTTP 403/fresh responses. It checks caption
+titles, broken-art fallback, one-shot recovery, a persistent failure and explicit
+retry on desktop/375px. Data reads still use screenshot mocks: this is not node
+authorization, real signed-expiry, phone or background-playback evidence.
+
+```bash
+SCREENSHOT_OUTPUT_DIR="$PWD/../../.context" node screenshots/music-recovery.mjs
+```
+
+The script boots and stops its own server (port 4501 by default), writes recovery
+and unavailable-state PNGs plus synthetic MP3 into that directory, and requires
+ffmpeg and Playwright Chromium. Music's direct module and barrel reads both use
+the same fixture so player recovery does not accidentally call a real node.
+
 ## Upload-flow UI preview
 
 This is an interactive **simulation**, isolated from live posting. The real
