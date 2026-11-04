@@ -53,6 +53,50 @@ Uppy/IndexedDB resume and browser-closed/API-restarted publication pass on a
 synthetic 17 MiB fixture. That is not full app/feature-film/player assurance,
 distributed HLS locking, orphan cleanup or model-diverse convergence; keep off.
 
+### 2026-11-03: A public domain bookmark can relocate without moving private authority
+
+D97's final integration0932d6643940 passes actual browser login/TXT verification,
+one domain-only reader follow, old API/TLS shutdown, retarget/new verification
+and reload at desktop/375px. Old private access is explicitly granted/read200,
+while new-target private access is403; five held-real-response generation seams
+and cookie-free DNS/alias/public reads pass. All source/input/config-history,
+10 screenshots and cleanup receipts pass fresh bounded review. Keep the two
+failed matrices, earlier working-tree success and default-IAM compatibility run
+separate. A DNS-controlled public destination is not cryptographic identity
+continuity: theft/sale/expiry can redirect it, never inherit private roles.
+Lab allowlists, HTTP JSON bridge/TTL0, browser test-certificate bypass and API
+grant fixtures do not prove production social integration, public DNS/TLS,
+consent, availability or full/diverse security. Components land in bounded PRs;
+the capture's provisional D96 label becomes D97 without runtime change.
+
+### 2026-11-03: Requested Docker port bindings are not observed reachability
+
+The D97 lab requested loopback ports, but an internal-only Docker bridge left
+NetworkSettings.Ports empty despite HostConfig.PortBindings being present.
+An owned Alpine probe reproduces that distinction. Attach only TLS/DNS
+frontends to a second browser bridge; APIs/databases/storage remain internal.
+Docker can also assign another random host port on restart: refresh the mapping
+and preserve per-case configuration history instead of assuming the old port.
+Neither startup nor intended configuration proves reachability. DNS parity tests
+compare exact RRset multisets, not unspecified wire order. Four real loopback
+DNS/control tests pin shared TXT/JSON state and denied secret/path/target cases;
+the default runner retains its IAM/issuer assertions and no published ports.
+
+### 2026-11-03: Domain-follow discovery must not carry home authority
+
+D97's research client stores a domain-only private app bookmark; DNS selects
+only a configured public destination. Reader tokens stay at a fixed home, and
+public DNS/alias/post requests omit cookies and credentials and reject redirects.
+Fresh bounded review reproduced an existing-follow await-continuation gap;
+a second control reproduces a post-resolve request issued after invalidation.
+Both tests fail before generation rechecks and pass after them. All 22 Node
+controls pass. A ticket must capture an irreversible generation, not a boolean
+that a later login can revive. An already-issued home write cannot be recalled;
+its stale completion rejects. Domain sale/theft/expiry can change a public
+subscription destination, never inherit the old account's private grants.
+Connected prototype/runner components and broader/diverse review remain separate
+gates; this does not change web10-social's existing follows or implement Shadowguard.
+
 ### 2026-11-03: Expiry stops new upload work, not observation of an existing result
 
 [R1 session evidence](scans/2026-11/upload-session-r1.md) uses private S3

@@ -1,0 +1,11 @@
+@import url('/style.css');
+.brand img { width: 144px; height: auto; border-radius: unset; }
+nav { min-height: 44px; display: flex; align-items: center; gap: 12px; }
+main > .panel { margin-block: 24px; }
+pre, code { overflow-wrap: anywhere; white-space: pre-wrap; font-family: var(--font-sans); }
+select { width: 100%; padding: 12px; background: var(--color-elevated); color: var(--color-foreground); border: 1px solid var(--color-border); border-radius: var(--radius-sm); font: inherit; min-height: 44px; }
+select:focus-visible { outline: 2px solid var(--color-ring); outline-offset: 2px; }
+#feed { min-height: 240px; }
+#identity, #bookmark { overflow-wrap: anywhere; }
+#verified { min-height: 48px; color: var(--color-success); }
+.columns { margin-top: 24px; }

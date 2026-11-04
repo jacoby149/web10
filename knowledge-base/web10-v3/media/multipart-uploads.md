@@ -65,7 +65,7 @@ Uppy resumes. Existing account/session/attempt invalidation rules still apply.
 The generic [deferred-create operation](deferred-creates.md) owns publication after
 browser close. Notification here means an in-app result on return, not OS push.
 
-## Local continuation evidence — 4.5.0
+## Local continuation evidence — 4.6.0
 
 Real Uppy/IndexedDB/browser → authenticated API → MinIO → ClickHouse → FFmpeg →
 deferred publication is exercised with a synthetic 17 MiB, two-second video.

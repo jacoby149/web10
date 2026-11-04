@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Your address. Your audience. | web10 research demo</title><link rel="stylesheet" href="demo.css"></head>
+<body><main>
+  <header><a class="brand" href="?view=reader"><img src="logo.png" alt="web10"></a><nav aria-label="Demo view"><a id="reader-link" href="?view=reader">Reader</a> · <a id="creator-link" href="?view=creator">Creator</a></nav></header>
+  <p class="muted">ISOLATED RESEARCH DEMO · SYNTHETIC ACCOUNTS</p><h1>Your address. Your audience.</h1>
+  <p class="muted">Follow the website. The account behind it can change.</p>
+  <section class="panel"><label for="domain">Creator website</label><input id="domain" autocomplete="off" spellcheck="false"><p id="identity" class="muted"></p></section>
+  <p id="status" class="status" role="status" aria-live="polite" data-state="loading">Loading the local demo…</p>
+  <div class="columns">
+    <section class="panel"><h2 id="login-title">Sign in to your reader account</h2>
+      <label id="account-label" for="account" hidden>Creator account</label><select id="account" hidden><option value="a">Original account · node A</option><option value="b">New account · node B</option></select>
+      <form id="login"><label for="username">Username</label><input id="username" autocomplete="username" required>
+        <label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required>
+        <button id="signin">Sign in</button></form>
+      <p id="signed-in" hidden></p><button id="signout" class="secondary" hidden>Sign out</button>
+      <div id="reader-actions" class="stack" hidden><button id="follow">Follow website</button><button id="refresh" class="secondary">Refresh public feed</button><p id="bookmark" class="muted"></p></div>
+      <div id="creator-actions" class="stack" hidden><h3>Publish this TXT at your DNS provider</h3><p class="muted">Name: web10 · The local fixture uses TTL 0; public DNS propagation is not measured.</p><pre id="txt"></pre><button id="copy" class="secondary">Copy TXT value</button><button id="verify">Verify domain on this account</button><p id="verified" role="status"></p></div>
+    </section>
+    <section class="panel"><h2 id="content-title">Public posts</h2><div id="feed" class="stack"><p class="muted">Sign in, then follow the website. Your subscription stays in your own web10 data.</p></div></section>
+  </div>
+  <footer>Local DNS and fixture app grants. No production account changes. DNS locates a public account; it never transfers private permissions. Domain ownership, the resolver and the new provider must remain available.</footer>
+</main><script type="module" src="view.mjs"></script></body></html>

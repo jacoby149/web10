@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { Link, MemoryRouter, Route, Routes } from 'react-router-dom';
 import '@testing-library/jest-dom';
 import { MusicProvider, useMusic, type MusicContextValue, type MusicTrack } from '@/context/MusicContext';
@@ -28,6 +28,85 @@ beforeEach(() => { MockAudio.instances = []; vi.stubGlobal('Audio', MockAudio); 
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe('persistent music playback', () => {
+  it('uses caption titles consistently in the mini-player and Media Session', () => {
+    const session = { setActionHandler: vi.fn(), playbackState: 'none', metadata: null as MediaMetadata | null };
+    Object.defineProperty(navigator, 'mediaSession', { configurable: true, value: session });
+    vi.stubGlobal('MediaMetadata', class { constructor(public metadata: MediaMetadataInit) { Object.assign(this, metadata); } });
+    try {
+      render(tree());
+      act(() => music.select({ ...tracks[0], post: { ...tracks[0].post, title: undefined, text: 'Hello! I am Century Club Music' } }));
+      expect(screen.getByLabelText('Open player: Hello! I am Century Club Music')).toBeInTheDocument();
+      expect(screen.queryByText('Untitled track')).not.toBeInTheDocument();
+      expect(session.metadata?.title).toBe('Hello! I am Century Club Music');
+    } finally { cleanup(); Reflect.deleteProperty(navigator, 'mediaSession'); }
+  });
+
+  it('recovers a failed playing URL once through the original post and resumes its position', async () => {
+    render(tree());
+    await act(async () => music.play(tracks[1], tracks));
+    act(() => { audio().currentTime = 42; audio().dispatchEvent(new Event('timeupdate')); });
+    const refreshed = { ...tracks[1], media: { ...tracks[1].media, url: 'https://fresh/b' } };
+    vi.mocked(readMusicTrack).mockResolvedValueOnce(refreshed);
+    await act(async () => audio().dispatchEvent(new Event('error')));
+    await waitFor(() => expect(readMusicTrack).toHaveBeenCalledWith('b'));
+    expect(audio().src).toBe('https://fresh/b');
+    act(() => audio().dispatchEvent(new Event('loadedmetadata')));
+    expect(audio().currentTime).toBe(42);
+    expect(music.isPlaying).toBe(true);
+    act(() => audio().dispatchEvent(new Event('error')));
+    expect(screen.getByRole('alert')).toHaveTextContent('could not be loaded');
+    expect(readMusicTrack).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps failed automatic recovery visible and ignores completion after a new selection', async () => {
+    render(tree());
+    await act(async () => music.play(tracks[0], tracks));
+    vi.mocked(readMusicTrack).mockRejectedValueOnce(new Error('unavailable'));
+    await act(async () => audio().dispatchEvent(new Event('error')));
+    expect(screen.getByRole('alert')).toHaveTextContent('could not be refreshed');
+    expect(music.isPlaying).toBe(false);
+    await act(async () => music.play(tracks[1], tracks));
+    let resolve!: (track: MusicTrack) => void;
+    vi.mocked(readMusicTrack).mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+    act(() => audio().dispatchEvent(new Event('error')));
+    act(() => music.select(tracks[2]));
+    await act(async () => resolve(tracks[0]));
+    expect(music.current).toBe(tracks[2]);
+    expect(audio().src).toBe(tracks[2].media.url);
+    expect(music.isPlaying).toBe(false);
+  });
+
+  it('does not autoplay a preload failure and refreshes when the listener presses play', async () => {
+    render(tree());
+    act(() => music.select(tracks[0]));
+    act(() => audio().dispatchEvent(new Event('error')));
+    expect(readMusicTrack).not.toHaveBeenCalled();
+    expect(audio().play).not.toHaveBeenCalled();
+    await act(async () => fireEvent.click(screen.getByLabelText('Play music')));
+    expect(readMusicTrack).toHaveBeenCalledWith('a');
+    expect(music.isPlaying).toBe(true);
+  });
+
+  it('cancels automatic recovery on pause or session replacement', async () => {
+    const view = render(tree());
+    await act(async () => music.play(tracks[0], tracks));
+    let resolve!: (track: MusicTrack) => void;
+    vi.mocked(readMusicTrack).mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+    act(() => audio().dispatchEvent(new Event('error')));
+    act(() => music.toggle());
+    await act(async () => resolve(tracks[0]));
+    expect(music.current).toBe(tracks[0]);
+    expect(music.isPlaying).toBe(false);
+    expect(audio().src).toBe(tracks[0].media.url);
+    await act(async () => music.play(tracks[1], tracks));
+    vi.mocked(readMusicTrack).mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+    act(() => audio().dispatchEvent(new Event('error')));
+    view.rerender(tree('replacement'));
+    await act(async () => resolve(tracks[1]));
+    expect(music.current).toBeNull();
+    expect(audio().src).toBe('');
+  });
+
   it('selects without autoplay, plays via real events, seeks and sets volume', async () => {
     render(tree());
     act(() => music.select(tracks[0], tracks));
@@ -223,6 +302,8 @@ describe('persistent music playback', () => {
     render(tree());
     await act(async () => music.play(tracks[0], [tracks[0], tracks[1], tracks[0], tracks[2]]));
     await act(async () => music.playQueue(2));
+    // Exhaust the automatic recovery before exercising the explicit retry fork.
+    await act(async () => audio().dispatchEvent(new Event('error')));
     act(() => audio().dispatchEvent(new Event('error')));
     const refreshed = { ...tracks[0], media: { ...tracks[0].media, url: 'https://fresh/audio' } };
     vi.mocked(readMusicTrack).mockResolvedValueOnce(refreshed);

@@ -1,5 +1,6 @@
 """Fault injection for runner cleanup only; never a simulated IAM result."""
 
+import json
 import runpy
 import subprocess
 import unittest
@@ -9,10 +10,12 @@ from unittest.mock import patch
 
 class CleanupTests(unittest.TestCase):
     def test_diagnostic_failure_still_tears_down_and_exits_failed(self):
-        calls = []
+        calls, configs = [], []
 
         def fake_run(command, **kwargs):
             calls.append(command)
+            if "up" in command and "-f" in command:
+                configs.append(json.loads(Path(command[command.index("-f") + 1]).read_text()))
             output = ""
             if command[:3] == ["docker", "context", "inspect"]:
                 output = "unix:///synthetic-unit-test.sock"
@@ -33,6 +36,13 @@ class CleanupTests(unittest.TestCase):
                 runpy.run_path(str(Path(__file__).with_name("run.py")), run_name="__main__")
         self.assertTrue(any("down" in call for call in calls))
         self.assertTrue(any(call[-2:] == ["image", "rm"] or "rm" in call for call in calls))
+        self.assertTrue(any(call[-1] == "/demo/scenario.py" for call in calls))
+        self.assertTrue(any(call[-1] == "/tmp/certify.log" for call in calls))
+        for config in configs:
+            self.assertEqual(set(config["networks"]), {"lab"})
+            self.assertTrue(config["networks"]["lab"]["internal"])
+            self.assertNotIn("domain-dns", config["services"])
+            self.assertTrue(all(not service.get("ports") for service in config["services"].values()))
 
 
 if __name__ == "__main__":
