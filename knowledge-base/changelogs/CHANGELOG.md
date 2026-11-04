@@ -5,6 +5,8 @@ Disposable real Chromium/Uppy/IndexedDB → authenticated routes → MinIO/Click
 
 Merge follow-up: retain incoming dev music/domain-portability/research work and release/security history unchanged. Renumber only this branch's feature release to 4.6.0 and deferred-publication decision to D98 above dev's 4.5.5/D97. Earlier local counts and disposable receipts predate this merge; post-merge tests and normal PR checks remain separate gates.
 
+Post-merge verification: all 2,019 API tests plus eight subtests pass (one opt-in skip), all 1,837 social tests pass, production typecheck/build and API Ruff lint pass. The real-storage/browser receipts remain pinned to the earlier local implementation; this merge does not claim another connected capture or close the method/release gates.
+
 4.5.5 || 04.11.2026
 docs(research): lower the paper's centered page numbers by 36 TeX points (approximately half an inch), reducing the space below the numerals to approximately half an inch. Change only footer separation; rebuild the 12-page PDF and verify every non-footer text item retains its content and coordinates, all folios remain centered/in bounds, and pagination is unchanged. Inspect first/last-page renderings. This is an operator-requested footer customization, not a change to ACM text-block margins, font sizes, content or evaluation.
 
