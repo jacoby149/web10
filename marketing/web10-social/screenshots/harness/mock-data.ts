@@ -349,13 +349,14 @@ export async function countComments(postId?: string): Promise<number> {
   return 0;
 }
 export async function toggleReaction(): Promise<unknown> { return {}; }
-export async function readReactions(postId?: string): Promise<unknown[]> {
-  // The profile's feed view seeds likes (incl. the reader's own — the filled
-  // heart) for its first two posts; other ids (feed/discover) stay empty.
-  if (postId === 'pp-1') {
+export async function readReactions(serviceOrPostId?: string, targetId?: string): Promise<unknown[]> {
+  const postId = targetId ?? serviceOrPostId;
+  // Own-profile and visitor-profile fixtures include the reader's existing
+  // like so the real lightbox can be captured with a filled heart.
+  if (postId === 'pp-1' || postId === 'dp-1') {
     return [
-      { _id: 'pr-1', type: 'like', author_username: 'alina', author_provider: 'web10', target_service: 'posts', target_id: 'pp-1', created_at: minsAgo(30) },
-      { _id: 'pr-2', type: 'like', author_username: 'me', author_provider: 'web10', target_service: 'posts', target_id: 'pp-1', created_at: minsAgo(20) },
+      { _id: 'pr-1', type: 'like', author_username: 'alina', author_provider: 'web10', target_service: 'posts', target_id: postId, created_at: minsAgo(30) },
+      { _id: 'pr-2', type: 'like', author_username: 'me', author_provider: 'web10', target_service: 'posts', target_id: postId, created_at: minsAgo(20) },
     ];
   }
   if (postId === 'pp-2') {
@@ -1380,7 +1381,21 @@ export async function readShortsFeed(): Promise<{ post: unknown; media: unknown 
       (m) => (m.mime_type as string)?.startsWith('video/') && m.width && m.height && m.width < m.height,
     );
     if (vertical.length === 1 && p.media_refs.length === 1) {
-      shorts.push({ post: p, media: vertical[0] });
+      const named = new URLSearchParams(window.location.search).get('short-author-names') === '1';
+      const post = !named ? p : p._id === 'dp-2' ? {
+        ...p, author_key: 'web10/groups/users/me/new-group-5', author_username: 'new-group-5',
+        group_identity: { name: 'Century Club Movies' },
+      } : { ...p, profile: { display_name: p.author_username === 'luna' ? 'Luna Rivera' : 'Kai Morgan' } };
+      const description = p._id === 'dp-2' && new URLSearchParams(window.location.search).get('short-description-preview') === '1';
+      shorts.push({ post: description ? { ...post, title: 'A night at the movies', text: [
+        'A **classic film**, a room full of friends, and no algorithm between us.',
+        '## Tonight at Century Club',
+        'Join us for a restored silent classic and a conversation about the people who made it. The short is only the invitation — the full story belongs here.',
+        '- Bring a friend\n- Stay for the discussion\n- [Visit the movie club](https://example.com/movies)',
+        '> Great films deserve more than a ten-second caption.',
+        'Find the schedule, screening notes and our next watch party at https://example.com/schedule. This is a synthetic screenshot fixture, not a live event.',
+        'We will talk about the photography, the score and the scenes that stay with you long after the credits. Everyone is welcome, whether you have seen the film a dozen times or are discovering it tonight.',
+      ].join('\n\n') } : post, media: vertical[0] });
     }
   }
   return shorts;

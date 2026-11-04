@@ -157,6 +157,56 @@ describe('ShortsScreen — the vertical short-form feed (shorts.md)', () => {
     HTMLElement.prototype.scrollIntoView = vi.fn();
   });
 
+  it.each([
+    ['lens', 'group'], ['wall', 'group'], ['lens', 'person'], ['wall', 'person'],
+  ])('shows the readable %s author name for a %s, not its raw handle', async (surface, kind) => {
+    const item = shortPost({ id: 's1', author: kind === 'group' ? 'new-group-5' : 'jacoby149' });
+    const group = 'node.test/groups/users/owner/new-group-5';
+    const named = {
+      ...item,
+      post: { ...item.post, author_key: kind === 'group' ? group : 'jacoby149',
+        group_identity: kind === 'group' ? { name: 'Century Club Movies' } : undefined,
+        profile: { display_name: kind === 'group' ? 'Uploader Name' : 'Jacob Hoffman' },
+      },
+    };
+    vi.mocked(data.readShortsFeed).mockResolvedValue([named]);
+    vi.mocked(data.readShortsPage).mockResolvedValue({ shorts: [named], hasMore: false });
+    await renderShorts([surface === 'wall' ? '/shorts' : '/shorts/s1']);
+    const name = kind === 'group' ? 'Century Club Movies' : 'Jacob Hoffman';
+    await waitFor(() => expect(screen.getByText(name)).toBeInTheDocument());
+    expect(screen.queryByText('@new-group-5')).not.toBeInTheDocument();
+    expect(screen.queryByText('Uploader Name')).not.toBeInTheDocument();
+    if (surface === 'lens') {
+      expect(screen.getByRole('link', { name })).toHaveAttribute('href',
+        kind === 'group' ? `/groups/${encodeURIComponent(group)}` : '/u/jacoby149');
+    } else {
+      expect(screen.getByRole('button', { name: `Watch short by ${name}` })).toBeInTheDocument();
+    }
+  });
+
+  it.each(['wall', 'lens'])('searches readable author names on the %s', async (surface) => {
+    const item = shortPost({ id: 's1', author: 'new-group-5', text: 'A classic film' });
+    const named = { ...item, post: { ...item.post,
+      author_key: 'node.test/groups/users/owner/new-group-5', group_identity: { name: 'Century Club Movies' },
+    } };
+    vi.mocked(data.readShortsFeed).mockResolvedValue([named]);
+    vi.mocked(data.readShortsPage).mockResolvedValue({ shorts: [named], hasMore: false });
+    await renderShorts([`${surface === 'wall' ? '/shorts' : '/shorts/s1'}?q=Century`]);
+    await waitFor(() => expect(screen.getByText('Century Club Movies')).toBeInTheDocument());
+  });
+
+  it('falls back to personal handles and group slugs without inventing an @group user', async () => {
+    const person = shortPost({ id: 's1', author: 'luna' });
+    const group = shortPost({ id: 's2', author: 'new-group-5' });
+    vi.mocked(data.readShortsFeed).mockResolvedValue([
+      person, { ...group, post: { ...group.post, author_key: 'node.test/groups/users/owner/new-group-5' } },
+    ]);
+    await renderShorts();
+    await waitFor(() => expect(screen.getByText('@luna')).toBeInTheDocument());
+    expect(screen.getByText('new-group-5')).toBeInTheDocument();
+    expect(screen.queryByText('@new-group-5')).not.toBeInTheDocument();
+  });
+
   it('renders one snap slide per short, the video filling the slide', async () => {
     (data.readShortsFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
       shortPost({ id: 's1', author: 'luna', text: 'first' }),

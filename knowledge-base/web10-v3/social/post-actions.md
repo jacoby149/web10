@@ -96,6 +96,12 @@ Groups:    <PostCard … groups={[groupId]} />  (the reference card; the wrapper
 
 ## The like/dislike invariant (one reaction per user)
 
+The profile lightbox loads engagement once per post/group scope, reader and
+acting identity, not once per render or decoded-token object. An equivalent
+fresh token decode must not clear a filled heart or repeat the reads. An initial
+read must not overwrite a newer local reaction; late reads and failed writes
+from a previous post/identity must not alter the current post's state.
+
 This is the part that is *not* free, and it's why the logic lives in the data layer, not the component.
 
 The data model already allows it: `ReactionRecord.type` is a free-form string (`types.ts`), and `toggleReaction(targetId, type, …)` accepts any type — `'dislike'` works today with zero node changes. But `toggleReaction` only toggles *one* type: it adds or removes the type you pass, and says nothing about the other. So a user could end up with both a like and a dislike on the same post, and the counts would double-count them.
