@@ -600,7 +600,11 @@ When a user's feed spans nodes, the \emph{client} makes the cross-node calls.
 It holds the user's home-node token, groups the user's following set by
 provider, and queries only the distinct nodes the user follows people on---
 targeted, not broadcast. Each node returns its own access-gated result set;
-the client performs a ranked merge. This model avoids a server-side content
+the client performs a ranked merge. Figure~\ref{fig:feed} draws this path for
+one read: node B authenticates the home-node token over the issuer's
+\texttt{/certify} (one cached answer per token) and then runs the same access
+check node A runs on local reads---contracts and membership, against B's own
+store. This model avoids a server-side content
 proxy and the additional credentials and content-cache policies it would
 require. Feed composition remains an application concern rather than a
 node-specific endpoint---a deliberate cost of keeping the node generic, and
@@ -926,11 +930,13 @@ delivery as well.
 \begin{figure}[t]
   \centering
   \includegraphics[width=\columnwidth]{figs/fig-feed.png}
-  \caption{The web10 feed. The reader chooses the ranking (Most Recent / Most
-  Liked / Most Commented / Balanced) and filters (tags); each is a different
-  application query over the same columnar store. The main query uses
-  reader-specific service boundaries; engagement and view metrics use
-  follow-up calls.}
+  \caption{Pulling the web10 feed across nodes. The reader issues reads with
+  its home-node token; when a read lands on foreign node B, B authenticates
+  the token over the issuer's HTTPS \texttt{/certify}---one cached answer per
+  token, never a grant---and then runs the same access check node A runs on
+  local reads: contracts and membership against its own store, on every read.
+  One node implementation, two sovereign stores; remote data is content, never
+  control (\S\ref{sec:network}).}
   \label{fig:feed}
 \end{figure}
 
