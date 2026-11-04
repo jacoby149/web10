@@ -15,6 +15,7 @@ The document is the status surface: `transcoding_settings.status` goes
 """
 
 import logging
+import math
 import queue
 import shutil
 import subprocess
@@ -183,10 +184,20 @@ def _thumbnail_dims(src_w: int, src_h: int, box_w: int = 640, box_h: int = 360) 
     return max(2, int(src_w * scale // 2) * 2), max(2, int(src_h * scale // 2) * 2)
 
 
-def _run_ffmpeg(args: list[str], label: str) -> None:
+def _ffmpeg_budget(duration_seconds: float | None = None) -> int:
+    """Twice source duration, ten-minute floor, operator ceiling always wins."""
+    duration = duration_seconds or 0
+    if not math.isfinite(duration) or duration < 0:
+        raise ValueError("invalid source duration for transcode budget")
+    ceiling = max(1, settings.HLS_FFMPEG_TIMEOUT)
+    return min(ceiling, max(600, math.ceil(min(duration, ceiling) * 2)))
+
+
+def _run_ffmpeg(args: list[str], label: str, duration_seconds: float | None = None) -> None:
     cmd = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", *args]
-    logger.info("[transcode] ffmpeg %s — %s", label, " ".join(cmd))
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=settings.HLS_FFMPEG_TIMEOUT)
+    timeout = _ffmpeg_budget(duration_seconds)
+    logger.info("[transcode] ffmpeg %s — timeout=%ss — %s", label, timeout, " ".join(cmd))
+    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
     if proc.returncode != 0:
         raise RuntimeError(f"ffmpeg {label} failed (rc={proc.returncode}): {proc.stderr[-2000:]}")
 
@@ -319,6 +330,7 @@ def _process_job(doc_id: str, author_key: str) -> None:
                     str(out_dir / "index.m3u8"),
                 ],
                 label=f"rendition {tag}",
+                duration_seconds=duration,
             )
             files = sorted(out_dir.iterdir())
             logger.info("[transcode] rendition %s — %s files, uploading to %s/", tag, len(files), f"{prefix}/{tag}")

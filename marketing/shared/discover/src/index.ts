@@ -12,7 +12,7 @@ export { HoverVideo, __dwellState, __resetDwellForTests, type HoverVideoProps } 
 export { PersonCard, PersonCardSkeleton, type PersonCardProps, type DiscoverPerson } from './PersonCard';
 export { GroupCard, GroupCardSkeleton, JoinPolicyBadge, type GroupCardProps, type DiscoverGroup, type DiscoverGroupFace, type GroupJoinState } from './GroupCard';
 export { VideoPlayer, sourceFromMedia, ImmersiveHls, InlineVideo, type VideoSource, type VideoPlayerProps } from './VideoPlayer';
-export { HlsVideoPlayer } from './HlsVideoPlayer';
+export { HlsVideoPlayer, HlsRenewalContext } from './HlsVideoPlayer';
 export { MediaCarousel, type MediaCarouselProps } from './MediaCarousel';
 export { PostActions, type PostActionsProps, type PostActionMode, type ReactionKind } from './PostActions';
 export { Top10Sidebar, type Top10SidebarProps, type Top10SidebarEntry } from './Top10Sidebar';

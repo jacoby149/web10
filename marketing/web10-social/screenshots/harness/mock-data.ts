@@ -407,6 +407,13 @@ export async function getReactionCounts(): Promise<unknown> { return {}; }
 export function getV3Client(): unknown {
   return {
     readToken: () => ({ provider: 'web10', username: 'nova' }),
+    query: async (_sql: string, options?: { prepare?: { face?: unknown } }) => ({
+      rows: options?.prepare?.face ? [...new Set(DISCOVER_POSTS.map((p) => p.author_username))].map((username) => ({
+        author_key: username,
+        avatar_url: FACE_MEDIA['face-avatar'].url,
+      })) : [],
+      count: 0,
+    }),
     read: async (collection: string) => {
       const docs: unknown[] = [];
       for (const p of DISCOVER_POSTS) {
@@ -468,6 +475,7 @@ export function getV3Client(): unknown {
   };
 }
 export function getDiscoverGroupId(): string { return 'web10/groups/web10/discover'; }
+export function followersGroupId(username: string, provider = 'web10'): string { return `${provider}/groups/users/${username}/followers`; }
 export async function listFollowers(): Promise<unknown[]> { return []; }
 export function mapRawDiscoveryPost(): unknown { return null; }
 export async function markInboxRead(): Promise<void> {}

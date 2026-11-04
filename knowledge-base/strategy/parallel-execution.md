@@ -45,6 +45,12 @@ says what can happen **at the same time**.
 
 ## Lanes
 
+### Lane: movie-release-promotion
+
+**Owns:** release ancestry and serialized promotion records only; no application/configuration changes.
+- [✓ 4.6.4 ancestry only] Reconcile main history for the movie-release promotion: prior main equals an already-contained dev tree, and the ancestry merge preserves current dev exactly before release documentation. Operator explicitly authorizes the historical #1381 method-size failure only.
+- [ ] Complete promotion #1382 using a merge commit, watch all functional/deployment/image-publication checks and verify production public endpoints/version. No multipart activation or film publication; broader security/real-film/Safari gates remain separate.
+
 ### Lane: resumable-upload-backend (this workspace)
 
 **Owns:** new `api/app/services/upload_sessions.py`, focused upload-session tests
@@ -59,6 +65,7 @@ No shared router, SDK, deployment, auth or existing media-service edits in R1.
 ### Lane: discover-group-presentation
 
 **Owns:** social Discover avatar/Top 10 mappings and focused tests, shared Top10Sidebar labeling, marketing FeedPreview/Trending attribution and focused tests, seeded capture fixtures and serialized KB records.
+- [✓ 4.6.2 local] **Discover old-post profile pictures** - current personal avatars resolve independently of post media through shared face SQL/prepare. Four red→green route controls plus missing/failed-face cases, all 1,843 social tests/build and seeded desktop/375px Posts/Video inspection pass. Existing posts show the current readable face without attaching that photo; prepared group faces/access policy unchanged. Public production avatar GET returns 200. No production writes/deployment; connected deployed-browser acceptance remains open.
 - [✓ 3.257.5 local] **Discover group author presentation** - preserve prepared social group faces, hydrate marketing feed/search public faces through the existing resolver, use group author links and resolved rail names, and label the unchanged interaction tally. Gates: exact group-ID batching and missing/denied/failed-face fallback, ordinary-user preservation, focused/full tests, both builds and desktop/375px screenshot inspection. Acceptance met locally: 1,681 social and 302 marketing tests pass; both builds pass. Screenshots in `.context/discover-group-*` and `.context/marketing-trending-groups-*`. No API/auth change or production/deployment claim.
 
 ### Lane: social-test-stability
@@ -110,6 +117,10 @@ acting-identity, social/paint-on-read, UI and marketing lanes. Never assign all 
 `api/`, SDK and frontends to one optimization PR. No runtime work in this audit.
 
 - [✓ 3.254.3 local] **Batching source audit and plan** - B01-B09/C01-C14 evidence, source-derived call budgets, sub-bites, dependencies, negative controls and exclusions recorded; existing batched paths and paint-on-read overlap distinguished. No measured speedup claim.
+- [✓ 4.6.1 local] **C10a: restore People progressive loading** - social `data/people.ts`, `DiscoverExploreTab.tsx` and focused tests. Held-request failure reproduced before repair: directory cards now paint before enrichment, faces do not wait for mutuals, follow actions wait for known follow state, late snapshots preserve actions/pages and unmounted requests are ignored. Hidden browsers start on first visit; settled helper callers retain their contract. First-snapshot/settled request budgets pinned at 1/10/100 people, no mutual batching. Seeded desktop/375px inspection passes; no API/security-policy changes, deployment or production latency claim.
+- [ ] **C10b: batch People graph-list profile text** - reserve social `data/people.ts` follower/following helpers and focused tests. Gates: existing readable-group query/face semantics, current membership visibility and account lifecycle; no new node API. Acceptance: batch latest profile text and reuse equivalent list counts without per-person profile reads, retain missing/denied fallbacks and human follow state; pin request budgets at 1/10/100 and keep connected latency evidence separate. C10c's mutual enumeration/pagination design remains independent.
+
+  C10a whole-tab follow-up (4.6.1 local): My Groups now paints membership rows before optional faces and patches each independently. The directory already paints its base independently. Held-face regression reproduced before repair; no live Groups latency claim.
 - [ ] **B01a: readable-set scalar/batch equivalence and command budgets** - task/gates in `batching-performance.md` B01 and common gates. Reserve `api/app/v3/services/clickhouse.py` policy helpers plus focused API tests; request-local only, no production promotion yet. Acceptance: allowed/denied/revoked/tombstoned/reserved-class/service/wildcard/order cases equivalent, K1 tradeoff measured, DB call ceilings pinned at K1/10/100/1000. Follow security method; <=500 code/test lines per PR.
 - [ ] **B02a/B03a: main-document media batching and face dedupe** - separate claims/PRs, B02/B03 in plan; reserve resolver versus query-prepare functions, serialize common helper edits. Acceptance: owner/ref tuple isolation, foreign-key denial/stale suppression, bounded metadata queries, output equivalence.
 - [ ] **C01a: acting-identity authority read single-flight** - reserve social `data/mutationAuthority.ts` and focused tests, coordinate acting-identity lane. Acceptance: one concurrent raw group read per credential/group, separate service grants, fresh focus/retry/token-change behavior, no persistent permission cache or removed server gate.
@@ -449,6 +460,7 @@ P2P stays v4 — do not build it here.
 
 - [✓ 4.2.1 local] **Feature-film attachment cap** - allow video durations through 10,800 seconds (three hours), keep 500 MiB and derive rejection copy from the cap. Six reproduced failures repaired; all 1,768 social tests and production build/typecheck pass. Synthetic 91:54 and over-cap MP4 desktop/375px browser attachments inspected. No server/player changes, deployment or resumable uploads; connected gates remain open.
 - [ ] **Feature-film connected acceptance** - after rollout, attach/upload/transcode Nosferatu 91:54 as one Century Club Movies post; verify planned renditions, seeking and playback past the ten-minute HLS signature lifetime, plus existing Steamboat Willie playback. Gates: deployed cap and group-media carrier repair, real source file and operator approval before production publication. Owns: `marketing/web10-social/`; backend changes require a separate lane. Acceptance: record upload/worker timings and actual playback evidence, with any failures explicit.
+  - [✓ 4.6.3 local movie reliability] Coordinated shared HLS/context/carousel and social Feed/PostMediaRenewal, FeedScreen, PostLightbox and Watch wiring; exact carrier/video renewal and delayed session/pause/speed/seek guards. Separate media-lane transcode/settings hunk adds bounded duration-aware budgets. All 2,030 API tests plus eight subtests (one skip), 1,857 social/284 marketing tests/builds and desktop/375px single/carousel synthetic signed-HLS browser renewal pass. Local MinIO POST-expiry distinction pinned. Operator defers actual film; production/node/Safari/excluded surfaces, diverse review, CI/PR splitting and rollout remain open. Record: `security/scans/2026-11/watch-hls-renewal.md`.
 
 The social app is the integration test (Phase 3). It ran on two legacy
 seams — `web10-npm@1.0.8` (v1 auth) and the hand-rolled `src/data/v3.ts`

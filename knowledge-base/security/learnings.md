@@ -35,6 +35,18 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-03: Stream renewal must preserve authority and delayed user intent
+
+The [social renewal slice](scans/2026-11/watch-hls-renewal.md) re-reads the original
+carrier and exact media under current authority; decoding a stream expiry only
+schedules that read, never extends a grant. Source/session validity must survive
+until delayed metadata restoration, not just the request return. A fresh
+same-family review reproduces stale-session autoplay, overridden native pause,
+overwritten speed/seek intent and a carousel routing gap; regressions pin repairs.
+Feed/group/repost/lightbox/watch providers keep exact carrier scope. Real Chromium with
+synthetic six-second signed HTTP HLS proves repeated renewal and expired denial,
+not actual node grants, Safari continuity, film acceptance or diverse convergence.
+
 ### 2026-11-03: Durable publication must also preserve claims, versions and prerequisites
 
 [R2–R5 continuation](scans/2026-11/resumable-r2-r5.md) found that a durable queue

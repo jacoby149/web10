@@ -170,6 +170,44 @@ beforeEach(() => {
 });
 
 describe('WatchScreen (the watch page)', () => {
+  it.each(['fresh', 'removed', 'session-changed'])('renews only the original readable carrier/media: %s', async (outcome) => {
+    const listeners = new Map<string, (event: string, data: unknown) => void>();
+    const loadSource = vi.fn();
+    class RenewalHls {
+      static isSupported = () => true;
+      static Events = { MANIFEST_PARSED: 'manifestParsed', LEVEL_SWITCHED: 'levelSwitched', ERROR: 'error' };
+      loadSource = loadSource;
+      attachMedia = vi.fn();
+      destroy = vi.fn();
+      startLoad = vi.fn();
+      on = (event: string, fn: (event: string, data: unknown) => void) => listeners.set(event, fn);
+    }
+    window.Hls = RenewalHls as never;
+    const media = { ...CURRENT.body.media_refs[0], transcoding_settings: { status: 'done', manifest_url: '/manifest?doc_id=m-cur&sig=old' } };
+    const post = { ...data.fromV3DocToPost(CURRENT as never), media_refs: [media] };
+    vi.mocked(data.readPostById).mockResolvedValue(post as never);
+    const view = await renderWatch();
+    try {
+      await screen.findByTestId('hls-video');
+      let resolve!: (post: unknown) => void;
+      vi.mocked(data.readPostById).mockImplementationOnce(() => new Promise((r) => { resolve = r as never; }));
+      fireEvent.timeUpdate(screen.getByTestId('hls-video'));
+      listeners.get('error')?.('error', { fatal: false, response: { code: 403 } });
+      await waitFor(() => expect(data.readPostById).toHaveBeenLastCalledWith('post-cur'));
+      if (outcome === 'session-changed') window.dispatchEvent(new Event('upload-session-changed'));
+      resolve({ ...post, media_refs: [{ ...media, doc_id: outcome === 'removed' ? 'replacement' : 'm-cur', transcoding_settings: { status: 'done', manifest_url: '/fresh' } }] });
+      if (outcome === 'fresh') {
+        await waitFor(() => expect(loadSource).toHaveBeenLastCalledWith(expect.stringContaining('/fresh')));
+      } else {
+        await screen.findByTestId('hls-player-error');
+        expect(loadSource).not.toHaveBeenCalledWith(expect.stringContaining('/fresh'));
+      }
+    } finally {
+      view.unmount();
+      delete window.Hls;
+    }
+  });
+
   it('uses the group face and route without personal profile or follow operations', async () => {
     const groupId = 'test.localhost/groups/climbing-club';
     const post = {
