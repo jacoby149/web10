@@ -23,3 +23,13 @@ export function markdownToHtml(markdown: string): string {
   if (!markdown) return '';
   return md.render(markdown);
 }
+
+/** Plain teaser text for a button: keep link labels, never HTML or nested links. */
+export function markdownToPlainText(markdown: string): string {
+  const text = (tokens: ReturnType<typeof md.parse>): string => tokens.map((token) => {
+    if (token.children) return text(token.children);
+    if (['text', 'code_inline', 'code_block', 'fence'].includes(token.type)) return token.content;
+    return (token.block && token.nesting === -1) || token.type.endsWith('break') ? ' ' : '';
+  }).join('');
+  return text(md.parse(markdown, {})).replace(/\s+/g, ' ').trim();
+}

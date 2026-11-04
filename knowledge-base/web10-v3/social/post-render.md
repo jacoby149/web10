@@ -64,13 +64,12 @@ This kills the "showing it in multiple ways" question: it is not multiple
 |---|---|---|---|
 | **Teaser** | the at-a-glance tile / thumbnail. 1–2 lines. | the grid tile, the home card (video wall), the shorts tile, the repost embed, the share preview | the title (or first line) only — no markdown, no body |
 | **Summary** | the in-the-stream card. A few lines. | the feed card, the discover card, the profile feed | the title + **light markdown** (inline bold/italic/code/links/mentions), `line-clamp`'d |
-| **Full** | the read-it surface. The whole post. | the post lightbox, the watch page, the post permalink | the title + **full markdown** (headings, lists, code blocks, blockquotes, the `@` mentions) at a reading measure |
+| **Full** | the read-it surface. The whole post. | the post lightbox, the watch page, the post permalink, the expanded Shorts description | the title + **full markdown** (headings, lists, code blocks, blockquotes, the `@` mentions) at a reading measure |
 
-The **shorts lens** is the one exception to the clean mapping: it is a *full*
-surface (the detail of a short) but **video-first** — the 9:16 video *is* the
-content, and the markdown is an **overlay** (the caption over the video, the
-TikTok shape), not a reading column. The lens shows the full post; it just
-presents the body as an overlay because the video is the hero.
+The **shorts lens** is **video-first**: the 9:16 video is the hero, with a
+clamped plain-text caption overlay. Tapping the title/caption or More opens
+the full rich-text body in a scrollable description sheet, without replacing
+the video. The expanded state is `/shorts/:postId?description=1`.
 
 ## The render matrix
 
@@ -85,7 +84,7 @@ ad is a card, an inline ad is the title line); it is not a separate row.
 | **Home card** (video wall, 16:9) | teaser | *(not on the video wall — text-only posts don't render here)* | the first image, cover-cropped to 16:9 + the title | the thumbnail (16:9) + the title + the author attribution | *(portrait — stays out of the video wall, 3.182.0)* | the original's thumbnail |
 | **Feed card** (the Following feed) | summary | the author row + the title + the body (light markdown, clamped) | the author row + the title + the body (clamped) + the media grid | the author row + the title + the body (clamped) + the inline video | the author row + the title + the 9:16 video | the reposter's row + the comment + the **embedded original** (a compact card) |
 | **Discover card** (the Hot Gossip board) | summary | the rank badge + the title + the body (clamped) — a hot take is caption-only by default (D82) | the rank badge + the title + the body (clamped) + a thumbnail | the rank badge + the title + the body (clamped) + a thumbnail | the rank badge + the title + the body (clamped) | the rank badge + the title + the body (clamped) |
-| **Shorts tile / lens** | teaser / full | *(a short is a video — no text-only case)* | *(n/a)* | *(landscape — not a short)* | **tile:** the 9:16 poster + the caption overlay. **lens:** the full-screen video + the caption overlay + the author + the action rail | *(n/a — a repost is not a short)* |
+| **Shorts tile / lens** | teaser / full | *(a short is a video — no text-only case)* | *(n/a)* | *(landscape — not a short)* | **tile:** the 9:16 poster + the caption overlay. **lens:** the full-screen video + expandable caption + author + action rail; the description sheet renders the complete body through `PostBody` with safe links | *(n/a — a repost is not a short)* |
 | **Post lightbox** (click a tile / a card) | **full** | the **post-detail system** — identity row + the title + the body (full markdown, reading measure) + the stats row + the labeled actions + the `⋯` menu | the post-detail system + the media (the carousel) | the post-detail system + the video (the player) | the post-detail system + the 9:16 video (the square-capped frame) | the post-detail system + the embedded original |
 | **Watch page** (`/watch/:postId`) | **full** | *(a watch page is a video — no text-only case)* | *(n/a)* | the player + the title + the body (full markdown, the description) + the author row + the comments + the "What's next" queue | *(portrait → the shorts lens, not the watch page)* | the player + the title + the body + the embedded original |
 | **Post permalink** (`/u/:u/p/:id`) | **full** | the post-detail system (the standalone page) | the post-detail system + the media | the post-detail system + the video | the post-detail system + the 9:16 video | the post-detail system + the embedded original |
@@ -165,10 +164,9 @@ chrome around the shared layout:
 - **The permalink** — the standalone page. The shared layout as a page (the
   shareable URL, the surface the share preview points at).
 
-The **shorts lens** is the full density, video-first: the full-screen 9:16
-video + the caption overlay + the author + the action rail (the TikTok shape).
-It is the detail of a short; it just presents the body as an overlay because
-the video is the hero.
+The **shorts lens** keeps its full-screen video, author and action rail. Its
+caption is a teaser; the URL-backed description sheet is the full density,
+using the shared rich-text renderer for complete text and clickable links.
 
 ### The repost embed (the teaser of another post)
 

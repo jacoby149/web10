@@ -45,6 +45,22 @@ says what can happen **at the same time**.
 
 ## Lanes
 
+### Lane: shorts-description
+
+**Owns:** social Shorts lens/new description sheet, plain-text teaser helper, focused regressions, screenshot fixtures and serialized KB records. Retain the current branch's heart/author fixes.
+- [✓ 4.7.0 local] **Expandable Shorts description** - caption/title/More opens complete formatted content and safe links in a URL-backed sheet; canonical author/current stats, direct URL/back/forward/query preservation, dismissal/focus and contained scrolling covered by 15 regressions. All 1,912 social tests/build pass; synthetic desktop/375px Chromium exercises actual external-link popup, independent scrolling, preserved video and restored focus; screenshots inspected. Existing sanitized `PostBody` unchanged; empty/title-only/missing/failed-avatar states pinned. No new API/content writes, deployment or real-node acceptance.
+
+### Lane: shorts-author-names
+
+**Owns:** social Shorts wall/lens, Shorts personal-profile enrichment in `data/feed.ts`, a focused author-presentation helper, focused regressions, screenshot fixtures and serialized KB records.
+- [✓ 4.6.7 local] **Shorts author names** - readable group/personal labels shared by wall/lens, exact canonical author links, local displayed-name search and one optional batched personal profile/face query per page. Nine red controls before repair; 12 new controls and all 1,897 social tests/build pass; seeded wall/group-lens/personal-lens desktop/375px inspection passes. Optional face failures preserve playable shorts; group names never come from uploader profiles. No API policy, production writes or deployment; connected verification remains open.
+
+### Lane: profile-reaction-stability
+
+**Owns:** social `components/Bio/PostLightbox.tsx`, focused lightbox reaction regressions, seeded capture fixtures if needed and serialized KB records.
+- [✓ 4.6.6 local] **Profile lightbox reaction stability** - reproduced fresh-token render resets; stable reader/post/group dependencies and read/write generation guards repair the local lifecycle. Seven focused regressions, all 1,885 social tests, production build/typecheck and seeded visitor-profile desktop/375px filled-heart inspection pass. Existing likes stay filled on unrelated renders; pending reads preserve newer taps and old-scope completions cannot alter the current state. No API/security-policy changes, production writes or deployment; connected persistence remains open.
+- [ ] **Profile reaction connected acceptance** - verify an existing like and like/dislike/clear on another account's profile with real node persistence, reopen and post navigation after normal rollout. Gates: reviewed local repair and normal deployment; use isolated synthetic accounts for writes. Owns the same social lightbox/focused integration paths. Acceptance: heart and count agree with persisted identity-specific reactions without repeated engagement reads; no production writes without approval.
+
 ### Lane: content-thumbnails
 
 **Owns:** generic thumbnail endpoint/selector, canonical lookup's `posted_by` projection, SDK selector/build outputs, social preview card/focused regressions and serialized KB records. No permission policy, transcoding, production content or deployment changes.

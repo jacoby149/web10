@@ -136,6 +136,14 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
 
   // Profile ownership and the navigation identity are not mutation authority.
   const token = getWapi().readToken();
+  // The SDK decodes a new object on each read. Depend on reader values,
+  // never that object's identity, or every state update restarts engagement.
+  const readerUsername = token?.username;
+  const readerProvider = token?.provider;
+  const readerExpires = token?.expires;
+  const groupsKey = JSON.stringify(currentPost.groups);
+  const engagementGeneration = useRef(0);
+  const reactionRevision = useRef(0);
   const identity = useActingAuthor();
   const authority = useMutationAuthority(post.author_key || post.author_username, 'posts');
   const isOwner = authority.canEdit || authority.canDelete;
@@ -218,31 +226,48 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   // reaction still fills for old data (a read-only fallback).
   useEffect(() => {
     let cancelled = false;
+    const generation = ++engagementGeneration.current;
+    const revision = reactionRevision.current;
     const postId = currentPost._id || '';
+    const groups: string[] | undefined = groupsKey ? JSON.parse(groupsKey) : undefined;
     setLiked(false);
     setDisliked(false);
     setReposted(false);
+    setLikeCount(0);
+    setDislikeCount(0);
+    setRepostCount(0);
+    setCommentCount(0);
+    setViewImpressions(0);
+    setViewReach(0);
+    console.log('[post-lightbox] engagement read started', { generation, signedIn: !!readerUsername });
     Promise.all([
-      token ? readReactions('posts', postId, currentPost.groups) : Promise.resolve([]),
-      countComments(postId, currentPost.groups),
-      readRepostCounts([postId], currentPost.groups || [getDiscoverGroupId()]),
+      readerUsername ? readReactions('posts', postId, groups) : Promise.resolve([]),
+      countComments(postId, groups),
+      readRepostCounts([postId], groups || [getDiscoverGroupId()]),
       readMyRepostedIds(),
-      readViewCount(postId, currentPost.groups || [getDiscoverGroupId()]),
+      readViewCount(postId, groups || [getDiscoverGroupId()]),
     ]).then(([reactions, cCount, repostCounts, myReposts, vCount]) => {
-      if (cancelled) return;
-      setLikeCount(reactions.filter((r) => r.type === 'like').length);
-      setDislikeCount(reactions.filter((r) => r.type === 'dislike').length);
-      // v3 ownership is by username alone: a reaction's author_key is the
-      // bare username, so author_provider is the v2 fallback ('web10') and
-      // never equals the token's real provider — comparing it left the
-      // heart un-filled on a post the user had already liked (same class as
-      // the feed's isOwnPost fix, 3.79.3).
-      setLiked(!!reactions.find(
-        r => matchesActingAuthor(r.author_key || r.author_username, token.username, identity || null) && r.type === 'like',
-      ));
-      setDisliked(!!reactions.find(
-        r => matchesActingAuthor(r.author_key || r.author_username, token.username, identity || null) && r.type === 'dislike',
-      ));
+      if (cancelled) {
+        console.log('[post-lightbox] stale engagement read ignored', { generation });
+        return;
+      }
+      const reactionChanged = reactionRevision.current !== revision;
+      console.log('[post-lightbox] engagement read completed', { generation, reactionChanged });
+      if (!reactionChanged) {
+        setLikeCount(reactions.filter((r) => r.type === 'like').length);
+        setDislikeCount(reactions.filter((r) => r.type === 'dislike').length);
+        // v3 ownership is by username alone: a reaction's author_key is the
+        // bare username, so author_provider is the v2 fallback ('web10') and
+        // never equals the token's real provider — comparing it left the
+        // heart un-filled on a post the user had already liked (same class as
+        // the feed's isOwnPost fix, 3.79.3).
+        setLiked(!!reactions.find(
+          r => matchesActingAuthor(r.author_key || r.author_username, readerUsername || '', identity || null) && r.type === 'like',
+        ));
+        setDisliked(!!reactions.find(
+          r => matchesActingAuthor(r.author_key || r.author_username, readerUsername || '', identity || null) && r.type === 'dislike',
+        ));
+      }
       // Repost (reposts.md): the count is the number of `repost_of` posts; the
       // fill is the reader's own repost post (the legacy reaction is a
       // read-only fallback for old data).
@@ -250,7 +275,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
       setReposted(
         myReposts.has(postId) ||
         !!reactions.find(
-          r => matchesActingAuthor(r.author_key || r.author_username, token.username, identity || null) && r.type === 'repost',
+          r => matchesActingAuthor(r.author_key || r.author_username, readerUsername || '', identity || null) && r.type === 'repost',
         ),
       );
       setCommentCount(cCount);
@@ -260,9 +285,9 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
       // served (the feed/grid/permalink read that opened this lightbox passes
       // the D86 surface). No client-side "record a view" write: the node already
       // recorded the delivery, and a client write would be redundant + gameable.
-    }).catch(console.error);
-    return () => { cancelled = true; };
-  }, [currentPost._id, token, identity]);
+    }).catch((error) => console.error('[post-lightbox] engagement read failed', error));
+    return () => { cancelled = true; ++engagementGeneration.current; };
+  }, [currentPost._id, groupsKey, readerUsername, readerProvider, readerExpires, identity]);
 
   // The reaction pair (post-actions.md): like XOR dislike. Optimistic update
   // of both flags + both counts, rollback on error. The data layer
@@ -272,6 +297,8 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   // a swap (the "0 1 0 1" flicker).
   async function handleToggleReaction(kind: ReactionKind) {
     if (!token) return;
+    const generation = engagementGeneration.current;
+    const revision = ++reactionRevision.current;
     const wasLiked = liked;
     const wasDisliked = disliked;
     const nextLiked = kind === 'like' ? !wasLiked : false;
@@ -282,10 +309,13 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
     setDisliked(nextDisliked);
     setLikeCount(prev => Math.max(0, prev + likeDelta));
     setDislikeCount(prev => Math.max(0, prev + dislikeDelta));
+    console.log('[post-lightbox] reaction write started', { generation, revision, kind });
     try {
       await toggleReactionKind(currentPost._id || '', kind, currentPost.groups);
+      console.log('[post-lightbox] reaction write completed', { generation, revision });
     } catch (e) {
-      console.error('Failed to toggle reaction:', e);
+      console.error('[post-lightbox] reaction write failed', e);
+      if (engagementGeneration.current !== generation || reactionRevision.current !== revision) return;
       toast.error(errorMessage(e, 'Could not update your reaction.'));
       setLiked(wasLiked);
       setDisliked(wasDisliked);
