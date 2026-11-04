@@ -355,6 +355,16 @@ Browser auth-token messages require a bound credential window and configured ori
 
 JWT tokens with `username, site, target, provider, expires`. Server verifies signature, checks app contracts + group membership. Full auth flow: `knowledge-base/web10-v3/auth/auth.md`.
 
+The isolated D97 domain-portability prototype stores a domain-only subscription
+in the reader's private app service and re-resolves a configured public target;
+it does not change production web10-social follows or token/group principals.
+Actual TXT claim, old API/TLS loss, new-account verification and unchanged-follow
+public reads pass at desktop/375px on committed integration0932d6643940. Private
+old-source access is 200 while new-target access stays403. Lab TLS/DNS/app-grant
+fixtures and three-component merge dependencies remain explicit; no production
+integration, public-DNS timing, private-principal continuity or absolute
+unbannability. Details: `research/domain-portability-demo/RESULTS.md`.
+
 Cross-node Phase B (merged PR #1351) routes foreign tokens to their home
 node's `/certify`; successful answers are cached per JWT until expiry, never
 as an access grant. Foreign read seams use `{provider}/users/{username}`;
@@ -384,6 +394,21 @@ destination trust remains open, not repaired by this default.
 OAuth authorization certifies its source token before code minting: local provider, freshness and active source-client registration are required. Active delegated sources remain permitted; this does not add source-contract narrowing or resolve broader delegation authority.
 
 ## Security invariants
+
+Resumable uploads remain default-off (`RESUMABLE_UPLOADS_ENABLED`). New multipart
+routes verify current human/app/service authority before private conditional S3
+state and native storage operations; completion verifies stored bytes by SHA-256.
+The social queue uses owner-scoped IndexedDB and Uppy for one unedited video;
+unsupported modes retain the existing upload. Generic deferred creates (D98)
+wait for HLS and recheck the original actor/exact targets without a saved JWT.
+Publication claims never reopen cancellation; initial media confirmation and
+publication reuse stable aware server versions instead of overwriting newer state.
+Durable dependencies recover process-local FFmpeg work after restart, with
+per-process queue dedup only. A synthetic browser/real MinIO/ClickHouse/FFmpeg
+restart receipt passes, not actual Nosferatu/full-player or production acceptance.
+Cleanup, cross-process HLS coordination, independent review and activation stay
+OPEN. Contracts: `knowledge-base/web10-v3/media/multipart-uploads.md` and
+`knowledge-base/web10-v3/media/deferred-creates.md`.
 
 Protected CDN media delivery is opt-in and disabled by default. Separate media-only
 RS256 capabilities bind exact bucket/key/GET/expiry; the portable edge core verifies

@@ -9,6 +9,66 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D98 — Wait for HLS through a generic durable create, not a browser-owned final write [in-progress]
+
+The operator chose **wait for HLS**, with automatic publication after browser
+close. A frontend timer cannot deliver that. Admit one immutable generic document
+create plus owned media dependencies into the private conditional state bucket.
+Capture the human/app/acting author and exact targets, persist no human JWT,
+and recheck live grants before execution. The admitted intent can finish after
+its request token expires, within seven days; it cannot become a general credential.
+
+Cancel-before-admit leaves a tombstone. A publication claim is irreversible even
+through failure/retry; stable IDs and aware server timestamps prevent retries
+outranking newer edits or deletions. Pending dependencies recover lost FFmpeg
+queue work after process restart. This retains D60 and rejects a social publish
+endpoint, original-first placeholders and requiring the browser to return.
+
+Implemented default-off with bounded synthetic browser/real-storage/real-engine
+restart evidence, not release assurance. Cleanup, cross-process HLS coordination,
+feature-film/full-player acceptance and independent review stay open. Contract:
+`web10-v3/media/deferred-creates.md`; evidence: `security/scans/2026-11/resumable-r2-r5.md`.
+
+---
+
+### D97 — Public domain-follow continuity demonstration, not a new principal [decided, research scope]
+
+Operator, 03.11.2026: "user uses dns with his web10 account ... point to another
+username, then all his followers follow him by website"; approve the demo of a
+creator moving accounts while their audience keeps following the same website.
+
+The isolated research client stores the reader's subscription to a domain in
+their own private app documents, resolves the existing TXT account pointer at
+read time and anonymously reads the selected account's public posts. The old
+creator provider may disappear without owning that bookmark or approving the
+move. Exercise the implemented authenticated domain claim on both accounts.
+
+This does not change the alias-not-principal rule, D84 membership/token keys or
+web10-social's existing follow graph. DNS redirects grant no private authority;
+domain transfer can change the public subscription destination and does not
+inherit the former account or roles. No production DNS/deployment, migration,
+new node endpoint or deferred Shadowguard/registry work is authorized. The lab
+allows only configured provider targets and never forwards reader credentials
+to a DNS-selected destination. Scope/acceptance: `research/domain-portability-demo/README.md`.
+
+---
+
+### D96 — Resumable upload state uses private S3 conditional records [in-progress]
+
+R1 uses a separate server-only bucket on the existing S3/MinIO store, with
+create-only reservation and ETag-conditional state transitions. Owner context is
+node/issuer/human/app; raw media keys remain human-owned and server-generated.
+This avoids a new database/daemon and does not mistake ClickHouse append history
+for atomic compare-and-set. No unconditional fallback is permitted when a storage
+backend lacks conditional writes. Backend compatibility is a deployment gate.
+
+This is an internal upload-session primitive, not a social-specific node API or
+a transaction with multipart completion/publication. Endpoint authentication,
+real multipart recovery and idempotent publishing remain separate reviewed bites.
+Details: `web10-v3/media/upload-sessions.md`. No production activation implied.
+
+---
+
 ### D95 — The bulk import is cut: the "Import Your Life" page and the YouTube import pipeline are removed; onboarding is an AI-assistant flow [decided]
 
 Operator, 03.11.2026 — "the import your life page is just not really a product focus i dont think, people dont care... we should get rid of it" + "i think b, ripping it out makes sense, people could use an ai assistant to import anyways" + "our goal isnt to import influencers whole shit that is annoying, just to get them on this thing".

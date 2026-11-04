@@ -37,6 +37,7 @@ import { trackEvent, hotjarIdentify } from '@/lib/analytics';
 import { PostLightbox } from '@/components/Bio/PostLightbox';
 import { RepostProvider } from '@/context/RepostContext';
 import { ComposerProvider } from '@/context/ComposerContext';
+import { UploadProvider, UploadsScreen, UploadDock } from '@/context/UploadContext';
 import { SaveProvider } from '@/context/SaveContext';
 import { NewPostSheet } from '@/components/Feed/NewPostSheet';
 import { SaveSheet } from '@/components/Feed/SaveSheet';
@@ -481,6 +482,7 @@ function App() {
       <ComposerProvider>
       <SaveProvider>
       <MusicProvider sessionKey={musicSession}>
+      <UploadProvider sessionKey={musicSession}>
       <Routes>
         <Route element={<Layout onLogout={handleLogout} onLogin={handleLogin} isAnon={isAnon} onReportBug={() => handleReportBug('button')} />}>
           <Route path="/feed" element={<PostsScreen onAuthorClick={handleAuthorClick} />} />
@@ -497,6 +499,7 @@ function App() {
           <Route path="/shorts" element={<ShortsScreen />} />
           <Route path="/shorts/:postId" element={<ShortsScreen />} />
           <Route path="/music" element={<MusicScreen />} />
+          <Route path="/uploads" element={isAnon ? <section className="mx-auto max-w-lg p-6"><h1 className="font-display text-2xl font-semibold text-foreground">Your private uploads</h1><p className="mt-3 text-sm text-muted-foreground">Log in to the original account to recover its pending posts.</p><Button variant="brand" className="mt-4 min-h-11" onClick={handleLogin}>Log in</Button></section> : <UploadsScreen />} />
           <Route path="/groups" element={<GroupsScreen />} />
           <Route path="/groups/:groupId" element={<GroupDetailRoute />} />
           <Route path="/groups/:groupId/saved/:collectionId" element={<GroupSavedCollectionRoute />} />
@@ -526,6 +529,8 @@ function App() {
        {/* The app-level "Save to…" sheet (D88) — one sheet for the whole app,
            opened by a post surface's kebab (the feed card's Save control). */}
         <SaveSheet />
+        <UploadDock />
+        </UploadProvider>
         </MusicProvider>
        </SaveProvider>
        </ComposerProvider>

@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom';
-import { ListMusic, Music, Pause, Play, SkipBack, SkipForward, X } from 'lucide-react';
+import { ListMusic, Pause, Play, SkipBack, SkipForward, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useMusic } from '@/context/MusicContext';
+import { musicTitle, musicArtist } from '@/data/musicTrack';
+import MusicArtwork from './MusicArtwork';
 
 function time(seconds: number) {
   const value = Math.max(0, Math.floor(seconds));
@@ -21,9 +23,9 @@ export default function MusicPlayer() {
         <Button size="sm" variant="outline" onClick={() => void music.retry()}>Retry playback</Button>
       </div>}
       <div className="flex items-center gap-1 px-2 pt-2 md:gap-3 md:px-4">
-        <Link to={`${link}player`} className={`flex min-w-0 flex-1 items-center gap-3 rounded-sm ${focus}`} aria-label={`Open player: ${track.post.title || 'Untitled track'}`}>
-          {track.media.thumbnail_url ? <img src={track.media.thumbnail_url} alt="" className="h-11 w-11 rounded-sm object-cover" /> : <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm bg-brand-muted text-brand-300"><Music className="h-5 w-5" /></span>}
-          <span className="min-w-0"><span className="block truncate text-sm font-medium text-foreground">{track.post.title || 'Untitled track'}</span><span className="block truncate text-xs text-muted-foreground">{track.post.group_identity?.name || track.post.profile?.display_name || track.post.author_username}</span></span>
+        <Link to={`${link}player`} className={`flex min-w-0 flex-1 items-center gap-3 rounded-sm ${focus}`} aria-label={`Open player: ${musicTitle(track)}`}>
+          <MusicArtwork url={track.media.thumbnail_url} className="h-11 w-11 rounded-sm" />
+          <span className="min-w-0"><span className="block truncate text-sm font-medium text-foreground">{musicTitle(track)}</span><span className="block truncate text-xs text-muted-foreground">{musicArtist(track)}</span></span>
         </Link>
         <Button variant="ghost" size="icon" className="h-11 w-11 shrink-0" aria-label="Previous track" onClick={music.previous}><SkipBack className="h-5 w-5" /></Button>
         <Button variant="brand" size="icon" className="h-11 w-11 shrink-0" aria-label={music.isPlaying ? 'Pause music' : 'Play music'} onClick={music.toggle}>{music.isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}</Button>

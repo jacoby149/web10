@@ -33,6 +33,7 @@ import { editVideo, isNoopEdit } from '@/lib/videoEditing';
 import { markdownToHtml } from '@/lib/markdownHtml';
 import { DiscoverAudience } from './DiscoverAudience';
 import { MusicTagToggle } from './MusicTagToggle';
+import type { MediaPostDraft } from '@/components/Uploads/uploadState';
 
 let nextMediaId = 0;
 
@@ -327,8 +328,11 @@ export default function PostComposer({
   editingPost,
   compact = false,
   chromeless = false,
+  onQueueMediaPost,
 }: {
   onPostCreated?: () => void;
+  /** Optional queue adapter. Currently supplied only by the upload UI preview. */
+  onQueueMediaPost?: (draft: MediaPostDraft) => void | boolean | Promise<void | boolean>;
   /**
    * When set, the composer is in REPOST mode (reposts.md): it shows the
    * original post as a context block and the user's text becomes the repost's
@@ -419,6 +423,10 @@ export default function PostComposer({
 
   // Capture the draft's identity once. Navigation changes never reauthor it.
   const [authorAs] = useState<string | null>(() => editingPost ? (editingPost.author_key?.includes('/groups/') ? editingPost.author_key : null) : getActingAuthor() || null);
+  const [draftHuman] = useState(() => {
+    const token = getWapi()?.readToken();
+    return token ? { provider: token.provider, username: token.username } : null;
+  });
   const [selectedGroup, setSelectedGroup] = useState<{ name: string; avatarUrl?: string } | null>(authorAs ? { name: 'Loading group...' } : null);
   useEffect(() => {
     if (!authorAs) return;
@@ -641,7 +649,7 @@ export default function PostComposer({
             setMediaItems((prev) =>
               prev.map((item) =>
                 item.file === file
-                  ? { ...item, width: info.width, height: info.height, processing: false }
+                  ? { ...item, width: info.width, height: info.height, duration: info.duration, processing: false }
                   : item,
               ),
             );
@@ -870,6 +878,33 @@ export default function PostComposer({
 
     try {
       const mediaRecords: MediaRecord[] = [];
+
+      if (onQueueMediaPost && mediaItems.length) {
+        if (mediaItems.some(item => item.processing)) throw new Error('Wait for your media to finish loading before posting.');
+        const human = getWapi()?.readToken();
+        if (!human || !draftHuman || human.provider !== draftHuman.provider || human.username !== draftHuman.username) {
+          throw new Error('The account changed. Reopen the composer under the intended account before posting.');
+        }
+        // Hand off immutable draft values, never the composer's temporary URLs.
+        // This does not report a published post or fire post-created events.
+        console.log('[social-composer] media queue handoff started', { files: mediaItems.length });
+        const accepted = await onQueueMediaPost({
+          title: title.trim(), text: markdown, visibility,
+          authorAs: authorAs || undefined,
+          authorLabel: selectedGroup?.name || profile?.display_name || 'You',
+          groups: groups ? [...groups] : undefined,
+          pinnedAdId: pinnedAd?._id,
+          markAsMusic,
+          media: mediaItems.map(item => ({
+            file: item.file, width: item.width, height: item.height, duration: item.duration,
+            altText: item.altText, edited: item.edited, albumArt: item.albumArt,
+          })),
+        });
+        if (accepted !== false) {
+          console.log('[social-composer] media queue handoff accepted');
+          return;
+        }
+      }
 
       const mediaService = visibility === 'public' ? 'public_media' : 'media';
 

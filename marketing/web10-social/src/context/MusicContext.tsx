@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { MusicTrack } from '@/data/feed';
 import { readMusicTrack } from '@/data/music';
+import { musicTitle, musicArtist } from '@/data/musicTrack';
 
 export type { MusicTrack } from '@/data/feed';
 type Repeat = 'off' | 'all' | 'one';
@@ -42,6 +43,9 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
   const audio = useRef<HTMLAudioElement | null>(null);
   const attempt = useRef(0);
   const requested = useRef(false);
+  const recovered = useRef(false);
+  const recovering = useRef(false);
+  const resumeAt = useRef<number | null>(null);
   const remaining = useRef<number[]>([]);
   const history = useRef<number[]>([]);
   const priority = useRef<number[]>([]);
@@ -53,11 +57,13 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
   function pause() {
     attempt.current++;
     requested.current = false;
+    recovering.current = false;
     audio.current?.pause();
     update({ isPlaying: false });
   }
   function clear() {
     pause();
+    resumeAt.current = null;
     remaining.current = [];
     history.current = [];
     priority.current = [];
@@ -97,8 +103,10 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
       }
     }
   }
-  function loadOccurrence(index: number, queue = snapshot.current.queue) {
+  function loadOccurrence(index: number, queue = snapshot.current.queue, recovery = false) {
     pause();
+    if (!recovery) recovered.current = false;
+    resumeAt.current = null;
     const track = queue[index];
     update({ queue, current: track, currentIndex: index, currentTime: 0, duration: 0, error: null });
     if (audio.current) {
@@ -133,6 +141,11 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
     pause();
     const generation = attempt.current;
     const element = audio.current;
+    const position = s.currentTime;
+    recovering.current = true;
+    recovered.current = true;
+    requested.current = true;
+    update({ error: null });
     log('refresh requested');
     try {
       const track = await readMusicTrack(s.current.post._id);
@@ -140,11 +153,14 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
       if (!track?.media.url) throw new Error('Unavailable track');
       const queue = [...snapshot.current.queue];
       queue[s.currentIndex] = track;
-      loadOccurrence(s.currentIndex, queue);
+      loadOccurrence(s.currentIndex, queue, true);
+      resumeAt.current = position;
       start();
       log('refresh accepted');
     } catch {
       if (attempt.current !== generation || audio.current !== element) return;
+      recovering.current = false;
+      requested.current = false;
       update({ error: 'This track could not be refreshed. Try again.', isPlaying: false });
       log('refresh rejected');
     }
@@ -192,7 +208,7 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
   }
   const value: MusicContextValue = {
     ...state, play, playQueue, retry, select, clear, seek,
-    toggle() { if (requested.current || snapshot.current.isPlaying) pause(); else start(); },
+    toggle() { if (requested.current || snapshot.current.isPlaying) pause(); else if (snapshot.current.error) void retry(); else start(); },
     next() { advance(); }, previous() { advance(true); },
     setVolume(volume) {
       if (!Number.isFinite(volume)) return;
@@ -241,6 +257,7 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
       } else {
         // A pending refresh captured an occurrence index before this edit.
         attempt.current++;
+        recovering.current = false;
         update({ queue, currentIndex: s.currentIndex > index ? s.currentIndex - 1 : s.currentIndex });
       }
     },
@@ -255,6 +272,9 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
     remaining.current = [];
     history.current = [];
     priority.current = [];
+    recovered.current = false;
+    recovering.current = false;
+    resumeAt.current = null;
     update({ ...initial });
     const onPlay = () => {
       if (!requested.current) { element.pause(); return; }
@@ -262,10 +282,23 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
     };
     const onPause = () => update({ isPlaying: false });
     const onTime = () => update({ currentTime: Number.isFinite(element.currentTime) ? element.currentTime : 0 });
-    const onDuration = () => update({ duration: Number.isFinite(element.duration) ? element.duration : 0 });
+    const onDuration = () => {
+      const duration = Number.isFinite(element.duration) ? element.duration : 0;
+      if (resumeAt.current !== null && duration > 0) {
+        element.currentTime = Math.min(resumeAt.current, duration);
+        resumeAt.current = null;
+        update({ currentTime: element.currentTime });
+      }
+      update({ duration });
+    };
     const onEnd = () => { log('ended'); advance(false, true); };
     const onError = () => {
       if (!snapshot.current.current) return;
+      // Re-read through the existing authorized post path, never the owner-only
+      // media URL endpoint. One attempt per selection prevents broken-file loops.
+      console.log('[music-player] media error', { code: element.error?.code ?? 0, automaticRefresh: requested.current && !recovered.current });
+      if (recovering.current) return;
+      if (requested.current && !recovered.current) { void actions.current?.retry(); return; }
       pause();
       update({ error: 'This track could not be loaded. Try again.' });
       log('media error');
@@ -309,7 +342,7 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
     if (!navigator.mediaSession) return;
     navigator.mediaSession.playbackState = state.current ? state.isPlaying ? 'playing' : 'paused' : 'none';
     navigator.mediaSession.metadata = state.current && typeof MediaMetadata !== 'undefined'
-      ? new MediaMetadata({ title: state.current.post.title || 'Untitled track', artist: state.current.post.group_identity?.name || state.current.post.profile?.display_name || state.current.post.author_username || '' }) : null;
+      ? new MediaMetadata({ title: musicTitle(state.current), artist: musicArtist(state.current) }) : null;
   }, [state.current, state.isPlaying]);
 
   return <MusicContext.Provider value={value}>{children}</MusicContext.Provider>;

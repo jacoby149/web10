@@ -73,6 +73,10 @@ def _start_hls_workers():
     # from every gunicorn worker.
     ch.ensure_discover_group()
 
+    from app.services import deferred_worker
+
+    deferred_worker.start_workers()
+
 
 # Map bare Exception strings (raised by auth.py / services) to HTTPExceptions.
 _EXCEPTION_MAP = {

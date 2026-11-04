@@ -9,12 +9,14 @@ from . import (
     auth,
     blocking,
     contracts,
+    deferred,
     documents,
     domains,
     groups,
     logs,
     media,
     moderation,
+    multipart,
     oauth,
     preview,
     query,
@@ -36,6 +38,7 @@ router.include_router(recovery.router, prefix="")
 
 # Document CRUD
 router.include_router(documents.router, prefix="")
+router.include_router(deferred.router, prefix="/deferred")
 
 # Link-preview card renderer (KB: media/thumbnailing.md) — the generic
 # "render an OG/Twitter card from a spec" primitive. Zero social knowledge:
@@ -58,6 +61,7 @@ router.include_router(blocking.router, prefix="")
 
 # Media
 router.include_router(media.router, prefix="/media")
+router.include_router(multipart.router, prefix="/media/uploads")
 
 # App contracts
 router.include_router(contracts.router, prefix="/app-contracts")

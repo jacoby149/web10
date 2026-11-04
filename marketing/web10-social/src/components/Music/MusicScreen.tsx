@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowUpRight, Bookmark, Disc3, Headphones, ListMusic, MoreVertical, Music, Pause, Play, Plus, Repeat, Repeat1, Search, Shuffle, SkipBack, SkipForward, X } from 'lucide-react';
 import MusicTrackMenu from './MusicTrackMenu';
+import MusicArtwork from './MusicArtwork';
+import { musicTitle as title, musicArtist as artist } from '@/data/musicTrack';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useMusic } from '@/context/MusicContext';
@@ -10,8 +12,6 @@ import { getWapi, readMusicPage, readMusicCollection, readMusicTrack, getMyColle
 import type { CollectionRecord } from '@/data/saved';
 
 const focus = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
-const title = (track: MusicTrack) => track.post.title || track.post.text?.slice(0, 60) || 'Untitled track';
-const artist = (track: MusicTrack) => track.post.group_identity?.name || track.post.profile?.display_name || `@${track.post.author_username || 'Unknown artist'}`;
 const postLink = (track: MusicTrack) => track.post.author_key?.includes('/groups/')
   ? `/groups/${encodeURIComponent(track.post.author_key)}/p/${encodeURIComponent(track.post._id || '')}`
   : `/u/${encodeURIComponent(track.post.author_username || '')}/p/${encodeURIComponent(track.post._id || '')}`;
@@ -20,9 +20,7 @@ function time(seconds: number) {
   return `${Math.floor(value / 60)}:${String(value % 60).padStart(2, '0')}`;
 }
 function Artwork({ track, className }: { track?: MusicTrack; className?: string }) {
-  return <div className={cn('aspect-square shrink-0 overflow-hidden rounded bg-gradient-to-br from-brand-muted via-elevated to-background', className)}>
-    {track?.media.thumbnail_url ? <img src={track.media.thumbnail_url} alt={title(track)} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center"><Disc3 className="h-1/3 w-1/3 text-brand-300/60" strokeWidth={1} /></div>}
-  </div>;
+  return <MusicArtwork url={track?.media.thumbnail_url} alt={track ? title(track) : ''} className={className} />;
 }
 
 export default function MusicScreen() {

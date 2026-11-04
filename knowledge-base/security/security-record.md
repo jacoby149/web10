@@ -15,6 +15,43 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Resumable R2–R5 continuation (03.11.2026) — OPEN
+
+[Bounded implementation/review/integration record](scans/2026-11/resumable-r2-r5.md).
+Two fresh same-family read-only reviews reproduce five backend defects: consumed
+completion observation/checksum disposition was repaired earlier; the new reviews
+pin cancellation-after-claim failure, naive timestamps, stale deletion reads,
+lost preparation on restart and concurrent confirmation overwriting later state.
+Deterministic regressions and real MinIO/ClickHouse/FFmpeg/provider-browser evidence
+support bounded repairs, not a dry/diverse review or L1–L4 PASS. Private state,
+verified live actors and credential-free immutable creates remain the intended
+boundary. Orphan cleanup, cross-process HLS, full app/film/player and release
+review stay OPEN; default-off and 500 MiB are unchanged.
+
+## Upload-Session R1 Foundation (03.11.2026)
+
+[Bounded local evidence](scans/2026-11/upload-session-r1.md): internal/unexposed
+private S3 conditional record store. Same-family review reproduced an encoded
+write/read size mismatch and expiry-versus-result-recovery gap; local repairs
+pin 24 cases, including lowered-limit replay and future completion-result
+capacity. Final fresh same-family review is one dry pass, not convergence.
+All 2,001 API tests plus eight subtests pass, one opt-in skip; Ruff passes.
+Disposable real MinIO proves conditional writes, both ordered
+completion/abort claim winners, concurrent reservation/lost-response replay and
+exact result recovery across process/container restart. Supplied owner context
+is not authentication; multipart IDs/results are synthetic. R2 auth/private
+policy/provenance/cleanup, model-diverse review, rollout and L1–L4 remain OPEN.
+
+## Resumable Upload Lifecycle (03.11.2026)
+
+[Design inventory and preview evidence](scans/2026-11/resumable-upload-lifecycle.md)
+by OpenAI GPT-6.1 Sol: existing backend single-POST path and client/harness seams
+inventoried; no multipart gate exists yet. Synthetic account-switch and
+browse-connectivity regressions fail before preview-only repair. Session/attempt
+guards and actual picker/composer snapshot tests do not prove authentication,
+storage durability or write authorization. R1–R6, real races/revocation and
+independent review remain OPEN; no L1–L4 advancement or security PASS claim.
+
 ## D95 bulk-import retirement (03.11.2026)
 
 GPT-6.1 Sol removes the importer rather than changing its permissions: routes,
@@ -545,6 +582,9 @@ measure. Re-scan after the hardening merges to flip them.
 
 | Unit | Level | Status | Model | Date | Last-pass | Sys | Finding / note |
 |---|---|---|---|---|---|---|---|
+| D97 public domain-follow prototype proof | L4 | **OPEN** | OpenCode / GPT-6.1 Sol + fresh same-model reviewer | 2026-11-03 | — | research-client | Committed integration0932d6643940, empty patch: actual local TXT claims, one persisted website follow, old API/TLS loss, new account/reload public posts; desktop/375px, old-private200/new-private403, five delayed-real-response lifecycle seams and credential-free reads pass. Exact sources/inputs/config history/10 captures/cleanup and same-commit default IAM regression retained; fresh bounded review passes. Three component merges/CI and merged-source replay remain gates. Not production/social integration, broad L4/L1–L4 or diverse assurance; lab TLS/DNS/grant and DNS-control/availability limits disclosed. |
+| D97 local DNS/runner fixture | L1 | **OPEN** | OpenCode / GPT-6.1 Sol + fresh same-model reviewer | 2026-11-03 | — | research-fixture | Synthetic secret-gated fixed-zone control, real UDP TXT/JSON parity, no private file/env serving; four loopback controls pass. Frontend-only loopback publishing/browser bridge, internal API/DB/storage, default IAM assertions and project-scoped teardown retained. Prototype port/publication failures diagnosed; final connected component proof is recorded separately. No host/public DNS or production credentials; no complete scan/diverse assurance. |
+| D97 research domain-follow client/UI | L1 | **OPEN** | OpenCode / GPT-6.1 Sol + fresh same-model reviewer | 2026-11-03 | — | research-client | Fixed home authority, lab provider allowlist, anonymous public target reads, verified alias, bounded response/rendering and captured UI generation. Two continuation races fail before checks and pass afterward; 22 offline client controls pass. Separate connected fixture/proof records do not establish complete coverage/diverse review or production social integration. Domain control is public destination choice, not private-principal continuity. |
 | Local group-list owner healing follow-up | L1 | **OPEN** | OpenCode / GPT-6.1 Sol + fresh same-model reviewer | 2026-11-03 | — | groups | #1360 merged with all checks passing after retained red→green bare-only repair. Later actual two-node run passes on merged dev 0acc771e2efc with zero-byte patch, one owner after list and verified lifecycle/cache/cleanup receipts; fresh bounded review passes. Existing-row reconciliation and diverse/full-file assurance remain OPEN. Historical #1351 method failure is not waived. |
 | H isolated cross-node correctness | L4 | **OPEN** | OpenCode / GPT-6.1 Sol + fresh same-model reviewer | 2026-11-03 | — | federation | Local H-REPLAY receipt gate satisfied on clean merged dev 0acc771e2efc after #1360, zero-byte patch and no overlay. Full unchanged TLS/two-node/cache/read/query/namesake/app/grant-removal controls and cleanup pass fresh bounded review; all 1,929 API tests plus eight subtests pass, one opt-in skip. Three source-specific success archives and initial failure remain separate: research/federation-demo/RESULTS.md. Normal PR CI, complete L4/L1–L4 coverage/model diversity, A/C, production keys/public deployment, browser consent, issuer expiry/revocation, multiworker/restart/media remain separate OPEN gates. |
 | `api/app/services/auth.py :: decode_token` | L1 | **OPEN** | (audit) | 2026-10 | — | auth | B-3 unsigned decode path; B-1 I1 symmetric HS256. Hardening in 1157 (unmerged) |

@@ -1,6 +1,9 @@
 % web10 paper: text revision for the SIGMOD 2027 industry target
 % Render: tectonic main.tex  (from this directory)
 \documentclass[sigconf, nonacm]{acmart}
+\settopmatter{printfolios=true} % Native ACM bottom-center numbers, including page one.
+% Lower folios by half an inch without changing the text block or page breaks.
+\AtBeginDocument{\addtolength{\footskip}{36pt}}
 
 % --- packages (all in the tectonic bundle) ---
 \usepackage{booktabs}
@@ -26,6 +29,9 @@
 \newcommand{\artifactrev}{317fa349eae714ddde07f249ca65cdaa34b6459b}
 \newcommand{\artifactdir}[2]{\href{\artifactbase/tree/\artifactrev/#1}{#2}}
 \newcommand{\artifactfile}[2]{\href{\artifactbase/blob/\artifactrev/#1}{#2}}
+% Domain prototype: immutable tested code/receipt publication, separate from size snapshot.
+\newcommand{\domainartifactrev}{26720acba859c7eb03fc5d26a6221cdde5b764a1}
+\newcommand{\domainartifactdir}[2]{\href{\artifactbase/tree/\domainartifactrev/#1}{#2}}
 
 \lstdefinestyle{sql}{
   language={},
@@ -49,7 +55,7 @@
 
 % --- acmart metadata ---
 \setcopyright{none}
-\acmConference[SIGMOD 2027 Industry Track (Target)]{Draft targeting the SIGMOD 2027 Industry Track}{}{}
+\acmConference[SIGMOD 2027 Industry Track]{SIGMOD 2027 Industry Track}{}{}
 \acmPrice{}
 \acmISBN{}
 \acmDOI{}
@@ -77,6 +83,8 @@ the social application or adding application-specific node endpoints.
 Connected browser flows exercise consent and revocation.
 An isolated two-node experiment exercises foreign-principal reads and local
 grant revocation while reusing cached home-node certification.
+A dedicated browser prototype keeps a public domain subscription across an
+account/provider change while the old creator API is unavailable.
 \end{abstract}
 
 \maketitle
@@ -113,17 +121,16 @@ service, and an operation. Any principal on any node can hold any role in a
 group. The user is the policy administrator for their own data, and that policy
 reaches across the network.
 
-The result is a system that combines properties prior work treats as a
-tradeoff. Table~\ref{tab:capabilities} places the deployed systems and the
-email model that web10 generalizes against five capabilities. The marks are
+The design combines user-managed grants with application-defined queries.
+Table~\ref{tab:capabilities} compares the systems discussed here and the
+email model that web10 generalizes across five capabilities. The marks are
 \checkmark\ (present), $\times$ (absent), or $\sim$ (partial / scoped).
 
 \begin{table}[t]
 \caption{Capability comparison. Email is the model web10 generalizes, not a
-social system. Social platforms decentralize or scale the data plane but keep
-access control platform-defined and coarse-grained; Solid decentralizes data
-\emph{and} some access, but its model is resource-centric. web10 is the only
-system with all five.}
+social system. The entries summarize the models discussed in the cited work,
+not an exhaustive survey of implementations. web10's column describes its
+architecture; production cross-node integration remains incomplete.}
 \label{tab:capabilities}
 \centering
 \scriptsize
@@ -157,9 +164,10 @@ Solid~\cite{solid2016} is the closest prior work: it decentralizes data
 client/issuer matchers~\cite{acp2022}. But its access model is
 \emph{resource-centric}---ACLs on linked-data resources---rather than a uniform
 role/grant vocabulary over services that applications define, and its cross-Pod
-query cost depends on deployment. web10 claims the center: all five
-capabilities at once, over a network that is user-addressed rather than
-server-federated.
+query cost depends on deployment. web10 combines a service-scoped permission
+model with application-defined SQL and client-mediated cross-node reads.
+The comparison concerns these design choices, not an exhaustive claim of
+functional exclusivity or a measured advantage over the other systems.
 
 The platform is deployed. web10-social is a creator-oriented social application
 ---feeds, groups, direct messages, discovery, short- and long-form video,
@@ -192,10 +200,13 @@ This paper makes three contributions:
   access layer and the batching decision that addresses it, and exercise
   home-node-certified reads across two isolated nodes
   (\S\ref{sec:federation-results}).
+  A separate client prototype exercises domain-based public subscription
+  continuity (\S\ref{sec:domain-results}) without changing node semantics.
 \end{enumerate}
 
-The evaluation in \S\ref{sec:method} reports the connected interoperability
-checks and the metadata-resolution measurement. \S\ref{sec:related} relates the
+The evaluation in \S\ref{sec:method} reports cross-application and cross-node
+correctness, domain-subscription continuity, metadata-resolution cost, and a
+deployed operating point. \S\ref{sec:related} relates the
 design to decentralized storage, IAM, and multi-tenant databases;
 \S\ref{sec:concl} concludes.
 
@@ -394,8 +405,8 @@ the foreign node. Consequences:
   minted by this node or a foreign one.
   \item ``Following someone on another node'' is a \emph{cross-node
   membership}: a member row on the foreign node referencing a foreign
-  principal. The content never crosses the boundary; only the membership
-  reference does.
+  principal. Content is fetched by the reader's client; server-to-server
+  content replication is not required.
 \end{itemize}
 
 \subsection{The boundary: the HTTP API and a verified token, never the database}
@@ -412,23 +423,17 @@ credential.
 
 This yields an invariant that the whole model is built to hold:
 
-\paragraph{I6.} \emph{The cross-node boundary is the HTTP API and a verified
+\paragraph{Cross-node boundary rule.} \emph{The cross-node boundary is the HTTP API and a verified
 token; remote data is content, never control.} A foreign node's response is
 untrusted content---the same category as a post body. It is never query input,
 never a key into the local store, and never a grant.
 
-I6 is what defeats the obvious attack. A malicious node B cannot ``mine'' node
-A during a cross-node read, because there is no cross-node \emph{query}: A never
-reads B's store, and B's API responses reach A only as JSON content that A has
-already authorized for this reader. The feed merge is a result-set \emph{union}
-of independently authorized reads; B's data are values being merged, never
-parameters to a query against A. A data reference is not a grant: if B's
-content points the client at an A-node document, A re-authorizes that fetch
-against the reader's token and denies it if the reader is not authorized. The
-same property that stops a local user reading other posts (I3) stops a foreign
-node from steering a read---federation does not weaken it, it adds the
-verification step so the serving node can check a foreign token before applying
-I3.
+The rule prevents a remote response from serving as local access authority.
+The client merges independently authorized results as data, not as SQL to
+execute against another node. A data reference is not a grant: if B's content
+points the client at an A-node document, A checks that fetch against the
+reader's token and its own access policy. Foreign identity verification
+precedes, rather than replaces, the serving node's document-access checks.
 
 \subsection{The read model: client-side fan-out}
 
@@ -436,11 +441,12 @@ When a user's feed spans nodes, the \emph{client} makes the cross-node calls.
 The client holds the user's home-node token, groups the user's following set by
 provider, and queries only the distinct nodes the user follows people on---
 targeted, not broadcast. Each node returns its own access-gated result set; the
-client performs a ranked merge. No node proxies or caches another node's data,
-so there is no node-to-node credential to steal and no stale-cache confusion.
-The node remains a dumb broker (D60): it does not learn to ``merge feeds.''
+client performs a ranked merge. This model avoids a server-side content proxy
+and the additional credentials and content-cache policies it would require.
+Feed composition remains an application concern rather than a node-specific
+endpoint.
 
-\subsection{Domain as portable alias: the address survives provider changes}
+\subsection{Domain aliases and public subscription continuity}
 
 The \texttt{provider/username} principal is the address, but the username need
 not be an opaque string. Through the authenticator's claim flow, a user can
@@ -456,34 +462,24 @@ groups, tokens, and the read gate never key on the domain. The same pattern
 the web already uses for identity claims (DKIM, SPF, \texttt{OpenPGPkey}),
 applied to a social identity.
 
-The practical consequence is portability in the strong sense: the domain is a
-real, resolvable, user-owned identifier that survives provider changes by
-construction. A user deplatformed by a mainstream platform can point their
-domain at a sovereign node that will not remove their content, and the
-followers who follow the domain resolve to the user's new location. The legal
-distinction is specific: follower relationships are the \emph{user's} data,
-not the platform's. A platform that deletes a user's follower list is deleting
-the user's data---a different legal category than removing the platform's own
-content. web10 makes this concrete: the following relationships live in the
-user's sovereign data plane, addressed by the user's domain, and move with
-them to a node that will not delete them.
+This indirection can preserve a public subscription when a creator changes
+accounts or providers. A compatible client stores the domain, rather than a
+fixed account address, in the reader's own data. If the creator retains DNS
+control, the client can discover a newly verified account without asking the
+former provider to approve the move. The subscription remains at the reader's
+home; neither the creator's content nor private access grants move through DNS.
 
-The enforcement path makes this concrete in the read model: web10 apps are
-implemented entirely in the UI, over the web10 API, with no platform backend
-in the read path. When the social client renders a user's feed, it pulls
-directly from the servers of the nodes the user is following---grouping the
-following set by provider and querying each node directly with the user's
-home-node token. The content arrives as authorized data, not as a
-platform-mediated feed.
+The prototype in \S\ref{sec:domain-results} demonstrates this path after the
+old creator API becomes unavailable. It resolves the domain before anonymous
+public reads and restricts destinations to configured providers. Production
+web10-social follows remain group-based. Domain control, resolver availability
+and availability of the reader's home and new provider are assumptions, not
+guarantees supplied by the alias mechanism. Legal ownership and remedies depend
+on terms and jurisdiction; they do not follow from DNS resolution.
 
-This is the internet-freedom property that the email model proved and the
-social platforms lost: your address is yours, you can switch providers, and no
-single platform can unilaterally erase your inbox or block your senders. web10
-restores that property for social data, and the domain-as-alias mechanism makes
-it concrete rather than conceptual.
-\subsection{What is running and what is the active build}
+\subsection{Implementation status and deployment scope}
 
-The network model is the architecture; runtime maturity is phased. Foreign
+The implementation supports a bounded cross-node read path. Foreign
 readers use \texttt{\{provider\}/users/\{username\}}. Local writers and readers
 retain legacy bare keys until a coordinated migration; canonicalization is
 not complete across the identity layer. For a foreign token, the serving node
@@ -650,8 +646,8 @@ work.
 \subsection{Isolation rule and regression coverage}
 
 The intended isolation rule is that another author's document requires an
-authorized group path, including public or authenticated-class grants
-(invariant I3). The query path implements this through service CTEs.
+authorized group path, including public or authenticated-class grants.
+The query path implements this through service CTEs.
 Permission-matrix and exploit-regression tests exercise the compiler and
 endpoint boundaries. CRUD, directory, group-attachment, preparation, and media
 paths have separate test scopes; \S\ref{sec:limits} records the current coverage
@@ -684,8 +680,9 @@ end-to-end encryption.
 Here \emph{user-owned} denotes logical authorship namespaces and user-controlled
 grants. The operator retains physical access to hosted data, and legal remedies
 depend on terms, jurisdiction, and enforceability. Usable export and exit are
-broader product goals. The isolated cross-node read slice is demonstrated in
-\S\ref{sec:federation-results}; interoperable provider migration and production
+broader product goals. The isolated cross-node read and public domain-subscription
+slices are demonstrated in \S\ref{sec:federation-results} and
+\S\ref{sec:domain-results}; complete account/data migration and production
 federation remain forward scope (\S\ref{sec:network}).
 
 \subsection{Implementation boundary}
@@ -779,7 +776,7 @@ SDK's RTC support. Telemetry and external embeds are additional network paths.
 Application data and authentication use the node; media delivery and these
 ancillary connections follow their respective transport paths.
 
-At source revision \texttt{317fa349e}, the application-local frontend contains
+In the \artifactdir{marketing/web10-social/src}{measured source snapshot}, the application-local frontend contains
 \textbf{46,285 physical source lines across 141 files}: 45,846 TypeScript/TSX
 lines and 439 CSS lines under \texttt{src/}, excluding tests. Its local tests
 contain another 31,060 lines in 105 files; the link-preview renderer is 431 lines
@@ -823,9 +820,10 @@ Three implementation observations define what the feed path exercises:
   and preparation services.
 \end{enumerate}
 
-Evaluation will measure both the complete page-assembly path and its main query,
-recording client-call counts, internal metadata queries, and database work
-separately alongside latency and throughput.
+The measurement in \S\ref{sec:prelim} isolates metadata resolution for a
+simplified query; it does not time this complete page-assembly path. Full-feed
+latency and throughput require accounting for follow-up requests and media
+delivery as well as the main query.
 
 \begin{figure}[t]
   \centering
@@ -941,18 +939,20 @@ The durable separation is between stored content/access relationships and a
 particular frontend. Replacing a frontend can reuse those primitives when it
 understands their semantics. The user-addressed network model of
 \S\ref{sec:network} is the architectural answer to provider migration: the
-user's identity and grants are globally addressable, so moving providers is a
-matter of the cross-node read and membership path completing, not a redesign.
-That path is the active build (\S\ref{sec:limits}).
+user's principals and grants are globally addressable. Global addressing does
+not itself migrate an account, its content or its grants. The public
+domain-subscription prototype exercises one continuity mechanism; complete
+account/data migration and production cross-node integration remain outside
+the demonstrated scope (\S\ref{sec:limits}).
 
 %=============================================================================
 \section{Evaluation}
 \label{sec:method}
 
-The evaluation has four parts: a connected interoperability demonstration
-with real browser consent and revocation, an isolated two-node correctness
-scenario, a measurement of metadata fan-out cost, and a deployed operating
-point. The first three use synthetic data on isolated test stacks; the
+The evaluation has five parts: connected cross-app interoperability,
+isolated two-node authorization, a domain-subscription prototype, metadata
+fan-out cost, and a deployed operating point. The first four use synthetic
+data on isolated test stacks; the
 operating point is a read-only observation of the production node. None is a
 capacity or scale result.
 
@@ -983,19 +983,17 @@ the browser sequence above exercised the actual consent UI.
 All three cases---desktop at 1440 pixels, mobile at 375 pixels, and HTTP
 correctness---passed in the final fresh-stack run on 2 November 2026, with
 zero retries or skips. Six flow captures and two identity-card captures per
-viewport were retained and inspected. Iteration exposed a Marketplace race:
-the initial listing read could overwrite a successful publication's status.
-Keeping publication disabled until that read settled repaired it; a focused
-regression failed before the repair and passed afterward.
+viewport document the observed results.
 
-\textbf{Provenance and scope.} The run used revision \texttt{db897bccb} plus a
-retained patch/source overlay on a four-vCPU, 8-GB DigitalOcean sfo2 host, with
+\textbf{Setup and scope.} The run used a four-vCPU, 8-GB DigitalOcean sfo2 host, with
 ClickHouse 24.8.14.39, Playwright 1.63.0 and Chromium 153. The artifact contains
-source/config hashes, image identities, results and all 16 original captures.
+the exact experimental source, configuration, image identities, results and all
+16 original captures. The source includes local modifications rather than an
+unmodified release; the complete snapshot is retained in
+\domainartifactdir{research/interoperability-demo}{the interoperability artifact}.
 The API, authenticator and social frontend used development configurations;
-the marketing frontend was built. Schema initialization preceded API startup,
-avoiding the inherited fresh-stack ordering failure. Project storage and the
-droplet were removed after collection.
+the marketing frontend used a production build. Schema initialization preceded
+API startup. Project storage and the droplet were removed after collection.
 
 The hosted apps share one browser origin, although the HTTP case supplies a
 separate app Origin. They demonstrate reuse across applications, not separate
@@ -1024,19 +1022,61 @@ Origin-bearing query gate denies a local namesake's app grant, allows a
 qualified foreign app-contract fixture, and denies again after its revocation;
 direct group-authorized reads remain available.
 
-Three isolated correctness runs completed, not deployment or load trials. An
-initial attempt failed on a harness import path before scenario execution.
-The first pass used revision \texttt{04da544442c3} plus the retained owner-list
-repair patch; a second pass used committed revision \texttt{3be1f1ec10fd}
-with an empty source patch. The latest replays clean merged dev revision
-\texttt{0acc771e2efc} after PR~\#1360 merged, again with an empty patch and
-no overlay. All ran without scenario retries. Docker-internal,
-globally classified addresses exercise the unchanged public-address guard;
-the test CA and network do not establish public-internet interoperability.
+The reported scenario completed without retries on an unmodified source
+snapshot. It is a correctness experiment, not a deployment or load trial.
+Docker-internal, globally classified addresses exercise the public-address
+guard; the test CA and network do not establish public-internet interoperability.
 Foreign app grant/revocation use labelled service-function fixtures, not browser
 consent or completed foreign enrollment. Owner grant/removal is not foreign
-self-join. Receipts, executable source, image identities and verified cleanup
-are retained in \artifactdir{research/federation-demo}{the experiment artifact}.
+self-join. Exact source, configuration, request outcomes, image identities and
+cleanup records are retained in
+\domainartifactdir{research/federation-demo}{the experiment artifact}, with
+earlier attempts documented separately.
+
+\subsection{Public domain subscriptions across provider loss}
+\label{sec:domain-results}
+
+A separate research client stores only a creator's normalized domain in a
+private app document at the reader's independent home. It freshly resolves the
+existing TXT pointer, checks the selected account's verified alias and reads
+public posts anonymously. It uses ordinary CRUD/groups and the existing
+authenticated domain-verification endpoint, not a new node follow API.
+
+On desktop (1440\,\texttimes\,1000) and mobile (375\,\texttimes\,812), the creator
+logged in, copied/published the TXT and verified the old account through actual
+local UDP DNS. The reader clicked Follow once. After the old API/TLS services
+were stopped, the creator retargeted DNS and verified a new account without
+old-provider approval. Reload and ordinary reader login displayed new public
+posts with the identical stored follow ID/body and one total follow creation
+(Figure~\ref{fig:domain-follow}). No old content was migrated. Explicit old
+private access returned 200; new-target private access remained 403.
+
+Additional controls delayed real responses at five identity-transition
+boundaries and verified that logout or account changes prevented stale UI
+updates. Missing or ambiguous DNS cleared displayed content without deleting
+the saved subscription, and DNS/alias/public requests carried no credentials.
+The experiment used an unmodified source snapshot. Exact source and
+configuration, ten captures, request outcomes and cleanup records are retained in
+\domainartifactdir{research/domain-portability-demo}{the prototype artifact}.
+
+This is a configured two-node client, not deployed social follows or private
+principal continuity. API app/private grants, TTL-zero local DNS, a loopback
+HTTP JSON bridge and browser acceptance of test-certificate errors are explicit
+fixtures. Retained DNS control and available reader/new node/resolver are
+assumptions; domain sale/theft/expiry and public DNS/TLS/availability are not
+solved. The result demonstrates bounded public subscription continuity, not
+absolute unbannability.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=.47\textwidth]{../domain-portability-demo/figures/before-card.png}\hfill
+\includegraphics[width=.47\textwidth]{../domain-portability-demo/figures/after-card.png}
+\caption{Same website, another public account. Exact panel crops from the final
+desktop browser capture, before and after DNS retarget and old API/TLS shutdown.
+The driver verifies the unchanged reader-owned follow ID and no second Follow;
+full captures, authenticated hookup and 375px evidence remain in the artifact.}
+\label{fig:domain-follow}
+\end{figure*}
 
 \subsection{The metadata fan-out cost of the access layer}
 \label{sec:prelim}
@@ -1127,9 +1167,10 @@ representative workload; it does not establish a latency distribution, a
 capacity bound, or a causal authorization-overhead estimate. The direct-scan
 baseline (A) excludes authentication, compilation, and serialization, so
 $B - A$ is a pipeline-versus-scan comparison, not a matched causal measurement.
-Provenance: source revision \texttt{1a983520e}, seed 42, ClickHouse 24.3.18.7,
-single Uvicorn process; an earlier 100-creator trial on a different host and
-snapshot showed the same qualitative tradeoff and is not pooled with this table.
+The trial used seed 42; exact source, configuration and per-sample measurements
+are retained in \domainartifactdir{research/experiments/costfn}{the measurement artifact}.
+An earlier 100-creator trial on a different host and source snapshot showed the
+same qualitative tradeoff and is not pooled with this table.
 
 \subsection{Deployed operating point}
 
@@ -1154,6 +1195,8 @@ The evaluation above is bounded by construction, and the open work is specific.
 \textbf{Federation beyond the correctness slice.} The isolated experiment in
 \S\ref{sec:federation-results} exercises home-issuer certification and
 owner-managed foreign grant/removal, not a complete federated product.
+The domain prototype adds public subscription continuity, not production social
+integration or private-principal portability.
 Independent production signing-key provisioning, complete local-principal
 migration, foreign self-join and app enrollment, multiworker/restart behavior,
 public deployment and client-side feed merging remain open. Cached identity
@@ -1184,13 +1227,11 @@ require targeted testing.
 \section{Related Work}
 \label{sec:related}
 
-The contribution is a \emph{combination}, not a single invention. Each
-capability in Table~\ref{tab:capabilities} has prior art; the gap is that no
-prior system combines all five---user-owned data in any format, user-managed
-fine-grained access, access that is cross-node-addressable, composable
-application-defined query, and a user-addressed network---in one system. We
-position web10 against the closest work in each dimension and state the
-specific gap each leaves.
+The contribution is an integration of established ideas: user-addressed
+storage, user-managed grants and application-defined queries over authorized
+relations. Table~\ref{tab:capabilities} organizes the comparison along these
+dimensions. We discuss design differences from the cited systems rather than
+claiming that no prior implementation combines these capabilities.
 
 \textbf{Decentralized social data.}
 ActivityPub~\cite{activitypub2018} (Mastodon) defines client/server and
@@ -1200,16 +1241,14 @@ per-principal grants over application-defined services. ATProto~\cite{kleppmann2
 (Bluesky) separates repositories, relays, and AppViews, supporting user agency
 and provider switching; its visibility model is likewise collection-level, with
 AppViews providing application-defined \emph{reads} but not user-managed
-\emph{grants}. Both decentralize the data plane; neither decentralizes the
-access layer. web10's distinction is directional: the access model is
-user-managed and service-scoped, and the query is application-defined, not
-platform-defined.
+\emph{grants}. These protocols organize access around their social application
+models. web10 instead exposes service-scoped roles to users and accepts
+application-defined SQL over the resulting authorized relations.
 
 \textbf{Solid: the closest prior work.}
 Solid~\cite{solid2016} separates applications from personal data stores (Pods),
 with social application work~\cite{solid-apps2016} and a maintained Community
-Solid Server~\cite{css2024}. Its access model is the most developed of any
-decentralized social system: WAC supports resource permissions and group agents
+Solid Server~\cite{css2024}. WAC supports resource permissions and group agents
 through \texttt{acl:agentGroup}~\cite{wac2022}, and ACP adds agent, client, and
 issuer matching with allow/deny mode sets~\cite{acp2022}. web10 does not claim
 Solid lacks group or client authorization; it has both. The distinction is in
@@ -1243,10 +1282,10 @@ is the closest prior art in \emph{relationship-based} authorization: a uniform
 ACL data model and configuration language across hundreds of services, with
 consistency as a first-class problem (causal ordering of ACL updates, snapshot
 reads). Zanzibar's model is \emph{infrastructure-side}---the operator defines
-the relationships and the service enforces them; the end user is not the policy
-administrator. web10 inverts the boundary: the \emph{user} defines the grants,
-the \emph{principal is globally addressable across nodes}, and the enforcement
-is at the query layer over a shared columnar store. Zanzibar's consistency
+the relationship schema and the service enforces it, while applications can
+expose sharing controls to their users. web10 explicitly exposes service-scoped
+grants as user-managed data, names globally addressable principals, and enforces
+access at the query layer over a shared columnar store. Zanzibar's consistency
 guarantees motivate the explicit revocation-visibility evaluation we leave as
 forward scope (\S\ref{sec:limits}); we do not claim equivalent consistency
 here. TAO~\cite{tao2013} provides the deployed precedent for \emph{read-time}
@@ -1269,8 +1308,8 @@ a physical database boundary. PostgreSQL row-security
 policies~\cite{postgres-rls} are the alternative enforcement location: per-row
 policy evaluation inside the database engine. web10 places enforcement above
 the engine---the reader-filtered CTE is constructed in the application layer
-before the query reaches ClickHouse~\cite{clickhouse2024}---which is what makes
-the access decision composable with application-defined joins and aggregation.
+before the query reaches ClickHouse~\cite{clickhouse2024}. Both placements can
+combine authorized rows with application-defined joins and aggregation.
 A matched policy and workload comparison (\S\ref{sec:method}) can distinguish
 the costs of these placements; we report the design difference here and leave
 the cost comparison as forward scope.
@@ -1279,9 +1318,9 @@ the cost comparison as forward scope.
 \section{Conclusion}
 \label{sec:concl}
 
-web10 extends the email model---global identifiers, sovereign stores,
-client-mediated communication, no central authority---from one data format to
-all formats, and from content routing to access control. Content and access
+web10 generalizes email's global identifiers and independent provider stores
+to application-defined document formats and user-managed access control,
+using client-mediated reads rather than inter-provider content delivery. Content and access
 relationships live in a shared columnar data plane; the query layer supplies
 the reader's service relations before joins and aggregation; and the access
 model is globally addressable, so a user's grants reach across the nodes. The

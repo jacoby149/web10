@@ -35,6 +35,104 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-03: Durable publication must also preserve claims, versions and prerequisites
+
+[R2–R5 continuation](scans/2026-11/resumable-r2-r5.md) found that a durable queue
+alone does not deliver durable behavior. A creating executor may still write
+after another worker records failure: once claimed, cancellation must remain
+closed through every retry/failure state. Initial media confirmation and final
+publication must replay immutable aware server versions, not fresh timestamps
+that outrank later edits/deletions. Canonical reads rank tombstones before
+filtering; deleted IDs are not absent IDs to recreate. Finally, durable pending
+dependencies must recover lost in-memory FFmpeg work after process restart.
+
+Two fresh same-family reviews produced five reproducible backend findings. The
+confirmation race is pinned by overlapping registered-route calls and actual
+ClickHouse replay against newer deletion/completed HLS versions. Real browser
+Uppy/IndexedDB resume and browser-closed/API-restarted publication pass on a
+synthetic 17 MiB fixture. That is not full app/feature-film/player assurance,
+distributed HLS locking, orphan cleanup or model-diverse convergence; keep off.
+
+### 2026-11-03: A public domain bookmark can relocate without moving private authority
+
+D97's final integration0932d6643940 passes actual browser login/TXT verification,
+one domain-only reader follow, old API/TLS shutdown, retarget/new verification
+and reload at desktop/375px. Old private access is explicitly granted/read200,
+while new-target private access is403; five held-real-response generation seams
+and cookie-free DNS/alias/public reads pass. All source/input/config-history,
+10 screenshots and cleanup receipts pass fresh bounded review. Keep the two
+failed matrices, earlier working-tree success and default-IAM compatibility run
+separate. A DNS-controlled public destination is not cryptographic identity
+continuity: theft/sale/expiry can redirect it, never inherit private roles.
+Lab allowlists, HTTP JSON bridge/TTL0, browser test-certificate bypass and API
+grant fixtures do not prove production social integration, public DNS/TLS,
+consent, availability or full/diverse security. Components land in bounded PRs;
+the capture's provisional D96 label becomes D97 without runtime change.
+
+### 2026-11-03: Requested Docker port bindings are not observed reachability
+
+The D97 lab requested loopback ports, but an internal-only Docker bridge left
+NetworkSettings.Ports empty despite HostConfig.PortBindings being present.
+An owned Alpine probe reproduces that distinction. Attach only TLS/DNS
+frontends to a second browser bridge; APIs/databases/storage remain internal.
+Docker can also assign another random host port on restart: refresh the mapping
+and preserve per-case configuration history instead of assuming the old port.
+Neither startup nor intended configuration proves reachability. DNS parity tests
+compare exact RRset multisets, not unspecified wire order. Four real loopback
+DNS/control tests pin shared TXT/JSON state and denied secret/path/target cases;
+the default runner retains its IAM/issuer assertions and no published ports.
+
+### 2026-11-03: Domain-follow discovery must not carry home authority
+
+D97's research client stores a domain-only private app bookmark; DNS selects
+only a configured public destination. Reader tokens stay at a fixed home, and
+public DNS/alias/post requests omit cookies and credentials and reject redirects.
+Fresh bounded review reproduced an existing-follow await-continuation gap;
+a second control reproduces a post-resolve request issued after invalidation.
+Both tests fail before generation rechecks and pass after them. All 22 Node
+controls pass. A ticket must capture an irreversible generation, not a boolean
+that a later login can revive. An already-issued home write cannot be recalled;
+its stale completion rejects. Domain sale/theft/expiry can change a public
+subscription destination, never inherit the old account's private grants.
+Connected prototype/runner components and broader/diverse review remain separate
+gates; this does not change web10-social's existing follows or implement Shadowguard.
+
+### 2026-11-03: Expiry stops new upload work, not observation of an existing result
+
+[R1 session evidence](scans/2026-11/upload-session-r1.md) uses private S3
+create-only/CAS records rather than assuming ClickHouse transactions. A fresh
+same-family review found that character bounds could produce an unreadable
+encoded record, and that expiry could strand an already-successful completion.
+Two local regressions fail before repair; encoded writes now share the reader's
+byte ceiling and a separate observation seam records an independently verified
+existing completion after expiry without authorizing new parts/completion work.
+Actual MinIO record races/lost responses/restart are exercised, but the IDs and
+completion ETags are synthetic. This unexposed store neither authenticates its
+supplied owner nor verifies media provenance. Those R2 gates and model-diverse
+review remain OPEN; this is not deployed-upload security assurance.
+
+Follow-up reviews pin two related lifecycle rules: a reduced admission limit
+must not hide an existing idempotent result, and capacity must be reserved for
+the largest **future** result, not just the current serialized record. A
+nonterminal record that cannot fit its completion result must be rejected before
+mutation. Raw object keys also need encoded S3 byte bounds. Final local evidence:
+24 focused cases, 2,001 API tests plus eight subtests, one opt-in skip, and one
+fresh same-family dry review—not model-diverse convergence or production proof.
+
+### 2026-11-03: A resumable-upload UI is not a saved upload or an auth boundary
+
+The [upload lifecycle inventory](scans/2026-11/resumable-upload-lifecycle.md)
+distinguishes local draft intent, server/storage-confirmed parts and durable
+publication outcomes. The preview originally retained one in-memory queue across
+synthetic accounts and stopped listening to connectivity on navigation away;
+two regressions reproduce those UI defects before repair. Owner partitions and
+session/task-attempt generations now model the intended behavior, but the harness
+holds no credential and makes no API writes: this is not a deployed-auth finding
+or server-security fix. Real recovery needs owner-scoped durable state and live
+server gates; file metadata is not content identity, browser locks are not server
+idempotence, and A→B→A must invalidate old callbacks despite matching names. Real
+persistence, revocation, concurrency and automatic publication remain OPEN.
+
 ### 2026-11-04: An HTTPS Worker origin URL does not override Flexible zone SSL
 
 Production edge diagnostics showed an origin 301 despite a literal HTTPS endpoint;
@@ -52,6 +150,11 @@ expired capabilities are denied before cache/origin access. Normal adapter
 restored. Private env persistence is also distinct from normal release forwarding:
 the pinned-image activation is live, but older main Compose can fall back to legacy
 delivery on redeploy. No broad scan/PASS or immediate-revocation claim.
+
+Follow-up: normal main promotion b4e3b4bd9a84 and its green deployment now preserve
+all seven forwarded media fields on a new API image; active/backup env remain
+identical and actual CDN read/range/expiry/browser checks pass again. This closes
+the specific deployment-forwarding gap, not the broader review/renewal gates.
 
 ### 2026-11-03: Merged-source replay closes a receipt gate, not security coverage
 
