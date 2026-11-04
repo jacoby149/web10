@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
+import { createContext, useContext, useCallback, useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { Maximize2, TriangleAlert, Play, Pause, Volume2, VolumeX, Gauge, MonitorPlay } from 'lucide-react';
 import { cn } from './utils';
 import { IconBtn } from './ui';
@@ -81,10 +81,15 @@ export function RackMenu({ label, value, options, onPick, testId, icon }: {
 
 const LOG = (...args: unknown[]) => console.log('[discover:hls]', ...args);
 const LOG_ERR = (...args: unknown[]) => console.error('[discover:hls]', ...args);
+export type ManifestRefresh = () => Promise<string | { url: string; isCurrent: () => boolean }>;
+/** Each carrier supplies its own live read; the shared player owns no credentials. */
+export const HlsRenewalContext = createContext<((manifest: string) => ReturnType<ManifestRefresh>) | undefined>(undefined);
 
 interface HlsVideoPlayerProps {
   /** Path-only manifest URL minted by the read (10-min sig). */
   manifestUrl: string;
+  /** Re-read the original carrier under current authority; never extend a sig. */
+  refreshManifest?: ManifestRefresh;
   poster?: string;
   /** The source ratio (lowest variant's width/height) — the node preserves
     *  it across renditions, so the first variant IS the source ratio. */
@@ -110,6 +115,8 @@ interface HlsVideoPlayerProps {
    * the cap is a no-op for it. Absent → uncapped (unchanged).
    */
   maxHeight?: string;
+  /** Fill a carousel's already-reserved frame without introducing a new ratio. */
+  fill?: boolean;
   /** Seek to this time (seconds) once playback is ready (the watch page's
     *  `?t=`). Absent → start at 0 (unchanged). */
   initialTime?: number;
@@ -145,11 +152,15 @@ const SPEEDS = ['1x', '1.5x', '2x'] as const;
  * component serves the feed card and the lightbox, so both surfaces get the
  * identical controls.
  */
-export function HlsVideoPlayer({ manifestUrl, poster, width, height, className, maxWidth, maxHeight, initialTime, onTimeUpdate, loop = true }: HlsVideoPlayerProps) {
+export function HlsVideoPlayer({ manifestUrl, refreshManifest, poster, width, height, className, maxWidth, maxHeight, fill = false, initialTime, onTimeUpdate, loop = true }: HlsVideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<HlsInstance | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playingRef = useRef(false);
+  const pauseIntentRef = useRef(0);
+  const qualityRef = useRef(0);
+  const speedRef = useRef(0);
+  const seekIntentRef = useRef({ version: 0, time: 0 });
   // Whether the pointer is currently over the player. The auto-hide must never
   // fire while the pointer is here — reaching for a control (volume,
   // fullscreen) that sits near the edge of the video would otherwise hide the
@@ -191,45 +202,147 @@ export function HlsVideoPlayer({ manifestUrl, poster, width, height, className, 
   // full-width 16:9. No phone-width column: the video is full-bleed in the card.
   const ratio = width && height ? width / height : 16 / 9;
   const manifestHref = `${API_ORIGIN}${manifestUrl}`;
+  const renewCarrier = useContext(HlsRenewalContext);
+  const refreshRef = useRef(refreshManifest);
+  refreshRef.current = refreshManifest ?? (renewCarrier ? () => renewCarrier(manifestUrl) : undefined);
 
   // ── Attach the source (hls.js first, native HLS fallback) ─────────────────
   useEffect(() => {
     const el = videoRef.current;
     if (!el) return;
-    LOG('hls player — attach, manifest:', manifestHref);
+    LOG('hls player — attach');
+    setFailed(false);
+    let disposed = false;
+    let refreshing = false;
+    let exhausted = false;
+    let lastRecovery = -Infinity;
+    let href = manifestHref;
+    let restore: (() => void) | undefined;
+    let hls: HlsInstance | undefined;
+    // Unsigned metadata is a scheduling hint ONLY. The fresh read and node
+    // manifest gate remain the authority; malformed hints use error recovery.
+    const expiry = () => {
+      try {
+        const sig = new URL(href).searchParams.get('sig') || '';
+        const part = sig.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+        const { exp, iat } = JSON.parse(atob(part));
+        if (typeof exp !== 'number' || !Number.isFinite(exp)) return Infinity;
+        const margin = typeof iat === 'number' && Number.isFinite(iat)
+          ? Math.max(1000, Math.min(30_000, (exp - iat) * 100)) : 30_000;
+        return exp * 1000 - margin;
+      } catch { return Infinity; }
+    };
+    const renew = async () => {
+      if (disposed || refreshing || exhausted || !refreshRef.current) return;
+      refreshing = true;
+      LOG('hls player — renewal read started');
+      try {
+        const result = await refreshRef.current();
+        if (disposed) return;
+        const fresh = typeof result === 'string' ? result : result.url;
+        const isCurrent = typeof result === 'string' ? () => true : result.isCurrent;
+        if (!isCurrent()) throw new Error('Playback session changed');
+        const next = new URL(fresh, API_ORIGIN).href;
+        if (next === href) throw new Error('Unchanged stream capability');
+        const position = el.currentTime;
+        const seekIntent = seekIntentRef.current.version;
+        const rate = el.playbackRate;
+        const speedIntent = speedRef.current;
+        const resume = !el.paused;
+        const pauseIntent = pauseIntentRef.current;
+        href = next;
+        if (restore) el.removeEventListener('loadedmetadata', restore);
+        restore = () => {
+          if (disposed) return;
+          if (!isCurrent()) { exhausted = true; setFailed(true); return; }
+          el.currentTime = seekIntent === seekIntentRef.current.version ? position : seekIntentRef.current.time;
+          el.playbackRate = speedIntent === speedRef.current ? rate : parseFloat(SPEEDS[speedRef.current]);
+          if (resume && pauseIntent === pauseIntentRef.current) void el.play().catch(() => {});
+        };
+        el.addEventListener('loadedmetadata', restore, { once: true });
+        el.autoplay = false;
+        if (hls) {
+          hls.loadSource(href);
+          hls.startLoad?.(position);
+        } else {
+          el.src = href;
+          el.load();
+        }
+        LOG('hls player — renewal source installed');
+      } catch {
+        if (!disposed) {
+          exhausted = true;
+          LOG_ERR('hls player — renewal denied or unavailable');
+          setFailed(true);
+        }
+      } finally { refreshing = false; }
+    };
+    const checkExpiry = () => {
+      if (!el.paused && expiry() <= Date.now()) void renew();
+    };
+    const onNativeError = () => {
+      LOG_ERR('hls player — native video error, code:', el.error?.code);
+      recover();
+    };
+    // A pause from native/fullscreen controls is also intent. Conservatively
+    // keep a replacement paused if the browser reports a pause while loading.
+    const onPauseIntent = () => { pauseIntentRef.current++; el.autoplay = false; };
+    const recover = () => {
+      if (disposed || refreshing || exhausted) return;
+      if (!refreshRef.current || Date.now() - lastRecovery < 30_000) {
+        exhausted = true;
+        setFailed(true);
+        return;
+      }
+      lastRecovery = Date.now();
+      void renew();
+    };
+    el.addEventListener('play', checkExpiry);
+    el.addEventListener('pause', onPauseIntent);
+    el.addEventListener('timeupdate', checkExpiry);
+    el.addEventListener('error', onNativeError);
+    const detach = () => {
+      disposed = true;
+      el.removeEventListener('play', checkExpiry);
+      el.removeEventListener('pause', onPauseIntent);
+      el.removeEventListener('timeupdate', checkExpiry);
+      el.removeEventListener('error', onNativeError);
+      if (restore) el.removeEventListener('loadedmetadata', restore);
+      hls?.destroy();
+      hlsRef.current = null;
+    };
 
     if (window.Hls && window.Hls.isSupported()) {
       const Hls = window.Hls;
-      const hls = new Hls();
+      hls = new Hls();
       hlsRef.current = hls;
       hls.on(Hls.Events.MANIFEST_PARSED, (_e, data) => {
         LOG('hls player — manifest parsed, levels:', data.levels.map((l: { height: number }) => `${l.height}p`).join('/'));
         setLevels(data.levels);
+        if (qualityRef.current > 0) hls!.currentLevel = qualityRef.current - 1;
       });
       hls.on(Hls.Events.LEVEL_SWITCHED, (_e, data) => {
         LOG('hls player — switched to level', data.level);
       });
       hls.on(Hls.Events.ERROR, (_e, data) => {
         LOG_ERR('hls player — error, type:', data.type, 'details:', data.details, 'fatal:', data.fatal);
-        if (data.fatal) setFailed(true);
+        if (data.response?.code === 403 && refreshRef.current) recover();
+        else if (data.fatal) setFailed(true);
       });
       hls.loadSource(manifestHref);
       hls.attachMedia(el);
-      return () => {
-        LOG('hls player — destroy');
-        hls.destroy();
-        hlsRef.current = null;
-      };
+      return detach;
     }
 
     if (el.canPlayType('application/vnd.apple.mpegurl')) {
       LOG('hls player — native HLS (Safari)');
       el.src = manifestHref;
-      return;
+      return detach;
     }
 
     LOG_ERR('hls player — no HLS support in this browser');
     setFailed(true);
+    return detach;
   }, [manifestHref]);
 
   // ── Seek to the initial time once playback is ready (the watch page's ?t=). ─
@@ -238,7 +351,10 @@ export function HlsVideoPlayer({ manifestUrl, poster, width, height, className, 
   useEffect(() => {
     const el = videoRef.current;
     if (!el || initialTime == null || initialTime <= 0) return;
+    let applied = false;
     const onSeeked = () => {
+      if (applied) return;
+      applied = true;
       if (Math.abs(el.currentTime - initialTime) > 0.5) el.currentTime = initialTime;
       LOG('hls player — seeked to initial time', initialTime);
     };
@@ -303,6 +419,7 @@ export function HlsVideoPlayer({ manifestUrl, poster, width, height, className, 
   useEffect(() => {
     const el = videoRef.current;
     if (!el) return;
+    speedRef.current = speed;
     el.playbackRate = parseFloat(SPEEDS[speed]);
     LOG('hls player — speed set to', el.playbackRate);
   }, [speed]);
@@ -310,6 +427,7 @@ export function HlsVideoPlayer({ manifestUrl, poster, width, height, className, 
   // ── Manual quality selection (the YouTube gear menu): index 0 = auto (ABR). ─
   useEffect(() => {
     const hls = hlsRef.current;
+    qualityRef.current = quality;
     if (!hls) return;
     const el = videoRef.current;
     // Index 0 = Auto (ABR, -1); index i = level i-1.
@@ -349,7 +467,7 @@ export function HlsVideoPlayer({ manifestUrl, poster, width, height, className, 
     if (!el) return;
     LOG('hls player — play/pause toggled');
     if (el.paused) el.play().catch(() => {});
-    else el.pause();
+    else { pauseIntentRef.current++; el.pause(); }
     showControls();
   }
 
@@ -357,6 +475,7 @@ export function HlsVideoPlayer({ manifestUrl, poster, width, height, className, 
     const el = videoRef.current;
     if (!el) return;
     const t = parseFloat(e.target.value);
+    seekIntentRef.current = { version: seekIntentRef.current.version + 1, time: t };
     el.currentTime = t;
     setCurrent(t);
     LOG('hls player — seek to', t);
@@ -417,7 +536,7 @@ export function HlsVideoPlayer({ manifestUrl, poster, width, height, className, 
   return (
     <div
       data-testid="hls-video-player"
-      className={cn('relative overflow-hidden bg-black', className)}
+      className={cn('relative overflow-hidden bg-black', fill && 'h-full w-full', className)}
       onMouseEnter={() => { pointerOverRef.current = true; setPointerOver(true); showControls(); }}
       onMouseMove={showControls}
       onMouseLeave={() => {
@@ -435,8 +554,8 @@ export function HlsVideoPlayer({ manifestUrl, poster, width, height, className, 
       }}
     >
       <div
-        className={cn('group relative w-full', (maxWidth || heightCapped) && 'mx-auto')}
-        style={{ aspectRatio: ratio, maxWidth, ...(heightCapped ? { maxHeight } : {}) }}
+        className={cn('group relative w-full', fill && 'h-full', (maxWidth || heightCapped) && 'mx-auto')}
+        style={fill ? undefined : { aspectRatio: ratio, maxWidth, ...(heightCapped ? { maxHeight } : {}) }}
       >
         {/* The poster — always the backdrop (the thumbnail-first face). It
             shows while the manifest + first segment load, then the video fades
@@ -458,18 +577,11 @@ export function HlsVideoPlayer({ manifestUrl, poster, width, height, className, 
             revealed ? 'opacity-100' : 'opacity-0',
           )}
           muted
-          autoPlay
+          autoPlay={!fill}
           loop={loop}
           playsInline
           preload="auto"
           onClick={togglePlay}
-          onError={() => {
-            // The native-HLS path (iOS Safari — no MSE, so hls.js is skipped):
-            // a failed manifest/segment load fires `error` on the <video>.
-            // Without this the player sat as a silent black box.
-            LOG_ERR('hls player — native video error, code:', videoRef.current?.error?.code, 'msg:', videoRef.current?.error?.message);
-            setFailed(true);
-          }}
         />
 
         {/* Tap / hover reveals the rack; it fades out while playing + idle. */}

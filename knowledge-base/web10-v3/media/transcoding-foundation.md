@@ -14,6 +14,17 @@ Source video document
 
 ## v3 — Transcoded (HLS)
 
+### Long-form worker budget
+
+The single worker remains bounded and does not gain concurrency for feature films.
+Each rendition gets a wall-clock budget of twice the server-probed source duration,
+with a ten-minute floor and `HLS_FFMPEG_TIMEOUT` as the absolute ceiling. The default
+ceiling is six hours, enough to budget a three-hour source at half real-time encoding
+speed; an operator's explicit lower ceiling still wins. Thumbnail commands retain
+the ten-minute budget (or a smaller configured ceiling). This is a timeout policy,
+not a throughput guarantee: a slow machine can still time out, and actual film
+timings remain an acceptance gate. No upload cap or duration acceptance is widened.
+
 v3 transcodes. Video uploads go through the HLS pipeline: ffmpeg produces adaptive-bitrate variants + a master manifest, all stored in MinIO. The source document becomes the manifest — it carries the array of variants and thumbnails:
 
 ```json

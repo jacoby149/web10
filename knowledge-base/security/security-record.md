@@ -15,6 +15,18 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Social HLS renewal (03.11.2026) — OPEN
+
+[Bounded read/review/browser record](scans/2026-11/watch-hls-renewal.md): original
+carrier/exact-media fresh reads, scheduling-only expiry metadata and delayed
+session/user-intent preservation. Same-family review reproduces four continuation
+defects; local regressions and synthetic signed-HTTP Chromium evidence support
+the repairs, plus a carousel routing repair. Feed/group/repost/lightbox/watch are
+wired. All 1,857 social and 284 marketing tests/builds pass. Actual node/full-film/
+Safari, excluded surfaces, model-diverse review, CI and rollout remain OPEN; no
+L1–L4 PASS. Separate worker-budget tests and a local MinIO expiry characterization
+are reliability evidence, not additional authorization/security findings.
+
 ## Resumable R2–R5 continuation (03.11.2026) — OPEN
 
 [Bounded implementation/review/integration record](scans/2026-11/resumable-r2-r5.md).

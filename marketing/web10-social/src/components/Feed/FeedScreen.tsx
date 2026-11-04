@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useIsMobile } from '@/lib/pwa';
+import { PostMediaRenewal } from './PostMediaRenewal';
 import { useDwellTracking } from '@/hooks/useDwellTracking';
 import { useSearchParams } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -301,7 +302,7 @@ function RepostedEmbed({
         </div>
       ) : null}
       <div className="pb-2">
-        <MediaGrid mediaItems={mediaItems} />
+        <PostMediaRenewal postId={original._id}><MediaGrid mediaItems={mediaItems} /></PostMediaRenewal>
       </div>
       {/* The original's creator-pinned ad (D55) renders inside the embed — the
           repost resurfaces the original's content AND its monetization, so the
@@ -654,7 +655,7 @@ export function PostCard({
       {/* Media. Editing (title / body / media remove) happens in the app-level
           composer sheet (openComposer({ editingPost }) — the ONE edit path),
           not inline here, so the card stays the read surface. */}
-      <MediaGrid mediaItems={mediaItems} />
+      <PostMediaRenewal postId={post._id}><MediaGrid mediaItems={mediaItems} /></PostMediaRenewal>
 
       {post.text && !post.repost_of ? (
         <div className="px-4 pt-3">

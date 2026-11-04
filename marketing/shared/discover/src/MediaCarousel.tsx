@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { cn } from './utils';
-import { VideoPlayer, type VideoSource } from './VideoPlayer';
+import { VideoPlayer, sourceFromMedia } from './VideoPlayer';
 import type { MediaItem } from './types';
 
 /**
@@ -62,16 +62,8 @@ export function MediaCarousel({ items, fit = 'contain', ratio, maxHeight, testId
       >
         {items.map((item, i) => {
           const isVideo = item.mime_type?.startsWith('video/');
-          // Carousel slides play the direct file (tap-to-play, fill). The full
-          // HLS rack is the single-video viewing surface, not a carousel slide.
-          const source: VideoSource = {
-            type: 'file',
-            url: item.url,
-            poster: item.thumbnail_url,
-            width: item.width,
-            height: item.height,
-            durationSeconds: item.duration_seconds,
-          };
+          // A film plus a poster must not silently bypass HLS/renewal.
+          const source = sourceFromMedia(item);
           return (
             <div key={item._id || i} className="h-full w-full shrink-0 snap-start">
               {isVideo ? (

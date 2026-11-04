@@ -27,6 +27,7 @@ import { AttachedAd } from '@/components/Feed/AttachedAd';
 import { toast, errorMessage } from '@/components/shared/Toast';
 import { cn } from '@/lib/utils';
 import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
+import { PostMediaRenewal } from '@/components/Feed/PostMediaRenewal';
 
 /** A single frame in the lightbox's swipeable media strip. Video renders
  *  through the full player (the modal modality); an image is an `<img>` fit to
@@ -384,7 +385,9 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
             key={m._id || i}
             className="flex h-full w-full shrink-0 snap-start items-center justify-center"
           >
-            <LightboxSlide media={m} testId={`post-lightbox-media-${i}`} />
+            <PostMediaRenewal postId={currentPost._id}>
+              <LightboxSlide media={m} testId={`post-lightbox-media-${i}`} />
+            </PostMediaRenewal>
           </div>
         ))}
       </div>

@@ -43,6 +43,7 @@ import {
   type ReactionKind,
 } from '@/data';
 import { getWapi } from '@/data/wapi';
+import { PostMediaRenewal } from '@/components/Feed/PostMediaRenewal';
 import { useRepost } from '@/context/RepostContext';
 import { useComposer } from '@/context/ComposerContext';
 import { defaultKnobState, knobStateToSort, type KnobState, type PowerMeanSortConfig } from '@/lib/powerMean';
@@ -831,6 +832,7 @@ export default function WatchScreen() {
       <div className="min-w-0 space-y-4">
         {video ? (
           <div className="overflow-hidden rounded-lg bg-black" data-testid="watch-player">
+            <PostMediaRenewal postId={post._id}>
             <VideoPlayer
               source={sourceFromMedia(video)}
               mode="full"
@@ -841,6 +843,7 @@ export default function WatchScreen() {
               testId="watch-video"
               className="w-full"
             />
+            </PostMediaRenewal>
           </div>
         ) : (
           <div className="flex aspect-video items-center justify-center rounded-lg bg-elevated" data-testid="watch-no-video">

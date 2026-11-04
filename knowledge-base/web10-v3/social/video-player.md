@@ -148,6 +148,30 @@ The invariant that makes the inline modality feel right: **in `inline` mode, a t
 
 ## Open questions
 
+### Long-form social playback renewal
+
+Feed/group cards, repost embeds, the profile lightbox and watch page scope nested
+players through `PostMediaRenewal`: a fresh read of the original post and exact
+media ID. A film-plus-image carousel uses completed HLS, not a forced direct-file
+source; its HLS rack fills the reserved carousel frame and remains tap-to-play.
+During active playback, the current signature's
+unsigned `exp`/`iat` metadata schedules a read shortly before expiry; this metadata
+grants no authority. A segment HTTP 403 (or native media error) can also trigger
+one recovery, with a 30-second guard against repeatedly denied replacements.
+Missing, removed, denied or unchanged media stops playback rather than borrowing
+another video or extending the existing signature. Renewal reads omit the watch
+delivery label, avoiding an extra labelled impression just for refreshing URLs.
+
+Replacement preserves position and current seek/speed/quality intent. Paused videos
+do not proactively renew; resuming checks expiry. Source disposal and auth-session
+generation changes invalidate pending installation/restoration. Native pause
+events win over auto-resume; conservatively, a browser-generated replacement pause
+may require pressing Play. Native Safari continuity remains an acceptance gate.
+Shorts, hover previews, ads and marketing do not receive the social renewal
+provider. The node's read and manifest gates, token lifetimes and signature
+verification are unchanged. Bounded evidence and remaining gates:
+[`watch-hls-renewal.md`](../../../security/scans/2026-11/watch-hls-renewal.md).
+
 Decided and built: the two modalities; the one-component / two-axes shape; the inline `stopPropagation` invariant; the Discover fix (inline video plus inline `CommentThread`, no lightbox); the Discover YouTube view (web10 video posts render inline in the 16:9 tile — the TikTok/Shorts wall, no lightbox); Groups (unified to `<VideoPlayer mode="inline">`); **multi-media posts** (the shared `MediaCarousel` — a fixed frame + scroll-snap strip of all the post's media + a `1/N` position indicator where the old dead count badge was; video slides render through `<VideoPlayer fill>`, image slides through `<img>`; composed by both the feed's `MediaGrid` and Discover's card).
 
 Still open:
