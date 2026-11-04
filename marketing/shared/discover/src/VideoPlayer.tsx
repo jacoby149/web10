@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type ChangeEvent } from 'react';
 import { Play, Pause, TriangleAlert, Volume2, VolumeX, Maximize2, Gauge } from 'lucide-react';
 import { cn } from './utils';
-import { HlsVideoPlayer, RackMenu } from './HlsVideoPlayer';
+import { HlsVideoPlayer, RackMenu, type ManifestRefresh } from './HlsVideoPlayer';
 import { IconBtn } from './ui';
 import { API_ORIGIN } from './config';
 import type { HlsInstance } from './hls';
@@ -125,9 +125,11 @@ export interface VideoPlayerProps {
    * surface that plays a video once (the watch page) passes `false`.
    */
   loop?: boolean;
+  /** Fresh authorized carrier read for long-form HLS playback. */
+  refreshManifest?: ManifestRefresh;
 }
 
-export function VideoPlayer({ source, mode = 'inline', fit = 'contain', ratio, maxHeight, maxWidth, showDuration = true, fill = false, immersive = false, active = false, muted = true, testId, className, initialTime, onTimeUpdate, loop = true }: VideoPlayerProps) {
+export function VideoPlayer({ source, mode = 'inline', fit = 'contain', ratio, maxHeight, maxWidth, showDuration = true, fill = false, immersive = false, active = false, muted = true, testId, className, initialTime, onTimeUpdate, loop = true, refreshManifest }: VideoPlayerProps) {
   LOG('video player — source:', source.type, 'mode:', mode, 'fit:', fit, 'ratio:', ratio ?? 'natural', 'immersive:', immersive, 'active:', active, 'muted:', muted, 'initialTime:', initialTime ?? 0, 'loop:', loop);
 
   if (source.type === 'hls') {
@@ -149,6 +151,8 @@ export function VideoPlayer({ source, mode = 'inline', fit = 'contain', ratio, m
     return (
       <HlsVideoPlayer
         manifestUrl={source.manifestUrl}
+        refreshManifest={refreshManifest}
+        fill={fill}
         poster={source.poster}
         width={source.width}
         height={source.height}

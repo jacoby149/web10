@@ -23,6 +23,7 @@ class FakeHls {
   static instances: FakeHls[] = [];
 
   loadSource = vi.fn();
+  startLoad = vi.fn();
   attachMedia = vi.fn();
   destroy = vi.fn();
   on = vi.fn();
@@ -62,6 +63,156 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('HlsVideoPlayer', () => {
+  it('keeps film-plus-image carousel slides on HLS with carrier renewal and frame sizing', async () => {
+    installFakeHls();
+    const { MediaCarousel, HlsRenewalContext } = await import('@web10/discover');
+    const renew = vi.fn().mockResolvedValue('/fresh');
+    render(<HlsRenewalContext.Provider value={renew}><MediaCarousel items={[
+      { _id: 'film', url: '/raw.mp4', mime_type: 'video/mp4', transcoding_settings: { status: 'done', manifest_url: '/manifest?doc_id=film&sig=old' } },
+      { _id: 'poster', url: '/poster.jpg', mime_type: 'image/jpeg' },
+    ]} /></HlsRenewalContext.Provider>);
+    const hls = FakeHls.instances[0];
+    expect(hls.loadSource).toHaveBeenCalledWith(expect.stringContaining('/manifest?doc_id=film'));
+    const player = screen.getByTestId('hls-video-player');
+    expect(player).toHaveClass('h-full');
+    expect(screen.getByTestId('hls-video')).not.toHaveAttribute('autoplay');
+    expect((player.firstElementChild as HTMLElement).style.aspectRatio).toBe('');
+    await act(async () => hls.fire('error', { response: { code: 403 } }));
+    expect(renew).toHaveBeenCalledWith('/manifest?doc_id=film&sig=old');
+    expect(hls.loadSource).toHaveBeenLastCalledWith(expect.stringContaining('/fresh'));
+  });
+
+  it('renews a denied segment once and restores position, speed and playback', async () => {
+    installFakeHls();
+    const { HlsVideoPlayer } = await import('@/components/Feed/HlsVideoPlayer');
+    let resolve!: (url: string) => void;
+    const refresh = vi.fn(() => new Promise<string>((r) => { resolve = r; }));
+    render(<HlsVideoPlayer manifestUrl="/old" refreshManifest={refresh} />);
+    const video = screen.getByTestId('hls-video') as HTMLVideoElement;
+    Object.defineProperty(video, 'paused', { configurable: true, value: false });
+    video.currentTime = 730;
+    video.playbackRate = 1.5;
+    const play = vi.spyOn(video, 'play').mockResolvedValue();
+    const hls = FakeHls.instances[0];
+    await act(async () => {
+      hls.fire('error', { response: { code: 403 }, fatal: false });
+      hls.fire('error', { response: { code: 403 }, fatal: true });
+    });
+    expect(refresh).toHaveBeenCalledTimes(1);
+    await act(async () => resolve('/fresh'));
+    expect(hls.loadSource).toHaveBeenLastCalledWith(expect.stringContaining('/fresh'));
+    expect(hls.startLoad).toHaveBeenCalledWith(730);
+    video.currentTime = 0;
+    video.playbackRate = 1;
+    fireEvent.loadedMetadata(video);
+    expect(video.currentTime).toBe(730);
+    expect(video.playbackRate).toBe(1.5);
+    expect(play).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('hls-player-error')).not.toBeInTheDocument();
+  });
+
+  it('uses expiry only as a renewal hint, including short lifetimes and paused resume', async () => {
+    installFakeHls();
+    const { HlsVideoPlayer } = await import('@/components/Feed/HlsVideoPlayer');
+    const now = Math.floor(Date.now() / 1000);
+    const url = (iat: number, exp: number) => `/manifest?sig=x.${btoa(JSON.stringify({ iat, exp }))}.x`;
+    const refresh = vi.fn().mockResolvedValue(url(now, now + 600));
+    render(<HlsVideoPlayer manifestUrl={url(now - 7, now + 1)} refreshManifest={refresh} />);
+    const video = screen.getByTestId('hls-video') as HTMLVideoElement;
+    fireEvent.timeUpdate(video);
+    expect(refresh).not.toHaveBeenCalled();
+    Object.defineProperty(video, 'paused', { configurable: true, value: false });
+    await act(async () => fireEvent.play(video));
+    expect(refresh).toHaveBeenCalledTimes(1);
+    await act(async () => fireEvent.timeUpdate(video));
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['session', 'native-pause', 'speed', 'seek'])('respects %s changes after source replacement and before metadata', async (change) => {
+    installFakeHls();
+    const { HlsVideoPlayer } = await import('@/components/Feed/HlsVideoPlayer');
+    let current = true;
+    const refresh = vi.fn().mockResolvedValue({ url: '/fresh', isCurrent: () => current });
+    render(<HlsVideoPlayer manifestUrl="/old" refreshManifest={refresh} />);
+    const video = screen.getByTestId('hls-video') as HTMLVideoElement;
+    Object.defineProperty(video, 'paused', { configurable: true, value: false });
+    video.currentTime = 700;
+    Object.defineProperty(video, 'duration', { configurable: true, value: 1200 });
+    fireEvent.durationChange(video);
+    const play = vi.spyOn(video, 'play').mockResolvedValue();
+    await act(async () => FakeHls.instances[0].fire('error', { response: { code: 403 } }));
+    if (change === 'session') current = false;
+    if (change === 'native-pause') fireEvent.pause(video);
+    if (change === 'speed') {
+      fireEvent.click(screen.getByTestId('speed-select'));
+      fireEvent.click(screen.getByTestId('speed-select-option-2'));
+    }
+    if (change === 'seek') fireEvent.change(screen.getByTestId('scrubber'), { target: { value: '90' } });
+    fireEvent.loadedMetadata(video);
+    if (change === 'session') expect(screen.getByTestId('hls-player-error')).toBeInTheDocument();
+    if (change === 'speed') expect(video.playbackRate).toBe(2);
+    else if (change === 'seek') expect(video.currentTime).toBe(90);
+    else expect(play).not.toHaveBeenCalled();
+  });
+
+  it('bounds recovery when a replacement is also denied', async () => {
+    installFakeHls();
+    const { HlsVideoPlayer } = await import('@/components/Feed/HlsVideoPlayer');
+    const refresh = vi.fn().mockResolvedValue('/fresh');
+    render(<HlsVideoPlayer manifestUrl="/old" refreshManifest={refresh} />);
+    const hls = FakeHls.instances[0];
+    await act(async () => hls.fire('error', { response: { code: 403 } }));
+    await act(async () => hls.fire('error', { response: { code: 403 } }));
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('hls-player-error')).toBeInTheDocument();
+  });
+
+  it('does not install a late renewal after navigation to another source', async () => {
+    installFakeHls();
+    const { HlsVideoPlayer } = await import('@/components/Feed/HlsVideoPlayer');
+    let resolve!: (url: string) => void;
+    const refresh = () => new Promise<string>((r) => { resolve = r; });
+    const view = render(<HlsVideoPlayer manifestUrl="/old" refreshManifest={refresh} />);
+    const old = FakeHls.instances[0];
+    act(() => old.fire('error', { response: { code: 403 } }));
+    view.rerender(<HlsVideoPlayer manifestUrl="/different" refreshManifest={refresh} />);
+    await act(async () => resolve('/late'));
+    expect(old.loadSource).toHaveBeenCalledTimes(1);
+    expect(FakeHls.instances[1].loadSource).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['denied', 'unchanged'])('stops renewal after %s rather than looping', async (mode) => {
+    installFakeHls();
+    const { HlsVideoPlayer } = await import('@/components/Feed/HlsVideoPlayer');
+    const refresh = mode === 'denied' ? vi.fn().mockRejectedValue(new Error('403')) : vi.fn().mockResolvedValue('/old');
+    render(<HlsVideoPlayer manifestUrl="/old" refreshManifest={refresh} />);
+    const hls = FakeHls.instances[0];
+    await act(async () => hls.fire('error', { response: { code: 403 } }));
+    expect(screen.getByTestId('hls-player-error')).toBeInTheDocument();
+    await act(async () => hls.fire('error', { response: { code: 403 } }));
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('renews native HLS without autoplaying a paused video', async () => {
+    uninstallHls();
+    vi.spyOn(HTMLMediaElement.prototype, 'canPlayType').mockReturnValue('probably');
+    const { HlsVideoPlayer } = await import('@/components/Feed/HlsVideoPlayer');
+    const refresh = vi.fn().mockResolvedValue('/fresh');
+    render(<HlsVideoPlayer manifestUrl="/old" refreshManifest={refresh} />);
+    const video = screen.getByTestId('hls-video') as HTMLVideoElement;
+    const load = vi.spyOn(video, 'load').mockImplementation(() => {});
+    const play = vi.spyOn(video, 'play').mockResolvedValue();
+    video.currentTime = 900;
+    await act(async () => fireEvent.error(video));
+    expect(video.src).toContain('/fresh');
+    expect(load).toHaveBeenCalledTimes(1);
+    video.currentTime = 0;
+    fireEvent.loadedMetadata(video);
+    expect(video.currentTime).toBe(900);
+    expect(play).not.toHaveBeenCalled();
+    vi.restoreAllMocks();
+  });
+
   it('plays through hls.js: loadSource + attachMedia, quality dropdown from levels', async () => {
     installFakeHls();
     const { HlsVideoPlayer } = await import('@/components/Feed/HlsVideoPlayer');

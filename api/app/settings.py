@@ -110,8 +110,9 @@ HLS_SIG_TTL = int(os.getenv("HLS_SIG_TTL", "600"))
 # worker (a transcode must not starve request handling — D43's pool is
 # separate, but ffmpeg is CPU-heavy either way).
 HLS_WORKER_CONCURRENCY = int(os.getenv("HLS_WORKER_CONCURRENCY", "1"))
-# Per-rendition ffmpeg wall-clock cap (seconds).
-HLS_FFMPEG_TIMEOUT = int(os.getenv("HLS_FFMPEG_TIMEOUT", "600"))
+# Absolute per-command wall-clock ceiling. Renditions use a duration-aware
+# budget within it; short clips/thumbnails keep a ten-minute maximum.
+HLS_FFMPEG_TIMEOUT = int(os.getenv("HLS_FFMPEG_TIMEOUT", "21600"))
 
 # ── Query-engine evaluation seams (the paper's access-control cost function) ──
 # Test-mode flags for the three-line ablation (research/digital-ocean-thinking.md).
