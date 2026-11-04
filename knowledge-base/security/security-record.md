@@ -15,6 +15,30 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Upload-Session R1 Foundation (03.11.2026)
+
+[Bounded local evidence](scans/2026-11/upload-session-r1.md): internal/unexposed
+private S3 conditional record store. Same-family review reproduced an encoded
+write/read size mismatch and expiry-versus-result-recovery gap; local repairs
+pin 24 cases, including lowered-limit replay and future completion-result
+capacity. Final fresh same-family review is one dry pass, not convergence.
+All 2,001 API tests plus eight subtests pass, one opt-in skip; Ruff passes.
+Disposable real MinIO proves conditional writes, both ordered
+completion/abort claim winners, concurrent reservation/lost-response replay and
+exact result recovery across process/container restart. Supplied owner context
+is not authentication; multipart IDs/results are synthetic. R2 auth/private
+policy/provenance/cleanup, model-diverse review, rollout and L1–L4 remain OPEN.
+
+## Resumable Upload Lifecycle (03.11.2026)
+
+[Design inventory and preview evidence](scans/2026-11/resumable-upload-lifecycle.md)
+by OpenAI GPT-6.1 Sol: existing backend single-POST path and client/harness seams
+inventoried; no multipart gate exists yet. Synthetic account-switch and
+browse-connectivity regressions fail before preview-only repair. Session/attempt
+guards and actual picker/composer snapshot tests do not prove authentication,
+storage durability or write authorization. R1–R6, real races/revocation and
+independent review remain OPEN; no L1–L4 advancement or security PASS claim.
+
 ## Group Media Carrier Playback (03.11.2026)
 
 [Bounded repair/evidence](scans/2026-10/group-media-carrier-repair.md): human

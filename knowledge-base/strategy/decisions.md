@@ -9,6 +9,22 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D94 — Resumable upload state uses private S3 conditional records [in-progress]
+
+R1 uses a separate server-only bucket on the existing S3/MinIO store, with
+create-only reservation and ETag-conditional state transitions. Owner context is
+node/issuer/human/app; raw media keys remain human-owned and server-generated.
+This avoids a new database/daemon and does not mistake ClickHouse append history
+for atomic compare-and-set. No unconditional fallback is permitted when a storage
+backend lacks conditional writes. Backend compatibility is a deployment gate.
+
+This is an internal upload-session primitive, not a social-specific node API or
+a transaction with multipart completion/publication. Endpoint authentication,
+real multipart recovery and idempotent publishing remain separate reviewed bites.
+Details: `web10-v3/media/upload-sessions.md`. No production activation implied.
+
+---
+
 ### D93 — Identity registry: DNS-style name resolution for web10 users, hosted on boring infra (Njalla + Cloudflare + Iceland/CH VPS) [decided, v4]
 
 Operator, 02.11.2026: "there needs to be a third party that DNS your username, so you can change what node it points to, that is the missing piece" + "support just regular shmegular dns! njalla!" + "even if the stuff on your site was so controversial then?" (re: Njalla's content policy).

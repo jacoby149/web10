@@ -45,6 +45,14 @@ says what can happen **at the same time**.
 
 ## Lanes
 
+### Lane: resumable-upload-backend (this workspace, R1 only)
+
+**Owns:** new `api/app/services/upload_sessions.py`, focused upload-session tests
+and their isolated integration smoke, plus serialized KB/security records.
+No shared router, SDK, deployment, auth or existing media-service edits in R1.
+- [✓ 3.260.0 local foundation] **R1: durable generic upload-session foundation** - `web10-v3/media/upload-sessions.md`: private S3 conditional records, immutable owner/app/intent and revisioned state/expiry/result semantics. Review-driven repairs, 24 focused/2,001 API tests plus eight subtests, Ruff and real isolated MinIO CAS/race/lost-response/process+container restart evidence pass. Final same-family review is one dry pass only. R2 endpoint auth/multipart/provenance/private-bucket cleanup, model-diverse review and activation stay OPEN.
+- [ ] **R1 publish/review gate** - operator explicitly authorized one combined draft PR for review only; before release/readiness, split contract, runtime/focused tests and standalone real-storage probe appropriately and satisfy fresh/model-diverse review. No gate-marker, CI or activation waiver; green tests/unexposed staging do not close this item.
+
 ### Lane: discover-group-presentation
 
 **Owns:** social Discover avatar/Top 10 mappings and focused tests, shared Top10Sidebar labeling, marketing FeedPreview/Trending attribution and focused tests, seeded capture fixtures and serialized KB records.
@@ -423,6 +431,17 @@ P2P stays v4 — do not build it here.
 
 ### Lane: social-v3 (Phase 3)
 **Owns:** `marketing/web10-social/`
+
+- [✓ 3.259.1 local UI only] **Upload resume reassurance** - clarify saved progress and reselect-to-resume on the active/reselection cards and center footer. Regression reproduced before repair; 14 focused tests/build pass and desktop/375px screenshots inspected. No live transport or durable-recovery change.
+
+- [✓ 3.259.0 local UI only] **Resumable upload UI flows** - `resumable-upload-experience.md`: existing-composer queue handoff, reusable status cards/center/indicator and isolated interactive harness. All 1,804 social tests and build/typecheck pass; synthetic real-composer browser smoke observes zero writes. Key desktop/375px states inspected; indicator/FAB non-overlap checked at five widths. No live transport, durable recovery, notification or publication changes; keep 500 MiB.
+- [✓ 3.259.2 local R0 only] **Upload lifecycle contract and preview guards (R0)** - `web10-v3/media/resumable-uploads.md`: state ownership, identity/session transitions, surface inventory and U01–U17 matrix. Two reproduced preview failures repaired; owner partitions, stale session/attempt rejection, route-independent connectivity and actual picker/composer snapshot tests. All 1,817 social tests/build/browser smoke pass; account/signed-out desktop/375px inspection passes. No actual auth/transport/storage or security closure; R1–R6 remain OPEN.
+- [✓ 3.260.0 local foundation] **R1: durable generic upload-session contract** - implemented in the dedicated resumable-upload-backend lane using D94/private conditional S3 records; local tests/storage evidence pass. No Uppy/social endpoint or production activation; independent review and split-PR gates remain open.
+- [ ] **R2: native multipart transport** - after R1, generic owner-bound create/sign/list/complete/abort, exact object size/checksum checks and abandoned-part cleanup. Backend/security lane; real storage interruption, lost-response and foreign-account denial gates.
+- [ ] **R3–R6: recovery, integration, publication and connected acceptance** - claim one bite from `web10-v3/media/resumable-uploads.md` at a time. R3 IndexedDB; R4 Uppy/shared sheet; R5 durable automatic publication/notification mechanism decision, then idempotent execution; R6 real lifecycle/playback then measured 2 GiB increase. All remain OPEN; UI preview cannot close them.
+
+- [✓ 3.258.5 local] **Feature-film attachment cap** - allow video durations through 10,800 seconds (three hours), keep 500 MiB and derive rejection copy from the cap. Six reproduced failures repaired; all 1,768 social tests and production build/typecheck pass. Synthetic 91:54 and over-cap MP4 desktop/375px browser attachments inspected. No server/player changes, deployment or resumable uploads; connected gates remain open.
+- [ ] **Feature-film connected acceptance** - after rollout, attach/upload/transcode Nosferatu 91:54 as one Century Club Movies post; verify planned renditions, seeking and playback past the ten-minute HLS signature lifetime, plus existing Steamboat Willie playback. Gates: deployed cap and group-media carrier repair, real source file and operator approval before production publication. Owns: `marketing/web10-social/`; backend changes require a separate lane. Acceptance: record upload/worker timings and actual playback evidence, with any failures explicit.
 
 The social app is the integration test (Phase 3). It ran on two legacy
 seams — `web10-npm@1.0.8` (v1 auth) and the hand-rolled `src/data/v3.ts`
