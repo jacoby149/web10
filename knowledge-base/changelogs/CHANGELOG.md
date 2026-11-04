@@ -3,6 +3,8 @@ fix(web10-social): repair Music device-report symptoms locally. Share caption-ba
 
 Merge follow-up: preserve dev's feature-film/upload foundations and all existing release records; resolve adjacent plan/screenshot-documentation insertions by retaining both. Renumber only this branch's release/references to 4.4.1 above merged 4.4.0. Earlier verification counts belong to the pre-merge revision; fresh merged-source checks remain required.
 
+Merged-source verification: all 1,814 social tests (121 files, one worker), production typecheck/build and desktop/375px native-MP3 HTTP-403 recovery/failure/manual-retry checks pass. Updated recovery/error screenshots remain in `.context/`; inspected merged desktop/mobile recovery captures. PR #1371 is mergeable; CI remains a gate, not waived by these local results.
+
 4.4.0 || 03.11.2026
 PR preparation: operator explicitly authorizes one combined draft PR for review of the current cap/UI/unexposed-foundation state. This is a draft-scope exception only; no CI, security-review, release-splitting or activation gates are waived, and no gate-exemption marker is added.
 

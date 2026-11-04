@@ -66,7 +66,7 @@ No shared router, SDK, deployment, auth or existing media-service edits in R1.
 
 ### Lane: century-club-findings (this workspace)
 
-- [✓ 4.4.1 local] **Music device-report repair** - owns Music components/context/shared presentation helpers, focused social tests and screenshot regression fixtures. Repair caption/title mismatch, broken artwork and bounded authorized URL recovery without changing API/access policy. Gates passed: seven new regressions, all 1,760 social tests/build and native Chromium synthetic MP3/403 desktop/375px screenshot inspection. Exact device/production diagnosis and connected listening acceptance remain open; no deployment.
+- [✓ 4.4.1 local] **Music device-report repair** - owns Music components/context/shared presentation helpers, focused social tests and screenshot regression fixtures. Repair caption/title mismatch, broken artwork and bounded authorized URL recovery without changing API/access policy. Gates passed: seven new regressions, all 1,814 merged-source social tests/build and native Chromium synthetic MP3/403 desktop/375px screenshot inspection. Exact device/production diagnosis and connected listening acceptance remain open; no deployment.
 
 - [✓ 4.0.9 local] **Profile music belongs in Posts and Media** - owns social UserProfileScreen/WallTile, focused profile regressions, screenshot fixtures and serialized KB records. Remove the owner/visitor Music tab, preserve music in Posts/Media and canonicalize legacy Music-tab URLs to Media. Audio tiles render artwork/note fallback and open original posts. Gates passed: ten focused regressions, all 1,753 social tests, production build/typecheck and desktop/375px screenshot inspection. Dedicated listening destination unchanged; no deployment or connected-playback claim.
 

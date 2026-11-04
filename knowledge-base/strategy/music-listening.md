@@ -29,7 +29,9 @@ all 1,760 social tests and production typecheck/build pass. Native Chromium
 desktop/375px plays a generated MP3 after an intercepted HTTP 403; repeated
 failure remains retryable and all four screenshots are inspected. Node reads
 are mocked, so this is not real signed-expiry, production-object, phone or
-background-playback acceptance. Those release gates above remain open.
+background-playback acceptance. After merging the newer upload work from dev,
+all 1,814 social tests (121 files), production build and the same desktop/375px
+MP3 recovery checks pass. Those release gates above remain open.
 
 ## Starting Point
 
