@@ -122,6 +122,20 @@ describe('PostComposer video edit step', () => {
     expect(screen.getByTestId('media-edit-button')).toBeInTheDocument();
   });
 
+  it.each([5514, 10800])('attaches a %s-second film without a duration error', async (duration) => {
+    getVideoInfoMock.mockResolvedValueOnce({ duration, width: 640, height: 480 });
+    await attachVideo();
+    expect(screen.queryByText(/Video is too long/)).toBeNull();
+    expect(screen.getByTestId('media-edit-button')).toBeInTheDocument();
+  });
+
+  it('shows the three-hour cap when an attached film exceeds it', async () => {
+    getVideoInfoMock.mockResolvedValueOnce({ duration: 10801, width: 640, height: 480 });
+    await attachVideo();
+    expect(screen.getByText('Video is too long (180m 1s). Max is 3 hours.')).toBeInTheDocument();
+    expect(uploadMediaMock).not.toHaveBeenCalled();
+  });
+
   it('does not show the edit button on image items', async () => {
     const utils = await renderComposer();
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -301,6 +315,50 @@ describe('PostComposer upload path (no-op fast path + editor re-encode)', () => 
     expect(uploadReq.file).toBe(VIDEO_FILE); // the original, unedited file
     expect(uploadReq.file.name).toBe('clip.mp4');
     expect(uploadReq.file.type).toBe('video/mp4');
+  });
+
+  it('the optional queue receives the frozen composer draft only on Post, without uploading or reporting publication', async () => {
+    const { default: PostComposer } = await import('@/components/Feed/PostComposer');
+    const queue = vi.fn();
+    const published = vi.fn();
+    const destinations = ['provider/groups/users/testuser/movie-club'];
+    getVideoInfoMock.mockResolvedValueOnce({ duration: 5514, width: 640, height: 480 });
+    render(<PostComposer groups={destinations} onQueueMediaPost={queue} onPostCreated={published} />);
+    fireEvent.change(screen.getByTestId('composer-title'), { target: { value: 'Nosferatu (1922)' } });
+    fireEvent.change(document.querySelector('input[type="file"]')!, { target: { files: [VIDEO_FILE] } });
+    await screen.findByTestId('media-tray');
+    await waitFor(() => expect(screen.getByTestId('media-tray').querySelector('.animate-spin')).toBeNull());
+    fireEvent.change(screen.getByTestId('visibility-selector'), { target: { value: 'private' } });
+    expect(queue).not.toHaveBeenCalled();
+    expect(uploadMediaMock).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId('post-submit'));
+    await waitFor(() => expect(queue).toHaveBeenCalledTimes(1));
+    const draft = queue.mock.calls[0][0];
+    expect(draft).toMatchObject({ title: 'Nosferatu (1922)', text: '', visibility: 'private', groups: destinations, markAsMusic: false });
+    expect(draft.groups).not.toBe(destinations);
+    expect(draft.media[0]).toMatchObject({ file: VIDEO_FILE, width: 640, height: 480, duration: 5514 });
+    expect(draft.media[0]).not.toHaveProperty('previewUrl');
+    expect(uploadMediaMock).not.toHaveBeenCalled();
+    expect(published).not.toHaveBeenCalled();
+    expect(editVideoMock).not.toHaveBeenCalled();
+  });
+
+  it('queue rejection retains the draft and allows retry instead of falling back to a live upload', async () => {
+    const { default: PostComposer } = await import('@/components/Feed/PostComposer');
+    const queue = vi.fn().mockRejectedValueOnce(new Error('Queue unavailable')).mockResolvedValueOnce(undefined);
+    render(<PostComposer onQueueMediaPost={queue} />);
+    fireEvent.change(screen.getByTestId('composer-title'), { target: { value: 'Keep this title' } });
+    fireEvent.change(document.querySelector('input[type="file"]')!, { target: { files: [VIDEO_FILE] } });
+    await screen.findByTestId('media-tray');
+    await waitFor(() => expect(screen.getByTestId('media-tray').querySelector('.animate-spin')).toBeNull());
+    fireEvent.click(screen.getByTestId('post-submit'));
+    await screen.findByText('Queue unavailable');
+    expect(screen.getByTestId('composer-title')).toHaveValue('Keep this title');
+    expect(screen.getByTestId('media-tray')).toBeInTheDocument();
+    expect(screen.getByTestId('post-submit')).not.toBeDisabled();
+    fireEvent.click(screen.getByTestId('post-submit'));
+    await waitFor(() => expect(queue).toHaveBeenCalledTimes(2));
+    expect(uploadMediaMock).not.toHaveBeenCalled();
   });
 
   it('an edited video is NOT encoded twice — the editor output uploads as-is', async () => {

@@ -107,6 +107,37 @@ and unavailable-state PNGs plus synthetic MP3 into that directory, and requires
 ffmpeg and Playwright Chromium. Music's direct module and barrel reads both use
 the same fixture so player recovery does not accidentally call a real node.
 
+## Upload-flow UI preview
+
+This is an interactive **simulation**, isolated from live posting. The real
+composer hands off an in-memory draft only when Post is pressed; no file bytes
+or posts are sent to the API. The preview currently accepts one video per post.
+The queue survives internal navigation, not an actual browser restart. "Simulate
+reopen" exercises the original-file picker without claiming durable recovery.
+
+Run from `marketing/web10-social`, with `SCREENSHOT_OUTPUT_DIR` pointing to
+the workspace `.context/` directory:
+
+```bash
+node screenshots/capture.mjs --name upload-active --route /uploads --ready '[data-testid="upload-card"]' --scroll '[data-testid="upload-card"]'
+node screenshots/capture.mjs --name upload-recovery --route /uploads --extra 'scenario=needs-file' --ready '[data-testid="upload-card"]' --scroll '[data-testid="upload-card"]'
+node screenshots/capture.mjs --name upload-processing --route /uploads --extra 'scenario=processing' --ready '[data-testid="upload-card"]' --scroll '[data-testid="upload-card"]'
+node screenshots/capture.mjs --name upload-browse --route /upload-browse --extra 'scenario=paused' --ready '[data-testid="upload-indicator"]'
+node screenshots/capture.mjs --name upload-compose --route /upload-compose --extra 'scenario=empty' --ready '[data-testid="post-composer"]'
+```
+
+`scenario` also accepts `paused`, `offline`, `processing-failed`, `publishing`,
+`publish-failed`, `published`, `cancelled` and `empty`. Open "Test a scenario"
+for connection loss, simulated file loss and server completion/failure controls.
+Use "Browse while uploading" to test the persistent indicator; it returns to
+the exact task. "Simulated account" tests owner partitioning and signout/return;
+these identities are synthetic, independent of the app header's acting-author
+picker. Returning to a previous owner requires file reselection. The simulation
+rejects retained callbacks from old sessions/attempts; it is not an auth gate.
+Use `--extra 'signed-out=1'` to capture its signed-out screen.
+Preview publication never invents a post link. Production
+callers, upload transport, notification behavior and size cap are unchanged.
+
 ## Capture diagnostics
 
 `capture.mjs` buffers the page's console + uncaught errors and dumps them on

@@ -23,7 +23,7 @@ isolated real-storage first/return saves and unavailable refs; real MP3/video
 playback and expired-URL refresh; actual phone Media Session/background
 behavior. Public playlist discovery and catalog-wide indexing stay deferred.
 
-4.0.10 adds the bounded device-report repair: consistent caption titles,
+4.4.1 adds the bounded device-report repair: consistent caption titles,
 failed-art fallback and one-shot media-error recovery. Seven new regressions,
 all 1,760 social tests and production typecheck/build pass. Native Chromium
 desktop/375px plays a generated MP3 after an intercepted HTTP 403; repeated
