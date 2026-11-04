@@ -886,14 +886,9 @@ def insert_document(
     doc_id: str | None = None,
     ad_mode: str = "none",
     ad_target: str = "",
-    created_at: datetime | None = None,
     posted_by: str = "",
 ) -> dict:
     """Insert a document into the documents table. Generates doc_id if not provided.
-
-    `created_at` backdates the document (the import pipeline lands a catalog
-    with its original publish dates — "take your videos exactly"). `updated_at`
-    is always now (the write time) — the ReplacingMergeTree dedup keys off it.
 
     `posted_by` is the human who authored the doc (group-as-author). Always
     populated: for a normal post it equals author_key; for a group-authored
@@ -901,7 +896,6 @@ def insert_document(
     only — the caller must always provide it.
     """
     now = _now()
-    created = created_at or now
     if not doc_id:
         doc_id = _gen_doc_id()
     client.insert(
@@ -914,7 +908,7 @@ def insert_document(
                 _json(body),
                 ref_value or "",
                 tags or [],
-                created,
+                now,
                 now,
                 0,
                 ad_mode or "none",
@@ -933,7 +927,7 @@ def insert_document(
         "ad_mode": ad_mode or "none",
         "ad_target": ad_target or "",
         "posted_by": posted_by or "",
-        "created_at": _iso_utc(created),
+        "created_at": _iso_utc(now),
         "updated_at": _iso_utc(now),
     }
 

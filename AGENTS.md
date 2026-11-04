@@ -271,8 +271,8 @@ you if you arent ok with that." Full model:
   channels, e.g. the messages demo).
 - `marketing/` — everything that makes web10 accessible:
   - `marketing-ui/` — web10 Inc.'s site: landing + docs + App Store +
-    Exporter UI. Vite + React 19 + TS + Bun + react-router.
-  - Marketing and social call the node API directly for imports, reporting and
+    creator discovery. Vite + React 19 + TS + Bun + react-router.
+  - Marketing and social call the node API directly for reporting and
     analytics. The unused `marketing-api/` service was removed (D91).
   - `web10-social/` — the killer app: all-in-one social lens (instagram-
     shaped, video + streaming).
@@ -363,11 +363,16 @@ The issuer endpoint itself remains local-only. Issuer transport derives HTTPS
 from host-only providers, pins public DNS answers with issuer TLS verification
 and never follows redirects. Private/HTTP development peers are unsupported by
 this production path. Separate-node key provisioning, connected two-node
-verification remain OPEN; #1351's historical method failure is not waived by
-its merge. The bounded H run in `research/federation-demo/RESULTS.md` exercises
+verification remain OPEN; #1351's historical method-size failure is not waived
+by its merge. Local group-list owner healing uses only the existing bare key
+and does not create a duplicate qualified owner before Phase A.
+The bounded H runs in `research/federation-demo/RESULTS.md` exercise
 real test-CA HTTPS and owner-managed foreign grants with independent synthetic
-keys, but its exact source includes #1360's owner-list repair. Clean-base replay
-requires that merge; this is not Phase A/C or production federation assurance.
+keys. After #1360 merged, the unchanged scenario passes on clean merged-dev
+revision `0acc771e2efc` with an empty patch and verified cleanup. The bounded
+H-REPLAY receipt gate is locally satisfied; normal PR checks still apply. This is
+not Phase A/C or production federation assurance, and existing duplicate rows
+are not removed by the owner-list repair.
 
 Verified non-anonymous decoding requires a parseable ISO `expires`, with naive UTC or explicit offsets, and rejects at the deadline. Anonymous custom-expiry exemption and unsigned metadata decoding are separate; the latter is never authorization.
 

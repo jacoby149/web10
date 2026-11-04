@@ -7,9 +7,9 @@ claim is hiding in the machinery.
 
 ## Run locally
 
-Merge prerequisite **#1360** first. The retained successful experiment used
-that owner-list repair as an explicit source patch; the current branch alone
-has not passed clean-base replay. See [RESULTS.md](RESULTS.md).
+The owner-list repair **#1360 is merged**. The full unchanged scenario passes
+on clean merged dev revision `0acc771e2efc`, with an empty source patch and no
+overlay. Earlier source-specific runs remain in [RESULTS.md](RESULTS.md).
 
 ```sh
 python3 research/federation-demo/run.py

@@ -1,10 +1,15 @@
-# Cross-node correctness: one completed isolated run
+# Cross-node correctness: merged-dev replay passed
 
-**Passed 3 November 2026, with an explicit source prerequisite:** revision
-`04da544442c33a99df1203866ba83efa1c8b4251` plus the retained patch containing
-the owner-list repair proposed in **PR #1360 (`f3e8e354b`)**. This branch alone,
-before that repair merges, has not passed clean-base replay. The paper must
-retain that distinction.
+**Merged-dev replay passed:** `20261104T000152Z-60683` (4 November UTC,
+3 November EST), revision `0acc771e2efc36b9787d38d32450af026eb3895e`, with
+an **empty source patch**. At start, clean HEAD exactly matched `origin/dev`
+after **PR #1360 merged**. The full unchanged scenario passes without an
+overlay or uncommitted runtime change, including the current owner-list repair.
+
+Earlier passes used `04da544442c33a99df1203866ba83efa1c8b4251` plus the
+owner-list repair patch and committed owner-fix branch revision
+`3be1f1ec10fdb1cdc4ba59b07a4971f1b5087dfa` with an empty patch. All three
+successful receipts remain separate; these are not pooled performance trials.
 
 ## What happened
 
@@ -40,7 +45,12 @@ group creation and owner-managed membership changes use actual HTTP APIs.
   IAM operations with `ModuleNotFoundError: app`; retained as failed.
 - `20261103T225210Z-14642`: explicit `PYTHONPATH` fixes that harness import;
   the full scenario passes with no scenario retries.
-- The successful receipt records eight running containers, no published ports
+- `20261103T233658Z-46307`: the full scenario passes again from committed
+  revision `3be1f1ec10fd`, with zero-byte `source.patch`, 34 status-only events,
+  the same positive/negative issuer-call controls and no scenario retries.
+- `20261104T000152Z-60683`: the full unchanged scenario passes on clean merged
+  dev `0acc771e2efc`, after #1360 merged; source patch remains zero bytes.
+- Each successful receipt records eight running containers, no published ports
   or OOM flags, source patch plus executable snapshots, schema/lock/build inputs,
   image identities, named lifecycle outcomes and synthetic document IDs.
 - Cleanup verifies containers, networks, volumes, the unique image tag and
@@ -49,8 +59,15 @@ group creation and owner-managed membership changes use actual HTTP APIs.
 - Fresh same-model review validates this bounded interpretation and identifies
   a diagnostic-collection cleanup gap. The current runner catches diagnostic
   failures before teardown; `test_lifecycle.py` fault-injects inspection failure
-  and confirms teardown plus a failed exit. This robustness adjustment postdates
-  the successful snapshot and is not a new connected run.
+  and confirms teardown plus a failed exit. The second connected run includes
+  that hardened runner; fault injection itself is not IAM evidence.
+- The earlier owner-branch review kept #1360's then-unmerged status explicit.
+  That prerequisite is now merged; historical duplicate rows are still not
+  reconciled. No broad or model-diverse security claim follows.
+- Fresh bounded review of the merged-dev run verifies exact committed inputs,
+  zero-byte patch, 34 events, cache controls and cleanup, and supports local
+  H-REPLAY receipt-gate closure. All 1,929 frozen API tests plus eight subtests
+  pass, one opt-in skip. Normal PR CI remains required before merging this record.
 
 ## Limits
 
@@ -61,5 +78,5 @@ Storage instances are separate, but media delivery is not exercised. Browser
 consent/CORS enforcement, foreign self-join, complete principal migration,
 production signing-key provisioning, multiworker/restart behavior, issuer
 revocation/expiry lifecycle, media capability revocation, capacity and latency
-bounds remain OPEN. One successful correctness run is not full federation,
+bounds remain OPEN. These correctness runs are not full federation,
 L1–L4/model-diverse assurance or SIGMOD submission readiness.

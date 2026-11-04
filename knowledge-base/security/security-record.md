@@ -15,6 +15,25 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## D95 bulk-import retirement (03.11.2026)
+
+GPT-6.1 Sol removes the importer rather than changing its permissions: routes,
+models, parser, durable worker/boot hook, DDL/settings and social staging surface.
+The old trace-isolation records below remain historical evidence for removed
+code, not assurance about a currently deployed importer. No storage deletion,
+production change, general auth/read-gate repair or L1–L4 PASS claim.
+Four retired-route probes fail before removal and return 404 afterward; generic
+document/media routes remain. Full API: 1,922 passed plus eight subtests, one skip.
+Operator explicitly approves a deletion-only exception to the 500-line method
+gate for this removal; full tests and other CI remain required. All 1,749 social
+tests pass; PR CI remains a release gate. Existing job
+tables, raw objects and staged documents are not purged or made public.
+Fresh same-model bounded design-intent review finds no runtime defect and flags
+the stale e2e shard entry, now removed. This is not diverse-model convergence or
+a complete security scan. Existing staging grants are not revoked, queued jobs
+stop resuming after rollout, and old clients lose these URLs; ordinary authorized
+CRUD remains the retained-data path.
+
 ## Protected Media Delivery (02.11.2026)
 
 New opt-in boundary: `api/app/services/media_delivery.py`, its existing signing
@@ -526,7 +545,8 @@ measure. Re-scan after the hardening merges to flip them.
 
 | Unit | Level | Status | Model | Date | Last-pass | Sys | Finding / note |
 |---|---|---|---|---|---|---|---|
-| H isolated cross-node correctness | L4 | **OPEN** | OpenCode / GPT-6.1 Sol + fresh same-model reviewer | 2026-11-03 | — | federation | Bounded actual TLS/two-node/cache/read/query/namesake/app/grant-removal controls pass on base 04da544442c3 plus #1360 repair, not current-branch clean-base replay. Exact source/initial failure/image/status/cleanup receipts: research/federation-demo/RESULTS.md. Test-CA/internal-network and foreign app service fixtures disclosed. Not complete L4/L1–L4 coverage or model diversity; A/C, production keys/public deployment, browser consent, issuer expiry/revocation, multiworker/restart/media remain OPEN. |
+| Local group-list owner healing follow-up | L1 | **OPEN** | OpenCode / GPT-6.1 Sol + fresh same-model reviewer | 2026-11-03 | — | groups | #1360 merged with all checks passing after retained red→green bare-only repair. Later actual two-node run passes on merged dev 0acc771e2efc with zero-byte patch, one owner after list and verified lifecycle/cache/cleanup receipts; fresh bounded review passes. Existing-row reconciliation and diverse/full-file assurance remain OPEN. Historical #1351 method failure is not waived. |
+| H isolated cross-node correctness | L4 | **OPEN** | OpenCode / GPT-6.1 Sol + fresh same-model reviewer | 2026-11-03 | — | federation | Local H-REPLAY receipt gate satisfied on clean merged dev 0acc771e2efc after #1360, zero-byte patch and no overlay. Full unchanged TLS/two-node/cache/read/query/namesake/app/grant-removal controls and cleanup pass fresh bounded review; all 1,929 API tests plus eight subtests pass, one opt-in skip. Three source-specific success archives and initial failure remain separate: research/federation-demo/RESULTS.md. Normal PR CI, complete L4/L1–L4 coverage/model diversity, A/C, production keys/public deployment, browser consent, issuer expiry/revocation, multiworker/restart/media remain separate OPEN gates. |
 | `api/app/services/auth.py :: decode_token` | L1 | **OPEN** | (audit) | 2026-10 | — | auth | B-3 unsigned decode path; B-1 I1 symmetric HS256. Hardening in 1157 (unmerged) |
 | `api/app/settings.py` | L1 | **OPEN** | (audit) | 2026-10 | — | config | B-2 secrets in source (signing key + Stripe/Twilio/CH creds). Hardening in 1157 (unmerged) |
 | `api/app/middleware.py` | L1 | **OPEN** | `gpt-6.1 sol` | 2026-10-18 | — | logging | B-4 source repair merged #1225 with passing repro gate. [Evidence](scans/2026-10/repair-b4-middleware.md). Deployment, historical exposure and required security sign-off remain unclosed; no whole-file PASS. |

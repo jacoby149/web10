@@ -53,6 +53,49 @@ restored. Private env persistence is also distinct from normal release forwardin
 the pinned-image activation is live, but older main Compose can fall back to legacy
 delivery on redeploy. No broad scan/PASS or immediate-revocation claim.
 
+### 2026-11-03: Merged-source replay closes a receipt gate, not security coverage
+
+After #1360 merged, the unchanged H scenario passes on clean HEAD exactly
+matching origin/dev at `0acc771e2efc`, with an empty patch. Source/input hashes,
+34 events, same-JWT read/query grant-removal-regrant, namesake/app/cache/forgery
+controls and all cleanup receipts pass fresh bounded review. The merged-dev
+archive is separate from the earlier patched/owner-branch successes and initial
+import failure. This satisfies the local H-REPLAY receipt gate; normal PR CI
+remains required. It does not reconcile historical duplicate rows or prove
+production keys/public deployment, Phase A/C, browser foreign enrollment,
+issuer revocation/expiry/restart/multiworker/media, capacity or full/diverse
+L1–L4 assurance. All 1,929 API tests plus eight subtests pass, one opt-in skip.
+
+### 2026-11-03: A local discovery read must not manufacture a second principal
+
+Committed-source follow-up: `3be1f1ec10fd` merges current dev into the owner-fix
+branch and passes the actual two-node scenario with an empty patch. The retained
+34 events, source/input hashes, single positive/single negative issuer receipt
+and cleanup flags pass fresh bounded review. This is not merged-origin/dev
+replay while #1360 remains open, and it does not reconcile historical duplicates.
+
+#1351 merged before its final e2e result: group lifecycle expected the creator's
+single bare owner key but received a second qualified owner. Its list self-heal
+was healing both names despite Phase A remaining open. The corrected focused
+assertion fails before repair and passes after healing only the existing local
+key; all 1,977 API tests plus eight subtests pass. A separately retained two-node
+scenario also checks one owner after list. This prevents new duplicate creation;
+it does not delete already-created canonical rows or complete migration. Fresh
+bounded design-intent review agrees; CI and historical method disposition remain
+separate. Merging #1351 did not retroactively pass its failed method check.
+
+### 2026-11-03: Feature retirement is not permission to purge stored data
+
+D95 removes the bulk importer, including its startup resubmission and trace
+endpoint. Keep the old trace-isolation evidence as history, not a claim about
+current code. Removing self-heal DDL does not drop existing ClickHouse tables;
+removing the review UI does not delete or publish staged documents. Raw export
+objects also remain untouched. A future cleanup must inventory retained data
+and obtain explicit retention/deletion approval. Dropping future consent requests
+does not revoke stored staging grants. Queued jobs stop resuming after rollout;
+stale clients/bookmarks lose the retired URLs. Generic read/CRUD/media gates
+are retained; removal is not a whole-protocol security repair or rollout proof.
+
 ### 2026-11-03: Deployment forwarding must preserve opt-in semantics and multiline keys
 
 The API already understood the media settings, but the ecosystem Compose did not

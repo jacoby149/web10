@@ -53,7 +53,6 @@ vi.mock('@/data', async (importOriginal) => {
     readFollows: vi.fn().mockResolvedValue([]),
     fetchSuggestedUsers: vi.fn().mockResolvedValue([]),
     fetchDiscoveryPost: vi.fn().mockResolvedValue(null),
-    countStagingPosts: vi.fn().mockResolvedValue(0),
     getMyCollections: mockGetMyCollections,
     readCollection: mockReadCollection,
     readUserPublicCollections: mockReadUserPublicCollections,
