@@ -9,6 +9,26 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D96 — Public domain-follow continuity demonstration, not a new principal [decided, research scope]
+
+Operator, 03.11.2026: "user uses dns with his web10 account ... point to another
+username, then all his followers follow him by website"; approve the demo of a
+creator moving accounts while their audience keeps following the same website.
+
+The isolated research client stores the reader's subscription to a domain in
+their own private app documents, resolves the existing TXT account pointer at
+read time and anonymously reads the selected account's public posts. The old
+creator provider may disappear without owning that bookmark or approving the
+move. Exercise the implemented authenticated domain claim on both accounts.
+
+This does not change the alias-not-principal rule, D84 membership/token keys or
+web10-social's existing follow graph. DNS redirects grant no private authority;
+domain transfer can change the public subscription destination and does not
+inherit the former account or roles. No production DNS/deployment, migration,
+new node endpoint or deferred Shadowguard/registry work is authorized. The lab
+allows only configured provider targets and never forwards reader credentials
+to a DNS-selected destination. Scope/acceptance: `research/domain-portability-demo/README.md`.
+
 ### D95 — The bulk import is cut: the "Import Your Life" page and the YouTube import pipeline are removed; onboarding is an AI-assistant flow [decided]
 
 Operator, 03.11.2026 — "the import your life page is just not really a product focus i dont think, people dont care... we should get rid of it" + "i think b, ripping it out makes sense, people could use an ai assistant to import anyways" + "our goal isnt to import influencers whole shit that is annoying, just to get them on this thing".

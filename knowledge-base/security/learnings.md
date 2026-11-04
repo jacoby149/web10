@@ -35,6 +35,21 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-03: Domain-follow discovery must not carry home authority
+
+D96's research client stores a domain-only private app bookmark; DNS selects
+only a configured public destination. Reader tokens stay at a fixed home, and
+public DNS/alias/post requests omit cookies and credentials and reject redirects.
+Fresh bounded review reproduced an existing-follow await-continuation gap;
+a second control reproduces a post-resolve request issued after invalidation.
+Both tests fail before generation rechecks and pass after them. All 22 Node
+controls pass. A ticket must capture an irreversible generation, not a boolean
+that a later login can revive. An already-issued home write cannot be recalled;
+its stale completion rejects. Domain sale/theft/expiry can change a public
+subscription destination, never inherit the old account's private grants.
+Connected prototype/runner components and broader/diverse review remain separate
+gates; this does not change web10-social's existing follows or implement Shadowguard.
+
 ### 2026-11-03: Merged-source replay closes a receipt gate, not security coverage
 
 After #1360 merged, the unchanged H scenario passes on clean HEAD exactly
