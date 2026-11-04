@@ -1024,13 +1024,13 @@ Origin-bearing query gate denies a local namesake's app grant, allows a
 qualified foreign app-contract fixture, and denies again after its revocation;
 direct group-authorized reads remain available.
 
-Two isolated correctness runs completed, not deployment or load trials. An
+Three isolated correctness runs completed, not deployment or load trials. An
 initial attempt failed on a harness import path before scenario execution.
 The first pass used revision \texttt{04da544442c3} plus the retained owner-list
 repair patch; a second pass used committed revision \texttt{3be1f1ec10fd}
-with an empty source patch and no overlay. Both ran without scenario retries.
-The latter is the owner-fix branch after merging dev, not merged dev itself:
-PR~\#1360 remains open. Docker-internal,
+with an empty source patch. The latest replays clean merged dev revision
+\texttt{0acc771e2efc} after PR~\#1360 merged, again with an empty patch and
+no overlay. All ran without scenario retries. Docker-internal,
 globally classified addresses exercise the unchanged public-address guard;
 the test CA and network do not establish public-internet interoperability.
 Foreign app grant/revocation use labelled service-function fixtures, not browser

@@ -7,9 +7,9 @@ claim is hiding in the machinery.
 
 ## Run locally
 
-Use a revision containing the owner-list repair in **#1360**. Committed revision
-`3be1f1ec10fd` passes with no overlay; #1360 is still open, so this does not yet
-establish replay of merged `origin/dev`. See [RESULTS.md](RESULTS.md).
+The owner-list repair **#1360 is merged**. The full unchanged scenario passes
+on clean merged dev revision `0acc771e2efc`, with an empty source patch and no
+overlay. Earlier source-specific runs remain in [RESULTS.md](RESULTS.md).
 
 ```sh
 python3 research/federation-demo/run.py

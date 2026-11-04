@@ -1,6 +1,6 @@
 # Multi-Node Federation — how web10 nodes work together (operator pass, 29.09.2026)
 
-**Status: Phase B merged in #1351; bounded H evidence is recorded in `research/federation-demo/RESULTS.md`, with prerequisite #1360 and broader gates OPEN.** web10 is a **federation of
+**Status: Phase B merged in #1351; #1360 merged; bounded H-REPLAY passes on clean merged-dev 0acc771e2efc. Evidence: `research/federation-demo/RESULTS.md`; broader gates remain OPEN.** web10 is a **federation of
 nodes**, not one node. This doc is the authoritative reference for *how* the
 nodes work together — the read model, the cross-node boundary, the security
 invariants, and the phase sequencing. It is the "how" companion to **D84**
@@ -322,8 +322,8 @@ Each is its own PR/lane (see `parallel-execution.md` → `multi-node-federation
   multi-node work is testable. The retained run
   shows the owner-managed foreign read/grant/removal correctness slice with
   real home certification and independent signing keys. Its successful source
-  includes the owner-list repair in #1360; clean-base replay remains gated on
-  that merge. It does not complete migration A, foreign self-join C or public
+  includes #1360's owner-list repair. The later unchanged replay passes on clean
+  merged dev 0acc771e2efc with an empty patch. It does not complete migration A, foreign self-join C or public
   deployment. Full scope/receipts: `research/federation-demo/RESULTS.md`.
 - **A — the canonical principal format + migration.** Rewrite `author_key`,
   every `group_members.member_key`, and the reader principal to

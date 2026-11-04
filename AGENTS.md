@@ -368,8 +368,9 @@ by its merge. Local group-list owner healing uses only the existing bare key
 and does not create a duplicate qualified owner before Phase A.
 The bounded H runs in `research/federation-demo/RESULTS.md` exercise
 real test-CA HTTPS and owner-managed foreign grants with independent synthetic
-keys. The latest passes from committed owner-fix revision `3be1f1ec10fd` with
-an empty patch; #1360 is not merged, so merged-dev replay remains open. This is
+keys. After #1360 merged, the unchanged scenario passes on clean merged-dev
+revision `0acc771e2efc` with an empty patch and verified cleanup. The bounded
+H-REPLAY receipt gate is locally satisfied; normal PR checks still apply. This is
 not Phase A/C or production federation assurance, and existing duplicate rows
 are not removed by the owner-list repair.
 

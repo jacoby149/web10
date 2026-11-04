@@ -1,15 +1,15 @@
-# Cross-node correctness: two completed isolated runs
+# Cross-node correctness: merged-dev replay passed
 
-**Latest pass, 3 November 2026:** committed revision
-`3be1f1ec10fdb1cdc4ba59b07a4971f1b5087dfa`, with an **empty source patch**.
-This owner-fix branch includes current dev plus the repair in **PR #1360**;
-the full scenario passes without an overlay or uncommitted runtime change.
-#1360 is not yet merged: this is a clean committed-branch replay, not a clean
-merged-`origin/dev` replay. H-REPLAY's merge/replay gate remains open.
+**Merged-dev replay passed:** `20261104T000152Z-60683` (4 November UTC,
+3 November EST), revision `0acc771e2efc36b9787d38d32450af026eb3895e`, with
+an **empty source patch**. At start, clean HEAD exactly matched `origin/dev`
+after **PR #1360 merged**. The full unchanged scenario passes without an
+overlay or uncommitted runtime change, including the current owner-list repair.
 
-The earlier pass used revision `04da544442c33a99df1203866ba83efa1c8b4251`
-plus the retained owner-list repair patch. Both receipts remain available;
-these are correctness runs on different revisions, not pooled performance trials.
+Earlier passes used `04da544442c33a99df1203866ba83efa1c8b4251` plus the
+owner-list repair patch and committed owner-fix branch revision
+`3be1f1ec10fdb1cdc4ba59b07a4971f1b5087dfa` with an empty patch. All three
+successful receipts remain separate; these are not pooled performance trials.
 
 ## What happened
 
@@ -48,6 +48,8 @@ group creation and owner-managed membership changes use actual HTTP APIs.
 - `20261103T233658Z-46307`: the full scenario passes again from committed
   revision `3be1f1ec10fd`, with zero-byte `source.patch`, 34 status-only events,
   the same positive/negative issuer-call controls and no scenario retries.
+- `20261104T000152Z-60683`: the full unchanged scenario passes on clean merged
+  dev `0acc771e2efc`, after #1360 merged; source patch remains zero bytes.
 - Each successful receipt records eight running containers, no published ports
   or OOM flags, source patch plus executable snapshots, schema/lock/build inputs,
   image identities, named lifecycle outcomes and synthetic document IDs.
@@ -59,10 +61,13 @@ group creation and owner-managed membership changes use actual HTTP APIs.
   failures before teardown; `test_lifecycle.py` fault-injects inspection failure
   and confirms teardown plus a failed exit. The second connected run includes
   that hardened runner; fault injection itself is not IAM evidence.
-- Fresh same-model review verifies the latest revision, zero-byte patch,
-  executable/schema/lock hashes, named controls and cleanup receipts. It keeps
-  the unmerged-#1360 and historical-duplicate limitations explicit; no broad or
-  model-diverse security claim follows.
+- The earlier owner-branch review kept #1360's then-unmerged status explicit.
+  That prerequisite is now merged; historical duplicate rows are still not
+  reconciled. No broad or model-diverse security claim follows.
+- Fresh bounded review of the merged-dev run verifies exact committed inputs,
+  zero-byte patch, 34 events, cache controls and cleanup, and supports local
+  H-REPLAY receipt-gate closure. All 1,929 frozen API tests plus eight subtests
+  pass, one opt-in skip. Normal PR CI remains required before merging this record.
 
 ## Limits
 
