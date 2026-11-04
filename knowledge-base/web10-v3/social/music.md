@@ -90,6 +90,13 @@ undone. Existing collection read caps and lack of atomic save uniqueness remain.
 
 ## Nav
 
+Profiles use Posts, Media and (when available) Saved, not a Music tab: most
+people are not musicians. Music posts remain in Posts, and their audio/video
+attachments appear in Media. Audio tiles show cover art or a musical-note
+fallback and open the original post. Legacy profile `?tab=music` links resolve
+to `?tab=media`, preserving other URL parameters. The dedicated `/music`
+listening destination is unchanged.
+
 Music is a real destination (not coming-soon):
 
 - **Desktop sidebar** — after Shorts (Profile · People · Posts · Video ·

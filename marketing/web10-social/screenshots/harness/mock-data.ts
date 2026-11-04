@@ -3,7 +3,7 @@
 // every data-layer function the messages view imports, so Chat renders with
 // realistic content and no backend. See screenshots/README.md.
 import type { DmRecord, ContactRecord } from '@/data/types';
-import { SAVED_COLLECTIONS } from './mock-music';
+import { MUSIC_TRACKS, SAVED_COLLECTIONS } from './mock-music';
 export { readMusicPage, readMusicTrack, readMusicCollection, findSavedMusicCollection, toggleSavedMusic, readSavedPostIds, savePostToCollection, removePostFromCollection, createCollection } from './mock-music';
 export type { MusicTrack } from '../../src/data/musicTrack';
 export { getWapi } from './mock-wapi';
@@ -1634,9 +1634,20 @@ const PROFILE_MEDIA: Record<string, Record<string, unknown>> = {
   'pf-media-1': { ...creative('LIVE SET', 1280, 720, '#8b5cf6', '#2e1065', 'image/png'), _id: 'pf-media-1' },
   'pf-media-2': { ...creative('VERTICAL', 720, 1280, '#7c3aed', '#4c1d95'), _id: 'pf-media-2' },
   'pf-media-3': { ...creative('STILL', 1000, 1000, '#a78bfa', '#1e1b4b', 'image/png'), _id: 'pf-media-3' },
+  'pf-audio': { ...MUSIC_TRACKS[0].media, _id: 'pf-audio', thumbnail_url: undefined },
 };
 
 const PROFILE_POSTS = [
+  {
+    _id: 'pp-audio',
+    author_username: 'me',
+    author_provider: 'web10',
+    title: 'After hours',
+    text: 'A new track from the studio.',
+    created_at: minsAgo(20),
+    tags: ['music'],
+    media_refs: ['pf-audio'],
+  },
   {
     _id: 'pp-1',
     author_username: 'me',
