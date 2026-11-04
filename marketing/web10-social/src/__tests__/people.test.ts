@@ -116,6 +116,29 @@ describe('fetchPeoplePage', () => {
     mockQuery.mockResolvedValue({ rows: [], count: 0 });
   });
 
+  it('publishes base cards and faces while follows and mutuals are still pending', async () => {
+    let releaseGroups!: (groups: { group_id: string }[]) => void;
+    let releaseMembers!: (members: { member_key: string }[]) => void;
+    mockGetMyGroups.mockReturnValue(new Promise((resolve) => { releaseGroups = resolve; }));
+    mockGetGroupMembers.mockReturnValue(new Promise((resolve) => { releaseMembers = resolve; }));
+    mockListPeopleDirectory.mockResolvedValue({ users: [dirUser('alice', 10, { avatar_ref: 'av' })] });
+    mockQuery.mockResolvedValue({ rows: [{ author_key: 'alice', avatar_url: 'https://example.test/avatar' }], count: 1 });
+    const progress = vi.fn();
+    const settled = fetchPeoplePage({ limit: 20, offset: 0, onProgress: progress });
+    await vi.waitFor(() => expect(progress).toHaveBeenCalled());
+    expect(progress.mock.calls[0][0].people[0]).toMatchObject({ username: 'alice', follow_pending: true });
+    await vi.waitFor(() => expect(progress.mock.lastCall?.[0].people[0].avatar_url).toBe('https://example.test/avatar'));
+    expect(mockGetGroupMembers).not.toHaveBeenCalled();
+    releaseGroups([{ group_id: 'api.localhost/groups/users/carol/followers' }]);
+    await vi.waitFor(() => expect(mockGetGroupMembers).toHaveBeenCalledTimes(1));
+    expect(progress.mock.lastCall?.[0].people[0].follow_pending).toBe(false);
+    releaseMembers([{ member_key: 'carol' }]);
+    expect((await settled).people[0].mutuals).toBe(1);
+    // Previously published snapshots must not mutate underneath React.
+    expect(progress.mock.calls[0][0].people[0].avatar_url).toBeUndefined();
+    expect(progress.mock.calls[0][0].people[0].mutuals).toBe(0);
+  });
+
   it('maps D0 users to person cards (face + unspoofable follower count)', async () => {
     mockListPeopleDirectory.mockResolvedValue({
       users: [
@@ -137,6 +160,36 @@ describe('fetchPeoplePage', () => {
     const bob = people.find((p) => p.username === 'bob')!;
     expect(bob.display_name).toBe('bob');
     expect(bob.followers_count).toBe(40);
+  });
+
+  it.each([1, 10, 100])('keeps the first snapshot at one directory read for %i people', async (count) => {
+    mockListPeopleDirectory.mockResolvedValue({ users: Array.from({ length: count }, (_, i) =>
+      dirUser(`person${i}`, i, { avatar_ref: `avatar${i}`, banner_ref: `banner${i}` })) });
+    mockGetMyGroups.mockResolvedValue([{ group_id: 'api.localhost/groups/users/carol/followers' }]);
+    mockGetGroupMembers.mockResolvedValue([]);
+    let snapshots = 0;
+    const page = await fetchPeoplePage({ limit: count, offset: 0, onProgress: ({ people }) => {
+      if (snapshots++ > 0) return;
+      expect(people).toHaveLength(count);
+      expect(mockListPeopleDirectory).toHaveBeenCalledTimes(1);
+      expect(mockGetMyGroups).not.toHaveBeenCalled();
+      expect(mockGetGroupMembers).not.toHaveBeenCalled();
+      expect(mockQuery).not.toHaveBeenCalled();
+    } });
+    expect(page.people).toHaveLength(count);
+    expect(mockGetMyGroups).toHaveBeenCalledTimes(1);
+    expect(mockQuery).toHaveBeenCalledTimes(2);
+    // Scheduling, not batching: the existing per-person mutual reads remain.
+    expect(mockGetGroupMembers).toHaveBeenCalledTimes(count);
+  });
+
+  it('does not publish an empty success when the directory fails', async () => {
+    mockListPeopleDirectory.mockRejectedValueOnce(new Error('directory offline'));
+    const onProgress = vi.fn();
+    await expect(fetchPeoplePage({ limit: 20, offset: 0, onProgress })).rejects.toThrow('directory offline');
+    expect(onProgress).not.toHaveBeenCalled();
+    expect(mockGetMyGroups).not.toHaveBeenCalled();
+    expect(mockQuery).not.toHaveBeenCalled();
   });
 
   it('computes mutuals client-side (followers(X) ∩ my-following, the generic membership primitive)', async () => {
