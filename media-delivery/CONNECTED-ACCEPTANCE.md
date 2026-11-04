@@ -1,5 +1,9 @@
 # Isolated MinIO / Cloudflare acceptance — 03.11.2026
 
+Historical isolated results below are unchanged. Subsequent operator-directed
+production activation and its remaining gates are recorded separately in
+[Production acceptance — 04.11.2026](PRODUCTION-ACCEPTANCE.md).
+
 The goal is repeated protected delivery without repeatedly reading MinIO. Fresh
 cache, browser and rotation checks now pass in the isolated setup. The demonstrated
 storage-permission failure has been repaired and rechecked; production still awaits
