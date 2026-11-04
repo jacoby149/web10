@@ -2,6 +2,8 @@
 % Render: tectonic main.tex  (from this directory)
 \documentclass[sigconf, nonacm]{acmart}
 \settopmatter{printfolios=true} % Native ACM bottom-center numbers, including page one.
+% Lower folios by half an inch without changing the text block or page breaks.
+\AtBeginDocument{\addtolength{\footskip}{36pt}}
 
 % --- packages (all in the tectonic bundle) ---
 \usepackage{booktabs}
