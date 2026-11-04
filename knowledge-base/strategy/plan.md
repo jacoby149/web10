@@ -37,6 +37,8 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
+- [✓ 4.0.9 local] **Profile music belongs in Posts and Media** - remove the dedicated profile Music tab for owners and visitors; retain music in the normal Posts grid/feed and Media wall. Legacy `?tab=music` links canonicalize to Media without losing other URL parameters. Audio tiles use artwork or a note fallback and open the original post. Dedicated `/music` listening remains unchanged. All 1,753 social tests, production build/typecheck and seeded desktop/375px inspection pass. No deployment or real-playback claim.
+
 - [✓ 3.259.10] **Import Your Life removed (D95)** - the `/import` marketing page, the import docs, the empty-state import CTAs and the export-link health check are gone; the node import pipeline + social app Import tab + staging surface are cut separately (the D95 code gut, tracked in the `import` lane).
 
 - [✓ 3.259.11] **The D95 docs reframe** - decisions/plan/outreach/gaps/timeline/business-plan: onboarding is "get the creator on the platform," not "port their catalog" — migration is a commodity an AI assistant does.
