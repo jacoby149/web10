@@ -15,7 +15,11 @@ import { getPublicMediaUrl, getPublicMediaThumbnailUrl, resolveMediaRef, clearMe
 import {
   DiscoverCard,
   GROUP_FACE_SQL,
+  peopleFaceSql,
+  facePrepare,
+  reduceFaceRows,
   resolveFaceMedia,
+  type FaceUrls,
   type FaceQueryTransport,
   type DiscoverPost,
   type MediaItem,
@@ -619,6 +623,38 @@ async function hydrateGroupAuthors(posts: DiscoveryPost[]): Promise<DiscoveryPos
   });
 }
 
+// Current personal pictures are profile data, not attachments on each post.
+// Keep exact authors separate from group uploaders and use the public profile
+// read path, never the viewer-owned media endpoints. No banner read is needed.
+async function hydrateAuthors(posts: DiscoveryPost[]): Promise<DiscoveryPost[]> {
+  const authors = [...new Set(posts.map((p) => p.author).filter((a) => a && !a.includes('/groups/')))];
+  const personalFaces = (async (): Promise<Map<string, FaceUrls>> => {
+    if (!authors.length) return new Map();
+    const groups = [...new Set(authors.map((author) => {
+      const parts = author.split('/users/');
+      const [provider, username] = parts.length === 2 ? parts : [API_HOST, author];
+      return `${provider}/groups/users/${username}/followers`;
+    }))];
+    console.log('[trending] resolving personal avatars', { authors: authors.length });
+    try {
+      const rows = await feedFaceTransport(peopleFaceSql(authors), groups, {
+        face: facePrepare('avatar_ref', 'avatar_url'),
+      });
+      const faces = reduceFaceRows(rows, 'author_key');
+      console.log('[trending] resolved personal avatars', { faces: faces.size });
+      return faces;
+    } catch {
+      console.warn('[trending] personal avatars unavailable; retaining initials');
+      return new Map();
+    }
+  })();
+  const [groupPosts, faces] = await Promise.all([hydrateGroupAuthors(posts), personalFaces]);
+  return groupPosts.map((post) => {
+    const avatar = faces.get(post.author)?.avatar_url;
+    return !post.author.includes('/groups/') && avatar ? { ...post, avatar_url: avatar } : post;
+  });
+}
+
 async function fetchDiscoverFeed(sort: 'recent' | 'trending', limit = 6): Promise<DiscoveryPost[]> {
   // v3: the public board is the node-default discover group. Read it through
   // the normal group-read path as anon (no token). Engagement is the
@@ -646,7 +682,7 @@ async function fetchDiscoverFeed(sort: 'recent' | 'trending', limit = 6): Promis
   } else {
     mapped.sort((a, b) => b.created_at.localeCompare(a.created_at));
   }
-  return hydrateGroupAuthors(mapped.slice(0, limit));
+  return hydrateAuthors(mapped.slice(0, limit));
 }
 
 // The marketing search (the social app's `searchPosts` shape, mirrored): read
@@ -676,7 +712,7 @@ async function searchDiscoverPosts(query: string, limit = 50): Promise<FeedPost[
   // Newest first (the board read is unordered for our purposes; the ranked
   // re-sort happens in the page's knob pipeline).
   filtered.sort((a, b) => b.created_at.localeCompare(a.created_at));
-  const hydrated = await hydrateGroupAuthors(filtered.slice(0, limit).map((p) => mapV3DocToDiscovery(p, {}, {})));
+  const hydrated = await hydrateAuthors(filtered.slice(0, limit).map((p) => mapV3DocToDiscovery(p, {}, {})));
   return hydrated.map(mapDiscoveryToFeedPost);
 }
 

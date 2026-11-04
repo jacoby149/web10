@@ -72,19 +72,30 @@ every-surface rule".
 
 ## The video: transcoded HLS, not the raw file
 
+Resolved audio on the marketing card uses the shared `AudioPlayer`, also used by
+social Feed/PostCard and carousel audio slides. A music tag is not a player:
+valid `audio/*` media gets actual controls, missing URLs show Audio unavailable,
+and playback failures show an explicit error rather than fictional progress.
+There is no autoplay or initial audio fetch. Image/video MIME wins over tags;
+supporting images keep their carousel slots. This does not turn the card into
+the dedicated Music queue or add automatic signed-URL renewal. Full inline-audio
+contract: [music.md](music.md#audio-on-ordinary-post-cards).
+
 The card plays the **transcoded HLS** (H.264/AAC) via `sourceFromMedia` — the same rule `video-player.md` specs: a video with `transcoding_settings.status === 'done'` + a minted `manifest_url` plays through hls.js (native HLS on Safari); anything else (processing/failed/absent) plays the direct file.
 
 This is the greyed-out-tile fix: the **raw source file** (`read_url`) is the user's original camera upload — typically HEVC/AV1, which mobile Chrome (Pixel 9) can't decode. The transcoded HLS is universally decodable. The node mints `manifest_url` into the resolved media ref on every read (`_mint_hls_manifest_urls`), so the card picks the HLS path with zero extra reads.
 
-## The wall's loading model: paint on the one read, enrich in the background
+## The wall's loading model: paint content, show honest identity loading
 
-The Video wall's first paint is **one round-trip** — the board read. The node's read path returns every post's `media_refs` **pre-resolved** (presigned `thumbnail_url` + `read_url` + dimensions + HLS settings on each ref object), so `loadDiscover` builds the media map synchronously from those inline refs and paints the grid immediately: the thumbnails are in the first render, no grey window, no second media round-trip.
+The node's board read returns every post's `media_refs` **pre-resolved** (presigned `thumbnail_url` + `read_url` + dimensions + HLS settings on each ref object). `loadDiscover` builds the media map synchronously and paints content without waiting for personal profiles. Already-resolved identities remain visible; an unresolved personal avatar/name slot is a neutral skeleton, not a guessed name or initial presented as a finished profile.
 
-Everything the grid needs beyond the one read — the engagement tallies, the authors' faces (display name + avatar), and the string-ref media fallback (write-path reads that carry bare doc_ids instead of resolved objects) — loads **in the background, in parallel**, and patches the grid in. The card re-renders from the same maps, so the wall fills in: counts, avatars, display names.
+Engagement tallies, personal faces and the string-ref media fallback (write-path reads that carry bare doc_ids instead of resolved objects) load **in the background, in parallel**, and patch the grid in.
 
-Personal avatars come from one batched author-scoped `profile` face-prepare per board page, using shared `peopleFaceSql`/`facePrepare`. Posts and Video use the same author-keyed avatar map, independently of post attachments: an old post need not contain today's profile photo. Anonymous readers use the same public-profile read gate; unavailable faces keep initials without dropping posts. Prepared group faces remain separate. Domain verification changes a public alias, not post authorship or media ownership.
+Social Posts/Video use one optional batched author-scoped `profile` face-prepare per page (`peopleFaceSql`/`facePrepare`) for both names and avatars, instead of a separate per-author name fan-out. Exact-author/provider followers-group scoping and anonymous/public-profile gates remain. UI-only `author_face_pending` marks a pending lookup: PostCard and the shared HomeCard hide guessed initials/names behind reserved skeleton slots until it settles. Resolved names/avatar URLs or settled unavailable-face initials then replace those slots; content and media never wait for this optional batch. Page-generation and reader-snapshot guards reject obsolete identity completions. Images still download normally after their URLs resolve; this is not one HTTP request, image-byte preloading or measured live latency. Prepared group faces stay separate, and tagged Shorts/Music pipelines are unchanged. Domain verification changes a public alias, not post authorship or media ownership.
 
-This is the "best of both worlds" the operator asked for (06.10.2026): **fast loading** (instant thumbnails from the one read) **and** **hover-to-play** (the `HoverVideo` preview attaches lazily on first hover — a wall of cards does not mint N players at rest; touch devices get the scroll-dwell analog). It supersedes the 3.210.1 "paint only after media resolves" move, which traded the grey window for a wall that waited on the per-author profile fan-out + a second media round-trip before a single thumbnail could paint. The profile fan-out is now a single parallel batch (was a serial per-author await — N distinct authors = N sequential round-trips).
+Marketing's `FeedPreview.tsx` feed/search also resolves personal avatars in one avatar-only batch per returned page through these shared builders. Scope the anonymous query to each exact author's followers group (qualified authors retain their provider), not Discover attachments or the viewer's media. Keep personal labels/links unchanged, resolve group faces separately in parallel, and retain posts/initials when a profile is absent or the optional read fails. This supplies Posts, Video, Shorts and post-search cards; it does not change the separate People directory or its loading behavior.
+
+Thumbnails still come from the board read, and **hover-to-play** remains lazy (the `HoverVideo` preview attaches on first hover; touch devices get the scroll-dwell analog). The 04.11.2026 proposal to hold the whole page for personal faces was superseded by the operator's immediate-paint/neutral-identity-loading direction; do not restore a full-page gate.
 
 The `HoverVideo` preview itself is already lazy: the poster is the resting face, the video source attaches on first hover (desktop) or first touch-dwell (mobile), and at most one tile plays at a time (the module-level coordinator elects the most visible eligible tile). So a wall of a ton of videos costs one thumbnail image per tile at rest, and one preview player only for the tile the pointer/finger is on.
 

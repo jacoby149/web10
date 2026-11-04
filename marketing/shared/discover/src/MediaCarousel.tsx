@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { cn } from './utils';
 import { VideoPlayer, sourceFromMedia } from './VideoPlayer';
 import type { MediaItem } from './types';
+import { AudioPlayer } from './AudioPlayer';
 
 /**
  * The shared multi-media carousel (video-player.md) — a fixed frame + a
@@ -66,7 +67,9 @@ export function MediaCarousel({ items, fit = 'contain', ratio, maxHeight, testId
           const source = sourceFromMedia(item);
           return (
             <div key={item._id || i} className="h-full w-full shrink-0 snap-start">
-              {isVideo ? (
+              {item.mime_type?.startsWith('audio/') ? (
+                <div className="flex h-full items-center p-4"><AudioPlayer src={item.url} durationSeconds={item.duration_seconds} /></div>
+              ) : isVideo ? (
                 <VideoPlayer
                   source={source}
                   mode="inline"

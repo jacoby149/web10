@@ -47,6 +47,7 @@ import { useComposer } from '@/context/ComposerContext';
 import { useSave } from '@/context/SaveContext';
 import { VideoPlayer, sourceFromMedia } from './VideoPlayer';
 import { MediaCarousel } from './MediaCarousel';
+import { AudioPlayer } from '@web10/discover';
 import { toast, errorMessage } from '@/components/shared/Toast';
 
 const LOG = (...args: unknown[]) => console.log('[social:feed]', ...args);
@@ -107,6 +108,10 @@ function formatTimeAgo(dateStr: string): string {
 function MediaItem({ media }: { media: MediaRecord }) {
   const isVideo = media.mime_type?.startsWith('video/');
   const [measuredRatio, setMeasuredRatio] = useState<number | null>(null);
+
+  if (media.mime_type?.startsWith('audio/')) {
+    return <div className="p-4"><AudioPlayer src={media.url} durationSeconds={media.duration_seconds} /></div>;
+  }
 
   // Video (D44): the shared <VideoPlayer> — transcoded plays the hls.js rack,
   // non-transcoded plays the shared inline tap-to-play. The feed is the inline
@@ -492,7 +497,9 @@ export function PostCard({
     >
       <div className="flex items-center gap-2.5 px-4 py-3">
         <Avatar className="h-9 w-9 ring-2 ring-transparent hover:ring-brand/20 transition-all duration-150">
-          {authorAvatar ? (
+          {post.author_face_pending ? (
+            <Skeleton className="h-full w-full rounded-full" data-testid="post-author-avatar-loading" aria-label="Loading author picture" />
+          ) : authorAvatar ? (
             <AvatarImage src={authorAvatar} alt={authorName} />
           ) : (
             <AvatarFallback className="bg-brand-muted text-brand-300 text-sm font-semibold">
@@ -501,7 +508,9 @@ export function PostCard({
           )}
         </Avatar>
         <div className="flex-1 min-w-0 flex items-baseline gap-1.5">
-          {post.author_key?.includes('/groups/') ? (
+          {post.author_face_pending ? (
+            <Skeleton className="h-4 w-24" data-testid="post-author-name-loading" aria-label="Loading author name" />
+          ) : post.author_key?.includes('/groups/') ? (
             <div className="min-w-0">
               <a href={`/groups/${encodeURIComponent(post.author_key)}`} className="block truncate text-sm font-medium text-foreground hover:text-brand-300" data-testid="post-author-link">{post.group_identity?.name || authorName}</a>
               <span className="text-xs text-muted-foreground">Group{post.posted_by && <> · <a href={`/u/${encodeURIComponent(post.posted_by)}`} className="hover:text-foreground">posted by {post.posted_by}</a></>}</span>

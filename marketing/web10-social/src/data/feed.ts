@@ -63,6 +63,35 @@ export async function readDiscoverFeed(
   }
 }
 
+/** Optional batched personal identities; callers distinguish pending from absent. */
+export async function resolveDiscoverProfiles(posts: PostRecord[]): Promise<PostRecord[]> {
+  const keys = [...new Set(posts.filter((post) => !post.author_key?.includes('/groups/'))
+    .map((post) => post.author_key || post.author_username || '').filter(Boolean))];
+  if (!keys.length) return posts;
+  const groups = [...new Set(keys.map((key) => {
+    const parts = key.split('/users/');
+    return followersGroupId(parts.length === 2 ? parts[1] : key, parts.length === 2 ? parts[0] : undefined);
+  }))];
+  console.log('[discover] profile batch started', { authors: keys.length });
+  try {
+    const { rows } = await getV3Client().query(peopleFaceSql(keys), {
+      groups, prepare: { face: facePrepare('avatar_ref', 'avatar_url') },
+    });
+    const profiles = new Map(rows.map((row) => [String(row.author_key), row]));
+    console.log('[discover] profile batch completed', { readable: profiles.size });
+    return posts.map((post) => {
+      if (post.author_key?.includes('/groups/')) return post;
+      const row = profiles.get(post.author_key || post.author_username || '');
+      if (!row) return post;
+      return { ...post, profile: fromV3DocToProfile(row as unknown as import('./v3').V3Document),
+        avatar_url: typeof row.avatar_url === 'string' ? row.avatar_url : undefined };
+    });
+  } catch {
+    console.warn('[discover] profile batch unavailable; retaining author fallbacks');
+    return posts;
+  }
+}
+
 // ── Shorts feed (shorts.md) ──────────────────────────────────────────────────
 
 /** A short: a discover post whose single media is a real 9:16 video. */
