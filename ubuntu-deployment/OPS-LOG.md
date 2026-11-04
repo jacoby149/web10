@@ -3,6 +3,171 @@
 Newest at top. Format per AGENT-OPS.md §8. Read the top entries
 BEFORE doing ops work — someone may already be mid-fix.
 
+## 04.11.2026 00:36 UTC — OpenCode (charlotte) — live cache and final normal-Worker verification
+did:
+  - Temporarily deployed metadata diagnostics restricted to the owned synthetic
+    text canary path; all other requests delegate to the normal adapter. Two IAD
+    requests return 200/matching bytes with cache=hit and no origin fetch. The
+    naturally expired API-issued URL returns 403 with neither cache nor origin
+    reached. Live origin credential stays enabled and unchanged throughout.
+  - Restored normal media-delivery/cloudflare.mjs Worker and removed diagnostic
+    configuration. Repeated actual production health/login/owner issuance, full
+    reads/hash, range 206 and missing-capability 403 all pass after restoration.
+  - Final node metadata: issuance true, separate key/base present, seven active
+    media fields, authoritative backup present, diagnosticDeployed false. Recorded
+    bounded evidence and immutable receipt hashes in media-delivery/PRODUCTION-ACCEPTANCE.md.
+state: actual production API-issued CDN delivery is live; MinIO stays private and
+  in place. Only synthetic account/text/video data added; original API image retained.
+  No unrelated dev promotion, zone-wide SSL change or full security-readiness claim.
+next: close normal main-deployment forwarding/persistence before the next production
+  deploy; pinned private recovery snapshots exist in the scope-owned node vault.
+  Complete document/query issuance, full-player long-video renewal, provider audit/
+  measurements and independent diverse security review as separate gates.
+
+## 04.11.2026 00:28–00:35 UTC — OpenCode (charlotte) — production CDN issuance enabled, API/browser canary passes
+did:
+  - Operator added the hostname-only Cloudflare SSL Configuration Rule. Normal
+    production Worker canary now returns matching bytes/200 and expired/missing
+    403; redirect failure is resolved without changing zone-wide SSL.
+  - Activation preflight proves current Compose API non-media environment, command,
+    storage credentials and networks match the running production generation.
+    No production image rebuild or dev→main promotion performed.
+  - Staged private candidate env, image-pinned API-only activation and rollback
+    Compose snapshots in the existing scope-owned ops vault. First fresh-runtime
+    validation fails because installed Compose 2.23 lacks run --pull; safe metadata
+    diagnosis confirms the unsupported flag. Remove only that run flag; resumed
+    staging checks exact prior artifact contents. Fresh runtime settings validate
+    and public JWK equals the Worker key before active env files are touched.
+  - Atomically wrote all seven media fields to active env.prod and the newly created
+    authoritative ~/web10-ops/env.prod backup; PEM stays private, mode 0600. Recreated
+    only production API using its exact existing sha256:0e1e38de41f6 image and frozen
+    existing configuration. MinIO/root credentials and other services unchanged.
+  - Live docs/login/owner read-url pass; actual API-issued media.web10.app capability
+    has TTL 60, matching first/repeat full reads 200 and range 206, missing denial
+    403. An early expiry probe stops locally before deadline; after actual expiry,
+    the same API-issued URL returns 403.
+  - Added one 118128-byte synthetic MP4 under the existing canary account via real
+    production upload authorization. Chromium plays all four seconds/96 frames at
+    desktop and 375px viewports with CDN 206; screenshots inspected independently.
+    This is a synthetic direct-video probe, not social-player/HLS renewal proof.
+state: production API issuance is ON, separate key/base present, normal Worker live;
+  private active env and backup contain seven media fields. Original disabled env,
+  exact image-pinned API rollback and enabled recovery Compose are retained privately.
+  Main still lacks Compose forwarding; a future normal main deploy can revert to
+  legacy delivery until wiring is deliberately promoted. No unrelated promotion.
+next: verify cache behavior only on the owned synthetic canary without disabling
+  the live origin credential; restore normal Worker, verify final state, then
+  preserve wiring through normal production release coordination. Full-player
+  renewal, provider measurements/log audit and diverse security review stay OPEN.
+
+## 04.11.2026 00:22 UTC — OpenCode (charlotte) — media origin TLS blocker isolated, normal Worker restored
+did:
+  - Direct production S3 adapter GET returns 200/41 bytes. Temporary status-only
+    Worker diagnostics show cache miss, origin 301 and same-origin redirect;
+    no signed URLs, credentials or response content emitted.
+  - Zone SSL mode is Flexible. Configuration Rules reads return 403 with both
+    server deployment credential and local Wrangler OAuth. No rule was created.
+  - Read-only inventory finds five other proxied records. Four deployment-origin
+    hostnames fail direct public-origin certificate validation; a fifth record is
+    not a deployment origin. Cause of those validation failures is not established.
+    The guarded zone-wide Strict change was NOT run; unrelated services untouched.
+  - Restored the normal media-delivery/cloudflare.mjs Worker, removing temporary
+    diagnostics. Missing-capability request still returns expected 403/CORS.
+  - Fresh node metadata confirms production issuance false, no key/base in runtime,
+    zero media env fields in active env.prod, and authoritative env.prod backup
+    still absent. No API recreate, env edit, production promotion or TLS mutation.
+state: Worker/domain, restricted origin identity and separate private signing key
+  are staged, not activated. Real app retains legacy delivery. Signed edge reads
+  remain blocked by the observed redirect; full-player and broader release gates
+  remain OPEN. Private scope and immutable receipts stay outside Git.
+next: operator creates a hostname-only Configuration Rule (zone web10.app, SSL
+  Full (strict), expression http.host in {"media.web10.app" "minio.web10.app"}),
+  or provides Configuration Rules edit access through private credential storage.
+  Do not change zone-wide TLS. After independent verification, repeat the canary,
+  then resolve narrow production wiring persistence and activation with rollback.
+
+## 04.11.2026 00:11–00:12 UTC — OpenCode (charlotte) — production Worker staged, activation held
+did:
+  - Actual production origin read identity passes independent GetObject 200/hash,
+    ListObjects/PutObject AccessDenied 403; synthetic canary upload is private
+    (unsigned origin 403). One dedicated synthetic production account/object added.
+  - Generated a new media-only RSA key on the node, stored only in a private
+    scope-owned ops vault; only its public JWK leaves the server. Authentication
+    key unchanged. Exact private recovery state/receipts remain outside Git.
+  - Deployed web10-media-prod with managed media.web10.app custom domain, 50 ms
+    CPU, private origin credentials, outer cache/request logging off. API issuance
+    remains disabled and neither active env.prod nor its missing backup is edited.
+  - Domain health returns expected 403/CORS for missing credentials. Two signed
+    canary acceptance attempts fail; retained latest response is empty 502 after
+    authorization. Stopped activation/retries and moved to read-only origin
+    diagnosis rather than changing node settings or broadening permissions.
+state: production Worker/domain exist but real app still uses legacy delivery.
+  New read-only IAM identity and signing key are staged; root passwords, existing
+  identities/bucket policies, production API generation and data are unchanged
+  except the explicit synthetic canary. No full CDN hookup claim.
+next: establish the edge-origin fetch cause from safe metadata before repair,
+  repeat acceptance only after an evidenced fix, then deliberate activation/rollback.
+
+## 03.11.2026 — OpenCode (charlotte) — production origin identity provisioned, issuance still off
+did:
+  - Operator authorized resume. Server-side Cloudflare DNS read using the existing
+    deployment credential returns 200 and zero media.web10.app records; token stays
+    on the SSH host. Worker/domain absence and unchanged production config verified.
+  - Through pinned official MinIO Admin SDK, created a uniquely scoped named policy
+    granting only GetObject on the existing production media bucket, then a new
+    dedicated direct IAM user and attached only that policy. Each operation's
+    read-back verification succeeds; no root credential goes to the edge.
+  - Direct IAM identity deliberately avoids the embedded service-account policy
+    status-update behavior found in the smoke test. Exact scope/secret recovery
+    state and receipts remain private under .context/cdn-live/production.
+state: new read-only origin identity exists; no Worker/domain/node signing key or
+  production env change yet, and issuance remains disabled. Existing data, root
+  passwords, existing identities and bucket policies are unchanged.
+next: independently prove actual GET/list/write behavior against an owned synthetic
+  canary, stage the separate node signing key and Worker, then gated activation.
+
+## 03.11.2026 — OpenCode (charlotte) — production CDN preflight, no mutation
+did:
+  - Operator explicitly requested actual production hookup. Verified production
+    API/MinIO containers and existing web10-media / HTTPS MinIO origin metadata;
+    production issuance remains false with no signing key/base. The active private
+    env.prod exists with no media fields; authoritative backup is absent. Shared
+    .env has no media overrides. Credentials/env contents never printed.
+  - Cloudflare confirms proposed web10-media-prod Worker and media.web10.app Worker
+    domain are absent. DNS-record lookup through current Wrangler OAuth does not
+    succeed, so record absence is NOT proven and no domain is attached.
+  - Two preflight attempts failed: an over-strict missing-backup assumption (local
+    harness corrected), then unproven DNS absence. Stopped live operations at the
+    runbook limit. Prepared, but did not execute, a safe DNS-read fallback using
+    the existing CF_API_TOKEN on the SSH host; it never returns the token.
+state: no production key/identity/policy/env/Worker/DNS/container mutation. No
+  passwords rotated, objects uploaded/deleted or node flag enabled. Private
+  proposed scope and immutable preflight receipts remain under .context/cdn-live/production.
+next: operator-authorized resume of metadata-only DNS preflight through the
+  existing deployment credential, then one-change-at-a-time production provisioning
+  and deliberate promotion/activation with rollback. Do not report CDN as live.
+
+## 03.11.2026 23:43–23:44 UTC — OpenCode (charlotte) — deployed disabled wiring verified
+did:
+  - Verified merged #1362/22838d349ee5 and successful deploy run 41741009836.
+    Read-only SSH independently verifies all-spark and exact dev/prod API containers;
+    raw inspect/environment values are captured privately, never printed.
+  - Dev container created 23:41:21 UTC has all seven media env fields; fresh runtime
+    settings report enabled=false, TTL=60, keyPresent=false, basePresent=false.
+    Production runtime reports enabled=false, TTL=60, no key/base and zero media
+    env fields. Production wiring merge is not on main; no activation inferred.
+  - Dev/prod API docs and media JWKS GETs return 200 with empty key arrays.
+    Created one recorded synthetic dev account, logged in and minted an owner-only
+    legacy MinIO SigV4 read URL for a synthetic unuploaded key. Password/token/URL
+    stay in memory; private account scope and redacted receipts stay in .context.
+state: deployed dev wiring works in disabled mode and legacy signing remains.
+  Production CDN is NOT configured/enabled. No object upload, config/credential/
+  bucket-policy/DNS change, production mutation, container restart or redeploy by
+  this session. Only one synthetic dev user was added; no private user data read.
+next: actual scoped Worker/origin/key/hostname provisioning and gated activation
+  remain. Do not equate merged wiring or disabled-mode acceptance with completion
+  of the production CDN hookup or the broader MEDIA-LIVE-RELEASE gates.
+
 ## 03.11.2026 22:43–22:45 UTC — OpenCode (charlotte, web10-cdn-setup) — isolated CPU guardrail under accepted overage risk
 did:
   - Operator explicitly accepted Workers Paid minimum/usage-overage exposure after

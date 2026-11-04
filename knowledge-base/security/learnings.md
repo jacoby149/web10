@@ -35,6 +35,24 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-04: An HTTPS Worker origin URL does not override Flexible zone SSL
+
+Production edge diagnostics showed an origin 301 despite a literal HTTPS endpoint;
+the same signed S3 adapter outside Cloudflare returned 200. A hostname-only SSL
+Configuration Rule added by the operator resolved delivery without changing the
+zone default or blindly risking other proxied services. Both available API
+credentials lacked Configuration Rules access; actual delivery success is not an
+independent read-back of the selected rule value. Keep redirect refusal intact.
+
+The [production record](../../media-delivery/PRODUCTION-ACCEPTANCE.md) separates
+live owner issuance, byte/range/cache/expiry and synthetic browser evidence from
+full-player renewal and broad security coverage. Canary-scoped instrumentation
+confirms cache hits without disabling a credential now used by live readers;
+expired capabilities are denied before cache/origin access. Normal adapter
+restored. Private env persistence is also distinct from normal release forwarding:
+the pinned-image activation is live, but older main Compose can fall back to legacy
+delivery on redeploy. No broad scan/PASS or immediate-revocation claim.
+
 ### 2026-11-03: Merged-source replay closes a receipt gate, not security coverage
 
 After #1360 merged, the unchanged H scenario passes on clean HEAD exactly
