@@ -56,6 +56,8 @@ function track(over: { id: string; author: string; title?: string; mime?: string
       duration_seconds: over.duration ?? 180,
       thumbnail_url: over.thumb,
     },
+    // The gate computes the shared cover precedence from the post's media.
+    artworkUrl: over.thumb,
   } as MusicTrack;
 }
 

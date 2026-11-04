@@ -50,7 +50,7 @@ export default function MusicTrackMenu({ track, saved, signedIn, disabled, messa
     <div className="pointer-events-none absolute inset-0 bg-background/80 backdrop-blur-sm" />
     <div ref={panel} role="dialog" aria-modal="true" aria-labelledby="music-menu-title" className="relative max-h-[85dvh] w-full max-w-sm overflow-y-auto rounded-lg border border-border bg-popover pb-3 shadow-xl" data-testid="music-track-menu">
       <div className="flex items-center gap-3 border-b border-border p-4">
-        <MusicArtwork url={track.media.thumbnail_url} className="h-12 w-12 rounded-sm" />
+        <MusicArtwork url={track.artworkUrl} className="h-12 w-12 rounded-sm" />
         <div className="min-w-0 flex-1"><h2 id="music-menu-title" className="truncate text-sm font-medium">{name}</h2><p className="mt-1 truncate text-xs text-muted-foreground">{artist}</p></div>
         <Button variant="ghost" size="icon" className="h-11 w-11 shrink-0" aria-label="Close track menu" onClick={onClose}><X className="h-5 w-5" /></Button>
       </div>
