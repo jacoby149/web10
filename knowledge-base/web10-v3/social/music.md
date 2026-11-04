@@ -69,6 +69,13 @@ needed for a fresh expired URL. This is not the dedicated Music queue or its
 automatic authorized renewal. Native-browser fixture evidence is not acceptance
 of a particular production recording.
 
+The feed presentation uses the track's resolved thumbnail as cover art, or a
+resolved supporting image when no thumbnail exists. Audio URLs and author
+avatars are never covers. Reserve the square while loading; missing/failed art
+uses a disc fallback. The card receives the post title and current author label
+from its consumer; these are display metadata, not access authority. Updating
+only artwork/labels must not remount or restart the audio transport.
+
 ### Dedicated listening destination
 
 `/music` renders compact cover/title/artist-duration rows and one overflow

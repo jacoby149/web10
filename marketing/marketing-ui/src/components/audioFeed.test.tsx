@@ -18,6 +18,22 @@ function card(props: Partial<FeedPost> = {}) {
 afterEach(cleanup);
 
 describe('Discover audio attachments', () => {
+  it('shows the audio thumbnail, track title and group artist in the player', () => {
+    card({ mediaRefs: [{ ...audio, thumbnail_url: 'https://cdn.example/record-cover.jpg' }] });
+    const player = screen.getByTestId('audio-player');
+    expect(player.querySelector('img')).toHaveAttribute('src', 'https://cdn.example/record-cover.jpg');
+    expect(player).toHaveTextContent('Livery Stable Blues');
+    expect(player).toHaveTextContent('Century Club Music');
+  });
+  it('uses a supporting image as cover while preserving its carousel slide', () => {
+    card({ mediaRefs: [audio, { doc_id: 'cover', mime_type: 'image/jpeg', read_url: 'https://cdn.example/supporting.jpg' }] });
+    expect(screen.getByTestId('audio-player').querySelector('img')).toHaveAttribute('src', 'https://cdn.example/supporting.jpg');
+    expect(document.querySelector('[data-testid="discover-media-carousel-image-1"]')).toHaveAttribute('src', 'https://cdn.example/supporting.jpg');
+  });
+  it('keeps a thumbnail ahead of unrelated supporting photos', () => {
+    card({ mediaRefs: [{ ...audio, thumbnail_url: 'https://cdn.example/album.jpg' }, { doc_id: 'photo', mime_type: 'image/jpeg', read_url: 'https://cdn.example/photo.jpg' }] });
+    expect(screen.getByTestId('audio-player').querySelector('img')).toHaveAttribute('src', 'https://cdn.example/album.jpg');
+  });
   it('renders a playable recording instead of the decorative music placeholder', () => {
     card({ mediaRefs: [audio] });
     expect(document.querySelector('audio')).toHaveAttribute('src', audio.read_url);

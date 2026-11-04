@@ -47,7 +47,7 @@ import { useComposer } from '@/context/ComposerContext';
 import { useSave } from '@/context/SaveContext';
 import { VideoPlayer, sourceFromMedia } from './VideoPlayer';
 import { MediaCarousel } from './MediaCarousel';
-import { AudioPlayer } from '@web10/discover';
+import { AudioPlayer, audioArtwork } from '@web10/discover';
 import { toast, errorMessage } from '@/components/shared/Toast';
 
 const LOG = (...args: unknown[]) => console.log('[social:feed]', ...args);
@@ -105,12 +105,12 @@ function formatTimeAgo(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString();
 }
 
-function MediaItem({ media }: { media: MediaRecord }) {
+function MediaItem({ media, audioTitle, audioArtist }: { media: MediaRecord; audioTitle?: string; audioArtist?: string }) {
   const isVideo = media.mime_type?.startsWith('video/');
   const [measuredRatio, setMeasuredRatio] = useState<number | null>(null);
 
   if (media.mime_type?.startsWith('audio/')) {
-    return <div className="p-4"><AudioPlayer src={media.url} durationSeconds={media.duration_seconds} /></div>;
+    return <div className="p-4"><AudioPlayer src={media.url} durationSeconds={media.duration_seconds} title={audioTitle} artist={audioArtist} artworkUrl={audioArtwork(media)} /></div>;
   }
 
   // Video (D44): the shared <VideoPlayer> — transcoded plays the hls.js rack,
@@ -181,7 +181,7 @@ function MediaItem({ media }: { media: MediaRecord }) {
   return frame;
 }
 
-function MediaGrid({ mediaItems }: { mediaItems: MediaRecord[] }) {
+function MediaGrid({ mediaItems, audioTitle, audioArtist }: { mediaItems: MediaRecord[]; audioTitle?: string; audioArtist?: string }) {
   if (!mediaItems.length) return null;
   const count = mediaItems.length;
   const first = mediaItems[0];
@@ -193,9 +193,9 @@ function MediaGrid({ mediaItems }: { mediaItems: MediaRecord[] }) {
   // FILLS it (crops to one consistent frame) instead of letterboxing — the
   // feed's no-shift guarantee is the reserved frame, not the object-fit.
   if (count === 1) {
-    return <MediaItem media={first} />;
+    return <MediaItem media={first} audioTitle={audioTitle} audioArtist={audioArtist} />;
   }
-  return <MediaCarousel items={mediaItems} fit="cover" maxHeight="60vh" testId="media-carousel" />;
+  return <MediaCarousel items={mediaItems} fit="cover" maxHeight="60vh" testId="media-carousel" audioTitle={audioTitle} audioArtist={audioArtist} />;
 }
 
 /**
@@ -307,7 +307,7 @@ function RepostedEmbed({
         </div>
       ) : null}
       <div className="pb-2">
-        <PostMediaRenewal postId={original._id}><MediaGrid mediaItems={mediaItems} /></PostMediaRenewal>
+        <PostMediaRenewal postId={original._id}><MediaGrid mediaItems={mediaItems} audioTitle={original.title} audioArtist={authorName} /></PostMediaRenewal>
       </div>
       {/* The original's creator-pinned ad (D55) renders inside the embed — the
           repost resurfaces the original's content AND its monetization, so the
@@ -664,7 +664,7 @@ export function PostCard({
       {/* Media. Editing (title / body / media remove) happens in the app-level
           composer sheet (openComposer({ editingPost }) — the ONE edit path),
           not inline here, so the card stays the read surface. */}
-      <PostMediaRenewal postId={post._id}><MediaGrid mediaItems={mediaItems} /></PostMediaRenewal>
+      <PostMediaRenewal postId={post._id}><MediaGrid mediaItems={mediaItems} audioTitle={post.title} audioArtist={authorName} /></PostMediaRenewal>
 
       {post.text && !post.repost_of ? (
         <div className="px-4 pt-3">

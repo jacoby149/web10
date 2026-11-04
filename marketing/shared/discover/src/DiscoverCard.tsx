@@ -4,7 +4,7 @@ import { cn, hashToColor } from './utils';
 import { Avatar, AvatarFallback, Skeleton } from './ui';
 import { VideoPlayer, sourceFromMedia } from './VideoPlayer';
 import { MediaCarousel } from './MediaCarousel';
-import { AudioPlayer } from './AudioPlayer';
+import { AudioPlayer, audioArtwork } from './AudioPlayer';
 import { PostActions, type ReactionKind } from './PostActions';
 import { MarkdownText } from './MarkdownText';
 import type { DiscoverPost, MediaItem, ReadComments, ReadReplies, CreateComment, DiscoverAd, RepostOriginal, ReadRepostOriginal } from './types';
@@ -504,9 +504,11 @@ export function DiscoverCard({
             fit="cover"
             maxHeight={mediaMaxHeight}
             testId="discover-media-carousel"
+            audioTitle={post.title}
+            audioArtist={displayName}
           />
         ) : isAudioMedia ? (
-          <div className="p-4"><AudioPlayer src={firstMedia.url} durationSeconds={firstMedia.duration_seconds} /></div>
+          <div className="p-4"><AudioPlayer src={firstMedia.url} durationSeconds={firstMedia.duration_seconds} title={post.title} artist={displayName} artworkUrl={audioArtwork(firstMedia, mediaItems)} /></div>
         ) : isVideoMedia && firstMedia?.url ? (
           <DiscoverVideo media={firstMedia} maxHeight={mediaCap(firstMedia)} />
         ) : mediaType === 'image' && mediaItems.length > 0 ? (

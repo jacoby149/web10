@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { AudioPlayer } from '@web10/discover';
+import { AudioPlayer, audioArtwork } from '@web10/discover';
 
 beforeEach(() => {
   vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
@@ -11,6 +11,33 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe('shared inline audio transport', () => {
+  it('never uses the audio source as album art, and can use a resolved image instead', () => {
+    const audio = { url: 'https://cdn.example/song.mp3', mime_type: 'audio/mpeg', thumbnail_url: 'https://cdn.example/song.mp3' };
+    expect(audioArtwork(audio)).toBeUndefined();
+    expect(audioArtwork(audio, [audio, { url: 'https://cdn.example/image.jpg', mime_type: 'image/jpeg' }])).toBe('https://cdn.example/image.jpg');
+  });
+  it('shows reserved album art and metadata with a deliberate no-art fallback', () => {
+    render(<AudioPlayer src="https://cdn.example/song.mp3" title="Livery Stable Blues" artist="Century Club Music" />);
+    expect(screen.getByTestId('audio-player')).toHaveTextContent('Livery Stable Blues');
+    expect(screen.getByTestId('audio-player')).toHaveTextContent('Century Club Music');
+    expect(screen.getByRole('img', { name: 'No album artwork' })).toBeInTheDocument();
+    expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
+  });
+  it('falls back on broken cover art and retries a changed artwork URL without replacing audio', () => {
+    const view = render(<AudioPlayer src="https://cdn.example/song.mp3" title="Record" artworkUrl="https://cdn.example/old.jpg" />);
+    const audio = document.querySelector('audio');
+    audio!.currentTime = 35;
+    fireEvent.timeUpdate(audio!);
+    const image = screen.getByAltText('Record cover art');
+    fireEvent.error(image);
+    expect(screen.getByRole('img', { name: 'No album artwork' })).toBeInTheDocument();
+    view.rerender(<AudioPlayer src="https://cdn.example/song.mp3" title="Record" artworkUrl="https://cdn.example/new.jpg" />);
+    expect(screen.getByAltText('Record cover art')).toHaveAttribute('src', 'https://cdn.example/new.jpg');
+    expect(document.querySelector('audio')).toBe(audio);
+    expect(screen.getByTestId('audio-player')).toHaveTextContent('0:35');
+    expect(HTMLMediaElement.prototype.pause).not.toHaveBeenCalled();
+    expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
+  });
   it('does not autoplay or fetch metadata on mount', () => {
     render(<AudioPlayer src="https://cdn.example/song.mp3" durationSeconds={180} />);
     expect(document.querySelector('audio')).toHaveAttribute('preload', 'none');

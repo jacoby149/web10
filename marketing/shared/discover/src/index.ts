@@ -16,7 +16,7 @@ export { HlsVideoPlayer, HlsRenewalContext } from './HlsVideoPlayer';
 export { MediaCarousel, type MediaCarouselProps } from './MediaCarousel';
 export { PostActions, type PostActionsProps, type PostActionMode, type ReactionKind } from './PostActions';
 export { Top10Sidebar, type Top10SidebarProps, type Top10SidebarEntry } from './Top10Sidebar';
-export { AudioPlayer } from './AudioPlayer';
+export { AudioPlayer, audioArtwork } from './AudioPlayer';
 export { CommentThread, type CommentThreadProps } from './CommentThread';
 export { RankBadge, heatTier, HEAT_SHADOW } from './RankBadge';
 export { Badge, IconBtn, Avatar, AvatarFallback, Skeleton, TextInput, Select } from './ui';

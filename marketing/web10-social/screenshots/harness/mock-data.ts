@@ -1015,6 +1015,9 @@ export async function readFeed(): Promise<unknown[]> { return FEED_POSTS; }
 // — the feed filters out bare string refs), so the harness resolves string
 // refs against DISCOVER_MEDIA here, the same way the node's read does.
 export async function readFeedPage(): Promise<unknown> {
+  if (new URLSearchParams(window.location.search).get('discover-inline-audio') === '1') {
+    return { posts: await readDiscoverFeed(), has_more: false, next_cursor: null };
+  }
   if (new URLSearchParams(window.location.search).get('feedError') === '1') {
     throw new Error('Screenshot fixture: Following feed unavailable');
   }
@@ -1349,8 +1352,10 @@ export async function readDiscoverFeed(): Promise<unknown[]> {
   if (new URLSearchParams(window.location.search).get('discover-inline-audio') === '1') {
     return [{ ...DISCOVER_POSTS[0], _id: 'inline-audio-fixture', title: 'Livery Stable Blues — audio renderer fixture',
       text: 'Synthetic one-second silent recording. Real inline audio controls, not a loading placeholder.',
+      profile: { display_name: DISCOVER_POSTS[0].group_identity?.name },
       tags: ['music'], ad: undefined, media_refs: [{ doc_id: 'inline-audio', read_url: MUSIC_TRACKS[0].media.url,
-        mime_type: 'audio/wav', duration_seconds: 1 }] }];
+        mime_type: 'audio/wav', duration_seconds: 1,
+        thumbnail_url: new URLSearchParams(window.location.search).get('discover-inline-art') === '1' ? MUSIC_TRACKS[0].media.thumbnail_url : undefined }] }];
   }
   const prepared = new URLSearchParams(window.location.search).get('discover-prepared-faces') === '1';
   return DISCOVER_POSTS.map((seed) => {
