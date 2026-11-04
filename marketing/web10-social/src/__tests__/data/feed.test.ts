@@ -384,6 +384,48 @@ describe('feed v3 data layer', () => {
   });
 
   describe('readShortsFeed (the two-layer filter — shorts.md v1.5)', () => {
+    it.each([true, false])('batches personal display names by exact author (signed in: %s)', async (signedIn) => {
+      if (!signedIn) mock.readToken.mockReturnValue(null as any);
+      serverFilteredRead([
+        discoverPost('p1', ['m1'], ['short'], 'alice'),
+        discoverPost('p2', ['m1'], ['short'], 'alice'),
+        discoverPost('p3', ['m1'], ['short'], 'bob'),
+      ]);
+      mock.listMedia.mockResolvedValue([mediaDoc('m1', 'video/mp4', 720, 1280)]);
+      mock.query.mockResolvedValue({ rows: [
+        { author_key: 'web10.app/users/alice', body: { display_name: 'Alice Example' }, avatar_url: 'https://cdn/alice' },
+        { author_key: 'web10.app/users/bob', body: { display_name: 'Bob Example' } },
+      ] });
+      const shorts = await readShortsFeed();
+      expect(shorts.map((s) => s.post.profile?.display_name)).toEqual(['Alice Example', 'Alice Example', 'Bob Example']);
+      expect(shorts[0].post.avatar_url).toBe('https://cdn/alice');
+      expect(mock.query).toHaveBeenCalledTimes(1);
+      expect(mock.query).toHaveBeenCalledWith(expect.stringContaining('FROM profile'), expect.objectContaining({
+        groups: ['web10.app/groups/users/alice/followers', 'web10.app/groups/users/bob/followers'],
+      }));
+      expect(shorts[0].post.author_key).toBe('web10.app/users/alice');
+    });
+
+    it.each(['missing', 'failed'])('keeps playable shorts when profile enrichment is %s', async (failure) => {
+      serverFilteredRead([discoverPost('p1', ['m1'], ['short'])]);
+      mock.listMedia.mockResolvedValue([mediaDoc('m1', 'video/mp4', 720, 1280)]);
+      if (failure === 'failed') mock.query.mockRejectedValue(new Error('profile unavailable'));
+      else mock.query.mockResolvedValue({ rows: [] });
+      const shorts = await readShortsFeed();
+      expect(shorts).toHaveLength(1);
+      expect(shorts[0].post.author_username).toBe('alice');
+    });
+
+    it('preserves the readable group name and exact group author without a personal-profile lookup', async () => {
+      const group = 'web10.app/groups/users/alice/new-group-5';
+      serverFilteredRead([{ ...discoverPost('p1', ['m1'], ['short']), author_key: group }]);
+      mock.listMedia.mockResolvedValue([mediaDoc('m1', 'video/mp4', 720, 1280)]);
+      mock.query.mockResolvedValue({ rows: [{ group_id: group, author_key: 'alice', body: { name: 'Century Club Movies' } }] });
+      const shorts = await readShortsFeed();
+      expect(shorts[0].post.group_identity?.name).toBe('Century Club Movies');
+      expect(shorts[0].post.author_key).toBe(group);
+      expect(mock.query.mock.calls.every(([sql]) => !sql.includes('FROM profile'))).toBe(true);
+    });
     // The filter is two-layered (defense in depth):
     //   1. SERVER — readDiscoverFeed(…, ["short"]) sends has(tags, 'short'), so
     //      the node pulls only tagged shorts (cheap + indexable).

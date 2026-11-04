@@ -52,6 +52,29 @@ The two layers divide the job: **the tag is the server-side filter (cheap, index
 
 ### The surface (the lens)
 
+**Expandable description:** tapping the title/caption or its More affordance
+opens a scrollable description sheet over the same video. The full title,
+canonical author, current likes/views/date and complete post body are readable;
+the body uses the existing full `PostBody` renderer, including safe clickable
+links, headings, lists and inline formatting. The collapsed teaser is plain
+readable text, not markdown syntax or nested links inside a button.
+`/shorts/:postId?description=1` identifies the expanded state; opening preserves
+other query parameters, refresh restores it and browser back/forward work.
+Close, Escape and backdrop dismissal remove only the description parameter.
+Keyboard focus stays in the sheet and returns to the trigger; its own scrolling
+and arrow keys do not swipe the underlying feed. Opening neither reloads nor
+replaces the video, and adds no new data read or content write. Empty-body and
+title-only posts remain readable without inventing content.
+
+Both the wall and lens show the readable author's display name: the group's
+identity name for group posts, the profile display name for people, and a
+handle/slug fallback when no readable name exists. Group slugs are not personal
+`@handles`. The lens author links to the exact group ID or personal profile,
+never to the human uploader of a group post. Shorts loads personal profile
+names/faces in one batched author-scoped query per page; optional missing or
+failed profile reads must not remove playable shorts. Search matches displayed
+names as well as handles, titles and captions.
+
 A full-screen vertical swipe container. Each slide composes the existing player — the one-liner `video-player.md:70` already anticipated:
 
 ```

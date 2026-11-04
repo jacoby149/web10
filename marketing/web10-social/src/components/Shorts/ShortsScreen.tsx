@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useActingAuthor, getActingAuthor, matchesActingAuthor } from '@/data/actingIdentity';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Heart, MessageCircle, Share2, X, Volume2, VolumeX, ChevronLeft, Search, BarChart3, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getWapi } from '@/data/wapi';
@@ -12,6 +12,9 @@ import { Button } from '@/components/ui/button';
 import { requestInstallPrompt, isMobile } from '@/lib/pwa';
 import { formatCount } from '@web10/discover';
 import ShortsWall from './ShortsWall';
+import { postAuthor } from '@/lib/postAuthor';
+import { markdownToPlainText } from '@/lib/markdownHtml';
+import { ShortDescriptionSheet } from './ShortDescriptionSheet';
 
 const LOG = (...args: unknown[]) => console.log('[shorts]', ...args);
 
@@ -109,10 +112,28 @@ function ShortsLens({ postId }: { postId: string }) {
         return (
           (s.post.title && s.post.title.toLowerCase().includes(q)) ||
           (s.post.text && s.post.text.toLowerCase().includes(q)) ||
+          postAuthor(s.post).name.toLowerCase().includes(q) ||
           (s.post.author_username && s.post.author_username.toLowerCase().includes(q))
         );
       })
     : shorts;
+
+  const descriptionPost = searchParams.get('description') === '1'
+    ? visibleShorts.find((short) => short.post._id === postId)?.post
+    : undefined;
+  function openDescription(id: string) {
+    setCommentsOpenFor(null);
+    const next = new URLSearchParams(searchParams);
+    next.set('description', '1');
+    navigate({ pathname: `/shorts/${encodeURIComponent(id)}`, search: `?${next}` });
+    LOG('description opened');
+  }
+  function closeDescription() {
+    const next = new URLSearchParams(searchParams);
+    next.delete('description');
+    setSearchParams(next, { replace: true });
+    LOG('description closed');
+  }
 
   // The slides, in order — the container's children filtered to the snap
   // slides. The back arrow is also a child of the container (it sits above the
@@ -443,12 +464,14 @@ function ShortsLens({ postId }: { postId: string }) {
   }
 
   return (
+    <>
     <div
       ref={containerRef}
       data-testid="shorts-container"
       tabIndex={0}
       onKeyDown={handleKeyDown}
       aria-label="Shorts feed"
+      inert={!!descriptionPost}
       className="relative h-full overflow-y-auto snap-y snap-mandatory scroll-smooth outline-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       {/* The exit (the TikTok back arrow): the bottom tab bar is hidden on the
@@ -522,25 +545,29 @@ function ShortsLens({ postId }: { postId: string }) {
             <div className="absolute bottom-4 left-4 right-16 flex items-end gap-3">
               <Avatar className="w-9 h-9 shrink-0">
                 {short.post.avatar_url ? (
-                  <AvatarImage src={short.post.avatar_url} alt={short.post.author_username || ''} />
+                  <AvatarImage src={short.post.avatar_url} alt={postAuthor(short.post).name} />
                 ) : (
                   <AvatarFallback className="bg-brand-muted text-brand-300 text-sm font-semibold">
-                    {(short.post.author_username || '?').charAt(0).toUpperCase()}
+                    {postAuthor(short.post).name.replace(/^@/, '').charAt(0).toUpperCase()}
                   </AvatarFallback>
                 )}
               </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate">
-                  @{short.post.author_username}
-                </p>
+                <Link to={postAuthor(short.post).href} className="block text-sm font-medium text-white truncate hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid={`short-author-${short.post._id}`}>
+                  {postAuthor(short.post).name}
+                </Link>
                 {/* The post's two bodies (D82): the title is the lead line, the
                     caption (`text`) the line under it. A short with only a
                     caption shows the caption; a title-only short shows the title. */}
-                {short.post.title && (
-                  <p className="text-xs font-medium text-white line-clamp-1 mt-0.5">{short.post.title}</p>
-                )}
-                {short.post.text && (
-                  <p className="text-xs text-white/80 line-clamp-2 mt-0.5">{short.post.text}</p>
+                {(short.post.title || short.post.text) && (
+                  <button type="button" aria-label="View description" aria-expanded={descriptionPost?._id === short.post._id}
+                    aria-controls="short-description" data-testid={`short-description-trigger-${short.post._id}`}
+                    onClick={() => openDescription(short.post._id!)}
+                    className="mt-1 min-h-11 w-full rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    {short.post.title && <span className="block text-xs font-medium text-foreground line-clamp-1">{short.post.title}</span>}
+                    {short.post.text && <span className="block text-xs text-foreground/80 line-clamp-2">{markdownToPlainText(short.post.text)}</span>}
+                    <span className="block text-xs font-semibold text-foreground">More</span>
+                  </button>
                 )}
               </div>
             </div>
@@ -676,5 +703,10 @@ function ShortsLens({ postId }: { postId: string }) {
         </div>
       ))}
     </div>
+    {descriptionPost && <ShortDescriptionSheet key={descriptionPost._id} post={descriptionPost}
+      likes={reactionMap[descriptionPost._id!] ?? descriptionPost.likes ?? 0}
+      views={viewsMap[descriptionPost._id!]?.impressions ?? descriptionPost.impressions ?? 0}
+      onClose={closeDescription} />}
+    </>
   );
 }
