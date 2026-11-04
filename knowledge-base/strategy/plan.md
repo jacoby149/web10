@@ -1308,17 +1308,20 @@ workshop first, then CIDR. That ladder is dead — the target is now the
 **SIGMOD 2027 industry track**, which changes the paper's center of gravity:
 industry track rewards **operational experience, scale, deployment lessons,
 and cost** — the "we run this in production" story is the differentiator, and
-the workshop draft's deferred evaluation section (`research/workshop/main.tex`
+the workshop draft's deferred evaluation section (`research/first-draft/main.tex`
 §"Scale and latency (extended version)") is now half the paper.
 
-**What exists:** `research/workshop/main.tex` — a ~5-page workshop draft
-("Your Data, Your Rules, One Query") with the access model, query-layer
-enforcement (wall-not-membrane), and the 267→1 feed number. That is ~40% of
-the full paper, in workshop compression. The full paper is a new file in
-`research/sigmod/` (keep the workshop paper intact as the short version),
-extending the same spine: Intro → Access Model → Enforcement → Running
-Platform → **Evaluation (the new load-bearing section)** → Related Work →
-Lessons → Conclusion.
+**What exists:** `research/first-draft/main.tex` — the first draft: a complete
+12-page paper with the access model, query-layer enforcement
+(wall-not-membrane), the user-addressed network, application composition, and
+the full evidence set (connected interop, two-node IAM, domain prototype,
+K1000 fan-out, operating point). `research/second-draft/main.tex` — the working
+manuscript since 04.11.2026 (4.8.2): an operator-directed fresh approach from
+the top, same title and same verified evidence, new structure---data plane
+split out, new overview figure, new "Lessons from Running It" section,
+Q&A-structured evaluation, positioning-form related work. The original
+`research/sigmod/` scaffold target is superseded by the second-draft folder;
+the first draft stays intact as the record.
 
 **The critical path is data, not writing.** `research/evaluation-plan.md` is
 all unchecked boxes. The numbers the industry track will demand:
@@ -1391,23 +1394,34 @@ results, but no evaluation or novelty claim is complete without its evidence.
 
 - [✓ 3.249.2] **Python implementation rationale (supporting note)** — `research/why-python.md` covers FastAPI/ClickHouse responsibilities, commercial suitability, security visibility, rewrite tradeoffs and evaluation requirements. Draft untouched; E1–E6/W1–W6 not completed by this note.
 
-- [ ] **W1: scaffold `research/sigmod/`** — acmart sigconf, 12-page budget,
-  section outline from `research/draft/outline.md` expanded for industry
-  track (add a "Lessons from Running It" section — the industry-track
-  differentiator).
-- [ ] **W2: port + expand the workshop sections** — Intro, Access Model,
-  Enforcement, Running Platform. Expand, don't rewrite; the workshop prose is
-  the draft.
+- [✓ 4.8.2 local] **W1: scaffold** — delivered as `research/second-draft/`
+  (operator redirected the target from `research/sigmod/`: "take a shot at a
+  second draft in a second draft folder"). acmart sigconf, 12-page budget
+  verified (12 body + ~1.7 references pages), "Lessons from Running It"
+  section included — the industry-track differentiator.
+- [✓ 4.8.2 local] **W2: all sections written fresh** — the operator's direction
+  ("approach it almost from the top … dont want to take anything for granted")
+  supersedes "expand, don't rewrite": every section re-derived from the thesis
+  spine, not ported; first-draft prose used as the verified fact source only.
 - [ ] **W3: the Evaluation section** — fill from E1–E6. The load-bearing wall.
-  Real numbers, not adjectives.
+  Real numbers, not adjectives. *(Drafted at first-draft parity in 4.8.2 —
+  Q&A structure, all verified evidence carried; still gated on the E1–E5 data
+  that has not landed: full-feed and matched-baseline measurements, conformance
+  counts.)*
 - [ ] **W4: Related Work** — from `research/related-work.md` (the gap check
-  must be `[YES]` before this section freezes).
-- [ ] **W5: Lessons + Conclusion** — the operational story: what the
-  per-collection model gave up, what broke in production, what the genericity
-  (D60) bought.
+  must be `[YES]` before this section freezes). *(Drafted in positioning form
+  in 4.8.2; gap check still OPEN.)*
+- [✓ 4.8.2 local] **W5: Lessons + Conclusion** — new §7 "Lessons from Running
+  It": the four app-specific node surfaces built and removed (genericity),
+  the self-healing schema race (what broke), the shared columnar table's
+  day-to-day cost (what it gave up), and the fan-out measurement lesson;
+  conclusion leads with the email generalization. Documented incidents only,
+  no internal IDs.
 - [ ] **W6: formatting + page budget** — 12 pages + refs, ACM sigconf,
-  figures (the two workshop figs + new eval figures), references complete.
-  Freeze Nov 20.
+  figures (the two app figs + new eval figures), references complete.
+  Freeze Nov 20. *(4.8.2 draft verified: 12 body + ~1.7 references pages,
+  no overfull hboxes, one small 1.166pt final-page overfull vbox; operator
+  review of the draft is the next gate before the freeze.)*
 
 **Open questions (answer before W1):**
 - Do we have the production numbers (E1–E3) or must we instrument first?

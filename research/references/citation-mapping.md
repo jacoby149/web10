@@ -2,13 +2,13 @@ Citation mapping for the web10 paper — for the agent writing the paper
 
 **Historical placement guide, superseded in part on 28.10.2026.** Bibliography
 keys remain useful, but the section summaries below describe the earlier draft.
-Use `research/workshop/main.tex`, `research/brief.md` and
+Use `research/first-draft/main.tex`, `research/brief.md` and
 `research/evaluation-plan.md` for current claims. Do not restore the historical
 267-to-one headline, index-lookup/zero-cost authorization, cryptography-free
 protocol description, physical per-user collections, or promises of completed
 evaluation. Citation verification is not a completed novelty comparison.
 
-Source paper: research/workshop/main.tex on origin/dev in ~/workspace/repos/web10.
+Source paper: research/first-draft/main.tex on origin/dev in ~/workspace/repos/web10.
 Title: "Your Data, Your Rules, One Query: Extending the Decentralized Web."
 Current state: 5-page workshop draft, 3,765 words, ACM sigconf, nonacm, review.
 Target: SIGMOD 2027 Industrial Track, up to 12 pages + references, deadline
