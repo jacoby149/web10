@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ArrowUpRight, Bookmark, Disc3, Headphones, ListMusic, MoreVertical, Music, Pause, Play, Plus, Repeat, Repeat1, Search, Shuffle, SkipBack, SkipForward, X } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, Bookmark, Disc3, Headphones, ListMusic, MoreVertical, Music, Pause, Play, Plus, Repeat, Repeat1, Search, Share2, Shuffle, SkipBack, SkipForward, X } from 'lucide-react';
 import MusicTrackMenu from './MusicTrackMenu';
 import MusicArtwork from './MusicArtwork';
 import { musicTitle as title, musicArtist as artist } from '@/data/musicTrack';
 import { Button } from '@/components/ui/button';
+import ShareCollectionSheet from '@/components/shared/ShareCollectionSheet';
 import { cn } from '@/lib/utils';
 import { useMusic } from '@/context/MusicContext';
 import { useSave } from '@/context/SaveContext';
-import { getWapi, readMusicPage, readMusicCollection, readMusicTrack, getMyCollections, readSavedPostIds, findSavedMusicCollection, toggleSavedMusic, createCollection, type MusicTrack } from '@/data';
+import { getWapi, readMusicPage, readMusicCollection, readMusicTrack, getMyCollections, readSavedPostIds, findSavedMusicCollection, toggleSavedMusic, createCollection, setCollectionVisibility, type MusicTrack } from '@/data';
 import type { CollectionRecord } from '@/data/saved';
 
 const focus = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
@@ -63,6 +64,7 @@ export default function MusicScreen() {
   const [notice, setNotice] = useState('');
   const [newName, setNewName] = useState('');
   const [menuResolved, setMenuResolved] = useState<MusicTrack | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
   const savedCollection = findSavedMusicCollection(collections);
   const activeCollection = view === 'saved' ? savedCollection?.groupId || '' : collectionId;
   const menuTrack = menuId ? [...tracks, ...playlist.tracks, ...music.queue].find(track => track.post._id === menuId) || (menuResolved?.post._id === menuId ? menuResolved : null) : null;
@@ -208,6 +210,10 @@ export default function MusicScreen() {
     finally { if (sessionRef.current === owner && lifecycle.current === ownerGeneration) { setBusy(''); mutationInFlight.current = false; } }
   }
 
+  const shareCollection = view === 'saved' ? savedCollection : collectionId ? collections.find(c => c.groupId === collectionId) : undefined;
+  const shareUrl = shareCollection && token
+    ? new URL(`/u/${encodeURIComponent(token.username)}/saved/${encodeURIComponent(shareCollection.groupId)}`, window.location.origin).href
+    : '';
   const source = view === 'explore' ? tracks : playlist.tracks;
   const q = query.trim().toLowerCase();
   const filtered = source.filter(track => !q || [title(track), track.post.text, artist(track), track.post.author_username].some(value => value?.toLowerCase().includes(q)));
@@ -233,6 +239,7 @@ export default function MusicScreen() {
 
   return <div data-testid="music-screen" className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-8 sm:py-8">
     {menuTrack && <MusicTrackMenu track={menuTrack} saved={savedIds.has(menuTrack.post._id!)} signedIn={signedIn} disabled={!!busy || !libraryReady || !!libraryError} message={notice || libraryError} onClose={() => change({ menu: null }, true)} onNext={() => { music.enqueue(menuTrack, true); setNotice('Added to play next.'); change({ menu: null }, true); }} onQueue={() => { music.enqueue(menuTrack); setNotice('Added to queue.'); change({ menu: null }, true); }} onSave={() => save(menuTrack)} onPlaylist={() => { change({ menu: null }, true); openSave(menuTrack.post); }} onShare={() => share(menuTrack)} />}
+    {shareOpen && shareCollection && token && <ShareCollectionSheet name={shareCollection.name || 'Playlist'} url={shareUrl} visibility={shareCollection.visibility} canMakePublic onMakePublic={async () => { await setCollectionVisibility(shareCollection.groupId, 'public'); setLibraryVersion(value => value + 1); }} onShared={kind => setNotice(kind === 'copied' ? 'Playlist link copied.' : 'Playlist shared.')} onClose={() => setShareOpen(false)} testId="music-share-playlist" />}
     {!panel && <header className="flex flex-wrap items-end justify-between gap-4">
       <div><p className="mb-2 hidden items-center gap-2 text-xs font-medium uppercase tracking-widest text-brand-300 sm:flex"><Headphones className="h-4 w-4" /> Your listening room</p><h1 className="font-display text-2xl font-bold tracking-tight sm:text-4xl">Music</h1><p className="mt-2 hidden text-sm text-muted-foreground sm:block">Find your next favorite. Make it yours.</p></div>
       <div className="w-full sm:w-72"><label htmlFor="music-search" className="mb-2 block text-xs text-muted-foreground">Search music &amp; your playlists</label><div className="flex items-center gap-2 rounded border border-border bg-surface px-3"><Search className="h-4 w-4 shrink-0 text-muted-foreground" /><input id="music-search" value={query} onChange={event => change({ q: event.target.value || null }, true)} placeholder="Tracks, artists, playlists" className={cn('h-11 w-full min-w-0 rounded bg-transparent text-sm placeholder:text-muted-foreground', focus)} />{query && <button aria-label="Clear music search" className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-sm', focus)} onClick={() => change({ q: null })}><X className="h-4 w-4" /></button>}</div></div>
@@ -269,7 +276,7 @@ export default function MusicScreen() {
             <div className="min-w-0"><p className="mb-2 text-xs font-medium uppercase tracking-widest text-brand-300">New in the mix</p><h2 className="font-display text-2xl sm:text-3xl">Set the tone.</h2><p className="mt-2 hidden text-sm text-muted-foreground sm:block">A few new tracks for your next listening session.</p><Button variant="brand" className="mt-4 h-11 gap-2" onClick={() => { music.play(tracks[0], tracks); change({ track: tracks[0].post._id || null, panel: 'player' }); }}><Play className="h-4 w-4" />Start listening</Button></div>
             <button className={cn('relative w-28 shrink-0 overflow-hidden rounded transition-transform hover:scale-105 motion-reduce:transform-none sm:w-40', focus)} aria-label={`Listen to ${title(featured)}`} onClick={() => start(featured)}><Artwork track={featured} /></button>
           </section>}
-          <section aria-label="Music tracks"><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-display text-2xl">{view === 'saved' ? 'Saved Music' : view === 'playlists' ? playlist.name || 'Playlist' : q ? 'Search results' : 'Fresh in your headphones'}</h2><p className="mt-1 text-xs text-muted-foreground">{query ? <>Results for <span className="text-foreground">{query}</span>. </> : null}{view === 'explore' ? 'Search covers loaded tracks, titles and artists. Load more to explore further.' : 'Playable music from your web10 collection.'}</p></div>{filtered.length > 0 && <Button variant="brand_subtle" className="h-11 gap-2" onClick={() => { music.play(filtered[0], filtered); change({ track: filtered[0].post._id || null, panel: 'player' }); }}><Play className="h-4 w-4" />Play all</Button>}</div>
+          <section aria-label="Music tracks"><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-display text-2xl">{view === 'saved' ? 'Saved Music' : view === 'playlists' ? playlist.name || 'Playlist' : q ? 'Search results' : 'Fresh in your headphones'}</h2><p className="mt-1 text-xs text-muted-foreground">{query ? <>Results for <span className="text-foreground">{query}</span>. </> : null}{view === 'explore' ? 'Search covers loaded tracks, titles and artists. Load more to explore further.' : 'Playable music from your web10 collection.'}</p></div><div className="flex flex-wrap items-center gap-2">{view !== 'explore' && shareCollection && token && <Button variant="outline" className="h-11 gap-2" data-testid="music-share-playlist" onClick={() => setShareOpen(true)}><Share2 className="h-4 w-4" />Share playlist</Button>}{filtered.length > 0 && <Button variant="brand_subtle" className="h-11 gap-2" onClick={() => { music.play(filtered[0], filtered); change({ track: filtered[0].post._id || null, panel: 'player' }); }}><Play className="h-4 w-4" />Play all</Button>}</div></div>
             {view === 'playlists' && collectionId && token && <Link className={cn('mb-4 inline-flex h-11 items-center gap-2 rounded text-sm text-brand-300', focus)} to={`/u/${encodeURIComponent(token.username)}/saved/${encodeURIComponent(collectionId)}`}>Manage collection &amp; order<ArrowUpRight className="h-4 w-4" /></Link>}
             {playlist.skipped > 0 && view !== 'explore' && <p className="mb-4 text-xs text-muted-foreground">{playlist.skipped} unavailable or nonmusic items aren't shown. Your collection is unchanged.</p>}
             {(view === 'explore' ? error : playlistError) && <div role="alert" className="mb-4 rounded border border-danger/30 p-4 text-sm text-danger">{view === 'explore' ? error : playlistError}<Button variant="ghost" onClick={() => view === 'explore' ? setRefresh(v => v + 1) : setLibraryVersion(v => v + 1)}>Retry</Button></div>}

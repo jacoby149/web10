@@ -14,7 +14,7 @@
 //   PREVIEW_PORT  — the port to listen on (default 3001).
 
 import http from 'node:http'
-import { postCard, profileCard, groupCard, watchCard, shortsCard, musicCard } from './card.mjs'
+import { postCard, profileCard, groupCard, groupPostCard, watchCard, shortsCard, musicCard, savedCard, groupSavedCard } from './card.mjs'
 
 const PORT = Number(process.env.PREVIEW_PORT || 3001)
 
@@ -46,6 +46,15 @@ const server = http.createServer(async (req, res) => {
     // (which contains slashes) into a single path segment, so the raw path
     // has no literal slash in it; decodeURIComponent restores the group id.
     const groupMatch = path.match(/^\/groups\/([^/]+)$/)
+    // /groups/:groupId/p/:postId — a group-authored post permalink (the acting
+    // identity's post). Two path segments after /groups/ — checked before the
+    // bare group match (the regexes are mutually exclusive, but specificity
+    // first).
+    const groupPostMatch = path.match(/^\/groups\/([^/]+)\/p\/([^/]+)$/)
+    // /u/:username/saved/:collectionId — a personal playlist permalink.
+    const savedMatch = path.match(/^\/u\/([^/]+)\/saved\/([^/]+)$/)
+    // /groups/:groupId/saved/:collectionId — a group's playlist permalink.
+    const groupSavedMatch = path.match(/^\/groups\/([^/]+)\/saved\/([^/]+)$/)
     // /watch/:postId — the watch (landscape video) permalink.
     const watchMatch = path.match(/^\/watch\/([^/]+)$/)
     // /shorts/:postId — the shorts (vertical video) permalink.
@@ -54,6 +63,12 @@ const server = http.createServer(async (req, res) => {
     let html = null
     if (postMatch) {
       html = await postCard(decodeURIComponent(postMatch[1]), decodeURIComponent(postMatch[2]))
+    } else if (groupPostMatch) {
+      html = await groupPostCard(decodeURIComponent(groupPostMatch[1]), decodeURIComponent(groupPostMatch[2]))
+    } else if (savedMatch) {
+      html = await savedCard(decodeURIComponent(savedMatch[1]), decodeURIComponent(savedMatch[2]))
+    } else if (groupSavedMatch) {
+      html = await groupSavedCard(decodeURIComponent(groupSavedMatch[1]), decodeURIComponent(groupSavedMatch[2]))
     } else if (profileMatch) {
       html = await profileCard(decodeURIComponent(profileMatch[1]))
     } else if (groupMatch) {

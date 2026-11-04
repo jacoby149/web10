@@ -14,6 +14,7 @@ import {
 } from '@/data';
 import { getWapi } from '@/data/wapi';
 import { toast, errorMessage } from '@/components/shared/Toast';
+import ShareCollectionSheet from '@/components/shared/ShareCollectionSheet';
 import { WallTile } from './UserProfileScreen';
 import { mediaRefId } from '@/data/types';
 import {
@@ -33,6 +34,7 @@ import {
   ChevronDown,
   ImagePlus,
   ListOrdered,
+  Share2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -96,6 +98,8 @@ export default function SavedCollectionScreen({ username, provider, groupId, onB
   const [reorderMode, setReorderMode] = useState(false);
   const [savingOrder, setSavingOrder] = useState(false);
   const [settingCoverId, setSettingCoverId] = useState<string | null>(null);
+  // The share sheet (owner + visitors of a public collection).
+  const [shareOpen, setShareOpen] = useState(false);
   const dragIndexRef = useRef<number | null>(null);
 
   const backToSaved = useCallback(
@@ -286,6 +290,17 @@ export default function SavedCollectionScreen({ username, provider, groupId, onB
   const name = (contents?.face as { name?: string } | undefined)?.name || 'Collection';
   const posts = contents?.posts ?? [];
 
+  // The collection's canonical permalink (the shareable link) — the route the
+  // screen already lives on, rebuilt from its params so it never carries the
+  // incidental query state. The origin is the app's own (the SPA's permalink
+  // is the product; the crawler split answers it with the preview card).
+  const shareUrl = new URL(
+    groupId
+      ? `/groups/${encodeURIComponent(groupId)}/saved/${encodeURIComponent(collectionGroupId)}`
+      : `/u/${encodeURIComponent(username || '')}/saved/${encodeURIComponent(collectionGroupId)}`,
+    window.location.origin,
+  ).href;
+
   return (
     <div className="mx-auto max-w-5xl">
       {/* Header — back to the Saved tab + the collection face + the owner's
@@ -328,6 +343,19 @@ export default function SavedCollectionScreen({ username, provider, groupId, onB
             {posts.length} item{posts.length === 1 ? '' : 's'} · {visibility === 'public' ? 'Public' : 'Private'}
           </p>
         </div>
+
+        {/* Share (the canonical permalink) — owner AND visitors of a public
+            collection. The sheet says when the link can't open yet (private). */}
+        <button
+          type="button"
+          onClick={() => setShareOpen(true)}
+          aria-label="Share collection"
+          data-testid="saved-collection-share"
+          className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-elevated transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <Share2 className="w-4 h-4" strokeWidth={2} />
+          <span className="hidden sm:inline">Share</span>
+        </button>
 
         {isOwner && (
           <div className="flex items-center gap-1">
@@ -588,6 +616,23 @@ export default function SavedCollectionScreen({ username, provider, groupId, onB
           </div>
         )}
       </div>
+
+      {shareOpen && (
+        <ShareCollectionSheet
+          name={name}
+          url={shareUrl}
+          visibility={visibility}
+          canMakePublic={isOwner}
+          onMakePublic={async () => {
+            await setCollectionVisibility(collectionGroupId, 'public');
+            setVisibility('public');
+            LOG('shared make-public', collectionGroupId);
+          }}
+          onShared={kind => toast.success(kind === 'copied' ? 'Playlist link copied.' : 'Playlist shared.')}
+          onClose={() => setShareOpen(false)}
+          testId="saved-collection-share"
+        />
+      )}
     </div>
   );
 }
