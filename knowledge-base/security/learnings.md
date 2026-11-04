@@ -35,9 +35,25 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-03: A public domain bookmark can relocate without moving private authority
+
+D97's final integration0932d6643940 passes actual browser login/TXT verification,
+one domain-only reader follow, old API/TLS shutdown, retarget/new verification
+and reload at desktop/375px. Old private access is explicitly granted/read200,
+while new-target private access is403; five held-real-response generation seams
+and cookie-free DNS/alias/public reads pass. All source/input/config-history,
+10 screenshots and cleanup receipts pass fresh bounded review. Keep the two
+failed matrices, earlier working-tree success and default-IAM compatibility run
+separate. A DNS-controlled public destination is not cryptographic identity
+continuity: theft/sale/expiry can redirect it, never inherit private roles.
+Lab allowlists, HTTP JSON bridge/TTL0, browser test-certificate bypass and API
+grant fixtures do not prove production social integration, public DNS/TLS,
+consent, availability or full/diverse security. Components land in bounded PRs;
+the capture's provisional D96 label becomes D97 without runtime change.
+
 ### 2026-11-03: Requested Docker port bindings are not observed reachability
 
-The D96 lab requested loopback ports, but an internal-only Docker bridge left
+The D97 lab requested loopback ports, but an internal-only Docker bridge left
 NetworkSettings.Ports empty despite HostConfig.PortBindings being present.
 An owned Alpine probe reproduces that distinction. Attach only TLS/DNS
 frontends to a second browser bridge; APIs/databases/storage remain internal.
@@ -50,7 +66,7 @@ the default runner retains its IAM/issuer assertions and no published ports.
 
 ### 2026-11-03: Domain-follow discovery must not carry home authority
 
-D96's research client stores a domain-only private app bookmark; DNS selects
+D97's research client stores a domain-only private app bookmark; DNS selects
 only a configured public destination. Reader tokens stay at a fixed home, and
 public DNS/alias/post requests omit cookies and credentials and reject redirects.
 Fresh bounded review reproduced an existing-follow await-continuation gap;

@@ -9,7 +9,7 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
-### D96 — Public domain-follow continuity demonstration, not a new principal [decided, research scope]
+### D97 — Public domain-follow continuity demonstration, not a new principal [decided, research scope]
 
 Operator, 03.11.2026: "user uses dns with his web10 account ... point to another
 username, then all his followers follow him by website"; approve the demo of a

@@ -13,6 +13,13 @@ base-plus-patch and owner-branch receipts remain separate history. The
 12-page manuscript includes this evidence without claiming full migration,
 foreign self-join, browser enrollment or production federation.
 
+The separate [public domain-follow prototype](domain-portability-demo/RESULTS.md)
+also passes desktop/375px on committed integration `0932d6643940`: the same
+reader-owned website bookmark survives old API/TLS shutdown and DNS retarget to
+a verified new account, without refollowing. It is research-client behavior,
+not an upgrade of existing social follows; client/DNS/browser components land
+separately and their normal CI/merge dependencies remain explicit.
+
 **Updated:** 2026-11-03
 
 ## The Thesis (read this first)
@@ -90,6 +97,7 @@ the official CFP governs current logistics.
 | `decentralized-iam-thesis.md` | **The paper's spine (read first).** The email generalization, the three-property triangle, the built-vs-in-flight honesty bar, what changed in the draft, the overclaims to avoid. |
 | `cross-node-iam-demo.md` | The experiment that closes the last gap: a foreign principal granted into a group on another node, reading through the verified token, then removed and denied. Spec, blockers (H/A/B/C), minimal scope, decision gate. Does not block the draft. |
 | `federation-demo/` | Local two-node TLS correctness harness: three source-specific runs pass, latest on clean merged dev 0acc771e2efc with an empty patch after #1360. Retains key/group/app/namesake/cache and cleanup controls; not public deployment or broad security evidence. |
+| `domain-portability-demo/` | D97 public website-follow prototype, isolated real DNS/browser matrix and three bounded components. Final integration0932d6643940, source/input/10-capture/cleanup archive and explicit lab/production limits; not private-principal or deployed social portability. |
 | `brief.md` | Bounded claim, scope and outstanding gates (pre-reframe; the thesis doc supersedes its framing) |
 | `source-map.md` | Commit-pinned demonstration source counts, backend boundary and artifact links |
 | `live-observation-2026-10-28.md` | Actual Ubuntu dataset/hardware snapshot and bounded authenticated browser pilot |

@@ -5,8 +5,11 @@ to find and follow another account. This experiment keeps a subscription to
 the creator's website in the reader's own web10 data and resolves that website
 again before reading its current account's public posts.
 
-**Status: implementation in progress; no connected result yet.** This is an
-isolated research client, not a change to web10-social's existing follows.
+**Status: committed prototype matrix passed at desktop and 375px; components
+land separately.** See [RESULTS.md](RESULTS.md) for exact source, failures,
+fixtures and limits. This is an isolated research client, not a change to
+web10-social's existing follows. Core client, DNS/runner and browser/proof must
+all be present for the optional mode; no production deployment is implied.
 
 ## Run
 
