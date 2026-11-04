@@ -1374,6 +1374,8 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+- [✓ 4.5.1 local] **D97 DNS/runner component** — real local TXT/JSON zone parity, secret-gated fixed targets, safe file routes and frontend-only loopback bridge; four DNS controls and default cleanup/topology regression pass. Default IAM live regression passes separately; full optional mode needs client #1372 and browser/proof components. No host/public DNS or production authority change.
+
 - [✓ 3.257.11 local] **Shorten paper title** - operator-requested title edit in `research/workshop/`, aligned thesis rationale and rebuilt PDF. No evaluation changes.
 
 - [✓ 3.257.10 local] **Remove red review line numbers** - operator-authorized `research/workshop/` formatting fix: remove ACM review mode, rebuild the 12-page PDF, inspect the first page and verify no red text spans across all pages. Content and evaluation scope unchanged.

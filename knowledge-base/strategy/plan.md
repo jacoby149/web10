@@ -1243,6 +1243,8 @@ docs before code, per the rule at the top.
 
 ## SIGMOD 2027 Industry Track — the full paper (research/)
 
+- [✓ 4.5.1 local] **D97 DNS/runner component** — real local UDP TXT plus same-zone JSON bridge, secret-gated target/file controls; four DNS/default cleanup-topology checks pass. Frontends only publish loopback; API/DB/storage stay internal. Full optional mode needs client #1372 and browser/proof components; no host/public DNS writes.
+
 - [✓ 4.0.1 merged #1360] **Owner-list compatibility follow-up** — restore bare-key-only local healing pending Phase A; regression and all PR checks pass. Existing duplicate rows are not removed; no historical method waiver.
 - [✓ 4.0.2 local] **H-REPLAY: clean-base two-node evidence** — after #1360 merged, the full unchanged scenario passes on clean merged-dev revision 0acc771e2efc with an empty patch. Exact source/input, 34 events, issuer/cache and per-resource cleanup receipts pass fresh bounded review; all 1,929 API tests plus eight subtests pass. Normal PR CI remains required before merge; not full migration, self-join or production/security assurance.
 
