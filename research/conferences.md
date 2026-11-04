@@ -117,7 +117,7 @@ The original path was:
 
 **Superseded:** the target is now the **SIGMOD 2027 industry track** (a single
 submission, not a two-step workshop→full-paper ladder). The workshop paper
-(`workshop/main.tex`) was written under the old plan and serves as the draft
+(`first-draft/main.tex`) was written under the old plan and serves as the draft
 foundation for the full paper.
 
 ---

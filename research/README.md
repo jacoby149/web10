@@ -29,6 +29,20 @@ linked artifacts. Portability is scoped to the demonstrated public subscription,
 and the comparison makes no universal exclusivity claim. Measurements and
 broader evaluation/related-work review requirements are unchanged.
 
+**Second draft (2026-11-04):** operator-directed fresh approach from the top in
+[`second-draft/`](second-draft/): "take a shot at a second draft in a second
+draft folder … approach it almost from the top … dont want to take anything
+for granted." Same title and same verified evidence as the first draft; new
+structure — data plane split out (§3), a new TikZ system-overview figure as the
+visual table of contents, a new "Lessons from Running It" section (§7, the
+industry-track differentiator), a Q&A-structured evaluation, and
+positioning-form related work. Tectonic build: 14-page PDF = 12 body pages
+(within the 12-page budget) + ~1.7 references pages; no overfull hboxes. It is
+the working manuscript until the operator's review says otherwise;
+[`first-draft/`](first-draft/) remains intact as the first-draft record, and
+`experiments/costfn/check-paper.mjs` still verifies the first draft's committed
+table until the second draft is blessed.
+
 ## The Thesis (read this first)
 
 > Email decentralized where your data *goes*. web10 decentralizes who can
@@ -118,7 +132,8 @@ the official CFP governs current logistics.
 | `experiments/README.md` | Known harness blockers; no runnable/reproducible claim yet |
 | `experiments/costfn/` | Cost-function harness and separately recorded 100-creator and 1,000-creator trials. Main paper table: K10/100/1000, 20 cells, 400 samples; A is a direct precompiled scan baseline, B/C compare per-group and batched resolution. Summary receipt and table checker retained |
 | `draft/outline.md` | Industry-paper section plan |
-| `workshop/main.tex` | The paper (12 pp including references, which start on page 12; sequential bottom-center page numbers). Tectonic builds with no horizontal overflow, remaining font/underfull and small final vertical-box warnings. Includes cross-app browser, two-node IAM and public domain-follow prototype evidence; broader deployment/performance/security gates stay open. |
+| `first-draft/main.tex` | The first draft, intact record (12 pp including references, which start on page 12; sequential bottom-center page numbers). Tectonic builds with no horizontal overflow, remaining font/underfull and small final vertical-box warnings. Includes cross-app browser, two-node IAM and public domain-follow prototype evidence; broader deployment/performance/security gates stay open. |
+| `second-draft/main.tex` | **The working manuscript (04.11.2026).** Fresh approach from the top: same title and verified evidence, new structure (data plane §3, overview figure, "Lessons from Running It" §7, Q&A evaluation, positioning related work). Tectonic: 12 body pages + ~1.7 references pages, no overfull hboxes. Pending operator review; see the "Second draft" status note above. |
 
 ## Remaining Gates
 
