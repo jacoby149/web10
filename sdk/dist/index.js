@@ -176,6 +176,8 @@ function pickThumbnail(resolvedMedia) {
       }
       continue;
     }
+    if (mime && !mime.startsWith("image/"))
+      continue;
     if (ref.read_url) {
       return {
         url: ref.read_url,

@@ -1121,7 +1121,7 @@ def get_document_any_author(doc_id: str) -> dict | None:
     document-bound sig, so this is not an enumeration surface.
     """
     result = client.query(
-        "SELECT doc_id, author_key, collection_name, body, ref_value, tags, created_at, updated_at "
+        "SELECT doc_id, author_key, collection_name, body, ref_value, tags, created_at, updated_at, posted_by "
         "FROM documents WHERE doc_id = %(doc_id)s AND deleted = 0 "
         "ORDER BY updated_at DESC LIMIT 1",
         {"doc_id": doc_id},
@@ -1138,6 +1138,7 @@ def get_document_any_author(doc_id: str) -> dict | None:
         "tags": list(row[5]),
         "created_at": _iso_utc(row[6]),
         "updated_at": _iso_utc(row[7]),
+        "posted_by": row[8] or "",
     }
 
 

@@ -76,7 +76,7 @@ The presigned URL is minted fresh on every request (the document-typing rule —
 | Tag | Value |
 |---|---|
 | `og:type` | `article` (a `video.other` hint when the first item is video) |
-| `og:title` | the post text (markdown-stripped, truncated ~100 chars), else `@{username} on web10` |
+| `og:title` | the saved post title, else caption (markdown-stripped, truncated ~100 chars), else `@{username} on web10` |
 | `og:description` | the post text (markdown-stripped, truncated ~200 chars), else a generic line |
 | `og:image` | the thumbnail (above) |
 | `og:image:alt` | the media's `alt_text`, else the title |

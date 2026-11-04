@@ -216,6 +216,7 @@ async function buildPostCard(postId, canonicalUrl, usernameHint) {
   // truncating, so the OG / Twitter card never leaks `**` / `#` / `[]()` / ```
   // (the client-side "one touch," D60-clean — the node stores it opaquely).
   const text = stripMarkdown(doc.body?.text) ?? null
+  const headline = stripMarkdown(doc.body?.title)?.trim() || null
   const thumb = await getThumbnailAnon(postId)
   let image = thumb?.url ?? null
   let imageAlt = thumb?.alt ?? null
@@ -228,7 +229,7 @@ async function buildPostCard(postId, canonicalUrl, usernameHint) {
   // Derive the username from the doc's author_key (the last path segment) when
   // no hint is provided (the watch/shorts routes don't carry a username).
   const username = usernameHint ?? (doc.author_key?.split('/').pop() || null)
-  const title = truncate(text, TITLE_LIMIT) ?? (username ? `@${username} on web10` : 'A post on web10')
+  const title = truncate(headline || text, TITLE_LIMIT) ?? (username ? `@${username} on web10` : 'A post on web10')
   const description = truncate(text, DESC_LIMIT) ?? 'A post on web10'
   return renderCardAnon({
     title,
