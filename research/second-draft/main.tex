@@ -364,8 +364,8 @@ public group simply has an \texttt{anyone} row.
 
 \begin{lstlisting}[style=sql]
 group_members:
-  (G, 'anyone',        'reader')    -- the group is public
-  (G, 'authenticated', 'reader')    -- signed-in users can read
+  (G, 'anyone',        'reader')    -- public
+  (G, 'authenticated', 'reader')    -- signed-in
   (G, 'bob',           'moderator') -- bob moderates
   (G, 'alice',         'owner')     -- alice owns
 \end{lstlisting}
