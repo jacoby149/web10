@@ -9,6 +9,22 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D96 — Resumable upload state uses private S3 conditional records [in-progress]
+
+R1 uses a separate server-only bucket on the existing S3/MinIO store, with
+create-only reservation and ETag-conditional state transitions. Owner context is
+node/issuer/human/app; raw media keys remain human-owned and server-generated.
+This avoids a new database/daemon and does not mistake ClickHouse append history
+for atomic compare-and-set. No unconditional fallback is permitted when a storage
+backend lacks conditional writes. Backend compatibility is a deployment gate.
+
+This is an internal upload-session primitive, not a social-specific node API or
+a transaction with multipart completion/publication. Endpoint authentication,
+real multipart recovery and idempotent publishing remain separate reviewed bites.
+Details: `web10-v3/media/upload-sessions.md`. No production activation implied.
+
+---
+
 ### D95 — The bulk import is cut: the "Import Your Life" page and the YouTube import pipeline are removed; onboarding is an AI-assistant flow [decided]
 
 Operator, 03.11.2026 — "the import your life page is just not really a product focus i dont think, people dont care... we should get rid of it" + "i think b, ripping it out makes sense, people could use an ai assistant to import anyways" + "our goal isnt to import influencers whole shit that is annoying, just to get them on this thing".
