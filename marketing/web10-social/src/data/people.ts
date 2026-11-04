@@ -88,6 +88,9 @@ export interface PersonCard {
   mutuals: number;
   /** Whether the reader follows this person. */
   is_following: boolean;
+  /** Progressive directory cards cannot act until the follow-state read settles. */
+  follow_pending?: boolean;
+  mutuals_pending?: boolean;
 }
 
 export type PeopleSort = 'popular' | 'az';
@@ -156,10 +159,14 @@ export interface PeoplePage {
  * + follower-ranked + I3-gated. This wraps it with the per-card enrichment the
  * card needs: the reader's own follow flag (one my-follows read, shared across
  * the page) and the presigned face media (avatar/banner).
+ * `onProgress` exposes directory-first snapshots without awaiting those reads;
+ * callers that omit it retain the fully enriched return value.
  */
 export async function fetchPeoplePage(opts: {
   limit: number;
   offset: number;
+  /** Immutable base/enrichment snapshots; the returned promise remains fully settled. */
+  onProgress?: (page: PeoplePage) => void;
 }): Promise<PeoplePage> {
   const w = getV3Client();
   const token = w.readToken();
@@ -172,23 +179,8 @@ export async function fetchPeoplePage(opts: {
   });
   LOG('fetchPeoplePage — got', page.users.length, 'user(s)');
 
-  // My following set — follows are group membership, so it is exactly the set
-  // of `/followers` groups I belong to (one read, shared across the page).
-  // Anon (no token) has no following set — every card is is_following: false.
-  let myFollowing = new Set<string>();
-  if (token) {
-    try {
-      const myGroups = await w.getMyGroups();
-      myFollowing = new Set(
-        myGroups
-          .filter((g) => g.group_id.endsWith('/followers'))
-          .map((g) => g.group_id.split('/').slice(-2, -1)[0]),
-      );
-    } catch (e) {
-      LOG('fetchPeoplePage — my-follows read failed (degrading to no follows):', e);
-    }
-  }
-
+  // Base cards need only the directory. Follow state remains explicitly pending
+  // until the human's membership read settles; anon has no following set.
   const people: PersonCard[] = page.users.map((u) => {
     const profile = (u.profile || {}) as Record<string, unknown>;
     return {
@@ -200,44 +192,64 @@ export async function fetchPeoplePage(opts: {
       banner_ref: (profile.banner_ref as string) || undefined,
       followers_count: u.follower_count,
       mutuals: 0,
-      is_following: myFollowing.has(u.username),
+      is_following: false,
+      follow_pending: !!token,
+      mutuals_pending: !!token,
     };
   });
+  const hasMore = page.users.length >= opts.limit;
+  const publish = () => opts.onProgress?.({ people: people.map((p) => ({ ...p })), hasMore });
+  LOG('fetchPeoplePage — base ready; enrichment starts after directory paint');
+  publish();
 
-  // Per-card enrichment: (1) the presigned face media (avatar/banner) — one
-  // batched author-scoped face-prepare over the page (see resolveFaces); (2)
-  // the "N mutuals" signal — how many of this person's followers the reader
-  // also follows. Mutuals are derived CLIENT-side from the generic membership
-  // primitive (a user's followers = the member list of their followers group,
-  // `getGroupMembers`), intersected with the reader's own following set — the
-  // node stays generic (D60), it never computes an app's social signal. Anon
-  // has no following set → mutuals stay 0.
-  await Promise.all(
-    people.map(async (card) => {
-      // Mutuals — the generic membership primitive (bounded by the page).
-      if (token && myFollowing.size > 0) {
+  // Faces and the human social graph are independent. Neither holds base paint,
+  // and a slow member read must not keep the pictures or follow controls waiting.
+  await Promise.all([
+    (async () => {
+      LOG('fetchPeoplePage — faces start');
+      try {
+        await resolveFaces(w, people);
+      } catch (e) {
+        LOG('fetchPeoplePage — face media failed (degrading to faceless cards):', e);
+      }
+      LOG('fetchPeoplePage — faces settled');
+      publish();
+    })(),
+    (async () => {
+      let myFollowing = new Set<string>();
+      if (token) {
+        LOG('fetchPeoplePage — follow state start');
         try {
-          const members = await getGroupMembers(followersGroupId(card.username, card.provider));
-          card.mutuals = members.filter((m) => myFollowing.has(extractUsername(m.member_key))).length;
+          const myGroups = await w.getMyGroups();
+          myFollowing = new Set(myGroups.filter((g) => g.group_id.endsWith('/followers'))
+            .map((g) => g.group_id.split('/').slice(-2, -1)[0]));
         } catch (e) {
-          LOG('fetchPeoplePage — mutuals read failed for', card.username, '(degrading to 0):', e);
+          LOG('fetchPeoplePage — my-follows read failed (degrading to no follows):', e);
         }
       }
-    }),
-  );
+      for (const card of people) {
+        card.is_following = myFollowing.has(card.username);
+        card.follow_pending = false;
+      }
+      LOG('fetchPeoplePage — follow state settled; mutuals start');
+      publish();
+      // D60: retain the existing generic membership read and denial behavior.
+      if (token && myFollowing.size > 0) {
+        await Promise.all(people.map(async (card) => {
+          try {
+            const members = await getGroupMembers(followersGroupId(card.username, card.provider));
+            card.mutuals = members.filter((m) => myFollowing.has(extractUsername(m.member_key))).length;
+          } catch (e) {
+            LOG('fetchPeoplePage — mutuals read failed for', card.username, '(degrading to 0):', e);
+          }
+        }));
+      }
+      LOG('fetchPeoplePage — mutuals settled');
+      for (const card of people) card.mutuals_pending = false;
+      publish();
+    })(),
+  ]);
 
-  // Face media (avatar + banner) — one batched author-scoped face-prepare over
-  // the page (I3-gated; a face the reader can't read keeps the gradient
-  // fallback). A failure degrades the whole page to faceless cards, never a
-  // throw.
-  try {
-    await resolveFaces(w, people);
-  } catch (e) {
-    LOG('fetchPeoplePage — face media failed (degrading to faceless cards):', e);
-  }
-
-  // A full page means there may be another; a short page is the last one.
-  const hasMore = page.users.length >= opts.limit;
   LOG('fetchPeoplePage — returned', people.length, 'card(s), hasMore:', hasMore);
   return { people, hasMore };
 }

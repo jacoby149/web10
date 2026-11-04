@@ -10,6 +10,7 @@ import {
   resolveMediaRefs,
   getV3Client,
   getDiscoverGroupId,
+  followersGroupId,
   toggleReactionKind,
   readRepostCounts,
   readMyRepostedIds,
@@ -51,6 +52,7 @@ import { useComposer } from '@/context/ComposerContext';
 // The Video wall (the YouTube shape) keeps the shared HomeCard — one source,
 // both apps (the same card the marketing /trending uses).
 import { HomeCard, type DiscoverPost } from '@web10/discover';
+import { peopleFaceSql, facePrepare, reduceFaceRows } from '@web10/discover/face';
 
 const LOG = (...args: unknown[]) => console.log('[social:discover]', ...args);
 
@@ -391,6 +393,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
   const [posts, setPosts] = useState<PostRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [profileMap, setProfileMap] = useState<Record<string, ProfileRecord>>({});
+  const [avatarMap, setAvatarMap] = useState<Record<string, string | undefined>>({});
   const [mediaMap, setMediaMap] = useState<Record<string, MediaRecord[]>>({});
   // The reader's own reaction per post (post-actions.md): which posts they've
   // liked / disliked, so the heart/thumb render filled on load. Seeded from
@@ -697,7 +700,34 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
         }
       })();
 
-      await Promise.all([engagement, profiles, fallbackMedia]);
+      // Profile photos are not post attachments. Resolve the current readable
+      // face once per author/page, including for anonymous readers. The shared
+      // face prepare binds signing to the profile author, not the viewer.
+      const avatars = (async () => {
+        const personal = results.filter((p) => !p.author_key?.includes('/groups/') && p.author_username);
+        const keys = [...new Set(personal.map((p) => p.author_key || p.author_username!))];
+        if (!keys.length) return;
+        const groups = [...new Set(keys.map((key) => {
+          const parts = key.split('/users/');
+          return followersGroupId(parts.length === 2 ? parts[1] : key, parts.length === 2 ? parts[0] : undefined);
+        }))];
+        LOG('avatar read — started, authors:', keys.length);
+        try {
+          const result = await getV3Client().query(peopleFaceSql(keys), {
+            groups,
+            prepare: { face: facePrepare('avatar_ref', 'avatar_url') },
+          });
+          const faces = reduceFaceRows(result.rows, 'author_key');
+          const map: Record<string, string | undefined> = {};
+          for (const key of keys) map[key] = faces.get(key)?.avatar_url;
+          setAvatarMap((prev) => ({ ...prev, ...map }));
+          LOG('avatar read — completed, readable faces:', faces.size);
+        } catch {
+          LOG('avatar read — unavailable, retaining initial fallback');
+        }
+      })();
+
+      await Promise.all([engagement, profiles, fallbackMedia, avatars]);
     })();
   }, [actingIdentity]);
 
@@ -1104,11 +1134,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
                         key={post._id || post.created_at}
                         post={post}
                         authorName={authorName}
-                        authorAvatar={post.avatar_url || (
-                          profile?.avatar_ref
-                            ? mediaItems.find(m => m._id === profile.avatar_ref)?.url
-                            : undefined
-                        )}
+                        authorAvatar={post.avatar_url || avatarMap[post.author_key || post.author_username || '']}
                         mediaItems={mediaItems}
                         liked={!!likedMap[post._id || '']}
                         disliked={!!dislikedMap[post._id || '']}
@@ -1169,11 +1195,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
                           authorName={authorName}
                           authorUsername={post.author_username}
                           authorProvider={post.author_provider}
-                          authorAvatar={post.avatar_url || (
-                            profile?.avatar_ref
-                              ? mediaItems.find(m => m._id === profile.avatar_ref)?.url
-                              : undefined
-                          )}
+                          authorAvatar={post.avatar_url || avatarMap[post.author_key || post.author_username || '']}
                           mediaItems={mediaItems}
                            reactionCount={post.likes || 0}
                            dislikeCount={post.dislikes || 0}

@@ -120,6 +120,13 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
     () => sectionFromParam(searchParams.get('section')),
     [searchParams],
   );
+  // Start a browser only on its first visit; returning keeps its loaded pages.
+  const [profilesActivated, setProfilesActivated] = useState(section === 'profiles');
+  const [groupsActivated, setGroupsActivated] = useState(section === 'groups');
+  useEffect(() => {
+    if (section === 'profiles') setProfilesActivated(true);
+    else setGroupsActivated(true);
+  }, [section]);
   const setSection = useCallback(
     (next: ExploreSection) => {
       const params = new URLSearchParams(searchParams);
@@ -173,8 +180,34 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
   const [peopleFollowLoading, setPeopleFollowLoading] = useState<Record<string, boolean>>({});
   const peopleNextOffsetRef = useRef(0);
   const peopleFirstPageCountRef = useRef<number | null>(null);
+  const peopleGenerationRef = useRef(0);
+  useEffect(() => () => { peopleGenerationRef.current += 1; }, []);
 
   const loadPeoplePage = useCallback(async (offset: number, append: boolean) => {
+    const generation = append ? peopleGenerationRef.current : ++peopleGenerationRef.current;
+    let painted = false;
+    const publish = ({ people: page, hasMore }: { people: PersonCard[]; hasMore: boolean }) => {
+      if (generation !== peopleGenerationRef.current) return;
+      if (!painted) {
+        if (!append) peopleFirstPageCountRef.current = page.length;
+        peopleNextOffsetRef.current = offset + page.length;
+        setPeople((prev) => append ? [...prev, ...page] : page);
+        setPeopleHasMore(hasMore);
+        setPeopleLoading(false);
+        setPeopleLoadingMore(false);
+        painted = true;
+        LOG('loadPeoplePage — base painted, offset:', offset);
+      } else {
+        const updates = new Map(page.map((p) => [p.username, p]));
+        setPeople((prev) => prev.map((p) => {
+          const update = updates.get(p.username);
+          if (!update) return p;
+          // Once follow state is known, only a user action changes it. Late face
+          // or mutual snapshots must not undo a follow/unfollow performed here.
+          return { ...update, is_following: p.follow_pending === false ? p.is_following : update.is_following };
+        }));
+      }
+    };
     if (append) setPeopleLoadingMore(true);
     else {
       setPeopleLoading(true);
@@ -182,23 +215,23 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
     }
     LOG('loadPeoplePage — offset:', offset, 'append:', append);
     try {
-      const { people: page, hasMore } = await fetchPeoplePage({ limit: PAGE_SIZE, offset });
-      if (!append) peopleFirstPageCountRef.current = page.length;
-      peopleNextOffsetRef.current = offset + page.length;
-      setPeople((prev) => (append ? [...prev, ...page] : page));
-      setPeopleHasMore(hasMore);
+      const result = await fetchPeoplePage({ limit: PAGE_SIZE, offset, onProgress: publish });
+      publish(result);
     } catch (e) {
       LOG('loadPeoplePage — failed:', e);
-      if (!append) setPeopleError(true);
+      if (generation === peopleGenerationRef.current && !append && !painted) setPeopleError(true);
     } finally {
-      setPeopleLoading(false);
-      setPeopleLoadingMore(false);
+      if (generation === peopleGenerationRef.current && !painted) {
+        setPeopleLoading(false);
+        setPeopleLoadingMore(false);
+      }
     }
   }, []);
 
   useEffect(() => {
+    if (!profilesActivated) return;
     loadPeoplePage(0, false);
-  }, [loadPeoplePage]);
+  }, [loadPeoplePage, profilesActivated]);
 
   // ── Profiles: own-graph filters (Following / Followers) ────────────────────
   // `mutuals` reuses the directory (filtered to mutuals > 0) — no separate
@@ -209,6 +242,7 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
   const [graphLoading, setGraphLoading] = useState(false);
 
   useEffect(() => {
+    if (!profilesActivated) return;
     if (personFilter !== 'following' && personFilter !== 'followers') return;
     if (personFilter === 'following' && myFollowing) return;
     if (personFilter === 'followers' && myFollowers) return;
@@ -236,7 +270,7 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [personFilter]);
+  }, [personFilter, profilesActivated]);
 
   const handlePeopleFollow = useCallback(async (person: PersonCard) => {
     setPeopleFollowLoading((prev) => ({ ...prev, [person.username]: true }));
@@ -307,8 +341,9 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
   }, []);
 
   useEffect(() => {
+    if (!groupsActivated) return;
     loadGroupsPage(0, false);
-  }, [loadGroupsPage]);
+  }, [loadGroupsPage, groupsActivated]);
 
   // Resolve each group's face (banner + avatar) so the card matches the
   // directory card shape. A per-group failure just leaves that card
@@ -360,6 +395,7 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
   const [leavingGroups, setLeavingGroups] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
+    if (!groupsActivated) return;
     let cancelled = false;
     setMyGroupsLoading(true);
     setMyGroupsError(false);
@@ -370,10 +406,17 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
         if (cancelled) return;
         LOG('loadMyGroups — got', gs.length, 'group(s)');
         setMyGroups([...new Map(gs.map((g) => [g.group_id, g])).values()]);
-        const entries = await Promise.all(
-          gs.map(async (g): Promise<[string, MyGroupFace]> => [g.group_id, await resolveGroupFace(g.group_id)]),
-        );
-        if (!cancelled) setGroupFaces((prev) => ({ ...prev, ...Object.fromEntries(entries) }));
+        setMyGroupsLoading(false);
+        LOG('loadMyGroups — base painted; resolving faces independently');
+        await Promise.all(gs.map(async (g) => {
+          try {
+            const face = await resolveGroupFace(g.group_id);
+            if (!cancelled) setGroupFaces((prev) => ({ ...prev, [g.group_id]: face }));
+          } catch (e) {
+            LOG('loadMyGroups — face failed; retaining base row:', e);
+          }
+        }));
+        LOG('loadMyGroups — faces settled');
       } catch {
         LOG('loadMyGroups — failed');
         if (!cancelled) setMyGroupsError(true);
@@ -382,7 +425,7 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
       }
     })();
     return () => { cancelled = true; };
-  }, [myGroupsAttempt]);
+  }, [myGroupsAttempt, groupsActivated]);
 
   const handleLeaveGroup = useCallback(async (groupId: string) => {
     setLeavingGroups((prev) => ({ ...prev, [groupId]: true }));
@@ -482,7 +525,8 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
           ? sortedFollowers
           : filteredPeople;
   const peopleListLoading =
-    personFilter === 'following' || personFilter === 'followers' ? graphLoading : peopleLoading;
+    personFilter === 'following' || personFilter === 'followers' ? graphLoading :
+      peopleLoading || (personFilter === 'mutuals' && mutualPeople.length === 0 && people.some((p) => p.mutuals_pending));
 
   return (
     <div data-testid="discover-explore-tab" className="flex flex-col">
@@ -637,7 +681,7 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
                     <PersonCardRow
                       key={p.username}
                       person={p}
-                      followLoading={!!peopleFollowLoading[p.username]}
+                      followLoading={!!peopleFollowLoading[p.username] || !!p.follow_pending}
                       onFollow={() => handlePeopleFollow(p)}
                       onUnfollow={() => handlePeopleUnfollow(p)}
                       onOpen={() => openProfile(p)}
