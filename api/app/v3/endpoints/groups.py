@@ -211,15 +211,12 @@ def get_my_groups(data: ListMyGroups):
             raise HTTPException(status_code=403, detail="no permission to act as this group")
         return ch.get_user_groups(data.author_as, data.tags)
     groups = ch.get_user_groups(user, data.tags)
-    # D84: the creator segment of a group id is the BARE username, but member
-    # rows live under the canonical principal — heal under both forms so
-    # legacy bare rows and canonical rows both converge to owner.
-    provider = decode_token(data.token, private_key=False).provider or settings.PROVIDER
+    # Phase A must migrate local writers/readers together. Until then, heal
+    # only the existing local key: a read must not create a second owner row.
     for g in groups:
         creator, _slug = _parse_group_id(g["group_id"])
         if creator == user:
             ch.heal_followers_group_owner(g["group_id"], user)
-            ch.heal_followers_group_owner(g["group_id"], f"{provider}/users/{user}")
     return groups
 
 

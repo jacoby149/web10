@@ -43,7 +43,6 @@ vi.mock('@/data', async (importOriginal) => {
     startConversation: vi.fn().mockResolvedValue({ conversation: 'test.localhost/testuser--test.localhost/other', message: {} }),
     addContact: vi.fn().mockResolvedValue({}),
     conversationKey: vi.fn().mockReturnValue('test.localhost/testuser--test.localhost/other'),
-    countStagingPosts: vi.fn().mockResolvedValue(0),
     // Group chat (group-chat.md, D77)
     getMyGroupChats: vi.fn().mockResolvedValue([]),
     readGroupChatFace: vi.fn().mockResolvedValue({ name: 'The Crew' }),
@@ -132,7 +131,6 @@ describe('FeedScreen', () => {
     await waitFor(() => {
       expect(screen.getByText(/Your feed will appear here/)).toBeInTheDocument();
     });
-    expect(screen.getByText('import your existing posts')).toBeInTheDocument();
   });
 
   it('renders feed media at the natural aspect ratio (not a forced 1:1 crop)', async () => {
@@ -501,7 +499,6 @@ describe('DmsScreen', () => {
     await waitFor(() => {
       expect(screen.getByText(/No conversations yet/)).toBeInTheDocument();
     });
-    expect(screen.getByText('import your contacts')).toBeInTheDocument();
   });
 
   it('shows new message button in empty state', async () => {

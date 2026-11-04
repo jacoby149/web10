@@ -13,7 +13,7 @@ Recession: no live route or existing upload behavior is changed here. Obvious
 gap: append-only history and browser locks cannot provide an atomic state claim.
 
 R1 adds only `api/app/services/upload_sessions.py` and focused tests/probe.
-[D94/session contract](../../../web10-v3/media/upload-sessions.md) uses a separate
+[D96/session contract](../../../web10-v3/media/upload-sessions.md) uses a separate
 server-only S3 bucket, hashed node/issuer/human/app scope, conditional creation,
 ETag CAS and fresh record revisions. UploadOwner is trusted adapter input, **not
 authentication**. R2 must derive it from verified current caller/app authority,

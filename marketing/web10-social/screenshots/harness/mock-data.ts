@@ -282,7 +282,6 @@ export async function readCollection(): Promise<unknown> {
   };
 }
 // readUserPublicProfile lives below (the real impl, keyed by username).
-export async function countStagingPosts(): Promise<number> { return 0; }
 export async function saveProfile(): Promise<void> {}
 export async function readMyPosts(): Promise<unknown[]> { return PROFILE_POSTS; }
 export async function readFollowsByUser(): Promise<unknown[]> { return []; }
@@ -368,10 +367,6 @@ export async function readReactions(postId?: string): Promise<unknown[]> {
 }
 export async function readServiceTerms(): Promise<unknown> { return {}; }
 export async function grantSelfTerms(): Promise<void> {}
-export async function readStaging(): Promise<unknown[]> { return []; }
-export async function movePostToPublic(): Promise<void> {}
-export async function movePostToPrivate(): Promise<void> {}
-export async function deleteStaging(): Promise<void> {}
 export function replyAllTargets(): unknown[] { return []; }
 export type AppSettings = { defaultVisibility?: 'public' | 'private' };
 export async function readSettings(): Promise<AppSettings> { return { defaultVisibility: 'public' }; }
@@ -383,8 +378,6 @@ export async function blockUser(): Promise<void> {}
 export function buildCommentTarget(): unknown { return {}; }
 export function buildReactionTarget(): unknown { return {}; }
 export function buildSocialServiceSirs(): unknown { return {}; }
-export async function bulkDeleteStagingPosts(): Promise<void> {}
-export async function bulkMovePosts(): Promise<void> {}
 export function clearReadUrlCache(): void {}
 export function clearSchemaCache(): void {}
 export function clearSettingsCache(): void {}
@@ -396,7 +389,6 @@ export async function deleteFollow(): Promise<void> {}
 export async function deleteMedia(): Promise<void> {}
 export async function deletePublicEntry(): Promise<void> {}
 export async function deleteReaction(): Promise<void> {}
-export async function deleteStagingPost(): Promise<void> {}
 export function deriveObjectKey(): string { return ''; }
 // The v3 author_key → username helper (the Discover screen's own-reaction read
 // matches the reader's reaction on this). Last path segment of the key.
@@ -476,7 +468,6 @@ export function getV3Client(): unknown {
   };
 }
 export function getDiscoverGroupId(): string { return 'web10/groups/web10/discover'; }
-export function groupByOrigin(): unknown { return {}; }
 export async function listFollowers(): Promise<unknown[]> { return []; }
 export function mapRawDiscoveryPost(): unknown { return null; }
 export async function markInboxRead(): Promise<void> {}
@@ -486,7 +477,6 @@ export async function readFollowsByStatus(): Promise<unknown[]> { return []; }
 export async function readMedia(): Promise<unknown> { return null; }
 export async function readMediaRecord(): Promise<unknown> { return null; }
 export async function readReplies(): Promise<unknown[]> { return []; }
-export async function readStagingPosts(): Promise<unknown[]> { return []; }
 export async function readTopLevelComments(): Promise<unknown[]> { return []; }
 export async function readUserPosts(): Promise<unknown[]> { return []; }
 export async function refreshMediaUrl(): Promise<string> { return ''; }

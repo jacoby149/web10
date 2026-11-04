@@ -83,7 +83,7 @@ retry, full composer handoff, navigation persistence, URL selection, full social
 suite/build and inspected desktop/375px captures. Preview evidence is never
 reported as real upload, persistence, processing or publication acceptance.
 
-## Local evidence — 3.259.0
+## Local evidence — 4.1.0
 
 The UI-only bite is implemented. All 1,804 social tests (121 files) and the
 production typecheck/build pass. One verification run timed out while browser

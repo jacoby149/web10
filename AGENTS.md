@@ -271,8 +271,8 @@ you if you arent ok with that." Full model:
   channels, e.g. the messages demo).
 - `marketing/` — everything that makes web10 accessible:
   - `marketing-ui/` — web10 Inc.'s site: landing + docs + App Store +
-    Exporter UI. Vite + React 19 + TS + Bun + react-router.
-  - Marketing and social call the node API directly for imports, reporting and
+    creator discovery. Vite + React 19 + TS + Bun + react-router.
+  - Marketing and social call the node API directly for reporting and
     analytics. The unused `marketing-api/` service was removed (D91).
   - `web10-social/` — the killer app: all-in-one social lens (instagram-
     shaped, video + streaming).
@@ -355,7 +355,7 @@ Browser auth-token messages require a bound credential window and configured ori
 
 JWT tokens with `username, site, target, provider, expires`. Server verifies signature, checks app contracts + group membership. Full auth flow: `knowledge-base/web10-v3/auth/auth.md`.
 
-Cross-node Phase B (PR #1351, unmerged) routes foreign tokens to their home
+Cross-node Phase B (merged PR #1351) routes foreign tokens to their home
 node's `/certify`; successful answers are cached per JWT until expiry, never
 as an access grant. Foreign read seams use `{provider}/users/{username}`;
 local readers/joins retain bare keys until the coordinated Phase A migration.
@@ -363,7 +363,16 @@ The issuer endpoint itself remains local-only. Issuer transport derives HTTPS
 from host-only providers, pins public DNS answers with issuer TLS verification
 and never follows redirects. Private/HTTP development peers are unsupported by
 this production path. Separate-node key provisioning, connected two-node
-verification and the PR's method-size disposition remain OPEN.
+verification remain OPEN; #1351's historical method-size failure is not waived
+by its merge. Local group-list owner healing uses only the existing bare key
+and does not create a duplicate qualified owner before Phase A.
+The bounded H runs in `research/federation-demo/RESULTS.md` exercise
+real test-CA HTTPS and owner-managed foreign grants with independent synthetic
+keys. After #1360 merged, the unchanged scenario passes on clean merged-dev
+revision `0acc771e2efc` with an empty patch and verified cleanup. The bounded
+H-REPLAY receipt gate is locally satisfied; normal PR checks still apply. This is
+not Phase A/C or production federation assurance, and existing duplicate rows
+are not removed by the owner-list repair.
 
 Verified non-anonymous decoding requires a parseable ISO `expires`, with naive UTC or explicit offsets, and rejects at the deadline. Anonymous custom-expiry exemption and unsigned metadata decoding are separate; the latter is never authorization.
 
@@ -383,6 +392,13 @@ is trusted adapter input, not authentication. R2 still owes verified caller/app
 gates, bucket policy/provisioning, actual multipart provenance/cleanup and live
 integration. Existing uploads remain single-request; the social resumable flow
 is a preview. Contract: `knowledge-base/web10-v3/media/upload-sessions.md`.
+
+Protected CDN media delivery is opt-in and disabled by default. Separate media-only
+RS256 capabilities bind exact bucket/key/GET/expiry; the portable edge core verifies
+before every cache lookup, with Cloudflare cache/private-origin adapters. Existing
+node read/owner/provenance checks stay at issuance and HLS manifest reads. No auth
+key migration or immediate revocation guarantee. Local tests are not live CDN or
+playback proof. Contract and production gates: `knowledge-base/web10-v3/media-delivery.md`.
 
 Direct `POST /v3/media/read-url` refresh is owner-only: the key must stay in the
 verified caller's exact `username/` namespace, including unconfirmed uploads.

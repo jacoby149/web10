@@ -42,7 +42,6 @@ vi.mock('@/data', async (importOriginal) => {
     startConversation: vi.fn().mockResolvedValue({ conversation: 'test.localhost/testuser--test.localhost/other', message: {} }),
     addContact: vi.fn().mockResolvedValue({}),
     conversationKey: vi.fn().mockReturnValue('test.localhost/testuser--test.localhost/other'),
-    countStagingPosts: vi.fn().mockResolvedValue(0),
   };
 });
 

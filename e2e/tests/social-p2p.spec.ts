@@ -47,7 +47,7 @@ const PASSWORD = 'TestPass123!';
 // 'web10-social-group-identity' or the app's reads 403.
 const SOCIAL_SERVICES = [
   'posts', 'media', 'public_media', 'profile', 'settings',
-  'comments', 'reactions', 'contacts', 'staging_posts',
+  'comments', 'reactions', 'contacts',
   'web10-social-group-identity', 'notifications',
 ];
 const SOCIAL_OPERATIONS = ['create', 'readAll', 'updateOwn', 'deleteOwn'];

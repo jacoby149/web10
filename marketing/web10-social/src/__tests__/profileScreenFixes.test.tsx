@@ -28,7 +28,6 @@ const mockRefreshMediaUrls = vi.fn().mockImplementation((records) =>
 );
 const mockResolveMediaRefs = vi.fn().mockResolvedValue([]);
 const mockSaveProfile = vi.fn().mockImplementation((p) => Promise.resolve(p));
-const mockCountStagingPosts = vi.fn().mockResolvedValue(0);
 const mockReadUserPublicProfile = vi.fn().mockResolvedValue({ posts: [] });
 const mockCountUserFollowingReal = vi.fn().mockResolvedValue(0);
 
@@ -44,7 +43,6 @@ vi.mock('@/data', async (importOriginal) => {
     refreshMediaUrls: mockRefreshMediaUrls,
     resolveMediaRefs: mockResolveMediaRefs,
     saveProfile: mockSaveProfile,
-    countStagingPosts: mockCountStagingPosts,
     readUserPublicProfile: mockReadUserPublicProfile,
     readUserProfile: vi.fn().mockResolvedValue(null),
     readFollow: vi.fn().mockResolvedValue(null),
@@ -211,7 +209,6 @@ describe('ProfileScreen — post grid is clickable + media tab does not freeze t
     mockReadProfile.mockResolvedValue({ _id: 'profile-1', display_name: 'Test User', bio: 'hi' });
     mockCountFollows.mockResolvedValue(0);
     mockCountFollowers.mockResolvedValue(0);
-    mockCountStagingPosts.mockResolvedValue(0);
     mockReadMyPosts.mockResolvedValue([
       { _id: 'p1', text: 'A post with a photo', media_refs: ['m1'], created_at: NOW },
     ]);

@@ -68,7 +68,7 @@ assert all(getattr(s, key) == os.environ[key] for key in {FIELDS!r} if key != 'C
 assert s.CORS_SERVICE_MANAGERS == [os.environ['CORS_SERVICE_MANAGERS']]
 assert s.COST == {{'create': s.COST_CREATE, 'read': s.COST_READ, 'update': s.COST_UPDATE,
                   'delete': s.COST_DELETE, 'aggregate': s.COST_AGGREGATE}}
-assert s.KEEP_IMPORT_EXPORTS is False
+assert s.HLS_WORKER_CONCURRENCY == 1
 """
         result = subprocess.run(
             [sys.executable, "-c", probe], cwd=API, env=SYNTHETIC, capture_output=True, text=True, timeout=10

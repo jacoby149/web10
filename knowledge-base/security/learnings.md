@@ -71,6 +71,183 @@ server gates; file metadata is not content identity, browser locks are not serve
 idempotence, and A→B→A must invalidate old callbacks despite matching names. Real
 persistence, revocation, concurrency and automatic publication remain OPEN.
 
+### 2026-11-04: An HTTPS Worker origin URL does not override Flexible zone SSL
+
+Production edge diagnostics showed an origin 301 despite a literal HTTPS endpoint;
+the same signed S3 adapter outside Cloudflare returned 200. A hostname-only SSL
+Configuration Rule added by the operator resolved delivery without changing the
+zone default or blindly risking other proxied services. Both available API
+credentials lacked Configuration Rules access; actual delivery success is not an
+independent read-back of the selected rule value. Keep redirect refusal intact.
+
+The [production record](../../media-delivery/PRODUCTION-ACCEPTANCE.md) separates
+live owner issuance, byte/range/cache/expiry and synthetic browser evidence from
+full-player renewal and broad security coverage. Canary-scoped instrumentation
+confirms cache hits without disabling a credential now used by live readers;
+expired capabilities are denied before cache/origin access. Normal adapter
+restored. Private env persistence is also distinct from normal release forwarding:
+the pinned-image activation is live, but older main Compose can fall back to legacy
+delivery on redeploy. No broad scan/PASS or immediate-revocation claim.
+
+Follow-up: normal main promotion b4e3b4bd9a84 and its green deployment now preserve
+all seven forwarded media fields on a new API image; active/backup env remain
+identical and actual CDN read/range/expiry/browser checks pass again. This closes
+the specific deployment-forwarding gap, not the broader review/renewal gates.
+
+### 2026-11-03: Merged-source replay closes a receipt gate, not security coverage
+
+After #1360 merged, the unchanged H scenario passes on clean HEAD exactly
+matching origin/dev at `0acc771e2efc`, with an empty patch. Source/input hashes,
+34 events, same-JWT read/query grant-removal-regrant, namesake/app/cache/forgery
+controls and all cleanup receipts pass fresh bounded review. The merged-dev
+archive is separate from the earlier patched/owner-branch successes and initial
+import failure. This satisfies the local H-REPLAY receipt gate; normal PR CI
+remains required. It does not reconcile historical duplicate rows or prove
+production keys/public deployment, Phase A/C, browser foreign enrollment,
+issuer revocation/expiry/restart/multiworker/media, capacity or full/diverse
+L1–L4 assurance. All 1,929 API tests plus eight subtests pass, one opt-in skip.
+
+### 2026-11-03: A local discovery read must not manufacture a second principal
+
+Committed-source follow-up: `3be1f1ec10fd` merges current dev into the owner-fix
+branch and passes the actual two-node scenario with an empty patch. The retained
+34 events, source/input hashes, single positive/single negative issuer receipt
+and cleanup flags pass fresh bounded review. This is not merged-origin/dev
+replay while #1360 remains open, and it does not reconcile historical duplicates.
+
+#1351 merged before its final e2e result: group lifecycle expected the creator's
+single bare owner key but received a second qualified owner. Its list self-heal
+was healing both names despite Phase A remaining open. The corrected focused
+assertion fails before repair and passes after healing only the existing local
+key; all 1,977 API tests plus eight subtests pass. A separately retained two-node
+scenario also checks one owner after list. This prevents new duplicate creation;
+it does not delete already-created canonical rows or complete migration. Fresh
+bounded design-intent review agrees; CI and historical method disposition remain
+separate. Merging #1351 did not retroactively pass its failed method check.
+
+### 2026-11-03: Feature retirement is not permission to purge stored data
+
+D95 removes the bulk importer, including its startup resubmission and trace
+endpoint. Keep the old trace-isolation evidence as history, not a claim about
+current code. Removing self-heal DDL does not drop existing ClickHouse tables;
+removing the review UI does not delete or publish staged documents. Raw export
+objects also remain untouched. A future cleanup must inventory retained data
+and obtain explicit retention/deletion approval. Dropping future consent requests
+does not revoke stored staging grants. Queued jobs stop resuming after rollout;
+stale clients/bookmarks lose the retired URLs. Generic read/CRUD/media gates
+are retained; removal is not a whole-protocol security repair or rollout proof.
+
+### 2026-11-03: Deployment forwarding must preserve opt-in semantics and multiline keys
+
+The API already understood the media settings, but the ecosystem Compose did not
+forward them. Six real-Compose probes reproduce that missing integration; the
+repair's seven regressions verify both omitted and explicit disabled defaults,
+literal multiline synthetic PEM into fresh runtime settings validation, enabled
+missing-key denial, rollback and no frontend/build-argument exposure. Private
+`env.dev`/`env.prod` now have explicit Git ignores, pinned by a regression.
+Keep media values in per-stack private files: the existing SSH workflow exports
+shared `.env`, whose shell values take precedence over Compose `--env-file`.
+These tests render fake configuration without deployment or host secrets; they
+are not actual dev key provisioning, connected deployment or security sign-off.
+
+### 2026-11-03: Connected foreign identity does not cache local authority
+
+`research/federation-demo/RESULTS.md` records one actual isolated two-node
+read/query grant→allow→removal→deny→regrant lifecycle under the same cached
+home-issued JWT, distinct signing keys and real test-CA HTTPS. A's status-only
+receipt has one positive certification and one rejected B-key forgery (second
+forgery denied from negative cache). Local namesake membership/app grants do not
+authorize the foreign reader; foreign app grant/revoke are explicitly service
+fixtures, not browser enrollment. Exact base 04da544442c3 plus #1360 owner-list
+repair, initial import failure, source/image receipts and verified cleanup are
+retained. Current-branch clean-base replay depends on #1360; no Phase A/C,
+public deployment, production key management, expiry/restart/multiworker/media,
+capacity or broad/diverse assurance. Fresh bounded review supports this claim;
+a later diagnostics-failure cleanup repair passes fault injection, not another
+connected run. Merge does not waive #1351's historical method failure.
+
+### 2026-11-03: A real HLS permission recheck is separate from initial issuance and player renewal
+
+The [real-database trial](../../media-delivery/CONNECTED-ACCEPTANCE.md) uses actual
+ClickHouse owner/member/carrier and public/authenticated gates, not a permission
+stub. Membership/grant removal denies subsequent manifests and renewal attempts;
+already-issued segment capabilities remain usable until real expiry, matching
+the documented bearer model. Eight-second parent/edge expiry and explicit fresh
+authorization pass, but do not prove initial login/document certification or
+seamless long-video recovery in the social player. Keep those release gates open.
+
+Cloudflare's current **Workers Cache** can precede Worker execution; it is not our
+post-verification Cache API. Keep outer caching off and private/no-store responses
+intact. The example and regression now pin that configuration. Account/zone logging
+and subscription API 403s are unknowns, not proof of absent exports or paid service.
+The [provider record](../../media-delivery/PROVIDER-READINESS.md) retains those limits.
+
+### 2026-11-03: Status-only MinIO service-account updates can remove an embedded policy
+
+The credential finding below is repaired for the isolated account. Exact mc
+2025-08-13 sends status without policy; MinIO 2025-09-07's IAM store interprets nil
+session policy as removal and switches to inherited authority. This explains why
+the cache experiment's toggles invalidated the intended restriction. Root-derived
+inheritance is especially dangerous; never assume a status edit preserves scope.
+
+The [connected record](../../media-delivery/CONNECTED-ACCEPTANCE.md) links exact
+source commits. `media-delivery/minio_account.py` submits status+policy atomically
+through the official SDK, checks name/bucket binding and re-reads the embedded
+policy; ambiguous updates request restricted disable. Six offline regressions
+model the exact removal semantics; actual list/write 200 becomes AccessDenied 403
+while GET retains expected bytes. Repeating cache disable/restore, policy inspection
+and Chromium synthetic HLS confirms the harness no longer loses the restriction.
+Account is restored only for isolated delivery; no shared-password/bucket-policy
+changes. Production, real-node permission/renewal, logging/limits and independent
+model-diverse security review remain open; no whole-surface scan/PASS claim.
+
+### 2026-11-03: A requested MinIO session policy is not proof of restricted authority
+
+The [connected delivery trial](../../media-delivery/CONNECTED-ACCEPTANCE.md)
+used a root-derived service account created with an intended GetObject-only
+session policy. Real ListObjectsV2 and PutObject against the isolated synthetic
+bucket both returned 200, not AccessDenied. The creation command and successful
+GET were insufficient evidence. No broader production-object read/write was
+attempted; authority outside the test bucket remains unknown. Disabled the exact
+account, confirmed signed origin GET now returns 403/InvalidAccessKeyId and
+quarantined harness reuse. Policy inspection failed twice; cause and repair remain
+OPEN. Never re-enable it just to make playback green or rotate the shared root
+password as a shortcut. Effective-policy inspection and independent negative
+controls are required before granting a delivery adapter storage credentials.
+
+Location-aware cache verification, Chromium synthetic HLS/range and deployed
+test-key rotation now pass, but performance/playback success does not discharge
+the separate storage-authority boundary. No security-completion claim.
+
+### 2026-11-03: A warm-cache control must match the observed edge location
+
+The [isolated delivery record](../../media-delivery/CONNECTED-ACCEPTANCE.md)
+recovers one IAD run where a disabled origin credential still permits warmed
+bytes but never expired capabilities. Fresh requests moved between EWR/IAD/ATL;
+an origin-disabled request at a different location returned 502, which cannot
+prove failure of the warmed location's cache. Keep location-matched evidence and
+immutable per-run receipts, not just a repeated 200 or overwritten latest-result
+file. The account restoration succeeded; live retries stopped at the ops limit.
+Local option-regression/interoperability tests pass, but browser/HLS, rotation,
+logging review and independent security sign-off still gate production issuance.
+
+### 2026-11-02: Protected cache hits need their own authorization gate
+
+The historical CDN research proposed path-keyed shared caching with origin-only
+authorization. That design cannot enforce expiry on a hit. The new opt-in
+[delivery boundary](../web10-v3/media-delivery.md) verifies a separate RS256
+media-only exact-key capability before every cache access. Warm-cache probes
+reject missing/expired/tampered/wrong-scope capabilities without touching cache
+or origin. Public-key-only verification interops with actual Python issuance.
+Local review also caught missing CORS, segment expiry earlier than parent stream
+expiry, and awaited cache population blocking streaming; retained regressions
+now cover each repaired path. Browser no-store differs from internal cache TTL;
+neither makes bearer capabilities instantly revocable. Cache scheduling belongs
+to each request's lifetime, and large/unknown objects bypass cloning. Local
+synthetic storage/cache tests and same-model review do not certify Cloudflare,
+private-origin enforcement, playback, production logs or full scan coverage.
+Those gates and independent model-diverse review remain OPEN; production OFF.
+
 ### 2026-11-03: Route by issuer, retain the reader identity through every gate
 
 Interrupted PR #1351's local-first decode rejected independently signed tokens;

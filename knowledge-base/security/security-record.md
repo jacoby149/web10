@@ -39,6 +39,82 @@ guards and actual picker/composer snapshot tests do not prove authentication,
 storage durability or write authorization. R1–R6, real races/revocation and
 independent review remain OPEN; no L1–L4 advancement or security PASS claim.
 
+## D95 bulk-import retirement (03.11.2026)
+
+GPT-6.1 Sol removes the importer rather than changing its permissions: routes,
+models, parser, durable worker/boot hook, DDL/settings and social staging surface.
+The old trace-isolation records below remain historical evidence for removed
+code, not assurance about a currently deployed importer. No storage deletion,
+production change, general auth/read-gate repair or L1–L4 PASS claim.
+Four retired-route probes fail before removal and return 404 afterward; generic
+document/media routes remain. Full API: 1,922 passed plus eight subtests, one skip.
+Operator explicitly approves a deletion-only exception to the 500-line method
+gate for this removal; full tests and other CI remain required. All 1,749 social
+tests pass; PR CI remains a release gate. Existing job
+tables, raw objects and staged documents are not purged or made public.
+Fresh same-model bounded design-intent review finds no runtime defect and flags
+the stale e2e shard entry, now removed. This is not diverse-model convergence or
+a complete security scan. Existing staging grants are not revoked, queued jobs
+stop resuming after rollout, and old clients lose these URLs; ordinary authorized
+CRUD remains the retained-data path.
+
+## Protected Media Delivery (02.11.2026)
+
+New opt-in boundary: `api/app/services/media_delivery.py`, its existing signing
+callers/HLS manifest integration, and `media-delivery/{core,cloudflare}.mjs`.
+Local evidence: 1,786 API tests; 35 edge/cross-runtime tests with real RSA and
+Python issuance, warm-cache denial before I/O, independently recomputed synthetic
+SigV4, range isolation, bounded background caching and streaming-before-EOF.
+Same-model review repaired CORS, premature HLS expiry and blocking cache writes;
+re-review reports no concrete remaining finding in reviewed paths. This is
+bounded implementation review, not complete L1/L2/L3/L4 or diverse-model sign-off.
+State OPEN at all levels pending complete coverage and connected Cloudflare,
+private-origin denial, browser playback/renewal, key rotation and production log
+verification. No deployment, instant revocation or existing authority-debt closure.
+Contract/gates: [media delivery](../web10-v3/media-delivery.md).
+
+03.11.2026 deployment-wiring bite (GPT-6.1 Sol): inspect canonical Compose media
+environment and SSH-deploy env-file/precedence seam. Six pre-repair real-Compose
+failures become seven passing configuration/runtime probes: disabled/omitted
+behavior, exact multiline synthetic PEM, key only in API environment, no build-arg
+exposure, missing-key validation denial, rollback and ignored private stack files.
+No API permission or signing change, live secrets/deployment or independent review.
+Deployed dev acceptance and the broader release/security gates remain OPEN.
+
+03.11.2026 connected update (GPT-6.1 Sol): fresh isolated IAD cache/origin-denial,
+Chromium desktop/375px image/range and synthetic HLS, deployed test-key rotation
+evidence; 41 local edge/interoperability tests pass. Actual API HLS handlers use
+synthetic document authority, not real membership. **OPEN finding:** the intended
+read-only Worker credential returns 200 for list and write in the synthetic bucket.
+Exact account disabled, origin denial independently confirmed, local reuse
+quarantined. No root/shared-password or existing-policy changes; broader authority
+and ineffective-policy cause unknown. Two account-inspection attempts failed;
+live diagnosis stopped. [Evidence and remaining gates](../../media-delivery/CONNECTED-ACCEPTANCE.md).
+This is containment, not a repaired finding or complete scan/sign-off.
+
+03.11.2026 follow-up (GPT-6.1 Sol): isolated credential finding repaired and
+connected negative controls rechecked. Exact-version mc status-only updates omit
+policy; MinIO IAM store removes the embedded restriction and inherits parent
+authority. Guarded atomic policy+status official-SDK updates now inspect exact
+scope before restoring delivery. Real GET 200/hash, list/write AccessDenied 403;
+repeat ATL cache disable/restore retains policy and browser synthetic HLS passes.
+42 edge/interoperability tests include six Python policy regressions; Ruff passes.
+Root credentials remain remote; existing bucket policies/passwords unchanged.
+Source links and failure history in the [connected record](../../media-delivery/CONNECTED-ACCEPTANCE.md).
+Finding-specific operational repair only; full scan, real-node permission/renewal,
+provider logs/limits and independent/diverse sign-off remain OPEN.
+
+03.11.2026 additional connected evidence (GPT-6.1 Sol): isolated ClickHouse
+24.8.14.39 and live HTTP HLS endpoint functions exercise actual owner/member/carrier
+public/authenticated checks without permission stubs. Revocation, real parent/edge
+expiry and explicit renewal controls pass; final 29 probes plus desktop/375px
+Chromium playback, source hashes and verified teardown retained in the
+[connected record](../../media-delivery/CONNECTED-ACCEPTANCE.md). Current outer-cache
+and logging-example guards pass; subscription/account/zone export reads are 403,
+so billing/logging audit remains incomplete. Initial document auth certification,
+full-player seamless renewal, load/large-response bounds and independent/diverse
+security review remain OPEN; no full level/surface PASS or production claim.
+
 ## Group Media Carrier Playback (03.11.2026)
 
 [Bounded repair/evidence](scans/2026-10/group-media-carrier-repair.md): human
@@ -493,6 +569,8 @@ measure. Re-scan after the hardening merges to flip them.
 
 | Unit | Level | Status | Model | Date | Last-pass | Sys | Finding / note |
 |---|---|---|---|---|---|---|---|
+| Local group-list owner healing follow-up | L1 | **OPEN** | OpenCode / GPT-6.1 Sol + fresh same-model reviewer | 2026-11-03 | — | groups | #1360 merged with all checks passing after retained red→green bare-only repair. Later actual two-node run passes on merged dev 0acc771e2efc with zero-byte patch, one owner after list and verified lifecycle/cache/cleanup receipts; fresh bounded review passes. Existing-row reconciliation and diverse/full-file assurance remain OPEN. Historical #1351 method failure is not waived. |
+| H isolated cross-node correctness | L4 | **OPEN** | OpenCode / GPT-6.1 Sol + fresh same-model reviewer | 2026-11-03 | — | federation | Local H-REPLAY receipt gate satisfied on clean merged dev 0acc771e2efc after #1360, zero-byte patch and no overlay. Full unchanged TLS/two-node/cache/read/query/namesake/app/grant-removal controls and cleanup pass fresh bounded review; all 1,929 API tests plus eight subtests pass, one opt-in skip. Three source-specific success archives and initial failure remain separate: research/federation-demo/RESULTS.md. Normal PR CI, complete L4/L1–L4 coverage/model diversity, A/C, production keys/public deployment, browser consent, issuer expiry/revocation, multiworker/restart/media remain separate OPEN gates. |
 | `api/app/services/auth.py :: decode_token` | L1 | **OPEN** | (audit) | 2026-10 | — | auth | B-3 unsigned decode path; B-1 I1 symmetric HS256. Hardening in 1157 (unmerged) |
 | `api/app/settings.py` | L1 | **OPEN** | (audit) | 2026-10 | — | config | B-2 secrets in source (signing key + Stripe/Twilio/CH creds). Hardening in 1157 (unmerged) |
 | `api/app/middleware.py` | L1 | **OPEN** | `gpt-6.1 sol` | 2026-10-18 | — | logging | B-4 source repair merged #1225 with passing repro gate. [Evidence](scans/2026-10/repair-b4-middleware.md). Deployment, historical exposure and required security sign-off remain unclosed; no whole-file PASS. |

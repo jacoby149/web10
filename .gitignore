@@ -33,6 +33,12 @@ marketing/marketing-ui/test-results/
 # secrets / local config — env files never get committed
 .env
 .env.local
+/ubuntu-deployment/env.dev
+/ubuntu-deployment/env.prod
+
+# Local CDN acceptance credentials, signing keys and generated Wrangler state
+.context/cdn-live/
+.wrangler/
 
 # org logo overrides (keep the generic defaults)
 ui/public/YourOrgsLogo/*

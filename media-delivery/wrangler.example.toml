@@ -1,0 +1,35 @@
+name = "protected-media"
+main = "cloudflare.mjs"
+compatibility_date = "2026-10-01"
+workers_dev = false
+preview_urls = false
+logpush = false
+
+# Per-invocation CPU guardrail, not a monthly spending cap. Validate with metrics.
+[limits]
+cpu_ms = 50
+
+# Protected requests must execute the verifier, not an outer response cache.
+[cache]
+enabled = false
+
+[observability]
+enabled = false
+
+[observability.logs]
+enabled = false
+invocation_logs = false
+
+[vars]
+MEDIA_DELIVERY_ENABLED = "false"
+DELIVERY_ORIGIN = "https://media.example.invalid"
+CAP_ISSUER = "operator-configured-node"
+CAP_AUDIENCE = "operator-configured-media"
+# Provision public keys out of band before enabling; never use token key URLs.
+CAP_JWKS = '{"keys":[]}'
+S3_ENDPOINT = "https://private-storage.example.invalid"
+S3_BUCKET = "media"
+S3_REGION = "us-east-1"
+# Supply S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY via Wrangler secrets.
+# Optional temporary credentials: S3_SESSION_TOKEN secret.
+# Add the custom-domain route only after live gates pass.

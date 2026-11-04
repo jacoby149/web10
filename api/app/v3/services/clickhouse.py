@@ -13,6 +13,7 @@ from uuid6 import uuid7
 
 import app.settings as settings
 from app.services.media import get_s3_client, get_s3_signing_client
+from app.services.media_delivery import get_url
 
 log = logging.getLogger(__name__)
 
@@ -885,14 +886,9 @@ def insert_document(
     doc_id: str | None = None,
     ad_mode: str = "none",
     ad_target: str = "",
-    created_at: datetime | None = None,
     posted_by: str = "",
 ) -> dict:
     """Insert a document into the documents table. Generates doc_id if not provided.
-
-    `created_at` backdates the document (the import pipeline lands a catalog
-    with its original publish dates — "take your videos exactly"). `updated_at`
-    is always now (the write time) — the ReplacingMergeTree dedup keys off it.
 
     `posted_by` is the human who authored the doc (group-as-author). Always
     populated: for a normal post it equals author_key; for a group-authored
@@ -900,7 +896,6 @@ def insert_document(
     only — the caller must always provide it.
     """
     now = _now()
-    created = created_at or now
     if not doc_id:
         doc_id = _gen_doc_id()
     client.insert(
@@ -913,7 +908,7 @@ def insert_document(
                 _json(body),
                 ref_value or "",
                 tags or [],
-                created,
+                now,
                 now,
                 0,
                 ad_mode or "none",
@@ -932,7 +927,7 @@ def insert_document(
         "ad_mode": ad_mode or "none",
         "ad_target": ad_target or "",
         "posted_by": posted_by or "",
-        "created_at": _iso_utc(created),
+        "created_at": _iso_utc(now),
         "updated_at": _iso_utc(now),
     }
 
@@ -3626,13 +3621,9 @@ def resolve_media_urls(doc_body: dict, user_key: str) -> dict:
     presigned = {}
     log.info("[media] metadata signing: accepted keys=%d", len(set(object_keys + thumbnail_keys)))
     if object_keys or thumbnail_keys:
-        signing_client = get_s3_signing_client()
+        signing_client = None if settings.MEDIA_DELIVERY_ENABLED else get_s3_signing_client()
         for key in dict.fromkeys(object_keys + thumbnail_keys):
-            presigned[key] = signing_client.generate_presigned_url(
-                "get_object",
-                Params={"Bucket": settings.S3_BUCKET, "Key": key},
-                ExpiresIn=settings.READ_URL_EXPIRY,
-            )
+            presigned[key] = get_url(key, signing_client)
         log.info("[media] metadata signing: completed")
 
     resolved = []
@@ -3689,13 +3680,9 @@ def resolve_minio_types(doc_body: dict, media_owner: str) -> dict:
                 url = None
                 if prefix and isinstance(key, str) and key.startswith(prefix) and len(key) > len(prefix):
                     log.info("[media] raw signing: started")
-                    if signing_client is None:
+                    if signing_client is None and not settings.MEDIA_DELIVERY_ENABLED:
                         signing_client = get_s3_signing_client()
-                    url = signing_client.generate_presigned_url(
-                        "get_object",
-                        Params={"Bucket": settings.S3_BUCKET, "Key": key},
-                        ExpiresIn=settings.READ_URL_EXPIRY,
-                    )
+                    url = get_url(key, signing_client)
                     log.info("[media] raw signing: completed")
                 else:
                     log.info("[media] raw signing: denied invalid owner or key")

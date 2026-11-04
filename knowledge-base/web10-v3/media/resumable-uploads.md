@@ -167,7 +167,7 @@ R1/R2 are backend-first security work and must be separately scoped/reviewed.
 Independent review, real persistence/transport/concurrency and deployment remain
 release gates. No UI test or metadata partition substitutes for server checks.
 
-## R0 evidence — 3.259.2, local only
+## R0 evidence — 4.1.2, local only
 
 - Reproduced and repaired two preview defects: owner changes retained the old
   visible queue, and browsing away removed connectivity listeners. The first

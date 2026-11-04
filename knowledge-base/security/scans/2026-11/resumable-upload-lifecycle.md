@@ -1,7 +1,7 @@
 # Resumable upload lifecycle: design inventory, not security closure
 
 Date: 03.11.2026. Model: OpenAI GPT-6.1 Sol. Evidence: local working tree after
-3.259.1; no commit, PR, production writes or deployment. **Status: OPEN.** No
+4.1.1; no commit, PR, production writes or deployment. **Status: OPEN.** No
 completed L1/L2/L3/L4 scan or independent/model-diverse security review claimed.
 
 ## Orient and bounded read-only inventory

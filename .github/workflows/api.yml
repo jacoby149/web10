@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - api/**
+      - media-delivery/**
+      - ubuntu-deployment/docker-compose.ecosystem.yml
+      - ubuntu-deployment/env.*.example
       - marketing/marketing-ui/Dockerfile
       - marketing/web10-social/Dockerfile
       - .github/workflows/api.yml
@@ -41,3 +44,10 @@ jobs:
 
       - name: pytest
         run: uv run pytest
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Protected media edge and Python interoperability
+        run: node --test ../media-delivery/delivery.test.mjs tests/media_delivery_interop.test.mjs

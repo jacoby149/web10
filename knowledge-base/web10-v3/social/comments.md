@@ -337,5 +337,4 @@ comment's `author_username`); the thread renders what it is given and degrades
 - The discover card that shares the thread (the data seam): `./discover-card.md`
 - The comment + reaction data layers: `../../../../marketing/web10-social/src/data/comments.ts`,
   `../../../../marketing/web10-social/src/data/reactions.ts`
-- The import pipeline that established the `parent_id` convention: `./import.md`
 - The visual bar (tokens, states, the screenshot test): `../../../strategy/design.md`
