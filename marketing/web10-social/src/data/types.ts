@@ -24,6 +24,8 @@ export interface PostMention {
 }
 
 export interface PostRecord {
+  /** UI-only: identity lookup is pending, not a confirmed missing avatar. */
+  author_face_pending?: boolean;
   _id?: string;
   /** The post's headline (D82) — the short, punchy line that leads a card /
    *  watch header / short overlay. Optional: a post with no title renders

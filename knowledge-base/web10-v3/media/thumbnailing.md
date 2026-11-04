@@ -61,9 +61,9 @@ lifted out of it):
 | Resolved media item | `pickThumbnail` returns |
 |---|---|
 | First item is an **image** (`mime_type` `image/*`, or legacy missing MIME with a `read_url`) | that item's `read_url` |
-| First item is a **video** with a `thumbnail_url` (the D44 poster) | the `thumbnail_url` |
-| First item is a **video** with no poster yet (transcode pending) | fall through to the next item |
-| Item has an explicit non-image/non-video MIME (audio, PDF, etc.) | skip it; its file URL is not an image |
+| First item is **video or audio** with a `thumbnail_url` (poster or cover artwork) | the `thumbnail_url`; `is_video` is true only for video |
+| First item is **video or audio** with no thumbnail | fall through to the next item; never use the raw media file |
+| Item has another explicit non-image MIME (PDF, etc.) | skip it; its file URL is not an image |
 | No item yields a usable image | `null` |
 
 The return is `{url, alt, is_video, width, height, mime_type}` or `null`.

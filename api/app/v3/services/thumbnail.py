@@ -24,8 +24,8 @@ def pick_thumbnail(resolved_media: list[Any]) -> dict | None:
     | Resolved media item | returns |
     |---|---|
     | First item is an **image** (or legacy missing MIME) with a `read_url` | that item's `read_url` |
-    | First item is a **video** with a `thumbnail_url` (the D44 poster) | the `thumbnail_url` |
-    | First item is a **video** with no poster yet (transcode pending) | fall through to the next item |
+    | First item is **video/audio** with a `thumbnail_url` (poster/cover) | the `thumbnail_url` |
+    | First item is **video/audio** with no thumbnail | fall through to the next item |
     | No item yields a usable image | `None` |
 
     Returns ``{url, alt, is_video, width, height, mime_type}`` or ``None``.
@@ -37,18 +37,18 @@ def pick_thumbnail(resolved_media: list[Any]) -> dict | None:
             continue
         mime = ref.get("mime_type") or ""
         is_video = mime.startswith("video/")
-        if is_video:
+        if is_video or mime.startswith("audio/"):
             thumb = ref.get("thumbnail_url")
             if thumb:
                 return {
                     "url": thumb,
                     "alt": ref.get("alt_text"),
-                    "is_video": True,
+                    "is_video": is_video,
                     "width": ref.get("width"),
                     "height": ref.get("height"),
                     "mime_type": mime,
                 }
-            # No poster yet (transcode pending) — fall through to the next item.
+            # No artwork — fall through, never select the recording itself.
             continue
         # Explicit audio/document MIME types are not displayable artwork.
         # Preserve the legacy missing-MIME image shape.

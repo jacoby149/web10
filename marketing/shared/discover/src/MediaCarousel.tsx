@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { cn } from './utils';
 import { VideoPlayer, sourceFromMedia } from './VideoPlayer';
 import type { MediaItem } from './types';
+import { AudioPlayer, audioArtwork } from './AudioPlayer';
 
 /**
  * The shared multi-media carousel (video-player.md) — a fixed frame + a
@@ -22,9 +23,11 @@ export interface MediaCarouselProps {
   /** testid for the frame container. */
   testId?: string;
   className?: string;
+  audioTitle?: string;
+  audioArtist?: string;
 }
 
-export function MediaCarousel({ items, fit = 'contain', ratio, maxHeight, testId, className }: MediaCarouselProps) {
+export function MediaCarousel({ items, fit = 'contain', ratio, maxHeight, testId, className, audioTitle, audioArtist }: MediaCarouselProps) {
   const stripRef = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
   const count = items.length;
@@ -66,7 +69,9 @@ export function MediaCarousel({ items, fit = 'contain', ratio, maxHeight, testId
           const source = sourceFromMedia(item);
           return (
             <div key={item._id || i} className="h-full w-full shrink-0 snap-start">
-              {isVideo ? (
+              {item.mime_type?.startsWith('audio/') ? (
+                <div className="flex h-full items-center p-4"><AudioPlayer src={item.url} durationSeconds={item.duration_seconds} title={audioTitle} artist={audioArtist} artworkUrl={audioArtwork(item, items)} /></div>
+              ) : isVideo ? (
                 <VideoPlayer
                   source={source}
                   mode="inline"

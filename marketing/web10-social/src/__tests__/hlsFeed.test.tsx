@@ -84,6 +84,24 @@ beforeEach(() => {
 });
 
 describe('FeedScreen — HLS in the feed (D44)', () => {
+  it.each([false, true])('renders audio cover/title/artist in the social feed (supporting image: %s)', async (mixed) => {
+    const { readFeedPage } = await import('@/data');
+    vi.mocked(readFeedPage).mockResolvedValueOnce({
+      posts: [{ _id: 'song-post', author_username: 'artist', author_provider: 'test.localhost', created_at: new Date().toISOString(),
+        title: 'Jazz record', profile: { display_name: 'Century Club Music' }, text: 'A full recording',
+        media_refs: [{ doc_id: 'song', read_url: 'https://cdn.example/song.mp3', mime_type: 'audio/mpeg', thumbnail_url: 'https://cdn.example/cover.jpg' },
+          ...(mixed ? [{ doc_id: 'image', read_url: 'https://cdn.example/image.jpg', mime_type: 'image/jpeg' }] : [])] }],
+      has_more: false, next_cursor: null,
+    });
+    const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
+    render(<MemoryRouter><FeedScreen /></MemoryRouter>);
+    await screen.findByRole('button', { name: 'Play audio' });
+    expect(document.querySelector('audio')).toHaveAttribute('src', 'https://cdn.example/song.mp3');
+    expect(document.querySelector('img[src="https://cdn.example/song.mp3"]')).not.toBeInTheDocument();
+    expect(screen.getByTestId('audio-player')).toHaveTextContent('Jazz record');
+    expect(screen.getByTestId('audio-player')).toHaveTextContent('Century Club Music');
+    expect(screen.getByAltText('Jazz record cover art')).toHaveAttribute('src', 'https://cdn.example/cover.jpg');
+  });
   it('a transcoded video post renders the hls.js player (not a plain <video>); a direct MP4 post renders native', async () => {
     const { readFeedPage } = await import('@/data');
     // The feed read carries the resolved refs inline: the transcoded one

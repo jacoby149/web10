@@ -15,6 +15,17 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Music artwork routing/selection (04.11.2026) — bounded local, OPEN
+
+GPT-6.1 Sol extends the existing preview URL mapping to query-based Music shares
+and repairs pure API/SDK audio-cover selection plus saved-cover presentation.
+The same canonical uploader/read/signing gates remain unchanged. New audio cases
+exercise the existing real route/resolver with query/signing doubles, including
+foreign-thumbnail denial; HTTP 403 stops preview thumbnail/profile calls. Real
+nginx smoke verifies crawler query preservation, browser SPA and denied/bare
+fallbacks against a synthetic API. No new authorization finding, L1–L4 PASS,
+independent/model-diverse review, actual account artwork or rollout/cache claim.
+
 ## Content-thumbnail uploader repair (03.11.2026) — bounded local, OPEN
 
 GPT-6.1 Sol reproduces the public Nosferatu watch card's brand fallback: normal

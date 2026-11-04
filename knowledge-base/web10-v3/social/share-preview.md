@@ -110,6 +110,21 @@ The preview-server target is injected at deploy time (a `PREVIEW_TARGET` env var
 4. The preview server returns an HTML document: `og:image` = the poster frame, `og:title` = the caption, `og:description` = the caption, `og:url` = the permalink, `twitter:card` = `summary_large_image`.
 5. iMessage renders the card — the poster frame, the caption, "web10." The friend taps it and lands on the permalink in the app, signed in or not.
 
+## Music track links
+
+Music shares use `/music?track=<postId>&panel=player`. Known crawlers reach the
+same anonymous post-card pipeline as post/watch/shorts links; nginx must retain
+the query string because `track` identifies the post. The generic thumbnail
+selects the audio attachment's album-art thumbnail or a supporting image, never
+the audio file itself. Saved title, caption and existing avatar/brand fallback
+are unchanged. The canonical card URL keeps `track` and `panel=player`, not
+unrelated search, queue or menu state. Browsers still receive the SPA.
+
+An unreadable track uses the existing generic post card without requesting its
+thumbnail or author profile. Bare `/music` and empty `track` render a generic
+Music card without document reads. Deployment and receiving-app cache refresh
+must be verified separately from local routing tests.
+
 ## The profile permalink
 
 The profile permalink (`/u/:username`) is the same edge split, one level up. The social app's preview server renders the profile's **face** for a crawler: the avatar as `og:image`, the display name as `og:title`, the bio as `og:description`, and `og:type` = `profile` (the Open Graph type for a person). The nginx edge proxies `/u/:username` (the path that ends right after the username — mutually exclusive with the post permalink's `/u/:username/p/:postId`) to the preview server for known link-preview bots; everyone else gets the SPA.

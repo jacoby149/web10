@@ -1419,6 +1419,10 @@ describe('v3 client', () => {
   // ── pickThumbnail — the pure selection (KB: media/thumbnailing.md) ──────
 
   describe('pickThumbnail (pure)', () => {
+    it('uses audio cover artwork without returning the recording as an image', () => {
+      expect(pickThumbnail([{ mime_type: 'audio/mpeg', read_url: 'https://s3/track.mp3', thumbnail_url: 'https://s3/album.webp' }]))
+        .toMatchObject({ url: 'https://s3/album.webp', is_video: false })
+    })
     it.each(['audio/mpeg', 'application/pdf'])('skips %s files instead of treating them as cover art', (mime) => {
       const file = { mime_type: mime, read_url: 'https://s3/file' }
       expect(pickThumbnail([file])).toBeNull()

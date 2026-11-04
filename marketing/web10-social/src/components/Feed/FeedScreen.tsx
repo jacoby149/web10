@@ -47,6 +47,7 @@ import { useComposer } from '@/context/ComposerContext';
 import { useSave } from '@/context/SaveContext';
 import { VideoPlayer, sourceFromMedia } from './VideoPlayer';
 import { MediaCarousel } from './MediaCarousel';
+import { AudioPlayer, audioArtwork } from '@web10/discover';
 import { toast, errorMessage } from '@/components/shared/Toast';
 
 const LOG = (...args: unknown[]) => console.log('[social:feed]', ...args);
@@ -104,9 +105,13 @@ function formatTimeAgo(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString();
 }
 
-function MediaItem({ media }: { media: MediaRecord }) {
+function MediaItem({ media, audioTitle, audioArtist }: { media: MediaRecord; audioTitle?: string; audioArtist?: string }) {
   const isVideo = media.mime_type?.startsWith('video/');
   const [measuredRatio, setMeasuredRatio] = useState<number | null>(null);
+
+  if (media.mime_type?.startsWith('audio/')) {
+    return <div className="p-4"><AudioPlayer src={media.url} durationSeconds={media.duration_seconds} title={audioTitle} artist={audioArtist} artworkUrl={audioArtwork(media)} /></div>;
+  }
 
   // Video (D44): the shared <VideoPlayer> — transcoded plays the hls.js rack,
   // non-transcoded plays the shared inline tap-to-play. The feed is the inline
@@ -176,7 +181,7 @@ function MediaItem({ media }: { media: MediaRecord }) {
   return frame;
 }
 
-function MediaGrid({ mediaItems }: { mediaItems: MediaRecord[] }) {
+function MediaGrid({ mediaItems, audioTitle, audioArtist }: { mediaItems: MediaRecord[]; audioTitle?: string; audioArtist?: string }) {
   if (!mediaItems.length) return null;
   const count = mediaItems.length;
   const first = mediaItems[0];
@@ -188,9 +193,9 @@ function MediaGrid({ mediaItems }: { mediaItems: MediaRecord[] }) {
   // FILLS it (crops to one consistent frame) instead of letterboxing — the
   // feed's no-shift guarantee is the reserved frame, not the object-fit.
   if (count === 1) {
-    return <MediaItem media={first} />;
+    return <MediaItem media={first} audioTitle={audioTitle} audioArtist={audioArtist} />;
   }
-  return <MediaCarousel items={mediaItems} fit="cover" maxHeight="60vh" testId="media-carousel" />;
+  return <MediaCarousel items={mediaItems} fit="cover" maxHeight="60vh" testId="media-carousel" audioTitle={audioTitle} audioArtist={audioArtist} />;
 }
 
 /**
@@ -302,7 +307,7 @@ function RepostedEmbed({
         </div>
       ) : null}
       <div className="pb-2">
-        <PostMediaRenewal postId={original._id}><MediaGrid mediaItems={mediaItems} /></PostMediaRenewal>
+        <PostMediaRenewal postId={original._id}><MediaGrid mediaItems={mediaItems} audioTitle={original.title} audioArtist={authorName} /></PostMediaRenewal>
       </div>
       {/* The original's creator-pinned ad (D55) renders inside the embed — the
           repost resurfaces the original's content AND its monetization, so the
@@ -492,7 +497,9 @@ export function PostCard({
     >
       <div className="flex items-center gap-2.5 px-4 py-3">
         <Avatar className="h-9 w-9 ring-2 ring-transparent hover:ring-brand/20 transition-all duration-150">
-          {authorAvatar ? (
+          {post.author_face_pending ? (
+            <Skeleton className="h-full w-full rounded-full" data-testid="post-author-avatar-loading" aria-label="Loading author picture" />
+          ) : authorAvatar ? (
             <AvatarImage src={authorAvatar} alt={authorName} />
           ) : (
             <AvatarFallback className="bg-brand-muted text-brand-300 text-sm font-semibold">
@@ -501,7 +508,9 @@ export function PostCard({
           )}
         </Avatar>
         <div className="flex-1 min-w-0 flex items-baseline gap-1.5">
-          {post.author_key?.includes('/groups/') ? (
+          {post.author_face_pending ? (
+            <Skeleton className="h-4 w-24" data-testid="post-author-name-loading" aria-label="Loading author name" />
+          ) : post.author_key?.includes('/groups/') ? (
             <div className="min-w-0">
               <a href={`/groups/${encodeURIComponent(post.author_key)}`} className="block truncate text-sm font-medium text-foreground hover:text-brand-300" data-testid="post-author-link">{post.group_identity?.name || authorName}</a>
               <span className="text-xs text-muted-foreground">Group{post.posted_by && <> · <a href={`/u/${encodeURIComponent(post.posted_by)}`} className="hover:text-foreground">posted by {post.posted_by}</a></>}</span>
@@ -655,7 +664,7 @@ export function PostCard({
       {/* Media. Editing (title / body / media remove) happens in the app-level
           composer sheet (openComposer({ editingPost }) — the ONE edit path),
           not inline here, so the card stays the read surface. */}
-      <PostMediaRenewal postId={post._id}><MediaGrid mediaItems={mediaItems} /></PostMediaRenewal>
+      <PostMediaRenewal postId={post._id}><MediaGrid mediaItems={mediaItems} audioTitle={post.title} audioArtist={authorName} /></PostMediaRenewal>
 
       {post.text && !post.repost_of ? (
         <div className="px-4 pt-3">

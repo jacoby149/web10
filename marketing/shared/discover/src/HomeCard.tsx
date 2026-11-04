@@ -1,7 +1,7 @@
 import { Play, Film, Heart, ThumbsDown, MessageCircle, Repeat2 } from 'lucide-react';
 import { useState } from 'react';
 import { cn, hashToColor, timeAgo, formatCount } from './utils';
-import { Avatar, AvatarFallback } from './ui';
+import { Avatar, AvatarFallback, Skeleton } from './ui';
 import { HoverVideo } from './HoverVideo';
 import { MarkdownText } from './MarkdownText';
 import type { DiscoverPost, MediaItem } from './types';
@@ -59,6 +59,8 @@ export interface HomeCardProps {
   post: DiscoverPost;
   /** The author's avatar URL (the app resolves the profile's avatar ref). */
   authorAvatar?: string;
+  /** Identity has not resolved yet; never present initials as a final face. */
+  authorLoading?: boolean;
   /** The post permalink (the thumbnail + title link target). */
   postHref?: string;
   /** The author profile permalink (the attribution link target). */
@@ -92,6 +94,7 @@ export interface HomeCardProps {
 export function HomeCard({
   post,
   authorAvatar,
+  authorLoading = false,
   postHref,
   authorHref,
   onPostClick,
@@ -163,8 +166,8 @@ export function HomeCard({
     if (interactive) onAuthorClick?.();
   };
   const authorLinkProps = interactive
-    ? { href: '#', onClick: openAuthor, 'aria-label': `View ${displayName}'s profile` }
-    : { href: authorHref || '#', target: '_blank', rel: 'noopener', 'aria-label': `View ${displayName}'s profile` };
+    ? { href: '#', onClick: openAuthor, 'aria-label': authorLoading ? 'View author profile' : `View ${displayName}'s profile` }
+    : { href: authorHref || '#', target: '_blank', rel: 'noopener', 'aria-label': authorLoading ? 'View author profile' : `View ${displayName}'s profile` };
 
   return (
     <article
@@ -248,8 +251,10 @@ export function HomeCard({
       {/* 3. The attribution — the author's avatar + name + a relative time. */}
       <div className="mt-2 flex items-center gap-2.5">
         <a {...authorLinkProps} className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          <Avatar className={cn('h-8 w-8', avatarColor)}>
-            {authorAvatar ? (
+          <Avatar className={cn('h-8 w-8', authorLoading ? 'bg-elevated' : avatarColor)}>
+            {authorLoading ? (
+              <Skeleton className="h-full w-full rounded-full" data-testid="home-author-avatar-loading" aria-label="Loading author picture" />
+            ) : authorAvatar ? (
               <img src={authorAvatar} alt="" className="h-full w-full object-cover" />
             ) : (
               <AvatarFallback className="text-xs font-semibold">{initial}</AvatarFallback>
@@ -260,7 +265,7 @@ export function HomeCard({
           {...authorLinkProps}
           className="min-w-0 flex-1 truncate text-sm text-foreground transition-colors hover:text-brand-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
         >
-          {displayName}
+          {authorLoading ? <Skeleton className="h-4 w-24" data-testid="home-author-name-loading" aria-label="Loading author name" /> : displayName}
         </a>
         <span className="shrink-0 text-xs text-muted-foreground" data-testid={`${testId}-views`}>
           {(post.impressions ?? 0) > 0 ? `${formatCount(post.impressions!)} views · ` : ''}{timeAgo(post.created_at)}

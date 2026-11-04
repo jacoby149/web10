@@ -220,7 +220,14 @@ export async function countUserFollowingReal(): Promise<number> { return PEERS.l
 export async function readUserPublicPosts(): Promise<unknown[]> { return PROFILE_POSTS; }
 // D88: saved collections (the profile's Saved tab). Seeded with a few
 // collections so the tab renders with content (the cards + the open view).
-export async function getMyCollections(): Promise<unknown[]> { return SAVED_COLLECTIONS; }
+export async function getMyCollections(): Promise<unknown[]> {
+  if (new URLSearchParams(window.location.search).has('playlist-art-regression')) {
+    return SAVED_COLLECTIONS.map((collection, index) => index === 1
+      ? { ...collection, coverUrl: '/playlist-art-regression/missing.webp' }
+      : collection);
+  }
+  return SAVED_COLLECTIONS;
+}
 // D88: the visitor's profile shows the owner's PUBLIC collections (the D80
 // by-user read — only membership_visibility='public' groups surface). Seeded
 // for the visitor profile shot (nova); the owner's own profile uses
@@ -1015,6 +1022,9 @@ export async function readFeed(): Promise<unknown[]> { return FEED_POSTS; }
 // — the feed filters out bare string refs), so the harness resolves string
 // refs against DISCOVER_MEDIA here, the same way the node's read does.
 export async function readFeedPage(): Promise<unknown> {
+  if (new URLSearchParams(window.location.search).get('discover-inline-audio') === '1') {
+    return { posts: await readDiscoverFeed(), has_more: false, next_cursor: null };
+  }
   if (new URLSearchParams(window.location.search).get('feedError') === '1') {
     throw new Error('Screenshot fixture: Following feed unavailable');
   }
@@ -1346,7 +1356,22 @@ const DISCOVER_POSTS: SeedDiscoverPost[] = [
 // does. The watch page builds its queue's media map from these inline refs
 // (no second media round-trip), so the mock must carry them.
 export async function readDiscoverFeed(): Promise<unknown[]> {
-  return DISCOVER_POSTS.map((p) => {
+  if (new URLSearchParams(window.location.search).get('discover-inline-audio') === '1') {
+    return [{ ...DISCOVER_POSTS[0], _id: 'inline-audio-fixture', title: 'Livery Stable Blues — audio renderer fixture',
+      text: 'Synthetic one-second silent recording. Real inline audio controls, not a loading placeholder.',
+      profile: { display_name: DISCOVER_POSTS[0].group_identity?.name },
+      tags: ['music'], ad: undefined, media_refs: [{ doc_id: 'inline-audio', read_url: MUSIC_TRACKS[0].media.url,
+        mime_type: 'audio/wav', duration_seconds: 1,
+        thumbnail_url: new URLSearchParams(window.location.search).get('discover-inline-art') === '1' ? MUSIC_TRACKS[0].media.thumbnail_url : undefined }] }];
+  }
+  const prepared = new URLSearchParams(window.location.search).get('discover-prepared-faces') === '1';
+  return DISCOVER_POSTS.map((seed) => {
+    // Synthetic already-resolved face fixture, not a production query or
+    // latency measurement. discover-face-state=pending holds only identity.
+    const p = !prepared || seed.author_key?.includes('/groups/') ? seed : {
+      ...seed, profile: { display_name: `${seed.author_username.charAt(0).toUpperCase()}${seed.author_username.slice(1)} Studio` },
+      avatar_url: creative(seed.author_username.slice(0, 2).toUpperCase(), 96, 96, '#134e4a', '#0f766e', 'image/png').url as string,
+    };
     if (!p.media_refs?.length) return p;
     const resolved = p.media_refs
       .map((id) => {
@@ -1368,6 +1393,10 @@ export async function readDiscoverFeed(): Promise<unknown[]> {
       .filter(Boolean);
     return { ...p, media_refs: resolved };
   });
+}
+export async function resolveDiscoverProfiles(posts: unknown[]): Promise<unknown[]> {
+  if (new URLSearchParams(window.location.search).get('discover-face-state') === 'pending') return new Promise(() => {});
+  return posts;
 }
 // The Shorts feed (shorts.md): the discover board filtered to genuine shorts —
 // a post whose single media is a REAL 9:16 video, re-derived from the resolved

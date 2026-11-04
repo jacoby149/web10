@@ -35,6 +35,16 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-04: Select the cover, never the recording
+
+The audio exclusion added to prevent raw-file thumbnails also skipped valid audio
+cover thumbnails. Permit an already-resolved audio `thumbnail_url`, keep raw
+audio excluded, and share API/SDK selection with saved-cover presentation. Music
+crawler links use the existing anonymous post read and thumbnail endpoint; a
+denied read still stops before thumbnail/profile requests. Pure selection adds
+no signing authority. Regression coverage is bounded, not a new access-policy
+repair or whole-media assurance; production/account/crawler-cache gates remain.
+
 ### 2026-11-03: Thumbnail ownership must survive the canonical lookup
 
 The reported public group-authored movie reads with a valid poster, while the
