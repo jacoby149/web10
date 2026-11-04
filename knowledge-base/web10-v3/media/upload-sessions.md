@@ -101,7 +101,7 @@ record rejection, bounded reads, isolated real storage races and restart/result
 recovery. JWT/app-grant/bystander endpoint tests remain R2 gates because R1 adds
 no endpoint and cannot turn supplied owner fields into authorization.
 
-## Local verification — 4.2.0
+## Local verification — 4.4.0
 
 The internal store and 24 focused tests are implemented. Fresh same-family
 reviews found and repaired serialized bounds, post-expiry result observation,
