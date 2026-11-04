@@ -11,6 +11,8 @@ vi.mock('@/data', async (original) => ({
   fetchPeoplePage: vi.fn().mockResolvedValue({ people: [], hasMore: false }),
   readGroupDirectory: vi.fn(),
   getMyCommunityGroups: vi.fn(),
+  followUser: vi.fn(),
+  unfollowUser: vi.fn(),
 }));
 vi.mock('@/components/Discover/DiscoverGroupsTab', async (original) => ({
   ...await original<typeof import('@/components/Discover/DiscoverGroupsTab')>(),
@@ -143,4 +145,110 @@ it('ignores membership completion after unmount before resolving identities', as
   view.unmount();
   await act(async () => finish([own('opaque-id')]));
   await waitFor(() => expect(resolveGroupFace).not.toHaveBeenCalled());
+});
+
+it('paints My Groups before faces settle and enriches each row independently', async () => {
+  vi.mocked(data.getMyCommunityGroups).mockResolvedValue([own('first'), own('slow')]);
+  let finishFirst!: (face: { name: string }) => void;
+  let finishSlow!: (face: { name: string }) => void;
+  vi.mocked(resolveGroupFace).mockImplementation((id) => new Promise((resolve) => {
+    if (id.endsWith('/first')) finishFirst = resolve;
+    else finishSlow = resolve;
+  }));
+  open('&groupFilter=mine');
+  await waitFor(() => expect(resolveGroupFace).toHaveBeenCalledTimes(2));
+  expect(screen.queryByTestId('explore-groups-mine-skeleton')).not.toBeInTheDocument();
+  expect(screen.getAllByTestId('groups-my-row')).toHaveLength(2);
+  await act(async () => finishFirst({ name: 'First resolved' }));
+  expect(screen.getByText('First resolved')).toBeInTheDocument();
+  expect(screen.getAllByTestId('groups-my-row')).toHaveLength(2);
+  await act(async () => finishSlow({ name: 'Slow resolved' }));
+  expect(screen.getByText('Slow resolved')).toBeInTheDocument();
+});
+
+it('retains My Groups rows when optional face resolution fails', async () => {
+  vi.mocked(data.getMyCommunityGroups).mockResolvedValue([own('face-unavailable')]);
+  vi.mocked(resolveGroupFace).mockRejectedValueOnce(new Error('face unavailable'));
+  open('&groupFilter=mine');
+  expect(await screen.findByTestId('groups-my-row')).toBeInTheDocument();
+  expect(screen.queryByTestId('explore-groups-mine-error')).not.toBeInTheDocument();
+});
+
+it('paints directory cards while their faces are pending', async () => {
+  vi.mocked(data.readGroupDirectory).mockResolvedValue([listed('public')]);
+  let finish!: (face: { name: string }) => void;
+  vi.mocked(resolveGroupFace).mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
+  open('&groupFilter=discover');
+  expect(await screen.findByTestId('groups-discover-card')).toBeInTheDocument();
+  expect(screen.queryByTestId('explore-groups-skeleton')).not.toBeInTheDocument();
+  await act(async () => finish({ name: 'Resolved directory name' }));
+  expect(await screen.findByText('Resolved directory name')).toBeInTheDocument();
+});
+
+it('starts only the visible browser, keeping both browsers loaded on return visits', async () => {
+  render(<MemoryRouter initialEntries={['/people']}><Browser /></MemoryRouter>);
+  await waitFor(() => expect(data.fetchPeoplePage).toHaveBeenCalledTimes(1));
+  expect(data.readGroupDirectory).not.toHaveBeenCalled();
+  expect(data.getMyCommunityGroups).not.toHaveBeenCalled();
+  expect(resolveGroupFace).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByTestId('explore-tab-groups'));
+  await waitFor(() => expect(data.readGroupDirectory).toHaveBeenCalledTimes(1));
+  expect(data.getMyCommunityGroups).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByTestId('explore-tab-profiles'));
+  fireEvent.click(screen.getByTestId('explore-tab-groups'));
+  expect(data.readGroupDirectory).toHaveBeenCalledTimes(1);
+  expect(data.fetchPeoplePage).toHaveBeenCalledTimes(1);
+});
+
+it('does not fetch profiles on a direct Groups link', async () => {
+  open();
+  await waitFor(() => expect(data.readGroupDirectory).toHaveBeenCalledTimes(1));
+  expect(data.fetchPeoplePage).not.toHaveBeenCalled();
+});
+
+it('paints progressive cards, gates unknown follow state and preserves actions/pages on late enrichment', async () => {
+  type Page = Awaited<ReturnType<typeof data.fetchPeoplePage>>;
+  const base = { username: 'alice', provider: 'test.localhost', followers_count: 3, mutuals: 0,
+    is_following: false, follow_pending: true, mutuals_pending: true };
+  let progress!: (page: Page) => void;
+  let finish!: (page: Page) => void;
+  vi.mocked(data.fetchPeoplePage).mockImplementationOnce(({ onProgress }) => {
+    progress = onProgress!;
+    onProgress?.({ people: [base], hasMore: true });
+    return new Promise((resolve) => { finish = resolve; });
+  }).mockResolvedValueOnce({ people: [{ ...base, username: 'bob', follow_pending: false }], hasMore: false });
+  render(<MemoryRouter initialEntries={['/people']}><Browser /></MemoryRouter>);
+  expect(await screen.findByText('@alice')).toBeInTheDocument();
+  expect(screen.queryByTestId('explore-people-skeleton')).not.toBeInTheDocument();
+  expect(screen.getByTestId('people-follow-button')).toBeDisabled();
+  const ready = { ...base, is_following: true, follow_pending: false };
+  await act(async () => progress({ people: [ready], hasMore: true }));
+  vi.mocked(data.unfollowUser).mockResolvedValue(undefined);
+  fireEvent.click(screen.getByTestId('people-follow-button'));
+  await waitFor(() => expect(screen.getByTestId('people-follow-button')).toHaveAttribute('aria-label', 'Follow alice'));
+  expect(data.unfollowUser).toHaveBeenCalledWith('alice', 'test.localhost');
+  fireEvent.click(screen.getByTestId('explore-people-view-more'));
+  await screen.findByText('@bob');
+  await act(async () => finish({ people: [{ ...ready, mutuals: 2, mutuals_pending: false }], hasMore: true }));
+  expect(screen.getAllByTestId('people-card')).toHaveLength(2);
+  expect(screen.getByTestId('people-mutuals')).toHaveTextContent('2 mutuals');
+  expect(screen.getAllByTestId('people-follow-button')[0]).toHaveAttribute('aria-label', 'Follow alice');
+  expect(screen.queryByTestId('explore-people-view-more')).not.toBeInTheDocument();
+});
+
+it('ignores old progressive callbacks after unmount and shows a loading state for pending mutuals', async () => {
+  let progress!: NonNullable<Parameters<typeof data.fetchPeoplePage>[0]['onProgress']>;
+  vi.mocked(data.fetchPeoplePage).mockImplementationOnce((opts) => {
+    progress = opts.onProgress!;
+    progress({ people: [{ username: 'alice', provider: 'test', followers_count: 1,
+      mutuals: 0, is_following: false, mutuals_pending: true }], hasMore: false });
+    return new Promise(() => {});
+  });
+  const view = render(<MemoryRouter initialEntries={['/people?personFilter=mutuals']}><Browser /></MemoryRouter>);
+  expect(screen.getByTestId('explore-people-skeleton')).toBeInTheDocument();
+  view.unmount();
+  render(<MemoryRouter initialEntries={['/people']}><Browser /></MemoryRouter>);
+  await act(async () => progress({ people: [{ username: 'obsolete', provider: 'test', followers_count: 1,
+    mutuals: 9, is_following: true }], hasMore: false }));
+  expect(screen.queryByText('@obsolete')).not.toBeInTheDocument();
 });
