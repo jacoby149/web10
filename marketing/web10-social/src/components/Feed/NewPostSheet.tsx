@@ -1,9 +1,11 @@
 import { useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { X, Repeat2 } from 'lucide-react';
 import PostComposer from '@/components/Feed/PostComposer';
 import { useRepost } from '@/context/RepostContext';
 import { useComposer } from '@/context/ComposerContext';
 import { trackEvent } from '@/lib/analytics';
+import { useUploads } from '@/context/UploadContext';
 
 /**
  * The app-level New Post sheet — the ONE composer (the operator, 29.09.2026:
@@ -24,7 +26,13 @@ import { trackEvent } from '@/lib/analytics';
  * composers' `onPostCreated` callbacks wired per screen.
  */
 export function NewPostSheet() {
-  const { composerOpen, composerGroups, editingPost, closeComposer } = useComposer();
+  const uploads = useUploads();
+  const { composerOpen, composerGroups, editingPost, closeComposer: closeSheet } = useComposer();
+  const [params, setParams] = useSearchParams();
+  function closeComposer() {
+    closeSheet();
+    if (params.has('compose')) { const next = new URLSearchParams(params); next.delete('compose'); setParams(next, { replace: true }); }
+  }
   const { repostingTo, clearReposting } = useRepost();
   const isEditing = !!editingPost;
 
@@ -86,6 +94,7 @@ export function NewPostSheet() {
           repostingTo={repostingTo}
           editingPost={editingPost}
           onRepostCancel={clearReposting}
+          onQueueMediaPost={uploads?.enabled && !isEditing && !repostingTo ? uploads.queue : undefined}
           onPostCreated={() => {
             console.log('[social-composer] post saved/created — closing sheet, notifying screens');
             clearReposting();

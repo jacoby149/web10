@@ -35,6 +35,24 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-03: Durable publication must also preserve claims, versions and prerequisites
+
+[R2–R5 continuation](scans/2026-11/resumable-r2-r5.md) found that a durable queue
+alone does not deliver durable behavior. A creating executor may still write
+after another worker records failure: once claimed, cancellation must remain
+closed through every retry/failure state. Initial media confirmation and final
+publication must replay immutable aware server versions, not fresh timestamps
+that outrank later edits/deletions. Canonical reads rank tombstones before
+filtering; deleted IDs are not absent IDs to recreate. Finally, durable pending
+dependencies must recover lost in-memory FFmpeg work after process restart.
+
+Two fresh same-family reviews produced five reproducible backend findings. The
+confirmation race is pinned by overlapping registered-route calls and actual
+ClickHouse replay against newer deletion/completed HLS versions. Real browser
+Uppy/IndexedDB resume and browser-closed/API-restarted publication pass on a
+synthetic 17 MiB fixture. That is not full app/feature-film/player assurance,
+distributed HLS locking, orphan cleanup or model-diverse convergence; keep off.
+
 ### 2026-11-03: Expiry stops new upload work, not observation of an existing result
 
 [R1 session evidence](scans/2026-11/upload-session-r1.md) uses private S3

@@ -385,13 +385,20 @@ OAuth authorization certifies its source token before code minting: local provid
 
 ## Security invariants
 
-Resumable uploads are not live yet. R1's internal `upload_sessions.py` stores
-owner/app-scoped, revisioned session records in a separate server-only S3 bucket
-using conditional creation/ETag writes. It is unexposed: supplied owner context
-is trusted adapter input, not authentication. R2 still owes verified caller/app
-gates, bucket policy/provisioning, actual multipart provenance/cleanup and live
-integration. Existing uploads remain single-request; the social resumable flow
-is a preview. Contract: `knowledge-base/web10-v3/media/upload-sessions.md`.
+Resumable uploads remain default-off (`RESUMABLE_UPLOADS_ENABLED`). New multipart
+routes verify current human/app/service authority before private conditional S3
+state and native storage operations; completion verifies stored bytes by SHA-256.
+The social queue uses owner-scoped IndexedDB and Uppy for one unedited video;
+unsupported modes retain the existing upload. Generic deferred creates (D97)
+wait for HLS and recheck the original actor/exact targets without a saved JWT.
+Publication claims never reopen cancellation; initial media confirmation and
+publication reuse stable aware server versions instead of overwriting newer state.
+Durable dependencies recover process-local FFmpeg work after restart, with
+per-process queue dedup only. A synthetic browser/real MinIO/ClickHouse/FFmpeg
+restart receipt passes, not actual Nosferatu/full-player or production acceptance.
+Cleanup, cross-process HLS coordination, independent review and activation stay
+OPEN. Contracts: `knowledge-base/web10-v3/media/multipart-uploads.md` and
+`knowledge-base/web10-v3/media/deferred-creates.md`.
 
 Protected CDN media delivery is opt-in and disabled by default. Separate media-only
 RS256 capabilities bind exact bucket/key/GET/expiry; the portable edge core verifies

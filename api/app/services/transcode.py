@@ -33,15 +33,22 @@ logger = logging.getLogger("web10-transcode")
 _job_queue: queue.Queue = queue.Queue()
 _start_lock = threading.Lock()
 _started = False
+_pending: set[tuple[str, str]] = set()
+_pending_lock = threading.Lock()
 
 
 def submit_transcode_job(doc_id: str, author_key: str) -> None:
-    """Enqueue a transcode job. Idempotent enough for v3: the endpoint
-    checks the document's status before submitting, so a double-submit just
-    re-runs the worker (last write wins on the document)."""
+    """Enqueue once per process while queued/running; restart permits recovery."""
     _ensure_started()
-    logger.info("[transcode] job queued — doc_id=%s author=%s queue_size=%s", doc_id, author_key, _job_queue.qsize())
-    _job_queue.put((doc_id, author_key))
+    with _pending_lock:
+        job = (doc_id, author_key)
+        if job in _pending:
+            return
+        _pending.add(job)
+        logger.info(
+            "[transcode] job queued — doc_id=%s author=%s queue_size=%s", doc_id, author_key, _job_queue.qsize()
+        )
+        _job_queue.put(job)
 
 
 def start_workers() -> None:
@@ -72,6 +79,8 @@ def _worker_loop() -> None:
             logger.exception("[transcode] job FAILED — doc_id=%s: %s", doc_id, e)
             _mark_failed(doc_id, author_key, str(e))
         finally:
+            with _pending_lock:
+                _pending.discard((doc_id, author_key))
             _job_queue.task_done()
 
 
@@ -96,6 +105,8 @@ def _set_transcoding_settings(doc_id: str, author_key: str, base_body: dict, ts:
     collections: readers of the original collection never see the settings).
     """
     merged = {**base_body, "transcoding_settings": ts}
+    if ts.get("status") == "done" and not merged.get("thumbnail_object_key") and ts.get("thumbnails"):
+        merged["thumbnail_object_key"] = ts["thumbnails"][0]["url"]["value"]
     ch.update_document(doc_id=doc_id, author_key=author_key, service=service, body=merged)
     logger.info("[transcode] document updated — doc_id=%s status=%s", doc_id, ts.get("status"))
 

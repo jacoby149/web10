@@ -220,7 +220,20 @@ def create_document(request: Request, data: CreateDocument):
     service; (2) external targets require ``can_write_group`` as the group.
     The live grant in (1) also permits an explicit self-target attachment.
     """
-    real_author = _user(data)
+    return create_as(request, data, _user(data), client_id_of(data))
+
+
+def create_as(
+    request: Request,
+    data: CreateDocument,
+    real_author: str,
+    client_id: str | None,
+    *,
+    doc_id=None,
+    version_time=None,
+    exact_targets=False,
+):
+    """Trusted internal actor context; public callers enter through verified token helpers."""
     display_author = data.author_as or real_author
 
     if data.author_as:
@@ -237,7 +250,7 @@ def create_document(request: Request, data: CreateDocument):
 
     # App-contract gate: runs on the REAL author (the token holder), not the
     # display author. The contract is the app's trust in the USER, not the group.
-    _check_app_permission(request, real_author, data.service, "create", client_id_of(data))
+    _check_app_permission(request, real_author, data.service, "create", client_id)
 
     # Gate 1 already authorizes this service in the acting group itself;
     # no self-membership row is needed. Never inherit human external grants.
@@ -249,6 +262,8 @@ def create_document(request: Request, data: CreateDocument):
     log.info("[documents] create target authorization: requested=%d writable=%d", len(data.groups or []), len(writable))
     if data.groups and not writable:
         raise HTTPException(status_code=403, detail="no write access to the requested group")
+    if exact_targets and set(writable) != set(data.groups or []):
+        raise HTTPException(status_code=403, detail="one or more intended destinations are no longer writable")
 
     result = ch.insert_document(
         author_key=display_author,
@@ -259,6 +274,7 @@ def create_document(request: Request, data: CreateDocument):
         ad_mode=data.ad_preference.mode if data.ad_preference else "none",
         ad_target=(data.ad_preference.target or "") if data.ad_preference else "",
         posted_by=real_author,
+        **({"doc_id": doc_id, "version_time": version_time} if doc_id else {}),
     )
     doc_id = result["doc_id"]
 
@@ -268,7 +284,10 @@ def create_document(request: Request, data: CreateDocument):
         # role grants `create` on this service. A bystander with no write grant
         # to any requested group gets a 403; non-writable groups are dropped
         # from the attachment.
-        ch.attach_doc_to_groups(doc_id, writable)
+        if version_time:
+            ch.attach_doc_to_groups(doc_id, writable, version_time=version_time)
+        else:
+            ch.attach_doc_to_groups(doc_id, writable)
         result["groups"] = writable
         # Moderation: check the REAL author (the human), not the group.
         _moderate_post(real_author, doc_id, data.service, data.body, writable)
