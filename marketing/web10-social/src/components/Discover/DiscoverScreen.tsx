@@ -5,12 +5,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useActingAuthor, getActingAuthor, matchesActingAuthor } from '@/data/actingIdentity';
 import {
   readDiscoverFeed,
-  readProfile,
-  readUserProfile,
+  resolveDiscoverProfiles,
   resolveMediaRefs,
   getV3Client,
   getDiscoverGroupId,
-  followersGroupId,
   toggleReactionKind,
   readRepostCounts,
   readMyRepostedIds,
@@ -23,7 +21,6 @@ import { toast, errorMessage } from '@/components/shared/Toast';
 import type {
   PostRecord,
   MediaRecord,
-  ProfileRecord,
   ResolvedMediaRef,
   AdRecord,
 } from '@/data';
@@ -52,9 +49,12 @@ import { useComposer } from '@/context/ComposerContext';
 // The Video wall (the YouTube shape) keeps the shared HomeCard — one source,
 // both apps (the same card the marketing /trending uses).
 import { HomeCard, type DiscoverPost } from '@web10/discover';
-import { peopleFaceSql, facePrepare, reduceFaceRows } from '@web10/discover/face';
 
 const LOG = (...args: unknown[]) => console.log('[social:discover]', ...args);
+
+function withPendingFace(post: PostRecord): PostRecord {
+  return { ...post, author_face_pending: !post.author_key?.includes('/groups/') && !post.avatar_url };
+}
 
 // ── Knob state ↔ URL (the deep-linkable ranking, D36) ───────────────────────
 // The knob state is screen state, so the URL holds it (the deep-link rule:
@@ -304,6 +304,7 @@ function DiscoverHomeCard({
     <HomeCard
       post={postRecordToDiscoverPost(post, mediaItems, authorName)}
       authorAvatar={authorAvatar}
+      authorLoading={post.author_face_pending}
       onPostClick={openPost}
       onAuthorClick={onAuthorClick}
       onCommentClick={openPost}
@@ -391,9 +392,9 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
   // /hot-gossip, so it passes mode="hot-gossip" directly.
   const mode = modeOverride ?? modeFromPath(pathname);
   const [posts, setPosts] = useState<PostRecord[]>([]);
+  const faceGeneration = useRef(0);
+  useEffect(() => () => { faceGeneration.current++; }, [actingIdentity, pathname]);
   const [loading, setLoading] = useState(true);
-  const [profileMap, setProfileMap] = useState<Record<string, ProfileRecord>>({});
-  const [avatarMap, setAvatarMap] = useState<Record<string, string | undefined>>({});
   const [mediaMap, setMediaMap] = useState<Record<string, MediaRecord[]>>({});
   // The reader's own reaction per post (post-actions.md): which posts they've
   // liked / disliked, so the heart/thumb render filled on load. Seeded from
@@ -511,6 +512,21 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
   // first paint (the inline media map is built synchronously in loadDiscover /
   // loadMore before this fires).
   const enrichBoard = useCallback((results: PostRecord[]) => {
+    const generation = faceGeneration.current;
+    const reader = JSON.stringify(getWapi()?.readToken() || null);
+    const pending = results.filter((post) => post.author_face_pending);
+    if (pending.length) {
+      void resolveDiscoverProfiles(pending).then((resolved) => {
+        if (generation !== faceGeneration.current || reader !== JSON.stringify(getWapi()?.readToken() || null)) return;
+        const faces = new Map(resolved.map((post) => [post._id, post]));
+        setPosts((previous) => previous.map((post) => {
+          const face = faces.get(post._id);
+          return face && face.author_key === post.author_key && face.author_username === post.author_username && face.author_provider === post.author_provider ? {
+            ...post, profile: face.profile, avatar_url: face.avatar_url, author_face_pending: false,
+          } : post;
+        }));
+      });
+    }
     const token = getWapi().readToken();
     void (async () => {
       // (1) Engagement counts (the ref pattern): one read of the reactions +
@@ -607,42 +623,6 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
         }
       })();
 
-      // (2) Profiles: one PARALLEL fan-out (was a serial per-author await —
-      // N distinct authors = N sequential round-trips holding the paint).
-      // Anon-capable: a public profile face is `anyone`-readable (profiles
-      // are public by default, 3.149.0), so an anon visitor sees the author's
-      // face too. The own-profile read (readProfile) is token-gated.
-      const authors = new Map<string, { username: string; own: boolean }>();
-      for (const post of results) {
-        const key = `${post.author_username}@${post.author_provider}`;
-        if (authors.has(key)) continue;
-        authors.set(key, {
-          username: post.author_username || '',
-          own: !!(token && post.author_username === token.username),
-        });
-      }
-      const profiles = (async () => {
-        const profileEntries = await Promise.all(
-          [...authors.values()].map(async ({ username, own }) => {
-            try {
-              const profile = own ? await readProfile() : await readUserProfile(username);
-              return profile ? ([username, profile] as const) : null;
-            } catch {
-              // Profile not available — the card falls back to the derived name
-              return null;
-            }
-          }),
-        );
-        // Key by the same author@provider key the grid reads.
-        const map: Record<string, ProfileRecord> = {};
-        for (const post of results) {
-          const profile = profileEntries.find((e) => e && e[0] === post.author_username)?.[1];
-          if (profile) map[`${post.author_username}@${post.author_provider}`] = profile;
-        }
-        // MERGE (a page's authors are a subset of the board's).
-        if (Object.keys(map).length) setProfileMap((prev) => ({ ...prev, ...map }));
-      })();
-
       // (3) Fallback media: only for posts whose refs are bare doc_id strings
       // (write-path reads) — the API read path's refs are already inline
       // objects and never need it. Merges over the inline map.
@@ -700,42 +680,16 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
         }
       })();
 
-      // Profile photos are not post attachments. Resolve the current readable
-      // face once per author/page, including for anonymous readers. The shared
-      // face prepare binds signing to the profile author, not the viewer.
-      const avatars = (async () => {
-        const personal = results.filter((p) => !p.author_key?.includes('/groups/') && p.author_username);
-        const keys = [...new Set(personal.map((p) => p.author_key || p.author_username!))];
-        if (!keys.length) return;
-        const groups = [...new Set(keys.map((key) => {
-          const parts = key.split('/users/');
-          return followersGroupId(parts.length === 2 ? parts[1] : key, parts.length === 2 ? parts[0] : undefined);
-        }))];
-        LOG('avatar read — started, authors:', keys.length);
-        try {
-          const result = await getV3Client().query(peopleFaceSql(keys), {
-            groups,
-            prepare: { face: facePrepare('avatar_ref', 'avatar_url') },
-          });
-          const faces = reduceFaceRows(result.rows, 'author_key');
-          const map: Record<string, string | undefined> = {};
-          for (const key of keys) map[key] = faces.get(key)?.avatar_url;
-          setAvatarMap((prev) => ({ ...prev, ...map }));
-          LOG('avatar read — completed, readable faces:', faces.size);
-        } catch {
-          LOG('avatar read — unavailable, retaining initial fallback');
-        }
-      })();
-
-      await Promise.all([engagement, profiles, fallbackMedia, avatars]);
+      // Personal identity resolves independently; pending slots show skeletons.
+      await Promise.all([engagement, fallbackMedia]);
     })();
   }, [actingIdentity]);
 
   // Build the synchronous inline-media map for a page (the node's read path
   // resolves every post's media inline — presigned thumbnail_url + read_url +
   // dimensions + HLS settings on each media_ref). The wall's first paint
-  // carries the thumbnails after ONE round-trip; the avatar + string-ref
-  // fallback land in the background (enrichBoard) and patch the grid in.
+  // carries the thumbnails. Personal identity slots stay neutral skeletons
+  // while their batch resolves; string-ref media and counts also enrich later.
   const inlineMediaMap = useCallback((results: PostRecord[]): Record<string, MediaRecord[]> => {
     const inlineMap: Record<string, MediaRecord[]> = {};
     for (const p of results) {
@@ -756,6 +710,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
   }, []);
 
   const loadDiscover = useCallback(async (sort: PowerMeanSortConfig | null = null) => {
+    const generation = ++faceGeneration.current;
     // `loading` is the INITIAL skeleton only — a knob-triggered re-read keeps
     // the previous grid on screen (no skeleton flash per twist).
     if (!hasLoadedRef.current) setLoading(true);
@@ -769,7 +724,9 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
       // capture — the on-surface "N views" is the reach over these). 'video'
       // for the video wall, 'discover' for the board (the /feed default +
       // hot-gossip).
-      const results = await readDiscoverFeed(sort, 50, undefined, 0, mode === 'video' ? 'video' : 'discover');
+      const page = await readDiscoverFeed(sort, 50, undefined, 0, mode === 'video' ? 'video' : 'discover');
+      if (generation !== faceGeneration.current) return;
+      const results = page.map(withPendingFace);
       LOG('loadDiscover — got', results.length, 'posts');
       // The board page size (before the video-wall filter) — the paging
       // signal. A full page (>= PAGE_SIZE) means there may be another.
@@ -777,8 +734,8 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
       nextOffsetRef.current = 50;
       sortRef.current = sort;
       setHasMore(more);
-      // Paint the grid NOW — the one read is render-ready (the inline media
-      // map is synchronous; the wall's first paint carries the thumbnails).
+      // Paint content immediately. Unresolved personal identity uses skeletons,
+      // never a guessed final name/avatar while its optional read is pending.
       const inlineMap = inlineMediaMap(results);
       if (Object.keys(inlineMap).length) setMediaMap(inlineMap);
       setPosts(results);
@@ -806,7 +763,10 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
     if (loadingMore || !hasMore) return;
     setLoadingMore(true);
     try {
-      const results = await readDiscoverFeed(sortRef.current, 50, undefined, nextOffsetRef.current);
+      const generation = faceGeneration.current;
+      const page = await readDiscoverFeed(sortRef.current, 50, undefined, nextOffsetRef.current);
+      if (generation !== faceGeneration.current) return;
+      const results = page.map(withPendingFace);
       LOG('loadMore — got', results.length, 'more posts');
       // Advance by the BOARD page size (not the filtered count) — the video
       // wall filters to video posts, so advancing by page.length would re-read
@@ -1124,8 +1084,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
               mediaPosts.length > 0 ? (
                 <div className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3" data-testid="discover-home-grid">
                   {mediaPosts.map((post, index) => {
-                    const authorKey = `${post.author_username}@${post.author_provider}`;
-                    const profile = profileMap[authorKey];
+                    const profile = post.profile;
                     const mediaItems = mediaMap[post._id || ''] || [];
                     const authorName = post.group_identity?.name || profile?.display_name || (post.author_username || '').replace(/[-_]/g, ' ');
 
@@ -1134,7 +1093,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
                         key={post._id || post.created_at}
                         post={post}
                         authorName={authorName}
-                        authorAvatar={post.avatar_url || avatarMap[post.author_key || post.author_username || '']}
+                        authorAvatar={post.avatar_url}
                         mediaItems={mediaItems}
                         liked={!!likedMap[post._id || '']}
                         disliked={!!dislikedMap[post._id || '']}
@@ -1166,8 +1125,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
                 <div className="min-w-0 flex-1">
                   <div className="mx-auto w-full max-w-2xl" data-testid="discover-grid">
                     {visiblePosts.flatMap((post) => {
-                      const authorKey = `${post.author_username}@${post.author_provider}`;
-                      const profile = profileMap[authorKey];
+                      const profile = post.profile;
                       const mediaItems = mediaMap[post._id || ''] || [];
                       const authorName = post.group_identity?.name || profile?.display_name || (post.author_username || '').replace(/[-_]/g, ' ');
 
@@ -1195,7 +1153,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
                           authorName={authorName}
                           authorUsername={post.author_username}
                           authorProvider={post.author_provider}
-                          authorAvatar={post.avatar_url || avatarMap[post.author_key || post.author_username || '']}
+                          authorAvatar={post.avatar_url}
                           mediaItems={mediaItems}
                            reactionCount={post.likes || 0}
                            dislikeCount={post.dislikes || 0}

@@ -1346,7 +1346,20 @@ const DISCOVER_POSTS: SeedDiscoverPost[] = [
 // does. The watch page builds its queue's media map from these inline refs
 // (no second media round-trip), so the mock must carry them.
 export async function readDiscoverFeed(): Promise<unknown[]> {
-  return DISCOVER_POSTS.map((p) => {
+  if (new URLSearchParams(window.location.search).get('discover-inline-audio') === '1') {
+    return [{ ...DISCOVER_POSTS[0], _id: 'inline-audio-fixture', title: 'Livery Stable Blues — audio renderer fixture',
+      text: 'Synthetic one-second silent recording. Real inline audio controls, not a loading placeholder.',
+      tags: ['music'], ad: undefined, media_refs: [{ doc_id: 'inline-audio', read_url: MUSIC_TRACKS[0].media.url,
+        mime_type: 'audio/wav', duration_seconds: 1 }] }];
+  }
+  const prepared = new URLSearchParams(window.location.search).get('discover-prepared-faces') === '1';
+  return DISCOVER_POSTS.map((seed) => {
+    // Synthetic already-resolved face fixture, not a production query or
+    // latency measurement. discover-face-state=pending holds only identity.
+    const p = !prepared || seed.author_key?.includes('/groups/') ? seed : {
+      ...seed, profile: { display_name: `${seed.author_username.charAt(0).toUpperCase()}${seed.author_username.slice(1)} Studio` },
+      avatar_url: creative(seed.author_username.slice(0, 2).toUpperCase(), 96, 96, '#134e4a', '#0f766e', 'image/png').url as string,
+    };
     if (!p.media_refs?.length) return p;
     const resolved = p.media_refs
       .map((id) => {
@@ -1368,6 +1381,10 @@ export async function readDiscoverFeed(): Promise<unknown[]> {
       .filter(Boolean);
     return { ...p, media_refs: resolved };
   });
+}
+export async function resolveDiscoverProfiles(posts: unknown[]): Promise<unknown[]> {
+  if (new URLSearchParams(window.location.search).get('discover-face-state') === 'pending') return new Promise(() => {});
+  return posts;
 }
 // The Shorts feed (shorts.md): the discover board filtered to genuine shorts —
 // a post whose single media is a REAL 9:16 video, re-derived from the resolved

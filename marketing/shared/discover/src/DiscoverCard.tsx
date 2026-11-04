@@ -1,9 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Image as ImageIcon, Film, Music2, Repeat2 } from 'lucide-react';
+import { Image as ImageIcon, Film, Repeat2 } from 'lucide-react';
 import { cn, hashToColor } from './utils';
 import { Avatar, AvatarFallback, Skeleton } from './ui';
 import { VideoPlayer, sourceFromMedia } from './VideoPlayer';
 import { MediaCarousel } from './MediaCarousel';
+import { AudioPlayer } from './AudioPlayer';
 import { PostActions, type ReactionKind } from './PostActions';
 import { MarkdownText } from './MarkdownText';
 import type { DiscoverPost, MediaItem, ReadComments, ReadReplies, CreateComment, DiscoverAd, RepostOriginal, ReadRepostOriginal } from './types';
@@ -62,19 +63,7 @@ function MediaPlaceholder({ type }: MediaPlaceholderProps) {
     );
   }
   if (type === 'music') {
-    return (
-      <div className="flex items-center gap-3 rounded-lg bg-elevated p-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-brand-muted">
-          <Music2 className="h-5 w-5 text-brand-400" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="h-2 w-24 rounded-full bg-muted-foreground/30" />
-          <div className="mt-2 h-1 w-full rounded-full bg-muted-foreground/20">
-            <div className="h-full w-2/5 rounded-full bg-brand" />
-          </div>
-        </div>
-      </div>
-    );
+    return <AudioPlayer />;
   }
   return (
     <div className="aspect-[4/3] w-full overflow-hidden bg-elevated">
@@ -383,13 +372,10 @@ export function DiscoverCard({
   const mediaItems: MediaItem[] = post.media || [];
   const firstMedia = mediaItems[0];
   const isVideoMedia = firstMedia?.mime_type?.startsWith('video/');
-  const mediaType = post.tags?.includes('video')
-    ? 'video'
-    : post.tags?.includes('music')
-      ? 'music'
-      : mediaItems.length > 0
-        ? (isVideoMedia ? 'video' : 'image')
-        : undefined;
+  const isAudioMedia = firstMedia?.mime_type?.startsWith('audio/');
+  const mediaType = mediaItems.length > 0
+    ? (isAudioMedia ? 'music' : isVideoMedia ? 'video' : 'image')
+    : post.tags?.includes('video') ? 'video' : post.tags?.includes('music') ? 'music' : undefined;
 
   // The author + post are click-throughs in remote mode (open web10 social);
   // in interactive mode the surface wires onAuthorClick (in-app navigation).
@@ -519,6 +505,8 @@ export function DiscoverCard({
             maxHeight={mediaMaxHeight}
             testId="discover-media-carousel"
           />
+        ) : isAudioMedia ? (
+          <div className="p-4"><AudioPlayer src={firstMedia.url} durationSeconds={firstMedia.duration_seconds} /></div>
         ) : isVideoMedia && firstMedia?.url ? (
           <DiscoverVideo media={firstMedia} maxHeight={mediaCap(firstMedia)} />
         ) : mediaType === 'image' && mediaItems.length > 0 ? (

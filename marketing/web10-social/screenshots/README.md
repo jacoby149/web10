@@ -65,7 +65,23 @@ screenshots at 1440×900 and 375×812.
   `capture.mjs`.
 - Want different seed content → edit `PEERS` in `harness/mock-data.ts`.
 
+## Discover identity-loading captures
+
+For Posts (`--route /hot-gossip`) or Video (`--route /video`),
+`--extra 'discover-face-state=pending'` holds the synthetic personal identity
+lookup indefinitely while content remains visible. Wait/scroll to
+`[data-testid="post-author-avatar-loading"]` or
+`[data-testid="home-author-avatar-loading"]`. For resolved synthetic identities,
+use `--extra 'discover-prepared-faces=1'`; group faces remain separate in both.
+These fixture states verify rendering, not production query timing or real auth.
+Write outputs to `.context/` through `SCREENSHOT_OUTPUT_DIR`.
+
 ## Music captures
+
+The ordinary Discover audio-card fixture is separate from the dedicated queue:
+`--route /hot-gossip --extra 'discover-inline-audio=1' --ready '[data-testid="audio-player"]'`.
+It returns one group-authored post with a real one-second silent WAV data URL.
+This verifies the inline renderer, not the reported production recording.
 
 Music uses the real app-level `MusicProvider` and `MusicPlayer`, with six
 synthetic tracks, inline SVG artwork and a short silent WAV data URL. Restoring

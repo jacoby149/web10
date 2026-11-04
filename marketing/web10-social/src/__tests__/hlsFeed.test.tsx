@@ -84,6 +84,19 @@ beforeEach(() => {
 });
 
 describe('FeedScreen — HLS in the feed (D44)', () => {
+  it('renders resolved audio as a playable attachment, never as an image', async () => {
+    const { readFeedPage } = await import('@/data');
+    vi.mocked(readFeedPage).mockResolvedValueOnce({
+      posts: [{ _id: 'song-post', author_username: 'artist', author_provider: 'test.localhost', created_at: new Date().toISOString(),
+        text: 'A full recording', media_refs: [{ doc_id: 'song', read_url: 'https://cdn.example/song.mp3', mime_type: 'audio/mpeg' }] }],
+      has_more: false, next_cursor: null,
+    });
+    const { default: FeedScreen } = await import('@/components/Feed/FeedScreen');
+    render(<MemoryRouter><FeedScreen /></MemoryRouter>);
+    await screen.findByRole('button', { name: 'Play audio' });
+    expect(document.querySelector('audio')).toHaveAttribute('src', 'https://cdn.example/song.mp3');
+    expect(document.querySelector('img[src="https://cdn.example/song.mp3"]')).not.toBeInTheDocument();
+  });
   it('a transcoded video post renders the hls.js player (not a plain <video>); a direct MP4 post renders native', async () => {
     const { readFeedPage } = await import('@/data');
     // The feed read carries the resolved refs inline: the transcoded one
