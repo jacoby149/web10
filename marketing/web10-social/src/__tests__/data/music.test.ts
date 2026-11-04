@@ -126,6 +126,21 @@ describe('music composition', () => {
     expect(musicTrackFromPost(post(), [media[0], { ...media[1], mime_type: 'video/mp4' }])).toBeNull();
   });
 
+  it('resolves album art with the shared cover precedence and never the recording itself', () => {
+    // The audio's own resolved cover wins.
+    const audioCover = { ...media[0], thumbnail_url: 'https://cover' } as MediaRecord;
+    expect(musicTrackFromPost(post(), [audioCover, media[1]])?.artworkUrl).toBe('https://cover');
+    // A legacy thumbnail that is the recording itself is not art; the supporting image is.
+    const legacy = { ...media[0], thumbnail_url: 'https://audio' } as MediaRecord;
+    const imageFile = { ...media[1], url: 'https://artfile' } as MediaRecord;
+    expect(musicTrackFromPost(post(), [legacy, imageFile])?.artworkUrl).toBe('https://artfile');
+    // A supporting image's own thumbnail beats its file URL.
+    const imageThumb = { ...imageFile, thumbnail_url: 'https://art-thumb' } as MediaRecord;
+    expect(musicTrackFromPost(post(), [media[0], imageThumb])?.artworkUrl).toBe('https://art-thumb');
+    // No usable picture: no art, not an error.
+    expect(musicTrackFromPost(post(), media)?.artworkUrl).toBeUndefined();
+  });
+
   it('counts raw Music rows for paging even when ads/nonmusic are removed and retains Discover behavior', async () => {
     client.read.mockResolvedValue([
       { doc_id: 'ad', author_key: 'node/users/alice', tags: ['ad', 'music'], body: {}, created_at: '' },

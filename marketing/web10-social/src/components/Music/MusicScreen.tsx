@@ -21,7 +21,7 @@ function time(seconds: number) {
   return `${Math.floor(value / 60)}:${String(value % 60).padStart(2, '0')}`;
 }
 function Artwork({ track, className }: { track?: MusicTrack; className?: string }) {
-  return <MusicArtwork url={track?.media.thumbnail_url} alt={track ? title(track) : ''} className={className} />;
+  return <MusicArtwork url={track?.artworkUrl} alt={track ? title(track) : ''} className={className} />;
 }
 
 export default function MusicScreen() {

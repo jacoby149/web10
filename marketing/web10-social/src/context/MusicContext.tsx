@@ -339,10 +339,18 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
   }, [sessionKey]);
 
   useEffect(() => {
-    if (!navigator.mediaSession) return;
-    navigator.mediaSession.playbackState = state.current ? state.isPlaying ? 'playing' : 'paused' : 'none';
-    navigator.mediaSession.metadata = state.current && typeof MediaMetadata !== 'undefined'
-      ? new MediaMetadata({ title: musicTitle(state.current), artist: musicArtist(state.current) }) : null;
+    const mediaSession = navigator.mediaSession;
+    if (!mediaSession) return;
+    const track = state.current;
+    mediaSession.playbackState = track ? state.isPlaying ? 'playing' : 'paused' : 'none';
+    console.log('[music-player] media session metadata', { track: Boolean(track), playing: state.isPlaying, artwork: Boolean(track?.artworkUrl) });
+    if (!track || typeof MediaMetadata === 'undefined') { mediaSession.metadata = null; return; }
+    const metadata: MediaMetadataInit = { title: musicTitle(track), artist: musicArtist(track) };
+    // The resolved cover so the phone's system media controls (previous/next,
+    // pause, scrubber) show the artwork. A refreshed track re-reads its post,
+    // recomputes artworkUrl and lands here with a fresh URL.
+    if (track.artworkUrl) metadata.artwork = [{ src: track.artworkUrl }];
+    mediaSession.metadata = new MediaMetadata(metadata);
   }, [state.current, state.isPlaying]);
 
   return <MusicContext.Provider value={value}>{children}</MusicContext.Provider>;
