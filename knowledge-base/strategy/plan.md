@@ -1243,6 +1243,9 @@ docs before code, per the rule at the top.
 
 ## SIGMOD 2027 Industry Track — the full paper (research/)
 
+- [~] **DOMAIN-PORTABILITY: one website, another account (D97)** — isolated client demo of actual DNS claim, persisted domain-only reader follow, old-provider loss, account retarget and the same follow reading new public posts after reload. Owns `research/domain-portability-demo/` plus a bounded test-only federation-runner extension; no node/social/SDK authority change. Gates: offline failure/credential/lifecycle controls, actual local TXT verification, connected desktop/375px flow, exact receipts/cleanup, fresh bounded review and all CI. No private-grant inheritance or absolute-unbannability claim; see the demo contract.
+- [✓ 4.5.0 local] **D97 client/UI component** — domain-only persistence, fixed-home credentials, configured public targets, verified alias and URL-held reader/creator/account/domain views. Twenty-two client controls pass; two continuation races reproduced then denied. DNS/runner and committed connected proof remain separate components; production social follows unchanged.
+
 - [✓ 4.0.1 merged #1360] **Owner-list compatibility follow-up** — restore bare-key-only local healing pending Phase A; regression and all PR checks pass. Existing duplicate rows are not removed; no historical method waiver.
 - [✓ 4.0.2 local] **H-REPLAY: clean-base two-node evidence** — after #1360 merged, the full unchanged scenario passes on clean merged-dev revision 0acc771e2efc with an empty patch. Exact source/input, 34 events, issuer/cache and per-resource cleanup receipts pass fresh bounded review; all 1,929 API tests plus eight subtests pass. Normal PR CI remains required before merge; not full migration, self-join or production/security assurance.
 

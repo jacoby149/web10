@@ -1374,6 +1374,9 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+- [~] **DOMAIN-PORTABILITY: one website, another account (D97)** — actual DNS claim, reader-owned persisted domain-only subscription, old creator API unavailable, DNS retarget/verify on a new account, unchanged follow/document ID and public posts after reload. Owns `research/domain-portability-demo/` and bounded test-only `research/federation-demo/run.py` extension; production API/SDK/social follows unchanged. Gates: offline malformed/ambiguous/DNS/private-target/credential/lifecycle checks, real local TXT and authenticated hookup, desktop/375px connected evidence, source/image/status receipts and verified scoped cleanup, fresh bounded review and all checks. Acceptance: no refollow, no old-provider approval/data migration, no private-permission inheritance; disclose lab/app-contract fixtures and DNS-control/availability limits.
+- [✓ 4.5.0 local] **D97 client/UI component** — fixed-home private domain bookmark plus fresh DNS/verified-alias anonymous public reads, URL-held views and irreversible generations; 22 offline controls pass with two red→green continuation repairs. Separate DNS/runner and connected proof components required; no production social or principal migration.
+
 - [✓ 3.257.11 local] **Shorten paper title** - operator-requested title edit in `research/workshop/`, aligned thesis rationale and rebuilt PDF. No evaluation changes.
 
 - [✓ 3.257.10 local] **Remove red review line numbers** - operator-authorized `research/workshop/` formatting fix: remove ACM review mode, rebuild the 12-page PDF, inspect the first page and verify no red text spans across all pages. Content and evaluation scope unchanged.
