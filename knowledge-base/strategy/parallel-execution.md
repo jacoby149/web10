@@ -1374,6 +1374,8 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+- [✓ 4.5.5 local] **Lower paper page numbers** — footer-only 36pt downward shift; rebuilt 12-page PDF, all body text/coordinates and page breaks unchanged, folios centered/in bounds, first/last renderings inspected. Operator-requested footer customization; no content/evaluation changes.
+
 - [✓ 4.5.4 local] **Conference-facing manuscript cleanup** — no internal PR/decision/invariant IDs, commit/patch history or roadmap promises in the narrative; immutable artifacts retain provenance. Scope public continuity/design comparisons without changing measurements. All 12 PDF pages inspected, folios verified, no horizontal overflow; broader evaluation and literature review remain open.
 
 - [✓ 4.5.3 local] **Domain prototype manuscript and bottom page numbers** — bounded result/figure and immutable artifact links, rebuilt 13-page PDF, verified centered footer sequence 1–13 including page one; references begin on page 12. Runtime and production unchanged.

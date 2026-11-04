@@ -1243,6 +1243,8 @@ docs before code, per the rule at the top.
 
 ## SIGMOD 2027 Industry Track — the full paper (research/)
 
+- [✓ 4.5.5 local] **Lower paper page numbers** — operator-requested 36pt increase in footer separation; all 12 centered folios move down approximately half an inch. PDF comparison verifies unchanged non-footer text/coordinates and pagination; first/last pages inspected. Custom footer only, text-block margins and fonts unchanged.
+
 - [✓ 4.5.4 local] **Conference-facing manuscript cleanup** — remove internal PR/decision IDs, development-history narration and roadmap promises; retain source-specific provenance in linked artifacts, scope portability and novelty claims, and preserve all table data/code/figures. Rebuilt 12-page PDF inspected, bottom folios verified and references start on page 12; broader evaluation/literature/submission checks remain open.
 
 - [✓ 4.5.3 local] **Domain prototype manuscript and bottom page numbers** — add the verified public-subscription result, exact browser figure and immutable artifacts with bounded claims; rebuild the 13-page PDF and verify centered bottom numbers 1–13 including page one. References start on page 12; no production integration or submission-readiness claim.
