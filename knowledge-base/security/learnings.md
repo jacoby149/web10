@@ -53,6 +53,11 @@ restored. Private env persistence is also distinct from normal release forwardin
 the pinned-image activation is live, but older main Compose can fall back to legacy
 delivery on redeploy. No broad scan/PASS or immediate-revocation claim.
 
+Follow-up: normal main promotion b4e3b4bd9a84 and its green deployment now preserve
+all seven forwarded media fields on a new API image; active/backup env remain
+identical and actual CDN read/range/expiry/browser checks pass again. This closes
+the specific deployment-forwarding gap, not the broader review/renewal gates.
+
 ### 2026-11-03: Merged-source replay closes a receipt gate, not security coverage
 
 After #1360 merged, the unchanged H scenario passes on clean HEAD exactly
