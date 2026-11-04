@@ -4,6 +4,59 @@ The operator asked for the real hookup, retaining MinIO. Production now issues
 protected `media.web10.app` URLs, and a synthetic video plays through them. This
 is a bounded operational result, not a declaration that every release gate closed.
 
+## Follow-up: normal deployment persistence verified (00:52–00:56 UTC)
+
+The operator approved the normal dev→main release batch. Ancestry reconciliation
+PR #1367 preserves the exact dev tree before its changelog addition; promotion
+PR #1366 then passes every applicable check and is merged with a merge commit at
+`b4e3b4bd9a84b5b8ae823221fd8e91f20c74e424`. Production deploy
+[41749919820](https://github.com/jacoby149/web10/actions/runs/41749919820), image
+publication [41749919850](https://github.com/jacoby149/web10/actions/runs/41749919850)
+and all four main E2E shards
+[41749919886](https://github.com/jacoby149/web10/actions/runs/41749919886) pass.
+
+**The deployment-persistence gate is closed.** The normal workflow creates a new
+API container/image with all seven forwarded media fields and enabled issuance.
+Four runtime source-file hashes match the promoted revision. The new image is
+`sha256:7c20538aad31e869c7e20b58b3e9f3adcb0bcdaea268b7535a2a8f83d7ae7c18`;
+MinIO's container remains unchanged and active/authoritative private env copies
+remain identical. Public status reports **4.0.7 / b4e3b4bd**. The canonical Compose
+on main now forwards the settings; the temporary pinned-image activation is no
+longer the live deployment mechanism.
+
+After deployment, actual owner-issued CDN reads match bytes, ranges return 206,
+missing/naturally expired capabilities return 403, and synthetic MP4 playback again
+completes four seconds/96 frames at desktop/375px. A new synthetic production
+account passes signup/login without uploading objects. Public marketing and
+anonymous social pages render at desktop/375px; all six screenshots, including
+the playback pair, are inspected. These are not full-player renewal tests.
+
+Preserve the probe failures: API root GET is correctly 405 (POST-only); local
+Chromium was missing before browser launch; marketing has an h1 but no main
+element. Corrected acceptance tooling and installed matching Chromium; no live
+application fix or TLS weakening was needed. API docs/auth/social/marketing/apex
+health checks all return 200. Local API verification passes 1929 tests plus eight
+subtests, one opt-in skip, and Ruff; frontend test/build coverage is from passing
+promotion CI, not the local attempts that lacked vitest.
+
+Successful follow-up receipt SHA-256 anchors (private immutable receipt directory
+unchanged):
+
+| Stage | Receipt digest |
+|---|---|
+| New runtime generation | `f8af1b630de12aa1fd87d7f0bcee644caa3927d9c24429c2bef30f89290cbb93` |
+| Public release status | `aa6689a6c7ecdbdd3ed80a1f18ab5f632cac482e9264d14404e13db8bca7b2b3` |
+| API-issued delivery | `a304383da914ebb3373d9cc04ac7d672473cf89ecabad971571287fa3f4b6138` |
+| Natural expiry | `9196b716c377fbbafcdf769f82eb59f37608393844793344bbf394b063b390eb` |
+| Browser playback | `800f1c019bc1428cc9ec1ceab79bed6aeebabb61713fd7d6c4da9472a90b3005` |
+| Public surface captures | `f88cb9bed841e98a5d9e85c111feed4bf33c2f7d97fb54561d6b3608ebf88b34` |
+| New signup/login | `2b09000bf1a3409f86cb919b257f2ce3eb392e50622b71e6472538c94c347609` |
+
+The sections below retain the initial activation evidence. Original private
+rollback snapshots restore that earlier API generation, not the new release.
+Document/query issuance, full-player renewal, provider measurements/log audit,
+model-diverse security review and capacity testing remain separate work.
+
 ## What is live
 
 | Component | Verified state |
@@ -88,13 +141,13 @@ Receipt SHA-256 anchors:
 | Final API acceptance | `cc1962b2992dcfca3724e3b266f7cdce2640e96bcb590a80b2f891ce9df8f723` |
 | Final node status | `128b13ba763783cd817c4f86d195d2b1f7fd70947b5ac57a4e9154fc1ce54f6d` |
 
-## Recovery and the next deployment
+## Recovery and the next deployment (initial activation history)
 
-**The current activation survives API restarts, but normal main deployment
-persistence is still open.** Main lacks the merged dev Compose forwarding. A
-normal production deployment from that older Compose can remove the media env
-from the container and fall back to legacy delivery. Do not silently promote
-unrelated dev changes just to close this gap.
+At initial activation, the pinned-image configuration survived API restarts but
+main lacked the merged dev Compose forwarding. That older Compose could remove
+the media env on deployment and fall back to legacy delivery. The normal-release
+follow-up above closes this gap after explicit batch approval; no blind promotion
+was performed.
 
 The scope-owned private vault under `~/web10-ops/cdn-production-<recorded-scope>/`
 contains `env.prod.before`, `env.prod.candidate`, `activation-manifest.json`,
@@ -106,8 +159,8 @@ then recreates only the API from its pinned rollback snapshot. Enabled recovery
 can use the corresponding snapshot after revalidating current state. Neither
 operation changes the origin credential or immediately revokes issued capabilities.
 
-Next: deliberately carry the forwarding through production release coordination,
-then verify the normal deployed generation. Initial authenticated document/query
+The initially required forwarding promotion and deployed-generation verification
+are complete in the follow-up above. Initial authenticated document/query
 issuance, the full social player's HLS/long-video automatic renewal, representative
 provider resource measurements, logging/export completeness and independent
 model-diverse security review remain open. Operator-directed activation occurred
