@@ -82,6 +82,10 @@ The ordinary Discover audio-card fixture is separate from the dedicated queue:
 `--route /hot-gossip --extra 'discover-inline-audio=1' --ready '[data-testid="audio-player"]'`.
 It returns one group-authored post with a real one-second silent WAV data URL.
 This verifies the inline renderer, not the reported production recording.
+Add `discover-inline-art=1` to include the synthetic cover; use
+`--route /posts-following` with the same flags to exercise the Following feed.
+Wait for `[data-testid="audio-artwork"] img.opacity-100` to capture loaded art.
+Without the art flag, the same post exercises the deliberate disc fallback.
 
 Music uses the real app-level `MusicProvider` and `MusicPlayer`, with six
 synthetic tracks, inline SVG artwork and a short silent WAV data URL. Restoring

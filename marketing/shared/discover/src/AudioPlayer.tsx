@@ -1,16 +1,43 @@
 import { useEffect, useRef, useState } from 'react';
-import { Music2, Pause, Play, RotateCcw } from 'lucide-react';
+import { Disc3, Pause, Play, RotateCcw } from 'lucide-react';
+import { Skeleton } from './ui';
+import type { MediaItem } from './types';
 
 const time = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
 const validDuration = (value?: number) => value && Number.isFinite(value) && value > 0 ? value : 0;
 const control = 'flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-muted text-brand-300 transition-colors hover:bg-brand/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50';
 
-/** URL replacement owns a fresh transport; no autoplay or persisted signed URL. */
-export function AudioPlayer(props: { src?: string; durationSeconds?: number }) {
+export function audioArtwork(media: MediaItem, items: MediaItem[] = []): string | undefined {
+  const image = items.find((item) => item.mime_type?.startsWith('image/'));
+  return (media.thumbnail_url !== media.url ? media.thumbnail_url : undefined) || image?.thumbnail_url || image?.url || undefined;
+}
+
+interface AudioPlayerProps {
+  src?: string;
+  durationSeconds?: number;
+  title?: string;
+  artist?: string;
+  artworkUrl?: string;
+}
+
+function AlbumArtwork({ src, title }: { src?: string; title: string }) {
+  const [failed, setFailed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  return <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded bg-surface sm:h-20 sm:w-20" data-testid="audio-artwork">
+    {!src || failed ? <div role="img" aria-label="No album artwork" className="flex h-full w-full items-center justify-center bg-brand-muted/30 text-brand-300"><Disc3 className="h-8 w-8" strokeWidth={1.5} /></div> : <>
+      {!loaded && <Skeleton className="absolute inset-0 h-full w-full" aria-label="Loading cover art" />}
+      <img src={src} alt={`${title} cover art`} className={`h-full w-full object-cover ${loaded ? 'opacity-100' : 'opacity-0'}`}
+        onLoad={() => setLoaded(true)} onError={() => { console.warn('[audio-player] artwork unavailable; using disc fallback'); setFailed(true); }} loading="lazy" />
+    </>}
+  </div>;
+}
+
+/** URL replacement owns a fresh transport; art-only changes preserve playback. */
+export function AudioPlayer(props: AudioPlayerProps) {
   return <AudioTransport key={props.src || 'unavailable'} {...props} />;
 }
 
-function AudioTransport({ src, durationSeconds }: { src?: string; durationSeconds?: number }) {
+function AudioTransport({ src, durationSeconds, title = 'Audio recording', artist, artworkUrl }: AudioPlayerProps) {
   const ref = useRef<HTMLAudioElement>(null);
   const live = useRef(true);
   const requested = useRef(false);
@@ -63,27 +90,33 @@ function AudioTransport({ src, durationSeconds }: { src?: string; durationSecond
     }
   };
 
-  if (!src) return <div className="flex items-center gap-3 rounded-lg bg-elevated p-3 text-sm text-muted-foreground" data-testid="audio-unavailable"><Music2 className="h-5 w-5" />Audio unavailable</div>;
   return (
-    <div className="w-full rounded-lg bg-elevated p-3" data-testid="audio-player">
-      <audio ref={ref} src={src} preload="none" aria-label="Attached audio"
+    <div className="w-full rounded-lg border border-border bg-elevated p-4" data-testid="audio-player">
+      {src && <audio ref={ref} src={src} preload="none" aria-label="Attached audio"
         onPlay={(event) => { if (!requested.current) { event.currentTarget.pause(); return; } setPlaying(true); setFailed(false); }}
         onPause={() => setPlaying(false)} onEnded={() => setPlaying(false)}
         onLoadedMetadata={(event) => setDuration(validDuration(event.currentTarget.duration) || validDuration(durationSeconds))}
         onDurationChange={(event) => setDuration(validDuration(event.currentTarget.duration) || validDuration(durationSeconds))}
         onTimeUpdate={(event) => setPosition(Number.isFinite(event.currentTarget.currentTime) ? event.currentTarget.currentTime : 0)}
-        onError={() => { console.warn('[audio-player] media load failed'); setFailed(true); setPlaying(false); setStarting(false); }} />
+        onError={() => { console.warn('[audio-player] media load failed'); setFailed(true); setPlaying(false); setStarting(false); }} />}
       <div className="flex items-center gap-3">
-        <button type="button" className={control} onClick={() => void play()} disabled={starting}
-          aria-label={failed ? 'Retry audio' : playing ? 'Pause audio' : 'Play audio'}>
+        <AlbumArtwork key={artworkUrl || 'no-art'} src={artworkUrl} title={title} />
+        <div className="min-w-0 flex-1">
+          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Audio</p>
+          <p className="line-clamp-2 text-sm font-semibold leading-snug text-foreground" data-testid="audio-track-title">{title}</p>
+          {artist && <p className="mt-1 truncate text-xs text-muted-foreground" data-testid="audio-track-artist">{artist}</p>}
+        </div>
+        <button type="button" className={control} onClick={() => void play()} disabled={starting || !src}
+          aria-label={!src ? 'Audio unavailable' : failed ? 'Retry audio' : playing ? 'Pause audio' : 'Play audio'}>
           {failed ? <RotateCcw className="h-5 w-5" /> : playing ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
         </button>
-        <div className="min-w-0 flex-1">
+      </div>
+        <div className="mt-3 min-w-0">
           <div className="flex justify-between gap-2 text-xs tabular-nums text-muted-foreground">
-            <span>{starting ? 'Starting…' : 'Audio'}</span><span>{time(position)} / {duration ? time(duration) : '—:—'}</span>
+            <span>{!src ? 'Unavailable' : failed ? 'Playback unavailable' : starting ? 'Starting…' : playing ? 'Playing' : 'Ready to play'}</span><span>{time(position)} / {duration ? time(duration) : '—:—'}</span>
           </div>
           <input type="range" aria-label="Seek audio" min={0} max={duration || 1} step={0.1}
-            value={Math.min(position, duration || 0)} disabled={!duration || failed}
+            value={Math.min(position, duration || 0)} disabled={!src || !duration || failed}
             className="h-11 w-full cursor-pointer appearance-none rounded bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 [&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-border [&::-webkit-slider-thumb]:-mt-1 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-brand [&::-moz-range-track]:h-1 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-border [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-brand"
             onChange={(event) => {
               if (!ref.current) return;
@@ -92,7 +125,7 @@ function AudioTransport({ src, durationSeconds }: { src?: string; durationSecond
               setPosition(next);
             }} />
         </div>
-      </div>
+      {!src && <p className="mt-2 text-sm text-muted-foreground" data-testid="audio-unavailable">Audio unavailable</p>}
       {failed && <p role="alert" className="mt-2 text-sm text-muted-foreground">Audio could not be played. Try again or refresh the post for a fresh link.</p>}
     </div>
   );
