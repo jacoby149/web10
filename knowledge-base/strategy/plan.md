@@ -1316,7 +1316,7 @@ the workshop draft's deferred evaluation section (`research/first-draft/main.tex
 (wall-not-membrane), the user-addressed network, application composition, and
 the full evidence set (connected interop, two-node IAM, domain prototype,
 K1000 fan-out, operating point). `research/second-draft/main.tex` — the working
-manuscript since 04.11.2026 (4.6.5): an operator-directed fresh approach from
+manuscript since 04.11.2026 (4.8.2): an operator-directed fresh approach from
 the top, same title and same verified evidence, new structure---data plane
 split out, new overview figure, new "Lessons from Running It" section,
 Q&A-structured evaluation, positioning-form related work. The original
@@ -1394,24 +1394,24 @@ results, but no evaluation or novelty claim is complete without its evidence.
 
 - [✓ 3.249.2] **Python implementation rationale (supporting note)** — `research/why-python.md` covers FastAPI/ClickHouse responsibilities, commercial suitability, security visibility, rewrite tradeoffs and evaluation requirements. Draft untouched; E1–E6/W1–W6 not completed by this note.
 
-- [✓ 4.6.5 local] **W1: scaffold** — delivered as `research/second-draft/`
+- [✓ 4.8.2 local] **W1: scaffold** — delivered as `research/second-draft/`
   (operator redirected the target from `research/sigmod/`: "take a shot at a
   second draft in a second draft folder"). acmart sigconf, 12-page budget
   verified (12 body + ~1.7 references pages), "Lessons from Running It"
   section included — the industry-track differentiator.
-- [✓ 4.6.5 local] **W2: all sections written fresh** — the operator's direction
+- [✓ 4.8.2 local] **W2: all sections written fresh** — the operator's direction
   ("approach it almost from the top … dont want to take anything for granted")
   supersedes "expand, don't rewrite": every section re-derived from the thesis
   spine, not ported; first-draft prose used as the verified fact source only.
 - [ ] **W3: the Evaluation section** — fill from E1–E6. The load-bearing wall.
-  Real numbers, not adjectives. *(Drafted at first-draft parity in 4.6.5 —
+  Real numbers, not adjectives. *(Drafted at first-draft parity in 4.8.2 —
   Q&A structure, all verified evidence carried; still gated on the E1–E5 data
   that has not landed: full-feed and matched-baseline measurements, conformance
   counts.)*
 - [ ] **W4: Related Work** — from `research/related-work.md` (the gap check
   must be `[YES]` before this section freezes). *(Drafted in positioning form
-  in 4.6.5; gap check still OPEN.)*
-- [✓ 4.6.5 local] **W5: Lessons + Conclusion** — new §7 "Lessons from Running
+  in 4.8.2; gap check still OPEN.)*
+- [✓ 4.8.2 local] **W5: Lessons + Conclusion** — new §7 "Lessons from Running
   It": the four app-specific node surfaces built and removed (genericity),
   the self-healing schema race (what broke), the shared columnar table's
   day-to-day cost (what it gave up), and the fan-out measurement lesson;
@@ -1419,7 +1419,7 @@ results, but no evaluation or novelty claim is complete without its evidence.
   no internal IDs.
 - [ ] **W6: formatting + page budget** — 12 pages + refs, ACM sigconf,
   figures (the two app figs + new eval figures), references complete.
-  Freeze Nov 20. *(4.6.5 draft verified: 12 body + ~1.7 references pages,
+  Freeze Nov 20. *(4.8.2 draft verified: 12 body + ~1.7 references pages,
   no overfull hboxes, one small 1.166pt final-page overfull vbox; operator
   review of the draft is the next gate before the freeze.)*
 
