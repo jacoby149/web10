@@ -1226,6 +1226,8 @@ docs before code, per the rule at the top.
 
 ## SIGMOD 2027 Industry Track — the full paper (research/)
 
+- [✓ 4.5.3 local] **Domain prototype manuscript and bottom page numbers** — add the verified public-subscription result, exact browser figure and immutable artifacts with bounded claims; rebuild the 13-page PDF and verify centered bottom numbers 1–13 including page one. References start on page 12; no production integration or submission-readiness claim.
+
 - [✓ 4.5.2 local prototype] **DOMAIN-PORTABILITY: one website, another account (D97)** — committed integration 0932d6643940 passes full desktop/375px real TXT claim, one private domain-only follow, old-provider stop, retarget/reverify/reload and new public posts without refollowing. Same ID/body, private200→403 and five lifecycle controls verified; safe receipts, 10 captures and cleanup pass bounded review. Components land separately under normal CI; not deployed social follows or absolute unbannability.
 - [✓ 4.5.0 local] **D97 client/UI component** — fixed-home credentials, allowed public targets/verified alias, URL-held views and irreversible generations; 22 controls pass with two red→green continuation checks. Production social follows unchanged.
 - [✓ 4.5.1 local] **D97 DNS/runner component** — authoritative local UDP TXT/JSON, secret-gated controls, frontend-only loopback bridge, four real DNS tests and default cleanup/topology test pass; full original IAM regression passes from 0932d6643940. No host/public DNS writes.

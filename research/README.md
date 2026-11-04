@@ -10,7 +10,7 @@ HTTPS home certification and owner-granted foreign access, removal and regrant
 under cached identity. Three runs pass: the latest uses clean merged-dev
 revision `0acc771e2efc` after #1360, with an empty patch and no overlay. Earlier
 base-plus-patch and owner-branch receipts remain separate history. The
-12-page manuscript includes this evidence without claiming full migration,
+manuscript includes this evidence without claiming full migration,
 foreign self-join, browser enrollment or production federation.
 
 The separate [public domain-follow prototype](domain-portability-demo/RESULTS.md)
@@ -111,7 +111,7 @@ the official CFP governs current logistics.
 | `experiments/README.md` | Known harness blockers; no runnable/reproducible claim yet |
 | `experiments/costfn/` | Cost-function harness and separately recorded 100-creator and 1,000-creator trials. Main paper table: K10/100/1000, 20 cells, 400 samples; A is a direct precompiled scan baseline, B/C compare per-group and batched resolution. Summary receipt and table checker retained |
 | `draft/outline.md` | Industry-paper section plan |
-| `workshop/main.tex` | The paper (12 pp including references, builds with tectonic; no horizontal overflow, remaining font/underfull and small final vertical-box warnings). Includes cross-app browser evidence and the isolated two-node base-plus-patch correctness result; broader federation/performance/security gates stay open. |
+| `workshop/main.tex` | The paper (13 pp including references, which start on page 12; body stays within the 12-page-plus-references budget). Tectonic builds with no horizontal overflow, remaining font/underfull and small final vertical-box warnings. Includes cross-app browser, two-node IAM and public domain-follow prototype evidence; broader deployment/performance/security gates stay open. |
 
 ## Remaining Gates
 

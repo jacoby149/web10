@@ -1351,6 +1351,8 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+- [✓ 4.5.3 local] **Domain prototype manuscript and bottom page numbers** — bounded result/figure and immutable artifact links, rebuilt 13-page PDF, verified centered footer sequence 1–13 including page one; references begin on page 12. Runtime and production unchanged.
+
 - [✓ 4.5.2 local prototype] **DOMAIN-PORTABILITY: one website, another account (D97)** — final committed integration0932d6643940 passes desktop1440x1000 and375x812: actual TXT claim, one reader-owned domain-only follow, old API/TLS unavailable, retarget/reverify/reload and new public posts without refollowing. Same ID/body, old-private200/new-private403, five UI lifecycle seams and credential-free reads verified. Exact safe receipts/10 captures/cleanup pass bounded review; components require normal CI/merge order, no production or absolute-unbannability claim.
 - [✓ 4.5.0 local] **D97 client/UI component** — 402 code/test lines, fixed home authority, allowed anonymous targets/verified alias, URL-held views and captured generations; 22 tests and two red→green continuations pass. Production social follows unchanged.
 - [✓ 4.5.1 local] **D97 DNS/runner component** — 462 code/test lines, real local TXT/JSON, secret/path/target controls, frontend-only loopback publishing and safe default mode; four DNS/default topology-fault tests plus committed default IAM regression pass. No host/public DNS or production changes.
