@@ -37,6 +37,8 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
+- [✓ 4.0.10 local] **Music device-report repair** - reproduce the reported mini-player title mismatch and broken artwork; share caption/title/artist presentation, replace failed art with a disc fallback, and recover requested playback once through the original authorized post before exposing retry. Seven new regressions cover occurrence/position, stale completion, pause/session replacement, no unsolicited autoplay and artwork. All 1,760 social tests, production build/typecheck, native Chromium synthetic MP3/HTTP-403 regression and desktop/375px screenshot inspection pass. Exact phone/production cause and connected listening acceptance remain open; no deployment.
+
 - [✓ 4.0.9 local] **Profile music belongs in Posts and Media** - remove the dedicated profile Music tab for owners and visitors; retain music in the normal Posts grid/feed and Media wall. Legacy `?tab=music` links canonicalize to Media without losing other URL parameters. Audio tiles use artwork or a note fallback and open the original post. Dedicated `/music` listening remains unchanged. All 1,753 social tests, production build/typecheck and seeded desktop/375px inspection pass. No deployment or real-playback claim.
 
 - [✓ 3.259.10] **Import Your Life removed (D95)** - the `/import` marketing page, the import docs, the empty-state import CTAs and the export-link health check are gone; the node import pipeline + social app Import tab + staging surface are cut separately (the D95 code gut, tracked in the `import` lane).

@@ -23,6 +23,14 @@ isolated real-storage first/return saves and unavailable refs; real MP3/video
 playback and expired-URL refresh; actual phone Media Session/background
 behavior. Public playlist discovery and catalog-wide indexing stay deferred.
 
+4.0.10 adds the bounded device-report repair: consistent caption titles,
+failed-art fallback and one-shot media-error recovery. Seven new regressions,
+all 1,760 social tests and production typecheck/build pass. Native Chromium
+desktop/375px plays a generated MP3 after an intercepted HTTP 403; repeated
+failure remains retryable and all four screenshots are inspected. Node reads
+are mocked, so this is not real signed-expiry, production-object, phone or
+background-playback acceptance. Those release gates above remain open.
+
 ## Starting Point
 
 - Music-tagged Discover reads, MP3 upload and author-marked music videos.
@@ -50,6 +58,12 @@ behavior. Public playlist discovery and catalog-wide indexing stay deferred.
    elapsed/total time, volume, previous/next, shuffle, repeat off/all/one,
    automatic next-track playback, and an editable session queue (play next,
    append, remove). Failed playback has a visible retryable state.
+   A requested track's first media failure re-reads its original authorized post
+   once and resumes its position after fresh metadata. A second failure stays
+   visible; no automatic retry loop. Pausing, choosing another track or changing
+   session invalidates pending recovery. Selected-but-paused failures never autoplay.
+   Titles fall back to the caption consistently in rows, menus, mini-player and
+   Media Session. Missing or failed artwork uses the same designed fallback.
 3. URL-addressable now-playing and queue panels. A track link resolves the
    original readable post, including tracks outside the current Explore page.
    Reload restores the selected view/track without unsolicited autoplay.

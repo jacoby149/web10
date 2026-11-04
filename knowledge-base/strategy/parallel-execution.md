@@ -58,6 +58,8 @@ says what can happen **at the same time**.
 
 ### Lane: century-club-findings (this workspace)
 
+- [✓ 4.0.10 local] **Music device-report repair** - owns Music components/context/shared presentation helpers, focused social tests and screenshot regression fixtures. Repair caption/title mismatch, broken artwork and bounded authorized URL recovery without changing API/access policy. Gates passed: seven new regressions, all 1,760 social tests/build and native Chromium synthetic MP3/403 desktop/375px screenshot inspection. Exact device/production diagnosis and connected listening acceptance remain open; no deployment.
+
 - [✓ 4.0.9 local] **Profile music belongs in Posts and Media** - owns social UserProfileScreen/WallTile, focused profile regressions, screenshot fixtures and serialized KB records. Remove the owner/visitor Music tab, preserve music in Posts/Media and canonicalize legacy Music-tab URLs to Media. Audio tiles render artwork/note fallback and open original posts. Gates passed: ten focused regressions, all 1,753 social tests, production build/typecheck and desktop/375px screenshot inspection. Dedicated listening destination unchanged; no deployment or connected-playback claim.
 
 - [✓ 3.258.0 local] **Music listening experience** - `music-listening.md` contract implemented in social Music components/context/data and app/layout, with focused tests and screenshot fixtures. Compact rows/overflow sheet, persistent queue/transport, URL search/views and collection-backed Saved Music/playlists; 1,761 social tests, build/typecheck and desktop/375px inspection pass. Silent-fixture browser navigation/menu smoke, not real playback or connected persistence. No API/SDK/security policy changes, production writes or deployment.

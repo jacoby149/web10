@@ -28,6 +28,7 @@ export default defineConfig({
       { find: /^@\/data\/ads-catalog$/, replacement: path.resolve(here, './harness/mock-ads-catalog.ts') },
       { find: /^@\/data\/creator-analytics$/, replacement: path.resolve(here, './harness/mock-creator-analytics.ts') },
       { find: /^@\/data\/moderation$/, replacement: path.resolve(here, './harness/mock-moderation.ts') },
+      { find: /^@\/data\/music$/, replacement: path.resolve(here, './harness/mock-music.ts') },
       { find: /^@\/data$/, replacement: path.resolve(here, './harness/mock-data.ts') },
       { find: '@', replacement: path.resolve(root, './src') },
     ],
