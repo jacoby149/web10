@@ -21,7 +21,7 @@ export interface MediaPostDraft {
   }[];
 }
 
-export type UploadPhase = 'uploading' | 'paused' | 'offline' | 'needs-file'
+export type UploadPhase = 'preparing' | 'uploading' | 'paused' | 'offline' | 'needs-file' | 'verifying'
   | 'processing' | 'processing-failed' | 'publishing' | 'publish-failed'
   | 'published' | 'cancelled';
 
@@ -42,6 +42,7 @@ export interface UploadTask {
   file: UploadFileHint;
   durationSeconds?: number;
   uploadedBytes: number;
+  transferredBytes?: number;
   phase: UploadPhase;
   remainingSeconds?: number;
   error?: string;
@@ -108,7 +109,7 @@ export function uploadReducer(task: UploadTask, action: UploadAction): UploadTas
       return task.phase === 'publishing' ? { ...move('published'), postPath: action.postPath } : task;
     case 'cancel':
       // Once publication starts, cancellation cannot promise to undo a write.
-      return transferPhases.includes(task.phase) || task.phase === 'processing' || task.phase === 'processing-failed'
+      return transferPhases.includes(task.phase) || task.phase === 'preparing' || task.phase === 'verifying' || task.phase === 'processing' || task.phase === 'processing-failed'
         ? move('cancelled') : task;
   }
 }
@@ -120,7 +121,8 @@ export function formatBytes(bytes: number) {
 }
 
 export function uploadPercent(task: UploadTask) {
-  return task.file.size > 0 ? Math.min(100, Math.max(0, Math.floor(task.uploadedBytes / task.file.size * 100))) : 0;
+  const bytes = task.phase === 'uploading' && Number.isFinite(task.transferredBytes) ? Math.max(task.uploadedBytes, task.transferredBytes!) : task.uploadedBytes;
+  return task.file.size > 0 ? Math.min(100, Math.max(0, Math.floor(bytes / task.file.size * 100))) : 0;
 }
 
 export function remainingTime(seconds?: number) {

@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { fileHint, formatBytes, remainingTime, transferPhases, uploadPercent, type UploadAction, type UploadTask } from './uploadState';
 
 const phaseLabels = {
+  preparing: 'Preparing upload', verifying: 'Verifying upload',
   uploading: 'Uploading', paused: 'Upload paused', offline: 'Waiting for connection',
   'needs-file': 'Select your file to continue', processing: 'Preparing video',
   'processing-failed': 'Video preparation failed', publishing: 'Publishing',
@@ -15,7 +16,7 @@ const phaseLabels = {
 export type UploadCommand = (id: string, action: UploadAction) => void;
 const actionClass = 'min-h-11 gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card';
 
-export function UploadCard({ task, onCommand }: { task: UploadTask; onCommand: UploadCommand }) {
+export function UploadCard({ task, onCommand, onSelectFile }: { task: UploadTask; onCommand: UploadCommand; onSelectFile?: (id: string, file: File) => void }) {
   const [confirmCancel, setConfirmCancel] = useState(false);
   const selectFile = useRef<HTMLInputElement>(null);
   const confirmButton = useRef<HTMLButtonElement>(null);
@@ -23,13 +24,14 @@ export function UploadCard({ task, onCommand }: { task: UploadTask; onCommand: U
   const transfer = transferPhases.includes(task.phase);
   const error = task.phase === 'processing-failed' || task.phase === 'publish-failed';
   const percent = uploadPercent(task);
+  const transferred = task.phase === 'uploading' ? Math.max(task.uploadedBytes, task.transferredBytes || 0) : task.uploadedBytes;
   const statusIcon = task.phase === 'published' ? CheckCircle2 : task.phase === 'offline' ? WifiOff
     : error ? AlertTriangle : task.phase === 'paused' ? Pause : transfer ? Upload : Clapperboard;
   const StatusIcon = statusIcon;
   const send = (action: UploadAction) => onCommand(task.id, action);
-  const canCancel = transfer || task.phase === 'processing' || task.phase === 'processing-failed';
+  const canCancel = transfer || task.phase === 'preparing' || task.phase === 'verifying' || task.phase === 'processing' || task.phase === 'processing-failed';
   const steps = ['Upload', 'Prepare', 'Publish'];
-  const currentStep = transfer ? 0 : task.phase === 'processing' || task.phase === 'processing-failed' ? 1 : 2;
+  const currentStep = transfer || task.phase === 'preparing' || task.phase === 'verifying' ? 0 : task.phase === 'processing' || task.phase === 'processing-failed' ? 1 : 2;
   const eta = task.phase === 'uploading' ? remainingTime(task.remainingSeconds) : undefined;
 
   return (
@@ -60,21 +62,24 @@ export function UploadCard({ task, onCommand }: { task: UploadTask; onCommand: U
         </div>
 
         {transfer && <>
-          <div role="progressbar" aria-label="Video upload" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent} aria-valuetext={`${formatBytes(task.uploadedBytes)} of ${formatBytes(task.file.size)} uploaded`} className="mt-3 h-2 overflow-hidden rounded-full bg-elevated">
+          <div role="progressbar" aria-label="Video upload" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent} aria-valuetext={`${formatBytes(transferred)} of ${formatBytes(task.file.size)} transferred; ${formatBytes(task.uploadedBytes)} saved`} className="mt-3 h-2 overflow-hidden rounded-full bg-elevated">
             <div className={cn('h-full rounded-full bg-brand transition-all duration-150 motion-reduce:transition-none', task.phase !== 'uploading' && 'bg-brand-400/60')} style={{ width: `${percent}%` }} />
           </div>
           <div className="mt-2 flex flex-wrap justify-between gap-2 text-xs tabular-nums text-muted-foreground">
-            <span>{formatBytes(task.uploadedBytes)} of {formatBytes(task.file.size)}</span>
+            <span>{formatBytes(transferred)} of {formatBytes(task.file.size)}</span>
+            {transferred > task.uploadedBytes && <span>{formatBytes(task.uploadedBytes)} saved</span>}
             {eta && <span>{eta}</span>}
           </div>
         </>}
 
         <div className="mt-4 text-sm leading-relaxed text-muted-foreground">
+          {task.phase === 'preparing' && <p>Checking the original video and saving your draft. No video bytes have been uploaded yet.</p>}
+          {task.phase === 'verifying' && <p>Your video bytes are uploaded. We’re verifying the file and saving the pending post. Keep this tab open until video preparation starts; if interrupted, return here to continue without uploading again.</p>}
           {task.phase === 'uploading' && <p>You can browse web10 while this uploads. If closing this tab or locking your phone pauses it, your uploaded progress is saved. Reselect the original file when you return to resume—not start from zero.</p>}
           {task.phase === 'paused' && <p>Your uploaded progress is saved. Resume whenever you’re ready.</p>}
           {task.phase === 'offline' && <p>Your uploaded progress is saved. We’ll retry when you’re back online.</p>}
           {task.phase === 'needs-file' && <p><strong className="font-medium text-foreground">{formatBytes(task.uploadedBytes)} already uploaded.</strong> Select the original file to resume where you left off—not start from zero. Your title, description and audience are still here.</p>}
-          {task.phase === 'processing' && <p>Upload complete. We’re making your video ready to watch. You can close this page; we’ll let you know when your post is ready.</p>}
+          {task.phase === 'processing' && <p>Upload complete. We’re making your video ready to watch. You can close this page; your post will publish automatically when the video is ready.</p>}
           {task.phase === 'processing-failed' && <p>Your original video is uploaded. Try preparing it again—there’s no need to upload it twice.</p>}
           {task.phase === 'publishing' && <p>Your video is ready. We’re publishing your post to the audience you chose.</p>}
           {task.phase === 'publish-failed' && <p>Your video is ready and has not been uploaded again. Retry publication once its current status has been checked.</p>}
@@ -101,7 +106,10 @@ export function UploadCard({ task, onCommand }: { task: UploadTask; onCommand: U
           {task.phase === 'needs-file' && <>
             <input ref={selectFile} type="file" className="hidden" aria-label="Select original video" accept="video/mp4,video/webm" onChange={event => {
               const file = event.target.files?.[0];
-              if (file) send({ type: 'select-file', file: fileHint(file) });
+              if (file) {
+                if (onSelectFile) onSelectFile(task.id, file);
+                else send({ type: 'select-file', file: fileHint(file) });
+              }
               event.target.value = '';
             }} />
             <Button variant="brand" className={actionClass} onClick={() => selectFile.current?.click()}><Upload className="h-4 w-4" aria-hidden="true" />Select original file</Button>

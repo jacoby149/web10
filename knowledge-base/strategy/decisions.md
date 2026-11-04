@@ -9,6 +9,28 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D98 — Wait for HLS through a generic durable create, not a browser-owned final write [in-progress]
+
+The operator chose **wait for HLS**, with automatic publication after browser
+close. A frontend timer cannot deliver that. Admit one immutable generic document
+create plus owned media dependencies into the private conditional state bucket.
+Capture the human/app/acting author and exact targets, persist no human JWT,
+and recheck live grants before execution. The admitted intent can finish after
+its request token expires, within seven days; it cannot become a general credential.
+
+Cancel-before-admit leaves a tombstone. A publication claim is irreversible even
+through failure/retry; stable IDs and aware server timestamps prevent retries
+outranking newer edits or deletions. Pending dependencies recover lost FFmpeg
+queue work after process restart. This retains D60 and rejects a social publish
+endpoint, original-first placeholders and requiring the browser to return.
+
+Implemented default-off with bounded synthetic browser/real-storage/real-engine
+restart evidence, not release assurance. Cleanup, cross-process HLS coordination,
+feature-film/full-player acceptance and independent review stay open. Contract:
+`web10-v3/media/deferred-creates.md`; evidence: `security/scans/2026-11/resumable-r2-r5.md`.
+
+---
+
 ### D97 — Public domain-follow continuity demonstration, not a new principal [decided, research scope]
 
 Operator, 03.11.2026: "user uses dns with his web10 account ... point to another

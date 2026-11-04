@@ -4,7 +4,7 @@ import { UploadCard, type UploadCommand } from './UploadCard';
 import { isFinished, uploadPercent, type UploadTask } from './uploadState';
 import { Button } from '@/components/ui/button';
 
-export function UploadCenter({ tasks, onCommand, composePath }: { tasks: UploadTask[]; onCommand: UploadCommand; composePath: string }) {
+export function UploadCenter({ tasks, onCommand, composePath, onSelectFile }: { tasks: UploadTask[]; onCommand: UploadCommand; composePath: string; onSelectFile?: (id: string, file: File) => void }) {
   const [params] = useSearchParams();
   const selected = params.get('upload');
   const visible = selected ? tasks.filter(task => task.id === selected) : tasks;
@@ -19,7 +19,7 @@ export function UploadCenter({ tasks, onCommand, composePath }: { tasks: UploadT
     </div>
     <p className="mb-6 mt-3 text-sm leading-relaxed text-muted-foreground">{pending ? `${pending} post${pending === 1 ? '' : 's'} in progress. Your audience sees it when it’s ready.` : 'A home for the posts you’re bringing to life.'}</p>
     {selected && <Link to="/uploads" className="mb-4 inline-flex min-h-11 items-center gap-2 rounded text-sm text-brand-300 hover:text-brand-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><ArrowLeft className="h-4 w-4" aria-hidden="true" />All uploads</Link>}
-    {visible.length ? <div className="space-y-4">{visible.map(task => <UploadCard key={task.id} task={task} onCommand={onCommand} />)}</div> : <div className="rounded-xl border border-dashed border-border bg-card px-6 py-12 text-center" data-testid="upload-empty">
+    {visible.length ? <div className="space-y-4">{visible.map(task => <UploadCard key={task.id} task={task} onCommand={onCommand} onSelectFile={onSelectFile} />)}</div> : <div className="rounded-xl border border-dashed border-border bg-card px-6 py-12 text-center" data-testid="upload-empty">
       <Upload className="mx-auto h-8 w-8 text-brand-300" strokeWidth={1.5} aria-hidden="true" />
       <h2 className="mt-4 font-display text-xl font-medium text-foreground">{selected ? 'Upload not found' : 'Your next story starts here'}</h2>
       <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">{selected ? 'This upload may belong to another session or no longer be available. Check all uploads before starting again.' : 'Choose a video and write your post. Uploading starts only when you press Post.'}</p>
@@ -34,7 +34,7 @@ export function UploadIndicator({ tasks }: { tasks: UploadTask[] }) {
   const active = tasks.filter(task => !isFinished(task));
   const task = active[0] || tasks.find(task => task.phase === 'published');
   if (!task) return null;
-  const status = task.phase === 'published' ? 'Your post is ready' : task.phase === 'uploading' ? `Uploading · ${uploadPercent(task)}%`
+  const status = task.phase === 'published' ? 'Your post is ready' : task.phase === 'preparing' ? 'Preparing upload' : task.phase === 'verifying' ? 'Verifying upload' : task.phase === 'uploading' ? `Uploading · ${uploadPercent(task)}%`
     : task.phase === 'paused' ? 'Upload paused' : task.phase === 'offline' ? 'Connection lost'
       : task.phase === 'needs-file' ? 'Select your file to continue' : task.phase === 'processing' ? 'Preparing your video'
         : task.phase === 'publishing' ? 'Publishing your post' : 'Your post needs attention';

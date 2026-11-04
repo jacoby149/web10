@@ -83,6 +83,10 @@ UPLOAD_URL_EXPIRY = int(os.getenv("UPLOAD_URL_EXPIRY", "300"))
 READ_URL_EXPIRY = int(os.getenv("READ_URL_EXPIRY", "60"))
 MAX_UPLOAD_SIZE = int(os.getenv("MAX_UPLOAD_SIZE", "524288000"))
 
+# R2: explicit opt-in; session metadata is never stored in the public media bucket.
+RESUMABLE_UPLOADS_ENABLED = os.getenv("RESUMABLE_UPLOADS_ENABLED", "false").strip().lower() in ("true", "1", "yes")
+RESUMABLE_STATE_BUCKET = os.getenv("RESUMABLE_STATE_BUCKET", "web10-upload-state")
+
 # Separate media-only credentials; never reuse the node authentication key.
 _media_enabled = os.getenv("MEDIA_DELIVERY_ENABLED", "false").strip().lower()
 if _media_enabled not in ("true", "false", "1", "0", "yes", "no"):
@@ -137,7 +141,7 @@ QUERY_EVAL_READABLE_MODE = os.getenv("QUERY_EVAL_READABLE_MODE", "per-group").lo
 for v in list(globals()):
     # Evaluation values above already parse their environment types. In
     # particular, the string "0" must not enable a policy-bypass flag.
-    if v.startswith(("QUERY_EVAL_", "MEDIA_DELIVERY_")):
+    if v.startswith(("QUERY_EVAL_", "MEDIA_DELIVERY_", "RESUMABLE_")):
         continue
     env_val = os.getenv(v)
     if env_val is not None:

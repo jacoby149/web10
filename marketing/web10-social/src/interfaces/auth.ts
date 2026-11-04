@@ -24,6 +24,7 @@
 import { API_ORIGIN, AUTH_ORIGIN } from '../lib/origins';
 import { getV3Client } from '../data/v3';
 import type { TokenPayload, V3AppCR, V3Client } from 'web10-npm';
+import { invalidateUploadSession } from '../lib/uploadSession';
 
 const LOG = (...args: unknown[]) => console.log('[social]', ...args);
 const LOG_ERR = (...args: unknown[]) => console.error('[social]', ...args);
@@ -150,6 +151,7 @@ function createSocialAuth(): SocialAuth {
   }
 
   function signOut(): void {
+    invalidateUploadSession();
     if (!web10) return;
     LOG('signOut — scrubbing token cookie');
     web10.scrubTokenCookie();
@@ -165,6 +167,7 @@ function createSocialAuth(): SocialAuth {
     if (!web10) return;
     LOG('authListen registered');
     web10.authListen(() => {
+      invalidateUploadSession();
       LOG('authListen fired — signed in as', JSON.stringify(readToken()));
       // The SDK's authListen set the cookie but not the data client's
       // state.token (its v3Post is state-first). Re-sync state with the

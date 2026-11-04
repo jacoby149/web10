@@ -13,11 +13,11 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_valida
 log = logging.getLogger("web10-upload-session")
 MAX_RECORD_BYTES = 16 * 1024
 CONFLICT_CODES = {"PreconditionFailed", "ConditionalRequestConflict", "412", "409"}
-Phase = Literal["reserved", "uploading", "completing", "completed", "aborting", "aborted"]
+Phase = Literal["reserved", "uploading", "completing", "completed", "aborting", "aborted", "failed"]
 TRANSITIONS = {
     "reserved": {"uploading", "aborted"},
     "uploading": {"completing", "aborting"},
-    "completing": {"completed"},
+    "completing": {"completed", "failed"},
     "aborting": {"aborted"},
 }
 
@@ -53,6 +53,7 @@ class UploadIntent(BaseModel):
     filename: str = Field(min_length=1, max_length=255)
     mime_type: str = Field(min_length=1, max_length=127)
     size_bytes: int = Field(strict=True, gt=0)
+    checksum_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
 
 
 class UploadSession(BaseModel):
@@ -68,6 +69,7 @@ class UploadSession(BaseModel):
     phase: Phase = "reserved"
     upload_id: str | None = Field(default=None, min_length=1, max_length=2048)
     object_etag: str | None = Field(default=None, min_length=1, max_length=256)
+    failure_code: Literal["verification_failed"] | None = None
 
     @model_validator(mode="after")
     def coherent(self):
@@ -81,12 +83,14 @@ class UploadSession(BaseModel):
             raise ValueError("invalid object namespace")
         if self.expires_at <= self.created_at or self.created_at < 0:
             raise ValueError("invalid deadline")
-        if self.phase in {"uploading", "completing", "completed", "aborting"} and not self.upload_id:
+        if self.phase in {"uploading", "completing", "completed", "aborting", "failed"} and not self.upload_id:
             raise ValueError("multipart id required")
         if self.phase == "reserved" and self.upload_id is not None:
             raise ValueError("unbound reservation required")
         if (self.phase == "completed") != (self.object_etag is not None):
             raise ValueError("completion result required only for completed state")
+        if (self.phase == "failed") != (self.failure_code is not None):
+            raise ValueError("failure disposition required only for failed state")
         return self
 
 
@@ -114,7 +118,7 @@ class UploadSessionStore:
             or max_size <= 0
         ):
             raise ValueError("invalid server limits")
-        self.s3, self.bucket = s3, bucket
+        self.s3, self.bucket, self.media_bucket = s3, bucket, media_bucket
         self.lifetime, self.max_size, self.clock = lifetime_seconds, max_size, clock
 
     def _key(self, owner: UploadOwner, session_id: str) -> tuple[str, str]:
@@ -158,7 +162,8 @@ class UploadSessionStore:
         # must leave enough space to record every schema-valid completion result.
         future = record.model_copy(update={"phase": "completed", "object_etag": "\x00" * 256})
         if len(raw) > MAX_RECORD_BYTES or (
-            record.phase not in {"completed", "aborted"} and len(future.model_dump_json().encode()) > MAX_RECORD_BYTES
+            record.phase not in {"completed", "aborted", "failed"}
+            and len(future.model_dump_json().encode()) > MAX_RECORD_BYTES
         ):
             raise ValueError("session record exceeds encoded limit")
         log.info("[upload-session] conditional write started")
@@ -197,7 +202,7 @@ class UploadSessionStore:
     def _replay(self, existing: UploadSession, intent: UploadIntent) -> UploadSession:
         if existing.intent != intent:
             raise SessionConflict("request id reused with different intent")
-        if existing.phase not in {"completed", "aborted"} and self.clock() >= existing.expires_at:
+        if existing.phase not in {"completed", "aborted", "failed"} and self.clock() >= existing.expires_at:
             raise SessionExpired()
         return existing
 
@@ -219,20 +224,35 @@ class UploadSessionStore:
         """Record a verified existing object after expiry; never initiate multipart completion."""
         return self._advance(owner, session_id, revision, "completed", object_etag=object_etag, observed=True)
 
-    def _advance(self, owner, session_id, revision, target, *, upload_id=None, object_etag=None, observed=False):
+    def reconcile_failed(self, owner: UploadOwner, session_id: str, revision: str) -> UploadSession:
+        """Record a known final-object verification failure, not an ambiguous outcome."""
+        return self._advance(owner, session_id, revision, "failed", failure_code="verification_failed", observed=True)
+
+    def _advance(
+        self,
+        owner,
+        session_id,
+        revision,
+        target,
+        *,
+        upload_id=None,
+        object_etag=None,
+        failure_code=None,
+        observed=False,
+    ):
         record, etag = self._load(owner, session_id)
         if record.revision != revision or target not in TRANSITIONS.get(record.phase, set()):
             raise SessionConflict("stale revision or invalid transition")
         if (
             self.clock() >= record.expires_at
             and target not in {"aborting", "aborted"}
-            and not (observed and target == "completed")
+            and not (observed and target in {"completed", "failed"})
         ):
             raise SessionExpired()
         if upload_id is not None and not (record.phase == "reserved" and target == "uploading"):
             raise SessionConflict("cannot replace bound multipart id")
         updated = record.model_dump()
-        updated.update(phase=target, revision=uuid4().hex, object_etag=object_etag)
+        updated.update(phase=target, revision=uuid4().hex, object_etag=object_etag, failure_code=failure_code)
         if upload_id is not None:
             updated["upload_id"] = upload_id
         next_record = UploadSession.model_validate(updated)

@@ -262,7 +262,7 @@ export async function readMyRepostedIds(): Promise<Set<string>> {
 /**
  * Determine which groups a post should be attached to based on visibility.
  */
-function determinePostGroups(visibility: Visibility, username: string): string[] {
+export function determinePostGroups(visibility: Visibility, username: string): string[] {
   switch (visibility) {
     case 'public':
       return [getDiscoverGroupId(), followersGroupId(username)];

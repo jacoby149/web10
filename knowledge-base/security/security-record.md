@@ -15,6 +15,19 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Resumable R2–R5 continuation (03.11.2026) — OPEN
+
+[Bounded implementation/review/integration record](scans/2026-11/resumable-r2-r5.md).
+Two fresh same-family read-only reviews reproduce five backend defects: consumed
+completion observation/checksum disposition was repaired earlier; the new reviews
+pin cancellation-after-claim failure, naive timestamps, stale deletion reads,
+lost preparation on restart and concurrent confirmation overwriting later state.
+Deterministic regressions and real MinIO/ClickHouse/FFmpeg/provider-browser evidence
+support bounded repairs, not a dry/diverse review or L1–L4 PASS. Private state,
+verified live actors and credential-free immutable creates remain the intended
+boundary. Orphan cleanup, cross-process HLS, full app/film/player and release
+review stay OPEN; default-off and 500 MiB are unchanged.
+
 ## Upload-Session R1 Foundation (03.11.2026)
 
 [Bounded local evidence](scans/2026-11/upload-session-r1.md): internal/unexposed

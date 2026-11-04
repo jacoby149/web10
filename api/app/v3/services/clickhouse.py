@@ -887,6 +887,7 @@ def insert_document(
     ad_mode: str = "none",
     ad_target: str = "",
     posted_by: str = "",
+    version_time: datetime | None = None,
 ) -> dict:
     """Insert a document into the documents table. Generates doc_id if not provided.
 
@@ -895,7 +896,7 @@ def insert_document(
     post it is the JWT username while author_key is the group_id. Server-set
     only — the caller must always provide it.
     """
-    now = _now()
+    now = version_time or _now()
     if not doc_id:
         doc_id = _gen_doc_id()
     client.insert(
@@ -1053,6 +1054,38 @@ def delete_document(doc_id: str, author_key: str, service: str):
     )
 
 
+def get_document_version(doc_id: str, author_key: str) -> dict | None:
+    """Exact latest history, including deletion, for durable-create reconciliation.
+
+    Never filter deletion before ranking. A tombstone is an observed result,
+    not an absent ID that a retry may recreate. Deletion wins timestamp ties.
+    """
+    result = client.query(
+        "SELECT doc_id, author_key, collection_name, body, ref_value, tags, created_at, updated_at, "
+        "ad_mode, ad_target, posted_by, deleted FROM documents "
+        "WHERE doc_id = %(doc_id)s AND author_key = %(author_key)s "
+        "ORDER BY updated_at DESC, deleted DESC LIMIT 1",
+        {"doc_id": doc_id, "author_key": author_key},
+    )
+    if not result.result_rows:
+        return None
+    row = result.result_rows[0]
+    return {
+        "doc_id": row[0],
+        "author_key": row[1],
+        "service": row[2],
+        "body": _parse_json(row[3]),
+        "ref_value": row[4],
+        "tags": list(row[5]),
+        "created_at": _iso_utc(row[6]),
+        "updated_at": _iso_utc(row[7]),
+        "ad_mode": row[8] or "none",
+        "ad_target": row[9] or "",
+        "posted_by": row[10] or "",
+        "deleted": bool(row[11]),
+    }
+
+
 def get_document(doc_id: str, author_key: str) -> dict | None:
     """Get a single document by doc_id and author_key."""
     result = client.query(
@@ -1188,11 +1221,11 @@ def can_read_carrier_post(media_doc_id: str, media_author: str, reader: str, aut
 # ---------------------------------------------------------------------------
 
 
-def attach_doc_to_groups(doc_id: str, group_ids: list[str]):
+def attach_doc_to_groups(doc_id: str, group_ids: list[str], version_time: datetime | None = None):
     """Attach a document to multiple groups."""
     if not group_ids:
         return
-    now = _now()
+    now = version_time or _now()
     rows = [[doc_id, gid, now, now, 0] for gid in group_ids]
     client.insert("doc_groups", rows)
 
@@ -4423,7 +4456,9 @@ def check_recovery_code(contact: str, code: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def confirm_media_upload(user_key: str, metadata: dict) -> dict:
+def confirm_media_upload(
+    user_key: str, metadata: dict, doc_id: str | None = None, version_time: datetime | None = None
+) -> dict:
     """Confirm a media upload by storing metadata in documents table.
 
     Returns the standard document envelope (same shape as create/read) — the
@@ -4431,8 +4466,8 @@ def confirm_media_upload(user_key: str, metadata: dict) -> dict:
     every client that maps the response through the V3Document shape
     (web10-social's profile photo upload 500'd into a client TypeError).
     """
-    now = _now()
-    doc_id = _gen_doc_id()
+    now = version_time or _now()
+    doc_id = doc_id or _gen_doc_id()
     # Positional insert — must match the documents column count (12, including
     # the v3 ad_preference columns ad_mode/ad_target + the group-as-author
     # posted_by column). A media doc never carries an ad, so both are their
