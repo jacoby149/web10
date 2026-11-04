@@ -244,6 +244,25 @@ describe('MusicScreen', () => {
     expect(screen.getByRole('link', { name: 'Manage collection & order' })).toHaveAttribute('href', '/u/listener/saved/new-playlist');
   });
 
+  it('replaces failed playlist art with the music fallback and retries a changed cover URL', async () => {
+    const col = { ...collection('night', 'Night drives'), coverUrl: 'https://cdn/broken.webp' };
+    vi.mocked(data.getMyCollections).mockResolvedValue([col, collection('empty', 'No cover')]);
+    renderScreen([], '/music?view=playlists');
+    const card = await screen.findByRole('button', { name: /Night drives/ });
+    const image = card.querySelector('img')!;
+    fireEvent.error(image);
+    expect(card.querySelector('img')).toBeNull();
+    expect(within(card).getByTestId('music-artwork-fallback')).toBeInTheDocument();
+    expect(within(screen.getByRole('button', { name: /No cover/ })).getByTestId('music-artwork-fallback')).toBeInTheDocument();
+    vi.mocked(data.getMyCollections).mockResolvedValue([{ ...col, coverUrl: 'https://cdn/fresh.webp' }]);
+    fireEvent.change(screen.getByLabelText('New private playlist'), { target: { value: 'Trigger library refresh' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }));
+    await waitFor(() => expect(data.getMyCollections).toHaveBeenCalledTimes(2));
+    fireEvent.click(screen.getByRole('button', { name: 'Playlists' }));
+    const refreshed = await screen.findByRole('button', { name: /Night drives/ });
+    expect(refreshed.querySelector('img')).toHaveAttribute('src', 'https://cdn/fresh.webp');
+  });
+
   it('does not create Saved Music on visit and delegates the first save then refreshes saved state', async () => {
     renderScreen([track({ id: 't1', author: 'alice', title: 'First favorite' })]);
     const menu = await openMenu('First favorite');

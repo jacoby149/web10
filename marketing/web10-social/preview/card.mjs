@@ -196,6 +196,27 @@ export async function shortsCard(postId) {
   return buildPostCard(postId, canonicalUrl)
 }
 
+// Music shares identify the post in the query string, not a path segment.
+export async function musicCard(postId) {
+  console.log('[preview] music card start', { hasTrack: Boolean(postId) })
+  if (!postId) {
+    const html = await renderCardAnon({
+      title: 'Music on web10',
+      description: 'Open web10 to discover and listen to music.',
+      image: BRAND_IMAGE,
+      image_alt: 'web10',
+      url: `${SOCIAL_ORIGIN}/music`,
+      og_type: 'website',
+    })
+    console.log('[preview] generic music card complete', { rendered: Boolean(html) })
+    return html
+  }
+  const canonicalUrl = `${SOCIAL_ORIGIN}/music?track=${encodeURIComponent(postId)}&panel=player`
+  const html = await buildPostCard(postId, canonicalUrl)
+  console.log('[preview] music card complete', { rendered: Boolean(html) })
+  return html
+}
+
 // The shared post-card logic — reads the post, picks the thumbnail, applies
 // the social fallback, and renders the card. The canonical URL differs per
 // surface (permalink / watch / shorts) but the content is the same post.

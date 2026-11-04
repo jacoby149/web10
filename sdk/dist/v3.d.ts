@@ -128,8 +128,8 @@ export interface V3Thumbnail {
  * Pick the best thumbnail from a list of resolved media refs (KB:
  * media/thumbnailing.md). **Pure** — no I/O, no schema knowledge; it runs on
  * the resolved media the app already has from a doc read. Selection, in order:
- * the first item that is an image (its `read_url`), else a video's poster
- * (`thumbnail_url`), else `null`. A video with no poster yet falls through to
+ * the first item that is an image (its `read_url`), else video/audio artwork
+ * (`thumbnail_url`), else `null`. Media without artwork falls through to
  * the next item.
  *
  * The **fallback is not here.** "No picture → author avatar → brand mark" is an

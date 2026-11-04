@@ -14,7 +14,7 @@
 //   PREVIEW_PORT  — the port to listen on (default 3001).
 
 import http from 'node:http'
-import { postCard, profileCard, groupCard, watchCard, shortsCard } from './card.mjs'
+import { postCard, profileCard, groupCard, watchCard, shortsCard, musicCard } from './card.mjs'
 
 const PORT = Number(process.env.PREVIEW_PORT || 3001)
 
@@ -62,6 +62,8 @@ const server = http.createServer(async (req, res) => {
       html = await watchCard(decodeURIComponent(watchMatch[1]))
     } else if (shortsMatch) {
       html = await shortsCard(decodeURIComponent(shortsMatch[1]))
+    } else if (path === '/music') {
+      html = await musicCard(url.searchParams.get('track'))
     }
 
     if (!html) {
@@ -79,5 +81,5 @@ const server = http.createServer(async (req, res) => {
 })
 
 server.listen(PORT, () => {
-  console.log(`[preview] web10-social link-preview server on :${PORT}`)
+  console.log(`[preview] web10-social link-preview server on :${server.address().port}`)
 })

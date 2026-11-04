@@ -536,6 +536,21 @@ describe('savePostToCollection — the first save becomes the cover (best-effort
 });
 
 describe('getMyCollections — resolves the cover media to a displayable URL', () => {
+  it.each([
+    ['audio/mpeg', 'https://cdn/album.webp', 'https://cdn/album.webp'],
+    ['video/mp4', 'https://cdn/poster.webp', 'https://cdn/poster.webp'],
+    ['audio/mpeg', undefined, undefined],
+    ['video/mp4', undefined, undefined],
+    ['application/pdf', undefined, undefined],
+  ])('selects artwork, not the raw %s file (thumbnail %s)', async (mime, thumbnail, expected) => {
+    mockGetMyGroups.mockResolvedValue([{ group_id: GROUP_ID, my_role: 'owner' }]);
+    mockReadGroupIdentity.mockResolvedValue({ name: 'My Collection', kind: 'saved', avatar_ref: 'm1' });
+    mockResolveMediaRefs.mockResolvedValue([{ _id: 'm1', mime_type: mime, url: 'https://cdn/raw-file', thumbnail_url: thumbnail }]);
+    const cols = await getMyCollections();
+    expect(cols[0].coverUrl).toBe(expected);
+    expect(mockResolveMediaRefs).toHaveBeenCalledExactlyOnceWith(['m1']);
+  });
+
   it('resolves a collection\'s coverRef to a coverUrl (one batched media read)', async () => {
     mockGetMyGroups.mockResolvedValue([{ group_id: GROUP_ID, join_policy: 'invite_only', my_role: 'owner', member_count: 1 }]);
     mockReadGroupIdentity.mockResolvedValue({ name: 'My Collection', kind: 'saved', visibility: 'private', avatar_ref: 'm1' });
