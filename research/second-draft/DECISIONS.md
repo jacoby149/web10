@@ -10,6 +10,26 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 04.11.2026
 
+### Shot 0, take 22 → take 23: two add-on sentences — ClickHouse, not quirky multi-tenant, OLTP is dead
+
+- **(operator)** "i think it could use 2 more sentences. that this isnt
+  doing quirky multi tenant shit. this is built on clickhouse, this is
+  built how every saas app is built for real … i am using kind of
+  slang, lets work these 2 sentences give me a shot. clickhouse does
+  real time analytics on billions of data points in a way that scales.
+  we can bring in a little of our oltp is dead too in these two add on
+  sentences."
+- **(agent)** Take 23 inserts two sentences after the "completely
+  generic" line, worked from the slang into pitch register:
+  "The store is built on ClickHouse, the way every serious SaaS app is
+  built — not some quirky multi-tenant trick." + "ClickHouse does
+  real-time analytics over billions of rows, in a way that scales; the
+  one-database-per-user OLTP model is dead." The ClickHouse name is a
+  credibility signal for a database venue; "OLTP is dead" is kept but
+  scoped to the per-user-DB model (matching §3's "why not a database per
+  user?"). Sentences 1, 2, and the AST/extensibility/apps lines
+  unchanged. Pitch is now 7 sentences.
+
 ### Shot 0, take 21 → take 22: the close "sounds defensive" — make it affirmative
 
 - **(operator)** "It is not hypothetical: … this sounds defensive."
