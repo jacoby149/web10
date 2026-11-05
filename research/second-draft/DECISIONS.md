@@ -35,6 +35,25 @@ oracles, the spine, the shot loop, the craft, the ops).
   identity — appropriate for their paper; the gmail/yahoo are
   illustrations of "node + username.")
 
+### Shot 0, beat 10 accuracy fix: "readable on the node" ≠ "readable by all users"; Solid is the same on user control
+
+- **(operator)** "its not readable to all users if you dont want it to
+  be, you can control it, but readable on the node. maybe solid is the
+  same way?" Two corrections: (1) "readable" means readable by the
+  **node** (the engine/operator, unencrypted — what enables the queries,
+  the boundary, the auditability), **not** readable by all users (other
+  users still need a grant; the user controls access). (2) On
+  user-controlled access, Solid is the **same** — the user grants who
+  can read. So access control is **not** the differentiator.
+- **(agent)** The real Solid↔web10 difference is: **where the data lives**
+  (the user's pod vs. a shared node) + **how it is stored** (optionally
+  encrypted vs. unencrypted/readable by the node's engine) + **what it
+  optimizes** (sovereignty + privacy vs. reach + two-sided ownership +
+  scale). Beat 10 rewritten to make the node-readable vs. user-grant
+  distinction explicit and to concede that both have user-controlled
+  access. (The "data policy, not privacy" thesis is unchanged; the
+  mechanism is now stated accurately.)
+
 ### Shot 0, beat 10 corrected: Solid = data-sovereignty (not "privacy"); web10 is explicitly NOT a privacy platform
 
 - **(operator)** "is that accurate is solid a privacy platform? also
