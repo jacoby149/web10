@@ -494,45 +494,191 @@ describe('web10-social link-preview card logic (KB: media/thumbnailing.md)', () 
     const CLUB = 'api.test/groups/users/nova/club'
     const PLAYLIST = 'api.test/groups/users/nova/saved-jazz-nights'
 
-    function faceHandlers(countDocs: unknown) {
+    // The REAL node shape (05.11.2026 production diagnosis): the face's
+    // avatar_ref is a media doc in the uploader's private namespace — the
+    // platform's /v3/media/thumbnail I3-gates it to 404 for anon. The album
+    // art IS anon-resolvable through the PUBLIC POST that owns the media
+    // (the post read mints the signed thumbnail_url). The cover walk reads
+    // the items' posts, not the media doc.
+    const item = (i: number, postId?: string) => ({ doc_id: `s${i}`, body: postId ? { post_id: postId } : {}, ref_value: postId || '' })
+    const audioPost = (mediaDoc: string, artUrl: string | null, recordingUrl: string) => ({
+      author_key: 'nova',
+      body: {
+        title: 'A track',
+        text: 'A recording',
+        media_refs: [{ doc_id: mediaDoc, mime_type: 'audio/mpeg', read_url: recordingUrl, thumbnail_url: artUrl }],
+      },
+    })
+
+    function faceHandlers(itemDocs: unknown, avatarRef = 'cover-1', extra: Record<string, unknown> = {}) {
       return {
         [`read:web10-social-group-identity:[${JSON.stringify(PLAYLIST)}]`]: [
-          { author_key: PLAYLIST, body: { name: 'Jazz Nights', kind: 'saved', visibility: 'public', avatar_ref: 'cover-1' } },
+          { author_key: PLAYLIST, body: { name: 'Jazz Nights', kind: 'saved', visibility: 'public', avatar_ref: avatarRef } },
         ],
-        [`read:saved:[${JSON.stringify(PLAYLIST)}]`]: countDocs,
-        'thumb:cover-1': { thumbnail: { url: 'http://minio.test/nova/cover.webp', alt: null, is_video: false } },
+        [`read:saved:[${JSON.stringify(PLAYLIST)}]`]: itemDocs,
+        ...extra,
       }
     }
 
     it('savedCard: a public playlist renders the name, the cover and the item count', async () => {
-      mockPlatform(faceHandlers([{ doc_id: 's1' }, { doc_id: 's2' }, { doc_id: 's3' }]))
+      mockPlatform(
+        faceHandlers(
+          [item(1, 'p1'), item(2, 'p2'), item(3, 'p3')],
+          'cover-1',
+          { 'read:p1': audioPost('cover-1', 'http://minio.test/nova/album.webp', 'http://minio.test/nova/recording.mp3') },
+        ),
+      )
       const html = await savedCard('nova', PLAYLIST)
       expect(html).toContain('"title":"Jazz Nights"')
-      expect(html).toContain('"image":"http://minio.test/nova/cover.webp"')
+      expect(html).toContain('"image":"http://minio.test/nova/album.webp"')
       expect(html).toContain('3 saved items')
       expect(html).toContain('by @nova')
       expect(html).toContain(`http://social.test/u/nova/saved/${encodeURIComponent(PLAYLIST)}`)
       expect(html).toContain('"og_type":"website"')
     })
 
-    it('savedCard: a cover that is an audio doc resolves to its album art, not the recording', async () => {
-      mockPlatform({
-        ...faceHandlers([]),
-        'thumb:cover-1': { thumbnail: { url: 'http://minio.test/nova/album-art.webp', alt: 'Album art', is_video: false } },
-      })
+    it('savedCard: the cover resolves through the owning item post — never a media-doc thumbnail read (the I3 404)', async () => {
+      const fetchMock = mockPlatform(
+        faceHandlers(
+          [item(1, 'p1'), item(2, 'p2')],
+          'cover-2',
+          {
+            'read:p1': audioPost('media-1', 'http://minio.test/nova/art-1.webp', 'http://minio.test/nova/rec-1.mp3'),
+            'read:p2': audioPost('cover-2', 'http://minio.test/nova/art-2.webp', 'http://minio.test/nova/rec-2.mp3'),
+          },
+        ),
+      )
       const html = await savedCard('nova', PLAYLIST)
-      expect(html).toContain('"image":"http://minio.test/nova/album-art.webp"')
+      // The PINNED cover (cover-2, owned by item 2) — not item 1's art.
+      expect(html).toContain('"image":"http://minio.test/nova/art-2.webp"')
+      // No /v3/media/thumbnail call at all (the pre-fix code called it on the
+      // media doc; the real node 404s that for anon).
+      expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/thumbnail'))).toBe(false)
     })
 
-    it('savedCard: a playlist with no cover falls back to the brand mark', async () => {
+    it('savedCard: a cover that is an audio doc resolves to its album art, not the recording', async () => {
+      mockPlatform(
+        faceHandlers([item(1, 'p1')], 'cover-1', {
+          'read:p1': audioPost('cover-1', 'http://minio.test/nova/album-art.webp', 'http://minio.test/nova/recording.mp3'),
+        }),
+      )
+      const html = await savedCard('nova', PLAYLIST)
+      expect(html).toContain('"image":"http://minio.test/nova/album-art.webp"')
+      expect(html).not.toContain('"image":"http://minio.test/nova/recording.mp3"')
+    })
+
+    it('savedCard: an orphaned cover (no item owns the media) falls back to the first item\'s picture', async () => {
+      mockPlatform(
+        faceHandlers(
+          [item(1, 'p1'), item(2, 'p2')],
+          'cover-orphan',
+          {
+            'read:p1': audioPost('media-1', 'http://minio.test/nova/art-1.webp', 'http://minio.test/nova/rec-1.mp3'),
+            'read:p2': audioPost('media-2', 'http://minio.test/nova/art-2.webp', 'http://minio.test/nova/rec-2.mp3'),
+          },
+        ),
+      )
+      const html = await savedCard('nova', PLAYLIST)
+      expect(html).toContain('"image":"http://minio.test/nova/art-1.webp"')
+    })
+
+    it('savedCard: an art-less pinned recording falls through to the next readable item\'s picture', async () => {
+      mockPlatform(
+        faceHandlers(
+          [item(1, 'p1'), item(2, 'p2')],
+          'cover-1',
+          {
+            // The pinned cover is an audio with NO album art.
+            'read:p1': audioPost('cover-1', null, 'http://minio.test/nova/rec-1.mp3'),
+            'read:p2': audioPost('cover-2', 'http://minio.test/nova/art-2.webp', 'http://minio.test/nova/rec-2.mp3'),
+          },
+        ),
+      )
+      const html = await savedCard('nova', PLAYLIST)
+      expect(html).toContain('"image":"http://minio.test/nova/art-2.webp"')
+    })
+
+    it('savedCard: a face with no avatar_ref uses the first item\'s picture', async () => {
+      mockPlatform(
+        faceHandlers(
+          [item(1, 'p1'), item(2, 'p2')],
+          null,
+          {
+            'read:p1': audioPost('media-1', 'http://minio.test/nova/art-1.webp', 'http://minio.test/nova/rec-1.mp3'),
+            'read:p2': audioPost('media-2', 'http://minio.test/nova/art-2.webp', 'http://minio.test/nova/rec-2.mp3'),
+          },
+        ),
+      )
+      const html = await savedCard('nova', PLAYLIST)
+      expect(html).toContain('"image":"http://minio.test/nova/art-1.webp"')
+    })
+
+    it('savedCard: an unreadable item is skipped (I3), the walk continues', async () => {
+      mockPlatform(
+        faceHandlers(
+          [item(1, 'p1'), item(2, 'p2')],
+          'cover-2',
+          {
+            'read:p1': null, // a private post inside the public playlist
+            'read:p2': audioPost('cover-2', 'http://minio.test/nova/art-2.webp', 'http://minio.test/nova/rec-2.mp3'),
+          },
+        ),
+      )
+      const html = await savedCard('nova', PLAYLIST)
+      expect(html).toContain('"image":"http://minio.test/nova/art-2.webp"')
+    })
+
+    it('savedCard: the cover walk is bounded (no unbounded post reads for big playlists)', async () => {
+      const many = Array.from({ length: 15 }, (_, i) => item(i + 1, `p${i + 1}`))
+      const handlers: Record<string, unknown> = {}
+      for (let i = 1; i <= 15; i++) {
+        handlers[`read:p${i}`] = audioPost(`media-${i}`, `http://minio.test/nova/art-${i}.webp`, `http://minio.test/nova/rec-${i}.mp3`)
+      }
+      // The pinned cover is item 15 — beyond the 12-item scan bound.
+      const fetchMock = mockPlatform(faceHandlers(many, 'media-15', handlers))
+      const html = await savedCard('nova', PLAYLIST)
+      // The fallback (the first readable item's picture), and…
+      expect(html).toContain('"image":"http://minio.test/nova/art-1.webp"')
+      // …only 12 post reads happened (face + items + 12 posts + render = 15).
+      const postReads = fetchMock.mock.calls.filter(([url, init]) =>
+        String(url).includes('/v3/read') && String(init?.body).includes('"posts"'),
+      )
+      expect(postReads.length).toBe(12)
+      expect(fetchMock).toHaveBeenCalledTimes(15)
+    })
+
+    it('savedCard: the face stream is replace-on-write — the NEWEST face doc wins (not the oldest)', async () => {
+      // The node orders face docs created_at DESC: docs[0] is the latest face.
+      // The pre-fix readGroupFace took the LAST element (the oldest face) —
+      // the pre-rename name and a missing avatar_ref, silently dropping every
+      // later face update from the share card.
       mockPlatform({
         [`read:web10-social-group-identity:[${JSON.stringify(PLAYLIST)}]`]: [
-          { author_key: PLAYLIST, body: { name: 'No Cover', kind: 'saved', visibility: 'public' } },
+          { author_key: PLAYLIST, body: { name: 'Jazz Nights', kind: 'saved', visibility: 'public', avatar_ref: 'cover-1' } },
+          { author_key: PLAYLIST, body: { name: 'Old Jazz Nights', kind: 'saved', visibility: 'private' } },
         ],
-        [`read:saved:[${JSON.stringify(PLAYLIST)}]`]: [{ doc_id: 's1' }],
+        [`read:saved:[${JSON.stringify(PLAYLIST)}]`]: [item(1, 'p1')],
+        'read:p1': audioPost('cover-1', 'http://minio.test/nova/album.webp', 'http://minio.test/nova/recording.mp3'),
       })
       const html = await savedCard('nova', PLAYLIST)
-      expect(html).toContain('"title":"No Cover"')
+      expect(html).toContain('"title":"Jazz Nights"')
+      expect(html).not.toContain('Old Jazz Nights')
+      expect(html).toContain('"image":"http://minio.test/nova/album.webp"')
+    })
+
+    it('savedCard: a playlist with no readable cover falls back to the brand mark', async () => {
+      mockPlatform(
+        faceHandlers(
+          [item(1, 'p1')],
+          null,
+          {
+            // A text-only post — no media, no picture.
+            'read:p1': { author_key: 'nova', body: { text: 'words only' } },
+          },
+        ),
+      )
+      const html = await savedCard('nova', PLAYLIST)
+      expect(html).toContain('"title":"Jazz Nights"')
       expect(html).toContain('http://social.test/keys-mark.png')
       expect(html).toContain('1 saved item')
     })
@@ -544,26 +690,29 @@ describe('web10-social link-preview card logic (KB: media/thumbnailing.md)', () 
       expect(html).toContain('http://social.test/keys-mark.png')
       expect(html).toContain(`http://social.test/u/nova/saved/${encodeURIComponent('api.test/groups/users/nova/saved-secret')}`)
       expect(html).not.toContain('secret name')
-      // Face read + render only — no thumbnail, no item-count read.
+      // Face read + render only — no thumbnail, no item read, no post reads.
       expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/thumbnail'))).toBe(false)
       expect(fetchMock).toHaveBeenCalledTimes(2)
     })
 
-    it('savedCard: a failed item-count read omits the count, keeping the name + cover', async () => {
-      mockPlatform({
-        ...faceHandlers(null), // the count read answers null → no count
-      })
+    it('savedCard: a failed item read omits the count AND the cover (brand mark), keeping the name', async () => {
+      mockPlatform(faceHandlers(null)) // the items read answers null → no count, no cover walk
       const html = await savedCard('nova', PLAYLIST)
       expect(html).toContain('"title":"Jazz Nights"')
-      expect(html).toContain('http://minio.test/nova/cover.webp')
+      expect(html).toContain('http://social.test/keys-mark.png')
       expect(html).toContain('"description":"by @nova"')
       expect(html).not.toContain('saved items')
     })
 
     it('groupSavedCard: a group playlist renders with the group canonical url and no user attribution', async () => {
-      mockPlatform(faceHandlers([{ doc_id: 's1' }]))
+      mockPlatform(
+        faceHandlers([item(1, 'p1')], 'cover-1', {
+          'read:p1': audioPost('cover-1', 'http://minio.test/nova/album.webp', 'http://minio.test/nova/recording.mp3'),
+        }),
+      )
       const html = await groupSavedCard(CLUB, PLAYLIST)
       expect(html).toContain('"title":"Jazz Nights"')
+      expect(html).toContain('"image":"http://minio.test/nova/album.webp"')
       expect(html).toContain('1 saved item')
       expect(html).not.toContain('by @')
       expect(html).toContain(`http://social.test/groups/${encodeURIComponent(CLUB)}/saved/${encodeURIComponent(PLAYLIST)}`)

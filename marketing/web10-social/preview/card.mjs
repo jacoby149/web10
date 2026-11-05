@@ -126,7 +126,12 @@ async function readGroupFace(groupId) {
   if (!res.ok) return null
   const docs = await res.json()
   if (!Array.isArray(docs) || docs.length === 0) return null
-  return docs[docs.length - 1] ?? null
+  // The face is a replace-on-write doc stream — the LATEST doc wins. The node's
+  // group read orders created_at DESC (newest first), so docs[0] is the newest
+  // (the same contract the app's readGroupIdentity relies on). Taking the LAST
+  // doc returned the OLDEST face — a pre-cover name + a missing avatar_ref —
+  // and silently dropped every later face update from the share card.
+  return docs[0] ?? null
 }
 
 // The group permalink: /groups/:groupId (the SPA encodes the group id, which
@@ -245,10 +250,66 @@ export async function groupSavedCard(groupId, collectionId) {
   return buildSavedCard(collectionId, canonicalUrl)
 }
 
+// A bound on how many collection items the cover walk reads (this is a crawl,
+// not a feed: one anon post read each). The cover is almost always the first
+// item (the auto-set cover) or the pinned one — 12 is generous and cheap.
+const COVER_SCAN_LIMIT = 12
+
+// A resolved media ref's displayable picture — the same selection table as
+// the node's pure `pick_thumbnail`: audio/video → its `thumbnail_url` (the
+// album art / poster, NEVER the recording); an image (or a legacy ref with no
+// MIME) → its `read_url`; anything else → null (no picture).
+function mediaPicture(ref) {
+  if (!ref || typeof ref !== 'object') return null
+  const mime = ref.mime_type || ''
+  if (mime.startsWith('audio/') || mime.startsWith('video/')) return ref.thumbnail_url || null
+  if (mime === '' || mime.startsWith('image/')) return ref.read_url || null
+  return null
+}
+
+// The collection's cover, resolved through the items' PUBLIC posts.
+//
+// WHY NOT the face's `avatar_ref` directly: that is a media doc in the
+// uploader's private namespace, and the platform's `/v3/media/thumbnail` is
+// I3-gated on the doc's groups — anon gets a 404, so the card would fall back
+// to the brand mark even though the same album art is publicly displayed on
+// the owning post. A public post's read path DOES resolve its media for anon
+// (fresh signed read/thumbnail URLs), so the card walks the collection's
+// readable items instead: the item containing `avatarRef` in its media
+// supplies the picture; a cover with no displayable picture (an art-less
+// recording) or no owning item (the post was removed / is unreadable) falls
+// back to the first readable item's picture. No readable item with a picture
+// → null (the caller uses the brand mark).
+async function resolveCollectionCover(postIds, avatarRef) {
+  if (!postIds.length) return null
+  let firstPicture = null
+  for (const postId of postIds.slice(0, COVER_SCAN_LIMIT)) {
+    const doc = await readDocAnon(postId, 'posts')
+    if (!doc) continue // an unreadable item (I3) — skip it, keep walking
+    const refs = (doc.body?.media_refs || []).filter((r) => r && typeof r === 'object')
+    if (avatarRef) {
+      const owned = refs.find((r) => r.doc_id === avatarRef)
+      if (owned) {
+        const url = mediaPicture(owned)
+        if (url) return { url, alt: owned.alt_text || null }
+        // The pinned cover's media has no displayable picture — keep walking.
+      }
+    }
+    if (!firstPicture) {
+      for (const ref of refs) {
+        const url = mediaPicture(ref)
+        if (url) { firstPicture = { url, alt: ref.alt_text || null }; break }
+      }
+    }
+  }
+  return firstPicture
+}
+
 // The shared saved-collection card: read the collection's face (anon — only a
-// public collection is readable), resolve its cover via the generic thumbnail
-// (a cover is either an image media doc or an audio doc whose own thumbnail is
-// the album art), count its items (the same anon floor), and render.
+// public collection is readable), its items (the anon-readable `saved` docs —
+// the count AND the cover walk), and render. The cover resolves through the
+// items' public posts (see resolveCollectionCover) — never a direct media-doc
+// read, which the node's I3 gate denies for anon.
 async function buildSavedCard(collectionId, canonicalUrl, attribution) {
   const faceDoc = await readGroupFace(collectionId)
   const face = faceDoc?.body ?? null
@@ -264,24 +325,10 @@ async function buildSavedCard(collectionId, canonicalUrl, attribution) {
       og_type: 'website',
     })
   }
-  // The cover: the face's avatar_ref (the pinned or auto-set collection
-  // thumbnail) through the generic thumbnail — an image media doc resolves to
-  // its own image; an audio doc resolves to ITS album-art thumbnail, never the
-  // recording. No cover → the brand mark.
-  let image = null
-  let imageAlt = null
-  if (face.avatar_ref) {
-    const thumb = await getThumbnailAnon(face.avatar_ref)
-    if (thumb?.url) {
-      image = thumb.url
-      imageAlt = thumb.alt ?? null
-    }
-  }
-  if (!image) image = BRAND_IMAGE
-  // The item count: an anon read of the collection's `saved` docs (public
-  // collections are anon-readable; a failed read simply omits the count —
-  // the name + cover are enough for the card).
-  let count = null
+  // The items: one anon read of the collection's `saved` docs (public
+  // collections are anon-readable; a failed read omits the count AND leaves
+  // the cover unresolved — there is no other anon path to it).
+  let items = null
   try {
     const res = await fetch(`${API_ORIGIN}/v3/read`, {
       method: 'POST',
@@ -290,11 +337,27 @@ async function buildSavedCard(collectionId, canonicalUrl, attribution) {
     })
     if (res.ok) {
       const docs = await res.json()
-      if (Array.isArray(docs)) count = docs.length
+      if (Array.isArray(docs)) items = docs
     }
   } catch {
-    count = null
+    items = null
   }
+  const count = items ? items.length : null
+  const postIds = (items || [])
+    .map((d) => d?.body?.post_id || d?.ref_value || null)
+    .filter(Boolean)
+  // The cover: the face's avatar_ref (the pinned or auto-set collection
+  // thumbnail) is a media doc — resolved through the item that owns it (the
+  // public post's read mints the signed album-art URL); no avatar_ref → the
+  // first item's picture; nothing readable → the brand mark.
+  let image = null
+  let imageAlt = null
+  const picture = await resolveCollectionCover(postIds, face.avatar_ref || null)
+  if (picture) {
+    image = picture.url
+    imageAlt = picture.alt
+  }
+  if (!image) image = BRAND_IMAGE
   const name = face.name ?? null
   const title = truncate(name, TITLE_LIMIT) ?? 'A playlist on web10'
   const parts = []

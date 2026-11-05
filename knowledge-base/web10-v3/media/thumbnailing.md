@@ -201,7 +201,28 @@ share URLs' cards** (`/watch/:postId`, `/shorts/:postId`) are the same server
 again — a watch/short IS a post (one `posts` doc, the D44 video), so the card
 is the post card (same thumbnail + text, `is_video`) with a different
 canonical URL; the post-card logic is shared (`buildPostCard`), the URL shape
-isn't.
+isn't. The **saved-collection permalinks' cards**
+(`/u/:username/saved/:collectionId`, `/groups/:groupId/saved/:collectionId`)
+are the same server — the collection's face (name, the D58 public read) + the
+item count + the cover, from the anon-readable `saved` docs. The face read takes the NEWEST face doc (the node's group read orders
+`created_at DESC` — the same contract the app's `readGroupIdentity` uses;
+taking the last element read the oldest face: the pre-rename name and the
+pre-cover state, dropping every later face update from the card). The face's
+`avatar_ref` is a **media doc in the uploader's private namespace** — the
+platform's `media/thumbnail` I3-denies it for anon (a 404), even though the
+same album art is publicly displayed on the owning post. The cover is
+therefore resolved **through the items' public posts**, never by a direct
+media-doc read: a bounded walk (12 item post reads) over the readable items,
+and the media that owns `avatar_ref` supplies the picture (the `pickThumbnail`
+table — audio/video → its `thumbnail_url`, image → its `read_url`, never the
+recording). An art-less pinned cover or an orphaned cover (the post was
+removed / is unreadable) falls back to the first readable item's picture; a
+failed item read omits the count AND the cover; a private collection keeps
+the generic-card floor. (05.11.2026 production diagnosis: the card served the
+name + count but the cover fell back to the brand mark, because the pre-fix
+card logic called `media/thumbnail` on the media doc directly — and the
+synthetic preview tests had modeled that call as anon-readable, a corrupted
+measure; the fixtures now model the real node's I3 404.)
 
 Still open:
 
