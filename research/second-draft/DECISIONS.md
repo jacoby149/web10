@@ -10,6 +10,18 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 04.11.2026
 
+### Shot 0, take 9 → take 10: combine takes 8 + 9, drop the "ecosystem in a bottle"
+
+- **(operator)** "conbine takes 8 and 9, take out the ecosystem in a
+  bottle thing … dont need that." The bottle closing is out.
+- **(agent)** Take 10 is the combination: take 8's beats (the
+  bespoke-APIs convention, the gas-station image, the provable landing)
+  + take 9's mechanism (what generic actually is — data RW + IAM
+  configuration executed when the data is used; the AST boundary; the
+  developer-tuned query). Arc: convention → the generic surface → the
+  AST + developer-owned query → the inversion + the provable landing.
+  Four sentences, no bottle, no SQL.
+
 ### Shot 0, take 8: "okay" but not genius — the operator supplied the real architectural content
 
 - **(operator)** Verbatim: "okay, but you want someone to think you are a
