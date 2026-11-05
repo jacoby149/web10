@@ -1277,6 +1277,8 @@ docs before code, per the rule at the top.
 
 ## SIGMOD 2027 Industry Track — the full paper (research/)
 
+- [✓ 4.10.14 local] **Shot 0 take 13 — take 11's structure + the beefed ending** - "this is better … beef it up a little at the end … the generic design opening the door for everything app + interoperability." Take 11's four beats kept; a fifth added: the generic design opens the door to an everything app (substrate, not a social backend) + interop by design (same primitives). Spec: ~4–6 sentences, beefable end. No manuscript prose changed.
+
 - [✓ 4.10.13 local] **Shot 0 take 12 — implication + email-vs-federation positioning** - take 11 "almost summarizes the paper"; operator added the missing beats: the generic backend implies an everything-app, interoperable by design, with free node choice; and this is not Mastodon/Bluesky federation (never took off, one popular server each) — it's more like email, user-addressed, not complicated. Positioning note: surface the contrast in §1/§4 + related work. No manuscript prose changed.
 
 - [✓ 4.10.12 local] **Shot 0 take 11 — gas-station simile out** - "like a gas station: get rid of that." Take 10 otherwise unchanged; sentence 2 is now "web10's node is completely generic: read and write on data, and configuration for identity and access, executed every time the data is used." No manuscript prose changed.

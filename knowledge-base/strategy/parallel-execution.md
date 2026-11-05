@@ -1426,6 +1426,8 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+- [✓ 4.10.14 local] **Shot 0 take 13 — take 11's structure + the beefed ending** — the operator preferred take 11 over take 12; the ending is beefed: the generic design opens the door to an everything app + interop by design. Pitch spec loosened to ~4–6 sentences with a beefable end. **Take 13 fired in the PR #1396 thread — awaiting the operator's riff.**
+
 - [✓ 4.10.13 local] **Shot 0 take 12 — implication + email-vs-federation positioning** — take 11 "almost summarizes the paper"; added: the everything-app implication (interoperable by design, free node choice) + the positioning (not Mastodon/Bluesky federation — "never took off, just one popular server" — more like email, user-addressed, not complicated). Positioning note: surface the contrast in §1/§4 + related work. **Take 12 fired in the PR #1396 thread — awaiting the operator's riff.**
 
 - [✓ 4.10.12 local] **Shot 0 take 11 — gas-station simile out** — "get rid of that." Take 10 otherwise unchanged. **Awaiting the operator's riff.**

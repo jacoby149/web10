@@ -62,7 +62,12 @@ the artifact, never from a previous draft.
    shared store, so the feed/follow/like are definitions the app
    writes into the database; the node is like a gas station — nothing
    social is in it). The payoff
-   mirrors the opener's noun. Keep riffing until it hits:
+   mirrors the opener's noun. **The end is beefable** to carry the
+    implication — the operator, take 13: "we want to add sentences
+    actually beef it up a little at the end … the generic design
+    opening the door for everything app + interoperability" — so the
+    riff is ~4–6 sentences, the last one landing the everything-app /
+    interoperability payoff. Keep riffing until it hits:
    each miss gets recorded in DECISIONS, and the next take changes the
    angle, not just the words. The critiques, verbatim: "closes the
    split, dont like that / almost too dense / dont need to literally

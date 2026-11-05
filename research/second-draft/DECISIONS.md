@@ -10,6 +10,24 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 04.11.2026
 
+### Shot 0, take 12 → take 13: take 11 was the better structure; beef the end with the implication
+
+- **(operator)** Pasted take 11 (the bespoke-APIs convention → the
+  generic surface → the AST boundary → "the permission model is data in
+  the very store it protects") and: "this is better we want to add
+  sentences actually beef it up a litte at the end. something about the
+  generic design opening the door for everything app +
+  interoperability."
+- **(agent)** Take 13 = the take 11 structure, kept, with a beefed
+  ending: the generic design opens the door to an everything app (the
+  node is a substrate, not a social backend; one surface can be a feed,
+  a game, and a marketplace), and because every app speaks the same
+  primitives, the apps interoperate by design. Take 12's
+  email-vs-federation / Mastodon positioning is *not* in the pitch — it
+  stays in the paper's positioning notes (§1/§4 + related work, per the
+  take 12 entry). The pitch spec is loosened from a hard four sentences
+  to ~4–6, with the end beefable for the implication.
+
 ### Shot 0, take 11 → take 12: "almost summarizes the paper" — add the implication + the email-vs-federation positioning
 
 - **(operator)** "this is starting to get god, almost summarizes the
