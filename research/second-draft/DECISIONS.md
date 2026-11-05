@@ -10,6 +10,48 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 04.11.2026
 
+### Shot 0: PASSED — the operator took the final edit; the pitch is locked
+
+- **(operator)** After take 23, the operator made the final edit themselves
+  and: "**i think this is it!**" Their changes: cut "not some quirky
+  multi-tenant trick" (defensive) and "the one-database-per-user OLTP
+  model is dead" (spicy), and moved the ClickHouse line to the very end,
+  simplified to pure fact: "And at the bottom of the system is
+  ClickHouse, doing real-time analytics over billions of rows, in a way
+  that scales."
+- **(agent)** **Shot 0 passes.** The canonical pitch is locked (6
+  sentences):
+  1. Every social platform builds its features as bespoke APIs: a feed
+     endpoint, a follow endpoint, a like endpoint.
+  2. web10's node is completely generic: read and write on data, and
+     configuration for identity and access, executed every time the data
+     is used.
+  3. The queries are protected with an AST, and written and tuned by the
+     application's developer, not the platform — the platform guarantees
+     the boundary, not the performance.
+  4. And extending the platform is as simple as a role and a policy: a
+     new app steps into the data boundary the old app set, accomplishing
+     what OAuth 2.0 does for cross-platform data sharing, but far more
+     fine-grained.
+  5. Already running on that node: the social app, the snake game, and
+     the marketplace — three apps that interoperate on shared data
+     through the same boundary.
+  6. And at the bottom of the system is ClickHouse, doing real-time
+     analytics over billions of rows, in a way that scales.
+  (The operator's trailing ";" on line 6 normalized to a period.)
+- **(agent) The locked pitch locks a new arc — and it has no email lead.**
+  The arc is: bespoke APIs → the generic node (data RW + access
+  configuration) → the AST-protected query → the OAuth-like extension →
+  the three interoperating apps → the ClickHouse bedrock. The email frame
+  (the old arc's opener) is NOT in the pitch. Decision for the outline
+  shots: does the email frame stay in the intro/abstract, get cut, or
+  move to the related-work positioning? The pitch is now the source of
+  truth for the arc.
+- **(agent) Full bookkeeping lands now that the pitch passed**
+  (changelog 4.10.15 + plan + lane), per the earlier "batch until the
+  pitch lands" note. Next gate: the outline shots, re-shot against this
+  locked arc.
+
 ### Shot 0, take 22 → take 23: two add-on sentences — ClickHouse, not quirky multi-tenant, OLTP is dead
 
 - **(operator)** "i think it could use 2 more sentences. that this isnt

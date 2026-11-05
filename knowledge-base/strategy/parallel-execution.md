@@ -1426,6 +1426,8 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+- [✓ 4.10.15 local] **Shot 0 PASSES — the pitch is locked** — 23 riffs converged; the operator took the final edit ("i think this is it!"). The locked 6-sentence pitch (bespoke-APIs convention → the completely generic node → the AST-protected query → extension as simple as a role and a policy, OAuth 2.0 but finer → the three apps interoperating → the ClickHouse bedrock) is recorded in `second-draft/DECISIONS.md` and the changelog. The locked arc has no email lead — the email frame's home is now an outline decision. **Next gate: the outline shots, re-shot against the locked arc.**
+
 - [✓ 4.10.14 local] **Shot 0 take 13 — take 11's structure + the beefed ending** — the operator preferred take 11 over take 12; the ending is beefed: the generic design opens the door to an everything app + interop by design. Pitch spec loosened to ~4–6 sentences with a beefable end. **Take 13 fired in the PR #1396 thread — awaiting the operator's riff.**
 
 - [✓ 4.10.13 local] **Shot 0 take 12 — implication + email-vs-federation positioning** — take 11 "almost summarizes the paper"; added: the everything-app implication (interoperable by design, free node choice) + the positioning (not Mastodon/Bluesky federation — "never took off, just one popular server" — more like email, user-addressed, not complicated). Positioning note: surface the contrast in §1/§4 + related work. **Take 12 fired in the PR #1396 thread — awaiting the operator's riff.**
