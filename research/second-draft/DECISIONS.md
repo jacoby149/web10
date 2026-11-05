@@ -35,6 +35,37 @@ oracles, the spine, the shot loop, the craft, the ops).
   identity — appropriate for their paper; the gmail/yahoo are
   illustrations of "node + username.")
 
+### Shot 0, beat 10 corrected: Solid = data-sovereignty (not "privacy"); web10 is explicitly NOT a privacy platform
+
+- **(operator)** "is that accurate is solid a privacy platform? also
+  should be clear we arent making a privacy platform because signal,
+  whatsapp these things already exist." Two corrections: (1) Solid is
+  more accurately a **data-sovereignty** platform (your data in your own
+  pod, you control who reads it via WAC/ACP) — privacy is an aim,
+  sovereignty/ownership/portability is the core; "privacy platform"
+  misstates it. (2) web10 must be framed as **not** a privacy play,
+  because end-to-end private *messaging* already exists (Signal,
+  WhatsApp) — web10 competes on reach + two-sided ownership + scale, not
+  secrecy.
+- **(agent)** Beat 10 revised to the accurate fork: **Solid =
+  sovereignty + secrecy (data kept in your pod, you control reads);
+  web10 = reach + two-sided ownership (data readable by design, the
+  *policy* is what's owned).** The readable/unencrypted choice is the
+  *enabler* of scale + auditability, not a privacy failure. Landing line:
+  "the user owns the policy, not the secrecy." This is the "data policy,
+  not privacy" thesis made explicit — a §1/§3/§9 asset.
+- **(agent)** Revised beat 10: "Solid optimizes for data sovereignty —
+  your data in your own pod, and you control who can read it. web10 is a
+  different bet: it is not a privacy platform, because end-to-end private
+  messaging already exists (Signal, WhatsApp). web10 optimizes for reach
+  and two-sided ownership, so its data is deliberately readable on the
+  node — readable because that is what makes high-performance ClickHouse
+  queries and lakehouse composition possible, and what keeps a platform
+  that must face abuse auditable rather than operator-blind. What the
+  user owns is the policy, not the secrecy: a creator reaches their
+  audience ban-proof and at scale and owns it, and the audience owns its
+  follows."
+
 ### Shot 0: + the Solid / readability beat — unencrypted by design, scale is the payoff
 
 - **(operator)** "we should add a short sentence, that solid is concerned
