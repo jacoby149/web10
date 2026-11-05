@@ -3,7 +3,7 @@
 Target: **SIGMOD 2027 industry track**, November 24, 2026, **23:59 AoE**;
 up to **12 pages plus references**, ACM `sigconf`, not anonymous, CMT open
 (verified October 28, 2026; [official CFP](https://2027.sigmod.org/calls_industrial_track_papers.shtml)).
-Internal freeze: November 20. The existing `research/workshop/main.tex` is
+Internal freeze: November 20. The existing `research/first-draft/main.tex` is
 draft material, not a validated account of results. Comparative review and
 broader evaluation remain pending. The manuscript integrates the connected
 interoperability result into its abstract, contributions, application composition,

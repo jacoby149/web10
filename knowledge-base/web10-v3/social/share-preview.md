@@ -125,6 +125,46 @@ thumbnail or author profile. Bare `/music` and empty `track` render a generic
 Music card without document reads. Deployment and receiving-app cache refresh
 must be verified separately from local routing tests.
 
+## The group post permalink
+
+A post authored by a group (the acting identity) shares its `/groups/:groupId/p/:postId`
+permalink, not the `/u/:username/p/:postId` shape — and that URL is what the
+feed's share button hands to WhatsApp. It is the **same post card** as the
+`/u/` permalink (the same doc, the same generic thumbnail — a music track's
+album art, the same author-avatar → brand-mark fallbacks) with a different
+canonical URL. The crawler split rides the raw-URI map (the encoded group id
+never reaches a location regex — see the group permalink section above); the
+I3/D41 floor is unchanged: a denied post renders the generic card without a
+thumbnail or profile read.
+
+## The saved-collection permalinks (playlist shares)
+
+A playlist **is** a saved collection (D88): a group with a
+`web10-social-group-identity` face (the name + the pinned cover) and `saved`
+docs (the items). The app shares its canonical permalinks —
+`/u/:username/saved/:collectionId` (personal) and
+`/groups/:groupId/saved/:collectionId` (a group's playlist) — through the same
+edge split, and the preview server renders the **playlist card**:
+
+- **The face** is read anon (the same gate as a group's face — a public
+  collection carries the D58 `anyone` reader row; a private one 403s).
+- **The image** is the face's `avatar_ref` (the cover) through the generic
+  `media/thumbnail` — an image cover resolves to its own image; an audio cover
+  resolves to its album-art thumbnail, never the recording. No cover → the
+  brand mark.
+- **The item count** is an anon read of the collection's `saved` docs (the same
+  floor); a failed read omits the count, keeping the name + cover.
+- **The privacy floor (I3/D41):** a private collection (the denied face read)
+  renders the generic card — "A playlist on web10", the brand mark, **no**
+  name, **no** cover, **no** item read. A shared private link previews exactly
+  as much as a stranger can read: nothing.
+
+The in-app share affordance (the Music app's playlist header + the collection
+detail's header) hands out these canonical URLs. Sharing a private playlist
+never silently makes it public: the sheet says the link can't open yet, and
+the owner chooses "Make public & share" (the D58 `anyone` reader row, via the
+existing visibility seam) or copies the link anyway.
+
 ## The profile permalink
 
 The profile permalink (`/u/:username`) is the same edge split, one level up. The social app's preview server renders the profile's **face** for a crawler: the avatar as `og:image`, the display name as `og:title`, the bio as `og:description`, and `og:type` = `profile` (the Open Graph type for a person). The nginx edge proxies `/u/:username` (the path that ends right after the username — mutually exclusive with the post permalink's `/u/:username/p/:postId`) to the preview server for known link-preview bots; everyone else gets the SPA.
@@ -133,11 +173,11 @@ The profile permalink (`/u/:username`) is the same edge split, one level up. The
 
 **A user with no profile doc** (never saved one, or an unknown username) previews as a **generic** `@{username} on web10` card with the brand mark — never a broken preview, the browser-default posture. (A profile has no "deleted" state that matters to a crawler, so there is no 404 here, unlike a ghost post.)
 
-## The group permalink
+## The group permalink (and every encoded group id)
 
-The group permalink (`/groups/:groupId`) is the same edge split, one level out. The social app's preview server renders the group's **face** for a crawler: the cover (banner) as `og:image` (else the avatar, else the brand mark), the face's name as `og:title`, the face's about as `og:description`, and `og:type` = `website`. The nginx edge proxies `/groups/:groupId` to the preview server for known link-preview bots; everyone else gets the SPA.
+The group permalink (`/groups/:groupId`) is the same edge split, one level out. The social app's preview server renders the group's **face** for a crawler: the cover (banner) as `og:image` (else the avatar, else the brand mark), the face's name as `og:title`, the face's about as `og:description`, and `og:type` = `website`.
 
-**The group id is a single path segment.** A group id contains slashes (`{provider}/groups/users/{creator}/{slug}`), but the SPA encodes it into the URL (`encodeURIComponent`), so the raw path is `/groups/<one-segment>` with no literal slash. The nginx regex `^/groups/([^/]+)$` and the preview server's route both capture that one segment and `decodeURIComponent` restores the group id. This is mutually exclusive with the `/u/` permalinks (different first path segment).
+**The encoded id is a single URL segment — but nginx never sees it as one.** The SPA encodes the group id (which contains slashes, `{provider}/groups/users/{creator}/{slug}`) into the URL with `encodeURIComponent`, so the browser's address bar shows `/groups/<one-%2F-segment>`. The trap: **nginx normalizes (decodes) the request URI before location matching**, so by the time a location regex runs, the "one segment" is three or more. A `location ~ ^/groups/([^/]+)$` therefore **cannot match any real encoded group id** — the request falls through to the SPA and the crawler gets the static brand card instead of the group's face. The split is implemented on the **raw** request URI instead: `map $request_uri $share_encoded_group` matches `^/groups/[^/]+` (plus the `/p/` and `/saved/` variants) on the still-%2F-encoded string, and `location /` proxies crawlers to the preview server with `$request_uri` verbatim — the preview server's own route regexes see the single literal segment and `decodeURIComponent` restores the id. (nginx's `if` has no `and`, so the crawler gate and the shape match are combined with the canonical joined-string map — "1:1" → "1".) The group post permalink (`/groups/:groupId/p/:postId`) and the group's playlist permalinks (`/groups/:groupId/saved/:collectionId`) ride the same map; the personal playlist permalink (`/u/:username/saved/:collectionId`) has its own map (the username is plain, the collection id is the encoded one).
 
 **The face is read the way the profile is — via the generic read, anon-capable.** The group's face is a doc in the app-named `web10-social-group-identity` service, group-keyed (D60). The preview server reads it with `POST /v3/read {service: 'web10-social-group-identity', groups: [groupId]}` and takes the **latest** doc (the face is a replace-on-write doc stream). A **public** group grants `anyone` read on that service, so the face reads token-less. The cover and avatar are bare media doc_ids — resolved to fresh presigned URLs via the generic `media/thumbnail` (a media doc → its own image), the same as the author-avatar fallback.
 
@@ -151,7 +191,7 @@ The group permalink (`/groups/:groupId`) is the same edge split, one level out. 
 
 ## Open questions
 
-Decided and built: the social app's preview server (the card); the generic card renderer (`POST /v3/preview/render`); the public-readability floor (a non-anon-readable post → generic card); the thumbnail via the generic `media/thumbnail`; the nginx User-Agent split (crawlers → the preview server, browsers → the SPA); the **profile permalink** (the profile's face, no anon-read gate); the **group permalink** (the group's face — cover → avatar → brand mark — read from the `web10-social-group-identity` doc, generic card when the face isn't anon-readable). The platform's `share.py` is deleted.
+Decided and built: the social app's preview server (the card); the generic card renderer (`POST /v3/preview/render`); the public-readability floor (a non-anon-readable post → generic card); the thumbnail via the generic `media/thumbnail`; the nginx User-Agent split (crawlers → the preview server, browsers → the SPA); the **profile permalink** (the profile's face, no anon-read gate); the **group permalink** (the group's face — cover → avatar → brand mark — read from the `web10-social-group-identity` doc, generic card when the face isn't anon-readable); the **music track share** (`/music?track=…` → the same anonymous post card, the audio's album art through the generic thumbnail); the **group post permalink** (`/groups/:groupId/p/:postId` → the same post card, different canonical URL); and the **saved-collection permalinks** (the playlist's face + cover + item count, the generic card when the face isn't anon-readable). The platform's `share.py` is deleted.
 
 Still open:
 

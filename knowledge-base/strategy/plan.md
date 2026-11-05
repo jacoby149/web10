@@ -37,6 +37,10 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
+- [✓ 4.10.0 local] **Playlist sharing + album-art link previews on every music share surface** - the Music app's Saved Music/Playlists header and the collection detail header offer one shared share dialog that hands out the collection's canonical permalink (`/u/:username/saved/:collectionId`, the `/groups/` variant); a private playlist states its link can't open yet, the owner's "Make public & share" flips the D58 `anyone` row first and "copy anyway" stays available. Both playlist permalinks join the link-preview edge split: a public playlist previews name + cover (an audio cover's album art, never the recording) + item count; a private one previews the generic card, no content (I3). The group post permalink (`/groups/:groupId/p/:postId` — the URL the feed/post surfaces actually share) renders the same anonymous post card as the `/u/` shape, so a shared song's preview carries its album art. No new read authority, node surface, production write or deployment; dialog regressions + card/server/nginx controls pass, all social tests/build green; receiving-app cache refresh and rollout remain separate acceptance.
+
+- [✓ 4.9.0 local] **Phone system media controls get album art** - screenshot `.context/attachments/a3Wb2m/PHOTO-2026-11-04-08-39-44.jpg`: the browser Media Session now carries the track's resolved cover as artwork so the phone's previous/next/pause/scrubber controls render the album art. The shared album-art precedence moved to the pure `@web10/discover/audio-artwork` subpath (the `/face` seam pattern — the data layer's barrel import exposed a lucide-mock module cycle in nine test files); `musicTrackFromPost` computes one `artworkUrl` shared by the mini-player, rows, action sheet, hero and session metadata. No cover omits the artwork entry; a refreshed track re-reads its post and lands with the fresh URL. Gate precedence and session controls red→green; all 1,955 social/299 marketing tests and both production typecheck/builds pass; desktop/375px music-player and bounded 403-recovery captures re-pass; native-Chromium receipt confirms the real session metadata carries the cover. No new read authority, access, signing or TTL change; no API or production write. Phone OS widget capture and actual-account artwork remain the connected-listening lane's.
+
 - [✓ 4.8.1 local] **Playlist cover artwork repair** - screenshot `.context/attachments/McEql4/PHOTO-2026-11-04-08-13-13.jpg`: saved covers now select audio/video thumbnails, not recording URLs; Music playlist tiles reuse the failed-image fallback. Five selection and one rendering failures reproduce before repair, with existing changed-URL artwork controls retained. Desktop/375px valid/missing/failed fixture captures inspected. Collection references/visibility/order and read gates unchanged; actual account/rollout acceptance remains open.
 
 - [✓ 4.8.1 local] **Music share album-art previews** - music crawler/query routing and canonical player cards use the existing anonymous post/thumbnail pipeline; generic audio-thumbnail selection is repaired in API/SDK. Six red card controls, real HTTP routing/403/empty-query controls and real nginx crawler/browser smoke pass. No new read authority, production writes/deployment or receiving-app cache acceptance.
@@ -1308,17 +1312,20 @@ workshop first, then CIDR. That ladder is dead — the target is now the
 **SIGMOD 2027 industry track**, which changes the paper's center of gravity:
 industry track rewards **operational experience, scale, deployment lessons,
 and cost** — the "we run this in production" story is the differentiator, and
-the workshop draft's deferred evaluation section (`research/workshop/main.tex`
+the workshop draft's deferred evaluation section (`research/first-draft/main.tex`
 §"Scale and latency (extended version)") is now half the paper.
 
-**What exists:** `research/workshop/main.tex` — a ~5-page workshop draft
-("Your Data, Your Rules, One Query") with the access model, query-layer
-enforcement (wall-not-membrane), and the 267→1 feed number. That is ~40% of
-the full paper, in workshop compression. The full paper is a new file in
-`research/sigmod/` (keep the workshop paper intact as the short version),
-extending the same spine: Intro → Access Model → Enforcement → Running
-Platform → **Evaluation (the new load-bearing section)** → Related Work →
-Lessons → Conclusion.
+**What exists:** `research/first-draft/main.tex` — the first draft: a complete
+12-page paper with the access model, query-layer enforcement
+(wall-not-membrane), the user-addressed network, application composition, and
+the full evidence set (connected interop, two-node IAM, domain prototype,
+K1000 fan-out, operating point). `research/second-draft/main.tex` — the working
+manuscript since 04.11.2026 (4.8.2): an operator-directed fresh approach from
+the top, same title and same verified evidence, new structure---data plane
+split out, new overview figure, new "Lessons from Running It" section,
+Q&A-structured evaluation, positioning-form related work. The original
+`research/sigmod/` scaffold target is superseded by the second-draft folder;
+the first draft stays intact as the record.
 
 **The critical path is data, not writing.** `research/evaluation-plan.md` is
 all unchecked boxes. The numbers the industry track will demand:
@@ -1391,23 +1398,34 @@ results, but no evaluation or novelty claim is complete without its evidence.
 
 - [✓ 3.249.2] **Python implementation rationale (supporting note)** — `research/why-python.md` covers FastAPI/ClickHouse responsibilities, commercial suitability, security visibility, rewrite tradeoffs and evaluation requirements. Draft untouched; E1–E6/W1–W6 not completed by this note.
 
-- [ ] **W1: scaffold `research/sigmod/`** — acmart sigconf, 12-page budget,
-  section outline from `research/draft/outline.md` expanded for industry
-  track (add a "Lessons from Running It" section — the industry-track
-  differentiator).
-- [ ] **W2: port + expand the workshop sections** — Intro, Access Model,
-  Enforcement, Running Platform. Expand, don't rewrite; the workshop prose is
-  the draft.
+- [✓ 4.8.2 local] **W1: scaffold** — delivered as `research/second-draft/`
+  (operator redirected the target from `research/sigmod/`: "take a shot at a
+  second draft in a second draft folder"). acmart sigconf, 12-page budget
+  verified (12 body + ~1.7 references pages), "Lessons from Running It"
+  section included — the industry-track differentiator.
+- [✓ 4.8.2 local] **W2: all sections written fresh** — the operator's direction
+  ("approach it almost from the top … dont want to take anything for granted")
+  supersedes "expand, don't rewrite": every section re-derived from the thesis
+  spine, not ported; first-draft prose used as the verified fact source only.
 - [ ] **W3: the Evaluation section** — fill from E1–E6. The load-bearing wall.
-  Real numbers, not adjectives.
+  Real numbers, not adjectives. *(Drafted at first-draft parity in 4.8.2 —
+  Q&A structure, all verified evidence carried; still gated on the E1–E5 data
+  that has not landed: full-feed and matched-baseline measurements, conformance
+  counts.)*
 - [ ] **W4: Related Work** — from `research/related-work.md` (the gap check
-  must be `[YES]` before this section freezes).
-- [ ] **W5: Lessons + Conclusion** — the operational story: what the
-  per-collection model gave up, what broke in production, what the genericity
-  (D60) bought.
+  must be `[YES]` before this section freezes). *(Drafted in positioning form
+  in 4.8.2; gap check still OPEN.)*
+- [✓ 4.8.2 local] **W5: Lessons + Conclusion** — new §7 "Lessons from Running
+  It": the four app-specific node surfaces built and removed (genericity),
+  the self-healing schema race (what broke), the shared columnar table's
+  day-to-day cost (what it gave up), and the fan-out measurement lesson;
+  conclusion leads with the email generalization. Documented incidents only,
+  no internal IDs.
 - [ ] **W6: formatting + page budget** — 12 pages + refs, ACM sigconf,
-  figures (the two workshop figs + new eval figures), references complete.
-  Freeze Nov 20.
+  figures (the two app figs + new eval figures), references complete.
+  Freeze Nov 20. *(4.8.2 draft verified: 12 body + ~1.7 references pages,
+  no overfull hboxes, one small 1.166pt final-page overfull vbox; operator
+  review of the draft is the next gate before the freeze.)*
 
 **Open questions (answer before W1):**
 - Do we have the production numbers (E1–E3) or must we instrument first?

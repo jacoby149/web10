@@ -1,8 +1,14 @@
+import { audioArtwork } from '@web10/discover/audio-artwork';
 import { mediaRefId, type PostRecord, type MediaRecord } from './types';
 
 export interface MusicTrack {
   post: PostRecord;
   media: MediaRecord;
+  /** The resolved cover for this track — the shared album-art precedence
+   *  (the audio's own thumbnail, otherwise the post's supporting image,
+   *  never the recording itself). Feeds every in-app player surface and the
+   *  browser Media Session artwork (the phone's system media controls). */
+  artworkUrl?: string;
 }
 
 export const musicTitle = (track: MusicTrack) => track.post.title || track.post.text?.slice(0, 60) || 'Untitled track';
@@ -17,5 +23,11 @@ export function musicTrackFromPost(post: PostRecord, media: MediaRecord[]): Musi
   if (![...ids].every((id) => resolved.some((m) => m._id === id))) return null;
   if (!resolved.every((m) => /^(audio|video|image)\//.test(m.mime_type || ''))) return null;
   const playable = resolved.filter((m) => /^(audio|video)\//.test(m.mime_type || ''));
-  return playable.length === 1 ? { post, media: playable[0] } : null;
+  if (playable.length !== 1) return null;
+  const track: MusicTrack = { post, media: playable[0] };
+  // One shared selector keeps the in-app player and the phone's system media
+  // controls on the same cover: the audio's own thumbnail, otherwise the
+  // post's supporting image, never the recording URL.
+  track.artworkUrl = audioArtwork(track.media, resolved);
+  return track;
 }

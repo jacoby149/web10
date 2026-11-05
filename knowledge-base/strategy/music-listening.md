@@ -31,6 +31,35 @@ failure remains retryable and all four screenshots are inspected. Node reads
 are mocked, so this is not real signed-expiry, production-object, phone or
 background-playback acceptance. Those release gates above remain open.
 
+4.9.0 hands the track's resolved cover to the browser Media Session as
+`artwork` (shared album-art precedence, computed once at the track gate and
+used by every in-app player surface too), so the phone's system media
+controls can render the album art. The selector moved to the pure
+`@web10/discover/audio-artwork` subpath (the `/face` seam pattern) because the
+data layer must not pull the shared React barrel. Gate and session controls
+are red→green, all 1,955 social and 299 marketing tests and both
+production typecheck/builds pass, desktop/375px music-player and the bounded
+403-recovery captures were re-passed, and a native-Chromium receipt confirms
+the real `navigator.mediaSession.metadata` carries the cover while playing.
+The phone OS widget itself is not locally capturable; physical-phone and
+actual-account acceptance remain the connected-listening lane's.
+
+4.10.0 adds playlist sharing: the Music app's Saved Music / Playlists header
+and the collection detail's header hand out the collection's canonical
+permalink (`/u/:username/saved/:collectionId`, the group variant for a group's
+playlists) through one shared dialog. A private playlist says so before the
+link goes out; the owner's "Make public & share" flips the D58 `anyone` reader
+row first (the existing visibility seam) and then shares, and "copy anyway"
+stays available. The permalinks join the link-preview edge split (KB:
+`web10-v3/social/share-preview.md`): a public playlist previews its name, its
+cover (an audio cover's album art, never the recording) and its item count; a
+private one previews the generic card, no content. Group-authored post
+permalinks (`/groups/:groupId/p/:postId`) render the same post card as the
+`/u/` shape, so a shared song's preview carries its album art on every share
+surface. New card/server/nginx controls plus the dialog regressions pass;
+all social tests and the production build/typecheck are green in this branch.
+Deployment and receiving-app cache refresh remain separate release checks.
+
 ## Starting Point
 
 - Music-tagged Discover reads, MP3 upload and author-marked music videos.
@@ -80,7 +109,16 @@ background-playback acceptance. Those release gates above remain open.
     never the raw recording. Missing, denied or failed images keep a reserved
     square with the designed music fallback; a changed URL may load again. Keep
     cover-reference choices, collection visibility/order and read gates unchanged.
-6. Browser Media Session metadata/actions when supported. A deliberate audible
+    A playlist shares its canonical permalink (the collection detail's link);
+    the shared dialog states a private playlist's link can't open yet, and the
+    owner's "Make public & share" flips the visibility before the link goes out.
+6. Browser Media Session metadata/actions when supported. The session metadata
+   carries the track's resolved cover as artwork — the shared album-art
+   precedence (the audio's own thumbnail, otherwise the post's supporting
+   image, never the recording URL), computed once at the track gate and shared
+   with every in-app player surface — so the phone's system media controls
+   (previous/next, pause, scrubber) render the album art; with no cover the
+   artwork entry is omitted. A deliberate audible
    video play pauses Music; muted previews do not. No automatic resume after
    another surface takes playback. Account/session changes clear playback and
    private library state; late reads/writes cannot repopulate a new account.
