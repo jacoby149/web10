@@ -10,6 +10,45 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 04.11.2026
 
+### Shot 0, take 4: missed — email is inaccurate, "stuff" is not paper, and stop patching
+
+- **(operator)** Three hits: (1) "Your email address is yours, and it
+  follows you when you change providers" — **not accurate**: email does
+  not follow you; "no one puts a dns thing in front of their email in
+  case they get banned — who gets banned from their emails?" The real
+  email insight is user-addressing + no central authority + a standard
+  protocol, *not* address portability across providers. (2) "the rules
+  of who can see your **stuff**" — "stuff … that is totally stupid way
+  to put it … not research paper language." (3) "this isnt an add … it's
+  like if our research paper were 4 sentences, so just not written
+  right, just off the top … **take a fresh take, 4 sentences! could be
+  totally different take, angle, unrelated, different way we could take
+  the paper**." "we" is fine (research register); the problem is the
+  whole thing was a rough patch of the same skeleton.
+- **(agent)** Lessons locked in the theory: the pitch must not overstate
+  email (email proved user-addressed + no central authority, not
+  "your address follows you"); use the paper's concrete nouns (posts,
+  followers, grants, audience), never "stuff"; and a repeated miss on
+  the *same* skeleton means the next take changes the **angle**, not
+  the words. Take 5 (fired in the thread) drops the email frame
+  entirely and leads with the "a company's rules vs. your rules"
+  contrast, landing on "safety is a check, not a trust."
+
+### Shot 0, take 3/4: the line count is dead; the pitch is 3rd-grade, 4 short sentences
+
+- **(operator)** "no one cares how many lines of code we wrote." The labor
+  number (958,824 added / 568,594 deleted) is not a story beat — it's a
+  vanity metric. Take 3 also "feels fake, puts me to sleep" (wordy,
+  manufactured drama). And the pitch should be "like a 3rd-grade
+  paragraph, like 4 short sentences."
+- **(agent)** The line count is pulled from the pitch, the importance
+  beat, and the "labor is a lede" rule; it survives only as a
+  reproducible fact in `ops/numbers.md`. The pitch spec is rewritten to
+  the **smart-kid test**: the core argument in ~4 short, plain sentences,
+  simple enough to instantly say yes or no — not the abstract (no
+  evidence enumeration), not a dense wall, not a vanity-metric flex.
+  Take 4 fired in the thread.
+
 ### Shot 0, take 2: missed on the opener — "what is your data, a pet?"
 
 - **(operator)** The critique of take 2, verbatim: "proved your data can

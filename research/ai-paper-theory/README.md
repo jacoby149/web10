@@ -29,9 +29,10 @@ The operator's first principle (04.11.2026):
 
 - The labor was the system: a whole highly technical platform — the
   node, the SDK, the social killer app, a game, a marketplace,
-  federation — **958,824 lines added, 568,594 deleted** (pinned count:
-  `ops/numbers.md`). The labor is done; it does not change with how we
-  describe it.
+  federation. The labor is done; that is why the paper is cheap.
+  (The line count is a pinned reproducible fact in `ops/numbers.md` —
+  it is **not** a story beat. Operator, 04.11.2026: "no one cares how
+  many lines of code we wrote.")
 - The manuscript is 12 pages. A bad draft costs 12 pages of deletion,
   not 12 months of rework. So:
   1. **Don't patch a wrong spine — rebuild it.** The drafts are records,

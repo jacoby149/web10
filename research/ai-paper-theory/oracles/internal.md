@@ -61,13 +61,15 @@ claim is scoped to the compared systems and stated as fact — no
 
 "Why is this important, big picture?" Real stakes (the social graph is
 what makes a life's data valuable, and it's the part no platform lets
-you own) and the labor up front (958,824 added / 568,594 deleted). But
-the operator's calibration: research is often not that important in the
-grand sense, and the conference frames the importance — so a modest,
-honest beat is enough. **Don't overspend the page budget here.**
+you own) and a deployed, running system. The labor count is *not* a
+beat — no one cares how many lines we wrote; what matters is what the
+system does and that it runs. The operator's calibration: research is
+often not that important in the grand sense, and the conference frames
+the importance — so a modest, honest beat is enough. **Don't overspend
+the page budget here.**
 
-*Check: the stakes and the labor are up front and credible — that's all
-this score requires.*
+*Check: the stakes and the running system are up front and credible —
+that's all this score requires.*
 
 ## The retired score
 

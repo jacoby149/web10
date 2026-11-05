@@ -3,8 +3,9 @@
 1. Open with the tension, not the definition — and name the stakes
    concretely: the *pet test* (if the reader can swap a pet into the
    stake, the stake isn't named; "your data … a pet?").
-2. The labor is a lede: a whole highly technical system, built and
-   proven — with the pinned numbers, early.
+2. The stakes are a lede: what's at risk (your audience, your content,
+   the rules of who can touch what) — early and concrete. **Not the
+   line count** — no one cares how much code we wrote.
 3. The differentiators are stated boldly — five of them — each tied to
    the evidence that proves it and carrying its why-not-X step.
 4. Claims stand at full strength inside their domain; the domain is
