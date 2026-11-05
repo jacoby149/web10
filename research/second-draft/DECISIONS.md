@@ -10,6 +10,20 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 04.11.2026
 
+### Shot 0, take 19 → take 20: sentence 4 removed
+
+- **(operator)** "i think we can just remove this????" — on "So the
+  feed, the follow, and the like are definitions the app writes into the
+  store — the permission model is data in the very store it protects."
+- **(agent)** Removed. The line echoed sentence 1 ("the feed, the
+  follow, and the like") and duplicated sentence 2 (the access
+  configuration, executed on use) and the last sentence (the data
+  boundary the old app set). The pitch is back to four sentences:
+  the convention → the generic surface → the protected mechanism →
+  the extension (the OAuth 2.0, finer-grained, close). "The permission
+  model is data in the very store it protects" survives for the
+  abstract / §2, not the pitch.
+
 ### Shot 0, take 18 → take 19: the close is "a role, a policy, and the new app is in the old app's data boundary"
 
 - **(operator)** On take 18's 4th + 5th sentences ("So the feed … the
