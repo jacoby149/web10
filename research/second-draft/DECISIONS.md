@@ -10,6 +10,30 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 04.11.2026
 
+### Shot 0, take 11 → take 12: "almost summarizes the paper" — add the implication + the email-vs-federation positioning
+
+- **(operator)** "this is starting to get god, almost summarizes the
+  paper. the implication of the generic backend is potential for an
+  everything app. it makes it interoperable by design. but this is also
+  built to have free choice, with multiple nodes. but this isnt
+  federation like on mastodon or bluesky which never took off really
+  just one popular server for those, this is more like email, not doing
+  anything so complicated for this."
+- **(agent)** Take 12 adds the two missing beats: (a) the **implication**
+  of the generic backend — everything-app potential, interoperable by
+  design, multiple nodes / the user's free choice; and (b) the
+  **positioning** — this is *not* Mastodon/Bluesky-style federation
+  (which never took off, just one popular server for each), it's more
+  like email: user-addressed, without the complicated machinery. The
+  "bespoke APIs" convention opener and the "permission model is data /
+  provable" landing are traded for these two beats; the AST mechanism
+  (the safety awe) stays.
+- **(agent) Positioning note for the paper:** the email-vs-federation
+  contrast is a sharp differentiator — web10 is *user-addressed* (like
+  email), not *server-federated* (like Mastodon/Bluesky). Surface it in
+  §1/§4 and the related-work positioning; it reinforces differentiator
+  #5 ("a user-addressed network without federation").
+
 ### Shot 0, take 10 → take 11: "like a gas station: get rid of that"
 
 - **(operator)** The gas-station simile is out of the pitch.

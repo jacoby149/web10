@@ -1277,6 +1277,8 @@ docs before code, per the rule at the top.
 
 ## SIGMOD 2027 Industry Track — the full paper (research/)
 
+- [✓ 4.10.13 local] **Shot 0 take 12 — implication + email-vs-federation positioning** - take 11 "almost summarizes the paper"; operator added the missing beats: the generic backend implies an everything-app, interoperable by design, with free node choice; and this is not Mastodon/Bluesky federation (never took off, one popular server each) — it's more like email, user-addressed, not complicated. Positioning note: surface the contrast in §1/§4 + related work. No manuscript prose changed.
+
 - [✓ 4.10.12 local] **Shot 0 take 11 — gas-station simile out** - "like a gas station: get rid of that." Take 10 otherwise unchanged; sentence 2 is now "web10's node is completely generic: read and write on data, and configuration for identity and access, executed every time the data is used." No manuscript prose changed.
 
 - [✓ 4.10.11 local] **Shot 0 take 10 — the combination** - operator: "conbine takes 8 and 9, take out the ecosystem in a bottle thing, dont need that." Take 8's beats (bespoke-APIs convention, gas station, provable landing) + take 9's mechanism (data RW + executed IAM configuration, the AST boundary, the developer-tuned query), bottle dropped. No manuscript prose changed.

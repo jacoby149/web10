@@ -1,3 +1,6 @@
+4.10.13 || 04.11.2026
+docs(research): shot 0 take 12 — take 11 "almost summarizes the paper"; add the implication + the email-vs-federation positioning. Operator: "the implication of the generic backend is potential for an everything app. it makes it interoperable by design … built to have free choice, with multiple nodes … this isnt federation like on mastodon or bluesky which never took off really just one popular server for those, this is more like email, not doing anything so complicated for this." Take 12: the generic surface → the AST boundary (the platform guarantees the boundary, not the performance) → the implication (everything-app backend, interoperable by design, as many nodes as the user chooses) → the positioning (not server-federation, user-addressed like email, no complicated machinery). Positioning note recorded: surface the email-vs-federation contrast in §1/§4 + related work (reinforces differentiator #5). No manuscript prose changed.
+
 4.10.12 || 04.11.2026
 docs(research): shot 0 take 11 — the gas-station simile is out of the pitch ("like a gas station: get rid of that"). Take 10 otherwise unchanged; sentence 2 is now "web10's node is completely generic: read and write on data, and configuration for identity and access, executed every time the data is used." No manuscript prose changed.
 

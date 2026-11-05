@@ -1426,6 +1426,8 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+- [✓ 4.10.13 local] **Shot 0 take 12 — implication + email-vs-federation positioning** — take 11 "almost summarizes the paper"; added: the everything-app implication (interoperable by design, free node choice) + the positioning (not Mastodon/Bluesky federation — "never took off, just one popular server" — more like email, user-addressed, not complicated). Positioning note: surface the contrast in §1/§4 + related work. **Take 12 fired in the PR #1396 thread — awaiting the operator's riff.**
+
 - [✓ 4.10.12 local] **Shot 0 take 11 — gas-station simile out** — "get rid of that." Take 10 otherwise unchanged. **Awaiting the operator's riff.**
 
 - [✓ 4.10.11 local] **Shot 0 take 10 — the combination of takes 8 + 9, bottle dropped** — "conbine takes 8 and 9, take out the ecosystem in a bottle thing." Convention → the generic surface (data RW + executed IAM configuration) → the AST + developer-owned query → the inversion + the provable landing. **Awaiting the operator's riff.**
