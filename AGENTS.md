@@ -475,8 +475,11 @@ ad policy, real-schema lifecycle and rollout assurance remain separate OPEN gate
 Node-ad inventory locally ranks current Discover attachment history before removal
 filtering, with deletion-winning ties. Removed links cannot authorize reproduced
 creative/signing delivery; public active/reattached inventory remains. Document
-delete/detag prefilters, inventory provenance and broader lifecycle/rollout gates
-remain OPEN; this is not whole-node-ad assurance.
+history also ranks per document/author before deletion/tag filtering, with
+deletion-winning ties. Local replays deny deleted/detagged signing and retain
+restored/retagged/reactivated public inventory and independent uploaders. Writer
+precision/real merge lifecycle, inventory provenance and broader policy/rollout
+gates remain OPEN; this is not whole-node-ad assurance.
 
 Defined in the KB: `knowledge-base/web10-v3/security/overview.md`. Short version — I1: cryptographic issuer verification, I2: no unsigned decode, I3: no query returns documents for an `author_key` the token doesn't own (unless group membership grants access), I4: node-readable by design — operator-blindness is not a goal, access is terms-controlled (D41), I5: scoped/expiring/revocable tokens enforced by app contracts. Enforced by the conformance/permission test suite.
 

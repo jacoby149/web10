@@ -68,6 +68,11 @@ import pytest
         "node-doc-restored",
         "node-doc-retagged",
         "node-doc-deleted-group-uploader",
+        "node-doc-active-group-uploader",
+        "node-doc-active-other-document-deletion",
+        "node-doc-active-other-author-deletion",
+        "node-doc-deleted-tie",
+        "node-doc-deleted-tie-reversed",
     ],
 )
 def test_read_url_owner_boundary(case):
@@ -277,7 +282,14 @@ def _probe(case):
                 sql.replace("creative-group", creative_group) for sql in setup if "INSERT INTO group_members" not in sql
             ]
         if is_doc:
-            if state != "active":
+            if state in {"active-other-document-deletion", "active-other-author-deletion"}:
+                other_doc = "unrelated" if state == "active-other-document-deletion" else "creative"
+                other_author = author if state == "active-other-document-deletion" else "carol"
+                setup.append(
+                    "INSERT INTO documents (doc_id,author_key,body,tags,posted_by,deleted,updated_at) "
+                    f"VALUES ('{other_doc}','{other_author}','{body}',{tags},'carol',1,3)"
+                )
+            elif not state.startswith("active"):
                 deleted = int(state.startswith("deleted") or state == "restored")
                 current_tags = ("['ad']" if connected else "'[\"ad\"]'") if state in {"detagged", "retagged"} else tags
                 current_body = json.dumps(
@@ -287,10 +299,17 @@ def _probe(case):
                         "status": "paused" if state in {"paused", "reactivated"} else "active",
                     }
                 )
-                setup.append(
+                updated = 1 if state.startswith("deleted-tie") else 2
+                tombstone = (
                     "INSERT INTO documents (doc_id,author_key,body,tags,posted_by,deleted,updated_at) "
-                    f"VALUES ('creative','{author}','{current_body}',{current_tags},'bob',{deleted},2)"
+                    f"VALUES ('creative','{author}','{current_body}',{current_tags},'bob',{deleted},{updated})"
                 )
+                if state == "deleted-tie-reversed":
+                    setup.insert(
+                        next(i for i, sql in enumerate(setup) if sql.startswith("INSERT INTO documents")), tombstone
+                    )
+                else:
+                    setup.append(tombstone)
                 if state in {"reactivated", "restored", "retagged"}:
                     current_body = json.dumps({**json.loads(body), "text": "latest active creative"})
                     setup.append(
@@ -383,7 +402,9 @@ def _probe(case):
                         "WHERE doc_id = %(doc_id)s AND author_key = %(author)s",
                         {"doc_id": "creative", "author": author},
                     ).result_rows
-                    assert bool(canonical) is (not state.startswith("deleted"))
+                    # The compiler's timestamp-only ordering is not a tie-policy oracle.
+                    if not state.startswith("deleted-tie"):
+                        assert bool(canonical) is (not state.startswith("deleted"))
                     canonical_tags = (
                         (canonical[0][1] if connected else json.loads(canonical[0][1])) if canonical else []
                     )
@@ -392,7 +413,10 @@ def _probe(case):
                         and "node_ad" in canonical_tags
                         and json.loads(canonical[0][2])["status"] == "active"
                     )
-                    assert current_inventory is (state in {"active", "reactivated", "restored", "retagged"})
+                    if not state.startswith("deleted-tie"):
+                        assert current_inventory is (
+                            state.startswith("active") or state in {"reactivated", "restored", "retagged"}
+                        )
             if state == "alternate-group" and not is_node:
                 assert ch.can_read_group("alternate-group", "alice", "posts", authenticated=True)
             response = TestClient(app).post(
@@ -402,9 +426,12 @@ def _probe(case):
         assert response.status_code == 200
         doc = response.json()[0]
         if is_doc:
-            # Evidence only: deleted/detagged versions currently resurrect older inventory.
+            # Retained disclosure replay: current document eligibility precedes signing.
             assert "ad" not in doc
-            if state == "paused":
+            if state.startswith("deleted") or state in {"detagged", "paused"}:
+                if "node_ad" in doc:
+                    verify(doc["node_ad"]["body"]["url"], key)
+                    print("ineligible-document synthetic capability independently verified before denial assertion")
                 assert "node_ad" not in doc
                 factory.assert_not_called()
             else:
