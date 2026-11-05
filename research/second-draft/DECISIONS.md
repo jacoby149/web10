@@ -10,6 +10,31 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 04.11.2026
 
+### Shot 0, last beat concretized: the domain re-points, the audience follows
+
+- **(operator)** On "the audience travels with the address, not with any
+  one node": "so if the followed user moves nodes, the audience travels
+  with the address, and isnt stuck with the node + username like
+  jacoby149@gmail.com, they have jacobhoffman.xyz -> jacoby149@gmail.com,
+  can be repointed [to jacoby149@yahoo.com]." The address beat needs the
+  concrete re-pointing: the **domain** (jacobhoffman.xyz) is the stable
+  address the audience follows; the **node + username**
+  (jacoby149@gmail.com) is the current, replaceable target; when the user
+  moves, they re-point the TXT record and the follows travel with the
+  domain.
+- **(agent)** Last beat revised to carry the re-pointing concretely: "The
+  address is a domain the user owns — jacobhoffman.xyz — not the node +
+  username it points to, whether that is jacoby149@gmail.com today or
+  jacoby149@yahoo.com tomorrow. The audience follows the domain: when the
+  user moves, they re-point the TXT record, and the follows travel with
+  it. The node verifies the record by performing the lookup itself, but
+  the domain is untouchable to the node owner, who controls no part of
+  it." Rest of shot 0 unchanged from take 27. This is the
+  domain-portability mechanism made concrete; §4 (domain aliases) + §8
+  (the domain prototype) prove it. (jacobhoffman.xyz is the author's own
+  identity — appropriate for their paper; the gmail/yahoo are
+  illustrations of "node + username.")
+
 ### Shot 0: + the Solid / readability beat — unencrypted by design, scale is the payoff
 
 - **(operator)** "we should add a short sentence, that solid is concerned
