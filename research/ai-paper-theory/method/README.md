@@ -51,7 +51,17 @@ the artifact, never from a previous draft.
    and the audience stay behind — what the fuck is they talking
    about"); no dry mechanism with no hook either. Importance stays the
    calibrated, lowest-priority score — the hook earns the ear, the awe
-   is the landing. The payoff
+   is the landing. **No implementation-level words** (SQL, CTE, JWT —
+   architectural-level only: store, grants, definitions, functions;
+   take 7's miss: "using the word sql no no no"). **The pitch must
+   carry a *move*** — an architectural nuance that makes an architect
+   go "yeah, this is great" (take 7's miss: the individualist-hero
+   register — "i know this is howard roarke now" — instead of the
+   avant-garde inversion: social platforms build their features as
+   bespoke APIs; web10's UI uses completely generic functions over one
+   shared store, so the feed/follow/like are definitions the app
+   writes into the database; the node is like a gas station — nothing
+   social is in it). The payoff
    mirrors the opener's noun. Keep riffing until it hits:
    each miss gets recorded in DECISIONS, and the next take changes the
    angle, not just the words. The critiques, verbatim: "closes the

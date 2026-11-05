@@ -1277,6 +1277,8 @@ docs before code, per the rule at the top.
 
 ## SIGMOD 2027 Industry Track — the full paper (research/)
 
+- [✓ 4.10.9 local] **Shot 0 take 7 missed — the pitch must carry an architectural nuance** - "no no no the word SQL" + "i know this is howard roarke now": the hero register and the tool word both missed. The nuance: bespoke social APIs → completely generic functions; the social features become definitions in the database; the node is a gas station. Spec gains the no-implementation-words rule + the carry-a-move rule. Take 8 fired. No manuscript prose changed.
+
 - [✓ 4.10.8 local] **Shot 0 take 6 missed — simple hook → awe landing** - "the followers, the grants, and the audience stay behind" was an incoherent stakes-list, not a product-vs-technical error; "product pitch is simple, everyone knows shadowban what that is." Pitch spec gains the arc rule: one universally-known pain (shadowban) earns the ear, the checkable invariant (compile + replayed proof) is the landing — the utmost score. Take 7 fired. No manuscript prose changed.
 
 - [✓ 4.10.7 local] **Shot 0 take 5 missed — third person** - "this you you you, not professional, i think third person." Pitch spec gains the person rule (the user, never you); take 6 fires the same angle in third person. No manuscript prose changed.

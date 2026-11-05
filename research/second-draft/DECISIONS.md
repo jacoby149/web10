@@ -10,6 +10,34 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 04.11.2026
 
+### Shot 0, take 7: missed — "no no no the word SQL"; the pitch wants an avant-garde architectural nuance
+
+- **(operator)** Verbatim: "i want to learn a nuance about
+  architecture, something avante garde i know this is howard roarke
+  now, wow, give me something real, something where it is like yeah
+  this is great. **using the word sql no no no.** the ui we built uses
+  completely generic functions, we are turning what was bespoke apis
+  with social functions into databases like a gas station or
+  something."
+- **(agent)** Two misses in take 7: it sat in the individualist-hero
+  register (Howard Roark — the user vs. the platform) instead of
+  carrying an *architectural* nuance, and it leaked an
+  implementation-level word ("SQL"). The nuance the operator names:
+  **the inversion** — every social platform builds its features as
+  bespoke APIs (a feed endpoint, a follow endpoint, a like endpoint);
+  web10's UI uses completely generic functions over one shared store,
+  and the social features are *definitions the app writes into the
+  database* instead. The node is like a gas station: completely
+  generic, nothing social in it. The awe landing: the permission model
+  is data in the very store it protects, so every read is checked
+  against the reader's own grants before it touches anything. Take 8
+  fires that angle.
+- **(agent) Spec additions:** no implementation-level words in the
+  pitch (SQL, CTE, JWT — architectural-level only: store, grants,
+  definitions, functions); and the pitch must carry a *move* — an
+  architectural nuance that makes an architect go "yeah, this is
+  great" — not only the empowerment story.
+
 ### Shot 0, take 6: missed — incoherent stakes-list; the fix is a *simple* product hook that builds into the awe
 
 - **(operator)** Verbatim, on "The user can export the posts, but the
