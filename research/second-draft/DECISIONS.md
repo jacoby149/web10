@@ -10,6 +10,60 @@ editorial rules, pinned numbers, the diagnosis of the current draft) lives in
 
 ## 04.11.2026
 
+### The bulletproof turn: papers are cheap, the outline is the review surface, the KB is around the paper
+
+- **(operator) The fundamental redefinition.** The journey: (a) we built a
+  whole highly technical system; (b) we wrote a draft on what we *thought*
+  made it different (the bones, the references, some actual research);
+  (c) we quabbled — no, this isn't what's different, that isn't — it is
+  *these things particularly*; (d) we proved it performed and did what it
+  promised — tests that prove the architectural claims, the business
+  claims, and the scale claims; (e) now we are here, taking a step back
+  and constructing a new paper, willing to do as much work as doing it all
+  over again; (f) **the million lines of code was the labor — the paper is
+  cheap**, and writing it with AI is the easy part.
+- **(operator) We can deviate pretty significantly from the first draft**
+  for the sake of a more accurate, better paper.
+- **(operator) Risk is affordable:** risk sounding too high-ego, risk a
+  stylistic gamble — **follow through with it**. "None of that hedging
+  bullshit we did before! If papers are cheap, we can afford it!"
+- **(operator) The set-inclusion formalization of the permission theory
+  (§2's `effective(P, G)` union expression) "is really great"** — it is
+  the paper's crown jewel and gets theorem treatment. The paper should
+  "make sense, be logical, be like reading a proof or something."
+- **(operator) It should look like a research paper:** the diagrams very
+  nice, the plots done in familiar ways, "a certain way they just look."
+- **(operator) Even cheaper is an outline:** the human operator struggles
+  to read the full 12 pages — the review surface is the almost-logical
+  flow, "what we are going to write and why."
+- **(operator) A knowledge base around the paper:** not just the outline —
+  all the accompanying documents: ideas around the experiments, why the
+  experiments were important, notes on what to show in the diagrams, why
+  that is visually nice.
+- **(operator) "We want to guarantee a good paper, getting accepted, have a
+  bulletproof theory."**
+- **(agent) `research/ai-paper-theory.md` rewritten bulletproof:**
+  organized around the reviewer's five questions (the external oracle),
+  with the attack-surface table (each failure mode → named
+  countermeasure), the acceptance checklist (the guarantee made
+  operational), and the residual risks stated as fact. Supersedes the
+  4.9.1 three-act "churn as lede" spine: the churn is now "the labor",
+  the proof structure is the spine, and the surgical-pass
+  recommendation is superseded by the outline → prose rebuild.
+- **(agent) `second-draft/OUTLINE.md` drafted:** the arc in one paragraph,
+  the five differentiators, section beats with KEEP/REWRITE/NEW/CUT +
+  their "why", the Q&A evaluation (Q1 architectural / Q2 business / Q3
+  scale / Q4 cost-of-alternative), the figure plan, and a page allocation
+  that sums to 12.0 body pages. It is the operator's review surface.
+- **(agent) `second-draft/kb/` created:** `README.md` (the map + gates),
+  `experiments.md` (six experiments × what / why it was important /
+  established / evidence / open / where in the paper), `diagrams.md`
+  (the design language — color is semantic, the same mechanism drawn
+  identically — plus per-figure rationale and the figure plan).
+- **Not done:** the manuscript prose. Gated on the outline approval and
+  the open questions (churn range, scale framing, authorship, in place vs.
+  new folder).
+
 ### Narrative pivot: the churn is the lede; the approach is pinned in `ai-paper-theory.md`
 
 - **(operator) The second-draft prose is "not hitting the mark" — "there is
