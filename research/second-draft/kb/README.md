@@ -2,8 +2,9 @@
 
 The accompanying documents for `research/second-draft/` — the paper's
 thinking, kept out of the manuscript so the manuscript stays 12 pages of
-proof. The map, the gates, and the method: `../../ai-paper-theory.md`
-(§9 "The machine").
+proof. The map, the gates, and the method:
+`../../ai-paper-theory/README.md` (the paper theory; the machine is its
+`craft/` + `method/` + `oracles/`).
 
 | Document | Job |
 |---|---|

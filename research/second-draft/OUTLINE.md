@@ -2,7 +2,7 @@
 
 The almost-logical flow of what we are going to write and why. This is the
 review surface — the operator reads this, not the PDF
-(`../ai-paper-theory.md` is the method). Status per section:
+(`../ai-paper-theory/` is the method — start at its README). Status per section:
 **KEEP** (carried from the second draft), **REWRITE** (new narrative, same
 evidence), **NEW**, **CUT**.
 

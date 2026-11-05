@@ -4,11 +4,29 @@ The decision log for `research/second-draft/` (the SIGMOD 2027
 industry-track manuscript). Newest entry first. Operator decisions are marked
 **(operator)**; agent defaults the operator has not yet reviewed are marked
 **(agent — open to review)**. `research/first-draft/` is a frozen record —
-nothing in this file applies to it. The writing approach (spine, method,
-editorial rules, pinned numbers, the diagnosis of the current draft) lives in
-`research/ai-paper-theory.md`.
+nothing in this file applies to it. The writing approach lives in the
+`research/ai-paper-theory/` folder (start at its README: the two
+oracles, the spine, the shot loop, the craft, the ops).
 
 ## 04.11.2026
+
+### The theory is a folder — hierarchical, multiple readmes
+
+- **(operator)** "the ai paper theory document needs to be a folder,
+  hierarchical broken down multiple readmes."
+- **(agent)** `research/ai-paper-theory.md` (the ~550-line monolith) →
+  `research/ai-paper-theory/`: README (the map + the fundamental + the
+  gates in one line each) · oracles/ (README + external.md the reviewer's
+  five questions + internal.md the three awe scores) · spine/ (README the
+  journey + the section map + differentiators.md + proof.md the
+  combination) · method/README.md (the shot loop, with the same day's
+  diagram-gate refinement: pitch → outline → diagram shots → section
+  shots → PDF) · craft/ (README + voice.md + figures.md + evidence.md) ·
+  ops/ (README + attack-surface.md + numbers.md + rebuild.md +
+  checklist.md) · diagnosis.md. Living references updated (the lane
+  Owns, kb/README, OUTLINE, this header); historical changelog/plan
+  entries keep the old path name. Content carried over unchanged apart
+  from the diagram gate; the monolith is retired.
 
 ### The outline-synthesis process: shots, human in the loop, restart free
 
