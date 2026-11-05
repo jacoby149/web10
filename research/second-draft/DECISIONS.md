@@ -10,6 +10,50 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 04.11.2026
 
+### Shot 0 (take 24): PASSED — the final canonical pitch (9 sentences)
+
+- **(operator)** "wow, this is great!!!!!!" + "this encompasses
+  everything we found, all of the decisions we made! where things are
+  going to move to!" → the refined 9-sentence pitch is the locked shot 0.
+  It supersedes/extends the earlier 6-sentence lock: the "belongs to the
+  user" line is restored, and the combination + OLAP/RLS positioning
+  sentences stay in the pitch (the operator's "encompasses everything"
+  answers the open 6–7 vs 9 question: keep all nine).
+- **(agent)** The canonical pitch (locked, 05.11.2026):
+  1. Every social platform builds its features as bespoke APIs: a feed
+     endpoint, a follow endpoint, a like endpoint.
+  2. web10's node is completely generic: read and write on data, and
+     configuration for identity and access, executed every time the data
+     is used.
+  3. The access rules are the user's own data, in the very store they
+     protect — the permission model belongs to the user, not the
+     platform.
+  4. The queries are protected with an AST, and written and tuned by the
+     application's developer, not the platform — the platform guarantees
+     the boundary, not the performance.
+  5. None of this is a new part — user-owned data, app-written queries,
+     and a query-layer boundary are each known ideas; the contribution is
+     how they combine on one shared columnar store.
+  6. The OLTP-era answer to many-users-one-database was row-level
+     security inside the engine; on a columnar store, the boundary moves
+     to the query, where the readable set is compiled in before any data
+     moves.
+  7. And extending the platform is as simple as a role and a policy: a
+     new app steps into the data boundary the old app set, accomplishing
+     what OAuth 2.0 does for cross-platform data sharing, but far more
+     fine-grained.
+  8. Already running on that node: the social app, the snake game, and
+     the marketplace — three apps that interoperate on shared data
+     through the same boundary.
+  9. And at the bottom of the system is ClickHouse, doing real-time
+     analytics over billions of rows, in a way that scales.
+- **(agent)** This pitch is now the arc for the outline: each sentence
+  moves to a section (outline shot 1, fired next). It compresses the
+  **node** story; the **network** story (cross-node `/certify`,
+  verified-not-registered, the email-like-not-federation positioning,
+  domain portability) is NOT in the nine sentences — that is the open
+  two-movements-vs-node-only structural question for the outline.
+
 ### Shot 0 (refined post-lock): the pitch gains "belongs to the user" + the combination + the OLAP/RLS positioning
 
 - **(operator)** On the cut "permission model is data in the store it
