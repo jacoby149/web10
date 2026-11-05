@@ -10,6 +10,27 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 04.11.2026
 
+### Shot 0, take 16 → take 17: the extensibility is programmable identity access, not an adjective
+
+- **(operator)** "And that generic design is what makes the node
+  interoperable and extensible: this sentence is no good. should remove.
+  a snake game a new marketplace, **because of the programmable identity
+  access is what really makes it extensible, new apps can request your
+  old data, think of it like oauth2.0 with gmail, but much more fine
+  grained**." The bare "interoperable and extensible" adjectives are out;
+  the mechanism is in: identity/access are programmable (grants are
+  data), so a new app *requests access to the user's existing data* —
+  the OAuth2.0-with-Gmail analogy, but far more fine-grained. The snake
+  game + new marketplace are the worked examples.
+- **(agent)** Take 17 drops the take-16 fifth sentence and closes on the
+  mechanism: "because identity and access are programmable — grants are
+  data — a new app requests access to the user's existing data the way
+  an OAuth app requests Gmail, but far more fine-grained. A snake game
+  and a new marketplace run on it that way, without the node learning
+  anything about them." Sentences 1–4 unchanged. The OAuth analogy is
+  the logical-awe landing for a technical reader. (Riff logged here; the
+  full changelog/plan/lane entry lands when the pitch gets the pass.)
+
 ### Shot 0, take 15 → take 16: "interoperable and extensible" is the punchline pair
 
 - **(operator)** "interoperable and extensible." The two properties the
