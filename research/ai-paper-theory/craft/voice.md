@@ -75,6 +75,22 @@
     node owner"). The smart-kid test is a floor for being understood, not
     a ceiling that justifies overworking a good formulation: tighten the
     words, don't restructure the idea.
+16. **The pitch finds the beats; the body says them naturally.** The
+    shot-0 pitch (the punchy, slogan register) was the compression
+    exercise that surfaced the essence — the beats to carry. The
+    manuscript does **not** carry that register (operator, 05.11.2026:
+    "we arent pitching … we want to say this stuff naturally like you do
+    when you arent using a pitching voice"). The body says the same
+    things in natural explanatory prose: it states the **mechanism and
+    the consequence**, not the punchline. A pitch line ("the audience
+    never leaves when an account does") becomes paper prose ("the
+    follower's subscription is stored as the creator's domain in the
+    follower's own data, so it persists when the creator moves nodes —
+    the client re-resolves the domain and the follow continues"). The
+    beats are the **content checklist** (each must appear in the body);
+    the natural voice is the **delivery**. The test: if a line reads
+    like an ad, restate it as an explanation. This is the register the
+    section shots are written in.
 
 The no-hedging pass (the repair phase): find every weakened claim,
 restore it to full strength inside its domain, cut it if it can't

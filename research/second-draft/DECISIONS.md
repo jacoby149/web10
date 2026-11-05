@@ -10,6 +10,32 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 04.11.2026
 
+### Shot 0: beat 10 gains the composition + scale point; and the register rule — the body says the beats naturally, not as a pitch
+
+- **(operator)** "yeah fold that in too please!" (the composition
+  differentiator: Solid composes client-side, the app pulls from each
+  pod, cross-pod is expensive; web10 composes server-side at the query
+  layer, the app writes SQL, the node enforces the boundary) + "this
+  scales, much more than solid for sure" (the scale payoff of
+  server-side composition). Then: "**remember we arent pitching though.
+  we want to say this stuff naturally like you do when you arent using a
+  pitching voice**."
+- **(agent)** Beat 10 now states three differences + the scale payoff:
+  where the data lives (pod vs. shared node), how it is stored
+  (optionally encrypted vs. unencrypted/node-readable), where the
+  composition happens (client-side app pull vs. server-side query-layer
+  enforcement), and that web10 scales far more than Solid's client-side
+  composition. This makes the database contribution explicit.
+- **(agent) The register rule (locked as voice.md rule 16): the pitch
+  finds the beats; the body says them naturally.** The shot-0 pitch was
+  the compression exercise that surfaced the essence (the beats). The
+  manuscript does NOT carry the punchy slogan register — it states the
+  mechanism and the consequence, not the punchline. The twelve beats are
+  the **content checklist** (each must appear in the body); natural
+  explanatory prose is the **delivery**. Test: if a line reads like an
+  ad, restate it as an explanation. This is the register the section
+  shots are written in.
+
 ### Shot 0, last beat concretized: the domain re-points, the audience follows
 
 - **(operator)** On "the audience travels with the address, not with any
