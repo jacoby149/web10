@@ -1,9 +1,37 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { MemoryRouter, useLocation } from 'react-router-dom';
+import { vi } from 'vitest';
 import '@testing-library/jest-dom';
 import { PostBody } from '@/components/Feed/PostBody';
+import { MarkdownText } from '../../../shared/discover/src/MarkdownText';
 
 describe('PostBody (D85 read side)', () => {
+  it('navigates post tags through the router instead of reloading the player', () => {
+    function Location() { return <span data-testid="mention-route">{useLocation().pathname}</span>; }
+    render(<MemoryRouter><PostBody text="For @nova" /><Location /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('link', { name: '@nova' }));
+    expect(screen.getByTestId('mention-route')).toHaveTextContent('/u/nova');
+  });
+
+  it('uses the shared comment navigation callback without bubbling into the post', () => {
+    const navigate = vi.fn(); const openPost = vi.fn();
+    render(<div onClick={openPost}><MarkdownText text="For @nova" onMentionClick={navigate} /></div>);
+    fireEvent.click(screen.getByRole('link', { name: '@nova' }));
+    expect(navigate).toHaveBeenCalledWith('nova'); expect(openPost).not.toHaveBeenCalled();
+  });
+  it.each(['full', 'light'] as const)('renders typed people tags in %s posts without linking code or email', (density) => {
+    const { container } = render(<PostBody text="Hi @nova. `@code` email@example.com" density={density} />);
+    expect(container.querySelector('a[href="/u/nova"]')).toHaveTextContent('@nova');
+    expect(container.querySelector('a[href="/u/code"]')).toBeNull();
+    expect(container.querySelector('a[href="/u/example"]')).toBeNull();
+  });
+
+  it('renders typed and legacy comment tags as profile links, not external web10: links', () => {
+    const { container } = render(<MarkdownText text="Hi @nova and @[alice](web10:alice)" />);
+    expect(container.querySelector('a[href="/u/nova"]')).toHaveTextContent('@nova');
+    expect(container.querySelector('a[href="/u/alice"]')).not.toHaveAttribute('target', '_blank');
+  });
   it('renders bold as <strong>', () => {
     const { container } = render(<PostBody text="some **bold** text" density="full" />);
     expect(container.querySelector('strong')).toHaveTextContent('bold');

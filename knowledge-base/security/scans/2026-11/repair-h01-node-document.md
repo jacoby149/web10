@@ -97,3 +97,12 @@ binding or object retrieval. Existing capability URLs remain valid until TTL.
 Inventory provenance, broader pinned/node-ad app/service/group/visibility policy,
 anonymous routing, real lifecycle, CI/rollout and protocol L1 remain OPEN.
 No L2 advancement, production changes or deployment.
+
+## PR Publication Follow-Up
+
+PR #1402 merges `origin/dev` at `2461effa1`, preserving #1400's people-tag
+implementation, release entries and security learning. Resolve the adjacent
+learnings insertion by retaining both; restore the changelog entry boundary and
+renumber only this branch's release/plan/lane from 4.10.5 to 4.12.1 above dev's
+4.12.0. No API runtime/test changes arrive from dev. Earlier receipts remain
+pre-merge evidence; post-merge checks and normal PR CI remain separate gates.

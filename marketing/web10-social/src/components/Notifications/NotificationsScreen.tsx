@@ -7,6 +7,7 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { markAllRead, markRead, notificationHref, resolveReplyHref, type Notification } from '@/data/notifications';
 import { getWapi } from '@/data/wapi';
 import { cn } from '@/lib/utils';
+import { isMentionNotification, resolveMentionHref } from '@/data/mentionNotifications';
 
 // The "did X" line for each notification type (the KB's screen shape:
 // "alice liked your post · 2m ago").
@@ -19,6 +20,12 @@ function describe(n: Notification): string {
       return `${who} commented on your post`;
     case 'reply':
       return `${who} replied to your comment`;
+    case 'post_mention':
+      return `${who.includes('/groups/') ? who.split('/').pop() : who} tagged you in a post`;
+    case 'comment_mention':
+      return `${who.includes('/groups/') ? who.split('/').pop() : who} tagged you in a comment`;
+    case 'mention_reply':
+      return `${who.includes('/groups/') ? who.split('/').pop() : who} replied to a comment you're tagged in`;
     case 'follow_request':
       return `${who} followed you`;
     case 'group_join':
@@ -51,16 +58,16 @@ function NotificationRow({ n, unread, onClose }: { n: Notification; unread: bool
   // permalink, the conversation, the profile). A `reply` needs a CRUD
   // re-read (parent comment → post → author), so it resolves on click.
   const href = me ? notificationHref(n, me) : null;
-  const clickable = !!href || n.type === 'reply';
+  const clickable = !!href || n.type === 'reply' || isMentionNotification(n.type);
 
   // Opening a row's destination marks THAT row read (the KB: the badge clears
   // "by navigating to a row's destination") — the other rows stay unread
   // until the user marks all. Fire-and-forget: the persist is best-effort,
   // the local flip is what the badge reacts to.
   const open = () => {
-    if (n.type === 'reply') {
+    if (n.type === 'reply' || isMentionNotification(n.type)) {
       if (!me) return;
-      resolveReplyHref(n, me)
+      (isMentionNotification(n.type) ? resolveMentionHref(n) : resolveReplyHref(n, me))
         .then((r) => {
           if (!r) return;
           markRead(n.id).catch(() => {});
@@ -251,7 +258,7 @@ export default function NotificationsScreen({ onClose }: { onClose?: () => void 
             <>
               <p className="text-sm font-medium text-foreground">No notifications yet</p>
               <p className="text-xs text-muted-foreground mt-1 max-w-xs">
-                When someone reacts to, comments on, or replies to your posts — or messages you — it shows up here.
+                When someone tags you, reacts to your posts, comments, replies, or follows you, it shows up here.
               </p>
             </>
           )}

@@ -20,10 +20,19 @@ function avatar(label: string, from: string, to: string): string {
 export function getV3Client() {
   return {
     readToken: () => getWapi().readToken(),
+    listPeopleDirectory: async () => ({ users: [
+      { username: 'nova', profile: { display_name: 'Nova Lane' } },
+      { username: 'noah', profile: { display_name: 'Noah Reed' } },
+      { username: 'kai', profile: { display_name: 'Kai Moreno' } },
+    ] }),
     getMyGroups: async () => [{ group_id: groupId, my_role: 'publisher' }],
     getGroup: async () => ({ group_id: groupId, roles: [{ name: 'publisher', permissions: { '*': ['readAll', 'create', 'updateOwn', 'deleteOwn'] } }] }),
     read: async () => [{ doc_id: 'studio-face', author_key: 'me', body: { name: 'Northstar Studio' } }],
-    query: async () => ({ rows: [{ group_id: groupId, avatar_url: avatar('NS', '#8b5cf6', '#2e1065') }], count: 1 }),
+    query: async (sql: string) => ({ rows: sql.includes('FROM profile') ? [
+      { author_key: 'nova', avatar_url: avatar('N', '#8b5cf6', '#2e1065') },
+      { author_key: 'noah', avatar_url: avatar('NR', '#3b82f6', '#172554') },
+      { author_key: 'kai', avatar_url: avatar('K', '#8b5cf6', '#2e1065') },
+    ] : [{ group_id: groupId, avatar_url: avatar('NS', '#8b5cf6', '#2e1065') }], count: 1 }),
     documentAttachment: async (_docId: string, _groupId: string, opts?: { attached?: boolean }) => ({ attached: opts?.attached ?? true }),
   };
 }

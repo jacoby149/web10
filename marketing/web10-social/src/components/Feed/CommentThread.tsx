@@ -6,8 +6,11 @@
 import { readThreadComments, readThreadReplies, createThreadComment, uploadCommentPhoto, toggleReactionKind, updateComment, deleteComment } from '@/data';
 import { CommentThread as SharedCommentThread } from '@web10/discover';
 import { useActingAuthor } from '@/data/actingIdentity';
+import { renderMentionInput } from '@/components/shared/MentionInput';
+import { readCommentAnchor } from '@/data/comments';
 
 interface CommentThreadProps {
+  readOnly?: boolean;
   postId: string;
   isOpen: boolean;
   count: number;
@@ -28,6 +31,8 @@ export function CommentThread(props: CommentThreadProps) {
   return (
     <SharedCommentThread
       {...props}
+      renderInput={renderMentionInput}
+      readAnchor={readCommentAnchor}
       actionIdentity={identity}
       readComments={readThreadComments}
       readReplies={readThreadReplies}

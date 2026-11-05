@@ -36,6 +36,7 @@ export default defineConfig({
       '@web10/discover/video': path.resolve(__dirname, '../shared/discover/src/ReliableVideo.tsx'),
       '@web10/discover/face': path.resolve(__dirname, '../shared/discover/src/face.ts'),
       '@web10/discover/audio-artwork': path.resolve(__dirname, '../shared/discover/src/audioArtwork.ts'),
+      '@web10/discover/mentions': path.resolve(__dirname, '../shared/discover/src/mentions.ts'),
       '@web10/discover': path.resolve(__dirname, '../shared/discover/src/index.ts'),
     },
   },

@@ -616,7 +616,9 @@ export function fromV3DocToComment(doc: V3Document): CommentRecord {
     author_key: doc.author_key,
     posted_by: doc.posted_by,
     author_href: doc.author_key?.includes('/groups/') ? `/groups/${encodeURIComponent(doc.author_key)}` : undefined,
-    post_id: doc.ref_value || (body.post_id as string) || '',
+    // ref_value is the immediate parent (a COMMENT for replies), never the
+    // owning post when body.post_id is available.
+    post_id: (body.post_id as string) || doc.ref_value || '',
     text: (body.text as string) || '',
     created_at: doc.created_at,
     updated_at: doc.updated_at,

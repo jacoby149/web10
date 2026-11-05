@@ -36,6 +36,7 @@ import { markdownToHtml } from '@/lib/markdownHtml';
 import { DiscoverAudience } from './DiscoverAudience';
 import { MusicTagToggle } from './MusicTagToggle';
 import type { MediaPostDraft } from '@/components/Uploads/uploadState';
+import { EditorMentions } from '@/components/shared/EditorMentions';
 
 let nextMediaId = 0;
 
@@ -455,7 +456,7 @@ export default function PostComposer({
   // owns the document; `text` is the serialized form the data layer writes.
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({ link: { openOnClick: false } }),
+      StarterKit.configure({ link: { openOnClick: false, protocols: ['web10'] } }),
       Placeholder.configure({
         placeholder: repostingTo ? 'Add a comment…' : "What's on your mind?",
       }),
@@ -1212,6 +1213,8 @@ export default function PostComposer({
                formatting toolbar lives below the text (a row above the action
                bar — the Facebook structure), not above it. */}
           <EditorContent editor={editor} />
+          {editor && <EditorMentions editor={editor} scope={`caption:${editingPost?._id || 'new'}:${authorAs || ''}`} />}
+          <p className="mt-2 text-xs text-muted-foreground">Tag someone with @username</p>
 
           {expanded && (
             <>

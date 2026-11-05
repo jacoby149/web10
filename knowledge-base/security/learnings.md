@@ -55,6 +55,25 @@ representative query latency/load measurement before rollout and revisit if
 inventory reads degrade. Anonymous routing, other-service inventory and connected
 density/overwrite/HLS behavior remain unverified intent gates.
 
+### 2026-11-05: A people tag is a target, never read authority
+
+The social tag index belongs to the app's opaque post/comment body. It helps
+find candidates through the existing readable-service query boundary; it never
+adds a member or writes into the tagged person's group. New live tag nudges
+must re-read their source and derive actor/time from canonical fields, not the
+peer payload. Opening a row also re-reads the post under current permissions.
+Local tests cover denied/stale sources, self-tags and obsolete completions;
+real compiler acceptance is not actual-storage or connected permission proof.
+The bounded record remains OPEN for connected acceptance and diverse review.
+
+Autocomplete adds no new authority: directory rows stay readable-gated and face
+enrichment stays canonical uploader-scoped. A comment anchor's `ref_value` is
+its parent, not necessarily its post; prefer `body.post_id`, validate the whole
+bounded ancestor path against that owning post and reject cycles. The local
+real FastAPI/ClickHouse floor now verifies public/private/grant/revocation and
+removed-tag reads, separately from the synthetic UI/browser matrix; neither
+receipt proves connected P2P or production behavior.
+
 ### 2026-11-05: Media recovery tickets must survive delayed playback and DOM replacement
 
 A short-lived media URL is not durable app state. Replay the original authorized
