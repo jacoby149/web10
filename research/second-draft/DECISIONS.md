@@ -10,6 +10,15 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 04.11.2026
 
+### Shot 0, take 21 → take 22: the close "sounds defensive" — make it affirmative
+
+- **(operator)** "It is not hypothetical: … this sounds defensive."
+  Preempting the objection is the defensive part; just state the fact.
+- **(agent)** Take 22's fifth sentence: "Already running on that node:
+  the social app, the snake game, and the marketplace — three apps that
+  interoperate on shared data through the same boundary." Sentences 1–4
+  unchanged from take 21.
+
 ### Shot 0, take 20 → take 21: close on the snake game + marketplace + interoperability
 
 - **(operator)** "i think bring up the sname game and the other thing,
