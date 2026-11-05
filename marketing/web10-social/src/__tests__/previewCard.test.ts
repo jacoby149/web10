@@ -15,7 +15,19 @@ function mockPlatform(handlers: Record<string, unknown>) {
     const body = init?.body ? JSON.parse(String(init.body)) : {}
     // Route by the endpoint path.
     if (url.includes('/v3/read')) {
-      const key = body.doc_id ? `read:${body.doc_id}` : `read:groups:${JSON.stringify(body.groups)}`
+      let key
+      if (body.doc_id) {
+        key = `read:${body.doc_id}`
+      } else {
+        const groupsKey = JSON.stringify(body.groups)
+        // A service-scoped key (`read:saved:[…]`) wins over the legacy bare
+        // group key — a saved collection's face read and item-count read target
+        // the SAME group, so the bare key alone is ambiguous; the legacy key
+        // stays for the existing handlers.
+        key = handlers[`read:${body.service}:${groupsKey}`] !== undefined
+          ? `read:${body.service}:${groupsKey}`
+          : `read:groups:${groupsKey}`
+      }
       const data = handlers[key] ?? handlers['read:default'] ?? null
       return json(data)
     }
@@ -42,9 +54,12 @@ describe('web10-social link-preview card logic (KB: media/thumbnailing.md)', () 
   let postCard: (u: string, p: string) => Promise<string>
   let profileCard: (u: string) => Promise<string>
   let groupCard: (g: string) => Promise<string>
+  let groupPostCard: (g: string, p: string) => Promise<string>
   let watchCard: (p: string) => Promise<string>
   let shortsCard: (p: string) => Promise<string>
   let musicCard: (p?: string | null) => Promise<string>
+  let savedCard: (u: string, c: string) => Promise<string>
+  let groupSavedCard: (g: string, c: string) => Promise<string>
   let truncate: (s: string, n: number) => string | null
   let stripMarkdown: (s: string) => string
 
@@ -54,9 +69,12 @@ describe('web10-social link-preview card logic (KB: media/thumbnailing.md)', () 
     postCard = mod.postCard
     profileCard = mod.profileCard
     groupCard = mod.groupCard
+    groupPostCard = mod.groupPostCard
     watchCard = mod.watchCard
     shortsCard = mod.shortsCard
     musicCard = mod.musicCard
+    savedCard = mod.savedCard
+    groupSavedCard = mod.groupSavedCard
     truncate = mod.truncate
     stripMarkdown = md.stripMarkdown
   })
@@ -442,6 +460,113 @@ describe('web10-social link-preview card logic (KB: media/thumbnailing.md)', () 
       expect(html).toContain('A post on web10')
       expect(html).toContain('http://social.test/keys-mark.png')
       expect(html).toContain('http://social.test/shorts/p1')
+    })
+  })
+
+  describe('groupPostCard — the /groups/:groupId/p/:postId share link (group-authored posts)', () => {
+    const CLUB = 'api.test/groups/users/nova/club'
+
+    it('renders the post card with the album art and the group canonical url', async () => {
+      const fetchMock = mockPlatform({
+        'read:track-1': { author_key: CLUB, posted_by: 'nova', body: { title: 'Night Drive', text: 'A recording' } },
+        'thumb:track-1': { thumbnail: { url: 'http://minio.test/nova/album.webp', alt: 'Album cover', is_video: false } },
+      })
+      const html = await groupPostCard(CLUB, 'track-1')
+      expect(html).toContain('"title":"Night Drive"')
+      expect(html).toContain('"image":"http://minio.test/nova/album.webp"')
+      expect(html).toContain(`http://social.test/groups/${encodeURIComponent(CLUB)}/p/track-1`)
+      expect(html).not.toContain('keys-mark.png')
+      // Anon-only reads (no Authorization header ever leaves the process).
+      expect(fetchMock.mock.calls.every(([, init]) => !('Authorization' in (init?.headers || {})))).toBe(true)
+    })
+
+    it('a denied group post renders the generic card without a thumbnail request', async () => {
+      const fetchMock = mockPlatform({ 'read:private': null })
+      const html = await groupPostCard(CLUB, 'private')
+      expect(html).toContain('A post on web10')
+      expect(html).toContain('keys-mark.png')
+      expect(html).toContain(`http://social.test/groups/${encodeURIComponent(CLUB)}/p/private`)
+      expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/thumbnail'))).toBe(false)
+    })
+  })
+
+  describe('savedCard / groupSavedCard — the playlist permalinks', () => {
+    const CLUB = 'api.test/groups/users/nova/club'
+    const PLAYLIST = 'api.test/groups/users/nova/saved-jazz-nights'
+
+    function faceHandlers(countDocs: unknown) {
+      return {
+        [`read:web10-social-group-identity:[${JSON.stringify(PLAYLIST)}]`]: [
+          { author_key: PLAYLIST, body: { name: 'Jazz Nights', kind: 'saved', visibility: 'public', avatar_ref: 'cover-1' } },
+        ],
+        [`read:saved:[${JSON.stringify(PLAYLIST)}]`]: countDocs,
+        'thumb:cover-1': { thumbnail: { url: 'http://minio.test/nova/cover.webp', alt: null, is_video: false } },
+      }
+    }
+
+    it('savedCard: a public playlist renders the name, the cover and the item count', async () => {
+      mockPlatform(faceHandlers([{ doc_id: 's1' }, { doc_id: 's2' }, { doc_id: 's3' }]))
+      const html = await savedCard('nova', PLAYLIST)
+      expect(html).toContain('"title":"Jazz Nights"')
+      expect(html).toContain('"image":"http://minio.test/nova/cover.webp"')
+      expect(html).toContain('3 saved items')
+      expect(html).toContain('by @nova')
+      expect(html).toContain(`http://social.test/u/nova/saved/${encodeURIComponent(PLAYLIST)}`)
+      expect(html).toContain('"og_type":"website"')
+    })
+
+    it('savedCard: a cover that is an audio doc resolves to its album art, not the recording', async () => {
+      mockPlatform({
+        ...faceHandlers([]),
+        'thumb:cover-1': { thumbnail: { url: 'http://minio.test/nova/album-art.webp', alt: 'Album art', is_video: false } },
+      })
+      const html = await savedCard('nova', PLAYLIST)
+      expect(html).toContain('"image":"http://minio.test/nova/album-art.webp"')
+    })
+
+    it('savedCard: a playlist with no cover falls back to the brand mark', async () => {
+      mockPlatform({
+        [`read:web10-social-group-identity:[${JSON.stringify(PLAYLIST)}]`]: [
+          { author_key: PLAYLIST, body: { name: 'No Cover', kind: 'saved', visibility: 'public' } },
+        ],
+        [`read:saved:[${JSON.stringify(PLAYLIST)}]`]: [{ doc_id: 's1' }],
+      })
+      const html = await savedCard('nova', PLAYLIST)
+      expect(html).toContain('"title":"No Cover"')
+      expect(html).toContain('http://social.test/keys-mark.png')
+      expect(html).toContain('1 saved item')
+    })
+
+    it('savedCard: a private playlist (denied face read) renders a generic card with no content and no item read', async () => {
+      const fetchMock = mockPlatform({})
+      const html = await savedCard('nova', 'api.test/groups/users/nova/saved-secret')
+      expect(html).toContain('A playlist on web10')
+      expect(html).toContain('http://social.test/keys-mark.png')
+      expect(html).toContain(`http://social.test/u/nova/saved/${encodeURIComponent('api.test/groups/users/nova/saved-secret')}`)
+      expect(html).not.toContain('secret name')
+      // Face read + render only — no thumbnail, no item-count read.
+      expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/thumbnail'))).toBe(false)
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+    })
+
+    it('savedCard: a failed item-count read omits the count, keeping the name + cover', async () => {
+      mockPlatform({
+        ...faceHandlers(null), // the count read answers null → no count
+      })
+      const html = await savedCard('nova', PLAYLIST)
+      expect(html).toContain('"title":"Jazz Nights"')
+      expect(html).toContain('http://minio.test/nova/cover.webp')
+      expect(html).toContain('"description":"by @nova"')
+      expect(html).not.toContain('saved items')
+    })
+
+    it('groupSavedCard: a group playlist renders with the group canonical url and no user attribution', async () => {
+      mockPlatform(faceHandlers([{ doc_id: 's1' }]))
+      const html = await groupSavedCard(CLUB, PLAYLIST)
+      expect(html).toContain('"title":"Jazz Nights"')
+      expect(html).toContain('1 saved item')
+      expect(html).not.toContain('by @')
+      expect(html).toContain(`http://social.test/groups/${encodeURIComponent(CLUB)}/saved/${encodeURIComponent(PLAYLIST)}`)
     })
   })
 })

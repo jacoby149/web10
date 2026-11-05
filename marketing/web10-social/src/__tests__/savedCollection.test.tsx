@@ -372,3 +372,103 @@ describe('SavedCollectionScreen — the collection\'s cover (Set as cover)', () 
     expect(screen.queryByTestId('saved-post-set-cover')).not.toBeInTheDocument();
   });
 });
+
+// ── Playlist sharing ─────────────────────────────────────────────────────────
+
+function stubClipboard() {
+  const writeText = vi.fn().mockResolvedValue(undefined);
+  Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+  return writeText;
+}
+
+describe('SavedCollectionScreen — playlist sharing', () => {
+  it('the share button opens the sheet with the canonical permalink (owner)', async () => {
+    mockReadCollection.mockResolvedValue({
+      face: { name: 'Guitar Riffs', visibility: 'public' },
+      posts: [],
+      mediaMap: {},
+    });
+    renderCollection();
+    const share = screen.getByTestId('saved-collection-share');
+    expect(share).toBeInTheDocument();
+    fireEvent.click(share);
+    const sheet = await screen.findByTestId('saved-collection-share-sheet');
+    expect(sheet).toHaveAccessibleName('Share “Guitar Riffs”');
+    expect(screen.getByTestId('saved-collection-share-url')).toHaveTextContent(
+      `/u/testuser/saved/${encodeURIComponent(GROUP_ID)}`,
+    );
+    expect(screen.getByText('Anyone with the link can listen.')).toBeInTheDocument();
+    expect(screen.queryByTestId('saved-collection-share-make-public-share')).not.toBeInTheDocument();
+  });
+
+  it('a public collection copies the link from the sheet (no navigator.share in jsdom)', async () => {
+    const writeText = stubClipboard();
+    mockReadCollection.mockResolvedValue({
+      face: { name: 'Guitar Riffs', visibility: 'public' },
+      posts: [],
+      mediaMap: {},
+    });
+    renderCollection();
+    fireEvent.click(screen.getByTestId('saved-collection-share'));
+    await screen.findByTestId('saved-collection-share-sheet');
+    fireEvent.click(screen.getByTestId('saved-collection-share-share'));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(
+      new URL(`/u/testuser/saved/${encodeURIComponent(GROUP_ID)}`, window.location.origin).href,
+    ));
+    expect(await screen.findByTestId('saved-collection-share-status')).toHaveTextContent('Link copied.');
+  });
+
+  it('a private collection offers "Make public & share" to the owner (the flip precedes the link)', async () => {
+    const writeText = stubClipboard();
+    mockReadCollection.mockResolvedValue({
+      face: { name: 'Guitar Riffs', visibility: 'private' },
+      posts: [],
+      mediaMap: {},
+    });
+    renderCollection();
+    fireEvent.click(screen.getByTestId('saved-collection-share'));
+    await screen.findByTestId('saved-collection-share-sheet');
+    expect(screen.getByText(/This playlist is private/)).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('saved-collection-share-make-public-share'));
+    await waitFor(() => expect(mockSetCollectionVisibility).toHaveBeenCalledWith(GROUP_ID, 'public'));
+    await waitFor(() => expect(writeText).toHaveBeenCalled());
+    expect(await screen.findByTestId('saved-collection-share-status')).toHaveTextContent('Playlist is public');
+    // The header flips with the collection (the state update, not the sheet's optimism).
+    expect(mockSetCollectionVisibility).toHaveBeenCalledTimes(1);
+  });
+
+  it('a visitor of a public collection can share (no make-public action)', async () => {
+    mockReadCollection.mockResolvedValue({
+      face: { name: 'Guitar Riffs', visibility: 'public' },
+      posts: [],
+      mediaMap: {},
+    });
+    renderCollection(`/u/otheruser/saved/${encodeURIComponent(GROUP_ID)}`, 'otheruser');
+    const share = screen.getByTestId('saved-collection-share');
+    expect(share).toBeInTheDocument();
+    fireEvent.click(share);
+    const sheet = await screen.findByTestId('saved-collection-share-sheet');
+    expect(sheet).toBeInTheDocument();
+    expect(screen.queryByTestId('saved-collection-share-make-public-share')).not.toBeInTheDocument();
+  });
+
+  it('the group collection shares its /groups/ permalink', async () => {
+    mockReadCollection.mockResolvedValue({
+      face: { name: 'Best Of', visibility: 'public', owner_group: 'test.localhost/groups/users/testuser/band' },
+      posts: [],
+      mediaMap: {},
+    });
+    render(
+      <MemoryRouter initialEntries={ [`/groups/${encodeURIComponent('test.localhost/groups/users/testuser/band')}/saved/${encodeURIComponent(GROUP_ID)}` ] }>
+        <Routes>
+          <Route path="/groups/:groupId/saved/:collectionId" element={<SavedCollectionScreen username="testuser" provider="test.localhost" groupId="test.localhost/groups/users/testuser/band" />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByTestId('saved-collection-share'));
+    await screen.findByTestId('saved-collection-share-sheet');
+    expect(screen.getByTestId('saved-collection-share-url')).toHaveTextContent(
+      `/groups/${encodeURIComponent('test.localhost/groups/users/testuser/band')}/saved/${encodeURIComponent(GROUP_ID)}`,
+    );
+  });
+});
