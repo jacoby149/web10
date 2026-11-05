@@ -1427,6 +1427,8 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+- [✓ 4.10.21 local] **Shot 0 gains the Solid / readability beat** — unencrypted-on-the-node as the scale bet (the opposite of Solid's encrypted pods); users don't care about operator reads; law (not encryption) bars tampering. "Data policy, not privacy" made concrete; also a §9 positioning asset. **Shot 0 is now 12 sentences; take 27 fired in the PR #1396 thread — awaiting the operator's riff.**
+
 - [✓ 4.10.20 local] **The network sentences un-massaged; voice rule 15 locked** — "authenticity over template, mechanism over benefit." The /certify line = the authentic SPF/DKIM parallel; the DNS line = the TXT-record mechanism (node verifies by its own lookup; untouchable to the node owner) with audience-preservation as the consequence. **Take 26 fired — awaiting the operator's riff.**
 
 - [✓ 4.10.19 local] **Shot 0 extended — the pitch carries both movements (11 sentences)** — the /certify handshake (anchored to SPF/DKIM: "a handshake, not a registry") + the DNS/audience payoff ("you NEVER lose your audience"). The two-movements structure is now inside the pitch itself. Open: final-line ordering (bedrock vs audience payoff). **Next: the operator's pass on the 11-sentence shot 0 → lock the arc into OUTLINE.md (the 9 node sentences → §1/§2/§3/§5/§6/§8/§9; the 2 network sentences → §4 + §8 Q2) → the diagram shots → the sections.**

@@ -10,6 +10,31 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 04.11.2026
 
+### Shot 0: + the Solid / readability beat — unencrypted by design, scale is the payoff
+
+- **(operator)** "we should add a short sentence, that solid is concerned
+  about data ownership, but web10 thinks people dont care about
+  businesses accessing their data, the data here is unencrypted on the
+  web10 node, but that is what makes it scale, high performance clickhouse
+  queries, data lakehouse stuff is possible because of that. and legally
+  if the node owner tampers with user data that is illegal, but users ok
+  with companies knowing everything about them they really dont care."
+- **(agent)** Added as the beat after the ClickHouse bedrock (shot 0 is
+  now 12 sentences): "Solid keeps its data encrypted and pod-bound for
+  ownership; web10 makes the opposite bet — its data sits unencrypted and
+  readable on the node, because that is what makes high-performance
+  ClickHouse queries, and data-lakehouse composition, possible across
+  it. The bet is that users do not care that the node operator can read
+  their data: they own the control over who else can reach it, and the
+  operator is bound by law not to tamper with it." This is the
+  "data policy, not privacy" thesis made concrete: readability buys
+  scale; integrity is protected by law + the user's grants, not by
+  encryption. It is a known↔advanced pair (Solid's encrypted pods ↔
+  web10's readable store) and a mechanism-over-benefit beat.
+- **(agent)** Note: this beat is also a related-work / positioning asset —
+  the explicit web10-vs-Solid contrast (ownership-privacy vs
+  readable-scale) belongs in §9 and sharpens differentiator #1.
+
 ### Shot 0, the network sentences: both were massaged — the authentic versions replace them
 
 - **(operator)** On the /certify pitch sentence: "no those two sentences
