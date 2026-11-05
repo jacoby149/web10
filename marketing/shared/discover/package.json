@@ -11,6 +11,7 @@
     ".": "./src/index.ts",
     "./face": "./src/face.ts",
     "./audio-artwork": "./src/audioArtwork.ts",
+    "./mentions": "./src/mentions.ts",
     "./media-recovery": "./src/mediaRecovery.ts",
     "./image": "./src/ReliableImage.tsx",
     "./video": "./src/ReliableVideo.tsx"

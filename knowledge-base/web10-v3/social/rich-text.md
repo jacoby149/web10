@@ -87,8 +87,9 @@ document, not a syntax box:
   panel, no "Elementor."** That is the WordPress foot-gun (the right-side
   Typography / Color / Drop-cap / Advanced panel) and it is *rejected* — it is
   the complexity that made WordPress heavy. The toolbar is the *only*
-  formatting surface. The **`@` mention** is not a toolbar button — it is an
-  inline autocomplete that fires as you type `@` (the social token, below).
+  formatting surface. The **`@` mention** is not a toolbar button — type
+  `@username` in the caption (the social token, below). Typing `@` opens the
+  shared people picker; it narrows by handle or display name as you type.
   **The native Cmd/Ctrl+U underline is suppressed.** A browser underlines a
   contenteditable selection in place, but there is no underline in markdown
   and no turndown rule for `<u>` — so the mark would vanish on save: the
@@ -169,12 +170,13 @@ every interactive element has all its states).
 - **Keyboard is first-class.** Cmd/Ctrl+Enter posts (the power-user shortcut,
   what Twitter/Notion do); Tab/Shift+Tab move through the toolbar; Esc blurs.
   The composer is fully operable without a mouse (design.md §11).
-- **The @mention (the social-specific one).** Typing `@` opens an autocomplete
-  of people you can mention (the DM compose already does a debounced profile
-  lookup — `lookupUserProfile`, 3.114.0 — the same seam). A mention renders as a
-  highlighted, tappable handle in the body (the renderer's one social-specific
-  token, on top of the markdown). This is what separates a *social* composer
-  from a document editor — it is the "partiful" social beat.
+- **The @mention (the social-specific one).** Type the exact local `@username`
+  in a caption or comment. It renders as a highlighted, tappable profile link.
+  Publication and direct replies to a tagged comment generate alerts under
+  the [notification contract](../../web10-social-v3/notifications.md#people-tags-in-posts-and-comments).
+  The picker shows readable people with display names, handles and optional
+  faces. Arrow keys select a row, Enter/Tab inserts, Escape dismisses; touch
+  selection retains editor focus. Only the token at the caret is replaced.
 - **The character count (when there is a limit).** A quiet counter appears only
   as you approach the cap (the last N characters), in `muted-foreground`, turning
   `warning` at the limit. No counter when you're nowhere near it — it is a
@@ -210,7 +212,7 @@ GitHub-flavored core, not a document framework:
 | Blockquote | `> ` | brand left-border |
 | Link | `[text](url)` | the existing link treatment (below) |
 | Line break / paragraph | blank line | `<p>` |
-| Mention | `@[username](web10:username)` | a highlighted, tappable handle (the social token, below) |
+| Mention | `@username` (legacy: `@[username](web10:username)`) | a highlighted, tappable handle (the social token, below) |
 
 **What it rejects (the editor does not offer, the renderer does not render):**
 tables, images-in-body (media is the `media_refs` path, not markdown — D82's
@@ -218,16 +220,27 @@ media `caption` is a different thing), nested/complex layouts, and any raw HTML
 (the sanitizer strips it, below). The body is *prose with light structure*, not
 a page builder.
 
-**The mention (the one social-specific token).** A mention is the one thing a
-*social* composer has that a document editor doesn't. Typing `@` opens an
-autocomplete (the DM compose's debounced `lookupUserProfile` seam, 3.114.0);
-picking a person inserts a mention that the editor stores as
-`@[username](web10:username)` — a markdown link with a `web10:` scheme (not a
-URL, so the sanitizer's `javascript:`/`data:`/http rules don't apply to it, and
-the renderer recognizes the scheme and renders it as a highlighted, tappable
-handle instead of a link). The handle navigates to `/u/:username` (the same
-destination every other surface's author click uses). It is the "partiful"
-social beat — the composer is a *social* composer, not a document editor.
+**The mention (the one social-specific token).** Plain `@username` prose and
+the existing `@[username](web10:username)` link both target the same local
+account. The render pass turns prose tags into ordinary `/u/:username` links;
+the legacy scheme is explicitly allowed through the sanitizer and mapped to
+that same profile route. Code, emails and ordinary link labels are not tags.
+The social write layer derives `mention_usernames` from the markdown for
+notification lookup; the node still stores an opaque app-owned body. There is
+no membership grant, cross-node target or historical backfill.
+
+The same picker is used in all social caption/repost editors and every shared
+comment composer, including replies and edits. A 250 ms debounce separates
+typing from directory reads; stale query, scope and unmount completions cannot
+replace current suggestions. Directory pages are searched until the result
+budget is filled or the directory ends, not filtered from just the first 50
+people. Base rows paint before optional avatar enrichment. Empty and failed
+reads stay distinct; a failed search offers retry without losing the draft.
+Choosing a row inserts its exact local handle plus a space, preserves text on
+either side and restores the caret. Email/URL/code/link contexts do not open
+the picker. Menus are viewport-constrained portals so Shorts sheets, lightboxes
+and scrollable composers cannot clip them; transient suggestions do not change
+the URL.
 
 ## The read side: the renderer + the type scale
 

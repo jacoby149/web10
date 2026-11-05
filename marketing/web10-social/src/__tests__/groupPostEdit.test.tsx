@@ -42,7 +42,7 @@ it('shared composer updates the original group post through real updatePost with
   fireEvent.change(await screen.findByTestId('composer-title'), { target: { value: 'Edited title' } });
   fireEvent.click(screen.getByTestId('post-submit'));
   await waitFor(() => expect(saved).toHaveBeenCalledOnce());
-  expect(client.update).toHaveBeenCalledWith('existing', { title: 'Edited title', text: 'Original text' }, {
+  expect(client.update).toHaveBeenCalledWith('existing', { title: 'Edited title', text: 'Original text', mention_usernames: [] }, {
     author_as: group, ad_preference: { mode: 'pinned', target: 'original-ad' },
   });
   expect(post.title).toBe('Original title');
