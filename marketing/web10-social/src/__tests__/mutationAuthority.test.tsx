@@ -139,7 +139,7 @@ it('rechecks live comment authority and sends the document author, never the sel
   selectActingAuthor('node/groups/other');
   client.getGroup.mockResolvedValue(grants({ comments: ['updateOwn'] }));
   await updateComment('comment', { text: 'new' });
-  expect(client.update).toHaveBeenCalledWith('comment', { text: 'new' }, { author_as: group });
+  expect(client.update).toHaveBeenCalledWith('comment', { text: 'new', mention_usernames: [] }, { author_as: group });
   await expect(deleteComment('comment')).rejects.toThrow('Not authorized');
   expect(client.delete).not.toHaveBeenCalled();
   client.getGroup.mockResolvedValue(grants({ comments: ['deleteOwn'] }));

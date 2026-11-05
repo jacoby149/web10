@@ -8,8 +8,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest",
-    "test:run": "vitest run",
-    "check": "tsc --noEmit && vitest run",
+    "test:run": "node screenshots/media-surface-inventory.mjs && vitest run",
+    "check": "tsc --noEmit && node screenshots/media-surface-inventory.mjs && vitest run",
     "screenshots": "node screenshots/capture.mjs"
   },
   "dependencies": {

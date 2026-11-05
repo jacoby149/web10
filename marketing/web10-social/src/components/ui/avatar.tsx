@@ -1,3 +1,4 @@
+import { ReliableImage } from '@web10/discover/image';
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
@@ -17,7 +18,7 @@ const AvatarImage = React.forwardRef<
   HTMLImageElement,
   React.ImgHTMLAttributes<HTMLImageElement>
 >(({ className, ...props }, ref) => (
-  <img
+  <ReliableImage
     ref={ref}
     className={cn('aspect-square h-full w-full object-cover', className)}
     {...props}

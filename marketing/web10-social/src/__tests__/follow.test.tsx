@@ -337,13 +337,13 @@ describe('UserProfileScreen', () => {
     });
   });
 
-  it('video posts render a <video> thumbnail in the grid, not a broken <img>', async () => {
+  it('video grid cells load their image poster, never metadata from the raw recording', async () => {
     const { readMyPosts, resolveMediaRefs } = await import('@/data');
     vi.mocked(readMyPosts).mockResolvedValueOnce([
       { _id: 'post-v1', text: 'clip', media_refs: ['m-v1'], created_at: new Date().toISOString() },
     ]);
     vi.mocked(resolveMediaRefs).mockResolvedValueOnce([
-      { _id: 'm-v1', url: 'http://test.com/clip.mp4', mime_type: 'video/mp4', created_at: new Date().toISOString() },
+      { _id: 'm-v1', url: 'http://test.com/clip.mp4', thumbnail_url: 'http://test.com/poster.webp', mime_type: 'video/mp4', created_at: new Date().toISOString() },
     ]);
 
     const { default: UserProfileScreen } = await import('@/components/Bio/UserProfileScreen');
@@ -362,9 +362,9 @@ describe('UserProfileScreen', () => {
     });
 
     const cell = screen.getByTestId('profile-post-cell');
-    expect(cell.querySelector('video')).not.toBeNull();
-    expect(cell.querySelector('img')).toBeNull();
-    expect(container.querySelector('video')?.getAttribute('src')).toBe('http://test.com/clip.mp4');
+    expect(cell.querySelector('video')).toBeNull();
+    expect(cell.querySelector('img')).toHaveAttribute('src', 'http://test.com/poster.webp');
+    expect(container.querySelector('video')).toBeNull();
   });
 
   it('media tab cells are clickable and open the lightbox', async () => {

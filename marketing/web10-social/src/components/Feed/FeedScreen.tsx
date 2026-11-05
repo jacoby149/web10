@@ -1,3 +1,4 @@
+import { ReliableImage } from '@web10/discover/image';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useIsMobile } from '@/lib/pwa';
 import { PostMediaRenewal } from './PostMediaRenewal';
@@ -157,7 +158,7 @@ function MediaItem({ media, audioTitle, audioArtist }: { media: MediaRecord; aud
       style={containerStyle}
       data-testid="media-image"
     >
-      <img
+      <ReliableImage
         src={src}
         alt={media.alt_text || ''}
         onLoad={(e) => onMediaLoaded(e.currentTarget)}

@@ -1,3 +1,6 @@
+import { ReliableImage } from './ReliableImage';
+import { hasMediaRecovery, mayStartPreview, recoverMediaUrl } from './mediaRecovery';
+import { useMediaPlaybackBudget } from './mediaVisibility';
 import { useEffect, useRef, useState } from 'react';
 import { Volume2, VolumeX } from 'lucide-react';
 import { cn } from './utils';
@@ -8,6 +11,10 @@ import type { HlsInstance } from './hls';
 import type { MediaItem } from './types';
 
 const LOG = (...args: unknown[]) => console.log('[discover:hover-video]', ...args);
+
+// A lease owns the downloader, not just the right to emit sound. Shared by
+// every wall in either consuming app; explicit Music/Watch players are exempt.
+let releasePreview: (() => void) | undefined;
 
 // ── The touch-dwell coordinator (the mobile analog of hover) ─────────────────
 // A touch device has no hover — the YouTube mobile behavior instead: the
@@ -218,8 +225,8 @@ function useIsTouchDevice(): boolean {
  * The source follows the same rule as every other video surface
  * (`video-player.md`): a transcoded video (`status === 'done'` + a minted
  * `manifest_url`) plays through hls.js (native HLS on Safari); anything else
- * plays the direct file. The source attaches **lazily on first hover** — a
- * wall of cards does not mint/attach N players at rest.
+ * plays the direct file. The source attaches lazily for each active preview
+ * interval and is released afterward — idle cards hold no downloaders.
  *
  * The frame is inert to the pointer: the card's `<a>` (the post's permalink)
  * owns the click — hovering plays, clicking navigates.
@@ -251,8 +258,10 @@ export interface HoverVideoProps {
 
 export function HoverVideo({ media, poster, testId, className, onTime, onPlayingChange, priority = false }: HoverVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  useMediaPlaybackBudget(videoRef);
   const hlsRef = useRef<HlsInstance | null>(null);
   const attachedRef = useRef(false);
+  const recoverPreview = useRef<() => void>(() => {});
   // The tile's frame element (the touch-dwell IntersectionObserver target).
   const frameRef = useRef<HTMLDivElement>(null);
   // This tile's coordinator registration id (the touch-dwell path).
@@ -292,27 +301,92 @@ export function HoverVideo({ media, poster, testId, className, onTime, onPlaying
   const isTouch = useIsTouchDevice();
   const [inView, setInView] = useState(false);
   const [dwell, setDwell] = useState(false);
-  const hovered = pointerHover || (isTouch && inView && dwell);
+  const [allowed, setAllowed] = useState(() => !document.hidden && navigator.onLine !== false);
+  const [onScreen, setOnScreen] = useState(true);
+  const hovered = allowed && onScreen && (pointerHover || (isTouch && inView && dwell));
+
+  useEffect(() => {
+    const connection = (navigator as Navigator & { connection?: EventTarget & { saveData?: boolean } }).connection;
+    const update = () => setAllowed(!document.hidden && navigator.onLine !== false && !connection?.saveData);
+    update();
+    document.addEventListener('visibilitychange', update);
+    window.addEventListener('online', update);
+    window.addEventListener('offline', update);
+    connection?.addEventListener('change', update);
+    const frame = frameRef.current;
+    const observer = !failed && !isTouch && typeof IntersectionObserver !== 'undefined' ? new IntersectionObserver(entries => {
+      for (const entry of entries) if (entry.target === frame) setOnScreen(entry.isIntersecting);
+    }) : undefined;
+    if (frame) observer?.observe(frame);
+    return () => {
+      observer?.disconnect();
+      document.removeEventListener('visibilitychange', update);
+      window.removeEventListener('online', update);
+      window.removeEventListener('offline', update);
+      connection?.removeEventListener('change', update);
+    };
+  }, [isTouch, failed]);
 
   const source = sourceFromMedia(media);
+  const sourceKey = source.type === 'hls' ? source.manifestUrl : source.type === 'file' ? source.url : '';
+  useEffect(() => { setFailed(false); }, [sourceKey]);
 
-  // ── Attach the source lazily (first hover) ────────────────────────────────
+  // Attach only for the active interval. Pause alone leaves hls.js buffering;
+  // releasing the lease destroys HLS or resets the native resource selection.
   useEffect(() => {
-    if (!hovered || attachedRef.current) return;
+    if (!hovered || failed || !mayStartPreview()) return;
     const el = videoRef.current;
     if (!el) return;
+    releasePreview?.();
     attachedRef.current = true;
+    let live = true;
+    let hls: HlsInstance | undefined;
+    let attempted = false;
+    let recovering = false;
+    recoverPreview.current = () => {
+      if (!live || recovering) return;
+      if (attempted || !hasMediaRecovery(sourceKey)) { setFailed(true); return; }
+      attempted = true;
+      recovering = true;
+      void recoverMediaUrl(sourceKey).then(fresh => {
+        if (!live) return;
+        if (!fresh.isCurrent()) throw new Error('Media reader changed');
+        if (hls) hls.loadSource(new URL(fresh.url, API_ORIGIN).href);
+        else { el.src = new URL(fresh.url, API_ORIGIN).href; el.load(); }
+        void el.play().catch(() => {});
+      }).catch(() => { if (live) setFailed(true); }).finally(() => { recovering = false; });
+    };
+    const release = () => {
+      if (!live) return;
+      live = false;
+      attachedRef.current = false;
+      el.pause();
+      hls?.destroy();
+      hlsRef.current = null;
+      el.removeAttribute('src');
+      el.load();
+      LOG('preview downloader released');
+    };
+    const relinquish = () => {
+      release();
+      setPointerHover(false);
+      setDwell(false);
+      setPlaying(false);
+      onPlayingChangeRef.current?.(false);
+    };
+    releasePreview = relinquish;
 
     if (source.type === 'hls') {
       const manifestHref = `${API_ORIGIN}${source.manifestUrl}`;
-      LOG('attach — hls, manifest:', manifestHref);
+      LOG('attach — hls');
       if (window.Hls && window.Hls.isSupported()) {
         const Hls = window.Hls;
-        const hls = new Hls();
+        hls = new Hls();
         hlsRef.current = hls;
         hls.on(Hls.Events.ERROR, (_e, data) => {
-          LOG('hls error, type:', data.type, 'details:', data.details, 'fatal:', data.fatal);
-          if (data.fatal) setFailed(true);
+          if (!live) return;
+          LOG('hls error, fatal:', data.fatal);
+          if (data.fatal) recoverPreview.current();
         });
         hls.loadSource(manifestHref);
         hls.attachMedia(el);
@@ -324,7 +398,7 @@ export function HoverVideo({ media, poster, testId, className, onTime, onPlaying
         setFailed(true);
       }
     } else if (source.type === 'file') {
-      LOG('attach — file, url:', source.url);
+      LOG('attach — file');
       el.src = source.url;
     } else {
       // `sourceFromMedia` never yields a youtube source (the Shorts path is
@@ -332,23 +406,34 @@ export function HoverVideo({ media, poster, testId, className, onTime, onPlaying
       LOG('attach — unsupported source type for a hover preview');
       setFailed(true);
     }
+    el.muted = muted;
+    const pending = el.play();
+    // An obsolete play promise must not pause a newer lease on the same node.
+    pending?.then(() => { if (!live && !attachedRef.current) el.pause(); }).catch(() => {});
+    return () => {
+      release();
+      if (releasePreview === relinquish) releasePreview = undefined;
+      setPlaying(false);
+      onPlayingChangeRef.current?.(false);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hovered]);
+  }, [hovered, source.type, sourceKey, failed]);
 
   // ── Playing signal + progress (the poster → video crossfade) ─────────────
-  // Listens for the lifetime of the element: a hover that leaves before the
-  // source is playable must not lose the signal (the attach effect runs once).
+  // Rebind if an unavailable source is replaced and the video node remounts.
   // `playing` is the reveal gate — it fires only when frames are actually on
   // screen, so the tile never shows a gray/black frame.
   useEffect(() => {
     const el = videoRef.current;
     if (!el) return;
     const onPlaying = () => {
+      if (!attachedRef.current) return;
       setPlaying(true);
       onPlayingChangeRef.current?.(true);
     };
     const onPause = () => {
       setPlaying(false);
+      if (attachedRef.current) { setPointerHover(false); setDwell(false); }
       onPlayingChangeRef.current?.(false);
     };
     const onTime = () => {
@@ -373,26 +458,15 @@ export function HoverVideo({ media, poster, testId, className, onTime, onPlaying
       el.removeEventListener('loadedmetadata', onMeta);
       el.removeEventListener('durationchange', onMeta);
     };
-  }, []);
+  }, [failed]);
 
-  // ── Play while hovered, stop when the pointer leaves ──────────────────────
-  // The source is stable for the card's lifetime (the post's media), so the
-  // [hovered, muted, failed] deps drive the play/pause; the `playing` state
-  // above (from the element's own events) drives the reveal.
+  // Mute is independent of the lease; changing it never reattaches transport.
   useEffect(() => {
     const el = videoRef.current;
     if (!el) return;
-    if (hovered && !failed) {
-      el.muted = muted;
-      // Un-muted playback is the user's explicit gesture (the speaker toggle)
-      // — make sure it's actually audible, not just un-muted at zero volume.
-      if (!muted && el.volume === 0) el.volume = 0.8;
-      const p = el.play();
-      if (p && typeof p.catch === 'function') p.catch(() => {});
-    } else {
-      el.pause();
-    }
-  }, [hovered, muted, failed]);
+    el.muted = muted;
+    if (!muted && el.volume === 0) el.volume = 0.8;
+  }, [muted]);
 
   // ── Touch: the scroll-dwell preview (the mobile analog of hover) ──────────
   // A touch device never fires `mouseenter`, so the pointer path above is dead
@@ -410,7 +484,7 @@ export function HoverVideo({ media, poster, testId, className, onTime, onPlaying
   // reveal, the scrubber, and the speaker toggle are all shared — one preview
   // machine, two input paths.
   useEffect(() => {
-    if (!isTouch) return;
+    if (!isTouch || failed) return;
     const el = frameRef.current;
     if (!el) return;
 
@@ -450,7 +524,7 @@ export function HoverVideo({ media, poster, testId, className, onTime, onPlaying
     // The frame element is stable for the tile's lifetime; the coordinator
     // callbacks are state setters (stable).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isTouch]);
+  }, [isTouch, failed]);
 
   // ── Tear down on unmount ───────────────────────────────────────────────────
   useEffect(() => {
@@ -511,7 +585,7 @@ export function HoverVideo({ media, poster, testId, className, onTime, onPlaying
   // to the poster — the tile still works as a link, the preview is a bonus.
   if (failed) {
     return poster ? (
-      <img
+      <ReliableImage
         data-testid={testId}
         src={poster}
         alt=""
@@ -544,7 +618,7 @@ export function HoverVideo({ media, poster, testId, className, onTime, onPlaying
           pushed the video off-screen below the poster, so the audio played but
           the visible image stayed the thumbnail). */}
       {poster && (
-        <img
+        <ReliableImage
           src={poster}
           alt=""
           loading={priority ? 'eager' : 'lazy'}
@@ -569,8 +643,9 @@ export function HoverVideo({ media, poster, testId, className, onTime, onPlaying
         playsInline
         preload="none"
         onError={() => {
-          LOG('video error, code:', videoRef.current?.error?.code, 'msg:', videoRef.current?.error?.message);
-          setFailed(true);
+          if (!attachedRef.current) return;
+          LOG('video error, code:', videoRef.current?.error?.code);
+          recoverPreview.current();
         }}
       />
 

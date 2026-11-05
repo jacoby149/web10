@@ -1,3 +1,4 @@
+import { ReliableImage } from '@web10/discover/image';
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -255,7 +256,7 @@ export default function ProfileScreen() {
           aria-hidden="true"
         />
         {bannerMedia && (
-          <img src={bannerMedia.url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          <ReliableImage src={bannerMedia.url} alt="" className="absolute inset-0 w-full h-full object-cover" />
         )}
         <button
           onClick={(e) => { e.stopPropagation(); handleUpload('banner_ref'); }}
@@ -505,13 +506,10 @@ export default function ProfileScreen() {
                     {firstMedia ? (
                       firstMedia.mime_type?.startsWith('video/') ? (
                         <div className="w-full h-full relative">
-                          <video
-                            src={firstMedia.url}
-                            poster={firstMedia.thumbnail_url}
+                          <ReliableImage
+                            src={firstMedia.thumbnail_url}
+                            alt=""
                             className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-110"
-                            preload="metadata"
-                            playsInline
-                            muted
                           />
                           <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
                             <div className="flex items-center justify-center w-9 h-9 rounded-full bg-background/80 backdrop-blur-sm">
@@ -520,7 +518,7 @@ export default function ProfileScreen() {
                           </div>
                         </div>
                       ) : (
-                        <img
+                        <ReliableImage
                           src={firstMedia.url}
                           alt=""
                           className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-110"
@@ -571,13 +569,10 @@ export default function ProfileScreen() {
                   >
                     {media.mime_type?.startsWith('video/') ? (
                       <div className="w-full h-full relative">
-                        <video
-                          src={media.url}
-                          poster={media.thumbnail_url}
+                        <ReliableImage
+                          src={media.thumbnail_url}
+                          alt=""
                           className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-110"
-                          preload="metadata"
-                          playsInline
-                          muted
                         />
                         <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
                           <div className="flex items-center justify-center w-9 h-9 rounded-full bg-background/80 backdrop-blur-sm">
@@ -586,7 +581,7 @@ export default function ProfileScreen() {
                         </div>
                       </div>
                     ) : (
-                      <img
+                      <ReliableImage
                         src={media.url}
                         alt={media.alt_text || ''}
                         className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-110"

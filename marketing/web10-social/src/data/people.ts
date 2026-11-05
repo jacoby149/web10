@@ -3,6 +3,7 @@ import { followersGroupId, getGroupMembers } from './groups';
 import { listFollowers } from './follows';
 import { extractUsername } from './types';
 import { peopleFaceSql, reduceFaceRows, facePrepare } from '@web10/discover/face';
+import { mapMediaReads, mediaReadLifetime } from '@web10/discover/media-recovery';
 
 const LOG = (...args: unknown[]) => console.log('[social:people]', ...args);
 
@@ -169,6 +170,7 @@ export async function fetchPeoplePage(opts: {
   onProgress?: (page: PeoplePage) => void;
 }): Promise<PeoplePage> {
   const w = getV3Client();
+  const current = mediaReadLifetime();
   const token = w.readToken();
   const provider = token?.provider || 'web10';
 
@@ -235,14 +237,14 @@ export async function fetchPeoplePage(opts: {
       publish();
       // D60: retain the existing generic membership read and denial behavior.
       if (token && myFollowing.size > 0) {
-        await Promise.all(people.map(async (card) => {
+        await mapMediaReads(people, async (card) => {
           try {
             const members = await getGroupMembers(followersGroupId(card.username, card.provider));
             card.mutuals = members.filter((m) => myFollowing.has(extractUsername(m.member_key))).length;
           } catch (e) {
             LOG('fetchPeoplePage — mutuals read failed for', card.username, '(degrading to 0):', e);
           }
-        }));
+        }, current);
       }
       LOG('fetchPeoplePage — mutuals settled');
       for (const card of people) card.mutuals_pending = false;
@@ -266,6 +268,7 @@ export async function fetchPeoplePage(opts: {
  */
 export async function fetchMyFollowersCards(): Promise<PersonCard[]> {
   const w = getV3Client();
+  const current = mediaReadLifetime();
   const token = w.readToken();
   if (!token) {
     LOG('fetchMyFollowersCards — no token, returning []');
@@ -295,8 +298,7 @@ export async function fetchMyFollowersCards(): Promise<PersonCard[]> {
 
   const myFollowing = new Set<string>(followers.map((f) => f.username));
 
-  const cards = await Promise.all(
-    followers.map(async (f): Promise<PersonCard> => {
+  const cards = await mapMediaReads(followers, async (f): Promise<PersonCard> => {
       const card: PersonCard = {
         username: f.username,
         provider: f.provider || provider,
@@ -321,8 +323,7 @@ export async function fetchMyFollowersCards(): Promise<PersonCard[]> {
         // No readable face — the card renders from the username alone.
       }
       return card;
-    }),
-  );
+    }, current);
 
   // Face media (avatar + banner) — one batched author-scoped face-prepare over
   // the followers (I3-gated; a face the reader can't read keeps the gradient
@@ -346,6 +347,7 @@ export async function fetchMyFollowersCards(): Promise<PersonCard[]> {
  */
 export async function fetchMyFollowingCards(): Promise<PersonCard[]> {
   const w = getV3Client();
+  const current = mediaReadLifetime();
   const token = w.readToken();
   if (!token) {
     LOG('fetchMyFollowingCards — no token, returning []');
@@ -372,8 +374,7 @@ export async function fetchMyFollowingCards(): Promise<PersonCard[]> {
   }
   LOG('fetchMyFollowingCards — got', following.length, 'following');
 
-  const cards = await Promise.all(
-    following.map(async (f): Promise<PersonCard> => {
+  const cards = await mapMediaReads(following, async (f): Promise<PersonCard> => {
       const card: PersonCard = {
         username: f.username,
         provider: f.provider || provider,
@@ -396,8 +397,7 @@ export async function fetchMyFollowingCards(): Promise<PersonCard[]> {
         // No readable face — the card renders from the username alone.
       }
       return card;
-    }),
-  );
+    }, current);
 
   // Face media (avatar + banner) — one batched author-scoped face-prepare over
   // the following (I3-gated; a face the reader can't read keeps the gradient

@@ -41,6 +41,9 @@ import { sendNotification } from '../../data/notifications';
 import { followUser } from '../../data/follows';
 import { createReaction } from '../../data/reactions';
 import { createComment } from '../../data/comments';
+import { createPost, updatePost } from '../../data/posts';
+import { updateComment } from '../../data/comments';
+import * as mutation from '../../data/mutationAuthority';
 
 // The last sendP2P call's (provider, username, payload).
 function lastNudge(): { provider: string; username: string; payload: Record<string, unknown> } {
@@ -50,6 +53,44 @@ function lastNudge(): { provider: string; username: string; payload: Record<stri
 }
 
 describe('write side (D69) — actions nudge the target over P2P', () => {
+  it('indexes caption tags and nudges each tagged person only after successful post creation', async () => {
+    await createPost({ text: '@bob @bob @alice', created_at: '2026-11-05' }, ['discover']);
+    expect(client.create).toHaveBeenCalledWith('posts', expect.objectContaining({ mention_usernames: ['bob', 'alice'] }), expect.anything());
+    expect(sendP2PCalls).toHaveLength(1);
+    expect(lastNudge()).toMatchObject({ username: 'bob', payload: { type: 'post_mention', ref_doc_id: 'new-doc' } });
+  });
+
+  it('does not send tag nudges when publication fails', async () => {
+    client.create.mockRejectedValueOnce(new Error('denied'));
+    await expect(createPost({ text: '@bob', created_at: '2026-11-05' }, ['discover'])).rejects.toThrow('denied');
+    expect(sendP2PCalls).toHaveLength(0);
+    client.create.mockRejectedValueOnce(new Error('denied'));
+    await expect(createComment({ text: '@bob', post_id: 'post', created_at: '2026-11-05' })).rejects.toThrow('denied');
+    expect(sendP2PCalls).toHaveLength(0);
+  });
+
+  it('indexes comment tags and nudges people tagged in the parent when it gets a reply', async () => {
+    client.readById.mockResolvedValue({ doc_id: 'parent', author_key: 'carol', body: { text: '@bob @bob' } });
+    await createComment({ text: 'Hi @dave', post_id: 'post', parent_id: 'parent', created_at: '2026-11-05' });
+    await vi.waitFor(() => expect(sendP2PCalls).toHaveLength(3));
+    expect(client.create).toHaveBeenCalledWith('comments', expect.objectContaining({ mention_usernames: ['dave'] }), expect.anything());
+    expect(sendP2PCalls.map(([, username, payload]) => [username, payload.type, payload.ref_doc_id])).toEqual([
+      ['dave', 'comment_mention', 'new-doc'], ['bob', 'mention_reply', 'new-doc'], ['carol', 'reply', 'parent'],
+    ]);
+  });
+
+  it('recomputes tag indexes on edits, including removing the final tag, without publication nudges', async () => {
+    const update = vi.fn(async () => ({ doc_id: 'post', author_key: 'alice', body: {} }));
+    vi.spyOn(v3, 'getV3Client').mockReturnValue({ ...client, update } as never);
+    await updatePost('post', { text: 'tag removed' });
+    expect(update).toHaveBeenLastCalledWith('post', { text: 'tag removed', mention_usernames: [] }, undefined);
+    client.readById.mockResolvedValue({ doc_id: 'comment', author_key: 'alice', body: {} });
+    vi.spyOn(mutation, 'readMutationAuthority').mockResolvedValue({ canEdit: true, canDelete: true });
+    await updateComment('comment', { text: '@bob' });
+    expect(update).toHaveBeenLastCalledWith('comment', { text: '@bob', mention_usernames: ['bob'] });
+    expect(sendP2PCalls).toHaveLength(0);
+  });
+
   let client: ReturnType<typeof makeClient>;
 
   beforeEach(() => {

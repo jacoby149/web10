@@ -35,6 +35,44 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-05: A people tag is a target, never read authority
+
+The social tag index belongs to the app's opaque post/comment body. It helps
+find candidates through the existing readable-service query boundary; it never
+adds a member or writes into the tagged person's group. New live tag nudges
+must re-read their source and derive actor/time from canonical fields, not the
+peer payload. Opening a row also re-reads the post under current permissions.
+Local tests cover denied/stale sources, self-tags and obsolete completions;
+real compiler acceptance is not actual-storage or connected permission proof.
+The bounded record remains OPEN for connected acceptance and diverse review.
+
+Autocomplete adds no new authority: directory rows stay readable-gated and face
+enrichment stays canonical uploader-scoped. A comment anchor's `ref_value` is
+its parent, not necessarily its post; prefer `body.post_id`, validate the whole
+bounded ancestor path against that owning post and reject cycles. The local
+real FastAPI/ClickHouse floor now verifies public/private/grant/revocation and
+removed-tag reads, separately from the synthetic UI/browser matrix; neither
+receipt proves connected P2P or production behavior.
+
+### 2026-11-05: Media recovery tickets must survive delayed playback and DOM replacement
+
+A short-lived media URL is not durable app state. Replay the original authorized
+read, retain exact resource/reader scope, and treat expiry decoding only as a
+scheduling hint. Capture the generation BEFORE dispatch: capturing it after an
+await can register an obsolete response in a new identity. Checking a renewal's
+`isCurrent` once is insufficient; native/HLS metadata and pending play promises
+must recheck it before restoring or resuming. Error UI can replace the video
+node, so reveal/progress/control subscriptions must follow that DOM generation.
+Visibility re-entry must not undo native pause intent; immersive renewal must
+capture the latest position, not only the last off-screen checkpoint. Native
+source reset can emit timeupdate(0) before loadedmetadata: keep the pending
+restoration checkpoint separate from ordinary observations, while explicit
+seeking can still replace it with zero. Six
+bounded same-family review findings reproduce these continuation failures and
+have red→green controls; independent convergence and connected assurance remain
+open. A 15-second UI timeout must not release an unabortable request slot and
+multiply real concurrency; skip queued work whose demand already expired.
+
 ### 2026-11-04: Select the cover, never the recording
 
 The audio exclusion added to prevent raw-file thumbnails also skipped valid audio

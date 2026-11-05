@@ -1,3 +1,4 @@
+import { ReliableImage } from './ReliableImage';
 import { Users, UserPlus, UserCheck, Loader2, Lock, ChevronRight } from 'lucide-react';
 import { cn, formatCount, hashToGradient } from './utils';
 import { Avatar, AvatarFallback, Badge, Skeleton } from './ui';
@@ -98,7 +99,7 @@ export function GroupCard({
     >
       <div className="h-24 w-full overflow-hidden" aria-hidden="true">
         {face?.banner_url ? (
-          <img
+          <ReliableImage
             src={face.banner_url}
             alt=""
             loading="lazy"
@@ -112,7 +113,7 @@ export function GroupCard({
         <div className="shrink-0 -mt-8 rounded-full border-4 border-card">
           <Avatar className={cn('h-16 w-16', !face?.avatar_url && gradient)}>
             {face?.avatar_url ? (
-              <img src={face.avatar_url} alt={name} className="h-full w-full object-cover" />
+              <ReliableImage src={face.avatar_url} alt={name} className="h-full w-full object-cover" />
             ) : (
               <AvatarFallback className="text-foreground text-xl font-semibold">{initial}</AvatarFallback>
             )}

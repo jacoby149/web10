@@ -1,3 +1,4 @@
+import { ReliableImage } from '@web10/discover/image';
 import { Link } from 'react-router-dom'
 import { Users, Lock, LockOpen, Shield } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -82,7 +83,7 @@ export function GroupCard({
       {/* Avatar — the identity's avatar_ref, else a fallback letter */}
       <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-elevated">
         {avatarSrc ? (
-          <img
+          <ReliableImage
             src={avatarSrc}
             alt={name}
             className="h-full w-full object-cover"

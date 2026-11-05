@@ -1,3 +1,6 @@
+import { ReliableImage } from './ReliableImage';
+import { hasMediaRecovery, recoverMediaUrl } from './mediaRecovery';
+import { useMediaPlaybackBudget, useMediaVisibility } from './mediaVisibility';
 import { createContext, useContext, useCallback, useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { Maximize2, TriangleAlert, Play, Pause, Volume2, VolumeX, Gauge, MonitorPlay } from 'lucide-react';
 import { cn } from './utils';
@@ -154,6 +157,7 @@ const SPEEDS = ['1x', '1.5x', '2x'] as const;
  */
 export function HlsVideoPlayer({ manifestUrl, refreshManifest, poster, width, height, className, maxWidth, maxHeight, fill = false, initialTime, onTimeUpdate, loop = true }: HlsVideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  useMediaPlaybackBudget(videoRef);
   const hlsRef = useRef<HlsInstance | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playingRef = useRef(false);
@@ -175,6 +179,11 @@ export function HlsVideoPlayer({ manifestUrl, refreshManifest, poster, width, he
   // Index into SPEEDS (0 = 1x, 1 = 1.5x, 2 = 2x).
   const [speed, setSpeed] = useState(0);
   const [failed, setFailed] = useState(false);
+  const [explicit, setExplicit] = useState(false);
+  const [autoplayAllowed, setAutoplayAllowed] = useState(!fill);
+  const visible = useMediaVisibility(videoRef, failed);
+  const eligible = visible || explicit;
+  const resumePosition = useRef(0);
   // The poster→video reveal latch: the video fades in only once it has actually
   // played (frames on screen — the `playing` event, NOT `canplay`, which fires
   // before the first frame renders and left a gray/black box). Once revealed it
@@ -204,14 +213,14 @@ export function HlsVideoPlayer({ manifestUrl, refreshManifest, poster, width, he
   const manifestHref = `${API_ORIGIN}${manifestUrl}`;
   const renewCarrier = useContext(HlsRenewalContext);
   const refreshRef = useRef(refreshManifest);
-  refreshRef.current = refreshManifest ?? (renewCarrier ? () => renewCarrier(manifestUrl) : undefined);
+  refreshRef.current = refreshManifest ?? (hasMediaRecovery(manifestUrl) ? () => recoverMediaUrl(manifestUrl) : renewCarrier ? () => renewCarrier(manifestUrl) : undefined);
+  useEffect(() => { setFailed(false); }, [manifestHref]);
 
   // ── Attach the source (hls.js first, native HLS fallback) ─────────────────
   useEffect(() => {
     const el = videoRef.current;
-    if (!el) return;
+    if (!el || !eligible || failed) return;
     LOG('hls player — attach');
-    setFailed(false);
     let disposed = false;
     let refreshing = false;
     let exhausted = false;
@@ -219,6 +228,11 @@ export function HlsVideoPlayer({ manifestUrl, refreshManifest, poster, width, he
     let href = manifestHref;
     let restore: (() => void) | undefined;
     let hls: HlsInstance | undefined;
+    const resumeMetadata = () => {
+      if (resumePosition.current > 0) el.currentTime = resumePosition.current;
+      el.playbackRate = parseFloat(SPEEDS[speedRef.current]);
+    };
+    el.addEventListener('loadedmetadata', resumeMetadata);
     // Unsigned metadata is a scheduling hint ONLY. The fresh read and node
     // manifest gate remain the authority; malformed hints use error recovery.
     const expiry = () => {
@@ -286,7 +300,7 @@ export function HlsVideoPlayer({ manifestUrl, refreshManifest, poster, width, he
     };
     // A pause from native/fullscreen controls is also intent. Conservatively
     // keep a replacement paused if the browser reports a pause while loading.
-    const onPauseIntent = () => { pauseIntentRef.current++; el.autoplay = false; };
+    const onPauseIntent = () => { pauseIntentRef.current++; el.autoplay = false; setAutoplayAllowed(false); };
     const recover = () => {
       if (disposed || refreshing || exhausted) return;
       if (!refreshRef.current || Date.now() - lastRecovery < 30_000) {
@@ -303,13 +317,18 @@ export function HlsVideoPlayer({ manifestUrl, refreshManifest, poster, width, he
     el.addEventListener('error', onNativeError);
     const detach = () => {
       disposed = true;
+      resumePosition.current = el.currentTime || resumePosition.current;
       el.removeEventListener('play', checkExpiry);
       el.removeEventListener('pause', onPauseIntent);
+      el.pause();
       el.removeEventListener('timeupdate', checkExpiry);
       el.removeEventListener('error', onNativeError);
+      el.removeEventListener('loadedmetadata', resumeMetadata);
       if (restore) el.removeEventListener('loadedmetadata', restore);
       hls?.destroy();
       hlsRef.current = null;
+      el.removeAttribute('src');
+      el.load();
     };
 
     if (window.Hls && window.Hls.isSupported()) {
@@ -326,7 +345,7 @@ export function HlsVideoPlayer({ manifestUrl, refreshManifest, poster, width, he
       });
       hls.on(Hls.Events.ERROR, (_e, data) => {
         LOG_ERR('hls player — error, type:', data.type, 'details:', data.details, 'fatal:', data.fatal);
-        if (data.response?.code === 403 && refreshRef.current) recover();
+        if ((data.response?.code === 403 || data.fatal) && refreshRef.current) recover();
         else if (data.fatal) setFailed(true);
       });
       hls.loadSource(manifestHref);
@@ -343,14 +362,14 @@ export function HlsVideoPlayer({ manifestUrl, refreshManifest, poster, width, he
     LOG_ERR('hls player — no HLS support in this browser');
     setFailed(true);
     return detach;
-  }, [manifestHref]);
+  }, [manifestHref, eligible, failed]);
 
   // ── Seek to the initial time once playback is ready (the watch page's ?t=). ─
   // Applied on `seeked` (metadata + the seek landed) — setting currentTime
   // before the source is ready is a no-op. A one-shot per manifest.
   useEffect(() => {
     const el = videoRef.current;
-    if (!el || initialTime == null || initialTime <= 0) return;
+    if (!el || initialTime == null || initialTime <= 0 || resumePosition.current > 0) return;
     let applied = false;
     const onSeeked = () => {
       if (applied) return;
@@ -369,7 +388,7 @@ export function HlsVideoPlayer({ manifestUrl, refreshManifest, poster, width, he
       el.removeEventListener('seeked', onSeeked);
       clearTimeout(t);
     };
-  }, [manifestHref, initialTime]);
+  }, [manifestHref, initialTime, failed]);
 
   // ── Surface timeupdate to the parent (the watch page's ?t= write-back). ────
   useEffect(() => {
@@ -378,7 +397,7 @@ export function HlsVideoPlayer({ manifestUrl, refreshManifest, poster, width, he
     const onTime = () => onTimeUpdate(el.currentTime);
     el.addEventListener('timeupdate', onTime);
     return () => el.removeEventListener('timeupdate', onTime);
-  }, [manifestHref, onTimeUpdate]);
+  }, [manifestHref, onTimeUpdate, failed]);
 
   // ── Keep the DOM in sync with playback events ─────────────────────────────
   useEffect(() => {
@@ -413,7 +432,7 @@ export function HlsVideoPlayer({ manifestUrl, refreshManifest, poster, width, he
       el.removeEventListener('ended', onEnd);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [failed]);
 
   // ── Speed works on every path (video-experience.md player spec). ──────────
   useEffect(() => {
@@ -466,6 +485,7 @@ export function HlsVideoPlayer({ manifestUrl, refreshManifest, poster, width, he
     const el = videoRef.current;
     if (!el) return;
     LOG('hls player — play/pause toggled');
+    setAutoplayAllowed(el.paused);
     if (el.paused) el.play().catch(() => {});
     else { pauseIntentRef.current++; el.pause(); }
     showControls();
@@ -519,7 +539,8 @@ export function HlsVideoPlayer({ manifestUrl, refreshManifest, poster, width, he
         className={cn('bg-elevated flex flex-col items-center justify-center gap-2 py-10 px-4 text-center', className)}
       >
         <TriangleAlert className="w-6 h-6 text-warning" strokeWidth={1.75} />
-        <p className="text-sm text-muted-foreground">This video can’t be played in your browser.</p>
+        <p className="text-sm text-muted-foreground">Video unavailable. Check your connection or try again.</p>
+        <button type="button" className="min-h-11 rounded px-3 text-sm text-brand-300 focus-visible:ring-2 focus-visible:ring-ring" onClick={() => { setExplicit(true); setFailed(false); }}>Retry video</button>
       </div>
     );
   }
@@ -536,6 +557,8 @@ export function HlsVideoPlayer({ manifestUrl, refreshManifest, poster, width, he
   return (
     <div
       data-testid="hls-video-player"
+      onPointerDown={() => setExplicit(true)}
+      onKeyDown={() => setExplicit(true)}
       className={cn('relative overflow-hidden bg-black', fill && 'h-full w-full', className)}
       onMouseEnter={() => { pointerOverRef.current = true; setPointerOver(true); showControls(); }}
       onMouseMove={showControls}
@@ -563,7 +586,7 @@ export function HlsVideoPlayer({ manifestUrl, refreshManifest, poster, width, he
             Both are `absolute inset-0` so they occupy the SAME box (stacked) —
             the video overlays the poster, never flows below it. */}
         {poster && (
-          <img
+          <ReliableImage
             src={poster}
             alt=""
             className="absolute inset-0 h-full w-full object-contain"
@@ -577,10 +600,13 @@ export function HlsVideoPlayer({ manifestUrl, refreshManifest, poster, width, he
             revealed ? 'opacity-100' : 'opacity-0',
           )}
           muted
-          autoPlay={!fill}
+          autoPlay={!fill && eligible && autoplayAllowed}
           loop={loop}
           playsInline
-          preload="auto"
+          preload="none"
+          onPlay={() => { hlsRef.current?.startLoad?.(); }}
+          onPause={() => { hlsRef.current?.stopLoad?.(); }}
+          onPointerDown={() => setExplicit(true)}
           onClick={togglePlay}
         />
 

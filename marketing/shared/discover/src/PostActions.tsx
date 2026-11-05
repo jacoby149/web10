@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Heart, ThumbsDown, MessageCircle, Repeat2, BarChart3, Users } from 'lucide-react';
 import { cn, formatCount } from './utils';
-import { CommentThread } from './CommentThread';
+import { CommentThread, type CommentThreadProps } from './CommentThread';
 import type { ReadComments, ReadReplies, CreateComment } from './types';
 
 /**
@@ -34,6 +34,8 @@ export type ReactionKind = 'like' | 'dislike';
 export type PostActionMode = 'interactive' | 'display' | 'none';
 
 export interface PostActionsProps {
+  readCommentAnchor?: CommentThreadProps['readAnchor'];
+  renderCommentInput?: CommentThreadProps['renderInput'];
   actionIdentity?: string;
   postId: string;
   liked: boolean;
@@ -116,6 +118,8 @@ export interface PostActionsProps {
 }
 
 export function PostActions({
+  readCommentAnchor,
+  renderCommentInput,
   actionIdentity,
   postId,
   liked,
@@ -364,6 +368,8 @@ export function PostActions({
 
   const thread = showComments && readComments && (
     <CommentThread
+      readAnchor={readCommentAnchor}
+      renderInput={renderCommentInput}
       postId={postId}
       isOpen={commentsOpen}
       count={localCommentCount}

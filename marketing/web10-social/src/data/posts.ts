@@ -11,6 +11,8 @@ import type { V3Document } from './v3';
 import { fromV3DocToPost, fromV3DocToMedia, fromResolvedMediaRef, fromV3DocToProfile, mediaRefId, extractUsername, dropAdPosts } from './types';
 import { getActingAuthor, actingPostGroups } from './actingIdentity';
 import { resolveFaceMedia, GROUP_FACE_SQL } from '@web10/discover/face';
+import { mentionedUsernames } from './mentions';
+import { sendNotification } from './notifications';
 
 /** Resolve group faces under their own readable groups, never as user profiles. */
 export async function resolvePostAuthors(posts: PostRecord[]): Promise<PostRecord[]> {
@@ -105,6 +107,7 @@ export async function createPost(
     visibility: post.visibility,
     location: post.location,
     mentions: post.mentions,
+    mention_usernames: mentionedUsernames(post.text),
     encrypted: post.encrypted,
     // Tags are a first-class column the read side already maps (fromV3DocToPost).
     // The composer sets ['short'] for a 9:16 video post (shorts.md) — the
@@ -149,6 +152,9 @@ export async function createPost(
     ...(authorAs ? { author_as: authorAs } : {}),
   });
   console.log('[social-feed] createPost — success, doc_id:', doc.doc_id);
+  for (const username of mentionedUsernames(post.text)) {
+    sendNotification({ username, provider: token.provider }, { type: 'post_mention', from: authorAs || token.username, ref_doc_id: doc.doc_id });
+  }
   return fromV3DocToPost(doc);
 }
 
@@ -519,6 +525,7 @@ export async function updatePost(
   const body: Record<string, unknown> = {};
   if (updates.title !== undefined) body.title = updates.title;
   if (updates.text !== undefined) body.text = updates.text;
+  if (updates.text !== undefined) body.mention_usernames = mentionedUsernames(updates.text);
   if (updates.media_refs !== undefined) body.media_refs = updates.media_refs;
   if (updates.visibility !== undefined) body.visibility = updates.visibility;
   if (updates.tags !== undefined) body.tags = updates.tags;

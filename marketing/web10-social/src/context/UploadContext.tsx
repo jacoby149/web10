@@ -13,6 +13,8 @@ import { uploadAttempt } from '@/lib/uploadSession';
 import { API_ORIGIN } from '@/lib/origins';
 import { useComposer } from './ComposerContext';
 import { toast } from '@/components/shared/Toast';
+import { mentionedUsernames } from '@/data/mentions';
+import { sendNotification } from '@/data/notifications';
 
 type Attempt = ReturnType<typeof uploadAttempt>;
 interface Context {
@@ -28,7 +30,7 @@ function createIntent(row: SavedUpload): DeferredIntent {
   const draft = row.draft;
   const tags = draft.width < draft.height ? ['short'] : draft.markAsMusic ? ['music'] : undefined;
   return { service: 'posts', groups: [...draft.groups], author_as: draft.authorAs,
-    body: { title: draft.title || undefined, text: draft.text, visibility: draft.visibility,
+    body: { title: draft.title || undefined, text: draft.text, mention_usernames: mentionedUsernames(draft.text), visibility: draft.visibility,
       media_refs: row.media_doc_id ? [row.media_doc_id] : [], tags },
     ad_preference: draft.pinnedAdId ? { mode: 'pinned', target: draft.pinnedAdId } : { mode: 'none' } };
 }
@@ -92,6 +94,11 @@ export function UploadProvider({ children, sessionKey }: { children: ReactNode; 
     if (Object.entries(patch).every(([key, value]) => row[key as keyof SavedUpload] === value)) return row;
     const result = await update(row.id, patch, attempt);
     if (phase === 'published' && row.phase !== 'published') {
+      if (job.doc_id) {
+        for (const username of mentionedUsernames(row.draft.text)) {
+          sendNotification({ username, provider: row.owner.provider }, { type: 'post_mention', from: row.draft.authorAs || row.owner.username, ref_doc_id: job.doc_id });
+        }
+      }
       window.dispatchEvent(new CustomEvent('post-created'));
       toast.success('Your video is ready and your post is published.');
       files.current.delete(row.id);

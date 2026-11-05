@@ -1,3 +1,4 @@
+import { ReliableImage } from '@web10/discover/image';
 import { useEffect, useRef, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, ExternalLink, PackageX, Star, LogIn, Check } from 'lucide-react'
@@ -349,7 +350,7 @@ function AppDetail() {
         <div className="mt-8 flex flex-col items-center gap-6 text-center sm:flex-row sm:text-left sm:gap-8">
           <div className="relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-elevated sm:h-28 sm:w-28">
             {iconSrc ? (
-              <img
+              <ReliableImage
                 src={iconSrc}
                 alt={name}
                 className="h-full w-full object-contain"
@@ -575,7 +576,7 @@ function AppDetail() {
                   className="shrink-0 overflow-hidden rounded-xl border border-border bg-surface"
                   style={{ aspectRatio: '9/16', width: '180px' }}
                 >
-                  <img
+                  <ReliableImage
                     src={url}
                     alt={`${name} screenshot ${i + 1}`}
                     className="h-full w-full object-cover"

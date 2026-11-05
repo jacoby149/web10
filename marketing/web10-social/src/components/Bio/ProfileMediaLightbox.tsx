@@ -1,3 +1,5 @@
+import { ReliableImage } from '@web10/discover/image';
+import { VideoPlayer, sourceFromMedia } from '../Feed/VideoPlayer';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { X, Check, Loader2, ImagePlus, RotateCcw, ChevronLeft, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -396,7 +398,7 @@ export function ProfileMediaLightbox({
                 aria-label={`Crop ${label.toLowerCase()}`}
               >
                 {cropUrl && (
-                  <img
+                  <ReliableImage
                     src={cropUrl}
                     alt=""
                     draggable={false}
@@ -525,16 +527,13 @@ export function ProfileMediaLightbox({
               <div className="relative flex items-center justify-center bg-black">
                 {media ? (
                   isVideo ? (
-                    <video
-                      src={media.url}
-                      poster={media.thumbnail_url}
+                    <VideoPlayer
+                      source={sourceFromMedia(media)}
+                      mode="full"
                       className="max-h-[40vh] w-full object-contain sm:max-h-[50vh]"
-                      playsInline
-                      muted
-                      controls
                     />
                   ) : (
-                    <img
+                    <ReliableImage
                       src={media.url}
                       alt={field === 'avatar' ? `${displayName || 'Profile'} profile picture` : 'Banner'}
                       className="max-h-[40vh] w-full object-contain sm:max-h-[50vh]"
@@ -600,7 +599,7 @@ export function ProfileMediaLightbox({
                           data-testid="profile-media-pick"
                           className="group relative aspect-square overflow-hidden rounded-md bg-elevated outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset disabled:opacity-60"
                         >
-                          <img
+                          <ReliableImage
                             src={m.url}
                             alt=""
                             className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-105"

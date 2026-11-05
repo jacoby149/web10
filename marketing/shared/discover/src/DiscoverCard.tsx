@@ -1,3 +1,4 @@
+import { ReliableImage } from './ReliableImage';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Image as ImageIcon, Film, Repeat2 } from 'lucide-react';
 import { cn, hashToColor } from './utils';
@@ -121,7 +122,7 @@ function DiscoverImage({ media, maxHeight }: { media: MediaItem; maxHeight?: str
       style={{ aspectRatio: `${ratio}`, maxHeight }}
       data-testid="discover-media-image"
     >
-      <img
+      <ReliableImage
         src={media.thumbnail_url || media.url}
         alt={media.alt_text || ''}
         className="w-full h-full object-cover"
@@ -220,7 +221,7 @@ function RepostEmbed({
       <div className="flex items-center gap-2.5 px-3 py-2.5">
         <Avatar className={`h-8 w-8 ${avatarColor}`}>
           {original.avatar_url ? (
-            <img src={original.avatar_url} alt={displayName} className="h-full w-full object-cover" />
+            <ReliableImage src={original.avatar_url} alt={displayName} className="h-full w-full object-cover" />
           ) : (
             <AvatarFallback className="text-xs font-semibold">{initial}</AvatarFallback>
           )}
@@ -255,7 +256,7 @@ function RepostEmbed({
             <DiscoverVideo media={first} />
           ) : first?.url ? (
             <div className="aspect-[4/3] w-full overflow-hidden rounded-md">
-              <img
+              <ReliableImage
                 src={first.thumbnail_url || first.url}
                 alt={first.alt_text || ''}
                 className="h-full w-full object-cover"
@@ -410,7 +411,7 @@ export function DiscoverCard({
           >
             <Avatar className={cn('h-9 w-9', avatarColor)}>
               {authorAvatar ? (
-                <img src={authorAvatar} alt={displayName} className="h-full w-full object-cover" />
+                <ReliableImage src={authorAvatar} alt={displayName} className="h-full w-full object-cover" />
               ) : (
                 <AvatarFallback className="text-sm font-semibold">{initial}</AvatarFallback>
               )}
@@ -425,7 +426,7 @@ export function DiscoverCard({
           >
             <Avatar className={cn('h-9 w-9', avatarColor)}>
               {authorAvatar ? (
-                <img src={authorAvatar} alt={displayName} className="h-full w-full object-cover" />
+                <ReliableImage src={authorAvatar} alt={displayName} className="h-full w-full object-cover" />
               ) : (
                 <AvatarFallback className="text-sm font-semibold">{initial}</AvatarFallback>
               )}
@@ -434,7 +435,7 @@ export function DiscoverCard({
         ) : (
           <Avatar className={cn('h-9 w-9', avatarColor)}>
             {authorAvatar ? (
-              <img src={authorAvatar} alt={displayName} className="h-full w-full object-cover" />
+              <ReliableImage src={authorAvatar} alt={displayName} className="h-full w-full object-cover" />
             ) : (
               <AvatarFallback className="text-sm font-semibold">{initial}</AvatarFallback>
             )}
