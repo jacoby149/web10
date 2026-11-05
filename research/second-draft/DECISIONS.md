@@ -10,6 +10,50 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 04.11.2026
 
+### The abstract is the shorter version; shot 3 (240w) is the intro seed
+
+- **(operator)** "i think this should go into the intro instead, and the
+  abstract being a shorter version of it." The ~240-word abstract (shot 3)
+  is the intro's opening / seed; the actual abstract is a compression of
+  it.
+- **(agent)** Abstract shot 4 (~160 words) compresses shot 3: keeps every
+  concrete anchor (a feed endpoint, the snake game, OAuth 2.0,
+  ClickHouse "at scale," email confirming a sender, the domain) and cuts
+  the elaboration ("billions of rows" → "at scale"; the "makes that scale
+  and auditability possible" clause; the surrounding email clause). Shot 3
+  is now the **intro seed** (to expand into full §1 with motivation +
+  roadmap). Rule: the abstract is the shorter version; the intro carries
+  the fuller version.
+
+### Abstract: PASSED (shot 3) — "the abstract optimizes for clarity, not completeness"
+
+- **(operator)** After shot 2 ("the applications job, the platforms job …
+  i would call this abstract unclear" — the abstract does NOT need
+  everything from shot 0; omit the beats that need illustration with
+  examples): shot 3 — "wow, that is great! i think that is our abstract,
+  am i wrong?"
+- **(agent)** **Abstract shot 3 is locked** (~240 words, recorded as the
+  canonical abstract in the changelog). The rule it established: the
+  abstract drops the beats that only land with examples (the
+  correctness/speed split, the query-rewrite machinery) and keeps only
+  what states cleanly, with the concrete anchors (feed endpoint, the
+  snake game, OAuth 2.0, ClickHouse + billions of rows, email confirming
+  a sender, the domain). Agent final check passes both oracles: Q1
+  (three apps, ClickHouse, scale), Q2 (rules as user-owned rows; every
+  query checked against the reader's rules), Q4 (OAuth-finer; "deliberately
+  not a privacy system"; the email sender check), logical awe (the
+  theorem in one clean sentence); no banned items (no "SQL", no repeated
+  "boundary", no "you", no line counts). One micro-nit flagged to the
+  operator: "which is what makes *that* scale and auditability possible"
+  — the "that" is slightly referent-hazy; polish or leave is their call.
+- **(agent)** Shot 0 also closes with this: beat 10's corrections
+  (Solid = data-sovereignty, not "privacy"; web10 explicitly not a
+  privacy play; readable-on-the-node ≠ readable-by-all; server-side
+  composition + the scale point) and the ruling that the three
+  "missing innovations" are not pitch material (the deletions → §7 +
+  Wikipedia; the K1000 measurement → §8 as the negative finding; the
+  OLAP move → beat 9 already says the right amount).
+
 ### Abstract shot 1: the abstract is worked from shot 0
 
 - **(operator)** "i really like this in our research paper approach. can you

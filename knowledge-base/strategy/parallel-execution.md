@@ -1427,6 +1427,8 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+- [✓ 4.10.22 local] **The abstract is the shorter version (shot 4, ~160w); shot 3 (240w) is the intro seed** — "this should go into the intro instead, and the abstract being a shorter version of it." The abstract keeps the concrete anchors, cuts the elaboration. Shot 0 closes here (beat 10 corrections; the three "missing innovations" ruled out: deletions → §7, K1000 → §8, OLAP → beat 9). **Next gate: the outline shots — the 12 beats → section mapping (presented in-thread, awaiting the pass), then the diagram shots, then the sections.**
+
 - [✓ 4.10.21 local] **Shot 0 gains the Solid / readability beat** — unencrypted-on-the-node as the scale bet (the opposite of Solid's encrypted pods); users don't care about operator reads; law (not encryption) bars tampering. "Data policy, not privacy" made concrete; also a §9 positioning asset. **Shot 0 is now 12 sentences; take 27 fired in the PR #1396 thread — awaiting the operator's riff.**
 
 - [✓ 4.10.20 local] **The network sentences un-massaged; voice rule 15 locked** — "authenticity over template, mechanism over benefit." The /certify line = the authentic SPF/DKIM parallel; the DNS line = the TXT-record mechanism (node verifies by its own lookup; untouchable to the node owner) with audience-preservation as the consequence. **Take 26 fired — awaiting the operator's riff.**
