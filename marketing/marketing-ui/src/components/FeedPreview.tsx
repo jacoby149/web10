@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { mediaReadFetch } from '@web10/discover/media-recovery';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -90,7 +91,7 @@ function feedPostToDiscover(post: FeedPost): DiscoverPost {  const author = post
 // yet." regardless of the post's real comment count.
 const marketingReadComments: ReadComments = async (postId) => {
   const safeId = postId.replace(/'/g, "''");
-  const resp = await fetch(`${API_ORIGIN}/v3/query`, {
+  const resp = await mediaReadFetch(`${API_ORIGIN}/v3/query`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     // No token — anon reads the public board (the discover group), the same
@@ -133,7 +134,7 @@ interface V3CommentRow {
 // beyond what the reader can already read.
 const marketingReadRepostOriginal: import('@web10/discover').ReadRepostOriginal = async (repostOf) => {
   const safeId = repostOf.replace(/'/g, "''");
-  const resp = await fetch(`${API_ORIGIN}/v3/read`, {
+  const resp = await mediaReadFetch(`${API_ORIGIN}/v3/read`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     // No token — anon reads the public post (the discover board's read-by-id).
@@ -465,7 +466,7 @@ interface V3Doc {
 }
 
 async function readGroup(service: string, limit: number): Promise<V3Doc[]> {
-  const resp = await fetch(`${API_ORIGIN}/v3/read`, {
+  const resp = await mediaReadFetch(`${API_ORIGIN}/v3/read`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     // No token — anon reads the public board (the discover group).
@@ -495,7 +496,7 @@ function dropAdDocs(docs: V3Doc[]): V3Doc[] {
 // the cap). Anon (no token) — the public board's engagement.
 async function readGroupRefCounts(service: string, ref: string[]): Promise<Record<string, number>> {
   if (!ref.length) return {};
-  const resp = await fetch(`${API_ORIGIN}/v3/read`, {
+  const resp = await mediaReadFetch(`${API_ORIGIN}/v3/read`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ service, groups: [DISCOVER_GROUP], ref, count: true }),
@@ -513,7 +514,7 @@ async function readGroupRefCounts(service: string, ref: string[]): Promise<Recor
 async function readGroupRepostCounts(postIds: string[]): Promise<Record<string, number>> {
   if (!postIds.length) return {};
   const quoted = postIds.map((id) => `'${id.replace(/'/g, "''")}'`).join(', ');
-  const resp = await fetch(`${API_ORIGIN}/v3/query`, {
+  const resp = await mediaReadFetch(`${API_ORIGIN}/v3/query`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -601,7 +602,7 @@ function mapV3DocToDiscovery(
 
 // Same anonymous face-prepare transport as ProfilesBrowser; no owner media read.
 const feedFaceTransport: FaceQueryTransport = async (sql, groups, prepare) => {
-  const resp = await fetch(`${API_ORIGIN}/v3/query`, {
+  const resp = await mediaReadFetch(`${API_ORIGIN}/v3/query`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ sql, groups, prepare }),

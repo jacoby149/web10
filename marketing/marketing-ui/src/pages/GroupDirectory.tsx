@@ -1,4 +1,5 @@
 import { Search, Users } from 'lucide-react'
+import { mediaReadFetch } from '@web10/discover/media-recovery';
 import { useEffect, useState, useMemo } from 'react'
 import { GroupCard } from '@/components/GroupCard'
 
@@ -45,7 +46,7 @@ interface ListedGroup extends DirectoryGroup {
 
 async function readGroupFace(groupId: string): Promise<GroupFace> {
   try {
-    const resp = await fetch(`${nodeApi()}/v3/read`, {
+    const resp = await mediaReadFetch(`${nodeApi()}/v3/read`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       // No token — anon reads the face of public groups (the `anyone` grant).

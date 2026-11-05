@@ -47,6 +47,33 @@ This supersedes only the previous lack of actual-storage evidence. It is not
 browser app-contract/consent, connected P2P, comprehensive L1–L4 PASS, diverse
 review, production or rollout acceptance.
 
+## Cross-site media recovery (05.11.2026) — bounded local, OPEN
+
+GPT-6.1 Sol implements transport-injected original-read recovery across the
+marketing/social media renderers, retaining node authorization, signing and
+TTL semantics. See `../strategy/media-reliability.md`. In-memory exact-resource
+bindings are fenced at dispatch, replay and delayed UI restoration by credential,
+identity generation and pathname; matching a decoded resource/expiry is never
+authority. Tests deny missing/foreign replacement, obsolete-account completion
+and delayed native playback, and pin bounded single-flight/stalled demand.
+One fresh same-family read-only review reproduces four lifecycle defects; its
+follow-up reproduces two immersive continuation defects. All six have explicit
+red→green regressions. These are bounded source/synthetic findings and repairs,
+not actual-node authorization proof, L1–L4 PASS or model-diverse three-dry
+sign-off. Review-sized splitting, independent convergence, actual connected
+permission/device coverage and rollout remain OPEN; no production/configuration
+change or expanded signing authority.
+
+Final local verification: 2,034 social/299 marketing tests, both builds and
+the default renderer ownership gate pass. Fifty-six real-browser synthetic
+image/error/offline cases, eight actual Chromium full/immersive synthetic HLS
+segment-403/renewal/position cases, the Music-context MP3/403/Retry receipt and
+stalled-preview HTTP cancellations pass at desktop/375px. Last narrow
+same-family follow-up reports no remaining concrete P1/P2 within its repaired
+scope; it is not model-diverse convergence. Source-reset timeupdate(0) before
+metadata and a deliberate zero seek are independently pinned. No production
+write, actual-node private authorization, physical phone or deployment claim.
+
 ## Music artwork routing/selection (04.11.2026) — bounded local, OPEN
 
 GPT-6.1 Sol extends the existing preview URL mapping to query-based Music shares

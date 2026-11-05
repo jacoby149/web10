@@ -95,6 +95,54 @@ The receipt lands in `.context/mentions-api-receipt.json` after verified cleanup
 
 ## Discover identity-loading captures
 
+Cross-site expiring-image recovery matrix (run from the social app):
+
+```bash
+SCREENSHOT_OUTPUT_DIR="$PWD/../../.context" node screenshots/media-recovery.mjs
+```
+
+Fifty-six synthetic renderer/site-config/viewport cases use actual HTTP expiry,
+150 ms latency and 100 KiB/s downloads, scroll lazy images into demand and
+require one original read plus one shared renewal with decoded images (40
+cases), bounded HTTP 403/404/503/manual Retry (12), and offline/reconnect (4). Named
+Music/Shorts cases test artwork, not their full transports. The separate Music
+MP3 and preview-budget scripts retain their narrower transport receipts. The
+JSON matrix and all PNGs go to the specified `.context/` output. This is not
+actual-node permissions or physical-phone/production acceptance.
+
+Actual full/immersive HLS decoding and mid-playback renewal:
+
+```bash
+SCREENSHOT_OUTPUT_DIR="$PWD/../../.context" node screenshots/hls-recovery.mjs
+```
+
+Requires ffmpeg. Eight Chromium cases use generated twelve-second H.264/AAC
+HLS, a real segment 403 and one original-read renewal in both app configurations
+at desktop/375px. Capture metadata/playing traces and require renewed playing
+positions not to restart at zero. Files, JSON receipt and eight PNGs remain in
+the specified output directory. It does not use actual-node authorization,
+real films, production credentials or native Safari.
+
+`node screenshots/media-surface-inventory.mjs` checks both sites and the shared
+package for unowned raw image/video renderers; it also runs before `test:run`
+and `check`. Only shared primitives, bundled branding, local bug attachments
+and the local editor are explicit exceptions.
+
+For the shared marketing/social **preview downloader budget**, run from the
+social app with output in the workspace's `.context/`:
+
+```bash
+SCREENSHOT_OUTPUT_DIR="$PWD/../../.context" node screenshots/preview-budget.mjs
+```
+
+This self-booting fixture uses each app's real Vite configuration, theme and
+shared HoverVideo with actual vendored hls.js. Synthetic HTTP segments stall
+until the preview loses its slot; desktop/375px checks require their requests
+to be aborted, at most one segment downloader, and zero active after offline.
+Screenshots retain the synthetic poster while buffering. The receipt is
+`preview-budget-receipt.json`. This is shared-component/network evidence, not
+full-tab, video-decoding, actual-node authorization or production acceptance.
+
 For Posts (`--route /hot-gossip`) or Video (`--route /video`),
 `--extra 'discover-face-state=pending'` holds the synthetic personal identity
 lookup indefinitely while content remains visible. Wait/scroll to

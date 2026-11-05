@@ -1,3 +1,5 @@
+import { ReliableImage } from './ReliableImage';
+import { claimMediaPlayback, hasMediaRecovery, mediaExpiry, recoverMediaUrl } from './mediaRecovery';
 import { useEffect, useRef, useState } from 'react';
 import { Disc3, Pause, Play, RotateCcw } from 'lucide-react';
 import { Skeleton } from './ui';
@@ -24,7 +26,7 @@ function AlbumArtwork({ src, title }: { src?: string; title: string }) {
   return <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded bg-surface sm:h-20 sm:w-20" data-testid="audio-artwork">
     {!src || failed ? <div role="img" aria-label="No album artwork" className="flex h-full w-full items-center justify-center bg-brand-muted/30 text-brand-300"><Disc3 className="h-8 w-8" strokeWidth={1.5} /></div> : <>
       {!loaded && <Skeleton className="absolute inset-0 h-full w-full" aria-label="Loading cover art" />}
-      <img src={src} alt={`${title} cover art`} className={`h-full w-full object-cover ${loaded ? 'opacity-100' : 'opacity-0'}`}
+      <ReliableImage src={src} alt={`${title} cover art`} className={`h-full w-full object-cover ${loaded ? 'opacity-100' : 'opacity-0'}`}
         onLoad={() => setLoaded(true)} onError={() => { console.warn('[audio-player] artwork unavailable; using disc fallback'); setFailed(true); }} loading="lazy" />
     </>}
   </div>;
@@ -45,6 +47,33 @@ function AudioTransport({ src, durationSeconds, title = 'Audio recording', artis
   const [failed, setFailed] = useState(false);
   const [position, setPosition] = useState(0);
   const [duration, setDuration] = useState(validDuration(durationSeconds));
+  const [currentSrc, setCurrentSrc] = useState(src);
+  const refreshing = useRef(false);
+  const recovered = useRef(false);
+  const restoration = useRef<{ time: number; attempt: number; current: () => boolean } | undefined>(undefined);
+
+  const renew = async () => {
+    if (!src || refreshing.current || recovered.current || navigator.onLine === false) return false;
+    refreshing.current = true;
+    recovered.current = true;
+    const captured = attempt.current;
+    const resumeTime = ref.current?.currentTime || position;
+    setStarting(true);
+    console.log('[audio-player] authorized media recovery started');
+    try {
+      const fresh = await recoverMediaUrl(currentSrc || src);
+      if (!live.current || !requested.current || captured !== attempt.current || !fresh.isCurrent()) return false;
+      restoration.current = { time: resumeTime, attempt: captured, current: fresh.isCurrent };
+      setFailed(false);
+      setCurrentSrc(fresh.url);
+      if (fresh.url === currentSrc) ref.current?.load();
+      return true;
+    } catch {
+      if (live.current && captured === attempt.current) { setFailed(true); setStarting(false); }
+      console.warn('[audio-player] authorized media recovery unavailable');
+      return false;
+    } finally { refreshing.current = false; }
+  };
 
   useEffect(() => {
     live.current = true;
@@ -76,27 +105,43 @@ function AudioTransport({ src, durationSeconds, title = 'Audio recording', artis
     const current = ++attempt.current;
     console.log('[audio-player] playback requested');
     setStarting(true);
-    if (failed) { setFailed(false); audio.load(); }
+    if (failed) { recovered.current = false; setFailed(false); }
+    if (currentSrc && hasMediaRecovery(currentSrc) && mediaExpiry(currentSrc) <= Date.now() + 5000) {
+      await renew();
+      return;
+    }
+    if (failed) audio.load();
     try {
       await audio.play();
       if (!live.current || !requested.current) { audio.pause(); return; }
       console.log('[audio-player] playback request completed');
     } catch {
-      if (live.current && current === attempt.current) { setFailed(true); setPlaying(false); console.warn('[audio-player] playback request failed'); }
+      if (live.current && current === attempt.current && !refreshing.current) { setFailed(true); setPlaying(false); console.warn('[audio-player] playback request failed'); }
     } finally {
-      if (live.current && current === attempt.current) setStarting(false);
+      if (live.current && current === attempt.current && !refreshing.current) setStarting(false);
     }
   };
 
   return (
     <div className="w-full rounded-lg border border-border bg-elevated p-4" data-testid="audio-player">
-      {src && <audio ref={ref} src={src} preload="none" aria-label="Attached audio"
-        onPlay={(event) => { if (!requested.current) { event.currentTarget.pause(); return; } setPlaying(true); setFailed(false); }}
+      {src && <audio ref={ref} src={currentSrc} preload="none" aria-label="Attached audio"
+        onPlay={(event) => { if (!requested.current || !claimMediaPlayback(event.currentTarget)) { event.currentTarget.pause(); return; } setPlaying(true); setFailed(false); }}
         onPause={() => setPlaying(false)} onEnded={() => setPlaying(false)}
-        onLoadedMetadata={(event) => setDuration(validDuration(event.currentTarget.duration) || validDuration(durationSeconds))}
+        onLoadedMetadata={(event) => {
+          setDuration(validDuration(event.currentTarget.duration) || validDuration(durationSeconds));
+          const restore = restoration.current;
+          restoration.current = undefined;
+          if (!restore || !live.current || !requested.current || restore.attempt !== attempt.current || !restore.current()) return;
+          event.currentTarget.currentTime = restore.time;
+          void event.currentTarget.play().catch(() => { if (live.current) { setFailed(true); setStarting(false); } });
+        }}
         onDurationChange={(event) => setDuration(validDuration(event.currentTarget.duration) || validDuration(durationSeconds))}
         onTimeUpdate={(event) => setPosition(Number.isFinite(event.currentTarget.currentTime) ? event.currentTarget.currentTime : 0)}
-        onError={() => { console.warn('[audio-player] media load failed'); setFailed(true); setPlaying(false); setStarting(false); }} />}
+        onError={() => {
+          if (refreshing.current) return;
+          if (requested.current && !recovered.current && currentSrc && hasMediaRecovery(currentSrc)) { void renew(); return; }
+          console.warn('[audio-player] media load failed'); setFailed(true); setPlaying(false); setStarting(false);
+        }} />}
       <div className="flex items-center gap-3">
         <AlbumArtwork key={artworkUrl || 'no-art'} src={artworkUrl} title={title} />
         <div className="min-w-0 flex-1">

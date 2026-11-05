@@ -31,6 +31,9 @@ export default defineConfig({
       // `/audio-artwork` the PURE album-art selector — the data layer imports
       // them directly so a `vi.mock('@/data')` never drags in the React
       // barrel. Must precede the barrel alias (string-prefix match).
+      '@web10/discover/media-recovery': path.resolve(__dirname, '../shared/discover/src/mediaRecovery.ts'),
+      '@web10/discover/image': path.resolve(__dirname, '../shared/discover/src/ReliableImage.tsx'),
+      '@web10/discover/video': path.resolve(__dirname, '../shared/discover/src/ReliableVideo.tsx'),
       '@web10/discover/face': path.resolve(__dirname, '../shared/discover/src/face.ts'),
       '@web10/discover/audio-artwork': path.resolve(__dirname, '../shared/discover/src/audioArtwork.ts'),
       '@web10/discover/mentions': path.resolve(__dirname, '../shared/discover/src/mentions.ts'),

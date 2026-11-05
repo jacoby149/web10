@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { lucideMock } from './helpers/lucideMock';
 vi.mock('lucide-react', () => lucideMock);
@@ -14,7 +14,7 @@ class FakeHls {
   loadSource = vi.fn();
   attachMedia = vi.fn();
   destroy = vi.fn();
-  on = vi.fn();
+  on = vi.fn<(event: string, handler: (event: string, data: { fatal: boolean }) => void) => void>();
   off = vi.fn();
   levels: { height: number }[] = [];
   currentLevel = -1;
@@ -46,7 +46,108 @@ beforeEach(() => {
   window.Hls = FakeHls as unknown as typeof window.Hls;
 });
 
+afterEach(() => {
+  Reflect.deleteProperty(document, 'hidden');
+  Reflect.deleteProperty(navigator, 'onLine');
+  Reflect.deleteProperty(navigator, 'connection');
+});
+
 describe('HoverVideo — the YouTube-style hover preview (video-player.md)', () => {
+  it('leaving releases the HLS downloader immediately, not just playback', async () => {
+    const { HoverVideo } = await import('@web10/discover');
+    const view = render(<HoverVideo media={hlsMedia} poster={hlsMedia.thumbnail_url} testId="budget" />);
+    fireEvent.mouseEnter(screen.getByTestId('budget'));
+    await waitFor(() => expect(FakeHls.instances).toHaveLength(1));
+    fireEvent.mouseLeave(screen.getByTestId('budget'));
+    expect(FakeHls.instances[0].destroy).toHaveBeenCalledTimes(1);
+    fireEvent.mouseEnter(screen.getByTestId('budget'));
+    expect(FakeHls.instances).toHaveLength(2);
+    view.unmount();
+    expect(FakeHls.instances[1].destroy).toHaveBeenCalledTimes(1);
+  });
+
+  it('file previews release their source on leave and install changed media on re-entry', async () => {
+    const { HoverVideo } = await import('@web10/discover');
+    const view = render(<HoverVideo media={videoMedia} testId="budget" />);
+    const frame = screen.getByTestId('budget');
+    fireEvent.mouseEnter(frame);
+    const video = frame.querySelector('video')!;
+    expect(video).toHaveAttribute('src', videoMedia.url);
+    fireEvent.mouseLeave(frame);
+    expect(video).not.toHaveAttribute('src');
+    view.rerender(<HoverVideo media={{ ...videoMedia, url: 'https://cdn.example/fresh.mp4' }} testId="budget" />);
+    fireEvent.mouseEnter(frame);
+    expect(video).toHaveAttribute('src', 'https://cdn.example/fresh.mp4');
+  });
+
+  it('only one preview downloader survives across mounted tiles', async () => {
+    const { HoverVideo } = await import('@web10/discover');
+    render(<><HoverVideo media={hlsMedia} testId="one" /><HoverVideo media={hlsMedia} testId="two" /></>);
+    fireEvent.mouseEnter(screen.getByTestId('one'));
+    fireEvent.mouseEnter(screen.getByTestId('two'));
+    expect(FakeHls.instances).toHaveLength(2);
+    expect(FakeHls.instances[0].destroy).toHaveBeenCalledTimes(1);
+    expect(FakeHls.instances[1].destroy).not.toHaveBeenCalled();
+  });
+
+  it('hidden/offline previews release HLS and do not restart until eligible', async () => {
+    const { HoverVideo } = await import('@web10/discover');
+    render(<HoverVideo media={hlsMedia} testId="budget" />);
+    fireEvent.mouseEnter(screen.getByTestId('budget'));
+    Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+    fireEvent(document, new Event('visibilitychange'));
+    expect(FakeHls.instances[0].destroy).toHaveBeenCalledTimes(1);
+    Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+    fireEvent(document, new Event('visibilitychange'));
+    expect(FakeHls.instances).toHaveLength(2);
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
+    fireEvent(window, new Event('offline'));
+    expect(FakeHls.instances[1].destroy).toHaveBeenCalledTimes(1);
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
+    fireEvent(window, new Event('online'));
+    expect(FakeHls.instances).toHaveLength(3);
+  });
+
+  it('suppresses speculative previews under Data Saver while retaining the poster', async () => {
+    const connection = new EventTarget();
+    Object.assign(connection, { saveData: true });
+    Object.defineProperty(navigator, 'connection', { configurable: true, value: connection });
+    try {
+      const { HoverVideo } = await import('@web10/discover');
+      render(<HoverVideo media={hlsMedia} poster={hlsMedia.thumbnail_url} testId="budget" />);
+      fireEvent.mouseEnter(screen.getByTestId('budget'));
+      expect(FakeHls.instances).toHaveLength(0);
+      expect(screen.getByTestId('budget').querySelector('img')).toHaveAttribute('src', hlsMedia.thumbnail_url);
+      Object.assign(connection, { saveData: false });
+      act(() => connection.dispatchEvent(new Event('change')));
+      expect(FakeHls.instances).toHaveLength(1);
+    } finally { Reflect.deleteProperty(navigator, 'connection'); }
+  });
+
+  it('desktop viewport exit releases a downloader even if mouseleave never arrives', async () => {
+    const { HoverVideo } = await import('@web10/discover');
+    render(<HoverVideo media={hlsMedia} testId="budget" />);
+    const frame = screen.getByTestId('budget');
+    fireEvent.mouseEnter(frame);
+    const IO = globalThis.IntersectionObserver as unknown as { instances: { observed: Element; callback: IntersectionObserverCallback }[] };
+    const observer = IO.instances.find(o => o.observed === frame)!;
+    act(() => observer.callback([{ target: frame, isIntersecting: false } as unknown as IntersectionObserverEntry], observer as unknown as IntersectionObserver));
+    expect(FakeHls.instances[0].destroy).toHaveBeenCalledTimes(1);
+  });
+
+  it('replacing an active HLS URL destroys the old transport and rejects its late errors', async () => {
+    const { HoverVideo } = await import('@web10/discover');
+    const view = render(<HoverVideo media={hlsMedia} testId="budget" />);
+    fireEvent.mouseEnter(screen.getByTestId('budget'));
+    const old = FakeHls.instances[0];
+    view.rerender(<HoverVideo media={{ ...hlsMedia, transcoding_settings: { ...hlsMedia.transcoding_settings!, manifest_url: '/v3/media/hls/manifest?doc_id=m1&sig=fresh' } }} testId="budget" />);
+    expect(old.destroy).toHaveBeenCalledTimes(1);
+    expect(FakeHls.instances).toHaveLength(2);
+    const handler = old.on.mock.calls.find(args => args[0] === 'error')![1];
+    act(() => handler('error', { fatal: true }));
+    expect(screen.getByTestId('budget').querySelector('video')).not.toBeNull();
+  });
+
   it('at rest: the poster shows, nothing is attached, no speaker icon', async () => {
     const { HoverVideo } = await import('@web10/discover');
     render(<HoverVideo media={videoMedia} poster={videoMedia.thumbnail_url} testId="hv" />);
@@ -166,7 +267,7 @@ describe('HoverVideo — the YouTube-style hover preview (video-player.md)', () 
     expect(screen.queryByTestId('hv-mute')).toBeNull();
   });
 
-  it('re-hover after a leave does not re-attach (one player per card)', async () => {
+  it('re-hover starts a new downloader after releasing the previous lease', async () => {
     const { HoverVideo } = await import('@web10/discover');
     render(<HoverVideo media={hlsMedia} poster={hlsMedia.thumbnail_url} testId="hv" />);
     const frame = screen.getByTestId('hv');
@@ -179,12 +280,13 @@ describe('HoverVideo — the YouTube-style hover preview (video-player.md)', () 
     fireEvent.mouseLeave(frame);
     await waitFor(() => expect(play).toHaveBeenCalled());
 
-    // A second hover reuses the attached player (play again, no new instance).
+    // A second hover acquires a fresh downloader; idle tiles hold no HLS work.
     fireEvent.mouseEnter(frame);
     await waitFor(() => {
       expect(play).toHaveBeenCalledTimes(2);
     });
-    expect(FakeHls.instances).toHaveLength(1);
+    expect(FakeHls.instances).toHaveLength(2);
+    expect(FakeHls.instances[0].destroy).toHaveBeenCalledTimes(1);
   });
 
   it('the video is revealed only when playing — the poster stays the backdrop (no gray flash)', async () => {
@@ -570,15 +672,16 @@ describe('HoverVideo — the touch-dwell preview (the mobile analog of hover)', 
 
   it('the pointer path is untouched on a hover-capable device (no matchMedia → desktop)', async () => {
     // No matchMedia stub (jsdom default) → useIsTouchDevice() is false → the
-    // touch-dwell path is inert (no IntersectionObserver registered at all).
-    const { HoverVideo } = await import('@web10/discover');
+    // touch-dwell path is inert; a separate viewport observer stops downloads.
+    const { HoverVideo, __dwellState } = await import('@web10/discover');
     render(<HoverVideo media={videoMedia} poster={videoMedia.thumbnail_url} testId="hv" />);
     const frame = screen.getByTestId('hv');
     const video = frame.querySelector('video') as HTMLVideoElement;
     const play = vi.spyOn(video, 'play').mockResolvedValue(undefined);
 
-    // The touch-dwell path is inert: no observer, so a scroll does nothing.
-    expect(liveObservers()).toHaveLength(0);
+    // Desktop visibility tracking does not enroll the tile in touch autoplay.
+    expect(liveObservers().filter(o => (o as unknown as { observed?: Element }).observed === screen.getByTestId('hv'))).toHaveLength(1);
+    expect(__dwellState().ratios).toEqual({});
     fireEvent.scroll(window);
     await new Promise((r) => setTimeout(r, 400));
     expect(play).not.toHaveBeenCalled();

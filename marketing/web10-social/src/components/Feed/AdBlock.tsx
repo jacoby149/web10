@@ -1,3 +1,5 @@
+import { ReliableImage } from '@web10/discover/image';
+import { VideoPlayer, sourceFromMedia } from './VideoPlayer';
 import { useEffect, useRef, useState } from 'react';
 import { Megaphone, Play, Pause, ExternalLink, Radio } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -169,15 +171,7 @@ export function AdBlock({ ad, className }: { ad: AdRecord; className?: string })
  *  (natural aspect ratio, capped, object-contain so it never crops). */
 function AdMedia({ media }: { media: MediaRecord }) {
   const isVideo = media.mime_type?.startsWith('video/');
-  const [playing, setPlaying] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
   const [measuredRatio, setMeasuredRatio] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (!playing || !videoRef.current) return;
-    videoRef.current.play().catch(() => {});
-    return () => { videoRef.current?.pause(); };
-  }, [playing]);
 
   const knownRatio = media.width && media.height ? media.width / media.height : null;
   const ratio = knownRatio ?? measuredRatio ?? 16 / 9;
@@ -191,52 +185,12 @@ function AdMedia({ media }: { media: MediaRecord }) {
   const containerStyle: React.CSSProperties = { aspectRatio: `${ratio}`, maxHeight: '50vh' };
 
   if (isVideo) {
-    return (
-      <div
-        className="bg-elevated overflow-hidden relative cursor-pointer group"
-        style={containerStyle}
-        onClick={() => setPlaying((p) => !p)}
-        role="button"
-        tabIndex={0}
-        aria-label={playing ? 'Pause ad video' : 'Play ad video'}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            setPlaying((p) => !p);
-          }
-        }}
-        data-testid="ad-media-video"
-      >
-        <video
-          ref={videoRef}
-          src={media.url}
-          poster={media.thumbnail_url}
-          onLoadedMetadata={(e) => onMediaLoaded(e.currentTarget)}
-          className="w-full h-full object-contain"
-          preload="metadata"
-          playsInline
-          muted={!playing}
-          loop
-        />
-        {!playing && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-background/80 backdrop-blur-sm">
-              <Play className="w-5 h-5 text-foreground ml-0.5" strokeWidth={2} />
-            </div>
-          </div>
-        )}
-        {playing && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <Pause className="w-8 h-8 text-foreground/60 animate-pulse" strokeWidth={1.5} />
-          </div>
-        )}
-      </div>
-    );
+    return <VideoPlayer source={sourceFromMedia(media)} mode="inline" fit="contain" maxHeight="50vh" testId="ad-media-video" />;
   }
 
   return (
     <div className="bg-elevated overflow-hidden relative" style={containerStyle} data-testid="ad-media-image">
-      <img
+      <ReliableImage
         src={media.thumbnail_url || media.url}
         alt={media.alt_text || ''}
         onLoad={(e) => onMediaLoaded(e.currentTarget)}

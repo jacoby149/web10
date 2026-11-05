@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { ReliableImage } from '@web10/discover/image';
+import { ReliableVideo } from '@web10/discover/video';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -126,7 +128,7 @@ function MediaTrayItem({
       {item.isAudio ? (
         <div className="w-full h-full rounded-lg ring-1 ring-border bg-elevated flex flex-col items-center justify-center gap-2 p-2 relative overflow-hidden">
           {item.albumArtUrl ? (
-            <img
+            <ReliableImage
               src={item.albumArtUrl}
               alt="Album art"
               className="absolute inset-0 w-full h-full object-cover"
@@ -164,7 +166,7 @@ function MediaTrayItem({
           )}
         </div>
       ) : item.isVideo ? (
-        <video
+        <ReliableVideo
           src={item.previewUrl}
           className="w-full h-full object-cover rounded-lg ring-1 ring-border"
           preload="metadata"
@@ -173,7 +175,7 @@ function MediaTrayItem({
           playsInline
         />
       ) : (
-        <img
+        <ReliableImage
           src={item.previewUrl}
           alt={item.altText || `Media ${index + 1}`}
           className="w-full h-full object-cover rounded-lg ring-1 ring-border"
@@ -296,7 +298,7 @@ function RepostContext({ post, onCancel }: { post: PostRecord; onCancel: () => v
         {firstMedia ? (
           <div className="mt-2 rounded-md overflow-hidden bg-background">
             {isVideo ? (
-              <video
+              <ReliableVideo
                 src={firstMedia.read_url || undefined}
                 poster={firstMedia.thumbnail_url || undefined}
                 className="w-full max-h-48 object-cover"
@@ -305,7 +307,7 @@ function RepostContext({ post, onCancel }: { post: PostRecord; onCancel: () => v
                 preload="metadata"
               />
             ) : (
-              <img
+              <ReliableImage
                 src={firstMedia.thumbnail_url || firstMedia.read_url || ''}
                 alt=""
                 className="w-full max-h-48 object-cover"
@@ -1301,7 +1303,7 @@ export default function PostComposer({
                             <Film className="w-6 h-6" />
                           </div>
                         ) : (
-                          <img
+                          <ReliableImage
                             src={m.thumbnail_url || m.url}
                             alt={m.alt_text || ''}
                             className="w-full h-full object-cover"

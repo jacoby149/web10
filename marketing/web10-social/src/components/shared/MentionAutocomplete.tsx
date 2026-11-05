@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type 
 import { createPortal } from 'react-dom';
 import { searchMentionPeople, type MentionPerson } from '@/data/mentionSearch';
 import { cn } from '@/lib/utils';
+import { ReliableImage } from '@web10/discover/image';
 
 export interface MentionToken { from: number; to: number; query: string }
 
@@ -116,6 +117,6 @@ function MentionFace({ person }: { person: MentionPerson }) {
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [person.avatarUrl]);
   return <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-muted text-sm font-medium text-brand-300">
-    {person.avatarUrl && !failed ? <img src={person.avatarUrl} alt="" className="h-full w-full object-cover" onError={() => setFailed(true)} /> : person.displayName.charAt(0).toUpperCase()}
+    {person.avatarUrl && !failed ? <ReliableImage src={person.avatarUrl} alt="" className="h-full w-full object-cover" onError={() => setFailed(true)} /> : person.displayName.charAt(0).toUpperCase()}
   </span>;
 }

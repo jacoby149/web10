@@ -20,7 +20,8 @@
 // This module re-exports the SDK's token utilities + types so the @/data
 // barrel (and the tests that mock this module) keep their surface.
 
-import { createV3Client, type V3Client } from 'web10-npm';
+import { createV3Client, readTokenCookie, type V3Client } from 'web10-npm';
+import { invalidateMediaRecovery, withMediaRecovery } from '@web10/discover/media-recovery';
 import { API_ORIGIN, RTC_HOST } from '../lib/origins';
 
 export {
@@ -73,11 +74,13 @@ let v3Client: V3Client | null = null;
 
 export function getV3Client(): V3Client {
   if (!v3Client) {
-    v3Client = createV3Client({ apiOrigin: API_ORIGIN, rtcServer: RTC_HOST });
+    const client = createV3Client({ apiOrigin: API_ORIGIN, rtcServer: RTC_HOST });
+    v3Client = withMediaRecovery(client, () => JSON.stringify([client.state?.apiOrigin || API_ORIGIN, client.state?.token, readTokenCookie()]));
   }
   return v3Client;
 }
 
 export function resetV3Client(): void {
+  invalidateMediaRecovery();
   v3Client = null;
 }

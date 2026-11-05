@@ -1,3 +1,4 @@
+import { ReliableImage } from './ReliableImage';
 import { Play, Film, Heart, ThumbsDown, MessageCircle, Repeat2 } from 'lucide-react';
 import { useState } from 'react';
 import { cn, hashToColor, timeAgo, formatCount } from './utils';
@@ -196,7 +197,7 @@ export function HomeCard({
               priority={priority}
             />
           ) : (
-            <img
+            <ReliableImage
               src={thumbSrc}
               alt=""
               loading={priority ? 'eager' : 'lazy'}
@@ -255,7 +256,7 @@ export function HomeCard({
             {authorLoading ? (
               <Skeleton className="h-full w-full rounded-full" data-testid="home-author-avatar-loading" aria-label="Loading author picture" />
             ) : authorAvatar ? (
-              <img src={authorAvatar} alt="" className="h-full w-full object-cover" />
+              <ReliableImage src={authorAvatar} alt="" className="h-full w-full object-cover" />
             ) : (
               <AvatarFallback className="text-xs font-semibold">{initial}</AvatarFallback>
             )}

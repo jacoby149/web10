@@ -89,7 +89,7 @@ describe('HomeCard — the duration badge is a live time-lapse (the YouTube home
 
     // Hover → the preview plays. The source reports a duration + starts playing…
     Object.defineProperty(video, 'duration', { value: 123, configurable: true });
-    fireEvent.mouseEnter(frame);
+    fireEvent.mouseEnter(screen.getByTestId('hc-hover-video'));
     video.dispatchEvent(new Event('loadedmetadata'));
     video.dispatchEvent(new Event('playing'));
     await waitFor(() => expect(video.className).toMatch(/opacity-100/));
@@ -113,7 +113,7 @@ describe('HomeCard — the duration badge is a live time-lapse (the YouTube home
     vi.spyOn(video, 'pause').mockImplementation(() => {});
 
     Object.defineProperty(video, 'duration', { value: 123, configurable: true });
-    fireEvent.mouseEnter(frame);
+    fireEvent.mouseEnter(screen.getByTestId('hc-hover-video'));
     video.dispatchEvent(new Event('loadedmetadata'));
     video.dispatchEvent(new Event('playing'));
     Object.defineProperty(video, 'currentTime', { value: 45, configurable: true });
@@ -121,7 +121,7 @@ describe('HomeCard — the duration badge is a live time-lapse (the YouTube home
     await waitFor(() => expect(screen.getByTestId('hc-duration')).toHaveTextContent('0:45'));
 
     // The pointer leaves → playback stops → the badge is the total again.
-    fireEvent.mouseLeave(frame);
+    fireEvent.mouseLeave(screen.getByTestId('hc-hover-video'));
     video.dispatchEvent(new Event('pause'));
     await waitFor(() => expect(screen.getByTestId('hc-duration')).toHaveTextContent('2:03'));
   });

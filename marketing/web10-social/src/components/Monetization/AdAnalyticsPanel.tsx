@@ -1,3 +1,4 @@
+import { ReliableImage } from '@web10/discover/image';
 import { useMemo } from 'react';
 import {
   ResponsiveContainer,
@@ -113,7 +114,7 @@ export function AdAnalyticsPanel({
         </Button>
         <div className="flex min-w-0 flex-1 items-center gap-2.5">
           {detail.thumbnailUrl ? (
-            <img
+            <ReliableImage
               src={detail.thumbnailUrl}
               alt=""
               className="h-9 w-9 flex-shrink-0 rounded object-cover"

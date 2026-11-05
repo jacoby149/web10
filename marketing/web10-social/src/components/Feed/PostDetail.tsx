@@ -1,3 +1,4 @@
+import { ReliableImage } from '@web10/discover/image';
 // The post-detail system (rich-text.md "The post-detail styling system",
 // post-render.md "The detail surfaces"): ONE shared layout for every
 // "read a post in full" surface — the lightbox, the watch page, the post
@@ -63,7 +64,7 @@ function ProductCard({ product, pic, testId }: { product: AdProduct; pic?: Media
   return (
     <div className="mt-3 rounded-lg border border-border bg-elevated/30 p-4" data-testid={testId}>
       {pic?.url && (
-        <img
+        <ReliableImage
           src={pic.url}
           alt={product.name || 'Product'}
           className="mb-3 max-h-64 w-full rounded object-contain"
