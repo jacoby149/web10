@@ -10,6 +10,11 @@ why it is visually nice, and what it may not assert.
 - **Accuracy invariant:** a figure asserts only what the paper body or
   the knowledge base already asserts. A figure that adds a claim is a
   new claim that needs evidence.
+- **Placement is assertion:** which box a mechanism sits in is a claim
+  about where it runs. A mechanism drawn on the wrong side of the trust
+  boundary is a factual error, not a style issue (Figure B's first
+  shot drew the AST walk in the app tier; it runs API-side, in
+  `safe_query` — the SDK only posts `{ sql, token }`).
 - **No internal IDs** in figure text or captions (conference-facing,
   per the 4.5.4 cleanup).
 - **Referenced or it doesn't exist:** every figure has at least one
@@ -111,27 +116,35 @@ query-engine part is violet and points at Figure 4.
 ### Figure 4 — from service names to the reader's readable set (done,
 `figs/fig-query-engine.png`, §5)
 
-**What it visualizes:** the lowering, at the level of the real machine
-(`safe_query`): the caller's SQL (service names only) → the AST walk
-with its real rejections (raw node table names; `file()`/`numbers()`/
-`s3()` surfacing as nameless tables; ungranted services; exactly one
-statement, round-trip) → each service name becomes the API-built
-boundary CTE over the real ClickHouse tables — `documents` deduped to
-the latest not-deleted row, joined to `doc_groups`, the reader's
-readable group IDs inlined from the read gate (`group_members` ×
-`group_contracts`), the five exclusion tables in amber → a ClickHouse
-strip naming every real table the caller may not reach. The violet band
-carries beat 6: "the readable set is compiled in before any data
-moves."
+**What it visualizes:** one feed query, from the browser to ClickHouse
+— and which side each step runs on. The browser frame: the app's code
+(`buildFeedQuery` in feed.ts) → the query it builds (service names
+only) → wapi, which posts the SQL, unchanged, to `/v3/query` with the
+reader's scoped, expiring token — "it adds no authority: the node
+decides what this reader may read." The node frame ("the node (the
+API) — FastAPI: the query engine"): PROTECTED WITH AN AST (the walk and
+its real rejections — raw node table names; `file()`/`numbers()`/
+`s3()` as nameless tables; ungranted services; round-trip to exactly
+one statement) → the lowering: each service name becomes a CTE the
+engine builds over its own tables — `documents` deduped to the latest
+not-deleted row, joined to `doc_groups`, the reader's readable group
+IDs inlined from the read gate (`group_members` × `group_contracts` +
+class grants), the five exclusion tables in amber → a ClickHouse strip
+naming every real table the caller may not reach ("the walk rejects
+them by name").
 **Why that shape:** the plan was the two-pipeline contrast (broken
 output filter vs. boundary CTE); the operator's critique ("pitch
 figures, not how-it-works figures") moved it to the real mechanism —
 the caller's world (service names) vs. the node's world (real tables),
-the wall visible as the gap between them. The empty-vs-refuse semantics
-(the `1=0` CTE; the endpoint-level 403) belong to the caption, not the
-picture. The violet boundary is the same box as Figure 2's access check
-and Figure 3's query-engine part — one enforcement family across the
-set.
+the wall visible as the gap between them. The shot-4 re-shot (05.11.2026)
+fixed the placement: the first shot drew the AST walk in the app tier —
+but the walk, the lowering, and the round-trip all run API-side, and
+the "THE BOUNDARY" slogan band told where the mechanism shows: it is
+out, replaced by the walk/lowering labels + the amber fact "the
+caller's string is never executed". The empty-vs-refuse semantics (the
+`1=0` CTE; the endpoint-level 403) belong to the caption, not the
+picture. The violet enforcement family is the same box as Figure 2's
+access check and Figure 3's query-engine part.
 
 ### Figure 5 — interop screenshots (§6) — existing, PNG-only
 

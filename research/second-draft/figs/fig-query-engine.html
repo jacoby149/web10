@@ -1,13 +1,14 @@
 <!doctype html>
 <!--
-  Source for fig-query-engine.png (Figure B, shot 3: "the lowering").
-  How-it-works level of the real machine (api/app/v3/services/safe_query.py):
-  caller SQL (service names only) -> the AST walk and its real rejections ->
-  the lowering: each service name becomes an API-built boundary CTE over the
-  real ClickHouse tables (documents, doc_groups; readable group IDs inlined
-  from the read gate group_members x group_contracts; five exclusion tables)
-  -> ClickHouse, whose real table names the caller may never reference.
-  No pitch lines; the claim is carried by the paper's caption.
+  Source for fig-query-engine.png (Figure B, shot 4: "where each step runs").
+  One feed query, from the browser to ClickHouse — and which side each step
+  runs on. Accuracy note (the shot-3 miss this fixes): the AST work is
+  API-side. The app's TypeScript builds the query (feed.ts: buildFeedQuery),
+  the SDK's w.query posts it, unchanged, to POST /v3/query with the reader's
+  scoped token (sdk/src/v3.ts); the node's engine (api/app/v3/services/
+  safe_query.py — ClickHouse's own parser) does the walk, the rejections,
+  the lowering to boundary CTEs, and the round-trip. The caller's string is
+  never executed. No pitch lines; the claim is the caption's.
   Render with ./capture.mjs fig-query-engine.
 -->
 <html>
@@ -16,92 +17,114 @@
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   html,body { background:#0a0a12; }
-  body { width:1440px; height:740px; position:relative; overflow:hidden;
+  body { width:1440px; height:780px; position:relative; overflow:hidden;
     font-family:-apple-system,"SF Pro Text","Helvetica Neue",Arial,sans-serif;
     -webkit-font-smoothing:antialiased; }
   .title { position:absolute; top:34px; width:100%; text-align:center;
     font-size:26px; font-weight:700; color:#f2f3f8; }
   .subtitle { position:absolute; top:70px; width:100%; text-align:center;
     font-size:13.5px; color:#9c9fb3; }
-  .box { position:absolute; border-radius:12px; background:#101019;
-    border:1.5px solid #34344a; padding:0 18px; }
-  .boxlabel { position:absolute; font-size:11px; font-weight:700;
+  .frame { position:absolute; border-radius:14px; background:#0e0e17; }
+  .fhead { position:absolute; font-size:14px; font-weight:700; }
+  .fanno { position:absolute; font-size:11px; }
+  .lbl { position:absolute; font-size:11px; font-weight:700;
     letter-spacing:.4px; color:#8b8fa5; }
-  .sql { font-family:"SF Mono",Menlo,Consolas,monospace; font-size:10.5px;
+  .mono { position:absolute; font-family:"SF Mono",Menlo,Consolas,monospace; font-size:10.5px;
     color:#c9ccdd; background:#0b0b12; border:1px solid #2a2a3c; border-radius:8px;
-    padding:8px 12px; line-height:1.6; white-space:pre; }
-  .check { font-size:11px; color:#9a9db1; line-height:1.4; }
+    padding:8px 12px; line-height:1.5; white-space:pre; }
+  .note { position:absolute; font-size:11px; color:#9a9db1; line-height:1.45; }
+  .check { position:absolute; font-size:11px; color:#9a9db1; line-height:1.5; }
   .check .lead { color:#e8e9f2; font-weight:600; }
-  /* violet lowering band */
-  .violet { position:absolute; left:60px; top:262px; width:1320px; height:300px;
-    border-radius:16px; background:rgba(139,92,246,.08);
-    border:2px solid #8b5cf6; box-shadow:0 6px 30px rgba(139,92,246,.30); }
-  .vlabel { position:absolute; top:278px; left:84px; font-size:11.5px;
-    font-weight:700; letter-spacing:.3px; color:#b7a5ef; }
-  .cte { position:absolute; left:84px; top:316px; width:560px; height:162px;
+  .check .amber { color:#fbbf24; font-weight:600; }
+  /* violet enforcement family */
+  .vpart { position:absolute; border-radius:10px;
+    background:rgba(139,92,246,.07); border:1.5px solid rgba(139,92,246,.65); }
+  .vlabel { position:absolute; font-size:11.5px; font-weight:700;
+    letter-spacing:.3px; color:#b7a5ef; }
+  .cte { position:absolute; width:520px;
     font-family:"SF Mono",Menlo,Consolas,monospace; font-size:11px;
     line-height:1.6; color:#c9ccdd; background:#0b0b12;
     border:1px solid #2a2a3c; border-radius:8px; padding:10px 14px;
     white-space:pre; overflow:hidden; }
   .cte .g { color:#34d399; } .cte .a { color:#fbbf24; }
   .cte .w { color:#ffffff; font-weight:600; } .cte .c { color:#6f7490; }
-  .ctenote { position:absolute; top:488px; left:84px; width:560px;
-    font-size:11px; color:#b7a5ef; line-height:1.45; }
-  .card { position:absolute; left:680px; width:676px; border-radius:10px;
-    padding:0 16px; display:flex; flex-direction:column; justify-content:center; }
-  .card .t { font-size:12.5px; font-weight:700; }
-  .card .s { font-size:11px; margin-top:4px; line-height:1.45; }
-  .card .mono { font-family:"SF Mono",Menlo,Consolas,monospace; }
-  .card.green { background:rgba(52,211,153,.05); border:1.5px solid rgba(52,211,153,.5); }
-  .card.green .t { color:#d7f5e6; } .card.green .s { color:#9fc0ae; }
+  .card { position:absolute; width:270px; border-radius:10px;
+    padding:0 14px; display:flex; flex-direction:column; justify-content:center; }
+  .card .t { font-size:11.5px; font-weight:700; line-height:1.35; }
+  .card .s { font-size:11px; margin-top:6px; line-height:1.45; }
+  .card .mono2 { font-family:"SF Mono",Menlo,Consolas,monospace; font-size:10px; }
   .card.purple { background:rgba(139,92,246,.08); border:1.5px solid rgba(139,92,246,.6); }
   .card.purple .t { color:#e6e0fb; } .card.purple .s { color:#b9aef0; }
   .card.amber { background:rgba(251,191,36,.05); border:1.5px solid rgba(251,191,36,.5); }
   .card.amber .t { color:#fde7b3; } .card.amber .s { color:#c9b585; }
   /* clickhouse strip */
-  .ch { position:absolute; left:60px; top:590px; width:1320px; height:116px;
+  .ch { position:absolute; left:60px; top:672px; width:1320px; height:96px;
     border-radius:14px; background:rgba(52,211,153,.06);
     border:2px solid rgba(52,211,153,.7); }
-  .chlabel { position:absolute; top:606px; left:84px; font-size:14px;
+  .chlabel { position:absolute; top:684px; left:84px; font-size:14px;
     font-weight:700; color:#d7f5e6; }
-  .chnote { position:absolute; top:630px; left:84px; font-size:11.5px;
-    color:#7fa892; }
-  .chrow { position:absolute; left:84px; display:flex; gap:8px; }
+  .chnote { position:absolute; top:686px; left:740px; width:610px; text-align:right;
+    font-size:11.5px; color:#7fa892; }
   .chip { font-family:"SF Mono",Menlo,Consolas,monospace; font-size:11px;
     color:#a7d8c0; background:rgba(52,211,153,.05);
     border:1px solid rgba(52,211,153,.5); border-radius:6px; padding:3px 10px; }
-  svg.abs { position:absolute; top:0; left:0; width:1440px; height:740px;
+  .wlabel { position:absolute; font-size:10.5px; color:#9a9db1; }
+  svg.abs { position:absolute; top:0; left:0; width:1440px; height:780px;
     pointer-events:none; }
 </style>
 </head>
 <body>
   <div class="title">From service names to the reader&rsquo;s readable set</div>
-  <div class="subtitle">The caller names services; the engine rewrites each one into a CTE over the real tables &mdash; filtered to what this reader may read, before the query runs</div>
+  <div class="subtitle">one feed query, from the browser to ClickHouse &mdash; and which side each step runs on</div>
 
-  <!-- tier 1: the caller's SQL + the walk -->
-  <div class="box" style="left:60px; top:98px; width:600px; height:140px;">
-    <div style="font-size:11px; font-weight:700; letter-spacing:.4px; color:#8b8fa5;">THE APP&rsquo;S SQL &mdash; SERVICE NAMES ONLY</div>
-    <div class="sql" style="margin-top:8px;">SELECT p.body, count(r.id)
+  <!-- tier 1: the browser (app code + SDK) -->
+  <div class="frame" style="left:60px; top:96px; width:1320px; height:186px; border:2px solid rgba(201,204,218,.8);"></div>
+  <div class="fhead" style="left:80px; top:108px; color:#f2f3f8;">the browser &mdash; web10-social&rsquo;s data layer (TypeScript)</div>
+  <div class="fanno" style="left:1040px; top:111px; width:320px; text-align:right; color:#8b8fa5;">the app knows its own services &mdash; nothing from the store</div>
+
+  <div style="position:absolute; left:80px; top:136px; width:400px; height:136px; border-radius:10px; background:#101019; border:1px solid #34344a;"></div>
+  <div class="lbl" style="left:98px; top:148px;">THE APP&rsquo;S CODE &mdash; feed.ts</div>
+  <div class="mono" style="left:98px; top:166px; width:364px;">const sql = buildFeedQuery(
+  sort, cursor, limit)
+const { rows } = await
+  w.query(sql, { groups, prepare })</div>
+  <div class="note" style="left:98px; top:254px; width:364px;">joins, ranking, cursors &mdash; the app&rsquo;s own query</div>
+
+  <div style="position:absolute; left:500px; top:136px; width:520px; height:134px; border-radius:10px; background:#101019; border:1px solid #34344a;"></div>
+  <div class="lbl" style="left:518px; top:148px;">THE QUERY IT BUILDS &mdash; SERVICE NAMES ONLY</div>
+  <div class="mono" style="left:518px; top:168px; width:484px;">SELECT p.body, count(r.id)
 FROM posts p
 JOIN reactions r ON r.post = p.id
 WHERE p.id &lt; cursor
 GROUP BY p.id</div>
-  </div>
-  <div class="box" style="left:740px; top:98px; width:640px; height:140px;">
-    <div style="font-size:11px; font-weight:700; letter-spacing:.4px; color:#8b8fa5;">PROTECTED WITH AN AST &mdash; EVERY TABLE REFERENCE IS WALKED, BEFORE ANYTHING COMPILES</div>
-    <div class="check" style="margin-top:9px;">
-      <div class="check" style="margin-top:4px;"><span class="lead">reject</span> &mdash; raw node tables: any real name from the store below (<span class="mono" style="font-family:'SF Mono',Menlo,monospace; font-size:10.5px; color:#a7d8c0;">documents</span>, <span class="mono" style="font-family:'SF Mono',Menlo,monospace; font-size:10.5px; color:#a7d8c0;">doc_groups</span>, <span class="mono" style="font-family:'SF Mono',Menlo,monospace; font-size:10.5px; color:#a7d8c0;">group_members</span>, &hellip;)</div>
-      <div class="check" style="margin-top:4px;"><span class="lead">reject</span> &mdash; table functions: <span style="font-family:'SF Mono',Menlo,monospace; font-size:10.5px;">file()</span> &middot; <span style="font-family:'SF Mono',Menlo,monospace; font-size:10.5px;">numbers()</span> &middot; <span style="font-family:'SF Mono',Menlo,monospace; font-size:10.5px;">s3()</span> &mdash; they surface as nameless tables</div>
-      <div class="check" style="margin-top:4px;"><span class="lead">reject</span> &mdash; services the caller isn&rsquo;t granted; anything but one SELECT</div>
-      <div class="check" style="margin-top:4px;"><span class="lead">round-trip</span> &mdash; the re-emitted query is re-parsed and must come back as exactly one statement</div>
-    </div>
+
+  <div style="position:absolute; left:1040px; top:136px; width:320px; height:134px; border-radius:10px; background:#101019; border:1px solid #34344a;"></div>
+  <div class="lbl" style="left:1058px; top:148px;">WAPI &mdash; THE SDK</div>
+  <div class="note" style="left:1058px; top:168px; width:284px; color:#b9bcc9;">w.query posts the SQL, unchanged, to the node&rsquo;s /v3/query &mdash; with the reader&rsquo;s scoped, expiring token. It adds no authority: the node decides what this reader may read.</div>
+
+  <!-- wires: browser -> node -->
+  <div class="wlabel" style="left:572px; top:294px;">POST /v3/query &middot; { sql, token }</div>
+  <div class="wlabel" style="left:852px; top:294px;">rows &mdash; the readable subset, as JSON</div>
+
+  <!-- tier 2: the node (the API) -->
+  <div class="frame" style="left:60px; top:322px; width:1320px; height:322px; border:1.5px solid #34344a;"></div>
+  <div class="fhead" style="left:80px; top:334px; color:#f2f3f8;">the node (the API) &mdash; FastAPI: the query engine</div>
+  <div class="fanno" style="left:920px; top:337px; width:440px; text-align:right; color:#fbbf24;">the caller&rsquo;s string is never executed</div>
+
+  <!-- the AST walk (violet enforcement family) -->
+  <div class="vpart" style="left:80px; top:362px; width:420px; height:262px;"></div>
+  <div class="vlabel" style="left:100px; top:376px;">PROTECTED WITH AN AST</div>
+  <div class="note" style="left:100px; top:396px; width:380px; color:#b9aef0;">the engine parses the caller&rsquo;s SQL and walks every table reference, before anything compiles</div>
+  <div class="check" style="left:100px; top:452px; width:380px;">
+    <div><span class="amber">reject</span> &mdash; raw node tables: any real name from the store below (<span class="mono2" style="font-family:'SF Mono',Menlo,monospace; font-size:10px; color:#a7d8c0;">documents</span>, <span style="font-family:'SF Mono',Menlo,monospace; font-size:10px; color:#a7d8c0;">doc_groups</span>, <span style="font-family:'SF Mono',Menlo,monospace; font-size:10px; color:#a7d8c0;">group_members</span>, &hellip;)</div>
+    <div style="margin-top:7px;"><span class="amber">reject</span> &mdash; table functions: <span style="font-family:'SF Mono',Menlo,monospace; font-size:10px;">file()</span> &middot; <span style="font-family:'SF Mono',Menlo,monospace; font-size:10px;">numbers()</span> &middot; <span style="font-family:'SF Mono',Menlo,monospace; font-size:10px;">s3()</span> &mdash; they surface as nameless tables</div>
+    <div style="margin-top:7px;"><span class="amber">reject</span> &mdash; services the caller isn&rsquo;t granted; anything but one SELECT</div>
+    <div style="margin-top:7px;"><span class="lead">round-trip</span> &mdash; the re-emitted query is re-parsed; it must come back as exactly one statement</div>
   </div>
 
-  <!-- tier 2: the lowering -->
-  <div class="violet"></div>
-  <div class="vlabel">THE BOUNDARY &mdash; THE READABLE SET IS COMPILED IN BEFORE ANY DATA MOVES</div>
-  <div style="position:absolute; top:296px; left:84px; font-size:10.5px; color:#b7a5ef;">the lowering: each service name &rarr; an API-built CTE</div>
-  <div class="cte"><span class="w">posts</span> <span class="c">(the caller&rsquo;s name)</span> AS (
+  <!-- the lowering -->
+  <div class="vlabel" style="left:540px; top:362px; width:520px;">the lowering &mdash; each service name becomes a CTE over the engine&rsquo;s own tables</div>
+  <div class="cte" style="left:540px; top:386px;"><span class="w">posts</span> <span class="c">(the caller&rsquo;s name)</span> AS (
   <span style="color:#c9ccdd;">SELECT</span> doc_id, author_key, body, tags, &hellip;, <span class="g">group_id</span>
   <span style="color:#c9ccdd;">FROM</span> <span class="g">documents</span>   <span class="c">-- dedup: latest row, not deleted</span>
   <span style="color:#c9ccdd;">JOIN</span> <span class="g">doc_groups</span> <span class="c">-- the group each doc sits in</span>
@@ -109,29 +132,24 @@ GROUP BY p.id</div>
   <span style="color:#c9ccdd;">AND NOT</span> <span class="a">user_blacklist</span><span style="color:#c9ccdd;">, </span><span class="a">group_blacklist</span>
   <span style="color:#c9ccdd;">AND NOT</span> <span class="a">sharing-paused &middot; hidden &middot; node-banned</span>
 <span style="color:#c9ccdd;">)</span></div>
-  <div class="ctenote">No readable groups &rarr; the CTE is <span style="font-family:'SF Mono',Menlo,monospace;">WHERE 1 = 0</span> &mdash; shape-valid, empty. An empty set, not an error.</div>
+  <div class="note" style="left:540px; top:560px; width:520px; color:#b7a5ef;">No readable groups &rarr; the CTE is <span style="font-family:'SF Mono',Menlo,monospace;">WHERE 1 = 0</span> &mdash; shape-valid, empty. An empty set, not an error.</div>
 
-  <div class="card green" style="top:304px; height:70px;">
-    <div class="t">the data</div>
-    <div class="s"><span class="mono">documents</span> &mdash; the service&rsquo;s rows, deduped to the latest not-deleted &middot; <span class="mono">doc_groups</span> &mdash; which group each doc sits in (the CTE exposes <span class="mono">group_id</span>)</div>
-  </div>
-  <div class="card purple" style="top:390px; height:88px;">
+  <!-- the two sources the CTE inlines -->
+  <div class="card purple" style="left:1090px; top:362px; height:142px;">
     <div class="t">the readable groups &mdash; inlined as literals</div>
-    <div class="s">computed API-side by the read gate: <span class="mono">group_members</span> (the reader&rsquo;s memberships, roles) &times; <span class="mono">group_contracts</span> (which role grants readAll on this service), plus public / authenticated class grants</div>
+    <div class="s">the read gate, API-side: <span class="mono2">group_members</span> (the reader&rsquo;s memberships &times; roles) &times; <span class="mono2">group_contracts</span> (which role grants readAll on this service) + public / authenticated class grants</div>
   </div>
-  <div class="card amber" style="top:494px; height:58px;">
-    <div class="t">the exclusions &mdash; applied inside the CTE</div>
-    <div class="s"><span class="mono">user_blacklist</span> &middot; <span class="mono">group_blacklist</span> &middot; <span class="mono">user_group_sharing</span> &middot; <span class="mono">group_hidden_docs</span> &middot; <span class="mono">banned_users</span> &mdash; a blocked or hidden author&rsquo;s rows never join</div>
+  <div class="card amber" style="left:1090px; top:520px; height:104px;">
+    <div class="t">the exclusions &mdash; inside the CTE</div>
+    <div class="s"><span class="mono2">user_blacklist</span> &middot; <span class="mono2">group_blacklist</span> &middot; <span class="mono2">user_group_sharing</span> &middot; <span class="mono2">group_hidden_docs</span> &middot; <span class="mono2">banned_users</span> &mdash; a blocked or hidden author&rsquo;s rows never join</div>
   </div>
 
   <!-- tier 3: clickhouse -->
   <div class="ch"></div>
   <div class="chlabel">ClickHouse &mdash; the node&rsquo;s real tables</div>
-  <div class="chnote">The caller&rsquo;s SQL may not name any of these &mdash; the walk rejects them by name. The boundary CTEs are the only door.</div>
-  <div class="chrow" style="top:652px;">
+  <div class="chnote">the caller&rsquo;s SQL may not name any of these &mdash; the walk rejects them by name</div>
+  <div style="position:absolute; left:84px; top:716px; display:flex; gap:8px;">
     <div class="chip">documents</div><div class="chip">doc_groups</div><div class="chip">group_members</div><div class="chip">group_contracts</div><div class="chip">app_contracts</div>
-  </div>
-  <div class="chrow" style="top:678px;">
     <div class="chip">user_blacklist</div><div class="chip">group_blacklist</div><div class="chip">user_group_sharing</div><div class="chip">group_hidden_docs</div><div class="chip">banned_users</div><div class="chip">&hellip;</div>
   </div>
 
@@ -141,12 +159,29 @@ GROUP BY p.id</div>
       <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
         <path d="M0,0 L10,5 L0,10 z" fill="#6f7490"/>
       </marker>
+      <marker id="arup" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#6f7490"/>
+      </marker>
       <marker id="arv" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
         <path d="M0,0 L10,5 L0,10 z" fill="#8b5cf6"/>
       </marker>
     </defs>
-    <line x1="664" y1="168" x2="736" y2="168" stroke="#6f7490" stroke-width="1.6" marker-end="url(#ar)"/>
-    <line x1="1060" y1="238" x2="1060" y2="258" stroke="#8b5cf6" stroke-width="1.8" marker-end="url(#arv)"/>
+    <!-- inside the browser: code -> sql -> sdk -->
+    <line x1="484" y1="203" x2="496" y2="203" stroke="#6f7490" stroke-width="1.6" marker-end="url(#ar)"/>
+    <line x1="1024" y1="203" x2="1036" y2="203" stroke="#6f7490" stroke-width="1.6" marker-end="url(#ar)"/>
+    <!-- the wire: POST /v3/query down, rows up -->
+    <line x1="560" y1="286" x2="560" y2="318" stroke="#6f7490" stroke-width="1.8" marker-end="url(#ar)"/>
+    <line x1="840" y1="318" x2="840" y2="286" stroke="#6f7490" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#arup)"/>
+    <!-- inside the node: walk -> lowering -->
+    <line x1="504" y1="452" x2="534" y2="452" stroke="#8b5cf6" stroke-width="1.8" marker-end="url(#arv)"/>
+    <!-- the read gate + the exclusions, into the CTE -->
+    <line x1="1086" y1="473" x2="1064" y2="473" stroke="#8b5cf6" stroke-width="1.6" marker-end="url(#arv)"/>
+    <line x1="1086" y1="520" x2="1064" y2="520" stroke="#8b5cf6" stroke-width="1.6" marker-end="url(#arv)"/>
+    <!-- lowering -> clickhouse -->
+    <line x1="700" y1="648" x2="700" y2="668" stroke="#6f7490" stroke-width="1.8" marker-end="url(#ar)"/>
+    <line x1="760" y1="668" x2="760" y2="648" stroke="#6f7490" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#arup)"/>
   </svg>
+  <div class="wlabel" style="left:380px; top:650px;">the compiled query &mdash; not the caller&rsquo;s string</div>
+  <div class="wlabel" style="left:772px; top:650px;">rows</div>
 </body>
 </html>

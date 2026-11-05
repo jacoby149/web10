@@ -10,6 +10,46 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 05.11.2026
 
+### Figure B (fig-query-engine) re-shot: the AST sits in the API, the app→SDK→API chain is visible, "THE BOUNDARY" is out
+
+- **(operator)** "the query engine figure is a little wrong though because
+  the ast part of the diagram is in the app sdk instead of in the api
+  part which is the purple box, and it isnt clear it is app code, then
+  turned to clickhouse query, by sdk, then api, and calling api the
+  boundary is cringe, show dont tell i guess! … but actually the query
+  engine figure has alot of strong points"
+- **(agent)** Three fixes; the strong points kept (the CTE skeleton, the
+  four walk rejections, the readable-groups card, the exclusions card,
+  the ClickHouse strip):
+  1. **Placement was a factual miss.** The AST walk was drawn in the top
+     tier next to the app's SQL — but the walk, the lowering, and the
+     round-trip all run API-side (`safe_query.py`, ClickHouse's own
+     parser; the SDK's `w.query` only posts `{ sql, token }` to
+     `/v3/query`). The figure now draws the two sides: the browser frame
+     (the app's code — `buildFeedQuery` in feed.ts — → the query it
+     builds, service names only → wapi, which "adds no authority: the
+     node decides what this reader may read") and the node frame ("the
+     node (the API) — FastAPI: the query engine"), with the AST box, the
+     lowering, the read-gate card, and the exclusions all inside the API
+     side.
+  2. **The chain is visible:** app code → the SQL → the SDK → the wire
+     (`POST /v3/query · { sql, token }` down; `rows — the readable
+     subset, as JSON` up) → the walk → the CTE → ClickHouse (the
+     compiled query — "not the caller's string").
+  3. **"THE BOUNDARY" is out** (show, don't tell): the violet band's
+     slogan header is replaced by the mechanism's own labels ("PROTECTED
+     WITH AN AST"; "the lowering — each service name becomes a CTE over
+     the engine's own tables") + the amber fact "the caller's string is
+     never executed". Beat 6's idea is carried by the picture, not a
+     name.
+- **(agent)** Rule added to `kb/diagrams.md` (the rules): **placement is
+  assertion** — which box a mechanism sits in is a claim about where it
+  runs; a mechanism drawn on the wrong side of the trust boundary is a
+  factual error, not a style issue. No new claims added: every label
+  traces to the real code path (feed.ts / sdk/src/v3.ts /
+  safe_query.py / endpoints/query.py). HTML + 2x PNG re-rendered and
+  inspected.
+
 ### Shot 0: beat 10 gains the node-size point — a node pools millions of users; Solid's pods cannot do discover
 
 - **(operator)** On the composition figure: "i think it isnt clear that
