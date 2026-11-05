@@ -181,6 +181,7 @@ it('paints directory cards while their faces are pending', async () => {
   open('&groupFilter=discover');
   expect(await screen.findByTestId('groups-discover-card')).toBeInTheDocument();
   expect(screen.queryByTestId('explore-groups-skeleton')).not.toBeInTheDocument();
+  await waitFor(() => expect(finish).toBeTypeOf('function'));
   await act(async () => finish({ name: 'Resolved directory name' }));
   expect(await screen.findByText('Resolved directory name')).toBeInTheDocument();
 });
