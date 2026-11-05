@@ -82,12 +82,13 @@ longer authorize reproduced delivery/signing; active/newer reattached public
 inventory and independent uploaders remain. See the
 [repair](../../security/scans/2026-10/repair-h01-node-attachment.md) and
 [historical evidence](../../security/scans/2026-10/h01-node-attachment-proof.md).
-The document tag/deletion prefilters below still contradict dedup-then-filter.
-[Document evidence](../../security/scans/2026-10/h01-node-document-proof.md)
-reproduces older creative delivery/signing after a newer deletion or node_ad
-removal, despite a live Discover link. Pause suppresses correctly; newest
-restored/retagged/reactivated inventory remains. Document runtime repair and
-real lifecycle/rollout/diverse gates remain OPEN.
+**Local document repair (05.11.2026):** document history now ranks per
+`(doc_id, author_key)` before deletion/tag eligibility, with deletion-winning
+ties. Deleted or detagged current creatives no longer deliver or mint fresh
+capabilities; pause suppression and newest restored/retagged/reactivated inventory
+remain. See the [repair](../../security/scans/2026-11/repair-h01-node-document.md)
+and [historical evidence](../../security/scans/2026-10/h01-node-document-proof.md).
+Real writer/merge lifecycle, provenance, CI/rollout and diverse review remain OPEN.
 Public inventory remains intentional; no per-viewer membership requirement.
 
 The read (`/v3/read`) already resolves `ad_preference` for pinned ads. The
@@ -134,11 +135,10 @@ SELECT doc_id, author_key, body, tags
 FROM (
   SELECT doc_id, author_key, body, tags, deleted, updated_at,
          row_number() OVER (PARTITION BY doc_id, author_key
-                            ORDER BY updated_at DESC) AS rn
-   FROM documents
-   WHERE has(tags, 'node_ad') AND deleted = 0
+                             ORDER BY updated_at DESC, deleted DESC) AS rn
+    FROM documents
 )
-WHERE rn = 1
+WHERE rn = 1 AND deleted = 0 AND has(tags, 'node_ad')
   AND doc_id IN (
     SELECT pg.doc_id FROM (
       SELECT doc_id, group_id, deleted,

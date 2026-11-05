@@ -35,6 +35,26 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-05: Rank document history before testing inventory eligibility
+
+The [node-document repair](scans/2026-11/repair-h01-node-document.md) moves
+deletion and node_ad-tag eligibility after latest-version ranking per
+`(doc_id, author_key)`. Otherwise the current ineligible row disappears and an
+older creative can mint a fresh capability. Deletion wins equal timestamps in
+either insertion order; unrelated document/author tombstones must not suppress
+live inventory. Five synthetic signing failures reproduce before repair and
+deny afterward. Thirteen SQLite/ClickHouse-local cases retain public delivery,
+pause suppression, restoration/reactivation/retagging and independent uploader
+contexts. This changes neither viewer membership nor media TTL. Reduced snapshot
+fixtures do not establish real writer/merge precision, inventory provenance,
+broader ad authority, rollout or diverse/L1 closure; those gates remain OPEN.
+Fresh same-family review independently replays five old-SQL failures and all
+thirteen ClickHouse-local document cases without a blocking finding. Ranking full
+history can cost more: accept the local correctness repair, not rollout; require
+representative query latency/load measurement before rollout and revisit if
+inventory reads degrade. Anonymous routing, other-service inventory and connected
+density/overwrite/HLS behavior remain unverified intent gates.
+
 ### 2026-11-05: A people tag is a target, never read authority
 
 The social tag index belongs to the app's opaque post/comment body. It helps
