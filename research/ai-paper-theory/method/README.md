@@ -23,6 +23,18 @@ the artifact, never from a previous draft.
    with this." If the pitch doesn't hit, the spine is wrong — fix the
    spine; don't build the outline on an unapproved one. The pitch seeds
    the abstract and locks the arc.
+
+   **The pitch spec (from shot 0, take 1's miss, 04.11.2026):** the
+   pitch is *the argument*, not the abstract — the abstract enumerates
+   the evidence later; the pitch carries the spine. One claim per
+   sentence, no clause-stacking: dense enough to hold the whole spine,
+   light enough to read in one pass (~150–230 words). No internal
+   shorthand as a verb — "closes the split" missed (the frame's jargon
+   is not pitch prose; find the human verb). The payoff line breathes
+   at the end (two short sentences). The critique, verbatim: "closes
+   the split, dont like that, also this paragraph is so dense, this is
+   almost too dense, dont need to literally be shown the section of the
+   abstract like this."
 2. **The outline shots.** The outline is shot in slices (arc +
    differentiators first, then the section groups), with
    human-in-the-loop critique between shots; each slice carries its

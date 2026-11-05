@@ -10,6 +10,21 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 04.11.2026
 
+### Shot 0, take 1: missed — the pitch spec is now in the theory
+
+- **(operator)** The critique of take 1, verbatim: "**'closes the split,'
+  dont like that, also this paragraph is so dense, this is almost too
+  dense, dont need to literally be shown the section of the abstract
+  like this. lets incorporate this into the theory, show me another
+  take.**"
+- **(agent)** The lesson is in the theory: `method/README.md` Shot 0 now
+  carries **the pitch spec** (the pitch is the argument, not the
+  abstract — no evidence enumeration; one claim per sentence, no
+  clause-stacking; ~150–230 words; no internal shorthand as a verb; the
+  payoff line breathes at the end), and `craft/voice.md` rule 6 now says
+  one claim per sentence / no clause-stacking. Take 2 fired in the PR
+  thread.
+
 ### The theory is a folder — hierarchical, multiple readmes
 
 - **(operator)** "the ai paper theory document needs to be a folder,

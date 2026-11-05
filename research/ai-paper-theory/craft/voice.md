@@ -10,7 +10,9 @@
 5. **No hedging, ever.** If a claim can't survive the evidence oracle,
    cut the claim — don't weaken it. A bold claim that gets defended
    beats a safe claim that gets hedged into the ground.
-6. One idea per paragraph; lead with the punchline.
+6. One idea per paragraph, **one claim per sentence**; lead with the
+   punchline; no clause-stacking (the take-1 pitch miss: "almost too
+   dense" — a pitch that enumerates like the abstract is a missed shot).
 7. Definitions before use; no noun the reader doesn't own.
 8. Every figure: referenced from the body, caption describes the figure
    it sits under, asserts only what the body asserts.
