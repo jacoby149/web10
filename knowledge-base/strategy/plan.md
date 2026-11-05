@@ -1277,6 +1277,8 @@ docs before code, per the rule at the top.
 
 ## SIGMOD 2027 Industry Track — the full paper (research/)
 
+- [✓ 4.10.7 local] **Shot 0 take 5 missed — third person** - "this you you you, not professional, i think third person." Pitch spec gains the person rule (the user, never you); take 6 fires the same angle in third person. No manuscript prose changed.
+
 - [✓ 4.10.6 local] **Shot 0 take 4 missed — fresh-angle take 5 fired** - operator: the email claim was inaccurate ("email doesnt follow you … who gets banned from their emails?"), "stuff" is not paper language, and the pitch was a patch, not a fresh angle ("take a fresh take, 4 sentences! could be totally different take, angle, unrelated"). Theory absorbs: the pitch spec gains the frame-accuracy rule + the concrete-nouns rule; the line count is out of the story everywhere (README fundamental, voice rule 2, the importance beat — pinned fact only in ops/numbers.md); the 4-sentence riff format is locked. Take 5: no email, the "a company's rules vs. your rules" angle, landing on "safety is a check, not a trust." No manuscript prose changed.
 
 - [✓ 4.10.5 local] **Shot 0 take 2 missed on the opener — "what is your data, a pet?"** - the pitch's first stake was an abstract noun (a pet fits the slot, so the stakes aren't named). Theory absorbs it: the pitch spec gains **the pet test** (name the stakes concretely; the opener's noun is the thing; the payoff mirrors the opener's noun) + `craft/voice.md` rule 1. Take 3 fired in the PR thread. No manuscript prose changed.

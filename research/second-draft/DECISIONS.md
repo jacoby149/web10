@@ -10,6 +10,15 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 04.11.2026
 
+### Shot 0, take 5: missed — "you you you, not professional, third person"
+
+- **(operator)** Verbatim: "this you you you, not professional , i
+  think third person." The pitch was written in second person
+  (marketing register); a research paper speaks of "the user".
+- **(agent)** Locked into the pitch spec: **third person, never second
+  person** ("the user", not "you"). Take 6 fires the same angle in
+  third person.
+
 ### Shot 0, take 4: missed — email is inaccurate, "stuff" is not paper, and stop patching
 
 - **(operator)** Three hits: (1) "Your email address is yours, and it

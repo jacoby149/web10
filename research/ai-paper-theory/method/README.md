@@ -40,8 +40,10 @@ the artifact, never from a previous draft.
    did *not* prove "your address follows you" (take 4's miss: no one
    runs DNS for mail portability). Use the paper's concrete nouns
    (posts, followers, grants, audience) — never "stuff" (take 4's
-   miss). The payoff mirrors the opener's noun. Keep riffing until it
-   hits:
+   miss). **Third person, never second person:** "the user", not "you" —
+   a research-paper register, not marketing copy (take 5's miss: "this
+   you you you, not professional, i think third person"). The payoff
+   mirrors the opener's noun. Keep riffing until it hits:
    each miss gets recorded in DECISIONS, and the next take changes the
    angle, not just the words. The critiques, verbatim: "closes the
    split, dont like that / almost too dense / dont need to literally
