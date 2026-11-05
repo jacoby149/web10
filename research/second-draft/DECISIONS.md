@@ -10,6 +10,19 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 04.11.2026
 
+### Shot 0, take 20 → take 21: close on the snake game + marketplace + interoperability
+
+- **(operator)** "i think bring up the sname game and the other thing,
+  and interoperability at the end. good conclusion after understanding
+  the extensibility part." After the extensibility sentence, name the
+  concrete apps (the snake game + the marketplace) and land
+  interoperability as the conclusion.
+- **(agent)** Take 21 adds a fifth sentence: "It is not hypothetical:
+  the social app, the snake game, and the marketplace already run on one
+  node, and interoperate on shared data through the same boundary."
+  Sentences 1–4 unchanged from take 20. The close gives the extensibility
+  its worked proof (three real apps) + the interop payoff.
+
 ### Shot 0, take 19 → take 20: sentence 4 removed
 
 - **(operator)** "i think we can just remove this????" — on "So the
