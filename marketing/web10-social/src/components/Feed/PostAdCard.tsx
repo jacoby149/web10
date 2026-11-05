@@ -1,3 +1,4 @@
+import { ReliableImage } from '@web10/discover/image';
 import { useEffect, useState } from 'react';
 import { Megaphone, Radio, ExternalLink, Heart } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -68,7 +69,7 @@ export function PostAdCard({ ad, className, standalone = true }: { ad: AdRecord;
       .then((m) => { if (live) setMediaItems(m); })
       .catch(() => { if (live) setMediaItems([]); });
     return () => { live = false; };
-  }, [ad._id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [ad._id, ad.media_refs]);
 
   // The like count + the reader's own like (a post ad is a `posts` doc, so
   // reactions work like any post).
@@ -303,7 +304,7 @@ function PostAdMedia({ media }: { media: MediaRecord }) {
   const containerStyle: React.CSSProperties = { aspectRatio: `${ratio}`, maxHeight: '60vh' };
   return (
     <div className="w-full bg-elevated overflow-hidden relative" style={containerStyle} data-testid="post-ad-media-image">
-      <img
+      <ReliableImage
         src={media.thumbnail_url || media.url}
         alt={media.alt_text || ''}
         className="w-full h-full object-cover"

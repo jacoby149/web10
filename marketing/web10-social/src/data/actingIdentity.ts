@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { getV3Client } from './v3';
+import { invalidateMediaRecovery } from '@web10/discover/media-recovery';
 
 const listeners = new Set<() => void>();
 function storageKey() {
@@ -25,6 +26,7 @@ export function getActingAuthor(): string | undefined {
 export function selectActingAuthor(author?: string) {
   const key = storageKey();
   if (!key) return;
+  invalidateMediaRecovery();
   sessionStorage.setItem(key, author || '');
   try { localStorage.setItem(key, author || ''); }
   catch { console.warn('[social-identity] remembered preference unavailable; keeping tab selection'); }

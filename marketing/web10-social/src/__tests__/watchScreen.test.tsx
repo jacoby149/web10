@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import '@testing-library/jest-dom';
 import * as data from '@/data';
@@ -189,11 +189,15 @@ describe('WatchScreen (the watch page)', () => {
     const view = await renderWatch();
     try {
       await screen.findByTestId('hls-video');
+      // DOM first paint precedes visibility-gated transport attachment.
+      await waitFor(() => expect(listeners.has('error')).toBe(true));
       let resolve!: (post: unknown) => void;
+      const readsBeforeRenewal = vi.mocked(data.readPostById).mock.calls.length;
       vi.mocked(data.readPostById).mockImplementationOnce(() => new Promise((r) => { resolve = r as never; }));
       fireEvent.timeUpdate(screen.getByTestId('hls-video'));
-      listeners.get('error')?.('error', { fatal: false, response: { code: 403 } });
-      await waitFor(() => expect(data.readPostById).toHaveBeenLastCalledWith('post-cur'));
+      act(() => listeners.get('error')?.('error', { fatal: false, response: { code: 403 } }));
+      await waitFor(() => expect(data.readPostById).toHaveBeenCalledTimes(readsBeforeRenewal + 1));
+      expect(data.readPostById).toHaveBeenLastCalledWith('post-cur');
       if (outcome === 'session-changed') window.dispatchEvent(new Event('upload-session-changed'));
       resolve({ ...post, media_refs: [{ ...media, doc_id: outcome === 'removed' ? 'replacement' : 'm-cur', transcoding_settings: { status: 'done', manifest_url: '/fresh' } }] });
       if (outcome === 'fresh') {

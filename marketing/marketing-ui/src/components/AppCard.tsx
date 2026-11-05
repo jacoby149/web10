@@ -1,3 +1,4 @@
+import { ReliableImage } from '@web10/discover/image';
 import { Link } from 'react-router-dom'
 import { ArrowUpRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -55,7 +56,7 @@ function CardContent({
   const iconBlock = (
     <div className="relative flex shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-elevated">
       {iconSrc ? (
-        <img
+        <ReliableImage
           src={iconSrc}
           alt={name}
           className={cn(

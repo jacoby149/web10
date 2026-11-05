@@ -1,3 +1,4 @@
+import { ReliableImage } from '@web10/discover/image';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -127,7 +128,7 @@ function MyGroupRow({ group, face, onOpen, onLeave, leaving, onDelete, deleting 
       {/* Cover — the group's real banner (D60 face) or its gradient */}
       <div className="h-24 w-full overflow-hidden" aria-hidden="true">
         {face?.banner_url ? (
-          <img
+          <ReliableImage
             src={face.banner_url}
             alt=""
             loading="lazy"

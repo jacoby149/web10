@@ -1,3 +1,4 @@
+import { ReliableImage } from '@web10/discover/image';
 // The watch page (watch-page.md) — the YouTube-shaped video destination.
 //
 // Click a landscape video in the Video wall → /watch/:postId?from=discover&
@@ -270,7 +271,7 @@ function QueueCard({ post, media, authorName, authorAvatar, onOpen, active }: {
             onPlayingChange={setPreviewPlaying}
           />
         ) : thumb ? (
-          <img src={thumb} alt="" className="h-full w-full object-cover" loading="lazy" />
+          <ReliableImage src={thumb} alt="" className="h-full w-full object-cover" loading="lazy" />
         ) : (
           <div className="flex h-full w-full items-center justify-center">
             <User className="h-5 w-5 text-muted-foreground/40" />
@@ -293,7 +294,7 @@ function QueueCard({ post, media, authorName, authorAvatar, onOpen, active }: {
         <div className="mt-1.5 flex items-center gap-1.5">
           <Avatar className={cn('h-5 w-5 shrink-0', hashToColor(authorName))}>
             {authorAvatar ? (
-              <img src={authorAvatar} alt="" className="h-full w-full object-cover" />
+              <ReliableImage src={authorAvatar} alt="" className="h-full w-full object-cover" />
             ) : (
               <AvatarFallback className="text-[0.625rem] font-semibold">{initial}</AvatarFallback>
             )}

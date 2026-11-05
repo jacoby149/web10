@@ -1,3 +1,4 @@
+import { ReliableImage } from '@web10/discover/image';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, X, Loader2, Ban, EyeOff, ChevronDown, AlertTriangle, RefreshCw, UserX, ExternalLink } from 'lucide-react';
@@ -214,7 +215,7 @@ export function PeopleTab() {
                     data-testid={`person-open-${person.username}`}
                   >
                     {person.avatar_url ? (
-                      <img
+                      <ReliableImage
                         src={person.avatar_url}
                         alt=""
                         className="h-10 w-10 rounded-full object-cover shrink-0"

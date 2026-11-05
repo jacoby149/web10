@@ -1,7 +1,11 @@
-import { useEffect, useRef, useState, type CSSProperties, type ChangeEvent } from 'react';
+import { ReliableImage } from './ReliableImage';
+import { ReliableVideo } from './ReliableVideo';
+import { hasMediaRecovery, recoverMediaUrl } from './mediaRecovery';
+import { useMediaPlaybackBudget, useMediaVisibility } from './mediaVisibility';
+import { useContext, useEffect, useRef, useState, type CSSProperties, type ChangeEvent } from 'react';
 import { Play, Pause, TriangleAlert, Volume2, VolumeX, Maximize2, Gauge } from 'lucide-react';
 import { cn } from './utils';
-import { HlsVideoPlayer, RackMenu, type ManifestRefresh } from './HlsVideoPlayer';
+import { HlsVideoPlayer, HlsRenewalContext, RackMenu, type ManifestRefresh } from './HlsVideoPlayer';
 import { IconBtn } from './ui';
 import { API_ORIGIN } from './config';
 import type { HlsInstance } from './hls';
@@ -204,14 +208,15 @@ export function VideoPlayer({ source, mode = 'inline', fit = 'contain', ratio, m
  * 403/404/expired presigned URL, a codec the browser can't decode) left a
  * silent black box. Now every video surface degrades to this.
  */
-function VideoError({ className }: { className?: string }) {
+function VideoError({ className, onRetry }: { className?: string; onRetry?: () => void }) {
   return (
     <div
       data-testid="video-error"
       className={cn('bg-elevated flex flex-col items-center justify-center gap-2 py-10 px-4 text-center', className)}
     >
       <TriangleAlert className="w-6 h-6 text-warning" strokeWidth={1.75} />
-      <p className="text-sm text-muted-foreground">This video can’t be played in your browser.</p>
+      <p className="text-sm text-muted-foreground">Video unavailable. Check your connection or try again.</p>
+      {onRetry && <button type="button" className="min-h-11 px-3 text-sm text-brand-300 focus-visible:ring-2 focus-visible:ring-ring" onClick={onRetry}>Retry video</button>}
     </div>
   );
 }
@@ -241,9 +246,9 @@ function NativeVideo({ url, poster, testId, className, initialTime, onTimeUpdate
     return () => el.removeEventListener('timeupdate', onTime);
   }, [url, onTimeUpdate]);
 
-  if (failed) return <VideoError className={className} />;
+  if (failed) return <VideoError className={className} onRetry={() => setFailed(false)} />;
   return (
-    <video
+    <ReliableVideo
       key={url}
       ref={videoRef}
       src={url}
@@ -252,7 +257,7 @@ function NativeVideo({ url, poster, testId, className, initialTime, onTimeUpdate
       playsInline
       loop={loop}
       onError={() => {
-        LOG('video — native load failed, url:', url);
+        LOG('video — native load failed');
         setFailed(true);
       }}
       data-testid={testId}
@@ -286,48 +291,94 @@ export function ImmersiveHls({ manifestUrl, poster, width, height, active = fals
   onTimeUpdate?: (t: number) => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  useMediaPlaybackBudget(videoRef);
   const hlsRef = useRef<HlsInstance | null>(null);
   const [failed, setFailed] = useState(false);
   const [tapped, setTapped] = useState(false);
-  const playing = (active && !tapped) || (!active && tapped);
+  const playing = active && !tapped;
+  const visible = useMediaVisibility(videoRef, failed);
+  const renewCarrier = useContext(HlsRenewalContext);
+  const recovery = useRef<() => void>(() => {});
+  const position = useRef(0);
+  const pendingPosition = useRef<number | null>(null);
+  const authorization = useRef<(() => boolean) | undefined>(undefined);
+  useEffect(() => { setTapped(false); }, [active]);
+  useEffect(() => { setFailed(false); authorization.current = undefined; }, [manifestUrl]);
   // The poster→video reveal latch (the no-gray idiom, 3.165.1): the video fades
   // in only once it has actually played (frames on screen — the `playing`
   // event, NOT `canplay`). Once set it never clears, so a paused short keeps
   // its frame. The poster `<img>` is the backdrop the whole time.
   const [revealed, setRevealed] = useState(false);
+  useEffect(() => { if (failed) setRevealed(false); }, [failed]);
 
   useEffect(() => {
     const el = videoRef.current;
-    if (!el) return;
+    if (!el || !active || !visible || failed) return;
     const manifestHref = `${API_ORIGIN}${manifestUrl}`;
-    LOG('immersive hls — attach, manifest:', manifestHref);
+    LOG('immersive hls — attach');
+    let live = true;
+    let attempted = false;
+    let recovering = false;
+    let hls: HlsInstance | undefined;
+    const onMeta = () => {
+      if (authorization.current && !authorization.current()) { el.autoplay = false; el.pause(); setFailed(true); return; }
+      const hasPending = pendingPosition.current !== null;
+      const restore = pendingPosition.current ?? position.current;
+      pendingPosition.current = null;
+      position.current = restore;
+      if (hasPending || restore > 0) el.currentTime = restore;
+    };
+    el.addEventListener('loadedmetadata', onMeta);
+    recovery.current = () => {
+      if (!live || recovering) return;
+      if (attempted) { setFailed(true); return; }
+      attempted = true;
+      recovering = true;
+      const read = hasMediaRecovery(manifestUrl) || !renewCarrier ? recoverMediaUrl(manifestUrl) : renewCarrier(manifestUrl);
+      void read.then(result => {
+        if (!live) return;
+        if (typeof result !== 'string' && !result.isCurrent()) throw new Error('Media reader changed');
+        authorization.current = typeof result === 'string' ? undefined : result.isCurrent;
+        position.current = el.currentTime || position.current;
+        pendingPosition.current = position.current;
+        const url = typeof result === 'string' ? result : result.url;
+        if (hls) hls.loadSource(new URL(url, API_ORIGIN).href);
+        else { el.src = new URL(url, API_ORIGIN).href; el.load(); }
+      }).catch(() => { if (live) setFailed(true); }).finally(() => { recovering = false; });
+    };
+    const release = () => {
+      live = false;
+      position.current = el.currentTime || position.current;
+      pendingPosition.current = pendingPosition.current ?? position.current;
+      el.pause(); hls?.destroy(); hlsRef.current = null;
+      el.removeEventListener('loadedmetadata', onMeta);
+      el.removeAttribute('src'); el.load();
+    };
 
     if (window.Hls && window.Hls.isSupported()) {
       const Hls = window.Hls;
-      const hls = new Hls();
+      hls = new Hls();
       hlsRef.current = hls;
       hls.on(Hls.Events.ERROR, (_e, data) => {
-        LOG('immersive hls — error, type:', data.type, 'details:', data.details, 'fatal:', data.fatal);
-        if (data.fatal) setFailed(true);
+        if (!live) return;
+        LOG('immersive hls — error, fatal:', data.fatal);
+        if (data.fatal || data.response?.code === 403) recovery.current();
       });
       hls.loadSource(manifestHref);
       hls.attachMedia(el);
-      return () => {
-        LOG('immersive hls — destroy');
-        hls.destroy();
-        hlsRef.current = null;
-      };
+      return release;
     }
 
     if (el.canPlayType('application/vnd.apple.mpegurl')) {
       LOG('immersive hls — native HLS (Safari)');
       el.src = manifestHref;
-      return;
+      return release;
     }
 
     LOG('immersive hls — no HLS support in this browser');
     setFailed(true);
-  }, [manifestUrl]);
+    return release;
+  }, [manifestUrl, active, visible, failed]);
 
   // The poster→video reveal latch: the video fades in only once it has actually
   // played (frames on screen — the `playing` event, NOT `canplay`). Once set it
@@ -336,33 +387,46 @@ export function ImmersiveHls({ manifestUrl, poster, width, height, active = fals
   useEffect(() => {
     const el = videoRef.current;
     if (!el) return;
-    const onPlaying = () => setRevealed(true);
+    const onPlaying = () => {
+      if (authorization.current && !authorization.current()) { el.pause(); setFailed(true); return; }
+      setRevealed(true);
+    };
     el.addEventListener('playing', onPlaying);
     return () => el.removeEventListener('playing', onPlaying);
-  }, []);
+  }, [failed]);
 
   // The D86 viewport tier: report the playback position (watched_ms) on every
   // timeupdate. The surface accumulates the max position and reports it when
   // the slide leaves. Absent → no listener (unchanged).
   useEffect(() => {
     const el = videoRef.current;
-    if (!el || !onTimeUpdate) return;
-    const onTime = () => onTimeUpdate(el.currentTime);
+    if (!el) return;
+    const onTime = () => {
+      if (pendingPosition.current !== null) return;
+      position.current = el.currentTime; onTimeUpdate?.(el.currentTime);
+    };
+    const onSeek = () => {
+      position.current = el.currentTime;
+      if (pendingPosition.current !== null) pendingPosition.current = el.currentTime;
+    };
     el.addEventListener('timeupdate', onTime);
-    return () => el.removeEventListener('timeupdate', onTime);
-  }, [onTimeUpdate]);
+    el.addEventListener('seeking', onSeek);
+    return () => { el.removeEventListener('timeupdate', onTime); el.removeEventListener('seeking', onSeek); };
+  }, [onTimeUpdate, failed]);
 
   useEffect(() => {
     const el = videoRef.current;
     if (!el) return;
-    if (playing) {
+    if (playing && visible) {
+      hlsRef.current?.startLoad?.();
       el.muted = muted;
       const p = el.play();
       if (p && typeof p.catch === 'function') p.catch(() => {});
     } else {
       el.pause();
+      hlsRef.current?.stopLoad?.();
     }
-  }, [playing, muted]);
+  }, [playing, muted, visible]);
 
   // The sound toggle can flip while the slide is paused (the user taps the
   // speaker on a paused short) — apply it to the element either way so the
@@ -372,7 +436,7 @@ export function ImmersiveHls({ manifestUrl, poster, width, height, active = fals
   }, [muted]);
 
   if (failed) {
-    return <VideoError className={cn('h-full w-full', className)} />;
+    return <VideoError className={cn('h-full w-full', className)} onRetry={() => setFailed(false)} />;
   }
 
   return (
@@ -398,7 +462,7 @@ export function ImmersiveHls({ manifestUrl, poster, width, height, active = fals
           it once frames are on screen (the no-gray idiom, 3.165.1). Both are
           `absolute inset-0` so they occupy the SAME box (stacked). */}
       {poster && (
-        <img
+        <ReliableImage
           src={poster}
           alt=""
           className="absolute inset-0 h-full w-full object-cover"
@@ -414,13 +478,13 @@ export function ImmersiveHls({ manifestUrl, poster, width, height, active = fals
           revealed ? 'opacity-100' : 'opacity-0',
         )}
         muted={muted}
-        autoPlay
+        autoPlay={playing && visible}
         loop
         playsInline
-        preload="auto"
+        preload="none"
         onError={() => {
-          LOG('immersive hls — native video error, code:', videoRef.current?.error?.code, 'msg:', videoRef.current?.error?.message);
-          setFailed(true);
+          LOG('immersive hls — native video error, code:', videoRef.current?.error?.code);
+          recovery.current();
         }}
       />
       {!playing && (
@@ -465,7 +529,7 @@ interface InlineVideoProps {
 export function InlineVideo({ url, poster, width, height, durationSeconds, fit = 'contain', ratio, maxHeight, maxWidth, showDuration = true, fill = false, immersive = false, active = false, muted: immersiveMuted = true, testId, className }: InlineVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [tapped, setTapped] = useState(false);
-  const playing = (active && !tapped) || (!active && tapped);
+  const playing = immersive ? active && !tapped : tapped;
   // The poster→video reveal latch: the video fades in only once it has actually
   // played (frames on screen — the `playing` event, NOT `canplay`). Once set it
   // never clears, so a paused video keeps its frame. The poster `<img>` is the
@@ -624,7 +688,7 @@ export function InlineVideo({ url, poster, width, height, durationSeconds, fit =
           so they occupy the SAME box (stacked) — the video overlays the poster,
           never flows below it. */}
       {poster && (
-        <img
+        <ReliableImage
           src={poster}
           alt=""
           className={cn(
@@ -633,7 +697,7 @@ export function InlineVideo({ url, poster, width, height, durationSeconds, fit =
           )}
         />
       )}
-      <video
+      <ReliableVideo
         ref={videoRef}
         src={url}
         className={cn(
@@ -641,7 +705,7 @@ export function InlineVideo({ url, poster, width, height, durationSeconds, fit =
           cover ? 'object-cover' : 'object-contain',
           revealed ? 'opacity-100' : 'opacity-0',
         )}
-        preload="metadata"
+        preload="none"
         playsInline
         muted={immersive ? immersiveMuted : !playing}
         loop

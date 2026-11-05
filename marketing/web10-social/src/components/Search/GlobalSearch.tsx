@@ -1,3 +1,4 @@
+import { ReliableImage } from '@web10/discover/image';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
@@ -99,7 +100,7 @@ function PersonRow({ person }: { person: PersonCard }) {
         <span className="block text-xs text-muted-foreground truncate">@{person.username}</span>
       </span>
       {person.avatar_url ? (
-        <img src={person.avatar_url} alt="" className="h-9 w-9 rounded-full object-cover shrink-0" />
+        <ReliableImage src={person.avatar_url} alt="" className="h-9 w-9 rounded-full object-cover shrink-0" />
       ) : (
         <span className="h-9 w-9 rounded-full bg-brand-muted text-brand-300 text-xs font-semibold flex items-center justify-center shrink-0">
           {initial}

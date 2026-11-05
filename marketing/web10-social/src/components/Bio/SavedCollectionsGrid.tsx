@@ -1,3 +1,4 @@
+import { ReliableImage } from '@web10/discover/image';
 import { Bookmark } from 'lucide-react';
 import type { CollectionRecord } from '@/data/saved';
 import { textTileColor } from './textTileColor';
@@ -49,7 +50,7 @@ export function SavedCollectionsGrid({ collections, onOpenCollection, emptyHint 
               style={{ backgroundColor: textTileColor(col.groupId) }}
             >
               {col.coverUrl ? (
-                <img
+                <ReliableImage
                   src={col.coverUrl}
                   alt=""
                   loading="lazy"
