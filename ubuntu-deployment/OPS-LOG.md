@@ -3,6 +3,44 @@
 Newest at top. Format per AGENT-OPS.md §8. Read the top entries
 BEFORE doing ops work — someone may already be mid-fix.
 
+## 05.11.2026 10:30–10:45 UTC — OpenCode (vatican / jacoby149/samhanks-profile-picture-fix) — prod followers-group public-grant backfill
+did:
+  - Diagnosed the operator's web10.app/trending screenshot (v4.10.0): samhanks +
+    other pre-#994 accounts rendered as initials while group faces painted.
+    Marketing pipeline proven correct on the deployed revision (the served
+    bundle carries the 4.7.1 hydrateAuthors; the identical anon face-prepare
+    signs jacoby149's CDN face end-to-end; board content media resolves).
+    Root cause = node data state: pre-#994 followers groups lack the reserved
+    `anyone -> reader` member row, so the I3 gate denies the `profile` face to
+    anon (samhanks also absent from the D0 people directory); #1041 removed
+    the sign-in re-heal and `setProfilePublic` has no UI caller, so the legacy
+    state had no convergence path.
+  - Read-only prod probes from local (no credentials): /v3/query face-prepare
+    (samhanks 0 rows; jacoby149 1 row + media.web10.app capability URL),
+    /v3/users/directory (samhanks absent, 14 users), /v3/groups/detail
+    (contract + reader role intact for samhanks), deployed-bundle marker grep.
+  - Operator authorized converging ALL current users to public-by-default.
+    Ran `ubuntu-deployment/scripts/backfill-followers-public.py` inside
+    `web10-prod-api-1` (`docker exec -i ... uv run python -`), DRY-RUN first:
+    27 followers groups, 13 would-heal, 0 anomalies, 0 errors. Then `--apply`:
+    13 groups gained the `anyone -> reader` reserved row, 10 of them also the
+    missing `reader` role definition. In-script verify: 27/27 groups
+    `can_read_group(anon, profile)` True.
+  - Post-apply external verify: samhanks face-prepare returns 1 row with a
+    media.web10.app capability URL; GET = HTTP 200 image/jpeg 57,064 B
+    (512x512 JPEG); /v3/users/directory now 27 users (was 14) incl. samhanks;
+    board batch probe 9 -> 11 face rows (board authors with a picture set:
+    jacoby149 + samhanks; the rest have no avatar_ref, honestly faceless).
+  - web10-dev stack: dry-run only — 1 followers group, already public; no writes.
+  - Browser captures of https://web10.app/trending at 375x812 + 1280x800
+    (8s settle): samhanks' real face paints on the #1 post card, both widths.
+    No app code / config / container change; no content or media write; no
+    permission-policy or TTL change. Re-running the script is a no-op.
+state: prod marketing trending/People/directory/preview surfaces now paint
+  every anon-readable face; the healed set is exactly the pre-#994 legacy
+  groups; dev untouched (already public).
+next: commit the script + this record; PR to dev; CI; no further box action.
+
 ## 04.11.2026 00:52–00:56 UTC — OpenCode (charlotte) — normal production CDN persistence verified
 did:
   - Normal production deploy 41749919820, cd/image publication 41749919850 and all
