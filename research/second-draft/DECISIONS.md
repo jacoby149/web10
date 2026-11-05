@@ -10,6 +10,22 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 04.11.2026
 
+### Shot 0, take 17 rejected — revert to take 16 with a subtle change
+
+- **(operator)** Pasted take 16 and: "nonono, this one was great. this
+  needed subtle changes, i really dont like what you did." Take 17 (the
+  big OAuth mechanism rewrite + the standalone snake-game line) was too
+  much. The fix is subtle: in take 16's fifth sentence, the opener
+  "makes the node interoperable and extensible:" was the no-good part —
+  trim it to "makes the node extensible:" and keep "new games and new
+  marketplaces run on it, and because every app speaks the same
+  primitives, they interoperate by design" exactly as it was.
+- **(agent)** Take 18 = take 16 with that one-word trim. The OAuth /
+  "new apps request your old data" insight is kept for the *paper body*
+  (§6, the extensibility section), not the pitch. Sentences 1–4
+  unchanged. (Riff logged here; the full changelog/plan/lane entry lands
+  when the pitch gets the pass.)
+
 ### Shot 0, take 16 → take 17: the extensibility is programmable identity access, not an adjective
 
 - **(operator)** "And that generic design is what makes the node
