@@ -1,3 +1,6 @@
+4.10.12 || 04.11.2026
+docs(research): shot 0 take 11 — the gas-station simile is out of the pitch ("like a gas station: get rid of that"). Take 10 otherwise unchanged; sentence 2 is now "web10's node is completely generic: read and write on data, and configuration for identity and access, executed every time the data is used." No manuscript prose changed.
+
 4.10.11 || 04.11.2026
 docs(research): shot 0 take 10 — the combination of takes 8 + 9, minus the "ecosystem in a bottle." Operator: "conbine takes 8 and 9, take out the ecosystem in a bottle thing … dont need that." Take 10 keeps take 8's beats (the bespoke-APIs convention, the gas-station image, the provable landing) and take 9's mechanism (data RW + IAM configuration executed when the data is used; the AST boundary; the developer-tuned query), and drops the bottle closing. Arc: convention → the generic surface → the AST + developer-owned query → the inversion + the provable landing. No manuscript prose changed.
 

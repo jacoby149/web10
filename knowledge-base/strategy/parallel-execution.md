@@ -1426,6 +1426,8 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+- [✓ 4.10.12 local] **Shot 0 take 11 — gas-station simile out** — "get rid of that." Take 10 otherwise unchanged. **Awaiting the operator's riff.**
+
 - [✓ 4.10.11 local] **Shot 0 take 10 — the combination of takes 8 + 9, bottle dropped** — "conbine takes 8 and 9, take out the ecosystem in a bottle thing." Convention → the generic surface (data RW + executed IAM configuration) → the AST + developer-owned query → the inversion + the provable landing. **Awaiting the operator's riff.**
 
 - [✓ 4.10.10 local] **Shot 0 take 8: clean but not genius — the real mechanism is in** — the operator supplied the content (data RW + executed IAM configuration · the AST boundary · developer-tuned lakehouse queries · the ecosystem in the bottle). The genius is shown, not asserted; "AST" replaces "SQL". **Take 9 fired in the PR #1396 thread — awaiting the operator's riff.**

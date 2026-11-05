@@ -10,7 +10,18 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 04.11.2026
 
-### Shot 0, take 9 → take 10: combine takes 8 + 9, drop the "ecosystem in a bottle"
+### Shot 0, take 10 → take 11: "like a gas station: get rid of that"
+
+- **(operator)** The gas-station simile is out of the pitch.
+- **(agent)** Take 11 = take 10 minus the simile: sentence 2 is now
+  "web10's node is completely generic: read and write on data, and
+  configuration for identity and access, executed every time the data is
+  used." Everything else unchanged. (The gas station was the operator's
+  own throwaway from the take-5 direction — "or something" — and it
+  didn't earn its place in the pitch; it can still live in §1 or a
+  figure if it lands there.)
+
+### Shot 0, take 9 → take 10: combine takes 8 + 9, drop the "ecosystem in the bottle"
 
 - **(operator)** "conbine takes 8 and 9, take out the ecosystem in a
   bottle thing … dont need that." The bottle closing is out.

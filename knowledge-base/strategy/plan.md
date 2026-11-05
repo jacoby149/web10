@@ -1277,6 +1277,8 @@ docs before code, per the rule at the top.
 
 ## SIGMOD 2027 Industry Track — the full paper (research/)
 
+- [✓ 4.10.12 local] **Shot 0 take 11 — gas-station simile out** - "like a gas station: get rid of that." Take 10 otherwise unchanged; sentence 2 is now "web10's node is completely generic: read and write on data, and configuration for identity and access, executed every time the data is used." No manuscript prose changed.
+
 - [✓ 4.10.11 local] **Shot 0 take 10 — the combination** - operator: "conbine takes 8 and 9, take out the ecosystem in a bottle thing, dont need that." Take 8's beats (bespoke-APIs convention, gas station, provable landing) + take 9's mechanism (data RW + executed IAM configuration, the AST boundary, the developer-tuned query), bottle dropped. No manuscript prose changed.
 
 - [✓ 4.10.10 local] **Shot 0 take 8: clean but not genius — the real architectural content is in** - operator supplied the mechanism: generic data RW + IAM configuration RWE (executed when the data is used) · the AST protects the query (the reader sees only what their grants allow) · the developer writes and tunes the lakehouse queries (the platform guarantees the boundary, not the performance) · "an ecosystem in a bottle." The genius is shown, not asserted; "SQL" stays out, "AST" is the word. Take 9 fired. No manuscript prose changed.
