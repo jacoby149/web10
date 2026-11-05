@@ -55,7 +55,9 @@
     interoperating; known = OAuth 2.0 / snake game / marketplace /
     feed-follow-like. Apply it to every section: theorem-term ↔ concrete
     (readable set ↔ a grant row; boundary CTE ↔ the snake game reading
-    the profile; the fan-out cost ↔ 7.64 s → 363 ms).
+    the profile; the fan-out cost ↔ 7.64 s → 363 ms; /certify ↔ email's
+    sender check, SPF/DKIM — "a handshake, not a registry"; the user's
+    address ↔ a DNS domain they own).
 
 The no-hedging pass (the repair phase): find every weakened claim,
 restore it to full strength inside its domain, cut it if it can't

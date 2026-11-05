@@ -1427,6 +1427,8 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+- [✓ 4.10.19 local] **Shot 0 extended — the pitch carries both movements (11 sentences)** — the /certify handshake (anchored to SPF/DKIM: "a handshake, not a registry") + the DNS/audience payoff ("you NEVER lose your audience"). The two-movements structure is now inside the pitch itself. Open: final-line ordering (bedrock vs audience payoff). **Next: the operator's pass on the 11-sentence shot 0 → lock the arc into OUTLINE.md (the 9 node sentences → §1/§2/§3/§5/§6/§8/§9; the 2 network sentences → §4 + §8 Q2) → the diagram shots → the sections.**
+
 - [✓ 4.10.18 local] **Shot 0 (take 24) PASSES — the canonical 9-sentence pitch is locked** — "this encompasses everything we found, all of the decisions we made!" The "belongs to the user" line is restored; the combination + OLAP/RLS positioning sentences stay (RLS framed as the OLTP-era predecessor). The pitch compresses the node story; the network story is the open two-movements question. **Firing outline shot 1 now: the arc — where each of the 9 sentences moves (§1/§2/§3/§5/§6/§8/§9), plus the network-move flag.**
 
 - [✓ 4.10.17 local] **The pitch = the paper's compression; shot-0 exercise closes** — "the whole essence of the paper, in a paragraph … make sure we dont lose what is in there … good exercise." The compression test (re-compress the finished paper → the pitch comes back) is an acceptance-checklist box. **Next gate: outline shot 1 — the arc + differentiators re-derived from the locked pitch (the six sentences expanded to their sections; the open question: the pitch compresses the NODE, the network half (user-addressed, /certify, domain portability) is not in the six sentences — two-movement paper vs. node-only).**

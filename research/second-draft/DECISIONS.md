@@ -10,6 +10,29 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 04.11.2026
 
+### Shot 0 extended: +2 network sentences — the /certify handshake + the DNS/audience payoff
+
+- **(operator)** "add a sentence to our shot 0 about that" (the
+  /certify-is-like-email sender-verification handshake). And: "lets add a
+  sentence on connecting to DNS -> very simple anti ban that way,
+  verifiable too, how would a web10 node owner have any control over DNS
+  you own. users follows are data they own, they follow your domain, you
+  NEVER lose your audience!"
+- **(agent)** Two sentences added to shot 0 (now 11 — it carries BOTH
+  movements): the /certify sentence anchored to email's sender check
+  ("identity works the way email verifies a sender: a handshake, not a
+  registry — the home node confirms the user is who they say they are,
+  and that is all it is, because every node still re-checks its own
+  rules on every read"), and the DNS/audience sentence ("an address is a
+  domain the user owns — the node verifies it over DNS but cannot
+  control it — so the follows live in the followers' own data, bound to
+  that domain: no platform holds a ban switch over an address the user
+  keeps, and the audience never leaves when an account does").
+- **(agent)** New known↔advanced pairs added to voice.md rule 14:
+  /certify ↔ SPF/DKIM; the user's address ↔ a DNS domain they own.
+- **(agent) Open:** the ordering — the ClickHouse bedrock (sentence 9) as
+  the final line, or the audience payoff (sentence 11) as the final line?
+
 ### Shot 0 (take 24): PASSED — the final canonical pitch (9 sentences)
 
 - **(operator)** "wow, this is great!!!!!!" + "this encompasses
