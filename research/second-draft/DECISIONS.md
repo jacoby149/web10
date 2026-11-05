@@ -10,6 +10,30 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 05.11.2026
 
+### Attack surface +1: "too rich — developers can't use a query engine" → the coding-models era is the answer
+
+- **(operator)** "i think that we provide such a rich experience, the
+  critisism could be too rich, dev barely can figure out how to use a
+  query engine / optimize the queries. but our response can be, we are in
+  a world of genius coding models, this is the perfect time to release
+  this, ai can code the app for you, writing good query engine code, that
+  is optimized."
+- **(agent)** New row in `ops/attack-surface.md`. The objection is
+  defused in three moves: (1) **correctness never depends on the app's
+  skill** — the boundary guarantees the reader's readable set on *any*
+  query, so a bad query is slow, not unsafe; the risk of handing over the
+  query engine is bounded to performance by construction. (2) **Performance
+  is app-owned** (beat 4's division of labor) — and writing/optimizing
+  columnar SQL is exactly the skill coding models have commoditized: the
+  operator's "perfect time to release" is the paper's **timing argument**
+  ("why now"), framed as a claim about the era, not a measured AI outcome
+  (we make no LLM-query-quality measurement). (3) **Proof a real app
+  carries it** — the social app is a 46,285-line query app: the feed
+  ranked in SQL (scoring, joins, keyset cursors). Lands in outline §6
+  (killer app) + §10 (why now / conclusion). Not a shot-0 beat: beat 4
+  already says "the platform guarantees the boundary, not the
+  performance."
+
 ### fig-platforms re-anchored on the query engine — "does bluesky give that clickhouse BI power? i bet not"
 
 - **(operator)** "does bluesky give that clickhouse BI power? i bet not it

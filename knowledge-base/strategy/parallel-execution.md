@@ -1441,6 +1441,8 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+- [✓ 4.10.30 local] **Attack surface +1: "too rich — developers can't use a query engine"** — "we are in a world of genius coding models, this is the perfect time to release this, ai can code the app for you." New row: correctness defused by construction (a bad query is slow, never unsafe) + performance app-owned (the skill coding models commoditized — a timing argument, not a measured AI outcome) + proof by the 46,285-line query app. Lands §6/§10; not a shot-0 beat. **Next gate: the outline shots — the 12 beats → section mapping (presented in-thread, awaiting the pass), then the diagram shots, then the sections.**
+
 - [✓ 4.10.29 local] **fig-platforms re-anchored on the query engine — "does bluesky give that clickhouse BI power? i bet not"** — verified on their own statusphere tutorial (Tap + Postgres just to have a feed); no query engine an app writes against. Left: "no query engine in the platform" / "a new read pattern is a new backend"; right: "the node — set up already" (columnar engine, provisioned, NO db setup), the pitchy boundary box dropped. The 4.10.27 app-to-app grant point retained; related-work AT row updated, gap stays OPEN. **Next gate: the outline shots — the 12 beats → section mapping (presented in-thread, awaiting the pass), then the diagram shots, then the sections.**
 
 - [✓ 4.10.28 local] **Figure B title polish — "— a breakdown" is out** — "a breakdown actually in that title doesnt look good can you suggest a title!" Title now "Reading a social feed on web10" (operator's wording minus the tail); alternatives on record ("Where a feed read runs", "The feed read, from the app to the store"); the E2E / three-layers framing stays in the subtitle.
