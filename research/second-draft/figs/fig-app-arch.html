@@ -1,0 +1,195 @@
+<!doctype html>
+<!--
+  Source for fig-app-arch.png (Figure A, shot 3: "the real system").
+  The web10-social stack at the level of named parts: the browser box
+  (surfaces + the six data-layer modules + wapi), the generic node (auth,
+  read gate, query engine, media), ClickHouse and MinIO with their real
+  table/blob names, and a messages panel showing the actual payloads that
+  move on the wires. Pinned number: 46,285 source lines across 141 files.
+  No pitch lines; the claim is carried by the paper's caption.
+  Render with ./capture.mjs fig-app-arch.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { background:#0a0a12; }
+  body { width:1440px; height:780px; position:relative; overflow:hidden;
+    font-family:-apple-system,"SF Pro Text","Helvetica Neue",Arial,sans-serif;
+    -webkit-font-smoothing:antialiased; }
+  .title { position:absolute; top:34px; width:100%; text-align:center;
+    font-size:26px; font-weight:700; color:#f2f3f8; }
+  .subtitle { position:absolute; top:70px; width:100%; text-align:center;
+    font-size:13.5px; color:#9c9fb3; }
+  .frame { position:absolute; border-radius:14px; background:#0e0e17; }
+  .fhead { position:absolute; font-size:14px; font-weight:700; }
+  .fanno { position:absolute; font-size:11px; color:#8b8fa5; }
+  .sec { position:absolute; font-size:11px; font-weight:700; letter-spacing:.4px;
+    color:#8b8fa5; }
+  .chip { display:inline-block; padding:5px 13px; border-radius:999px;
+    background:#101018; border:1px solid #3a3d52; color:#9a9db1; font-size:11px; }
+  .mod { position:absolute; width:248px; height:62px; border-radius:8px;
+    background:#101018; border:1px solid #3a3d52; padding:0 12px;
+    display:flex; flex-direction:column; justify-content:center; }
+  .mod .t { font-size:12.5px; font-weight:600; color:#e8e9f2; }
+  .mod .s { font-size:10.5px; color:#9a9db1; margin-top:3px; line-height:1.35; }
+  .sdk { position:absolute; left:80px; top:356px; width:780px; height:34px;
+    border-radius:8px; background:#101018; border:1px solid #3a3d52;
+    display:flex; align-items:center; justify-content:center; font-size:11.5px;
+    color:#b9bcc9; }
+  .sdk b { color:#e8e9f2; font-weight:600; }
+  /* messages panel */
+  .mcard { position:absolute; left:940px; width:420px; }
+  .mpayload { font-family:"SF Mono",Menlo,Consolas,monospace; font-size:10.5px;
+    color:#c9ccdd; background:#0b0b12; border:1px solid #2a2a3c; border-radius:8px;
+    padding:8px 12px; line-height:1.55; white-space:pre; }
+  .mlabel { font-size:10.5px; color:#8b8fa5; margin-top:6px; line-height:1.4; }
+  /* node parts */
+  .part { position:absolute; width:186px; height:76px; border-radius:8px;
+    background:#101018; border:1px solid #3a3d52; padding:0 12px;
+    display:flex; flex-direction:column; justify-content:center; }
+  .part .t { font-size:12px; font-weight:600; color:#e8e9f2; }
+  .part .s { font-size:10px; color:#9a9db1; margin-top:3px; line-height:1.4; }
+  .part.violet { border:1.5px solid rgba(139,92,246,.65);
+    background:rgba(139,92,246,.07); }
+  .part.violet .t { color:#e6e0fb; } .part.violet .s { color:#b9aef0; }
+  /* stores */
+  .store { position:absolute; border-radius:12px; background:rgba(52,211,153,.06);
+    border:1.5px solid rgba(52,211,153,.65); }
+  .storehead { position:absolute; font-size:13px; font-weight:700; color:#d7f5e6; }
+  .tchip { font-family:"SF Mono",Menlo,Consolas,monospace; font-size:10.5px;
+    color:#a7d8c0; background:rgba(52,211,153,.05);
+    border:1px solid rgba(52,211,153,.5); border-radius:6px; padding:3px 8px; }
+  .wlabel { position:absolute; font-size:10.5px; color:#9a9db1; }
+  svg.abs { position:absolute; top:0; left:0; width:1440px; height:780px;
+    pointer-events:none; }
+</style>
+</head>
+<body>
+  <div class="title">The web10-social application and its node</div>
+  <div class="subtitle">The data layer in the browser, a generic node, and its two stores &mdash; with the messages that move between them</div>
+
+  <!-- the browser -->
+  <div class="frame" style="left:60px; top:92px; width:820px; height:336px; border:2px solid rgba(201,204,218,.8);"></div>
+  <div class="fhead" style="left:80px; top:110px; color:#f2f3f8;">the browser &mdash; web10-social, one TypeScript codebase</div>
+  <div class="fanno" style="left:636px; top:113px; width:220px; text-align:right;">46,285 source lines &middot; 141 files</div>
+
+  <div style="position:absolute; left:80px; top:140px; display:flex; gap:8px;">
+    <span class="chip">feed</span><span class="chip">profile</span><span class="chip">groups</span><span class="chip">media</span>
+    <span class="chip">direct messages</span><span class="chip">watch</span><span class="chip">shorts</span><span class="chip">discover</span>
+  </div>
+
+  <div class="sec" style="left:80px; top:182px;">THE DATA LAYER &mdash; THE WORK A BESPOKE API WOULD NORMALLY CARRY</div>
+  <div class="mod" style="left:80px; top:202px;">
+    <div class="t">feed &amp; ranking</div><div class="s">the app&rsquo;s own SELECTs: joins, scoring, cursors</div>
+  </div>
+  <div class="mod" style="left:346px; top:202px;">
+    <div class="t">group discovery</div><div class="s">the social graph as group rows the app reads and writes</div>
+  </div>
+  <div class="mod" style="left:612px; top:202px;">
+    <div class="t">faces &amp; avatars</div><div class="s">documents resolved to people; versions deduped</div>
+  </div>
+  <div class="mod" style="left:80px; top:274px;">
+    <div class="t">media resolution</div><div class="s">HLS, thumbnails, signed URLs from the node&rsquo;s media</div>
+  </div>
+  <div class="mod" style="left:346px; top:274px;">
+    <div class="t">request orchestration</div><div class="s">batching, dedup, optimistic writes, retry</div>
+  </div>
+  <div class="mod" style="left:612px; top:274px;">
+    <div class="t">acting identity</div><div class="s">scoped, expiring tokens &mdash; what acts as whom</div>
+  </div>
+
+  <div class="sdk"><b>wapi (the SDK)</b> &mdash; CRUD over documents &middot; the query engine &middot; scoped tokens &middot; auth handoff</div>
+
+  <!-- the messages panel -->
+  <div class="mcard" style="top:112px;">
+    <div class="sec" style="position:static; display:block; margin-bottom:0;">THE MESSAGES ON THE WIRES</div>
+  </div>
+  <div class="mcard" style="top:146px;">
+    <div class="mpayload">{ "sql": "SELECT &hellip; FROM posts &hellip;",
+  "token": "eyJhbG…" }</div>
+    <div class="mlabel">the app asks &mdash; its SQL, the reader&rsquo;s JWT</div>
+  </div>
+  <div class="mcard" style="top:244px;">
+    <div class="mpayload">{ "rows": [ { "doc_id", "author_key",
+    "body", "tags", &hellip;, "group_id" } ] }</div>
+    <div class="mlabel">the node answers &mdash; the readable subset, as JSON</div>
+  </div>
+  <div class="mcard" style="top:342px;">
+    <div class="mpayload">presigned URL &rarr; GET &rarr; bytes
+https://&hellip;/hls/index.m3u8?sig=&hellip;</div>
+    <div class="mlabel">media &mdash; signed URL to MinIO; the app fetches HLS and thumbnails directly</div>
+  </div>
+
+  <!-- the node -->
+  <div class="frame" style="left:60px; top:470px; width:820px; height:136px; border:1.5px solid #34344a;"></div>
+  <div class="fhead" style="left:80px; top:484px; color:#f2f3f8;">the node &mdash; FastAPI, completely generic</div>
+  <div class="fanno" style="left:420px; top:489px; color:#fbbf24;">no posts table &middot; no feed endpoint &middot; no followers concept</div>
+  <div style="position:absolute; left:80px; top:505px; font-size:10.5px; color:#8b8fa5;">read and write on data, and configuration for identity and access &mdash; executed every time the data is used</div>
+  <div class="part" style="left:80px; top:522px;">
+    <div class="t">auth</div>
+    <div class="s">JWT verify &rarr; the reader&rsquo;s principal; app extension is a role and a policy &mdash; OAuth 2.0-style, but finer-grained</div>
+  </div>
+  <div class="part" style="left:278px; top:522px;">
+    <div class="t">the read gate</div>
+    <div class="s"><span style="font-family:'SF Mono',Menlo,monospace;">group_members</span> &times; <span style="font-family:'SF Mono',Menlo,monospace;">group_contracts</span> &rarr; readable groups &mdash; the user&rsquo;s own data, in the very store they protect</div>
+  </div>
+  <div class="part violet" style="left:476px; top:522px;">
+    <div class="t">the query engine</div>
+    <div class="s">parse &middot; walk &middot; lower to CTEs &middot; round-trip &mdash; protected with an AST (Figure B)</div>
+  </div>
+  <div class="part" style="left:674px; top:522px;">
+    <div class="t">media</div>
+    <div class="s">presigned MinIO URLs &middot; FFmpeg &rarr; HLS renditions</div>
+  </div>
+
+  <!-- the stores -->
+  <div class="store" style="left:60px; top:648px; width:440px; height:92px;"></div>
+  <div class="storehead" style="left:80px; top:662px;">ClickHouse &mdash; the data</div>
+  <div style="position:absolute; left:80px; top:686px; display:flex; gap:6px; flex-wrap:wrap; width:400px;">
+    <span class="tchip">documents</span><span class="tchip">doc_groups</span>
+    <span class="tchip">group_members</span><span class="tchip">group_contracts</span>
+  </div>
+  <div style="position:absolute; left:80px; top:712px; display:flex; gap:6px;">
+    <span class="tchip">user_blacklist</span><span class="tchip">group_hidden_docs</span>
+    <span class="tchip">banned_users</span><span class="tchip">&hellip;</span>
+  </div>
+
+  <div class="store" style="left:540px; top:648px; width:340px; height:92px;"></div>
+  <div class="storehead" style="left:560px; top:662px;">MinIO &mdash; the media</div>
+  <div style="position:absolute; left:560px; top:694px; display:flex; gap:6px;">
+    <span class="tchip">raw video</span><span class="tchip">HLS renditions</span><span class="tchip">thumbnails</span>
+  </div>
+
+  <!-- wires -->
+  <svg class="abs" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#6f7490"/>
+      </marker>
+      <marker id="arup" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#6f7490"/>
+      </marker>
+    </defs>
+    <!-- browser <-> node -->
+    <line x1="150" y1="430" x2="150" y2="466" stroke="#6f7490" stroke-width="1.6" marker-end="url(#ar)"/>
+    <line x1="240" y1="466" x2="240" y2="430" stroke="#6f7490" stroke-width="1.6" marker-end="url(#arup)"/>
+    <!-- node -> clickhouse -->
+    <line x1="200" y1="608" x2="200" y2="644" stroke="#6f7490" stroke-width="1.6" marker-end="url(#ar)"/>
+    <line x1="300" y1="644" x2="300" y2="608" stroke="#6f7490" stroke-width="1.6" marker-end="url(#arup)"/>
+    <!-- node -> minio -->
+    <line x1="700" y1="608" x2="700" y2="644" stroke="#6f7490" stroke-width="1.6" marker-end="url(#ar)"/>
+    <!-- app fetches media directly (cross-boundary: dashed) -->
+    <polyline points="884,400 904,400 904,696 884,696" fill="none" stroke="#6f7490"
+      stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+  </svg>
+  <div class="wlabel" style="left:160px; top:440px;">sql + token</div>
+  <div class="wlabel" style="left:250px; top:440px;">rows &middot; presigned URLs</div>
+  <div class="wlabel" style="left:60px; top:612px;">the compiled query</div>
+  <div class="wlabel" style="left:60px; top:628px; color:#6f7490;">not the caller&rsquo;s string</div>
+  <div class="wlabel" style="left:310px; top:618px;">rows</div>
+  <div class="wlabel" style="left:712px; top:618px;">presign &middot; FFmpeg uploads</div>
+  <div class="wlabel" style="left:916px; top:528px; width:200px; line-height:1.45;">GET the media bytes &mdash; presigned URL, straight from MinIO</div>
+</body>
+</html>

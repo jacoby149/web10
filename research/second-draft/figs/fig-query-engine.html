@@ -1,0 +1,152 @@
+<!doctype html>
+<!--
+  Source for fig-query-engine.png (Figure B, shot 3: "the lowering").
+  How-it-works level of the real machine (api/app/v3/services/safe_query.py):
+  caller SQL (service names only) -> the AST walk and its real rejections ->
+  the lowering: each service name becomes an API-built boundary CTE over the
+  real ClickHouse tables (documents, doc_groups; readable group IDs inlined
+  from the read gate group_members x group_contracts; five exclusion tables)
+  -> ClickHouse, whose real table names the caller may never reference.
+  No pitch lines; the claim is carried by the paper's caption.
+  Render with ./capture.mjs fig-query-engine.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { background:#0a0a12; }
+  body { width:1440px; height:740px; position:relative; overflow:hidden;
+    font-family:-apple-system,"SF Pro Text","Helvetica Neue",Arial,sans-serif;
+    -webkit-font-smoothing:antialiased; }
+  .title { position:absolute; top:34px; width:100%; text-align:center;
+    font-size:26px; font-weight:700; color:#f2f3f8; }
+  .subtitle { position:absolute; top:70px; width:100%; text-align:center;
+    font-size:13.5px; color:#9c9fb3; }
+  .box { position:absolute; border-radius:12px; background:#101019;
+    border:1.5px solid #34344a; padding:0 18px; }
+  .boxlabel { position:absolute; font-size:11px; font-weight:700;
+    letter-spacing:.4px; color:#8b8fa5; }
+  .sql { font-family:"SF Mono",Menlo,Consolas,monospace; font-size:10.5px;
+    color:#c9ccdd; background:#0b0b12; border:1px solid #2a2a3c; border-radius:8px;
+    padding:8px 12px; line-height:1.6; white-space:pre; }
+  .check { font-size:11px; color:#9a9db1; line-height:1.4; }
+  .check .lead { color:#e8e9f2; font-weight:600; }
+  /* violet lowering band */
+  .violet { position:absolute; left:60px; top:262px; width:1320px; height:300px;
+    border-radius:16px; background:rgba(139,92,246,.08);
+    border:2px solid #8b5cf6; box-shadow:0 6px 30px rgba(139,92,246,.30); }
+  .vlabel { position:absolute; top:278px; left:84px; font-size:11.5px;
+    font-weight:700; letter-spacing:.3px; color:#b7a5ef; }
+  .cte { position:absolute; left:84px; top:316px; width:560px; height:162px;
+    font-family:"SF Mono",Menlo,Consolas,monospace; font-size:11px;
+    line-height:1.6; color:#c9ccdd; background:#0b0b12;
+    border:1px solid #2a2a3c; border-radius:8px; padding:10px 14px;
+    white-space:pre; overflow:hidden; }
+  .cte .g { color:#34d399; } .cte .a { color:#fbbf24; }
+  .cte .w { color:#ffffff; font-weight:600; } .cte .c { color:#6f7490; }
+  .ctenote { position:absolute; top:488px; left:84px; width:560px;
+    font-size:11px; color:#b7a5ef; line-height:1.45; }
+  .card { position:absolute; left:680px; width:676px; border-radius:10px;
+    padding:0 16px; display:flex; flex-direction:column; justify-content:center; }
+  .card .t { font-size:12.5px; font-weight:700; }
+  .card .s { font-size:11px; margin-top:4px; line-height:1.45; }
+  .card .mono { font-family:"SF Mono",Menlo,Consolas,monospace; }
+  .card.green { background:rgba(52,211,153,.05); border:1.5px solid rgba(52,211,153,.5); }
+  .card.green .t { color:#d7f5e6; } .card.green .s { color:#9fc0ae; }
+  .card.purple { background:rgba(139,92,246,.08); border:1.5px solid rgba(139,92,246,.6); }
+  .card.purple .t { color:#e6e0fb; } .card.purple .s { color:#b9aef0; }
+  .card.amber { background:rgba(251,191,36,.05); border:1.5px solid rgba(251,191,36,.5); }
+  .card.amber .t { color:#fde7b3; } .card.amber .s { color:#c9b585; }
+  /* clickhouse strip */
+  .ch { position:absolute; left:60px; top:590px; width:1320px; height:116px;
+    border-radius:14px; background:rgba(52,211,153,.06);
+    border:2px solid rgba(52,211,153,.7); }
+  .chlabel { position:absolute; top:606px; left:84px; font-size:14px;
+    font-weight:700; color:#d7f5e6; }
+  .chnote { position:absolute; top:630px; left:84px; font-size:11.5px;
+    color:#7fa892; }
+  .chrow { position:absolute; left:84px; display:flex; gap:8px; }
+  .chip { font-family:"SF Mono",Menlo,Consolas,monospace; font-size:11px;
+    color:#a7d8c0; background:rgba(52,211,153,.05);
+    border:1px solid rgba(52,211,153,.5); border-radius:6px; padding:3px 10px; }
+  svg.abs { position:absolute; top:0; left:0; width:1440px; height:740px;
+    pointer-events:none; }
+</style>
+</head>
+<body>
+  <div class="title">From service names to the reader&rsquo;s readable set</div>
+  <div class="subtitle">The caller names services; the engine rewrites each one into a CTE over the real tables &mdash; filtered to what this reader may read, before the query runs</div>
+
+  <!-- tier 1: the caller's SQL + the walk -->
+  <div class="box" style="left:60px; top:98px; width:600px; height:140px;">
+    <div style="font-size:11px; font-weight:700; letter-spacing:.4px; color:#8b8fa5;">THE APP&rsquo;S SQL &mdash; SERVICE NAMES ONLY</div>
+    <div class="sql" style="margin-top:8px;">SELECT p.body, count(r.id)
+FROM posts p
+JOIN reactions r ON r.post = p.id
+WHERE p.id &lt; cursor
+GROUP BY p.id</div>
+  </div>
+  <div class="box" style="left:740px; top:98px; width:640px; height:140px;">
+    <div style="font-size:11px; font-weight:700; letter-spacing:.4px; color:#8b8fa5;">PROTECTED WITH AN AST &mdash; EVERY TABLE REFERENCE IS WALKED, BEFORE ANYTHING COMPILES</div>
+    <div class="check" style="margin-top:9px;">
+      <div class="check" style="margin-top:4px;"><span class="lead">reject</span> &mdash; raw node tables: any real name from the store below (<span class="mono" style="font-family:'SF Mono',Menlo,monospace; font-size:10.5px; color:#a7d8c0;">documents</span>, <span class="mono" style="font-family:'SF Mono',Menlo,monospace; font-size:10.5px; color:#a7d8c0;">doc_groups</span>, <span class="mono" style="font-family:'SF Mono',Menlo,monospace; font-size:10.5px; color:#a7d8c0;">group_members</span>, &hellip;)</div>
+      <div class="check" style="margin-top:4px;"><span class="lead">reject</span> &mdash; table functions: <span style="font-family:'SF Mono',Menlo,monospace; font-size:10.5px;">file()</span> &middot; <span style="font-family:'SF Mono',Menlo,monospace; font-size:10.5px;">numbers()</span> &middot; <span style="font-family:'SF Mono',Menlo,monospace; font-size:10.5px;">s3()</span> &mdash; they surface as nameless tables</div>
+      <div class="check" style="margin-top:4px;"><span class="lead">reject</span> &mdash; services the caller isn&rsquo;t granted; anything but one SELECT</div>
+      <div class="check" style="margin-top:4px;"><span class="lead">round-trip</span> &mdash; the re-emitted query is re-parsed and must come back as exactly one statement</div>
+    </div>
+  </div>
+
+  <!-- tier 2: the lowering -->
+  <div class="violet"></div>
+  <div class="vlabel">THE BOUNDARY &mdash; THE READABLE SET IS COMPILED IN BEFORE ANY DATA MOVES</div>
+  <div style="position:absolute; top:296px; left:84px; font-size:10.5px; color:#b7a5ef;">the lowering: each service name &rarr; an API-built CTE</div>
+  <div class="cte"><span class="w">posts</span> <span class="c">(the caller&rsquo;s name)</span> AS (
+  <span style="color:#c9ccdd;">SELECT</span> doc_id, author_key, body, tags, &hellip;, <span class="g">group_id</span>
+  <span style="color:#c9ccdd;">FROM</span> <span class="g">documents</span>   <span class="c">-- dedup: latest row, not deleted</span>
+  <span style="color:#c9ccdd;">JOIN</span> <span class="g">doc_groups</span> <span class="c">-- the group each doc sits in</span>
+  <span style="color:#c9ccdd;">WHERE</span> <span class="g">group_id</span> <span style="color:#c9ccdd;">IN</span> (<span class="w">&rsquo;g_8f&hellip;&rsquo;,&rsquo;g_2c&hellip;&rsquo;, &hellip;</span>)  <span class="c">&larr; the readable groups, inlined</span>
+  <span style="color:#c9ccdd;">AND NOT</span> <span class="a">user_blacklist</span><span style="color:#c9ccdd;">, </span><span class="a">group_blacklist</span>
+  <span style="color:#c9ccdd;">AND NOT</span> <span class="a">sharing-paused &middot; hidden &middot; node-banned</span>
+<span style="color:#c9ccdd;">)</span></div>
+  <div class="ctenote">No readable groups &rarr; the CTE is <span style="font-family:'SF Mono',Menlo,monospace;">WHERE 1 = 0</span> &mdash; shape-valid, empty. An empty set, not an error.</div>
+
+  <div class="card green" style="top:304px; height:70px;">
+    <div class="t">the data</div>
+    <div class="s"><span class="mono">documents</span> &mdash; the service&rsquo;s rows, deduped to the latest not-deleted &middot; <span class="mono">doc_groups</span> &mdash; which group each doc sits in (the CTE exposes <span class="mono">group_id</span>)</div>
+  </div>
+  <div class="card purple" style="top:390px; height:88px;">
+    <div class="t">the readable groups &mdash; inlined as literals</div>
+    <div class="s">computed API-side by the read gate: <span class="mono">group_members</span> (the reader&rsquo;s memberships, roles) &times; <span class="mono">group_contracts</span> (which role grants readAll on this service), plus public / authenticated class grants</div>
+  </div>
+  <div class="card amber" style="top:494px; height:58px;">
+    <div class="t">the exclusions &mdash; applied inside the CTE</div>
+    <div class="s"><span class="mono">user_blacklist</span> &middot; <span class="mono">group_blacklist</span> &middot; <span class="mono">user_group_sharing</span> &middot; <span class="mono">group_hidden_docs</span> &middot; <span class="mono">banned_users</span> &mdash; a blocked or hidden author&rsquo;s rows never join</div>
+  </div>
+
+  <!-- tier 3: clickhouse -->
+  <div class="ch"></div>
+  <div class="chlabel">ClickHouse &mdash; the node&rsquo;s real tables</div>
+  <div class="chnote">The caller&rsquo;s SQL may not name any of these &mdash; the walk rejects them by name. The boundary CTEs are the only door.</div>
+  <div class="chrow" style="top:652px;">
+    <div class="chip">documents</div><div class="chip">doc_groups</div><div class="chip">group_members</div><div class="chip">group_contracts</div><div class="chip">app_contracts</div>
+  </div>
+  <div class="chrow" style="top:678px;">
+    <div class="chip">user_blacklist</div><div class="chip">group_blacklist</div><div class="chip">user_group_sharing</div><div class="chip">group_hidden_docs</div><div class="chip">banned_users</div><div class="chip">&hellip;</div>
+  </div>
+
+  <!-- flow arrows -->
+  <svg class="abs" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#6f7490"/>
+      </marker>
+      <marker id="arv" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#8b5cf6"/>
+      </marker>
+    </defs>
+    <line x1="664" y1="168" x2="736" y2="168" stroke="#6f7490" stroke-width="1.6" marker-end="url(#ar)"/>
+    <line x1="1060" y1="238" x2="1060" y2="258" stroke="#8b5cf6" stroke-width="1.8" marker-end="url(#arv)"/>
+  </svg>
+</body>
+</html>

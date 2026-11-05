@@ -8,6 +8,31 @@ nothing in this file applies to it. The writing approach lives in the
 `research/ai-paper-theory/` folder (start at its README: the two
 oracles, the spine, the shot loop, the craft, the ops).
 
+## 05.11.2026
+
+### Shot 0: beat 10 gains the node-size point — a node pools millions of users; Solid's pods cannot do discover
+
+- **(operator)** On the composition figure: "i think it isnt clear that
+  these nodes in the composition could each have millions of users, that
+  is the difference" · "solid simply cant do discover type stuff right?
+  we can do stuff they cant because nodes can get big" · "this looks
+  great! maybe our shot 0 needs that added! i dont know if that point is
+  made!"
+- **(agent)** The point was gestured at (beat 10's "scales far more than
+  Solid's client-side composition") but never stated — beat 10 argued the
+  *performance* asymmetry, not the *capability* one. Two sentences added
+  to beat 10, after the scale clause: "A web10 node pools millions of
+  users in one shared store, so discover, trending, and ranking are just
+  queries the app writes against it. Solid cannot do that composition —
+  each user's data lives in that user's own pod, so a cross-user query
+  must pull the whole network, and it does not terminate at scale." Shot
+  0 stays at 12 beats; beat 10 grows. The pitch now agrees with the
+  composition figure it prompted (each node's "ClickHouse — millions of
+  users, one store"; the Solid panel's "discover doesn't terminate").
+  Where it lands: §3 (why one shared store, not a DB per user), §9 (vs.
+  Solid — the capability edge, not just the performance one), the
+  composition figure's caption.
+
 ## 04.11.2026
 
 ### The abstract is the shorter version; shot 3 (240w) is the intro seed

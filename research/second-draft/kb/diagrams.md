@@ -85,41 +85,53 @@ shown as different internally"). Before: the two read paths were drawn as
 different-colored, differently-labeled mechanisms — the diagram argued
 against the paper.
 
-### Figure 3 — the social app as a lens (planned, `figs/fig-app.png`, §6)
+### Figure 3 — the web10-social application and its node (done,
+`figs/fig-app-arch.png`, §6)
 
-**What it visualizes:** differentiator #4 made visible — "the functions
-are defined on generic web10 API stuff" (operator).
-**Why three bands:** top = what the user experiences (the app surfaces:
-communities, posts & media, following, discover, DMs, shorts, watch,
-music); middle = how the app defines each surface, client-side
-(documents in app-named services / the social graph as group rows /
-feeds & search as app-written queries / media as the generic pipeline);
-bottom = the node: one generic implementation with its primitives, plus
-the amber callout "what the node refuses to learn" (no posts table, no
-feed endpoint, no followers concept — the negative space that *is* the
-architecture) and the interop line (the same node runs a game and a
-marketplace).
-**Why it will be visually nice:** the downward flow reads as "the app
-defines everything; the node provides nothing app-specific" — the
-inversion is the picture. The violet enforcement family appears in the
-"app-written queries over the node's read boundaries" box, tying it to
-Figures 1–2.
+**What it visualizes:** the real system at the level of named parts —
+"the data layer lives in the app." The browser box holds the app's
+surfaces + the six data-layer modules a bespoke API would normally
+carry + wapi; the node box is thin and generic (auth · read gate · query
+engine · media); ClickHouse and MinIO are drawn with their real
+table/blob names; a messages panel shows the actual payloads that move
+on the wires (`{sql, token}` → `{rows: [doc_id, author_key, body, …]}`
+→ the presigned URL → the bytes). Pinned annotation: 46,285 source lines
+across 141 files.
+**Why that shape:** the operator asked for "the guts of the typescript …
+a whole data layer that is normally handled by an API" — the honest flip
+side of the thin generic node. The first cut was rejected as a spec
+sheet ("these are pitch figures, not how-it-works figures"); the
+rebuild draws the machine's named parts and lets the argument (the dense
+app box pinching two hairlines) read off the picture. No verdict line;
+the claim is the caption's. Speaks the shot-0 language (the node header
+carries beat 2; auth carries beat 7's "a role and a policy — OAuth
+2.0-style, finer-grained"; the read gate carries beat 3). The
+query-engine part is violet and points at Figure 4.
 
-### Figure 4 — the boundary: a wall, not a membrane (planned,
-`figs/fig-boundary.png`, §5)
+### Figure 4 — from service names to the reader's readable set (done,
+`figs/fig-query-engine.png`, §5)
 
-**What it visualizes:** the theorem's materialization — why output-side
-filtering is unsound, and what web10 does instead.
-**Why two pipelines:** the broken one on top (red: caller SQL → raw
-table → aggregation runs → output filter, with the ✗ callout "too late —
-the aggregate collapsed every author's rows before any filter ran"), the
-right one below (caller SQL → parse to AST → walk every table reference
-→ inject the reader-filtered boundary CTE → execute the compiled query).
-The contrast *is* the argument; a single pipeline couldn't show why the
-wall has to sit before the relational operations.
-**Why the key step is violet:** the "inject boundary CTEs" box uses the
-enforcement family's violet — the same color as Figure 2's access-check
-box. One mechanism, two figures, one vocabulary.
+**What it visualizes:** the lowering, at the level of the real machine
+(`safe_query`): the caller's SQL (service names only) → the AST walk
+with its real rejections (raw node table names; `file()`/`numbers()`/
+`s3()` surfacing as nameless tables; ungranted services; exactly one
+statement, round-trip) → each service name becomes the API-built
+boundary CTE over the real ClickHouse tables — `documents` deduped to
+the latest not-deleted row, joined to `doc_groups`, the reader's
+readable group IDs inlined from the read gate (`group_members` ×
+`group_contracts`), the five exclusion tables in amber → a ClickHouse
+strip naming every real table the caller may not reach. The violet band
+carries beat 6: "the readable set is compiled in before any data
+moves."
+**Why that shape:** the plan was the two-pipeline contrast (broken
+output filter vs. boundary CTE); the operator's critique ("pitch
+figures, not how-it-works figures") moved it to the real mechanism —
+the caller's world (service names) vs. the node's world (real tables),
+the wall visible as the gap between them. The empty-vs-refuse semantics
+(the `1=0` CTE; the endpoint-level 403) belong to the caption, not the
+picture. The violet boundary is the same box as Figure 2's access check
+and Figure 3's query-engine part — one enforcement family across the
+set.
 
 ### Figure 5 — interop screenshots (§6) — existing, PNG-only
 
@@ -141,6 +153,27 @@ but the weakest claim-per-pixel in the set: if the 12-page budget bites,
 this is the first figure cut (the interop screenshots already show the
 app running).
 
+### Figure 8 — where the composition happens: the Solid fork (done,
+`figs/fig-composition.png`, §3/§9)
+
+**What it visualizes:** the capability asymmetry, not just the
+performance one (shot-0 beat 10 made concrete). Left (Solid, blue): one
+user per pod; the app pulls every pod the feed touches and joins in the
+application; discover-type queries (who's trending?) must pull the whole
+network — no shared index, so they don't terminate at scale (amber
+negative space). Right (web10, green): three nodes, each with its own
+violet boundary over its shared store — "ClickHouse — millions of users,
+one store" — each pulled from separately by the app (query + token down,
+rows up), each re-checking the reader's rules on every read; discover,
+trending, and ranking are ordinary queries at the query layer.
+**Why that shape:** the operator's point — "these nodes in the
+composition could each have millions of users, that is the difference;
+solid simply cant do discover type stuff because nodes can get big" —
+drawn as the two worlds side by side, so the difference is the picture,
+not a verdict line (the comparison lives in the caption). The violet
+boundary box is the same mechanism as Figure 4 — the enforcement family
+again.
+
 ### Candidates (not started)
 
 - **Two trust layers (§2):** the app wall (outer: can this app perform O
@@ -159,9 +192,10 @@ app running).
 |---|---|---|---|
 | 1 | System overview + section labels | §1 | existing TikZ; label pass pending |
 | 2 | Federated node | §4 | **done** (4.9.1) |
-| 3 | Social app as a lens | §6 | planned |
-| 4 | The boundary (wall not membrane) | §5 | planned |
+| 3 | The web10-social application and its node | §6 | **done** (4.10.23, `fig-app-arch`) |
+| 4 | From service names to the reader's readable set | §5 | **done** (4.10.23, `fig-query-engine`) |
 | 5 | Interop screenshots | §6 | existing |
 | 6 | Domain portability | §8 | existing |
 | 7 | Groups UI | §6 | existing; cut candidate |
+| 8 | Where the composition happens (the Solid fork) | §3/§9 | **done** (4.10.23, `fig-composition`) |
 | — | Two trust layers / data model | §2/§3 | candidates |
