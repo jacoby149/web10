@@ -1,23 +1,28 @@
 # AI Paper Theory — the bulletproof method for the web10 SIGMOD paper
 
 The operating method for `research/second-draft/`. The purpose of this
-document is single-minded: **the paper gets accepted.** The paper is cheap;
-acceptance is not. Every mechanism below exists to trade unlimited cheap
-iterations for one accepted paper.
+document is single-minded: **the paper gets accepted — and the reader
+feels it.** The paper is cheap; acceptance is not, and neither is the
+awe. Every mechanism below exists to trade unlimited cheap iterations for
+one accepted paper that lands.
 
-Companion records: `second-draft/OUTLINE.md` (the review surface — what we
-are going to write and why), `second-draft/DECISIONS.md` (the decision log),
-`second-draft/kb/` (the knowledge base around the paper: the experiments,
-the figures), `research/first-draft/` (frozen record — never edited),
-`research/brief.md` (claim limits), `research/f3-best-paper-notes.md`
-(the structural benchmark: SIGMOD 2025 Best Paper, dissected),
-`research/related-work.md` (the gap check).
+Companion records: `second-draft/OUTLINE.md` (the review surface — what
+we are going to write and why), `second-draft/DECISIONS.md` (the decision
+log), `second-draft/kb/` (the knowledge base around the paper: the
+experiments, the figures), `research/first-draft/` (frozen record —
+never edited), `research/brief.md` (claim limits),
+`research/f3-best-paper-notes.md` (the structural benchmark: SIGMOD 2025
+Best Paper, dissected), `research/related-work.md` (the gap check).
 
-## 1. What "accepted" requires — the external oracle
+## 1. What "accepted" requires — the two oracles
 
-The theory is organized around the reviewer, not around us. An industry-track
-SIGMOD reviewer asks five questions; every section of this document is a
-countermeasure to one of them:
+The theory is organized around the reader, not around us. Two oracles,
+and the paper has to pass both — every time:
+
+### The external oracle: the reviewer's five questions
+
+An industry-track SIGMOD reviewer asks five questions; the mechanics of
+the paper answer them:
 
 | # | The reviewer's question | The countermeasure | Where it lives |
 |---|---|---|---|
@@ -27,8 +32,91 @@ countermeasure to one of them:
 | Q4 | **How is it different from prior work?** | The five differentiators stated boldly; Table 1 (prior work on the edges); related work as positioning; the gap check must be YES before freeze | §4, §11 |
 | Q5 | **Does it earn 12 pages — and read well?** | The outline with a page allocation that sums to 12.0; the editorial rules (no hedging, punchline first); the figure design language | §7, §8, §9, §14 |
 
-Bulletproof = every controllable failure mode has a named countermeasure,
-and the residual risk is named too (§17).
+### The internal oracle: the four awe scores
+
+The second draft passed the external oracle and failed the internal one —
+"not hitting the mark" is the name of that failure (§13 quantifies it).
+A paper that satisfies the five questions but feels flat doesn't hit the
+mark; a paper that awes but fails a question gets rejected. So the
+reader's experience is a first-class success criterion, scored on four
+axes:
+
+**Importance — "why is this important, big picture????"** The reader
+should feel the stakes are civilizational: the social graph — who you
+know, who can see you, who you reach — is what makes a life's data
+valuable, and it is the part no platform lets you own. The beats that
+produce it: the fifty-year split frame (email proved user-addressed data
+at global scale and left access behind); the labor up front
+(958,824 added / 568,594 deleted — "this was worth a million lines" is
+*felt*, not asserted); the payoff line (the permissions leave the
+building with the data). *Check: after §1, can the reader answer "why
+should I care about this over the next paper"?*
+
+**Never been done before — "why has this never been done before????"**
+Structural, not survey: the five differentiators are a *conjunction*, and
+each prior system is forced to drop at least one corner — email drops the
+access vocabulary, the federated socials drop user-managed access, Solid
+drops the uniform service-scoped grant (resource-centric, cross-Pod cost
+depends on deployment), the lakehouse drops ownership. Table 1 + the
+related-work positioning show the edges; the labor of the deletions (four
+app-specific surfaces built and removed under pressure) shows the
+conjunction held when it was tempting to break it. *Check: does the
+reviewer feel "ah, I see why nobody else has this combination"?* Until
+the gap check is YES, the claim is scoped to the compared systems and
+stated as fact — no "first-ever" language printed on an open gap.
+
+**Genius — "why is this genius????"** Genius is revealed, not claimed:
+the reader's "ohhh" moments, each a why-not-X beat (the obvious
+alternative, its failure in one line, the design that works, what it
+gives):
+
+1. **The grant as a row** — IAM to the front: the operations a cloud
+   operator would express as policies, the end user expresses about their
+   own data, over the same vocabulary.
+2. **Publicness is a grant, not a flag** — no visibility column; "make
+   public" = granting `readAll` to `anyone`; one mechanism, and it
+   composes (invite-only to join, publicly readable — the discover
+   board).
+3. **The wall, not the membrane** — the output filter is the blunder; the
+   boundary redirects the input, before the relational operations.
+4. **Verified, not registered** — the token proves *who* you are (one
+   cached `/certify` answer); the local grants decide *what* you can
+   read; two walls, one language; no JWKS, no shared secret, no
+   directory sync.
+5. **The social graph as data, not as API** — following is a membership
+   row; the feed is a query the app writes; the node has never learned
+   "followers."
+6. **Client-mediated federation** — the network is email-shaped: the
+   content crosses, and each node re-checks its own policy; no
+   server-to-server relay, no confused-deputy cache, no federation
+   credential.
+
+*Check: ≥ 5 why-not-X beats, one per differentiator, each a visible
+move.*
+
+**Logical awe — "wow, this is procedural, logical, like a 3-move chess
+tactic, the calculation right here, creative, wow."** The paper reads
+like a combination: the **setup** (the split), the **forcing move** (the
+theorem: the grant is a row → the readable set is computable before any
+query runs → the service name materializes as the reader-filtered CTE),
+the **calculation** (the five-step compile, the round-trip backstop, the
+conformance suite verifying the line), the **finish** (the corollaries:
+the revocation bound, the cross-node re-run, the batching consequence).
+The set-theory expression *is* the calculation — three terms, nested
+classes, monotone; a reader who can follow the union can follow the
+system. And the blunder-and-refutation structure: the paper shows the
+obvious design playing the blunder (output filter + the `count(*)`
+attack), then the refutation (the wall) — so the boundary lands as a
+tactic, not a specification detail. *Check: can a reviewer replay the
+theorem from definition to corollary without a single "but how?" — and
+does the replay feel like a calculation landing?*
+
+**The scoring rule.** In the compare phase, the draft is scored 0–10 on
+each of the four (the agent, against the named beats); the repair phase
+lifts every score; the target is **≥ 8 on all four** before the
+acceptance checklist, and the operator's read of the outline and the PDF
+is the final scoring. A score the agent can't lift with a trace to the
+evidence gets escalated to the operator, not papered over.
 
 ## 2. The fundamental: papers are cheap, acceptance is not
 
@@ -43,34 +131,36 @@ The operator's first principle (04.11.2026):
   1. **Don't patch a wrong spine — rebuild it.** The drafts are records,
      not inheritance. Deviate from any earlier draft as much as accuracy
      demands.
-  2. **Risk is affordable.** Risk sounding too high-ego; risk a stylistic
-     gamble — **if we follow through**. The cost of failure is another
-     draft; the cost of hedging is a paper that doesn't hit the mark.
+  2. **Risk is affordable.** Risk sounding too high-ego; risk a
+     stylistic gamble — **if we follow through**. The cost of failure is
+     another draft; the cost of hedging is a paper that doesn't hit the
+     mark. And the awe is cheap to earn: it is structure (the named
+     beats), not luck.
   3. **No hedging.** No "though it is arguable", no "not an exhaustive
      claim", no "must not be mistaken for". Evidence scope is stated
      **as fact** — "we measured X under condition Y; Z is out of scope
      (§9)" — which bounds the domain without weakening the claim. Inside
      its domain, the claim stands at full strength.
   4. **The draft is never the source of truth.** The system and its
-     evidence records are. The draft is the current approximation, cheap to
-     replace.
+     evidence records are. The draft is the current approximation, cheap
+     to replace.
 
 The corollary that makes the theory bulletproof: *because the paper is
-cheap, we can afford the discipline that guarantees quality.* Iteration is
-free; the gates (§9, §10, §16) are what convert the free iterations into
-the accepted paper.
+cheap, we can afford the discipline that guarantees quality and awe.*
+Iteration is free; the gates (§9, §10, §16) are what convert the free
+iterations into the accepted, landing paper.
 
 ## 3. The journey (what we actually did — the paper's meta-story)
 
 1. **We built a whole highly technical system.** The node (one columnar
    store, a user-addressed permission vocabulary, a query boundary, a
-   media pipeline, federation), the SDK, the social app. A million lines of
-   labor. *(Q1.)*
+   media pipeline, federation), the SDK, the social app. A million lines
+   of labor. *(Q1.)*
 2. **We wrote a draft paper on what we thought made it different.** The
    bones, the references — and some actual research, to find the similar
    prior work.
-3. **We quabbled.** No, this isn't what's different. That isn't either. It
-   is *these things particularly* that make this different. The
+3. **We quabbled.** No, this isn't what's different. That isn't either.
+   It is *these things particularly* that make this different. The
    differentiators got settled (§4). *(Q4.)*
 4. **We proved it performed and did what it promised.** Tests that prove
    the architectural claims (the boundary holds: attacks replayed and
@@ -88,8 +178,9 @@ cost.
 
 ## 4. The claim: five differentiators ("these things particularly")
 
-What the quabbling settled — each stated boldly in the intro, each tied to
-the evidence that proves it. Prior work lives on the edges: email has the
+What the quabbling settled — each stated boldly in the intro, each tied
+to the evidence that proves it, each carrying its genius beat (the "ohhh"
+moment, §1 internal oracle). Prior work lives on the edges: email has the
 network but no fine-grained access; Mastodon/Bluesky federate content but
 access stays platform-defined; Solid owns the data but is resource-centric
 with cross-Pod cost that depends on deployment; a platform lakehouse has
@@ -97,50 +188,57 @@ scale but no user-owned access.
 
 1. **User-owned, portable data — all formats.** A post, a profile, a game
    score, and a marketplace listing are documents in the same store,
-   differing only in the service string and the JSON shape the application
-   agreed to use. *(proven by: interop + operating point)*
+   differing only in the service string and the JSON shape the
+   application agreed to use. *(beat: one table holds your social life
+   and your marketplace inventory — the same document, two apps)*
+   *(proven by: interop + operating point)*
 2. **Fine-grained, user-managed access.** A grant is a row: principal ×
    group × service × operation; roles are per-service permission maps;
-   publicness is a grant, not a flag. The end user runs the IAM operations
-   a cloud operator would express as policies — over their own data.
+   publicness is a grant, not a flag. The end user runs the IAM
+   operations a cloud operator would express as policies — over their own
+   data. *(beats: the grant as a row; publicness as a grant)*
    *(proven by: the theorem + conformance)*
 3. **Cross-node-addressable access.** `provider/username` principals; the
    policy reaches across the network; foreign tokens are verified, not
    registered — one cached `/certify` answer per token, and the same
-   access check on every read. *(proven by: the two-node IAM experiment)*
-4. **Composable, app-defined queries.** The node has never learned a social
-   concept — no posts table, no feed endpoint, no followers construct —
-   and the query boundary keeps the shared store sound. *(proven by: the
-   app-as-a-lens figure + interop + the boundary experiment)*
+   access check on every read. *(beat: verified, not registered)*
+   *(proven by: the two-node IAM experiment)*
+4. **Composable, app-defined queries.** The node has never learned a
+   social concept — no posts table, no feed endpoint, no followers
+   construct — and the query boundary keeps the shared store sound.
+   *(beats: the wall not the membrane; the social graph as data)*
+   *(proven by: the app-as-a-lens figure + interop + the boundary
+   experiment)*
 5. **A user-addressed network without federation.** Sovereign nodes,
    client-mediated reads, no central authority, no shared database —
    email's architecture, generalized from one format to all, and from
-   content routing to access control. *(proven by: the domain portability
-   experiment)*
+   content routing to access control. *(beat: client-mediated
+   federation)* *(proven by: the domain portability experiment)*
 
 Rule: a differentiator that no experiment proves is not in the paper. Cut
 it, don't hedge it.
 
 ## 5. The proof: the paper's skeleton
 
-"Reads like a proof" means: definitions before use, claims as statements,
-lemmas that step to a theorem, evidence as the proof. The set-theory of
-permissions — already in the draft (§2 "Principal classes and effective
-permissions") — is the crown jewel and the central theorem:
+"Reads like a proof" means: definitions before use, claims as
+statements, lemmas that step to a theorem, evidence as the proof. The
+set-theory of permissions — already in the draft (§2 "Principal classes
+and effective permissions") — is the crown jewel and the central
+theorem:
 
 - **Definitions.** Principal; principal classes, nested (`anyone` ⊇
-  `authenticated` ⊇ `member`); group; service; role; grant row; operation;
-  readable set.
+  `authenticated` ⊇ `member`); group; service; role; grant row;
+  operation; readable set.
 - **The expression.**
   `effective(P, G) = grant(G, anyone) ∪ (P ∈ authenticated ? grant(G,
   authenticated) : ∅) ∪ (P ∈ member(G) ? grant(G, role(P)) : ∅)` —
   monotone across classes; publicness is a grant; blocks, sharing state,
   hidden documents, and node moderation restrict the result.
 - **The materialization.** Each service name in a query resolves to a
-  boundary CTE that is the SQL materialization of the reader's readable set
-  — *before* joins and aggregation run (the wall, not the membrane). This
-  is where the set theory becomes SQL; make the §2→§5 connection explicit
-  in the text, not implied.
+  boundary CTE that is the SQL materialization of the reader's readable
+  set — *before* joins and aggregation run (the wall, not the membrane).
+  This is where the set theory becomes SQL; make the §2→§5 connection
+  explicit in the text, not implied.
 - **The theorem (I3).** Every query compiled through the boundary returns
   only documents in the reader's readable set; an empty readable set
   compiles to an empty service.
@@ -149,10 +247,20 @@ permissions") — is the crown jewel and the central theorem:
   and the boundary's five-step compile (parse, check kind, walk, inject,
   round-trip).
 - **Corollaries.** Revocation is a tombstone on metadata rows, bounded by
-  database visibility + in-flight requests + remaining capability lifetime
-  — each term measured or bounded where the paper measures it. Cross-node
-  reads: the serving node re-runs the same theorem against its own store
-  after one cached `/certify`.
+  database visibility + in-flight requests + remaining capability
+  lifetime — each term measured or bounded where the paper measures it.
+  Cross-node reads: the serving node re-runs the same theorem against its
+  own store after one cached `/certify`.
+
+**Presented as the combination** (the logical-awe score, §1): the setup
+is the split (§1 of the paper); the forcing move is the expression — the
+grant is a row, so the readable set is computable before any query runs;
+the calculation is the materialization + the five-step compile + the
+round-trip; the finish is the corollaries. The conformance suite is the
+engine verifying the line. The output-filter design is the *blunder* the
+combination refutes — show it playing the blunder first (with the
+`count(*)` attack), so the wall lands as the refutation, not as a
+specification detail.
 
 No paragraph asserts what the reader cannot derive from the previous
 paragraphs. Where a leap appears, that is where the missing definition or
@@ -165,8 +273,8 @@ organized as Q&A (each subsection answers a named question — the F3
 pattern). Three claim classes, each with its experiments:
 
 - **Architectural claims** — does the boundary hold? The conformance /
-  permission matrix; the I3 negative tests (attacks replayed, denied); the
-  two-node IAM experiment (the theorem re-run on a foreign store).
+  permission matrix; the I3 negative tests (attacks replayed, denied);
+  the two-node IAM experiment (the theorem re-run on a foreign store).
 - **Business claims** — does a real app run on the generic node? The
   connected interop (game + marketplace, browser consent, no node change,
   no API agreement); the domain portability prototype (the address
@@ -216,7 +324,7 @@ Research papers have a look. Ours:
 2. The labor is a lede: a whole highly technical system, built and
    proven — with the pinned numbers, early.
 3. The differentiators are stated boldly — five of them — each tied to
-   the evidence that proves it.
+   the evidence that proves it and carried by its genius beat.
 4. Claims stand at full strength inside their domain; the domain is
    stated as fact, not apologized for.
 5. **No hedging, ever.** If a claim can't survive the evidence oracle,
@@ -230,11 +338,15 @@ Research papers have a look. Ours:
    numbers) — per the 4.5.4 cleanup.
 10. The email frame: open in the intro, close in the conclusion.
 11. Related work = positioning (three paragraphs, each ending with the
-    gap); the verified bibliography carries it; the gap check must be YES
-    before it freezes.
+    gap); the verified bibliography carries it; the gap check must be
+    YES before it freezes.
 12. Evaluation = Q&A: one named question per subsection; baselines named
     with versions; the number that hurt reported with its tradeoff
     argument.
+13. **The awe beats are structure, not adjectives:** importance (the
+    stakes + the labor up front), never-before-done (the structural
+    conjunction argument), genius (the why-not-X moments), logical awe
+    (the combination: setup → forcing move → calculation → finish).
 
 ## 9. The machine: the knowledge base around the paper
 
@@ -242,13 +354,13 @@ The paper is not one document; it is a small KB, each piece with one job.
 The method flows through them in order, and nothing enters the manuscript
 unmediated by its KB document:
 
-| Document | Job | Who reads it |
-|---|---|---|
-| `ai-paper-theory.md` (this file) | The method — the fundamental, the journey, the claim, the proof skeleton, the evidence gates, the look, the voice, the attack surface, the pinned numbers | the writer (agent + operator) |
-| `second-draft/OUTLINE.md` | The almost-logical flow — what we are going to write and why; beats per section with KEEP/REWRITE/NEW/CUT; the page allocation | **the operator (reads this, not the PDF)** |
-| `second-draft/DECISIONS.md` | The decision log — operator + agent calls, newest first; "why do we do it this way" | everyone, on demand |
-| `second-draft/kb/experiments.md` | The experiments — what each is, why it was important (which claim it proves), what it established, where the evidence lives, what's open | the writer, when placing evidence |
-| `second-draft/kb/diagrams.md` | The figures — what to visualize, why that figure, why it is visually nice; the design language + per-figure rationale | the writer, when drawing |
+| Document | Job |
+|---|---|
+| `ai-paper-theory.md` (this file) | The method — the two oracles, the fundamental, the journey, the claim, the proof skeleton, the evidence gates, the look, the voice, the attack surface, the pinned numbers |
+| `second-draft/OUTLINE.md` | The almost-logical flow — what we are going to write and why; beats per section with KEEP/REWRITE/NEW/CUT; the page allocation |
+| `second-draft/DECISIONS.md` | The decision log — operator + agent calls, newest first; "why do we do it this way" |
+| `second-draft/kb/experiments.md` | The experiments — what each is, why it was important (which claim it proves), what it established, where the evidence lives, what's open |
+| `second-draft/kb/diagrams.md` | The figures — what to visualize, why that figure, why it is visually nice; the design language + per-figure rationale |
 
 The gates:
 - **The outline is the approval gate for prose**: no section is written
@@ -274,21 +386,26 @@ The paper edition of the four-phase flow, with the KB as the gates:
    `live-observation-*.md`), the claim limits (`brief.md`), the venue
    constraints. Pull every number from the artifact, never from a
    previous draft.
-2. **Outline.** `OUTLINE.md` — the arc, the differentiators as claims, the
-   theorem, the section beats with their "why", the evidence map, the page
-   allocation. **The operator reviews the outline, not the PDF.**
+2. **Outline.** `OUTLINE.md` — the arc, the differentiators as claims,
+   the theorem, the section beats with their "why", the evidence map, the
+   page allocation. **The operator reviews the outline, not the PDF.**
 3. **Prose.** Section by section, each section carrying one job: "this
    section kills the doubt that …". Evidence placed only per
-   kb/experiments.md; figures drawn only per kb/diagrams.md.
-4. **Compare.** Four oracles, in order: the spine (does this paragraph
+   kb/experiments.md; figures drawn only per kb/diagrams.md; the awe
+   beats placed per §1 internal oracle.
+4. **Compare.** Five oracles, in order: the spine (does this paragraph
    advance the proof?); the evidence (does this claim trace to a pinned
-   artifact or verified experiment?); the reader (does a fresh reviewer own
-   every noun? where would they attack?); the venue (12 body pages,
-   industry-track values, the F3 notes as structural benchmark).
+   artifact or verified experiment?); **the awe (score the draft 0–10 on
+   each of the four, against the named beats)**; the reader (does a fresh
+   reviewer own every noun? where would they attack?); the venue (12 body
+   pages, industry-track values, the F3 notes as structural benchmark).
 5. **Repair.** Punchline first, numbers second, scope-as-fact third,
    sentences fourth. Then the no-hedging pass: find every weakened claim,
    restore it to full strength inside its domain, cut it if it can't
-   survive the evidence oracle. Then the acceptance checklist (§16).
+   survive the evidence oracle. Then the **awe pass**: lift each of the
+   four scores toward ≥ 8 — the importance beats, the structural
+   never-before-done argument, the why-not-X moments, the combination
+   presentation. Then the acceptance checklist (§16).
 
 ## 11. The attack surface: failure modes and countermeasures
 
@@ -298,12 +415,13 @@ being managed — add it here when you see it.
 | Attack / failure | Countermeasure | Where |
 |---|---|---|
 | "An engineering blog, not a contribution" | The theorem + lemmas + conformance-as-proof; the wall-not-membrane and verified-not-registered generalizations | §5; outline §2/§5 |
-| "Not novel — Solid/ActivityPub/IAM did this" | Five differentiators + Table 1 (edges) + related-work positioning + gap check YES before freeze | §4; outline §1/§9 |
+| "Not novel — Solid/ActivityPub/IAM did this" | Five differentiators + Table 1 (edges) + related-work positioning + gap check YES before freeze; the structural conjunction argument (each prior system drops a corner) | §4; outline §1/§9 |
 | "Where's the scale?" (597 accounts is small) | K1000 attributable measurement + honest operating point + the fan-out→batching lesson; **the scale framing is decided up front** (open question), not improvised at review time | §6; kb/experiments.md #5/#6 |
 | "Your federation isn't production" | Scope as fact: the connected slice is verified under named conditions; production keys/phases named in forward scope | outline §4/§8 |
 | "One app is not generality" | Three apps (social + game + marketplace), no node change, no API agreement — stated as the business claim | §6; kb/experiments.md #2 |
 | "Your numbers don't reproduce" | Pinned numbers with exact commands + artifact revisions + the check-paper harness | §12 |
 | "Hedged into the ground" | No-hedging rule; scope-as-fact; cut-don't-weaken | §8 rules 4–5 |
+| **"Rigorous but flat — passes the five questions, fails the awe"** | **The two-oracle rule: the four scores ≥ 8, the ≥ 5 why-not-X beats present, the theorem replayable as a combination; the operator's read is the final scoring** | **§1, §10, §16** |
 | "Page overrun at the freeze" | Outline allocation sums to 12.0; Tectonic measured after every section; the cut list pre-decided | §14; outline |
 | "Single-author credibility" | Open question: second author vs. lean on deployment evidence | §15 |
 | "Figures drift from the body" | The accuracy invariant + the KB gate (figures only via kb/diagrams.md) | §7; §9 |
@@ -316,8 +434,8 @@ being managed — add it here when you see it.
   d+=$2} END {print i, d}'` → **958,824 added / 568,594 deleted** (all
   text files, all commits since 2021-11-14, merge commits excluded — the
   standard `git log` behavior). Counted 04.11.2026; re-run and re-pin at
-  submission. The operator's ~1.1M/~700K is not reproducible at that range
-  (since-2025-01-01: 676,325/494,782 · code-extensions only:
+  submission. The operator's ~1.1M/~700K is not reproducible at that
+  range (since-2025-01-01: 676,325/494,782 · code-extensions only:
   457,655/257,104 · merge diffs included: 1,611,136/837,686). The range
   decision is open (§15).
 - **The frontend:** 46,285 physical source lines across 141 files, pinned
@@ -350,12 +468,22 @@ catalog-shaped §2–§6 (describe → describe → describe, no proof); the
 missing labor (a million lines appear nowhere in the current paper); the
 uncited figures (fig:feed fixed in 4.9.1; audit the rest).
 
+**Current awe scores (why it's "not hitting the mark," quantified):**
+importance **~2** (no stakes quantified, no labor number anywhere, the
+abstract is an index); never-before-done **~3** (Table 1 shows the edges
+but never argues why the prior work *structurally couldn't*); genius
+**~3** (the wall section has one why-not-X beat; the access model
+describes, never reveals); logical-awe **~4** (the email frame is a good
+setup; the set-theory is buried in prose, never presented as a
+calculation; the theorem has no name).
+
 **Verdict:** the draft has the bones, the references, and the research —
 but it is written as a catalog of mechanisms plus a defense brief, not as
-a proof. The new paper keeps the bones and the evidence and rewrites the
-narrative as a proof: the differentiators claimed boldly, the permissions
-formalized as the central theorem, the tests as the proof, and the labor
-stated up front.
+a proof, and it scores in the low range on every awe axis. The new paper
+keeps the bones and the evidence and rewrites the narrative as a
+combination: the differentiators claimed boldly, the permissions
+formalized as the central theorem, the tests as the proof, the labor
+stated up front, and the four scores lifted to ≥ 8.
 
 ## 14. The rebuild, in order
 
@@ -364,20 +492,23 @@ stated up front.
 1. **The KB documents** — `kb/experiments.md` + `kb/diagrams.md` drafted
    (done 04.11.2026); they gate the evidence and the figures.
 2. **The outline approved** — `OUTLINE.md` read by the operator; the arc,
-   the beats, and the page allocation confirmed.
-3. **Prose** — abstract + intro first (the labor + the five claims); then
-   the theorem core (§2 definitions + expression, §5 materialization +
-   compile); then the evidence as Q&A (§8); then the rest per the outline.
-   Tectonic measured after every section; the cut list pre-decided in the
-   outline (groups UI figure, domain prose compression) if the 12-page
-   budget bites.
+   the beats, the page allocation, and the awe-beat placements confirmed.
+3. **Prose** — abstract + intro first (the stakes + the labor + the five
+   claims with their beats); then the theorem core (§2 definitions +
+   expression, §5 materialization + compile, presented as the
+   combination); then the evidence as Q&A (§8); then the rest per the
+   outline. Tectonic measured after every section; the cut list
+   pre-decided in the outline (groups UI figure, domain prose compression)
+   if the 12-page budget bites.
 4. **Figures per kb/diagrams.md** — Figure 1 gains its section labels
    (visual TOC); `fig:app` (§6); `fig:boundary` (§5); candidates: two
    trust layers (§2), the data model (§3).
-5. **The voice pass** — kill every hedge, restore claims to full strength,
-   follow through on the bold.
+5. **The voice + awe pass** — kill every hedge, restore claims to full
+   strength, follow through on the bold; then lift the four scores to ≥ 8
+   (the importance beats, the structural argument, the why-not-X
+   moments, the combination presentation).
 6. **The acceptance checklist** (§16) — every box ticked; the operator
-   reads the full PDF; submit.
+   reads the full PDF (the final scoring); submit.
 
 Where: **in place, in `second-draft/`** (the working manuscript; the
 evidence tables, the bibliography, and the artifact pins stay; the
@@ -418,6 +549,18 @@ Nothing is submitted until every box is ticked:
 - [ ] No hedge sentence remains (the voice pass is clean: grep for
       "arguable", "exhaustive claim", "must not be mistaken",
       "unfortunately").
+- [ ] **The four awe scores are ≥ 8** (agent-scored against the named
+      beats; the operator's read of the outline and the PDF is the final
+      scoring).
+- [ ] **The ≥ 5 why-not-X beats are present, one per differentiator, each
+      a visible move; the six "ohhh moments" of §1 are in the text.**
+- [ ] **The theorem replays from definition to corollary without a single
+      "but how?"; the blunder-and-refutation structure is intact
+      (output filter first, wall as the refutation).**
+- [ ] **The stakes + the labor are up front (the importance beats in the
+      intro); the never-before-done argument is structural (the
+      conjunction, the edges), scoped to the compared systems until the
+      gap check is YES.**
 - [ ] Every figure: referenced from the body, caption accurate, asserts
       only what the body asserts; the design language consistent.
 - [ ] Table 1 + related work: the gap check is YES.
@@ -434,6 +577,8 @@ Nothing is submitted until every box is ticked:
 The reviewer's free will, the venue's quotas, and three residual risks
 named in §11: the scale framing (until E1 lands or the operator decides
 the print-small-number path), the gap check (until related-work.md is
-YES), and authorship. The theory closes every controllable failure mode;
-these three are decided by the operator, not by the writer. Acknowledging
-them is the same discipline as no-hedging: state the domain as fact.
+YES — which bounds the never-before-done language), and authorship. The
+theory closes every controllable failure mode — mechanics *and* awe;
+these three are decided by the operator, not by the writer.
+Acknowledging them is the same discipline as no-hedging: state the domain
+as fact.

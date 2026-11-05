@@ -47,6 +47,20 @@ lakehouse has scale but no user-owned access. web10 claims all five:
 5. **A user-addressed network without federation.** Sovereign nodes,
    client-mediated reads, no central authority, no shared database.
 
+## The awe beats and where they land (the internal oracle)
+
+The four awe scores (theory §1 internal oracle) need named beats in named
+sections — the outline's "why" per section is the external oracle; this is
+the internal one. Target: ≥ 8 on all four before the acceptance
+checklist.
+
+| Score | The beats | Where they land |
+|---|---|---|
+| **Importance** (why this matters, big picture) | the stakes: the social graph is what makes a life's data valuable, and it's the part no platform lets you own · the labor: 958,824 added / 568,594 deleted — "this was worth a million lines" · the payoff line: the permissions leave the building with the data | abstract (stakes + labor), §1 P2 (the labor), §10 (the payoff close) |
+| **Never been done before** | the structural conjunction argument: five differentiators, each prior system forced to drop a corner (the table + the "why they can't" one-liners per system) · the deletions as evidence the conjunction held under pressure | §1 P3–P4 + Table 1, §7 (the four built-and-deleted surfaces), §9 (positioning, each paragraph ends with the gap) |
+| **Genius** (the "ohhh" moments — why-not-X beats) | the grant as a row · publicness as a grant, not a flag · the wall, not the membrane · verified, not registered · the social graph as data, not as API · client-mediated federation | §2 (grants, publicness), §4 (verified-not-registered, client-mediated), §5 (the wall), §6 (graph as data, the app-as-lens figure) |
+| **Logical awe** (the 3-move combination) | setup: the split · forcing move: the grant is a row, so the readable set is computable before any query runs · calculation: the set expression → the boundary CTE materialization → the five-step compile + round-trip · finish: the corollaries (revocation bound, cross-node re-run, batching consequence) · the blunder-and-refutation: the output filter plays the blunder (the `count(*)` attack), the wall is the refutation | §1 (setup), §2 (the expression, named), §5 (materialization + compile + the blunder shown first), §8 Q1 (the conformance verifies the line), §8 Q3 (the finish: 7.64 s → 363 ms) |
+
 ## Section by section
 
 ### Abstract — 0.15 pp — REWRITE

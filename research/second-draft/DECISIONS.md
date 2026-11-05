@@ -10,6 +10,37 @@ editorial rules, pinned numbers, the diagnosis of the current draft) lives in
 
 ## 04.11.2026
 
+### The two oracles: the five questions + the four awe scores
+
+- **(operator)** The paper has to make the reader *feel* it: "why is this
+  important, big picture????" · "why has this never been done
+  before????" · "why is this genius????" · "wow, this is procedural,
+  logical, wow, this is like a 3-move chess tactic right here, the
+  calculation right here, kind of creative, wow! give them this kind of
+  awe!" — four scores: the **importance score**, the **never-been-done
+  before score**, the **genius score**, the **logical-awe score**.
+- **(agent)** `ai-paper-theory.md` now carries **two oracles**: the
+  external (the reviewer's five questions — acceptance mechanics) and the
+  internal (the four awe scores — the reader's experience), with the
+  scoring rule (compare phase scores 0–10 against the named beats; target
+  ≥ 8 on all four; the operator's read is the final scoring). The six
+  "ohhh moments" are pinned (the grant as a row · publicness as a grant ·
+  the wall not the membrane · verified not registered · the social graph
+  as data · client-mediated federation) and tagged to the five
+  differentiators. The proof skeleton is now presented as a chess
+  combination (setup → forcing move → calculation → finish; the
+  output-filter is the blunder the wall refutes; the conformance suite is
+  the engine verifying the line). The second draft's current awe scores
+  are diagnosed: importance ~2, never-before-done ~3, genius ~3,
+  logical-awe ~4 — "not hitting the mark" quantified. The acceptance
+  checklist gains the awe boxes; the attack surface gains
+  "rigorous but flat"; the rebuild order gains the awe pass.
+- **(agent) The never-before-done claim stays structural, not
+  superlative:** each prior system is forced to drop a corner of the
+  five-differentiator conjunction; "first-ever" language is printed only
+  when the gap check (`research/related-work.md`) is YES, otherwise the
+  claim is scoped to the compared systems, stated as fact.
+
 ### The bulletproof turn: papers are cheap, the outline is the review surface, the KB is around the paper
 
 - **(operator) The fundamental redefinition.** The journey: (a) we built a
