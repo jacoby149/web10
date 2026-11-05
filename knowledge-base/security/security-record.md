@@ -212,7 +212,20 @@ Synthetic signed-manifest/SQL red-green plus isolated real production handler
 reads restore four existing videos without data changes. Same-model review only;
 serving rollout/browser playback, cost, diverse review and broader L1 remain OPEN.
 
-## Node-Ad Document Authority (03.11.2026)
+## Node-Ad Document Authority (05.11.2026) — bounded local, OPEN
+
+H01-NODE-DOC [local repair](scans/2026-11/repair-h01-node-document.md): rank
+complete document/author history before deletion/tag eligibility, with deletion
+winning timestamp ties. Five real synthetic signing failures reproduce before
+repair and deny afterward, including both tie insertion orders and group authors.
+Thirteen document cases pass on SQLite and isolated ClickHouse-local Memory;
+public active/restored/retagged/reactivated inventory, pause suppression, identity
+isolation and independent uploaders remain. Full API: 2,058 plus eight subtests,
+one opt-in skip; Ruff lint/format pass. Fresh review recorded in the receipt.
+Real writer/merge lifecycle, provenance, broader policy, CI/rollout, diverse
+convergence and protocol L1 remain OPEN; no L2 advancement or deployed claim.
+
+Historical pre-repair evidence (03.11.2026):
 
 H01-NODE-DOC [evidence](scans/2026-10/h01-node-document-proof.md): current
 compiler document subquery excludes deletion and returns latest declassified

@@ -3347,6 +3347,8 @@ def get_active_node_ads() -> list[dict]:
 
     Discover attachments are ranked before removal filtering, with deletion
     winning timestamp ties. Other live group attachments do not grant inventory.
+    Document history is likewise ranked before deletion/tag filtering, so an
+    ineligible current version cannot resurrect an older creative.
 
     The discover group id is the canonical ``DISCOVER_GROUP_ID`` (derived from
     ``settings.PROVIDER``) — the same source that creates the group and that
@@ -3359,10 +3361,9 @@ def get_active_node_ads() -> list[dict]:
         result = client.query(
             "SELECT doc_id, author_key, body, tags, posted_by "
             "FROM (SELECT doc_id, author_key, body, tags, deleted, updated_at, posted_by, "
-            "row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
-            "FROM documents "
-            "WHERE has(tags, 'node_ad') AND deleted = 0) "
-            "WHERE rn = 1 "
+            "row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC, deleted DESC) AS rn "
+            "FROM documents) "
+            "WHERE rn = 1 AND deleted = 0 AND has(tags, 'node_ad') "
             "AND doc_id IN (SELECT pg.doc_id FROM (SELECT doc_id, group_id, deleted, "
             "row_number() OVER (PARTITION BY doc_id, group_id ORDER BY updated_at DESC, deleted DESC) AS rn "
             "FROM doc_groups WHERE group_id = %(discover)s) pg "
