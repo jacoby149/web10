@@ -1,3 +1,4 @@
+import { ReliableImage } from './ReliableImage';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Send, ExternalLink, Heart, X, Image as ImageIcon } from 'lucide-react';
 import { cn } from './utils';
@@ -688,7 +689,7 @@ export function CommentThread({
             <div className="flex flex-wrap gap-2" data-testid="comment-photo-tray">
               {attached.map((p) => (
                 <div key={p.id} className="relative h-16 w-16 shrink-0" data-testid="comment-photo-preview">
-                  <img
+                  <ReliableImage
                     src={p.previewUrl}
                     alt=""
                     className="h-full w-full rounded-md object-cover ring-1 ring-border"
@@ -1087,7 +1088,7 @@ function CommentMedia({ media, id }: { media: MediaItem[]; id: string }) {
       data-testid={id ? `comment-media-${id}` : 'comment-media'}
     >
       {items.map((m, i) => (
-        <img
+        <ReliableImage
           key={m._id || i}
           src={m.url}
           alt={m.alt_text || ''}

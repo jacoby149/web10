@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo, type ReactNode } from 'react';
+import { ReliableImage } from '@web10/discover/image';
+import { ReliableVideo } from '@web10/discover/video';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -1330,9 +1332,9 @@ function AdForm({ initial, albums, products, allowNode = false, onSubmit, onCanc
                 >
                   <div className="aspect-square overflow-hidden rounded-md border border-border bg-elevated">
                     {item.isVideo ? (
-                      <video src={item.previewUrl} className="h-full w-full object-cover" muted playsInline />
+                      <ReliableVideo src={item.previewUrl} className="h-full w-full object-cover" muted playsInline />
                     ) : (
-                      <img src={item.previewUrl} alt={adMediaAlt[item.id] || ''} className="h-full w-full object-cover" />
+                      <ReliableImage src={item.previewUrl} alt={adMediaAlt[item.id] || ''} className="h-full w-full object-cover" />
                     )}
                   </div>
                   <button

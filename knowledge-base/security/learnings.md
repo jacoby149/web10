@@ -35,6 +35,25 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-05: Media recovery tickets must survive delayed playback and DOM replacement
+
+A short-lived media URL is not durable app state. Replay the original authorized
+read, retain exact resource/reader scope, and treat expiry decoding only as a
+scheduling hint. Capture the generation BEFORE dispatch: capturing it after an
+await can register an obsolete response in a new identity. Checking a renewal's
+`isCurrent` once is insufficient; native/HLS metadata and pending play promises
+must recheck it before restoring or resuming. Error UI can replace the video
+node, so reveal/progress/control subscriptions must follow that DOM generation.
+Visibility re-entry must not undo native pause intent; immersive renewal must
+capture the latest position, not only the last off-screen checkpoint. Native
+source reset can emit timeupdate(0) before loadedmetadata: keep the pending
+restoration checkpoint separate from ordinary observations, while explicit
+seeking can still replace it with zero. Six
+bounded same-family review findings reproduce these continuation failures and
+have red→green controls; independent convergence and connected assurance remain
+open. A 15-second UI timeout must not release an unabortable request slot and
+multiply real concurrency; skip queued work whose demand already expired.
+
 ### 2026-11-04: Select the cover, never the recording
 
 The audio exclusion added to prevent raw-file thumbnails also skipped valid audio

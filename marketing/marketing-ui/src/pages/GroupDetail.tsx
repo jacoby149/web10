@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { mediaReadFetch } from '@web10/discover/media-recovery';
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Users, Lock, LockOpen, Shield, MessageSquareLock } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -51,7 +52,7 @@ interface GroupDetailData {
 
 async function readGroupFace(groupId: string): Promise<GroupFace> {
   try {
-    const resp = await fetch(`${nodeApi()}/v3/read`, {
+    const resp = await mediaReadFetch(`${nodeApi()}/v3/read`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       // No token — anon reads the face of public groups (the `anyone` grant).

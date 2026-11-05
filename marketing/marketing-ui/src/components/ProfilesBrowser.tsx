@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { mediaReadFetch } from '@web10/discover/media-recovery';
 import { useSearchParams } from 'react-router-dom';
 import { User, Hash, Search, X, Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { PersonCard, PersonCardSkeleton, GroupCard, GroupCardSkeleton, type DiscoverPerson, type DiscoverGroup, type DiscoverGroupFace, resolveFaceMedia, peopleFaceSql, GROUP_FACE_SQL, type FaceQueryTransport } from '@web10/discover';
@@ -63,7 +64,7 @@ function followersGroupId(username: string): string {
 // (@web10/discover) — the transport is the only app-specific seam.
 const faceQueryTransport: FaceQueryTransport = async (sql, groups, prepare) => {
   try {
-    const resp = await fetch(`${API_ORIGIN}/v3/query`, {
+    const resp = await mediaReadFetch(`${API_ORIGIN}/v3/query`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sql, groups, prepare }),

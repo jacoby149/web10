@@ -1,3 +1,4 @@
+import { ReliableImage } from '@web10/discover/image';
 import { useState } from 'react';
 import { Play, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -23,7 +24,7 @@ function YouTubeEmbed({ embed }: { embed: EmbedInfo }) {
         data-testid="youtube-embed-placeholder"
       >
         {embed.thumbnailUrl ? (
-          <img
+          <ReliableImage
             src={embed.thumbnailUrl}
             alt=""
             className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-105"
@@ -118,7 +119,7 @@ function ExternalLinkChip({ embed }: { embed: EmbedInfo }) {
       )}
       data-testid="external-link-chip"
     >
-      <img
+      <ReliableImage
         src={favicon}
         alt=""
         className="w-3.5 h-3.5 shrink-0"

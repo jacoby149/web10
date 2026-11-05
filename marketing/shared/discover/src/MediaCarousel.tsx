@@ -1,3 +1,4 @@
+import { ReliableImage } from './ReliableImage';
 import { useRef, useState } from 'react';
 import { cn } from './utils';
 import { VideoPlayer, sourceFromMedia } from './VideoPlayer';
@@ -81,7 +82,7 @@ export function MediaCarousel({ items, fit = 'contain', ratio, maxHeight, testId
                   testId={testId ? `${testId}-video-${i}` : undefined}
                 />
               ) : (
-                <img
+                <ReliableImage
                   src={item.thumbnail_url || item.url}
                   alt={item.alt_text || ''}
                   className={cn('h-full w-full', fit === 'cover' ? 'object-cover' : 'object-contain')}

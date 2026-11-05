@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { claimMediaPlayback } from '@web10/discover/media-recovery';
 import type { MusicTrack } from '@/data/feed';
 import { readMusicTrack } from '@/data/music';
 import { musicTitle, musicArtist } from '@/data/musicTrack';
@@ -266,7 +267,7 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
 
   useEffect(() => {
     const element = new Audio();
-    element.preload = 'metadata';
+    element.preload = 'none';
     element.volume = initial.volume;
     audio.current = element;
     remaining.current = [];
@@ -278,6 +279,7 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
     update({ ...initial });
     const onPlay = () => {
       if (!requested.current) { element.pause(); return; }
+      claimMediaPlayback(element);
       update({ isPlaying: true, error: null });
     };
     const onPause = () => update({ isPlaying: false });

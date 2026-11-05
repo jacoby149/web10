@@ -1,3 +1,4 @@
+import { ReliableImage } from '@web10/discover/image';
 import { useState, useCallback } from 'react';
 import { Link2, Loader2, Ban, EyeOff, User, FileText, Hash, AlertTriangle, UserX } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -224,7 +225,7 @@ export function LinkTab() {
             <div className="rounded-lg border border-border bg-card p-3" data-testid="link-user">
               <div className="flex items-center gap-3">
                 {face?.avatar_url ? (
-                  <img src={face.avatar_url} alt="" className="h-10 w-10 rounded-full object-cover" data-testid="link-user-avatar" />
+                  <ReliableImage src={face.avatar_url} alt="" className="h-10 w-10 rounded-full object-cover" data-testid="link-user-avatar" />
                 ) : (
                   <div className="h-10 w-10 rounded-full bg-elevated flex items-center justify-center text-sm font-medium text-muted-foreground">
                     {targetUsername.slice(0, 1).toUpperCase()}

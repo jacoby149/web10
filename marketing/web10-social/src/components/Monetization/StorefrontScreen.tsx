@@ -1,3 +1,4 @@
+import { ReliableImage } from '@web10/discover/image';
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Package, UserPlus, AlertTriangle, RefreshCw } from 'lucide-react';
@@ -161,7 +162,7 @@ function StorefrontTile({ item, mediaMap }: { item: ProductItem; mediaMap: Recor
     <div className="overflow-hidden rounded border border-border bg-elevated/30" data-testid={`storefront-tile-${item.doc.doc_id}`}>
       {imgSrc ? (
         <div className="aspect-square w-full overflow-hidden bg-elevated">
-          <img src={imgSrc} alt={p.name || 'Product'} className="h-full w-full object-cover" />
+          <ReliableImage src={imgSrc} alt={p.name || 'Product'} className="h-full w-full object-cover" />
         </div>
       ) : (
         <div className="flex aspect-square w-full items-center justify-center bg-elevated text-muted-foreground">

@@ -1,3 +1,4 @@
+import { ReliableImage } from '@web10/discover/image';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -941,7 +942,7 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
               aria-hidden="true"
             />
             {bannerUrl && (
-              <img src={bannerUrl} alt="" className="absolute inset-0 h-full w-full object-cover" data-testid="group-detail-banner-img" />
+              <ReliableImage src={bannerUrl} alt="" className="absolute inset-0 h-full w-full object-cover" data-testid="group-detail-banner-img" />
             )}
             {canManage && (
               <button
@@ -977,7 +978,7 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
               >
                 <Avatar className={cn('h-20 w-20', hashToColor(detail.group_id))}>
                   {avatarUrl ? (
-                    <img src={avatarUrl} alt="" className="h-full w-full rounded-full object-cover" data-testid="group-detail-avatar-img" />
+                    <ReliableImage src={avatarUrl} alt="" className="h-full w-full rounded-full object-cover" data-testid="group-detail-avatar-img" />
                   ) : (
                     <AvatarFallback className="text-foreground text-3xl font-semibold">
                       {displayName.charAt(0).toUpperCase()}
@@ -1331,13 +1332,10 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
                           >
                             {media.mime_type?.startsWith('video/') ? (
                               <div className="w-full h-full relative">
-                                <video
-                                  src={media.url}
-                                  poster={media.thumbnail_url}
+                                <ReliableImage
+                                  src={media.thumbnail_url}
+                                  alt=""
                                   className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-110"
-                                  preload="metadata"
-                                  playsInline
-                                  muted
                                 />
                                 <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
                                   <div className="flex items-center justify-center w-9 h-9 rounded-full bg-background/80 backdrop-blur-sm">
@@ -1346,7 +1344,7 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
                                 </div>
                               </div>
                             ) : (
-                              <img
+                              <ReliableImage
                                 src={media.url}
                                 alt={media.alt_text || ''}
                                 className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-110"

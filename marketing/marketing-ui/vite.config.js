@@ -24,6 +24,9 @@ export default defineConfig({
       // D73: the shared discover card + video player (one source, both apps).
       // Aliased to the package source so Vite compiles it as app code (not
       // pre-bundled) — the file: dep in package.json keeps its deps resolvable.
+      '@web10/discover/media-recovery': path.resolve(__dirname, '../shared/discover/src/mediaRecovery.ts'),
+      '@web10/discover/image': path.resolve(__dirname, '../shared/discover/src/ReliableImage.tsx'),
+      '@web10/discover/video': path.resolve(__dirname, '../shared/discover/src/ReliableVideo.tsx'),
       '@web10/discover': path.resolve(__dirname, '../shared/discover/src/index.ts'),
     },
   },

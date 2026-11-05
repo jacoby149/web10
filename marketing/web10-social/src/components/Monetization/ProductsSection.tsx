@@ -1,3 +1,4 @@
+import { ReliableImage } from '@web10/discover/image';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Package, AlertTriangle, RefreshCw, Plus, Pencil, X, ImagePlus, ArrowUpRight, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -212,7 +213,7 @@ function ProductTile({ item, mediaMap, onEdit, onDelete }: {
     <div className="overflow-hidden rounded border border-border bg-elevated/30" data-testid={`product-tile-${item.doc.doc_id}`}>
       {imgSrc ? (
         <div className="aspect-square w-full overflow-hidden bg-elevated">
-          <img src={imgSrc} alt={p.name || 'Product'} className="h-full w-full object-cover" />
+          <ReliableImage src={imgSrc} alt={p.name || 'Product'} className="h-full w-full object-cover" />
         </div>
       ) : (
         <div className="flex aspect-square w-full items-center justify-center bg-elevated text-muted-foreground">
@@ -411,7 +412,7 @@ function ProductForm({
         <Label>Product photo</Label>
         {pic?.previewUrl ? (
           <div className="mt-1.5 flex items-center gap-3">
-            <img src={pic.previewUrl} alt="Product" className="h-16 w-16 rounded object-cover" />
+            <ReliableImage src={pic.previewUrl} alt="Product" className="h-16 w-16 rounded object-cover" />
             <Button variant="outline" size="sm" onClick={() => setPic(null)} data-testid="product-pic-remove">Remove</Button>
           </div>
         ) : (
