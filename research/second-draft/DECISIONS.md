@@ -10,6 +10,28 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 04.11.2026
 
+### Shot 0: the three "missing innovations" resolve to no pitch changes
+
+- **(operator)** On #2 (the deletions / "earned"): "that is more of what would go on
+  wikipedia, or the story of earning it isnt the technology … in a biology
+  paper, or making TNT, I would say yeah that is important" — process
+  narrative is not technology; it lives in §7 (industry-track lessons) +
+  Wikipedia, not the pitch. On #1 (the measurement): "the measurement is
+  a little negative finding, it is i.e. work still needs to be done at the
+  boundary. now that we have something that scales for real, we hit the
+  next problem" — an honest limitation, not an awe beat; it belongs in §8
+  (the number that hurts + the counterweight + the next problem), not the
+  pitch. On #3 (the data-model move): "just saying we like olap, dont
+  want to over sell and say we are doing oltp on olap, people do
+  tombstones, everything we are doing in olap already, but we lean
+  heavily that way" — not an innovation; beat 9 already captures "we lean
+  on OLAP" at the right level; don't overclaim "OLTP on OLAP."
+- **(agent)** All three resolve to **no pitch changes**. The pitch stays at
+  12 beats. This confirms the line: **the pitch carries the technology's
+  positive essence; the process story and the negative findings live in
+  the body.** #2 → §7 + Wikipedia; #1 → §8 honest limitation + roadmap;
+  #3 → beat 9 as-is. Shot 0 is ready to lock.
+
 ### Shot 0: beat 10 gains the composition + scale point; and the register rule — the body says the beats naturally, not as a pitch
 
 - **(operator)** "yeah fold that in too please!" (the composition
