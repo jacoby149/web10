@@ -1,8 +1,9 @@
 <!doctype html>
 <!--
-  Source for fig-query-engine.png (Figure B, shot 4: "where each step runs").
-  One feed query, from the browser to ClickHouse — and which side each step
-  runs on. Accuracy note (the shot-3 miss this fixes): the AST work is
+  Source for fig-query-engine.png (Figure B, shot 6: "reading a social feed
+  on web10 — a breakdown"). The entire end-to-end journey, in three layers
+  (the app + SDK in the browser, the node's API, the ClickHouse store).
+  Accuracy note (the shot-3 miss this fixes): the AST work is
   API-side. The app's TypeScript builds the query (feed.ts: buildFeedQuery),
   the SDK's w.query posts it, unchanged, to POST /v3/query with the reader's
   scoped token (sdk/src/v3.ts); the node's engine (api/app/v3/services/
@@ -74,8 +75,8 @@
 </style>
 </head>
 <body>
-  <div class="title">From service names to the reader&rsquo;s readable set</div>
-  <div class="subtitle">one feed query, from the browser to ClickHouse &mdash; and which side each step runs on</div>
+  <div class="title">Reading a social feed on web10 &mdash; a breakdown</div>
+  <div class="subtitle">The entire end-to-end journey, in three layers: the app, the node (the API), and the store (ClickHouse)</div>
 
   <!-- tier 1: the browser (app code + SDK) -->
   <div class="frame" style="left:60px; top:96px; width:1320px; height:186px; border:2px solid rgba(201,204,218,.8);"></div>
@@ -88,7 +89,7 @@
   sort, cursor, limit)
 const { rows } = await
   w.query(sql, { groups, prepare })</div>
-  <div class="note" style="left:98px; top:254px; width:364px;">joins, ranking, cursors &mdash; the app&rsquo;s own query</div>
+  <div class="note" style="left:98px; top:254px; width:364px;">the app-side function called to read the social feed</div>
 
   <div style="position:absolute; left:500px; top:136px; width:520px; height:134px; border-radius:10px; background:#101019; border:1px solid #34344a;"></div>
   <div class="lbl" style="left:518px; top:148px;">THE QUERY IT BUILDS &mdash; SERVICE NAMES ONLY</div>

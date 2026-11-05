@@ -10,6 +10,25 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 05.11.2026
 
+### Figure B retitled + re-captioned: "Reading a social feed on web10 — a breakdown"; the app-side function; the three layers named
+
+- **(operator)** "in the query engine one, might be good maybe i am saying
+  clarify this is the app side function called to read the social feed! i
+  think it is pretty clear, but maybe a caption that this is the whole E2E
+  journey through web10 to read the feed! those are the three layers!"
+  Then, on the title: "from service names to the reader's readable set is a
+  terrible title, could just be called reading a social feed on web10 -
+  breakdown, or not sure what to title it!"
+- **(agent)** Three text changes, no mechanism changed: (1) the title is now
+  "Reading a social feed on web10 — a breakdown" (was "From service names to
+  the reader's readable set" — jargon-as-title, the operator's "terrible
+  title"); (2) the app-code box's note is now "the app-side function called
+  to read the social feed" (was "joins, ranking, cursors — the app's own
+  query"); (3) the subtitle names the three layers: "The entire end-to-end
+  journey, in three layers: the app, the node (the API), and the store
+  (ClickHouse)" — named, not just counted. Re-rendered and inspected;
+  nothing else moved.
+
 ### Figure B wording fix: "the API rejects such queries before they run; that's what protects the data"
 
 - **(operator)** "what does this mean the walk rejects them by name in the
