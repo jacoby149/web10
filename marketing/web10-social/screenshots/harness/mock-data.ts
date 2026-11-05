@@ -195,7 +195,11 @@ export async function updateContact(): Promise<ContactRecord> { return contacts[
 export async function deleteContact(): Promise<void> {}
 export async function readPost(): Promise<unknown> { return {}; }
 export async function readPosts(): Promise<unknown[]> { return []; }
-export async function createPost(): Promise<unknown> { return {}; }
+function mentionWrite(value: Record<string, unknown>) {
+  const target = window as typeof window & { __mentionWrites?: Record<string, unknown>[] };
+  (target.__mentionWrites ??= []).push(value);
+}
+export async function createPost(post: Record<string, unknown>): Promise<unknown> { mentionWrite({ kind: 'post', ...post }); return { _id: 'fixture-post', ...post }; }
 export async function createRepost(): Promise<unknown> { return {}; }
 // Repost-unify (#1003) surface reads — the harness has no repost data, so they
 // degrade to empty (no tallies, no "I reposted this" fill).
@@ -305,10 +309,10 @@ export async function readMyAds(): Promise<{ ads: unknown[]; albums: unknown[] }
  // ("view more replies"), and writes top-level comments or replies (parentId).
  // Seed a small threaded conversation so the screenshot shows the thread shape.
  export async function readThreadComments(postId?: string): Promise<unknown> {
-   if (postId === 'fp-0' || postId === 'fp-1' || postId === 'pp-1') {
+    if (postId === 'fp-0' || postId === 'fp-1' || postId === 'pp-1' || new URLSearchParams(window.location.search).has('people-tags')) {
      return {
        comments: [
-         { _id: 'tc-1', post_id: postId, text: 'This is a great post!', author_username: 'alice', created_at: '2026-01-01T00:00:00Z', likeCount: 3, likedByMe: false },
+          { _id: 'tc-1', post_id: postId, text: new URLSearchParams(window.location.search).has('people-tags') ? 'You should join us, @nova. Bring @kai too.' : 'This is a great post!', author_username: 'alice', created_at: '2026-01-01T00:00:00Z', likeCount: 3, likedByMe: false },
          { _id: 'tc-2', post_id: postId, text: 'Another take on the mix.', author_username: 'carol', created_at: '2026-01-01T02:00:00Z', likeCount: 5, likedByMe: false },
        ],
        nextCursor: null,
@@ -333,7 +337,10 @@ export async function readMyAds(): Promise<{ ads: unknown[]; albums: unknown[] }
    return { comments: [], nextCursor: null };
  }
  export async function countRepliesByComment(): Promise<Record<string, number>> { return {}; }
- export async function createThreadComment(): Promise<unknown> { return {}; }
+ export async function createThreadComment(args: { postId: string; text: string; parentId?: string }): Promise<unknown> {
+   mentionWrite({ kind: 'comment', ...args });
+   return { _id: `written-${Date.now()}`, post_id: args.postId, text: args.text, parent_id: args.parentId, author_username: 'me', created_at: new Date().toISOString(), isOwn: true, canEdit: true, canDelete: true };
+ }
 export async function deleteComment(): Promise<void> {}
 // Photos in comments (3.113.0) — the harness has no upload pipeline; the stub
 // returns a fake doc_id + url so the comment thread's attach control degrades
@@ -499,7 +506,7 @@ export async function refreshMediaUrl(): Promise<string> { return ''; }
 export function registerDefaultSchemas(): void {}
 export function resetWapi(): void {}
 export async function sendDmMulti(): Promise<unknown> { return {}; }
-export async function updateComment(): Promise<void> {}
+export async function updateComment(id: string, updates: { text?: string }): Promise<void> { mentionWrite({ kind: 'edit', id, ...updates }); }
 export async function updateFollowNotify(): Promise<void> {}
 export async function setReaction(): Promise<null> { return null; }
 export async function toggleReactionKind(): Promise<null> { return null; }

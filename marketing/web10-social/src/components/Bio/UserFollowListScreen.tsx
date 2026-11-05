@@ -1,3 +1,4 @@
+import { ReliableImage } from '@web10/discover/image';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -107,7 +108,7 @@ function PersonRow({ person, followLoading, onFollow, onUnfollow, onOpen }: Pers
     >
       <div className="h-24 w-full overflow-hidden" aria-hidden="true">
         {person.banner_url ? (
-          <img src={person.banner_url} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105 motion-reduce:transform-none" loading="lazy" />
+          <ReliableImage src={person.banner_url} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105 motion-reduce:transform-none" loading="lazy" />
         ) : (
           <div className={cn('h-full w-full', gradient)} />
         )}

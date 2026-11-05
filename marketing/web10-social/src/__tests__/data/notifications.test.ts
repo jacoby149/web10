@@ -46,6 +46,8 @@ function mockClient(overrides: {
     }),
     create: vi.fn(async () => ({ doc_id: 'new-doc', author_key: 'alice', body: {} })),
     update: vi.fn(async (docId: string) => ({ doc_id: docId, author_key: 'alice', body: {} })),
+    query: vi.fn(async () => ({ rows: [] })),
+    readById: vi.fn(),
     state: { apiOrigin: 'https://api.web10.app', token: 'tok', rtcServer: 'rtc.web10.app' },
   };
 }
@@ -78,6 +80,33 @@ describe('notifications (app-wide store, D69)', () => {
   });
 
   describe('initNotifications', () => {
+    it('validates live tag nudges, dedupes a repeat, and keeps distinct replies from the same actor', async () => {
+      client.readById.mockImplementation(async (id: string) => ({ doc_id: id, author_key: 'bob', body: { text: '@alice', post_id: 'post' }, ref_value: 'parent', created_at: '2026-11-05T12:00:00Z' }));
+      await notifications.initNotifications();
+      driveInbound({ type: 'comment_mention', from: 'forged', ref_doc_id: 'c1' });
+      await vi.waitFor(() => expect(notifications.unreadCount()).toBe(1));
+      driveInbound({ type: 'comment_mention', from: 'forged', ref_doc_id: 'c1' });
+      driveInbound({ type: 'mention_reply', from: 'bob', ref_doc_id: 'r1' });
+      driveInbound({ type: 'mention_reply', from: 'bob', ref_doc_id: 'r2' });
+      await vi.waitFor(() => expect(notifications.unreadCount()).toBe(3));
+      expect(notifications.getNotifications().every((n) => n.from === 'bob')).toBe(true);
+      await notifications.markRead(notifications.getNotifications().find((n) => n.ref_doc_id === 'r1')!.id);
+      expect(notifications.unreadCount()).toBe(2);
+    });
+
+    it('does not append unreadable or obsolete tag nudges after logout', async () => {
+      await notifications.initNotifications();
+      client.readById.mockRejectedValueOnce(new Error('403'));
+      driveInbound({ type: 'post_mention', from: 'bob', ref_doc_id: 'private' });
+      await vi.waitFor(() => expect(client.readById).toHaveBeenCalled());
+      expect(notifications.unreadCount()).toBe(0);
+      let complete!: (value: unknown) => void;
+      client.readById.mockReturnValueOnce(new Promise((resolve) => { complete = resolve; }));
+      driveInbound({ type: 'post_mention', from: 'bob', ref_doc_id: 'late' });
+      notifications.teardownNotifications();
+      complete({ doc_id: 'late', author_key: 'bob', body: { text: '@alice' }, created_at: '2026-11-05' });
+      await vi.waitFor(() => expect(notifications.unreadCount()).toBe(0));
+    });
     it('does nothing when there is no token', async () => {
       vi.spyOn(v3, 'getV3Client').mockReturnValue(mockClient({ token: null }) as never);
       await notifications.initNotifications();

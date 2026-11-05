@@ -34,7 +34,8 @@ vi.mock('@/data', async (importOriginal) => {
 });
 
 // The shared discover package (formatCount).
-vi.mock('@web10/discover', () => ({
+vi.mock('@web10/discover', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@web10/discover')>(),
   formatCount: (n: number) => n.toLocaleString(),
 }));
 
@@ -96,6 +97,21 @@ function renderScreen(tracks: MusicTrack[] = [], url = '/music') {
 }
 
 describe('MusicScreen', () => {
+  it('opens a track-native URL-backed comment panel from the action sheet and returns with browser history', async () => {
+    const song = track({ id: 'song', author: 'artist', title: 'Our song' });
+    vi.spyOn(data, 'readThreadComments').mockResolvedValue({ comments: [], nextCursor: null, replyCounts: {} });
+    vi.mocked(data.readMusicTrack).mockResolvedValue(song);
+    renderScreen([song]);
+    const menu = await openMenu('Our song');
+    fireEvent.click(menu.getByRole('link', { name: 'Comments' }));
+    expect(await screen.findByTestId('music-comments')).toBeVisible();
+    expect(screen.getByTestId('location')).toHaveTextContent('track=song&panel=comments');
+    expect(await screen.findByTestId('comment-input')).toBeVisible();
+    expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'History back' }));
+    expect(screen.queryByTestId('music-comments')).toBeNull();
+  });
+
   it('shows the group display name in the track row, action sheet and player instead of its slug', async () => {
     const song = track({ id: 'club-track', author: 'new-group-6', title: 'Hello from the club' });
     song.post.author_key = 'node.test/groups/users/listener/new-group-6';

@@ -1,5 +1,14 @@
 # Portable Protected Media Delivery
 
+Deployment observation (05.11.2026, read-only): production `/v3/media/jwks`
+is nonempty and public document reads issue `media.web10.app` capabilities.
+Fresh image/audio range GETs succeed through Cloudflare with 60-second direct
+lifetimes. An exact thumbnail replay returns fresh206 → expired403 → freshly
+authorized same-object206. See `../strategy/media-reliability.md`. This is an
+observed deployment, not a retroactive approval or closure of the gates below;
+the implementation default remains disabled. Clients must renew delayed media
+through authorized reads rather than depend on capability URLs indefinitely.
+
 Status: locally implemented and tested; production disabled by default. An isolated
 Cloudflare Worker has fresh synthetic MinIO cache, Chromium HLS/range and deployed
 test-key rotation evidence, not production approval. Its intended read-only storage

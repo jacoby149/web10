@@ -38,6 +38,7 @@ export interface HlsInstance {
     *  player can leave this disengaged → the switch stalls; startLoad re-arms). */
   autoStartLoad: boolean;
   startLoad(startPosition?: number): void;
+  stopLoad?(): void;
 }
 
 export interface HlsStatic {

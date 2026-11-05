@@ -9,7 +9,8 @@ import type { MediaPostDraft } from '@/components/Uploads/uploadState';
 import { loadUploads } from '@/data/uploadDraftStore';
 import { invalidateUploadSession } from '@/lib/uploadSession';
 
-const fake = vi.hoisted(() => ({ username: 'alice', run: vi.fn(), stop: vi.fn() }));
+const fake = vi.hoisted(() => ({ username: 'alice', run: vi.fn(), stop: vi.fn(), nudge: vi.fn() }));
+vi.mock('@/data/notifications', () => ({ sendNotification: fake.nudge }));
 vi.mock('web10-npm', async importOriginal => ({
   ...await importOriginal<typeof import('web10-npm')>(),
   readTokenCookie: () => fake.username ? `e30.${btoa(JSON.stringify({ username: fake.username, provider: 'node' }))}.test` : null,
@@ -36,7 +37,7 @@ let phase: string;
 function response(status: number, payload: unknown) { return { ok: status < 300, status, json: async () => payload }; }
 beforeEach(() => {
   vi.stubGlobal('indexedDB', new IDBFactory());
-  fake.username = 'alice'; fake.run.mockReset(); fake.stop.mockReset();
+  fake.username = 'alice'; fake.run.mockReset(); fake.stop.mockReset(); fake.nudge.mockReset();
   fake.run.mockResolvedValue({ phase: 'completed' });
   requests = []; admitted = false; capabilityFails = false; phase = 'waiting';
   vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
@@ -65,6 +66,20 @@ beforeEach(() => {
 afterEach(() => { cleanup(); invalidateUploadSession(); vi.unstubAllGlobals(); });
 
 describe('real queue orchestration with IndexedDB and HTTP adapter (byte engine stubbed)', () => {
+  it('indexes tags in deferred posts but only nudges when publication is observed', async () => {
+    const view = mount();
+    await waitFor(() => expect(queue.enabled).toBe(true));
+    const input = { ...draft(), text: 'Film night @bob' };
+    await act(async () => { await queue.queue(input); });
+    await waitFor(() => expect(queue.tasks[0]?.phase).toBe('processing'));
+    expect(requests.find(item => item.path.endsWith('/deferred/create'))!.body.intent).toMatchObject({ body: { mention_usernames: ['bob'] } });
+    expect(fake.nudge).not.toHaveBeenCalled();
+    view.unmount(); phase = 'done';
+    mount();
+    await waitFor(() => expect(queue.tasks[0]?.phase).toBe('published'));
+    expect(fake.nudge).toHaveBeenCalledExactlyOnceWith({ username: 'bob', provider: 'node' }, { type: 'post_mention', from: 'team', ref_doc_id: 'post-id' });
+  });
+
   it('saves the frozen draft and admits HLS-waiting publication, then observes its result after remount without a file', async () => {
     const view = mount();
     await waitFor(() => expect(queue.enabled).toBe(true));

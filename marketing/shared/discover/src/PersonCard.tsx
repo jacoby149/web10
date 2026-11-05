@@ -1,3 +1,4 @@
+import { ReliableImage } from './ReliableImage';
 import { Users, UserPlus, UserCheck, Loader2, ArrowUpRight } from 'lucide-react';
 import { cn, formatCount, hashToGradient } from './utils';
 import { Avatar, AvatarFallback, Skeleton } from './ui';
@@ -95,7 +96,7 @@ export function PersonCard({
       {/* Banner — the person's real banner or their gradient */}
       <div className="h-24 w-full overflow-hidden" aria-hidden="true">
         {person.banner_url ? (
-          <img
+          <ReliableImage
             src={person.banner_url}
             alt=""
             loading="lazy"
@@ -111,7 +112,7 @@ export function PersonCard({
         <div className="shrink-0 -mt-8 rounded-full border-4 border-card">
           <Avatar className={cn('h-16 w-16', !person.avatar_url && gradient)}>
             {person.avatar_url ? (
-              <img src={person.avatar_url} alt={`${name}'s profile picture`} className="h-full w-full object-cover" />
+              <ReliableImage src={person.avatar_url} alt={`${name}'s profile picture`} className="h-full w-full object-cover" />
             ) : (
               <AvatarFallback className="text-foreground text-xl font-semibold">{initial}</AvatarFallback>
             )}

@@ -1,3 +1,4 @@
+import { ReliableImage } from '@web10/discover/image';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -191,7 +192,7 @@ export function MyGroupRow({ group, face, onOpen, onLeave, leaving }: MyGroupRow
     >
       <div className="h-24 w-full overflow-hidden" aria-hidden="true">
         {face?.banner_url ? (
-          <img
+          <ReliableImage
             src={face.banner_url}
             alt=""
             loading="lazy"

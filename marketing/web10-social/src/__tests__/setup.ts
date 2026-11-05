@@ -57,6 +57,11 @@ class MockIntersectionObserver {
   }
   observe(el: Element) {
     this.observed = el;
+    // Real browsers deliver an initial viewport observation. Dedicated full
+    // player tests model a visible player; preview/dwell tests remain manual.
+    if (['hls-video', 'immersive-hls-video'].includes(el.getAttribute('data-testid') || '')) {
+      this.callback([{ target: el, isIntersecting: true, intersectionRatio: 1 } as IntersectionObserverEntry], this);
+    }
   }
   unobserve() {}
   disconnect() {}

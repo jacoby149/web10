@@ -1,3 +1,4 @@
+import { ReliableImage } from '@web10/discover/image';
 import { useMemo, useState } from 'react';
 import {
   ResponsiveContainer,
@@ -381,7 +382,7 @@ export function ReachCharts({ analytics, windowDays, onWindowChange, topPostDeta
                         {i + 1}
                       </span>
                       {p.thumbnailUrl ? (
-                        <img
+                        <ReliableImage
                           src={p.thumbnailUrl}
                           alt=""
                           className="h-8 w-8 flex-shrink-0 rounded object-cover"

@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { ReliableImage } from '@web10/discover/image';
+import { ReliableVideo } from '@web10/discover/video';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -34,6 +36,7 @@ import { markdownToHtml } from '@/lib/markdownHtml';
 import { DiscoverAudience } from './DiscoverAudience';
 import { MusicTagToggle } from './MusicTagToggle';
 import type { MediaPostDraft } from '@/components/Uploads/uploadState';
+import { EditorMentions } from '@/components/shared/EditorMentions';
 
 let nextMediaId = 0;
 
@@ -125,7 +128,7 @@ function MediaTrayItem({
       {item.isAudio ? (
         <div className="w-full h-full rounded-lg ring-1 ring-border bg-elevated flex flex-col items-center justify-center gap-2 p-2 relative overflow-hidden">
           {item.albumArtUrl ? (
-            <img
+            <ReliableImage
               src={item.albumArtUrl}
               alt="Album art"
               className="absolute inset-0 w-full h-full object-cover"
@@ -163,7 +166,7 @@ function MediaTrayItem({
           )}
         </div>
       ) : item.isVideo ? (
-        <video
+        <ReliableVideo
           src={item.previewUrl}
           className="w-full h-full object-cover rounded-lg ring-1 ring-border"
           preload="metadata"
@@ -172,7 +175,7 @@ function MediaTrayItem({
           playsInline
         />
       ) : (
-        <img
+        <ReliableImage
           src={item.previewUrl}
           alt={item.altText || `Media ${index + 1}`}
           className="w-full h-full object-cover rounded-lg ring-1 ring-border"
@@ -295,7 +298,7 @@ function RepostContext({ post, onCancel }: { post: PostRecord; onCancel: () => v
         {firstMedia ? (
           <div className="mt-2 rounded-md overflow-hidden bg-background">
             {isVideo ? (
-              <video
+              <ReliableVideo
                 src={firstMedia.read_url || undefined}
                 poster={firstMedia.thumbnail_url || undefined}
                 className="w-full max-h-48 object-cover"
@@ -304,7 +307,7 @@ function RepostContext({ post, onCancel }: { post: PostRecord; onCancel: () => v
                 preload="metadata"
               />
             ) : (
-              <img
+              <ReliableImage
                 src={firstMedia.thumbnail_url || firstMedia.read_url || ''}
                 alt=""
                 className="w-full max-h-48 object-cover"
@@ -453,7 +456,7 @@ export default function PostComposer({
   // owns the document; `text` is the serialized form the data layer writes.
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({ link: { openOnClick: false } }),
+      StarterKit.configure({ link: { openOnClick: false, protocols: ['web10'] } }),
       Placeholder.configure({
         placeholder: repostingTo ? 'Add a comment…' : "What's on your mind?",
       }),
@@ -1210,6 +1213,8 @@ export default function PostComposer({
                formatting toolbar lives below the text (a row above the action
                bar — the Facebook structure), not above it. */}
           <EditorContent editor={editor} />
+          {editor && <EditorMentions editor={editor} scope={`caption:${editingPost?._id || 'new'}:${authorAs || ''}`} />}
+          <p className="mt-2 text-xs text-muted-foreground">Tag someone with @username</p>
 
           {expanded && (
             <>
@@ -1298,7 +1303,7 @@ export default function PostComposer({
                             <Film className="w-6 h-6" />
                           </div>
                         ) : (
-                          <img
+                          <ReliableImage
                             src={m.thumbnail_url || m.url}
                             alt={m.alt_text || ''}
                             className="w-full h-full object-cover"

@@ -1,3 +1,4 @@
+import { ReliableImage } from '@web10/discover/image';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, X, Check } from 'lucide-react';
@@ -54,7 +55,7 @@ function LightboxSlide({ media, testId }: { media: MediaRecord; testId?: string 
     );
   }
   return (
-    <img
+    <ReliableImage
       src={media.url}
       alt={media.alt_text || ''}
       className="h-full w-full object-contain"

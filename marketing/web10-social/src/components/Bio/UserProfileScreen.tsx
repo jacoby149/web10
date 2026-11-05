@@ -1,3 +1,4 @@
+import { ReliableImage } from '@web10/discover/image';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -160,25 +161,22 @@ export function WallTile({ media, testId, title, caption, postId, multiCount, on
       )}
     >
       {video ? (
-        <video
-          src={media.url}
-          poster={media.thumbnail_url}
+        <ReliableImage
+          src={media.thumbnail_url}
+          alt=""
           className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-105"
-          preload="metadata"
-          playsInline
-          muted
         />
       ) : audio ? (
         <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-brand-muted p-3" data-testid={`${testId}-audio`}>
           {media.thumbnail_url ? (
-            <img src={media.thumbnail_url} alt="" className="w-full aspect-square object-cover rounded-lg" loading="lazy" />
+            <ReliableImage src={media.thumbnail_url} alt="" className="w-full aspect-square object-cover rounded-lg" loading="lazy" />
           ) : (
             <Music className="w-10 h-10 text-brand-300" aria-hidden="true" />
           )}
           <p className="text-sm font-medium text-foreground text-center line-clamp-3">{title || caption || 'Audio'}</p>
         </div>
       ) : media.url ? (
-        <img
+        <ReliableImage
           src={media.url}
           alt={media.alt_text || ''}
           className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-105"
@@ -752,7 +750,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
           aria-hidden="true"
         />
         {bannerMedia && (
-          <img src={bannerMedia.url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          <ReliableImage src={bannerMedia.url} alt="" className="absolute inset-0 w-full h-full object-cover" />
         )}
         {isOwnProfile && (
           <button

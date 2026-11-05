@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { ReliableImage } from '@web10/discover/image';
 import {
   ImagePlus,
   Loader2,
@@ -339,7 +340,7 @@ export default function GroupEditMode({
       <div className="overflow-hidden rounded-lg border border-border" data-testid="group-edit-cover">
         <div className="relative h-24 w-full bg-gradient-to-br from-brand-muted via-brand/20 to-background">
           {bannerPreview ? (
-            <img src={bannerPreview} alt="" className="h-full w-full object-cover" data-testid="group-edit-banner-preview" />
+            <ReliableImage src={bannerPreview} alt="" className="h-full w-full object-cover" data-testid="group-edit-banner-preview" />
           ) : (
             <div className="flex h-full items-center justify-center text-xs text-muted-foreground">Cover</div>
           )}
@@ -361,7 +362,7 @@ export default function GroupEditMode({
         <div className="flex items-center gap-3 px-3 py-3">
           <div className="-mt-7 rounded-full border-4 border-card">
             {avatarPreview ? (
-              <img src={avatarPreview} alt="" className="h-12 w-12 rounded-full object-cover" data-testid="group-edit-avatar-preview" />
+              <ReliableImage src={avatarPreview} alt="" className="h-12 w-12 rounded-full object-cover" data-testid="group-edit-avatar-preview" />
             ) : (
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-elevated text-base font-semibold text-muted-foreground">
                 {(name.trim().charAt(0) || 'G').toUpperCase()}

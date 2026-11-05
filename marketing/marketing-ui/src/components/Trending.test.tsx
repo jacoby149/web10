@@ -899,7 +899,14 @@ describe('TrendingMedia transcoded HLS (the greyed-out-tile fix)', () => {
     vi.stubGlobal('fetch', vi.fn());
     vi.stubGlobal('open', vi.fn());
     Element.prototype.scrollIntoView = vi.fn();
-    vi.stubGlobal('IntersectionObserver', class { observe = vi.fn(); disconnect = vi.fn(); });
+    vi.stubGlobal('IntersectionObserver', class {
+      callback: IntersectionObserverCallback;
+      constructor(callback: IntersectionObserverCallback) { this.callback = callback; }
+      observe = vi.fn((element: Element) => {
+        if (element.getAttribute('data-testid') === 'hls-video') this.callback([{ target: element, isIntersecting: true } as IntersectionObserverEntry], this as unknown as IntersectionObserver);
+      });
+      disconnect = vi.fn();
+    });
     FakeHls.instances = [];
     (FakeHls as unknown as { isSupported: () => boolean }).isSupported = () => true;
     (FakeHls as unknown as { Events: Record<string, string> }).Events = { ERROR: 'error', MANIFEST_PARSED: 'manifestParsed', LEVEL_SWITCHED: 'levelSwitched' };

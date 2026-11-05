@@ -417,6 +417,19 @@ node read/owner/provenance checks stay at issuance and HLS manifest reads. No au
 key migration or immediate revocation guarantee. Local tests are not live CDN or
 playback proof. Contract and production gates: `knowledge-base/web10-v3/media-delivery.md`.
 
+Marketing/social media recovery binds exact returned URLs to an original
+allowlisted read, never to new signing authority. Social bindings capture SDK
+API/state-token/cookie and identity generation; public marketing bindings capture
+generation before dispatch. Both fence pathname, while query playback-position
+updates retain continuity. Four recovery reads may run, 64 may queue; a 15-second
+UI timeout never releases an underlying live request slot. Shared images/native
+video/full and immersive HLS retain delayed scope/pause/seek guards, and inactive
+or off-screen automatic video releases transport. Optional People row enrichment
+uses six ordered workers, not a claimed query batch. Production public media was
+observed active on 05.11.2026 with 60-second direct capabilities; defaults stay
+disabled and physical-phone/connected/review/rollout gates remain separate.
+Coverage and renderer ownership: `knowledge-base/strategy/media-reliability.md`.
+
 Direct `POST /v3/media/read-url` refresh is owner-only: the key must stay in the
 verified caller's exact `username/` namespace, including unconfirmed uploads.
 Foreign viewers obtain fresh media URLs through authorized document/group reads;
