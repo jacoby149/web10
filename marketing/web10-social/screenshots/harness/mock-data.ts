@@ -273,10 +273,25 @@ export async function createGroupCollection(): Promise<string> {
   return 'web10/groups/users/nova/saved-synthwave-sessions-new';
 }
 export async function readCollection(): Promise<unknown> {
+  // An audio post with cover art + title + a long caption — the 05.11.2026
+  // operator shape that rendered the post text twice on the wall tile (the
+  // centered card face AND the bottom caption overlay). The fixture lives here
+  // (not in PROFILE_POSTS) so the profile wall keeps its own seed.
+  const savedAudioPost = {
+    _id: 'ps-audio',
+    author_username: 'me',
+    author_provider: 'web10',
+    title: 'Greensleeves — Werren Rath',
+    text: 'Hello, original session from the Century Club, cut last winter.',
+    created_at: minsAgo(800),
+    tags: ['music'],
+    media_refs: ['pf-audio-saved'],
+  };
   const posts = [
     { _id: 'sc-1', postId: 'pp-1', savedAt: minsAgo(120), unavailable: false, post: PROFILE_POSTS[0] },
     { _id: 'sc-2', postId: 'pp-2', savedAt: minsAgo(300), unavailable: false, post: PROFILE_POSTS[1] },
     { _id: 'sc-3', postId: 'pp-3', savedAt: minsAgo(500), unavailable: false, post: PROFILE_POSTS[2] },
+    { _id: 'sc-4', postId: 'ps-audio', savedAt: minsAgo(800), unavailable: false, post: savedAudioPost },
   ];
   // Resolve the posts' media so the wall renders real tiles (not text-only).
   const mediaMap: Record<string, unknown> = {};
@@ -1694,6 +1709,9 @@ const PROFILE_MEDIA: Record<string, Record<string, unknown>> = {
   'pf-media-2': { ...creative('VERTICAL', 720, 1280, '#7c3aed', '#4c1d95'), _id: 'pf-media-2' },
   'pf-media-3': { ...creative('STILL', 1000, 1000, '#a78bfa', '#1e1b4b', 'image/png'), _id: 'pf-media-3' },
   'pf-audio': { ...MUSIC_TRACKS[0].media, _id: 'pf-audio', thumbnail_url: undefined },
+  // The saved-collection audio fixture's media (the cover-art variant —
+  // `pf-audio` deliberately keeps no thumbnail for the note-fallback shot).
+  'pf-audio-saved': { ...MUSIC_TRACKS[1].media, _id: 'pf-audio-saved' },
 };
 
 const PROFILE_POSTS = [
