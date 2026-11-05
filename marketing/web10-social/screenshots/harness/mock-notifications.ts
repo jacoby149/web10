@@ -6,6 +6,9 @@ export type NotificationType =
   | 'reaction'
   | 'comment'
   | 'reply'
+  | 'post_mention'
+  | 'comment_mention'
+  | 'mention_reply'
   | 'dm'
   | 'follow_request'
   | 'group_join';
@@ -22,6 +25,11 @@ export interface Notification {
 const minsAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
 
 const items: Notification[] = [
+  ...(new URLSearchParams(window.location.search).has('people-tags') ? [
+    { id: 'tag-post', type: 'post_mention' as const, from: 'nova', ref_doc_id: 'post-2', read: false, created_at: minsAgo(1) },
+    { id: 'tag-comment', type: 'comment_mention' as const, from: 'carol', ref_doc_id: 'comment-2', read: false, created_at: minsAgo(3) },
+    { id: 'tag-reply', type: 'mention_reply' as const, from: 'bob', ref_doc_id: 'reply-2', read: false, created_at: minsAgo(5) },
+  ] : []),
   { id: 'n1', type: 'reaction', from: 'bob', ref_doc_id: 'post-1', read: false, created_at: minsAgo(2) },
   { id: 'n2', type: 'comment', from: 'carol', ref_doc_id: 'post-1', read: false, created_at: minsAgo(15) },
   { id: 'n3', type: 'dm', from: 'dave', read: true, created_at: minsAgo(180) },
@@ -50,6 +58,7 @@ export async function markRead(_id: string): Promise<void> {
 export async function initNotifications(): Promise<void> {}
 export function teardownNotifications(): void {}
 export async function recordNotification(_n: unknown): Promise<void> {}
+export function sendNotification(): void { /* Screenshot fixtures never contact peers. */ }
 
 // The deep-link resolvers (the screen imports them for the clickable rows).
 // Same mapping as the real module — the harness rows render clickable.

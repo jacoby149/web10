@@ -65,6 +65,34 @@ screenshots at 1440×900 and 375×812.
   `capture.mjs`.
 - Want different seed content → edit `PEERS` in `harness/mock-data.ts`.
 
+## People-tag autocomplete matrix
+
+The self-booting real-UI matrix covers Posts/Following, Discover, Video/watch,
+Shorts, Music-native comments, profile/group feeds, post detail and the caption
+editor at desktop and 375px. It selects and submits tags using mouse/touch,
+checks focus/caret and menu bounds, exercises reply/edit targets, and replaces
+an already selected caption tag without keeping its old recipient. The data
+is isolated screenshot fixtures; this is not production or connected P2P.
+
+```bash
+SCREENSHOT_OUTPUT_DIR="$PWD/../../.context/mentions" node screenshots/mentions-smoke.mjs
+# Optional narrow picker iteration:
+MENTIONS_SURFACE=caption SCREENSHOT_OUTPUT_DIR="$PWD/../../.context/mentions" node screenshots/mentions-smoke.mjs
+```
+
+The separate API floor creates and removes only its own disposable ClickHouse
+24.8 container. It runs actual FastAPI signup/login/CRUD/query and the exact
+three source notification queries, public non-member and private/revoked
+controls, directory visibility and removed-parent-tag recovery. No storage
+uploads, app-consent/browser authentication, P2P or production connections.
+Run from `api/`:
+
+```bash
+PYTHONPATH=. uv run --frozen python ../marketing/web10-social/screenshots/mentions-api.py
+```
+
+The receipt lands in `.context/mentions-api-receipt.json` after verified cleanup.
+
 ## Discover identity-loading captures
 
 For Posts (`--route /hot-gossip`) or Video (`--route /video`),

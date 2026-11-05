@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useState, useEffect } from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import '@testing-library/jest-dom';
 import { lucideMock } from './helpers/lucideMock';
@@ -350,6 +350,26 @@ describe('notification deep links (row click → the place the event is about)',
   });
 
   const now = () => new Date().toISOString();
+
+  it.each(['post_mention', 'comment_mention', 'mention_reply'] as const)('opens a %s alert under current read authority and marks only that row read', async (type) => {
+    mockState = { unread: 1, items: [{ id: 'tag-event', type, from: 'bob', ref_doc_id: 'source', read: false, created_at: now() }] };
+    readByIdMock.mockImplementation(async (id: string) => ({ doc_id: id, author_key: 'bob', ref_value: 'parent', body: { text: '@me', post_id: 'post' }, created_at: now() }));
+    renderNotificationNav();
+    expect(screen.getByTestId('notification-row')).toHaveTextContent(type === 'mention_reply' ? "replied to a comment you're tagged in" : `tagged you in a ${type === 'post_mention' ? 'post' : 'comment'}`);
+    fireEvent.click(screen.getByTestId('notification-row'));
+    await waitFor(() => expect(screen.getByTestId('nav-probe')).toHaveTextContent(type === 'post_mention' ? '/u/bob/p/source' : '/u/bob/p/post?comment=source'));
+    expect(markReadMock).toHaveBeenCalledWith('tag-event');
+  });
+
+  it('does not navigate or mark a tag alert read if access has been revoked', async () => {
+    mockState = { unread: 1, items: [{ id: 'tag-event', type: 'post_mention', from: 'bob', ref_doc_id: 'private', read: false, created_at: now() }] };
+    readByIdMock.mockRejectedValue(new Error('403'));
+    renderNotificationNav();
+    fireEvent.click(screen.getByTestId('notification-row'));
+    await waitFor(() => expect(readByIdMock).toHaveBeenCalled());
+    expect(markReadMock).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('nav-probe')).toBeNull();
+  });
 
   it('a reaction row opens the post permalink on my profile', () => {
     mockState = {

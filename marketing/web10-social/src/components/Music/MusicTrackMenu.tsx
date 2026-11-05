@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Link } from 'react-router-dom';
-import { Bookmark, Check, ListMusic, ListPlus, Share2, SkipForward, UserRound, X } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { Bookmark, Check, ListMusic, ListPlus, MessageCircle, Share2, SkipForward, UserRound, X } from 'lucide-react';
 import type { MusicTrack } from '@/data';
 import { Button } from '@/components/ui/button';
 import { musicTitle, musicArtist } from '@/data/musicTrack';
@@ -22,6 +22,9 @@ interface Props {
 }
 
 export default function MusicTrackMenu({ track, saved, signedIn, disabled, message, onClose, onNext, onQueue, onSave, onPlaylist, onShare }: Props) {
+  const location = useLocation();
+  const comments = new URLSearchParams(location.pathname === '/music' ? location.search : '');
+  comments.set('track', track.post._id || ''); comments.set('panel', 'comments'); comments.delete('menu');
   const panel = useRef<HTMLDivElement>(null);
   const close = useRef(onClose);
   close.current = onClose;
@@ -63,6 +66,7 @@ export default function MusicTrackMenu({ track, saved, signedIn, disabled, messa
           <Button variant="ghost" className={actionClass} disabled={disabled} onClick={onSave}>{saved ? <Check className="h-5 w-5 text-brand-300" /> : <Bookmark className="h-5 w-5 text-muted-foreground" />}{saved ? 'Remove from Saved Music' : 'Save to Saved Music'}</Button>
         </>}
         <Button variant="ghost" className={actionClass} onClick={onShare}><Share2 className="h-5 w-5 text-muted-foreground" />Share track</Button>
+        <Button variant="ghost" className={actionClass} asChild><Link to={`/music?${comments}`} onClick={onClose}><MessageCircle className="h-5 w-5 text-muted-foreground" />Comments</Link></Button>
         <Button variant="ghost" className={actionClass} asChild><Link to={artistLink} onClick={onClose}><UserRound className="h-5 w-5 text-muted-foreground" />Go to artist</Link></Button>
       </div>
     </div>

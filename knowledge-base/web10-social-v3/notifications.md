@@ -66,6 +66,66 @@ as a plain list item, not a dead button.
 
 ## The Model (D69)
 
+### People tags in posts and comments
+
+Typing `@username` in a post caption or comment tags that local-node account.
+The existing `@[username](web10:username)` markdown link is equivalent. Code,
+email addresses and ordinary links are not tags. Repeated tags count once.
+The stored text remains portable markdown; `mention_usernames` is an app-owned,
+derived array used to find matching documents through the ordinary query gate.
+
+When Bob publishes a caption tagging Alice, Alice gets a **tagged you in a
+post** alert. A comment tagging her produces **tagged you in a comment**.
+A direct reply to that comment produces **replied to a comment you're tagged
+in**, even if the reply does not repeat her handle. This does not subscribe
+her to all comments on a tagged post or to every descendant in a thread.
+Self-tags do not alert; each source document has its own stable event key.
+Edits recompute the index but do not send another live publication alert.
+
+**Authoring is shared across surfaces.** The people picker opens on `@` in
+caption/repost editors and every social comment, reply and edit input. It shows
+readable names, handles and optional avatars; typing narrows the list. Keyboard
+arrows/Enter/Tab and touch choose the exact account, Escape dismisses, and only
+the token at the caret is replaced. Code, email and ordinary link contexts do
+not open suggestions. Loading, empty, failed/retry and missing-avatar states
+are distinct; stale queries cannot overwrite the current draft's suggestions.
+Picker implementation/format: [rich-text.md](../web10-v3/social/rich-text.md).
+
+| Surface | Authoring/read path |
+|---|---|
+| Posts / Following / Discover | social PostActions → shared CommentThread → shared picker input |
+| Video / watch | social CommentThread, same reply/edit composer and picker |
+| Shorts | same thread inside the scrollable comment sheet; picker portal escapes clipping |
+| Music | track menu/player → `/music?track={id}&panel=comments`; same source-post thread, not a separate music conversation |
+| Profile / group feeds | PostActions; grid/media post detail uses CommentThread |
+| Personal / group post permalink | PostDetail → CommentThread; source author still owns the destination |
+| New / edit / repost caption | shared Tiptap picker adapter; selected handles serialize as `web10:` links |
+
+Music comments preserve the current player/queue and browser history. An
+anonymous reader can read the conversation but must sign in to write. Clicking
+tags uses in-app profile navigation where the surface supplies it rather than
+reloading the active player. A highlighted comment outside the first page loads
+its authorized ancestor path (bounded to 32, same owning post, no cycles) and
+merges with later pages without duplicate rows. `body.post_id` owns a reply's
+post attribution; `ref_value` remains its immediate parent, not its post ID.
+
+These alerts use D69: a successful create sends a content-free P2P nudge;
+the recipient validates the source through CRUD before displaying it. Offline
+recovery queries matching posts/comments and direct replies across the reader's
+groups plus public Discover (the newest 100 distinct candidates per type).
+Deferred upload publication carries the same index; the browser nudges when it
+observes publication, or the recipient recovers it from their next read if the
+publishing browser is closed. A tag never grants membership or read access and
+never copies content into the recipient's group. Opening an alert re-reads the
+source and post, then navigates to the personal/group post permalink with the
+specific comment highlighted. Deleted or unreadable sources do not navigate.
+The index applies to writes through the updated social data layer; no historical
+backfill, OS push notification or cross-node tag routing is implied. The local
+real-UI browser matrix uses synthetic data. A separate disposable real
+FastAPI/ClickHouse floor verifies directory visibility, source SQL, public reads,
+private grant/revocation and removed-parent-tag behavior. These are complementary
+receipts, not a connected browser-auth/P2P or production rollout receipt.
+
 Notifications are not a core protocol concept. They're **derived events**:
 "something happened that targets me." The app derives the *list* by reading
 the writes it can already read, and the *real-time nudge* rides the existing

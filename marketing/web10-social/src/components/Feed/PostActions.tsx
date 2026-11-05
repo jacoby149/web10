@@ -6,6 +6,8 @@
 // createThreadComment (top-level or reply), and the comment-like writer.
 import { readThreadComments, readThreadReplies, createThreadComment, toggleReactionKind, updateComment, deleteComment } from '@/data';
 import { useActingAuthor } from '@/data/actingIdentity';
+import { renderMentionInput } from '@/components/shared/MentionInput';
+import { readCommentAnchor } from '@/data/comments';
 import {
   PostActions as SharedPostActions,
   type PostActionsProps,
@@ -20,6 +22,8 @@ export function PostActions(props: LegacyPostActionsProps) {
   return (
     <SharedPostActions
       {...props}
+      renderCommentInput={renderMentionInput}
+      readCommentAnchor={readCommentAnchor}
       actionIdentity={identity}
       readComments={readThreadComments}
       readReplies={readThreadReplies}

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ArrowUpRight, Bookmark, Disc3, Headphones, ListMusic, MoreVertical, Music, Pause, Play, Plus, Repeat, Repeat1, Search, Share2, Shuffle, SkipBack, SkipForward, X } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, ArrowUpRight, Bookmark, Disc3, Headphones, ListMusic, MessageCircle, MoreVertical, Music, Pause, Play, Plus, Repeat, Repeat1, Search, Share2, Shuffle, SkipBack, SkipForward, X } from 'lucide-react';
 import MusicTrackMenu from './MusicTrackMenu';
 import MusicArtwork from './MusicArtwork';
 import { musicTitle as title, musicArtist as artist } from '@/data/musicTrack';
@@ -11,6 +11,8 @@ import { useMusic } from '@/context/MusicContext';
 import { useSave } from '@/context/SaveContext';
 import { getWapi, readMusicPage, readMusicCollection, readMusicTrack, getMyCollections, readSavedPostIds, findSavedMusicCollection, toggleSavedMusic, createCollection, setCollectionVisibility, type MusicTrack } from '@/data';
 import type { CollectionRecord } from '@/data/saved';
+import { CommentThread } from '@/components/Feed/CommentThread';
+import { PostBody } from '@/components/Feed/PostBody';
 
 const focus = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
 const postLink = (track: MusicTrack) => track.post.author_key?.includes('/groups/')
@@ -252,18 +254,18 @@ export default function MusicScreen() {
     {linkError && <p role="alert" className="mb-4 text-sm text-danger">{linkError} <Button variant="ghost" onClick={() => change({ track: null, panel: null })}>Back to music</Button></p>}
 
     {panel ? <section aria-label="Now playing" className="grid gap-8 lg:grid-cols-2">
-      {panel === 'queue' && <Button variant="ghost" className="h-11 w-fit gap-2 lg:hidden" onClick={() => change({ panel: 'player' })}><ArrowLeft className="h-4 w-4" />Back to player</Button>}
-      <div className={panel === 'queue' ? 'hidden lg:block' : ''}><Button variant="ghost" className="mb-4 h-11 gap-2" onClick={() => change({ panel: null })}><ArrowLeft className="h-4 w-4" />Back to browsing</Button>
+      {(panel === 'queue' || panel === 'comments') && <Button variant="ghost" className="h-11 w-fit gap-2 lg:hidden" onClick={() => change({ panel: 'player' })}><ArrowLeft className="h-4 w-4" />Back to player</Button>}
+      <div className={panel === 'queue' || panel === 'comments' ? 'hidden lg:block' : ''}><Button variant="ghost" className="mb-4 h-11 gap-2" onClick={() => change({ panel: null })}><ArrowLeft className="h-4 w-4" />Back to browsing</Button>
         {current ? <><Artwork track={current} className="mx-auto w-56 sm:w-64" /><div className="mt-4 text-center"><p className="text-xs uppercase tracking-widest text-brand-300">Now playing</p><h2 className="mt-2 font-display text-2xl">{title(current)}</h2><p className="mt-1 text-sm text-muted-foreground">{artist(current)}</p></div>
           <div className="mx-auto mt-6 max-w-sm"><label className="sr-only" htmlFor="full-music-seek">Playback position</label><input id="full-music-seek" type="range" min="0" max={music.duration || 0} value={Math.min(music.currentTime, music.duration)} disabled={!music.duration} onChange={e => music.seek(Number(e.target.value))} className={cn('h-11 w-full accent-brand disabled:opacity-40', focus)} /><div className="flex justify-between text-xs tabular-nums text-muted-foreground"><span>{time(music.currentTime)}</span><span>{time(music.duration || current.media.duration_seconds || 0)}</span></div>
             <div className="my-4 flex items-center justify-center gap-3"><Button variant="ghost" size="icon" aria-label="Shuffle" aria-pressed={music.shuffle} className={cn('h-11 w-11', music.shuffle && 'text-brand-300')} onClick={music.toggleShuffle}><Shuffle className="h-5 w-5" /></Button><Button variant="ghost" size="icon" className="h-11 w-11" aria-label="Previous" onClick={music.previous}><SkipBack className="h-5 w-5" /></Button><Button variant="brand" size="icon" className="h-14 w-14 rounded-full" aria-label={music.isPlaying ? 'Pause track' : 'Play track'} data-testid="music-player-toggle" onClick={music.toggle}>{music.isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}</Button><Button variant="ghost" size="icon" className="h-11 w-11" aria-label="Next" onClick={music.next}><SkipForward className="h-5 w-5" /></Button><Button variant="ghost" size="icon" className={cn('h-11 w-11', music.repeat !== 'off' && 'text-brand-300')} aria-label={`Repeat: ${music.repeat}`} onClick={music.cycleRepeat}>{music.repeat === 'one' ? <Repeat1 className="h-5 w-5" /> : <Repeat className="h-5 w-5" />}</Button></div>
-            <div className="flex justify-center">{actions(current)}</div><Link to={postLink(current)} className={cn('mt-3 flex h-11 items-center justify-center gap-2 rounded text-sm text-muted-foreground hover:text-foreground', focus)}>Open original post<ArrowUpRight className="h-4 w-4" /></Link>
+            <div className="flex justify-center">{actions(current)}<Button variant="ghost" className="h-11 gap-2" onClick={() => change({ panel: 'comments' })}><MessageCircle className="h-4 w-4" />Comments</Button></div><Link to={postLink(current)} className={cn('mt-3 flex h-11 items-center justify-center gap-2 rounded text-sm text-muted-foreground hover:text-foreground', focus)}>Open original post<ArrowUpRight className="h-4 w-4" /></Link>
           </div></> : <p className="rounded border border-border p-8 text-muted-foreground">Choose a track to start listening.</p>}
       </div>
-      <div className={cn('rounded-lg border border-border bg-surface p-4 sm:p-6', panel !== 'queue' && 'hidden lg:block')}><div className="mb-4 flex items-center justify-between"><h2 className="font-display text-2xl">Your queue</h2><span className="text-xs text-muted-foreground">{music.queue.length} tracks</span></div><p className="mb-6 text-sm text-muted-foreground">Just this listening session. Your playlists stay unchanged.</p>
+      {panel === 'comments' ? current && <section data-testid="music-comments" className="min-w-0 rounded-lg border border-border bg-surface py-4"><header className="px-4 pb-4"><p className="text-xs text-brand-300">The conversation</p><h2 className="mt-2 font-display text-xl">{title(current)}</h2>{current.post.text && <PostBody text={current.post.text} density="light" className="mt-2" />}</header><MusicComments key={`${session}:${current.post._id}`} track={current} signedIn={signedIn} highlightedCommentId={params.get('comment') || undefined} /></section> : <div className={cn('rounded-lg border border-border bg-surface p-4 sm:p-6', panel !== 'queue' && 'hidden lg:block')}><div className="mb-4 flex items-center justify-between"><h2 className="font-display text-2xl">Your queue</h2><span className="text-xs text-muted-foreground">{music.queue.length} tracks</span></div><p className="mb-6 text-sm text-muted-foreground">Just this listening session. Your playlists stay unchanged.</p>
         {!music.queue.length && <p className="py-8 text-sm text-muted-foreground">Use Play next or Add to queue on any track.</p>}
         <ol className="space-y-2">{music.queue.map((track, index) => <li key={`${track.post._id}-${index}`} className={cn('flex items-center gap-3 rounded p-2', index === music.currentIndex ? 'bg-brand-muted' : 'hover:bg-elevated')}><span className="w-5 shrink-0 text-xs tabular-nums text-muted-foreground">{index + 1}</span><button onClick={() => music.playQueue(index)} className={cn('min-w-0 flex-1 rounded text-left', focus)}><span className="block truncate text-sm">{title(track)}</span><span className="block truncate text-xs text-muted-foreground">{artist(track)}</span></button><Button size="icon" variant="ghost" className="h-11 w-11 shrink-0" aria-label={`Remove from queue: ${title(track)}`} onClick={() => music.remove(index)}><X className="h-4 w-4" /></Button></li>)}</ol>
-      </div>
+      </div>}
     </section> : <>
       {view !== 'explore' && !signedIn ? <div className="rounded-lg border border-border bg-surface p-8"><h2 className="font-display text-2xl">A library of your own</h2><p className="mt-3 text-muted-foreground">Sign in to save music and build playlists with your web10 collections. You can explore and listen without an account.</p></div> : <>
         {view !== 'explore' && libraryError && <div role="alert" className="mb-4 text-sm text-danger">{libraryError}<Button variant="ghost" onClick={() => setLibraryVersion(v => v + 1)}>Retry library</Button></div>}
@@ -290,4 +292,10 @@ export default function MusicScreen() {
       </>}
     </>}
   </div>;
+}
+
+function MusicComments({ track, signedIn, highlightedCommentId }: { track: MusicTrack; signedIn: boolean; highlightedCommentId?: string }) {
+  const [count, setCount] = useState(track.post.comments || 0);
+  const navigate = useNavigate();
+  return <CommentThread postId={track.post._id!} isOpen count={count} onCountChange={setCount} groups={track.post.groups?.length ? track.post.groups : undefined} postAuthor={track.post.author_username} readOnly={!signedIn} highlightedCommentId={highlightedCommentId} onAuthorClick={username => navigate(`/u/${encodeURIComponent(username)}`)} />;
 }

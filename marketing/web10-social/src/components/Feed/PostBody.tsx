@@ -5,6 +5,8 @@ import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import { LinkEmbed } from './LinkEmbed';
 import { isEmbeddable, parseEmbed } from '@/lib/linkEmbeds';
 import { cn } from '@/lib/utils';
+import { remarkMentions } from '@web10/discover/mentions';
+import { Link, useInRouterContext } from 'react-router-dom';
 
 /**
  * The post body renderer (D85, rich-text.md "The read side"): a post's `text`
@@ -74,21 +76,22 @@ const DISPLAY = 'font-display font-medium tracking-tight';
  * `web10:` scheme is not an http(s) URL, so `parseEmbed` returns the external
  * fallback, which we map to the profile route instead).
  */
+function ProfileMentionLink({ username, children }: { username: string; children: React.ReactNode }) {
+  const routed = useInRouterContext();
+  const props = { className: 'text-brand-300 font-medium hover:underline', 'data-testid': 'post-body-mention' };
+  const href = `/u/${encodeURIComponent(username)}`;
+  return routed ? <Link to={href} {...props}>{children}</Link> : <a href={href} {...props}>{children}</a>;
+}
+
 function BodyLink({ href, children }: { href?: string; children?: React.ReactNode }) {
   if (!href) return <>{children}</>;
   // A web10 mention: @[username](web10:username) → a tappable handle.
   if (href.startsWith('web10:')) {
     const username = href.slice('web10:'.length);
-    return (
-      <a
-        href={`/u/${encodeURIComponent(username)}`}
-        className="text-brand-300 font-medium hover:underline"
-        data-testid="post-body-mention"
-      >
-        @{username}
-      </a>
-    );
+    return <ProfileMentionLink username={username}>@{username}</ProfileMentionLink>;
   }
+  const person = /^\/u\/([a-zA-Z0-9_-]+)$/.exec(href);
+  if (person) return <ProfileMentionLink username={person[1]}>{children}</ProfileMentionLink>;
   const embed = parseEmbed(href);
   if (embed && isEmbeddable(embed)) {
     return (
@@ -215,7 +218,7 @@ export function PostBody({ text, density = 'full', className }: PostBodyProps) {
       data-testid="post-body"
     >
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkBreaks]}
+        remarkPlugins={[remarkGfm, remarkBreaks, remarkMentions]}
         rehypePlugins={[[rehypeSanitize, sanitizeSchema]]}
         urlTransform={postUrlTransform}
         components={light ? lightComponents : fullComponents}
@@ -265,7 +268,7 @@ export function PostBodyInline({ text, className }: PostBodyInlineProps) {
   return (
     <span className={cn('post-body text-foreground break-words', className)} data-testid="post-body-inline">
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkBreaks]}
+        remarkPlugins={[remarkGfm, remarkBreaks, remarkMentions]}
         rehypePlugins={[[rehypeSanitize, sanitizeSchema]]}
         urlTransform={postUrlTransform}
         components={inlineComponents}

@@ -8,6 +8,7 @@ import { getActingAuthor, matchesActingAuthor } from './actingIdentity';
 import { resolveFaceMedia, GROUP_FACE_SQL } from '@web10/discover/face';
 import { readReactionDocuments } from './reactions';
 import { readMutationAuthority } from './mutationAuthority';
+import { mentionedUsernames } from './mentions';
 
 // ── Comments data layer (v3) ─────────────────────────────────────────────────
 // The threading model (comments.md) — the Facebook/Instagram shape:
@@ -149,6 +150,7 @@ export async function createComment(
 
   const body: Record<string, unknown> = {
     text: comment.text,
+    mention_usernames: mentionedUsernames(comment.text),
     post_id: comment.post_id,
     parent_id: comment.parent_id,
     author_username: token.username,
@@ -167,6 +169,9 @@ export async function createComment(
   const refValue = comment.parent_id || comment.post_id;
   if (!targetGroups.length) throw new Error('This comment has no authorized destination. Reload the post and try again.');
   const doc = await w.create('comments', body, { groups: targetGroups, ref_value: refValue, ...(authorAs ? { author_as: authorAs } : {}) });
+  for (const username of mentionedUsernames(comment.text)) {
+    sendNotification({ username, provider: token.provider }, { type: 'comment_mention', from: authorAs || token.username, ref_doc_id: doc.doc_id });
+  }
   // The write side (D69): nudge the right author (best-effort, fire-and-forget —
   // a resolve failure never affects the comment). A reply (parent_id set) →
   // the comment author; a top-level comment → the post author. The target
@@ -177,6 +182,9 @@ export async function createComment(
   if (comment.parent_id) {
     w.readById(comment.parent_id, 'comments')
       .then((c) => {
+        for (const username of mentionedUsernames((c.body as Record<string, unknown>).text as string | undefined)) {
+          sendNotification({ username, provider: token.provider }, { type: 'mention_reply', from: authorAs || token.username, ref_doc_id: doc.doc_id });
+        }
         const author = extractUsername(c.author_key);
         if (author) {
           sendNotification(
@@ -217,6 +225,7 @@ export async function updateComment(
   const w = getV3Client();
   const body: Record<string, unknown> = {};
   if (updates.text !== undefined) body.text = updates.text;
+  if (updates.text !== undefined) body.mention_usernames = mentionedUsernames(updates.text);
   if (updates.parent_id !== undefined) body.parent_id = updates.parent_id;
 
   const existing = await w.readById(id, 'comments');
@@ -427,6 +436,24 @@ export async function createThreadComment(args: {
 }
 
 // ── Comment photo upload (comments.md "Photos in comments") ──────────────────
+
+/** Bounded authorized ancestor path for off-page notification/deep-link targets. */
+export async function readCommentAnchor(postId: string, commentId: string): Promise<ThreadComment[]> {
+  const w = getV3Client();
+  const path: CommentRecord[] = [];
+  const seen = new Set<string>();
+  let id = commentId;
+  while (id && !seen.has(id) && path.length < 32) {
+    seen.add(id);
+    const raw = await w.readById(id, 'comments');
+    const comment = fromV3DocToComment(raw);
+    if (comment.post_id !== postId) throw new Error('Comment belongs to another post');
+    path.unshift(comment);
+    if (raw.ref_value === postId) return path.map(item => ({ ...item, media: commentMedia(item) }));
+    id = raw.ref_value || comment.parent_id || '';
+  }
+  throw new Error('Comment path is unavailable');
+}
 
 /**
  * Upload one comment photo through the standard media pipeline and return its

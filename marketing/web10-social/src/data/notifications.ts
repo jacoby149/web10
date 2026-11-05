@@ -22,9 +22,10 @@
 // badge, with no node table.
 
 import { getV3Client } from './v3';
-import { followersGroupId, ensureFollowers, getMyGroups } from './groups';
+import { followersGroupId, ensureFollowers, getMyGroups, getDiscoverGroupId } from './groups';
 import { extractUsername, fromV3DocToComment, fromV3DocToPost } from './types';
 import { onP2PInbound, sendP2P, type P2PInboundConn } from './p2p';
+import { isMentionNotification, readMentionNotifications, resolveMentionNotification } from './mentionNotifications';
 
 const LOG = (...args: unknown[]) => console.log('[notifications]', ...args);
 const LOG_ERR = (...args: unknown[]) => console.error('[notifications]', ...args);
@@ -37,6 +38,9 @@ export type NotificationType =
   | 'reaction'
   | 'comment'
   | 'reply'
+  | 'post_mention'
+  | 'comment_mention'
+  | 'mention_reply'
   | 'follow_request'
   | 'group_join';
 
@@ -159,6 +163,7 @@ export function sendNotification(
   const token = getV3Client().readToken();
   const from = n.from || token?.username || '';
   if (from && from === target.username) return; // no self-notification
+  if (isMentionNotification(n.type) && token?.username === target.username) return;
   const payload: NudgePayload = {
     type: n.type,
     from,
@@ -166,7 +171,8 @@ export function sendNotification(
     sent_at: new Date().toISOString(),
   };
   LOG('sendNotification —', n.type, 'to', `${target.provider}/${target.username}`, 'from', from);
-  sendP2P(target.provider, target.username, payload);
+  try { sendP2P(target.provider, target.username, payload); }
+  catch (error) { LOG_ERR('nudge failed (action is already saved):', error); }
 }
 
 type NotificationListener = () => void;
@@ -176,6 +182,7 @@ let items: Notification[] = [];
 const listeners = new Set<NotificationListener>();
 let inboundUnsub: (() => void) | null = null;
 let initialized = false;
+let generation = 0;
 
 function notify(): void {
   for (const l of listeners) {
@@ -222,6 +229,9 @@ function isNudge(data: unknown): data is NudgePayload {
     t === 'reaction' ||
     t === 'comment' ||
     t === 'reply' ||
+    t === 'post_mention' ||
+    t === 'comment_mention' ||
+    t === 'mention_reply' ||
     t === 'follow_request' ||
     t === 'group_join'
   );
@@ -258,6 +268,16 @@ function appendNudge(n: NudgePayload): void {
 // The app-wide P2P inbound handler: a nudge bumps the badge from any screen.
 function onInbound(_conn: P2PInboundConn, data: unknown): void {
   if (!isNudge(data)) return; // a DM message nudge — DmsScreen's, not ours
+  if (isMentionNotification(data.type)) {
+    const token = getV3Client().readToken();
+    const current = generation;
+    if (!token || typeof data.ref_doc_id !== 'string' || !data.ref_doc_id) return;
+    void resolveMentionNotification(data.type, data.ref_doc_id, token.username).then((item) => {
+      if (!item || current !== generation || !initialized) return;
+      appendNudge({ ...item, sent_at: item.created_at });
+    });
+    return;
+  }
   LOG('inbound nudge:', JSON.stringify(data));
   appendNudge(data);
 }
@@ -471,6 +491,8 @@ async function deriveNotifications(): Promise<Notification[]> {
     // Best-effort.
   }
 
+  out.push(...await readMentionNotifications([...new Set([...groupIds, getDiscoverGroupId()])], me));
+
   // DMs are NOT derived here — they have their own unread badge on the
   // Messages icon (messagesUnread.ts), not the notifications bell. The
   // operator's call: "messages in the notifications is crazy, better if a
@@ -510,10 +532,12 @@ async function deriveNotifications(): Promise<Notification[]> {
 // Best-effort — a failure leaves the store as-is (live nudges still append),
 // never throws.
 async function seed(): Promise<void> {
+  const current = generation;
   const token = getV3Client().readToken();
   if (!token) return;
   try {
     const [derived, cursor] = await Promise.all([deriveNotifications(), readCursor()]);
+    if (current !== generation || !initialized) return;
     // Apply the cursor: an event is read if it happened at/before last_seen,
     // OR the user opened that specific row (its key is in read_keys).
     const readKeySet = new Set(cursor.readKeys);
@@ -532,7 +556,7 @@ async function seed(): Promise<void> {
     const liveOnly = items.filter(
       (it) => !derivedKeys.has(`${it.type}:${it.from}:${it.ref_doc_id || ''}`),
     );
-    items = [...liveOnly, ...seeded];
+    items = [...liveOnly, ...seeded].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     LOG('seed — derived', seeded.length, 'notification(s), unread:', unreadCount());
     notify();
   } catch (e) {
@@ -586,6 +610,7 @@ export async function markAllRead(): Promise<void> {
  * items so a subsequent sign-in as a different user starts clean.
  */
 export function teardownNotifications(): void {
+  generation++;
   if (inboundUnsub) {
     inboundUnsub();
     inboundUnsub = null;

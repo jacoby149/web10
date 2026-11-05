@@ -33,6 +33,7 @@ export default defineConfig({
       // barrel. Must precede the barrel alias (string-prefix match).
       '@web10/discover/face': path.resolve(__dirname, '../shared/discover/src/face.ts'),
       '@web10/discover/audio-artwork': path.resolve(__dirname, '../shared/discover/src/audioArtwork.ts'),
+      '@web10/discover/mentions': path.resolve(__dirname, '../shared/discover/src/mentions.ts'),
       '@web10/discover': path.resolve(__dirname, '../shared/discover/src/index.ts'),
     },
   },

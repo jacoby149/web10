@@ -75,9 +75,25 @@ export interface CommentNode extends CommentItem {
   hasMoreReplies: boolean;
 }
 
+/** A deep-link path can precede its normal page; later paging must not duplicate it. */
+function mergeCommentNodes(current: CommentNode[], incoming: CommentNode[]): CommentNode[] {
+  const next = [...current];
+  for (const node of incoming) {
+    const index = next.findIndex(item => item._id === node._id);
+    if (index < 0) next.push(node);
+    else next[index] = { ...next[index], ...node, replies: mergeCommentNodes(next[index].replies, node.replies) };
+  }
+  return next;
+}
+
 // ── The thread ───────────────────────────────────────────────────────────────
 
 export interface CommentThreadProps {
+  readOnly?: boolean;
+  /** Load a highlighted comment and its ancestor path when outside the page. */
+  readAnchor?: (postId: string, commentId: string) => Promise<CommentItem[]>;
+  /** App-owned authoring UI (social injects its shared people-tag picker). */
+  renderInput?: (props: { value: string; onChange: (value: string) => void; disabled: boolean; placeholder: string; scope: string }) => React.ReactNode;
   actionIdentity?: string;
   postId: string;
   isOpen: boolean;
@@ -130,6 +146,9 @@ export interface CommentThreadProps {
 }
 
 export function CommentThread({
+  readOnly = false,
+  readAnchor,
+  renderInput,
   actionIdentity,
   postId,
   isOpen,
@@ -258,6 +277,7 @@ export function CommentThread({
   // groups; the array itself is only read inside the callbacks (below), where
   // a fresh identity is harmless.
   const groupsKey = useMemo(() => (groups ? groups.join('\u0000') : ''), [groups]);
+  useEffect(() => { hasScrolled.current = false; commentRefs.current = {}; }, [postId, groupsKey, highlightedCommentId]);
   const engagementGeneration = useRef(0);
   useEffect(() => {
     setLoadingMore(false);
@@ -282,6 +302,23 @@ export function CommentThread({
           nodes = buildTree(page.comments);
         }
         if (cancelled) return;
+        if (highlightedCommentId && readAnchor) {
+          const contains = (list: CommentNode[]): boolean => list.some(node => node._id === highlightedCommentId || contains(node.replies));
+          if (!contains(nodes)) {
+            try {
+              const path = await readAnchor(postId, highlightedCommentId);
+              if (cancelled) return;
+              nodes = [...nodes];
+              let siblings = nodes;
+              for (const comment of path) {
+                let node = siblings.find(item => item._id === comment._id);
+                if (!node) { node = toNode(comment); siblings.push(node); }
+                siblings = node.replies;
+              }
+            } catch (error) { console.warn('[discover:comments] highlighted path unavailable', error); }
+          }
+        }
+        if (cancelled) return;
         setTopLevel(nodes);
         setTopCursor(page.nextCursor);
         onCountChange(countTree(nodes));
@@ -298,7 +335,7 @@ export function CommentThread({
     // `groupsKey` carries. The same guard the watch page applies to its post
     // load (stable primitives, never fresh objects).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, postId, groupsKey, actionIdentity]);
+  }, [isOpen, postId, groupsKey, actionIdentity, highlightedCommentId]);
 
   // Scroll to + flash the anchored comment once comments are loaded
   useEffect(() => {
@@ -438,7 +475,7 @@ export function CommentThread({
       }
       if (generation !== engagementGeneration.current) return;
       setTopLevel((prev) => {
-        const next = [...prev, ...nodes];
+        const next = mergeCommentNodes(prev, nodes);
         onCountChange(countTree(next));
         return next;
       });
@@ -467,7 +504,7 @@ export function CommentThread({
           n._id === parentId
             ? {
                 ...n,
-                replies: [...n.replies, ...nodes],
+                replies: mergeCommentNodes(n.replies, nodes),
                 replyCursor: page.nextCursor,
                 hasMoreReplies: page.nextCursor !== null,
               }
@@ -588,7 +625,7 @@ export function CommentThread({
               node={c}
               depth={0}
               highlightedCommentId={highlightedCommentId}
-              canWrite={!!createComment}
+              canWrite={!readOnly && !!createComment}
               setRef={setCommentRef}
               onReply={handleReply}
               canLike={onToggleCommentLike !== undefined}
@@ -624,7 +661,7 @@ export function CommentThread({
         </button>
       )}
 
-      {remote ? (
+      {readOnly ? <p className="py-3 text-sm text-muted-foreground">Sign in to join the conversation.</p> : remote ? (
         // Remote (marketing) mode: no session, so the compose is a link-out to
         // the post permalink on web10 social — not a dead input.
         <a
@@ -721,14 +758,16 @@ export function CommentThread({
                 <ImageIcon className="w-4 h-4" />
               </IconBtn>
             )}
-            <TextInput
+            {renderInput ? renderInput({ value: draft, onChange: setDraft, disabled: sending || busyId !== null,
+              placeholder: editing ? 'Edit your comment…' : replyingTo ? 'Write a reply…' : 'Add a comment…',
+              scope: `${postId}:${groupsKey}:${actionIdentity || ''}:${editing?._id || ''}:${replyingTo?._id || ''}` }) : <TextInput
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               placeholder={editing ? 'Edit your comment…' : replyingTo ? 'Write a reply…' : 'Add a comment…'}
               data-testid="comment-input"
               disabled={sending || busyId !== null}
               className="h-9"
-            />
+            />}
             {editing ? (
               <IconBtn
                 type="submit"
@@ -760,6 +799,7 @@ export function CommentThread({
             onChange={handleFileSelect}
             data-testid="comment-photo-input"
           />
+          <p className="mt-2 text-xs text-muted-foreground">Tag someone with @username</p>
         </form>
       )}
     </div>
@@ -904,7 +944,7 @@ function CommentNodeRow({ node, depth, highlightedCommentId, canWrite, setRef, o
                 'you'
               )}
             </span>
-            <span className="text-sm leading-relaxed text-foreground break-words"><MarkdownText text={node.text} /></span>
+            <span className="text-sm leading-relaxed text-foreground break-words"><MarkdownText text={node.text} onMentionClick={onAuthorClick} /></span>
           </div>
           {node.media && node.media.length > 0 && (
             <CommentMedia media={node.media} id={id} />

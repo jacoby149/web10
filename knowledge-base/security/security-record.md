@@ -15,6 +15,38 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## People-tag notification feature (05.11.2026) — bounded local, OPEN
+
+GPT-6.1 Sol adds app-owned local tags without changing API/SDK read authority.
+L1/L2 bounded review covers new tag extraction/rendering, mutation indexes,
+notification query/CRUD readers and their UI navigation. The index selects
+candidates only; current readable text determines whether the tag exists. New
+live nudges ignore the supplied actor/time and re-read canonical documents;
+unreadable sources, self-tags, stale indexes and cross-post reply parents are
+denied in local controls. Source-specific keys keep two replies independently
+readable. Code/email/link exclusions and sanitized profile links are tested.
+The real safe-query compiler accepts the indexed comments self-join and injects
+the existing readable-service CTE. No actual ClickHouse execution, two-account
+connected receipt, comprehensive L1–L4 PASS, diverse review or rollout claim.
+
+Autocomplete continuation: both comment entry paths and the caption adapter use
+the same picker. Directory paging stays on the existing readable directory;
+optional avatars use one author-scoped profile prepare, never viewer-owned media.
+Obsolete queries/IME/scope changes and code/email/link exclusions are controlled
+locally. Off-page anchors use normal per-document reads, same-post validation,
+cycle rejection and a 32-document bound. A source-mapper defect exposed by those
+tests is repaired: reply `body.post_id` precedes its parent `ref_value`.
+
+The disposable `screenshots/mentions-api.py` run now verifies actual source SQL
+on real ClickHouse 24.8 through FastAPI ASGI: readable directory, exact post,
+comment and two distinct reply rows, public non-member access, private denial,
+grant/revocation and parent-tag removal. Seven checks pass and the owned
+container is verified removed. The initial image-bootstrap restart race is
+handled; the existing `updated_at` schema-ensure warning remains in the log.
+This supersedes only the previous lack of actual-storage evidence. It is not
+browser app-contract/consent, connected P2P, comprehensive L1–L4 PASS, diverse
+review, production or rollout acceptance.
+
 ## Music artwork routing/selection (04.11.2026) — bounded local, OPEN
 
 GPT-6.1 Sol extends the existing preview URL mapping to query-based Music shares
