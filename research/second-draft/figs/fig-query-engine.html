@@ -147,7 +147,7 @@ GROUP BY p.id</div>
   <!-- tier 3: clickhouse -->
   <div class="ch"></div>
   <div class="chlabel">ClickHouse &mdash; the node&rsquo;s real tables</div>
-  <div class="chnote">the caller&rsquo;s SQL may not name any of these &mdash; the walk rejects them by name</div>
+  <div class="chnote">the caller&rsquo;s SQL may not reference these tables &mdash; the API rejects such queries before they run; that&rsquo;s what protects the data</div>
   <div style="position:absolute; left:84px; top:716px; display:flex; gap:8px;">
     <div class="chip">documents</div><div class="chip">doc_groups</div><div class="chip">group_members</div><div class="chip">group_contracts</div><div class="chip">app_contracts</div>
     <div class="chip">user_blacklist</div><div class="chip">group_blacklist</div><div class="chip">user_group_sharing</div><div class="chip">group_hidden_docs</div><div class="chip">banned_users</div><div class="chip">&hellip;</div>

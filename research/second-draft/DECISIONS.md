@@ -10,6 +10,19 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 05.11.2026
 
+### Figure B wording fix: "the API rejects such queries before they run; that's what protects the data"
+
+- **(operator)** "what does this mean the walk rejects them by name in the
+  query engine png, i dont like this pitchey language, it is the api logic
+  that rejects them, protects the data"
+- **(agent)** The ClickHouse strip's note named a data structure ("the
+  walk") as the actor and ended on the "by name" flourish. Now: "the
+  caller's SQL may not reference these tables — the API rejects such
+  queries before they run; that's what protects the data." The API is the
+  actor, the protection is the stated effect; the AST box above still
+  carries the mechanism (parse → walk → reject → round-trip). Re-rendered
+  and inspected; nothing else in the figure changed.
+
 ### Figure B (fig-query-engine) re-shot: the AST sits in the API, the app→SDK→API chain is visible, "THE BOUNDARY" is out
 
 - **(operator)** "the query engine figure is a little wrong though because

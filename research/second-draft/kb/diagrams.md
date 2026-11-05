@@ -130,8 +130,8 @@ engine builds over its own tables — `documents` deduped to the latest
 not-deleted row, joined to `doc_groups`, the reader's readable group
 IDs inlined from the read gate (`group_members` × `group_contracts` +
 class grants), the five exclusion tables in amber → a ClickHouse strip
-naming every real table the caller may not reach ("the walk rejects
-them by name").
+naming every real table the caller may not reach ("the API rejects such
+queries before they run; that's what protects the data").
 **Why that shape:** the plan was the two-pipeline contrast (broken
 output filter vs. boundary CTE); the operator's critique ("pitch
 figures, not how-it-works figures") moved it to the real mechanism —
