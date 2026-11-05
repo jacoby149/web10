@@ -138,7 +138,7 @@ attachments appear in Media. Audio tiles show cover art or a musical-note
 fallback and open the original post. The audio tile's card face is the post's
 single text zone: the title, with the caption under it when both exist
 (clamped — a second copy of the post text on the same tile was the 05.11.2026
-wall-overlap defect, 4.12.1); the bottom caption scrim is video/image tiles
+wall-overlap defect, 4.12.2); the bottom caption scrim is video/image tiles
 only, where the media fills the tile. Legacy profile `?tab=music` links resolve
 to `?tab=media`, preserving other URL parameters. The dedicated `/music`
 listening destination is unchanged.
