@@ -24,15 +24,46 @@ describe('music preview HTTP routing', () => {
         // group, so route on the service.
         if (body.service === 'web10-social-group-identity') {
           if (String(body.groups?.[0]).includes('secret')) { res.writeHead(403); res.end('[]'); return }
-          res.end(JSON.stringify([{ author_key: PLAYLIST, body: { name: 'Jazz Nights', kind: 'saved', visibility: 'public', avatar_ref: 'cover-1' } }])); return
+          // The face is a replace-on-write stream: created_at DESC, so the
+          // FIRST element is the latest face (the older, pre-rename doc —
+          // without the cover — must not win).
+          res.end(JSON.stringify([
+            { author_key: PLAYLIST, body: { name: 'Jazz Nights', kind: 'saved', visibility: 'public', avatar_ref: 'cover-1' } },
+            { author_key: PLAYLIST, body: { name: 'Old Jazz Nights', kind: 'saved', visibility: 'private' } },
+          ])); return
         }
         if (body.service === 'saved') {
-          res.end(JSON.stringify([{ doc_id: 's1' }, { doc_id: 's2' }])); return
+          // The real node shape: each saved doc carries the item's post id
+          // (the cover walk reads those posts — the media doc itself is NOT
+          // anon-readable).
+          res.end(JSON.stringify([
+            { doc_id: 's1', body: { post_id: 'cover-post' } },
+            { doc_id: 's2', body: { post_id: 'p2' } },
+          ])); return
+        }
+        if (body.doc_id === 'cover-post') {
+          // The public post that owns the cover media doc — its read resolves
+          // the media (fresh signed read/thumbnail URLs), the way the real
+          // node's post read does.
+          res.end(JSON.stringify({
+            author_key: CLUB, posted_by: 'nova',
+            body: {
+              title: 'Jazz track', text: 'A recording',
+              media_refs: [{
+                doc_id: 'cover-1', mime_type: 'audio/mpeg',
+                read_url: 'https://media.test/playlist-recording.mp3',
+                thumbnail_url: 'https://media.test/playlist-cover.webp',
+              }],
+            },
+          })); return
         }
         res.end(JSON.stringify({ author_key: CLUB, posted_by: 'nova', body: { title: 'Night Drive', text: 'A recording' } }))
       } else if (req.url === '/v3/media/thumbnail') {
-        if (body.doc_id === 'cover-1') res.end(JSON.stringify({ thumbnail: { url: 'https://media.test/playlist-cover.webp', is_video: false } }));
-        else res.end(JSON.stringify({ thumbnail: { url: 'https://media.test/album.webp', is_video: false } }))
+        // I3 on the real node: a media doc in the uploader's private
+        // namespace 404s for anon (the playlist cover's direct-call path);
+        // a PUBLIC POST's thumbnail resolves (the post-card path).
+        if (body.doc_id === 'cover-1') { res.writeHead(404); res.end('{"detail":"not found"}'); return }
+        res.end(JSON.stringify({ thumbnail: { url: 'https://media.test/album.webp', is_video: false } }))
       } else if (req.url === '/v3/preview/render') {
         res.setHeader('Content-Type', 'text/html')
         res.end(`<html>${JSON.stringify(body)}</html>`)
@@ -126,12 +157,23 @@ describe('music preview HTTP routing', () => {
     const result = await get(`/u/nova/saved/${encodeURIComponent(PLAYLIST)}`)
     expect(result.status).toBe(200)
     expect(result.html).toContain('"title":"Jazz Nights"')
-    expect(result.html).toContain('https://media.test/playlist-cover.webp')
+    // The NEWEST face doc wins (the older pre-rename doc is in the stream).
+    expect(result.html).not.toContain('Old Jazz Nights')
+    // The cover is the owning post's album art (playlist-cover.webp), NOT the
+    // recording, and NOT the brand mark (a direct media-doc thumbnail 404s
+    // for anon on the real node).
+    expect(result.html).toContain('"image":"https://media.test/playlist-cover.webp"')
+    expect(result.html).not.toContain('playlist-recording.mp3')
+    expect(result.html).not.toContain('keys-mark.png')
     expect(result.html).toContain('2 saved items')
     expect(result.html).toContain('by @nova')
     expect(result.html).toContain(`https://social.test/u/nova/saved/${encodeURIComponent(PLAYLIST)}`)
+    // face read → items read → the owning post read (the cover walk) → render.
     const services = calls.map(call => call.body.service).filter(Boolean)
-    expect(services).toEqual(['web10-social-group-identity', 'saved'])
+    expect(services).toEqual(['web10-social-group-identity', 'saved', 'posts'])
+    // The cover walk never calls /v3/media/thumbnail on the media doc (the I3
+    // 404 path) — the album art comes from the post read's resolved media.
+    expect(calls.some(call => call.path === '/v3/media/thumbnail')).toBe(false)
     expect(calls.every(call => !call.authorization)).toBe(true)
   })
 
