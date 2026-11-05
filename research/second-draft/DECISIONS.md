@@ -10,6 +10,71 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 05.11.2026
 
+### The two comparison figures get the VS framing: the matchup in the title, the named win on the verdict strip
+
+- **(operator)** "I think we should make clear in these diagrams these
+  are VS. versus diagrams, and what we got them beat on
+  web10 vs. Mastodon / Bluesky - web10 is the interoperability winner"
+- **(operator)** "same for the solid diagram with web10"
+- **(agent)** Both VS figures (fig-platforms = Figure 9, fig-composition =
+  Figure 8) now score the comparison:
+  1. **fig-platforms** — title "How a second app reads the user's data"
+     → "web10 vs Mastodon / Bluesky"; subtitle → "the interoperability
+     fork — where a second app's read of the user's data lands and runs";
+     a bottom verdict strip under the panels: left (blue) = what
+     Mastodon/Bluesky offer (a second app gets in through the user's
+     grants on its own data; the object model stays fixed; no shared
+     store to query across); right (green) = "WEB10 — THE
+     INTEROPERABILITY WINNER" (an app-to-app per-service grant: the snake
+     game holds a typed read on the social app's profile and joins it in
+     SQL — one shared columnar store; a new read pattern = a new query).
+     A VS badge between the cells.
+  2. **fig-composition** — same treatment: title "Where the composition
+     happens" → "web10 vs Solid"; subtitle → "the composition fork — the
+     same feed, composed in two different places"; left strip = Solid's
+     offer (one user per pod; "who's trending?" pulls the whole network
+     and it doesn't terminate at scale); right strip = "WEB10 — THE
+     COMPOSITION WINNER" (millions of users in one shared store per node;
+     discover/trending/ranking are ordinary queries that terminate).
+  3. **The verdict is not a new claim** — both lines are already asserted
+     by the panels: shot-0 beat 10's capability asymmetry (the
+     composition figure) and the 4.10.27 app-to-app vs. app-to-user-data
+     re-anchor (the platforms figure). The strip scores; it doesn't
+     argue.
+- **(agent)** New rule in kb/diagrams.md, superseding the old "no verdict
+  line: the comparison lives in the caption" note (operator's call,
+  05.11.2026): **comparison figures carry the verdict** — the title names
+  the matchup, the strip names what web10 beat on; the mechanism figures
+  (A/B) get no strip. Also repaired one stale kb line found while in
+  there: Figure 4's heading still carried the pre-4.10.28 title.
+
+### fig-platforms: a more accurate title, the API shown in action, the full service set (profile highlighted)
+
+- **(operator)** "Where the new app lives isnt such an accurate title.
+  also this doesnt show the web10 api in action, only showing
+  clickhouse ..... and the services are very underrepresented, social
+  app actually has way more services than that, can highlight the ones
+  that are interoperating in a different color perhaps though!"
+- **(agent)** Three fixes to fig-platforms:
+  1. **The title** — "Where the new app lives" (inaccurate) → "How a
+     second app reads the user's data"; subtitle → "two answers — with
+     and without a query engine on the node."
+  2. **The API shown in action** — the node card no longer shows only
+     ClickHouse. The API is now its own violet box ("the API — the query
+     engine (POST /v3/query): compiles the app's SQL against the
+     reader's grants, then runs it") sitting above the green ClickHouse
+     store. Violet = the enforcement family (the API), green = the store.
+  3. **The full service set** — the social app's services are no longer
+     "posts · profile." Its real dozen is shown (posts, comments,
+     reactions, profile, media, music, groups, …) and the interop one,
+     **profile**, is highlighted violet: "the violet one — profile — is
+     what the game and the marketplace are granted to read."
+     snake_scores + marketplace_listings are the new apps' own.
+- **(agent)** Grounded in the real repo: the service names come from
+  marketing/web10-social/src/data (posts, comments, reactions, profile,
+  media, saved, music, groups, contacts, notifications) — not invented.
+  Re-rendered and inspected.
+
 ### The method captures the proven order: shot 0 → figures (make, edit, add) → paper; and why the loop worked
 
 - **(operator)** "this is such a better wway to make a research paper,

@@ -1,6 +1,7 @@
 <!doctype html>
 <!--
-  Source for fig-platforms.png ("Where the new app lives").
+  Source for fig-platforms.png ("web10 vs Mastodon / Bluesky" — the
+  interoperability fork, VS framing 4.10.33).
   The extensibility fork, orthogonal to fig-composition (the composition
   fork vs. Solid). The axis: how a SECOND app reads and composes with
   EXISTING user data — and where its queries run.
@@ -22,12 +23,18 @@
     setup. The node provisions ClickHouse + the query engine; the app
     writes its own SELECT (the feed is ranked in SQL — feed.ts's
     buildFeedQuery — joins, aggregation, cursors) on day one, every read
-    enforced against the reader's grants. Each app defines its own services
-    (profile, snake_scores, marketplace_listings — the pinned interop
-    names); the game and the marketplace hold a typed per-service read on
-    the social app's profile; an ungranted app gets 403
-    (research/interoperability-demo). New read pattern = a new query, not a
-    new backend: a role and a policy.
+    enforced against the reader's grants. Each app defines its own
+     services in the store — the social app has a dozen (posts, comments,
+     reactions, profile, media, music, groups, …; profile is the one the
+     others read), plus the new apps' own (snake_scores,
+     marketplace_listings — the pinned interop names); the game and the
+     marketplace hold a typed per-service read on the social app's
+     profile; an ungranted app gets 403
+     (research/interoperability-demo). The node shows the API (the query
+     engine, POST /v3/query) compiling against the grants, then
+     ClickHouse — the columnar store, provisioned on the node, no DB to
+     stand up. New read pattern = a new query, not a new backend: a role
+     and a policy.
   Evidence to keep this "as clear as day": Mastodon OAuth scope docs; the
   atproto permission spec + the statusphere tutorial (both checked
   05.11.2026); feed.ts's buildFeedQuery; the connected interop
@@ -35,8 +42,21 @@
   (related-work.md — the comparative gap stays OPEN).
   The violet boundary box was dropped from this figure — it is
   fig-query-engine's hero; here the point is the columnar engine already on
-  the node, not the enforcement. No verdict line: the comparison lives in
-  the caption.
+  the node, not the enforcement. (The earlier "no verdict line" note is
+  superseded by the VS framing below — the verdict strip is the point of a
+  comparison figure.)
+  4.10.33 (the VS framing): the operator wants it unmistakable that this is a
+  VS comparison figure, and what web10 got them beat on: "web10 vs. Mastodon
+  / Bluesky - web10 is the interoperability winner." The title names the
+  matchup; the bottom verdict strip names the win and the why — left cell:
+  what Mastodon/Bluesky offer (delegation to your own data, a fixed object
+  model, no shared store to query across); right cell: the interoperability
+  winner (an app-to-app per-service grant — the snake game holds a typed
+  read on the social app's profile and joins it in SQL on one shared
+  columnar store). Both lines were already asserted by the panels; the
+  strip scores them. The earlier "no verdict line" note is superseded for
+  the two comparison figures (the operator's call, 05.11.2026): a VS figure
+  carries the verdict, the mechanism figures (A/B) don't.
   Render with ./capture.mjs fig-platforms.
 -->
 <html>
@@ -75,6 +95,9 @@
     border: 1px solid rgba(52,211,153,.5); border-radius: 6px; padding: 3px 9px; }
   .chip.blue { color: #bcd4f7; background: rgba(96,165,250,.06);
     border: 1px solid rgba(96,165,250,.5); }
+  .chip.sm { font-size: 10px; padding: 2px 8px; }
+  .chip.violet { color: #e6e0fb; background: rgba(139,92,246,.12);
+    border: 1.5px solid #8b5cf6; font-weight: 600; }
   .nodecard { position: absolute; width: 180px; height: 170px; border-radius: 12px;
     background: #101018; border: 1.5px solid rgba(52,211,153,.5); }
   .nodecard .n { font-size: 11.5px; font-weight: 700; color: #9fd8c0;
@@ -99,13 +122,26 @@
   .neg .t { color: #fbbf24; font-weight: 700; font-size: 12px; margin-bottom: 5px; }
   .slabel { position: absolute; font-size: 10.5px; color: #8b8fa5; }
   .wlabel { position: absolute; font-size: 10.5px; color: #9a9db1; }
+  .strip { position: absolute; top: 730px; width: 630px; height: 48px;
+    border-radius: 10px; padding: 8px 14px; display: flex; flex-direction: column;
+    justify-content: center; }
+  .strip .sl { font-size: 10px; font-weight: 700; letter-spacing: .04em; margin-bottom: 3px; }
+  .strip .ss { font-size: 10px; line-height: 1.3; }
+  .strip.fed { left: 55px; background: rgba(96,165,250,.05); border: 1.5px solid rgba(96,165,250,.45); }
+  .strip.fed .sl { color: #60a5fa; } .strip.fed .ss { color: #9aa7c7; }
+  .strip.web10 { left: 755px; background: rgba(52,211,153,.06); border: 1.5px solid rgba(52,211,153,.65); }
+  .strip.web10 .sl { color: #34d399; } .strip.web10 .ss { color: #a8d8bf; }
+  .vs { position: absolute; left: 703px; top: 742px; width: 34px; height: 34px;
+    border-radius: 50%; background: #12121b; border: 1.5px solid #8b8fa5;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 800; color: #f2f3f8; }
   svg.abs { position: absolute; top: 0; left: 0; width: 1440px; height: 780px;
     pointer-events: none; }
 </style>
 </head>
 <body>
-  <div class="title">Where the new app lives</div>
-  <div class="subtitle">a second app wants the user&rsquo;s data &mdash; two answers</div>
+  <div class="title">web10 vs Mastodon / Bluesky</div>
+  <div class="subtitle">the interoperability fork &mdash; where a second app&rsquo;s read of the user&rsquo;s data lands and runs</div>
 
   <!-- MASTODON / BLUESKY panel -->
   <div class="panel fed"></div>
@@ -146,37 +182,45 @@
   <div class="panel web10"></div>
   <div class="plabel web10">WEB10 &mdash; the data plane has no app in it</div>
 
-  <div class="box app" style="left: 787px; top: 150px; width: 168px; height: 64px;">
+  <div class="box app" style="left: 787px; top: 150px; width: 172px; height: 64px;">
     <div class="t">the social app</div>
-    <div class="s">its services: posts &middot; profile</div>
+    <div class="s">a dozen services of its own</div>
   </div>
-  <div class="box app" style="left: 975px; top: 150px; width: 168px; height: 64px;">
+  <div class="box app" style="left: 973px; top: 150px; width: 172px; height: 64px;">
     <div class="t">the snake game</div>
     <div class="s">its service: snake_scores</div>
   </div>
-  <div class="box app" style="left: 1163px; top: 150px; width: 168px; height: 64px;">
+  <div class="box app" style="left: 1159px; top: 150px; width: 172px; height: 64px;">
     <div class="t">the marketplace</div>
     <div class="s">its service: marketplace_listings</div>
   </div>
 
-  <div class="nodecard" style="left: 982px; top: 372px; height: 180px;"><div class="n">the node &mdash; set up already</div></div>
-  <div class="store" style="left: 990px; top: 404px; height: 64px;">
-    <div class="t">ClickHouse</div>
-    <div class="s">the columnar engine, provisioned<br>on the node &mdash; no DB to stand up</div>
+  <!-- the node (wide card): services + the API + ClickHouse -->
+  <div style="position:absolute; left:787px; top:250px; width:566px; height:290px; border-radius:14px; background:#101018; border:2px solid rgba(52,211,153,.6);"></div>
+  <div style="position:absolute; left:807px; top:262px; font-size:14px; font-weight:700; color:#34d399;">the node &mdash; set up already</div>
+  <div style="position:absolute; left:807px; top:288px; font-size:11px; color:#9094ab;">the services in the store &mdash; each app defines its own:</div>
+  <div style="position:absolute; left:807px; top:308px; width:526px; display:flex; flex-wrap:wrap; gap:6px; align-content:flex-start;">
+    <span class="chip sm">posts</span><span class="chip sm">comments</span><span class="chip sm">reactions</span>
+    <span class="chip sm violet">profile</span>
+    <span class="chip sm">media</span><span class="chip sm">music</span><span class="chip sm">groups</span><span class="chip sm">&hellip;</span>
+    <span class="chip sm">snake_scores</span><span class="chip sm">marketplace_listings</span>
   </div>
-  <div class="store" style="left: 990px; top: 480px; height: 64px;">
-    <div class="t">the app writes its own queries</div>
-    <div class="s">joins &middot; ranking &middot; cursors &mdash;<br>a real columnar experience, on day one</div>
+  <div style="position:absolute; left:807px; top:360px; font-size:10.5px; color:#b9aef0;">the violet one &mdash; <b>profile</b> &mdash; is what the game and the marketplace are granted to read</div>
+
+  <!-- the API (the query engine) -->
+  <div style="position:absolute; left:807px; top:382px; width:526px; height:56px; border-radius:10px; background:rgba(139,92,246,.08); border:1.5px solid #8b5cf6; display:flex; flex-direction:column; justify-content:center; padding:0 16px;">
+    <div style="font-size:13px; font-weight:700; color:#e6e0fb;">the API &mdash; the query engine (POST /v3/query)</div>
+    <div style="font-size:11px; color:#b9aef0; margin-top:3px;">compiles the app&rsquo;s SQL against the reader&rsquo;s grants, then runs it</div>
+  </div>
+  <!-- ClickHouse -->
+  <div style="position:absolute; left:807px; top:448px; width:526px; height:56px; border-radius:10px; background:rgba(52,211,153,.07); border:1.5px solid rgba(52,211,153,.8); display:flex; flex-direction:column; justify-content:center; padding:0 16px;">
+    <div style="font-size:13px; font-weight:700; color:#d7f5e6;">ClickHouse &mdash; the columnar store</div>
+    <div style="font-size:11px; color:#7fa892; margin-top:3px;">provisioned on the node, no DB to stand up &mdash; the app writes its own queries</div>
   </div>
 
-  <div class="slabel" style="left: 787px; top: 572px;">the services the three apps define &mdash; one store, one boundary:</div>
-  <div style="position: absolute; left: 787px; top: 592px; display: flex; gap: 8px;">
-    <span class="chip">profile</span><span class="chip">snake_scores</span><span class="chip">marketplace_listings</span>
-  </div>
-  <div class="note" style="left: 787px; top: 612px; width: 590px;">
-    No DB setup: the node already runs the columnar store + query engine, so
-    an app gets a real query experience out of the box &mdash; the feed is
-    ranked in SQL, and every read is enforced against the reader&rsquo;s
+  <div class="note" style="left: 787px; top: 556px; width: 590px;">
+    No DB setup: the app gets a real query experience out of the box &mdash; the
+    feed is ranked in SQL, and every read is enforced against the reader&rsquo;s
     grants. A new app steps in with its own services + a <b>per-service
     grant</b> (the snake game &rarr; the social app&rsquo;s profile; no grant
     &rarr; 403). New read pattern = <b>a new query, not a new backend</b>.
@@ -191,21 +235,37 @@
       <marker id="m-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
         <path d="M0,0 L10,5 L0,10 z" fill="rgba(120,220,180,.9)"/>
       </marker>
+      <marker id="m-violet" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#8b5cf6"/>
+      </marker>
     </defs>
     <!-- fed: the social app reads/writes the model -->
     <line x1="375" y1="230" x2="375" y2="252" stroke="#6f7490" stroke-width="1.5" marker-end="url(#m-gray)"/>
     <line x1="393" y1="252" x2="393" y2="230" stroke="#6f7490" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#m-gray)"/>
     <!-- web10: three apps -> the node (query + token) -->
-    <line x1="871" y1="214" x2="1010" y2="376" stroke="rgba(120,220,180,.9)" stroke-width="1.8" marker-end="url(#m-green)"/>
-    <line x1="1059" y1="214" x2="1072" y2="376" stroke="rgba(120,220,180,.9)" stroke-width="1.8" marker-end="url(#m-green)"/>
-    <line x1="1247" y1="214" x2="1134" y2="376" stroke="rgba(120,220,180,.9)" stroke-width="1.8" marker-end="url(#m-green)"/>
+    <line x1="871" y1="218" x2="910" y2="246" stroke="rgba(120,220,180,.9)" stroke-width="1.8" marker-end="url(#m-green)"/>
+    <line x1="1059" y1="218" x2="1070" y2="246" stroke="rgba(120,220,180,.9)" stroke-width="1.8" marker-end="url(#m-green)"/>
+    <line x1="1247" y1="218" x2="1230" y2="246" stroke="rgba(120,220,180,.9)" stroke-width="1.8" marker-end="url(#m-green)"/>
     <!-- web10: node -> apps (rows, dashed) -->
-    <line x1="1030" y1="376" x2="880" y2="218" stroke="#6f7490" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#m-gray)"/>
-    <line x1="1072" y1="376" x2="1059" y2="218" stroke="#6f7490" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#m-gray)"/>
-    <line x1="1114" y1="376" x2="1238" y2="218" stroke="#6f7490" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#m-gray)"/>
+    <line x1="950" y1="246" x2="895" y2="218" stroke="#6f7490" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#m-gray)"/>
+    <line x1="1090" y1="246" x2="1085" y2="218" stroke="#6f7490" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#m-gray)"/>
+    <line x1="1190" y1="246" x2="1245" y2="218" stroke="#6f7490" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#m-gray)"/>
+    <!-- web10: the API compiles, then ClickHouse runs it -->
+    <line x1="1070" y1="440" x2="1070" y2="446" stroke="#8b5cf6" stroke-width="1.6" marker-end="url(#m-violet)"/>
   </svg>
   <div class="wlabel" style="left: 130px; top: 234px;">read / write the model</div>
-  <div class="wlabel" style="left: 850px; top: 288px;">query + token</div>
-  <div class="wlabel" style="left: 1160px; top: 288px; color: #6f7490;">rows</div>
+  <div class="wlabel" style="left: 800px; top: 228px;">query + token</div>
+  <div class="wlabel" style="left: 1256px; top: 228px; color: #6f7490;">rows</div>
+
+  <!-- the verdict strip: what each side offers, and the named win -->
+  <div class="strip fed">
+    <div class="sl">MASTODON / BLUESKY</div>
+    <div class="ss">a second app gets in through the user&rsquo;s grants on its own data &mdash; the object model stays fixed, and there is no shared store to query across</div>
+  </div>
+  <div class="vs">VS</div>
+  <div class="strip web10">
+    <div class="sl">WEB10 &mdash; THE INTEROPERABILITY WINNER</div>
+    <div class="ss">an app-to-app per-service grant: the snake game holds a typed read on the social app&rsquo;s <b>profile</b> and joins it in SQL &mdash; one shared columnar store, a new read pattern = a new query</div>
+  </div>
 </body>
 </html>

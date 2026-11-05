@@ -1,6 +1,7 @@
 <!doctype html>
 <!--
-  Source for fig-composition.png (F1, shot 3: "Where the composition happens").
+  Source for fig-composition.png ("web10 vs Solid" — the composition
+  fork, VS framing 4.10.33).
   The capability asymmetry, not just the performance one:
   - SOLID: one user per pod; the app pulls every pod the feed touches and
     joins in the application; discover-type queries (who's trending?) must
@@ -11,7 +12,19 @@
     separately; each node re-checks the reader's rules on every read
     (shot-0 beats 10/11; D41: the node is readable by design).
   The violet boundary box is the same mechanism as fig-query-engine.
-  No verdict line: the comparison lives in the paper's caption.
+  4.10.33 (the VS framing): same treatment as fig-platforms — the operator
+  wants it unmistakable that this is a VS comparison figure, and what web10
+  got them beat on ("same for the solid diagram with web10"). The title
+  names the matchup ("web10 vs Solid"); the bottom verdict strip names the
+  win and the why — left cell: what Solid offers (one user per pod;
+  cross-user queries pull the whole network and don't terminate at scale);
+  right cell: the composition winner (a node pools millions of users in one
+  shared store, so discover/trending/ranking are ordinary queries that
+  terminate). The two lines were already asserted by the panels (shot-0
+  beat 10); the strip scores them. The earlier "no verdict line" note is
+  superseded for the two comparison figures (the operator's call,
+  05.11.2026): a VS figure carries the verdict, the mechanism figures (A/B)
+  don't.
   Render with ./capture.mjs fig-composition.
 -->
 <html>
@@ -67,13 +80,26 @@
     font-size: 11.5px; color: #c9b585; line-height: 1.45; }
   .neg .t { color: #fbbf24; font-weight: 700; font-size: 12px; }
   .wlabel { position: absolute; font-size: 10.5px; color: #9a9db1; }
+  .strip { position: absolute; top: 730px; width: 630px; height: 48px;
+    border-radius: 10px; padding: 8px 14px; display: flex; flex-direction: column;
+    justify-content: center; }
+  .strip .sl { font-size: 10px; font-weight: 700; letter-spacing: .04em; margin-bottom: 3px; }
+  .strip .ss { font-size: 10px; line-height: 1.3; }
+  .strip.fed { left: 55px; background: rgba(96,165,250,.05); border: 1.5px solid rgba(96,165,250,.45); }
+  .strip.fed .sl { color: #60a5fa; } .strip.fed .ss { color: #9aa7c7; }
+  .strip.web10 { left: 755px; background: rgba(52,211,153,.06); border: 1.5px solid rgba(52,211,153,.65); }
+  .strip.web10 .sl { color: #34d399; } .strip.web10 .ss { color: #a8d8bf; }
+  .vs { position: absolute; left: 703px; top: 742px; width: 34px; height: 34px;
+    border-radius: 50%; background: #12121b; border: 1.5px solid #8b8fa5;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 800; color: #f2f3f8; }
   svg.abs { position: absolute; top: 0; left: 0; width: 1440px; height: 780px;
     pointer-events: none; }
 </style>
 </head>
 <body>
-  <div class="title">Where the composition happens</div>
-  <div class="subtitle">The same feed, composed in two different places</div>
+  <div class="title">web10 vs Solid</div>
+  <div class="subtitle">the composition fork &mdash; the same feed, composed in two different places</div>
 
   <!-- SOLID panel -->
   <div class="panel solid"></div>
@@ -172,5 +198,16 @@
   </svg>
   <div class="wlabel" style="left: 850px; top: 300px;">query + token</div>
   <div class="wlabel" style="left: 1104px; top: 294px; color: #6f7490;">rows</div>
+
+  <!-- the verdict strip: what each side offers, and the named win -->
+  <div class="strip fed">
+    <div class="sl">SOLID</div>
+    <div class="ss">one user per pod: cross-user queries pull every pod they touch &mdash; &ldquo;who&rsquo;s trending?&rdquo; pulls the whole network, and it doesn&rsquo;t terminate at scale</div>
+  </div>
+  <div class="vs">VS</div>
+  <div class="strip web10">
+    <div class="sl">WEB10 &mdash; THE COMPOSITION WINNER</div>
+    <div class="ss">millions of users in one shared store per node: discover, trending, and ranking are ordinary queries that terminate &mdash; pulled from each node separately</div>
+  </div>
 </body>
 </html>

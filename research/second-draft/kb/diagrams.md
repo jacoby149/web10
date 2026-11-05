@@ -27,6 +27,21 @@ why it is visually nice, and what it may not assert.
   screenshots stay PNG-only app captures.
 - **The same mechanism is drawn identically in every figure.** The
   reader learns the visual vocabulary once.
+- **Comparison figures carry the verdict.** The two VS figures (Figures
+  8 and 9) are scored comparisons, not neutral forks: the title names the
+  matchup ("web10 vs Solid" · "web10 vs Mastodon / Bluesky"), a VS badge
+  sits between the panels' verdict strips, and the bottom strip names what
+  web10 beat on and why — Figure 8: *composition* (a cross-user query that
+  terminates: one shared store per node, millions of users); Figure 9:
+  *interoperability* (an app-to-app per-service grant on one shared
+  columnar store). The verdict line is not a new claim — both are already
+  asserted by the panels (shot-0 beat 10; the 4.10.27 app-to-app vs.
+  app-to-user-data re-anchor); the strip scores, it doesn't argue. This
+  supersedes the earlier "no verdict line: the comparison lives in the
+  caption" note (operator's call, 05.11.2026: "make clear in these
+  diagrams these are VS. versus diagrams, and what we got them beat on").
+  The mechanism figures (A/B) get no verdict strip — a how-it-works
+  figure that carries a verdict turns pitchy.
 
 ## The design language (why it looks the way it does)
 
@@ -113,7 +128,7 @@ carries beat 2; auth carries beat 7's "a role and a policy — OAuth
 2.0-style, finer-grained"; the read gate carries beat 3). The
 query-engine part is violet and points at Figure 4.
 
-### Figure 4 — from service names to the reader's readable set (done,
+### Figure 4 — reading a social feed on web10 (done,
 `figs/fig-query-engine.png`, §5)
 
 **What it visualizes:** one feed query, from the browser to ClickHouse
@@ -166,8 +181,12 @@ but the weakest claim-per-pixel in the set: if the 12-page budget bites,
 this is the first figure cut (the interop screenshots already show the
 app running).
 
-### Figure 8 — where the composition happens: the Solid fork (done,
+### Figure 8 — the composition fork: web10 vs Solid (done,
 `figs/fig-composition.png`, §3/§9)
+
+**The figure title:** "web10 vs Solid" (4.10.33 — the VS framing); the
+subtitle names the fork: "the composition fork — the same feed, composed
+in two different places."
 
 **What it visualizes:** the capability asymmetry, not just the
 performance one (shot-0 beat 10 made concrete). Left (Solid, blue): one
@@ -182,13 +201,20 @@ trending, and ranking are ordinary queries at the query layer.
 **Why that shape:** the operator's point — "these nodes in the
 composition could each have millions of users, that is the difference;
 solid simply cant do discover type stuff because nodes can get big" —
-drawn as the two worlds side by side, so the difference is the picture,
-not a verdict line (the comparison lives in the caption). The violet
-boundary box is the same mechanism as Figure 4 — the enforcement family
-again.
+drawn as the two worlds side by side, so the difference is the picture.
+The verdict strip (4.10.33, the VS framing) scores it — "WEB10 — THE
+COMPOSITION WINNER" against Solid's one-user-per-pod offer — replacing
+the old "not a verdict line (the comparison lives in the caption)" note.
+The violet boundary box is the same mechanism as Figure 4 — the
+enforcement family again.
 
-### Figure 9 — where the new app lives: the federated-social fork (done,
+### Figure 9 — the interoperability fork: web10 vs Mastodon / Bluesky (done,
 `figs/fig-platforms.png`, §6/§9)
+
+**The figure title:** "web10 vs Mastodon / Bluesky" (4.10.33, the VS
+framing; 4.10.32 had first re-titled it "How a second app reads the
+user's data"); the subtitle names the fork: "the interoperability fork —
+where a second app's read of the user's data lands and runs."
 
 **What it visualizes:** the extensibility fork, re-anchored on the query
 engine (4.10.29) — how a second app reads and composes with existing user
@@ -199,13 +225,19 @@ fixed endpoints (getFeed / getProfile / /timelines, untunable) or
 replicates records into its own database (Bluesky's own statusphere
 tutorial: a Tap sync worker + Postgres, just to have a feed); "a new
 read pattern is a new backend"; no record shape for a hi-score or a
-listing. Right (web10, green): **the node — set up already**: ClickHouse
-provisioned on the node, no DB to stand up; the app writes its own
-queries on day one (joins · ranking · cursors); three apps each owning
-their services (`profile` · `snake_scores` · `marketplace_listings` —
-the pinned interop names); a second app gets in through a per-service
-grant the user gives (snake game → the social app's profile; no grant →
-403). New read pattern = a new query, not a new backend.
+listing. Right (web10, green): **the node — set up already**: the social app's
+real dozen services in the store (`posts · comments · reactions ·
+profile · media · music · groups · …` — names pulled from
+marketing/web10-social/src/data, 4.10.32) plus the new apps' own
+(`snake_scores` · `marketplace_listings` — the pinned interop names), the
+interop one, `profile`, highlighted violet; the API shown in action — the
+violet query-engine box (POST /v3/query: "compiles the app's SQL against
+the reader's grants, then runs it") sitting above the green ClickHouse
+columnar store, provisioned on the node, no DB to stand up; the app
+writes its own queries on day one (joins · ranking · cursors); a second
+app gets in through a per-service grant the user gives (snake game → the
+social app's profile; no grant → 403). New read pattern = a new query,
+not a new backend.
 **Why that shape:** the operator's "does bluesky give that clickhouse BI
 power? i bet not … you couldnt tune the feed, this lets you write
 whatever clickhouse you want" made mechanism-first — the contrast is the
@@ -215,6 +247,11 @@ figure (operator: "we cant have this pitchy, the boundary") — it is
 fig-query-engine's hero; this figure's hero is the columnar experience.
 The 4.10.27 re-anchor (app-to-app vs. app-to-user-data; "no fine-grained
 IAM" was wrong for Bluesky and was pulled) is retained in the note.
+The 4.10.33 verdict strip (the VS framing) scores that re-anchor: left
+cell = what Mastodon/Bluesky offer (a second app gets in through the
+user's grants on its own data; the object model stays fixed; no shared
+store to query across); right cell = "WEB10 — THE INTEROPERABILITY
+WINNER" (an app-to-app per-service grant on one shared columnar store).
 **Evidence (keep it "as clear as day"):** atproto guides/statusphere-
 tutorial + specs/permission + the AppView read model · Mastodon REST /
 OAuth docs · feed.ts's buildFeedQuery · `research/interoperability-demo`
@@ -240,10 +277,10 @@ prints, per `research/related-work.md` (the comparative gap stays OPEN).
 | 1 | System overview + section labels | §1 | existing TikZ; label pass pending |
 | 2 | Federated node | §4 | **done** (4.9.1) |
 | 3 | The web10-social application and its node | §6 | **done** (4.10.23, `fig-app-arch`) |
-| 4 | From service names to the reader's readable set | §5 | **done** (4.10.23, `fig-query-engine`) |
+| 4 | Reading a social feed on web10 | §5 | **done** (4.10.23, `fig-query-engine`; retitled 4.10.28) |
 | 5 | Interop screenshots | §6 | existing |
 | 6 | Domain portability | §8 | existing |
 | 7 | Groups UI | §6 | existing; cut candidate |
-| 8 | Where the composition happens (the Solid fork) | §3/§9 | **done** (4.10.23, `fig-composition`) |
-| 9 | Where the new app lives (the federated-social fork) | §6/§9 | **done** (4.10.29, `fig-platforms`) |
+| 8 | The composition fork: web10 vs Solid | §3/§9 | **done** (4.10.23, `fig-composition`; VS framing 4.10.33) |
+| 9 | The interoperability fork: web10 vs Mastodon / Bluesky | §6/§9 | **done** (4.10.29, `fig-platforms`; 4.10.32 title/API/services; VS framing 4.10.33) |
 | — | Two trust layers / data model | §2/§3 | candidates |
