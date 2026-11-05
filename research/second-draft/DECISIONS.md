@@ -10,6 +10,25 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 04.11.2026
 
+### Abstract shot 1: the abstract is worked from shot 0
+
+- **(operator)** "i really like this in our research paper approach. can you
+  work the abstract from that shot 0?" — the abstract is now its own gated
+  shot, derived from the locked 12-beat pitch, in natural voice (rule 16),
+  trimmed to abstract length.
+- **(agent)** Abstract shot 1 fired (~240 words): the problem (bespoke
+  social APIs, platform-owned access) → what web10 is (user-addressed;
+  apps define services + write queries; access = user-managed grants
+  stored as the user's data) → the contribution (the combination: a
+  query-layer boundary separating correctness from performance + an
+  extension model, finer-grained than OAuth 2.0) → the evidence (three
+  apps interoperate; ClickHouse at scale) → the positioning (deliberately
+  not a privacy system; readable by design; two-sided ownership) → the
+  network (`/certify` like email's sender check; the domain address the
+  node cannot touch). Dropped for length: the OLTP/RLS beat (body
+  material) and the explicit "verified, not registered" line (lives in
+  §4). Awaiting the operator's riff.
+
 ### Shot 0: the three "missing innovations" resolve to no pitch changes
 
 - **(operator)** On #2 (the deletions / "earned"): "that is more of what would go on
