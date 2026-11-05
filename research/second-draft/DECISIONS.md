@@ -10,6 +10,26 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 04.11.2026
 
+### The pitch is the paper's information-preserving compression — the shot-0 exercise closes (05.11)
+
+- **(operator)** "so what i like about this paragraph is it is the whole
+  essence of the paper, in a paragraph, like this is the idea right? not
+  saying the paper should be written like this, but if you were trying to
+  preserve the information, compress the paper into a paragraph, this
+  would make sure we dont lose what is in there. I think it was a good
+  exercise!"
+- **(agent)** Framing locked: the pitch is not the paper's style — it is
+  the paper's **information-preserving compression**, "the idea." The
+  paper is the expansion: every section traces to at least one pitch
+  sentence; anything untraceable is filler (or belongs in a different
+  paper). The **compression test** is now an acceptance-checklist box
+  (re-compress the finished paper → you get the six-sentence pitch back)
+  and part of the Shot 0 spec. The shot-0 exercise (23 riffs → the
+  operator's final edit → the pass) closes as a success; all of its rules
+  (the smart-kid test, no hedging, the pet test, frame accuracy, third
+  person, no implementation words, carry a move, the known ↔ advanced
+  register, the compression) live in the theory.
+
 ### The known ↔ advanced register — the pitch's hidden mechanism, now a paper-wide rule
 
 - **(operator)** On the locked pitch: "i feel like it brings things down

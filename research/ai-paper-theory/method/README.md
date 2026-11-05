@@ -22,7 +22,16 @@ the artifact, never from a previous draft.
    Fired to win the "YES YES YES, that is it, this is what we are going
    with this." If the pitch doesn't hit, the spine is wrong — fix the
    spine; don't build the outline on an unapproved one. The pitch seeds
-   the abstract and locks the arc.
+   the abstract and locks the arc. **The pitch is the paper's
+   information-preserving compression — "the idea" (the operator,
+   05.11.2026):** it is not the paper's style, but "if you were trying to
+   preserve the information, compress the paper into a paragraph, this
+   would make sure we don't lose what is in there." The paper is the
+   expansion: every section traces to at least one pitch sentence;
+   anything that doesn't trace is filler (or belongs in a different
+   paper). And the finished paper must pass the **compression test**:
+   re-compress it into a paragraph and you get the pitch back (the
+   checklist box in `../ops/checklist.md`).
 
    **The pitch spec (from shot 0's misses, takes 1–3,
    04.11.2026):** the pitch is *the argument* — a **four-sentence

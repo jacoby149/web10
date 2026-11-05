@@ -39,12 +39,15 @@
     pair is what does the work: the *advanced* (bespoke APIs, AST,
     "completely generic," interoperating, boundary CTE, readable set)
     makes a reviewer think "this is going to be interesting" — it
-    signals depth, not a product pitch; the *known* (OAuth 2.0, the
+    signals depth *and shows understanding* (the writer commands the
+    domain — a credibility signal), not a product pitch; the *known* (OAuth 2.0, the
     snake game, the marketplace, feed/follow/like, ClickHouse, billions
     of rows) makes it verifiable at a glance — the reader anchors each
     advanced claim to something they already understand and can check.
     Neither half works alone: all-advanced is impenetrable, all-known is
-    a marketing pitch. The awe lives in the gap the tether closes — the
+    a marketing pitch. This is the balance the operator named: simple
+    examples that show understanding while keeping it "a little
+    advanced" — "this balances it well." The awe lives in the gap the tether closes — the
     reader meets the advanced concept and the known one beside it makes
     it click ("like OAuth 2.0, but finer"). That is the NP-looking
     system made P-verifiable, one pair at a time. The locked pitch is the

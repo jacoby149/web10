@@ -3,6 +3,10 @@
 Nothing is submitted until every box is ticked:
 
 - [ ] Every claim in the abstract traces to a numbered section.
+- [ ] **The compression test:** re-compress the finished paper into a
+      paragraph — you get the locked six-sentence pitch back. Nothing
+      essential lost, nothing untraceable added (the pitch is the
+      paper's information-preserving compression, "the idea").
 - [ ] The five differentiators are each stated in the intro and each
       proven in the evaluation.
 - [ ] The theorem (I3) has: definitions, expression, materialization,
