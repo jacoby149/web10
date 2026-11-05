@@ -10,6 +10,34 @@ editorial rules, pinned numbers, the diagnosis of the current draft) lives in
 
 ## 04.11.2026
 
+### The three awe scores: logical awe the utmost (NP system, P proof), original work second, importance calibrated — the genius score retired
+
+- **(operator)** Ranks the awe scores: **logical awe is the utmost
+  important** — "that they see this logic that is really good but
+  tactical kind of complex, but if given the steps verifiable! showing
+  them something NP with P verifiability is a good analogy." **Never
+  been done before is second** — "that it is original work." **Importance
+  is third and calibrated** — "this is important, but research
+  unfortunately alot of times is not that important and is in
+  conferences."
+- **(operator)** **The genius score is deleted** — "we can get rid of
+  that, that is almost too vague."
+- **(agent)** `ai-paper-theory.md` internal oracle rewritten: three
+  scores in priority order with targets — **logical awe ≥ 8 (hard gate,
+  the utmost), original work ≥ 8 (hard gate), importance ≥ 6
+  (calibrated)**; the NP/P analogy pinned as the *definition* of logical
+  awe ("awe is the gap between the NP-looking system and the P-looking
+  proof, closed by the steps"); the why-not-X chain survives as a device
+  feeding logical awe (visible verification steps), not as a scored
+  outcome; the six "ohhh moments" demoted from a pinned list to
+  technique. `OUTLINE.md`'s awe-beat map re-ranked to the three scores
+  (the why-not-X beats moved into the logical-awe row); the acceptance
+  checklist now carries three score boxes; the second draft re-diagnosed:
+  logical awe ~4, original work ~3, importance ~2.
+- **(agent) The outline's genius row is retired in the living docs but
+  kept in this log as history** (the log is append-only in spirit; the
+  theory and outline are the living spec).
+
 ### The two oracles: the five questions + the four awe scores
 
 - **(operator)** The paper has to make the reader *feel* it: "why is this
