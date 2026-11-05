@@ -187,6 +187,36 @@ not a verdict line (the comparison lives in the caption). The violet
 boundary box is the same mechanism as Figure 4 — the enforcement family
 again.
 
+### Figure 9 — where the new app lives: the federated-social fork (done,
+`figs/fig-platforms.png`, §6/§9)
+
+**What it visualizes:** the extensibility / interop fork — how a second
+app gets access to, and composes with, existing user data. Left
+(Mastodon · Bluesky, blue): the fixed social object model (post ·
+profile · follow · like · boost — ActivityPub's types, the app.bsky
+lexicons); delegation to the user's data — Mastodon's coarse read/write
+scopes, Bluesky's per-collection, per-action permissions
+(atproto.com/specs/permission) — but app-to-user-data: no record shape
+for a hi-score or a listing (hack a post, or a custom lexicon outside the
+social graph), no second app holds a typed read on the first app's data,
+and federation replicates the model across servers. Right (web10,
+green): three apps each owning their services (`profile` ·
+`snake_scores` · `marketplace_listings` — the pinned interop names), one
+node, the same violet boundary; a second app gets in through a
+per-service grant the user gives — a typed read on the social app's
+profile, composable in SQL, 403 without the grant.
+**Why that shape:** the operator's "like oauth on steroids" made
+explicit — the differentiator is app-to-app vs. app-to-user-data, NOT
+"no fine-grained IAM" (Bluesky has per-collection, per-action
+permissions — the first shot's "no typed per-service grants" claim was
+wrong and was pulled). Data shape is the left panel's mechanism, not a
+verdict.
+**Evidence (keep it "as clear as day"):** Mastodon OAuth scope docs ·
+the atproto OAuth + Permissions specs (checked 05.11.2026) ·
+`research/interoperability-demo` (the connected experiment). Pin the
+spec's version/section before §9 prints, per `research/related-work.md`
+(the comparative gap stays OPEN).
+
 ### Candidates (not started)
 
 - **Two trust layers (§2):** the app wall (outer: can this app perform O
@@ -211,4 +241,5 @@ again.
 | 6 | Domain portability | §8 | existing |
 | 7 | Groups UI | §6 | existing; cut candidate |
 | 8 | Where the composition happens (the Solid fork) | §3/§9 | **done** (4.10.23, `fig-composition`) |
+| 9 | Where the new app lives (the federated-social fork) | §6/§9 | **done** (4.10.27, `fig-platforms`) |
 | — | Two trust layers / data model | §2/§3 | candidates |

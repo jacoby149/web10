@@ -10,6 +10,51 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 05.11.2026
 
+### The federated-social comparison figure re-anchored: app-to-app vs. app-to-user-data; Bluesky's per-collection permissions are real
+
+- **(operator)** "in mastodon bluesky diagram, it is saying silo, all this
+  pitchey stuff here. the data model doesnt support hi scores, games,
+  marketplace listings, you could hack a post to be a marketplace listing,
+  but it is hacky, will result in buggy stuff. this is definitely about
+  data shape. but also with activity pub not seeing the IAM modification
+  available, does bluesky expose the iam stuff?" Then, on the web10 side:
+  "that is key, that another app can get into the iam of the other app,
+  like that part is interoperable! like oauth on steroids" + "want to make
+  sure though in our comparison, we can back everything up it is as clear
+  as day"
+- **(agent)** Two corrections + one re-anchor in `fig-platforms`:
+  1. **"Silo" is out** (pitchy). The amber box is now "delegation to your
+     data, not interop between apps" and leads with the data-shape point:
+     the model has no record shape for a hi-score or a listing (Mastodon:
+     you'd hack a post; Bluesky: a custom lexicon sits outside the social
+     graph), and no second app holds a typed read on the first app's
+     data.
+  2. **The Bluesky IAM question, answered from the spec (05.11.2026):**
+     yes — AT Protocol's Permissions spec
+     (atproto.com/specs/permission) grants apps **per-collection,
+     per-action** permissions over the user's own repo
+     (`repo:app.example.profile?action=…`, `rpc` by endpoint + audience),
+     user-approved at the consent screen, bundleable into permission sets;
+     Mastodon is coarser (read / write scopes). So the first shot's
+     "the apps hold no typed, per-service grants" was **wrong for
+     Bluesky and is out** — the figure now states the granularity of each
+     system honestly.
+  3. **The contrast re-anchors on app-to-app vs. app-to-user-data.** AT's
+     permissions delegate an app to the *user's own* repo data; web10's
+     grant lets *one app hold a typed read on another app's service*,
+     composable in SQL on a shared store — the snake game joining the
+     social app's `profile` is pinned by the interop experiment
+     (`profile` / `snake_scores` / `marketplace_listings`, the join, the
+     403 without a grant, "independently requests its own service
+     permission"). The right panel's note says exactly the operator's
+     point: "OAuth, but **app-to-app** and fine-grained — a role and a
+     policy."
+- **(agent) Evidence trail ("as clear as day"):** Mastodon OAuth scope
+  docs (coarse read/write) · the atproto OAuth + Permissions specs
+  (checked 05.11.2026) · `research/interoperability-demo` (the connected
+  experiment). `related-work.md`'s AT row updated; the comparative gap
+  stays **OPEN** — pin the spec's version/section before §9 prints.
+
 ### Figure B retitled + re-captioned: "Reading a social feed on web10 — a breakdown"; the app-side function; the three layers named
 
 - **(operator)** "in the query engine one, might be good maybe i am saying

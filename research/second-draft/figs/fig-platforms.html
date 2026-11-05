@@ -1,0 +1,191 @@
+<!doctype html>
+<!--
+  Source for fig-platforms.png ("Where the new app lives").
+  The extensibility / interop fork, orthogonal to fig-composition (the
+  composition fork vs. Solid). The axis: how a SECOND app gets access to,
+  and composes with, EXISTING user data.
+  - MASTODON/BLUESKY: delegation to the user's data, on a fixed social
+    model. Mastodon grants coarse read/write OAuth scopes to the whole
+    model; Bluesky (AT Protocol) grants per-collection, per-action
+    permissions to the user's own repo (atproto.com/specs/permission).
+    Both are app-to-user-data, not app-to-app: a high score or a listing
+    has no shape in the social model (you'd hack a post, or a custom
+    lexicon that sits outside the social graph), and no second app holds a
+    typed read on the first app's data. No shared store to compose across.
+  - WEB10: a per-service grant, app-to-app, on a shared store. Each app
+    defines its own services in the user's store (profile, snake_scores,
+    marketplace_listings — the pinned interop names); the game and the
+    marketplace each hold a typed read on the social app's profile, join it
+    in SQL, and an ungranted app gets 403 (research/interoperability-demo).
+    It's OAuth, but app-to-app and fine-grained: a role and a policy.
+  Evidence to keep this "as clear as day": Mastodon OAuth scope docs;
+  atproto permission spec (verify version/section before printing in §9,
+  per related-work.md — the comparative gap stays OPEN). The web10 side is
+  pinned by the connected interop experiment.
+  The violet boundary box is the same mechanism as fig-composition and
+  fig-query-engine. No verdict line: the comparison lives in the caption.
+  Render with ./capture.mjs fig-platforms.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #0a0a12; }
+  body {
+    width: 1440px; height: 780px; position: relative; overflow: hidden;
+    font-family: -apple-system, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .title { position: absolute; top: 34px; width: 100%; text-align: center;
+    font-size: 26px; font-weight: 700; color: #f2f3f8; }
+  .subtitle { position: absolute; top: 70px; width: 100%; text-align: center;
+    font-size: 13.5px; color: #9c9fb3; }
+  .panel { position: absolute; top: 100px; width: 630px; height: 620px;
+    border-radius: 18px; background: #0e0e17; }
+  .panel.fed { left: 55px; border: 2px solid rgba(96,165,250,.6); }
+  .panel.web10 { left: 755px; border: 2px solid rgba(52,211,153,.6); }
+  .plabel { position: absolute; top: 118px; font-size: 15px; font-weight: 700; }
+  .plabel.fed { left: 79px; color: #60a5fa; }
+  .plabel.web10 { left: 779px; color: #34d399; }
+  .box { position: absolute; border-radius: 12px; display: flex;
+    flex-direction: column; justify-content: center; text-align: center; padding: 0 14px; }
+  .box .t { font-size: 14px; font-weight: 600; }
+  .box .s { font-size: 11px; margin-top: 3px; line-height: 1.35; }
+  .app { background: #12121b; border: 1.5px solid #c9ccda; }
+  .app .t { color: #f2f3f8; } .app .s { color: #8b8fa5; }
+  .model { background: rgba(96,165,250,.06); border: 1.5px solid rgba(96,165,250,.55); }
+  .model .t { color: #bcd4f7; font-size: 13px; } .model .s { color: #7f93b5; }
+  .chiprow { margin-top: 8px; display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+  .chip { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 10.5px;
+    color: #a7d8c0; background: rgba(52,211,153,.05);
+    border: 1px solid rgba(52,211,153,.5); border-radius: 6px; padding: 3px 9px; }
+  .chip.blue { color: #bcd4f7; background: rgba(96,165,250,.06);
+    border: 1px solid rgba(96,165,250,.5); }
+  .nodecard { position: absolute; width: 180px; height: 170px; border-radius: 12px;
+    background: #101018; border: 1.5px solid rgba(52,211,153,.5); }
+  .nodecard .n { font-size: 11.5px; font-weight: 700; color: #9fd8c0;
+    text-align: center; padding: 8px 8px 5px; }
+  .boundary { position: absolute; width: 164px; height: 62px; border-radius: 8px;
+    background: rgba(139,92,246,.10); border: 1.5px solid #8b5cf6;
+    display: flex; flex-direction: column; justify-content: center;
+    text-align: center; padding: 0 8px; }
+  .boundary .t { color: #ffffff; font-size: 11.5px; font-weight: 700; line-height: 1.3; }
+  .boundary .s { color: #cfc4f5; font-size: 9.5px; margin-top: 2px; line-height: 1.3; }
+  .store { position: absolute; width: 164px; height: 52px; border-radius: 8px;
+    background: rgba(52,211,153,.07); border: 1.5px solid rgba(52,211,153,.8);
+    display: flex; flex-direction: column; justify-content: center; text-align: center;
+    padding: 0 8px; }
+  .store .t { color: #d7f5e6; font-size: 11.5px; font-weight: 600; }
+  .store .s { color: #7fa892; font-size: 9.5px; margin-top: 2px; line-height: 1.3; }
+  .note { position: absolute; font-size: 12px; color: #9094ab; line-height: 1.55; }
+  .note b { color: #c4c6d4; }
+  .neg { position: absolute; border-radius: 10px; background: rgba(251,191,36,.06);
+    border: 1.5px solid rgba(251,191,36,.5); padding: 10px 14px;
+    font-size: 11.5px; color: #c9b585; line-height: 1.45; }
+  .neg .t { color: #fbbf24; font-weight: 700; font-size: 12px; margin-bottom: 5px; }
+  .slabel { position: absolute; font-size: 10.5px; color: #8b8fa5; }
+  .wlabel { position: absolute; font-size: 10.5px; color: #9a9db1; }
+  svg.abs { position: absolute; top: 0; left: 0; width: 1440px; height: 780px;
+    pointer-events: none; }
+</style>
+</head>
+<body>
+  <div class="title">Where the new app lives</div>
+  <div class="subtitle">a second app wants the user&rsquo;s data &mdash; two answers</div>
+
+  <!-- MASTODON / BLUESKY panel -->
+  <div class="panel fed"></div>
+  <div class="plabel fed">MASTODON &middot; BLUESKY &mdash; the protocol is the app</div>
+
+  <div class="box app" style="left: 255px; top: 150px; width: 240px; height: 76px;">
+    <div class="t">the social app</div>
+    <div class="s">the platform&rsquo;s own app &mdash;<br>every client is shaped by that model</div>
+  </div>
+
+  <div class="box model" style="left: 95px; top: 300px; width: 550px; height: 118px;">
+    <div class="t">the platform&rsquo;s object model &mdash; fixed by the protocol</div>
+    <div class="chiprow">
+      <span class="chip blue">post</span><span class="chip blue">profile</span><span class="chip blue">follow</span><span class="chip blue">like</span><span class="chip blue">boost</span>
+    </div>
+    <div class="s">ActivityPub (Mastodon) &middot; the app.bsky lexicons (Bluesky) &mdash; one surface, on every server</div>
+  </div>
+
+  <div class="neg" style="left: 95px; top: 470px; width: 550px; height: 200px;">
+    <div class="t">delegation to your data, not interop between apps</div>
+    An app gets a delegated token to <b>your</b> data &mdash; Mastodon&rsquo;s
+    coarse read / write scopes, Bluesky&rsquo;s per-collection, per-action
+    permissions. But it&rsquo;s app-to-user-data on a fixed model: a high
+    score or a listing has no shape in it (you&rsquo;d hack a post &mdash; or a
+    custom lexicon that sits outside the social graph), and no second app
+    holds a typed read on the first app&rsquo;s data. Federation replicates
+    the model across servers; it doesn&rsquo;t add apps, or compose across them.
+  </div>
+
+  <!-- WEB10 panel -->
+  <div class="panel web10"></div>
+  <div class="plabel web10">WEB10 &mdash; the data plane has no app in it</div>
+
+  <div class="box app" style="left: 787px; top: 150px; width: 168px; height: 64px;">
+    <div class="t">the social app</div>
+    <div class="s">its services: posts &middot; profile</div>
+  </div>
+  <div class="box app" style="left: 975px; top: 150px; width: 168px; height: 64px;">
+    <div class="t">the snake game</div>
+    <div class="s">its service: snake_scores</div>
+  </div>
+  <div class="box app" style="left: 1163px; top: 150px; width: 168px; height: 64px;">
+    <div class="t">the marketplace</div>
+    <div class="s">its service: marketplace_listings</div>
+  </div>
+
+  <div class="nodecard" style="left: 982px; top: 380px;"><div class="n">the node</div></div>
+  <div class="boundary" style="left: 990px; top: 410px;">
+    <div class="t">the boundary</div>
+    <div class="s">readable set compiled in<br>AST-protected</div>
+  </div>
+  <div class="store" style="left: 990px; top: 480px;">
+    <div class="t">the shared store</div>
+    <div class="s">documents in app-named services</div>
+  </div>
+
+  <div class="slabel" style="left: 787px; top: 572px;">the services the three apps define &mdash; one store, one boundary:</div>
+  <div style="position: absolute; left: 787px; top: 592px; display: flex; gap: 8px;">
+    <span class="chip">profile</span><span class="chip">snake_scores</span><span class="chip">marketplace_listings</span>
+  </div>
+  <div class="note" style="left: 787px; top: 618px; width: 590px;">
+    A second app gets in through a <b>per-service grant the user gives</b>:
+    the snake game holds a typed read on the social app&rsquo;s <b>profile</b>
+    &mdash; and nothing else (no grant &rarr; 403). The user owns these grants
+    as data, and the apps compose across them on one store: OAuth, but
+    <b>app-to-app</b> and fine-grained &mdash; a role and a policy, no protocol
+    change.
+  </div>
+
+  <!-- arrows -->
+  <svg class="abs" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="m-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#6f7490"/>
+      </marker>
+      <marker id="m-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="rgba(120,220,180,.9)"/>
+      </marker>
+    </defs>
+    <!-- fed: the social app reads/writes the model -->
+    <line x1="375" y1="226" x2="375" y2="298" stroke="#6f7490" stroke-width="1.5" marker-end="url(#m-gray)"/>
+    <line x1="393" y1="298" x2="393" y2="226" stroke="#6f7490" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#m-gray)"/>
+    <!-- web10: three apps -> the node (query + token) -->
+    <line x1="871" y1="214" x2="1010" y2="376" stroke="rgba(120,220,180,.9)" stroke-width="1.8" marker-end="url(#m-green)"/>
+    <line x1="1059" y1="214" x2="1072" y2="376" stroke="rgba(120,220,180,.9)" stroke-width="1.8" marker-end="url(#m-green)"/>
+    <line x1="1247" y1="214" x2="1134" y2="376" stroke="rgba(120,220,180,.9)" stroke-width="1.8" marker-end="url(#m-green)"/>
+    <!-- web10: node -> apps (rows, dashed) -->
+    <line x1="1030" y1="376" x2="880" y2="218" stroke="#6f7490" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#m-gray)"/>
+    <line x1="1072" y1="376" x2="1059" y2="218" stroke="#6f7490" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#m-gray)"/>
+    <line x1="1114" y1="376" x2="1238" y2="218" stroke="#6f7490" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#m-gray)"/>
+  </svg>
+  <div class="wlabel" style="left: 300px; top: 252px;">read / write the model</div>
+  <div class="wlabel" style="left: 850px; top: 288px;">query + token</div>
+  <div class="wlabel" style="left: 1160px; top: 288px; color: #6f7490;">rows</div>
+</body>
+</html>
