@@ -10,6 +10,28 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 04.11.2026
 
+### Shot 0, take 18 → take 19: the close is "a role, a policy, and the new app is in the old app's data boundary"
+
+- **(operator)** On take 18's 4th + 5th sentences ("So the feed … the
+  permission model is data in the very store it protects." / "And that
+  generic design is what makes the node extensible:"): "this is killing
+  me. it is as simple as a role, a policy, and a new app is in the data
+  boundary of the old app, accomplishing what oauth2.0 does for cross
+  platform data sharing but even more fine grained." The close should be
+  that simple, precise mechanism — not three tangled ideas (definitions
+  + provable + extensible).
+- **(agent)** Take 19: sentence 4 trimmed to the inversion + the awe
+  ("…definitions the app writes into the store — the permission model is
+  data in the very store it protects"); sentence 5 becomes the operator's
+  mechanism verbatim in shape: "extending the platform is as simple as a
+  role and a policy: a new app steps into the data boundary the old app
+  set, accomplishing what OAuth 2.0 does for cross-platform data
+  sharing, but far more fine-grained." Sentences 1–3 unchanged.
+- **(agent) Paper note:** "a new app steps into the data boundary the
+  old app set — OAuth 2.0 for cross-platform sharing, finer-grained" is
+  a strong §6 extensibility line and a related-work positioning hook
+  (web10 vs. OAuth 2.0 / scope-based access).
+
 ### Shot 0, take 17 rejected — revert to take 16 with a subtle change
 
 - **(operator)** Pasted take 16 and: "nonono, this one was great. this
