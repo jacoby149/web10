@@ -196,6 +196,16 @@ export async function shortsCard(postId) {
   return buildPostCard(postId, canonicalUrl)
 }
 
+// The group post permalink: /groups/:groupId/p/:postId — a post authored by a
+// group (the acting identity). The SPA encodes the group id (which contains
+// slashes) into a single path segment. The card is the SAME post card as the
+// /u/ permalink (the same doc, the same thumbnail, the same fallbacks) with a
+// different canonical URL — a watch/shorts-style variant of buildPostCard.
+export async function groupPostCard(groupId, postId) {
+  const canonicalUrl = `${SOCIAL_ORIGIN}/groups/${encodeURIComponent(groupId)}/p/${encodeURIComponent(postId)}`
+  return buildPostCard(postId, canonicalUrl)
+}
+
 // Music shares identify the post in the query string, not a path segment.
 export async function musicCard(postId) {
   console.log('[preview] music card start', { hasTrack: Boolean(postId) })
@@ -215,6 +225,90 @@ export async function musicCard(postId) {
   const html = await buildPostCard(postId, canonicalUrl)
   console.log('[preview] music card complete', { rendered: Boolean(html) })
   return html
+}
+
+// The personal saved-collection permalink: /u/:username/saved/:collectionId
+// (a playlist the app shares out). The collection is a group (D88): its face
+// is the `web10-social-group-identity` doc, its items are `saved` docs. A
+// PUBLIC collection is anon-readable (the D58 `anyone` reader row); a private
+// one is not — its face read 403s and the card degrades to the generic
+// playlist card (the I3/D41 floor, exactly like a private group).
+export async function savedCard(username, collectionId) {
+  const canonicalUrl = `${SOCIAL_ORIGIN}/u/${encodeURIComponent(username)}/saved/${encodeURIComponent(collectionId)}`
+  return buildSavedCard(collectionId, canonicalUrl, `by @${username}`)
+}
+
+// The group saved-collection permalink: /groups/:groupId/saved/:collectionId
+// (a group's playlist — a group is a profile).
+export async function groupSavedCard(groupId, collectionId) {
+  const canonicalUrl = `${SOCIAL_ORIGIN}/groups/${encodeURIComponent(groupId)}/saved/${encodeURIComponent(collectionId)}`
+  return buildSavedCard(collectionId, canonicalUrl)
+}
+
+// The shared saved-collection card: read the collection's face (anon — only a
+// public collection is readable), resolve its cover via the generic thumbnail
+// (a cover is either an image media doc or an audio doc whose own thumbnail is
+// the album art), count its items (the same anon floor), and render.
+async function buildSavedCard(collectionId, canonicalUrl, attribution) {
+  const faceDoc = await readGroupFace(collectionId)
+  const face = faceDoc?.body ?? null
+  if (!face) {
+    // No readable face (a private collection, or a deleted group) → a generic
+    // card, no collection content (the I3/D41 privacy floor).
+    return renderCardAnon({
+      title: 'A playlist on web10',
+      description: 'Open web10 to view this playlist.',
+      image: BRAND_IMAGE,
+      image_alt: 'web10',
+      url: canonicalUrl,
+      og_type: 'website',
+    })
+  }
+  // The cover: the face's avatar_ref (the pinned or auto-set collection
+  // thumbnail) through the generic thumbnail — an image media doc resolves to
+  // its own image; an audio doc resolves to ITS album-art thumbnail, never the
+  // recording. No cover → the brand mark.
+  let image = null
+  let imageAlt = null
+  if (face.avatar_ref) {
+    const thumb = await getThumbnailAnon(face.avatar_ref)
+    if (thumb?.url) {
+      image = thumb.url
+      imageAlt = thumb.alt ?? null
+    }
+  }
+  if (!image) image = BRAND_IMAGE
+  // The item count: an anon read of the collection's `saved` docs (public
+  // collections are anon-readable; a failed read simply omits the count —
+  // the name + cover are enough for the card).
+  let count = null
+  try {
+    const res = await fetch(`${API_ORIGIN}/v3/read`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ service: 'saved', groups: [collectionId], limit: 1000 }),
+    })
+    if (res.ok) {
+      const docs = await res.json()
+      if (Array.isArray(docs)) count = docs.length
+    }
+  } catch {
+    count = null
+  }
+  const name = face.name ?? null
+  const title = truncate(name, TITLE_LIMIT) ?? 'A playlist on web10'
+  const parts = []
+  if (count != null) parts.push(`${count} saved item${count === 1 ? '' : 's'}`)
+  if (attribution) parts.push(attribution)
+  const description = truncate(parts.join(' · '), DESC_LIMIT) ?? 'Open web10 to view this playlist.'
+  return renderCardAnon({
+    title,
+    description,
+    image,
+    image_alt: imageAlt ?? name ?? title,
+    url: canonicalUrl,
+    og_type: 'website',
+  })
 }
 
 // The shared post-card logic — reads the post, picks the thumbnail, applies
