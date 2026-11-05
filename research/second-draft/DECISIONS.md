@@ -10,6 +10,64 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 05.11.2026
 
+### fig-platforms re-anchored on the query engine — "does bluesky give that clickhouse BI power? i bet not"
+
+- **(operator)** "does bluesky give that clickhouse BI power? i bet not it
+  is just basic CRUD stuff to make a social app, cant make real apps on
+  that lets be REAL, like how we tore Solid a new one, like come one that
+  doesnt scale … bluesky has
+  https://atproto.com/guides/statusphere-tutorial create a social app, but
+  you couldnt tune the feed, this lets you write whatever clickhouse you
+  WANT!!!!"
+- **(agent)** Verified against their own docs, and it is real: AT Protocol
+  has **no query engine an app can write against**. Reads are either the
+  platform's fixed endpoints (AppView's getFeed / getProfile; Mastodon's
+  /timelines, /statuses — untunable), or the app replicates public records
+  into its **own** database. Bluesky's own statusphere tutorial (checked
+  05.11.2026) proves the cost: to build even a trivial status app it stands
+  up a **Tap sync worker + a Postgres database**, then queries its own copy
+  (getRecentStatuses / getTopStatuses are SQL against the app's Postgres,
+  not the protocol). So "tune the feed" = build a whole replicated backend.
+  That is the "come one that doesn't scale" point, made mechanism-first.
+- **(agent)** Figure reworked (`fig-platforms`): the left panel now leads
+  with "how an app reads that data — no query engine in the platform" (the
+  two read paths: fixed endpoints, or replicate into the app's own DB —
+  statusphere cited), and the amber box is "a new read pattern is a new
+  backend." The right panel's focus is the columnar experience with no DB
+  setup: the node card is "the node — set up already," carrying
+  "ClickHouse — the columnar engine, provisioned on the node — no DB to
+  stand up" + "the app writes its own queries — joins · ranking · cursors —
+  a real columnar experience, on day one." The violet boundary box was
+  dropped (operator: "we cant have this pitchy, the boundary … more
+  focused that we are providing this proper columnar experience with NO
+  db setup, it is set up already, on top of the nodes in the network
+  already" — the boundary is fig-query-engine's hero, not this figure's).
+  The note: "No DB setup: the node already runs the columnar store + query
+  engine … New read pattern = a new query, not a new backend." The 4.10.27
+  app-to-app / per-service-grant point is retained in that note.
+- **(operator)** Same turn, on the figure's emphasis: "in fig platforms,
+  we cant have this pitchy, the boundary, we are showing our architecture
+  diagram / query engine diagram kind of there!!! but more focused that we
+  are providing this proper columnar experience with NO db setup, it is set
+  up already, on top of the nodes int he network already"
+- **(agent)** Evidence trail (keep it "as clear as day"): atproto
+  guides/statusphere-tutorial + specs/permission + the AppView read model ·
+  Mastodon REST / OAuth docs · feed.ts's buildFeedQuery (the feed ranked in
+  SQL) · the connected interop experiment. related-work.md's AT row
+  updated; the comparative gap stays **OPEN**.
+
+### Figure B title polish: "— a breakdown" is out; the title is "Reading a social feed on web10"
+
+- **(operator)** "a breakdown actually in that title doesnt look good can
+  you suggest a title! defintiely better though it is an imporvement, just
+  want to get it perfect"
+- **(agent)** Shortlist fired: A "Reading a social feed on web10" (the
+  operator's own wording minus the tail) · B "Where a feed read runs"
+  (the family register — "Where the composition happens") · C "The feed
+  read, from the app to the store." A applied — the "entire end-to-end
+  journey, in three layers" framing stays in the subtitle, so nothing is
+  lost. Re-rendered and inspected.
+
 ### The federated-social comparison figure re-anchored: app-to-app vs. app-to-user-data; Bluesky's per-collection permissions are real
 
 - **(operator)** "in mastodon bluesky diagram, it is saying silo, all this

@@ -190,32 +190,36 @@ again.
 ### Figure 9 — where the new app lives: the federated-social fork (done,
 `figs/fig-platforms.png`, §6/§9)
 
-**What it visualizes:** the extensibility / interop fork — how a second
-app gets access to, and composes with, existing user data. Left
-(Mastodon · Bluesky, blue): the fixed social object model (post ·
-profile · follow · like · boost — ActivityPub's types, the app.bsky
-lexicons); delegation to the user's data — Mastodon's coarse read/write
-scopes, Bluesky's per-collection, per-action permissions
-(atproto.com/specs/permission) — but app-to-user-data: no record shape
-for a hi-score or a listing (hack a post, or a custom lexicon outside the
-social graph), no second app holds a typed read on the first app's data,
-and federation replicates the model across servers. Right (web10,
-green): three apps each owning their services (`profile` ·
-`snake_scores` · `marketplace_listings` — the pinned interop names), one
-node, the same violet boundary; a second app gets in through a
-per-service grant the user gives — a typed read on the social app's
-profile, composable in SQL, 403 without the grant.
-**Why that shape:** the operator's "like oauth on steroids" made
-explicit — the differentiator is app-to-app vs. app-to-user-data, NOT
-"no fine-grained IAM" (Bluesky has per-collection, per-action
-permissions — the first shot's "no typed per-service grants" claim was
-wrong and was pulled). Data shape is the left panel's mechanism, not a
-verdict.
-**Evidence (keep it "as clear as day"):** Mastodon OAuth scope docs ·
-the atproto OAuth + Permissions specs (checked 05.11.2026) ·
-`research/interoperability-demo` (the connected experiment). Pin the
-spec's version/section before §9 prints, per `research/related-work.md`
-(the comparative gap stays OPEN).
+**What it visualizes:** the extensibility fork, re-anchored on the query
+engine (4.10.29) — how a second app reads and composes with existing user
+data, and where its queries run. Left (Mastodon · Bluesky, blue): the
+fixed social object model (post · profile · follow · like · boost);
+**no query engine in the platform** — the app reads via the platform's
+fixed endpoints (getFeed / getProfile / /timelines, untunable) or
+replicates records into its own database (Bluesky's own statusphere
+tutorial: a Tap sync worker + Postgres, just to have a feed); "a new
+read pattern is a new backend"; no record shape for a hi-score or a
+listing. Right (web10, green): **the node — set up already**: ClickHouse
+provisioned on the node, no DB to stand up; the app writes its own
+queries on day one (joins · ranking · cursors); three apps each owning
+their services (`profile` · `snake_scores` · `marketplace_listings` —
+the pinned interop names); a second app gets in through a per-service
+grant the user gives (snake game → the social app's profile; no grant →
+403). New read pattern = a new query, not a new backend.
+**Why that shape:** the operator's "does bluesky give that clickhouse BI
+power? i bet not … you couldnt tune the feed, this lets you write
+whatever clickhouse you want" made mechanism-first — the contrast is the
+columnar engine already on the node, no DB setup, vs. fixed endpoints or
+your own replicated backend. The boundary box was dropped from this
+figure (operator: "we cant have this pitchy, the boundary") — it is
+fig-query-engine's hero; this figure's hero is the columnar experience.
+The 4.10.27 re-anchor (app-to-app vs. app-to-user-data; "no fine-grained
+IAM" was wrong for Bluesky and was pulled) is retained in the note.
+**Evidence (keep it "as clear as day"):** atproto guides/statusphere-
+tutorial + specs/permission + the AppView read model · Mastodon REST /
+OAuth docs · feed.ts's buildFeedQuery · `research/interoperability-demo`
+(all checked 05.11.2026). Pin the spec's version/section before §9
+prints, per `research/related-work.md` (the comparative gap stays OPEN).
 
 ### Candidates (not started)
 
@@ -241,5 +245,5 @@ spec's version/section before §9 prints, per `research/related-work.md`
 | 6 | Domain portability | §8 | existing |
 | 7 | Groups UI | §6 | existing; cut candidate |
 | 8 | Where the composition happens (the Solid fork) | §3/§9 | **done** (4.10.23, `fig-composition`) |
-| 9 | Where the new app lives (the federated-social fork) | §6/§9 | **done** (4.10.27, `fig-platforms`) |
+| 9 | Where the new app lives (the federated-social fork) | §6/§9 | **done** (4.10.29, `fig-platforms`) |
 | — | Two trust layers / data model | §2/§3 | candidates |

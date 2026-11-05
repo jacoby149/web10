@@ -1,29 +1,42 @@
 <!doctype html>
 <!--
   Source for fig-platforms.png ("Where the new app lives").
-  The extensibility / interop fork, orthogonal to fig-composition (the
-  composition fork vs. Solid). The axis: how a SECOND app gets access to,
-  and composes with, EXISTING user data.
-  - MASTODON/BLUESKY: delegation to the user's data, on a fixed social
-    model. Mastodon grants coarse read/write OAuth scopes to the whole
-    model; Bluesky (AT Protocol) grants per-collection, per-action
-    permissions to the user's own repo (atproto.com/specs/permission).
-    Both are app-to-user-data, not app-to-app: a high score or a listing
-    has no shape in the social model (you'd hack a post, or a custom
-    lexicon that sits outside the social graph), and no second app holds a
-    typed read on the first app's data. No shared store to compose across.
-  - WEB10: a per-service grant, app-to-app, on a shared store. Each app
-    defines its own services in the user's store (profile, snake_scores,
-    marketplace_listings — the pinned interop names); the game and the
-    marketplace each hold a typed read on the social app's profile, join it
-    in SQL, and an ungranted app gets 403 (research/interoperability-demo).
-    It's OAuth, but app-to-app and fine-grained: a role and a policy.
-  Evidence to keep this "as clear as day": Mastodon OAuth scope docs;
-  atproto permission spec (verify version/section before printing in §9,
-  per related-work.md — the comparative gap stays OPEN). The web10 side is
-  pinned by the connected interop experiment.
-  The violet boundary box is the same mechanism as fig-composition and
-  fig-query-engine. No verdict line: the comparison lives in the caption.
+  The extensibility fork, orthogonal to fig-composition (the composition
+  fork vs. Solid). The axis: how a SECOND app reads and composes with
+  EXISTING user data — and where its queries run.
+  - MASTODON/BLUESKY: no query engine in the platform. The app either
+    calls the platform's fixed read endpoints (Bluesky's AppView
+    getFeed/getProfile; Mastodon's /timelines, /statuses — untunable), or
+    replicates public records into the app's OWN database — Bluesky's own
+    statusphere tutorial (atproto.com/guides/statusphere-tutorial) stands
+    up a Tap sync worker + Postgres just to have a feed, then queries its
+    own copy. So a new read pattern is a new backend; the read model comes
+    one size that doesn't scale. The object model (post, profile, follow,
+    like, boost) is fixed by the protocol; a hi-score or a listing has no
+    shape in it (hack a post, or a custom lexicon outside the social
+    graph). Delegation is app-to-user-data: Mastodon's coarse read/write
+    scopes; Bluesky's per-collection, per-action permissions
+    (atproto.com/specs/permission) — but no second app holds a typed read
+    on the first app's data, and there's no shared store to query across.
+  - WEB10: the columnar experience is already on the node, with no DB
+    setup. The node provisions ClickHouse + the query engine; the app
+    writes its own SELECT (the feed is ranked in SQL — feed.ts's
+    buildFeedQuery — joins, aggregation, cursors) on day one, every read
+    enforced against the reader's grants. Each app defines its own services
+    (profile, snake_scores, marketplace_listings — the pinned interop
+    names); the game and the marketplace hold a typed per-service read on
+    the social app's profile; an ungranted app gets 403
+    (research/interoperability-demo). New read pattern = a new query, not a
+    new backend: a role and a policy.
+  Evidence to keep this "as clear as day": Mastodon OAuth scope docs; the
+  atproto permission spec + the statusphere tutorial (both checked
+  05.11.2026); feed.ts's buildFeedQuery; the connected interop
+  experiment. Verify spec version/section before printing in §9
+  (related-work.md — the comparative gap stays OPEN).
+  The violet boundary box was dropped from this figure — it is
+  fig-query-engine's hero; here the point is the columnar engine already on
+  the node, not the enforcement. No verdict line: the comparison lives in
+  the caption.
   Render with ./capture.mjs fig-platforms.
 -->
 <html>
@@ -103,7 +116,7 @@
     <div class="s">the platform&rsquo;s own app &mdash;<br>every client is shaped by that model</div>
   </div>
 
-  <div class="box model" style="left: 95px; top: 300px; width: 550px; height: 118px;">
+  <div class="box model" style="left: 95px; top: 256px; width: 550px; height: 100px;">
     <div class="t">the platform&rsquo;s object model &mdash; fixed by the protocol</div>
     <div class="chiprow">
       <span class="chip blue">post</span><span class="chip blue">profile</span><span class="chip blue">follow</span><span class="chip blue">like</span><span class="chip blue">boost</span>
@@ -111,15 +124,22 @@
     <div class="s">ActivityPub (Mastodon) &middot; the app.bsky lexicons (Bluesky) &mdash; one surface, on every server</div>
   </div>
 
-  <div class="neg" style="left: 95px; top: 470px; width: 550px; height: 200px;">
-    <div class="t">delegation to your data, not interop between apps</div>
-    An app gets a delegated token to <b>your</b> data &mdash; Mastodon&rsquo;s
-    coarse read / write scopes, Bluesky&rsquo;s per-collection, per-action
-    permissions. But it&rsquo;s app-to-user-data on a fixed model: a high
-    score or a listing has no shape in it (you&rsquo;d hack a post &mdash; or a
-    custom lexicon that sits outside the social graph), and no second app
-    holds a typed read on the first app&rsquo;s data. Federation replicates
-    the model across servers; it doesn&rsquo;t add apps, or compose across them.
+  <div class="box model" style="left: 95px; top: 386px; width: 550px; height: 108px; text-align: left;">
+    <div class="t" style="text-align: center;">how an app reads that data &mdash; no query engine in the platform</div>
+    <div class="s" style="margin-top: 8px;">
+      &bull; the platform&rsquo;s fixed endpoints &mdash; <span style="font-family:'SF Mono',Menlo,monospace; font-size:10px;">getFeed</span>, <span style="font-family:'SF Mono',Menlo,monospace; font-size:10px;">getProfile</span>, /timelines &mdash; untunable<br>
+      &bull; or replicate the data into the app&rsquo;s own database &mdash; Bluesky&rsquo;s own statusphere tutorial runs a Tap sync worker + Postgres just to have a feed
+    </div>
+  </div>
+
+  <div class="neg" style="left: 95px; top: 524px; width: 550px; height: 168px;">
+    <div class="t">a new read pattern is a new backend</div>
+    So the read model comes one size: a new ranking or a new join means a new
+    replicated backend, not a new query. And the model has no shape for a
+    hi-score or a listing &mdash; you&rsquo;d hack a post, or a custom lexicon
+    outside the social graph. Delegation is app-to-user-data: a second app
+    holds no typed read on the first app&rsquo;s data; there is no shared
+    store to query across.
   </div>
 
   <!-- WEB10 panel -->
@@ -139,27 +159,27 @@
     <div class="s">its service: marketplace_listings</div>
   </div>
 
-  <div class="nodecard" style="left: 982px; top: 380px;"><div class="n">the node</div></div>
-  <div class="boundary" style="left: 990px; top: 410px;">
-    <div class="t">the boundary</div>
-    <div class="s">readable set compiled in<br>AST-protected</div>
+  <div class="nodecard" style="left: 982px; top: 372px; height: 180px;"><div class="n">the node &mdash; set up already</div></div>
+  <div class="store" style="left: 990px; top: 404px; height: 64px;">
+    <div class="t">ClickHouse</div>
+    <div class="s">the columnar engine, provisioned<br>on the node &mdash; no DB to stand up</div>
   </div>
-  <div class="store" style="left: 990px; top: 480px;">
-    <div class="t">the shared store</div>
-    <div class="s">documents in app-named services</div>
+  <div class="store" style="left: 990px; top: 480px; height: 64px;">
+    <div class="t">the app writes its own queries</div>
+    <div class="s">joins &middot; ranking &middot; cursors &mdash;<br>a real columnar experience, on day one</div>
   </div>
 
   <div class="slabel" style="left: 787px; top: 572px;">the services the three apps define &mdash; one store, one boundary:</div>
   <div style="position: absolute; left: 787px; top: 592px; display: flex; gap: 8px;">
     <span class="chip">profile</span><span class="chip">snake_scores</span><span class="chip">marketplace_listings</span>
   </div>
-  <div class="note" style="left: 787px; top: 618px; width: 590px;">
-    A second app gets in through a <b>per-service grant the user gives</b>:
-    the snake game holds a typed read on the social app&rsquo;s <b>profile</b>
-    &mdash; and nothing else (no grant &rarr; 403). The user owns these grants
-    as data, and the apps compose across them on one store: OAuth, but
-    <b>app-to-app</b> and fine-grained &mdash; a role and a policy, no protocol
-    change.
+  <div class="note" style="left: 787px; top: 612px; width: 590px;">
+    No DB setup: the node already runs the columnar store + query engine, so
+    an app gets a real query experience out of the box &mdash; the feed is
+    ranked in SQL, and every read is enforced against the reader&rsquo;s
+    grants. A new app steps in with its own services + a <b>per-service
+    grant</b> (the snake game &rarr; the social app&rsquo;s profile; no grant
+    &rarr; 403). New read pattern = <b>a new query, not a new backend</b>.
   </div>
 
   <!-- arrows -->
@@ -173,8 +193,8 @@
       </marker>
     </defs>
     <!-- fed: the social app reads/writes the model -->
-    <line x1="375" y1="226" x2="375" y2="298" stroke="#6f7490" stroke-width="1.5" marker-end="url(#m-gray)"/>
-    <line x1="393" y1="298" x2="393" y2="226" stroke="#6f7490" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#m-gray)"/>
+    <line x1="375" y1="230" x2="375" y2="252" stroke="#6f7490" stroke-width="1.5" marker-end="url(#m-gray)"/>
+    <line x1="393" y1="252" x2="393" y2="230" stroke="#6f7490" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#m-gray)"/>
     <!-- web10: three apps -> the node (query + token) -->
     <line x1="871" y1="214" x2="1010" y2="376" stroke="rgba(120,220,180,.9)" stroke-width="1.8" marker-end="url(#m-green)"/>
     <line x1="1059" y1="214" x2="1072" y2="376" stroke="rgba(120,220,180,.9)" stroke-width="1.8" marker-end="url(#m-green)"/>
@@ -184,7 +204,7 @@
     <line x1="1072" y1="376" x2="1059" y2="218" stroke="#6f7490" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#m-gray)"/>
     <line x1="1114" y1="376" x2="1238" y2="218" stroke="#6f7490" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#m-gray)"/>
   </svg>
-  <div class="wlabel" style="left: 300px; top: 252px;">read / write the model</div>
+  <div class="wlabel" style="left: 130px; top: 234px;">read / write the model</div>
   <div class="wlabel" style="left: 850px; top: 288px;">query + token</div>
   <div class="wlabel" style="left: 1160px; top: 288px; color: #6f7490;">rows</div>
 </body>
