@@ -10,6 +10,30 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 04.11.2026
 
+### Shot 0 (refined post-lock): the pitch gains "belongs to the user" + the combination + the OLAP/RLS positioning
+
+- **(operator)** On the cut "permission model is data in the store it
+  protects" line: "this is great, because it shows it belongs to the
+  user" → restore it. Then: "we should acknowledge we are combining
+  parts, i dont know if postgres RLS is what we should be pointing at
+  though since we are saying OLTP is dead, OLAP is awesome, but maybe we
+  should add two sentences then."
+- **(agent)** Take 24 adds three things to the locked pitch: (1) the
+  "the access rules are the user's own data, in the very store they
+  protect — the permission model belongs to the user, not the platform"
+  line (restored — it shows the access belongs to the user); (2) a
+  combination-ownership line ("None of this is a new part … the
+  contribution is how they combine on one shared columnar store"); (3) an
+  OLAP/RLS positioning line that frames RLS as the *OLTP-era answer* and
+  the query-layer boundary as the columnar-era move (so we point at RLS
+  as the predecessor, not as what we're like — preserving the "OLTP is
+  dead, OLAP is the move" stance without re-adding the literal "OLTP is
+  dead" phrase the operator cut). Pitch is now 9 sentences.
+- **(agent) Open:** is 9 sentences the right core argument, or do the
+  combination + OLAP/RLS lines belong in the body (§1/§5/§9) and the
+  pitch stays at 6–7? The two positioning lines are strong body material
+  either way.
+
 ### The pitch is the paper's information-preserving compression — the shot-0 exercise closes (05.11)
 
 - **(operator)** "so what i like about this paragraph is it is the whole
