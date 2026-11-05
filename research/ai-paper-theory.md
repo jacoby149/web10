@@ -349,38 +349,72 @@ This is the paper's version of the project's root-of-trust pattern: KB →
 outline → manuscript. The draft is the approximation; the KB is where the
 thinking lives.
 
-## 10. The method: orient → outline → prose → compare → repair
+## 10. The method: the shot loop (outline synthesis, human in the loop)
 
-The paper edition of the four-phase flow, with the KB as the gates:
+The operator's synthesis process (04.11.2026): the agent has the whole
+knowledge base and the research that was done; synthesis happens in
+**shots** — bounded, complete, critique-ready artifacts — at three
+granularities, each gated by the operator's yes. And restart is free at
+any granularity: papers are cheap.
 
-1. **Orient.** Read this theory, the journey, the KB documents, the
-   evidence records (`experiments/`, `federation-demo/`,
-   `interoperability-demo/`, `domain-portability-demo/`,
-   `live-observation-*.md`), the claim limits (`brief.md`), the venue
-   constraints. Pull every number from the artifact, never from a
-   previous draft.
-2. **Outline.** `OUTLINE.md` — the arc, the differentiators as claims,
-   the theorem, the section beats with their "why", the evidence map, the
-   page allocation. **The operator reviews the outline, not the PDF.**
-3. **Prose.** Section by section, each section carrying one job: "this
-   section kills the doubt that …". Evidence placed only per
-   kb/experiments.md; figures drawn only per kb/diagrams.md; the awe
-   beats placed per §1 internal oracle.
-4. **Compare.** Five oracles, in order: the spine (does this paragraph
-   advance the proof?); the evidence (does this claim trace to a pinned
-   artifact or verified experiment?); **the awe (score the draft 0–10 on
-   each of the three, in priority order, against the named beats)**; the reader (does a fresh
-   reviewer own every noun? where would they attack?); the venue (12 body
-   pages, industry-track values, the F3 notes as structural benchmark).
-5. **Repair.** Punchline first, numbers second, scope-as-fact third,
-   sentences fourth. Then the no-hedging pass: find every weakened claim,
-   restore it to full strength inside its domain, cut it if it can't
-   survive the evidence oracle. Then the **awe pass**, in priority order:
-   logical awe to ≥ 8 (the combination presentation, the why-not-X chain
-   as visible verification steps, the NP→P contrast), then original work
-   to ≥ 8 (the structural conjunction argument), then importance to ≥ 6
-   (the calibrated stakes + labor beats). Then the acceptance checklist
-   (§16).
+**The grounding (always first):** orient — read this theory, the KB
+documents, the evidence records (`experiments/`, `federation-demo/`,
+`interoperability-demo/`, `domain-portability-demo/`,
+`live-observation-*.md`), the claim limits (`brief.md`), the venue
+constraints. Pull every number from the artifact, never from a previous
+draft.
+
+**The gates, in order:**
+
+- **Shot 0 — the pitch (before the outline).** One paragraph, the whole
+  paper: setup → system → theorem → proof → labor → payoff. It is fired
+  to win the "YES YES YES, that is it, this is what we are going with
+  this." If the pitch doesn't hit, the spine is wrong — fix the spine;
+  don't build the outline on an unapproved one. The pitch seeds the
+  abstract and locks the arc.
+- **Shots 1..n — the outline.** The outline is shot in slices (arc +
+  differentiators first, then the section groups), with
+  human-in-the-loop critique between shots; each slice carries its "why"
+  and its awe-beat placements. Hit → the beats lock into `OUTLINE.md`.
+  The operator reviews the outline, not the PDF.
+- **The diagram shots (after the outline, before the sections).** Each
+  HTML diagram is shot and gated on the operator's pass — the paper's
+  visual spine gets approved before any prose writes around it: the
+  section shots then reference stable, approved figures, and the
+  page-budget math (full-width floats, aspect ratios) is settled before
+  the prose. The diagrams also carry a big share of the three awe scores
+  (the look; the NP→P argument drawn, not just described) — approving
+  them early is approving the awe.
+- **The section shots — the attack.** Section prose is shot per section
+  (or subsection): complete, critique-ready, evidence placed per
+  `kb/experiments.md`, figures per `kb/diagrams.md` (already approved),
+  the awe beats per the internal oracle (§1), each section carrying one
+  job ("this section kills the doubt that …"). Hit → the section locks.
+- **The final gate — the PDF.** The operator reads the full PDF (the
+  final scoring of the three awe scores), the acceptance checklist (§16)
+  ticks, submit.
+
+**The shot rules:**
+
+1. A shot is **complete enough to critique** (never a fragment the
+   operator has to finish) and **bounded enough to restart cheaply**
+   (one paragraph / one outline slice / one section).
+2. A shot **carries its own "why"** — the critique targets the argument,
+   not the wording.
+3. A shot is **self-scored against the two oracles before firing** (the
+   five questions + the three awe scores, at the shot's granularity): the
+   agent does not fire a shot it knows fails its own oracles.
+4. The operator's critique is **recorded in DECISIONS.md**, verbatim
+   where it's sharp.
+5. A shot that misses twice gets a **third shot with a changed
+   structure**, not a reword — or a restart.
+6. **Restart is free at any granularity.** A missed shot costs one shot;
+   even the whole process restarts from Shot 0 if the spine turns out
+   wrong. Papers are cheap.
+
+The compare/repair oracles (spine, evidence, awe, reader, venue) run
+*inside* the loop: compare is the operator's critique plus the
+self-scoring; repair is the next shot.
 
 ## 11. The attack surface: failure modes and countermeasures
 
@@ -469,26 +503,39 @@ original work ≥ 8, importance ≥ 6).
    range, the scale framing, authorship, and in-place vs. new folder.
 1. **The KB documents** — `kb/experiments.md` + `kb/diagrams.md` drafted
    (done 04.11.2026); they gate the evidence and the figures.
-2. **The outline approved** — `OUTLINE.md` read by the operator; the arc,
-   the beats, the page allocation, and the awe-beat placements confirmed.
-3. **Prose** — abstract + intro first (the stakes + the labor + the five
-   claims with their beats); then the theorem core (§2 definitions +
-   expression, §5 materialization + compile, presented as the
-   combination); then the evidence as Q&A (§8); then the rest per the
-   outline. Tectonic measured after every section; the cut list
-   pre-decided in the outline (groups UI figure, domain prose compression)
-   if the 12-page budget bites.
-4. **Figures per kb/diagrams.md** — Figure 1 gains its section labels
-   (visual TOC); `fig:app` (§6); `fig:boundary` (§5); candidates: two
-   trust layers (§2), the data model (§3).
-5. **The voice + awe pass** — kill every hedge, restore claims to full
+2. **Shot 0 — the pitch** — one paragraph, the whole paper
+   (setup → system → theorem → proof → labor → payoff); fired and gated
+   on the operator's "YES YES YES". A miss = the spine is wrong: fix the
+   spine, re-fire. The pitch seeds the abstract and locks the arc in
+   `OUTLINE.md`.
+3. **The outline shots** — slices with the "why" + the awe-beat
+   placements (the arc + differentiators slice first),
+   human-in-the-loop critique between shots; hit → the beats lock into
+   `OUTLINE.md` (the page allocation confirmed at 12.0).
+4. **The diagram shots (before the sections)** — Figure 1 gains its
+   section labels (visual TOC); `fig:app` (§6); `fig:boundary` (§5);
+   candidates: two trust layers (§2), the data model (§3). Each gated on
+   the operator's pass; the page-budget math settled before the prose
+   writes around them.
+5. **The section shots — the attack** — abstract + intro first (the
+   stakes + the labor + the five claims with their beats); then the
+   theorem core (§2 definitions + expression, §5 materialization +
+   compile, presented as the combination); then the evidence as Q&A
+   (§8); then the rest per the locked outline, writing around the
+   approved figures. Each shot: complete, self-scored against the two
+   oracles before firing, the operator's critique recorded in
+   DECISIONS.md. Tectonic measured after every locked section; the cut
+   list pre-decided in the outline (groups UI figure, domain prose
+   compression) if the 12-page budget bites.
+6. **The voice + awe pass** — kill every hedge, restore claims to full
    strength, follow through on the bold; then the awe pass, in priority
    order: logical awe to ≥ 8 (the combination presentation, the
    why-not-X chain as visible verification steps, the NP→P contrast),
    original work to ≥ 8 (the structural conjunction argument),
    importance to ≥ 6 (the calibrated stakes + labor beats).
-6. **The acceptance checklist** (§16) — every box ticked; the operator
-   reads the full PDF (the final scoring); submit.
+7. **The acceptance checklist** (§16) — every box ticked; the operator
+   reads the full PDF (the final scoring); submit. A restart from Shot 0
+   is always on the table — papers are cheap.
 
 Where: **in place, in `second-draft/`** (the working manuscript; the
 evidence tables, the bibliography, and the artifact pins stay; the

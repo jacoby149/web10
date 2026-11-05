@@ -10,6 +10,42 @@ editorial rules, pinned numbers, the diagnosis of the current draft) lives in
 
 ## 04.11.2026
 
+### The outline-synthesis process: shots, human in the loop, restart free
+
+- **(operator)** "We need an outline synthesis process. You have the whole
+  knowledge base, the research that was done. **You need to propose
+  before an outline — I think like a paragraph, i.e. a shot! Like a
+  YES YES YES, that is it, this is what we are going with this.** Then
+  you take shots at the outline with human in the loop critique, then
+  take shots at sections with human in the loop critique, kind of comes
+  together like that. And then can start all over again even if it
+  doesn't hit the mark — papers are cheap." Gate order, refined the same
+  day: "so **paragraph, get a pass, outline, get a pass. I think actually
+  before sections, maybe we should just go straight to the html diagram
+  stuff, get approvals on those. then section by section, we can
+  attack!**"
+- **(agent)** The theory §10 is now **the shot loop**: Shot 0 = the pitch
+  (one paragraph, the whole paper: setup → system → theorem → proof →
+  labor → payoff; gated on the operator's yes — a miss means the spine
+  is wrong, not the wording); Shots 1..n = the outline, shot in slices
+  with critique between; Shots m..k = the sections, complete and
+  critique-ready, evidence per kb/experiments.md, figures per
+  kb/diagrams.md; final gate = the full PDF read (the awe scoring) + the
+  acceptance checklist. Shot rules: complete enough to critique, bounded
+  enough to restart; carries its own "why"; self-scored against both
+  oracles before firing; the operator's critique recorded in this log
+  verbatim where sharp; two misses = third shot with a changed structure
+  or a restart; restart free at any granularity. The gate order per the
+  operator's same-day refinement: **pitch → pass → outline → pass → the
+  HTML diagram shots → pass → the section shots ("we can attack!")** —
+  the visual spine is approved before the prose writes around it, so the
+  section shots reference stable, approved figures and the page-budget
+  math is settled early.
+- **(agent)** **Shot 0 fired 04.11.2026** (the pitch paragraph, in the
+  PR #1396 thread) — awaiting the operator's yes. On a hit: the pitch
+  locks into the outline's arc and seeds the abstract; the outline
+  (already drafted) is re-shot as slices against it.
+
 ### The three awe scores: logical awe the utmost (NP system, P proof), original work second, importance calibrated — the genius score retired
 
 - **(operator)** Ranks the awe scores: **logical awe is the utmost
