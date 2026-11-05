@@ -10,6 +10,20 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 04.11.2026
 
+### Shot 0, take 2: missed on the opener — "what is your data, a pet?"
+
+- **(operator)** The critique of take 2, verbatim: "proved your data can
+  live with you … what is your data, a pet?" — the opener's stake ("your
+  data") is an abstract noun; the reader can put a pet in its place, so
+  the stakes aren't named.
+- **(agent)** The lesson is in the theory: `method/README.md`'s pitch
+  spec gains the **pet test** (name the stakes concretely; the opener's
+  noun is the thing — mail, not "data"; the payoff mirrors the opener's
+  noun), and `craft/voice.md` rule 1 now carries it. Take 3 fires in
+  the PR thread: the opener names the mail proof + the social life as
+  the format that matters most; the payoff mirrors it ("Your social life
+  leaves the building with you. Now your rules do too.").
+
 ### Shot 0, take 1: missed — the pitch spec is now in the theory
 
 - **(operator)** The critique of take 1, verbatim: "**'closes the split,'

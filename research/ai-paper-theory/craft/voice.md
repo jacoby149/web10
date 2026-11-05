@@ -1,6 +1,8 @@
 # The voice: the editorial rules
 
-1. Open with the tension, not the definition.
+1. Open with the tension, not the definition — and name the stakes
+   concretely: the *pet test* (if the reader can swap a pet into the
+   stake, the stake isn't named; "your data … a pet?").
 2. The labor is a lede: a whole highly technical system, built and
    proven — with the pinned numbers, early.
 3. The differentiators are stated boldly — five of them — each tied to
