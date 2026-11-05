@@ -99,14 +99,31 @@ the artifact, never from a previous draft.
    "why" and its awe-beat placements. Pass → the beats lock into
    `second-draft/OUTLINE.md`. The operator reviews the outline, not the
    PDF.
-3. **The diagram shots (after the outline, before the sections).** Each
-   HTML diagram is shot and gated on the operator's pass — the paper's
-   visual spine gets approved before any prose writes around it: the
-   section shots then reference stable, approved figures, and the
-   page-budget math (full-width floats, aspect ratios) is settled
-   before the prose. The diagrams also carry a big share of the three
-   awe scores (the look; the NP→P argument drawn, not just described) —
-   approving them early is approving the awe.
+3. **The diagram shots — the argumentation engine (after shot 0 + the
+   abstract; can run ahead of the full outline; feeds back into the
+   pitch).** In practice (05.11.2026) the figure phase proved to be the
+   paper's *second synthesis engine*, not just illustration. The order
+   the operator landed on: **write shot 0 → make the figures, edit the
+   figures, add the figures → write the paper.** Drawing a system (and
+   its contrasts) forces every claim to be defensible and surfaces what
+   the prose hasn't yet articulated. Concretely it:
+   - **settles the figure set** the outline + sections will use (stable,
+     approved visuals; the page-budget math — full-width floats, aspect
+     ratios — settled before the prose writes around it),
+   - **surfaces new beats that modify shot 0** (the "a node pools
+     millions of users / discover" point came out of fig-composition;
+     the "no query engine in the platform / a new read pattern is a new
+     backend" point came out of fig-platforms),
+   - **forces the evidence** ("as clear as day"): every figure claim
+     gets checked against a primary source (the atproto permission
+     spec, the statusphere tutorial, feed.ts, safe_query.py, the interop
+     spec) — which is what caught our own wrong claims (the "no
+     per-service grants" line was false for Bluesky and got pulled),
+   - **generates attack-surface lines** (anticipated reviewer
+     objections + named countermeasures), and
+   - **carries a big share of the three awe scores** (the look; the
+     NP→P argument drawn, not just described) — approving the figures
+     early is approving the awe.
 4. **The section shots — the attack.** Section prose is shot per
    section (or subsection): complete, critique-ready, evidence placed
    per `second-draft/kb/experiments.md`, figures per
@@ -138,3 +155,46 @@ the artifact, never from a previous draft.
 The compare/repair oracles (spine, evidence, awe, reader, venue) run
 *inside* the loop: compare is the operator's critique plus the
 self-scoring; repair is the next shot.
+
+## What makes the loop effective (retrospective, 05.11.2026)
+
+The shot-0 → figures → paper run was unusually productive. What made it
+so, pinned for the next run:
+
+1. **Compression as the oracle.** Shot 0 is one paragraph that must
+   preserve the whole paper's information ("the idea"). Riffing on a
+   paragraph is cheap; restarting a 12-page draft is not. The small
+   target is what made the fast loop possible.
+2. **The operator as the domain oracle.** The critiques are sharp and
+   specific because the operator built the system ("the AST runs in the
+   API, not the app/SDK", "silo is pitchy", "the boundary box is the
+   wrong hero here", "the app is vertically above the data"). The
+   two-oracle setup (external = the reviewer's five questions, internal
+   = the three awe scores) structures that sense; the operator's read
+   is the final scoring.
+3. **Figures as the discovery medium, not the deliverable.** Drawing
+   forces precision (show-don't-tell; placement is assertion), and a
+   figure is a claim you can point at. The operator sees the whole
+   argument at a glance and points at what's off — a faster critique
+   loop than prose. The new beats, the evidence checks, and the
+   attack-surface lines came out of *drawing*, not editing.
+4. **Evidence discipline ("as clear as day").** Every figure claim must
+   be verifiable against a primary source. That turned "I think
+   Bluesky can't do X" into "Bluesky's read path is Y (cited)" — and
+   caught our own wrong claims. It's also what keeps the related-work
+   gap honest (OPEN until primary-source-verified).
+5. **Rules that ratchet.** Each miss becomes a reusable voice/figure
+   rule (the pet test, third person, mechanism-over-benefit,
+   authenticity-over-template, placement-is-assertion, no slogan
+   labels, no pitch figures). The method gets better as it goes; the
+   next shot starts from a higher floor.
+6. **Full provenance, out of chat.** DECISIONS.md (the critiques
+   verbatim), the versioned CHANGELOG, the plan/lane ticks,
+   kb/diagrams.md (the figure plan + evidence), related-work.md (the
+   gap state). Nothing dies in the conversation; a fresh session
+   re-derives why each choice was made.
+7. **Grounded in the real repo.** The figures quote real function names
+   (buildFeedQuery, w.query, safe_query), real service names (profile,
+   snake_scores, marketplace_listings), and real numbers (46,285
+   lines). The argument stays verifiable because it is pinned to the
+   system we actually built.

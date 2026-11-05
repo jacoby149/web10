@@ -10,6 +10,32 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 05.11.2026
 
+### The method captures the proven order: shot 0 → figures (make, edit, add) → paper; and why the loop worked
+
+- **(operator)** "this is such a better wway to make a research paper,
+  this write shot 0 -> make figures, edit the figures, and add figures,
+  then write the paper, can we make sure that is captured in our paper
+  theory? can look at our chat history too, what made this synthesis
+  process so effective, this was really productive!"
+- **(agent)** `ai-paper-theory/method/README.md` updated: gate 3 (the
+  diagram shots) is now **"the argumentation engine"** — the figure
+  phase runs after shot 0 + the abstract, can run ahead of the full
+  outline, and feeds back into the pitch. Its five practiced jobs are
+  pinned: settles the figure set · surfaces new beats that modify shot
+  0 (the node-size / discover point came out of fig-composition; the
+  no-query-engine / "a new read pattern is a new backend" point came
+  out of fig-platforms) · forces the evidence ("as clear as day" — what
+  caught our own wrong claim about Bluesky's grants) · generates
+  attack-surface lines (the "too rich" → coding-models-era answer) ·
+  carries the awe scores. A new **"What makes the loop effective"**
+  retrospective pins the seven factors: compression as the oracle · the
+  operator as the domain oracle · figures as the discovery medium (not
+  the deliverable) · evidence discipline · rules that ratchet (every
+  miss becomes a reusable voice/figure rule) · full provenance out of
+  chat (DECISIONS verbatim, CHANGELOG, plan/lane, kb/diagrams,
+  related-work) · grounding in the real repo (real function names,
+  service names, numbers).
+
 ### Attack surface +1: "too rich — developers can't use a query engine" → the coding-models era is the answer
 
 - **(operator)** "i think that we provide such a rich experience, the
