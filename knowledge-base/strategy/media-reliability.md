@@ -86,7 +86,7 @@ Read-only production probes on 05.11.2026:
 
 ## Bounded delivery
 
-Initial status, 4.10.1: MR0 and the bounded MR1 slice below are complete. Seven
+Initial status, 4.10.3: MR0 and the bounded MR1 slice below are complete. Seven
 added controls (five initially red), all 1,993 social/299 marketing tests and
 both builds pass. `screenshots/preview-budget.mjs` runs each app's configuration
 with real hls.js and synthetic stalled segments at desktop/375px; every case
@@ -94,7 +94,7 @@ requests/cancels two segments, peaks at one downloader and has zero active
 offline. Four fixture screenshots inspected. MR2–MR4 remain open; no deployment,
 full-tab, real-video decoding or physical-phone acceptance is claimed.
 
-### Cross-site implementation (4.10.2 local)
+### Cross-site implementation (4.10.4 local)
 
 Verification: 2,034 social/299 marketing tests, both production builds,
 frozen-lockfile installs and whitespace checks pass. The final narrow
