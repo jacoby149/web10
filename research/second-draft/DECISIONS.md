@@ -10,6 +10,34 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 04.11.2026
 
+### Shot 0, the network sentences: both were massaged — the authentic versions replace them
+
+- **(operator)** On the /certify pitch sentence: "no those two sentences
+  dont like them, liked what you actually sayd when you brought up dmarc,
+  spf … you say it soooo well, and then why do you do so much massaging
+  to it to completely lose what you said in this outline?" + "this is so
+  much more authentic." On the DNS pitch sentence: "and you did this
+  same pitchey thing with the DNS, this is a research paper, people want
+  to know a TXT record is protecting them, and is untouchable to the node
+  owner."
+- **(agent)** Two misses, one lesson, locked as voice.md rule 15
+  (**authenticity over template, mechanism over benefit**): (1) the
+  /certify line is now the authentic SPF/DKIM parallel that landed
+  inline — "Email asks of an arriving message 'is this sender who they
+  claim to be?' and that check grants the message no access; /certify
+  asks the same of an arriving token, one cached handshake, verifies and
+  grants nothing; same shape, different mechanism — verified is not
+  registered." (2) the DNS line now names the mechanism, not the
+  benefit: the address is a **DNS TXT record the user owns**; the node
+  verifies it by performing the lookup itself; the record is
+  **untouchable to the node owner**; the follows are data the followers
+  own, bound to the domain — audience preservation is the *consequence*,
+  not the lead.
+- **(agent)** Process note: the failure mode was taking a formulation
+  that already landed (in conversation) and re-templating it for the
+  pitch until it lost the clarity. From now on: the formulation that
+  lands IS the material; tighten words, don't restructure the idea.
+
 ### Shot 0 extended: +2 network sentences — the /certify handshake + the DNS/audience payoff
 
 - **(operator)** "add a sentence to our shot 0 about that" (the

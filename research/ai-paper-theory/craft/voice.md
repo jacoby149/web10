@@ -58,6 +58,23 @@
     the profile; the fan-out cost ↔ 7.64 s → 363 ms; /certify ↔ email's
     sender check, SPF/DKIM — "a handshake, not a registry"; the user's
     address ↔ a DNS domain they own).
+15. **Don't massage what already lands — authenticity over template,
+    mechanism over benefit.** When a formulation is clear and true — a
+    clean parallel, a crisp contrast, the operator's own words — use it
+    *as-is*. Re-compressing a good explanation into a rigid line mangles
+    it and loses the clarity that made it land (shot 0's take-25 miss:
+    the SPF/DKIM ↔ /certify parallel was "soooo well" said inline, then
+    massaged into the pitch until it "completely lost what [it] said";
+    the operator: "this is so much more authentic"). And in a research
+    paper, name the *specific mechanism* and let the benefit follow as
+    the consequence — don't lead with the benefit and drop the mechanism
+    (the DNS miss: "you never lose your audience" is the payoff, but what
+    actually protects the user is a *TXT record they own that the node
+    verifies but cannot touch* — that is the authentic, research-paper
+    line; "a TXT record is protecting them, and is untouchable to the
+    node owner"). The smart-kid test is a floor for being understood, not
+    a ceiling that justifies overworking a good formulation: tighten the
+    words, don't restructure the idea.
 
 The no-hedging pass (the repair phase): find every weakened claim,
 restore it to full strength inside its domain, cut it if it can't

@@ -1427,6 +1427,8 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+- [✓ 4.10.20 local] **The network sentences un-massaged; voice rule 15 locked** — "authenticity over template, mechanism over benefit." The /certify line = the authentic SPF/DKIM parallel; the DNS line = the TXT-record mechanism (node verifies by its own lookup; untouchable to the node owner) with audience-preservation as the consequence. **Take 26 fired — awaiting the operator's riff.**
+
 - [✓ 4.10.19 local] **Shot 0 extended — the pitch carries both movements (11 sentences)** — the /certify handshake (anchored to SPF/DKIM: "a handshake, not a registry") + the DNS/audience payoff ("you NEVER lose your audience"). The two-movements structure is now inside the pitch itself. Open: final-line ordering (bedrock vs audience payoff). **Next: the operator's pass on the 11-sentence shot 0 → lock the arc into OUTLINE.md (the 9 node sentences → §1/§2/§3/§5/§6/§8/§9; the 2 network sentences → §4 + §8 Q2) → the diagram shots → the sections.**
 
 - [✓ 4.10.18 local] **Shot 0 (take 24) PASSES — the canonical 9-sentence pitch is locked** — "this encompasses everything we found, all of the decisions we made!" The "belongs to the user" line is restored; the combination + OLAP/RLS positioning sentences stay (RLS framed as the OLTP-era predecessor). The pitch compresses the node story; the network story is the open two-movements question. **Firing outline shot 1 now: the arc — where each of the 9 sentences moves (§1/§2/§3/§5/§6/§8/§9), plus the network-move flag.**
