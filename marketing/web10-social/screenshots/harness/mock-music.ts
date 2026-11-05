@@ -54,7 +54,7 @@ export const MUSIC_TRACKS: MusicTrack[] = [
 });
 
 export const SAVED_COLLECTIONS: CollectionRecord[] = [
-  { groupId: 'web10/groups/users/me/saved-guitar-riffs', name: 'Guitar Riffs', visibility: 'private', itemCount: 3, slug: 'guitar-riffs', coverUrl: MUSIC_TRACKS[2].media.thumbnail_url },
+  { groupId: 'web10/groups/users/me/saved-guitar-riffs', name: 'Guitar Riffs', visibility: 'private', itemCount: 4, slug: 'guitar-riffs', coverUrl: MUSIC_TRACKS[2].media.thumbnail_url },
   { groupId: 'web10/groups/users/me/saved-tour-sets', name: 'Tour Sets', visibility: 'public', itemCount: 5, slug: 'tour-sets', coverUrl: MUSIC_TRACKS[3].media.thumbnail_url },
   { groupId: 'web10/groups/users/me/saved-later', name: 'Watch Later', visibility: 'private', itemCount: 1, slug: 'later' },
   { groupId: 'web10/groups/users/me/saved-saved-music', name: 'Saved Music', visibility: 'private', itemCount: 3, slug: 'saved-music', coverUrl: MUSIC_TRACKS[0].media.thumbnail_url },

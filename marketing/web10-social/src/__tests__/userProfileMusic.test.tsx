@@ -42,11 +42,17 @@ import UserProfileScreen from '@/components/Bio/UserProfileScreen';
 import * as data from '@/data';
 
 const audio: PostRecord = {
-  _id: 'audio', title: 'Audio track', tags: ['music'], created_at: '',
+  _id: 'audio', title: 'Audio track', text: 'Recorded live at the studio, late at night.', tags: ['music'], created_at: '',
   media_refs: [{ doc_id: 'a', read_url: 'https://test/audio.mp3', mime_type: 'audio/mpeg' }],
 };
+// A caption-only audio post (no title) — the shape that rendered the post
+// text TWICE on the wall (centered card face + the bottom caption overlay).
+const audioNoTitle: PostRecord = {
+  _id: 'audio-notitle', text: 'Just a track, no headline.', tags: ['music'], created_at: '',
+  media_refs: [{ doc_id: 'an', read_url: 'https://test/audio-notitle.mp3', mime_type: 'audio/mpeg' }],
+};
 const video: PostRecord = {
-  _id: 'video', title: 'Music video', tags: ['video', 'music', 'music'], created_at: '',
+  _id: 'video', title: 'Music video', text: 'The live set, cut for the feed.', tags: ['video', 'music', 'music'], created_at: '',
   media_refs: [{ doc_id: 'v', read_url: 'https://test/video.mp4', mime_type: 'video/mp4' }],
 };
 const ordinary: PostRecord = {
@@ -107,6 +113,65 @@ describe('Profile music in Posts and Media, not a separate tab', () => {
     expect(tile.querySelector('img')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'View Audio track' }));
     expect(screen.getByTestId('opened-post')).toHaveTextContent('audio');
+  });
+
+  it('renders the audio post text once in the card face — no second overlapping caption overlay', async () => {
+    // The 05.11.2026 operator screenshot: an audio wall tile showed the
+    // centered title/caption AND the bottom caption overlay at the same
+    // spot — the text overlapping itself. The card face is the audio tile's
+    // single text zone; the overlay is video/image tiles only.
+    show('/u/author');
+    const face = await screen.findByTestId('profile-post-cell-audio');
+    // The OUTER tile root (the overlay is a sibling of the card face).
+    const tile = face.closest('[data-testid="profile-post-cell"]') as HTMLElement;
+    expect(tile).toHaveTextContent('Audio track');
+    const caption = 'Recorded live at the studio, late at night.';
+    // Title + caption both live in the card face…
+    expect(face).toHaveTextContent(caption);
+    expect(face.querySelector('[data-testid="profile-post-cell-audio-caption"]')).not.toBeNull();
+    // …and the caption is never rendered a second time (the overlay).
+    expect((tile.textContent ?? '').split(caption).length - 1).toBe(1);
+    expect(tile.querySelector('[data-testid="profile-post-cell-caption-overlay"]')).toBeNull();
+  });
+
+  it('renders a caption-only audio post once (the pre-fix tile printed it in the face AND the overlay)', async () => {
+    vi.mocked(data.readMyPosts).mockResolvedValue([audioNoTitle, video, ordinary]);
+    vi.mocked(data.resolveMediaRefs).mockResolvedValue([
+      { _id: 'an', url: 'https://test/audio-notitle.mp3', mime_type: 'audio/mpeg', created_at: '' },
+      { _id: 'v', url: 'https://test/video.mp4', mime_type: 'video/mp4', created_at: '' },
+    ]);
+    show('/u/author');
+    const face = await screen.findByTestId('profile-post-cell-audio');
+    const tile = face.closest('[data-testid="profile-post-cell"]') as HTMLElement;
+    const caption = 'Just a track, no headline.';
+    expect((tile.textContent ?? '').split(caption).length - 1).toBe(1);
+    expect(tile.querySelector('[data-testid="profile-post-cell-caption-overlay"]')).toBeNull();
+  });
+
+  it('keeps the bottom caption overlay on VIDEO tiles (audio-only repair)', async () => {
+    // One audio + one video post (the Media tab keys tiles by media id, so no
+    // shared media refs here — duplicate keys hang the render).
+    vi.mocked(data.readMyPosts).mockResolvedValue([audio, video]);
+    vi.mocked(data.resolveMediaRefs).mockResolvedValue([
+      { _id: 'a', url: 'https://test/audio.mp3', mime_type: 'audio/mpeg', created_at: '' },
+      { _id: 'v', url: 'https://test/video.mp4', mime_type: 'video/mp4', created_at: '' },
+    ]);
+    show('/u/author?tab=media');
+    // Document-based wait (the owner Media-tab path races RTL's `screen`
+    // container reference under the suite's load-tuned asyncUtilTimeout).
+    await waitFor(() => {
+      expect(document.querySelector('[data-testid="profile-media-cell"]')).not.toBeNull();
+    });
+    // The video tile keeps its scrim caption overlay…
+    const overlays = document.querySelectorAll('[data-testid="profile-media-cell-caption-overlay"]');
+    expect(overlays.length).toBe(1);
+    expect(overlays[0]).toHaveTextContent('The live set, cut for the feed.');
+    // …and the audio tile in the same wall renders its text in the card face only.
+    const audioFace = document.querySelector('[data-testid="profile-media-cell-audio"]');
+    const audioTile = audioFace?.closest('[data-testid="profile-media-cell"]') as HTMLElement | null;
+    expect(audioTile).not.toBeNull();
+    expect(audioTile?.querySelector('[data-testid="profile-media-cell-caption-overlay"]')).toBeNull();
+    expect(audioFace).toHaveTextContent('Recorded live at the studio, late at night.');
   });
 
   it('retains visitor-authorized music and ordinary posts with non-owner feed permissions', async () => {

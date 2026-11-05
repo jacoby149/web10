@@ -167,13 +167,30 @@ export function WallTile({ media, testId, title, caption, postId, multiCount, on
           className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-105"
         />
       ) : audio ? (
+        // The audio card face is the tile's ONE text zone: art + the post's
+        // labels stacked and centered. A title-only post shows the title, a
+        // caption-only post shows the caption, and a title + caption post
+        // shows both (clamped) — the post text is never rendered a second
+        // time as the media overlay (it overlapped this block on the small
+        // mobile tiles, operator screenshot 05.11.2026).
         <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-brand-muted p-3" data-testid={`${testId}-audio`}>
           {media.thumbnail_url ? (
             <ReliableImage src={media.thumbnail_url} alt="" className="w-full aspect-square object-cover rounded-lg" loading="lazy" />
           ) : (
             <Music className="w-10 h-10 text-brand-300" aria-hidden="true" />
           )}
-          <p className="text-sm font-medium text-foreground text-center line-clamp-3">{title || caption || 'Audio'}</p>
+          {title ? (
+            <div className="min-w-0 max-w-full text-center">
+              <p className="text-sm font-medium text-foreground leading-snug break-words line-clamp-2">{title}</p>
+              {caption && (
+                <p className="mt-1 text-xs text-foreground/80 leading-snug break-words line-clamp-2" data-testid={`${testId}-audio-caption`}>
+                  <PostBodyInline text={caption} />
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm font-medium text-foreground text-center leading-snug break-words line-clamp-3">{caption || 'Audio'}</p>
+          )}
         </div>
       ) : media.url ? (
         <ReliableImage
@@ -240,10 +257,11 @@ export function WallTile({ media, testId, title, caption, postId, multiCount, on
           {multiCount}
         </div>
       )}
-      {/* The caption (the post text, the Instagram/TikTok overlay) — media tiles
-          only; a text tile already renders its text as the card face. */}
-      {caption && media.url && (
-        <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/70 via-black/30 to-transparent pointer-events-none">
+      {/* The caption (the post text, the Instagram/TikTok overlay) — video +
+          image tiles only; the audio and text tiles already render their text
+          as the card face (a second copy overlaps it on the small tiles). */}
+      {caption && media.url && !audio && (
+        <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/70 via-black/30 to-transparent pointer-events-none" data-testid={`${testId}-caption-overlay`}>
           <p className="text-xs text-white line-clamp-2 leading-snug"><PostBodyInline text={caption} /></p>
         </div>
       )}

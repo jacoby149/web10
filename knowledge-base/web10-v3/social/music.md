@@ -135,7 +135,11 @@ undone. Existing collection read caps and lack of atomic save uniqueness remain.
 Profiles use Posts, Media and (when available) Saved, not a Music tab: most
 people are not musicians. Music posts remain in Posts, and their audio/video
 attachments appear in Media. Audio tiles show cover art or a musical-note
-fallback and open the original post. Legacy profile `?tab=music` links resolve
+fallback and open the original post. The audio tile's card face is the post's
+single text zone: the title, with the caption under it when both exist
+(clamped — a second copy of the post text on the same tile was the 05.11.2026
+wall-overlap defect, 4.12.2); the bottom caption scrim is video/image tiles
+only, where the media fills the tile. Legacy profile `?tab=music` links resolve
 to `?tab=media`, preserving other URL parameters. The dedicated `/music`
 listening destination is unchanged.
 

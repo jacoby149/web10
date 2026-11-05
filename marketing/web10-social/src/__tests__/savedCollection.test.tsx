@@ -231,6 +231,48 @@ describe('SavedCollectionScreen (D88) — the collection detail view', () => {
   });
 });
 
+// ── Audio posts in the wall (the 05.11.2026 overlap report) ──────────────────
+// The operator's saved collection of recordings rendered the post text TWICE
+// per tile (the centered card face AND the bottom caption overlay) — the text
+// overlapping itself. The audio card face is the tile's single text zone.
+describe('SavedCollectionScreen — audio posts in the wall', () => {
+  // The overlay is a SIBLING of the `-audio` card face (both live in the
+  // outer `saved-post-cell` root), so the dedup assertions measure the root.
+  it('renders a caption-only audio post once (face, not face + overlay)', async () => {
+    mockReadCollection.mockResolvedValue({
+      face: { name: 'Old Music Shit I Like', visibility: 'public' },
+      posts: [
+        { _id: 's1', postId: 'p1', savedAt: 'x', unavailable: false, post: { _id: 'p1', text: 'Hello original session, recorded by the Century Club.', media_refs: ['m1'], created_at: 'x' } },
+      ],
+      mediaMap: { m1: { _id: 'm1', url: 'https://cdn/track.mp3', mime_type: 'audio/mpeg', thumbnail_url: 'https://cdn/cover.jpg', created_at: 'x' } },
+    });
+    renderCollection();
+    const face = await screen.findByTestId('saved-post-cell-audio');
+    const tile = face.closest('[data-testid="saved-post-cell"]') as HTMLElement;
+    const caption = 'Hello original session, recorded by the Century Club.';
+    expect((tile.textContent ?? '').split(caption).length - 1).toBe(1);
+    expect(tile.querySelector('[data-testid="saved-post-cell-caption-overlay"]')).toBeNull();
+  });
+
+  it('shows the title + caption stacked in the card face, never a second overlay', async () => {
+    mockReadCollection.mockResolvedValue({
+      face: { name: 'Old Music Shit I Like', visibility: 'public' },
+      posts: [
+        { _id: 's1', postId: 'p1', savedAt: 'x', unavailable: false, post: { _id: 'p1', title: 'Greensleeves — Werren Rath', text: 'Hello original session, recorded by the Century Club.', media_refs: ['m1'], created_at: 'x' } },
+      ],
+      mediaMap: { m1: { _id: 'm1', url: 'https://cdn/track.mp3', mime_type: 'audio/mpeg', thumbnail_url: 'https://cdn/cover.jpg', created_at: 'x' } },
+    });
+    renderCollection();
+    const face = await screen.findByTestId('saved-post-cell-audio');
+    const tile = face.closest('[data-testid="saved-post-cell"]') as HTMLElement;
+    expect(face).toHaveTextContent('Greensleeves — Werren Rath');
+    expect(face.querySelector('[data-testid="saved-post-cell-audio-caption"]')).not.toBeNull();
+    const caption = 'Hello original session, recorded by the Century Club.';
+    expect((tile.textContent ?? '').split(caption).length - 1).toBe(1);
+    expect(tile.querySelector('[data-testid="saved-post-cell-caption-overlay"]')).toBeNull();
+  });
+});
+
 // ── Reorder (playlist order) + the collection's cover ────────────────────────
 
 // A 2-item collection (enough to reorder).
