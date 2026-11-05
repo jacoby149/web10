@@ -1277,6 +1277,8 @@ docs before code, per the rule at the top.
 
 ## SIGMOD 2027 Industry Track — the full paper (research/)
 
+- [✓ 4.10.10 local] **Shot 0 take 8: clean but not genius — the real architectural content is in** - operator supplied the mechanism: generic data RW + IAM configuration RWE (executed when the data is used) · the AST protects the query (the reader sees only what their grants allow) · the developer writes and tunes the lakehouse queries (the platform guarantees the boundary, not the performance) · "an ecosystem in a bottle." The genius is shown, not asserted; "SQL" stays out, "AST" is the word. Take 9 fired. No manuscript prose changed.
+
 - [✓ 4.10.9 local] **Shot 0 take 7 missed — the pitch must carry an architectural nuance** - "no no no the word SQL" + "i know this is howard roarke now": the hero register and the tool word both missed. The nuance: bespoke social APIs → completely generic functions; the social features become definitions in the database; the node is a gas station. Spec gains the no-implementation-words rule + the carry-a-move rule. Take 8 fired. No manuscript prose changed.
 
 - [✓ 4.10.8 local] **Shot 0 take 6 missed — simple hook → awe landing** - "the followers, the grants, and the audience stay behind" was an incoherent stakes-list, not a product-vs-technical error; "product pitch is simple, everyone knows shadowban what that is." Pitch spec gains the arc rule: one universally-known pain (shadowban) earns the ear, the checkable invariant (compile + replayed proof) is the landing — the utmost score. Take 7 fired. No manuscript prose changed.

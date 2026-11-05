@@ -1426,6 +1426,8 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+- [✓ 4.10.10 local] **Shot 0 take 8: clean but not genius — the real mechanism is in** — the operator supplied the content (data RW + executed IAM configuration · the AST boundary · developer-tuned lakehouse queries · the ecosystem in the bottle). The genius is shown, not asserted; "AST" replaces "SQL". **Take 9 fired in the PR #1396 thread — awaiting the operator's riff.**
+
 - [✓ 4.10.9 local] **Shot 0 take 7 missed — architectural nuance, no tool words** — "no no no the word SQL" + "i know this is howard roarke now." The pitch must carry a *move*: bespoke social APIs → completely generic functions; feed/follow/like as definitions in the database; the node as a gas station (nothing social in it). **Take 8 fired in the PR #1396 thread — awaiting the operator's riff.**
 
 - [✓ 4.10.8 local] **Shot 0 take 6 missed — simple hook → awe landing** — the incoherent stakes-list ("followers, grants, audience stay behind") was the miss; "product pitch is simple, everyone knows shadowban." Spec gains the arc rule (one universal pain hooks the ear; the checkable invariant lands the awe). **Take 7 fired in the PR #1396 thread (shadowban → the decision becomes the user's → the shared-store hard part → compile + replayed proof) — awaiting the operator's riff.**
