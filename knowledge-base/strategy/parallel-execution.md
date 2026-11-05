@@ -1426,6 +1426,8 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+- [✓ 4.10.16 local] **The known ↔ advanced register — paper-wide voice rule** — the pitch's "brings things down to known concepts but also goes all the way to advanced" quality is now voice.md rule 14; it governs the whole paper's prose (theorem-term ↔ concrete). **Next: outline shot 1 (the arc + differentiators, re-derived from the locked pitch), then the diagram shots, then the sections.**
+
 - [✓ 4.10.15 local] **Shot 0 PASSES — the pitch is locked** — 23 riffs converged; the operator took the final edit ("i think this is it!"). The locked 6-sentence pitch (bespoke-APIs convention → the completely generic node → the AST-protected query → extension as simple as a role and a policy, OAuth 2.0 but finer → the three apps interoperating → the ClickHouse bedrock) is recorded in `second-draft/DECISIONS.md` and the changelog. The locked arc has no email lead — the email frame's home is now an outline decision. **Next gate: the outline shots, re-shot against the locked arc.**
 
 - [✓ 4.10.14 local] **Shot 0 take 13 — take 11's structure + the beefed ending** — the operator preferred take 11 over take 12; the ending is beefed: the generic design opens the door to an everything app + interop by design. Pitch spec loosened to ~4–6 sentences with a beefable end. **Take 13 fired in the PR #1396 thread — awaiting the operator's riff.**

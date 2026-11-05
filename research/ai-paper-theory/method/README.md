@@ -61,7 +61,14 @@ the artifact, never from a previous draft.
    bespoke APIs; web10's UI uses completely generic functions over one
    shared store, so the feed/follow/like are definitions the app
    writes into the database; the node is like a gas station — nothing
-   social is in it). The payoff
+   social is in it). **The known ↔ advanced register**
+   (`../craft/voice.md` rule 14): every advanced concept in the pitch is
+   tethered to a known one (advanced = bespoke APIs / AST / generic /
+   interoperating; known = OAuth 2.0 / snake game / marketplace /
+   feed-follow-like) — that pairing is what makes it "interesting" *and*
+   "verifiable at a glance" at the same time (the operator, post-lock:
+   "brings things down to known concepts, but also goes all the way to
+   advanced concepts simultaneously"). The payoff
    mirrors the opener's noun. **The end is beefable** to carry the
     implication — the operator, take 13: "we want to add sentences
     actually beef it up a little at the end … the generic design

@@ -32,8 +32,27 @@
     combination: setup → forcing move → calculation → finish; the
     why-not-X chain as visible verification steps; the NP-looking system
     contrasted with the P-looking proof), original work (the structural
-    conjunction argument), importance (the stakes + the labor up front —
-    calibrated, no overspend).
+    conjunction argument), importance (the stakes + the running system up
+    front — calibrated, no overspend).
+14. **The known ↔ advanced register (the whole paper, not just the
+    pitch).** Every advanced concept is tethered to a known one, and the
+    pair is what does the work: the *advanced* (bespoke APIs, AST,
+    "completely generic," interoperating, boundary CTE, readable set)
+    makes a reviewer think "this is going to be interesting" — it
+    signals depth, not a product pitch; the *known* (OAuth 2.0, the
+    snake game, the marketplace, feed/follow/like, ClickHouse, billions
+    of rows) makes it verifiable at a glance — the reader anchors each
+    advanced claim to something they already understand and can check.
+    Neither half works alone: all-advanced is impenetrable, all-known is
+    a marketing pitch. The awe lives in the gap the tether closes — the
+    reader meets the advanced concept and the known one beside it makes
+    it click ("like OAuth 2.0, but finer"). That is the NP-looking
+    system made P-verifiable, one pair at a time. The locked pitch is the
+    proof it works: advanced = bespoke APIs / AST / generic /
+    interoperating; known = OAuth 2.0 / snake game / marketplace /
+    feed-follow-like. Apply it to every section: theorem-term ↔ concrete
+    (readable set ↔ a grant row; boundary CTE ↔ the snake game reading
+    the profile; the fan-out cost ↔ 7.64 s → 363 ms).
 
 The no-hedging pass (the repair phase): find every weakened claim,
 restore it to full strength inside its domain, cut it if it can't

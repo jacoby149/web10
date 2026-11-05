@@ -10,6 +10,23 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 04.11.2026
 
+### The known ↔ advanced register — the pitch's hidden mechanism, now a paper-wide rule
+
+- **(operator)** On the locked pitch: "i feel like it brings things down
+  to known concepts, but also goes all the way to advanced concepts
+  simultaneously. bespoke apis, AST, generic, interoperating <- advanced
+  enough where is it like okay this is going to be interesting. oauth2.0
+  snake game, marketplace, feed follow like, things people know."
+- **(agent)** Named and locked as **voice.md rule 14** (and a note in the
+  pitch spec): every advanced concept is tethered to a known one; the
+  advanced signals depth ("this is going to be interesting"), the known
+  makes it verifiable at a glance ("oh, I get it, and I can check
+  it"). All-advanced is impenetrable; all-known is a marketing pitch;
+  the awe lives in the gap the tether closes — the NP-looking system made
+  P-verifiable, one pair at a time. It applies to the whole paper, not
+  just the pitch (readable set ↔ a grant row; boundary CTE ↔ the snake
+  game reading the profile; the fan-out cost ↔ 7.64 s → 363 ms).
+
 ### Shot 0: PASSED — the operator took the final edit; the pitch is locked
 
 - **(operator)** After take 23, the operator made the final edit themselves
