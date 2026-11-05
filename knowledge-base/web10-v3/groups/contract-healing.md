@@ -168,6 +168,26 @@ appended, the inert `anyone → reader` grant starts working, the owner reappear
 in the people directory) — **without** the heal ever touching the owner's
 publicness choice.
 
+The one shape this split **cannot** self-heal: a followers group created
+before #994 (23.09.2026) whose owner never signed in on a #994-era build —
+the `anyone` row was **never created**, so there is no "choice" recorded, and
+the consensual heal (correctly) does not add it either. Such a group is
+faceless on every anon surface (marketing feed/search, the D0 people
+directory, link-preview cards, stranger social views) until the row lands.
+Production proved the shape on 05.11.2026 (13 of 27 followers groups; the
+operator's `/trending` screenshot: personal authors as initials, group faces
+painted). The convergence is an **operator-authorized one-shot backfill**
+(`ubuntu-deployment/scripts/backfill-followers-public.py`, run inside the API
+container, dry-run by default, the node's own write primitives, idempotent):
+it adds the `reader` role definition where missing and the `anyone → reader`
+reserved row where missing. It is safe precisely because pre-#994 a private
+choice was never expressible in-app (`setProfilePublic` has no UI caller), so
+no owner intent is clobbered — and it is the *only* legitimate convergence
+path for this shape, since the sign-in heal must stay consensual. The open
+design note it leaves behind: an owner-side **persisted** visibility choice
+must exist before any future heal can respect it (today "private" is
+indistinguishable from "legacy" in the data).
+
 ## Where the heal runs
 
 - **web10-social** — `ensureFollowers` (run on sign-in, fire-and-forget,
@@ -223,6 +243,7 @@ mode, and the behavior:
 | 12 | **Role shape drift** (flat vs per-service map permissions) | The diff compares by `(service, op)`, not by serialized equality — robust to key ordering. Assumes the same permission *shape* as the spec (the app always writes the per-service map) | Semantic comparison; the app's write shape is consistent |
 | 13 | **Owner deletes an app-required role** (via the role editor) | Re-added on the next sign-in | App infrastructure is *guaranteed by the app* — that is the point of "the app owns its own contracts." The owner can't permanently remove a role the app needs |
 | 14 | **Heal cost on every sign-in** | Two reads (`getGroup` + `getGroupMembers`), writes only on drift; fire-and-forget, non-blocking | Cheap; never delays sign-in |
+| 15 | **Legacy group, the `anyone` row was never created** (pre-#994 account, owner never signed in on a #994-era build) — the group is faceless on every anon surface and the consensual heal deliberately will not add the row | Converged by the operator-authorized one-shot backfill (`ubuntu-deployment/scripts/backfill-followers-public.py`): adds the `reader` role definition + the `anyone → reader` row where missing, idempotent, dry-run first | Pre-#994 a private choice was never expressible in-app, so no owner intent is clobbered; the backfill uses the node's own write primitives + tombstone-aware dedup and verifies through `can_read_group(anon, profile)`. Prod run 05.11.2026: 13/27 groups healed, 27/27 verified |
 
 The two modes that would have been **bugs** if unhandled — #2 (clobbering) and
 #17 below (sending a delta instead of the full merged role list) — are the ones
