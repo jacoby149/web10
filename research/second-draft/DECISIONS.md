@@ -10,6 +10,31 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 04.11.2026
 
+### Shot 0, take 15 → take 16: "interoperable and extensible" is the punchline pair
+
+- **(operator)** "interoperable and extensible." The two properties the
+  generic design buys are named by those two adjectives — make them the
+  claim of the closing sentence.
+- **(agent)** Take 16's fifth sentence: "And that generic design is what
+  makes the node interoperable and extensible: new games and new
+  marketplaces run on it, and because every app speaks the same
+  primitives, they interoperate by design." Sentences 1–4 unchanged from
+  take 14. (Riff logged here; the full changelog/plan/lane entry lands
+  when the pitch gets the pass.)
+
+### Shot 0, take 14 → take 15: "extensible" is the word
+
+- **(operator)** "nice, like the word extensible, it is extensible to a
+  new game, a new parketplace." The fifth sentence should say
+  *extensible* — it names the extensibility point (new apps keep landing
+  on the node) in one adjective.
+- **(agent)** Take 15's fifth sentence: "And that generic design is what
+  makes the node extensible to new games and new marketplaces: it is a
+  substrate, not a social backend, and because every app speaks the same
+  primitives, the apps interoperate by design." Sentences 1–4 unchanged
+  from take 14. (Riff logged here; the full changelog/plan/lane entry
+  lands when the pitch gets the pass.)
+
 ### Shot 0, take 13 → take 14: the fifth sentence is about *new* apps on the same platform
 
 - **(operator)** On the fifth sentence's tail: "the social app, a game,
