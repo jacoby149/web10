@@ -10,6 +10,20 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 04.11.2026
 
+### Shot 0, take 13 → take 14: the fifth sentence is about *new* apps on the same platform
+
+- **(operator)** On the fifth sentence's tail: "the social app, a game,
+  and a marketplace run on the same store" → "the social app, **a new
+  game, a new marketplace** can all run on **the same platform**." The
+  point is extensibility (new apps keep landing on it), not just that
+  three coexist; and "platform," not "store."
+- **(agent)** Take 14's fifth sentence: "…the node is a substrate, not a
+  social backend, so the social app, a new game, and a new marketplace
+  can all run on the same platform — and because every app speaks the
+  same primitives, the apps interoperate by design." Sentences 1–4
+  unchanged from take 13. (Pitch riffs are logged here; the full
+  changelog/plan/lane entry lands when the pitch gets the pass.)
+
 ### Shot 0, take 12 → take 13: take 11 was the better structure; beef the end with the implication
 
 - **(operator)** Pasted take 11 (the bespoke-APIs convention → the
