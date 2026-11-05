@@ -42,7 +42,16 @@ the artifact, never from a previous draft.
    (posts, followers, grants, audience) — never "stuff" (take 4's
    miss). **Third person, never second person:** "the user", not "you" —
    a research-paper register, not marketing copy (take 5's miss: "this
-   you you you, not professional, i think third person"). The payoff
+   you you you, not professional, i think third person"). **The pitch's arc: a simple, universally-known product hook that builds into the utmost score
+   (logical awe)** — lead with one concrete pain everyone knows (e.g.
+   *shadowban*: "product pitch is simple, everyone knows shadowban
+   what that is", take 6's clarification), then land on the checkable
+   invariant (the compile + the replayed proof). No incoherent
+   abstract stakes-lists (take 6's miss: "the followers, the grants,
+   and the audience stay behind — what the fuck is they talking
+   about"); no dry mechanism with no hook either. Importance stays the
+   calibrated, lowest-priority score — the hook earns the ear, the awe
+   is the landing. The payoff
    mirrors the opener's noun. Keep riffing until it hits:
    each miss gets recorded in DECISIONS, and the next take changes the
    angle, not just the words. The critiques, verbatim: "closes the

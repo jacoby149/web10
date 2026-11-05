@@ -1426,6 +1426,8 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+- [✓ 4.10.8 local] **Shot 0 take 6 missed — simple hook → awe landing** — the incoherent stakes-list ("followers, grants, audience stay behind") was the miss; "product pitch is simple, everyone knows shadowban." Spec gains the arc rule (one universal pain hooks the ear; the checkable invariant lands the awe). **Take 7 fired in the PR #1396 thread (shadowban → the decision becomes the user's → the shared-store hard part → compile + replayed proof) — awaiting the operator's riff.**
+
 - [✓ 4.10.7 local] **Shot 0 take 5 missed — third person** — "you you you, not professional"; the pitch spec now says "the user", never "you". **Take 6 fired in the PR #1396 thread (same angle, third person) — awaiting the operator's riff.**
 
 - [✓ 4.10.6 local] **Shot 0 take 4 missed — fresh-angle take 5 fired** — email frame inaccurate ("email doesnt follow you"), "stuff" not paper language, the pitch was a patch not a fresh angle. Theory: frame-accuracy rule + concrete-nouns rule in the pitch spec; the line count out of the story (pinned fact only); the 4-sentence riff format locked. **Take 5 fired in the PR #1396 thread (no email: "a company's rules vs. your rules" → "safety is a check, not a trust") — awaiting the operator's riff. On a pass: re-shoot the outline slices, then the diagram shots, then the sections.**

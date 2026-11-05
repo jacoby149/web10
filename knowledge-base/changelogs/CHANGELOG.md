@@ -1,3 +1,6 @@
+4.10.8 || 04.11.2026
+docs(research): shot 0 take 6 missed — the fix is a simple product hook that builds into the awe. Operator: "what the fuck is they talking about, either it should be technichal, going for the awe, dont need a product pitch … told you the hierarchy of importance" — then the clarification: "product pitch is simple, everyone knows shadowban what that is." Read together: take 6's failure was the incoherent abstract stakes-list ("the followers, the grants, and the audience stay behind"), not the product angle — a product hook works when it is one universally-known pain. The pitch spec gains the arc rule: a simple hook (shadowban) that earns the ear, landing on the checkable invariant (the compile + the replayed proof) — the utmost score. Take 7 fired in the PR thread. No manuscript prose changed.
+
 4.10.7 || 04.11.2026
 docs(research): shot 0 take 5 missed — third person. Operator (verbatim): "this you you you, not professional, i think third person." The pitch spec gains the person rule ("the user", never "you" — research-paper register, not marketing copy); DECISIONS records the miss. Take 6 fired in the PR thread: the same angle (a company's rules vs. the user's rules → ownership must be provable → "safety is a check, not a trust") in third person. No manuscript prose changed.
 

@@ -10,6 +10,33 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 04.11.2026
 
+### Shot 0, take 6: missed — incoherent stakes-list; the fix is a *simple* product hook that builds into the awe
+
+- **(operator)** Verbatim, on "The user can export the posts, but the
+  followers, the grants, and the audience stay behind": "what the fuck
+  is they talking about, **either it should be technichal, going for the
+  awe, dont need a product pitch. told you the hierarchy of
+  importance**." Then, the clarification: "**product pitch is simple,
+  everyone knows shadowban what that is**."
+- **(agent)** Read together: the take-6 failure was not "product vs.
+  technical" — it was an **incoherent abstract stakes-list** ("the
+  followers, the grants, and the audience stay behind" — what *is*
+  that?). The product pitch is fine *when it is simple*: one concrete,
+  universally-understood pain. **Shadowban** is the example — everyone
+  knows it. So the pitch leads with the simple product hook
+  (shadowban) and *builds into* the technical awe (the utmost score),
+  instead of opening on an abstract list or on dry mechanism alone.
+  Importance (the stakes) stays the calibrated, lowest-priority score —
+  but a *simple, concrete* hook is how you earn the reader's ear before
+  the awe.
+- **(agent) The pitch spec now says:** aim at the *utmost* score
+  (logical awe) as the landing; lead with a *simple, universally-known*
+  product pain (e.g. shadowban — one word, everyone knows it); third
+  person; no incoherent stakes-lists, no dry mechanism with no hook.
+  Take 7 fires: shadowban hook → the decision becomes the user's → the
+  hard part (shared store, apps write their own SQL) → the compile +
+  the replayed proof.
+
 ### Shot 0, take 5: missed — "you you you, not professional, third person"
 
 - **(operator)** Verbatim: "this you you you, not professional , i

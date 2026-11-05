@@ -1277,6 +1277,8 @@ docs before code, per the rule at the top.
 
 ## SIGMOD 2027 Industry Track — the full paper (research/)
 
+- [✓ 4.10.8 local] **Shot 0 take 6 missed — simple hook → awe landing** - "the followers, the grants, and the audience stay behind" was an incoherent stakes-list, not a product-vs-technical error; "product pitch is simple, everyone knows shadowban what that is." Pitch spec gains the arc rule: one universally-known pain (shadowban) earns the ear, the checkable invariant (compile + replayed proof) is the landing — the utmost score. Take 7 fired. No manuscript prose changed.
+
 - [✓ 4.10.7 local] **Shot 0 take 5 missed — third person** - "this you you you, not professional, i think third person." Pitch spec gains the person rule (the user, never you); take 6 fires the same angle in third person. No manuscript prose changed.
 
 - [✓ 4.10.6 local] **Shot 0 take 4 missed — fresh-angle take 5 fired** - operator: the email claim was inaccurate ("email doesnt follow you … who gets banned from their emails?"), "stuff" is not paper language, and the pitch was a patch, not a fresh angle ("take a fresh take, 4 sentences! could be totally different take, angle, unrelated"). Theory absorbs: the pitch spec gains the frame-accuracy rule + the concrete-nouns rule; the line count is out of the story everywhere (README fundamental, voice rule 2, the importance beat — pinned fact only in ops/numbers.md); the 4-sentence riff format is locked. Take 5: no email, the "a company's rules vs. your rules" angle, landing on "safety is a check, not a trust." No manuscript prose changed.
