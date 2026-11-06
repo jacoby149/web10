@@ -10,6 +10,77 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 05.11.2026
 
+### fig-node-market: the competitive node economy — a matching graph, 6 x 6 (shot 3, pending the operator's pass)
+
+- **(operator)** "maybe that would be cool to show that kind of another
+  figure even of a competetive node economy, nodes, and popular
+  influencers! and fans! like the market effects!"
+- **(operator)** On shot 1 (the three-tier blocks): "it is a bad
+  figure, the formatting is wrong, definitely needs to be a graph with
+  nodes and edges for this one not blocks."
+- **(operator)** On shot 2 (the A/B/C graph with made-up operator
+  types): "you made up these hypothetical types of nodes, we are just
+  showing influencere A, B C; node A B C; C has lowest prices, A bans
+  the least but higher prices, B is a certain political match
+  (properties of the nodes); properties of the influencers,
+  influencers pick nodes, show an influencer changing nodes,
+  rematching."
+- **(operator)** On shot 3's brief: "and you made up these hypothetical
+  types of nodes … dont have to do what i am saying, you can even have
+  more than three can do 6 users 6 nodes, or whatever you think is
+  appropriate to fully illustrate, and even a few that are changing
+  preferences in the diagram, which causes the consumer to flip,
+  showing these different dynamics! and that there is an action
+  reaction, a shopping based on preferences, i like this but dont like
+  that more"
+- **(agent)** Shot 3 is a two-sided matching market, 6 x 6:
+  - **Nodes A–F (green, right column) — each prices its own terms.**
+    The operator's three verbatim properties stay: node A — bans the
+    least, the higher price; node B — a certain political match, mid
+    price; node C — the lowest price, the heavy overlay. Three more
+    differentiation axes complete the market: node D — the overlay cut
+    to 5%, mid price (the NODE ACTION that causes a flip); node E —
+    community-governed moderation, mid price; node F — the self-hosted
+    floor, free, never gated (isolated vertex on purpose: the outside
+    option that keeps the market's prices honest — "never gate the
+    software", business plan §4).
+  - **Influencers A–F (neutral, left column) — the properties that
+    decide the pick** (example properties, for the operator to swap):
+    A — biggest audience, delivery-first; B — price-first, steady
+    audience; C — audience shifted political; D — weighing the terms
+    (the shopper); E — growing, was price-first; F — the community
+    audience. The fan dots by each (audience size illustrative): the
+    follow is the fan's own data, bound to the domain — so a flip is a
+    REMATCH, not a loss: the audience moves along.
+  - **The dynamics (the edges):** the stable matches (green solid:
+    A-nodeA "the fewest bans", B-nodeC "the lowest price", F-nodeE
+    "the moderation style") · two flips (amber dashed + the faded
+    "currently — node C" leg): influencer C flips C→B because the
+    PREFERENCE changed (the audience shifted political) and influencer
+    E flips C→D because the NODE ACTED (node D cut the overlay; the
+    price-sensitive one reacts — the action/reaction) · the shopping
+    leg (thin gray dashed: influencer D is on node A but likes the
+    fewest bans "but not the higher price as much" — node D is the
+    alternative) · node F isolated (the floor). Node C is losing two
+    of its three: the price alone doesn't hold the audience.
+  - **The amber rents strip** (unchanged from shots 1–2): the three
+    rents the paved platforms hold over the creator (today's rent: 1M
+    subs, 300k delivered) are structurally out — reach throttling (the
+    read compiles against the reader's rules), demonetization (the
+    creator's layer is never suppressed + no payment processed),
+    deplatforming (self-hostable + portable audience) — "so the
+    competition is on terms, not on leverage."
+  Market-structure figure, NOT a VS comparison: no verdict strip (the
+  ratchet rule). No made-up operator TYPES (shot 1's small operator /
+  media company / self-hosted cards and shot 2's typed re-match are
+  out — the vertices are A–F with market properties). No off-platform
+  money pills (fig-monetization's territory).
+  Evidence: business-plan.md §1–§4 · node-ads.md (the overlay is
+  node-controlled; the operator is a media company) · ads.md (D55/D57)
+  · shot-0 beats 11/12 (/certify, DNS/audience) · AGENTS.md D20 ·
+  research/domain-portability-demo/RESULTS.md. Uncommitted, pending the
+  pass. Proposed landing: §9 + §10.
+
 ### The monetization beat + fig-monetization: "the free web should have ads — the ad pureplay" (first shot, pending the operator's pass)
 
 - **(operator)** "we should make it clear that because of

@@ -308,6 +308,53 @@ strips on the two VS comparison figures only). Evidence:
 ads-dissemination.md}` + `knowledge-base/strategy/business-plan.md` §4.
 Proposed landing: §6 + §9.
 
+### Figure 11 — the competitive node economy: a matching graph, 6 x 6
+(`figs/fig-node-market.png`, §9/§10 — shot 3, pending the operator's
+pass)
+
+**What it visualizes:** the market structure the data plane makes
+possible — a two-sided MATCHING market, not a stack: 6 influencers
+(neutral, left column) matched against 6 nodes (green, right column),
+each vertex carrying its market properties, and the edges carrying the
+dynamics. The nodes price their own terms — the operator's three
+verbatim properties (node A: bans the least, the higher price · node B:
+a certain political match, mid price · node C: the lowest price, the
+heavy overlay) + three more axes (node D: the overlay cut to 5%, mid
+price — the node ACTION that causes a flip · node E: community-governed
+moderation, mid price · node F: the self-hosted floor — free, never
+gated, the isolated outside option). The influencers carry the
+properties that decide the pick (example properties, for the operator
+to swap: A biggest audience / delivery-first · B price-first · C
+audience shifted political · D weighing the terms — the shopper · E
+growing, was price-first · F the community audience), with the fan dots
+by each: the follow is the fan's own data, bound to the domain — a flip
+is a rematch, not a loss (the /certify handshake —
+verified-not-registered; shot-0 beats 11/12). The dynamics: the stable
+matches (green solid) · two flips (amber dashed + the faded "currently
+— node C" leg): C→B because the PREFERENCE changed, E→D because the
+NODE ACTED (the action/reaction) · the shopping leg (thin gray: D is on
+node A but likes the fewest bans "but not the higher price as much") ·
+node C losing two of its three (the price alone doesn't hold the
+audience). The amber strip: the three rents the paved platforms hold
+over the creator (today's rent: 1M subs, 300k delivered —
+business-plan.md §2) structurally out — reach throttling ·
+demonetization · deplatforming — "so the competition is on terms, not on
+leverage."
+**Why that shape:** the operator's "definitely needs to be a graph with
+nodes and edges for this one not blocks" (shot 1, the three-tier
+blocks: rejected) + "you made up these hypothetical types of nodes, we
+are just showing influencer A, B C; node A, B C … show an influencer
+changing nodes, rematching" (shot 2, the typed A/B/C: rejected) + "you
+can even have more than three … a few that are changing preferences …
+action reaction, a shopping based on preferences, i like this but dont
+like that more" (shot 3, this graph). A market-structure figure, NOT a
+VS comparison figure: no verdict strip (the ratchet rule). No made-up
+operator types — the vertices are A–F with market properties. Evidence:
+business-plan.md §1–§4 · node-ads.md (the overlay is node-controlled;
+the operator is a media company) · ads.md (D55/D57) · shot-0 beats
+11/12 (/certify, DNS/audience) · D20 ·
+research/domain-portability-demo/RESULTS.md. Proposed landing: §9 + §10.
+
 ### Candidates (not started)
 
 - **Two trust layers (§2):** the app wall (outer: can this app perform O
@@ -334,4 +381,5 @@ Proposed landing: §6 + §9.
 | 8 | The composition fork: web10 vs Solid | §3/§9 | **done** (4.10.23, `fig-composition`; VS framing 4.10.33) |
 | 9 | The interoperability fork: web10 vs Mastodon / Bluesky | §6/§9 | **done** (4.10.29, `fig-platforms`; 4.10.32 title/API/services; VS framing 4.10.33) |
 | 10 | How money flows on web10 (the ad rail) | §6/§9 | **first shot** (`fig-monetization` — pending the operator's pass; the shot-0 monetization beat drafted alongside) |
+| 11 | The competitive node economy | §9/§10 | **first shot** (`fig-node-market` — pending the operator's pass) |
 | — | Two trust layers / data model | §2/§3 | candidates |
