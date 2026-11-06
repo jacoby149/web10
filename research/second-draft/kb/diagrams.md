@@ -464,6 +464,16 @@ fan-out table (wired at the section shot).
 
 ## Figure plan (status)
 
+The set is printed in the third-draft manuscript (4.10.38,
+`research/third-draft/main.tex`) with the manuscript numbering:
+1 overview (TikZ) · 2 composition · 3 query-engine · 4 app-arch ·
+5 feed · 6 groups · 7 platforms · 8 interop · 9 monetization ·
+10 domain before/after · 11 audience-portability · 12 k1000-curve ·
+13 node-market. The three first-shot figures (10/11/12 here —
+monetization, audience-portability, k1000-curve) are printed under the
+operator's blanket pass for that round; open to review per
+`third-draft/DECISIONS.md`.
+
 | # | Figure | Section | State |
 |---|---|---|---|
 | 1 | System overview + section labels | §1 | **done** (4.8.2 TikZ; label pass 4.10.37 — the visual ToC: §2–§6 + §8 mapped) |
