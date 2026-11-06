@@ -12,6 +12,87 @@ KB).
 
 ## 05.11.2026
 
+### The resynthesis: no second-draft gravity — the manuscript is the beats + the figures, nothing else
+
+- **(operator)** "table 1 figure 1, and figure 5, i think these are the
+  weakest. table 4, do we need that? if we have a line chart showing the
+  same thing? want to use our amazing new figures instead of these" +
+  "yupp, this is talking about the second draft. and i dont care about
+  paper length, i woudl lke to use all the figures we made, because they
+  all make a great point, it is like we made a pictographic story,
+  instead of making little edits to the paper, even starting fresh but
+  using the story we told in the shot 0 and the figuress is best" +
+  "actually make a third draft, starting from the shot 0 and hte figures
+  please" + "a new folder, etc!" + "dont want to get sucked up by the
+  second draft paper, want a clean starting point, synthesize this
+  again, ai paper theory, papers are cheap"
+- **(agent)** The critique maps onto the second-draft artifacts the
+  inherited third-draft structure still carried: Table 1 (the capability
+  matrix) · Figure 1 (the TikZ system overview) · Figure 5 (the domain
+  before/after captures) · Table 4 (the fan-out table, beside its own
+  curve). All four are out of the manuscript now, each replaced by the
+  figure that makes its point:
+  - **Table 1 (capability) → out.** The comparison lives in the two VS
+    figures (composition, platforms) + the §9 positioning paragraphs +
+    §1's five-properties list ("no prior system we compare carries the
+    conjunction"). The "Table 1 organizes the comparison" opener in §9 is
+    reworded to point at the figures.
+  - **Figure 1 (TikZ overview) → out.** `fig-app-arch` is now the §1
+    system figure (Figure 1 of the manuscript): the data layer in the
+    browser, the thin generic node, the two stores, the messages on the
+    wire. The section mapping the TikZ labels used to carry lives in the
+    paper-map paragraph (§1's last prose paragraph, one sentence per
+    section). The "visual ToC" label pass of 4.10.37 is retired with the
+    figure — the new figure set is the map.
+  - **Figure 5 (domain captures) → out.** `fig-audience-portability`
+    carries the DNS story (§4 mechanism, §8 evidence pointer); the exact
+    panel captures, the authenticated hookup, and the 375px evidence are
+    named as remaining in the prototype artifact (scope as fact — the
+    receipts are not deleted, they move out of the paper).
+  - **Table 4 (fan-out) → out.** The curve (Figure 10) + the finding
+    prose carry it: the full K10/100/1000 B numbers with p95, the
+    variant-C separation (8,388.39 vs 222.57 ms at K=1,000), the
+    direct-scan range (28.6–54.2 ms), the 35.22×/21.04× factors, the
+    4.47× handler growth, the K=1 counterweight, the setup (host, seed 42,
+    20 samples/cell, 400 measurements, ClickHouse 24.3.18.7), and the
+    single-trial scope — every printed number still traces to the
+    measurement artifact.
+- **(agent)** The manuscript was re-synthesized from shot 0 + the figure
+  set (`main.tex` replaced, not patched): §1 the split → the labor
+  (958,824/568,594 pinned) → the five properties → the evidence → the
+  contributions → the map + Figure 1 · §2 the forcing move (the grant is a
+  row, so the readable set is computable before any query runs) · §3 the
+  composition fork + data-policy-not-privacy · §4 verified-not-registered
+  (the SPF/DKIM parallel) + the concrete domain + `fig-feed` · §5 the
+  wall (the count(*) blunder first, then the refutation) +
+  `fig-query-engine` · §6 the killer app + the interop + `fig-platforms`
+  + the ad rail (`fig-monetization`) · §7 the four built-and-deleted
+  surfaces (carried — the labor resolution) · §8 the evidence, Q&A, with
+  `fig-k1000-curve` · §9 positioning + `fig-node-market` · §10 the email
+  frame closed + the labor + the market. **All the figures we made are in
+  the paper** (the operator's "pictographic story"): app-arch,
+  composition, feed, audience-portability, query-engine, groups,
+  platforms, interop, monetization, k1000-curve, node-market — 11 figure
+  floats; the only tables left are the two definitional/evidence ones the
+  story needs (media spectrum, interop apps).
+- **(agent)** Page budget: lifted (the operator's "i dont care about paper
+  length") — 19 pages at this build, complete over concise. Tectonic
+  clean: no overfull hbox, no undefined references, all figures placed
+  with figure-describing captions. The fan-out table being out does not
+  touch the check-paper harness (it verifies the first draft's committed
+  table, hardwired to `first-draft/main.tex`).
+- **(agent)** Carried over as open items (unchanged by this round): the
+  abstract is still the shot-4 spec reconstruction (the verbatim lived
+  only in the #1396 thread) — open to the operator's re-pass; the three
+  first-shot figures (monetization, audience-portability, k1000-curve) +
+  the monetization beat ride the "all the figures done" call — open to
+  review; the 1M subs / 300k delivered rent number is now in §9's body
+  (grounded in the business plan) — flag if not paper-ready.
+- **(agent)** Housekeeping: the LaTeX build artifacts that rode into dev
+  with the previous commit (main.aux/.bbl/.blg/.log/.out) are removed
+  and gitignored in `third-draft/` (only main.tex + main.pdf + DECISIONS
+  + OUTLINE + figs/ are the record).
+
 ### The third draft: the actual shot — the manuscript written from shot 0 + the figures
 
 - **(operator)** "okay, disregard the sigmod limit of 12 pages, now that

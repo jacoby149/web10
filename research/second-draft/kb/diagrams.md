@@ -464,13 +464,19 @@ fan-out table (wired at the section shot).
 
 ## Figure plan (status)
 
-The set is printed in the third-draft manuscript (4.10.38,
-`research/third-draft/main.tex`) with the manuscript numbering:
-1 overview (TikZ) · 2 composition · 3 query-engine · 4 app-arch ·
-5 feed · 6 groups · 7 platforms · 8 interop · 9 monetization ·
-10 domain before/after · 11 audience-portability · 12 k1000-curve ·
-13 node-market. The three first-shot figures (10/11/12 here —
-monetization, audience-portability, k1000-curve) are printed under the
+The set is printed in the third-draft manuscript (4.10.38, resynthesized
+4.10.39 — `research/third-draft/main.tex`), with the manuscript numbering:
+1 app-arch (§1, the system figure — the TikZ overview of 4.8.2/4.10.37 is
+out: the operator ranked it weakest, and the new figures are the map) ·
+2 composition (§3) · 3 feed (§4, the two-node /certify read) ·
+4 audience-portability (§4) · 5 query-engine (§5) · 6 groups (§6) ·
+7 platforms (§6) · 8 interop captures (§6) · 9 monetization (§6) ·
+10 k1000-curve (§8) · 11 node-market (§9). The second-draft artifacts the
+operator ranked weakest are out of the manuscript: the capability table
+(§1), the domain before/after captures (§8 — the receipts remain in the
+prototype artifact), and the fan-out table (§8 — the curve + the finding
+prose carry every printed number). The three first-shot figures
+(monetization, audience-portability, k1000-curve) are printed under the
 operator's blanket pass for that round; open to review per
 `third-draft/DECISIONS.md`.
 
