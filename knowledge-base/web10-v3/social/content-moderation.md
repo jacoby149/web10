@@ -144,7 +144,7 @@ Content moderation (above) is the **operator's** curation lever — the node own
 
 **The model (no backend, no queue, no database):**
 
-1. **The designated agent** is an email address — `copyright@web10.com` for the web10 reference node / web10-social. A self-hosted node names its **own** agent in its own terms (the node stays generic, D60 — the agent is a terms-level thing, not a node-config column).
+1. **The designated agent** is an email address — `jacob@web10.app` for the web10 reference node / web10-social. A self-hosted node names its **own** agent in its own terms (the node stays generic, D60 — the agent is a terms-level thing, not a node-config column).
 2. **The report is an email.** The rights holder sends the agent a link to the infringing content + their name + how to reach them + a statement that they are the rights holder (or authorized to act).
 3. **The operator acts fast.** They open the link and remove the content **manually** — the existing board takedown (`POST /v3/groups/hide`) or, for a full removal, the author's own delete. Acting quickly on valid notices is the legal protection: a small node that responds promptly to valid DMCA notices is safe.
 

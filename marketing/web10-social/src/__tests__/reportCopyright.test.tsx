@@ -27,6 +27,7 @@ describe('ReportCopyright', () => {
 
   it('renders the designated agent email + compose affordance', async () => {
     const { ReportCopyright, COPYRIGHT_EMAIL } = await import('@/components/shared/ReportCopyright');
+    expect(COPYRIGHT_EMAIL).toBe('jacob@web10.app');
     render(<ReportCopyright postUrl="https://web10.app/u/alice/p/1" onClose={() => {}} />);
     expect(screen.getByText('Report copyright')).toBeInTheDocument();
     expect(screen.getByTestId('report-copyright-email')).toHaveTextContent(COPYRIGHT_EMAIL);
