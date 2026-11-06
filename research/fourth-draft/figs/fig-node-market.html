@@ -1,0 +1,253 @@
+<!doctype html>
+<!--
+  Source for fig-node-market.png ("The competitive node economy" — shot 3,
+  the matching graph, 4.10.35, uncommitted pending the operator's pass).
+  Operator on shot 2 (the A/B/C block re-shot): "you made up these
+  hypothetical types of nodes, we are just showing influencer A, B C;
+  node A, B C; C has lowest prices, A bans the least but higher prices,
+  B is a certain political match (properties of the nodes); properties
+  of the influencers, influencers pick nodes, show an influencer
+  changing nodes, rematching."
+  Operator on shot 3 (this graph's brief): "dont have to do what i am
+  saying, you can even have more than three can do 6 users 6 nodes, or
+  whatever you think is appropriate to fully illustrate, and even a few
+  that are changing preferences in the diagram, which causes the consumer
+  to flip, showing these different dynamics! and that there is an action
+  reaction, a shopping based on preferences, i like this but dont like
+  that more."
+  THE GRAPH (a two-sided matching market, 6 x 6):
+  - NODES (green, right column) — each prices its own terms; the
+    properties are the operator's verbatim (shot 2) + the market's
+    differentiation axes (price · bans · overlay · politics ·
+    moderation):
+      node A — bans the least · the higher price (the operator's "A bans
+      the least but higher prices")
+      node B — a certain political match · mid price (the operator's
+      "B is a certain political match")
+      node C — the lowest price · the heavy overlay (the operator's "C
+      has lowest prices")
+      node D — the overlay just cut to 5% · mid price (the node ACTION
+      that causes a flip — the action/reaction dynamic)
+      node E — community-governed moderation · mid price
+      node F — the self-hosted floor · free, never gated (the outside
+      option; business plan: "self-hosting stays free forever — never
+      gate the software"; isolated vertex on purpose: the floor that
+      keeps the prices honest)
+  - INFLUENCERS (neutral, left column) — the properties that decide the
+    pick (example properties, for the operator to swap):
+      A — the biggest audience, delivery-first
+      B — price-first, accepts the overlay
+      C — the audience shifted political (the PREFERENCE-CHANGE flip)
+      D — weighing the terms (the SHOPPER: "i like this but dont like
+      that more" — the fewest bans, but not the higher price)
+      E — growing, was price-first (the NODE-ACTION flip: reacts to
+      node D cutting the overlay)
+      F — the community audience
+  - EDGES / DYNAMICS: the stable matches (green solid: A-nodeA,
+    B-nodeC, F-nodeE) · the flips (amber dashed: C->nodeB — the
+    preference changed; E->nodeD — the node acted, the consumer
+    reacts) · the "currently" legs of the two flips (faded green — the
+    old match, node C) · the shopping leg (thin gray dashed: D -> node
+    D — the alternative, liked less than node A's fewest bans). One
+    influencer per node is not required: the market matches on terms,
+    and node C is losing two of its three to the overlay cut + the
+    political shift (the price alone doesn't hold the audience).
+  - THE FANS: small blue dots by each influencer (audience size is
+    illustrative); the follow is the fan's OWN data, bound to the
+    creator's DOMAIN (the /certify handshake — verified-not-registered,
+    shot-0 beats 11/12; research/domain-portability-demo) — that is why
+    a flip is a REMATCH, not a loss: the audience moves along.
+  - THE RENTS (amber strip, bottom): the three rents the paved platforms
+    hold over the creator (today's rent: 1M subs, 300k delivered —
+    business plan §2) are structurally out: reach throttling (the read
+    is a compile against the reader's rules — 100% delivery by
+    architecture, D20) · demonetization (the creator's layer is never
+    suppressed — D57 — and the node processes no payment) ·
+    deplatforming (self-hostable forever free + the audience is
+    portable). "So the competition is on terms, not on leverage."
+  Market-structure figure, NOT a VS comparison figure: no verdict strip
+  (the ratchet rule). No made-up operator TYPES (shot 2's small
+  operator / media company / self-hosted node cards are out — the nodes
+  are A–F with market properties). No off-platform money pills (that is
+  fig-monetization's territory). No internal D-IDs in rendered text.
+  Evidence: business-plan.md §1–§4 · node-ads.md (the operator is a
+  media company; the overlay is node-controlled) · ads.md (D55/D57) ·
+  shot-0 beats 11/12 · AGENTS.md D20 · research/domain-portability-demo/
+  RESULTS.md.
+  Render with ./capture.mjs fig-node-market.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #0a0a12; }
+  body {
+    width: 1440px; height: 808px; position: relative; overflow: hidden;
+    font-family: -apple-system, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .title { position: absolute; top: 34px; width: 100%; text-align: center;
+    font-size: 26px; font-weight: 700; color: #f2f3f8; }
+  .subtitle { position: absolute; top: 70px; width: 100%; text-align: center;
+    font-size: 13.5px; color: #9c9fb3; }
+  svg.graph { position: absolute; top: 0; left: 0; width: 1440px; height: 808px; }
+  .rents { position: absolute; left: 55px; top: 692px; width: 1330px; height: 76px;
+    border-radius: 10px; background: rgba(251,191,36,.06);
+    border: 1.5px solid rgba(251,191,36,.5); padding: 8px 16px; }
+  .rents .t { font-size: 11.5px; font-weight: 700; color: #fbbf24; }
+  .rents .l { font-size: 10px; margin-top: 4px; line-height: 1.45; color: #c9b585; }
+  .rents .c { font-size: 11px; margin-top: 5px; font-weight: 700; color: #f2f3f8; }
+</style>
+</head>
+<body>
+  <div class="title">The competitive node economy</div>
+  <div class="subtitle">a market, not a menu &mdash; the nodes price their terms, the influencers shop: the stable matches, the flips when a preference or a term moves, and the comparison in between</div>
+
+  <svg class="graph" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="m-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="rgba(96,165,250,.85)"/>
+      </marker>
+      <marker id="m-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="rgba(120,220,180,.9)"/>
+      </marker>
+      <marker id="m-faded" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="rgba(120,220,180,.5)"/>
+      </marker>
+      <marker id="m-amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#fbbf24"/>
+      </marker>
+      <marker id="m-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#8b8fa5"/>
+      </marker>
+    </defs>
+
+    <!-- ============ EDGES (under the vertices) ============ -->
+    <!-- C -> node B: THE FLIP (preference change) — row 1, amber -->
+    <path d="M 440,160 L 872,160" stroke="#fbbf24" stroke-width="2.5" stroke-dasharray="7 5" fill="none" marker-end="url(#m-amber)"/>
+    <!-- C -> node C: the current (faded) leg of the flip -->
+    <path d="M 434,192 C 560,230 730,244 868,250" stroke="rgba(120,220,180,.5)" stroke-width="1.3" fill="none" marker-end="url(#m-faded)"/>
+    <!-- B -> node C: stable match — row 2 -->
+    <path d="M 440,255 L 872,255" stroke="rgba(120,220,180,.9)" stroke-width="2" fill="none" marker-end="url(#m-green)"/>
+    <!-- A -> node A: stable match — row 3 -->
+    <path d="M 440,350 L 872,350" stroke="rgba(120,220,180,.9)" stroke-width="2" fill="none" marker-end="url(#m-green)"/>
+    <!-- E -> node D: THE FLIP (node acted: the overlay cut) — row 4, amber -->
+    <path d="M 440,445 L 872,445" stroke="#fbbf24" stroke-width="2.5" stroke-dasharray="7 5" fill="none" marker-end="url(#m-amber)"/>
+    <!-- E -> node C: the current (faded) leg of the flip -->
+    <path d="M 434,414 C 560,346 740,298 870,284" stroke="rgba(120,220,180,.5)" stroke-width="1.3" fill="none" marker-end="url(#m-faded)"/>
+    <!-- D -> node A: stable match (row 5 -> row 3) -->
+    <path d="M 438,508 C 560,436 740,384 872,358" stroke="rgba(120,220,180,.9)" stroke-width="2" fill="none" marker-end="url(#m-green)"/>
+    <!-- D -> node D: the shopping leg (row 5 -> row 4, thin gray) -->
+    <path d="M 440,516 C 560,492 740,462 870,453" stroke="#8b8fa5" stroke-width="1.3" stroke-dasharray="4 4" fill="none" marker-end="url(#m-gray)"/>
+    <!-- F -> node E: stable match (row 6 -> row 5) -->
+    <path d="M 440,604 C 560,580 740,556 870,545" stroke="rgba(120,220,180,.9)" stroke-width="2" fill="none" marker-end="url(#m-green)"/>
+
+    <!-- ============ THE FANS (blue dots by each influencer) ============ -->
+    <g fill="rgba(96,165,250,.08)" stroke="rgba(96,165,250,.6)" stroke-width="1.2">
+      <circle cx="330" cy="140" r="7"/><circle cx="352" cy="160" r="7"/><circle cx="330" cy="180" r="7"/>
+      <circle cx="330" cy="235" r="7"/><circle cx="352" cy="255" r="7"/><circle cx="330" cy="275" r="7"/>
+      <circle cx="318" cy="330" r="7"/><circle cx="340" cy="350" r="7"/><circle cx="318" cy="370" r="7"/><circle cx="340" cy="390" r="7"/>
+      <circle cx="330" cy="425" r="7"/><circle cx="352" cy="445" r="7"/><circle cx="330" cy="465" r="7"/>
+      <circle cx="330" cy="520" r="7"/><circle cx="352" cy="540" r="7"/><circle cx="330" cy="560" r="7"/>
+      <circle cx="340" cy="615" r="7"/><circle cx="340" cy="655" r="7"/>
+    </g>
+
+    <!-- top legend line -->
+    <text x="55" y="100" font-size="10.5" fill="#9c9fb3">the fans &mdash; the follow is the fan&rsquo;s own data, bound to the domain (the audience moves with the flip) &nbsp;&middot;&nbsp; the influencers &mdash; the properties that decide the pick &nbsp;&middot;&nbsp; the nodes &mdash; the terms they price: the price &middot; the bans &middot; the overlay &middot; the politics</text>
+
+    <!-- ============ INFLUENCERS (left column, x=400, r=40) ============ -->
+    <g>
+      <circle cx="400" cy="160" r="40" fill="#12121b" stroke="#c9ccda" stroke-width="1.5"/>
+      <text x="400" y="150" font-size="11.5" font-weight="700" fill="#f2f3f8" text-anchor="middle">influencer C</text>
+      <text x="400" y="166" font-size="9" fill="#8b8fa5" text-anchor="middle">audience shifted</text>
+      <text x="400" y="179" font-size="9" fill="#8b8fa5" text-anchor="middle">political</text>
+
+      <circle cx="400" cy="255" r="40" fill="#12121b" stroke="#c9ccda" stroke-width="1.5"/>
+      <text x="400" y="245" font-size="11.5" font-weight="700" fill="#f2f3f8" text-anchor="middle">influencer B</text>
+      <text x="400" y="261" font-size="9" fill="#8b8fa5" text-anchor="middle">price-first</text>
+      <text x="400" y="274" font-size="9" fill="#8b8fa5" text-anchor="middle">steady audience</text>
+
+      <circle cx="400" cy="350" r="40" fill="#12121b" stroke="#c9ccda" stroke-width="1.5"/>
+      <text x="400" y="340" font-size="11.5" font-weight="700" fill="#f2f3f8" text-anchor="middle">influencer A</text>
+      <text x="400" y="356" font-size="9" fill="#8b8fa5" text-anchor="middle">biggest audience</text>
+      <text x="400" y="369" font-size="9" fill="#8b8fa5" text-anchor="middle">delivery-first</text>
+
+      <circle cx="400" cy="445" r="40" fill="#12121b" stroke="#c9ccda" stroke-width="1.5"/>
+      <text x="400" y="435" font-size="11.5" font-weight="700" fill="#f2f3f8" text-anchor="middle">influencer E</text>
+      <text x="400" y="451" font-size="9" fill="#8b8fa5" text-anchor="middle">growing &middot; was</text>
+      <text x="400" y="464" font-size="9" fill="#8b8fa5" text-anchor="middle">price-first</text>
+
+      <circle cx="400" cy="540" r="40" fill="#12121b" stroke="#c9ccda" stroke-width="1.5"/>
+      <text x="400" y="530" font-size="11.5" font-weight="700" fill="#f2f3f8" text-anchor="middle">influencer D</text>
+      <text x="400" y="546" font-size="9" fill="#8b8fa5" text-anchor="middle">weighing terms</text>
+      <text x="400" y="559" font-size="9" fill="#8b8fa5" text-anchor="middle">(the shopper)</text>
+
+      <circle cx="400" cy="635" r="40" fill="#12121b" stroke="#c9ccda" stroke-width="1.5"/>
+      <text x="400" y="625" font-size="11.5" font-weight="700" fill="#f2f3f8" text-anchor="middle">influencer F</text>
+      <text x="400" y="641" font-size="9" fill="#8b8fa5" text-anchor="middle">the community</text>
+      <text x="400" y="654" font-size="9" fill="#8b8fa5" text-anchor="middle">audience</text>
+    </g>
+
+    <!-- ============ NODES (right column, x=920, r=48) ============ -->
+    <g>
+      <circle cx="920" cy="160" r="48" fill="rgba(52,211,153,.08)" stroke="#34d399" stroke-width="1.5"/>
+      <text x="920" y="150" font-size="11.5" font-weight="700" fill="#d7f5e6" text-anchor="middle">node B</text>
+      <text x="920" y="165" font-size="9" fill="#7fa892" text-anchor="middle">a certain political</text>
+      <text x="920" y="178" font-size="9" fill="#7fa892" text-anchor="middle">match &middot; mid price</text>
+
+      <circle cx="920" cy="255" r="48" fill="rgba(52,211,153,.08)" stroke="#34d399" stroke-width="1.5"/>
+      <text x="920" y="245" font-size="11.5" font-weight="700" fill="#d7f5e6" text-anchor="middle">node C</text>
+      <text x="920" y="260" font-size="9" fill="#7fa892" text-anchor="middle">the lowest price</text>
+      <text x="920" y="273" font-size="9" fill="#7fa892" text-anchor="middle">the heavy overlay</text>
+
+      <circle cx="920" cy="350" r="48" fill="rgba(52,211,153,.08)" stroke="#34d399" stroke-width="1.5"/>
+      <text x="920" y="340" font-size="11.5" font-weight="700" fill="#d7f5e6" text-anchor="middle">node A</text>
+      <text x="920" y="355" font-size="9" fill="#7fa892" text-anchor="middle">bans the least</text>
+      <text x="920" y="368" font-size="9" fill="#7fa892" text-anchor="middle">the higher price</text>
+
+      <circle cx="920" cy="445" r="48" fill="rgba(52,211,153,.08)" stroke="#34d399" stroke-width="1.5"/>
+      <text x="920" y="435" font-size="11.5" font-weight="700" fill="#d7f5e6" text-anchor="middle">node D</text>
+      <text x="920" y="450" font-size="9" fill="#7fa892" text-anchor="middle">overlay cut to 5%</text>
+      <text x="920" y="463" font-size="9" fill="#7fa892" text-anchor="middle">mid price</text>
+
+      <circle cx="920" cy="540" r="48" fill="rgba(52,211,153,.08)" stroke="#34d399" stroke-width="1.5"/>
+      <text x="920" y="530" font-size="11.5" font-weight="700" fill="#d7f5e6" text-anchor="middle">node E</text>
+      <text x="920" y="545" font-size="9" fill="#7fa892" text-anchor="middle">community-governed</text>
+      <text x="920" y="558" font-size="9" fill="#7fa892" text-anchor="middle">moderation &middot; mid</text>
+
+      <circle cx="920" cy="635" r="48" fill="rgba(52,211,153,.08)" stroke="#34d399" stroke-width="1.5" stroke-dasharray="3 3"/>
+      <text x="920" y="625" font-size="11.5" font-weight="700" fill="#d7f5e6" text-anchor="middle">node F</text>
+      <text x="920" y="640" font-size="9" fill="#7fa892" text-anchor="middle">self-hosted floor</text>
+      <text x="920" y="653" font-size="9" fill="#7fa892" text-anchor="middle">free, never gated</text>
+    </g>
+
+    <!-- ============ EDGE LABELS ============ -->
+    <!-- the flips -->
+    <text x="480" y="146" font-size="10" font-weight="700" fill="#fbbf24">the flip &mdash; the preference changed: the audience shifted political</text>
+    <text x="975" y="428" font-size="10" font-weight="700" fill="#fbbf24">the flip &mdash; the node acted: node D cut the overlay;</text>
+    <text x="975" y="442" font-size="10" font-weight="700" fill="#fbbf24">the price-sensitive one reacts</text>
+    <!-- the currently legs -->
+    <text x="650" y="216" font-size="9" fill="#8b8fa5">currently &mdash; node C</text>
+    <text x="620" y="306" font-size="9" fill="#8b8fa5">currently &mdash; node C</text>
+    <!-- the stable matches -->
+    <text x="470" y="243" font-size="9.5" fill="#9fd8c0">the terms fit &mdash; the lowest price</text>
+    <text x="460" y="336" font-size="9.5" fill="#9fd8c0">the terms fit &mdash; the fewest bans</text>
+    <text x="452" y="676" font-size="9.5" fill="#9fd8c0">the terms fit &mdash; the moderation style</text>
+    <!-- the shopper (right of node D, under the flip label) -->
+    <text x="975" y="462" font-size="9.5" fill="#8b8fa5">and influencer D is shopping: i like node A&rsquo;s</text>
+    <text x="975" y="475" font-size="9.5" fill="#8b8fa5">fewest bans &mdash; but not the higher price as much</text>
+    <!-- node F: the floor -->
+    <text x="540" y="628" font-size="9" fill="#9c9fb3">the outside option: the floor that keeps the prices honest</text>
+  </svg>
+
+  <!-- the rents strip -->
+  <div class="rents">
+    <div class="t">the market effect &mdash; the three rents the paved platforms hold over the creator (today&rsquo;s rent: 1M subs, 300k delivered) are structurally out</div>
+    <div class="l">&bull; <b style="color:#fbbf24">reach throttling</b> (the shadow ban) &mdash; the read is a compile against the reader&rsquo;s rules: 100% delivery by architecture &nbsp;&middot;&nbsp;
+    &bull; <b style="color:#fbbf24">demonetization</b> &mdash; the creator&rsquo;s layer is never suppressed, and the node processes no payment: the link is the creator&rsquo;s &nbsp;&middot;&nbsp;
+    &bull; <b style="color:#fbbf24">deplatforming</b> &mdash; the software is self-hostable, forever free, and the audience is portable: the follow is the fan&rsquo;s data, bound to the domain</div>
+    <div class="c">so the competition is on terms, not on leverage &mdash; the influencers shop, and the nodes earn the audience</div>
+  </div>
+</body>
+</html>

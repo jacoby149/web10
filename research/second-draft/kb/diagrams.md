@@ -464,14 +464,18 @@ fan-out table (wired at the section shot).
 
 ## Figure plan (status)
 
-The set is printed in the third-draft manuscript (4.10.38, resynthesized
-4.10.39 — `research/third-draft/main.tex`), with the manuscript numbering:
-1 app-arch (§1, the system figure — the TikZ overview of 4.8.2/4.10.37 is
-out: the operator ranked it weakest, and the new figures are the map) ·
-2 composition (§3) · 3 feed (§4, the two-node /certify read) ·
-4 audience-portability (§4) · 5 query-engine (§5) · 6 groups (§6) ·
-7 platforms (§6) · 8 interop captures (§6) · 9 monetization (§6) ·
-10 k1000-curve (§8) · 11 node-market (§9). The second-draft artifacts the
+The set is printed in the FOURTH-draft manuscript (4.10.41 — the working
+manuscript; the third draft joins first + second as the frozen record),
+with the manuscript numbering: 1 app-arch (§1, the system figure — the
+TikZ overview of 4.8.2/4.10.37 is out: the operator ranked it weakest,
+and the new figures are the map) · 2 composition (§3) · 3 query-engine
+(§4) · 4 groups (§5) · 5 platforms (§5) · 6 interop captures (§5) ·
+7 feed (§6, the two-node /certify read) · 8 audience-portability (§6) ·
+9 monetization (§7) · 10 node-market (§7) · 11 k1000-curve (§9). All
+eleven are full-width `figure*` floats on the 4.10.40 padded rasters
+(the 4.10.40 "Figure 3 / Figure 6 half-width" note referred to the
+THIRD-draft numbering, where feed = 3 and groups = 6; in the fourth
+draft feed is Figure 7 and groups is Figure 4). The second-draft artifacts the
 operator ranked weakest are out of the manuscript: the capability table
 (§1), the domain before/after captures (§8 — the receipts remain in the
 prototype artifact), and the fan-out table (§8 — the curve + the finding
