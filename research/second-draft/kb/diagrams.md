@@ -24,7 +24,10 @@ why it is visually nice, and what it may not assert.
   fig:feed caption described ranking tabs that were never in the
   figure; that class of bug is now a review failure.)
 - **Diagrams are HTML source → 2x PNG** (`figs/README.md`); UI
-  screenshots stay PNG-only app captures.
+  screenshots stay PNG-only app captures. **Performance curves are a
+  committed matplotlib script → 2x PNG** (`figs/fig-k1000-curve.py`,
+  4.10.37 — the house language applies; the script is the reproducible
+  source, and curves plot only numbers the body already asserts).
 - **The same mechanism is drawn identically in every figure.** The
   reader learns the visual vocabulary once.
 - **Comparison figures carry the verdict.** The two VS figures (Figures
@@ -79,12 +82,19 @@ One dark web10 theme across every figure:
 
 ## The figures
 
-### Figure 1 — system overview (TikZ, §1) — label pass pending
+### Figure 1 — system overview (TikZ, §1) — label pass done (4.10.37)
 
 One client, two sovereign nodes, the `/certify` path. The paper's map.
-**Planned change:** gain section labels (§2, §4, §5, …) mapped onto the
-diagram — the visual table of contents (the F3 move: the reader can look
-at Figure 1 and know the paper's structure).
+**Label pass (4.10.37):** the visual table of contents (the F3 move: the
+reader looks at Figure 1 and knows the paper's structure) is complete —
+the client box names the apps ("the user's client — web10-social ·
+Snake · Marketplace (§6)", the `tab:interop-apps` names, no new claim)
+and the /certify strip carries its section home ("HTTPS /certify
+(§4)"). Full mapping: access plane §2 · data plane §3 · /certify +
+client-side fan-out §4 · query boundary §5 · the apps §6 · consent and
+revocation §8. §7/§9/§10 have no boxes — they have no architecture.
+Rebuilt: 14 pages = 12 body + refs, no new overfull (the recorded
+1.166pt final-page vbox stands).
 
 ### Figure 2 — the federated node (HTML → `figs/fig-feed.png`, §4) — done
 
@@ -402,6 +412,44 @@ recover-without-refollowing) · shot-0 beats 11/12. Proposed landing: §8
 (the mechanism behind Figure 6's before/after capture) + §9 (the
 deplatforming rent, alongside Figure 11's strip).
 
+### Figure 13 — where the access layer's cost lives: the K10/K1000
+fan-out curve (first shot, `figs/fig-k1000-curve.png`, §8 — pending the
+operator's pass; matplotlib source `figs/fig-k1000-curve.py`)
+
+**What it visualizes:** the metadata fan-out measurement as the paper's
+money curve (the K1000 → §8 negative-finding routing from 4.10.22):
+readable-group resolution median vs. the number of candidate groups K,
+log-log — the per-group resolver (amber, one point query per candidate
+group: 9.53 → 75.03 → 764.39 → 7,535.71 ms at K = 1/10/100/1,000)
+against the batched resolver (green, three queries + in-memory
+resolution: 25.37 → 23.47 → 41.78 → 213.98 ms). The K = 1 point is the
+discover board — a different workload from the K = 10/100/1,000 personal
+sweep on the same dataset — drawn as an open marker on a dashed leg:
+the comparison the body itself makes ("at the discover board's K = 1, the
+per-group path is faster"). Annotations: "7.64 s at K = 1,000" (the
+number that hurts) · "214 ms readable · 363 ms handler" (the fix) · the
+growth factors ×100.44 vs. ×9.12 over K = 10 → 1,000 · the knee. Payoff
+strip: "The first measurement pointed at the access layer, not the
+database — the batched resolver is the design decision it drove, and the
+tradeoff has a knee."
+**Why that shape:** the negative finding needs the divergence to be
+visible at a glance — the table (`tab:fanout`) holds the numbers, the
+curve holds the 35× gap and the knee. Deliberately NOT plotted: the
+document-scan baseline (A) — its numbers are not asserted in the body
+(the accuracy invariant); the §8 prose carries "the document scan it fed
+was already done" without a number. Not a VS comparison: no verdict
+strip (the ratchet rule). New medium: committed matplotlib script → 2x
+PNG — the house figure system is HTML → PNG for mechanism diagrams; a
+curve's source is data + layout, and the script is the reproducible
+thing (figs/README.md). Evidence:
+research/experiments/costfn/K1000-RESULTS.md (the trial of record: sfo2
+s-4vcpu-8gb, seed 42, 20 samples per cell, 400 measurements) · main.tex
+§8 (the table + finding + tradeoff prose) · the §7 lede. Title
+alternatives for the riff: A "Where the access layer's cost lives"
+(current — the §7 lede register) · B "The fan-out knee" · C "Per-group
+vs. batched resolution at K = 1,000". Proposed landing: §8, beside the
+fan-out table (wired at the section shot).
+
 ### Candidates (not started)
 
 - **Two trust layers (§2):** the app wall (outer: can this app perform O
@@ -416,9 +464,19 @@ deplatforming rent, alongside Figure 11's strip).
 
 ## Figure plan (status)
 
+The set is printed in the third-draft manuscript (4.10.38,
+`research/third-draft/main.tex`) with the manuscript numbering:
+1 overview (TikZ) · 2 composition · 3 query-engine · 4 app-arch ·
+5 feed · 6 groups · 7 platforms · 8 interop · 9 monetization ·
+10 domain before/after · 11 audience-portability · 12 k1000-curve ·
+13 node-market. The three first-shot figures (10/11/12 here —
+monetization, audience-portability, k1000-curve) are printed under the
+operator's blanket pass for that round; open to review per
+`third-draft/DECISIONS.md`.
+
 | # | Figure | Section | State |
 |---|---|---|---|
-| 1 | System overview + section labels | §1 | existing TikZ; label pass pending |
+| 1 | System overview + section labels | §1 | **done** (4.8.2 TikZ; label pass 4.10.37 — the visual ToC: §2–§6 + §8 mapped) |
 | 2 | Federated node | §4 | **done** (4.9.1) |
 | 3 | The web10-social application and its node | §6 | **done** (4.10.23, `fig-app-arch`) |
 | 4 | Reading a social feed on web10 | §5 | **done** (4.10.23, `fig-query-engine`; retitled 4.10.28) |
@@ -430,4 +488,5 @@ deplatforming rent, alongside Figure 11's strip).
 | 10 | How money flows on web10 (the ad rail) | §6/§9 | **first shot** (`fig-monetization` — pending the operator's pass; the shot-0 monetization beat drafted alongside) |
 | 11 | The competitive node economy | §9/§10 | **passed** (4.10.35, `fig-node-market`) |
 | 12 | The audience travels with the domain (the DNS flip) | §8/§9 | **first shot** (`fig-audience-portability` — pending the operator's pass) |
+| 13 | Where the access layer's cost lives (the K10/K1000 fan-out curve) | §8 | **first shot** (`fig-k1000-curve` — committed matplotlib script + 2880x1440 PNG — pending the operator's pass) |
 | — | Two trust layers / data model | §2/§3 | candidates |

@@ -34,3 +34,21 @@ PNG-only app captures — no HTML source. Convention and rationale:
   (conference-facing, per the 4.5.4 cleanup).
 - Keep committed rasters at the existing dimensions where possible so the
   page layout does not shift (fig-feed: 2880x1800 = 1440x900 @2x).
+
+## Measurement curves (matplotlib)
+
+Performance curves are a committed `.py` script → 2x PNG
+(`fig-k1000-curve.py`, 4.10.37) — the HTML system is for mechanism
+diagrams; a curve's source is data + layout, and the script is the
+reproducible thing. matplotlib is not a repo dependency — scratch venv
+(lives outside the repo):
+
+```sh
+SCRATCH="$(mktemp -d)"
+python3 -m venv "$SCRATCH" && "$SCRATCH/bin/pip" install -q matplotlib
+"$SCRATCH/bin/python" research/second-draft/figs/fig-k1000-curve.py
+```
+
+The rules above apply as-is: the accuracy invariant (curves plot only
+numbers the body already asserts), the house language (dark canvas,
+semantic colors, payoff strip), the 1440 canvas @2x.

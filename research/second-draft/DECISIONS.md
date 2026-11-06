@@ -10,6 +10,60 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 05.11.2026
 
+### fig-k1000-curve: "Where the access layer's cost lives" — the K10/K1000 fan-out curve (first shot, pending the operator's pass)
+
+- **(operator)** "if you want to do matplotlib plots or something for the
+  still open ones, feel free, not sure" — the two still-open figure items
+  (the K1000 curve, the §1 overview map) get this round.
+- **(agent)** The K1000 curve lands as a committed matplotlib source
+  (`figs/fig-k1000-curve.py` → `figs/fig-k1000-curve.png`,
+  2880x1440 = the 1440x720 wide/short canvas @2x) — the house figure
+  language applied to a measurement curve: dark canvas `#0a0a12`, log-log,
+  semantic colors (amber = the number that hurts, green = the fix), payoff
+  strip, no verdict strip (measurement figure — the ratchet rule). It
+  plots, every number already in the manuscript (`tab:fanout` + the §8
+  finding/tradeoff prose + the §7 lede): the per-group resolver's readable
+  median over K = 1/10/100/1000 (amber: 9.53 → 75.03 → 764.39 →
+  7,535.71 ms) against the batched resolver's readable median (green:
+  25.37 → 23.47 → 41.78 → 213.98 ms). The K = 10/100/1000 sweep is solid
+  (one dataset); K = 1 is the discover board — a different workload, the
+  comparison the body itself makes — so it is an open marker on a dashed
+  leg. Annotations: "7.64 s at K = 1,000" (the number that hurts) ·
+  "214 ms readable · 363 ms handler" (the fix) · the growth factors
+  ×100.44 vs. ×9.12 over K = 10 → 1,000 · the knee ("at K = 1 the
+  per-group path is faster — three fixed round trips dominate"). Payoff
+  strip: "The first measurement pointed at the access layer, not the
+  database — the batched resolver is the design decision it drove, and the
+  tradeoff has a knee." Deliberately NOT plotted: the document-scan
+  baseline (A) — its numbers are not in the body (the accuracy invariant);
+  the §8 prose carries "the document scan it fed was already done"
+  without a number. Title alternatives for the riff: A "Where the access
+  layer's cost lives" (current — the §7 lede register) · B "The fan-out
+  knee" · C "Per-group vs. batched resolution at K = 1,000". Evidence:
+  research/experiments/costfn/K1000-RESULTS.md (the trial of record:
+  sfo2 s-4vcpu-8gb, seed 42, 20 samples per cell, 400 measurements) ·
+  main.tex §8 (the table + finding + tradeoff) · the §7 lede. Proposed
+  landing: §8, beside the fan-out table (the visual money shot of the
+  negative finding — the K1000 → §8 routing from 4.10.22). Not wired into
+  main.tex until the pass (the figure-phase rule; the section shot wires
+  it). New medium rule: performance curves are committed matplotlib script
+  → 2x PNG (the HTML system stays for mechanism diagrams; see
+  figs/README.md).
+
+### Figure 1 label pass: the visual table of contents completes
+
+- **(agent)** The planned change from the Figure 1 entry ("gain section
+  labels (§2, §4, §5, …) mapped onto the diagram — the visual table of
+  contents, the F3 move") lands: the client box now names the apps —
+  "the user's client — web10-social · Snake · Marketplace (§6)" (the
+  names from `tab:interop-apps`, no new claim) — and the /certify strip
+  gains its section home ("HTTPS /certify (§4)"). The full mapping:
+  access plane §2 · data plane §3 · /certify + client-side fan-out §4 ·
+  query boundary §5 · the apps §6 · consent and revocation §8. §7/§9/§10
+  deliberately have no boxes — they have no architecture. Rebuilt with
+  tectonic: 14 pages = 12 body + refs (the budget held), no new overfull
+  hbox, only the recorded 1.166pt final-page vbox.
+
 ### fig-audience-portability: "The audience travels with the domain" — 1 influencer, 2 nodes, the DNS flip (first shot, pending the operator's pass)
 
 - **(operator)** On the 6x6 (shot 3): "i think 3 and 3 is fine for the
