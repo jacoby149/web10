@@ -309,8 +309,8 @@ ads-dissemination.md}` + `knowledge-base/strategy/business-plan.md` §4.
 Proposed landing: §6 + §9.
 
 ### Figure 11 — the competitive node economy: a matching graph, 6 x 6
-(`figs/fig-node-market.png`, §9/§10 — shot 3, pending the operator's
-pass)
+(`figs/fig-node-market.png`, §9/§10 — shot 3, passed 05.11.2026:
+"i really like this chart!" — the DNS goes to its own figure, 12)
 
 **What it visualizes:** the market structure the data plane makes
 possible — a two-sided MATCHING market, not a stack: 6 influencers
@@ -355,6 +355,53 @@ the operator is a media company) · ads.md (D55/D57) · shot-0 beats
 11/12 (/certify, DNS/audience) · D20 ·
 research/domain-portability-demo/RESULTS.md. Proposed landing: §9 + §10.
 
+### Figure 12 — the audience travels with the domain: 1 influencer, 2
+nodes, the DNS flip (first shot, `figs/fig-audience-portability.png`,
+§8/§9 — pending the operator's pass)
+
+**What it visualizes:** the portability mechanism the market graph
+(Figure 11) gestures at — why a flip is a rematch, not a loss. A single
+scene with the time flip inside the DNS card: the fans (each follow is
+the fan's own data — a private document in the fan's store, body exactly
+the domain; one follow write, unchanged when the creator moves; the fan's
+app resolves the address on each read) · the influencer (one vertex: owns
+the address + the content) · the domain chip (the address the audience
+knows — jacobhoffman.xyz, shot 0's concrete example; the node + username
+is the replaceable target) · the DNS card (the hero: the record the
+creator owns, shown in both states — before `provider=node-a.example`,
+now `provider=node-b.example`, one field changed; a TXT record, not A or
+CNAME — an identity claim, the same pattern as DKIM/SPF; the record lives
+on the creator's DNS, the node controls no part of it; no/ambiguous
+record → an explicit unavailable state, the follow stays, restoring the
+record recovers it without refollowing) · node A (faded: the home the
+record named; now the record no longer names it; the node's stored alias
+is a copy, the address is on the creator's DNS) · node B (active: the
+verify gate — the node does the DNS lookup itself, the record must name
+this node + this account, discovery not authentication; the content is
+served under the same address; the fans' unchanged documents now resolve
+here — no refollowing). The green payoff strip: the audience travels with
+the address, not with any node — no platform holds a ban switch over an
+address the creator keeps; one DNS change, not a migration.
+**Why that shape:** the operator's call after the 6x6 passed ("i really
+like this chart!"): the DNS did not go into the market graph — it got its
+own figure: "we can do a different figure with 1 influencer and 2 nodes
+to illustrate the DNS!" The minimal cast is the point: one moving part,
+the TXT record, and it is the picture. A mechanism figure, NOT a VS
+comparison: no verdict strip (the ratchet rule). The violet verify box is
+the enforcement family (the same shape as Figure 4's boundary and
+Figure 2's access check); green = the nodes, blue = the fans/reads, amber
+= the change, faded gray = the before-state. The names are grounded:
+jacobhoffman.xyz is the author's own identity (shot 0's concrete
+re-pointing example), node-a.example / node-b.example are the two nodes.
+Evidence: `knowledge-base/web10-v3/identity/domain-identity.md` (the TXT
+claim, the alias-not-principal rule, the verify flow, "no backfill") ·
+`knowledge-base/web10-v3/setup/custom-domain.md` (the DKIM/SPF pattern) ·
+`research/domain-portability-demo/RESULTS.md` (the reader-owned domain
+subscription; the {domain} document; explicit-unavailable +
+recover-without-refollowing) · shot-0 beats 11/12. Proposed landing: §8
+(the mechanism behind Figure 6's before/after capture) + §9 (the
+deplatforming rent, alongside Figure 11's strip).
+
 ### Candidates (not started)
 
 - **Two trust layers (§2):** the app wall (outer: can this app perform O
@@ -381,5 +428,6 @@ research/domain-portability-demo/RESULTS.md. Proposed landing: §9 + §10.
 | 8 | The composition fork: web10 vs Solid | §3/§9 | **done** (4.10.23, `fig-composition`; VS framing 4.10.33) |
 | 9 | The interoperability fork: web10 vs Mastodon / Bluesky | §6/§9 | **done** (4.10.29, `fig-platforms`; 4.10.32 title/API/services; VS framing 4.10.33) |
 | 10 | How money flows on web10 (the ad rail) | §6/§9 | **first shot** (`fig-monetization` — pending the operator's pass; the shot-0 monetization beat drafted alongside) |
-| 11 | The competitive node economy | §9/§10 | **first shot** (`fig-node-market` — pending the operator's pass) |
+| 11 | The competitive node economy | §9/§10 | **passed** (4.10.35, `fig-node-market`) |
+| 12 | The audience travels with the domain (the DNS flip) | §8/§9 | **first shot** (`fig-audience-portability` — pending the operator's pass) |
 | — | Two trust layers / data model | §2/§3 | candidates |

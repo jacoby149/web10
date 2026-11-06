@@ -10,6 +10,59 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 05.11.2026
 
+### fig-audience-portability: "The audience travels with the domain" — 1 influencer, 2 nodes, the DNS flip (first shot, pending the operator's pass)
+
+- **(operator)** On the 6x6 (shot 3): "i think 3 and 3 is fine for the
+  illustration, i think showing the dns bring your audience is kind of
+  perfect here!" then, on reflection: "hmm, maybe we shoudnt though, i
+  really like this chart!" — the 6x6 is **PASSED** and stands; the DNS
+  does not go into the market graph.
+- **(operator)** "we can do a different figure with 1 influencer and 2
+  nodes to illustrate the DNS!"
+- **(agent)** The DNS mechanism gets its own figure (Figure 12,
+  `fig-audience-portability`), the minimal cast so the one moving part —
+  the TXT record — is the picture. A single scene with the time flip
+  inside the DNS card: the fans (each follow is the fan's own data — a
+  private document in the fan's store, body exactly
+  `{ domain: "jacobhoffman.xyz" }`; one follow write, unchanged when the
+  creator moves; the fan's app resolves the address on each read) · the
+  influencer (one neutral vertex: owns the address + the content) · the
+  domain chip (jacobhoffman.xyz — the address the audience knows; the
+  node + username is the replaceable target — shot 0's concrete example)
+  · the DNS card (the hero: the record the creator owns, shown in BOTH
+  states — before `provider=node-a.example` (faded) → "the re-point — the
+  creator changes one field" → now `provider=node-b.example` (amber); a
+  TXT record, not A or CNAME — an identity claim, the same pattern as
+  DKIM and SPF; the record lives on the creator's DNS, the node controls
+  no part of it; no record or an ambiguous one → the fan's read shows an
+  explicit unavailable state, the follow stays, restoring the record
+  recovers it without refollowing) · node A (faded: the home the record
+  named; now the record no longer names it; what node A stored is a copy
+  of the alias — the address itself is on the creator's DNS) · node B
+  (active: the violet verify gate — the node does the DNS lookup itself,
+  the record must name this node + this account, the verified alias is
+  stored on the account, discovery not authentication; the public content
+  is served under the same address; the fans' unchanged documents now
+  resolve here — no refollowing). The green payoff strip: the audience
+  travels with the address, not with any node — no platform holds a ban
+  switch over an address the creator keeps; one DNS change, not a
+  migration. Mechanism figure, NOT a VS comparison: no verdict strip (the
+  ratchet rule); the violet verify box is the enforcement family (same
+  shape as fig-query-engine's boundary / fig-feed's access check).
+  Uncommitted, pending the pass (together with the 4.10.34 round; the
+  4.10.35 round is passed). Title alternatives for the riff: A "The
+  audience travels with the domain" (current) · B "One DNS change:
+  moving nodes without losing the audience" · C "The address outlives the
+  account — the DNS flip." Evidence:
+  knowledge-base/web10-v3/identity/domain-identity.md (the TXT claim, the
+  alias-not-principal rule, the verify flow, "no backfill") ·
+  setup/custom-domain.md (the DKIM/SPF pattern, Njalla) ·
+  research/domain-portability-demo/RESULTS.md (the reader-owned domain
+  subscription, the {domain} document, explicit-unavailable +
+  recover-without-refollowing) · shot-0 beats 11/12. Proposed landing: §8
+  (the mechanism behind Figure 6's before/after capture) + §9 (the
+  deplatforming rent, alongside fig-node-market's strip).
+
 ### fig-node-market: the competitive node economy — a matching graph, 6 x 6 (shot 3, pending the operator's pass)
 
 - **(operator)** "maybe that would be cool to show that kind of another
