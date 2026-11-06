@@ -10,6 +10,94 @@ oracles, the spine, the shot loop, the craft, the ops).
 
 ## 05.11.2026
 
+### The monetization beat + fig-monetization: "the free web should have ads — the ad pureplay" (first shot, pending the operator's pass)
+
+- **(operator)** "we should make it clear that because of
+  interoperability new ad surfaces / ways to make money on it can evolve,
+  actually!!! all of these surfaces should interoperate on ads -> so people
+  make money on the new internet. maybe that warrants a brand new figure,
+  monetization"
+- **(operator)** "the ideas on monetization, affiliate links, node owners
+  putting their ads, i think the ad architecture matters"
+- **(operator)** "even in the shot0, solid mastodon bluesky dismissed the
+  monetization, non capitalistically"
+- **(operator)** "we address it, but dont do stripe no payment processing,
+  we do it with an ad pureplay"
+- **(operator)** "i am saying solid mastodon bluesky have no mechanism for
+  ads that is the non capitalistic thing, web10 believes there should be
+  ads on this free web"
+- **(operator)** "should be clear the node is showing ads 5-10% of the
+  time, and influencers are showing ads 80-90 percent of the time!
+  actually the split is controlled by the node, but it is a competetive
+  market economy of nodes, nodes setting their rates low to compete for
+  the influencers."
+- **(agent)** The density split is now explicit in the rail box: the
+  creator's layer is dense (the influencer shows their own offers on
+  most of their content — 80–90% of the time) and the node's layer is
+  sparse (the overlay lands on 5–10% of posts — node-controlled,
+  default 10, deterministic per reader, round-robin); both can be
+  present on the same post, non-steal. The node rail header adds
+  "node-controlled at the density"; the operator's money card carries
+  the market line ("Nodes compete for the influencers by lowering their
+  rates: the density is node-controlled, a competitive market economy of
+  nodes"). The numbers, provenance: 5–10% is the operator's competitive
+  band against the KB mechanism (node_ad_percentage — node-controlled,
+  default 10, node-ads.md); 80–90% is the operator's claim on the
+  creator's dense layer (the mechanism is grounded — the creator's
+  pinned offers on their own content, ads-dissemination.md — the number
+  is the operator's to defend in §9). The market structure is §9/§10
+  material, not a shot-0 beat (the pitch keeps the positive essence;
+  the density + market dynamics are body material). Re-rendered and
+  inspected.
+- **(agent)** The scope is the **ad pureplay** (business-plan.md §4: the
+  v3 revenue lines are "ads only — no Stripe, no memberships, no tips; the
+  payment model is v4"). The beat + the figure claim only the ad
+  architecture: (1) the creator's own links — 0% ad revenue take, the
+  platform never rewrites or cloaks the link, no payment processed (the
+  payout settles off-platform: the Amazon tag, the own store); (2) the node
+  operator's off-platform inventory — a media company who sells the
+  node's attention directly and keeps 85–90%; web10 Inc.'s v3 cuts are the
+  hosting/platform fee + the no-ads tier share, never the creator's links;
+  (3) the v4 horizon is drawn as an explicitly separate layer (the
+  exchange/DSP-SSP, the Stripe Connect payment rail, the creator's own ad
+  layout) so the v3 claim stays clean.
+- **(agent)** Shot-0 beat draft — pending the operator's pass. Placement:
+  new beat after the three-apps beat ("already running on that node: the
+  social app, the snake game, and the marketplace…"); the pitch goes 12 →
+  13 beats, so the compression-test baseline shifts with the operator's
+  call:
+  1. "Solid, Mastodon, and Bluesky ship no mechanism for ads — on the free
+     web, ad-free by conviction."
+  2. "web10 believes the free web should have ads, and makes them what
+     they actually are: an ad is a document in the store that carries the
+     link that pays — the platform never rewrites that link, takes no cut
+     of it, and processes no payment, so the creator keeps 100% of their
+     affiliate and sponsor revenue."
+  3. "The node's operator is a media company who sells their own
+     audience's attention off-platform, and because the rail is
+     service-agnostic, every new app that writes into the store inherits
+     its ad surface — a new way to earn is a new query, not a new
+     backend."
+- **(agent)** The figure (fig-monetization, "How money flows on web10")
+  first shot rendered + inspected: the surfaces row (three apps inherit
+  the rail — web10-social is the first, and for now the only, catalog
+  builder; D75: any app's doc can be a pinned ad target or a node ad) ·
+  the node's rail (the boundary attaches ads I3-checked: the post's
+  `ad_preference` → `doc.ad`, the operator's density — default 10%,
+  deterministic per reader, round-robin — → `doc.node_ad`, both on the
+  same post, non-steal; the inventory: tagged docs + the offer object,
+  "the platform never rewrites the link") · the money row (the creator —
+  keeps 100% · the node operator — a media company · the v4 horizon — a
+  separate layer, not the v3 claim) · the amber contrast strip (Solid /
+  Mastodon / Bluesky ship no ad mechanism — a documented design property;
+  the related-work gap stays OPEN, pin the sources before §9 prints). No
+  verdict strip: it is a mechanism figure, and the ratchet rule keeps
+  verdicts on the two VS comparison figures only. Uncommitted, pending the
+  pass. Evidence: knowledge-base/web10-v3/social/{ads.md, node-ads.md,
+  monetization.md, ads-dissemination.md} + knowledge-base/strategy/
+  business-plan.md §4. Proposed landing: §6 (the killer app carries the
+  monetization surfaces) + §9 (positioning: monetization as architecture).
+
 ### The two comparison figures get the VS framing: the matchup in the title, the named win on the verdict strip
 
 - **(operator)** "I think we should make clear in these diagrams these

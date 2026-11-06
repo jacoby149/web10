@@ -258,6 +258,56 @@ OAuth docs · feed.ts's buildFeedQuery · `research/interoperability-demo`
 (all checked 05.11.2026). Pin the spec's version/section before §9
 prints, per `research/related-work.md` (the comparative gap stays OPEN).
 
+### Figure 10 — how money flows on web10: the ad rail (first shot,
+`figs/fig-monetization.png`, §6/§9 — pending the operator's pass)
+
+**What it visualizes:** the monetization fork — the ad architecture
+falling out of the same primitives, as the ad pureplay (v3 is ads only:
+no Stripe, no payment processing; the v4 payment rail is a separate
+layer). Top: the surfaces — every app that writes into the store
+inherits the ad rail (the social app is the first, and for now the only,
+catalog builder; the snake game and the marketplace inherit: any of
+their docs can be a pinned ad target or a node ad — the mechanism is
+the node's, the catalog is the app's). Middle: the node's rail — the
+read attaches ads at the boundary, I3-checked, with the density split
+explicit (the operator's call): the creator's layer is dense — the
+post's `ad_preference` (pinned) → `doc.ad`; the influencer shows their
+own offers on most of their content, ~80–90% of the time (the
+operator's competitive operating point; the KB grounds the mechanism,
+the number is theirs to defend in §9) — and the node's layer is
+sparse: the operator's density → `doc.node_ad`, the overlay lands on
+~5–10% of posts (node-controlled, default 10, deterministic per
+reader, round-robin); both can be present on the same post: the
+creator's monetization is never suppressed by the node's (non-steal).
+The inventory: tagged docs in the followers group + the discover group,
+the offer object — kind / the link that pays / cta / disclosure —
+never rewritten, never cloaked. Bottom: the money, off-platform (the
+creator keeps 100% of affiliate/sponsor revenue — no cut of ad revenue,
+no payment processed; the node operator is a media company who sells
+the attention directly and keeps 85–90% — and nodes compete for the
+influencers by lowering their rates: the density is node-controlled, a
+competitive market economy of nodes, §9/§10 material, not a shot-0
+beat; web10 Inc.'s v3 cuts are the hosting/platform fee + the no-ads
+tier share, never the creator's links; the v4 horizon — the exchange,
+the payment rail, the creator's own layout — drawn as a separate layer,
+not the v3 claim). The amber contrast strip:
+Solid / Mastodon / Bluesky ship no ad mechanism (a documented design
+property — the related-work gap stays OPEN, pin the sources before §9
+prints); web10's stance: the free web should have ads — the right kind
+(100% delivery by architecture, no shadow ban, no ad network, no
+third-party targeting).
+**Why that shape:** the operator's "all of these surfaces should
+interoperate on ads -> so people make money on the new internet" + "the
+ad architecture matters" + "web10 believes there should be ads on this
+free web" — drawn as the three zones (surfaces → rail → money), so the
+inheritance (the rail is service-agnostic) is the picture, and the
+contrast with the alternatives lives in the amber strip, not a verdict
+scoreboard (this is a mechanism figure — the ratchet rule keeps verdict
+strips on the two VS comparison figures only). Evidence:
+`knowledge-base/web10-v3/social/{ads.md, node-ads.md, monetization.md,
+ads-dissemination.md}` + `knowledge-base/strategy/business-plan.md` §4.
+Proposed landing: §6 + §9.
+
 ### Candidates (not started)
 
 - **Two trust layers (§2):** the app wall (outer: can this app perform O
@@ -283,4 +333,5 @@ prints, per `research/related-work.md` (the comparative gap stays OPEN).
 | 7 | Groups UI | §6 | existing; cut candidate |
 | 8 | The composition fork: web10 vs Solid | §3/§9 | **done** (4.10.23, `fig-composition`; VS framing 4.10.33) |
 | 9 | The interoperability fork: web10 vs Mastodon / Bluesky | §6/§9 | **done** (4.10.29, `fig-platforms`; 4.10.32 title/API/services; VS framing 4.10.33) |
+| 10 | How money flows on web10 (the ad rail) | §6/§9 | **first shot** (`fig-monetization` — pending the operator's pass; the shot-0 monetization beat drafted alongside) |
 | — | Two trust layers / data model | §2/§3 | candidates |
