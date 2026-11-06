@@ -1,6 +1,15 @@
 # Evaluation Plan - web10 Paper
 
 **Status: partial live observations collected; formal evaluation pending.**
+The [sixth-draft measurement attempt](experiments/costfn/SIXTH-DRAFT-RESULTS.md)
+on 6 November first stopped before provisioning: DigitalOcean restricted the
+8-vCPU/16-GB size by account tier. The operator then approved a tier-max
+4-vCPU/12-GB follow-up in atl1. It failed before seeding on a temporary
+ClickHouse init-server handoff and was collected/deleted; a fresh same-size
+retry is in connected setup/build after a bounded orchestration repair.
+No new trial, baseline or capacity data exists yet.
+Raw-sample/warm-up/randomized-order harness controls and the scenario arithmetic
+have offline tests; these do not complete any connected E2/E3/load gate.
 The [28 October Ubuntu pilot](live-observation-2026-10-28.md) records 597 live
 account rows, 593 live documents, 49 groups and nine authenticated browsing
 checks, with exact readiness definitions and limits. It supplies neither active
@@ -58,10 +67,18 @@ Neither RBAC nor shared-table tenant isolation is claimed as new.
 ## E3 - Matched Shared-Table Baseline and Cost
 
 Both web10 and the baseline must use shared tables with logical tenant keys.
-Compare web10's query-layer policy enforcement with a conventional shared-table
-backend implementing equivalent group/service policies (for example PostgreSQL
-RLS plus the required application logic). No imaginary physical per-user
-database baseline and no assumption that RLS cannot express these policies.
+The sixth-draft headline comparator is **same-engine**: ClickHouse with web10's
+query-layer policy enforcement versus the same query on exactly preauthorized
+input relations. Use repeated paired trials on the same data/host and verify
+returned rows/fields/order, including private/denied controls. Match timing and
+resource/cache boundaries; record query-plan changes and checks removed. This
+isolates the authorization treatment rather than engine selection. The existing
+direct-scan A versus HTTP B is not that experiment.
+
+A conventional PostgreSQL shared-table/RLS implementation, if measured, is only
+an RLS-on/RLS-off overhead ratio within PostgreSQL, not absolute milliseconds
+against ClickHouse. No imaginary physical per-user database baseline and no
+assumption that RLS cannot express equivalent group/service policies.
 
 - [ ] Match data, access semantics (including private/denied reads), returned
   rows/fields/order, query functionality, concurrency and resource budgets.
@@ -71,7 +88,29 @@ database baseline and no assumption that RLS cannot express these policies.
   scale. Record actual purchased instance specs, region, dates and invoices;
   distinguish provisioned capacity cost from per-run spend and media/egress.
 - [ ] Report tradeoffs without claiming isolation or ownership semantics are
-  inexpressible in a shared-table baseline. The baseline is not built yet.
+   inexpressible in a shared-table baseline. The baseline is not built yet.
+
+### Sixth-draft repeat and offered-load gates
+
+- [✓ local tooling only] Persist raw per-sample timing phases and excluded
+  warm-ups; record a reproducible randomized cell schedule. Offline controls
+  pass; connected smoke and retained trial receipts remain open.
+- [ ] Deploy/verify the batched resolver as the endpoint default under the
+  runtime owner's gates. Source settings still default to per-group; a benchmark
+  flag does not establish shipped-default status.
+- [ ] Repeat seed-42 K10/100/1000 (20 measured samples per cell), record actual
+  purchased larger-host topology, software, workers, date and cost; preserve raw
+  receipts and report medians/p95 without pooling unlike configurations.
+- [ ] Run the matched same-ClickHouse paired causal-overhead ablation above.
+- [✓ local arithmetic only] Define low/likely/high activity scenarios using
+  peak-hour sessions × session duration / 60, with session idle time included;
+  `experiments/costfn/capacity_plan.py` reproduces the funnel and offered rates.
+- [ ] Seed 1M registered author namespaces (one post each), then test concurrent
+  virtual-user levels 1k/3k/5k/10k/20k with 30s/60s feed intervals, warm-up and
+  independent trials. Report offered/achieved feed/query rates and in-flight
+  requests separately, p50/p95/p99 handler/readable latency, errors and CPU/memory.
+  Three queries plus content-views is the current nonempty core feed path;
+  discovery/media/auxiliary reads add work. No capacity level has been run.
 
 ## E4 - Application Workload
 
@@ -121,6 +160,12 @@ Developer A's application. The data is the user's, not the app's.
 - [ ] Build the Marketplace static page (cross-domain join: `listings` + `profile`).
 - [ ] Validate the combined "Friends & Scores" query against the live node.
 - [ ] Confirm the node has no app-specific surface for games/commerce/leaderboards (D60).
+  The sixth-draft audit remains a reuse demonstration, not completed D60
+  compliance: the current following-feed ranking expression is authored in
+  the app's SQL and executed on the node, while node-owned ranked-board helpers,
+  advertising/preparation and discover-related metadata also remain. Distinguish
+  query authorship, execution location and the additional node service surface;
+  neither feed comments alone nor a generic query path establishes whole-node D60.
 - [ ] Screenshot each page (desktop + 375px mobile).
 - [ ] Draft the §3.4/§3.5 expansion with the multi-app table and narrative.
 - [ ] Link all static pages as paper artifacts (pinned revision).

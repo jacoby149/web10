@@ -7,7 +7,7 @@ readable-set size), with the columnar scan held out or measured as the credited
 baseline. It drives the three evaluation flags (settings.py / run_query) by
 restarting the API container with different env, then scrapes the node's
 `[query] … timing_ms …` log lines and computes per-phase percentiles + the
-causal overhead delta.
+pipeline-versus-direct-scan delta (not causal authorization overhead).
 
 The three lines (per research/digital-ocean-thinking.md):
   A = direct scan baseline (precompiled projection)     — the credited ClickHouse baseline
@@ -30,6 +30,7 @@ Usage (on the experiment host):
 import argparse
 import json
 import os
+import random
 import re
 import shlex
 import statistics
@@ -81,7 +82,7 @@ def parse_timing_lines(text):
         if qid in seen:
             continue
         seen.add(qid)
-        rec = {}
+        rec = {"query_id": qid}
         for i, phase in enumerate(PHASES):
             rec[phase] = float(m.group(i + 2))
         out.append(rec)
@@ -124,10 +125,11 @@ def policy_total(record):
 
 
 def causal_overhead(b_records, a_records):
-    """B − A: the causal authorization overhead.
+    """Historical name: B − A pipeline-versus-direct-scan summary deltas.
 
-    Computed as the difference of the per-record policy totals' medians, plus
-    the per-phase deltas (so the figure can show WHERE the overhead lives).
+    Not a causal estimate: A lacks B's HTTP/auth/compile/serialization path;
+    trials are not paired and output equivalence is not checked here.
+    Computed as the difference of policy totals' medians, plus phase deltas.
     Returns None if either side has no samples.
     """
     if not b_records or not a_records:
@@ -288,9 +290,19 @@ def _run_queries(base_url, token, sql, groups, n, rate_limit_sleep=1.0):
     return ok
 
 
-def collect_cell(compose_cmd, base_url, manifest, cell, runs, results_dir):
+def ordered_cells(cells, seed):
+    """Reproducible randomized cell order, independent of global RNG state."""
+    result = list(cells)
+    random.Random(seed).shuffle(result)
+    return result
+
+
+def collect_cell(compose_cmd, base_url, manifest, cell, runs, results_dir, warmup=3):
     """Run one matrix cell: restart the API with the cell's env, issue `runs`
     queries, scrape the timing logs, summarize. Returns the result dict."""
+    path = os.path.join(results_dir, f"cell-{cell['line']}-{cell['feed']}-k{cell['k']}-{cell['mode'].replace('/', '-')}.json")
+    if os.path.exists(path):
+        raise FileExistsError(f"Refusing to overwrite retained cell: {path}")
     env = env_for_cell(cell, {})
     _restart_api(compose_cmd, env)
     if not _api_up(base_url):
@@ -305,29 +317,42 @@ def collect_cell(compose_cmd, base_url, manifest, cell, runs, results_dir):
         groups = [manifest["creator_groups"][name] for name in manifest["followed"][: cell["k"]]]
 
     since = int(time.time())
+    requested = runs + warmup
     if cell["line"] == "A":
-        records = baseline_records(compose_cmd, sql, groups, manifest["reader"], runs)
+        records = baseline_records(compose_cmd, sql, groups, manifest["reader"], requested)
         ok = len(records)  # direct CH executions, not HTTP responses
     else:
-        ok = _run_queries(base_url, token, sql, groups, runs)
+        ok = _run_queries(base_url, token, sql, groups, requested)
         time.sleep(2)  # let the last log lines flush
         logs = _tail_api_logs(compose_cmd, since)
         records = parse_timing_lines(logs)
-    if ok != runs or len(records) != runs:
-        raise RuntimeError(f"Incomplete cell {cell}: {ok}/{runs} successful, {len(records)} timings")
+    if ok != requested or len(records) != requested:
+        # Do not discard a short cell or misclassify its samples as measured
+        # versus warm-up when requests/timings are missing. No valid summary.
+        with open(path, "w") as f:
+            json.dump({"cell": cell, "complete": False,
+                       "runs_requested": runs, "warmup_requested": warmup,
+                       "successful_including_warmup": ok,
+                       "observed_timings_unclassified": records}, f, indent=2)
+        raise RuntimeError(f"Incomplete cell {cell}: {ok}/{requested} successful, {len(records)} timings")
+
+    warmup_records, records = records[:warmup], records[warmup:]
 
     summary = summarize(records)
     result = {
         "cell": cell,
+        "complete": True,
         "runs_requested": runs,
-        "queries_200": ok if cell["line"] != "A" else 0,
-        "queries_completed": ok,
+        "queries_200": runs if cell["line"] != "A" else 0,
+        "queries_completed": runs,
+        "warmup_excluded": warmup,
+        "warmup_records": warmup_records,
         "transport": "direct-clickhouse" if cell["line"] == "A" else "http",
         "timing_samples": len(records),
         "summary": summary,
-        "_records": records,  # retained for the per-record B-A delta (not written to disk)
+        "_records": records,
+        "records": records,  # durable raw phases; never credentials or response bodies
     }
-    path = os.path.join(results_dir, f"cell-{cell['line']}-{cell['feed']}-k{cell['k']}-{cell['mode'].replace('/', '-')}.json")
     with open(path, "w") as f:
         json.dump({k: v for k, v in result.items() if k != "_records"}, f, indent=2)
     return result
@@ -341,29 +366,37 @@ def main():
     p.add_argument("--modes", nargs="+", default=["per-group", "batched"])
     p.add_argument("--lines", nargs="+", default=["A", "B", "C"])
     p.add_argument("--runs", type=int, default=20, help="queries per cell (>=20 for p95)")
+    p.add_argument("--warmup", type=int, default=3, help="excluded requests per cell, retained separately")
+    p.add_argument("--order-seed", type=int, default=42, help="seed for randomized cell order")
     p.add_argument("--api", default="http://localhost:6000", help="API base URL")
     p.add_argument("--compose", default=f"docker compose -f {shlex.quote(os.path.join(os.path.dirname(__file__), 'compose.yml'))} -p web10-costfn")
     p.add_argument("--out", default=os.path.join(os.path.dirname(__file__), "results"))
     args = p.parse_args()
 
     os.makedirs(args.out, exist_ok=True)
+    if any(name in ("schedule.json", "report.json") or name.startswith("cell-")
+           for name in os.listdir(args.out)):
+        p.error("output directory already contains a trial; use a new --out directory")
     with open(args.manifest) as f:
         manifest = json.load(f)
-    if args.runs < 1 or any(k < 1 or k > len(manifest["followed"]) for k in args.k):
-        p.error("runs must be positive and K must fit the seeded followed groups")
+    if args.runs < 1 or args.warmup < 0 or any(k < 1 or k > len(manifest["followed"]) for k in args.k):
+        p.error("runs must be positive, warmup nonnegative and K must fit the seeded followed groups")
 
-    cells = expand_matrix(args.k, args.feeds, args.modes, args.lines)
+    cells = ordered_cells(expand_matrix(args.k, args.feeds, args.modes, args.lines), args.order_seed)
+    with open(os.path.join(args.out, "schedule.json"), "w") as f:
+        json.dump({"order_seed": args.order_seed, "warmup": args.warmup,
+                   "runs": args.runs, "cells": cells}, f, indent=2)
     print(f"[bench] {len(cells)} cells across feeds={args.feeds} k={args.k} modes={args.modes} lines={args.lines}")
 
     all_cells = []
     for cell in cells:
         print(f"[bench] running cell {cell} ...")
-        res = collect_cell(args.compose, args.api, manifest, cell, args.runs, args.out)
+        res = collect_cell(args.compose, args.api, manifest, cell, args.runs, args.out, args.warmup)
         all_cells.append(res)
         print(f"[bench]   {res['timing_samples']} timing samples")
 
-    # Compute the causal overhead (B − A) per (feed, k, mode) where both exist,
-    # from the retained per-record data (the true delta, not a summary diff).
+    # Historical B-minus-A summary deltas; neither paired nor causal. Raw
+    # phase observations are retained so summaries can be independently checked.
     by_key = {}
     for res in all_cells:
         c = res["cell"]
@@ -377,6 +410,9 @@ def main():
                     lines[("B", mode)]["_records"], lines[("A", "n/a")]["_records"])
 
     report = {
+        "order_seed": args.order_seed,
+        "warmup_per_cell": args.warmup,
+        "comparison_scope": "Historical B-minus-A key is a pipeline-versus-direct-scan delta, NOT paired causal authorization overhead.",
         "manifest": {k: manifest[k] for k in ("seed", "reader", "k", "creators_total")},
         "cells": [{k: c[k] for k in ("cell", "runs_requested", "queries_200", "queries_completed", "transport", "timing_samples")} for c in all_cells],
         "summaries": {str(c["cell"]): c["summary"] for c in all_cells},
