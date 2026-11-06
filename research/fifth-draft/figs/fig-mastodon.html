@@ -1,0 +1,70 @@
+<!doctype html>
+<!-- Fifth-draft comparison, 6 November 2026. A stock Mastodon REST
+     integration, not an assertion about everything ActivityPub can do.
+     Same three clients on each side; scores/listings are app-owned data,
+     public profiles can be reused via accounts/get. Physical deployment
+     and client/server composition choices are illustrative. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>web10 vs Mastodon — the application-data boundary</title>
+  <link rel="stylesheet" href="comparison.css">
+</head>
+<body>
+  <h1>web10 vs Mastodon</h1>
+  <p class="subtitle">The same social client, game and marketplace — what does the server provide to each?</p>
+
+  <section class="panel left" aria-label="Stock Mastodon API integration">
+    <h2 class="panel-heading">MASTODON — a social server with reusable APIs</h2>
+    <div class="app-row">
+      <div class="app"><strong>Social client</strong><span>profiles + posts</span></div>
+      <div class="app"><strong>Game</strong><span>scores + player profiles</span></div>
+      <div class="app"><strong>Marketplace</strong><span>listings + seller profiles</span></div>
+    </div>
+    <div class="box social-server">
+      <h2>Stock Mastodon<br>server</h2>
+      <div class="chips"><span class="chip profile">accounts</span><span class="chip">statuses</span></div>
+      <p>Social data through<br>the REST interface.</p>
+      <code>GET /api/v1/<br>accounts/:id</code>
+    </div>
+    <div class="box application-data">
+      <h2>Application-owned data layer</h2>
+      <div class="chips"><span class="chip">scores</span><span class="chip">listings</span></div>
+      <p>Store new application data;<br>read existing Mastodon profiles.</p>
+      <p class="compose">Combine profile responses<br>with scores or listings.</p>
+    </div>
+    <p class="left-note">Profiles are reusable. The stock REST API is not a generic<br>score/listing store or an application-supplied SQL interface.</p>
+    <div class="box result">Leaderboard + profiles · listings + seller identities</div>
+  </section>
+
+  <section class="panel right" aria-label="web10 generic application backend">
+    <h2 class="panel-heading">WEB10 — one backend for all three services</h2>
+    <div class="app-row">
+      <div class="app"><strong>Social client</strong><span>profiles + posts</span></div>
+      <div class="app"><strong>Game</strong><span>scores + player profiles</span></div>
+      <div class="app"><strong>Marketplace</strong><span>listings + seller profiles</span></div>
+    </div>
+    <div class="box node">
+      <h2>Generic document, group and query interfaces</h2>
+      <div class="chips"><span class="chip profile">profile</span><span class="chip">snake_scores</span><span class="chip">marketplace_listings</span></div>
+      <div class="query"><h3>Query API + the reader’s grants</h3><p>App SQL → authorized relations → rows.</p></div>
+      <div class="engine"><h3>ClickHouse executes the join</h3><p>New data services, without game- or shop-specific node APIs.</p></div>
+    </div>
+    <div class="box result">Leaderboard + profiles · listings + seller identities</div>
+  </section>
+
+  <svg class="wires" viewBox="0 0 1440 900" aria-hidden="true">
+    <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="var(--color-muted-foreground)"/></marker></defs>
+    <path class="flow" d="M168 264 V304"/><path class="flow" d="M372 264 V304"/><path class="flow" d="M576 264 V304"/>
+    <path class="flow remote" d="M280 440 H300"/>
+    <path class="flow" d="M648 560 V672"/>
+    <path class="flow" d="M864 264 V304"/><path class="flow" d="M1068 264 V304"/><path class="flow" d="M1272 264 V304"/>
+    <path class="flow authorized" d="M1068 520 V536"/>
+    <path class="flow" d="M1068 648 V672"/>
+  </svg>
+  <p class="scope">One integration using stock Mastodon APIs. Composition can run client- or server-side; server extensions and the wider ActivityPub ecosystem are not shown.</p>
+  <div class="verdict left"><strong>MASTODON — REUSE THE SOCIAL API</strong><span>The application supplies its additional data and composition logic.</span></div>
+  <span class="vs">VS</span>
+  <div class="verdict right"><strong>WEB10 — REUSE THE GENERIC DATA BACKEND</strong><span>Profiles, scores and listings share the existing document and query substrate.</span></div>
+</body>
+</html>

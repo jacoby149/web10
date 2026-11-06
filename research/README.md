@@ -2,6 +2,23 @@
 
 **Author:** Jacob Hoffman, web10 Inc.
 
+**Working manuscript (6 November 2026, not frozen):**
+[`sixth-draft/main.pdf`](sixth-draft/main.pdf), source
+[`sixth-draft/main.tex`](sixth-draft/main.tex),
+[`OUTLINE`](sixth-draft/OUTLINE.md),
+[`DECISIONS`](sixth-draft/DECISIONS.md).
+The sixth draft refines v5's stakes-first authorized-composition argument;
+all five earlier manuscripts remain unchanged records. AT's custom path is
+priced in synchronization/database/serving work; Solid's crawl-or-index fork
+is distinct from a million-user capacity result. Genericity and experimental
+limits are explicit. The [new measurement record](experiments/costfn/SIXTH-DRAFT-RESULTS.md)
+records the initial DigitalOcean larger-instance account-tier restriction and
+the subsequent operator-approved 4-vCPU/12-GB tier-max follow-up, now provisioned
+with connected setup/run pending: no new measurements exist yet. Historical K1000 values are not an
+independent repeat or matched causal baseline. Final freeze and submission
+readiness remain OPEN. Do not upload or finalize on CMT.
+Historical framing notes below do not override this working manuscript.
+
 **Target:** SIGMOD 2027 industry track
 
 **Status:** title "Your Data, Your Rules: Extending the Decentralized Web."

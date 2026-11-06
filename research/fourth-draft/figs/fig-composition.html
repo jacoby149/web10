@@ -1,0 +1,213 @@
+<!doctype html>
+<!--
+  Source for fig-composition.png ("web10 vs Solid" — the composition
+  fork, VS framing 4.10.33).
+  The capability asymmetry, not just the performance one:
+  - SOLID: one user per pod; the app pulls every pod the feed touches and
+    joins in the application; discover-type queries (who's trending?) must
+    pull the whole network — no shared index, so they don't terminate at
+    scale (amber negative space).
+  - WEB10: millions of users pooled in each node's shared store; the app
+    writes the queries (feed, discover, trending) and pulls a few nodes
+    separately; each node re-checks the reader's rules on every read
+    (shot-0 beats 10/11; D41: the node is readable by design).
+  The violet boundary box is the same mechanism as fig-query-engine.
+  4.10.33 (the VS framing): same treatment as fig-platforms — the operator
+  wants it unmistakable that this is a VS comparison figure, and what web10
+  got them beat on ("same for the solid diagram with web10"). The title
+  names the matchup ("web10 vs Solid"); the bottom verdict strip names the
+  win and the why — left cell: what Solid offers (one user per pod;
+  cross-user queries pull the whole network and don't terminate at scale);
+  right cell: the composition winner (a node pools millions of users in one
+  shared store, so discover/trending/ranking are ordinary queries that
+  terminate). The two lines were already asserted by the panels (shot-0
+  beat 10); the strip scores them. The earlier "no verdict line" note is
+  superseded for the two comparison figures (the operator's call,
+  05.11.2026): a VS figure carries the verdict, the mechanism figures (A/B)
+  don't.
+  Render with ./capture.mjs fig-composition.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #0a0a12; }
+  body {
+    width: 1440px; height: 818px; position: relative; overflow: hidden;
+    font-family: -apple-system, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .title { position: absolute; top: 34px; width: 100%; text-align: center;
+    font-size: 26px; font-weight: 700; color: #f2f3f8; }
+  .subtitle { position: absolute; top: 70px; width: 100%; text-align: center;
+    font-size: 13.5px; color: #9c9fb3; }
+  .panel { position: absolute; top: 100px; width: 630px; height: 620px;
+    border-radius: 18px; background: #0e0e17; }
+  .panel.solid { left: 55px; border: 2px solid rgba(96,165,250,.6); }
+  .panel.web10 { left: 755px; border: 2px solid rgba(52,211,153,.6); }
+  .plabel { position: absolute; top: 118px; font-size: 15px; font-weight: 700; }
+  .plabel.solid { left: 79px; color: #60a5fa; }
+  .plabel.web10 { left: 779px; color: #34d399; }
+  .box { position: absolute; border-radius: 12px; display: flex;
+    flex-direction: column; justify-content: center; text-align: center; padding: 0 14px; }
+  .box .t { font-size: 14px; font-weight: 600; }
+  .box .s { font-size: 11px; margin-top: 3px; line-height: 1.35; }
+  .app { background: #12121b; border: 1.5px solid #c9ccda; }
+  .app .t { color: #f2f3f8; } .app .s { color: #8b8fa5; }
+  .pod { background: rgba(96,165,250,.06); border: 1.5px solid rgba(96,165,250,.55); }
+  .pod .t { color: #bcd4f7; font-size: 13px; } .pod .s { color: #7f93b5; }
+  .ellipsis { position: absolute; font-size: 15px; color: #7f93b5; }
+  .nodecard { position: absolute; width: 180px; height: 170px; border-radius: 12px;
+    background: #101018; border: 1.5px solid rgba(52,211,153,.5); }
+  .nodecard .n { font-size: 11.5px; font-weight: 700; color: #9fd8c0;
+    text-align: center; padding: 8px 8px 5px; }
+  .boundary { position: absolute; width: 164px; height: 62px; border-radius: 8px;
+    background: rgba(139,92,246,.10); border: 1.5px solid #8b5cf6;
+    display: flex; flex-direction: column; justify-content: center;
+    text-align: center; padding: 0 8px; }
+  .boundary .t { color: #ffffff; font-size: 11.5px; font-weight: 700; line-height: 1.3; }
+  .boundary .s { color: #cfc4f5; font-size: 9.5px; margin-top: 2px; line-height: 1.3; }
+  .store { position: absolute; width: 164px; height: 52px; border-radius: 8px;
+    background: rgba(52,211,153,.07); border: 1.5px solid rgba(52,211,153,.8);
+    display: flex; flex-direction: column; justify-content: center; text-align: center;
+    padding: 0 8px; }
+  .store .t { color: #d7f5e6; font-size: 11.5px; font-weight: 600; }
+  .store .s { color: #7fa892; font-size: 9.5px; margin-top: 2px; line-height: 1.3; }
+  .note { position: absolute; font-size: 12px; color: #9094ab; line-height: 1.55; }
+  .neg { position: absolute; border-radius: 10px; background: rgba(251,191,36,.06);
+    border: 1.5px solid rgba(251,191,36,.5); padding: 10px 14px;
+    font-size: 11.5px; color: #c9b585; line-height: 1.45; }
+  .neg .t { color: #fbbf24; font-weight: 700; font-size: 12px; }
+  .wlabel { position: absolute; font-size: 10.5px; color: #9a9db1; }
+  .strip { position: absolute; top: 730px; width: 630px; height: 48px;
+    border-radius: 10px; padding: 8px 14px; display: flex; flex-direction: column;
+    justify-content: center; }
+  .strip .sl { font-size: 10px; font-weight: 700; letter-spacing: .04em; margin-bottom: 3px; }
+  .strip .ss { font-size: 10px; line-height: 1.3; }
+  .strip.fed { left: 55px; background: rgba(96,165,250,.05); border: 1.5px solid rgba(96,165,250,.45); }
+  .strip.fed .sl { color: #60a5fa; } .strip.fed .ss { color: #9aa7c7; }
+  .strip.web10 { left: 755px; background: rgba(52,211,153,.06); border: 1.5px solid rgba(52,211,153,.65); }
+  .strip.web10 .sl { color: #34d399; } .strip.web10 .ss { color: #a8d8bf; }
+  .vs { position: absolute; left: 703px; top: 742px; width: 34px; height: 34px;
+    border-radius: 50%; background: #12121b; border: 1.5px solid #8b8fa5;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 800; color: #f2f3f8; }
+  svg.abs { position: absolute; top: 0; left: 0; width: 1440px; height: 780px;
+    pointer-events: none; }
+</style>
+</head>
+<body>
+  <div class="title">web10 vs Solid</div>
+  <div class="subtitle">the composition fork &mdash; the same feed, composed in two different places</div>
+
+  <!-- SOLID panel -->
+  <div class="panel solid"></div>
+  <div class="plabel solid">SOLID &mdash; the application composes</div>
+  <div class="box app" style="left: 255px; top: 150px; width: 240px; height: 76px;">
+    <div class="t">the social app</div>
+    <div class="s">fetch &rarr; join &rarr; rank &rarr; page<br>all in the application</div>
+  </div>
+  <div class="box pod" style="left: 95px; top: 460px; width: 130px; height: 56px;">
+    <div class="t">pod A</div><div class="s">user 1&rsquo;s data</div>
+  </div>
+  <div class="box pod" style="left: 235px; top: 460px; width: 130px; height: 56px;">
+    <div class="t">pod B</div><div class="s">user 2&rsquo;s data</div>
+  </div>
+  <div class="box pod" style="left: 375px; top: 460px; width: 130px; height: 56px;">
+    <div class="t">pod C</div><div class="s">user 3&rsquo;s data</div>
+  </div>
+  <div class="box pod" style="left: 515px; top: 460px; width: 130px; height: 56px;">
+    <div class="t">pod D</div><div class="s">user 4&rsquo;s data</div>
+  </div>
+  <div class="ellipsis" style="left: 658px; top: 478px;">&hellip;</div>
+  <div class="note" style="left: 95px; top: 536px; width: 550px;">
+    One pod per user: the feed pulls every pod it touches and joins them in
+    the application &mdash; the round trips grow with the reader&rsquo;s graph.
+  </div>
+  <div class="neg" style="left: 95px; top: 594px; width: 550px;">
+    <div class="t">discover doesn&rsquo;t terminate</div>
+    &ldquo;Who&rsquo;s trending?&rdquo; must pull every pod in the network &mdash; one user each.
+    There is no shared index to query; Solid&rsquo;s escape is a federated
+    directory, the centralized component the pods removed.
+  </div>
+
+  <!-- WEB10 panel -->
+  <div class="panel web10"></div>
+  <div class="plabel web10">WEB10 &mdash; the query layer composes</div>
+  <div class="box app" style="left: 955px; top: 150px; width: 240px; height: 76px;">
+    <div class="t">the social app</div>
+    <div class="s">the feed, discover, trending &mdash;<br>all just the app&rsquo;s own queries,<br>pulled from each node separately</div>
+  </div>
+  <div class="nodecard" style="left: 787px; top: 400px;"><div class="n">node A</div></div>
+  <div class="nodecard" style="left: 992px; top: 400px;"><div class="n">node B</div></div>
+  <div class="nodecard" style="left: 1197px; top: 400px;"><div class="n">node C</div></div>
+  <div class="boundary" style="left: 795px; top: 430px;">
+    <div class="t">the boundary</div>
+    <div class="s">readable set compiled in<br>AST-protected</div>
+  </div>
+  <div class="boundary" style="left: 1000px; top: 430px;">
+    <div class="t">the boundary</div>
+    <div class="s">readable set compiled in<br>AST-protected</div>
+  </div>
+  <div class="boundary" style="left: 1205px; top: 430px;">
+    <div class="t">the boundary</div>
+    <div class="s">readable set compiled in<br>AST-protected</div>
+  </div>
+  <div class="store" style="left: 795px; top: 500px;">
+    <div class="t">the shared store</div>
+    <div class="s">ClickHouse &mdash; millions of users,<br>one store</div>
+  </div>
+  <div class="store" style="left: 1000px; top: 500px;">
+    <div class="t">the shared store</div>
+    <div class="s">ClickHouse &mdash; millions of users,<br>one store</div>
+  </div>
+  <div class="store" style="left: 1205px; top: 500px;">
+    <div class="t">the shared store</div>
+    <div class="s">ClickHouse &mdash; millions of users,<br>one store</div>
+  </div>
+  <div class="note" style="left: 787px; top: 596px; width: 590px;">
+    Each node pools <b style="color:#c4c6d4">millions of users</b> in one shared
+    store: discover, trending, and ranking are ordinary queries at the
+    boundary. The app pulls a few nodes separately and merges the results.
+  </div>
+
+  <!-- arrows -->
+  <svg class="abs" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="m-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#6f7490"/>
+      </marker>
+      <marker id="m-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="rgba(120,220,180,.9)"/>
+      </marker>
+    </defs>
+    <!-- solid: app -> pods (fan-out fetch) -->
+    <line x1="375" y1="226" x2="160" y2="456" stroke="#6f7490" stroke-width="1.5" marker-end="url(#m-gray)"/>
+    <line x1="375" y1="226" x2="300" y2="456" stroke="#6f7490" stroke-width="1.5" marker-end="url(#m-gray)"/>
+    <line x1="375" y1="226" x2="440" y2="456" stroke="#6f7490" stroke-width="1.5" marker-end="url(#m-gray)"/>
+    <line x1="375" y1="226" x2="580" y2="456" stroke="#6f7490" stroke-width="1.5" marker-end="url(#m-gray)"/>
+    <!-- web10: app -> nodes (query + token) -->
+    <line x1="1075" y1="226" x2="877" y2="396" stroke="rgba(120,220,180,.9)" stroke-width="1.8" marker-end="url(#m-green)"/>
+    <line x1="1075" y1="226" x2="1082" y2="396" stroke="rgba(120,220,180,.9)" stroke-width="1.8" marker-end="url(#m-green)"/>
+    <line x1="1075" y1="226" x2="1287" y2="396" stroke="rgba(120,220,180,.9)" stroke-width="1.8" marker-end="url(#m-green)"/>
+    <!-- web10: nodes -> app (rows, dashed) -->
+    <line x1="900" y1="396" x2="1050" y2="230" stroke="#6f7490" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#m-gray)"/>
+    <line x1="1105" y1="396" x2="1087" y2="230" stroke="#6f7490" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#m-gray)"/>
+    <line x1="1310" y1="396" x2="1130" y2="230" stroke="#6f7490" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#m-gray)"/>
+  </svg>
+  <div class="wlabel" style="left: 850px; top: 300px;">query + token</div>
+  <div class="wlabel" style="left: 1104px; top: 294px; color: #6f7490;">rows</div>
+
+  <!-- the verdict strip: what each side offers, and the named win -->
+  <div class="strip fed">
+    <div class="sl">SOLID</div>
+    <div class="ss">one user per pod: cross-user queries pull every pod they touch &mdash; &ldquo;who&rsquo;s trending?&rdquo; pulls the whole network, and it doesn&rsquo;t terminate at scale</div>
+  </div>
+  <div class="vs">VS</div>
+  <div class="strip web10">
+    <div class="sl">WEB10 &mdash; THE COMPOSITION WINNER</div>
+    <div class="ss">millions of users in one shared store per node: discover, trending, and ranking are ordinary queries that terminate &mdash; pulled from each node separately</div>
+  </div>
+</body>
+</html>

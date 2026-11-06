@@ -6,8 +6,8 @@ import { Mail, X, ShieldCheck } from 'lucide-react';
 // holder emails this address with a link to the infringing content, and the
 // node operator removes it manually. The email is the whole mechanism — there
 // is no in-app takedown queue, no backend, no database. The same address is
-// published in the terms of service (marketing-ui /docs/dmca).
-export const COPYRIGHT_EMAIL = 'copyright@web10.com';
+// published in the terms of service (marketing-ui /docs/terms).
+export const COPYRIGHT_EMAIL = 'jacob@web10.app';
 
 interface ReportCopyrightProps {
   /** The infringing content's permalink (the report references it). When

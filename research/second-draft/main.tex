@@ -224,7 +224,7 @@ design to decentralized storage, IAM, and multi-tenant databases;
 ]
 % --- the client ---
 \node[bigbox, fill=gray!8, align=center, minimum width=7.6cm, text width=7.3cm] (client) at (0,3.6)
-  {the user's client\\[1pt]
+  {the user's client --- web10-social \(\cdot\) Snake \(\cdot\) Marketplace (\S\ref{sec:platform})\\[1pt]
    app queries \(\cdot\) home-node token \(\cdot\) consent and revocation (\S\ref{sec:method})};
 % --- node A (home) ---
 \node[bigbox, fill=gray!5, minimum width=5.0cm, minimum height=3.9cm] (nodeA) at (-1.7,0.55) {};
@@ -250,7 +250,7 @@ design to decentralized storage, IAM, and multi-tenant databases;
 % --- certification: identity once, access every time ---
 \draw[darr] (nodeB.south) -- (2.75,-2.0) -- (-1.7,-2.0) -- (nodeA.south);
 \node[align=center] at (0.5,-2.42)
-  {HTTPS \texttt{/certify}: identity is \emph{verified, not registered}\\one cached answer per token; access re-checked on every read};
+  {HTTPS \texttt{/certify} (\S\ref{sec:network}): identity is \emph{verified, not registered}\\one cached answer per token; access re-checked on every read};
 \end{tikzpicture}
 \caption{System overview: one client, two sovereign nodes, one access language.
 Node A holds the reader's home account and grants; node B is foreign. Cross-node
@@ -600,7 +600,11 @@ When a user's feed spans nodes, the \emph{client} makes the cross-node calls.
 It holds the user's home-node token, groups the user's following set by
 provider, and queries only the distinct nodes the user follows people on---
 targeted, not broadcast. Each node returns its own access-gated result set;
-the client performs a ranked merge. This model avoids a server-side content
+the client performs a ranked merge. Figure~\ref{fig:feed} draws this path for
+one read: node B authenticates the home-node token over the issuer's
+\texttt{/certify} (one cached answer per token) and then runs the same access
+check node A runs on local reads---contracts and membership, against B's own
+store. This model avoids a server-side content
 proxy and the additional credentials and content-cache policies it would
 require. Feed composition remains an application concern rather than a
 node-specific endpoint---a deliberate cost of keeping the node generic, and
@@ -926,11 +930,13 @@ delivery as well.
 \begin{figure}[t]
   \centering
   \includegraphics[width=\columnwidth]{figs/fig-feed.png}
-  \caption{The web10 feed. The reader chooses the ranking (Most Recent / Most
-  Liked / Most Commented / Balanced) and filters (tags); each is a different
-  application query over the same columnar store. The main query uses
-  reader-specific service boundaries; engagement and view metrics use
-  follow-up calls.}
+  \caption{Pulling the web10 feed across nodes. The reader issues reads with
+  its home-node token; when a read lands on foreign node B, B authenticates
+  the token over the issuer's HTTPS \texttt{/certify}---one cached answer per
+  token, never a grant---and then runs the same access check node A runs on
+  local reads: contracts and membership against its own store, on every read.
+  One node implementation, two sovereign stores; remote data is content, never
+  control (\S\ref{sec:network}).}
   \label{fig:feed}
 \end{figure}
 

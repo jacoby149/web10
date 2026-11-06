@@ -1,0 +1,596 @@
+# The figures — what to visualize, why, why it is visually nice
+
+The visual half of the paper (theory §7). Rules first, then the
+design language, then each figure's rationale. A figure enters the
+paper only through this document — what it visualizes, why that shape,
+why it is visually nice, and what it may not assert.
+
+## The rules
+
+### Current comparison correction — fifth draft, 6 November 2026
+
+The fifth-draft working set replaces the combined Mastodon/Bluesky
+figure with two separate comparisons. This section supersedes the old
+"fixed AT object model", "no cross-app reuse", and unconditional
+"interoperability winner" descriptions below; historical manuscript
+assets stay intact. AT has custom Lexicons and granular delegation;
+Mastodon's stock REST interface is not the limit of ActivityPub.
+
+- **`fig-mastodon`: web10 vs Mastodon — the application-data boundary.**
+  What: the same social client, game and marketplace on both sides.
+  One illustrative stock-Mastodon integration reads profiles from the
+  social API and combines them with app-owned score/listing data.
+  web10 stores the three services under the node's generic interfaces.
+  Why this shape: visually separate the stock social-server boundary
+  from the application-data boundary, rather than pretending extra apps
+  cannot exist. Why visually nice: matched application rows, explicit
+  system frames, a named profile-read arrow and the same web10 query/store
+  stack as the AT figure. Verdict: a generic backend for all three
+  application services, not just a reusable social API. Do not claim
+  ActivityPub forbids extensions, Mastodon cannot expose profiles, that
+  each app requires a separate physical database, or measured superiority.
+- **`fig-atproto`: web10 vs Bluesky / AT Protocol — the query-service boundary.**
+  What: the same social/game/marketplace apps write distinct record types
+  into user repositories; a public cross-user view synchronizes records
+  into an application-owned query service. Contrast with the same services
+  and computation in the web10 node. The AT path is an illustrative
+  Statusphere-style indexed view, not the only AT read path; direct reads,
+  existing AppViews and shared services remain possible. Why this shape:
+  identical app rows and a real indexed-copy/query box show that both
+  support the use case but locate computation differently. Why visually
+  nice: a visible synchronization hop versus the node's existing store,
+  matched outputs, restrained prose and a named advantage. Verdict:
+  hosted authorized composition without a separate application-owned index
+  for this workload. No false lack-of-extensibility/permissions/reuse claim,
+  no claim that every new query needs a fresh backend, and no performance
+  or node-count comparison. **Peel-the-layers revision:** "AppView" is
+  not an explanatory primitive. Open the app-owned frame into record
+  synchronization/webhook handling, a queryable database copy and
+  request-serving application code. Define the term only after showing
+  those responsibilities. Pin Statusphere source: revision
+  `dbb97738caa965c4b04efd281bfa1d2fbe4fffb3`, `lib/db/index.ts`
+  (SQLite), `app/api/webhook/route.ts` (apply events), `lib/db/queries.ts`
+  (upserts/deletes/joins), `app/page.tsx` (query and render). These are
+  responsibilities, not a claim of three physical servers. Scores and
+  listings remain the illustrative workload, not a claim that the status
+  tutorial implements a marketplace. **Design-choice revision:** make the
+  fork visible: reuse an existing AppView if its data/API fit, otherwise
+  design and build a custom read backend. The reuse route bypasses the
+  custom responsibilities. On the custom branch, the storage schema is
+  a choice (one generic JSON table, separate typed tables, keys/indexes,
+  update strategy), not a predetermined three-step recipe. Contrast with
+  web10's pre-existing `documents` content table and service-named JSON
+  bodies; groups/grants use separate node tables. JSON conventions and
+  queries still belong to the app developer on web10. Do not imply that
+  AT repositories themselves are non-extensible, or that hiring an
+  architect is a protocol requirement. No MongoDB comparison is needed.
+  Warm amber/orange shades encode application-owned design/code (apps
+  on both sides and the custom backend). Small JSON-shape/SQL notes live
+  inside web10's app boxes, not a separate node box. The API performs
+  access checks/query preparation/return, and the document shape belongs
+  inside ClickHouse. Supplied node stays green and enforcement violet.
+  A legend defines ownership; warm colors are not a danger/performance
+  verdict.
+
+The Mastodon figure uses a 1440×900 canvas; the peeled AT figure gets
+1440×1200 so its explicit fork and schema choices remain readable. Both use full-width
+2x rasters and short captions. Text and figures describe the same specific scenario. Sources:
+Mastodon REST introduction and accounts/get documentation; AT Statusphere
+tutorial parts 1/2/4/5 and Permissions spec; web10's connected interop
+record. Dark semantic design is retained with canonical design tokens.
+
+### General figure rules
+
+- **Accuracy invariant:** a figure asserts only what the paper body or
+  the knowledge base already asserts. A figure that adds a claim is a
+  new claim that needs evidence.
+- **Placement is assertion:** which box a mechanism sits in is a claim
+  about where it runs. A mechanism drawn on the wrong side of the trust
+  boundary is a factual error, not a style issue (Figure B's first
+  shot drew the AST walk in the app tier; it runs API-side, in
+  `safe_query` — the SDK only posts `{ sql, token }`).
+- **No internal IDs** in figure text or captions (conference-facing,
+  per the 4.5.4 cleanup).
+- **Referenced or it doesn't exist:** every figure has at least one
+  `\ref` in the body.
+- **The caption is short — it names the figure, it does not explain
+  it.** The figure's explanation is the body's job, at the figure's
+  introduction (\ref) — a caption that explains the mechanism is a
+  caption doing the body's work, and a caption carrying content the
+  body never states is a claim with no home (operator, 06.11.2026:
+  "the figures have these monster paragraph captions, that should be
+  the writing in the paper to explain the figures, the figures should
+  just have a short caption" — 4.10.42). The short caption still
+  describes the figure it sits under — not a previous version of the
+  figure, not the section's topic in general. (The fig:feed caption
+  described ranking tabs that were never in the figure; that class of
+  bug is now a review failure.)
+- **Diagrams are HTML source → 2x PNG** (`figs/README.md`); UI
+  screenshots stay PNG-only app captures. **Performance curves are a
+  committed matplotlib script → 2x PNG** (`figs/fig-k1000-curve.py`,
+  4.10.37 — the house language applies; the script is the reproducible
+  source, and curves plot only numbers the body already asserts).
+- **The same mechanism is drawn identically in every figure.** The
+  reader learns the visual vocabulary once.
+- **Comparison figures carry a capability-specific verdict.** The title
+  names the matchup, a VS badge separates the panels' strips, and the
+  strip names the supported advantage. Hold the use case constant on
+  both sides. Do not obtain a win by hiding the opponent's extensibility,
+  reuse, indexing alternatives or authorization, or by treating design
+  capacity as measured scale. The mechanism must support the verdict
+  without a contradictory fine-print correction. The current separate
+  Mastodon and AT comparisons are specified above. Mechanism figures
+  need no verdict strip: show how the mechanism works.
+
+## The design language (why it looks the way it does)
+
+One dark web10 theme across every figure:
+
+- **The canvas:** dark near-black (`#0a0a12`), wide/short aspect
+  (1440 canvas, @2x raster). Why dark: the app's screens are dark, so
+  the diagrams and the UI screenshots share one visual world — and
+  that world *is the product*, which is itself a Q1 signal (it's
+  real). Wide/short: full-width floats stay compact, and the 12-page
+  budget is a hard constraint.
+- **Color is semantic, not decorative:**
+  - green `#34d399` — the trust source: the issuer, `/certify`,
+    "serves /certify", the node-as-home.
+  - blue `#60a5fa` — the foreign side: the serving node, the reader's
+    foreign path.
+  - violet `#8b5cf6` — the enforcement mechanism: the access-check box,
+    the boundary CTE. **The same violet wherever the enforcement gate
+    appears** — the reader sees one mechanism across the paper.
+  - amber `#fbbf24` — the negative space: what was refused, removed, or
+    rejected ("what the node refuses to learn"; the broken path's
+    verdict).
+  - red `#f87171` — the broken/unsound path (only in the
+    wall-not-membrane figure, where the contrast is the argument).
+  - gray `#9c9fb3` — neutral text; dashed gray = secondary.
+- **Line semantics:** solid = primary flow; dashed = cross-boundary,
+  secondary, or refused.
+- **Shape semantics:** chip = a data object (`users`, `data
+  (columnar store)`, a service name); card = a node/system; filled box
+  = an active mechanism; dashed-border box = a service or a note; pill
+  on a bridge = the invariant being claimed ("same access check").
+- **Consistency across figures:** fig:feed's violet access-check box and
+  fig:boundary's violet boundary-CTE step are the same enforcement
+  family; the green `/certify` line is the same green everywhere.
+
+## The figures
+
+### Figure 1 — system overview (TikZ, §1) — label pass done (4.10.37)
+
+One client, two sovereign nodes, the `/certify` path. The paper's map.
+**Label pass (4.10.37):** the visual table of contents (the F3 move: the
+reader looks at Figure 1 and knows the paper's structure) is complete —
+the client box names the apps ("the user's client — web10-social ·
+Snake · Marketplace (§6)", the `tab:interop-apps` names, no new claim)
+and the /certify strip carries its section home ("HTTPS /certify
+(§4)"). Full mapping: access plane §2 · data plane §3 · /certify +
+client-side fan-out §4 · query boundary §5 · the apps §6 · consent and
+revocation §8. §7/§9/§10 have no boxes — they have no architecture.
+Rebuilt: 14 pages = 12 body + refs, no new overfull (the recorded
+1.166pt final-page vbox stands).
+
+### Figure 2 — the federated node (HTML → `figs/fig-feed.png`, §4) — done
+
+**What it visualizes:** pulling the feed across nodes — the reader's
+client pulls documents from node B with the home-node token; B
+authenticates via the issuer's `/certify` (one cached answer per token,
+never a grant) and runs the same access check on every read.
+**Why that shape:** node B is mirrored so the two identical violet
+access-check boxes sit adjacent in the middle, bridged by the "same
+access check" pill — *the visual thesis is "same check, every node"*.
+The only differences are where they matter: the verify step (own
+signature vs `/certify(A)` cached until expiry), the "enforces" lines
+(differing only in the first term), and A's "serves /certify" box, which
+B's green line targets — the mechanism is visible, not just labeled.
+**History:** redrawn 04.11.2026 on operator review ("node b does the same
+access checks as node a, but with the certify — dont like that they are
+shown as different internally"). Before: the two read paths were drawn as
+different-colored, differently-labeled mechanisms — the diagram argued
+against the paper.
+
+### Figure 3 — the web10-social application and its node (done,
+`figs/fig-app-arch.png`, §6)
+
+**What it visualizes:** the real system at the level of named parts —
+"the data layer lives in the app." The browser box holds the app's
+surfaces + the six data-layer modules a bespoke API would normally
+carry + wapi; the node box is thin and generic (auth · read gate · query
+engine · media); ClickHouse and MinIO are drawn with their real
+table/blob names; a messages panel shows the actual payloads that move
+on the wires (`{sql, token}` → `{rows: [doc_id, author_key, body, …]}`
+→ the presigned URL → the bytes). Pinned annotation: 46,285 source lines
+across 141 files.
+**Why that shape:** the operator asked for "the guts of the typescript …
+a whole data layer that is normally handled by an API" — the honest flip
+side of the thin generic node. The first cut was rejected as a spec
+sheet ("these are pitch figures, not how-it-works figures"); the
+rebuild draws the machine's named parts and lets the argument (the dense
+app box pinching two hairlines) read off the picture. No verdict line;
+the claim is the caption's. Speaks the shot-0 language (the node header
+carries beat 2; auth carries beat 7's "a role and a policy — OAuth
+2.0-style, finer-grained"; the read gate carries beat 3). The
+query-engine part is violet and points at Figure 4.
+
+### Figure 4 — reading a social feed on web10 (done,
+`figs/fig-query-engine.png`, §5)
+
+**What it visualizes:** one feed query, from the browser to ClickHouse
+— and which side each step runs on. The browser frame: the app's code
+(`buildFeedQuery` in feed.ts) → the query it builds (service names
+only) → wapi, which posts the SQL, unchanged, to `/v3/query` with the
+reader's scoped, expiring token — "it adds no authority: the node
+decides what this reader may read." The node frame ("the node (the
+API) — FastAPI: the query engine"): PROTECTED WITH AN AST (the walk and
+its real rejections — raw node table names; `file()`/`numbers()`/
+`s3()` as nameless tables; ungranted services; round-trip to exactly
+one statement) → the lowering: each service name becomes a CTE the
+engine builds over its own tables — `documents` deduped to the latest
+not-deleted row, joined to `doc_groups`, the reader's readable group
+IDs inlined from the read gate (`group_members` × `group_contracts` +
+class grants), the five exclusion tables in amber → a ClickHouse strip
+naming every real table the caller may not reach ("the API rejects such
+queries before they run; that's what protects the data").
+**Why that shape:** the plan was the two-pipeline contrast (broken
+output filter vs. boundary CTE); the operator's critique ("pitch
+figures, not how-it-works figures") moved it to the real mechanism —
+the caller's world (service names) vs. the node's world (real tables),
+the wall visible as the gap between them. The shot-4 re-shot (05.11.2026)
+fixed the placement: the first shot drew the AST walk in the app tier —
+but the walk, the lowering, and the round-trip all run API-side, and
+the "THE BOUNDARY" slogan band told where the mechanism shows: it is
+out, replaced by the walk/lowering labels + the amber fact "the
+caller's string is never executed". The empty-vs-refuse semantics (the
+`1=0` CTE; the endpoint-level 403) belong to the caption, not the
+picture. The violet enforcement family is the same box as Figure 2's
+access check and Figure 3's query-engine part.
+
+### Figure 5 — interop screenshots (§6) — existing, PNG-only
+
+One social-written profile, two application views (Snake + Marketplace).
+Evidence, not decoration: it proves the business claim with pixels.
+PNG-only app captures (no HTML source).
+
+### Figure 6 — domain portability, before/after (§8) — existing,
+PNG-only
+
+Same website, another public account: the exact panel crops from the
+browser matrix. The address outlives the account, in two pictures.
+PNG-only.
+
+### Figure 7 — groups UI screenshot (§6) — existing; cut candidate
+
+The groups screen (a shared space on your node). Nice product evidence,
+but the weakest claim-per-pixel in the set: if the 12-page budget bites,
+this is the first figure cut (the interop screenshots already show the
+app running).
+
+### Figure 8 — the composition fork: web10 vs Solid (done,
+`figs/fig-composition.png`, §3/§9)
+
+**The figure title:** "web10 vs Solid" (4.10.33 — the VS framing); the
+subtitle names the fork: "the composition fork — the same feed, composed
+in two different places."
+
+**What it visualizes:** the capability asymmetry, not just the
+performance one (shot-0 beat 10 made concrete). Left (Solid, blue): one
+user per pod; the app pulls every pod the feed touches and joins in the
+application; discover-type queries (who's trending?) must pull the whole
+network — no shared index, so they don't terminate at scale (amber
+negative space). Right (web10, green): three nodes, each with its own
+violet boundary over its shared store — "ClickHouse — millions of users,
+one store" — each pulled from separately by the app (query + token down,
+rows up), each re-checking the reader's rules on every read; discover,
+trending, and ranking are ordinary queries at the query layer.
+**Why that shape:** the operator's point — "these nodes in the
+composition could each have millions of users, that is the difference;
+solid simply cant do discover type stuff because nodes can get big" —
+drawn as the two worlds side by side, so the difference is the picture.
+The verdict strip (4.10.33, the VS framing) scores it — "WEB10 — THE
+COMPOSITION WINNER" against Solid's one-user-per-pod offer — replacing
+the old "not a verdict line (the comparison lives in the caption)" note.
+The violet boundary box is the same mechanism as Figure 4 — the
+enforcement family again.
+
+### Figure 9 — the interoperability fork: web10 vs Mastodon / Bluesky (done,
+`figs/fig-platforms.png`, §6/§9)
+
+**The figure title:** "web10 vs Mastodon / Bluesky" (4.10.33, the VS
+framing; 4.10.32 had first re-titled it "How a second app reads the
+user's data"); the subtitle names the fork: "the interoperability fork —
+where a second app's read of the user's data lands and runs."
+
+**What it visualizes:** the extensibility fork, re-anchored on the query
+engine (4.10.29) — how a second app reads and composes with existing user
+data, and where its queries run. Left (Mastodon · Bluesky, blue): the
+fixed social object model (post · profile · follow · like · boost);
+**no query engine in the platform** — the app reads via the platform's
+fixed endpoints (getFeed / getProfile / /timelines, untunable) or
+replicates records into its own database (Bluesky's own statusphere
+tutorial: a Tap sync worker + Postgres, just to have a feed); "a new
+read pattern is a new backend"; no record shape for a hi-score or a
+listing. Right (web10, green): **the node — set up already**: the social app's
+real dozen services in the store (`posts · comments · reactions ·
+profile · media · music · groups · …` — names pulled from
+marketing/web10-social/src/data, 4.10.32) plus the new apps' own
+(`snake_scores` · `marketplace_listings` — the pinned interop names), the
+interop one, `profile`, highlighted violet; the API shown in action — the
+violet query-engine box (POST /v3/query: "compiles the app's SQL against
+the reader's grants, then runs it") sitting above the green ClickHouse
+columnar store, provisioned on the node, no DB to stand up; the app
+writes its own queries on day one (joins · ranking · cursors); a second
+app gets in through a per-service grant the user gives (snake game → the
+social app's profile; no grant → 403). New read pattern = a new query,
+not a new backend.
+**Why that shape:** the operator's "does bluesky give that clickhouse BI
+power? i bet not … you couldnt tune the feed, this lets you write
+whatever clickhouse you want" made mechanism-first — the contrast is the
+columnar engine already on the node, no DB setup, vs. fixed endpoints or
+your own replicated backend. The boundary box was dropped from this
+figure (operator: "we cant have this pitchy, the boundary") — it is
+fig-query-engine's hero; this figure's hero is the columnar experience.
+The 4.10.27 re-anchor (app-to-app vs. app-to-user-data; "no fine-grained
+IAM" was wrong for Bluesky and was pulled) is retained in the note.
+The 4.10.33 verdict strip (the VS framing) scores that re-anchor: left
+cell = what Mastodon/Bluesky offer (a second app gets in through the
+user's grants on its own data; the object model stays fixed; no shared
+store to query across); right cell = "WEB10 — THE INTEROPERABILITY
+WINNER" (an app-to-app per-service grant on one shared columnar store).
+**Evidence (keep it "as clear as day"):** atproto guides/statusphere-
+tutorial + specs/permission + the AppView read model · Mastodon REST /
+OAuth docs · feed.ts's buildFeedQuery · `research/interoperability-demo`
+(all checked 05.11.2026). Pin the spec's version/section before §9
+prints, per `research/related-work.md` (the comparative gap stays OPEN).
+
+### Figure 10 — how money flows on web10: the ad rail (first shot,
+`figs/fig-monetization.png`, §6/§9 — pending the operator's pass)
+
+**What it visualizes:** the monetization fork — the ad architecture
+falling out of the same primitives, as the ad pureplay (v3 is ads only:
+no Stripe, no payment processing; the v4 payment rail is a separate
+layer). Top: the surfaces — every app that writes into the store
+inherits the ad rail (the social app is the first, and for now the only,
+catalog builder; the snake game and the marketplace inherit: any of
+their docs can be a pinned ad target or a node ad — the mechanism is
+the node's, the catalog is the app's). Middle: the node's rail — the
+read attaches ads at the boundary, I3-checked, with the density split
+explicit (the operator's call): the creator's layer is dense — the
+post's `ad_preference` (pinned) → `doc.ad`; the influencer shows their
+own offers on most of their content, ~80–90% of the time (the
+operator's competitive operating point; the KB grounds the mechanism,
+the number is theirs to defend in §9) — and the node's layer is
+sparse: the operator's density → `doc.node_ad`, the overlay lands on
+~5–10% of posts (node-controlled, default 10, deterministic per
+reader, round-robin); both can be present on the same post: the
+creator's monetization is never suppressed by the node's (non-steal).
+The inventory: tagged docs in the followers group + the discover group,
+the offer object — kind / the link that pays / cta / disclosure —
+never rewritten, never cloaked. Bottom: the money, off-platform (the
+creator keeps 100% of affiliate/sponsor revenue — no cut of ad revenue,
+no payment processed; the node operator is a media company who sells
+the attention directly and keeps 85–90% — and nodes compete for the
+influencers by lowering their rates: the density is node-controlled, a
+competitive market economy of nodes, §9/§10 material, not a shot-0
+beat; web10 Inc.'s v3 cuts are the hosting/platform fee + the no-ads
+tier share, never the creator's links; the v4 horizon — the exchange,
+the payment rail, the creator's own layout — drawn as a separate layer,
+not the v3 claim). The amber contrast strip:
+Solid / Mastodon / Bluesky ship no ad mechanism (a documented design
+property — the related-work gap stays OPEN, pin the sources before §9
+prints); web10's stance: the free web should have ads — the right kind
+(100% delivery by architecture, no shadow ban, no ad network, no
+third-party targeting).
+**Why that shape:** the operator's "all of these surfaces should
+interoperate on ads -> so people make money on the new internet" + "the
+ad architecture matters" + "web10 believes there should be ads on this
+free web" — drawn as the three zones (surfaces → rail → money), so the
+inheritance (the rail is service-agnostic) is the picture, and the
+contrast with the alternatives lives in the amber strip, not a verdict
+scoreboard (this is a mechanism figure — the ratchet rule keeps verdict
+strips on the two VS comparison figures only). Evidence:
+`knowledge-base/web10-v3/social/{ads.md, node-ads.md, monetization.md,
+ads-dissemination.md}` + `knowledge-base/strategy/business-plan.md` §4.
+Proposed landing: §6 + §9.
+
+### Figure 11 — the competitive node economy: a matching graph, 6 x 6
+(`figs/fig-node-market.png`, §9/§10 — shot 3, passed 05.11.2026:
+"i really like this chart!" — the DNS goes to its own figure, 12)
+
+**What it visualizes:** the market structure the data plane makes
+possible — a two-sided MATCHING market, not a stack: 6 influencers
+(neutral, left column) matched against 6 nodes (green, right column),
+each vertex carrying its market properties, and the edges carrying the
+dynamics. The nodes price their own terms — the operator's three
+verbatim properties (node A: bans the least, the higher price · node B:
+a certain political match, mid price · node C: the lowest price, the
+heavy overlay) + three more axes (node D: the overlay cut to 5%, mid
+price — the node ACTION that causes a flip · node E: community-governed
+moderation, mid price · node F: the self-hosted floor — free, never
+gated, the isolated outside option). The influencers carry the
+properties that decide the pick (example properties, for the operator
+to swap: A biggest audience / delivery-first · B price-first · C
+audience shifted political · D weighing the terms — the shopper · E
+growing, was price-first · F the community audience), with the fan dots
+by each: the follow is the fan's own data, bound to the domain — a flip
+is a rematch, not a loss (the /certify handshake —
+verified-not-registered; shot-0 beats 11/12). The dynamics: the stable
+matches (green solid) · two flips (amber dashed + the faded "currently
+— node C" leg): C→B because the PREFERENCE changed, E→D because the
+NODE ACTED (the action/reaction) · the shopping leg (thin gray: D is on
+node A but likes the fewest bans "but not the higher price as much") ·
+node C losing two of its three (the price alone doesn't hold the
+audience). The amber strip: the three rents the paved platforms hold
+over the creator (today's rent: 1M subs, 300k delivered —
+business-plan.md §2) structurally out — reach throttling ·
+demonetization · deplatforming — "so the competition is on terms, not on
+leverage."
+**Why that shape:** the operator's "definitely needs to be a graph with
+nodes and edges for this one not blocks" (shot 1, the three-tier
+blocks: rejected) + "you made up these hypothetical types of nodes, we
+are just showing influencer A, B C; node A, B C … show an influencer
+changing nodes, rematching" (shot 2, the typed A/B/C: rejected) + "you
+can even have more than three … a few that are changing preferences …
+action reaction, a shopping based on preferences, i like this but dont
+like that more" (shot 3, this graph). A market-structure figure, NOT a
+VS comparison figure: no verdict strip (the ratchet rule). No made-up
+operator types — the vertices are A–F with market properties. Evidence:
+business-plan.md §1–§4 · node-ads.md (the overlay is node-controlled;
+the operator is a media company) · ads.md (D55/D57) · shot-0 beats
+11/12 (/certify, DNS/audience) · D20 ·
+research/domain-portability-demo/RESULTS.md. Proposed landing: §9 + §10.
+
+### Figure 12 — the audience travels with the domain: 1 influencer, 2
+nodes, the DNS flip (first shot, `figs/fig-audience-portability.png`,
+§8/§9 — pending the operator's pass)
+
+**What it visualizes:** the portability mechanism the market graph
+(Figure 11) gestures at — why a flip is a rematch, not a loss. A single
+scene with the time flip inside the DNS card: the fans (each follow is
+the fan's own data — a private document in the fan's store, body exactly
+the domain; one follow write, unchanged when the creator moves; the fan's
+app resolves the address on each read) · the influencer (one vertex: owns
+the address + the content) · the domain chip (the address the audience
+knows — jacobhoffman.xyz, shot 0's concrete example; the node + username
+is the replaceable target) · the DNS card (the hero: the record the
+creator owns, shown in both states — before `provider=node-a.example`,
+now `provider=node-b.example`, one field changed; a TXT record, not A or
+CNAME — an identity claim, the same pattern as DKIM/SPF; the record lives
+on the creator's DNS, the node controls no part of it; no/ambiguous
+record → an explicit unavailable state, the follow stays, restoring the
+record recovers it without refollowing) · node A (faded: the home the
+record named; now the record no longer names it; the node's stored alias
+is a copy, the address is on the creator's DNS) · node B (active: the
+verify gate — the node does the DNS lookup itself, the record must name
+this node + this account, discovery not authentication; the content is
+served under the same address; the fans' unchanged documents now resolve
+here — no refollowing). The green payoff strip: the audience travels with
+the address, not with any node — no platform holds a ban switch over an
+address the creator keeps; one DNS change, not a migration.
+**Why that shape:** the operator's call after the 6x6 passed ("i really
+like this chart!"): the DNS did not go into the market graph — it got its
+own figure: "we can do a different figure with 1 influencer and 2 nodes
+to illustrate the DNS!" The minimal cast is the point: one moving part,
+the TXT record, and it is the picture. A mechanism figure, NOT a VS
+comparison: no verdict strip (the ratchet rule). The violet verify box is
+the enforcement family (the same shape as Figure 4's boundary and
+Figure 2's access check); green = the nodes, blue = the fans/reads, amber
+= the change, faded gray = the before-state. The names are grounded:
+jacobhoffman.xyz is the author's own identity (shot 0's concrete
+re-pointing example), node-a.example / node-b.example are the two nodes.
+Evidence: `knowledge-base/web10-v3/identity/domain-identity.md` (the TXT
+claim, the alias-not-principal rule, the verify flow, "no backfill") ·
+`knowledge-base/web10-v3/setup/custom-domain.md` (the DKIM/SPF pattern) ·
+`research/domain-portability-demo/RESULTS.md` (the reader-owned domain
+subscription; the {domain} document; explicit-unavailable +
+recover-without-refollowing) · shot-0 beats 11/12. Proposed landing: §8
+(the mechanism behind Figure 6's before/after capture) + §9 (the
+deplatforming rent, alongside Figure 11's strip).
+
+### Figure 13 — where the access layer's cost lives: the K10/K1000
+fan-out curve (first shot, `figs/fig-k1000-curve.png`, §8 — pending the
+operator's pass; matplotlib source `figs/fig-k1000-curve.py`)
+
+**What it visualizes:** the metadata fan-out measurement as the paper's
+money curve (the K1000 → §8 negative-finding routing from 4.10.22):
+readable-group resolution median vs. the number of candidate groups K,
+log-log — the per-group resolver (amber, one point query per candidate
+group: 9.53 → 75.03 → 764.39 → 7,535.71 ms at K = 1/10/100/1,000)
+against the batched resolver (green, three queries + in-memory
+resolution: 25.37 → 23.47 → 41.78 → 213.98 ms). The K = 1 point is the
+discover board — a different workload from the K = 10/100/1,000 personal
+sweep on the same dataset — drawn as an open marker on a dashed leg:
+the comparison the body itself makes ("at the discover board's K = 1, the
+per-group path is faster"). Annotations: "7.64 s at K = 1,000" (the
+number that hurts) · "214 ms readable · 363 ms handler" (the fix) · the
+growth factors ×100.44 vs. ×9.12 over K = 10 → 1,000 · the knee. Payoff
+strip: "The first measurement pointed at the access layer, not the
+database — the batched resolver is the design decision it drove, and the
+tradeoff has a knee."
+**Why that shape:** the negative finding needs the divergence to be
+visible at a glance — the table (`tab:fanout`) holds the numbers, the
+curve holds the 35× gap and the knee. Deliberately NOT plotted: the
+document-scan baseline (A) — its numbers are not asserted in the body
+(the accuracy invariant); the §8 prose carries "the document scan it fed
+was already done" without a number. Not a VS comparison: no verdict
+strip (the ratchet rule). New medium: committed matplotlib script → 2x
+PNG — the house figure system is HTML → PNG for mechanism diagrams; a
+curve's source is data + layout, and the script is the reproducible
+thing (figs/README.md). Evidence:
+research/experiments/costfn/K1000-RESULTS.md (the trial of record: sfo2
+s-4vcpu-8gb, seed 42, 20 samples per cell, 400 measurements) · main.tex
+§8 (the table + finding + tradeoff prose) · the §7 lede. Title
+alternatives for the riff: A "Where the access layer's cost lives"
+(current — the §7 lede register) · B "The fan-out knee" · C "Per-group
+vs. batched resolution at K = 1,000". Proposed landing: §8, beside the
+fan-out table (wired at the section shot).
+
+### Candidates (not started)
+
+- **Two trust layers (§2):** the app wall (outer: can this app perform O
+  on S?) and the person wall (inner: does membership or a class/role
+  grant allow O on S in G?), with a grant as a row. Useful if the
+  definitions-first rewrite of §2 needs a picture; the prose + the table
+  may suffice — decide at the outline stage.
+- **The data model (§3):** one `documents` table, `{service, body}`,
+  updates-as-inserts, deletes-as-tombstones, `doc_groups`. The schema
+  listing may carry it; a figure only if §3 loses the why-not-DB-per-user
+  argument visually.
+
+## Figure plan (status)
+
+The set is printed in the FOURTH-draft manuscript (4.10.41 — the working
+manuscript; the third draft joins first + second as the frozen record),
+with the manuscript numbering: 1 app-arch (§1, the system figure — the
+TikZ overview of 4.8.2/4.10.37 is out: the operator ranked it weakest,
+and the new figures are the map) · 2 composition (§3) · 3 query-engine
+(§4) · 4 groups (§5) · 5 platforms (§5) · 6 interop captures (§5) ·
+7 feed (§6, the two-node /certify read) · 8 audience-portability (§6) ·
+9 monetization (§7) · 10 node-market (§7) · 11 k1000-curve (§9). All
+eleven are full-width `figure*` floats on the 4.10.40 padded rasters
+(the 4.10.40 "Figure 3 / Figure 6 half-width" note referred to the
+THIRD-draft numbering, where feed = 3 and groups = 6; in the fourth
+draft feed is Figure 7 and groups is Figure 4). The second-draft artifacts the
+operator ranked weakest are out of the manuscript: the capability table
+(§1), the domain before/after captures (§8 — the receipts remain in the
+prototype artifact), and the fan-out table (§8 — the curve + the finding
+prose carry every printed number). The three first-shot figures
+(monetization, audience-portability, k1000-curve) are printed under the
+operator's blanket pass for that round; open to review per
+`third-draft/DECISIONS.md`.
+
+**4.10.40 (06.11.2026) — the figure pass.** (1) Bottom padding: the five
+rasters that ended flush/near-flush at the bottom edge (measured @1x:
+composition 2px · platforms 2px · node-market 12px · query-engine 12px ·
+audience-portability 14px) had their HTML body height extended to a
+uniform **40px bottom gap** (the spacing fig-app-arch already had; the
+padding is background, the content is untouched) and re-rendered:
+composition 2880x1636 · platforms 2880x1636 · node-market 2880x1616 ·
+query-engine 2880x1616 · audience-portability 2880x1492 @2x. These
+dimension changes are intentional — the "keep rasters at existing
+dimensions where possible" note in `third-draft/figs/README.md` does not
+apply to them. (2) Full width: manuscript Figures 3 (`fig-feed`) and 6
+(`fig-groups`) were `\columnwidth` single-column floats ("too hard to
+see") and are now `figure*` + `\textwidth` like every other figure; the
+numbering (1–11) is unchanged. The operator's "figure 5" is the
+manuscript's Figure 5 (`fig-query-engine`), which was already full-width
+— the half-width pair is the readability complaint, and both are wide
+now.
+
+| # | Figure | Section | State |
+|---|---|---|---|
+| 1 | System overview + section labels | §1 | **done** (4.8.2 TikZ; label pass 4.10.37 — the visual ToC: §2–§6 + §8 mapped) |
+| 2 | Federated node | §4 | **done** (4.9.1) |
+| 3 | The web10-social application and its node | §6 | **done** (4.10.23, `fig-app-arch`) |
+| 4 | Reading a social feed on web10 | §5 | **done** (4.10.23, `fig-query-engine`; retitled 4.10.28) |
+| 5 | Interop screenshots | §6 | existing |
+| 6 | Domain portability | §8 | existing |
+| 7 | Groups UI | §6 | existing; cut candidate |
+| 8 | The composition fork: web10 vs Solid | §3/§9 | **done** (4.10.23, `fig-composition`; VS framing 4.10.33) |
+| 9 | The interoperability fork: web10 vs Mastodon / Bluesky | §6/§9 | **done** (4.10.29, `fig-platforms`; 4.10.32 title/API/services; VS framing 4.10.33) |
+| 10 | How money flows on web10 (the ad rail) | §6/§9 | **first shot** (`fig-monetization` — pending the operator's pass; the shot-0 monetization beat drafted alongside) |
+| 11 | The competitive node economy | §9/§10 | **passed** (4.10.35, `fig-node-market`) |
+| 12 | The audience travels with the domain (the DNS flip) | §8/§9 | **first shot** (`fig-audience-portability` — pending the operator's pass) |
+| 13 | Where the access layer's cost lives (the K10/K1000 fan-out curve) | §8 | **first shot** (`fig-k1000-curve` — committed matplotlib script + 2880x1440 PNG — pending the operator's pass) |
+| — | Two trust layers / data model | §2/§3 | candidates |
