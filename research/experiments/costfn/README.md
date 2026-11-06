@@ -1,5 +1,15 @@
 # Access-Control Cost Function Experiment
 
+**Sixth-draft repeat: tier-max follow-up provisioned (6 November 2026).**
+See [execution record and capacity funnel](SIXTH-DRAFT-RESULTS.md): DigitalOcean
+rejected s-8vcpu-16gb with an account-tier restriction; the operator then approved
+trying the largest listed four-vCPU option (12 GB), now provisioned in atl1.
+Connected setup/run is pending; there are no new samples yet.
+The updated harness retains raw timing phases and excluded warm-ups and uses a
+seeded randomized schedule; offline tests are not a completed connected run.
+The larger-host/1M-author follow-up supersedes the old small-box-only budget
+instructions below; those describe the historical K1000 microbenchmark only.
+
 **K1000 trial:** [K=10/100/1000 results](K1000-RESULTS.md), imported from PR
 #1313, records one 1,000-creator trial with all 20 cells complete (400 samples).
 At K1000, B readable medians were 7,535.705 ms per-group versus 213.980 ms
@@ -68,7 +78,7 @@ this costs more than a few dollars unless you leave the box running.
 
 - **Measures:** the policy layer, per phase, against **K** (the reader's
   readable-set size) and against **node size** (discover feed). The headline is
-  the **causal overhead B−A** and the isolated layer **C**, plus the
+  the **pipeline-versus-scan delta B−A** and the isolated layer **C**, plus the
   **per-group vs. batched** `readable` cost on one figure.
 - **Does NOT measure:** the ClickHouse scan as a result (it's the credited
   baseline A / held-out constant C), or CDN media delivery (offloaded by
@@ -123,7 +133,7 @@ queries each; this is a functional check, not evidence for tail latency.
 | File | Purpose |
 |---|---|
 | `seed.py` | metadata-only seed through the REAL API: N creators (followers group + tiny posts), one reader following K of them, a discover board. Writes `seed-manifest.json`. |
-| `bench.py` | drives the matrix (restarts the api per cell with the flags), scrapes the `[query] … timing_ms …` logs, computes per-phase percentiles + the causal overhead B−A. Pure functions are offline-tested. |
+| `bench.py` | randomized matrix with excluded warm-ups; retains raw timing phases/query IDs and per-phase percentiles. Historical B−A key is not causal overhead. Pure functions are offline-tested. |
 | `bench.test.py` | **offline regression tests** (no droplet/API/Docker) for the log parser, percentile math, summary, policy-total, B−A delta, matrix expansion, and per-cell env. Run this locally before spending money. |
 | `run.sh` | orchestrator: compose-up (dedicated project) → wait → seed → bench → collect → teardown (only this project). |
 | `RUNBOOK.md` | **the repeatable step-by-step** — provision droplet (doctl flags, SSH-key + region traps), docker + GHCR login, clone, run mini-then-full, collect, destroy+verify. Includes a troubleshooting index of every trap hit on the first connected attempt. **Read this before spending money.** |

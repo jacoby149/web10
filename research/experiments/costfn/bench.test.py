@@ -16,6 +16,8 @@ import sys
 import ast
 import json
 import tempfile
+import subprocess
+from pathlib import Path
 from unittest.mock import patch, Mock
 
 sys.path.insert(0, os.path.dirname(__file__))
@@ -47,6 +49,7 @@ def test_parse():
     check("parse: two unique records (dedup by id)", len(recs) == 2, f"got {len(recs)}")
     check("parse: phase values captured", recs[0]["readable"] == 5.0 and recs[0]["execute"] == 12.0)
     check("parse: all phases present", all(p in recs[0] for p in bench.PHASES))
+    check("parse: query ID retained for traceability", recs[0]["query_id"] == "aaaa")
     check("parse: empty input -> empty list", bench.parse_timing_lines("") == [])
     check("parse: noise-only -> empty list", bench.parse_timing_lines("hello\nworld\n") == [])
 
@@ -182,7 +185,7 @@ def test_orchestration():
         path = os.path.join(out, "manifest.json")
         with open(path, "w") as f:
             json.dump(manifest, f)
-        def collect(compose, api, manifest, cell, runs, out):
+        def collect(compose, api, manifest, cell, runs, out, warmup):
             return {"cell": cell, "runs_requested": runs, "queries_200": runs,
                     "queries_completed": runs, "transport": "fixture",
                     "timing_samples": runs, "summary": {}, "_records": [_rec(0 if cell["line"] == "A" else 5, 2)]}
@@ -191,6 +194,51 @@ def test_orchestration():
         with open(os.path.join(out, "report.json")) as f:
             report = json.load(f)
         check("report: shared A baseline pairs with both B modes and feeds", len(report["causal_overhead_B_minus_A"]) == 4)
+        check("report: explicit noncausal scope", "NOT paired causal" in report["comparison_scope"])
+        with open(os.path.join(out, "schedule.json")) as f:
+            schedule = json.load(f)
+        check("schedule: seed, warmup and ordered cells persisted", schedule["order_seed"] == 42 and schedule["warmup"] == 3 and len(schedule["cells"]) == 10)
+
+
+def test_repeat_receipts():
+    cells = bench.expand_matrix([10, 100, 1000], ["personal", "discover"], ["per-group", "batched"], ["A", "B", "C"])
+    order = bench.ordered_cells(cells, 42)
+    check("order: reproducible", order == bench.ordered_cells(cells, 42))
+    check("order: shuffled without changing matrix", order != cells and len(order) == len(cells) and all(c in order for c in cells))
+    check("order: different trial seed changes order", order != bench.ordered_cells(cells, 43))
+    check("order: input unchanged", cells == bench.expand_matrix([10, 100, 1000], ["personal", "discover"], ["per-group", "batched"], ["A", "B", "C"]))
+    records = [_rec(1000, 1), _rec(2, 1), _rec(4, 1)]
+    manifest = {"reader": "reader", "password": "not-logged", "followed": ["c"], "creator_groups": {"c": "g"}}
+    cell = {"line": "B", "feed": "personal", "k": 1, "mode": "batched"}
+    with tempfile.TemporaryDirectory() as out, patch.object(bench, "_restart_api"), patch.object(bench, "_api_up", return_value=True), patch.object(bench, "_login", return_value="not-logged"), patch.object(bench, "_run_queries", return_value=3) as query, patch.object(bench, "_tail_api_logs", return_value="logs"), patch.object(bench, "parse_timing_lines", return_value=records), patch.object(bench.time, "sleep"):
+        result = bench.collect_cell("compose", "api", manifest, cell, 2, out, 1)
+        check("warmup: issued plus measured requests", query.call_args.args[4] == 3)
+        check("warmup: excluded from percentile", result["summary"]["readable"]["p50"] == 3)
+        with open(os.path.join(out, "cell-B-personal-k1-batched.json")) as f:
+            receipt = json.load(f)
+        check("raw: retained every measured sample", receipt["records"] == records[1:])
+        check("raw: warmup retained separately", receipt["warmup_records"] == records[:1])
+        check("raw: credentials absent", "not-logged" not in json.dumps(receipt))
+        try:
+            bench.collect_cell("compose", "api", manifest, cell, 2, out, 1)
+        except FileExistsError:
+            check("raw: refuses to overwrite a completed cell", True)
+        else:
+            check("raw: refuses to overwrite a completed cell", False)
+    cell = {**cell, "line": "A", "mode": "n/a"}
+    with tempfile.TemporaryDirectory() as out, patch.object(bench, "_restart_api"), patch.object(bench, "_api_up", return_value=True), patch.object(bench, "_login", return_value="not-logged"), patch.object(bench, "baseline_records", return_value=records) as baseline:
+        result = bench.collect_cell("compose", "api", manifest, cell, 2, out, 1)
+        check("baseline warmup: requested and excluded", baseline.call_args.args[-1] == 3 and result["summary"]["readable"]["p50"] == 3)
+        check("baseline accounting: direct executions are not HTTP", result["queries_completed"] == 2 and result["queries_200"] == 0 and result["warmup_excluded"] == 1)
+    with tempfile.TemporaryDirectory() as out, patch.object(bench, "_restart_api"), patch.object(bench, "_api_up", return_value=True), patch.object(bench, "_login", return_value="not-logged"), patch.object(bench, "baseline_records", return_value=records[:1]):
+        try:
+            bench.collect_cell("compose", "api", manifest, cell, 2, out, 1)
+        except RuntimeError:
+            with open(os.path.join(out, "cell-A-personal-k1-n-a.json")) as f:
+                receipt = json.load(f)
+            check("short cell: raw observations retained, no valid summary", receipt["complete"] is False and receipt["observed_timings_unclassified"] == records[:1] and "summary" not in receipt)
+        else:
+            check("short cell: rejects incomplete observations", False)
 
 
 def test_seed():
@@ -209,6 +257,33 @@ def test_seed():
     check("seed: imports and compiles", True)
 
 
+def test_schema_startup_retry():
+    # Execute the actual shell loop against a fake compose command that models
+    # the temporary-server handoff. This is orchestration, not a DB smoke test.
+    source = Path(__file__).with_name("run.sh").read_text()
+    start = source.index("for template in ../../../clickhouse-init/*.sql.template; do")
+    stop = source.index('\n$COMPOSE up -d --no-deps api', start)
+    loop = source[start:stop]
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        fake = root / "fake-compose"
+        fake.write_text('#!/usr/bin/env python3\nimport os,pathlib,sys\np=pathlib.Path(os.environ["COUNT_FILE"])\nn=int(p.read_text())+1 if p.exists() else 1\np.write_text(str(n))\nsys.exit(210 if n == 2 or os.environ.get("ALWAYS_FAIL") else 0)\n')
+        fake.chmod(0o755)
+        sleep = root / "sleep"
+        sleep.write_text('#!/bin/sh\nexit 0\n')
+        sleep.chmod(0o755)
+        count = root / "count"
+        env = {**os.environ, "COMPOSE": str(fake), "COUNT_FILE": str(count),
+               "PATH": str(root) + os.pathsep + os.environ["PATH"]}
+        result = subprocess.run(["bash", "-c", "set -euo pipefail\n" + loop],
+                                cwd=Path(__file__).parent, env=env, capture_output=True, text=True, timeout=10)
+        check("schema: retries refusal between templates", result.returncode == 0 and count.read_text() == "3" and "retrying" in result.stdout)
+        count.unlink()
+        result = subprocess.run(["bash", "-c", "set -euo pipefail\n" + loop],
+                                cwd=Path(__file__).parent, env={**env, "ALWAYS_FAIL": "1"}, capture_output=True, text=True, timeout=10)
+        check("schema: failure is bounded, API never started", result.returncode == 1 and count.read_text() == "60" and "schema failed" in result.stderr)
+
+
 def main():
     test_parse()
     test_percentile()
@@ -218,7 +293,9 @@ def main():
     test_expand_matrix()
     test_env_for_cell()
     test_orchestration()
+    test_repeat_receipts()
     test_seed()
+    test_schema_startup_retry()
     print()
     if FAILED:
         print(f"{len(FAILED)} FAILED: {FAILED}")

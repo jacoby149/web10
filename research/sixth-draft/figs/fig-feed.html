@@ -1,0 +1,205 @@
+<!doctype html>
+<!--
+  Source for fig-feed.png (the second-draft SIGMOD paper's federated-node
+  figure). Render with ./capture.mjs (1440x900 @2x -> 2880x1800 PNG).
+
+  Design intent (operator feedback, 04.11.2026): Node B does the SAME access
+  checks as Node A; the only difference is how the token's authenticity is
+  established (own signature at the issuer vs. /certify at the foreign node).
+  The two violet "access check" boxes are therefore the same shape, color,
+  and label on both nodes, bridged by the "same access check" pill.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #0a0a12; }
+  body {
+    width: 1440px; height: 900px; position: relative; overflow: hidden;
+    font-family: -apple-system, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .title {
+    position: absolute; top: 40px; width: 100%; text-align: center;
+    font-size: 33px; font-weight: 700; color: #f2f3f8; letter-spacing: .2px;
+  }
+  .subtitle {
+    position: absolute; top: 92px; width: 100%; text-align: center;
+    font-size: 15px; color: #9c9fb3;
+  }
+  .card { position: absolute; border-radius: 18px; background: #0e0e17; }
+  .nodeA {
+    left: 60px; top: 272px; width: 580px; height: 440px;
+    border: 2px solid rgba(52,211,153,.7);
+    box-shadow: 0 0 0 1px rgba(52,211,153,.10), 0 10px 44px rgba(52,211,153,.05);
+  }
+  .nodeB {
+    left: 800px; top: 272px; width: 580px; height: 440px;
+    border: 2px solid rgba(96,165,250,.7);
+    box-shadow: 0 0 0 1px rgba(96,165,250,.10), 0 10px 44px rgba(96,165,250,.05);
+  }
+  .nlabel { position: absolute; top: 20px; left: 22px; font-size: 17px; font-weight: 600; }
+  .nlabel.a { color: #34d399; }
+  .nlabel.b { color: #60a5fa; }
+  .chips { position: absolute; left: 20px; right: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .chips.r1 { top: 62px; }
+  .chips.r2 { top: 106px; }
+  .chip {
+    padding: 8px 6px; border-radius: 9px; background: #15151f;
+    border: 1px solid #363650; color: #c4c6d4; font-size: 12px; text-align: center; line-height: 1.3;
+  }
+  .path {
+    position: absolute; top: 164px; left: 50px; display: flex; align-items: center;
+  }
+  .vbox {
+    width: 204px; height: 76px; border-radius: 12px;
+    border: 1.5px solid rgba(52,211,153,.85); background: rgba(52,211,153,.07);
+    display: flex; flex-direction: column; justify-content: center; padding: 0 12px; text-align: center;
+  }
+  .vbox .t { font-size: 14.5px; font-weight: 600; color: #eaf6f0; }
+  .vbox .s { font-size: 11px; color: #8fa3b0; margin-top: 3px; line-height: 1.3; }
+  .arrow { width: 44px; height: 2px; background: #4d4d66; position: relative; }
+  .arrow::after {
+    content: ""; position: absolute; right: -2px; top: -5px;
+    border: 6px solid transparent; border-left: 9px solid #4d4d66;
+  }
+  .abox {
+    width: 232px; height: 76px; border-radius: 12px;
+    background: linear-gradient(135deg, #6d4df0, #8b5cf6);
+    box-shadow: 0 4px 22px rgba(139,92,246,.35);
+    display: flex; flex-direction: column; justify-content: center; padding: 0 14px; text-align: center;
+  }
+  .abox .t { font-size: 15px; font-weight: 700; color: #ffffff; }
+  .abox .s { font-size: 11px; color: #e6e0fb; margin-top: 3px; }
+  .serve {
+    position: absolute; top: 284px; left: 50px; width: 480px; height: 60px;
+    border-radius: 12px; border: 1.5px dashed rgba(52,211,153,.6);
+    background: rgba(52,211,153,.04);
+    display: flex; flex-direction: column; justify-content: center; padding: 0 14px; text-align: center;
+  }
+  .serve .t { font-size: 13.5px; font-weight: 600; color: #9fe8c6; }
+  .serve .s { font-size: 11px; color: #8b93a7; margin-top: 3px; }
+  .note {
+    position: absolute; top: 284px; left: 50px; width: 480px; height: 60px;
+    border-radius: 12px; border: 1px dashed #3c3c56; background: rgba(148,163,184,.03);
+    display: flex; align-items: center; justify-content: center; padding: 0 14px;
+    color: #9094ab; font-size: 12.5px; font-style: italic; text-align: center;
+  }
+  .enf {
+    position: absolute; bottom: 24px; left: 20px; right: 20px; text-align: center;
+    font-size: 13px; color: #9298ad;
+  }
+  .enf b { color: #d1d5e4; font-weight: 600; }
+  .reader {
+    position: absolute; left: 1000px; top: 128px; width: 360px; height: 88px;
+    border-radius: 14px; background: #12121b; border: 1.5px solid #c9ccda;
+    display: flex; flex-direction: column; justify-content: center; padding: 0 18px; gap: 3px;
+  }
+  .reader .r1 { font-size: 13px; color: #9a9db1; }
+  .reader .r2 { font-size: 17px; font-weight: 600; color: #f2f3f8; }
+  .reader .r3 { font-size: 12px; color: #8b8fa5; }
+  svg.abs { position: absolute; top: 0; left: 0; width: 1440px; height: 900px; pointer-events: none; }
+  .pill {
+    position: absolute; left: 720px; top: 474px; transform: translate(-50%, -50%);
+    background: #0a0a12; border: 1.5px solid #8b5cf6; border-radius: 999px;
+    padding: 5px 13px; color: #c9b8ff; font-size: 11px; font-weight: 600; white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+  <div class="title">The cross-node read design</div>
+  <div class="subtitle">Separate stores. Verified identity, local grants. The two-node read is demonstrated; complete client feed merging remains integration work.</div>
+
+  <!-- reader -->
+  <div class="reader">
+    <div class="r1">reader (mobile / browser / CLI)</div>
+    <div class="r2">web10 node API SDK</div>
+    <div class="r3">scoped, expiring tokens</div>
+  </div>
+
+  <!-- node A (local issuer) -->
+  <div class="card nodeA">
+    <div class="nlabel a">node A (local issuer)</div>
+    <div class="chips r1">
+      <div class="chip">users</div>
+      <div class="chip">data (columnar store)</div>
+    </div>
+    <div class="chips r2">
+      <div class="chip">contracts</div>
+      <div class="chip">memberships</div>
+    </div>
+    <div class="path">
+      <div class="vbox">
+        <div class="t">verify token</div>
+        <div class="s">own signature &mdash; it minted it</div>
+      </div>
+      <div class="arrow"></div>
+      <div class="abox">
+        <div class="t">access check</div>
+        <div class="s">contracts + membership &middot; every read</div>
+      </div>
+    </div>
+    <div class="serve">
+      <div class="t">serves /certify</div>
+      <div class="s">verifies foreign tokens against its own data</div>
+    </div>
+    <div class="enf">enforces: <b>signatures</b> + contracts + membership</div>
+  </div>
+
+  <!-- node B (foreign reads) -->
+  <div class="card nodeB">
+    <div class="nlabel b">node B (foreign reads)</div>
+    <div class="chips r1">
+      <div class="chip">users</div>
+      <div class="chip">data (columnar store)</div>
+    </div>
+    <div class="chips r2">
+      <div class="chip">contracts</div>
+      <div class="chip">memberships</div>
+    </div>
+    <div class="path">
+      <div class="abox">
+        <div class="t">access check</div>
+        <div class="s">contracts + membership &middot; every read</div>
+      </div>
+      <div class="arrow" style="transform: scaleX(-1);"></div>
+      <div class="vbox">
+        <div class="t">verify token</div>
+        <div class="s">/certify(A) &mdash; cached until expiry</div>
+      </div>
+    </div>
+    <div class="note">same node implementation as A &mdash; sovereignty is the data, not the code</div>
+    <div class="enf">enforces: <b>/certify</b> + contracts + membership</div>
+  </div>
+
+  <!-- arrows + bridge -->
+  <svg class="abs" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="m-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#9094ab"/>
+      </marker>
+      <marker id="m-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="rgba(74,222,128,.9)"/>
+      </marker>
+    </defs>
+
+    <!-- reader -> node B: pulls documents via foreign reads -->
+    <line x1="1180" y1="222" x2="1180" y2="270" stroke="#9094ab" stroke-width="1.6"
+          stroke-dasharray="5 4" marker-end="url(#m-gray)"/>
+    <text x="1168" y="252" text-anchor="end" font-size="12.5" fill="#9094ab">pulls documents via foreign reads</text>
+
+    <!-- identical access check: bridge across the gap, pill in the middle -->
+    <line x1="590" y1="474" x2="850" y2="474" stroke="#8b5cf6" stroke-width="1.5"
+          stroke-dasharray="4 4" opacity=".8"/>
+
+    <!-- node B verify -> node A serves /certify (HTTPS /certify, once per token) -->
+    <path d="M 1330 474 L 1400 474 L 1400 650 L 350 650 L 350 620" fill="none"
+          stroke="rgba(74,222,128,.8)" stroke-width="1.5" stroke-dasharray="6 4"
+          marker-end="url(#m-green)"/>
+    <text x="720" y="642" text-anchor="middle" font-size="11.5" fill="#9be8c6">HTTPS /certify</text>
+  </svg>
+
+  <div class="pill">same access check</div>
+</body>
+</html>

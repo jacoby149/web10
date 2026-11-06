@@ -1,0 +1,215 @@
+<!doctype html>
+<!--
+  Source for fig-audience-portability.png ("The audience travels with the
+  domain" — 1 influencer, 2 nodes, the DNS flip; 4.10.36, uncommitted
+  pending the operator's pass).
+  Operator (on fig-node-market, after the 6x6 passed): "i think 3 and 3 is
+  fine for the illustration, i think showing the dns bring your audience is
+  kind of perfect here!" then "hmm, maybe we shoudnt though, i really like
+  this chart!" (the 6x6 stands; the DNS gets its own figure) then "we can do
+  a different figure with 1 influencer and 2 nodes to illustrate the DNS!"
+  THE FIGURE (a single scene, one time flip inside the DNS card):
+  - THE FANS (blue, left): the audience; each fan's follow is the fan's OWN
+    data — a private document in the fan's store, body exactly the domain
+    ({ domain: "jacobhoffman.xyz" }) — one follow write, unchanged when the
+    creator moves; the fan's app resolves the address (DNS) on each read.
+  - THE INFLUENCER (neutral, one vertex): owns the address + the content.
+    The domain chip: jacobhoffman.xyz — the address the audience knows; the
+    node + username is the replaceable target (shot-0's concrete example).
+  - THE DNS CARD (the hero, center): the record the creator owns —
+    web10.jacobhoffman.xyz, TXT, with the record in BOTH states: before
+    (provider=node-a.example, faded) -> the re-point, one field -> now
+    (provider=node-b.example, amber). A TXT record, not A/CNAME — an
+    identity claim, "this domain points to @user on provider" (the same
+    pattern as DKIM and SPF). The record lives on the creator's DNS (any
+    registrar); the node controls no part of it. No/ambiguous record: the
+    fan's read shows an explicit unavailable state; the follow stays;
+    restoring the record recovers it without refollowing.
+  - NODE A (green, faded, top right): before — the home the record named;
+    the creator was verified there; now the record no longer names it; what
+    the node stored is a copy of the alias, the address itself is on the
+    creator's DNS.
+  - NODE B (green, active, bottom right): the new home. The verify gate
+    (violet): the node does the DNS lookup itself, the record must name
+    this node + this account; the verified alias is stored on the account;
+    DNS is discovery, not authentication. The public content is served
+    under the same address; the fans' unchanged documents now resolve
+    here — no refollowing.
+  - THE PAYOFF strip (green): the audience travels with the address, not
+    with any node — no platform holds a ban switch over an address the
+    creator keeps; one DNS change, not a migration.
+  Mechanism figure, NOT a VS comparison: no verdict strip (the ratchet
+  rule). No internal D-IDs in rendered text. jacobhoffman.xyz is the
+  author's own identity (shot 0's concrete re-pointing example — recorded
+  in DECISIONS); node-a.example / node-b.example are the two nodes.
+  Evidence: knowledge-base/web10-v3/identity/domain-identity.md (the TXT
+  claim, the alias-not-principal rule, the verify flow, "no backfill") ·
+  knowledge-base/web10-v3/setup/custom-domain.md (DKIM/SPF pattern, Njalla,
+  the one-liner) · research/domain-portability-demo/RESULTS.md (the
+  reader-owned domain subscription, {domain} document, explicit-unavailable
+  + recover-without-refollowing) · shot-0 beats 11/12 (the DNS/audience
+  payoff; "verified is not registered").
+  Render with ./capture.mjs fig-audience-portability.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #0a0a12; }
+  body {
+    width: 1440px; height: 746px; position: relative; overflow: hidden;
+    font-family: -apple-system, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .title { position: absolute; top: 30px; width: 100%; text-align: center;
+    font-size: 26px; font-weight: 700; color: #f2f3f8; }
+  .subtitle { position: absolute; top: 66px; width: 100%; text-align: center;
+    font-size: 13.5px; color: #9c9fb3; }
+  svg.graph { position: absolute; top: 0; left: 0; width: 1440px; height: 746px; }
+  .payoff { position: absolute; left: 55px; top: 636px; width: 1330px; height: 70px;
+    border-radius: 10px; background: rgba(52,211,153,.05);
+    border: 1.5px solid rgba(52,211,153,.45); padding: 8px 16px; }
+  .payoff .t { font-size: 11.5px; font-weight: 700; color: #34d399; }
+  .payoff .l { font-size: 10px; margin-top: 4px; line-height: 1.45; color: #b8d9c6; }
+  .payoff .c { font-size: 11px; margin-top: 5px; font-weight: 700; color: #f2f3f8; }
+</style>
+</head>
+<body>
+  <div class="title">A public subscription travels with the domain</div>
+  <div class="subtitle">the research prototype &mdash; one saved domain, two target accounts, creator-controlled DNS; deployed social follows are unchanged</div>
+
+  <svg class="graph" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="m-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="rgba(96,165,250,.85)"/>
+      </marker>
+      <marker id="m-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="rgba(120,220,180,.9)"/>
+      </marker>
+      <marker id="m-faded" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="rgba(156,159,179,.5)"/>
+      </marker>
+      <marker id="m-amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#fbbf24"/>
+      </marker>
+      <marker id="m-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#8b8fa5"/>
+      </marker>
+    </defs>
+
+    <!-- ============ EDGES (under the vertices) ============ -->
+    <!-- fans -> domain chip: they follow the address (blue solid) -->
+    <path d="M 200,210 C 250,220 272,250 300,268" stroke="rgba(96,165,250,.85)" stroke-width="1.8" fill="none" marker-end="url(#m-blue)"/>
+    <!-- influencer -> domain chip: owns the address (gray, no arrow) -->
+    <line x1="400" y1="204" x2="400" y2="235" stroke="#8b8fa5" stroke-width="1.5"/>
+    <!-- domain chip -> DNS card: the address names the record (gray) -->
+    <line x1="500" y1="270" x2="545" y2="260" stroke="#8b8fa5" stroke-width="1.5" marker-end="url(#m-gray)"/>
+    <!-- fan's doc -> DNS card: the fan's app resolves the address (blue dashed) -->
+    <path d="M 270,480 C 380,465 470,450 545,433" stroke="rgba(96,165,250,.7)" stroke-width="1.4" stroke-dasharray="5 4" fill="none" marker-end="url(#m-blue)"/>
+    <!-- DNS card -> node A: before, the record named node A (faded gray dashed) -->
+    <line x1="905" y1="165" x2="1010" y2="165" stroke="rgba(156,159,179,.5)" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#m-faded)"/>
+    <!-- DNS card -> node B: the creator verifies (green solid) -->
+    <line x1="905" y1="330" x2="1010" y2="330" stroke="rgba(120,220,180,.9)" stroke-width="2" marker-end="url(#m-green)"/>
+    <!-- DNS card -> node B: the fan's read resolves here (blue solid) -->
+    <line x1="905" y1="410" x2="1010" y2="410" stroke="rgba(96,165,250,.85)" stroke-width="1.8" marker-end="url(#m-blue)"/>
+
+    <!-- edge labels, the right gap -->
+    <text x="957" y="150" font-size="8.5" fill="#8b8fa5" text-anchor="middle">the record named</text>
+    <text x="957" y="161" font-size="8.5" fill="#8b8fa5" text-anchor="middle">node A, before</text>
+    <text x="957" y="318" font-size="8.5" fill="#9fd8c0" text-anchor="middle">the creator verifies</text>
+    <text x="957" y="398" font-size="8.5" fill="#93b8f5" text-anchor="middle">the fan&rsquo;s read</text>
+    <text x="957" y="424" font-size="8.5" fill="#93b8f5" text-anchor="middle">resolves to node B</text>
+
+    <!-- ============ THE FANS (blue dots, left) ============ -->
+    <text x="62" y="112" font-size="10.5" fill="#9c9fb3">the fans &mdash; the audience</text>
+    <g fill="rgba(96,165,250,.08)" stroke="rgba(96,165,250,.6)" stroke-width="1.2">
+      <circle cx="95" cy="165" r="8"/><circle cx="140" cy="140" r="8"/><circle cx="185" cy="165" r="8"/>
+      <circle cx="140" cy="205" r="8"/><circle cx="185" cy="230" r="8"/><circle cx="95" cy="225" r="8"/>
+    </g>
+
+    <!-- ============ THE INFLUENCER (one vertex) ============ -->
+    <circle cx="400" cy="160" r="44" fill="#12121b" stroke="#c9ccda" stroke-width="1.5"/>
+    <text x="400" y="150" font-size="11.5" font-weight="700" fill="#f2f3f8" text-anchor="middle">the influencer</text>
+    <text x="400" y="168" font-size="9" fill="#8b8fa5" text-anchor="middle">owns the address</text>
+    <text x="400" y="181" font-size="9" fill="#8b8fa5" text-anchor="middle">and the content</text>
+
+    <!-- ============ THE DOMAIN CHIP (the address) ============ -->
+    <rect x="300" y="235" width="200" height="88" rx="8" fill="rgba(255,255,255,.03)" stroke="#c9ccda" stroke-width="1.2"/>
+    <text x="400" y="260" font-size="13" font-weight="700" fill="#f2f3f8" text-anchor="middle" font-family="SF Mono, Menlo, monospace">jacobhoffman.xyz</text>
+    <text x="400" y="279" font-size="9" fill="#9c9fb3" text-anchor="middle">the address the audience knows</text>
+    <text x="400" y="294" font-size="9" fill="#8b8fa5" text-anchor="middle">the node + username is</text>
+    <text x="400" y="307" font-size="9" fill="#8b8fa5" text-anchor="middle">the replaceable target</text>
+
+    <!-- ============ THE DNS CARD (the hero, center) ============ -->
+    <rect x="545" y="95" width="360" height="340" rx="10" fill="rgba(255,255,255,.03)" stroke="#c9ccda" stroke-width="1.5"/>
+    <text x="565" y="118" font-size="11.5" font-weight="700" fill="#f2f3f8">DNS &mdash; the record the creator owns</text>
+    <text x="565" y="140" font-size="13" font-weight="700" fill="#f2f3f8" font-family="SF Mono, Menlo, monospace">web10.jacobhoffman.xyz</text>
+    <text x="565" y="158" font-size="9" fill="#9c9fb3">TXT record</text>
+
+    <!-- record, before -->
+    <text x="565" y="174" font-size="8.5" fill="#8b8fa5">before</text>
+    <text x="565" y="187" font-size="9.5" fill="#8b8fa5" font-family="SF Mono, Menlo, monospace">web10.v=1; provider=<tspan fill="rgba(156,159,179,.6)">node-a.example</tspan>; user=jacoby149</text>
+    <text x="565" y="208" font-size="8.5" font-weight="700" fill="#fbbf24">the re-point &mdash; the creator changes one field</text>
+    <!-- record, now -->
+    <text x="565" y="228" font-size="8.5" font-weight="700" fill="#fbbf24">now</text>
+    <text x="565" y="241" font-size="9.5" fill="#d1d4e0" font-family="SF Mono, Menlo, monospace">web10.v=1; provider=<tspan fill="#fbbf24" font-weight="700">node-b.example</tspan>; user=jacoby149</text>
+
+    <text x="565" y="265" font-size="9" fill="#9c9fb3">a TXT record, not A or CNAME &mdash; an identity claim:</text>
+    <text x="565" y="278" font-size="9" fill="#9c9fb3">&ldquo;this domain points to @user on provider&rdquo;</text>
+    <text x="565" y="291" font-size="9" fill="#9c9fb3">(the same pattern as DKIM and SPF)</text>
+    <text x="565" y="309" font-size="9" fill="#9c9fb3">the record lives on the creator&rsquo;s DNS (any registrar) &mdash;</text>
+    <text x="565" y="322" font-size="9" fill="#9c9fb3">the node controls no part of it</text>
+
+    <line x1="565" y1="334" x2="885" y2="334" stroke="rgba(255,255,255,.08)" stroke-width="1"/>
+    <text x="565" y="350" font-size="9" fill="#c4b5fd">the node verifies by doing the lookup itself</text>
+    <text x="565" y="363" font-size="9" fill="#c4b5fd">&mdash; DNS is discovery, not authentication</text>
+
+    <text x="565" y="386" font-size="9" fill="#d4b875">no record, or an ambiguous one: the fan&rsquo;s read shows</text>
+    <text x="565" y="399" font-size="9" fill="#d4b875">an explicit unavailable state &mdash; the follow stays;</text>
+    <text x="565" y="412" font-size="9" fill="#d4b875">restoring the record recovers it, without refollowing</text>
+
+    <!-- ============ NODE A (faded: before) ============ -->
+    <g opacity="0.45">
+      <rect x="1010" y="95" width="380" height="140" rx="10" fill="rgba(52,211,153,.05)" stroke="rgba(52,211,153,.5)" stroke-width="1.5" stroke-dasharray="4 4"/>
+      <text x="1030" y="118" font-size="12" font-weight="700" fill="#d7f5e6">node A &mdash; before</text>
+      <text x="1030" y="140" font-size="9.5" fill="#9fd8c0">the home the record named; the creator was verified there</text>
+      <text x="1030" y="156" font-size="9.5" fill="#9fd8c0">now: the record no longer names it &mdash; the address has moved</text>
+      <text x="1030" y="172" font-size="9.5" fill="#9fd8c0">what node A stored is a copy of the alias;</text>
+      <text x="1030" y="186" font-size="9.5" fill="#9fd8c0">the address itself is on the creator&rsquo;s DNS</text>
+    </g>
+
+    <!-- ============ NODE B (active: now) ============ -->
+    <rect x="1010" y="270" width="380" height="210" rx="10" fill="rgba(52,211,153,.08)" stroke="#34d399" stroke-width="1.5"/>
+    <text x="1030" y="293" font-size="12.5" font-weight="700" fill="#d7f5e6">node B &mdash; the new home</text>
+    <rect x="1030" y="305" width="340" height="58" rx="6" fill="rgba(139,92,246,.08)" stroke="rgba(139,92,246,.55)" stroke-width="1"/>
+    <text x="1044" y="322" font-size="9.5" font-weight="700" fill="#c4b5fd">the verify &mdash; the node does the DNS lookup itself</text>
+    <text x="1044" y="338" font-size="9" fill="#c4b5fd">the record must name this node + this account; the verified</text>
+    <text x="1044" y="351" font-size="9" fill="#c4b5fd">alias is stored on the account &mdash; discovery, not authentication</text>
+    <text x="1030" y="385" font-size="9.5" fill="#9fd8c0">the public content is served under the same address:</text>
+    <text x="1030" y="401" font-size="9.5" fill="#f2f3f8" font-family="SF Mono, Menlo, monospace">jacobhoffman.xyz &rarr; node B (the record now names it)</text>
+    <text x="1030" y="421" font-size="9.5" fill="#9fd8c0">the fans&rsquo; unchanged documents now resolve here &mdash;</text>
+    <text x="1030" y="435" font-size="9.5" fill="#9fd8c0">no refollowing, the audience was never moved</text>
+
+    <!-- ============ THE FAN'S FOLLOW DOC (blue chip, bottom left) ============ -->
+    <rect x="60" y="460" width="210" height="168" rx="8" fill="rgba(255,255,255,.02)" stroke="rgba(96,165,250,.55)" stroke-width="1.2" stroke-dasharray="4 3"/>
+    <text x="75" y="480" font-size="10" font-weight="700" fill="#f2f3f8">each fan&rsquo;s follow &mdash; the fan&rsquo;s own data</text>
+    <text x="75" y="498" font-size="9" fill="#93b8f5" font-family="SF Mono, Menlo, monospace">{ domain: "jacobhoffman.xyz" }</text>
+    <text x="75" y="516" font-size="9" fill="#9c9fb3">a private document in the fan&rsquo;s store;</text>
+    <text x="75" y="529" font-size="9" fill="#9c9fb3">the body is exactly the domain</text>
+    <text x="75" y="549" font-size="9" fill="#9fd8c0">one follow write &mdash; it stays unchanged</text>
+    <text x="75" y="562" font-size="9" fill="#9fd8c0">when the creator moves: no refollowing</text>
+    <line x1="75" y1="576" x2="255" y2="576" stroke="rgba(255,255,255,.08)" stroke-width="1"/>
+    <text x="75" y="592" font-size="9" fill="#93b8f5">the fan&rsquo;s app resolves the address</text>
+    <text x="75" y="605" font-size="9" fill="#9c9fb3">on each read &mdash; the record now names</text>
+    <text x="75" y="618" font-size="9" fill="#9c9fb3">node B, and the read lands there</text>
+  </svg>
+
+  <!-- the payoff strip -->
+  <div class="payoff">
+    <div class="t">the payoff &mdash; the audience travels with the address, not with any node</div>
+    <div class="l">&bull; the follow is the fan&rsquo;s data, bound to the domain &nbsp;&middot;&nbsp; &bull; the domain is the creator&rsquo;s &mdash; a record the node cannot touch &nbsp;&middot;&nbsp; &bull; each node only verifies a record it does not own: re-point it, and the fans&rsquo; one unchanged document resolves to the new home</div>
+    <div class="c">retained DNS control + available reader home, resolver, and new provider &mdash; no private-grant or old-content migration</div>
+  </div>
+</body>
+</html>
