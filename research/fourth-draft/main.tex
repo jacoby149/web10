@@ -170,9 +170,21 @@ provider; and a measurement that found where the access layer's cost
 lives---7.64\,s to 363\,ms at 1,000 followed creators, with the
 one-group counterweight in the same trial.
 
-Figure~\ref{fig:app-arch} draws the system the paper walks through: the
-application's data layer in the browser, the thin generic node, and its
-two stores---with the messages that move between them.
+Figure~\ref{fig:app-arch} draws the system the paper walks through. The
+browser frame holds the application's surfaces and the six data-layer
+modules a bespoke API would normally carry: feed and ranking (the app's
+own queries: joins, scoring, cursors), group discovery (the social graph
+as group rows the app reads and writes), faces and avatars, media
+resolution, request orchestration (batching, dedup, optimistic writes,
+retry), and acting identity (scoped, expiring tokens---what acts as
+whom)---plus the SDK. The node frame is thin and generic:
+authentication, the read gate, the query engine, and media (signed URLs
+to object storage; the render pipeline to HLS renditions). The stores
+are drawn with their real names: ClickHouse's \texttt{documents} and
+group tables, and the object store's media keys. The messages panel
+shows the payloads that move: \texttt{sql + token} down; the compiled
+query---not the caller's string---and rows with signed URLs back; then
+the signed URL, the GET, and the bytes.
 \S\ref{sec:access} states what the node is and why the rules are the
 user's data; \S\ref{sec:store} the store at the bottom and the fork
 Solid did not take; \S\ref{sec:boundary} the query boundary;
@@ -186,23 +198,9 @@ it combines; \S\ref{sec:concl} closes.
 \begin{figure*}[t]
   \centering
   \includegraphics[width=\textwidth]{figs/fig-app-arch.png}
-  \caption{The web10-social application and its node---the data layer in the
-  browser, a generic node, and its two stores, with the messages that move
-  between them. The browser frame holds the application's surfaces and the
-  six data-layer modules a bespoke API would normally carry: feed and
-  ranking (the app's own queries: joins, scoring, cursors), group discovery
-  (the social graph as group rows the app reads and writes), faces and
-  avatars, media resolution, request orchestration (batching, dedup,
-  optimistic writes, retry), and acting identity (scoped, expiring tokens---
-  what acts as whom)---plus the SDK. The node frame is thin and generic:
-  authentication, the read gate, the query engine, and media (signed URLs
-  to object storage; the render pipeline to HLS renditions). The stores are
-  drawn with their real names: ClickHouse's \texttt{documents} and group
-  tables, and the object store's media keys. The messages panel shows the
-  payloads that move: \texttt{sql + token} down; the compiled query---not
-  the caller's string---and rows with signed URLs back; then the signed URL,
-  the GET, and the bytes. Pinned: 46,285 lines of application-local source
-  across 141 files (\S\ref{sec:extend}).}
+  \caption{The web10-social application and its node---the data layer in
+  the browser, the thin generic node, its two stores, and the messages
+  that move between them.}
   \label{fig:app-arch}
 \end{figure*}
 
@@ -317,14 +315,7 @@ resources between tenants.
   \centering
   \includegraphics[width=\textwidth]{figs/fig-composition.png}
   \caption{web10 vs Solid: where the composition happens---the same feed,
-  composed in two different places. Left: Solid's one-user-per-pod store: a
-  cross-user read pulls every pod the query touches, and a discover-type
-  query must pull the whole network, so it does not terminate at scale.
-  Right: three web10 nodes, each pooling millions of users in one shared
-  ClickHouse store; discover, trending, and ranking are ordinary queries the
-  application writes against it, each node re-checking the reader's rules on
-  every read. The strip names the win: composition---a cross-user query that
-  terminates (\S\ref{sec:boundary}, \S\ref{sec:positioning}).}
+  composed in two different places.}
   \label{fig:composition}
 \end{figure*}
 
@@ -337,7 +328,12 @@ before the caller's relational operations run. The division of labor is
 the point: the application's developer writes the query and tunes it;
 the platform guarantees the boundary, not the performance. The API
 accepts a constrained read-only SQL surface---not arbitrary database
-access---and its boundary is a \emph{wall, not a membrane}.
+access---and its boundary is a \emph{wall, not a membrane}. The social
+application's feed code builds that query over service names---
+\texttt{posts}, \texttt{reactions}, \texttt{comments},
+\texttt{profile}---and its SDK posts it with the reader's token
+(\texttt{\{sql, token\}} to \texttt{POST /v3/query}): the SDK adds no
+authority; the node decides what this reader may read.
 
 The natural design is a membrane: wrap the caller's query and filter
 the \emph{result}. It fails for one reason, and the reason is the whole
@@ -383,22 +379,9 @@ Both placements are sound; the cost of each is the matched workload
 \begin{figure*}[t]
   \centering
   \includegraphics[width=\textwidth]{figs/fig-query-engine.png}
-  \caption{Reading a social feed on web10: the entire end-to-end journey, in
-  three layers---the app, the node (the API), and the store (ClickHouse).
-  Browser side: the app's feed code builds the query over service names
-  (\texttt{posts}, \texttt{reactions}, \texttt{comments},
-  \texttt{profile}); the SDK posts \texttt{\{sql, token\}} to
-  \texttt{POST /v3/query}---it adds no authority, the node decides what this
-  reader may read. Node side: the API parses the SQL to an AST and walks
-  every table reference---rejecting raw node tables, table functions, and
-  ungranted services, and round-tripping the emitted SQL to exactly one
-  statement---then lowers each service name to a boundary CTE over the
-  engine's own tables: \texttt{documents} deduped to the latest not-deleted
-  row, joined to the current \texttt{doc\_groups} mappings, filtered to the
-  reader's readable groups (inlined from the read gate), with the exclusion
-  tables applied. The caller's string is never executed: the query that runs
-  is emitted from the validated AST, and the ClickHouse strip names every
-  real table the caller may not reach.}
+  \caption{Reading a social feed on web10: the entire end-to-end journey,
+  in three layers---the app, the node (the API), and the store
+  (ClickHouse).}
   \label{fig:query-engine}
 \end{figure*}
 
@@ -429,9 +412,7 @@ grants of \S\ref{sec:access}.
 \begin{figure*}[t]
   \centering
   \includegraphics[width=\textwidth]{figs/fig-groups.png}
-  \caption{A group---``a shared space on your node.'' Membership, roles, and
-  per-post visibility (Public / node / group) expose application choices over
-  the generic groups and grants of \S\ref{sec:access}.}
+  \caption{A group---``a shared space on your node.''}
   \label{fig:groups}
 \end{figure*}
 
@@ -470,41 +451,27 @@ Both service names resolve to reader-filtered relations before the join,
 so permission does not leak through it: an app-level grant on
 \texttt{profile} does not itself open a private profile group, and an
 ungranted service is rejected before execution. Figure~\ref{fig:interop}
-is the result in the browser; Figure~\ref{fig:platforms} is why the
-fork matters.
+is the result in the browser---direct captures with synthetic account
+and listing data; the full-page, consent, and denial captures are
+retained in the artifact (\S\ref{sec:ev-interop});
+Figure~\ref{fig:platforms} is why the fork matters.
 
 On Mastodon and Bluesky, a second application reads through the
-platform's fixed endpoints or replicates the user's records into its own
-backend: delegation is app-to-\emph{user}-data, the object model stays
-fixed, and there is no shared store to compose across---a new read
-pattern is a new backend, and the model has no record shape for a
-hi-score or a listing. Here, a second app gets a typed read on the
-first app's data and joins it in SQL on one shared columnar store: a
-new read pattern is a new query.
+platform's fixed endpoints (untunable) or replicates the user's records
+into its own database---Bluesky's own statusphere tutorial stands up a
+sync worker and a separate store just to have a feed: delegation is
+app-to-\emph{user}-data, the object model stays fixed, and there is no
+shared store to compose across---a new read pattern is a new backend,
+and the model has no record shape for a hi-score or a listing. Here, a
+second app gets a typed read on the first app's data and joins it in SQL
+on one shared columnar store, provisioned on the node---no database to
+stand up: a new read pattern is a new query.
 
 \begin{figure*}[t]
   \centering
   \includegraphics[width=\textwidth]{figs/fig-platforms.png}
   \caption{web10 vs Mastodon / Bluesky: the interoperability fork---where a
-  second app's read of the user's data lands and runs. Left: the fixed social
-  object model (post $\cdot$ profile $\cdot$ follow $\cdot$ like $\cdot$
-  boost); there is no query engine in the platform---the app reads through
-  the platform's fixed endpoints (untunable) or replicates records into its
-  own database (Bluesky's own statusphere tutorial stands up a sync worker
-  and a separate store just to have a feed)---and the model has no record
-  shape for a hi-score or a listing. Right: the web10 node, set up already:
-  the social app's services (\texttt{posts} $\cdot$ \texttt{comments} $\cdot$
-  \texttt{reactions} $\cdot$ \texttt{profile} $\cdot$ \texttt{media} $\cdot$
-  \texttt{music} $\cdot$ \texttt{groups} $\cdot$ \ldots; \texttt{profile}
-  highlighted---the one the interop grant covers) plus the new apps' own
-  (\texttt{snake\_scores} $\cdot$ \texttt{marketplace\_listings}); the API in
-  action---the query engine (\texttt{POST /v3/query}) compiles the app's
-  query against the reader's grants, then runs it---over the ClickHouse
-  columnar store, provisioned on the node, no database to stand up; a second
-  app steps in through a per-service grant the user gives, and no grant, no
-  read. The strip scores the matchup: web10---the interoperability winner
-  (an app-to-app per-service grant on one shared columnar store; a new read
-  pattern is a new query, not a new backend).}
+  second app's read of the user's data lands and runs.}
   \label{fig:platforms}
 \end{figure*}
 
@@ -520,11 +487,8 @@ new read pattern is a new query.
     \textbf{Marketplace: listing + social identity}\\[4pt]
     \includegraphics[width=\linewidth]{../interoperability-demo/figures/marketplace-identity.png}
   \end{minipage}
-  \caption{One social-written profile, two application views. Snake joins an
-  earned score to the player's profile; Marketplace joins a listing to the
-  seller's same profile. These are direct browser element captures, with
-  synthetic account and listing data. Full-page, consent, and denial
-  captures are retained in the artifact.}
+  \caption{One social-written profile, two application views: Snake's
+  earned score, Marketplace's listing.}
   \label{fig:interop}
 \end{figure*}
 
@@ -576,13 +540,8 @@ membership, against B's own store, on every read.
 \begin{figure*}[t]
   \centering
   \includegraphics[width=\textwidth]{figs/fig-feed.png}
-  \caption{Pulling the web10 feed across nodes. The reader issues reads with
-  its home-node token; when a read lands on foreign node B, B authenticates
-  the token over the issuer's HTTPS \texttt{/certify}---one cached answer per
-  token, never a grant---and then runs the same access check node A runs on
-  local reads: contracts and membership against its own store, on every read.
-  One node implementation, two sovereign stores; remote data is content,
-  never control (\S\ref{sec:network}).}
+  \caption{Pulling the web10 feed across nodes: one node implementation, two
+  sovereign stores; remote data is content, never control.}
   \label{fig:feed}
 \end{figure*}
 
@@ -621,25 +580,7 @@ Figure~\ref{fig:audience-portability} draws the move.
 \centering
 \includegraphics[width=\textwidth]{figs/fig-audience-portability.png}
 \caption{The audience travels with the domain: one influencer, two nodes,
-the DNS flip---the mechanism behind the demonstration of
-\S\ref{sec:evidence}. The fans: each follow is the fan's own data---a
-private document in the fan's store whose body is exactly the domain; one
-follow write, unchanged when the creator moves; the fan's application
-re-resolves the address on each read. The domain chip:
-\texttt{jacobhoffman.xyz}---the address the audience knows; the node and
-username are the replaceable target. The DNS card, shown in both states:
-before \texttt{provider=node-a.example}, now
-\texttt{provider=node-b.example}---one field changed. A TXT record, not an A
-or CNAME record: an identity claim, the same pattern as DKIM and SPF; the
-record lives on the creator's DNS, and the node controls no part of it. A
-missing or ambiguous record gives an explicit unavailable state---the follow
-stays, and restoring the record recovers it without refollowing. Node A
-(faded): the home the record used to name; what it stored is a copy of the
-alias. Node B (active): the verify gate---the node does the DNS lookup
-itself, the record must name this node and this account, discovery not
-authentication; the content is served under the same address, and the fans'
-unchanged documents now resolve here. One DNS change, not a migration
-(\S\ref{sec:network}).}
+the DNS flip---one DNS change, not a migration.}
 \label{fig:audience-portability}
 \end{figure*}
 
@@ -683,68 +624,40 @@ lowering their rates. The horizon is a separate layer, not this system's
 claim: an ad exchange, a payments rail, and the creator's own layout sit
 ahead of it.
 
-The market the rail makes is Figure~\ref{fig:node-market}. Because the
-follow is the fan's own data, bound to the domain
-(\S\ref{sec:network}), an influencer changing nodes is a rematch, not a
-loss. Because the overlay density is node-controlled, the market between
-influencers and nodes is a matching market on \emph{terms}---price, bans,
-overlay, moderation style, with the self-hosted floor as the outside
-option that keeps the prices honest. The three rents the paved platforms
-hold over the creator---reach throttling, demonetization,
-deplatforming; today's rent measured at one million subscribers, three
-hundred thousand delivered---are structurally out. The competition is on
-terms, not on leverage.
+The market the rail makes is Figure~\ref{fig:node-market}: a 6 $\times$ 6
+matching market, six nodes pricing their own terms against six
+influencers carrying their own market properties. The nodes: one bans the
+least, at the higher price; one is a certain political match; one is the
+lowest price with the heavy overlay; one cuts the overlay to 5\%; one is
+community-governed moderation; and the self-hosted floor---free, never
+gated---the outside option that keeps the prices honest. The edges carry
+the dynamics: an influencer flips when the preference changes, flips when
+the node \emph{acts}, shops the terms fit---and a node loses two of its
+three when price alone does not hold the audience. Because the follow is
+the fan's own data, bound to the domain (\S\ref{sec:network}), an
+influencer changing nodes is a rematch, not a loss. Because the overlay
+density is node-controlled, the market between influencers and nodes is a
+matching market on \emph{terms}---price, bans, overlay, moderation
+style. The three rents the paved platforms hold over the
+creator---reach throttling, demonetization, deplatforming; today's rent
+measured at one million subscribers, three hundred thousand
+delivered---are structurally out. The competition is on terms, not on
+leverage.
 
 \begin{figure*}[t]
   \centering
   \includegraphics[width=\textwidth]{figs/fig-monetization.png}
-  \caption{How money flows on web10---the ad rail. Top: every application
-  that writes into the store inherits the rail---web10-social builds the
-  catalog today; the snake game and the marketplace inherit it (a new ad
-  surface is a new query, not a new backend). Middle: the node's rail---the
-  boundary attaches the ads, checked the same way every other read is
-  checked, with the density split explicit: the creator's layer dense
-  (the influencer's own offers on roughly 80--90\% of their content) and the
-  node's layer sparse (the operator's overlay on roughly 5--10\% of posts,
-  node-controlled, default 10, deterministic per reader); both can be
-  present on the same post, and the node's overlay never steals the
-  creator's monetization. The inventory is tagged documents plus the offer
-  object---kind, the link that pays, call to action, disclosure---never
-  rewritten, never cloaked. Bottom: the money, off-platform---the creator
-  keeps 100\% of affiliate and sponsor revenue (no cut of ad revenue, no
-  payment processed); the node operator is a media company who sells the
-  attention directly and keeps roughly 85--90\%, and nodes compete for the
-  influencers by lowering their rates. The separate layer names the horizon
-  (the exchange, the payments rail, the creator's own layout)---not this
-  system's claim. The amber strip: Solid / Mastodon / Bluesky ship no ad
-  mechanism---a documented design property; web10's answer: the free web
-  should have ads.}
+  \caption{How money flows on web10: the ad rail---the creator keeps
+  100\% of their monetization, the node operator is a media company, the
+  platform takes no cut.}
   \label{fig:monetization}
 \end{figure*}
 
 \begin{figure*}[t]
   \centering
   \includegraphics[width=\textwidth]{figs/fig-node-market.png}
-  \caption{The competitive node economy: a matching graph, 6 $\times$ 6. Six
-  influencers (left, neutral) matched against six nodes (right, green), each
-  vertex carrying the market properties that decide the pick. The nodes
-  price their own terms: A bans the least, the higher price $\cdot$ B a
-  certain political match, mid price $\cdot$ C the lowest price, the heavy
-  overlay $\cdot$ D the overlay cut to 5\%, mid price $\cdot$ E
-  community-governed moderation, mid price $\cdot$ F the self-hosted floor---
-  free, never gated, the isolated outside option that keeps the market's
-  prices honest. The influencers carry their own properties (biggest
-  audience / delivery-first $\cdot$ price-first $\cdot$ audience shifted
-  political $\cdot$ the shopper $\cdot$ growing, was price-first $\cdot$ the
-  community audience) with the fan dots by each: the follow is the fan's own
-  data, bound to the domain---a flip is a rematch, not a loss. The edges
-  carry the dynamics: the stable matches; two flips---one because the
-  preference changed, one because the node acted; the shopping leg; and node
-  C losing two of its three, because price alone does not hold the audience.
-  The amber strip: the three rents the paved platforms hold over the
-  creator---reach throttling, demonetization, deplatforming---structurally
-  out; so the competition is on terms, not on leverage
-  (\S\ref{sec:money}).}
+  \caption{The competitive node economy: a 6 $\times$ 6 matching
+  market---the competition is on terms, not on leverage.}
   \label{fig:node-market}
 \end{figure*}
 
@@ -1005,15 +918,8 @@ same qualitative tradeoff and is not pooled with this trial.
   \centering
   \includegraphics[width=\textwidth]{figs/fig-k1000-curve.png}
   \caption{Where the access layer's cost lives: readable-group resolution
-  time versus the number of candidate groups $K$ (log-log), the trial of
-  \S\ref{sec:ev-fanout}. The per-group resolver (amber) grows $\times$100.44
-  over $K = 10 \rightarrow 1{,}000$ and reaches 7.64\,s at $K = 1{,}000$;
-  the batched resolver (green) grows $\times$9.12 and sits at 214\,ms
-  readable (363\,ms handler). $K = 1$ is the discover board---one candidate
-  group, an open marker on the dashed leg---where the per-group path is
-  faster, because three fixed round trips dominate. The knee is the tradeoff;
-  the batched resolver is the design decision the measurement drove
-  (\S\ref{sec:ev-fanout}).}
+  time versus the number of candidate groups $K$ (log-log)---the trial of
+  \S\ref{sec:ev-fanout}.}
   \label{fig:k1000-curve}
 \end{figure*}
 

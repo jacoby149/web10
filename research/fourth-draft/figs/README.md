@@ -26,8 +26,10 @@ The interop captures are referenced from `main.tex` as
    `capture.mjs` renders the body at its natural size, @2x. Default output
    is `figs/<name>.png`.
 3. Commit `figs/<name>.html` + `figs/<name>.png`, and wire into
-   `main.tex`: `\includegraphics` + a caption that describes *this* figure +
-   at least one `\ref` in the body.
+   `main.tex`: `\includegraphics` + a SHORT caption (it names the figure —
+   the explanation is the body's job at the `\ref`, per the 4.10.42 call:
+   "the figures should just have a short caption") + the body paragraph at
+   the introduction that explains the figure.
 
 ## Rules
 

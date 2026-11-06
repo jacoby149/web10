@@ -11,6 +11,58 @@ review)**. `research/first-draft/`, `research/second-draft/`, and
 
 ## 06.11.2026
 
+### The captions round: the figures get short captions — the explanation is the body's job
+
+- **(operator)** "this is much much better, another issue though is the
+  figures have these monster paragraph captions, that should be the
+  writing in the paper to explain the figures, the figures should just
+  have a short caption"
+- **(agent)** All 11 captions shortened to the figure's name + one
+  clause: 1 app-arch "…the data layer in the browser, the thin generic
+  node, its two stores, and the messages that move between them" · 2
+  composition "…the same feed, composed in two different places" · 3
+  query-engine "…the entire end-to-end journey, in three layers---the
+  app, the node (the API), and the store (ClickHouse)" · 4 groups
+  "A group---'a shared space on your node.'" · 5 platforms "…the
+  interoperability fork---where a second app's read of the user's data
+  lands and runs" · 6 interop "One social-written profile, two
+  application views: Snake's earned score, Marketplace's listing" · 7
+  feed "…one node implementation, two sovereign stores; remote data is
+  content, never control" · 8 audience-portability "…the DNS
+  flip---one DNS change, not a migration" · 9 monetization "…the
+  creator keeps 100% of their monetization, the node operator is a
+  media company, the platform takes no cut" · 10 node-market "…a 6×6
+  matching market---the competition is on terms, not on leverage" · 11
+  k1000-curve "…readable-group resolution time versus the number of
+  candidate groups K (log-log)---the trial of §9.4".
+- **(agent)** The content the captions uniquely carried moved into the
+  body at the figure's introduction (the rule: a caption is never the
+  only home of a claim): §1's Figure-1 paragraph now carries the six
+  data-layer modules, the node frame's parts, the stores' real names,
+  and the message payloads (from the app-arch caption) · §4's lede
+  gains "the feed code builds that query over service names… the SDK
+  posts it with the reader's token ({sql, token} to POST /v3/query):
+  the SDK adds no authority" (from the query-engine caption) · §5's
+  fork paragraph gains the statusphere clause + "provisioned on the
+  node---no database to stand up" (from the platforms caption), and the
+  Figure-6 reference gains the capture bookkeeping (direct browser
+  captures, synthetic data, the full-page/consent/denial captures in
+  the artifact) (from the interop caption) · §7's market paragraph now
+  carries the 6×6 detail (the six nodes' terms, the flip dynamics, the
+  self-hosted floor) (from the node-market caption). The
+  composition/feed/audience-portability/monetization/k1000 captions
+  were pure duplication of body text — cut, nothing moved.
+- **(agent)** The rule ratchets into the theory: voice.md rule 8 is now
+  "the caption is SHORT — it names the figure, it does not explain
+  it; the explanation is the body's job at the introduction; a
+  monster paragraph caption is a review failure" · the shared figure
+  rules in `research/second-draft/kb/diagrams.md` ("The rules") gain
+  the same · the fourth-draft `figs/README.md` wiring step says the
+  short caption + the body paragraph that explains the figure.
+- **(agent)** Tectonic: 15 pages, no overfull hbox, no undefined
+  references, all 11 figures placed (the recorded 2.2pt vbox on the
+  lessons page stands).
+
 ### The fourth draft: a clean start from shot 0 + the figures — the email door is out, the entry is the stakes
 
 - **(operator)** "this has issues, it comes in hot with email when no

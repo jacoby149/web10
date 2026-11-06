@@ -19,10 +19,18 @@ why it is visually nice, and what it may not assert.
   per the 4.5.4 cleanup).
 - **Referenced or it doesn't exist:** every figure has at least one
   `\ref` in the body.
-- **Caption describes the figure it sits under** — not a previous
-  version of the figure, not the section's topic in general. (The
-  fig:feed caption described ranking tabs that were never in the
-  figure; that class of bug is now a review failure.)
+- **The caption is short — it names the figure, it does not explain
+  it.** The figure's explanation is the body's job, at the figure's
+  introduction (\ref) — a caption that explains the mechanism is a
+  caption doing the body's work, and a caption carrying content the
+  body never states is a claim with no home (operator, 06.11.2026:
+  "the figures have these monster paragraph captions, that should be
+  the writing in the paper to explain the figures, the figures should
+  just have a short caption" — 4.10.42). The short caption still
+  describes the figure it sits under — not a previous version of the
+  figure, not the section's topic in general. (The fig:feed caption
+  described ranking tabs that were never in the figure; that class of
+  bug is now a review failure.)
 - **Diagrams are HTML source → 2x PNG** (`figs/README.md`); UI
   screenshots stay PNG-only app captures. **Performance curves are a
   committed matplotlib script → 2x PNG** (`figs/fig-k1000-curve.py`,
