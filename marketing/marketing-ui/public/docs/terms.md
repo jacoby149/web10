@@ -37,7 +37,15 @@ of a decade of aggressive telemetry. The recording is **content-blind by
 construction** (text blurred, images blocked), and GA4 events are
 content-free by convention. **Content is never tracked** — posts, messages,
 media are not in the recordings, not in the events, not sold, and not fed to
-any ad machine. The only sponsors a fan sees are the creator's.
+any ad machine. The only sponsors a fan sees are the creator's and the node's.
+
+## Server ads
+
+While your media is hosted on this node, the node may show its own ads
+alongside it. It reserves that right only while your content is here. You
+can remove your media at any time, and when you do, the node loses the right
+to run ads against it. Nothing here gives the node any rights to your posts
+themselves — your data is yours, as above.
 
 ## Copyright & DMCA
 
@@ -45,7 +53,7 @@ If you believe content on a web10 node infringes your copyright, you can get
 it taken down. web10 follows the **"Post-It Note" rule**: a simple, fast,
 human takedown path.
 
-1. **Email our designated agent** at **`copyright@web10.com`**.
+1. **Email our designated agent** at **`jacob@web10.app`**.
 2. Include a **link to the specific content**, your name, how to reach you,
    and a statement that you are the rights holder (or authorized to act on
    their behalf).
@@ -63,7 +71,7 @@ address above is for the web10 reference node and web10-social.
 
 No shadow bans. No demonetization. No terms-of-service massacre waiting to
 happen. Your audience is your list, your data is your data, and the only
-sponsors you see are the creator's. The landlord owns the building service,
+sponsors you see are the creator's and the node's. The landlord owns the building service,
 never the software — and never your data.
 
 ---
