@@ -2,6 +2,22 @@
 
 **Author:** Jacob Hoffman, web10 Inc.
 
+**Current manuscript (6 November 2026):**
+[`fifth-draft/main.pdf`](fifth-draft/main.pdf), source
+[`fifth-draft/main.tex`](fifth-draft/main.tex). Stakes-first explanation of
+user-managed access and application-defined computation on the node's
+shared columnar store. The original figure set is retained except that
+the combined Mastodon/Bluesky comparison is replaced by two separately
+drawn figures (12 total); drafts one through four remain manuscript
+records. AT Protocol's custom
+records, reuse and granular permissions are acknowledged: the comparison
+is hosted authorized composition versus application-owned indexing/query
+infrastructure. Cross-node correctness, public-domain prototype, deployed
+social behavior and hypothetical market incentives stay distinct.
+See [`fifth-draft/OUTLINE.md`](fifth-draft/OUTLINE.md) and
+[`fifth-draft/DECISIONS.md`](fifth-draft/DECISIONS.md). Historical framing
+notes below describe earlier drafts; they do not override this manuscript.
+
 **Target:** SIGMOD 2027 industry track
 
 **Status:** title "Your Data, Your Rules: Extending the Decentralized Web."

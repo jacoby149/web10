@@ -7,6 +7,73 @@ why it is visually nice, and what it may not assert.
 
 ## The rules
 
+### Current comparison correction — fifth draft, 6 November 2026
+
+The fifth-draft working set replaces the combined Mastodon/Bluesky
+figure with two separate comparisons. This section supersedes the old
+"fixed AT object model", "no cross-app reuse", and unconditional
+"interoperability winner" descriptions below; historical manuscript
+assets stay intact. AT has custom Lexicons and granular delegation;
+Mastodon's stock REST interface is not the limit of ActivityPub.
+
+- **`fig-mastodon`: web10 vs Mastodon — the application-data boundary.**
+  What: the same social client, game and marketplace on both sides.
+  One illustrative stock-Mastodon integration reads profiles from the
+  social API and combines them with app-owned score/listing data.
+  web10 stores the three services under the node's generic interfaces.
+  Why this shape: visually separate the stock social-server boundary
+  from the application-data boundary, rather than pretending extra apps
+  cannot exist. Why visually nice: matched application rows, explicit
+  system frames, a named profile-read arrow and the same web10 query/store
+  stack as the AT figure. Verdict: a generic backend for all three
+  application services, not just a reusable social API. Do not claim
+  ActivityPub forbids extensions, Mastodon cannot expose profiles, that
+  each app requires a separate physical database, or measured superiority.
+- **`fig-atproto`: web10 vs Bluesky / AT Protocol — the query-service boundary.**
+  What: the same social/game/marketplace apps write distinct record types
+  into user repositories; a public cross-user view synchronizes records
+  into an application-owned query service. Contrast with the same services
+  and computation in the web10 node. The AT path is an illustrative
+  Statusphere-style indexed view, not the only AT read path; direct reads,
+  existing AppViews and shared services remain possible. Why this shape:
+  identical app rows and a real indexed-copy/query box show that both
+  support the use case but locate computation differently. Why visually
+  nice: a visible synchronization hop versus the node's existing store,
+  matched outputs, restrained prose and a named advantage. Verdict:
+  hosted authorized composition without a separate application-owned index
+  for this workload. No false lack-of-extensibility/permissions/reuse claim,
+  no claim that every new query needs a fresh backend, and no performance
+  or node-count comparison. **Peel-the-layers revision:** "AppView" is
+  not an explanatory primitive. Open the app-owned frame into record
+  synchronization/webhook handling, a queryable database copy and
+  request-serving application code. Define the term only after showing
+  those responsibilities. Pin Statusphere source: revision
+  `dbb97738caa965c4b04efd281bfa1d2fbe4fffb3`, `lib/db/index.ts`
+  (SQLite), `app/api/webhook/route.ts` (apply events), `lib/db/queries.ts`
+  (upserts/deletes/joins), `app/page.tsx` (query and render). These are
+  responsibilities, not a claim of three physical servers. Scores and
+  listings remain the illustrative workload, not a claim that the status
+  tutorial implements a marketplace. **Design-choice revision:** make the
+  fork visible: reuse an existing AppView if its data/API fit, otherwise
+  design and build a custom read backend. The reuse route bypasses the
+  custom responsibilities. On the custom branch, the storage schema is
+  a choice (one generic JSON table, separate typed tables, keys/indexes,
+  update strategy), not a predetermined three-step recipe. Contrast with
+  web10's pre-existing `documents` content table and service-named JSON
+  bodies; groups/grants use separate node tables. JSON conventions and
+  queries still belong to the app developer on web10. Do not imply that
+  AT repositories themselves are non-extensible, or that hiring an
+  architect is a protocol requirement. No MongoDB comparison is needed.
+
+The Mastodon figure uses a 1440×900 canvas; the peeled AT figure gets
+1440×1200 so its explicit fork and schema choices remain readable. Both use full-width
+2x rasters and short captions. Text and figures describe the same specific scenario. Sources:
+Mastodon REST introduction and accounts/get documentation; AT Statusphere
+tutorial parts 1/2/4/5 and Permissions spec; web10's connected interop
+record. Dark semantic design is retained with canonical design tokens.
+
+### General figure rules
+
 - **Accuracy invariant:** a figure asserts only what the paper body or
   the knowledge base already asserts. A figure that adds a claim is a
   new claim that needs evidence.
@@ -38,21 +105,15 @@ why it is visually nice, and what it may not assert.
   source, and curves plot only numbers the body already asserts).
 - **The same mechanism is drawn identically in every figure.** The
   reader learns the visual vocabulary once.
-- **Comparison figures carry the verdict.** The two VS figures (Figures
-  8 and 9) are scored comparisons, not neutral forks: the title names the
-  matchup ("web10 vs Solid" · "web10 vs Mastodon / Bluesky"), a VS badge
-  sits between the panels' verdict strips, and the bottom strip names what
-  web10 beat on and why — Figure 8: *composition* (a cross-user query that
-  terminates: one shared store per node, millions of users); Figure 9:
-  *interoperability* (an app-to-app per-service grant on one shared
-  columnar store). The verdict line is not a new claim — both are already
-  asserted by the panels (shot-0 beat 10; the 4.10.27 app-to-app vs.
-  app-to-user-data re-anchor); the strip scores, it doesn't argue. This
-  supersedes the earlier "no verdict line: the comparison lives in the
-  caption" note (operator's call, 05.11.2026: "make clear in these
-  diagrams these are VS. versus diagrams, and what we got them beat on").
-  The mechanism figures (A/B) get no verdict strip — a how-it-works
-  figure that carries a verdict turns pitchy.
+- **Comparison figures carry a capability-specific verdict.** The title
+  names the matchup, a VS badge separates the panels' strips, and the
+  strip names the supported advantage. Hold the use case constant on
+  both sides. Do not obtain a win by hiding the opponent's extensibility,
+  reuse, indexing alternatives or authorization, or by treating design
+  capacity as measured scale. The mechanism must support the verdict
+  without a contradictory fine-print correction. The current separate
+  Mastodon and AT comparisons are specified above. Mechanism figures
+  need no verdict strip: show how the mechanism works.
 
 ## The design language (why it looks the way it does)
 

@@ -1,0 +1,150 @@
+/* Canonical palette: knowledge-base/strategy/design.md §13.
+   Fixed print canvas; the two comparison sources share their visual grammar. */
+:root {
+  --color-background: #09090b;
+  --color-surface: #111113;
+  --color-elevated: #18181b;
+  --color-border: #27272a;
+  --color-foreground: #fafafa;
+  --color-muted-foreground: #a1a1aa;
+  --color-brand: #8b5cf6;
+  --color-brand-300: #c4b5fd;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --font-sans: 'Inter Variable', 'Inter', -apple-system, 'Helvetica Neue', sans-serif;
+  --font-display: 'Space Grotesk Variable', var(--font-sans);
+  --font-mono: 'JetBrains Mono Variable', 'SF Mono', Menlo, monospace;
+  --radius: 12px;
+}
+* { box-sizing: border-box; margin: 0; }
+html, body { background: var(--color-background); }
+body { width: 1440px; height: 900px; position: relative; overflow: hidden;
+  font-family: var(--font-sans); color: var(--color-foreground);
+  -webkit-font-smoothing: antialiased; }
+h1 { position: absolute; top: 32px; width: 100%; text-align: center;
+  font: 700 30px/1.2 var(--font-display); }
+.subtitle { position: absolute; top: 80px; width: 100%; text-align: center;
+  font-size: 16px; color: var(--color-muted-foreground); }
+.panel { position: absolute; top: 128px; width: 648px; height: 640px;
+  border: 1px solid var(--color-border); border-radius: 16px;
+  background: var(--color-surface); }
+.left { left: 48px; }
+.right { left: 744px; border-color: var(--color-success); }
+.panel-heading { position: absolute; left: 24px; top: 24px;
+  font-size: 17px; font-weight: 600; }
+.right .panel-heading { color: var(--color-success); }
+.app-row { position: absolute; left: 24px; right: 24px; top: 72px;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.app { height: 64px; border: 1px solid var(--color-muted-foreground);
+  border-radius: var(--radius); background: var(--color-elevated);
+  display: flex; flex-direction: column; justify-content: center;
+  text-align: center; gap: 8px; }
+.app strong { font-size: 16px; font-weight: 600; }
+.app span { font-size: 13px; color: var(--color-muted-foreground); }
+.box { position: absolute; border: 1px solid var(--color-border);
+  border-radius: var(--radius); background: var(--color-elevated);
+  padding: 16px; }
+.box h2 { font-size: 17px; font-weight: 600; line-height: 1.3; }
+.box p { margin-top: 8px; font-size: 15px; line-height: 1.45;
+  color: var(--color-muted-foreground); }
+.box .tiny { font-size: 13px; }
+.records { left: 24px; right: 24px; top: 184px; height: 88px; }
+.records h2 { font-size: 16px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+code, .chip { font-family: var(--font-mono); font-size: 13px; }
+.chip { display: inline-block; padding: 4px 8px; border-radius: 8px;
+  border: 1px solid var(--color-border); color: var(--color-foreground); }
+.chip.profile { border-color: var(--color-brand); color: var(--color-brand-300); }
+.sync { left: 128px; width: 392px; top: 312px; height: 48px;
+  padding: 12px 16px; text-align: center; font-size: 16px;
+  border-style: dashed; }
+.read-service { left: 24px; right: 24px; top: 392px; height: 128px; }
+.read-service h2 { color: var(--color-warning); }
+.node { left: 24px; right: 24px; top: 184px; height: 336px;
+  border-color: var(--color-success); }
+.node > h2 { color: var(--color-success); }
+.node .chips { margin-top: 16px; }
+.query, .engine { position: absolute; left: 16px; right: 16px;
+  padding: 12px 16px; border: 1px solid var(--color-brand);
+  border-radius: var(--radius); }
+.query { top: 136px; height: 72px; }
+.query h3 { font-size: 17px; color: var(--color-brand-300); font-weight: 600; }
+.query p, .engine p { margin-top: 8px; font-size: 14px; }
+.engine { top: 232px; height: 72px; border-color: var(--color-success); }
+.engine h3 { font-size: 17px; font-weight: 600; }
+.result { left: 24px; right: 24px; top: 552px; height: 56px;
+  padding: 16px; text-align: center; font-size: 15px;
+  border-color: var(--color-muted-foreground); }
+.scope { position: absolute; top: 784px; left: 48px; right: 48px;
+  font-size: 13px; text-align: center; color: var(--color-muted-foreground); }
+.verdict { position: absolute; top: 812px; width: 648px; height: 48px;
+  border: 1px solid var(--color-border); border-radius: var(--radius);
+  padding: 8px 16px; background: var(--color-surface); }
+.verdict strong { font-size: 14px; font-weight: 600; }
+.verdict span { display: block; margin-top: 4px; font-size: 13px;
+  color: var(--color-muted-foreground); }
+.verdict.right { border-color: var(--color-success); }
+.verdict.right strong { color: var(--color-success); }
+.vs { position: absolute; left: 704px; top: 824px; width: 32px;
+  font-size: 14px; text-align: center; color: var(--color-muted-foreground); }
+.wires { position: absolute; inset: 0; width: 1440px; height: 900px;
+  pointer-events: none; overflow: visible; }
+.wires path.flow { fill: none; stroke: var(--color-muted-foreground);
+  stroke-width: 1.5; marker-end: url(#arrow); }
+.wires path.remote { stroke-dasharray: 6 4; }
+.wires path.authorized { stroke: var(--color-brand-300); }
+.social-server { left: 24px; top: 184px; width: 208px; height: 248px; }
+.application-data { left: 256px; right: 24px; top: 184px; height: 248px; }
+.social-server code { display: block; margin-top: 16px; line-height: 1.6; }
+.application-data .compose { margin-top: 24px; padding-top: 16px;
+  border-top: 1px solid var(--color-border); color: var(--color-warning); }
+.left-note { position: absolute; left: 24px; right: 24px; top: 456px;
+  font-size: 14px; line-height: 1.5; color: var(--color-muted-foreground); }
+
+/* AT-only detail canvas: show the work hidden inside the old AppView box.
+   Mastodon's approved layout is unchanged. */
+body.atproto-detail { height: 1200px; }
+.atproto-detail .panel { height: 944px; }
+.atproto-detail .wires { height: 1200px; }
+.atproto-detail .records { height: 88px; }
+.atproto-detail .records .chips { margin-top: 8px; }
+.atproto-detail .decision-label { position: absolute; left: 40px; top: 288px;
+  font-size: 14px; color: var(--color-muted-foreground); }
+.atproto-detail .choice { top: 320px; height: 80px; padding: 12px 16px; }
+.atproto-detail .choice h3 { font-size: 17px; font-weight: 600; }
+.atproto-detail .choice p { font-size: 14px; line-height: 1.4; }
+.atproto-detail .choice.reuse { left: 24px; width: 256px; }
+.atproto-detail .choice.build { left: 304px; right: 24px;
+  border-color: var(--color-warning); }
+.atproto-detail .choice.build h3 { color: var(--color-warning); }
+.atproto-detail .backend { left: 24px; right: 24px; top: 424px;
+  height: 408px; border-color: var(--color-warning); }
+.atproto-detail .backend > h2 { font-size: 16px; color: var(--color-warning); }
+.atproto-detail .backend .step { left: 16px; right: 16px; height: 96px;
+  padding: 12px 16px; }
+.atproto-detail .step h3 { font-size: 17px; font-weight: 600; }
+.atproto-detail .step p { font-size: 15px; line-height: 1.4; }
+.atproto-detail .step.ingest { top: 56px; }
+.atproto-detail .step.database { top: 168px; }
+.atproto-detail .step.server { top: 280px; height: 104px; }
+.atproto-detail .node { height: 648px; }
+.atproto-detail .node .storage-model { position: absolute; top: 96px;
+  left: 16px; right: 16px; height: 80px; padding: 12px 16px;
+  border: 1px solid var(--color-success); border-radius: var(--radius); }
+.atproto-detail .storage-model h3 { font-size: 17px; font-weight: 600; }
+.atproto-detail .storage-model code { display: block; margin-top: 12px; }
+.atproto-detail .node .app-design { position: absolute; top: 200px;
+  left: 16px; right: 16px; height: 80px; padding: 12px 16px;
+  border: 1px solid var(--color-border); border-radius: var(--radius); }
+.atproto-detail .app-design h3 { font-size: 17px; font-weight: 600; }
+.atproto-detail .app-design p { font-size: 15px; line-height: 1.4; }
+.atproto-detail .node .query { top: 296px; height: 128px; }
+.atproto-detail .node .query code { display: block; margin-top: 12px;
+  line-height: 1.5; color: var(--color-brand-300); }
+.atproto-detail .node .engine { top: 448px; height: 112px; }
+.atproto-detail .node .provided { position: absolute; top: 584px;
+  left: 16px; right: 16px; margin: 0; font-size: 15px; line-height: 1.4; }
+.atproto-detail .result { top: 864px; }
+.atproto-detail .scope { top: 1088px; }
+.atproto-detail .verdict { top: 1112px; }
+.atproto-detail .vs { top: 1124px; }

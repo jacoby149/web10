@@ -1,0 +1,109 @@
+<!doctype html>
+<!-- AT comparison, peeled into operational responsibilities.
+     Source: Statusphere dbb97738caa965c4b04efd281bfa1d2fbe4fffb3:
+     lib/db/index.ts (SQLite), app/api/webhook/route.ts (apply changes),
+     lib/db/queries.ts (copy maintenance and joins), app/page.tsx (serve).
+     Same public leaderboard/listing workload on both sides; those apps
+     are illustrative, not implemented by the Statusphere tutorial.
+     Responsibilities may share processes/hosts. Direct reads, existing
+     AppViews and shared indexes are alternatives, not missing capabilities. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>web10 vs Bluesky / AT Protocol — what the app builds and runs</title>
+  <link rel="stylesheet" href="comparison.css">
+</head>
+<body class="atproto-detail">
+  <h1>web10 vs Bluesky / AT Protocol</h1>
+  <p class="subtitle">The same cross-user join — what does the app build and run, and what is already supplied?</p>
+
+  <section class="panel left" aria-label="Inside an AT application read backend">
+    <h2 class="panel-heading">AT PROTOCOL — reuse a read backend, or design your own</h2>
+    <div class="app-row">
+      <div class="app"><strong>Social app</strong><span>profiles + posts</span></div>
+      <div class="app"><strong>Game</strong><span>custom score records</span></div>
+      <div class="app"><strong>Marketplace</strong><span>custom listing records</span></div>
+    </div>
+    <div class="box records">
+      <h2>Users’ storage hosts — Personal Data Servers (PDS)</h2>
+      <div class="chips"><span class="chip profile">profile</span><span class="chip">custom score</span><span class="chip">custom listing</span></div>
+    </div>
+    <p class="decision-label">Who supplies the read?</p>
+    <div class="box choice reuse" data-appview-path="reuse">
+      <h3>Reuse an AppView</h3>
+      <p>If its data and API fit.</p>
+    </div>
+    <div class="box choice build" data-appview-path="build">
+      <h3>Design + build your own</h3>
+      <p>Choose data, schema, queries and API.</p>
+    </div>
+    <div class="box backend">
+      <h2>The custom branch: you design, build and operate this backend</h2>
+      <div class="box step ingest" data-responsibility="ingestion">
+        <h3>1. Design the record-ingestion path</h3>
+        <p>Choose records; handle creates, updates and deletes.<br>Tap can deliver changes to a webhook you implement.</p>
+      </div>
+      <div class="box step database" data-responsibility="database">
+        <h3>2. Design the queryable storage model</h3>
+        <p>Choose an engine; one JSON table or separate typed tables?<br>Design keys, indexes and how record changes update the copy.</p>
+      </div>
+      <div class="box step server" data-responsibility="serving">
+        <h3>3. Design the queries and read interface</h3>
+        <p>Choose joins, ranking and response shape; implement server code.<br>Statusphere’s Next.js code queries the copy and renders a page.</p>
+      </div>
+    </div>
+    <div class="box result">Leaderboard + profiles · listings + seller identities</div>
+  </section>
+
+  <section class="panel right" aria-label="web10 supplied query and storage infrastructure">
+    <h2 class="panel-heading">WEB10 — write the app and query; reuse the node backend</h2>
+    <div class="app-row">
+      <div class="app"><strong>Social app</strong><span>profiles + posts</span></div>
+      <div class="app"><strong>Game</strong><span>score documents</span></div>
+      <div class="app"><strong>Marketplace</strong><span>listing documents</span></div>
+    </div>
+    <div class="box node">
+      <h2>Already running on the node: query API + shared store</h2>
+      <div class="chips"><span class="chip profile">profile</span><span class="chip">snake_scores</span><span class="chip">marketplace_listings</span></div>
+      <div class="storage-model" data-storage-model="shared-documents">
+        <h3>One content table: documents</h3>
+        <code>author_key · doc_id · collection_name · body (JSON)</code>
+      </div>
+      <div class="app-design">
+        <h3>You design JSON bodies and application queries</h3>
+        <p>Fields, joins and ranking remain application choices.</p>
+      </div>
+      <div class="query">
+        <h3>Send your query and token to the node</h3>
+        <p>The API resolves services to what this reader may read.</p>
+        <code>SELECT … FROM snake_scores<br>LEFT JOIN profile …</code>
+      </div>
+      <div class="engine">
+        <h3>ClickHouse joins the hosted documents</h3>
+        <p>The node executes the query and returns the rows.<br>Its documents are the source data, not your app’s second copy.</p>
+      </div>
+      <p class="provided">For this join: no app-owned sync worker, copied tables or read server.<br>Group and grant metadata use separate node-managed tables.</p>
+    </div>
+    <div class="box result">Leaderboard + profiles · listings + seller identities</div>
+  </section>
+
+  <svg class="wires" viewBox="0 0 1440 1200" aria-hidden="true">
+    <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="var(--color-muted-foreground)"/></marker></defs>
+    <path class="flow" d="M168 264 V304"/><path class="flow" d="M372 264 V304"/><path class="flow" d="M576 264 V304"/>
+    <path class="flow remote" d="M372 400 V440 H200 V444"/>
+    <path class="flow remote" d="M372 440 H512 V444"/>
+    <path class="flow remote" d="M72 488 H56 V1020 H64"/>
+    <path class="flow" d="M512 528 V544"/>
+    <path class="flow" d="M372 704 V712"/>
+    <path class="flow" d="M372 816 V824"/>
+    <path class="flow" d="M372 936 V984"/>
+    <path class="flow" d="M864 264 V304"/><path class="flow" d="M1068 264 V304"/><path class="flow" d="M1272 264 V304"/>
+    <path class="flow authorized" d="M1068 736 V752"/>
+    <path class="flow" d="M1068 960 V984"/>
+  </svg>
+  <p class="scope">Illustrative public join. Direct reads and shared services are alternatives; the custom branch shows responsibilities, not three required servers.</p>
+  <div class="verdict left"><strong>AT PROTOCOL — REUSE A FITTING APPVIEW, OR DESIGN YOUR OWN</strong><span>The custom branch owns ingestion, storage schema, queries and serving.</span></div>
+  <span class="vs">VS</span>
+  <div class="verdict right"><strong>WEB10 — THE NODE ALREADY SUPPLIES THAT SERVICE</strong><span>Your supported join runs against hosted data under the reader’s grants.</span></div>
+</body>
+</html>

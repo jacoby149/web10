@@ -10,9 +10,13 @@
   decision is open (`rebuild.md`).
 - **The frontend:** 46,285 physical source lines across 141 files,
   pinned to artifact revision `317fa349`.
-- **K1000 fan-out:** median readable 7.64 s unbatched → 363 ms batched,
-  at 1,000 candidate groups; the one-group counterweight in the same
-  table.
+- **K1000 fan-out:** median **handler** 7,644.655 ms unbatched →
+  363.305 ms batched (7.64 s → 363 ms). Median **readable resolution**
+  7,535.705 ms → 213.980 ms (7.54 s → 214 ms), at 1,000 candidate
+  groups. Do not mix phases. Source: `research/experiments/costfn/K1000-RESULTS.md`.
+  The one-group counterweight is 9.525 ms per-group vs 25.370 ms batched
+  readable time. Retained per-cell receipts are summaries, not a complete
+  raw-sample archive.
 - **Evidence inventory.** Verified: conformance/permission matrix
   (attacks replayed and denied), connected interop (browser consent),
   two-node IAM (clean merged-dev, H-REPLAY receipt), domain prototype
