@@ -2,21 +2,22 @@
 
 **Author:** Jacob Hoffman, web10 Inc.
 
-**Current manuscript (6 November 2026):**
-[`fifth-draft/main.pdf`](fifth-draft/main.pdf), source
-[`fifth-draft/main.tex`](fifth-draft/main.tex). Stakes-first explanation of
-user-managed access and application-defined computation on the node's
-shared columnar store. The original figure set is retained except that
-the combined Mastodon/Bluesky comparison is replaced by two separately
-drawn figures (12 total); drafts one through four remain manuscript
-records. AT Protocol's custom
-records, reuse and granular permissions are acknowledged: the comparison
-is hosted authorized composition versus application-owned indexing/query
-infrastructure. Cross-node correctness, public-domain prototype, deployed
-social behavior and hypothetical market incentives stay distinct.
-See [`fifth-draft/OUTLINE.md`](fifth-draft/OUTLINE.md) and
-[`fifth-draft/DECISIONS.md`](fifth-draft/DECISIONS.md). Historical framing
-notes below describe earlier drafts; they do not override this manuscript.
+**Working manuscript (6 November 2026, not frozen):**
+[`sixth-draft/main.pdf`](sixth-draft/main.pdf), source
+[`sixth-draft/main.tex`](sixth-draft/main.tex),
+[`OUTLINE`](sixth-draft/OUTLINE.md),
+[`DECISIONS`](sixth-draft/DECISIONS.md).
+The sixth draft refines v5's stakes-first authorized-composition argument;
+all five earlier manuscripts remain unchanged records. AT's custom path is
+priced in synchronization/database/serving work; Solid's crawl-or-index fork
+is distinct from a million-user capacity result. Genericity and experimental
+limits are explicit. The [new measurement record](experiments/costfn/SIXTH-DRAFT-RESULTS.md)
+records the initial DigitalOcean larger-instance account-tier restriction and
+the subsequent operator-approved 4-vCPU/12-GB tier-max follow-up, now provisioned
+with connected setup/run pending: no new measurements exist yet. Historical K1000 values are not an
+independent repeat or matched causal baseline. Final freeze and submission
+readiness remain OPEN. Do not upload or finalize on CMT.
+Historical framing notes below do not override this working manuscript.
 
 **Target:** SIGMOD 2027 industry track
 

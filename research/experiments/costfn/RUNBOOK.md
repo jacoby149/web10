@@ -1,5 +1,42 @@
 # Running the Experiment — Repeatable Runbook
 
+## Sixth-draft preflight — supersedes historical size/cost assumptions below
+
+Read [SIXTH-DRAFT-RESULTS.md](SIXTH-DRAFT-RESULTS.md) first. On 6 November the
+requested s-8vcpu-16gb in sfo2 was rejected with an account-tier restriction.
+Resolve that or agree an available larger topology; do not fall back to the old
+4-vCPU/8-GB cap. Record actual price/specs rather than the historical estimates.
+The original serial seed and single-worker configuration below are **not** a
+million-author/concurrent-feed benchmark. Task 4f needs separate scale fixtures,
+multiple workers, offered-load generation and resource traces; it is not runnable
+by setting `CREATORS=1000000` here.
+
+For the isolated K1000 repeat, after hardware and batched-default deployment gates:
+
+```sh
+python3 bench.test.py
+CREATORS=1000 FOLLOW=1000 POSTS_PER_CREATOR=1 SEED=42 \
+  K_VALUES="10 100 1000" RUNS=20 WARMUP=3 ORDER_SEED=42 ./run.sh
+```
+
+Three warm-up requests per cell are retained separately and excluded from
+statistics. `schedule.json` records the seeded shuffled order before execution;
+each cell JSON retains all measured timing records (and query IDs for HTTP).
+Keep raw samples, schedule, exact patch/source, software/config and system info
+in a durable evidence receipt, not only workspace-local `.context/` files.
+Use a different recorded order seed for independent trials; do not pool unlike
+hosts/configurations. The runner now starts storage, applies idempotent base
+schema templates, then starts the API so boot migrations see existing tables.
+ClickHouse can restart between its temporary initialization and final servers;
+the template loop retries at most 60 times with 2-second gaps. Offline refusal/
+exhaustion controls pass; connected smoke remains a gate, not an assumed fix.
+
+The historical `causal_overhead_B_minus_A` report key is a **noncausal
+pipeline-versus-direct-scan delta**. It is not Task 4b's paired baseline, and
+randomizing cells does not make A/B request-paired or output-equivalent.
+
+---
+
 Step-by-step for running the access-control cost function experiment on a fresh
 DigitalOcean droplet. Written so a second person (or you at 2am) can reproduce
 it without rediscovering the traps. Each trap below was hit for real during the
