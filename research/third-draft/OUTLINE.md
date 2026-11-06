@@ -1,97 +1,72 @@
-# Third-draft outline — the 12 beats → the sections
+# Third-draft outline (resynthesized) — the beats → the figures → the paper
 
-The outline shot, done: where each locked shot-0 beat lives in the
-manuscript, and where each figure sits. The beats are the content
-checklist (voice rule 16 — the body says them naturally, not as a
-pitch); this map is the proof the checklist was carried. The page
-budget is off (operator, 05.11.2026) — complete over concise; 20 pages
-at the first build.
+The manuscript is the expansion of shot 0 told through the figure set —
+the "pictographic story" (operator, 05.11.2026). No second-draft
+structure was inherited: its weak artifacts (the capability table, the
+TikZ overview, the domain captures, the fan-out table) are out, each
+replaced by the figure that makes its point. Page budget: off
+("i dont care about paper length") — 19 pages at this build, complete
+over concise. The beats are the content checklist (voice rule 16: the
+body says them naturally); this map is the proof the checklist was
+carried.
 
-## The beats, and where they land
+## The story, section by section
 
-| Beat | The beat (shot 0, naturalized) | Where it lands |
-|---|---|---|
-| 1 | Bespoke-APIs convention: every social platform builds feed/follow/like as platform-owned endpoints | §1 P2 (the split) |
-| 2 | The completely generic node: data RW + identity/access configuration, executed every time the data is used | §1 P3, §3 opener, Figure 4's node frame |
-| 3 | The access rules are the user's own data, in the very store they protect — the permission model belongs to the user | §2 lead-in, §2 (publicness is a grant), the abstract |
-| 4 | AST-protected queries the developer writes and tunes — the platform guarantees the boundary, not the performance | §5 opener + Figure 3, the five-step compile |
-| 5 | No new parts — the contribution is the combination on one shared columnar store | §1 ("no prior system we compare carries the conjunction"), §9 opener |
-| 6 | RLS was the OLTP-era answer; on a columnar store the boundary moves to the query, the readable set compiled in before any data moves | §5 "why policy lives above the engine", §1 property 4 |
-| 7 | Extending is a role and a policy — OAuth 2.0's job, finer (the grant names the service, group, operation) | §6 "multiple applications", Figure 7 |
-| 8 | Three apps already interoperate: the social app, the snake game, the marketplace | §1 P3 + P5, §6 + §8 Q1 (the connected evidence), Table 3 |
-| 9 | ClickHouse at the bottom: real-time analytics over billions of rows, in a way that scales | §3 opener (the engine named with its class), the abstract |
-| 10 | Solid = data-sovereignty, web10 = reach + two-sided ownership; readable-on-the-node buys the scale + auditability; what the user owns is the policy, not the secrecy; a node pools millions of users so discover is an ordinary query — Solid's pods cannot compose across | §3 "why not a database per user" + Figure 2, §3 "data policy, not privacy", §9 Solid paragraph |
-| 11 | /certify = email's sender check (SPF/DKIM): one cached handshake, verifies and grants nothing — a handshake, not a registry; every node re-checks its own rules on every read | §4.2 the linchpin |
-| 12 | The address is a domain the user owns (jacobhoffman.xyz); the TXT record is untouchable to the node owner; the follows are the followers' own data, bound to the domain — no platform holds a ban switch | §4.4 domain aliases, §8 Q3 (Figure 11), §9 market paragraph |
-| +monetization (the 4.10.34 beat, riding this round's blanket pass) | The free web should have ads; the alternatives ship no mechanism; the creator's layer dense, the node's sparse, non-steal; the creator keeps 100%, no payment processed; a new ad surface is a new query | §6.5 the ad rail (Figure 9), §9 market paragraph |
+| Section | The job ("this section kills the doubt that …") | Beats | Figures |
+|---|---|---|---|
+| **Abstract** | the whole paper in ~200 words | 1–12 compressed | — |
+| **§1 Introduction** | the split is real, and a system that closes it exists and runs | 1 (bespoke APIs), 2 (the generic node), 3 (the permission model belongs to the user), 8 (three apps interoperate) | **Figure 1 — `fig-app-arch`** (the system: the data layer in the browser, the thin generic node, the two stores, the messages on the wire) |
+| **§2 The Access Model** | the access rules really are the user's data, and the readable set is computable before any query runs (the forcing move) | 3 | — (the set expression, the two trust layers, publicness as a grant) |
+| **§3 The Data Plane** | one shared table is the right limit of the multi-tenant spectrum, and it is not a privacy failure | 9 (the ClickHouse bedrock), 10 (the Solid fork: data policy, not privacy; the node pools millions of users; discover is an ordinary query) | **Figure 2 — `fig-composition`** (web10 vs Solid) |
+| **§4 A User-Addressed Network** | the policy reaches across the network without registration, and an address outlives an account | 11 (/certify = email's sender check: a handshake, not a registry), 12 (the domain the user owns; the TXT record untouchable to the node owner) | **Figure 3 — `fig-feed`** (the two-node /certify read path) · **Figure 4 — `fig-audience-portability`** (the DNS flip) |
+| **§5 Enforcement at the Query Layer** | the boundary is a wall, not a membrane — and the readable set is compiled in, not filtered out | 4 (the developer writes and tunes; the platform guarantees the boundary, not the performance), 6 (RLS was the OLTP-era answer; on a columnar store the boundary moves to the query) | **Figure 5 — `fig-query-engine`** (one feed query, browser → node → store) |
+| **§6 Running the Platform** | a real app runs on the generic node, other apps step into its data, and the money flows the creator's way | 7 (extending is a role and a policy — OAuth 2.0's job, finer), 8 (the three apps), + the monetization beat (the free web should have ads; the creator keeps 100%, no payment processed; the node as media company) | **Figure 6 — `fig-groups`** · **Figure 7 — `fig-platforms`** (web10 vs Mastodon / Bluesky) · **Figure 8 — the interop captures** (one profile, two apps) · **Figure 9 — `fig-monetization`** (the ad rail) |
+| **§7 Lessons from Running It** | the generic core was earned, not designed (the labor resolution: 568,594 deleted lines, four built-and-deleted surfaces) | — | — |
+| **§8 The Evidence (Q&A)** | the claims are connected, bounded, and named | the scale claim (the cost lives in the access layer, not the database; the knee at K = 1) | **Figure 10 — `fig-k1000-curve`** (the fan-out trial, as a curve — the table is out; every number the table carried is stated in the finding prose) |
+| **§9 Related Work** | each prior system drops a corner of the conjunction — and the market the data plane makes | 5 (the combination, no new parts) | **Figure 11 — `fig-node-market`** (the competitive node economy: the competition is on terms, not on leverage) |
+| **§10 Conclusion** | the email frame closes: the permissions leave the building with the data | — | — |
 
-## The figures, and where they sit
+## What the resynthesis cut (the second-draft artifacts)
 
-| # (manuscript) | Figure | Section |
-|---|---|---|
-| 1 | System overview (TikZ — the labeled visual ToC, 4.10.37) | §1 |
-| 2 | The composition fork: web10 vs Solid (`fig-composition`) | §3 |
-| 3 | Reading a social feed on web10 (`fig-query-engine`) | §5 |
-| 4 | The web10-social application and its node (`fig-app-arch`) | §6 |
-| 5 | Pulling the web10 feed across nodes (`fig-feed`) | §6 |
-| 6 | A group — the groups UI capture (`fig-groups`) | §6 |
-| 7 | The interoperability fork: web10 vs Mastodon / Bluesky (`fig-platforms`) | §6 |
-| 8 | One social-written profile, two application views (interop captures) | §6 |
-| 9 | How money flows on web10: the ad rail (`fig-monetization`) | §6 |
-| 10 | Domain portability, before/after (captures) | §8 |
-| 11 | The audience travels with the domain (`fig-audience-portability`) | §8 |
-| 12 | Where the access layer's cost lives (`fig-k1000-curve`, matplotlib) | §8 |
-| 13 | The competitive node economy (`fig-node-market`) | §9 |
+- **Table 1 (capability comparison)** — out; the two VS figures + §9's
+  positioning + §1's five-properties list carry the comparison.
+- **Figure 1 (TikZ system overview)** — out; `fig-app-arch` is the §1
+  system figure and the paper-map paragraph carries the section labels.
+- **The domain before/after captures** — out of the paper;
+  `fig-audience-portability` carries the mechanism, and the exact
+  captures / authenticated hookup / 375px evidence are named as remaining
+  in the prototype artifact.
+- **Table 4 (fan-out)** — out; the curve + the finding prose carry every
+  printed number (the C-variant separation, the p95s, the direct-scan
+  range, the setup, the single-trial scope).
 
-## The sections (20 pages at the first build)
+Kept on purpose: the two definitional/evidence tables the story needs
+(media spectrum, interop apps), the interop captures (connected-evidence
+receipts), and the verified trial prose (facts from the records, not
+draft gravity — `craft/evidence.md`).
 
-1. **Introduction** — the split · the labor (958,824 / 568,594) · the
-   five properties · the evidence · the contributions · Table 1 · the
-   paper map + Figure 1.
-2. **The Access Model** — vocabulary · two trust layers · roles as
-   per-service maps · principal classes + the set expression ·
-   publicness is a grant.
-3. **The Data Plane** — the schema · updates-as-inserts /
-   deletes-as-tombstones · why not a database per user (+ Figure 2, the
-   Solid fork) · data policy, not privacy.
-4. **A User-Addressed Network** — email generalized · verified not
-   registered (+ the SPF/DKIM parallel) · the boundary rule · the
-   read model (client-side fan-out) · domain aliases (+ the concrete
-   re-point) · implementation status.
-5. **Enforcement at the Query Layer** — the wall not the membrane ·
-   why output-side filtering is unsound · the input redirect (+
-   Figure 3) · the five-step compile · why policy lives above the
-   engine · the metadata fan-out cost structure · isolation rule ·
-   media capabilities · the implementation boundary.
-6. **Running the Platform** — the killer app (+ Figure 4) · the media
-   spectrum · the frontend over the shared node (the 46,285-line pin) ·
-   the feed as a query · multiple applications, one data plane (+
-   Figure 7, Table 3, the interop query + Figure 8) · **the ad rail
-   (+ Figure 9, new)** · durability and extensibility.
-7. **Lessons from Running It** — the four built-and-deleted surfaces ·
-   the schema race · the shared table's day-to-day cost · the first
-   measurement pointed at the access layer.
-8. **Evaluation (Q&A)** — connected interoperability · cross-node
-   identity + local revocation · public domain subscriptions across
-   provider loss (+ Figure 10, + Figure 11) · the metadata fan-out
-   cost (Table 4 + Figure 12) · the deployed operating point · scope
-   and open work.
-9. **Related Work** — positioning: decentralized social (+ Figure 7's
-   ref) · Solid (+ Figure 2's ref) · cloud IAM / Zanzibar / TAO ·
-   multi-tenant / RLS · **monetization + the node market (+ Figure 13,
-   new)**.
-10. **Conclusion** — the email frame closed · the evidence · the labor
-    resolution · the market close · the forward scope.
+## Open items (flagged, unchanged by the resynthesis)
 
-## What the second draft got that the third keeps
+1. **The abstract** is the shot-4 spec reconstruction (the verbatim lived
+   only in the #1396 thread) — the operator's re-pass.
+2. **The three first-shot figures** (monetization, audience-portability,
+   k1000-curve) + the monetization beat ride the "all the figures done"
+   call — open to review; a re-shot is a re-render + caption check, the
+   prose stands.
+3. **The rent number** (1M subs / 300k delivered) is now in §9's body —
+   flag if not paper-ready.
 
-The verified evidence (the trial data, the artifact pins, the
-18-citation bibliography, the interop/federation/domain results), the
-§2 definitions + set expression, the §5 wall argument, §7 in full, the
-Q&A §8, the §9 positioning paragraphs. What it did not have — and
-what made it "not actual" — was written from shot 0: the abstract and
-the intro's labor + five-properties + evidence lede, the beat
-weave-through (the SPF/DKIM /certify line, the concrete domain, the
-data-policy-not-privacy stance, the monetization + market material),
-and all nine of the figure phase's figures wired in with their
-captions.
+## Self-score against the oracles (before firing, per the shot rules)
+
+- **Compression test:** re-compress §1–§10 → the 12 beats come back
+  (each is named in its section's job row above; the monetization beat in
+  §6/§9). ✓ as written — final call is the operator's re-read.
+- **Logical awe:** the forcing move is §2's last move (the readable set
+  computable before any query runs); the blunder-and-refutation is §5's
+  first (the count(*) aggregate); the why-not-X chain is visible
+  (publicness-as-flag §2, DB-per-user §3, remote()/cluster() §4, RLS §5).
+- **Original work:** the conjunction argument is §1's "no prior system we
+  compare carries the conjunction" + §9's corners; scoped to the compared
+  systems (the gap check stays OPEN until the sources are pinned).
+- **Importance:** the stakes + the running system up front (§1 P2–P3),
+  calibrated; no labor fanfare (one pinned sentence).
