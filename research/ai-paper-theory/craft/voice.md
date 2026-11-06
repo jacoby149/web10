@@ -32,7 +32,11 @@
    just have a short caption.")
 9. No internal IDs in conference-facing prose (decision numbers, PR
    numbers) — per the 4.5.4 cleanup.
-10. The email frame: open in the intro, close in the conclusion.
+10. Open with the stakes, not the email analogy. Use email only where it
+    explains a specific mechanism (for example, sender verification next
+    to `/certify`). Neither the introduction nor the conclusion must
+    carry an email frame. The operator's fourth-draft correction and
+    fifth-draft request supersede the earlier framing rule.
 11. Related work = positioning (three paragraphs, each ending with the
     gap); the verified bibliography carries it; the gap check must be
     YES before it freezes.
