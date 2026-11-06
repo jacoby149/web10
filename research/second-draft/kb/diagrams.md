@@ -65,9 +65,12 @@ Mastodon's stock REST interface is not the limit of ActivityPub.
   AT repositories themselves are non-extensible, or that hiring an
   architect is a protocol requirement. No MongoDB comparison is needed.
   Warm amber/orange shades encode application-owned design/code (apps
-  on both sides, custom backend, JSON/query design); the supplied node
-  stays green and enforcement violet. A legend defines ownership;
-  warm colors are not a danger/performance verdict.
+  on both sides and the custom backend). Small JSON-shape/SQL notes live
+  inside web10's app boxes, not a separate node box. The API performs
+  access checks/query preparation/return, and the document shape belongs
+  inside ClickHouse. Supplied node stays green and enforcement violet.
+  A legend defines ownership; warm colors are not a danger/performance
+  verdict.
 
 The Mastodon figure uses a 1440×900 canvas; the peeled AT figure gets
 1440×1200 so its explicit fork and schema choices remain readable. Both use full-width

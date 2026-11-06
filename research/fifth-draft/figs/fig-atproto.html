@@ -59,29 +59,23 @@
   <section class="panel right" aria-label="web10 supplied query and storage infrastructure">
     <h2 class="panel-heading">WEB10 — write the app and query; reuse the node backend</h2>
     <div class="app-row">
-      <div class="app"><strong>Social app</strong><span>profiles + posts</span></div>
-      <div class="app"><strong>Game</strong><span>score documents</span></div>
-      <div class="app"><strong>Marketplace</strong><span>listing documents</span></div>
+      <div class="app"><strong>Social app</strong><span>profiles + posts</span><small>JSON shape + feed SQL</small></div>
+      <div class="app"><strong>Game</strong><span>score documents</span><small>JSON shape + join SQL</small></div>
+      <div class="app"><strong>Marketplace</strong><span>listing documents</span><small>JSON shape + join SQL</small></div>
     </div>
+    <p class="request-label">query + token</p>
     <div class="box node">
       <h2>Already running on the node: query API + shared store</h2>
       <div class="chips"><span class="chip profile">profile</span><span class="chip">snake_scores</span><span class="chip">marketplace_listings</span></div>
-      <div class="storage-model" data-storage-model="shared-documents">
-        <h3>One content table: documents</h3>
-        <code>author_key · doc_id · collection_name · body (JSON)</code>
-      </div>
-      <div class="app-design">
-        <h3>You design JSON bodies and application queries</h3>
-        <p>Fields, joins and ranking remain application choices.</p>
-      </div>
       <div class="query">
-        <h3>Send your query and token to the node</h3>
-        <p>The API resolves services to what this reader may read.</p>
-        <code>SELECT … FROM snake_scores<br>LEFT JOIN profile …</code>
+        <h3>API — check access and prepare the query</h3>
+        <p>Verify the token and applicable app/group access.<br>Compile the query against the reader’s authorized relations.<br>Return the resulting rows to the app.</p>
       </div>
-      <div class="engine">
+      <div class="engine" data-storage-model="shared-documents">
         <h3>ClickHouse joins the hosted documents</h3>
-        <p>The node executes the query and returns the rows.<br>Its documents are the source data, not your app’s second copy.</p>
+        <p>Execute the prepared query over the hosted source data.<br>Services share one content table; their JSON bodies differ.</p>
+        <div class="storage-label">documents</div>
+        <code>author_key · doc_id · collection_name · body (JSON)</code>
       </div>
       <p class="provided">For this join: no app-owned sync worker, copied tables or read server.<br>Group and grant metadata use separate node-managed tables.</p>
     </div>
@@ -99,8 +93,8 @@
     <path class="flow" d="M372 816 V824"/>
     <path class="flow" d="M372 936 V984"/>
     <path class="flow" d="M864 264 V304"/><path class="flow" d="M1068 264 V304"/><path class="flow" d="M1272 264 V304"/>
-    <path class="flow authorized" d="M1068 736 V752"/>
-    <path class="flow" d="M1068 960 V984"/>
+    <path class="flow authorized" d="M1068 576 V600"/>
+    <path class="flow" d="M1068 896 V984"/>
   </svg>
   <p class="scope">Illustrative public join. Direct reads and shared services are alternatives; the custom branch shows responsibilities, not three required servers.</p>
   <div class="verdict left"><strong>AT PROTOCOL — REUSE A FITTING APPVIEW, OR DESIGN YOUR OWN</strong><span>The custom branch owns ingestion, storage schema, queries and serving.</span></div>

@@ -51,16 +51,20 @@ try {
           appViewPaths: [...document.querySelectorAll('[data-appview-path]')]
             .map(el => el.dataset.appviewPath),
           storageModel: document.querySelector('[data-storage-model]')?.dataset.storageModel,
+          storageInsideEngine: !!document.querySelector('.engine[data-storage-model]'),
+          appWorkInsideApi: !!document.querySelector('.query code, .app-design'),
+          requestLabel: document.querySelector('.request-label')?.textContent.trim(),
+          appDesignNotes: [...document.querySelectorAll('.right .app small')]
+            .map(el => el.textContent.trim()),
           ownership: document.body.classList.contains('atproto-detail') ? {
             appColors: [...document.querySelectorAll('.app strong')]
               .map(el => getComputedStyle(el).color),
             backendColors: [...document.querySelectorAll('.step h3')]
               .map(el => getComputedStyle(el).color),
-            queryColors: [...document.querySelectorAll('.app-design h3, .query code')]
-              .map(el => getComputedStyle(el).color),
             expectedApp: resolvedColor('var(--developer-app-color)'),
             expectedBackend: resolvedColor('var(--developer-backend-color)'),
-            expectedQuery: resolvedColor('var(--developer-query-color)'),
+            apiColor: getComputedStyle(document.querySelector('.query h3')).color,
+            expectedApi: resolvedColor('var(--color-brand-300)'),
             providedColor: getComputedStyle(document.querySelector('.node')).borderTopColor,
             legend: !!document.querySelector('.ownership-legend'),
           } : null,
@@ -80,13 +84,19 @@ try {
           `${name}: reuse versus custom-design choice must be explicit`);
         assert.equal(layout.storageModel, 'shared-documents',
           `${name}: web10 content storage must be explicit`);
+        assert.ok(layout.storageInsideEngine, `${name}: document shape belongs inside ClickHouse`);
+        assert.equal(layout.appWorkInsideApi, false, `${name}: app work must stay out of the API box`);
+        assert.equal(layout.requestLabel, 'query + token', `${name}: query is sent from the app`);
+        assert.deepEqual(layout.appDesignNotes,
+          ['JSON shape + feed SQL', 'JSON shape + join SQL', 'JSON shape + join SQL'],
+          `${name}: web10 data/query design must be acknowledged inside its apps`);
         assert.ok(layout.ownership.legend, `${name}: ownership legend`);
         assert.ok(layout.ownership.appColors.every(color => color === layout.ownership.expectedApp),
           `${name}: apps must use their warning-family ownership color`);
         assert.ok(layout.ownership.backendColors.every(color => color === layout.ownership.expectedBackend),
           `${name}: custom backend must use its warning-family ownership color`);
-        assert.ok(layout.ownership.queryColors.every(color => color === layout.ownership.expectedQuery),
-          `${name}: app JSON/query design must use its warning-family ownership color`);
+        assert.equal(layout.ownership.apiColor, layout.ownership.expectedApi,
+          `${name}: API box is supplied access enforcement, not app-owned code`);
         assert.equal(layout.ownership.providedColor, 'rgb(34, 197, 94)',
           `${name}: supplied node frame must remain green`);
         assert.deepEqual(layout.responsibilities, ['ingestion', 'database', 'serving'],

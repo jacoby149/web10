@@ -107,7 +107,6 @@ body.atproto-detail { height: 1200px;
   /* One warning family, with different emphasis for each developer-owned layer. */
   --developer-app-color: color-mix(in srgb, var(--color-warning) 64%, var(--color-foreground));
   --developer-backend-color: var(--color-warning);
-  --developer-query-color: color-mix(in srgb, var(--color-warning) 80%, var(--color-foreground));
 }
 .atproto-detail .ownership-legend { position: absolute; top: 104px;
   left: 48px; right: 48px; text-align: center; font-size: 13px;
@@ -117,6 +116,8 @@ body.atproto-detail { height: 1200px;
 .atproto-detail .enforcement-key { color: var(--color-brand-300); }
 .atproto-detail .app { border-color: var(--developer-app-color); }
 .atproto-detail .app strong { color: var(--developer-app-color); }
+.atproto-detail .right .app { gap: 4px; }
+.atproto-detail .app small { font-size: 12px; color: var(--developer-app-color); }
 .atproto-detail .panel { height: 944px; }
 .atproto-detail .wires { height: 1200px; }
 .atproto-detail .records { height: 88px; }
@@ -141,23 +142,16 @@ body.atproto-detail { height: 1200px;
 .atproto-detail .step.ingest { top: 56px; }
 .atproto-detail .step.database { top: 168px; }
 .atproto-detail .step.server { top: 280px; height: 104px; }
-.atproto-detail .node { height: 648px; }
-.atproto-detail .node .storage-model { position: absolute; top: 96px;
-  left: 16px; right: 16px; height: 80px; padding: 12px 16px;
-  border: 1px solid var(--color-success); border-radius: var(--radius); }
-.atproto-detail .storage-model h3 { font-size: 17px; font-weight: 600; }
-.atproto-detail .storage-model code { display: block; margin-top: 12px; }
-.atproto-detail .node .app-design { position: absolute; top: 200px;
-  left: 16px; right: 16px; height: 80px; padding: 12px 16px;
-  border: 1px solid var(--color-warning); border-radius: var(--radius); }
-.atproto-detail .app-design h3 { font-size: 17px; font-weight: 600;
-  color: var(--developer-query-color); }
-.atproto-detail .app-design p { font-size: 15px; line-height: 1.4; }
-.atproto-detail .node .query { top: 296px; height: 128px; }
-.atproto-detail .node .query code { display: block; margin-top: 12px;
-  line-height: 1.5; color: var(--developer-query-color); }
-.atproto-detail .node .engine { top: 448px; height: 112px; }
-.atproto-detail .node .provided { position: absolute; top: 584px;
+.atproto-detail .request-label { position: absolute; top: 152px; left: 352px;
+  font-size: 13px; color: var(--color-muted-foreground); }
+.atproto-detail .node { height: 584px; }
+.atproto-detail .node .query { top: 136px; height: 128px; }
+.atproto-detail .node .engine { top: 296px; height: 200px; }
+.atproto-detail .engine .storage-label { margin-top: 16px;
+  font: 600 15px var(--font-mono); }
+.atproto-detail .engine code { display: block; margin-top: 12px;
+  color: var(--color-muted-foreground); }
+.atproto-detail .node .provided { position: absolute; top: 520px;
   left: 16px; right: 16px; margin: 0; font-size: 15px; line-height: 1.4; }
 .atproto-detail .result { top: 864px; }
 .atproto-detail .scope { top: 1088px; }

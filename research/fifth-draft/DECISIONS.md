@@ -1,5 +1,32 @@
 # Fifth-draft decisions — 6 November 2026
 
+## Simplify the supplied node; acknowledge design inside the apps
+
+Operator's screenshots identify the separate web10 app-design box,
+app-written SQL in the API box and separate document-shape box. Direction:
+"we can take that part out! because it is in the apps themselves right"
+and "this api box, gets the request, makes sure it passes security,
+returns it!" The document shape "could even go in the clickhouse joins
+the hosted documents box." Follow-up: "we can be honest though and show
+the web10 apps have more schema stuff in the app development, just add a
+little little to the app boxes"
+
+The right side is now the actual supplied path: app sends query + token;
+API verifies access and compiles authorized relations; ClickHouse executes;
+API returns rows. App-written SQL and the separate app-design box are
+removed from the node. `documents` and its field shape move inside the
+ClickHouse box. Small warm notes in the social/game/marketplace app boxes
+state "JSON shape + feed SQL" / "JSON shape + join SQL", retaining the
+developer's responsibility without repeating it as node infrastructure.
+The AT reuse/custom-design fork and its warm custom-backend responsibilities
+are unchanged. Existing-service reuse is still a real bypass route.
+
+Checks now require app-design notes inside all three web10 app boxes,
+document shape inside ClickHouse, query/token on the wire, and no app-code
+snippet or app-design box inside the API path. Layout/ownership/fork/storage
+checks pass; the revised standalone figure was inspected. Only the AT
+figure, PDF and editorial records change; no runtime or new experiment.
+
 ## Developer-ownership colors — final pre-PR figure pass
 
 Operator: "maybe coloring in orange everything the dev has to build is
