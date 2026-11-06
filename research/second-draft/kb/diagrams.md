@@ -480,6 +480,24 @@ prose carry every printed number). The three first-shot figures
 operator's blanket pass for that round; open to review per
 `third-draft/DECISIONS.md`.
 
+**4.10.40 (06.11.2026) — the figure pass.** (1) Bottom padding: the five
+rasters that ended flush/near-flush at the bottom edge (measured @1x:
+composition 2px · platforms 2px · node-market 12px · query-engine 12px ·
+audience-portability 14px) had their HTML body height extended to a
+uniform **40px bottom gap** (the spacing fig-app-arch already had; the
+padding is background, the content is untouched) and re-rendered:
+composition 2880x1636 · platforms 2880x1636 · node-market 2880x1616 ·
+query-engine 2880x1616 · audience-portability 2880x1492 @2x. These
+dimension changes are intentional — the "keep rasters at existing
+dimensions where possible" note in `third-draft/figs/README.md` does not
+apply to them. (2) Full width: manuscript Figures 3 (`fig-feed`) and 6
+(`fig-groups`) were `\columnwidth` single-column floats ("too hard to
+see") and are now `figure*` + `\textwidth` like every other figure; the
+numbering (1–11) is unchanged. The operator's "figure 5" is the
+manuscript's Figure 5 (`fig-query-engine`), which was already full-width
+— the half-width pair is the readability complaint, and both are wide
+now.
+
 | # | Figure | Section | State |
 |---|---|---|---|
 | 1 | System overview + section labels | §1 | **done** (4.8.2 TikZ; label pass 4.10.37 — the visual ToC: §2–§6 + §8 mapped) |

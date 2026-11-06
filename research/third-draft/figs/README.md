@@ -34,6 +34,11 @@ PNG-only app captures — no HTML source. Convention and rationale:
   (conference-facing, per the 4.5.4 cleanup).
 - Keep committed rasters at the existing dimensions where possible so the
   page layout does not shift (fig-feed: 2880x1800 = 1440x900 @2x).
+  Exception (4.10.40, operator call): composition · platforms ·
+  node-market · query-engine · audience-portability were re-rendered
+  with a uniform 40px @1x bottom gap (2880x1636 · 2880x1636 · 2880x1616
+  · 2880x1616 · 2880x1492 @2x) — those new dimensions are the baseline
+  now.
 
 ## Measurement curves (matplotlib)
 
