@@ -37,6 +37,7 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
+- [✓ 4.12.14 local] **Name the DMCA designated agent** - Terms names Jacob Hoffman alongside unchanged `jacob@web10.app`; no other Terms text or Post-It Note process changes. Focused regression aligned. Separate Copyright Office registration and production publication verification are not completed by this repo edit.
 - [✓ 4.12.13 local] **Correct copyright contact** - operator confirms the old inbox does not exist; Terms, Privacy and the social Report copyright dialog now use `jacob@web10.app`. D81/moderation guidance and exact-recipient regressions aligned; no deployment.
 - [✓ 4.12.12 local; legal review OPEN] **Server ads Terms clause + Privacy Policy** - hosted-only ad reservation, no post rights or numeric split, both sponsor contradictions reconciled and ownership section unchanged. `/docs/privacy`, For Users index and Home/Join/Freedom footer links; 304 marketing tests, typecheck/build and local desktop/375px Chromium checks pass. Claim trace and Jacob's unresolved legal details: `legal-pages.md`. No publication/deployment implied.
 - [ ] **Legal pages approval and publication acceptance** - Jacob approves Terms/Privacy and resolves the review checklist in `legal-pages.md`; after approved normal deployment, verify production `/docs/terms`, `/docs/privacy`, For Users navigation and all three footer Privacy links. No production edits or deployment without approval.
