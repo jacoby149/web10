@@ -1,3 +1,6 @@
+4.12.14 || 06.11.2026
+docs(legal): name Jacob Hoffman as the Terms' DMCA designated agent alongside the unchanged `jacob@web10.app` address. Preserve the Post-It Note process and all other Terms text; align the focused regression. All 10 Docs tests pass; exact-diff check confirms only the name insertion in Terms, and local desktop/375px screenshots are inspected. Live `/docs/terms.md` still omits the name. Copyright Office registration remains Jacob's separate step. No deployment; production publication verification remains OPEN.
+
 4.12.13 || 06.11.2026
 fix(legal): operator confirms the published copyright inbox does not exist; route copyright/takedown requests to `jacob@web10.app` in Terms, Privacy and the social Report copyright dialog. Align D81/moderation guidance and pin the exact recipient in focused regressions. Historical release records remain unchanged. No deployment.
 

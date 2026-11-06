@@ -117,7 +117,7 @@ describe('Docs — the "who are you?" landing', () => {
     expect(terms).not.toMatch(/\d\s*%|\bpercent(?:age)?\b|\brevenue split\b/i);
     expect(terms.match(/creator's and the node's/g)).toHaveLength(2);
     expect(terms).not.toContain('copyright@web10.com');
-    expect(terms).toContain('**Email our designated agent** at **`jacob@web10.app`**');
+    expect(terms).toContain('**Email our designated agent**, Jacob Hoffman, at **`jacob@web10.app`**');
   });
 
   it('lists the Snake and Marketplace interoperability demos in the Demo Apps section', async () => {

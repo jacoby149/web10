@@ -53,7 +53,7 @@ If you believe content on a web10 node infringes your copyright, you can get
 it taken down. web10 follows the **"Post-It Note" rule**: a simple, fast,
 human takedown path.
 
-1. **Email our designated agent** at **`jacob@web10.app`**.
+1. **Email our designated agent**, Jacob Hoffman, at **`jacob@web10.app`**.
 2. Include a **link to the specific content**, your name, how to reach you,
    and a statement that you are the rights holder (or authorized to act on
    their behalf).
