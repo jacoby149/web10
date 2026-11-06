@@ -17,8 +17,19 @@
    punchline; no clause-stacking (the take-1 pitch miss: "almost too
    dense" — a pitch that enumerates like the abstract is a missed shot).
 7. Definitions before use; no noun the reader doesn't own.
-8. Every figure: referenced from the body, caption describes the figure
-   it sits under, asserts only what the body asserts.
+8. Every figure: referenced from the body, and the caption is SHORT —
+   it names the figure, it does not explain it. The explanation of the
+   figure is the body's job, written at the figure's introduction. A
+   "monster paragraph caption" is a review failure: it is the caption
+   doing the body's work, and when a caption carries content the body
+   never states, that content moves into the body at the \ref — a
+   caption is never the only home of a claim. The caption still
+   describes the figure it sits under (not a previous version of it,
+   not the section's topic in general), and asserts only what the body
+   asserts. (Operator, 06.11.2026, the fourth-draft round: "the
+   figures have these monster paragraph captions, that should be the
+   writing in the paper to explain the figures, the figures should
+   just have a short caption.")
 9. No internal IDs in conference-facing prose (decision numbers, PR
    numbers) — per the 4.5.4 cleanup.
 10. The email frame: open in the intro, close in the conclusion.

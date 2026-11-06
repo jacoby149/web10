@@ -10,6 +10,67 @@ method lives in the `research/ai-paper-theory/` folder; the figure and
 experiment KBs remain at `research/second-draft/kb/` (the shared paper
 KB).
 
+## 06.11.2026
+
+### The figure pass + the abstract rewrite: padding, the two half-width figures made full, the benefits abstract, the line count out of the body
+
+- **(operator)** "these figures need some bottom padding just a little,
+  and figure 5 needs to be the whole horizontal widtth like the other
+  figures, otherwise too hard to see" + "i find the abstract just hard to
+  read, and the introduction dropping the lines of code written i dont
+  like. maybe i think abstract should be shorter and get to the essence,
+  summarize the benefits of web10, doesnt have to totally follow shot 0,
+  just dont like the abstract so much"
+- **(agent)** Bottom padding: the five rasters that ended flush or
+  near-flush at the bottom edge (measured @1x: composition 2px ·
+  platforms 2px · node-market 12px · query-engine 12px ·
+  audience-portability 14px) get their HTML body height extended to a
+  uniform 40px bottom gap — the spacing `fig-app-arch` already had.
+  Re-rendered with `figs/capture.mjs`, content untouched (the padding is
+  background): new rasters 2880x1636 (composition) · 2880x1636
+  (platforms) · 2880x1616 (node-market) · 2880x1616 (query-engine) ·
+  2880x1492 (audience-portability) @2x. The rasters already at ≥40px
+  (app-arch 40 · monetization 60 · k1000-curve 48 · feed 184) are
+  unchanged. `kb/diagrams.md` + `figs/README.md` note the intentional
+  dimension changes so the next round doesn't "repair" them.
+- **(agent)** Full width: in the manuscript numbering, Figure 5 is
+  `fig-query-engine` — already a full-width `figure*`. The half-width
+  pair is Figure 3 (`fig-feed`) + Figure 6 (`fig-groups`), both
+  `\columnwidth` `figure`s — the two "too hard to see" ones. Both are now
+  `figure*` + `\textwidth`, as wide as every other figure. Figure
+  numbering is unchanged (1–11, same order); the build goes 19 → 20
+  pages (the budget is off).
+- **(agent)** Abstract: rewritten to the operator's spec — ~150 words
+  (was ~190), benefit-first instead of the shot-4 mechanism enumeration:
+  the rules are your data (grants are rows in the store they protect) ·
+  per-service grants finer than OAuth 2.0 · "a new read pattern is a new
+  query, not a new backend" · the audience travels with you (the domain
+  the node verifies but cannot control) · the platform takes no cut,
+  nodes compete on terms not leverage · the ClickHouse scale anchor with
+  the 7.64 s → 363 ms number · the close ("when the data leaves a node,
+  the rules leave with it"). Every benefit is asserted in the body it
+  points at (§2, §5/§6, §4/§8, §6/§9, §8). This closes the
+  shot-4-reconstruction open item: the abstract is no longer a
+  reconstruction, it is its own thing.
+- **(agent)** The line count is out of the manuscript: §1's "958,824
+  lines were added and 568,594 deleted" sentence is cut — the operator's
+  "the introduction dropping the lines of code written i dont like", and
+  the theory says the same thing (voice rule 2: "Not the line count — no
+  one cares how much code we wrote"; README: the line count is "a pinned
+  reproducible fact … not a story beat"). The labor beat survives without
+  the bookkeeping ("this paper is about the system that was built and is
+  running"). §10's conclusion reference ("the visible part of the
+  568,594 deleted lines") is reworded so no orphan number remains ("the
+  visible part"). The stat stays pinned in
+  `research/ai-paper-theory/ops/numbers.md`.
+- **(agent)** Tectonic: 20 pages, no overfull hbox, no undefined
+  references, all 11 figures placed. Pages 1/5/7/9/12 rendered and
+  inspected. Still open (unchanged): the three first-shot figures + the
+  monetization beat ride the "all the figures done" call; the 1M subs /
+  300k delivered rent number is in §9's body. Next gate: the operator's
+  read of the rebuilt PDF (the abstract, the two full-width figures, the
+  padding), then the compression test.
+
 ## 05.11.2026
 
 ### The resynthesis: no second-draft gravity — the manuscript is the beats + the figures, nothing else

@@ -1,0 +1,223 @@
+<!doctype html>
+<!--
+  Source for fig-monetization.png ("How money flows on web10" — first shot,
+  4.10.34, uncommitted pending the operator's pass). The monetization fork:
+  the ad architecture falls out of the same primitives.
+  - THE SURFACES: every app that writes into the store inherits the ad
+    rail (D75: the node's mechanism is service-agnostic — "any app's doc
+    can be a pinned ad target, a node ad, or an HLS carrier"; the catalog
+    is app-owned — web10-social is the first, and for now only, app that
+    builds one). The snake game and the marketplace inherit without the
+    protocol learning their shape: a new ad surface = a new query + a new
+    renderer, not a new backend.
+  - THE NODE (the rail): the read attaches ads at the boundary, I3-checked
+    (ads-dissemination.md): the post's `ad_preference` (pinned) → the
+    creator's ad in `doc.ad`; the operator's density (default 10%,
+    hash(doc_id + reader_key) deterministic per reader, round-robin
+    through the active node ads, one small bounded query per read) → the
+    node's ad in `doc.node_ad` (node-ads.md). Both can be present on the
+    same post — the D57 non-steal principle: the creator's monetization is
+    never suppressed by the node's. The inventory: `posts` docs tagged
+    `ad` in the creator's followers group; tagged `ad` + `node_ad` on the
+    discover group (every user is a member, anon included — no special I3
+    handling). The offer object (D55: an ad is a post): kind
+    (affiliate | direct | own_store), the link that pays, cta, disclosure —
+    "the platform never rewrites the link, never cloaks it, never inserts
+    its own — the creator's link is the link."
+  - THE MONEY (the ad pureplay — v3 is ads only; business-plan.md: "no
+    Stripe, no memberships, no tips; the payment model is v4"): the
+    creator keeps 100% of affiliate/sponsor revenue (0% ad revenue take;
+    the payout settles off-platform — the node does not process payment,
+    does not hold the payment relationship). The node operator is a media
+    company: sells the node's attention to advertisers directly,
+    off-platform, like a small publication sells ad space; keeps 85-90%;
+    web10 Inc.'s v3 cuts are the hosting/platform fee + the no-ads tier
+    share — never the creator's links. The v4 horizon (a separate layer,
+    not the v3 claim): brands buy inventory (the exchange: CPM/CPC/CPA,
+    DSP/SSP) + the payment rail (memberships/tips, Stripe Connect, the
+    3+10+10+77 split) + html_template (creator's own layout).
+  - THE DENSITY SPLIT (operator, this round): the reader mostly meets the
+    CREATOR's own monetization — the influencer shows their own offers
+    (affiliate / sponsor links, pinned via ad_preference) on most of their
+    content, ~80-90% of the time (the operator's competitive operating
+    point; the KB grounds the mechanism: the creator's pinned layer is
+    dense by construction — it is their content, their offers —
+    ads-dissemination.md) — and only occasionally the NODE's overlay:
+    node ads land on ~5-10% of posts (node-ads.md: node_ad_percentage,
+    default 10, 0-100, node-controlled; 5-10% is the operator's stated
+    competitive band). The split is NODE-CONTROLLED (the operator sets
+    their own overlay density; D57 non-steal means the node can never
+    suppress the creator's layer), and because nodes compete for the
+    influencers' business (the creator chooses the node; the hosting is
+    the margin — business-plan.md), that control is priced: nodes set
+    their rates low to compete for the influencers — a competitive market
+    economy of nodes. This is §9/§10 material (market structure), not a
+    shot-0 beat.
+  - THE CONTRAST (the shot-0 beat this figure argues): Solid, Mastodon,
+    and Bluesky ship NO ad mechanism — a documented design property, not a
+    "can never" (related-work.md: the comparative gap stays OPEN; pin the
+    sources before §9 prints: Mastodon's ad-free stance, the AT Protocol's
+    spec surface — the permission spec is access-only, there is no ad or
+    offer lexicon, checked 05.11.2026 in the fig-platforms round — and
+    Solid's W3C sovereignty framing has no monetization concept).
+    web10's stance (the operator's words): "web10 believes there should be
+    ads on this free web" — the right kind: 100% delivery by architecture,
+    no shadow ban (D20), no ad network, no programmatic bidding, no
+    third-party targeting; the sponsors a reader meets are the creator's
+    own deals + the operator's inventory on a node the reader chose.
+  Evidence: knowledge-base/web10-v3/social/{ads.md, node-ads.md,
+  monetization.md, ads-dissemination.md} · knowledge-base/strategy/
+  business-plan.md §4 (the v3 revenue lines) · the shot-0 beat draft
+  (DECISIONS.md). Single-system mechanism figure: NO verdict strip — the
+  ratchet rule (comparison figures carry the verdict; mechanism figures
+  stay show-don't-tell). No internal D-IDs in rendered text
+  (conference-facing).
+  Render with ./capture.mjs fig-monetization.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #0a0a12; }
+  body {
+    width: 1440px; height: 780px; position: relative; overflow: hidden;
+    font-family: -apple-system, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .title { position: absolute; top: 34px; width: 100%; text-align: center;
+    font-size: 26px; font-weight: 700; color: #f2f3f8; }
+  .subtitle { position: absolute; top: 70px; width: 100%; text-align: center;
+    font-size: 13.5px; color: #9c9fb3; }
+  .panel { position: absolute; top: 100px; left: 55px; width: 1330px; height: 620px;
+    border-radius: 18px; background: #0e0e17; border: 2px solid rgba(52,211,153,.6); }
+  .zlabel { position: absolute; font-size: 12px; font-weight: 700;
+    letter-spacing: .02em; color: #34d399; }
+  .box { position: absolute; border-radius: 12px; display: flex;
+    flex-direction: column; justify-content: center; text-align: center; padding: 0 14px; }
+  .box .t { font-size: 14px; font-weight: 600; }
+  .box .s { font-size: 11px; margin-top: 3px; line-height: 1.4; }
+  .app { background: #12121b; border: 1.5px solid #c9ccda; }
+  .app .t { color: #f2f3f8; } .app .s { color: #8b8fa5; }
+  .nodecard { position: absolute; left: 85px; top: 236px; width: 1270px; height: 246px;
+    border-radius: 14px; background: #101018; border: 2px solid rgba(52,211,153,.6); }
+  .nodecard .n { position: absolute; left: 20px; top: 14px; font-size: 14px;
+    font-weight: 700; color: #34d399; }
+  .railbox { position: absolute; border-radius: 10px; padding: 0 16px;
+    display: flex; flex-direction: column; justify-content: center; }
+  .railbox .t { font-size: 13px; font-weight: 700; }
+  .railbox .s { font-size: 10.5px; margin-top: 4px; line-height: 1.45; }
+  .railbox.violet { left: 105px; top: 276px; width: 1230px; height: 82px;
+    background: rgba(139,92,246,.08); border: 1.5px solid #8b5cf6; }
+  .railbox.violet .t { color: #e6e0fb; } .railbox.violet .s { color: #b9aef0; }
+  .railbox.green { left: 105px; top: 368px; width: 1230px; height: 82px;
+    background: rgba(52,211,153,.07); border: 1.5px solid rgba(52,211,153,.8); }
+  .railbox.green .t { color: #d7f5e6; } .railbox.green .s { color: #7fa892; }
+  .money { position: absolute; top: 520px; width: 410px; height: 136px;
+    border-radius: 12px; padding: 10px 14px; display: flex;
+    flex-direction: column; justify-content: center; }
+  .money .sl { font-size: 12px; font-weight: 700; margin-bottom: 5px; }
+  .money .ss { font-size: 10.5px; line-height: 1.45; }
+  .money.blue { background: rgba(96,165,250,.05); border: 1.5px solid rgba(96,165,250,.5); }
+  .money.blue .sl { color: #60a5fa; } .money.blue .ss { color: #a8b6d4; }
+  .money.v4 { background: rgba(251,191,36,.04); border: 1.5px dashed rgba(251,191,36,.5); }
+  .money.v4 .sl { color: #fbbf24; } .money.v4 .ss { color: #c9b585; }
+  .contrast { position: absolute; left: 85px; top: 664px; width: 1270px; height: 52px;
+    border-radius: 10px; background: rgba(251,191,36,.06);
+    border: 1.5px solid rgba(251,191,36,.5); padding: 8px 16px;
+    display: flex; flex-direction: column; justify-content: center; }
+  .contrast .t { font-size: 11.5px; font-weight: 700; color: #fbbf24; }
+  .contrast .s { font-size: 10.5px; margin-top: 3px; line-height: 1.4; color: #c9b585; }
+  .wlabel { position: absolute; font-size: 10.5px; color: #9a9db1; }
+  svg.abs { position: absolute; top: 0; left: 0; width: 1440px; height: 780px;
+    pointer-events: none; }
+  code { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 9.5px; }
+</style>
+</head>
+<body>
+  <div class="title">How money flows on web10</div>
+  <div class="subtitle">the ad architecture &mdash; an ad is a document that carries the link that pays, and every app that writes into the store inherits the rail</div>
+
+  <div class="panel"></div>
+
+  <!-- the surfaces -->
+  <div class="zlabel" style="left: 85px; top: 118px;">the surfaces &mdash; every app that writes into the store inherits the ad rail</div>
+  <div class="box app" style="left: 85px; top: 136px; width: 410px; height: 76px;">
+    <div class="t">the social app</div>
+    <div class="s">the first app to build the catalog &mdash; for now, the only one.<br>its ads are posts: the creative + the offer, the link that pays</div>
+  </div>
+  <div class="box app" style="left: 515px; top: 136px; width: 410px; height: 76px;">
+    <div class="t">the snake game</div>
+    <div class="s">inherits the rail: any of its docs can be a pinned ad target<br>or a node ad &mdash; the protocol never learns its shape</div>
+  </div>
+  <div class="box app" style="left: 945px; top: 136px; width: 410px; height: 76px;">
+    <div class="t">the marketplace</div>
+    <div class="s">same inheritance: new app, new catalog, the same rail &mdash;<br>a new ad surface is a new query, not a new backend</div>
+  </div>
+
+  <!-- the node: the rail -->
+  <div class="nodecard"></div>
+  <div style="position:absolute; left:105px; top:250px; font-size:14px; font-weight:700; color:#34d399;">the node &mdash; the ad rail: service-agnostic at the mechanism, app-owned at the catalog, node-controlled at the density</div>
+  <div class="railbox violet">
+    <div class="t">the read attaches ads at the boundary &mdash; checked against the reader&rsquo;s rules, before any data moves</div>
+    <div class="s">
+      &bull; the creator&rsquo;s layer &mdash; dense: the post&rsquo;s <code>ad_preference</code> (pinned) &rarr; <code>doc.ad</code>; the influencer shows their own offers on most of their content &mdash; 80&ndash;90% of the time<br>
+      &bull; the node&rsquo;s layer &mdash; sparse: the operator&rsquo;s density &rarr; <code>doc.node_ad</code>; the overlay lands on 5&ndash;10% of posts, deterministic per reader, round-robin through the active node ads<br>
+      &bull; both can be present on the same post &mdash; the creator&rsquo;s monetization is never suppressed by the node&rsquo;s; the split is node-controlled
+    </div>
+  </div>
+  <div class="railbox green">
+    <div class="t">the ad inventory in the store &mdash; no new tables, no new collection, no ad network</div>
+    <div class="s">
+      posts tagged <code>ad</code> &mdash; the creator&rsquo;s followers group &nbsp;&middot;&nbsp; posts tagged <code>ad</code> + <code>node_ad</code> &mdash; the discover group, where every user is a member &nbsp;&middot;&nbsp;
+      the offer: kind (affiliate &middot; direct &middot; own_store) &middot; the link that pays &middot; cta &middot; disclosure &mdash; the platform never rewrites the link, never cloaks it
+    </div>
+  </div>
+
+  <!-- the money -->
+  <div class="zlabel" style="left: 85px; top: 486px; color: #60a5fa;">the money &mdash; off-platform: the node processes no payment (the ad pureplay)</div>
+  <div class="money blue" style="left: 85px;">
+    <div class="sl">the creator &mdash; keeps 100%</div>
+    <div class="ss">affiliate and sponsor payouts settle off-platform &mdash; their Amazon tag, their own store. The link is never rewritten or cloaked, there is no cut of ad revenue, and no payment is processed: the link pays the creator, the way it always did.</div>
+  </div>
+  <div class="money blue" style="left: 515px;">
+    <div class="sl">the node operator &mdash; a media company</div>
+    <div class="ss">sells the node&rsquo;s attention directly, off-platform &mdash; like a small publication sells ad space &mdash; and keeps 85&ndash;90% of ad revenue. Nodes compete for the influencers by lowering their rates: the density is node-controlled, a competitive market economy of nodes. web10 Inc.&rsquo;s v3 cuts: the hosting / platform fee + the no-ads tier share &mdash; never the creator&rsquo;s links.</div>
+  </div>
+  <div class="money v4" style="left: 945px;">
+    <div class="sl">the v4 horizon &mdash; a separate layer, not the v3 claim</div>
+    <div class="ss">brands buy inventory (the exchange: CPM / CPC / CPA, DSP/SSP) &middot; the payment rail (memberships, tips, Stripe Connect) &middot; the creator&rsquo;s own ad layout. The v3 ad pureplay has no ad network, no programmatic bidding, no third-party targeting.</div>
+  </div>
+
+  <!-- the contrast -->
+  <div class="contrast">
+    <div class="t">the contrast &mdash; Solid, Mastodon, and Bluesky ship no ad mechanism: on the free web, ad-free by conviction</div>
+    <div class="s">web10&rsquo;s answer: the free web should have ads &mdash; the right kind. 100% delivery by architecture, no shadow ban, no ad machine: the sponsors a reader meets are the creator&rsquo;s own deals, and the operator&rsquo;s, on a node the reader chose.</div>
+  </div>
+
+  <!-- arrows -->
+  <svg class="abs" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="m-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="rgba(120,220,180,.9)"/>
+      </marker>
+      <marker id="m-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#60a5fa"/>
+      </marker>
+      <marker id="m-amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#fbbf24"/>
+      </marker>
+    </defs>
+    <!-- apps -> the node (documents + grants) -->
+    <line x1="290" y1="212" x2="290" y2="232" stroke="rgba(120,220,180,.9)" stroke-width="1.8" marker-end="url(#m-green)"/>
+    <line x1="720" y1="212" x2="720" y2="232" stroke="rgba(120,220,180,.9)" stroke-width="1.8" marker-end="url(#m-green)"/>
+    <line x1="1150" y1="212" x2="1150" y2="232" stroke="rgba(120,220,180,.9)" stroke-width="1.8" marker-end="url(#m-green)"/>
+    <!-- the node -> the money (the link that pays, off-platform) -->
+    <line x1="290" y1="502" x2="290" y2="516" stroke="#60a5fa" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#m-blue)"/>
+    <line x1="720" y1="502" x2="720" y2="516" stroke="#60a5fa" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#m-blue)"/>
+    <line x1="1150" y1="502" x2="1150" y2="516" stroke="#fbbf24" stroke-width="1.4" stroke-dasharray="4 4" marker-end="url(#m-amber)"/>
+  </svg>
+  <div class="wlabel" style="left: 310px; top: 217px;">documents + grants</div>
+  <div class="wlabel" style="left: 740px; top: 504px; color: #60a5fa;">the link that pays &mdash; off-platform</div>
+</body>
+</html>

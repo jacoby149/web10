@@ -19,10 +19,18 @@ why it is visually nice, and what it may not assert.
   per the 4.5.4 cleanup).
 - **Referenced or it doesn't exist:** every figure has at least one
   `\ref` in the body.
-- **Caption describes the figure it sits under** — not a previous
-  version of the figure, not the section's topic in general. (The
-  fig:feed caption described ranking tabs that were never in the
-  figure; that class of bug is now a review failure.)
+- **The caption is short — it names the figure, it does not explain
+  it.** The figure's explanation is the body's job, at the figure's
+  introduction (\ref) — a caption that explains the mechanism is a
+  caption doing the body's work, and a caption carrying content the
+  body never states is a claim with no home (operator, 06.11.2026:
+  "the figures have these monster paragraph captions, that should be
+  the writing in the paper to explain the figures, the figures should
+  just have a short caption" — 4.10.42). The short caption still
+  describes the figure it sits under — not a previous version of the
+  figure, not the section's topic in general. (The fig:feed caption
+  described ranking tabs that were never in the figure; that class of
+  bug is now a review failure.)
 - **Diagrams are HTML source → 2x PNG** (`figs/README.md`); UI
   screenshots stay PNG-only app captures. **Performance curves are a
   committed matplotlib script → 2x PNG** (`figs/fig-k1000-curve.py`,
@@ -464,14 +472,18 @@ fan-out table (wired at the section shot).
 
 ## Figure plan (status)
 
-The set is printed in the third-draft manuscript (4.10.38, resynthesized
-4.10.39 — `research/third-draft/main.tex`), with the manuscript numbering:
-1 app-arch (§1, the system figure — the TikZ overview of 4.8.2/4.10.37 is
-out: the operator ranked it weakest, and the new figures are the map) ·
-2 composition (§3) · 3 feed (§4, the two-node /certify read) ·
-4 audience-portability (§4) · 5 query-engine (§5) · 6 groups (§6) ·
-7 platforms (§6) · 8 interop captures (§6) · 9 monetization (§6) ·
-10 k1000-curve (§8) · 11 node-market (§9). The second-draft artifacts the
+The set is printed in the FOURTH-draft manuscript (4.10.41 — the working
+manuscript; the third draft joins first + second as the frozen record),
+with the manuscript numbering: 1 app-arch (§1, the system figure — the
+TikZ overview of 4.8.2/4.10.37 is out: the operator ranked it weakest,
+and the new figures are the map) · 2 composition (§3) · 3 query-engine
+(§4) · 4 groups (§5) · 5 platforms (§5) · 6 interop captures (§5) ·
+7 feed (§6, the two-node /certify read) · 8 audience-portability (§6) ·
+9 monetization (§7) · 10 node-market (§7) · 11 k1000-curve (§9). All
+eleven are full-width `figure*` floats on the 4.10.40 padded rasters
+(the 4.10.40 "Figure 3 / Figure 6 half-width" note referred to the
+THIRD-draft numbering, where feed = 3 and groups = 6; in the fourth
+draft feed is Figure 7 and groups is Figure 4). The second-draft artifacts the
 operator ranked weakest are out of the manuscript: the capability table
 (§1), the domain before/after captures (§8 — the receipts remain in the
 prototype artifact), and the fan-out table (§8 — the curve + the finding
@@ -479,6 +491,24 @@ prose carry every printed number). The three first-shot figures
 (monetization, audience-portability, k1000-curve) are printed under the
 operator's blanket pass for that round; open to review per
 `third-draft/DECISIONS.md`.
+
+**4.10.40 (06.11.2026) — the figure pass.** (1) Bottom padding: the five
+rasters that ended flush/near-flush at the bottom edge (measured @1x:
+composition 2px · platforms 2px · node-market 12px · query-engine 12px ·
+audience-portability 14px) had their HTML body height extended to a
+uniform **40px bottom gap** (the spacing fig-app-arch already had; the
+padding is background, the content is untouched) and re-rendered:
+composition 2880x1636 · platforms 2880x1636 · node-market 2880x1616 ·
+query-engine 2880x1616 · audience-portability 2880x1492 @2x. These
+dimension changes are intentional — the "keep rasters at existing
+dimensions where possible" note in `third-draft/figs/README.md` does not
+apply to them. (2) Full width: manuscript Figures 3 (`fig-feed`) and 6
+(`fig-groups`) were `\columnwidth` single-column floats ("too hard to
+see") and are now `figure*` + `\textwidth` like every other figure; the
+numbering (1–11) is unchanged. The operator's "figure 5" is the
+manuscript's Figure 5 (`fig-query-engine`), which was already full-width
+— the half-width pair is the readability complaint, and both are wide
+now.
 
 | # | Figure | Section | State |
 |---|---|---|---|

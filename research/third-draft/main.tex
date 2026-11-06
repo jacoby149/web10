@@ -75,27 +75,19 @@
 \begin{document}
 
 \begin{abstract}
-Email decentralized where your data \emph{goes}: a global identifier,
-sovereign provider stores, and standardized transport---no central authority,
-no shared mailbox. It never decentralized who may \emph{access} it: the
-payload crossed the boundary; the permissions did not. Every social platform
-inherits that split at larger scale, building its feed, follow, and like as
-bespoke APIs behind a platform-owned backend. \textbf{web10} closes the split
-with a deployed, user-addressed data platform. Its node is completely generic
---- read and write on data, and configuration for identity and access,
-executed every time the data is used --- and the access rules are the
-user's own data, in the very store they protect. Application-written queries
-pass a boundary the node compiles against the reader's grants: the snake game
-reads the social application's \texttt{profile} through a per-service grant,
-far more fine-grained than OAuth 2.0, with no node change and no agreement
-between the applications. Across nodes, identity is \emph{verified, not
-registered}---a cached handshake like email confirming a sender---and an
-address is a domain the user owns, which the node verifies but cannot
-control. At the bottom is ClickHouse, doing real-time analytics at scale.
-The first measurement found the cost in the access layer, not the database
-(7.64\,s to 363\,ms at 1,000 followed creators), and the node is readable by
-design: data policy, not privacy. When the data leaves a node, the rules
-leave with it.
+Email decentralized where your data \emph{goes}; it never decentralized who
+may \emph{access} it. \textbf{web10} closes the split with a deployed,
+user-addressed data platform: the access rules are the user's own
+data---grants are rows in the very store they protect---and a second
+application reads the first's data with per-service grants, finer than OAuth
+2.0. A new read pattern is a new query, not a new backend. Your audience
+travels with you: an address is a domain you own, a node verifies but cannot
+control, and public subscriptions outlive a provider change. The platform
+takes no cut---creators keep 100\% of their monetization, and nodes compete
+for them on terms, not leverage. At the bottom, ClickHouse at scale: at
+1,000 followed creators, the cost lives in the access layer, not the
+database (7.64\,s to 363\,ms). When the data leaves a node, the rules leave
+with it.
 \end{abstract}
 
 \maketitle
@@ -121,10 +113,8 @@ graph---the follows, the groups, the audience---is what makes a person's
 data worth owning, and it is the part no platform lets the user keep.
 
 \textbf{web10} closes the split. It is a deployed, user-addressed data
-platform, and this paper is about the system that was built and is running:
-across the project's text files, all commits since November 2021, merge
-commits excluded, \textbf{958,824 lines were added and 568,594 deleted}. The
-node that hosts it is completely generic---read and write on data, and
+platform, and this paper is about the system that was built and is running.
+The node that hosts it is completely generic---read and write on data, and
 configuration for identity and access, executed every time the data is
 used---and the access rules are the user's own data, in the very store they
 protect. A social application, a snake game, and a marketplace run on the
@@ -646,9 +636,9 @@ application concern rather than a node-specific endpoint---a deliberate cost
 of keeping the node generic, and the reason the client does more work than
 it would against a conventional backend.
 
-\begin{figure}[t]
+\begin{figure*}[t]
   \centering
-  \includegraphics[width=\columnwidth]{figs/fig-feed.png}
+  \includegraphics[width=\textwidth]{figs/fig-feed.png}
   \caption{Pulling the web10 feed across nodes. The reader issues reads with
   its home-node token; when a read lands on foreign node B, B authenticates
   the token over the issuer's HTTPS \texttt{/certify}---one cached answer per
@@ -657,7 +647,7 @@ it would against a conventional backend.
   One node implementation, two sovereign stores; remote data is content, never
   control (\S\ref{sec:network}).}
   \label{fig:feed}
-\end{figure}
+\end{figure*}
 
 \subsection{Domain aliases and public subscription continuity}
 
@@ -1045,14 +1035,14 @@ simplified query; it does not time this complete page-assembly path, and
 full-feed latency requires accounting for follow-up requests and media
 delivery as well.
 
-\begin{figure}[t]
+\begin{figure*}[t]
   \centering
-  \includegraphics[width=\columnwidth]{figs/fig-groups.png}
+  \includegraphics[width=\textwidth]{figs/fig-groups.png}
   \caption{A group---``a shared space on your node.'' Membership, roles, and
   per-post visibility (Public / node / group) expose application choices over
   the generic groups and grants of \S\ref{sec:model}.}
   \label{fig:groups}
-\end{figure}
+\end{figure*}
 
 \subsection{Multiple applications, one data plane}
 \label{sec:platform:apps}
@@ -1828,8 +1818,8 @@ group. This is a design decision, not a scalability claim---and it is the
 kind of concrete, measured tradeoff an operating system earns.
 
 The labor is the discipline: the generic core was earned, not designed from
-the top, and the four built-and-deleted node surfaces of
-\S\ref{sec:lessons} are the visible part of the 568,594 deleted lines. And
+the top---the four built-and-deleted node surfaces of \S\ref{sec:lessons}
+are the visible part. And
 the market the data plane makes is why the reach is worth it: the creator
 keeps their own monetization, and the nodes compete for the creators on
 terms, not on leverage.
