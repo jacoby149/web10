@@ -224,7 +224,7 @@ design to decentralized storage, IAM, and multi-tenant databases;
 ]
 % --- the client ---
 \node[bigbox, fill=gray!8, align=center, minimum width=7.6cm, text width=7.3cm] (client) at (0,3.6)
-  {the user's client\\[1pt]
+  {the user's client --- web10-social \(\cdot\) Snake \(\cdot\) Marketplace (\S\ref{sec:platform})\\[1pt]
    app queries \(\cdot\) home-node token \(\cdot\) consent and revocation (\S\ref{sec:method})};
 % --- node A (home) ---
 \node[bigbox, fill=gray!5, minimum width=5.0cm, minimum height=3.9cm] (nodeA) at (-1.7,0.55) {};
@@ -250,7 +250,7 @@ design to decentralized storage, IAM, and multi-tenant databases;
 % --- certification: identity once, access every time ---
 \draw[darr] (nodeB.south) -- (2.75,-2.0) -- (-1.7,-2.0) -- (nodeA.south);
 \node[align=center] at (0.5,-2.42)
-  {HTTPS \texttt{/certify}: identity is \emph{verified, not registered}\\one cached answer per token; access re-checked on every read};
+  {HTTPS \texttt{/certify} (\S\ref{sec:network}): identity is \emph{verified, not registered}\\one cached answer per token; access re-checked on every read};
 \end{tikzpicture}
 \caption{System overview: one client, two sovereign nodes, one access language.
 Node A holds the reader's home account and grants; node B is foreign. Cross-node
