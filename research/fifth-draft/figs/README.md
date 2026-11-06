@@ -30,6 +30,9 @@ explanation belongs in the body.
   a custom backend. The latter owns the ingestion, storage schema,
   indexes, queries and read interface. web10's content services share
   `documents`; JSON conventions and queries remain app choices.
+  Warm ownership colors mark apps/custom-backend/JSON-query work with
+  distinct amber/orange emphasis; green is the supplied node and violet
+  is access enforcement. Reusing an existing AppView remains neutral.
 - **query-engine:** member admission and non-member class grants, not a
   role-only model. AST construction alone is not a safety proof.
 - **feed:** cross-node read design, not a deployed merged feed.
@@ -68,6 +71,8 @@ The offline check verifies those matches, canvas bounds and card-text
 overflow, plus explicit AT ingestion/database/serving responsibility
 cards, the reuse/build fork, and the explicit shared-documents storage
 model. It does not test Mastodon, AT or web10 runtime behavior.
+Ownership-color assertions also keep app-owned work in the warm family
+and the supplied node frame green.
 
 Introductory comments copied from earlier, unchanged sources are historical
 provenance, not this draft's specification. The manuscript, current

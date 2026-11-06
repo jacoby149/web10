@@ -17,6 +17,14 @@ try {
       await page.evaluate(() => document.fonts.ready);
       const layout = await page.evaluate(() => {
         const rect = el => el.getBoundingClientRect();
+        const resolvedColor = value => {
+          const el = document.createElement('span');
+          el.style.color = value;
+          document.body.append(el);
+          const color = getComputedStyle(el).color;
+          el.remove();
+          return color;
+        };
         const containers = [...document.querySelectorAll('.app, .box, .verdict')];
         const overflow = containers.filter(el =>
           el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1
@@ -43,6 +51,19 @@ try {
           appViewPaths: [...document.querySelectorAll('[data-appview-path]')]
             .map(el => el.dataset.appviewPath),
           storageModel: document.querySelector('[data-storage-model]')?.dataset.storageModel,
+          ownership: document.body.classList.contains('atproto-detail') ? {
+            appColors: [...document.querySelectorAll('.app strong')]
+              .map(el => getComputedStyle(el).color),
+            backendColors: [...document.querySelectorAll('.step h3')]
+              .map(el => getComputedStyle(el).color),
+            queryColors: [...document.querySelectorAll('.app-design h3, .query code')]
+              .map(el => getComputedStyle(el).color),
+            expectedApp: resolvedColor('var(--developer-app-color)'),
+            expectedBackend: resolvedColor('var(--developer-backend-color)'),
+            expectedQuery: resolvedColor('var(--developer-query-color)'),
+            providedColor: getComputedStyle(document.querySelector('.node')).borderTopColor,
+            legend: !!document.querySelector('.ownership-legend'),
+          } : null,
           overflow, escaped,
         };
       });
@@ -59,6 +80,15 @@ try {
           `${name}: reuse versus custom-design choice must be explicit`);
         assert.equal(layout.storageModel, 'shared-documents',
           `${name}: web10 content storage must be explicit`);
+        assert.ok(layout.ownership.legend, `${name}: ownership legend`);
+        assert.ok(layout.ownership.appColors.every(color => color === layout.ownership.expectedApp),
+          `${name}: apps must use their warning-family ownership color`);
+        assert.ok(layout.ownership.backendColors.every(color => color === layout.ownership.expectedBackend),
+          `${name}: custom backend must use its warning-family ownership color`);
+        assert.ok(layout.ownership.queryColors.every(color => color === layout.ownership.expectedQuery),
+          `${name}: app JSON/query design must use its warning-family ownership color`);
+        assert.equal(layout.ownership.providedColor, 'rgb(34, 197, 94)',
+          `${name}: supplied node frame must remain green`);
         assert.deepEqual(layout.responsibilities, ['ingestion', 'database', 'serving'],
           `${name}: AppView responsibilities must remain explicit`);
       }

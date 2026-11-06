@@ -103,7 +103,20 @@ code, .chip { font-family: var(--font-mono); font-size: 13px; }
 
 /* AT-only detail canvas: show the work hidden inside the old AppView box.
    Mastodon's approved layout is unchanged. */
-body.atproto-detail { height: 1200px; }
+body.atproto-detail { height: 1200px;
+  /* One warning family, with different emphasis for each developer-owned layer. */
+  --developer-app-color: color-mix(in srgb, var(--color-warning) 64%, var(--color-foreground));
+  --developer-backend-color: var(--color-warning);
+  --developer-query-color: color-mix(in srgb, var(--color-warning) 80%, var(--color-foreground));
+}
+.atproto-detail .ownership-legend { position: absolute; top: 104px;
+  left: 48px; right: 48px; text-align: center; font-size: 13px;
+  color: var(--color-muted-foreground); }
+.atproto-detail .developer-key { color: var(--developer-app-color); }
+.atproto-detail .provided-key { color: var(--color-success); }
+.atproto-detail .enforcement-key { color: var(--color-brand-300); }
+.atproto-detail .app { border-color: var(--developer-app-color); }
+.atproto-detail .app strong { color: var(--developer-app-color); }
 .atproto-detail .panel { height: 944px; }
 .atproto-detail .wires { height: 1200px; }
 .atproto-detail .records { height: 88px; }
@@ -121,8 +134,9 @@ body.atproto-detail { height: 1200px; }
   height: 408px; border-color: var(--color-warning); }
 .atproto-detail .backend > h2 { font-size: 16px; color: var(--color-warning); }
 .atproto-detail .backend .step { left: 16px; right: 16px; height: 96px;
-  padding: 12px 16px; }
-.atproto-detail .step h3 { font-size: 17px; font-weight: 600; }
+  padding: 12px 16px; border-color: var(--color-warning); }
+.atproto-detail .step h3 { font-size: 17px; font-weight: 600;
+  color: var(--color-warning); }
 .atproto-detail .step p { font-size: 15px; line-height: 1.4; }
 .atproto-detail .step.ingest { top: 56px; }
 .atproto-detail .step.database { top: 168px; }
@@ -135,12 +149,13 @@ body.atproto-detail { height: 1200px; }
 .atproto-detail .storage-model code { display: block; margin-top: 12px; }
 .atproto-detail .node .app-design { position: absolute; top: 200px;
   left: 16px; right: 16px; height: 80px; padding: 12px 16px;
-  border: 1px solid var(--color-border); border-radius: var(--radius); }
-.atproto-detail .app-design h3 { font-size: 17px; font-weight: 600; }
+  border: 1px solid var(--color-warning); border-radius: var(--radius); }
+.atproto-detail .app-design h3 { font-size: 17px; font-weight: 600;
+  color: var(--developer-query-color); }
 .atproto-detail .app-design p { font-size: 15px; line-height: 1.4; }
 .atproto-detail .node .query { top: 296px; height: 128px; }
 .atproto-detail .node .query code { display: block; margin-top: 12px;
-  line-height: 1.5; color: var(--color-brand-300); }
+  line-height: 1.5; color: var(--developer-query-color); }
 .atproto-detail .node .engine { top: 448px; height: 112px; }
 .atproto-detail .node .provided { position: absolute; top: 584px;
   left: 16px; right: 16px; margin: 0; font-size: 15px; line-height: 1.4; }

@@ -64,6 +64,10 @@ Mastodon's stock REST interface is not the limit of ActivityPub.
   queries still belong to the app developer on web10. Do not imply that
   AT repositories themselves are non-extensible, or that hiring an
   architect is a protocol requirement. No MongoDB comparison is needed.
+  Warm amber/orange shades encode application-owned design/code (apps
+  on both sides, custom backend, JSON/query design); the supplied node
+  stays green and enforcement violet. A legend defines ownership;
+  warm colors are not a danger/performance verdict.
 
 The Mastodon figure uses a 1440×900 canvas; the peeled AT figure gets
 1440×1200 so its explicit fork and schema choices remain readable. Both use full-width

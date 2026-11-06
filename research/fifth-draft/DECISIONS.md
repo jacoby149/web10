@@ -1,5 +1,27 @@
 # Fifth-draft decisions — 6 November 2026
 
+## Developer-ownership colors — final pre-PR figure pass
+
+Operator: "maybe coloring in orange everything the dev has to build is
+good! like the apps could be orange on sweb10 and at proto, but then the
+middle box is orange on at proto too, while web10 its done for you"
+Then: "they dont have to be the same orange, but everything you develop
+could be warning colors"
+
+Warm colors now encode application-owned design/code: softer amber for
+all three apps on both sides, orange for custom AT backend responsibilities,
+and a lighter warm tone for web10's remaining JSON/query design and
+app-written SQL. The supplied node stays green, and violet still names
+access enforcement. The reusable existing AppView path stays neutral.
+A legend makes this an ownership distinction, not a claim that all app
+work is dangerous. Shades are derived from canonical warning/foreground
+tokens; approved Mastodon styling is untouched by AT-scoped selectors.
+Offline checks additionally enforce the ownership legend and warm-family
+apps/backend/query colors against the supplied green node frame.
+Those checks pass, the colored standalone/PDF rendering was inspected,
+and the final build remains 14 pages with 12 figures and 21 resolved
+citations, without overfull boxes or unresolved references.
+
 ## Explicit reuse/design fork and content-storage choice — PR revision
 
 Operator: "But to be clear, you need to design the app view, the diagram
