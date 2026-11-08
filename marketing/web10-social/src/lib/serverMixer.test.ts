@@ -19,6 +19,17 @@ describe('server mixer budgets', () => {
   it('rotates tied small allocations across pages', () => {
     expect([0, 1, 2].map(page => allocateServerFetches(servers, {}, 1, page).find(row => row.count)!.origin)).toEqual(servers);
   });
+  it('rotates equally weighted active servers without counting muted positions', () => {
+    const nodes = [...servers, 'https://d.example'];
+    const weights = { [nodes[0]]: 100, [nodes[1]]: 0, [nodes[2]]: 0, [nodes[3]]: 100 };
+    expect([0, 1, 2, 3].map(page => allocateServerFetches(nodes, weights, 1, page).find(row => row.count)!.origin))
+      .toEqual([nodes[0], nodes[3], nodes[0], nodes[3]]);
+  });
+  it('rotates each tied remainder group without lower-priority positions', () => {
+    const weights = { [servers[0]]: 100, [servers[1]]: 50, [servers[2]]: 100 };
+    expect([0, 1, 2, 3].map(page => allocateServerFetches(servers, weights, 1, page).find(row => row.count)!.origin))
+      .toEqual([servers[0], servers[2], servers[0], servers[2]]);
+  });
   it('keeps URL input from adding destinations or smuggling authority', () => {
     const raw = { [servers[0]]: 0, 'https://unsubscribed.example': 100, token: 'not-authority' };
     expect(parseServerMixer(JSON.stringify(raw), servers)).toEqual({ [servers[0]]: 0 });

@@ -129,12 +129,18 @@ gates. Do not relax masking to improve the recording.
    only managed dashboards/insights, use `--apply` with `POSTHOG_PROJECT_ID`,
    `POSTHOG_REGION=US|EU`, `POSTHOG_PERSONAL_API_KEY` in the operator environment.
    This writes the vendor project and requires explicit approval/access. Reports
-   are not made public, and live HogQL execution/permissions must be checked.
+   are not made public; live HogQL execution was checked 08.11.2026 via the
+   Query API (personal key; 0 rows pre-collection). Access/permission
+   restrictions remain an open gate.
 5. Local checks: three frontend builds/suites, SDK suite, API suite,
    `node --test scripts/posthog-reports.test.mjs`,
    `node scripts/check-posthog-browser.mjs [--replay]`, and from `api/`,
    `uv run python scripts/check_product_analytics.py` (owned disposable ClickHouse).
    Sanitized local receipts/screenshots live in `.context/posthog/`.
+6. Connected acceptance (P5, needs a live project + deployed node + identity
+   secret): `node scripts/posthog-connected-check.mjs` previews the steps with no
+   network; `--run` executes them and writes a sanitized receipt — the synthetic
+   account's username is reported for the QA exclusion list.
 
 Before activation, verify current legal copy, retention/deletion procedure and
 approved project access. Live vendor storage/report reconciliation, playback,

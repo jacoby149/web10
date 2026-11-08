@@ -13,7 +13,7 @@ superseding the earlier retain-until-acceptance coding sequence. It does not
 authorize deployment, production configuration, paid purchases, vendor writes or
 vendor-account cancellation.
 
-## What is implemented locally (5.0.0)
+## What is implemented (5.0.0–5.0.2, merged to dev)
 
 The binding runtime/measurement contract is
 [telemetry.md](../web10-v3/telemetry.md); do not reimplement it from this summary.
@@ -68,7 +68,9 @@ failed on a literal `%` in a parameterized LIKE; the corrected real SQL passes,
 with owned-container cleanup verified. Unit controls replay crash-before-ack with
 the same vendor event UUID and deny forged/expired/foreign/anon/deleted/revoked
 identity requests. Report provisioning and a five-campaign maturity oracle have
-offline tests; **live HogQL execution remains unverified**.
+offline tests; **live HogQL execution verified 08.11.2026 against project
+720098 via the Query API** (all five definitions execute; 0 rows — collection
+not yet enabled — so cohort reconciliation awaits real data).
 
 Third-party hosting is not an independent audit. Public project ingestion can be
 forged; a `capture_origin=server` field is a convention, not a vendor-enforced
@@ -82,10 +84,10 @@ across devices when only anonymous visits were observed.
 |---|---|---|
 | P0 vendor decision | Complete | None for vendor choice; historical decision 4.14.3 |
 | P1 contract | Concrete runtime/metric defaults in telemetry.md | Region, actual project access/permissions, retention/deletion procedure, sampling, limits, spend/exclusions and legal activation review |
-| P2 capture/config | Complete locally | Independent boundary review and actual integrated route lifecycle/collection-health checks |
-| P3 identity/outcomes | Complete locally | Connected popup/signup/recovery, multi-tab/picker/logout, real process outage/restart/retry and actual vendor identity/event reconciliation |
-| P4 reports/replay | Provisioning and masked capture implemented | Explicitly approved vendor apply; execute actual HogQL and reconcile expected cohorts, inspect vendor playback/heatmaps, restrict investor access |
-| P5 connected acceptance | Separate real-browser/real-DB floors pass | Full app/auth/SDK/API/ClickHouse/PostHog fixture→facts→events/persons→reports/export agreement, failure/quota behavior and independent review |
+| P2 capture/config | Merged | Independent boundary review and actual integrated route lifecycle/collection-health checks |
+| P3 identity/outcomes | Merged | Connected popup/signup/recovery, multi-tab/picker/logout, real process outage/restart/retry and actual vendor identity/event reconciliation |
+| P4 reports/replay | Provisioning and masked capture implemented | Vendor apply done 08.11.2026 (managed dashboard 2321231 + five reports; live HogQL execution clean, 0 rows pre-collection). Remaining: reconcile expected cohorts once data flows, inspect vendor playback/heatmaps, restrict investor access |
+| P5 connected acceptance | Floors pass; connected-acceptance harness ready (`scripts/posthog-connected-check.mjs`, 5.0.3, offline-tested) | Live harness run against a deployed node + real project: full app/auth/SDK/API/ClickHouse/PostHog fixture→facts→events/persons→reports/export agreement, live HogQL execution of the five reports, failure/quota behavior and independent review |
 | P6 retirement/rollout | Legacy code/config wiring removed | Approved normal deployment, deployed revision/config, five final links on physical-phone Instagram plus desktop/Safari and explicit collection-gap/rollback receipt |
 
 Keep all gates honest. The full system is not launch-ready just because the code
@@ -105,9 +107,17 @@ adversarial cases, not an instruction to build a custom report/ledger engine.
 3. `node scripts/posthog-reports.mjs` previews the exact report definitions without
    network. Approved `--apply` reads project ID/region/personal API key from the
    operator environment and creates/updates only its own managed reports.
-4. Run connected/deployed acceptance before the paid pilot. Verify retention,
-   access restrictions, quota/drop alerts, deletion process and disclosure. Do
-   not infer those from local mocks or a vendor's funding round.
+4. Run connected/deployed acceptance before the paid pilot. Start with
+   `node scripts/posthog-connected-check.mjs` (dry-run manifest; `--run` needs
+   `POSTHOG_API_ORIGIN`, `POSTHOG_PROJECT_ID`, `POSTHOG_PERSONAL_API_KEY`,
+   `WEB10_API_ORIGIN`, `WEB10_ADMIN_TOKEN` in the environment): telemetry
+   preflight → signed first-touch → canonical signup → verified pseudonym →
+   reconciliation health → the `account_created` event against an independent
+   client-computed UUID oracle → live HogQL execution of all five reports. The
+   synthetic account it creates is reported for the QA exclusion list, not
+   deleted. Then verify retention, access restrictions, quota/drop alerts,
+   deletion process and disclosure. Do not infer those from local mocks or a
+   vendor's funding round.
 
 Ownership: `platform-telemetry`; shared adapter and report/check scripts plus
 coordinated API/account/schema, SDK optional metadata, auth, social lifecycle,

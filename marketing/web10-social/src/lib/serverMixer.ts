@@ -47,11 +47,18 @@ export function allocateServerFetches(
   if (!total || !budget) return rows;
   for (const row of rows) row.count = Math.floor(budget * row.weight / total);
   const remaining = budget - rows.reduce((sum, row) => sum + row.count, 0);
-  const offset = page % rows.length;
-  const remainderOrder = rows.map((row, index) => ({ row, index }))
-    .filter(({ row }) => row.weight > 0)
-    .sort((a, b) => (budget * b.row.weight % total) - (budget * a.row.weight % total)
-      || ((a.index - offset + rows.length) % rows.length) - ((b.index - offset + rows.length) % rows.length));
-  for (const { row } of remainderOrder.slice(0, remaining)) row.count++;
+  const ranked = rows.filter(row => row.weight > 0)
+    .sort((a, b) => (budget * b.weight % total) - (budget * a.weight % total));
+  const remainderOrder: ServerAllocation[] = [];
+  for (let start = 0; start < ranked.length;) {
+    let end = start + 1;
+    while (end < ranked.length && budget * ranked[end].weight % total === budget * ranked[start].weight % total) end++;
+    // Rotate only inside this equal-remainder group. Muted and lower-priority
+    // positions must not bias an otherwise equal pair's long-run allocation.
+    const offset = page % (end - start);
+    remainderOrder.push(...ranked.slice(start + offset, end), ...ranked.slice(start, start + offset));
+    start = end;
+  }
+  for (const row of remainderOrder.slice(0, remaining)) row.count++;
   return rows;
 }

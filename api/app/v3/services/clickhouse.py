@@ -2401,8 +2401,8 @@ def revoke_app_contract(user_key: str, allowed_origin: str, client_id: str | Non
 def revoke_all_app_contracts(user_key: str):
     """Tombstone all app contracts for a user."""
     client.command(
-        "INSERT INTO app_contracts (user_key, allowed_origin, permissions, created_at, updated_at, deleted) "
-        "SELECT user_key, allowed_origin, permissions, created_at, now64(6), 1 "
+        "INSERT INTO app_contracts (user_key, allowed_origin, permissions, created_at, updated_at, deleted, client_id) "
+        "SELECT user_key, allowed_origin, permissions, created_at, now64(6), 1, client_id "
         "FROM app_contracts WHERE user_key = %(user_key)s AND deleted = 0",
         {"user_key": user_key},
     )

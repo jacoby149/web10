@@ -6,6 +6,7 @@ import app.exceptions as exceptions
 import app.settings as settings
 from app.models.auth import Token
 from app.services.auth import check_admin, decode_token
+from app.v3.endpoints.auth_helper import principal as _principal
 from app.v3.endpoints.auth_helper import user as _user
 from app.v3.endpoints.auth_helper import user_or_anon
 from app.v3.models import (
@@ -202,7 +203,7 @@ def get_my_groups(data: ListMyGroups):
     posts, moderation). Idempotent: a no-op when the creator is already the
     owner or the contract defines no owner role.
     """
-    user = _user(data)
+    user = _principal(data)
     if data.author_as:
         if not ch.get_group(data.author_as):
             raise HTTPException(status_code=404, detail="group not found")
@@ -211,6 +212,9 @@ def get_my_groups(data: ListMyGroups):
             raise HTTPException(status_code=403, detail="no permission to act as this group")
         return ch.get_user_groups(data.author_as, data.tags)
     groups = ch.get_user_groups(user, data.tags)
+    if "/" in user:
+        # Certified foreign membership keys never imply local creator ownership.
+        return groups
     # Phase A must migrate local writers/readers together. Until then, heal
     # only the existing local key: a read must not create a second owner row.
     for g in groups:
@@ -223,7 +227,7 @@ def get_my_groups(data: ListMyGroups):
 @router.post("/get")
 def get_group(data: GetGroup):
     """Get group details."""
-    _user(data)
+    _principal(data)
     group = ch.get_group(data.group_id)
     if not group:
         raise exceptions.ENTRY_NOT_FOUND
@@ -326,13 +330,13 @@ def remove_group_member(data: RemoveGroupMember):
 @router.post("/join")
 def join_group(data: JoinGroup):
     """Join a group (open or request)."""
-    user = _user(data)
+    user = _principal(data)
     existing = ch.get_group(data.group_id)
     if not existing:
         raise exceptions.ENTRY_NOT_FOUND
 
     if existing["join_policy"] == "open":
-        # Keep the same key as list/leave/remove until the Phase A migration.
+        # Locals retain bare keys; foreigners use their certified exact principal.
         ch.add_group_member(data.group_id, user, "member")
         return {"group_id": data.group_id, "member_key": user, "role": "member"}
     elif existing["join_policy"] == "request":
@@ -359,12 +363,15 @@ def invite_member(data: InviteMember):
 @router.post("/accept-invite")
 def accept_invite(data: AcceptInvite):
     """Accept a group invite or join request."""
-    user = _user(data)
+    user = _principal(data)
     if not ch.has_pending_or_invited_request(data.group_id, user):
         raise exceptions.CRUD
     pending = ch.get_pending_requests(data.group_id)
     invite = next((r for r in pending if r["requester_key"] == user), None)
-    role = invite.get("role", "member") if invite and invite.get("role") else "member"
+    if not invite or invite.get("status") != "invited":
+        # A pending request needs manager approval; it is not a self-accept invitation.
+        raise exceptions.CRUD
+    role = invite.get("role") or "member"
     ch.resolve_join_request(data.group_id, user, "approved")
     ch.add_group_member(data.group_id, user, role)
     return {"group_id": data.group_id, "role": role}
@@ -373,7 +380,7 @@ def accept_invite(data: AcceptInvite):
 @router.post("/decline-invite")
 def decline_invite(data: DeclineInvite):
     """Decline a group invite or join request."""
-    user = _user(data)
+    user = _principal(data)
     if not ch.has_pending_or_invited_request(data.group_id, user):
         raise exceptions.CRUD
     ch.resolve_join_request(data.group_id, user, "declined")
@@ -383,7 +390,7 @@ def decline_invite(data: DeclineInvite):
 @router.post("/leave")
 def leave_group(data: LeaveGroup):
     """Leave a group."""
-    user = _user(data)
+    user = _principal(data)
     ch.remove_group_member(data.group_id, user)
     return {"group_id": data.group_id, "member_key": user, "status": "left"}
 
