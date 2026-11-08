@@ -18,6 +18,7 @@ from datetime import datetime, timedelta
 
 import jwt
 from fastapi import APIRouter
+from pydantic import BaseModel, Field
 
 import app.exceptions as exceptions
 import app.settings as settings
@@ -126,9 +127,9 @@ def request_code(data: RecoveryRequest):
     """
     kind = _contact_kind(data.contact)
     _check_send_rate_limit(data.contact)
-    from app.services import twilio as mobile
+    from app.services import contact_delivery as mobile
 
-    mobile.send_verification(data.contact.strip())
+    mobile.send_code(data.contact.strip())
     return {"sent": True, "kind": kind}
 
 
@@ -140,14 +141,30 @@ def verify_code(data: RecoveryVerify):
     create one" (the unified sign-up path). The code is the proof of control.
     """
     kind = _contact_kind(data.contact)
-    from app.services import twilio as mobile
+    from app.services import contact_delivery as mobile
 
-    mobile.check_verification(data.contact.strip(), data.code)  # raises WRONG_CODE
-    users = ch.get_users_by_contact(data.contact.strip())
+    mobile.check_code(data.contact.strip(), data.code)  # raises WRONG_CODE
+    return _verified_contact(data.contact.strip(), kind)
+
+
+def _verified_contact(contact, kind):
+    users = ch.get_users_by_contact(contact)
     return {
         "accounts": [{"username": u["username"], "email": u["email"]} for u in users],
-        "verify_token": _mint_verify_token(data.contact.strip(), kind),
+        "verify_token": _mint_verify_token(contact, kind),
     }
+
+
+class RecoveryLink(BaseModel):
+    link: str = Field(min_length=40, max_length=100, pattern=r"^[A-Za-z0-9_-]+$")
+
+
+@router.post("/link")
+def verify_link(data: RecoveryLink):
+    from app.services.contact_delivery import check_link
+
+    contact = check_link(data.link)
+    return {**_verified_contact(contact, "email"), "contact": contact}
 
 
 @router.post("/complete")

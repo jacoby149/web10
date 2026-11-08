@@ -49,6 +49,7 @@ describe('the social app contract covers every CRUD service the data layer touch
     expect(contract.permissions['notifications']).toEqual(ops);
     // The D88 saved-collection store — the `saved` doc (a playlist pointer).
     expect(contract.permissions['saved']).toEqual(ops);
+    expect(contract.permissions['web10-social-playlist-bookmarks']).toEqual(ops);
     // The pre-existing services stay granted (no regression on the rest).
     for (const svc of ['posts', 'media', 'public_media', 'profile', 'settings', 'comments', 'reactions', 'contacts']) {
       expect(contract.permissions[svc]).toEqual(ops);
@@ -110,6 +111,7 @@ describe('the social app contract covers every CRUD service the data layer touch
       'web10-social-group-identity',
       'notifications',
       'saved',
+      'web10-social-playlist-bookmarks',
     ]);
   });
 });

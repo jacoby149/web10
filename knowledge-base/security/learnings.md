@@ -50,6 +50,41 @@ response; it advances a version but adds no preferences or links. Full unexpecte
 attachments deny, never silently repair. Canonical API documents use `service`,
 despite the stale SDK `collection_name` type. Both mistakes have retained replays.
 
+### 2026-11-08: Keep live playlist pointers separate from target access
+
+Music bookmarks store only a collection ID in an owner-only app service, never
+cached titles, covers, signed media URLs or a membership in the target. Resolve
+the original through current authorized reads; an unavailable target stays
+removable without its former content. The app consent service list and access
+oracle must expand together or existing users cannot obtain the new grant.
+Local client controls cover failed-read/no-create and ownership changes; actual
+node two-account denial and consent upgrades remain connected acceptance gates.
+
+### 2026-11-08: Recovery credentials belong to an issuer, not the browser's current session
+
+An email secret cannot use the ordinary token-selected API helper: a retained
+foreign session would route the issuing node's reset authority to another node.
+Pin both exchange and completion to the configured HTTPS API, and compare—not
+trust—the link's issuer hint. Clear consumed navigation intent before login.
+Single-use consumption also needs generation isolation: an old consumed link
+must not charge the newer challenge's attempt budget. The exact stale-link
+lockout replays red→green; actual Interface/App tests retain configured-origin
+dispatch and successful post-reset navigation. [Evidence and limits](scans/2026-11/contact-delivery.md).
+
+Sender OAuth is a separate authority from admin login: callback stages only,
+same-login live admin finalization commits, and connection generations fence
+disconnect/reconnect races. Use a separate encryption key/private conditional
+state, never a JWT key or public media bucket. Same-family local review and real
+MinIO CAS evidence do not prove Google approval, inbox delivery or deployed logs.
+
+The read-only release preflight likewise reports the API's setup flags, not an
+independent check of sender credentials, bucket privacy or reset login. Its
+default is network-free even with credentials; explicit status reads use a fixed
+HTTPS origin/action, no redirects/cookies, bounded responses and only known
+booleans/provider in receipts. Unknown fields and sender addresses are discarded,
+and dependency errors are replaced rather than forwarded. Seven offline tests
+and three fresh same-family scoped dry reviews retain the live-transport gate.
+
 ### 2026-11-08: JSON serialization can replace a transport-owned credential
 
 The [isolated transport](scans/2026-11/explicit-node-transport.md) rejects root
@@ -81,6 +116,34 @@ not just user/origin, in INSERT and SELECT. Actual helper-SQL/registered-route
 replays fail for both local/foreign revoke-all before the fix and pass afterward,
 with targeted origin/client controls and namesake isolation. SQLite is an
 execution substitute, not ClickHouse merge/timestamp or complete lifecycle proof.
+
+### 2026-11-08: Replay fidelity and content-blindness are separate dials (D106)
+
+The operator's live inspection of the first recordings showed that stripping
+ALL attributes (for content safety) also stripped layout (for usability) —
+recordings rendered as unstyled gray boxes and failed at their job. The wire
+sanitizer must therefore be an attribute BLOCKLIST, not a blanket wipe:
+keep `class`/`style` (app-controlled static values) and inline the
+stylesheet/fonts; drop input values, alt/title/placeholder, media srcs, DOM
+ids (route/document identifiers), and every `data-*`/`aria-*` payload;
+template hrefs. Text masking and media blocking stay unchanged — content is
+still never in the recording. Pin the blocklist with a test that asserts both
+survival (class/style present) and absence (sentinel content absent), and
+re-verify with a real-SDK intercepted batch before shipping fidelity changes.
+
+### 2026-11-08: Live P5 runs verified the admin gate and exposed vendor-side contract drift
+
+The first connected P5 run used the journey account's login token on
+`/admin/analytics/health` and got 403 NOT_ADMIN — the I5 floor working in
+production (a freshly signed-up account is not an admin; the operator admin
+token is the only path). Never reuse journey/test credentials on admin seams.
+The PostHog cloud Query API returns property columns BARE (`capture_origin`),
+not dotted — synthetic test vendors that assume `properties_capture_origin`
+mask real contract drift; use explicit `toString(properties.x) AS x` aliases
+and validate against the live API before trusting fixtures. Delivered events
+were query-lag-visible up to ~4.5 minutes later: automation that polls fresh
+vendor events needs minute-scale deadlines, and "not arrived yet" is not
+"lost" until the lag window passes.
 
 ### 2026-11-08: Gate analytics activation on the server identity prerequisite
 

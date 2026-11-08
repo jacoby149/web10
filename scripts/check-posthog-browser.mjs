@@ -152,6 +152,9 @@ try {
       if (replay) {
         assert.ok(events.some((entry) => entry.event === '$snapshot'), 'real recorder emitted no snapshots');
         assert.ok(events.some((entry) => entry.event === '$$heatmap'), 'real heatmap emitted no coordinates');
+        // D106: layout fidelity — class attributes must survive the wire gate.
+        const snapshot = events.find((entry) => entry.event === '$snapshot');
+        assert.ok(JSON.stringify(snapshot?.properties?.$snapshot_data).match(/"class":"[^"]{3,}/), 'D106 layout fidelity: no class attributes survived the wire gate');
       }
       else assert.ok(!events.some((entry) => entry.event === '$snapshot'));
       for (const event of events) {

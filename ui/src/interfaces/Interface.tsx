@@ -4,6 +4,7 @@ import { config } from '../config';
 import { rememberAccount, getRememberedAccounts } from '../lib/rememberedAccounts';
 import { vaultToken, getVaultedToken, vaultedAccountsFor } from '../lib/tokenVault';
 import { acquisitionTicket, identifyAnalytics, resetAnalytics } from '../lib/analytics';
+import { contactHandoff, recoveryDestination } from '../lib/contactHandoff';
 
 // ── v3 API helpers (ClickHouse-backed service contracts + groups) ──────────
 
@@ -81,13 +82,15 @@ function extractDetail(text: string): string | null {
  * token; the phone + code are the credential). Unlike v3Post, it never attaches
  * a token and surfaces the API's `detail` as the error message.
  */
-async function v3PostAnon(action: string, body: Record<string, any>) {
+async function v3PostAnon(action: string, body: Record<string, any>, pinnedOrigin?: string) {
     const decoded = (window.I?.v3?.readToken?.()) as { provider?: string } | null;
-    const origin = v3ApiOrigin(decoded);
+    const origin = pinnedOrigin || v3ApiOrigin(decoded);
     const res = await fetch(`${origin}/v3/${action}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
+        credentials: 'omit',
+        redirect: 'error',
     });
     if (!res.ok) {
         let detail = `recovery ${action} failed: ${res.status}`;
@@ -194,6 +197,8 @@ function useInterface() {
     [I.recoveryContact, I.setRecoveryContact] = React.useState("");
     [I.recoveryVerifyToken, I.setRecoveryVerifyToken] = React.useState("");
     [I.recoveryAccounts, I.setRecoveryAccounts] = React.useState([]);
+    const recoveryLinkSequence = React.useRef(0);
+    const recoveryLinkOrigin = React.useRef<string | null>(null);
 
     [I.auth, I.setAuth] = React.useState(restoreAuth);
     [I.isAdmin, I.setIsAdmin] = React.useState(false);
@@ -715,6 +720,7 @@ function useInterface() {
     }
 
     I.recoverRequest = function (contact: string) {
+        recoveryLinkOrigin.current = null;
         I.setStatus("Sending code...");
         v3PostAnon("recovery/request", { contact })
             .then((res: any) => {
@@ -741,14 +747,55 @@ function useInterface() {
         I.setStatus("Signing you in...");
         const body: Record<string, any> = { verify_token: I.recoveryVerifyToken, username };
         if (newPassword) body.new_password = newPassword;
-        v3PostAnon("recovery/complete", { ...body, ...(acquisitionTicket() ? { analytics_context: acquisitionTicket() } : {}) })
+        const pinnedOrigin = recoveryLinkOrigin.current;
+        const generation = accountReadGeneration.current;
+        v3PostAnon("recovery/complete", { ...body, ...(acquisitionTicket() ? { analytics_context: acquisitionTicket() } : {}) }, pinnedOrigin || undefined)
             .then((res: any) => {
+                if (pinnedOrigin && (generation !== accountReadGeneration.current ||
+                    currentInterface.current.mode !== 'forgot' ||
+                    new URL(currentInterface.current.v3.state.apiOrigin).origin !== pinnedOrigin)) return;
                 // The token is a normal login token — store it exactly the way
                 // v3.login does, then finish the sign-in.
                 I.v3.setToken(res.token);
+                const url = new URL(window.location.href);
+                url.searchParams.delete('forgot');
+                url.searchParams.delete('recovery');
+                if (url.searchParams.get('mode') === 'forgot') url.searchParams.delete('mode');
+                window.history.replaceState(window.history.state, '', url);
                 I.finishLogin();
             })
             .catch((e: any) => I.setStatus(e.message || String(e)));
+    }
+
+    I.recoverLink = function (link: string) {
+        const request = ++recoveryLinkSequence.current;
+        const generation = accountReadGeneration.current;
+        const owns = () => request === recoveryLinkSequence.current &&
+            generation === accountReadGeneration.current && currentInterface.current.mode === 'forgot';
+        I.setStatus("Verifying your email link...");
+        let origin: string;
+        try {
+            origin = recoveryDestination(contactHandoff.node, I.v3.state.apiOrigin);
+        } catch {
+            I.setStatus("This link belongs to another node. Open it in that node’s configured authenticator.");
+            return Promise.resolve(false);
+        }
+        return v3PostAnon("recovery/link", { link }, origin)
+            .then((res: any) => {
+                if (!owns()) return false;
+                recoveryLinkOrigin.current = origin;
+                I.setRecoveryContact(res.contact);
+                I.setRecoveryAccounts(res.accounts || []);
+                I.setRecoveryVerifyToken(res.verify_token || "");
+                I.setRecoveryStep("pick");
+                I.setStatus(null);
+                return true;
+            })
+            .catch(() => {
+                if (!owns()) return false;
+                I.setStatus("This link is unavailable, expired or already used. Request a new email code.");
+                return false;
+            });
     }
 
     I.isVerified = function () {

@@ -35,9 +35,10 @@ usage across sessions; we do not send contacts, usernames or credentials to
 PostHog. Campaign labels can travel between our marketing, social and login
 surfaces. Anonymous visits are not proof of unique people.
 
-Optional recordings mask text and inputs, remove DOM attributes and block media;
-network bodies and console content are not recorded. Heatmaps contain interaction
-coordinates, not your content. This deliberately reduces recording fidelity.
+Optional recordings reproduce the page's layout and styling but mask all text
+and inputs, remove content-bearing attributes and block media; network bodies
+and console content are not recorded. Heatmaps contain interaction coordinates,
+not your content. Content is still never in the recording.
 
 The marketing site also sends first-party usage and error reports to the
 node, including page paths, referrers, browser information, actions, and
