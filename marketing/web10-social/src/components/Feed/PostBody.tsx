@@ -2,8 +2,9 @@ import ReactMarkdown, { defaultUrlTransform } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
-import { LinkEmbed } from './LinkEmbed';
+import { LinkEmbed, UnfurlLink, PlainExternalLink } from './LinkEmbed';
 import { isEmbeddable, parseEmbed } from '@/lib/linkEmbeds';
+import { isUnfurlCandidate } from '@/lib/unfurl';
 import { cn } from '@/lib/utils';
 import { remarkMentions } from '@web10/discover/mentions';
 import { Link, useInRouterContext } from 'react-router-dom';
@@ -70,11 +71,15 @@ interface PostBodyProps {
 const DISPLAY = 'font-display font-medium tracking-tight';
 
 /**
- * A link in the body. Embeddable (YouTube / Vimeo) → the player / chip.
- * Otherwise a plain external link (new tab). `web10:` scheme mentions are
- * rendered as a tappable handle (the one social-specific token — the
- * `web10:` scheme is not an http(s) URL, so `parseEmbed` returns the external
- * fallback, which we map to the profile route instead).
+ * A link in the body. Embeddable (YouTube / Vimeo) → the player (unchanged).
+ * An external http(s) link at FULL density → the unfurl (a provider player
+ * or a rich preview card, fetched same-origin; any failure renders the plain
+ * link — KB: web10-v3/social/link-unfurl.md). Light / inline densities are
+ * teasers (repost quotes, captions, ad copy) — they keep the plain link,
+ * never a block card. `web10:` scheme mentions are rendered as a tappable
+ * handle (the one social-specific token — the `web10:` scheme is not an
+ * http(s) URL, so `parseEmbed` returns the external fallback, which we map
+ * to the profile route instead).
  */
 function ProfileMentionLink({ username, children }: { username: string; children: React.ReactNode }) {
   const routed = useInRouterContext();
@@ -83,7 +88,7 @@ function ProfileMentionLink({ username, children }: { username: string; children
   return routed ? <Link to={href} {...props}>{children}</Link> : <a href={href} {...props}>{children}</a>;
 }
 
-function BodyLink({ href, children }: { href?: string; children?: React.ReactNode }) {
+function BodyLink({ href, children, density = 'full' }: { href?: string; children?: React.ReactNode; density?: Density }) {
   if (!href) return <>{children}</>;
   // A web10 mention: @[username](web10:username) → a tappable handle.
   if (href.startsWith('web10:')) {
@@ -100,25 +105,26 @@ function BodyLink({ href, children }: { href?: string; children?: React.ReactNod
       </span>
     );
   }
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-brand-300 underline underline-offset-2 hover:text-brand-200 break-words"
-    >
-      {children}
-    </a>
-  );
+  // The unfurl (full density only — light / inline are teasers, a block card
+  // in a line-clamped caption would blow it up). Every unfurl failure
+  // (network / blocked / no metadata) resolves back to PlainExternalLink —
+  // exactly the pre-unfurl link, so a bad fetch can never break the post.
+  if (density === 'full' && isUnfurlCandidate(href)) {
+    return <UnfurlLink url={href} text={children} />;
+  }
+  return <PlainExternalLink href={href}>{children}</PlainExternalLink>;
 }
 
+type MarkdownLinkProps = { href?: string; children?: React.ReactNode };
+
 /**
- * The `a` component for react-markdown. react-markdown passes the element's
- * props (including `href`) + `children`; we drop `node` (the hast element) so
- * it isn't spread onto the DOM.
+ * The `a` component for react-markdown (density-aware): full scale unfurls
+ * external links; light / inline keep the plain link. react-markdown passes
+ * the element's props (including `href`) + `children`; we drop `node` (the
+ * hast element) so it isn't spread onto the DOM.
  */
-function markdownA(props: { href?: string; children?: React.ReactNode }) {
-  return <BodyLink href={props.href}>{props.children}</BodyLink>;
+function markdownA(props: MarkdownLinkProps, density: Density) {
+  return <BodyLink href={props.href} density={density}>{props.children}</BodyLink>;
 }
 
 /**
@@ -175,7 +181,7 @@ export function PostBody({ text, density = 'full', className }: PostBodyProps) {
       <blockquote className="mb-2 border-l-2 border-brand pl-3 text-muted-foreground italic last:mb-0">{children}</blockquote>
     ),
     hr: () => <hr className="my-3 border-border" />,
-    a: markdownA,
+    a: (props: MarkdownLinkProps) => markdownA(props, 'full'),
     code: markdownCode,
     pre: markdownPre,
     table: ({ children }: { children?: React.ReactNode }) => (
@@ -208,7 +214,7 @@ export function PostBody({ text, density = 'full', className }: PostBodyProps) {
     blockquote: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
     pre: ({ children }: { children?: React.ReactNode }) => <code className="post-body-inline-code">{children}</code>,
     code: markdownCode,
-    a: markdownA,
+    a: (props: MarkdownLinkProps) => markdownA(props, 'light'),
   };
 
   return (
@@ -263,7 +269,9 @@ export function PostBodyInline({ text, className }: PostBodyInlineProps) {
     blockquote: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
     pre: ({ children }: { children?: React.ReactNode }) => <code className="post-body-inline-code">{children}</code>,
     code: markdownCode,
-    a: markdownA,
+    // Inline = teaser: the plain link, never a block card (the unfurl is a
+    // full-density surface).
+    a: (props: MarkdownLinkProps) => markdownA(props, 'light'),
   };
   return (
     <span className={cn('post-body text-foreground break-words', className)} data-testid="post-body-inline">

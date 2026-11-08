@@ -1,6 +1,15 @@
 # Sixth-draft measurement record — 6 November 2026
 
-**Status: tier-max retry in connected setup/build; no new measurements yet.**
+**Status: operator-cancelled; partial results retained, no completed repeat.**
+At `2026-11-06T21:03:58Z` the operator stopped the current run to separate fixed
+dataset preparation from the new experiment and choose appropriate hardware.
+Nine of twenty cells completed, retaining 180 measured samples; no final report
+exists. Collected files and cancellation receipt are in
+`.context/sixth-draft/tiermax-cancelled/`. Droplet 616683895 was deleted and
+an empty DigitalOcean droplet list verified; the local driver/child were also
+stopped. No replacement cloud run is active. The new
+[frozen-input workflow](DATASET.md) and offline fixture are preparation work,
+not a completed repeat, baseline or capacity result. History follows.
 The first larger-host attempt was blocked before provisioning. The operator then
 asked: "do we need a larger instance? would be so cool to see how it goes on the
 largest one in our tier!" The available non-GPU list tops out at four vCPUs;
@@ -22,13 +31,14 @@ at most 60 times across the init-server handoff; offline controls reproduce
 refusal between templates and bounded exhaustion. This is not yet a connected
 success claim or a project-wide schema-readiness repair.
 
-A fresh retry uses the same size/region: droplet 616683895, created
-`2026-11-06T20:32:58Z`. Its driver is running bootstrap/build → seed → benchmark,
-with collection and deletion in a `finally` block. Workspace-local receipts:
+A fresh retry used the same size/region: droplet 616683895, created
+`2026-11-06T20:32:58Z`. It completed startup and the 1,000-creator seed in
+813.2 seconds, then reached nine complete benchmark cells before cancellation.
+Workspace-local receipts:
 `.context/sixth-draft/tiermax-run/` (failed startup) and
-`.context/sixth-draft/tiermax-retry-run/` (active retry). No new measurement
-is available yet. Final results and cleanup must be recorded before claiming
-the repeat complete.
+`.context/sixth-draft/tiermax-retry-run/` (earlier retry logs), with the final
+partial collection in `tiermax-cancelled/`. Partial timings are not a complete
+new trial and are not incorporated into the manuscript's old result table.
 This file is an execution/status record, not a replacement for
 `K1000-RESULTS.md` and not satisfaction of Task 4's results gate.
 
@@ -38,7 +48,7 @@ This file is an execution/status record, not a replacement for
 - Harness changes in this branch: seeded randomized cell order, three excluded
   warm-up requests per cell, raw timing phases/query IDs retained alongside
   summaries, warm-up samples retained separately, schedule persisted before
-  execution. Offline controls pass; no connected validation of these changes yet.
+  execution. Offline controls pass; nine connected cells completed, not a full trial.
 - Intended repeat: seed 42, 1,000 creators, one post each, K=10/100/1000;
   20 measured samples plus three excluded warm-ups per cell; K=1 discover
   remains a separate workload. Existing A is a direct-scan diagnostic, **not**
