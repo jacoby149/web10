@@ -87,7 +87,7 @@ def artifact_integrity(directory, pin):
 
 
 def audit(wire=None, pin=None, artifact_dir=None):
-    wire = wire if wire is not None else json.loads((HERE / "evidence/core-feed-wire-v3.json").read_bytes())
+    wire = wire if wire is not None else json.loads((HERE / "evidence/core-feed-wire-v4.json").read_bytes())
     pin = pin if pin is not None else json.loads((HERE / "evidence/frozen-1m-v1.json").read_bytes())
     recipe = pin["recipe"]
     points = matrix()

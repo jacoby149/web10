@@ -18,7 +18,7 @@ python3 research/experiments/costfn/study_plan.test.py
 python3 research/experiments/costfn/study_plan.py --artifact-dir .context/datasets/one-million
 ```
 
-The source-captured [wire contract](evidence/core-feed-wire-v3.json) verifies the
+The source-captured [wire contract](evidence/core-feed-wire-v4.json) verifies the
 actual app/SDK builders' three queries plus views, including 21 fetched versus
 20 displayed rows, prepare and delivery flags. It is fake-transport evidence,
 not a live core-feed result. The planning tool has no execution mode and
