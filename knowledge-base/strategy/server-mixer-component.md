@@ -206,3 +206,16 @@ take the mixer.
 Operator: "mixer knobs are just too shiny." The chrome cap gradient is replaced
 by a matte top-lit cap using the rotary knob's language, rendered as positioned
 HTML so it is not stretched by the track's `preserveAspectRatio="none"`.
+
+## Release browser gate (5.8.1)
+
+The production social image copied `sdk/src/federatedTransport.ts`, but the
+E2E development image did not. CI's real browser traces show Vite's missing-import
+overlay before React could mount, explaining the downstream recovery/feed/profile
+and moderation/ad failures. Align the E2E image, not the existing assertions.
+`e2e/tests/social-server-mixer.spec.ts` runs against the actual container and node
+at desktop/375px: save weight 37, retain it across Discover/Following/Video/Shorts/
+Music and reload, and drive Edit servers/Done with URL state. Ten local board
+flows pass with no failed modules or page exceptions; captures are under
+`.context/mixer-connected/`. This is a home-node persistence/rendering receipt,
+not foreign HTTPS grants, source-owned actions, physical-phone or rollout proof.
