@@ -37,6 +37,9 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
+- [~] **Federated Following and per-server mixer** — full authenticated client fan-out, reader-owned domain follows and horizontal per-server fetch controls; queue and gates in `federated-feed-mixer.md`.
+  - [✓ 4.17.0 local; review/connected OPEN] **FM1 backend foundation split** — certified foreign self-membership/own app grants, exact identities and pending self-approval denial. SDK transport, mixer and DNS work remain separate PRs; no live-feed activation.
+
 - [✓ 4.16.4 local; CI gate pending] **Discover identity/count enrichment race** — merge background counts into current post objects without dropping settled identity or newer human reaction counts; generation/reader/acting fences retained. Controlled lost-count and human-swap regressions plus 70 Discover tests/build pass; desktop/375px board inspected. PR #1426 CI must pass; no deployment or check waiver.
 
 - [✓ 4.12.14 local] **Name the DMCA designated agent** - Terms names Jacob Hoffman alongside unchanged `jacob@web10.app`; no other Terms text or Post-It Note process changes. Focused regression aligned. Separate Copyright Office registration and production publication verification are not completed by this repo edit.

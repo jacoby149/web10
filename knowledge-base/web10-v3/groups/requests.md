@@ -153,6 +153,14 @@ bob requests to join "alice/followers"
 
 This is the existing `group_join_requests` table. The authenticator UI queries it for each group the user manages and shows pending requests.
 
+Self-acceptance requires an exact current row with status `invited`; a caller's
+own `pending` join request cannot be accepted through `/groups/accept-invite`.
+It waits for the manager's approve/deny flow. Certified foreign self-service
+uses the qualified home principal; local callers retain their existing bare key.
+The exact-key invitation/request control does not promise atomic concurrent
+check/write semantics. Local evidence and remaining federation gates:
+`knowledge-base/security/scans/2026-11/foreign-self-service.md`.
+
 ## Auto-Approve (Optional, Risky)
 
 A user can set an app as trusted for group operations. This auto-approves requests from that app for specific actions.

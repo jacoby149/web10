@@ -9,6 +9,28 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D103 — Federated Following uses home certification and a per-server mixer [decided; implementation staged]
+
+Operator, 08.11.2026: implement authenticated client fan-out, not only public
+subscriptions; foreign nodes certify the home token, then apply normal behavior.
+The Following customizer lists subscribed web10 servers with a horizontal
+fetch-amount control per server, styled as an audio mixer. This extends D84's
+client-side targeted reads and authorizes product integration of D97's domain
+subscriptions; it does not turn DNS into a token/group principal or migrate
+private authority after a move.
+
+Keep certification identity-only and the serving node's real app/group gates
+intact. Preserve local legacy keys while adding exact qualified foreign
+self-membership where bounded tests prove compatibility; do not require an
+unrelated blanket storage migration merely to use the existing foreign read key.
+App approval and credential routing must work with actual browser Origin, not
+by removing it or borrowing a namesake's grants. Per-server controls allocate
+fetch budgets, not permissions; their state is deep-linkable and persisted.
+Implementation and release gates: `federated-feed-mixer.md` FM1–FM6. No production
+deployment, DNS change, paid study or broad security completion is authorized.
+
+---
+
 ### D102 — The audio provider embeds render the provider's player without a click (the scroll is the gate, not a play button) [decided]
 
 The operator's live pass (08.11.2026, social.web10.app): the Spotify and

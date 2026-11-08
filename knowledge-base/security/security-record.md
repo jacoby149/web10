@@ -15,6 +15,16 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Foreign self-service foundations (08.11.2026) — bounded local, OPEN
+
+Exact certified foreign self-membership and own app-grant routes, with local-key
+compatibility, request-versus-invitation admission and delegated revoke-all key
+retention controls. Two inherited admission/revocation failures are replayed and
+repaired; 2,147 API tests plus eight subtests pass, one opt-in skip. Scope, repro and
+fresh split-branch validation: [record](scans/2026-11/foreign-self-service.md).
+No SDK/UI/DNS integration in this unit. Real issuer/storage/browser/concurrency
+and model-diverse L1–L4 sign-off remain OPEN; no whole-security PASS or deployment.
+
 ## Production readable-resolution promotion (08.11.2026) — bounded local, OPEN
 
 GPT-6.1 Sol checks the generic helper/query selection, validated production

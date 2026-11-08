@@ -1,12 +1,20 @@
 from fastapi import APIRouter, HTTPException, Request
 
 from app import settings
-from app.v3.endpoints.auth_helper import user as _user
+from app.v3.endpoints.auth_helper import client_id_of, principal
 from app.v3.models import AddAppContract, RevokeAppContract
 from app.v3.models.common import TokenOnly
 from app.v3.services import clickhouse as ch
 
 router = APIRouter(tags=["app-contracts"])
+
+
+def _contract_principal(data, *, mutate=False):
+    user = principal(data)
+    if mutate and "/" in user and client_id_of(data):
+        # A delegated foreign app cannot approve its own broader access.
+        raise HTTPException(status_code=403, detail="Use the home account session to manage foreign app grants.")
+    return user
 
 
 def _is_authenticator_origin(request: Request) -> bool:
@@ -33,7 +41,7 @@ def add_app_contract(request: Request, data: AddAppContract):
             status_code=403,
             detail="App contract creation is only allowed from the authenticator. Apps must go through the consent popup.",
         )
-    user = _user(data)
+    user = _contract_principal(data, mutate=True)
     result = ch.add_app_contract(user, data.allowed_origin, data.permissions)
     return result
 
@@ -41,7 +49,7 @@ def add_app_contract(request: Request, data: AddAppContract):
 @router.post("/list")
 def get_app_contracts(data: TokenOnly):
     """Get active app contracts."""
-    user = _user(data)
+    user = _contract_principal(data)
     return ch.get_app_contracts(user)
 
 
@@ -57,7 +65,7 @@ def revoke_app_contract(request: Request, data: RevokeAppContract):
             status_code=403,
             detail="App contract revocation is only allowed from the authenticator.",
         )
-    user = _user(data)
+    user = _contract_principal(data, mutate=True)
     if data.client_id:
         # Delegated (OAuth) contract — revoke by client_id (D92).
         ch.revoke_app_contract(user, "", client_id=data.client_id)
@@ -79,6 +87,6 @@ def cleanup_stale_contracts(request: Request, data: TokenOnly):
             status_code=403,
             detail="Contract cleanup is only allowed from the authenticator.",
         )
-    user = _user(data)
+    user = _contract_principal(data, mutate=True)
     count = ch.cleanup_stale_app_contracts(user)
     return {"status": "cleaned", "revoked": count}
