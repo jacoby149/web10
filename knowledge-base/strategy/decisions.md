@@ -9,6 +9,57 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D99 — Link unfurling fetches live in the social app's preview server, not the node [decided]
+
+The operator's unfurl task (07.11.2026: "Spotify, article, and (presumably)
+other provider links render as bare text links … add link unfurling for post
+bodies") asked the exact D60 question the ad-creative need had parked
+(`ads-october/needs/external-link-embeds.md`: "where it lives — node vs
+preview server vs a third-party card API — is the open decision").
+
+**The decision: the social app's own preview server**
+(`marketing/web10-social/preview/unfurl.mjs`, the route
+`GET /preview/unfurl`, nginx-exposed to every user-agent). The SPA cannot
+fetch the page itself (CORS), so the fetch is server-side — but in the
+social container's Node process, not the node: the provider set (Spotify /
+SoundCloud / TikTok oEmbed, the Bandcamp/Instagram page shapes, the
+challenge-wall refusal) and the card shapes are SOCIAL link-curation
+concepts; a notes app or a shop does not unfurl Spotify. The node stays
+100% generic (it never fetches an external url and never learns a provider),
+the unfurl deploys with the app it renders (one service, like the share
+card), and its compromise blast-radius is contained (the preview server holds
+no credentials and reads only anon-public docs through its own node API).
+
+**Rejected:** (a) a node endpoint — the D60 leak (the node learning
+"Spotify"/"article preview"; an external-fetch surface on the trust core);
+(b) a third-party card API (Embedly-class) — per-call cost for a read-side
+convenience, a vendor dependency on the post render path, and it answers the
+ad-creative need's "reliable vs flaky" question only at money's price;
+the scrape-first + plain-link floor is the right posture for link groups,
+and the API door stays open for the ad-creative consumer; (c) client-only
+fetch — CORS makes it impossible for the generic case.
+
+**The safety contract** (the endpoint is attacker-influenced): the SSRF
+guard (scheme/shape refuses, every resolved address public, per-hop
+re-validation on redirects, timeout/byte/redirect caps), the two-sided
+iframe allowlist (server + SPA), the wall-refusal (a "Client Challenge" page
+is no card, the plain link), the positive/negative cache, and the per-IP
+damper. The DNS-rebinding resolve-then-fetch window is documented, not
+waived (record: `security/scans/2026-11/link-unfurl-ssrf.md`).
+
+**The floor:** a link that cannot be unfurl (walled, dead, blocked) posts
+and renders as the clickable plain link, exactly as before — unfurling is
+read-side only and never breaks posting. Existing posts pick it up with no
+backfill (the card is computed at read time from the url in the post body).
+
+Contract: `web10-v3/social/link-unfurl.md` (the provider matrix, the guard,
+the card's place in `BodyLink`). The ad-creative need's "where the fetch
+lives" question is answered by this build; its "third-party vs scrape"
+question stays open for the ad consumer (the ad's product-card shape —
+price, product title — is a different contract than the link group's card).
+
+---
+
 ### D98 — Wait for HLS through a generic durable create, not a browser-owned final write [in-progress]
 
 The operator chose **wait for HLS**, with automatic publication after browser

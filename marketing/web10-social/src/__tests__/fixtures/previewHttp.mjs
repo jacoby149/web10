@@ -41,6 +41,11 @@ export async function startPreviewFixture(handler) {
   }
   return {
     close,
+    /** The preview server's port. */
+    port,
+    /** The fake node-API's port (the SSRF tests point exploit urls at it to
+     *  prove a denied url is never fetched). */
+    apiPort: api.address().port,
     /** @returns {Promise<{status: number, html: string}>} */
     get(path) {
       return new Promise((resolve, reject) => {

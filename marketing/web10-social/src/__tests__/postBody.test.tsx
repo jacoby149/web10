@@ -1,10 +1,45 @@
-import { describe, it, expect } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
-import { vi } from 'vitest';
 import '@testing-library/jest-dom';
 import { PostBody } from '@/components/Feed/PostBody';
 import { MarkdownText } from '../../../shared/discover/src/MarkdownText';
+import { fetchUnfurl } from '@/lib/unfurl';
+
+// The unfurl seam: the same-origin card fetch (the preview server). Mocked so
+// the component tests drive the RENDER decision, not the network — the
+// network + parsing lives in previewUnfurl.test.ts (module) and
+// previewServerUnfurl.test.ts (the real process).
+vi.mock('@/lib/unfurl', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/unfurl')>();
+  return { ...actual, fetchUnfurl: vi.fn(async () => null) };
+});
+const fetchUnfurlMock = vi.mocked(fetchUnfurl);
+
+const SPOTIFY_CARD = {
+  url: 'https://open.spotify.com/track/0VjIjW4GlUZAMYd2vXMi3b',
+  domain: 'spotify.com',
+  provider: 'spotify',
+  title: 'Blinding Lights',
+  description: 'The Weeknd · Blinding Lights',
+  image: 'https://i.scdn.co/cover.png',
+  embed: { src: 'https://open.spotify.com/embed/track/0VjIjW4GlUZAMYd2vXMi3b', height: 152, width: 456, allow: 'autoplay; encrypted-media' },
+};
+
+const ARTICLE_CARD = {
+  url: 'https://paulgraham.com/greatwork.html',
+  domain: 'paulgraham.com',
+  provider: 'generic',
+  title: 'How to Do Great Work',
+  description: 'This is a talk I gave at the University of California, Santa Cruz, in 2009.',
+  image: 'https://img.example.com/lede.png',
+  embed: null,
+};
+
+beforeEach(() => {
+  fetchUnfurlMock.mockClear();
+  fetchUnfurlMock.mockImplementation(async () => null);
+});
 
 describe('PostBody (D85 read side)', () => {
   it('navigates post tags through the router instead of reloading the player', () => {
@@ -110,5 +145,71 @@ describe('PostBody (D85 read side)', () => {
     const a = container.querySelector('a');
     // Either no link, or the href is not a javascript: URL.
     expect(a?.getAttribute('href') || '').not.toMatch(/^javascript:/i);
+  });
+});
+
+// ── The link unfurl (the read-side card / player, KB: link-unfurl.md) ──────
+describe('PostBody — the link unfurl', () => {
+  it('renders a plain link first, then the spotify player placeholder (title + play), and the iframe on click', async () => {
+    fetchUnfurlMock.mockImplementation(async () => SPOTIFY_CARD);
+    const { container } = render(<PostBody text="New drop: https://open.spotify.com/track/0VjIjW4GlUZAMYd2vXMi3b" density="full" />);
+    // While loading: the plain link of today (the unfurl never blocks the text).
+    expect(container.querySelector('a[href="https://open.spotify.com/track/0VjIjW4GlUZAMYd2vXMi3b"]')).toBeTruthy();
+    const placeholder = await screen.findByTestId('unfurl-player-placeholder');
+    expect(placeholder).toHaveTextContent('Blinding Lights');
+    expect(screen.queryByRole('link', { name: 'https://open.spotify.com/track/0VjIjW4GlUZAMYd2vXMi3b' })).toBeNull(); // the link is replaced by the card
+    fireEvent.click(placeholder);
+    const player = await screen.findByTestId('unfurl-player');
+    const iframe = player.querySelector('iframe');
+    expect(iframe?.getAttribute('src')).toBe('https://open.spotify.com/embed/track/0VjIjW4GlUZAMYd2vXMi3b');
+    expect(iframe?.getAttribute('allowfullscreen')).toBe('');
+    expect(iframe?.getAttribute('style')).toContain('height: 152px');
+  });
+
+  it('renders the article as a rich card (title + description + domain + image, the whole card is the link)', async () => {
+    fetchUnfurlMock.mockImplementation(async () => ARTICLE_CARD);
+    render(<PostBody text="Reading today: https://paulgraham.com/greatwork.html" density="full" />);
+    const card = await screen.findByTestId('unfurl-card');
+    expect(card.tagName).toBe('A');
+    expect(card).toHaveAttribute('href', 'https://paulgraham.com/greatwork.html');
+    expect(card).toHaveAttribute('target', '_blank');
+    expect(screen.getByTestId('unfurl-card-title')).toHaveTextContent('How to Do Great Work');
+    expect(screen.getByTestId('unfurl-card-description')).toHaveTextContent('a talk I gave at the University of California');
+    expect(screen.getByTestId('unfurl-card-domain')).toHaveTextContent('paulgraham.com');
+    const img = screen.getByTestId('unfurl-card-image');
+    expect(img.getAttribute('src')).toBe('https://img.example.com/lede.png');
+  });
+
+  it('a link that does not unfurl (fetchUnfurl → null) stays the plain clickable link, exactly as today', async () => {
+    fetchUnfurlMock.mockImplementation(async () => null);
+    const { container } = render(<PostBody text="see https://nowhere.example.com/page" density="full" />);
+    await waitFor(() => expect(fetchUnfurlMock).toHaveBeenCalledTimes(1));
+    const a = container.querySelector('a[href="https://nowhere.example.com/page"]')!;
+    expect(a).toBeTruthy();
+    expect(a).toHaveClass('text-brand-300', 'underline');
+    expect(a).toHaveAttribute('target', '_blank');
+    expect(screen.queryByTestId('unfurl-card')).toBeNull();
+    expect(screen.queryByTestId('unfurl-player-placeholder')).toBeNull();
+  });
+
+  it('light density never unfurls (a card is a teaser — the plain link stays, no fetch)', async () => {
+    const { container } = render(<PostBody text="https://open.spotify.com/track/0VjIjW4GlUZAMYd2vXMi3b" density="light" />);
+    await waitFor(() => expect(fetchUnfurlMock).not.toHaveBeenCalled());
+    expect(container.querySelector('a[href="https://open.spotify.com/track/0VjIjW4GlUZAMYd2vXMi3b"]')).toBeTruthy();
+  });
+
+  it('the inline renderer (PostBodyInline captions) never unfurls', async () => {
+    const { PostBodyInline } = await import('@/components/Feed/PostBody');
+    const { container } = render(<PostBodyInline text="https://paulgraham.com/greatwork.html" />);
+    await new Promise((r) => setTimeout(r, 10));
+    expect(fetchUnfurlMock).not.toHaveBeenCalled();
+    expect(container.querySelector('a[href="https://paulgraham.com/greatwork.html"]')).toBeTruthy();
+  });
+
+  it('youtube is unchanged (the local embed, no unfurl fetch)', async () => {
+    const { container } = render(<PostBody text="https://youtu.be/dQw4w9WgXcQ" density="full" />);
+    await new Promise((r) => setTimeout(r, 10));
+    expect(fetchUnfurlMock).not.toHaveBeenCalled();
+    expect(container.querySelector('[data-testid="youtube-embed-placeholder"]')).toBeTruthy();
   });
 });
