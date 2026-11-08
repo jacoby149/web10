@@ -101,7 +101,7 @@ afterEach(() => {
 });
 
 describe('TrendingCard unfurl (the marketing /trending board, D99 + D100)', () => {
-  it('renders the provider player for a Spotify link (click-to-load, then the iframe)', async () => {
+  it('renders the provider player for a Spotify link WITHOUT a click (the provider-identity chrome, then the iframe)', async () => {
     const calls = mockUnfurl(spotifyCard('https://open.spotify.com/track/xyz'));
     render(
       <TrendingCard
@@ -118,23 +118,55 @@ describe('TrendingCard unfurl (the marketing /trending board, D99 + D100)', () =
       expect(calls[0]).toBe(`${UNFURL}?url=${encodeURIComponent('https://open.spotify.com/track/xyz')}`);
     });
 
-    // The click-to-load music bar (the poster artwork + the title row) — not
-    // the iframe yet.
-    const placeholder = await screen.findByTestId('unfurl-player-placeholder');
-    expect(placeholder).toBeInTheDocument();
+    // No click: jsdom has no IntersectionObserver, so the in-view gate is
+    // immediate — the provider's iframe loads on its own.
+    const player = await screen.findByTestId('unfurl-player');
+    const iframe = player.querySelector('iframe') as HTMLIFrameElement;
+    expect(iframe).toHaveAttribute('src', 'https://open.spotify.com/embed/track/xyz');
+    expect(iframe).toHaveAttribute('allow', 'autoplay; encrypted-media');
+    // No fake play button (the provider's player is not a web10 music post):
+    // the pre-load chrome (provider-identity) carries no button at all.
+    expect(screen.queryByTestId('unfurl-player-placeholder')).toBeNull();
+    expect(player.closest('button')).toBeNull();
+  });
+
+  it('keeps the provider identity visible in the pre-load chrome (a never-firing IntersectionObserver)', async () => {
+    let fireIntersect: (() => void) | null = null;
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        constructor(cb: (entries: { isIntersecting: boolean }[]) => void) {
+          fireIntersect = () => cb([{ isIntersecting: true }]);
+        }
+        observe = () => {};
+        unobserve = () => {};
+        disconnect = () => {};
+      },
+    );
+    mockUnfurl(spotifyCard('https://open.spotify.com/track/xyz'));
+    render(
+      <TrendingCard
+        post={{ ...basePost, content: 'Fresh drop: https://open.spotify.com/track/xyz The Weeknd' }}
+        rank={1}
+        maxScore={1}
+        onLike={noop} onComment={noop} onRepost={noop}
+      />,
+    );
+
+    // The chrome: the title + the provider domain, NO play button, NO iframe
+    // (the gate is the scroll, not a click).
+    const chrome = await screen.findByTestId('unfurl-player-chrome');
     expect(screen.getByTestId('unfurl-player-title')).toHaveTextContent('Blinding Lights');
     expect(screen.getByTestId('unfurl-player-subtitle')).toHaveTextContent('The Weeknd');
-    const artwork = placeholder.querySelector('img') as HTMLImageElement;
-    expect(artwork).toHaveAttribute('src', 'https://i.scdn.co/image/abc123');
-    // No iframe before the tap.
-    expect(screen.queryByTestId('unfurl-player')).not.toBeInTheDocument();
+    expect(screen.getByTestId('unfurl-player-provider')).toHaveTextContent('spotify.com');
+    expect(chrome.querySelector('button')).toBeNull();
+    expect(screen.queryByTestId('unfurl-player')).toBeNull();
 
-    // The tap loads the allowlisted provider iframe.
-    fireEvent.click(placeholder);
-    const iframe = await screen.findByTestId('unfurl-player');
-    const frame = iframe.querySelector('iframe') as HTMLIFrameElement;
-    expect(frame).toHaveAttribute('src', 'https://open.spotify.com/embed/track/xyz');
-    expect(frame).toHaveAttribute('allow', 'autoplay; encrypted-media');
+    // The scroll into view loads the provider's iframe.
+    fireIntersect?.();
+    const iframe = (await screen.findByTestId('unfurl-player')).querySelector('iframe') as HTMLIFrameElement;
+    expect(iframe).toHaveAttribute('src', 'https://open.spotify.com/embed/track/xyz');
+    vi.unstubAllGlobals();
   });
 
   it('renders the rich preview card for an article link (the whole card is the link)', async () => {
@@ -228,11 +260,11 @@ describe('TrendingCard unfurl (the marketing /trending board, D99 + D100)', () =
     );
 
     // The caption's own words are NOT inside the post-permalink <a> anymore
-    // (the card must never nest in the link-out): the placeholder sits in the
-    // plain <p>, not in a link.
-    await screen.findByTestId('unfurl-player-placeholder');
-    const placeholder = screen.getByTestId('unfurl-player-placeholder');
-    expect(placeholder.closest('a')).toBeNull();
+    // (the card must never nest in the link-out): the embed sits in the
+    // plain <p>, not in a link. (jsdom has no IntersectionObserver, so the
+    // provider iframe loads immediately — no click.)
+    const player = await screen.findByTestId('unfurl-player');
+    expect(player.closest('a')).toBeNull();
 
     // The title carries the link-out to the post on web10 social.
     const title = screen.getByTestId('discover-card-title');
@@ -343,10 +375,13 @@ describe('GroupDetail unfurl (the group page\u2019s posts)', () => {
     // The post list renders (the author row: `@creator` — also the header's
     // owner line, hence findAll).
     await screen.findAllByText('@creator');
-    // …and the link unfurls into the provider player (the music bar).
-    const placeholder = await screen.findByTestId('unfurl-player-placeholder');
-    expect(placeholder).toBeInTheDocument();
-    expect(screen.getByTestId('unfurl-player-title')).toHaveTextContent('Blinding Lights');
+    // …and the link unfurls into the provider player. jsdom has no
+    // IntersectionObserver, so the in-view gate is immediate — the provider's
+    // iframe loads WITHOUT a click (08.11.2026 pass).
+    const player = await screen.findByTestId('unfurl-player');
+    const iframe = player.querySelector('iframe');
+    expect(iframe?.getAttribute('src')).toContain('open.spotify.com/embed');
+    expect(screen.queryByTestId('unfurl-player-placeholder')).toBeNull(); // no fake play button
     // The unfurl went to the social app's preview server, not the node.
     expect(unfurlCalls.length).toBe(1);
     expect(unfurlCalls[0]).toBe(`${UNFURL}?url=${encodeURIComponent('https://open.spotify.com/track/xyz')}`);

@@ -121,3 +121,37 @@ verdict-with-CORS cases are pinned in `previewServerUnfurl.test.ts` (the
 ok:false 200 carries the header; the OPTIONS preflight 204; the 403 blocked
 carries the header AND stays blocked). No new fetch surface, no new host
 allowlist entry, no credential path — the residual set above is untouched.
+
+## Update (08.11.2026, D101): the challenge-wall stealth retry (the curl subprocess)
+
+Bandcamp's edge walls the undici TLS fingerprint, so a WALL (detected, never
+executed) now gets ONE retry through a curl subprocess
+(`makeCurlStealthFetch`). The security posture of that seam, pinned by test
+(`previewUnfurl.test.ts` — the fake-curl-binary suite + the wall-retry flow):
+
+1. **The guard runs before the spawn, not around it**: the retry re-enters
+   `guardedFetch` (scheme/shape/credentials/DNS-public re-validated — the
+   exploit urls stay 403 with no curl ever spawned for them; the loopback
+   fixture target is unreachable from the retry exactly as from the default
+   fetcher).
+2. **No redirect following in curl** (`--max-redirs 0`): a 3xx + Location
+   comes BACK to the guard loop, which re-validates the next host before any
+   fetch — the classic redirect-to-private escape is unchanged (pinned: the
+   fake curl returns 302 → the location is not fetched).
+3. **No shell**: `execFile` with an argument array — the validated url is a
+   single argv entry, never interpolated (injection by url content is not a
+   thing).
+4. **Bounded**: `--max-time` + the execFile timeout + the abort-signal kill
+   (all three), `maxBuffer` 8MB (the guard's 750KB cap still applies to what
+   the card consumes), the retry is once-per-unfurl (a second wall stands —
+   pinned: default 1 call + stealth 1 call, no hammering).
+5. **The binary is image-pinned** (`apk add curl`, the social Dockerfile — a
+   known package, not a download); `UNFURL_CURL_BIN` (env) exists only as
+   the test seam (the container never sets it; the production singleton
+   resolves the image's /usr/bin/curl).
+
+Residual: the curl PROCESS is a new way to reach a validated public url —
+its compromise vector is the binary itself (the apk supply chain, the same
+trust as the nodejs package the preview server already runs) — not the
+unfurl logic. The wall-retry can only ever fetch what the guard would have
+fetched; it adds no url, no host, no credential.

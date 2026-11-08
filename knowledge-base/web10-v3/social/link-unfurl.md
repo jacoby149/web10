@@ -29,23 +29,30 @@ before. Unfurling is **read-side only** — it never touches posting.
 ```mermaid
 flowchart TD
     L["POST BODY carries a URL<br/>(markdown, D85)"] --> P["PostBody (full density)<br/>BodyLink → UnfurlLink"]
-    P -->|"GET /preview/unfurl?url=…<br/>(same-origin, nginx, every UA)"| S["preview server<br/>unfurl.mjs"]
+    P -->|"GET /preview/unfurl?url=…<br/>(same-origin, nginx, every UA; marketing<br/>cross-origin — CORS *, D100)"| S["preview server<br/>unfurl.mjs"]
     S --> G{"SSRF guard<br/>scheme · host · DNS → public ips<br/>re-checked per redirect hop"}
     G -->|refused| X["403 blocked"]
     G -->|passed| F["bounded fetch<br/>timeout · byte cap · redirect cap · per-provider UA"]
     F --> O{"provider?"}
     O -->|"Spotify / SoundCloud / TikTok"| OE["the provider's oEmbed<br/>(keyless) → player iframe (allowlisted hosts)"]
     O -->|"Bandcamp / Instagram / any page"| OG["Open Graph / Twitter card /<br/><title> + first-prose fallback"]
-    OE --> C["card JSON {title, description, image, embed}<br/>+ cache (7d positive / 10min negative)"]
-    OG --> C
+    OG --> W{"a challenge wall?<br/>(the edge fingerprinted the fetcher)"}
+    W -->|"yes + a stealth fetcher (curl)"| SR["ONE retry through curl<br/>(the libcurl TLS fingerprint)<br/>same guard · --max-redirs 0 · same caps"]
+    SR --> W
+    W -->|"no / retry walled / no curl"| C["card JSON {title, description, image, embed}<br/>+ cache (7d positive / 10min negative)"]
+    OE --> C
     C --> P2["the SPA renders: the provider player<br/>(click-to-load iframe) or the rich card"]
     X --> F2["any failure → the plain link of today<br/>(unfurling never breaks a post)"]
+    W -->|"still a wall"| F2
 ```
 
 **The fallback is the floor.** A link that cannot be unfurled — bot-walled
-(Amazon), dead, private, truncated, blocked by the SSRF guard, rate-limited —
-posts and renders as a clickable plain link, exactly as before this change.
-An unfurl failure is never a rendering failure.
+(both fetchers), dead, private, truncated, blocked by the SSRF guard,
+rate-limited — posts and renders as a clickable plain link, exactly as before
+this change. An unfurl failure is never a rendering failure. The one
+documented provider floor: **Instagram Reels have no inline playback** — no
+keyless oEmbed + `x-frame-options: DENY` on their own `/embed` pages (the
+D101 evidence); the rich card is the honest end state there.
 
 ## The endpoint
 
@@ -151,7 +158,7 @@ never user data (the preview server holds no credentials and reads only
 anon-public docs). See the scan record:
 `security/scans/2026-11/link-unfurl-ssrf.md`.
 
-## The provider matrix (verified live, 07.11.2026)
+## The provider matrix (verified live, 07.11.2026; the D101 round 08.11.2026)
 
 | Provider | Mechanism | The card | Verified |
 |---|---|---|---|
@@ -159,16 +166,24 @@ anon-public docs). See the scan record:
 | Spotify | `open.spotify.com/oembed` (keyless) | the **player** (152px iframe, click-to-load) + the cover art + title | ✓ live (the task URL) |
 | SoundCloud | `soundcloud.com/oembed` (keyless; `api.` subdomain is 401) | the **player** (≤320px) + title + author + artwork | ✓ live |
 | TikTok | `tiktok.com/oembed` (keyless; player-only answer) | the **player** (325×578 portrait, capped + centered; `autoplay`/`muted` stripped so it click-loads like the YouTube Shorts pattern) | ✓ live (oEmbed) |
-| Instagram Reels | the page fetch with the **crawler UA** (a browser UA gets the login wall; the bot shell carries `og:image` + the meta description) | the **rich card** (the reel's thumbnail + "Name … on Instagram: caption" + likes/comments description) | ✓ live |
-| Bandcamp | the page fetch (a browser UA — the crawler UA gets the edge's "Client Challenge" wall, verified; the wall is refused as `no_metadata`, never a "Client Challenge" card) | the **player** when `twitter:card=player` + `twitter:player` (the EmbeddedPlayer iframe), else the **rich card** (the cover + "Album, by Artist") | mechanism ✓ (unit-pinned); the live edge challenged this fetcher's TLS fingerprint → plain link from this host |
+| Instagram Reels | the page fetch with the **crawler UA** (a browser UA gets the login wall; the bot shell carries `og:image` + the meta description). **Inline playback is provider-blocked** (the D101 evidence, 08.11.2026): no keyless oEmbed (`graph.instagram.com/oembed` → "Invalid OAuth 2.0 Access Token"; `api.instagram.com/oembed` → dead) and the `/embed/` + `/embed/captioned/` pages send `x-frame-options: DENY` (the browser refuses to iframe them; they also serve a login shell to anon fetchers) | the **rich card** (the reel's thumbnail + "Name … on Instagram: caption" + likes/comments description) — the floor, documented, not silent | ✓ live |
+| Bandcamp | the page fetch (a browser UA — the crawler UA gets the edge's "Client Challenge" wall, verified) **+ the challenge-wall stealth retry (D101)**: the edge fingerprints the TLS CLIENT — Node's built-in fetch (undici) gets the "Client Challenge" wall while a libcurl client gets the page (reproduced live 08.11.2026 from residential AND datacenter hosts). On a detected wall the page fetch retries ONCE through a curl subprocess (`makeCurlStealthFetch` — inside the same guard: re-validated url, `--max-redirs 0`, `--max-time`, the byte cap still enforced by guardedFetch) | the **player** when `twitter:card=player` + `twitter:player` (the EmbeddedPlayer iframe, at the player's DECLARED `twitter:player:width/height` — a size=large track player is 350×467; the page's `og:video:height` (120) is only the fallback — the mismatch would clip the iframe), else the **rich card** (the cover + "Track, by Artist") | ✓ live (08.11.2026: the operator's plantasia url — undici walled, the curl retry cleared it, the 467×350 EmbeddedPlayer card) |
 | any other page (articles, Substack, …) | the page fetch with the browser UA → `og:` → `twitter:` → `<title>` / meta description / first `<p>` / first-prose fallback (legacy no-`<p>` HTML: the title echo + date stamp drop, whole sentences to ~200 chars) + `og:image` → `twitter:image` → first real `<img>` (gifs / 1×1 / pixel patterns skipped, relatives resolved) | the **rich card** (16:9 image banner when there is one, favicon + domain row, title, 2-line description) | ✓ live (paulgraham.com — the task URL — and stratechery.com) |
 
 The page fetch wears a **browser UA by default** (several edges — Bandcamp's —
 actively challenge link-preview bots while serving real browsers the full
 page); the crawler UA is a per-provider override (`CRAWLER_UA_OVERRIDES`,
 Instagram today). A bot-challenge wall ("Client Challenge", "Just a moment…",
-the `_fs-ch-` asset path) is refused as `no_metadata` — the plain link is the
-honest card, never a wall-shaped card.
+the `_fs-ch-` asset path) gets the **stealth retry** (one curl attempt, the
+libcurl TLS fingerprint the challenged edges accept — D101); a wall that
+survives the retry (or no curl in the container) is refused as
+`no_metadata` — the plain link is the honest card, never a wall-shaped card.
+The retry is a transport swap, not a second boundary: the url is re-validated
+by the guard before the spawn (scheme/shape/DNS-public), curl follows no
+redirect (`--max-redirs 0` — the Location comes back and the per-hop loop
+re-validates it exactly as the default fetcher's), the transfer is time- and
+byte-bounded, and the binary runs via `execFile` (an argument array — no
+shell, the validated url is never interpolated).
 
 ## The card, in the body
 
@@ -178,10 +193,26 @@ an external http(s) link at **full density** renders `UnfurlLink` (`LinkEmbed.ts
 
 - **loading / failed** → the plain link of today (`PlainExternalLink` — one
   source for the fallback so it can't drift);
-- **`card.embed`** → `PlayerEmbed` — click-to-load (the YouTube placeholder
-  pattern: the poster or the music bar with the play button first, the
-  allowlisted provider iframe on tap); portrait players (TikTok) cap at the
-  provider's width and center;
+- **`card.embed`** → `PlayerEmbed` — two presentation patterns (D102, the
+  operator's 08.11.2026 pass: the audio providers must not read as native
+  web10 music posts):
+  - **PORTRAIT video players (TikTok)** keep the click-to-load poster pattern
+    (the YouTube Shorts shape — a video, so a play affordance reads
+    correctly): the poster + the centered play button, the allowlisted
+    provider iframe on tap, capped at the provider's width and centered.
+  - **AUDIO provider embeds (Spotify / SoundCloud / Bandcamp — the
+    landscape players)** show the **provider's player WITHOUT a click** (the
+    old web10-styled music bar + a fake play button "read as a native web10
+    track" — the exact complaint). Instead: the provider-identity chrome
+    (the artwork + the title + the description + the provider's domain with
+    its favicon — it says "the player is from spotify.com", never "this is a
+    web10 track") and the allowlisted provider iframe loads when the embed
+    **scrolls into view** (the `IntersectionObserver` is the performance
+    gate — a feed can carry many embeds; 200px rootMargin so an embed at the
+    viewport edge is ready by the time it is seen). No IntersectionObserver
+    (the test env / very old engines) → the iframe loads immediately. The
+    two-sided iframe allowlist still gates the src (unchanged); only the
+    trigger moved from the click to the scroll.
 - **else** → `RichLinkCard` — the whole card is the link (`target="_blank"`):
   optional 16:9 image, the favicon + domain row, the title (2-line clamp),
   the description (2-line clamp).
@@ -224,12 +255,15 @@ first time they are viewed after deploy.
 
 - The server logic: `marketing/web10-social/preview/unfurl.mjs` (the guard,
   the guarded fetch, the provider dispatch, the cache — pure, injectable
-  `doFetch`/`lookup` seams).
+  `doFetch`/`lookup`/`stealthFetch` seams; the challenge-wall stealth retry +
+  the curl fetcher `makeCurlStealthFetch` — D101).
 - The transport + the route + the rate limit + the CORS answer:
   `marketing/web10-social/preview/server.mjs` (`GET /preview/unfurl`,
   `Access-Control-Allow-Origin: *` on every verdict + the OPTIONS preflight —
   the marketing second consumer reads it cross-origin); the nginx split:
   `marketing/web10-social/nginx.conf` (`location = /preview/unfurl` — every UA).
+  The container: `marketing/web10-social/Dockerfile` (`apk add curl` — the
+  stealth retry's binary; absent curl the wall verdict stands, the floor).
 - The client seam: `marketing/web10-social/src/lib/unfurl.ts` (the candidate
   check, the same-origin fetch, the session cache, the embed-host re-check).
 - The render: `marketing/web10-social/src/components/Feed/LinkEmbed.tsx`
@@ -258,10 +292,22 @@ first time they are viewed after deploy.
 
 ## Open
 
-- **Bandcamp from a datacenter fetcher**: the edge challenges the undici TLS
-  fingerprint (verified live from two hosts) → the plain link there; a
-  residential-IP box (or the paid link-card API the ad-creative need floats)
-  would unfurl it. The happy path (og + `twitter:player`) is unit-pinned.
+- **Bandcamp — CLOSED by the stealth retry (D101, 08.11.2026).** The edge
+  challenged the undici TLS fingerprint → the "Client Challenge" wall →
+  `no_metadata` → the plain link. The wall now gets ONE curl retry (the
+  libcurl fingerprint the edge accepts — reproduced live: the operator's
+  plantasia url walls undici and unfurls to the 467×350 EmbeddedPlayer via
+  the retry). **The residual:** the retry is bounded (one attempt, the
+  default fetcher stays primary) and the edge could start challenging curl
+  too (a fingerprint chase) — that re-degrades to the plain link (the floor),
+  and it is detectable in the logs (`challenge wall … still walled`).
+- **Instagram Reels — the inline-playback floor (D101, 08.11.2026).** No
+  keyless oEmbed (`graph.instagram.com/oembed` requires an OAuth token;
+  `api.instagram.com/oembed` is dead) and the provider's own `/embed/` +
+  `/embed/captioned/` pages send `x-frame-options: DENY` (+ serve a login
+  shell to anon fetchers) — the rich card is the honest end state. Re-visit
+  only if Instagram ships a keyless oEmbed (the oEmbed dispatch is the
+  existing seam).
 - **The ad-creative consumer** (`ad-creative-labor.md` /
   `external-link-embeds.md`): the same primitive, later — its "where does the
   fetch live" question is answered by this build (the social app's preview
@@ -271,4 +317,6 @@ first time they are viewed after deploy.
   proof. The marketing board (D100) rides the SAME endpoint, so its live
   verification is the social app's deploy: a marketing build against an
   undeployed social app degrades to the plain links (the floor), never to a
-  broken card.
+  broken card. The D101 round: the existing posts (Plantasia, the NASA reel)
+  pick up the fix at READ TIME — the 10-minute negative cache expires, the
+  wall retry runs, the card lands. No backfill.
