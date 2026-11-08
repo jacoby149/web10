@@ -117,11 +117,16 @@ HLS_WORKER_CONCURRENCY = int(os.getenv("HLS_WORKER_CONCURRENCY", "1"))
 # budget within it; short clips/thumbnails keep a ten-minute maximum.
 HLS_FFMPEG_TIMEOUT = int(os.getenv("HLS_FFMPEG_TIMEOUT", "21600"))
 
+# Production read-gate algorithm; rollback never disables authorization.
+READABLE_RESOLUTION_MODE = os.getenv("READABLE_RESOLUTION_MODE", "batched").strip().lower()
+if READABLE_RESOLUTION_MODE not in ("batched", "per-group"):
+    raise ValueError("READABLE_RESOLUTION_MODE must be batched or per-group")
+
 # ── Query-engine evaluation seams (the paper's access-control cost function) ──
 # Test-mode flags for the three-line ablation (research/digital-ocean-thinking.md).
 # All default OFF: production behavior is unchanged unless a flag is set. They
 # exist so the experiment can measure the access-control layer in isolation
-# (C: stub the scan), the causal overhead against a no-policy baseline (A), and
+# (C: stub the scan), a diagnostic no-policy baseline (A), and
 # the per-group vs. batched readable-resolution cost. The KB records the cost +
 # the fix (query-engine.md §"Readable-set resolution"); these are the seams the
 # experiment drives. Never enable in a public node — A bypasses the I3 boundary
@@ -135,17 +140,16 @@ QUERY_EVAL_STUB_ROWS = int(os.getenv("QUERY_EVAL_STUB_ROWS", "20"))
 # resolution + the boundary-CTE scoping (runs the caller's SQL unscoped) — the
 # credited ClickHouse baseline the causal overhead (B−A) is computed against.
 QUERY_EVAL_NO_POLICY = os.getenv("QUERY_EVAL_NO_POLICY", "").lower() in ("1", "true", "yes")
-# readable resolution: "per-group" (the current O(K) round-trip path) or
-# "batched" (the O(1)-round-trip readable_groups_batched). The experiment plots
-# both against K; the production default stays per-group until the batched
-# wiring is a deliberate, reviewed change.
-QUERY_EVAL_READABLE_MODE = os.getenv("QUERY_EVAL_READABLE_MODE", "per-group").lower()
+# Unset follows production; explicit research overrides retain both algorithms.
+QUERY_EVAL_READABLE_MODE = os.getenv("QUERY_EVAL_READABLE_MODE", "").strip().lower()
+if QUERY_EVAL_READABLE_MODE not in ("", "per-group", "batched"):
+    raise ValueError("QUERY_EVAL_READABLE_MODE must be empty, batched or per-group")
 
 # Load environment variables into settings params.
 for v in list(globals()):
     # Evaluation values above already parse their environment types. In
     # particular, the string "0" must not enable a policy-bypass flag.
-    if v.startswith(("QUERY_EVAL_", "MEDIA_DELIVERY_", "RESUMABLE_")):
+    if v == "READABLE_RESOLUTION_MODE" or v.startswith(("QUERY_EVAL_", "MEDIA_DELIVERY_", "RESUMABLE_")):
         continue
     env_val = os.getenv(v)
     if env_val is not None:

@@ -66,7 +66,7 @@ async def application(scope, receive, send):
     if not re.fullmatch(r"[a-f0-9]{32}", request_id):
         request_id = "unlabelled"
     observation = {"request_id": request_id, "status": 500, "api_python_sha256": API_SOURCE,
-                   "observer_sha256": OBSERVER_SOURCE, "resolver_mode": settings.QUERY_EVAL_READABLE_MODE,
+                   "observer_sha256": OBSERVER_SOURCE, "resolver_mode": settings.QUERY_EVAL_READABLE_MODE or settings.READABLE_RESOLUTION_MODE,
                    "worker_pid": os.getpid()}
     token = current.set(observation)
     start = time.perf_counter()

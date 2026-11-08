@@ -1684,6 +1684,14 @@ def can_write_group(group_id: str, principal: str, service: str, authenticated: 
 
 
 def readable_groups(principal: str, service: str, authenticated: bool, candidate_group_ids: list[str]) -> list[str]:
+    """Production read gate: bounded metadata round-trips, with explicit rollback."""
+    resolve = readable_groups_batched if settings.READABLE_RESOLUTION_MODE == "batched" else readable_groups_per_group
+    return resolve(principal, service, authenticated, candidate_group_ids)
+
+
+def readable_groups_per_group(
+    principal: str, service: str, authenticated: bool, candidate_group_ids: list[str]
+) -> list[str]:
     """Filter ``candidate_group_ids`` to the groups ``principal`` can read
     ``service`` in (D58). Order-preserving.
 
@@ -1703,19 +1711,40 @@ def readable_groups_batched(
     Identical semantics to :func:`readable_groups` (order-preserving; a group
     is readable iff the principal is a member, or — for a real principal — the
     group's ``anyone``/``authenticated`` grant allows ``readAll`` on
-    ``service``), but it resolves the whole candidate set in three batched
+    ``service``), but it resolves byte-bounded chunks in up to three batched
     queries instead of a handful of point queries per group.
 
     Membership is deduped the same way the read path dedupes (latest row per
     (group, member) wins, tombstones included, then ``deleted = 0``) so a
-    removed/left member does not count. Unknown groups (no live contract row)
-    are never readable — matching :func:`effective_role_perms` returning ``{}``
-    for them.
+    removed/left member does not count. As in can_read_group, an active
+    membership itself grants reads; a non-member needs a live role contract.
+    All-member candidate sets need only the membership query (including K=1).
     """
     if not candidate_group_ids:
         return []
 
     gids = list(dict.fromkeys(candidate_group_ids))  # dedupe, preserve order
+    readable: set[str] = set()
+    batch: list[str] = []
+    size = 0
+    for gid in gids:
+        # Conservative escaped UTF-8 literal budget, below CH's default 256 KiB
+        # query limit. Do not turn a large denied candidate set into a SQL error.
+        cost = 2 * len(gid.encode("utf-8")) + 32
+        if cost > 96 * 1024:
+            readable.update(readable_groups_per_group(principal, service, authenticated, [gid]))
+            continue  # A single huge ID retains the scalar path's existing limit.
+        if batch and size + cost > 96 * 1024:
+            readable.update(_readable_groups_batch(principal, service, authenticated, batch))
+            batch, size = [], 0
+        batch.append(gid)
+        size += cost
+    if batch:
+        readable.update(_readable_groups_batch(principal, service, authenticated, batch))
+    return [g for g in candidate_group_ids if g in readable]
+
+
+def _readable_groups_batch(principal: str, service: str, authenticated: bool, gids: list[str]) -> list[str]:
     params: dict = {f"g{i}": g for i, g in enumerate(gids)}
     in_clause = ", ".join(f"%(g{i})s" for i in range(len(gids)))
 
@@ -1728,6 +1757,8 @@ def readable_groups_batched(
         {"member_key": principal, **params},
     )
     member_groups = {row[0] for row in result.result_rows}
+    if member_groups == set(gids):
+        return list(gids)
 
     # 2. The reserved public-class member rows among the candidates.
     class_keys = ["anyone", "anon"]
@@ -1774,7 +1805,7 @@ def readable_groups_batched(
         if _effective_allows(merged, service, "readAll"):
             readable.add(gid)
 
-    return [g for g in candidate_group_ids if g in readable]
+    return [g for g in gids if g in readable]
 
 
 def has_mgmt_permission(group_id: str, principal: str, permission: str) -> bool:

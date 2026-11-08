@@ -20,6 +20,8 @@ MEDIA = "media-1"
 
 @pytest.fixture
 def store(monkeypatch):
+    # This carrier-SQL fixture supplies scalar grant stubs, not metadata tables.
+    monkeypatch.setattr(ch.settings, "READABLE_RESOLUTION_MODE", "per-group")
     db = sqlite3.connect(":memory:", check_same_thread=False)
     db.executescript("""
         CREATE TABLE documents (doc_id TEXT, author_key TEXT, posted_by TEXT,

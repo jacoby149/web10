@@ -130,8 +130,9 @@ def test_execution_records_share_server_generated_id_and_keep_useful_signal(quer
     assert int(diagnostic_id, 16) >= 0
     assert records[1].args[0] == diagnostic_id
     assert records[2].args[0] == diagnostic_id
+    assert records[0].args[-3]["nodes"][0] == (None, "Select")
     assert records[0].args[-2]["nodes"][0] == (None, "Select")
-    assert records[0].args[-1]["nodes"][0] == (None, "Select")
+    assert records[0].args[-1] == "batched"
     assert records[1].args[1:3] == (1, 1)
     assert records[1].args[3] >= 0
     # The timing log: 11 phase durations + total, all non-negative.

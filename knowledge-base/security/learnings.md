@@ -72,6 +72,25 @@ production bot filtering or claim real-human proof. Local intercepted compressed
 batches validate the wire shape, not vendor storage, identity linkage or reliable
 backend conversions. [Bounded evidence](scans/2026-11/posthog-capture.md); broader
 review, account/outcome/replay and rollout gates remain OPEN.
+### 2026-11-08: Promote the read algorithm without changing the policy
+
+The [production resolver record](scans/2026-11/readable-resolution-default.md)
+compares the original scalar reference and batched SQL against independently
+specified allowed groups, including revocation, tombstone ties, class/service
+grants and exact foreign principals. Existing active memberships grant reads
+before role/contract checks, even orphan/undefined-role membership rows. Preserve
+that compatibility in a performance change; tightening it is a separate decision,
+not an incidental optimization. Batched rounds are bounded per service/chunk,
+not constant database work: escaped UTF-8 candidate bytes need a query-size
+budget. All-member chunks can stop after the membership query, including K1,
+without an empirical threshold or a cross-request permission cache.
+
+Local ClickHouse Memory histories do not prove actual ReplacingMergeTree merge
+lifecycle or atomic reads during permission writes. Mixed/public small-set cost,
+connected full-feed load and approved deployment verification remain rollout
+gates; these limitations are retained rather than calling local parity a whole
+security or production-speedup guarantee. Historical research receipts are not
+silently refreshed after runtime source changes.
 
 ### 2026-11-07: Pinned-hide authority must come from one visible, readable attachment
 
