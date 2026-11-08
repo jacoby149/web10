@@ -13,7 +13,7 @@ superseding the earlier retain-until-acceptance coding sequence. It does not
 authorize deployment, production configuration, paid purchases, vendor writes or
 vendor-account cancellation.
 
-## What is implemented locally (5.0.0)
+## What is implemented (5.0.0–5.0.2, merged to dev)
 
 The binding runtime/measurement contract is
 [telemetry.md](../web10-v3/telemetry.md); do not reimplement it from this summary.
@@ -82,8 +82,8 @@ across devices when only anonymous visits were observed.
 |---|---|---|
 | P0 vendor decision | Complete | None for vendor choice; historical decision 4.14.3 |
 | P1 contract | Concrete runtime/metric defaults in telemetry.md | Region, actual project access/permissions, retention/deletion procedure, sampling, limits, spend/exclusions and legal activation review |
-| P2 capture/config | Complete locally | Independent boundary review and actual integrated route lifecycle/collection-health checks |
-| P3 identity/outcomes | Complete locally | Connected popup/signup/recovery, multi-tab/picker/logout, real process outage/restart/retry and actual vendor identity/event reconciliation |
+| P2 capture/config | Merged | Independent boundary review and actual integrated route lifecycle/collection-health checks |
+| P3 identity/outcomes | Merged | Connected popup/signup/recovery, multi-tab/picker/logout, real process outage/restart/retry and actual vendor identity/event reconciliation |
 | P4 reports/replay | Provisioning and masked capture implemented | Explicitly approved vendor apply; execute actual HogQL and reconcile expected cohorts, inspect vendor playback/heatmaps, restrict investor access |
 | P5 connected acceptance | Floors pass; connected-acceptance harness ready (`scripts/posthog-connected-check.mjs`, 5.0.3, offline-tested) | Live harness run against a deployed node + real project: full app/auth/SDK/API/ClickHouse/PostHog fixture→facts→events/persons→reports/export agreement, live HogQL execution of the five reports, failure/quota behavior and independent review |
 | P6 retirement/rollout | Legacy code/config wiring removed | Approved normal deployment, deployed revision/config, five final links on physical-phone Instagram plus desktop/Safari and explicit collection-gap/rollback receipt |
