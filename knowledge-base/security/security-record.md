@@ -15,6 +15,29 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## PostHog capture/configuration (08.11.2026) — bounded local, OPEN
+
+5.0.0 continuation adds canonical opaque identity, signed source metadata,
+atomic account-row signup context, worker acks/health, vendor-report provisioning
+and optional masked replay/heatmaps; removes legacy integrations by instruction.
+Freshness/local issuer/current-account/delegated-client denials, stale-reply
+fences, real ClickHouse lifecycle/ack floor and real SDK snapshot/heatmap sentinel
+checks pass locally. Anonymous identities deliberately stay separate; public
+vendor ingest remains forgeable. Full connected vendor/auth/phone/restart/quota/
+playback, independent review and L1–L4/rollout remain OPEN. Details and historical
+4.15.0 scope follow in the linked scan; no production or independent-audit claim.
+
+GPT-6.1 Sol adds optional public project config and browser capture, not account
+identity or new authority. Backend-first field/response inspection and local
+negative tests cover personal-key redaction, arbitrary-host rejection, default-off
+selection, allowlisted events/metadata and safe startup failure. Real Chromium/
+SDK intercepted-batch verification covers all three adapters; private query/
+conversation sentinels are absent and selected PostHog makes no legacy requests.
+Replay/autocapture/person profiles remain off. Scope, failed probe explanations
+and remaining gates: [posthog-capture.md](scans/2026-11/posthog-capture.md).
+Independent review, full L1–L4, live vendor/account journey and rollout remain
+OPEN; no whole-telemetry privacy/security or analytics-readiness claim.
+
 ## Link-unfurl SSRF surface (07.11.2026) — bounded local, OPEN
 
 A new browser-facing external-fetch seam: `GET /preview/unfurl?url=…` on the

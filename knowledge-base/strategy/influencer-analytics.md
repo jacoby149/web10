@@ -1,5 +1,14 @@
 # Five-influencer acquisition analytics — validation before spend
 
+> **Superseded architecture, 08.11.2026 (D103).** The operator chose PostHog
+> only: [posthog-migration.md](posthog-migration.md) is the active P0–P6 queue.
+> Do not implement the A0–A6 queue below as a custom acquisition engine or
+> five-creator admin dashboard, and do not require supplementary GA4 at release.
+> This document is retained as the dated source audit, proposed pilot metric
+> definitions and adversarial validation scenarios. Those definitions still need
+> approval and mapping to actual PostHog report semantics. Existing inaccuracies
+> remain unfixed; no PostHog integration or analytics-readiness claim.
+
 ## The decision this must support
 
 Jacob is testing **five Instagram creators at $200/month each: $1,000/month

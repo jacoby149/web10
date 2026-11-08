@@ -35,6 +35,36 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-08: Keep analytics identity, attribution and outcome authority separate
+
+5.0.0 verifies an existing local personal account before returning an opaque HMAC
+identifier, using a dedicated key rather than auth material. Signed campaign
+labels grant no identity/access authority; anonymous-to-account merging is
+deliberately avoided across shared devices. Immutable source context in the same
+canonical creation row closes the cross-table conversion-write gap; every
+account-version writer must retain it (verified on real ClickHouse). Stable
+vendor UUIDs plus persisted acks permit retry, not exactly-once cross-system
+delivery. Public vendor ingest can forge origin labels, so vendor charts still
+need canonical reconciliation. Recorder tests must include text, attributes,
+URLs and credentials, not just a masking-config assertion. Live playback and
+independent review remain separate gates. [Evidence/limits](scans/2026-11/posthog-capture.md).
+
+### 2026-11-08: Analytics vendor selection is not content-safe capture or account authority
+
+The PostHog migration keeps replay/autocapture/person identification disabled
+while adding explicit browser events. SDKs enrich manual events with URLs,
+referrers and person updates; stripping caller metadata alone is insufficient.
+Use a final wire allowlist, sanitize route identifiers/query and disable automatic
+collection/persistence channels separately. Public project ingest keys are not
+personal API keys: validate on admin write and redact invalid historical values
+at the public read seam. Selected-but-failed replacement capture must not silently
+enable alternative vendors. The real SDK also filters webdriver/automation;
+synthetic browser fixtures must declare their normalization rather than disable
+production bot filtering or claim real-human proof. Local intercepted compressed
+batches validate the wire shape, not vendor storage, identity linkage or reliable
+backend conversions. [Bounded evidence](scans/2026-11/posthog-capture.md); broader
+review, account/outcome/replay and rollout gates remain OPEN.
+
 ### 2026-11-07: Pinned-hide authority must come from one visible, readable attachment
 
 After #1416, the operator selected **Honor group hides**: a hidden attachment

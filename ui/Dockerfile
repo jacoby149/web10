@@ -6,6 +6,7 @@ WORKDIR /ui
 COPY ui/package.json ui/bun.lock ./
 COPY sdk/package.json /sdk/package.json
 COPY sdk/dist/ /sdk/dist/
+COPY marketing/shared/telemetry/ /marketing/shared/telemetry/
 RUN bun install --frozen-lockfile
 
 COPY ui/index.html ui/tsconfig.json ui/vite.config.js ./
@@ -27,15 +28,10 @@ ARG REACT_APP_AUTH_ORIGIN
 ARG REACT_APP_API_ORIGIN
 ARG REACT_APP_RTC_ORIGIN
 ARG REACT_APP_DEFAULT_API
-# D56: full-platform telemetry — GA4 + Hotjar IDs (empty = tracking off).
-ARG VITE_GA4_MEASUREMENT_ID
-ARG VITE_HOTJAR_SITE_ID
 ENV REACT_APP_AUTH_ORIGIN=${REACT_APP_AUTH_ORIGIN} \
     REACT_APP_API_ORIGIN=${REACT_APP_API_ORIGIN} \
     REACT_APP_RTC_ORIGIN=${REACT_APP_RTC_ORIGIN} \
-    REACT_APP_DEFAULT_API=${REACT_APP_DEFAULT_API} \
-    VITE_GA4_MEASUREMENT_ID=${VITE_GA4_MEASUREMENT_ID} \
-    VITE_HOTJAR_SITE_ID=${VITE_HOTJAR_SITE_ID}
+    REACT_APP_DEFAULT_API=${REACT_APP_DEFAULT_API}
 
 RUN bun run build
 

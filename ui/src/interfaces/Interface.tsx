@@ -3,6 +3,7 @@ import web10AuthAdapterInit from './authAdapter'
 import { config } from '../config';
 import { rememberAccount, getRememberedAccounts } from '../lib/rememberedAccounts';
 import { vaultToken, getVaultedToken, vaultedAccountsFor } from '../lib/tokenVault';
+import { acquisitionTicket, identifyAnalytics, resetAnalytics } from '../lib/analytics';
 
 // ── v3 API helpers (ClickHouse-backed service contracts + groups) ──────────
 
@@ -253,6 +254,9 @@ function useInterface() {
     [I.v3Invites, I.setV3Invites] = React.useState<any[]>([]);
 
     I.v3 = v3;
+    React.useEffect(() => {
+        if (I.auth) void identifyAnalytics(() => v3.state?.token ?? null);
+    }, [I.auth]);
 
     // The remembered-accounts list for the login screen's picker. Read fresh
     // every render (useInterface re-runs on each render) so a login that just
@@ -611,6 +615,7 @@ function useInterface() {
     }
 
     I.finishLogin = function () {
+        void identifyAnalytics(() => I.v3.state?.token ?? null);
         const account = principal();
         const sameAccount = confirmedPrincipal.current === account;
         resetAccountReads();
@@ -671,6 +676,7 @@ function useInterface() {
     }
 
     I.logout = function () {
+        resetAnalytics();
         confirmedPrincipal.current = principal();
         // Explicit logout terminates consent, unlike choosing an account to review it.
         cancelConsent('Logged out');
@@ -735,7 +741,7 @@ function useInterface() {
         I.setStatus("Signing you in...");
         const body: Record<string, any> = { verify_token: I.recoveryVerifyToken, username };
         if (newPassword) body.new_password = newPassword;
-        v3PostAnon("recovery/complete", body)
+        v3PostAnon("recovery/complete", { ...body, ...(acquisitionTicket() ? { analytics_context: acquisitionTicket() } : {}) })
             .then((res: any) => {
                 // The token is a normal login token — store it exactly the way
                 // v3.login does, then finish the sign-in.
@@ -1075,6 +1081,7 @@ function applyACR(cr: any) {
 
     // Send contract response back to the requesting app window
     function resetConsentIdentity() {
+        resetAnalytics();
         handoffGeneration.current++;
         resetAccountReads();
         const batch = consentBatch.current;
@@ -1389,7 +1396,7 @@ function applyACR(cr: any) {
         }
         I.setStatus("Signing Up ...");
         I.v3
-            .signup(username, password, isEmail ? undefined : c || undefined, isEmail ? c || undefined : undefined)
+            .signup(username, password, isEmail ? undefined : c || undefined, isEmail ? c || undefined : undefined, ...(acquisitionTicket() ? [acquisitionTicket()] : []))
             .then(() =>
                 I.login(provider, username, password)
             )

@@ -245,19 +245,22 @@ not a privacy platform (D41): the node is readable by design (discovery /
 search / auditability), there is no default e2e, and the client is a PWA,
 not a native app.
 
-**Telemetry (D56):** web10 tracks hard — GA4 + Hotjar on every user-facing
-surface (marketing site, social app, authenticator) — because it competes
-with Meta and TikTok on user experience, and their UX is the output of a
-decade of aggressive telemetry. The recording is content-blind by
-construction (Hotjar `maskAllText` + `blockAllImages` — text blurred,
-images blocked), and GA4 events are content-free by convention. **Content
-is never tracked** — posts, DMs, media are not in the recordings, not in
-the events, not sold, not fed to any ad machine (GA4 advertising features
-stay off; the only sponsors a fan sees are the creator's, D50/D55). The
-trade is terms-level, not a consent popup: "it is the wrong platform for
-you if you arent ok with that." Full model:
-`knowledge-base/web10-v3/telemetry.md`. Do not "tighten" or
-"privacy-wash" tracking without re-reading D56.
+**Telemetry (D56 intent, D103 vendor): PostHog only.** web10 tracks usage to
+compete on experience, never post/DM/media content. Local 5.0.0 removes GA4/
+Hotjar runtime/config/build wiring on the operator's explicit request. Shared
+allowlisted capture, canonical opaque personal identity, signed campaign handoff,
+atomic account-row signup context, retryable server outcomes and optional masked
+replay/heatmaps are implemented; external collection remains default-off. The API
+needs a separate persistent `POSTHOG_IDENTITY_SECRET`, never an auth key. Anonymous
+traffic is not aliased across accounts; attribution bridges campaign labels, not
+claimed anonymous person identity. Foreground sessions are browser evidence, not
+verified content viewing/humanity. Keep D86 and operational history; no bespoke
+acquisition dashboard. Vendor report provisioning is dry-run unless explicitly
+applied with operator access. Third-party hosting is not an independent audit;
+live vendor/auth/phone/playback and review/rollout gates remain OPEN. Contract:
+`knowledge-base/web10-v3/telemetry.md`; queue:
+`knowledge-base/strategy/posthog-migration.md`. The tracking trade stays terms-level;
+do not privacy-wash D56 or put content/credentials into events or recordings.
 
 ## The stack
 

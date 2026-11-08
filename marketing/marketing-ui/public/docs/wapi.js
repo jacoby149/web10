@@ -471,8 +471,8 @@
         this.setToken(res.token);
         return res;
       },
-      async signup(username, password, phone, email) {
-        return authPost(`${apiOrigin}/v3/signup`, { username, password, phone, email });
+      async signup(username, password, phone, email, analytics_context) {
+        return authPost(`${apiOrigin}/v3/signup`, { username, password, phone, email, ...analytics_context ? { analytics_context } : {} });
       },
       async getProfile() {
         return v3Post("profile", {});

@@ -18,7 +18,7 @@ function ToggleRow({ label, description, checked, onChange, testId }: {
         <div className="text-xs text-muted-foreground">{description}</div>
       </div>
       <label className="switch">
-        <input type="checkbox" checked={checked} onChange={onChange} data-testid={testId} />
+        <input type="checkbox" aria-label={label} checked={checked} onChange={onChange} data-testid={testId} />
         <span className="slider round"></span>
       </label>
     </div>
@@ -423,21 +423,26 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
 
           <Card data-testid="config-telemetry-card">
             <CardHeader>
-              <CardTitle>Telemetry (D56)</CardTitle>
+              <CardTitle>Telemetry</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-xs text-muted-foreground">
-                Usage analytics for the whole platform — GA4 (pageviews + events)
-                and Hotjar (session recordings, content-masked). Set an ID to turn
-                that instrument on; leave blank to turn it off. Changes apply live
-                on the next page load — no rebuild. These are public identifiers,
-                not secrets.
+                PostHog is the only usage analytics vendor. Changes apply on the
+                next page load. Account measurement also requires the server's
+                separate identity secret; no credentials or content are sent.
+                Use only a public project ingest key, never a personal API key.
+                Existing content/ad metrics are unchanged.
               </p>
-              <Field label="GA4 Measurement ID" description="e.g. G-XXXXXXXXXX. Blank = GA4 off.">
-                <Input value={config?.ga4_measurement_id || ""} onChange={e => updateField("ga4_measurement_id", e.target.value)} placeholder="G-XXXXXXXXXX" data-testid="config-ga4-id" />
+              <ToggleRow label="Use PostHog" description="Off by default. When off or unavailable, no external usage analytics vendor loads." checked={config?.posthog_enabled === true} onChange={() => updateField("posthog_enabled", config?.posthog_enabled !== true)} testId="config-posthog-enabled" />
+              <ToggleRow label="Masked replay and heatmaps" description="Optional. Text, attributes, media and network content are removed; recording fidelity is intentionally reduced." checked={config?.posthog_replay_enabled === true} onChange={() => updateField("posthog_replay_enabled", config?.posthog_replay_enabled !== true)} testId="config-posthog-replay" />
+              <Field label="PostHog project ingest key" description="Starts with phc_. Public identifier; blank or invalid configuration disables collection.">
+                <Input value={config?.posthog_project_key || ""} onChange={e => updateField("posthog_project_key", e.target.value)} placeholder="phc_…" data-testid="config-posthog-key" />
               </Field>
-              <Field label="Hotjar Site ID" description="e.g. 123456. Blank = Hotjar off.">
-                <Input value={config?.hotjar_site_id || ""} onChange={e => updateField("hotjar_site_id", e.target.value)} placeholder="123456" data-testid="config-hotjar-id" />
+              <Field label="PostHog region" description="Must match the project region. Custom ingestion hosts are not supported yet.">
+                <select className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground" value={config?.posthog_host || "https://us.i.posthog.com"} onChange={e => updateField("posthog_host", e.target.value)} data-testid="config-posthog-host" aria-label="PostHog region">
+                  <option value="https://us.i.posthog.com">US</option>
+                  <option value="https://eu.i.posthog.com">EU</option>
+                </select>
               </Field>
             </CardContent>
           </Card>

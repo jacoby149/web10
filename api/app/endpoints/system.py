@@ -9,6 +9,7 @@ from urllib.parse import urlsplit
 import urllib3
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
+from pydantic import BaseModel, Field
 
 import app.exceptions as exceptions
 import app.settings as settings
@@ -174,6 +175,10 @@ def patch_config(token: Token, update: ConfigUpdate):
     check_admin(token)
     current = config_svc.get_config()
     changes = update.model_dump(exclude_none=True)
+    if changes.get("posthog_enabled") is True and not current.get("posthog_capture_since"):
+        from datetime import UTC, datetime
+
+        changes["posthog_capture_since"] = datetime.now(UTC).isoformat()
     current.update(changes)
     config_svc.save_config(current)
     return {"status": "updated", "changed": list(changes.keys())}
@@ -181,11 +186,10 @@ def patch_config(token: Token, update: ConfigUpdate):
 
 @router.get("/telemetry", tags=["system"])
 def telemetry_config():
-    """The node's telemetry IDs, for the frontends to install at runtime (D56).
+    """Public runtime telemetry configuration (D56/D103).
 
-    Public — no token. GA4 measurement IDs and Hotjar site IDs are public
-    identifiers (they are embedded in every page's HTML for the scripts to
-    load); there is no secret here. CORS is wildcard on this node (the
+    Public — no token. A PostHog project ingest key is public, never a
+    personal API key. No identity secret is returned. CORS is wildcard (the
     security boundary is the token, not the origin), so every surface —
     marketing site, social app, authenticator — can read this pre-login from
     any origin.
@@ -195,10 +199,66 @@ def telemetry_config():
     IDs live without a rebuild. Empty string = that instrument is off.
     """
     cfg = config_svc.effective_config()
+    # Defensive even for old/operator-written config: never publish a personal
+    # API key accidentally entered in this public-project field.
+    import re
+
+    project_key = cfg.get("posthog_project_key") or ""
+    if not isinstance(project_key, str) or not re.fullmatch(r"phc_[A-Za-z0-9_-]{8,200}", project_key):
+        project_key = ""
     return {
-        "ga4_measurement_id": cfg.get("ga4_measurement_id") or "",
-        "hotjar_site_id": cfg.get("hotjar_site_id") or "",
+        "posthog_enabled": cfg.get("posthog_enabled") is True,
+        "posthog_project_key": project_key,
+        "posthog_host": cfg.get("posthog_host") or "https://us.i.posthog.com",
+        "posthog_replay_enabled": cfg.get("posthog_replay_enabled") is True,
+        "posthog_identity_ready": len(settings.POSTHOG_IDENTITY_SECRET) >= 32,
     }
+
+
+class AcquisitionContext(BaseModel):
+    ticket: str | None = Field(default=None, max_length=4096)
+    campaign: dict[str, str] = Field(default_factory=dict, max_length=5)
+
+
+@router.post("/analytics/context", tags=["telemetry"])
+def analytics_context(data: AcquisitionContext):
+    from app.services.product_analytics import acquisition_context
+
+    return acquisition_context(data.ticket, data.campaign)
+
+
+@router.post("/analytics/identity", tags=["telemetry"])
+def analytics_identity(data: Token):
+    # Local personal identity only. Neither acting_as nor a client-supplied
+    # username/analytics ID can select the account or certify a conversion.
+    from app.services.product_analytics import account_id, campaign_fields, read_context
+
+    decoded = decode_token(data.token, private_key=True)
+    if decoded.provider != settings.PROVIDER or not decoded.username or decoded.username == "anon":
+        raise exceptions.TOKEN
+    certify(data)  # Includes current delegated-client registration, if present.
+    user = ch.get_user(decoded.username)
+    if not user:
+        raise exceptions.NO_USER
+    cfg = config_svc.effective_config()
+    if cfg.get("posthog_enabled") is not True or len(settings.POSTHOG_IDENTITY_SECRET) < 32:
+        return {"enabled": False}
+    context = read_context(decoded.username)
+    return {
+        "enabled": True,
+        "distinct_id": account_id(decoded.username, user["created_at"]),
+        "acquisition": campaign_fields(context.get("properties", {})),
+    }
+
+
+@router.post("/admin/analytics/health", tags=["admin"])
+def analytics_health(data: Token):
+    check_admin(data)
+    rows = ch.client.query(
+        "SELECT body FROM node_config WHERE config_id = 'telemetry:health' "
+        "ORDER BY updated_at DESC, deleted DESC LIMIT 1"
+    ).result_rows
+    return json.loads(rows[0][0]) if rows else {"complete": False, "reason": "no_reconciliation_receipt"}
 
 
 # --- First-party usage telemetry (D56) ---

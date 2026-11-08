@@ -3986,7 +3986,9 @@ def get_latest_jwt_key() -> dict | None:
 # ---------------------------------------------------------------------------
 
 
-def create_user(username: str, password_hash: str, phone: str = "", email: str = "") -> dict:
+def create_user(
+    username: str, password_hash: str, phone: str = "", email: str = "", analytics_context: str | None = None
+) -> dict:
     """Create a user account and auto-enroll them in the discover group.
 
     Auto-enrollment (KB: social-contracts.md — "Everyone (auto-join)"): every
@@ -4003,9 +4005,12 @@ def create_user(username: str, password_hash: str, phone: str = "", email: str =
     if existing.result_rows[0][0] > 0:
         return None
     now = _now()
+    from app.services.product_analytics import signup_context
+
+    telemetry = signup_context(username, now, analytics_context)
     client.insert(
         "users",
-        [[username, password_hash, phone, 0, email, 0, now, now, 0]],
+        [[username, password_hash, phone, 0, email, 0, now, now, 0, telemetry]],
         column_names=[
             "username",
             "password_hash",
@@ -4016,6 +4021,7 @@ def create_user(username: str, password_hash: str, phone: str = "", email: str =
             "created_at",
             "updated_at",
             "deleted",
+            "analytics_context",
         ],
     )
     _ensure_discover_group_contract()
@@ -4219,6 +4225,7 @@ def ensure_users_domain_schema() -> None:
     """Upgrade existing volumes; fail boot rather than serve a partial schema."""
     client.command("ALTER TABLE users ADD COLUMN IF NOT EXISTS domain String DEFAULT '' AFTER email_verified")
     client.command("ALTER TABLE users ADD COLUMN IF NOT EXISTS domain_verified UInt8 DEFAULT 0 AFTER domain")
+    client.command("ALTER TABLE users ADD COLUMN IF NOT EXISTS analytics_context String DEFAULT '{}' ")
 
 
 def get_user_domain(username: str) -> dict | None:
@@ -4250,9 +4257,9 @@ def set_domain(username: str, domain: str, verified: int) -> None:
     # DateTime64(3) can collapse immediate verify/release writes into a tie.
     # Advance beyond the copied version, even within the same millisecond.
     client.command(
-        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, domain, domain_verified, created_at, updated_at, deleted) "
+        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, domain, domain_verified, created_at, updated_at, deleted, analytics_context) "
         "SELECT username, password_hash, phone, phone_verified, email, email_verified, %(domain)s, %(verified)s, created_at, "
-        "greatest(toDateTime64(%(updated_at)s, 3), addMilliseconds(updated_at, 1)), 0 "
+        "greatest(toDateTime64(%(updated_at)s, 3), addMilliseconds(updated_at, 1)), 0, analytics_context "
         "FROM (SELECT * FROM users WHERE username = %(username)s ORDER BY updated_at DESC, deleted DESC LIMIT 1) WHERE deleted = 0",
         {"username": username, "domain": domain, "verified": verified, "updated_at": _ch_ts(_now())},
     )
@@ -4270,8 +4277,8 @@ def change_password(username: str, new_password_hash: str):
     (old hash) and the new password 401s (the recovery password-change flake).
     """
     client.command(
-        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, domain, domain_verified, created_at, updated_at, deleted) "
-        "SELECT username, %(new_hash)s, phone, phone_verified, email, email_verified, domain, domain_verified, created_at, %(updated_at)s, 0 "
+        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, domain, domain_verified, created_at, updated_at, deleted, analytics_context) "
+        "SELECT username, %(new_hash)s, phone, phone_verified, email, email_verified, domain, domain_verified, created_at, %(updated_at)s, 0, analytics_context "
         "FROM (SELECT * FROM users WHERE username = %(username)s ORDER BY updated_at DESC, deleted DESC LIMIT 1) WHERE deleted = 0",
         {"username": username, "new_hash": new_password_hash, "updated_at": _ch_ts(_now())},
     )
@@ -4285,8 +4292,8 @@ def change_phone(username: str, phone: str):
     dedup read.
     """
     client.command(
-        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, domain, domain_verified, created_at, updated_at, deleted) "
-        "SELECT username, password_hash, %(phone)s, 0, email, email_verified, domain, domain_verified, created_at, %(updated_at)s, 0 "
+        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, domain, domain_verified, created_at, updated_at, deleted, analytics_context) "
+        "SELECT username, password_hash, %(phone)s, 0, email, email_verified, domain, domain_verified, created_at, %(updated_at)s, 0, analytics_context "
         "FROM (SELECT * FROM users WHERE username = %(username)s ORDER BY updated_at DESC, deleted DESC LIMIT 1) WHERE deleted = 0",
         {"username": username, "phone": phone, "updated_at": _ch_ts(_now())},
     )
@@ -4300,8 +4307,8 @@ def set_email(username: str, email: str):
     dedup read.
     """
     client.command(
-        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, domain, domain_verified, created_at, updated_at, deleted) "
-        "SELECT username, password_hash, phone, phone_verified, %(email)s, 0, domain, domain_verified, created_at, %(updated_at)s, 0 "
+        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, domain, domain_verified, created_at, updated_at, deleted, analytics_context) "
+        "SELECT username, password_hash, phone, phone_verified, %(email)s, 0, domain, domain_verified, created_at, %(updated_at)s, 0, analytics_context "
         "FROM (SELECT * FROM users WHERE username = %(username)s ORDER BY updated_at DESC, deleted DESC LIMIT 1) WHERE deleted = 0",
         {"username": username, "email": email, "updated_at": _ch_ts(_now())},
     )
@@ -4317,8 +4324,8 @@ def verify_phone(username: str):
     ``change_password``) so it strictly outranks the row it copies.
     """
     client.command(
-        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, domain, domain_verified, created_at, updated_at, deleted) "
-        "SELECT username, password_hash, phone, 1, email, email_verified, domain, domain_verified, created_at, %(updated_at)s, 0 "
+        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, domain, domain_verified, created_at, updated_at, deleted, analytics_context) "
+        "SELECT username, password_hash, phone, 1, email, email_verified, domain, domain_verified, created_at, %(updated_at)s, 0, analytics_context "
         "FROM (SELECT * FROM users WHERE username = %(username)s ORDER BY updated_at DESC, deleted DESC LIMIT 1) WHERE deleted = 0",
         {"username": username, "updated_at": _ch_ts(_now())},
     )
@@ -4327,8 +4334,8 @@ def verify_phone(username: str):
 def verify_email(username: str):
     """Mark email as verified (latest row only — see verify_phone)."""
     client.command(
-        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, domain, domain_verified, created_at, updated_at, deleted) "
-        "SELECT username, password_hash, phone, phone_verified, email, 1, domain, domain_verified, created_at, %(updated_at)s, 0 "
+        "INSERT INTO users (username, password_hash, phone, phone_verified, email, email_verified, domain, domain_verified, created_at, updated_at, deleted, analytics_context) "
+        "SELECT username, password_hash, phone, phone_verified, email, 1, domain, domain_verified, created_at, %(updated_at)s, 0, analytics_context "
         "FROM (SELECT * FROM users WHERE username = %(username)s ORDER BY updated_at DESC, deleted DESC LIMIT 1) WHERE deleted = 0",
         {"username": username, "updated_at": _ch_ts(_now())},
     )

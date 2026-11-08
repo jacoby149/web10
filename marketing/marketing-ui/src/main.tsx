@@ -11,8 +11,7 @@ import './index.css'
 // Install JS error beacon (window.onerror + unhandledrejection)
 installErrorBeacon()
 
-// D56: full-platform telemetry — GA4 + masked Hotjar (content-blind). IDs
-// resolved at runtime from the node (GET /telemetry), env fallback in dev.
+// D103: runtime-selected PostHog, with legacy vendors retained until cutover.
 installTelemetry()
 
 function AnalyticsTracker() {
