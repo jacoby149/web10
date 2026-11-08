@@ -1286,9 +1286,14 @@ docs before code, per the rule at the top.
 
 ## SIGMOD 2027 Industry Track — the full paper (research/)
 
-> Operator subsequently approved trying the largest listed CPU-count option in
-> the current tier: 4 vCPU / 12 GB in atl1. That follow-up host is provisioned
-> and connected build/seed/measurement is in progress. This explicitly supersedes
+- [✓ 4.13.0 local design review; EXECUTION PAUSED] **Set up and validate the industrial study before running it** — `STUDY.md` + `DESIGN-REVIEW.md` map claims to repeated mechanism, paired resolver-cost and core-feed load evidence, checked against the official 2027 Industrial CFP. Offline actual-source wire capture verifies three queries plus views and preparation/delivery/21-row semantics; three Bun and seven planner tests pass. Current design remains blocked: 0.1% followed-author span is not physical I/O coverage, corpus lacks real joins/default-Discover post attachments, no-Origin omits app contracts, comparator/correlation/concurrent runner are unimplemented, and trial/reset/SLO choices need approval. Thirty proposed cases have no new dataset IDs; execution/ready/submission flags remain false and planner has no execute mode. Tier-4 access confirmed but no resources/traffic/new large generation/publication/production action is authorized. This supersedes the prior “go for it”; follow the study protocol before any run.
+
+- [✓ 4.13.0 local foundation; load/publication gates OPEN] **Frozen synthetic inputs: prepare, validate, restore, then measure** — generated/all-row validated 1M authors + 20k readers, 23,020,012 memberships, fixed IDs/timestamps/public credentials and trusted manifest/file/generator identities (149,686,257 compressed bytes). Separate approved-ID, fresh-project/empty-target restore and receipt-bound measure commands, with no seeding/import in measurement. Twenty-one offline tests and real small ARM64/ClickHouse restore/count/login/exact-query plus ten one-sample/one-warm-up functional cells pass; failure/corrected checker/guarded final run/cleanup receipts retained, no remaining test volumes. Not a million-row DB restore or capacity result. Old cloud trial cancelled at 9/20 cells (180 samples), deletion/local stop verified. Sparse/hot-audience review, large import, MinIO target/approval, full-feed load and upgraded hardware remain OPEN.
+- [ ] **Accept frozen-data restore, then build the stepped full-feed load experiment** — validate the dataset/empty-target restore and exact query outputs, then restore its pinned identity on confirmed sized hosts before session setup/warm-up/timing. Add actual three-query-plus-content-views offered-load generation for independent readers, repeated 1k/3k/5k/10k/20k trials, raw handler/readable phases, errors, achieved throughput, CPU/memory and saturation. Keep sparse/media/private/Origin/browser limits, baseline and shipped-batching gates explicit; no new cloud run until preparation/hardware gates, no MinIO publication without destination/approval. Full gates/ownership in the sigmod-paper lane.
+
+> Historical: the operator approved the largest listed CPU-count option in
+> the tier (4 vCPU / 12 GB in atl1), then cancelled it at 9/20 cells. Partial
+> receipts were collected and cloud deletion verified. This superseded
 > the larger-host provisioning gate for this repeat only; the first HTTP 422
 > remains history, and no capacity/default-deployment/freeze gate is waived.
 

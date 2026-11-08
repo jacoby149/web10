@@ -1,0 +1,105 @@
+{
+  "status": "DESIGN_REVIEW_REQUIRED",
+  "execution_authorized": false,
+  "ready_to_run": false,
+  "submission_ready": false,
+  "scope": "Offline audit/proposed schedule; no network, DB, workload or cloud execution.",
+  "wire_capture_valid": true,
+  "wire_validation_scope": "source hashes and shape; Bun tests additionally compare fresh builder output with the snapshot; not live API behavior",
+  "wire_kind": "OFFLINE_BUILDERS_FAKE_TRANSPORT",
+  "setup_evidence": {
+    "small_v1_restore_microbench_floor": "passed previously; not core-feed or concurrency evidence",
+    "core_feed_wire": "offline source builders only",
+    "core_feed_live_preflight": "not run",
+    "paired_resolver_comparator": "not implemented",
+    "concurrent_generator_acceptance": "not implemented"
+  },
+  "fixture": {
+    "dataset_id": "3a5d169bf074d21eae825f6adf9902c01b000b2aed65595bd211b01ce96e6233",
+    "pool_authors": 1000000,
+    "reader_accounts": 20000,
+    "followed_per_reader": 1000,
+    "audited_v1_layout": "all readers follow the same first K creators",
+    "following_candidate_author_span": 1000,
+    "following_author_pool_coverage": 0.001,
+    "authors_outside_followed_set": 999000,
+    "physical_rows_scanned": "unmeasured; cannot infer from followed-author coverage",
+    "returned_author_span": "unmeasured; not the same as candidate coverage",
+    "profiles_reactions_comments_media": "absent in the audited V1 generator",
+    "generator_matches_pin": true,
+    "artifact_integrity": {
+      "present": true,
+      "hashes_match": true,
+      "scope": "byte integrity; prior all-row validation is separately recorded, no DB import"
+    }
+  },
+  "optional_sensitivity": {
+    "feed_interval_seconds": 30,
+    "points": 30,
+    "gate": "separate approval after primary/budget review"
+  },
+  "budget": {
+    "initial_compute_cap_usd": 10,
+    "quoted_total_hourly_usd": 0.75,
+    "primary_phase_hours_lower_bound": 2.5,
+    "primary_compute_usd_lower_bound": 1.875,
+    "excludes": "provisioning, all prep/import/session work, mechanism/paired studies, recovery overruns, network/storage/tax/teardown"
+  },
+  "blockers": [
+    {
+      "id": "operator_pause",
+      "reason": "Latest instruction is setup/design validation only; new execution approval is required."
+    },
+    {
+      "id": "working_set",
+      "reason": "V1 readers all follow the same first K authors; dispersed million-author coverage fixture is missing."
+    },
+    {
+      "id": "relational_mix",
+      "reason": "V1 has no profiles/reactions/comments, tied timestamps, and only public text. Review/version richer inputs."
+    },
+    {
+      "id": "app_gate",
+      "reason": "Current microbench omits Origin; capture does not validate browser app-grant enforcement."
+    },
+    {
+      "id": "matched_baseline",
+      "reason": "Fixed-plan paired resolver comparator is not implemented; old A/B is noncausal."
+    },
+    {
+      "id": "concurrent_metrics",
+      "reason": "Client/server phase correlation, queueing, generator headroom and warm-up boundaries lack concurrent acceptance."
+    },
+    {
+      "id": "live_core_runner",
+      "reason": "Four-call core is source-captured only; concurrent runner and nonempty/denied live preflight are not implemented."
+    },
+    {
+      "id": "protocol_approval",
+      "reason": "Approve workload mix, locality, cadence, stop/SLO criteria, trial/reset policy and budget lifecycle before timing."
+    }
+  ],
+  "venue": {
+    "cfp": "https://2027.sigmod.org/calls_industrial_track_papers.shtml",
+    "checked": "2026-11-07",
+    "deadline": "2026-11-24 23:59 AoE",
+    "body_page_limit": 12,
+    "references_extra": true,
+    "scope": "Formal requirements, not an acceptance prediction or official evaluation rubric."
+  },
+  "proposed_primary_cases": 30,
+  "proposed_fixture_ids_assigned": false,
+  "source_base": "214d30c23a2af13482bf550c8c5210da41340c91",
+  "source_sha256": {
+    "research/experiments/costfn/STUDY.md": "590b4319826a34f3a0b6284ad38ac473f77f0629e8be2c2d898da9ae273e2f53",
+    "research/experiments/costfn/DESIGN-REVIEW.md": "a95772af4a80f311fe69f1da2269b34442bd380d411625b1a86f16fbc63513ec",
+    "research/experiments/costfn/capture-feed.ts": "28afc62e644d5d81a12278aa604b92a49042591db707dbe51b7c55480782740e",
+    "research/experiments/costfn/study_plan.py": "83d039c071af2f64f9080d06b60e27e7dc3cca5d2f0925ebef451b9f600917f0",
+    "research/experiments/costfn/evidence/core-feed-wire-v2.json": "207c8371fcd46e34f6a1782ea7c36640e38fc495b912fcbfbeea0241de58a8d0",
+    "api/app/v3/endpoints/query.py": "0fa8b9683134655d4abb950289c42eb650824c3c9ca9234abaa6b433e5a16704",
+    "api/app/v3/endpoints/documents.py": "327e5d7058cc3682433dea659f6779c0bf7bbb99ea3318b835fcde6e94c66b40",
+    "api/app/v3/services/clickhouse.py": "f5472e07ee5191035c2ad0e10f4b4fbab468d9aaa4f26886f0dedafee657ff2e",
+    "api/app/middleware.py": "1d1df8984a38e1b4c9516f729ea5e0e00cfccf5020164a9947aa25797c9ffee3",
+    "api/app/settings.py": "7b09e853834cacae8c0fd29f4bc662d4a43e6c3f50f3d458abb15583c3e780f1"
+  }
+}

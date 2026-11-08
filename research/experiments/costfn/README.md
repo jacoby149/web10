@@ -1,10 +1,52 @@
 # Access-Control Cost Function Experiment
 
-**Sixth-draft repeat: tier-max follow-up provisioned (6 November 2026).**
+> **Current mode: SETUP ONLY (7 November 2026).** No provisioning, study traffic,
+> publication or new large generation until a new explicit approval. Start with
+> [STUDY.md](STUDY.md) and [DESIGN-REVIEW.md](DESIGN-REVIEW.md). The current setup
+> is **not run-ready**: V1 is a hot/public sparse control, not the proposed
+> dispersed/nonempty core-feed study; matched cost and concurrent instrumentation
+> remain open. The earlier “go for it” was superseded by the operator's design
+> validation instruction. Execution examples below are reference, not approval.
+
+Offline setup checks (no HTTP, database or cloud execution):
+
+```sh
+bun test research/experiments/costfn/capture-feed.test.ts
+python3 research/experiments/costfn/study_plan.test.py
+python3 research/experiments/costfn/study_plan.py --artifact-dir .context/datasets/one-million
+```
+
+The source-captured [wire contract](evidence/core-feed-wire-v2.json) verifies the
+actual app/SDK builders' three queries plus views, including 21 fetched versus
+20 displayed rows, prepare and delivery flags. It is fake-transport evidence,
+not a live core-feed result. The planning tool has no execution mode and
+`--require-ready` exits 2 while the design is blocked. Do not confuse a valid
+wire capture or fixture checksum with an accepted load experiment.
+
+## New workflow: frozen data first, measurement second
+
+Start at [DATASET.md](DATASET.md), not the legacy combined `run.sh` below.
+`dataset.py` builds/validates canonical synthetic input files offline;
+`restore_dataset.py` prepares and checks a dedicated disposable stack;
+`measure_dataset.py` measures an already-restored dataset and records its identity,
+without signup, generation or import. The validated 1M-author + 20k-reader
+artifact is ~150 MB compressed; [pinned file/manifest receipt](evidence/frozen-1m-v1.json).
+This is a sparse public fixture, not measured capacity or full-feed realism.
+MinIO publication and the large concurrent load runner remain separate gates.
+The previous tier-max run was operator-cancelled (9/20 cells); receipts were
+collected and the cloud droplet/local driver stopped. No new cloud run is active.
+
+```sh
+python3 research/experiments/costfn/dataset.test.py
+python3 research/experiments/costfn/dataset_workflow.test.py
+```
+
+**Sixth-draft repeat: operator-cancelled (6 November 2026).**
 See [execution record and capacity funnel](SIXTH-DRAFT-RESULTS.md): DigitalOcean
 rejected s-8vcpu-16gb with an account-tier restriction; the operator then approved
-trying the largest listed four-vCPU option (12 GB), now provisioned in atl1.
-Connected setup/run is pending; there are no new samples yet.
+trying the largest listed four-vCPU option (12 GB) in atl1. Startup/seed succeeded
+after the bounded retry repair, but the operator cancelled at 9/20 completed
+cells (180 measured samples). Partial files were collected and the host deleted.
 The updated harness retains raw timing phases and excluded warm-ups and uses a
 seeded randomized schedule; offline tests are not a completed connected run.
 The larger-host/1M-author follow-up supersedes the old small-box-only budget
