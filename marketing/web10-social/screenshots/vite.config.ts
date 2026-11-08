@@ -30,6 +30,9 @@ export default defineConfig({
       { find: /^@\/data\/moderation$/, replacement: path.resolve(here, './harness/mock-moderation.ts') },
       { find: /^@\/data\/music$/, replacement: path.resolve(here, './harness/mock-music.ts') },
       { find: /^@\/data$/, replacement: path.resolve(here, './harness/mock-data.ts') },
+      // The link-unfurl fetch seam (the harness has no preview server — the
+      // canned cards stand in for the preview server's answers).
+      { find: /^@\/lib\/unfurl$/, replacement: path.resolve(here, './harness/mock-unfurl.ts') },
       { find: '@', replacement: path.resolve(root, './src') },
     ],
   },
