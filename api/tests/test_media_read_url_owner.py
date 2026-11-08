@@ -73,6 +73,12 @@ import pytest
         "node-doc-active-other-author-deletion",
         "node-doc-deleted-tie",
         "node-doc-deleted-tie-reversed",
+        "pinned-hidden-active",
+        "pinned-hidden-hidden",
+        "pinned-hidden-unhidden",
+        "pinned-hidden-other-document",
+        "pinned-hidden-other-group",
+        "pinned-hidden-hidden-group-uploader",
     ],
 )
 def test_read_url_owner_boundary(case):
@@ -177,7 +183,7 @@ def _probe(case):
             algorithm=settings.ALGORITHM,
         )
 
-    if case.startswith(("pinned-member-", "pinned-link-", "node-link-", "node-doc-")):
+    if case.startswith(("pinned-member-", "pinned-link-", "node-link-", "node-doc-", "pinned-hidden-")):
         import sqlite3
         from types import SimpleNamespace
 
@@ -186,9 +192,20 @@ def _probe(case):
 
         # Retained disclosure replays must deny removed membership/attachment capabilities.
         is_doc = case.startswith("node-doc-")
+        is_hidden = case.startswith("pinned-hidden-")
         is_node = is_doc or case.startswith("node-link-")
         is_link = is_node or case.startswith("pinned-link-")
-        prefix = "node-doc-" if is_doc else "node-link-" if is_node else "pinned-link-" if is_link else "pinned-member-"
+        prefix = (
+            "pinned-hidden-"
+            if is_hidden
+            else "node-doc-"
+            if is_doc
+            else "node-link-"
+            if is_node
+            else "pinned-link-"
+            if is_link
+            else "pinned-member-"
+        )
         state = case.removeprefix(prefix)
         connected = os.environ.get("H01_AD_CLICKHOUSE") == "1"
         key = "bob/private-creative.png"
@@ -214,7 +231,7 @@ def _probe(case):
                 "CREATE TABLE group_members (group_id TEXT, member_key TEXT, role TEXT, joined_at INTEGER, deleted INTEGER, updated_at INTEGER)",
             ]
         )
-        if is_doc:
+        if is_doc or is_hidden:
             # Add compiler projection columns before inserting any history rows.
             for name, default in [
                 ("collection_name", "posts"),
@@ -316,6 +333,28 @@ def _probe(case):
                         "INSERT INTO documents (doc_id,author_key,body,tags,posted_by,deleted,updated_at) "
                         f"VALUES ('creative','{author}','{current_body}',{tags},'bob',0,3)"
                     )
+        if is_hidden:
+            # Execute the entire actual compiler boundary against the same snapshot.
+            visibility_schemas = [
+                "user_blacklist (user_key String, blocked_key String, deleted UInt8, updated_at UInt64)",
+                "group_blacklist (user_key String, group_id String, blocked_key String, deleted UInt8, updated_at UInt64)",
+                "user_group_sharing (user_key String, group_id String, sharing_enabled UInt8, deleted UInt8, updated_at UInt64)",
+                "group_hidden_docs (group_id String, doc_id String, deleted UInt8, updated_at UInt64)",
+                "banned_users (username String, deleted UInt8, updated_at UInt64)",
+            ]
+            for schema in visibility_schemas:
+                setup.append(
+                    f"CREATE TABLE {schema} ENGINE = Memory"
+                    if connected
+                    else "CREATE TABLE "
+                    + schema.replace("String", "TEXT").replace("UInt8", "INTEGER").replace("UInt64", "INTEGER")
+                )
+            if state != "active":
+                hidden_doc = "unrelated" if state == "other-document" else "creative"
+                hidden_group = "unrelated-group" if state == "other-group" else "creative-group"
+                setup.append(f"INSERT INTO group_hidden_docs VALUES ('{hidden_group}','{hidden_doc}',0,2)")
+                if state == "unhidden":
+                    setup.append("INSERT INTO group_hidden_docs VALUES ('creative-group','creative',1,3)")
         db = sqlite3.connect(":memory:", check_same_thread=False)
         if not connected:
             db.create_function("has", 2, lambda tags, tag: tag in json.loads(tags))
@@ -374,7 +413,12 @@ def _probe(case):
         ):
             allowed = None if is_node else ch.can_read_group("creative-group", "alice", "posts", authenticated=True)
             if not is_node:
-                assert allowed is (is_link or state in {"active", "rejoined", "active-group-uploader"})
+                assert allowed is (is_hidden or is_link or state in {"active", "rejoined", "active-group-uploader"})
+            if is_hidden:
+                from app.v3.services import safe_query as sq
+
+                visible = execute(sq._boundary_cte_sql("posts", [creative_group], "alice"), {}).result_rows
+                assert bool(visible) is (not state.startswith("hidden"))
             if is_link:
                 from sqlglot import exp, parse_one
 
@@ -425,6 +469,17 @@ def _probe(case):
         db.close()
         assert response.status_code == 200
         doc = response.json()[0]
+        if is_hidden:
+            # Evidence, not desired behavior: hidden creatives still disclose/sign.
+            creative = doc["ad"]
+            assert creative["author_key"] == author and creative["posted_by"] == "bob"
+            verify(creative["body"]["url"], key)
+            factory.assert_called_once()
+            print(
+                f"pinned hidden evidence: engine={'ClickHouse-local' if connected else 'SQLite substitute'} "
+                f"state={state} boundary_visible={bool(visible)} inline_ad=True verified_capability=True"
+            )
+            return
         if is_doc:
             # Retained disclosure replay: current document eligibility precedes signing.
             assert "ad" not in doc

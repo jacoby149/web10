@@ -1,0 +1,36 @@
+{
+  "status": "OFFLINE_GENERATED_AND_ALL_ROW_VALIDATED",
+  "scope": "Synthetic fixture identity, not restored-million-row or capacity evidence; not uploaded to MinIO.",
+  "dataset_id": "3a5d169bf074d21eae825f6adf9902c01b000b2aed65595bd211b01ce96e6233",
+  "manifest_sha256": "4cf1b007d44d5240535de86518ffc8219c86576fc775fc4229d7625a56cb857d",
+  "generator_sha256": "f0c6d148a57f0c45395dac9d79e250ea8830321537601451d03def872c520dc6",
+  "recipe": {"creators": 1000000, "follow": 1000, "readers": 20000, "seed": 42},
+  "compression_environment": {"python": "3.12.6", "zlib": "1.2.11"},
+  "compression_runtime_zlib": "1.2.12",
+  "registered_accounts": 1020000,
+  "compressed_bytes": 149686257,
+  "offline_build_seconds": 118.155,
+  "offline_validation_seconds": 103.57,
+  "files": {
+    "users": {
+      "name": "users.jsonl.gz", "rows": 1020000, "bytes": 3252309,
+      "sha256": "4f4be372874eb79cd912462d01f00e0579cf16fbf87c7cad3214e44e6650306f"
+    },
+    "documents": {
+      "name": "documents.jsonl.gz", "rows": 1000010, "bytes": 33415760,
+      "sha256": "7c2f63680f8f30d229012cb224e56072e532e5fa16bbaf763141f362d4c7f22d"
+    },
+    "doc_groups": {
+      "name": "doc_groups.jsonl.gz", "rows": 1000010, "bytes": 29925328,
+      "sha256": "4ee2daaa98c842aa09e8140a292377fdfda49b804fd83c02903ba88a74872f5c"
+    },
+    "group_contracts": {
+      "name": "group_contracts.jsonl.gz", "rows": 1000001, "bytes": 7967317,
+      "sha256": "d86229c47128f9b702f6f3c82577ba888290ef459b4068d4f8fb37af395ce328"
+    },
+    "group_members": {
+      "name": "group_members.jsonl.gz", "rows": 23020012, "bytes": 75125543,
+      "sha256": "feaa4eeb444faa76d3e0ef06502fea829ed074538daced1b9bb2632c6b43d299"
+    }
+  }
+}

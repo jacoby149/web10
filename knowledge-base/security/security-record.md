@@ -269,6 +269,23 @@ Synthetic signed-manifest/SQL red-green plus isolated real production handler
 reads restore four existing videos without data changes. Same-model review only;
 serving rollout/browser playback, cost, diverse review and broader L1 remain OPEN.
 
+## Pinned-Ad Hidden-Creative Authority (07.11.2026) — evidence only, OPEN
+
+GPT-6.1 Sol reviews `clickhouse.py:3265-3329` at
+`80a8a1f2285e6b9bd6feceb527fd93ae582a247f` against all six checklist classes.
+[H01-AD-HIDDEN-PROOF](scans/2026-11/h01-pinned-hidden-proof.md) reproduces two
+hidden creative body/capability delivery discrepancies: actual compiler boundary excludes
+the creative while pinned loader/registered read/real synthetic SigV4 delivers it.
+Six cases pass on SQLite and isolated ClickHouse-local Memory, including newer
+unhide, unrelated hides and independent group-author/uploader controls. Full API:
+2,064 passed plus eight subtests, one opt-in skip; full Ruff lint/format pass. Runtime
+unchanged; fresh same-family review confirms evidence but requires explicit
+pinned-hide policy and same/alternate-group controls before security classification
+or repair. D59 group curation is not global secrecy or a proven I3 breach.
+Actual moderation lifecycle/driver/object retrieval,
+broader attached-ad authority, CI/rollout/diverse review and protocol L1 remain
+OPEN. Delivery assertions are evidence, not denied-green security controls.
+
 ## Node-Ad Document Authority (05.11.2026) — bounded local, OPEN
 
 H01-NODE-DOC [local repair](scans/2026-11/repair-h01-node-document.md): rank

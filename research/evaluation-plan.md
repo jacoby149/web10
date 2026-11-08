@@ -1,13 +1,32 @@
 # Evaluation Plan - web10 Paper
 
+> **7 November operator override: SETUP AND DESIGN VALIDATION ONLY.** No new
+> cloud resources, study traffic, large generation or publication. Read the
+> [preregistered study](experiments/costfn/STUDY.md) and
+> [design review](experiments/costfn/DESIGN-REVIEW.md) before any execution.
+> The source-built four-call core is verified offline; the current corpus is
+> not the proposed broader workload, the paired comparator and concurrent
+> metrics/runner are unimplemented, and the study is not run/submission-ready.
+> Tier-4 access is now verified; that is not a reason to run an invalid design.
+
 **Status: partial live observations collected; formal evaluation pending.**
-The [sixth-draft measurement attempt](experiments/costfn/SIXTH-DRAFT-RESULTS.md)
-on 6 November first stopped before provisioning: DigitalOcean restricted the
-8-vCPU/16-GB size by account tier. The operator then approved a tier-max
-4-vCPU/12-GB follow-up in atl1. It failed before seeding on a temporary
-ClickHouse init-server handoff and was collected/deleted; a fresh same-size
-retry is in connected setup/build after a bounded orchestration repair.
-No new trial, baseline or capacity data exists yet.
+The operator cancelled the tier-max repeat after 9/20 cells (180 measured
+samples); its partial receipts were retained, droplet deletion verified, and the
+local driver stopped. It is not a completed repeat. The replacement workflow
+separates [frozen dataset preparation/validation, restoration and measurement](experiments/costfn/DATASET.md).
+An offline 1M-creator + 20k-reader fixture has been generated and every row/
+relationship replay-validated (149,686,257 compressed bytes); its
+[pinned receipt](experiments/costfn/evidence/frozen-1m-v1.json) is artifact evidence,
+not node capacity. A small real ARM64/ClickHouse restore verifies counts, login
+and exact ordered public rows; a separate ten-cell, one-sample/one-warm-up
+functional smoke passes with matched dataset IDs and verified cleanup. It is
+not a tail-latency result or million-row restore. Twenty-one offline controls pass;
+MinIO publication, large import, full-feed load and hardware/tier confirmation
+remain separate gates. No new cloud test is active.
+The [sixth-draft attempt history](experiments/costfn/SIXTH-DRAFT-RESULTS.md)
+retains the initial 8-vCPU account-tier restriction, first tier-max startup
+failure/cleanup and partial cancelled retry. No completed new trial, causal
+baseline or capacity data exists yet.
 Raw-sample/warm-up/randomized-order harness controls and the scenario arithmetic
 have offline tests; these do not complete any connected E2/E3/load gate.
 The [28 October Ubuntu pilot](live-observation-2026-10-28.md) records 597 live
@@ -91,6 +110,17 @@ assumption that RLS cannot express equivalent group/service policies.
    inexpressible in a shared-table baseline. The baseline is not built yet.
 
 ### Sixth-draft repeat and offered-load gates
+
+- [✓ local offline data] Freeze and all-row validate the synthetic million-author
+  fixture separately from experiments: 1.02M account rows including 20k readers,
+  1,000,010 posts/attachments and 23,020,012 membership/grant rows, with fixed
+  timestamps/IDs and pinned manifest/file/generator digests. No production export,
+  signing keys, bearer tokens or MinIO publication. New fixture, not a replay of
+  the historical API-generated IDs/timestamps/hash distribution.
+- [ ] Accept the disposable small-stack restore and prepare→measure workflow;
+  then import/revalidate the large fixture on sized hosts before warm-up/timing.
+  Fixed data generation/import and session setup are never measured feed samples.
+  The sparse public fixture is not mixed-policy/media/full-feed realism by itself.
 
 - [✓ local tooling only] Persist raw per-sample timing phases and excluded
   warm-ups; record a reproducible randomized cell schedule. Offline controls

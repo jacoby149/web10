@@ -1,0 +1,94 @@
+{
+  "format": "web10-core-feed-wire-v1",
+  "capture_kind": "OFFLINE_BUILDERS_FAKE_TRANSPORT",
+  "sources": {
+    "feed": {
+      "path": "marketing/web10-social/src/data/feed.ts",
+      "sha256": "917e689607d9b9ccda564cd200d642caac47cd045d670a6232e5068c83967946"
+    },
+    "sdk": {
+      "path": "sdk/src/v3.ts",
+      "sha256": "3ba5aa671efb433beac6d1772590fa4e8b9b83348f609d057bb8a983da53e349"
+    },
+    "posts": {
+      "path": "marketing/web10-social/src/data/posts.ts",
+      "sha256": "98c18eddf3bf7e9ecafdfc62d0b2697785fb08af634a0c83b42b0bbf5f0f7199"
+    }
+  },
+  "capture_sha256": "e68d05e5ae096148e83f46f8b4ada1155622b97f43e277a4e355edd3b4ea42d0",
+  "preset": "Newest",
+  "cursor": null,
+  "display_limit": 20,
+  "returned_rows_before_slice": 21,
+  "displayed_rows": 20,
+  "sequencing": "Await main query, then reaction query + comment query + contentViews concurrently",
+  "origin_header_captured": false,
+  "exclusions": [
+    "group discovery/session setup",
+    "browser rendering",
+    "transport retries",
+    "media byte delivery",
+    "tuned ranking",
+    "group-author face enrichment",
+    "fromV3FeedPost rendering conversion"
+  ],
+  "requests": [
+    {
+      "path": "/v3/query",
+      "payload": {
+        "sql": "SELECT p.doc_id AS doc_id, p.author_key AS author_key, p.posted_by AS posted_by, p.group_id AS group_id, p.body AS body, p.tags AS tags, p.created_at AS created_at, p.ref_value AS ref_value, p.ad_mode AS ad_mode, p.ad_target AS ad_target, coalesce(eng.like_count, 0) AS likes, coalesce(eng.dislike_count, 0) AS dislikes, coalesce(rp.repost_count, 0) AS reposts, coalesce(cmt.comment_count, 0) AS comments, (0) AS score, pr.body AS profile_body FROM posts p LEFT JOIN (SELECT ref_value, countIf(JSONExtractString(body, 'type') = 'like') AS like_count, countIf(JSONExtractString(body, 'type') = 'dislike') AS dislike_count FROM reactions WHERE ref_value != '' GROUP BY ref_value) eng ON eng.ref_value = p.doc_id LEFT JOIN (SELECT JSONExtractString(body, 'repost_of') AS repost_of, count() AS repost_count FROM posts WHERE JSONExtractString(body, 'repost_of') != '' GROUP BY repost_of) rp ON rp.repost_of = p.doc_id LEFT JOIN (SELECT JSONExtractString(body, 'post_id') AS post_id, count() AS comment_count FROM comments WHERE JSONExtractString(body, 'post_id') != '' GROUP BY post_id) cmt ON cmt.post_id = p.doc_id LEFT JOIN (SELECT author_key, body FROM profile QUALIFY row_number() OVER (PARTITION BY author_key ORDER BY updated_at DESC) = 1) pr ON pr.author_key = p.author_key WHERE not has(p.tags, 'ad') AND not has(p.tags, 'product') ORDER BY toUnixTimestamp64Milli(p.created_at) DESC LIMIT 21",
+        "groups": [
+          "__FEED_GROUPS__"
+        ],
+        "prepare": {
+          "media": true,
+          "ads": true,
+          "face": {
+            "bodyField": "profile_body",
+            "mediaField": "avatar_ref",
+            "authorColumn": "author_key",
+            "urlField": "avatar_url"
+          }
+        },
+        "surface": "feed",
+        "content_service": "posts",
+        "token": "__TOKEN__"
+      }
+    },
+    {
+      "path": "/v3/query",
+      "payload": {
+        "sql": "SELECT ref_value, countIf(JSONExtractString(body, 'type') = 'like') AS like_count, countIf(JSONExtractString(body, 'type') = 'dislike') AS dislike_count FROM reactions WHERE ref_value IN (__POST_IDS__) GROUP BY ref_value",
+        "groups": [
+          "__FEED_GROUPS__",
+          "__DISCOVER__"
+        ],
+        "token": "__TOKEN__"
+      }
+    },
+    {
+      "path": "/v3/query",
+      "payload": {
+        "sql": "SELECT JSONExtractString(body, 'post_id') AS post_id, count() AS comment_count FROM comments WHERE JSONExtractString(body, 'post_id') IN (__POST_IDS__) GROUP BY post_id",
+        "groups": [
+          "__FEED_GROUPS__",
+          "__DISCOVER__"
+        ],
+        "token": "__TOKEN__"
+      }
+    },
+    {
+      "path": "/v3/contentViews",
+      "payload": {
+        "service": "posts",
+        "doc_ids": [
+          "__POST_IDS__"
+        ],
+        "groups": [
+          "__DISCOVER__"
+        ],
+        "token": "__TOKEN__"
+      }
+    }
+  ]
+}
