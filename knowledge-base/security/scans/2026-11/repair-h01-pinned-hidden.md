@@ -120,3 +120,12 @@ Other visibility predicates, creative app/service/class policy, provenance,
 representative query cost, connected acceptance, CI/rollout and model-diverse
 convergence remain OPEN. No whole-ad/whole-prepare or L1 PASS, L2 advancement,
 production request, data migration or deployment.
+
+## PR Base Reconciliation
+
+After all thirteen checks pass at `b02a44b04`, #1421 becomes conflicting because
+dev advances. Merge `origin/dev` at `7b078fb8e`, preserving #1423's marketing unfurl
+implementation and release. No incoming API runtime/test change. Union-merge
+retains both changelog entries; restore their boundary and renumber only this
+branch's entry/plan/lane from 4.14.2 to 4.15.1 above incoming 4.15.0. Earlier
+test/review pins remain explicit; final merged-branch CI is a separate gate.
