@@ -106,3 +106,18 @@ curl -s "http://127.0.0.1:3999/preview/unfurl?url=$(python3 -c "import urllib.pa
 Status: **local L1 coverage written + replay-gated**. The rebinding window and
 the production-box live matrix stay OPEN (the next cadence re-scan, or the
 connect-acceptance of the deploy, picks them up).
+
+## Update (07.11.2026, D100): the marketing second consumer (CORS)
+
+The unfurl route gained `Access-Control-Allow-Origin: *` (+ the OPTIONS
+preflight) so the marketing site (a different origin) can read the same
+answers cross-origin. **The boundary is unchanged**: the answer is public
+card metadata (no session, no cookies, no credentials in or out), CORS is
+reader access, not a guard — the SSRF replay gate above still pins that
+loopback / private / credentialed / non-http(s) targets are 403/400 with no
+fetch, and the per-IP damper still applies (a cross-origin browser call
+rides the same 60/min budget as any other caller of the route). The new
+verdict-with-CORS cases are pinned in `previewServerUnfurl.test.ts` (the
+ok:false 200 carries the header; the OPTIONS preflight 204; the 403 blocked
+carries the header AND stays blocked). No new fetch surface, no new host
+allowlist entry, no credential path — the residual set above is untouched.

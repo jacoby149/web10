@@ -24,6 +24,7 @@ const exceptions = new Map([
   ['marketing-ui/src/pages/Home.tsx', 'bundled brand lockup'],
   ['marketing-ui/src/pages/Join.tsx', 'bundled brand lockup'],
   ['web10-social/src/components/Feed/LinkEmbed.tsx', 'external link-card favicon (decorative, hides on failure — the card artwork itself runs the shared ReliableImage)'],
+  ['shared/discover/src/UnfurlLink.tsx', 'external link-card favicon (decorative, hides on failure — the card artwork itself runs the shared ReliableImage; the shared tail of web10-social/src/components/Feed/LinkEmbed.tsx, D100)'],
 ]);
 function files(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {

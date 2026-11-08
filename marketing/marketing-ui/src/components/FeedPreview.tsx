@@ -419,6 +419,13 @@ function TrendingCard({
       // clip + the rack stay in view, centered in a black letterbox. The social
       // app's single-column Discover leaves this unset (full-bleed, unchanged).
       mediaMaxHeight="60vh"
+      // Link unfurling (D99 + D100): a pasted link in the post body renders
+      // the provider's embedded player or the rich preview card — not a bare
+      // underlined URL — the same treatment the social app's feed gives its
+      // post bodies. The endpoint is the SOCIAL app's preview server
+      // (cross-origin: it answers `Access-Control-Allow-Origin: *`); every
+      // unfurl failure degrades to the plain link (the fallback is the floor).
+      unfurlEndpoint={`${SOCIAL_ORIGIN}/preview/unfurl`}
     />
   );
 }

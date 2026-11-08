@@ -69,6 +69,50 @@ per-provider allowlist (the two-sided embed gate — the server allowlists in
 `unfurl.mjs`, the client in `unfurl.ts`; a card whose `embed.src` points
 anywhere else renders as a rich card, never an iframe).
 
+## The second consumer: the marketing site (D100)
+
+The marketing site (`marketing/marketing-ui`, the anon `/trending` board + the
+group detail pages) renders the SAME post bodies through the shared
+`@web10/discover` card. A bare underlined URL there looked broken next to the
+social app's cards (operator, 07.11.2026: "the social app looks like this but
+the marketing page is just some links"), so the marketing board unfurls too —
+from the SAME endpoint, cross-origin.
+
+- **No node change (D60):** the fetch still lives in the social app's preview
+  server. The marketing site is a read-only consumer of the same `GET
+  /preview/unfurl` — it asks `${SOCIAL_ORIGIN}/preview/unfurl?url=…` and the
+  SSRF guard + cache + damper all still apply (the marketing origin adds no
+  new fetch surface; it just lets a second browser read the answer).
+- **CORS, not a boundary:** the preview server answers the unfurl route with
+  `Access-Control-Allow-Origin: *` (card metadata is public and
+  credential-free — no session, no cookies, no token in or out). CORS only
+  lets the browser READ the same answer a server-side caller already gets;
+  the security boundary remains the SSRF guard + the per-IP damper, exactly
+  as before (D99). The social app's own SPA asks same-origin, so the header
+  is inert for it.
+- **One renderer, two apps:** the unfurl render (the deterministic YouTube /
+  Vimeo players, the provider oEmbed player, the rich OG card, the plain-link
+  floor) moved to the shared package — `shared/discover/src/{unfurl.ts,
+  UnfurlLink.tsx, linkEmbeds.ts}` — a verbatim tail of the social app's
+  `src/lib/unfurl.ts` + `src/components/Feed/LinkEmbed.tsx`. The social app
+  keeps its own copy for the full-density feed (unchanged); the marketing
+  board + group pages use the shared copy. `MarkdownText` grows an opt-in
+  `unfurlEndpoint` prop; `DiscoverCard` grows an opt-in `unfurlEndpoint`
+  prop. Absent (the default — comments, the Top 10 rail, the tile captions,
+  the repost embeds) → the plain link, the D99 density rule: block cards
+  only at full density.
+- **The caption link-out moves:** in remote (marketing) mode the caption is
+  a link-out to the post on web10 social. When the caption carries an
+  external link it UNFURLS, so the card / player must not nest inside that
+  `<a>` (interactive content in interactive content is invalid HTML). The
+  rich caption drops the wrapper and the post's link-out moves to the TITLE
+  instead. A caption with no external link keeps the wrapper, exactly as
+  before.
+
+The marketing client (`shared/discover/src/unfurl.ts`) mirrors the social
+client: single-flight, session-pinned-on-success, the two-sided embed-host
+re-check, and the plain-link floor on every failure.
+
 ## The SSRF guard (the load-bearing part)
 
 The endpoint fetches an **attacker-influenced** URL. The guard, in order:
@@ -164,7 +208,9 @@ first time they are viewed after deploy.
   learns a provider (D60). The generic "URL → card" primitive could later
   move to the node for a second consumer (the ad-creative need,
   `strategy/ads-october/needs/ad-creative-labor.md`) — today the social app
-  owns its own tail.
+  owns its own tail. The marketing site (D100) is a CONSUMER of that tail
+  (cross-origin, CORS), not a home: the fetch still deploys with the app it
+  renders.
 - **Not a media re-host.** The card references the provider's URLs (the
   oEmbed iframe, the CDN artwork). Nothing is downloaded into web10 storage.
 - **Not a privacy loosening.** A post's links are content the post already
@@ -179,19 +225,32 @@ first time they are viewed after deploy.
 - The server logic: `marketing/web10-social/preview/unfurl.mjs` (the guard,
   the guarded fetch, the provider dispatch, the cache — pure, injectable
   `doFetch`/`lookup` seams).
-- The transport + the route + the rate limit: `marketing/web10-social/preview/server.mjs`
-  (`GET /preview/unfurl`); the nginx split: `marketing/web10-social/nginx.conf`
-  (`location = /preview/unfurl` — every UA).
+- The transport + the route + the rate limit + the CORS answer:
+  `marketing/web10-social/preview/server.mjs` (`GET /preview/unfurl`,
+  `Access-Control-Allow-Origin: *` on every verdict + the OPTIONS preflight —
+  the marketing second consumer reads it cross-origin); the nginx split:
+  `marketing/web10-social/nginx.conf` (`location = /preview/unfurl` — every UA).
 - The client seam: `marketing/web10-social/src/lib/unfurl.ts` (the candidate
   check, the same-origin fetch, the session cache, the embed-host re-check).
 - The render: `marketing/web10-social/src/components/Feed/LinkEmbed.tsx`
   (`UnfurlLink` / `PlayerEmbed` / `RichLinkCard` / `PlainExternalLink`) +
   `PostBody.tsx`'s `BodyLink` (full density only).
+- The shared tail (the marketing second consumer, D100):
+  `marketing/shared/discover/src/unfurl.ts` (the client seam, endpoint-
+  parameterized) + `src/UnfurlLink.tsx` (the renderers, the shared `ReliableImage`)
+  + `src/linkEmbeds.ts` (the deterministic YouTube / Vimeo id parse), wired
+  into `src/MarkdownText.tsx` (`unfurlEndpoint` prop) and `src/DiscoverCard.tsx`
+  (`unfurlEndpoint` prop — the rich caption + the title link-out); the wiring
+  in `marketing/marketing-ui/src/components/FeedPreview.tsx` (the board) +
+  `src/pages/GroupDetail.tsx` (the group's posts).
 - Tests: `src/__tests__/previewUnfurl.test.ts` (the module — the guard
   replayed, the provider matrix, the cache), `src/__tests__/previewServerUnfurl.test.ts`
-  (the real process over the wire — the exploit urls denied before any fetch),
-  `src/__tests__/lib/unfurl.test.ts` (the client seam), `postBody.test.tsx`
-  (the render states).
+  (the real process over the wire — the exploit urls denied before any fetch;
+  the CORS verdicts + the preflight), `src/__tests__/lib/unfurl.test.ts` (the
+  client seam), `postBody.test.tsx` (the render states); the marketing side:
+  `marketing-ui/src/components/UnfurlMarketing.test.tsx` (the board + the
+  group page: the player, the rich card, the plain-link floor, the
+  deterministic YouTube, the two-sided gate, the title link-out).
 - The SSRF scan record: `security/scans/2026-11/link-unfurl-ssrf.md`.
 - The harness: `screenshots/harness/mock-unfurl.ts` (the canned cards) + the
   two link-only seed posts in `mock-data.ts` (`fp-unfurl-spotify`,
@@ -209,4 +268,7 @@ first time they are viewed after deploy.
   server, D60-clean).
 - **Deploy + the live groups**: the test groups (New Music / Reading Links /
   Shorts) verify on the deployed app — the provider matrix above is the local
-  proof.
+  proof. The marketing board (D100) rides the SAME endpoint, so its live
+  verification is the social app's deploy: a marketing build against an
+  undeployed social app degrades to the plain links (the floor), never to a
+  broken card.

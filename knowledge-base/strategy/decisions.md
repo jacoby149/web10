@@ -9,6 +9,63 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D100 — The marketing site unfurls links cross-origin from the social preview server; the render moves to the shared package [decided]
+
+The operator's marketing pass (07.11.2026, /trending screenshot: "the social
+app looks like this but the marketing page is just some links") asked for
+the D99 link unfurling on the marketing site. D99 already decided WHERE the
+fetch lives (the social app's own preview server — never the node, D60);
+this decision is about the SECOND CONSUMER.
+
+**The decision: the marketing site consumes the same endpoint cross-origin.**
+`GET ${SOCIAL_ORIGIN}/preview/unfurl?url=…` with
+`Access-Control-Allow-Origin: *` on every verdict (+ the OPTIONS preflight)
+from the social preview server (`preview/server.mjs`). The render moves to
+the shared `@web10/discover` package (`src/unfurl.ts` + `src/UnfurlLink.tsx`
++ `src/linkEmbeds.ts` — the verbatim tail of the social app's `src/lib/
+unfurl.ts` + `LinkEmbed.tsx`), opt-in through `MarkdownText`'s and
+`DiscoverCard`'s new `unfurlEndpoint` prop; the marketing board
+(`FeedPreview.tsx`) + group detail (`GroupDetail.tsx`) wire it. The social
+app keeps its own copy for the full-density feed — unchanged.
+
+**Why CORS `*` (and not an origin list, and not an nginx proxy):** the
+answer is public card metadata — no session, no cookies, no credentials in
+or out. CORS is reader access, not the boundary: the SSRF guard + the
+60/min per-IP damper are unchanged, and a browser on any origin was already
+able to call the endpoint from server-side code; CORS just lets a second
+SPA read the same answer. `*` (not a list) so a self-hosted marketing build
+pointing at its own social origin works without a rebuild. An nginx
+proxy on the marketing side was rejected: it bakes the social container
+into the marketing network (a deploy-topology coupling the CORS answer
+doesn't need), and it silently breaks plain-vite dev.
+
+**Rejected:** (a) a node endpoint — the D99/D60 leak, already decided;
+(b) marketing running its own preview server — a second copy of the
+SSRF-guarded fetch tail, deployed with a static site that has no Node
+process; (c) client-only fetch (oEmbed/OG straight from the browser) — CORS
+makes it impossible for the generic OG case, the exact D99 reason;
+(d) unfurling the teaser surfaces (comments, the Top 10 rail, the tile
+captions, the repost embeds) — the D99 density rule: a block card in a
+line-clamped teaser blows the teaser up; they keep the plain link.
+
+**The caption link-out moves:** in remote mode the caption is a link-out to
+the post on web10 social. A caption that unfurls can't keep the wrapper
+(a card / player must not nest inside an `<a>` — interactive content in
+interactive content is invalid HTML), so the rich caption drops it and the
+post's link-out moves to the TITLE. A caption without an external link
+keeps the wrapper, exactly as before.
+
+**The floor holds:** every unfurl failure (network, blocked, no metadata,
+rate-limited) renders the plain link — on the marketing board, the group
+pages, and the social feed alike. Marketing against an undeployed social
+app degrades to plain links, never to a broken card.
+
+Contract: `web10-v3/social/link-unfurl.md` ("The second consumer: the
+marketing site (D100)"). Scan record unchanged in substance (the boundary
+is the SSRF guard; CORS is documented there as reader access).
+
+---
+
 ### D99 — Link unfurling fetches live in the social app's preview server, not the node [decided]
 
 The operator's unfurl task (07.11.2026: "Spotify, article, and (presumably)
