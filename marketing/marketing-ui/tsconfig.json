@@ -21,6 +21,8 @@
       "@/*": ["./src/*"],
       "posthog-js": ["./node_modules/posthog-js"],
       "posthog-js/*": ["./node_modules/posthog-js/*"],
+      "@web10/telemetry/runtime": ["../shared/telemetry/src/runtime.ts"],
+      "@web10/telemetry": ["../shared/telemetry/src/index.ts"],
       "@web10/discover/image": ["../shared/discover/src/ReliableImage.tsx"],
       "@web10/discover/video": ["../shared/discover/src/ReliableVideo.tsx"],
       "@web10/discover/media-recovery": ["../shared/discover/src/mediaRecovery.ts"],

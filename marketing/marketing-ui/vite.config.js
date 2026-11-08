@@ -22,6 +22,12 @@ export default defineConfig({
       clsx: path.resolve(__dirname, 'node_modules/clsx'),
       'tailwind-merge': path.resolve(__dirname, 'node_modules/tailwind-merge'),
       '@': path.resolve(__dirname, './src'),
+      // D103: the cross-app surface tests (src/lib/posthogSurfaces.test.ts) import
+      // the social/authenticator analytics sources, whose own node_modules are
+      // not installed in this app's CI job — alias the shared package source
+      // explicitly (specific subpath first).
+      '@web10/telemetry/runtime': path.resolve(__dirname, '../shared/telemetry/src/runtime.ts'),
+      '@web10/telemetry': path.resolve(__dirname, '../shared/telemetry/src/index.ts'),
       // D73: the shared discover card + video player (one source, both apps).
       // Aliased to the package source so Vite compiles it as app code (not
       // pre-bundled) — the file: dep in package.json keeps its deps resolvable.
