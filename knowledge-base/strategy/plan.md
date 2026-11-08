@@ -37,6 +37,8 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
+- [✓ 5.6.0 local foundation; activation OPEN] **FM3 private catalog split** — owner-private settings CRUD, separate credential-bound tab approval and retained approve/save removal controls. No screen imports or foreign dispatch. Remaining: editor/read consumer integration, connected grants and PR/CI. Record: `security/scans/2026-11/feed-source-catalog.md`.
+
 - [✓ 5.5.0 local; connected OPEN] **Music social library (MS1–MS4)** — original-post like/dislike in player/sheet, URL-backed public personal/group curator playlists and owner-scoped live bookmarks (not copied tracks). All 2,223 social tests, 108 focused controls, build/typecheck and desktop/375px Chromium flows pass; eight screenshots inspected. Contract/evidence: `music-social-library.md`. No node/SDK surface, production writes or deployment; global indexing/copying deferred and actual-node/consent/phone gates remain separate.
 - [ ] **Music social-library connected acceptance** — on an isolated real stack, drive existing-user re-consent for the bookmark service, first/return bookmark save/removal, two-account bookmark denial, public→private/deleted target recovery and original-post reaction persistence across Music/feed/reopen. Owns social Music/data, focused social/e2e tests and screenshot fixtures; requires the MS1–MS4 implementation plus isolated accounts/media. No production writes/deployment. Real playback/phone checks remain in Music connected listening acceptance.
 

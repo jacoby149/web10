@@ -35,6 +35,21 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-08: Catalog preferences do not grant destination consent
+
+The [isolated source catalog](scans/2026-11/feed-source-catalog.md) keeps bounded
+owner-private preferences separate from current-credential, tab-local approval.
+Removal must invalidate both retained approval and consent-bearing save callbacks:
+credential scope alone does not stop a same-account old render from resurrecting
+removed consent. Captured generation/write-sequence checks deny the actual-hook
+replay. Client ACL checks do not add transactional CAS or replace node grants.
+The foundation is dormant; consumer/browser/connected/diverse gates stay OPEN.
+Ordinary readById groups are a readable projection, not complete attachment
+authority. Existing catalogs preflight through the author-only empty-body update
+response; it advances a version but adds no preferences or links. Full unexpected
+attachments deny, never silently repair. Canonical API documents use `service`,
+despite the stale SDK `collection_name` type. Both mistakes have retained replays.
+
 ### 2026-11-08: Keep live playlist pointers separate from target access
 
 Music bookmarks store only a collection ID in an owner-only app service, never

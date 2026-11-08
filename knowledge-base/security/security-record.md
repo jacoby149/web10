@@ -15,6 +15,14 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Private feed-source catalog (08.11.2026) — bounded local, OPEN
+
+Dormant owner-private settings catalog and separate tab-local approval ownership.
+Retained same-account approve/save removal replays deny after captured generation
+and sequence guards. [Split record](scans/2026-11/feed-source-catalog.md).
+No UI wiring, foreign credential dispatch or source-query activation. Independent
+review, PR checks and connected/diverse L3/L4 guarantees remain separate gates.
+
 ## Music live playlist pointers (08.11.2026) — bounded feature review, OPEN
 
 GPT-6.1 Sol read the new `musicLibrary.ts`, Music browser/reaction controls and
