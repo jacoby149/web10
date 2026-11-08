@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import Docs from './Docs';
+import terms from '../../public/docs/terms.md?raw';
 
 const mdResponse = (body: string) => ({
   ok: true,
@@ -87,6 +88,36 @@ describe('Docs — the "who are you?" landing', () => {
     expect(link).toHaveAttribute('href', '/docs/interop');
     const section = screen.getByRole('heading', { name: /for developers/i }).closest('div')!;
     expect(Array.from(section.querySelectorAll('a')).map(a => a.getAttribute('href'))).toContain('/docs/interop');
+  });
+
+  it('lists Privacy Policy next to Terms under For Users and loads its real markdown', async () => {
+    const { default: privacy } = await import('../../public/docs/privacy.md?raw');
+    vi.mocked(fetch).mockResolvedValue(mdResponse(privacy) as Response);
+    renderDocs('/docs/privacy');
+    expect(await screen.findByRole('heading', { name: 'Privacy Policy' })).toBeInTheDocument();
+    expect(fetch).toHaveBeenCalledWith('/docs/privacy.md');
+    const section = screen.getByRole('heading', { name: 'For Users' }).closest('div')!;
+    const links = Array.from(section.querySelectorAll('a')).map(a => a.getAttribute('href'));
+    expect(links.slice(-2)).toEqual(['/docs/terms', '/docs/privacy']);
+    expect(section.querySelector('a[href="/docs/terms"]')).toHaveTextContent('Terms of Service');
+    expect(screen.getByRole('article', { name: 'Privacy Policy' })).toHaveTextContent('jacob@web10.app');
+    expect(privacy).not.toContain('copyright@web10.com');
+    expect(privacy).toContain('Copyright and takedown requests: [jacob@web10.app](mailto:jacob@web10.app)');
+  });
+
+  it('renders the hosted-only server ads clause without a numeric split or exclusive-creator promise', async () => {
+    vi.mocked(fetch).mockResolvedValue(mdResponse(terms) as Response);
+    renderDocs('/docs/terms');
+    const heading = await screen.findByRole('heading', { name: 'Server ads' });
+    expect(heading.nextElementSibling).toHaveTextContent('While your media is hosted on this node');
+    expect(heading.nextElementSibling).toHaveTextContent('when you do, the node loses the right to run ads against it');
+    expect(heading.nextElementSibling).toHaveTextContent('Nothing here gives the node any rights to your posts themselves');
+    expect(terms.indexOf('## Server ads')).toBeGreaterThan(terms.indexOf('## Telemetry'));
+    expect(terms.indexOf('## Server ads')).toBeLessThan(terms.indexOf('## Copyright & DMCA'));
+    expect(terms).not.toMatch(/\d\s*%|\bpercent(?:age)?\b|\brevenue split\b/i);
+    expect(terms.match(/creator's and the node's/g)).toHaveLength(2);
+    expect(terms).not.toContain('copyright@web10.com');
+    expect(terms).toContain('**Email our designated agent**, Jacob Hoffman, at **`jacob@web10.app`**');
   });
 
   it('lists the Snake and Marketplace interoperability demos in the Demo Apps section', async () => {

@@ -45,6 +45,14 @@ says what can happen **at the same time**.
 
 ## Lanes
 
+### Lane: marketing-legal-pages
+
+- [✓ 4.12.14 local] **Name the DMCA designated agent** - add Jacob Hoffman beside the unchanged Terms email; preserve all other Terms text and the Post-It Note process, align the focused regression. No deployment or Copyright Office registration; production publication verification remains OPEN.
+- [✓ 4.12.13 local] **Correct copyright contact** - operator correction to `jacob@web10.app` in both legal pages and the social Report copyright recipient constant, with focused test and D81/moderation alignment. This bounded follow-up owns that constant/test only; no layout/workflow change or deployment.
+**Owns:** `marketing/marketing-ui/public/docs/{terms,privacy}.md`, legal entries in `src/pages/Docs.tsx`, footer links in `src/pages/{Home,Join,Freedom}.tsx`, focused marketing tests and serialized legal-review/plan/changelog records. No API, ad-engine, telemetry configuration or production deployment ownership.
+- [✓ 4.12.12 local; legal review OPEN] **Server ads Terms clause + Privacy Policy** - hosted-only ads, no numeric split or rights to posts, unchanged ownership section, both sponsor sentences reconciled. Privacy route/index and three wrapping footer links; 304 marketing tests, typecheck/build and actual local Chromium at 1440/375px pass. Sources and omitted legal details in `legal-pages.md`; not deployed.
+- [ ] **Legal pages approval and publication acceptance** - Jacob approves Terms/Privacy and resolves the review checklist in `legal-pages.md`; after approved normal deployment, verify production `/docs/terms`, `/docs/privacy`, For Users navigation and all three footer Privacy links. Gates: Jacob's legal approval, normal reviewed PR/checks and explicitly approved deployment. Acceptance: approved text renders on both production routes, direct/reload navigation works, Privacy is next to Terms in For Users and all three footers at desktop/375px. No production edits or deployment without approval.
+
 ### Lane: media-reliability
 
 **Owns:** shared `marketing/shared/discover/` media scheduling/recovery, focused social/marketing tests and browser fixtures. Coordinate per-surface wiring with Music/media/identity owners. API/CDN/auth policy, deployment and production content are not owned. Contract: `media-reliability.md`.

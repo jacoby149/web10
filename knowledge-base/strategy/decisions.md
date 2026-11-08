@@ -458,7 +458,7 @@ Operator, 29.09.2026 — "Use the 'Post-It Note' DMCA rule: Add a simple 'Report
 
 **The shape (all client-side + a doc — zero node surface, D60):**
 
-- **The designated agent** is an email: `copyright@web10.com` for the web10 reference node / web10-social. A self-hosted node names its **own** agent in its **own terms** — the agent is a terms-level thing, not a `node_config` column (the node stays generic).
+- **The designated agent** is an email: `jacob@web10.app` for the web10 reference node / web10-social (operator correction, 06.11.2026: the previously listed copyright inbox does not exist). A self-hosted node names its **own** agent in its **own terms** — the agent is a terms-level thing, not a `node_config` column (the node stays generic).
 - **The in-app affordance is a `mailto:` composer, not a write.** **Settings → About → Report copyright** opens a dialog showing the agent's email + a pre-filled message (the content's link, the author, a rights statement) and hands it to the user's mail client. It never sends anything itself — no data write, no node call.
 - **The terms of service publish the address** (`marketing-ui /docs/terms`, "Copyright & DMCA") so a rights holder who doesn't use the app can still find it.
 

@@ -26,6 +26,7 @@ const DOC_SECTIONS: { title: string; pages: DocPage[] }[] = [
       { slug: 'your-data', title: 'Your Data', file: '/docs/your-data.md' },
       { slug: 'account-recovery', title: 'Account Recovery', file: '/docs/account-recovery.md' },
       { slug: 'terms', title: 'Terms of Service', file: '/docs/terms.md' },
+      { slug: 'privacy', title: 'Privacy Policy', file: '/docs/privacy.md' },
     ],
   },
   {

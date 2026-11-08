@@ -267,11 +267,12 @@ function Freedom() {
       <footer className="border-t border-border bg-background px-4 py-12 sm:px-6">
         <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 text-sm text-muted-foreground sm:flex-row sm:justify-between">
           <span>&copy; {new Date().getFullYear()} web10</span>
-          <div className="flex gap-6">
+          <div className="flex flex-wrap justify-center gap-x-6 gap-y-4">
             <a href="/" className="hover:text-foreground">Home</a>
             <a href="/freedom" className="hover:text-foreground">Freedom</a>
             <a href="/docs" className="hover:text-foreground">Docs</a>
             <a href="/docs/terms" className="hover:text-foreground">Terms</a>
+            <a href="/docs/privacy" className="hover:text-foreground">Privacy</a>
             <a href="/join" className="hover:text-foreground">Join</a>
             <a href={SOCIAL_ORIGIN} className="hover:text-foreground">Sign In</a>
             <a href="https://github.com/jacoby149/web10" className="hover:text-foreground">GitHub</a>
