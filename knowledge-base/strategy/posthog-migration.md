@@ -85,7 +85,7 @@ across devices when only anonymous visits were observed.
 | P2 capture/config | Complete locally | Independent boundary review and actual integrated route lifecycle/collection-health checks |
 | P3 identity/outcomes | Complete locally | Connected popup/signup/recovery, multi-tab/picker/logout, real process outage/restart/retry and actual vendor identity/event reconciliation |
 | P4 reports/replay | Provisioning and masked capture implemented | Explicitly approved vendor apply; execute actual HogQL and reconcile expected cohorts, inspect vendor playback/heatmaps, restrict investor access |
-| P5 connected acceptance | Separate real-browser/real-DB floors pass | Full app/auth/SDK/API/ClickHouse/PostHog fixture→facts→events/persons→reports/export agreement, failure/quota behavior and independent review |
+| P5 connected acceptance | Floors pass; connected-acceptance harness ready (`scripts/posthog-connected-check.mjs`, 5.0.3, offline-tested) | Live harness run against a deployed node + real project: full app/auth/SDK/API/ClickHouse/PostHog fixture→facts→events/persons→reports/export agreement, live HogQL execution of the five reports, failure/quota behavior and independent review |
 | P6 retirement/rollout | Legacy code/config wiring removed | Approved normal deployment, deployed revision/config, five final links on physical-phone Instagram plus desktop/Safari and explicit collection-gap/rollback receipt |
 
 Keep all gates honest. The full system is not launch-ready just because the code
@@ -105,9 +105,17 @@ adversarial cases, not an instruction to build a custom report/ledger engine.
 3. `node scripts/posthog-reports.mjs` previews the exact report definitions without
    network. Approved `--apply` reads project ID/region/personal API key from the
    operator environment and creates/updates only its own managed reports.
-4. Run connected/deployed acceptance before the paid pilot. Verify retention,
-   access restrictions, quota/drop alerts, deletion process and disclosure. Do
-   not infer those from local mocks or a vendor's funding round.
+4. Run connected/deployed acceptance before the paid pilot. Start with
+   `node scripts/posthog-connected-check.mjs` (dry-run manifest; `--run` needs
+   `POSTHOG_API_ORIGIN`, `POSTHOG_PROJECT_ID`, `POSTHOG_PERSONAL_API_KEY`,
+   `WEB10_API_ORIGIN`, `WEB10_ADMIN_TOKEN` in the environment): telemetry
+   preflight → signed first-touch → canonical signup → verified pseudonym →
+   reconciliation health → the `account_created` event against an independent
+   client-computed UUID oracle → live HogQL execution of all five reports. The
+   synthetic account it creates is reported for the QA exclusion list, not
+   deleted. Then verify retention, access restrictions, quota/drop alerts,
+   deletion process and disclosure. Do not infer those from local mocks or a
+   vendor's funding round.
 
 Ownership: `platform-telemetry`; shared adapter and report/check scripts plus
 coordinated API/account/schema, SDK optional metadata, auth, social lifecycle,
