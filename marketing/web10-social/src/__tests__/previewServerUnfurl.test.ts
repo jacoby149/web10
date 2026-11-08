@@ -99,4 +99,43 @@ describe('GET /preview/unfurl (the browser-facing link unfurl)', () => {
     expect(result.status).toBe(200)
     expect(result.json?.ok).toBeUndefined()
   })
+
+  // ── CORS: the marketing second consumer (D100) ─────────────────────────────
+  // The marketing site (a different origin) reads the same endpoint from the
+  // browser. The answers carry `Access-Control-Allow-Origin: *` on EVERY
+  // verdict (the ok card, the ok:false no-metadata, the 400/403 SSRF verdicts
+  // — the client's plain-link fallback needs to READ the verdict, not just
+  // the card). CORS is reader access, not the boundary: the SSRF guard +
+  // damper are unchanged (the verdicts below pin that).
+  describe('the CORS answer (the marketing second consumer)', () => {
+    // The fixture's `request` seam (the .mjs — no browser node typings
+    // needed here): method + headers, what the CORS preflight + the
+    // cross-origin GETs need.
+
+    it('answers a cross-origin GET with the CORS allow (the ok:false verdict included)', async () => {
+      // `.invalid` (RFC 2606 reserved TLD) → the stable no-card verdict.
+      const res = await fixture.request('GET', `/preview/unfurl?url=${encodeURIComponent('https://unresolvable2.invalid/x')}`, { Origin: 'https://web10.app', Accept: 'application/json' })
+      expect(res.status).toBe(200)
+      expect(res.headers['access-control-allow-origin']).toBe('*')
+    })
+
+    it('answers the OPTIONS preflight (204 + the allow methods/headers)', async () => {
+      const res = await fixture.request('OPTIONS', '/preview/unfurl', {
+        Origin: 'https://web10.app',
+        'Access-Control-Request-Method': 'GET',
+        'Access-Control-Request-Headers': 'accept',
+      })
+      expect(res.status).toBe(204)
+      expect(res.headers['access-control-allow-origin']).toBe('*')
+      expect(String(res.headers['access-control-allow-methods'])).toContain('GET')
+      expect(String(res.headers['access-control-allow-methods'])).toContain('OPTIONS')
+      expect(String(res.headers['access-control-allow-headers'])).toContain('Accept')
+    })
+
+    it('keeps the SSRF verdicts identical with an Origin present (CORS does not loosen the guard)', async () => {
+      const res = await fixture.request('GET', `/preview/unfurl?url=${encodeURIComponent('http://127.0.0.1/')}`, { Origin: 'https://web10.app' })
+      expect(res.status).toBe(403)
+      expect(res.headers['access-control-allow-origin']).toBe('*') // the verdict is readable; the verdict is still "blocked"
+    })
+  })
 })

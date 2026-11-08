@@ -3,6 +3,31 @@
 Newest at top. Format per AGENT-OPS.md §8. Read the top entries
 BEFORE doing ops work — someone may already be mid-fix.
 
+## 07.11.2026 21:49 EST — OpenCode (san-marino / jacoby149/sigmod-submission-review) — completed approved immutable research inputs
+did:
+  - Read-only SSH verified all-spark and current web10 containers; inspected only
+    the configured production storage bucket/list. No stack/source/config edit,
+    restart, deployment, account write or database content change on the box.
+  - Operator explicitly selected web10 MinIO and then approved the exact target
+    `https://minio.web10.app`, bucket `web10-media`, prefix
+    `research/costfn/datasets/<dataset-id>/`. No new bucket or public policy.
+  - Published synthetic 40-author floor plus hot/dispersed million-author V2
+    artifacts, six table objects and manifest each (21 objects). Immutable
+    conditional puts, manifest last, full remote reads and fresh download/all-row
+    validation. Large table totals 282,574,957 and 282,594,851 compressed bytes;
+    identities `53b16c1072a8e80032b20ae23c5675040b851274ad7a314a106b7557be3b5363`
+    and `dbed2201952f9ca1b581c30a541e44b6912a5a6ba1bec84ee166aa80575132b4`.
+  - Existing storage credential configuration was consumed only in controller
+    process memory, not printed/saved or copied to a droplet. No bearer/signing
+    keys or production records in datasets. Existing media/permissions untouched.
+state: authenticated publication/download proof is pinned in
+  `research/experiments/costfn/evidence/v2-*-publication.json`. Local functional
+  API/DB/MinIO acceptance and cleanup are separate from this production storage
+  operation; no cloud study or production app deployment occurred.
+next: actual approved sized-host restore/topology/headroom/budget/watchdog
+  preflight. Provision read-only dataset access separately; do not hand production
+  admin credentials to experiment hosts or infer public access from the prefix.
+
 ## 05.11.2026 10:30–10:45 UTC — OpenCode (vatican / jacoby149/samhanks-profile-picture-fix) — prod followers-group public-grant backfill
 did:
   - Diagnosed the operator's web10.app/trending screenshot (v4.10.0): samhanks +

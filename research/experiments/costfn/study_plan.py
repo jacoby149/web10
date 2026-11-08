@@ -3,11 +3,12 @@
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import random
 
 HERE = Path(__file__).resolve().parent
-ROOT = HERE.parents[2]
+ROOT = Path(os.environ["COSTFN_SOURCE_ROOT"]) if os.environ.get("COSTFN_SOURCE_ROOT") else HERE.parents[2]
 SOURCES = {"feed": "marketing/web10-social/src/data/feed.ts", "sdk": "sdk/src/v3.ts",
            "posts": "marketing/web10-social/src/data/posts.ts", "types": "marketing/web10-social/src/data/types.ts"}
 LEVELS = [1000, 3000, 5000, 10000, 20000]
@@ -86,7 +87,7 @@ def artifact_integrity(directory, pin):
 
 
 def audit(wire=None, pin=None, artifact_dir=None):
-    wire = wire if wire is not None else json.loads((HERE / "evidence/core-feed-wire-v2.json").read_bytes())
+    wire = wire if wire is not None else json.loads((HERE / "evidence/core-feed-wire-v3.json").read_bytes())
     pin = pin if pin is not None else json.loads((HERE / "evidence/frozen-1m-v1.json").read_bytes())
     recipe = pin["recipe"]
     points = matrix()

@@ -24,6 +24,10 @@
 //     per-provider on BOTH sides (the server here, the client in the SPA).
 
 import dns from 'node:dns'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { execFile } from 'node:child_process'
 
 // ── limits ────────────────────────────────────────────────────────────────
 
@@ -344,6 +348,127 @@ export async function guardedFetch(url, { doFetch, lookup, timeoutMs, maxBytes, 
   return { status, contentType: res.headers.get('content-type') || '', text: text || null, truncated, finalUrl: validated.href }
 }
 
+// ── the stealth fetcher (the challenge-wall retry) ─────────────────────────
+//
+// Some edges fingerprint the TLS CLIENT, not just the UA: Bandcamp's Fastly
+// edge serves Node's built-in fetch (undici) a "Client Challenge" wall
+// (verified live 08.11.2026, from both residential and datacenter hosts:
+// the same url + the same browser headers, undici → the 3KB wall, libcurl →
+// the 366KB page). The wall is detected by `isChallengeWall`; when it hits,
+// the page fetch retries ONCE through this curl-based fetcher — a different
+// TLS fingerprint the edge accepts. This is a TRANSPORT swap inside the
+// existing guard, not a new path: `guardedFetch` re-runs the full validation
+// (scheme/shape/DNS-public) before spawning, curl runs with `--max-redirs 0`
+// (a 3xx comes back and the per-hop redirect loop re-validates the Location
+// exactly as with the default fetcher — curl itself never follows a redirect
+// to a new host), `--max-time` bounds the transfer, and the body still flows
+// through guardedFetch's byte cap (single chunk, truncated at the cap).
+// Absent curl (or any transfer error) → the wall verdict stands (the plain
+// link — the floor, exactly as before the retry existed).
+
+function parseHeaderDump(text) {
+  // curl's `-D` dump: the status line + response headers (CRLF), nothing
+  // else (the body goes to stdout, not here).
+  const lines = String(text || '').split(/\r?\n/)
+  const statusMatch = /^HTTP\/[\d.]+\s+(\d{3})/.exec(lines[0] || '')
+  const status = statusMatch ? Number(statusMatch[1]) : 0
+  const map = {}
+  for (const line of lines) {
+    const idx = line.indexOf(':')
+    if (idx > 0) {
+      const k = line.slice(0, idx).trim().toLowerCase()
+      if (k && !(k in map)) map[k] = line.slice(idx + 1).trim()
+    }
+  }
+  return { status, get: (n) => (n in map ? map[n] : null) }
+}
+
+function oneChunkBody(buf) {
+  // The guardedFetch contract: an async-iterable of Buffer chunks (+ a
+  // no-op cancel — the process is already done by the time this resolves).
+  const data = Buffer.isBuffer(buf) ? buf : Buffer.from(buf || '')
+  return {
+    async *[Symbol.asyncIterator]() {
+      if (data.length > 0) yield data
+    },
+    cancel: async () => {},
+  }
+}
+
+/**
+ * Build the curl stealth fetcher (a `doFetch` stand-in for guardedFetch).
+ * `curlBin` is injectable (tests point it at a fake script; the production
+ * wiring is the container's /usr/bin/curl — `apk add curl`, the Dockerfile).
+ */
+export function makeCurlStealthFetch(curlBin = process.env.UNFURL_CURL_BIN || 'curl') {
+  let availability = null
+  const isAvailable = () => {
+    if (availability === null) {
+      availability = new Promise((resolve) => {
+        execFile(curlBin, ['--version'], { timeout: 5000 }, (err) => resolve(!err))
+      })
+    }
+    return availability
+  }
+
+  return async function curlStealthFetch(url, { headers = {}, signal } = {}) {
+    if (!(await isAvailable())) {
+      const e = new Error('curl unavailable (the stealth retry is off)')
+      e.code = 'unavailable'
+      throw e
+    }
+    // One temp file for the header dump (the body streams to stdout).
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'unfurl-curl-'))
+    const hdrPath = path.join(dir, 'h.txt')
+    // The timeout: a hair over guardedFetch's per-hop budget (its abort also
+    // kills the child via the signal listener).
+    const timeoutMs = 10_000
+    const args = [
+      '-s', // silent (errors → stderr, captured)
+      '-S',
+      '--max-redirs', '0', // redirects are the guardedFetch loop's job, not curl's
+      '--max-time', String(Math.ceil(timeoutMs / 1000)), // the curl-level cap (the execFile timeout + the signal kill are the backstops)
+      '-D', hdrPath,
+      '-H', `User-Agent: ${headers['User-Agent'] || BROWSER_UA}`,
+      '-H', `Accept: ${headers['Accept'] || 'text/html'}`,
+      '-H', 'Accept-Language: en-US,en;q=0.9',
+      url.href,
+    ]
+    return await new Promise((resolve, reject) => {
+      let settled = false
+      const finish = (fn) => { if (!settled) { settled = true; fn() } }
+      let child
+      try {
+        child = execFile(curlBin, args, { timeout: timeoutMs, maxBuffer: 8 * 1024 * 1024 }, (err, stdout, stderr) => {
+          let dump = ''
+          try { dump = fs.readFileSync(hdrPath, 'utf8') } catch { /* no headers yet */ }
+          const parsed = parseHeaderDump(dump)
+          try { fs.rmSync(dir, { recursive: true, force: true }) } catch { /* best-effort */ }
+          // curl exits 0 even on HTTP 4xx/5xx (it got a response) — the
+          // status line is the verdict. A non-zero exit with a status line is
+          // still a usable response (e.g. a transfer hiccup after headers).
+          if (parsed.status >= 200) {
+            return finish(() => resolve({
+              status: parsed.status,
+              headers: { get: parsed.get },
+              body: oneChunkBody(stdout),
+            }))
+          }
+          const e = new Error(stderr ? String(stderr).trim().split('\n').pop() : 'curl transfer failed')
+          e.code = 'unavailable'
+          return finish(() => reject(e))
+        })
+      } catch (e) {
+        return finish(() => reject(Object.assign(new Error('spawn failed'), { code: 'unavailable' })))
+      }
+      if (signal) {
+        if (signal.aborted) child.kill('SIGKILL')
+        else signal.addEventListener('abort', () => child.kill('SIGKILL'), { once: true })
+      }
+    })
+  }
+}
+
 // ── html → metadata (parse, never execute) ────────────────────────────────
 
 const NAMED_ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' }
@@ -611,13 +736,23 @@ function pageCard(provider, url, finalUrl, html, precomputedMeta) {
   let embed = null
   if (provider === 'bandcamp') {
     // Bandcamp's album/track pages advertise an embeddable player when
-    // twitter:card is "player" (the og:video:* trio backs it up).
+    // twitter:card is "player" (the og:video:* trio backs it up). The
+    // player's DECLARED size is the twitter:player:width/height pair —
+    // the size of the EXACT embed the twitter:player src points at
+    // (a size=large track player is 350×467). The page's og:video:height
+    // can disagree (120 — the small-player figure) and would clip the
+    // large iframe, so it is only the fallback.
     const player = meta['twitter:player'] || null
     if (meta['twitter:card'] === 'player' && player) {
       const src = allowlistedEmbedSrc('bandcamp', player)
       if (src) {
-        const h = Number(meta['og:video:height'])
-        embed = { src, height: Number.isFinite(h) && h >= 80 ? Math.round(h) : 120, width: null, allow: providerAllow('bandcamp') }
+        const ph = Number(meta['twitter:player:height'])
+        const pw = Number(meta['twitter:player:width'])
+        const oh = Number(meta['og:video:height'])
+        const ow = Number(meta['og:video:width'])
+        const height = Number.isFinite(ph) && ph >= 80 ? ph : Number.isFinite(oh) && oh >= 80 ? oh : 120
+        const width = Number.isFinite(pw) && pw >= 40 ? pw : Number.isFinite(ow) && ow >= 40 ? ow : null
+        embed = { src, height: Math.round(height), width: width === null ? null : Math.round(width), allow: providerAllow('bandcamp') }
       }
     }
   }
@@ -679,6 +814,10 @@ function normalizeCacheKey(url) {
  *   doFetch(url, opts)  — the network (default: globalThis.fetch)
  *   lookup(host, opts)  — dns (default: node:dns all/verbatim)
  *   now()               — the clock (tests pin it)
+ *   stealthFetch(url, opts) — the challenge-wall retry transport. Default
+ *                              null (the wall verdict stands). The production
+ *                              singleton below injects makeCurlStealthFetch();
+ *                              tests inject fakes.
  *
  * `unfurl(rawUrl)` resolves to:
  *   { ok: true, card }                    — the card (from the network or the cache)
@@ -693,6 +832,9 @@ export function createUnfurlService(deps = {}) {
   const lookup = deps.lookup || ((host, opts) => dns.promises.lookup(host, { all: true, verbatim: true, ...(opts || {}) }))
   const now = deps.now || (() => Date.now())
   const log = deps.log || ((line) => console.log('[unfurl]', line))
+  // The challenge-wall retry transport (absent in a pure consumer — the
+  // production singleton below injects the curl fetcher; tests inject fakes).
+  const stealthFetch = deps.stealthFetch || null
 
   if (!doFetch) {
     return {
@@ -792,11 +934,35 @@ export function createUnfurlService(deps = {}) {
     }
 
     // The page path (bandcamp / instagram / generic / oEmbed-fell-through).
+    // The wall-retry (the stealth fetcher) lives here: a challenge wall on
+    // the default fetcher is retried ONCE through curl (the different TLS
+    // fingerprint), still inside guardedFetch (the guard re-runs; curl never
+    // follows a redirect). Any failure of the retry → the wall verdict
+    // stands (the plain link — the floor).
+    const pageOpts = { lookup, timeoutMs: PAGE_TIMEOUT_MS, maxBytes: MAX_PAGE_BYTES, accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.1', ua: userAgentFor(provider) }
     let fetched
     try {
-      fetched = await guardedFetch(url, { doFetch, lookup, timeoutMs: PAGE_TIMEOUT_MS, maxBytes: MAX_PAGE_BYTES, accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.1', ua: userAgentFor(provider) })
+      fetched = await guardedFetch(url, { doFetch, ...pageOpts })
     } catch (err) {
       return { ok: false, reason: err?.code === 'blocked' ? 'blocked' : 'unavailable' }
+    }
+    if (fetched.status === 200 && fetched.text && /text\/html|application\/xhtml/i.test(fetched.contentType)) {
+      const wallMeta = extractMetaTags(fetched.text)
+      if (isChallengeWall(fetched.text, wallMeta) && stealthFetch) {
+        log(`challenge wall host=${url.hostname} (the edge fingerprinted the default fetcher) — stealth retry (curl)`)
+        try {
+          const retry = await guardedFetch(url, { doFetch: stealthFetch, ...pageOpts })
+          if (retry.status === 200 && retry.text && /text\/html|application\/xhtml/i.test(retry.contentType) && !isChallengeWall(retry.text, extractMetaTags(retry.text))) {
+            log(`challenge wall CLEARED host=${url.hostname} (the stealth fetcher got the page)`)
+            fetched = retry
+          } else {
+            log(`stealth retry still walled/unusable host=${url.hostname} status=${retry.status} — the wall verdict stands`)
+          }
+        } catch (err) {
+          // curl absent / transfer failed — the wall verdict stands.
+          log(`stealth retry failed host=${url.hostname} err=${err?.message || err} — the wall verdict stands`)
+        }
+      }
     }
     if (fetched.status !== 200 || !fetched.text) return { ok: false, reason: 'unavailable' }
     if (!/text\/html|application\/xhtml/i.test(fetched.contentType)) return { ok: false, reason: 'unavailable' }
@@ -823,5 +989,6 @@ export function createUnfurlService(deps = {}) {
 }
 
 // A stateless convenience for the server route (the production wiring:
-// real dns + real fetch).
-export const unfurlService = createUnfurlService()
+// real dns + real fetch + the curl stealth fetcher — `apk add curl` in the
+// Dockerfile; absent curl the wall retry degrades to the wall verdict).
+export const unfurlService = createUnfurlService({ stealthFetch: makeCurlStealthFetch() })

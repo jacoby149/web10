@@ -8,6 +8,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   createUnfurlService,
+  makeCurlStealthFetch,
   isPrivateIPv4,
   isPrivateIPv6,
   extractMetaTags,
@@ -18,6 +19,7 @@ import {
   displayDomain,
   unescapeEntities,
 } from '../../preview/unfurl.mjs';
+import { withFakeCurl } from './fixtures/fakeCurl.mjs';
 
 // ── the fake network ───────────────────────────────────────────────────────
 
@@ -588,6 +590,253 @@ describe('bandcamp + instagram pages', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.card.title).toBe('@itsnaglis · Instagram');
+  });
+});
+
+// ── the challenge-wall stealth retry (D101) ────────────────────────────────
+//
+// Some edges fingerprint the TLS CLIENT: Bandcamp's Fastly edge serves Node's
+// built-in fetch (undici) a "Client Challenge" wall while serving a libcurl
+// client the real page (verified live 08.11.2026, residential + datacenter).
+// The retry is a TRANSPORT swap inside the same guard (guardedFetch re-runs
+// the validation; the stealth fetcher never follows redirects). These tests
+// drive the real module with injected fetchers (the wall + the clean page are
+// canned — the live matrix is the deploy evidence, KB: link-unfurl.md).
+
+// The actual wall shape (the 3KB Fastly interstitial): the challenge title +
+// the _fs-ch- asset marker in the head.
+const CHALLENGE_WALL =
+  '<html><head><title>Client Challenge</title>' +
+  '<script src="/_fs-ch-challenge/v1/bundle.js"></script>' +
+  '<meta name="description" content="You are being verified"/></head>' +
+  '<body><div class="challenge">Verifying…</div></body></html>';
+
+// The clean Bandcamp track page (the plantasia shape, verified live):
+// twitter:card=player + the twitter:player embed + the DECLARED player
+// dimensions (350×467) that disagree with the og:video:height (120).
+const BANDCAMP_CLEAN_PAGE =
+  '<html><head>' +
+  '<meta property="og:title" content="Plantasia, by Mort Garson"/>' +
+  '<meta property="og:description" content=" from the album Mother Earth\'s Plantasia "/>' +
+  '<meta property="og:image" content="https://f4.bcbills.com/img/a1833416591_5.jpg"/>' +
+  '<meta name="twitter:card" content="player"/>' +
+  '<meta property="og:video:type" content="text/html"/>' +
+  '<meta property="og:video:height" content="120"/>' +
+  '<meta property="og:video:width" content="400"/>' +
+  '<meta property="twitter:player" content="https://bandcamp.com/EmbeddedPlayer/v=2/track=514020827/size=large/linkcol=0084B4/notracklist=true/twittercard=true/"/>' +
+  '<meta property="twitter:player:height" content="467"/>' +
+  '<meta property="twitter:player:width" content="350"/>' +
+  '</head><body></body></html>';
+
+function wallWorld(wallHost: string, cleanHost: string) {
+  const stealthCalls: string[] = [];
+  const stealthFetch = async (url: URL | string) => {
+    const u = String(url);
+    stealthCalls.push(u);
+    if (u.startsWith(`https://${cleanHost}`)) {
+      return {
+        status: 200,
+        headers: { get: (k: string) => (k.toLowerCase() === 'content-type' ? 'text/html; charset=utf-8' : null) },
+        body: null,
+        text: async () => BANDCAMP_CLEAN_PAGE,
+      };
+    }
+    throw Object.assign(new Error('stealth: no route'), { code: 'unavailable' });
+  };
+  const world = fetchWorld([
+    { match: `^https://${wallHost.replace(/[.]/g, '\\.')}/`, body: CHALLENGE_WALL },
+  ]);
+  return { world, stealthFetch, stealthCalls };
+}
+
+describe('the challenge-wall stealth retry', () => {
+  it('walls the default fetcher, clears it with the stealth fetcher — the bandcamp card lands with the player', async () => {
+    const { world, stealthFetch, stealthCalls } = wallWorld('mortgarson.bandcamp.com', 'mortgarson.bandcamp.com');
+    const service = createUnfurlService({ doFetch: world.doFetch, lookup: publicLookup('mortgarson.bandcamp.com'), stealthFetch });
+    const result = await service.unfurl('https://mortgarson.bandcamp.com/track/plantasia');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // Both fetchers ran: the default hit the wall, the stealth got the page.
+    expect(world.calls.length).toBe(1);
+    expect(stealthCalls.length).toBe(1);
+    expect(result.card.provider).toBe('bandcamp');
+    expect(result.card.title).toBe('Plantasia, by Mort Garson');
+    expect(result.card.image).toBe('https://f4.bcbills.com/img/a1833416591_5.jpg');
+    // The embedded player (the allowlisted bandcamp.com host)…
+    expect(result.card.embed?.src).toBe('https://bandcamp.com/EmbeddedPlayer/v=2/track=514020827/size=large/linkcol=0084B4/notracklist=true/twittercard=true/');
+    // …at the player's DECLARED size (the twitter:player:height/width pair
+    // wins over the og:video:height mismatch — 467, not 120).
+    expect(result.card.embed?.height).toBe(467);
+    expect(result.card.embed?.width).toBe(350);
+  });
+
+  it('the retry runs once — a second wall stands (no_metadata, the plain link)', async () => {
+    const stealthFetch = async (_url: URL | string) => {
+      return {
+        status: 200,
+        headers: { get: (k: string) => (k.toLowerCase() === 'content-type' ? 'text/html' : null) },
+        body: null,
+        text: async () => CHALLENGE_WALL,
+      };
+    };
+    const { world } = wallWorld('walled.bandcamp.com', 'walled.bandcamp.com');
+    const service = createUnfurlService({ doFetch: world.doFetch, lookup: publicLookup('walled.bandcamp.com'), stealthFetch });
+    const result = await service.unfurl('https://walled.bandcamp.com/track/x');
+    expect(result).toEqual({ ok: false, reason: 'no_metadata' });
+    // Default (1 wall) + exactly one stealth retry (1 wall) — no hammering.
+    expect(world.calls.length).toBe(1);
+  });
+
+  it('no stealth fetcher (the pure consumer) → the wall verdict stands, as before the retry existed', async () => {
+    const { world } = wallWorld('nowall.bandcamp.com', 'nowall.bandcamp.com');
+    const service = createUnfurlService({ doFetch: world.doFetch, lookup: publicLookup('nowall.bandcamp.com') });
+    const result = await service.unfurl('https://nowall.bandcamp.com/track/x');
+    expect(result).toEqual({ ok: false, reason: 'no_metadata' });
+    expect(world.calls.length).toBe(1);
+  });
+
+  it('a stealth transfer failure (curl absent / dead) → the wall verdict stands', async () => {
+    const stealthFetch = async (_url: URL | string) => {
+      throw Object.assign(new Error('curl unavailable (the stealth retry is off)'), { code: 'unavailable' });
+    };
+    const { world } = wallWorld('nocurl.bandcamp.com', 'nocurl.bandcamp.com');
+    const service = createUnfurlService({ doFetch: world.doFetch, lookup: publicLookup('nocurl.bandcamp.com'), stealthFetch });
+    const result = await service.unfurl('https://nocurl.bandcamp.com/track/x');
+    expect(result).toEqual({ ok: false, reason: 'no_metadata' });
+  });
+
+  it('a clean page (no wall) never invokes the stealth fetcher', async () => {
+    const stealthFetch = async () => {
+      throw new Error('the stealth fetcher must not run on a clean page');
+    };
+    const world = fetchWorld([
+      {
+        match: '^https://clean\\.example\\.com/page$',
+        body: '<html><head><title>Clean</title><meta property="og:image" content="https://clean.example.com/i.jpg"/></head></html>',
+      },
+    ]);
+    const service = createUnfurlService({ doFetch: world.doFetch, lookup: publicLookup('clean.example.com'), stealthFetch });
+    const result = await service.unfurl('https://clean.example.com/page');
+    expect(result.ok).toBe(true);
+  });
+
+  it('the og:video:height remains the fallback when the page declares no twitter:player dimensions', async () => {
+    const world = fetchWorld([
+      {
+        match: '^https://legacy\\.bandcamp\\.com/track/x$',
+        body:
+          '<html><head>' +
+          '<meta property="og:title" content="Legacy Track, by Artist"/>' +
+          '<meta property="og:image" content="https://f4.bcbits.com/img/legacy.jpg"/>' +
+          '<meta name="twitter:card" content="player"/>' +
+          '<meta property="twitter:player" content="https://bandcamp.com/EmbeddedPlayer/v=2/track=1/size=small/"/>' +
+          '<meta property="og:video:height" content="120"/>' +
+          '</head><body></body></html>',
+      },
+    ]);
+    const service = createUnfurlService({ doFetch: world.doFetch, lookup: publicLookup('legacy.bandcamp.com') });
+    const result = await service.unfurl('https://legacy.bandcamp.com/track/x');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.card.embed?.height).toBe(120);
+    expect(result.card.embed?.width).toBeNull();
+  });
+});
+
+// ── the curl stealth fetcher (the real adapter, fake curl binary) ──────────
+//
+// The adapter shells out to a curl binary (`execFile` — an argument array, no
+// shell, so the validated url is never interpolated). These tests point it at
+// fake scripts (the `withFakeCurl` fixture seam — the .mjs, the same pattern
+// as the previewHttp fixture) and pin the response shape guardedFetch
+// consumes: the status line + the header dump (-D) + the body on stdout, the
+// no-redirect posture, and the failure verdicts.
+
+describe('the curl stealth fetcher (makeCurlStealthFetch)', () => {
+  it('hands back the status + headers + body of a 200 (the guardedFetch contract)', async () => {
+    const res: any = await withFakeCurl(
+      `#!/bin/sh\n` +
+        `hdr=''\n` +
+        `url=''\n` +
+        `while [ $# -gt 0 ]; do\n` +
+        `  case "$1" in\n` +
+        `    --version) echo 'curl 8.5.0-fake'; exit 0;;\n` +
+        `    -D) hdr="$2"; shift 2;;\n` +
+        `    -H|--max-time) shift 2;;\n` +
+        `    --max-redirs) shift 2;;\n` +
+        `    -s|-S) shift;;\n` +
+        `    *) url="$1"; shift;;\n` +
+        `  esac\n` +
+        `done\n` +
+        `if [ -z "$hdr" ] || [ -z "$url" ]; then echo 'fake-curl: missing -D or url' >&2; exit 2; fi\n` +
+        `printf 'HTTP/1.1 200 OK\\r\\ncontent-type: text/html; charset=utf-8\\r\\nserver: fake\\r\\n\\r\\n' > "$hdr"\n` +
+        `echo '<html><head><title>From Fake Curl</title></head><body>hello</body></html>'\n`,
+      async (fetchWithCurl) =>
+        fetchWithCurl(new URL('https://fake.example.com/page'), { headers: { 'User-Agent': 'x', Accept: 'text/html' } }),
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('text/html; charset=utf-8');
+    expect(res.headers.get('server')).toBe('fake');
+    // The body: an async-iterable of Buffer chunk(s) (the guard's reader).
+    let body = '';
+    const dec = new TextDecoder();
+    for await (const chunk of res.body) body += dec.decode(chunk as Uint8Array, { stream: true });
+    body += dec.decode();
+    expect(body).toContain('<title>From Fake Curl</title>');
+  });
+
+  it('hands back a 3xx WITHOUT following it (--max-redirs 0 — the redirect is the guard loop’s)', async () => {
+    const res: any = await withFakeCurl(
+      `#!/bin/sh\n` +
+        `hdr=''\nurl=''\n` +
+        `while [ $# -gt 0 ]; do\n` +
+        `  case "$1" in\n` +
+        `    --version) echo 'curl 8.5.0-fake'; exit 0;;\n` +
+        `    -D) hdr="$2"; shift 2;;\n` +
+        `    -H|--max-time) shift 2;;\n` +
+        `    --max-redirs) shift 2;;\n` +
+        `    -s|-S) shift;;\n` +
+        `    *) url="$1"; shift;;\n` +
+        `  esac\n` +
+        `done\n` +
+        `printf 'HTTP/1.1 302 Found\\r\\nlocation: http://127.0.0.1:9999/steal\\r\\n\\r\\n' > "$hdr"\n` +
+        `exit 0\n`,
+      async (fetchWithCurl) => fetchWithCurl(new URL('https://redirector.example.com/a')),
+    );
+    expect(res.status).toBe(302);
+    expect(res.headers.get('location')).toBe('http://127.0.0.1:9999/steal');
+  });
+
+  it('a transfer failure (non-zero exit, no status line) rejects with code unavailable', async () => {
+    let rejected: any = null;
+    await withFakeCurl(
+      `#!/bin/sh\n` +
+        `if [ "$1" = '--version' ]; then echo 'curl 8.5.0-fake'; exit 0; fi\n` +
+        `echo 'curl: (7) Failed to connect' >&2\n` +
+        `exit 7\n`,
+      async (fetchWithCurl) => {
+        try {
+          await fetchWithCurl(new URL('https://dead.example.com/x'));
+        } catch (e) {
+          rejected = e;
+        }
+      },
+    );
+    expect(rejected).not.toBeNull();
+    expect(rejected.code).toBe('unavailable');
+  });
+
+  it('an absent binary degrades to unavailable (the wall verdict stands — the floor)', async () => {
+    const fetchWithCurl = makeCurlStealthFetch('/nonexistent/fake-curl-does-not-exist');
+    let rejected: any = null;
+    try {
+      await fetchWithCurl(new URL('https://any.example.com/x'));
+    } catch (e) {
+      rejected = e;
+    }
+    expect(rejected).not.toBeNull();
+    expect(rejected.code).toBe('unavailable');
+    expect(rejected.message).toMatch(/curl unavailable/);
   });
 });
 

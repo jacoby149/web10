@@ -35,8 +35,13 @@ FROM ghcr.io/jacoby149/base-nginx:alpine
 # thumbnailing primitive, KB: media/thumbnailing.md) is a small Node process
 # that runs alongside nginx in this same container — the social app stays ONE
 # service (the card deploys with the app it represents). nginx:alpine has no
-# Node runtime, so install it (Alpine's nodejs package).
-RUN apk add --no-cache nodejs
+# Node runtime, so install it (Alpine's nodejs package). `curl` is the
+# link-unfurl CHALLENGE-WALL RETRY (D101): some edges (Bandcamp's Fastly)
+# fingerprint the TLS client and wall Node's built-in fetch while serving
+# libcurl the real page — the unfurl server shells out to curl for that one
+# retry (preview/unfurl.mjs `makeCurlStealthFetch`). Absent curl the retry
+# degrades to the wall verdict (the plain link — the floor).
+RUN apk add --no-cache nodejs curl
 COPY --from=build /app/dist /usr/share/nginx/html
 # The preview server (the social-specific card logic + the thin HTTP server).
 COPY marketing/web10-social/preview/ /app/preview/
