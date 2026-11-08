@@ -65,7 +65,7 @@ This includes authenticated foreign reads, not a public-only substitute.
 
 ## Implementation queue (separate review-sized units)
 
-- [✓ 4.17.0 local; connected/review gates OPEN] **FM1 — Certified foreign self-membership lifecycle.** Owns exact
+- [✓ 5.1.0 local; connected/review gates OPEN] **FM1 — Certified foreign self-membership lifecycle.** Owns exact
   self-service hunks in `api/app/v3/endpoints/groups.py` and focused API tests.
   Join/request/list/leave/accept/decline use the certified principal; locals
   retain bare keys. Foreign namesakes never borrow membership, pending invites
@@ -82,7 +82,7 @@ This includes authenticated foreign reads, not a public-only substitute.
   redirects, invalid origins and unapproved destinations before token dispatch;
   omit cookies/referrers, bound bodies/requests and cancel on identity change.
   Gate: two independent node keys, real HTTPS and grant/revoke/deny controls.
-  - [✓ 4.17.0 local] Serving-node add/list/revoke/cleanup now use the certified
+   - [✓ 5.1.0 local] Serving-node add/list/revoke/cleanup now use the certified
     exact principal; foreign delegated mutations deny, and existing trusted
     authenticator Origin checks remain. This is not destination-aware browser consent.
    - [ ] Separate SDK transport PR: isolated module with explicit credential

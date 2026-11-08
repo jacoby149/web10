@@ -21,6 +21,9 @@ DEFAULT_ADMINS = ["jacoby149"]
 ALGORITHM = "HS256"
 PRIVATE_KEY = "8cbec8....."
 TOKEN_EXPIRE_MINUTES = 87840
+# Separate, durable >=32-character secret for analytics pseudonyms/context.
+# Never expose this in /telemetry or reuse the authentication signing key.
+POSTHOG_IDENTITY_SECRET = os.getenv("POSTHOG_IDENTITY_SECRET", "")
 COST_CREATE = 0.000025
 COST_UPDATE = 0.000025
 COST_READ = 0.000005

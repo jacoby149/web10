@@ -1,111 +1,146 @@
-# telemetry.md — why web10 watches how you use it (and what it never sees)
+# Telemetry — PostHog only, content out
 
-The Why layer: the reason web10 runs aggressive, platform-wide usage
-telemetry (GA4 + Hotjar, content masked) — and the line it does not
-cross. Read this before adding, removing, or "tightening" any tracking.
-The decision record is D56 (`knowledge-base/strategy/decisions.md`).
+## Why
 
-## the abstract use case
+The operator needs to know which channels bring accounts that use web10 and
+return. Investors need inspectable definitions and third-party reports, not a
+homemade chart. D103 selects managed PostHog; the five-influencer pilot is one
+campaign, not a special analytics backend. D56's competitive usage tracking and
+content-blind recording intent remain. A vendor is not an independent auditor,
+proof of humanity or a causal attribution experiment.
 
-A fan leaves TikTok because the algorithm buried their creator. They
-land on a web10 node expecting the person they followed — and a product
-that feels as alive as the one they left. "Alive" is not an accident.
-TikTok's feed feels alive because a thousand engineers spent a decade
-watching how people use it: where they tap, where they stall, where
-they rage-quit at eleven on a Tuesday. The feeling is the *output* of
-the telemetry.
+## Current implementation
 
-web10 competes with Meta and TikTok for the same attention. A node that
-cannot see its own usage is a blog from 2003 — the operator flies blind,
-the UX rots quietly, and the fan who came for 100% delivery leaves
-because the product feels *dead* next to the app they grew up on. So
-web10 tracks hard. Deliberately. Platform-wide. It is how you build the
-most competitive user experience in the business: you watch, you learn,
-you fix, you repeat, faster than the incumbent can turn around.
+Local 5.0.0 implements account measurement, campaign handoff, durable signup
+outcomes, optional masked replay/heatmaps and vendor-report provisioning.
+**GA4 and Hotjar loaders, client APIs, public telemetry fields, admin controls,
+frontend env/build args and deployment wiring are removed.** Historical node
+configuration/events and release records are not deleted. PostHog off or failed
+means no external usage-analytics vendor, not legacy fallback.
 
-## the specific use case
+No live project, vendor reports, playback or physical-phone acceptance has been
+verified; this code is not a production-readiness receipt. D86 creator-facing
+content/ad metrics and first-party operational diagnostics are separate and
+unchanged. Their previously recorded counting/window issues are not fixed here.
 
-The operator of a 500k-follower node wants to know: which screen do new
-fans bounce from? Where does the export flow stall? Why do people open
-messages and leave without sending? The database cannot answer these —
-the database says *what* happened (a post was made), not *how it felt*
-(three taps, a four-second stall, a scroll back, a close). That is what
-session recordings and heatmaps are for.
+## How the data moves
 
-At the same time, the fan's content — their posts, their DMs, their
-photos — is the one thing this platform exists to keep out of the ad
-machine. So the telemetry watches the *hands*, never the *words*: every
-recording masks all text and blocks all images. The operator sees a
-cursor moving over a blurred page, not the page itself. It is the
-difference between watching someone drive a car and reading their
-diary.
+1. All three frontends load public config from `/telemetry`. A valid enabled
+   project key and exact US/EU cloud ingestion host lazy-load pinned
+   `posthog-js@1.447.3` through `marketing/shared/telemetry`. No frontend env
+   override or personal API key. Config/context/identity fetches have a five-
+   second bound. Initial events queue in memory (64 maximum); unpersisted browser
+   activity can be lost. Consecutive duplicate route calls are suppressed.
+2. Standard bounded campaign slugs are captured from the initial URL. Only
+   configured app origins receive the signed `_w10a` context or safe UTM fallback
+   on links. Social adds source metadata to its current URL before the existing
+   SDK popup builds its redirect; the authenticator accepts nested metadata only
+   from configured opener origins. Early clicks do not wait for SDK/network.
+   `/analytics/context` signs first-touch labels for seven days under a separate
+   telemetry-only key. Labels remain user-controlled source claims, not proof of
+   Instagram origin, a grant, or account identity.
+3. Signup and contact-recovery creation pass optional `analytics_context` to the
+   normal account creation path. One `users` insert stores canonical creation
+   time and the immutable analytics JSON together. Every account-version writer
+   copies that JSON. Existing-account login/recovery never creates a new signup
+   outcome. Bad/expired context becomes unattributed; telemetry config errors do
+   not fail creation and produce a recoverable incomplete context.
+4. The API worker scans current eligible accounts since first activation, sends
+   `account_created` with the original server timestamp and a stable UUID, and
+   writes private delivery acknowledgements in `node_config`. A crash before ack
+   resends the same UUID/insert ID; workers may race, so this is at-least-once
+   delivery, relying on vendor dedup plus distinct-account report calculations,
+   not a cross-system exactly-once transaction. Pending failures stay retryable;
+   passes are bounded and exclude acknowledged events. No saved JWT or contacts
+   go into this path. `/admin/analytics/health` is admin-gated and distinguishes
+   no receipt, pending/failure and a timestamped successful pass.
+5. `/analytics/identity` verifies freshness/signature, local provider, active
+   delegated client if present and the current personal account. It returns a
+   provider/account-incarnation-scoped HMAC pseudonym and original source labels,
+   never a username/contact/password/token. Browser-supplied subjects/acting
+   groups cannot select it. A separate persistent `POSTHOG_IDENTITY_SECRET`
+   (>=32 characters) is required. Never reuse an auth signing key or rotate this
+   secret without an identity migration.
+6. Frontends fence delayed identity replies by generation and current token.
+   Logout/picker transitions clear identity/context; group acting mode remains
+   the human. Reset before identify deliberately prevents merging unrelated
+   anonymous activity on shared devices. **Anonymous landings remain separate
+   from account identities**; campaign source bridges the acquisition journey,
+   not a claimed person-level marketing→auth funnel or cross-device anonymous
+   match. Signed-in sessions use the same canonical pseudonym across apps/devices.
+7. Social emits `product_session` for signed-in foreground use, at most once per
+   30-minute interval in a page instance. This is browser-observed app use, not
+   server-verified content viewing. Existing successful follow/post/save events
+   remain available. `scripts/posthog-reports.mjs` provisions saved PostHog
+   reports; there is no new custom acquisition dashboard.
 
-## the technical how
+## Measurement definitions
 
-Two tools, on every user-facing surface (marketing-ui, web10-social,
-the authenticator `ui/`):
+- Acquisition: canonical new account, not login/group identity or certified human.
+- First eligible observed campaign touch: seven-day signed context, fixed in the
+  creation row. Direct visits do not overwrite it; unknown/expired/missing is
+  unattributed. Existing accounts keep their original acquisition label.
+- Activation: an identified foreground social session in `[0h,24h)` after signup.
+  The earlier proposed requirement to follow the advertised creator is **not**
+  implemented or silently counted. Quiet readers can qualify without posting.
+- Week-one return: activated account with another session at age `[24h,168h)`;
+  only cohorts at least 168h old are final. Reports show pending separately.
+- Counts use distinct canonical IDs; duplicate delivery rows are not new accounts.
+  QA/automation exclusions, actual campaign spend/allocation and bot-risk review
+  require explicit operational inputs. No invented CAC, automatic fraud bans,
+  "real human" guarantee, or winner claim from immature/tiny samples.
 
-- **GA4 (gtag.js)** — pageviews + structural events (login, logout,
-  post_created, follow, unfollow). Events are content-free by
-  convention: paths, actions, counts, visibility — never post text,
-  media URLs, or PII. Loaded with the resolved measurement ID; a no-op
-  when the ID is empty.
-- **Hotjar** — session recordings + heatmaps. Initialised with
-  `maskAllText: true` + `blockAllImages: true`: all text blurred, all
-  images blocked. A recording is layout + cursor + timing, nothing
-  else. Loaded with the resolved site ID; a no-op when the ID is empty.
+## Content boundary and recording
 
-**The IDs are resolved at runtime, not baked in.** Each surface calls
-`GET /telemetry` on the node at page load; the node returns the two IDs
-from `node_config` (ClickHouse) — the same table every other node
-setting lives in, edited in the Node Config UI (authenticator). The
-node is **authoritative when reachable**: an operator changes the IDs
-live and it applies on the next page load, no rebuild. The build-time
-env (`VITE_GA4_MEASUREMENT_ID` / `VITE_HOTJAR_SITE_ID`) is the
-**fallback** for pure frontend dev where the node is unreachable. Empty
-ID = that instrument off. The per-app module lives in each app's
-`src/lib/analytics.ts` (`resolveTelemetryIds` → `loadGa4` / `loadHotjar`,
-idempotent). marketing-ui additionally keeps its own in-house
-pageview/funnel/error beacon to the marketing-api on top — the three
-are complementary, not redundant (the beacon is first-party, the other
-two are the industry-standard instruments).
+Manual events pass a final schema/property allowlist. Routes are templates, not
+user/document/conversation IDs. Search, hashes, raw auth URLs, contacts, profile
+data, post/DM bodies, media URLs, credentials and arbitrary metadata stay out.
+SDK-added person updates/full URL/referrer fields are removed; personal API keys
+never enter frontend config. Person profiles are used only for verified opaque
+identities. Public vendor ingestion remains forgeable: `capture_origin=server`
+is a provenance convention, not cryptographic vendor enforcement. Reconcile
+important claims against canonical facts; do not treat the public project key as
+an anti-fraud or payout boundary.
 
-**The one GA4 flag we keep:** `advertising_id: 'OFF'`. We track hard,
-but we do not feed the ad machine — the only sponsors a fan ever sees
-are the ones the creator chose (D50/D55). Google's ad network is not
-one of them. Everything else runs at full strength; there is no IP
-anonymization, because the trade is stated, not hidden (below).
+Optional replay/heatmaps are separately default-off. The bundled recorder masks
+all text/inputs and DOM attributes; media/canvas/iframes are blocked, CSS/font
+inlining, console/network bodies/headers, JSON-LD and external dependencies are
+disabled. Replay data is additionally sanitized; heatmap URL keys become route
+templates and only numeric coordinates/type survive. Fidelity is intentionally
+reduced. Local Chromium captures real snapshot and heatmap batches and checks
+private sentinels; vendor playback and live surface coverage remain separate
+gates. Do not relax masking to improve the recording.
 
-## the line it does not cross
+## Configure and verify
 
-- **Content is never tracked.** Post bodies, DMs, media, profile data:
-  not in GA4 events (the content-free convention), not in Hotjar
-  recordings (text masked, images blocked). If a change would put
-  content into telemetry, it is a thesis violation, not a config
-  tweak.
-- **Not sold, not scanned for ads.** The manifesto's "nobody is mining
-  you" stands: telemetry is first-party product analytics (web10's own
-  GA4/Hotjar properties) used to build the product — not a data feed
-  to advertisers.
-- **The trade is stated, not hidden.** This is a data-policy platform
-  (D41): the terms say we watch how you use the place so we can keep
-  it the best version of itself. If that is not for you, this is the
-  wrong platform for you — and that sentence belongs in the terms,
-  verbatim or close to it.
+1. Provision one PostHog project in the chosen region; configure its access,
+   retention/deletion, sampling, collection limits and alerts. Do not paste
+   personal API keys in chat. No vendor purchase/project creation is automated.
+2. Set a separate persistent `POSTHOG_IDENTITY_SECRET` on the API, back it up,
+   then restart through normal deployment. The ecosystem compose passes only
+   this API-only secret; no frontend build arg contains it.
+3. Node Config: project ingest key, matching US/EU region, `Use PostHog`; optional
+   masked replay/heatmaps. First enablement records `posthog_capture_since`.
+   Turning collection off applies next load; accounts created explicitly while
+   off are not backfilled. Historical settings are retained but inert.
+   Admin enablement is rejected until the API identity secret is configured;
+   disabling remains available even when that secret is missing.
+4. `node scripts/posthog-reports.mjs` is network-free dry-run. To create/update
+   only managed dashboards/insights, use `--apply` with `POSTHOG_PROJECT_ID`,
+   `POSTHOG_REGION=US|EU`, `POSTHOG_PERSONAL_API_KEY` in the operator environment.
+   This writes the vendor project and requires explicit approval/access. Reports
+   are not made public, and live HogQL execution/permissions must be checked.
+5. Local checks: three frontend builds/suites, SDK suite, API suite,
+   `node --test scripts/posthog-reports.test.mjs`,
+   `node scripts/check-posthog-browser.mjs [--replay]`, and from `api/`,
+   `uv run python scripts/check_product_analytics.py` (owned disposable ClickHouse).
+   Sanitized local receipts/screenshots live in `.context/posthog/`.
 
-## logistics
-
-- **Built (3.26.0):** GA4 + masked Hotjar on all three surfaces.
-- **Built (3.27.0):** runtime ID resolution — `GET /telemetry` endpoint
-  (public, no token — the IDs are public identifiers), the two fields
-  in `node_config` + the Node Config UI (Telemetry card), and each
-  surface resolves the IDs at page load (node authoritative, env
-  fallback). Also fixed the Node Config save (it sent a flat body but
-  the API takes `{token:{token}, update:{...}}` — every save 422'd).
-- **Enable:** set the GA4 Measurement ID + Hotjar Site ID in the Node
-  Config UI (authenticator, admin-only). Applies live on the next page
-  load. Blank = off. The build-time env (`GA4_MEASUREMENT_ID` /
-  `HOTJAR_SITE_ID` in the deployment env) is only the dev fallback.
-- **Deferred:** per-creator audience analytics in the Studio
-  (the influencer-facing numbers — that is the `ads`/metrics lanes'
-  job, not this one).
+Before activation, verify current legal copy, retention/deletion procedure and
+approved project access. Live vendor storage/report reconciliation, playback,
+actual signup/popup flow, multi-tab/account switching, outage/restart/quota
+behavior, Safari/physical-phone Instagram and independent boundary review remain
+release gates. Existing source-audit scenarios in `strategy/influencer-analytics.md`
+remain useful; current plan is `strategy/posthog-migration.md`. No production
+configuration, deployment, vendor writes or vendor-account cancellation is implied
+by local implementation or the offline provisioning tests.

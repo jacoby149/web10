@@ -341,6 +341,15 @@ describe('v3 client', () => {
       )
     })
 
+    it('signup forwards optional acquisition metadata only to the node', async () => {
+      vi.spyOn(http, 'authPost').mockResolvedValueOnce({ username: 'bob' } as any)
+      await client.signup('bob', 'secret', undefined, undefined, 'synthetic-signed-context')
+      expect(http.authPost).toHaveBeenCalledWith('http://api.localhost/v3/signup', {
+        username: 'bob', password: 'secret', phone: undefined, email: undefined,
+        analytics_context: 'synthetic-signed-context',
+      })
+    })
+
     it('getProfile requires token', async () => {
       client.setToken(mockToken)
       const mockResponse = { username: 'alice', phone: '123' }

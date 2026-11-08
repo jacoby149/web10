@@ -11,6 +11,7 @@
     "test:run": "vitest run"
   },
   "dependencies": {
+    "@web10/telemetry": "file:../marketing/shared/telemetry",
     "@fontsource-variable/inter": "^5.2.5",
     "@fontsource-variable/jetbrains-mono": "^5.2.5",
     "@fontsource-variable/space-grotesk": "^5.2.5",
