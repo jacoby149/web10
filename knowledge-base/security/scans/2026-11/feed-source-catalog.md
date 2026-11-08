@@ -38,8 +38,16 @@ names in the assembly workspace are `server-editor-review-{red,green}.log` and
 `src/__tests__/feedSourceOwnership.test.tsx`. Store tests cover unsafe ACLs,
 ownership/attachments, duplicate catalogs, stale identity and bounded origins.
 
-Fresh isolated review, local full social suite and build are recorded as they
-complete. Review is bounded L1/L2, not a whole-surface security PASS. Independent
+Fresh reviewer `ses_e44508694ffeHfd5LbDqAXKXsU` independently reads all six TS
+files and direct SDK/API seams: bounded DRY, 17 focused tests pass. Default model
+selected by the harness; family diversity is not established. A separate repair
+re-review `ses_e445547daffeqy7j2DlSsKsWJp` replays actual endpoint semantics with
+auth/storage doubles and confirms both shape/hidden-link repairs. Original split
+full social suite passes 2,217 tests in 148 files; refreshed-dev build passes.
+The first full run timed out in an infinite-scroll case; the unchanged full rerun
+passes, without a timeout/config/assertion change or pre-existing-failure claim.
+Refreshed-dev suite and remaining reviews/checks are still being collected.
+Review is bounded L1/L2, not a whole-surface security PASS. Independent
 model diversity, full L3/L4 coverage, actual browser/two-node Origin/app grants,
 concurrent storage lifecycle and consumer integration remain OPEN. Normal PR
 checks still apply; no production action or deployment.
