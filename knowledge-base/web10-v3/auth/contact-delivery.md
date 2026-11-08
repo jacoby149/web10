@@ -112,6 +112,35 @@ is separate. Existing five-minute D61 verify-token semantics remain unchanged.
 
 ## Acceptance gates
 
+### Read-only release preflight
+
+`scripts/contact-delivery-preflight.mjs` starts with a network-free manifest,
+even when credentials are present. It names missing environment variables and
+the remaining live acceptance steps:
+
+```sh
+node scripts/contact-delivery-preflight.mjs
+node --test scripts/contact-delivery-preflight.test.mjs
+```
+
+An operator may separately supply `WEB10_API_ORIGIN` (the exact canonical HTTPS
+API origin) and `WEB10_ADMIN_TOKEN` through their private environment, then run:
+
+```sh
+node scripts/contact-delivery-preflight.mjs --preflight
+```
+
+This makes exactly one `POST /admin/contact/status` read, with redirects/cookies
+disabled, a 15-second timeout and 64-KiB response ceiling. Only known provider and
+boolean setup fields enter the receipt; sender addresses, credentials and unknown
+response/error fields are omitted. Missing/malformed/denied status fails safely;
+reported missing configuration produces named blockers and a nonzero exit code.
+It does not inspect a bucket policy, validate Google approval or prove delivery:
+`reported_configuration_ready` means only what the API reports. There is no
+send, provider-connection or account-reset mode. No live preflight was run when
+this checker was added. Mailbox/account acceptance remains a separate authorized
+operation, not a side effect of checking readiness.
+
 Local tests must cover admin denial, stale/expired/replayed OAuth, withheld secrets,
 provider failure/no fallback, incorrect/expired/replayed code and link, shared-state
 races, resend, disconnect, and reset completion. UI checks include keyboard,

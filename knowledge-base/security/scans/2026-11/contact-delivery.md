@@ -4,6 +4,31 @@ Status: OPEN. Implementer: GPT-6.1 Sol. Fresh reviewers are separate untainted
 general-agent sessions in the same available family; no model-diverse sign-off.
 Not a full L1–L4 campaign PASS, live provider test or rollout authorization.
 
+## Merge receipt and preflight follow-up
+
+PR #1435 merged as `86d663b4c4e0ea8873df39b23f61691197e52370` on 08.11.2026.
+Final GitHub checks confirm API/UI tests, all four E2E shards, security gauntlet
+and Docker builds passed; the 1,647-code/test-line method gate failed. The merge
+does not establish a general size exemption or close provider/security/rollout
+acceptance. Do not rebuild or retrospectively split the already-merged feature;
+keep subsequent trust-boundary bites within the normal budget.
+
+The 5.4.1 follow-up adds `scripts/contact-delivery-preflight{,.test}.mjs` only
+plus KB alignment. Default execution is network-free; explicit `--preflight`
+uses the operator-supplied exact HTTPS API for one admin status read. Cookie/
+redirect denial, deadline/body bounds, strict setup-field projection and fresh
+fixed errors avoid exposing sender addresses, body fields or credentials. Seven
+offline tests pass; no actual admin preflight, provider send or account mutation
+was executed. A successful receipt is API-reported configuration, not independent
+proof of bucket policy, OAuth approval, inbox delivery or password login.
+The combined preflight/PostHog script regression command passes all 17 tests.
+Three fresh same-family scoped preflight reviews are dry; each independently
+reran the seven focused tests. The second reviewer also exercised 42 offline
+destination/schema/stream-boundary/cancellation/timeout-option probes. These do
+not close the independent/model-diverse release gate.
+Offline controls check the abort signal and response ceiling but do not establish
+actual native-fetch timeout, stalled-body or deployed redirect behavior.
+
 After the three findings below were repaired, three consecutive fresh same-family
 scoped reviews were dry. The final two independently reran 42 focused API and
 55 relevant UI tests. Final parent validation: all 2,187 API tests plus eight
