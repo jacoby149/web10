@@ -154,6 +154,17 @@ Write outputs to `.context/` through `SCREENSHOT_OUTPUT_DIR`.
 
 ## Music captures
 
+Social library acceptance (public curator → playlist → save live bookmark →
+return → song reaction/save → ordered playback/comments) runs real Chromium at
+desktop/375px with isolated in-memory data:
+
+```bash
+SCREENSHOT_OUTPUT_DIR="$PWD/../../.context/music-social" node screenshots/music-social-library.mjs
+```
+
+The receipt and eight screenshots are UI evidence, not actual-node persistence,
+private-target denial or physical-phone verification.
+
 The ordinary Discover audio-card fixture is separate from the dedicated queue:
 `--route /hot-gossip --extra 'discover-inline-audio=1' --ready '[data-testid="audio-player"]'`.
 It returns one group-authored post with a real one-second silent WAV data URL.

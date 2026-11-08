@@ -6,7 +6,7 @@ import { Volume2, VolumeX } from 'lucide-react';
 import { cn } from './utils';
 import { IconBtn } from './ui';
 import { sourceFromMedia } from './VideoPlayer';
-import { API_ORIGIN } from './config';
+import { API_ORIGIN, resolveManifestHref } from './config';
 import type { HlsInstance } from './hls';
 import type { MediaItem } from './types';
 
@@ -377,7 +377,7 @@ export function HoverVideo({ media, poster, testId, className, onTime, onPlaying
     releasePreview = relinquish;
 
     if (source.type === 'hls') {
-      const manifestHref = `${API_ORIGIN}${source.manifestUrl}`;
+      const manifestHref = resolveManifestHref(source.manifestUrl);
       LOG('attach — hls');
       if (window.Hls && window.Hls.isSupported()) {
         const Hls = window.Hls;

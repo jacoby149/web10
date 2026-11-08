@@ -1,4 +1,6 @@
 # Download the helper library from https://www.twilio.com/docs/python/install
+import re
+
 from twilio.rest import Client
 from twilio.twiml.messaging_response import MessagingResponse
 
@@ -19,11 +21,22 @@ def _is_email(contact) -> bool:
 
 def _twilio_to(contact) -> str:
     """Twilio's `to` — the bare email for the email channel, `+`-prefixed for sms."""
-    return str(contact) if _is_email(contact) else "+" + str(contact)
+    return str(contact) if _is_email(contact) else "+" + re.sub(r"\D", "", str(contact))
 
 
 def _channel_for(contact) -> str:
     return "email" if _is_email(contact) else "sms"
+
+
+def _verification_service(contact):
+    # New settings are private, live-read and shared across API workers. Keep
+    # the existing Twilio email path until an operator explicitly switches it.
+    from app.services import contact_state
+
+    cfg = contact_state.load("settings")[0] if contact_state.configured() else {}
+    if not _is_email(contact) and cfg.get("twilio_sid") and cfg.get("twilio_token") and cfg.get("twilio_service"):
+        return Client(cfg["twilio_sid"], cfg["twilio_token"]).verify.services(cfg["twilio_service"])
+    return client.verify.services(settings.TWILIO_SERVICE)
 
 
 # E2E / local mode — when TWILIO_E2E is truthy, the recovery flow uses a
@@ -55,7 +68,7 @@ def send_verification(contact):
         ch.set_recovery_code(_twilio_to(contact), _E2E_CODE)
         return "e2e-verification-sid"
     try:
-        verification = client.verify.services(settings.TWILIO_SERVICE).verifications.create(
+        verification = _verification_service(contact).verifications.create(
             to=_twilio_to(contact), channel=_channel_for(contact)
         )
 
@@ -73,9 +86,12 @@ def check_verification(contact, code):
         if not ch.check_recovery_code(_twilio_to(contact), code):
             raise exceptions.WRONG_CODE
         return "e2e-check-sid"
-    verification_check = client.verify.services(settings.TWILIO_SERVICE).verification_checks.create(
-        to=_twilio_to(contact), code=code
-    )
+    try:
+        verification_check = _verification_service(contact).verification_checks.create(
+            to=_twilio_to(contact), code=code
+        )
+    except Exception:
+        raise exceptions.WRONG_CODE from None
     if verification_check.status != "approved":
         raise exceptions.WRONG_CODE
     return verification_check.sid

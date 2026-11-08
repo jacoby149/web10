@@ -14,6 +14,7 @@ export default defineConfig({
       // package is a sibling (node's walk-up can't reach the app's node_modules).
       react: path.resolve(__dirname, 'node_modules/react'),
       'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
+      'react-router-dom': path.resolve(__dirname, 'node_modules/react-router-dom'),
       'lucide-react': path.resolve(__dirname, 'node_modules/lucide-react'),
       'react-markdown': path.resolve(__dirname, 'node_modules/react-markdown'),
       'rehype-sanitize': path.resolve(__dirname, 'node_modules/rehype-sanitize'),
@@ -32,6 +33,10 @@ export default defineConfig({
       // Aliased to the package source so Vite compiles it as app code (not
       // pre-bundled) — the file: dep in package.json keeps its deps resolvable.
       '@web10/discover/media-recovery': path.resolve(__dirname, '../shared/discover/src/mediaRecovery.ts'),
+      '@web10/discover/source-controls': path.resolve(__dirname, '../shared/discover/src/sourceControls.ts'),
+      '@web10/discover/source-models': path.resolve(__dirname, '../shared/discover/src/sourceModels.ts'),
+      '@web10/discover/mixed-feed': path.resolve(__dirname, '../shared/discover/src/mixedFeed.ts'),
+      '@web10/discover/feed-query': path.resolve(__dirname, '../shared/discover/src/feedQuery.ts'),
       '@web10/discover/image': path.resolve(__dirname, '../shared/discover/src/ReliableImage.tsx'),
       '@web10/discover/video': path.resolve(__dirname, '../shared/discover/src/ReliableVideo.tsx'),
       '@web10/discover': path.resolve(__dirname, '../shared/discover/src/index.ts'),

@@ -9,3 +9,6 @@ const env = (import.meta as any).env as Record<string, string | undefined> | und
 
 export const API_ORIGIN: string =
   env?.VITE_API_URL || env?.VITE_API_ORIGIN || 'https://api.web10.app';
+
+/** Preserve a serving node's absolute capability URL; bind legacy paths locally. */
+export const resolveManifestHref = (manifest: string) => new URL(manifest, API_ORIGIN).href;

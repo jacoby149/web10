@@ -177,6 +177,15 @@ export async function deleteReaction(id: string, authorAs: string | null = getAc
 
 export type ReactionKind = 'like' | 'dislike';
 
+/** Optional surface ownership also fences a client/token/actor change without a render. */
+function guardedReactionScope(w: ReturnType<typeof getV3Client>, authorAs: string | null, assertCurrent?: () => void) {
+  const owner = JSON.stringify(w.readToken());
+  return () => {
+    assertCurrent?.();
+    if (assertCurrent && (getV3Client() !== w || JSON.stringify(w.readToken()) !== owner || (getActingAuthor() || null) !== authorAs)) throw new Error('Reaction owner changed');
+  };
+}
+
 /**
  * Set the user's reaction on a target to exactly `kind` ('like' | 'dislike')
  * or clear it (null). Enforces the one-reaction-per-user invariant (like XOR
@@ -203,12 +212,16 @@ export async function setReaction(
   groups?: string[],
   targetService: 'posts' | 'comments' = 'posts',
   authorAs: string | null = getActingAuthor() || null,
+  assertCurrent?: () => void,
 ): Promise<ReactionKind | null> {
+  assertCurrent?.();
   const w = getV3Client();
   const token = w.readToken();
   if (!token) throw new Error('not authenticated');
 
+  const check = guardedReactionScope(w, authorAs, assertCurrent);
   const existing = await readReactions(targetId, undefined, groups);
+  check();
   // v3 ownership is by username alone: a reaction's author_key is the bare
   // username (the node's provider is implicit), so author_provider is the
   // v2 fallback ('web10') and never equals the token's real provider —
@@ -234,7 +247,8 @@ export async function setReaction(
   // zero or one doc per type the filter is a no-op.
   mine.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
   const retained = kind ? mine.find((reaction) => reaction.type === kind) : undefined;
-  await Promise.all(mine.filter((reaction) => reaction !== retained && reaction._id).map((reaction) => deleteReaction(reaction._id!, authorAs)));
+  await Promise.all(mine.filter((reaction) => reaction !== retained && reaction._id).map((reaction) => { check(); return deleteReaction(reaction._id!, authorAs); }));
+  check();
   if (kind && !retained) {
     await createReaction({
       target_service: targetService,
@@ -262,13 +276,17 @@ export async function toggleReactionKind(
   kind: ReactionKind,
   groups?: string[],
   targetService: 'posts' | 'comments' = 'posts',
+  assertCurrent?: () => void,
 ): Promise<ReactionKind | null> {
+  assertCurrent?.();
   const authorAs = getActingAuthor() || null;
   const w = getV3Client();
   const token = w.readToken();
   if (!token) throw new Error('not authenticated');
 
+  const check = guardedReactionScope(w, authorAs, assertCurrent);
   const existing = await readReactions(targetId, undefined, groups);
+  check();
   // filter, not find — same self-heal rationale as setReaction: with
   // duplicates the first match might be the wrong type, and the toggle
   // decision (clear vs set) must see the full picture.
@@ -279,7 +297,7 @@ export async function toggleReactionKind(
   );
 
   const next: ReactionKind | null = mine.length > 0 && mine[0].type === kind ? null : kind;
-  return setReaction(targetId, next, groups, targetService, authorAs);
+  return setReaction(targetId, next, groups, targetService, authorAs, assertCurrent ? check : undefined);
 }
 
 /**

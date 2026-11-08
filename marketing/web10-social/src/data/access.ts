@@ -19,6 +19,7 @@ import { getV3Client } from './v3';
 import type { AccessVerdict } from './v3';
 import { ensureFollowers } from './groups';
 import { getSocialAuth } from '../interfaces/auth';
+import { SOCIAL_SERVICES } from '../lib/socialContract';
 
 const LOG = (...args: unknown[]) => console.log('[access]', ...args);
 const LOG_ERR = (...args: unknown[]) => console.error('[access]', ...args);
@@ -33,21 +34,6 @@ const LOG_WARN = (...args: unknown[]) => console.warn('[access]', ...args);
 // invisible to the recovery — a partial contract (e.g. a pre-fix login missing
 // the group-identity service) would never trigger the reauth that merges the
 // missing grant in (the auth UI's applyACR merges on re-consent).
-const SOCIAL_SERVICES = [
-  'posts',
-  'media',
-  'public_media',
-  'profile',
-  'settings',
-  'comments',
-  'reactions',
-  'contacts',
-  'web10-social-group-identity',
-  'notifications',
-  // The saved-collection store (D88) — a `saved` doc in a collection group.
-  // Must stay in lockstep with SOCIAL_SERVICES in src/interfaces/auth.ts.
-  'saved',
-];
 const SOCIAL_OPERATIONS = ['readAll', 'create'];
 
 // Cooldown: max one auto-recovery per action-class per window. After the
@@ -104,7 +90,7 @@ export async function verifyAndRecover(
 
   let verdict: AccessVerdict;
   try {
-    verdict = await w.verifyAccess({ services: SOCIAL_SERVICES, operations: SOCIAL_OPERATIONS });
+    verdict = await w.verifyAccess({ services: [...SOCIAL_SERVICES], operations: SOCIAL_OPERATIONS });
   } catch (e) {
     // The verify call itself failed (network / 5xx) — a transient infra
     // error, NOT a bad session. No action (definite-NO-vs-UNKNOWN).

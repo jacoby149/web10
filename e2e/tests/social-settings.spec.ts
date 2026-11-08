@@ -1,5 +1,6 @@
 import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
 import { API_BASE, v3Login, v3Signup } from '../v3-helpers';
+import { SOCIAL_SERVICES, SOCIAL_OPERATIONS } from '../../marketing/web10-social/src/lib/socialContract';
 
 /**
  * Social settings — the web10-social app's /settings surface (Phase 3: the
@@ -40,12 +41,7 @@ const SOCIAL_ORIGIN = SOCIAL_BASE;
 // that's missing here makes the contract show as pending, so the no-password
 // "Continue as" fast path never renders and the gauntlet times out. (D88 added
 // 'saved' to the app contract — keep this list in lockstep.)
-const SOCIAL_SERVICES = [
-  'posts', 'media', 'public_media', 'profile', 'settings',
-  'comments', 'reactions', 'contacts',
-  'web10-social-group-identity', 'notifications', 'saved',
-];
-const SOCIAL_OPERATIONS = ['create', 'readAll', 'updateOwn', 'deleteOwn'];
+// Import the pure declarations rather than duplicating a stale seeded grant.
 
 // The followers group the settings doc lives in. The API derives created-group
 // IDs as {provider}/groups/users/{creator}/{name} (api/app/v3/endpoints/

@@ -33,6 +33,22 @@ describe('reactions v3 data layer', () => {
     vi.restoreAllMocks();
   });
 
+  it.each([1, 2])('stops Music follow-on writes when ownership changes after reaction read %s', async boundary => {
+    const { toggleReactionKind } = await import('../../data/reactions');
+    let reads = 0;
+    let active = true;
+    mock.read.mockImplementation(async () => { if (++reads === boundary) active = false; return []; });
+    await expect(toggleReactionKind('post', 'like', undefined, 'posts', () => { if (!active) throw new Error('obsolete Music owner'); })).rejects.toThrow('obsolete Music owner');
+    expect(mock.create).not.toHaveBeenCalled(); expect(mock.delete).not.toHaveBeenCalled();
+  });
+
+  it('fences a token replacement without requiring a Music component render', async () => {
+    const { toggleReactionKind } = await import('../../data/reactions');
+    mock.read.mockImplementationOnce(async () => { mock.readToken.mockReturnValue({ provider: 'web10.app', username: 'bob' }); return []; });
+    await expect(toggleReactionKind('post', 'like', undefined, 'posts', () => {})).rejects.toThrow('Reaction owner changed');
+    expect(mock.create).not.toHaveBeenCalled(); expect(mock.delete).not.toHaveBeenCalled();
+  });
+
   it('removes the shared group reaction made by a different human without touching personal or same-slug group reactions', async () => {
     const { selectActingAuthor } = await import('../../data/actingIdentity');
     const identity = 'web10.app/groups/users/alice/team';

@@ -6,6 +6,7 @@
 // presentational and knows nothing about wapi or the public ledger.
 
 export { DiscoverCard, type DiscoverCardProps } from './DiscoverCard';
+export { SourcePostCard } from './SourcePostCard';
 export { MarkdownText } from './MarkdownText';
 export { UnfurlLink, YouTubeEmbed, VimeoEmbed, DeterministicEmbed, PlainExternalLink, type LinkEmbedProps } from './UnfurlLink';
 export {

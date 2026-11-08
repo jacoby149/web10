@@ -5,7 +5,7 @@ import { createContext, useContext, useCallback, useEffect, useRef, useState, ty
 import { Maximize2, TriangleAlert, Play, Pause, Volume2, VolumeX, Gauge, MonitorPlay } from 'lucide-react';
 import { cn } from './utils';
 import { IconBtn } from './ui';
-import { API_ORIGIN } from './config';
+import { API_ORIGIN, resolveManifestHref } from './config';
 import type { HlsInstance } from './hls';
 
 /**
@@ -210,7 +210,7 @@ export function HlsVideoPlayer({ manifestUrl, refreshManifest, poster, width, he
   // (object-contain) — a portrait clip is a tall full-width box, landscape is
   // full-width 16:9. No phone-width column: the video is full-bleed in the card.
   const ratio = width && height ? width / height : 16 / 9;
-  const manifestHref = `${API_ORIGIN}${manifestUrl}`;
+  const manifestHref = resolveManifestHref(manifestUrl);
   const renewCarrier = useContext(HlsRenewalContext);
   const refreshRef = useRef(refreshManifest);
   refreshRef.current = refreshManifest ?? (hasMediaRecovery(manifestUrl) ? () => recoverMediaUrl(manifestUrl) : renewCarrier ? () => renewCarrier(manifestUrl) : undefined);

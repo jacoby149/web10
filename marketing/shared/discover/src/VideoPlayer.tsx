@@ -7,7 +7,7 @@ import { Play, Pause, TriangleAlert, Volume2, VolumeX, Maximize2, Gauge } from '
 import { cn } from './utils';
 import { HlsVideoPlayer, HlsRenewalContext, RackMenu, type ManifestRefresh } from './HlsVideoPlayer';
 import { IconBtn } from './ui';
-import { API_ORIGIN } from './config';
+import { API_ORIGIN, resolveManifestHref } from './config';
 import type { HlsInstance } from './hls';
 import type { MediaItem } from './types';
 
@@ -314,7 +314,7 @@ export function ImmersiveHls({ manifestUrl, poster, width, height, active = fals
   useEffect(() => {
     const el = videoRef.current;
     if (!el || !active || !visible || failed) return;
-    const manifestHref = `${API_ORIGIN}${manifestUrl}`;
+    const manifestHref = resolveManifestHref(manifestUrl);
     LOG('immersive hls — attach');
     let live = true;
     let attempted = false;

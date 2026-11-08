@@ -15,6 +15,7 @@ import ShortsWall from './ShortsWall';
 import { postAuthor } from '@/lib/postAuthor';
 import { markdownToPlainText } from '@/lib/markdownHtml';
 import { ShortDescriptionSheet } from './ShortDescriptionSheet';
+import { useTunedSurface, tunedShort, surfaceKey } from '@/components/Feed/useTunedSurface';
 
 const LOG = (...args: unknown[]) => console.log('[shorts]', ...args);
 
@@ -70,6 +71,11 @@ export default function ShortsScreen() {
  * off-screen slides pause.
  */
 function ShortsLens({ postId }: { postId: string }) {
+  const tuned = useTunedSurface('short');
+  return <div className="flex h-full min-h-0 flex-col">{tuned.panel}<div className="min-h-0 flex-1"><ShortsLensContent key={tuned.owner} postId={postId} tuned={tuned} /></div></div>;
+}
+
+function ShortsLensContent({ postId, tuned }: { postId: string; tuned: ReturnType<typeof useTunedSurface> }) {
   const actingIdentity = useActingAuthor();
   const navigate = useNavigate();
   const [shorts, setShorts] = useState<ShortPost[]>([]);
@@ -96,6 +102,8 @@ function ShortsLens({ postId }: { postId: string }) {
   // query chip (with its X) so the search is visible + clearable — the same
   // ?q= idiom as the other destinations (the URL holds the screen state).
   const [searchParams, setSearchParams] = useSearchParams();
+  const sourceOrigin = searchParams.get('source');
+  const foreign = (short: ShortPost) => !!short.post.source_origin && short.post.source_origin !== tuned.home;
   const urlQuery = searchParams.get('q') || '';
   const clearQuery = useCallback(() => {
     const params = new URLSearchParams(searchParams);
@@ -119,12 +127,13 @@ function ShortsLens({ postId }: { postId: string }) {
     : shorts;
 
   const descriptionPost = searchParams.get('description') === '1'
-    ? visibleShorts.find((short) => short.post._id === postId)?.post
+    ? visibleShorts.find((short) => short.post._id === postId && (!sourceOrigin || short.post.source_origin === sourceOrigin))?.post
     : undefined;
-  function openDescription(id: string) {
+  function openDescription(id: string, origin?: string) {
     setCommentsOpenFor(null);
     const next = new URLSearchParams(searchParams);
     next.set('description', '1');
+    if (origin) next.set('source', origin); else next.delete('source');
     navigate({ pathname: `/shorts/${encodeURIComponent(id)}`, search: `?${next}` });
     LOG('description opened');
   }
@@ -158,6 +167,7 @@ function ShortsLens({ postId }: { postId: string }) {
   }
 
   const load = useCallback(async () => {
+    if (tuned.enabled) return;
     setLoading(true);
     setError(null);
     try {
@@ -236,6 +246,20 @@ function ShortsLens({ postId }: { postId: string }) {
     load();
   }, [load]);
 
+  useEffect(() => {
+    if (!tuned.enabled) return;
+    setShorts(tuned.posts.flatMap(post => { const short = tunedShort(post); return short ? [short] : []; }));
+    setLoading(tuned.loading && !tuned.posts.length);
+  }, [tuned.enabled, tuned.posts, tuned.loading]);
+  const prefetchedAt = useRef('');
+  useEffect(() => {
+    const position = `${activeIndex}:${visibleShorts.length}`;
+    if (tuned.enabled && tuned.hasMore && !tuned.loading && visibleShorts.length > 0 && activeIndex >= visibleShorts.length - 2 && prefetchedAt.current !== position) {
+      prefetchedAt.current = position;
+      void tuned.next();
+    }
+  }, [tuned.enabled, tuned.hasMore, tuned.loading, activeIndex, visibleShorts.length, tuned.next]);
+
   // D72: the install prompt fires at the moment of value — a phone user who
   // opens Shorts and stays ~3s has signaled "this is the thing I'm here for."
   // Mobile only (a desktop user gets the explicit affordance, not a nag). The
@@ -249,13 +273,13 @@ function ShortsLens({ postId }: { postId: string }) {
   // Deep link: scroll to the specific short when :postId is present
   useEffect(() => {
     if (!postId || visibleShorts.length === 0) return;
-    const idx = visibleShorts.findIndex((s) => s.post._id === postId);
+    const idx = visibleShorts.findIndex((s) => s.post._id === postId && (!sourceOrigin || s.post.source_origin === sourceOrigin));
     if (idx >= 0 && containerRef.current) {
       const el = slideEls()[idx];
       el?.scrollIntoView({ behavior: 'instant' });
       LOG('deep link — scrolled to short', idx, postId);
     }
-  }, [postId, visibleShorts]);
+  }, [postId, sourceOrigin, visibleShorts]);
 
   // Track which slide is the active one (≥60% visible) — the source of truth
   // for the ambient autoplay (the active slide plays muted, the rest pause)
@@ -292,6 +316,7 @@ function ShortsLens({ postId }: { postId: string }) {
   useEffect(() => {
     const active = visibleShorts[activeIndex];
     if (!active?.post._id) return;
+    if (foreign(active)) return;
     const id = active.post._id;
     if (viewedThisSession.current.has(id)) return;
     viewedThisSession.current.add(id);
@@ -312,12 +337,14 @@ function ShortsLens({ postId }: { postId: string }) {
   const shortsRef = useRef(visibleShorts);
   shortsRef.current = visibleShorts;
   const reportWatch = useCallback((id: string) => {
+    if (tuned.enabled) return; // Mixed-source viewport writes need a source-owned adapter.
     const ms = watchedMsRef.current[id];
     if (!ms || ms < 500) return;
     const short = shortsRef.current.find((s) => s.post._id === id);
+    if (!short || foreign(short)) return;
     const durationMs = short?.media.duration_seconds ? short.media.duration_seconds * 1000 : undefined;
     trackVideoViewport(id, 'shorts', ms, durationMs);
-  }, []);
+  }, [tuned.enabled]);
   // Flush the previous short when the active slide changes (swipe away).
   useEffect(() => {
     const active = visibleShorts[activeIndex];
@@ -358,7 +385,8 @@ function ShortsLens({ postId }: { postId: string }) {
     }
   }
 
-  async function handleToggleLike(shortId: string) {
+  async function handleToggleLike(shortId: string, origin?: string) {
+    if (origin && origin !== tuned.home) return;
     const token = getWapi().readToken();
     if (!token) return;
     const wasLiked = !!likedMap[shortId];
@@ -379,8 +407,8 @@ function ShortsLens({ postId }: { postId: string }) {
     }
   }
 
-  function handleShare(shortId: string) {
-    const url = `${window.location.origin}/shorts/${shortId}`;
+  function handleShare(shortId: string, origin?: string) {
+    const url = `${window.location.origin}/shorts/${encodeURIComponent(shortId)}${origin ? `?source=${encodeURIComponent(origin)}` : ''}`;
     // The native share sheet where available (mobile); the clipboard is the
     // universal fallback. Either way the user gets clear "copied" feedback —
     // the old fire-and-forget `writeText().catch(() => {})` gave none.
@@ -440,6 +468,7 @@ function ShortsLens({ postId }: { postId: string }) {
           <p className="text-xs text-muted-foreground max-w-52">
             Vertical videos (9:16) you post will appear here.
           </p>
+          {tuned.enabled && tuned.hasMore && <Button variant="outline" disabled={tuned.loading} onClick={tuned.next}>Look for more shorts</Button>}
         </div>
       </div>
     );
@@ -517,7 +546,7 @@ function ShortsLens({ postId }: { postId: string }) {
         // shape). The video fills the frame; the black around it is the
         // letterbox, not a bug.
         <div
-          key={short.post._id}
+          key={surfaceKey(short.post)}
           data-testid={`short-slide-${i}`}
           className="relative h-full w-full snap-start overflow-hidden bg-black flex items-center justify-center"
         >
@@ -553,16 +582,17 @@ function ShortsLens({ postId }: { postId: string }) {
                 )}
               </Avatar>
               <div className="flex-1 min-w-0">
-                <Link to={postAuthor(short.post).href} className="block text-sm font-medium text-white truncate hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid={`short-author-${short.post._id}`}>
+                {foreign(short) ? <span className="block truncate text-sm font-medium text-foreground" data-testid={`short-author-${short.post._id}`}>{postAuthor(short.post).name}</span> : <Link to={postAuthor(short.post).href} className="block text-sm font-medium text-white truncate hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid={`short-author-${short.post._id}`}>
                   {postAuthor(short.post).name}
-                </Link>
+                </Link>}
+                {foreign(short) && <p className="text-xs text-foreground">{new URL(short.post.source_origin!).host} · Read-only source</p>}
                 {/* The post's two bodies (D82): the title is the lead line, the
                     caption (`text`) the line under it. A short with only a
                     caption shows the caption; a title-only short shows the title. */}
                 {(short.post.title || short.post.text) && (
                   <button type="button" aria-label="View description" aria-expanded={descriptionPost?._id === short.post._id}
                     aria-controls="short-description" data-testid={`short-description-trigger-${short.post._id}`}
-                    onClick={() => openDescription(short.post._id!)}
+                    onClick={() => openDescription(short.post._id!, short.post.source_origin)}
                     className="mt-1 min-h-11 w-full rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                     {short.post.title && <span className="block text-xs font-medium text-foreground line-clamp-1">{short.post.title}</span>}
                     {short.post.text && <span className="block text-xs text-foreground/80 line-clamp-2">{markdownToPlainText(short.post.text)}</span>}
@@ -594,16 +624,18 @@ function ShortsLens({ postId }: { postId: string }) {
               </button>
               <button
                 data-testid={`short-like-${i}`}
-                onClick={() => handleToggleLike(short.post._id!)}
+                disabled={foreign(short)}
+                title={foreign(short) ? 'Read-only source: reactions are not connected' : undefined}
+                onClick={() => handleToggleLike(short.post._id!, short.post.source_origin)}
                 className="flex flex-col items-center gap-1 text-white/90 hover:text-white transition-colors"
-                aria-label={likedMap[short.post._id!] ? 'Unlike' : 'Like'}
+                aria-label={!foreign(short) && likedMap[short.post._id!] ? 'Unlike' : 'Like'}
               >
                 <Heart
-                  className={cn('w-6 h-6 transition-colors', likedMap[short.post._id!] && 'fill-red-500 text-red-500')}
+                  className={cn('w-6 h-6 transition-colors', !foreign(short) && likedMap[short.post._id!] && 'fill-red-500 text-red-500')}
                   strokeWidth={1.75}
                 />
                 <span className="text-[0.625rem] font-medium">
-                  {(reactionMap[short.post._id!] ?? short.post.likes ?? 0) || ''}
+                  {(foreign(short) ? short.post.likes : reactionMap[short.post._id!] ?? short.post.likes ?? 0) || ''}
                 </span>
               </button>
               {/* The view metrics (D86) — impressions (eye) + reach (person),
@@ -638,6 +670,8 @@ function ShortsLens({ postId }: { postId: string }) {
               </div>
               <button
                 data-testid={`short-comment-${i}`}
+                disabled={foreign(short)}
+                title={foreign(short) ? 'Read-only source: comments are not connected' : undefined}
                 onClick={() => handleToggleComments(short.post._id!)}
                 className={cn(
                   'flex flex-col items-center gap-1 transition-colors',
@@ -653,7 +687,7 @@ function ShortsLens({ postId }: { postId: string }) {
               </button>
               <button
                 data-testid={`short-share-${i}`}
-                onClick={() => handleShare(short.post._id!)}
+                onClick={() => handleShare(short.post._id!, short.post.source_origin)}
                 className="flex flex-col items-center gap-1 text-white/90 hover:text-white transition-colors"
                 aria-label="Share"
               >
@@ -667,7 +701,7 @@ function ShortsLens({ postId }: { postId: string }) {
             {/* Comment thread — a bottom sheet over the active short (the
                 TikTok "tap comments → overlay"). One at a time; it reads the
                 thread from the discover group (the short's board). */}
-            {commentsOpenFor === short.post._id && (
+            {!foreign(short) && commentsOpenFor === short.post._id && (
               <div
                 data-testid={`short-comments-${i}`}
                 className="absolute inset-x-0 bottom-0 z-10 max-h-[60%] overflow-y-auto rounded-t-2xl bg-background/95 backdrop-blur border-t border-border"
@@ -703,7 +737,7 @@ function ShortsLens({ postId }: { postId: string }) {
         </div>
       ))}
     </div>
-    {descriptionPost && <ShortDescriptionSheet key={descriptionPost._id} post={descriptionPost}
+    {descriptionPost && descriptionPost.source_origin && descriptionPost.source_origin !== tuned.home ? <div role="dialog" aria-modal="true" aria-label="Source description" className="fixed inset-x-0 bottom-0 z-50 max-h-[70vh] overflow-auto rounded-t-lg border border-border bg-background p-6"><Button onClick={closeDescription}>Close description</Button><p className="mt-4 text-xs text-muted-foreground">Read-only source · {new URL(descriptionPost.source_origin).host}</p><h2 className="mt-2 text-lg">{descriptionPost.title}</h2><p className="mt-2 whitespace-pre-wrap text-sm">{markdownToPlainText(descriptionPost.text || '')}</p></div> : descriptionPost && <ShortDescriptionSheet key={descriptionPost._id} post={descriptionPost}
       likes={reactionMap[descriptionPost._id!] ?? descriptionPost.likes ?? 0}
       views={viewsMap[descriptionPost._id!]?.impressions ?? descriptionPost.impressions ?? 0}
       onClose={closeDescription} />}

@@ -104,15 +104,42 @@ export function sanitizeEvent(event: CaptureResult | null): CaptureResult | null
   return { uuid: event.uuid, event: event.event, properties, timestamp: event.timestamp };
 }
 
-/** Defense after rrweb masking: no DOM attributes, CSS, log/plugin/custom data
- * or arbitrary strings cross the replay boundary. Layout fidelity is reduced. */
+// D106: layout fidelity, content-blind. Styling attributes are reproduced so a
+// recording looks like the page; everything that can carry user content or
+// identifiers is still removed at the wire. class/style are app-controlled
+// static values; href is route-templated; the blocklist drops media sources,
+// input values, placeholders, alt/title text, DOM ids (route/doc identifiers)
+// and all custom data-*/aria-* payloads.
+const REPLAY_BLOCKED_ATTRS = new Set(['value', 'alt', 'title', 'placeholder', 'src', 'srcdoc', 'poster', 'id', 'contenteditable']);
+
+function replayHref(value: string): string {
+  return 'https://web10.invalid' + analyticsPath(value.startsWith('/') ? value : (() => { try { return new URL(value).pathname; } catch { return '/other'; } })());
+}
+
+/** Defense after rrweb masking: no user content, no log/plugin/custom data,
+ * no arbitrary strings cross the replay boundary — but layout survives. */
 export function maskReplay(value: unknown, key = ''): unknown {
-  if (key === 'attributes') return {};
+  if (key === 'attributes') {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([attr]) => {
+          const a = attr.toLowerCase();
+          return !a.startsWith('data-') && !a.startsWith('aria-') && !REPLAY_BLOCKED_ATTRS.has(a);
+        })
+        .map(([attr, v]) => {
+          const a = attr.toLowerCase();
+          if (a === 'href') return [attr, replayHref(String(v ?? ''))];
+          if (a === 'class' || a === 'style') return [attr, typeof v === 'string' ? v : '[masked]'];
+          return [attr, maskReplay(v, attr)];
+        }),
+    );
+  }
   if (Array.isArray(value)) return value.filter((v) => !(v && typeof v === 'object' && [5, 6].includes(v.type))).map((v) => maskReplay(v));
   if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, maskReplay(v, k)]));
   if (typeof value !== 'string') return value;
   if (key === 'tagName' && /^[a-z][a-z0-9-]{0,30}$/.test(value)) return value;
-  if (key === 'href') return 'https://web10.invalid' + analyticsPath(value.startsWith('/') ? value : (() => { try { return new URL(value).pathname; } catch { return '/other'; } })());
+  if (key === 'href') return replayHref(value);
   return '[masked]';
 }
 
@@ -130,11 +157,14 @@ export function posthogOptions(host: string, replay = false): Partial<PostHogCon
     enable_heatmaps: replay,
     enable_recording_console_log: false,
     session_recording: {
-      maskAllInputs: true, maskTextSelector: '*', maskAllElementAttributes: true,
+      // D106: text/inputs stay masked and media stays blocked, but attributes
+      // are kept (the wire sanitizer strips the content-bearing ones) and the
+      // stylesheet/fonts inline so the recording shows the real layout.
+      maskAllInputs: true, maskTextSelector: '*', maskAllElementAttributes: false,
       maskTextFn: () => '[masked]', maskInputFn: () => '[masked]',
       blockSelector: 'img, video, audio, canvas, svg, iframe, object, embed, input[type="file"]',
       recordCrossOriginIframes: false, recordHeaders: false, recordBody: false,
-      captureCanvas: { recordCanvas: false }, collectFonts: false, inlineStylesheet: false, captureJsonLd: false,
+      captureCanvas: { recordCanvas: false }, collectFonts: true, inlineStylesheet: true, captureJsonLd: false,
       compress_events: false, maskCapturedNetworkRequestFn: () => null,
     },
     disable_surveys: true,

@@ -249,8 +249,10 @@ not a native app.
 compete on experience, never post/DM/media content. 5.0.0 (merged) removes GA4/
 Hotjar runtime/config/build wiring on the operator's explicit request. Shared
 allowlisted capture, canonical opaque personal identity, signed campaign handoff,
-atomic account-row signup context, retryable server outcomes and optional masked
-replay/heatmaps are implemented; external collection remains default-off. The API
+atomic account-row signup context, retryable server outcomes and optional layout-faithful, content-blind
+replay/heatmaps (D106: styling reproduced; text/inputs masked, media and
+content-bearing attributes out) are implemented; external collection remains
+default-off. The API
 needs a separate persistent `POSTHOG_IDENTITY_SECRET`, never an auth key. Anonymous
 traffic is not aliased across accounts; attribution bridges campaign labels, not
 claimed anonymous person identity. Foreground sessions are browser evidence, not
@@ -330,6 +332,26 @@ groups/access.md`. This is a **review rejection**: an app-specific `api/` change
 does not merge.
 
 ## Auth model
+
+Music's live playlist bookmarks use personal `web10-social-playlist-bookmarks`
+documents in the human's own followers group, never acting-group authority or a
+target membership grant. Login consent and access recovery both request this
+service; existing grants need normal re-consent. Public curator browsing uses
+existing public collection reads, not a global index. Contract and connected
+acceptance limits: `knowledge-base/strategy/music-social-library.md`.
+
+Contact delivery is implemented inside `api/`, not a new service (D105).
+Small-node settings connect a support Gmail with send-only OAuth; larger-node
+settings offer SendGrid email and optional Twilio Verify SMS. New credentials and
+single-use email challenges use encrypted private conditional S3 state with a
+separate `CONTACT_DELIVERY_KEY`, never general config or the auth signing key.
+Google client/callback and authenticator URLs are server-configured; independent
+self-hosters supply their own Google client. Email reset-link exchange and
+completion pin the configured HTTPS API and reject mismatched issuer hints,
+never routing secrets to the current foreign session. Secret settings start
+masked with eye controls. Existing D61 five-minute verify-token/signup semantics
+remain separate; live vendor, diverse review and rollout gates stay OPEN.
+Contract: `knowledge-base/web10-v3/auth/contact-delivery.md`.
 
 Social acting identity remembers only a confirmed provider/account-scoped identifier
 across browser reopen, with independent per-tab snapshots, never a replacement

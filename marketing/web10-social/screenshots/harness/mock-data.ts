@@ -3,9 +3,10 @@
 // every data-layer function the messages view imports, so Chat renders with
 // realistic content and no backend. See screenshots/README.md.
 import type { DmRecord, ContactRecord } from '@/data/types';
-import { MUSIC_TRACKS, SAVED_COLLECTIONS } from './mock-music';
+import { MUSIC_TRACKS, SAVED_COLLECTIONS, readMusicReactions, toggleMusicReaction } from './mock-music';
 export { readMusicPage, readMusicTrack, readMusicCollection, findSavedMusicCollection, toggleSavedMusic, readSavedPostIds, savePostToCollection, removePostFromCollection, createCollection } from './mock-music';
 export type { MusicTrack } from '../../src/data/musicTrack';
+export { readPlaylistBookmarks, readPlaylistBookmarkName, setPlaylistBookmarked } from './mock-music';
 export { getWapi } from './mock-wapi';
 
 const ME = 'web10/me';
@@ -259,9 +260,9 @@ export async function deleteCollection(): Promise<void> {}
 // the Saved tab + a "New collection" affordance).
 const GROUP = 'web10/groups/users/nova/synthwave-sessions';
 const GROUP_COLLECTIONS = [
-  { groupId: 'web10/groups/users/nova/saved-synthwave-sessions-best-of', name: 'Best Of', visibility: 'public', itemCount: 4, slug: 'best-of' },
+  { groupId: 'web10/groups/users/nova/saved-synthwave-sessions-best-of', name: 'Best Of', visibility: 'public', itemCount: 4, slug: 'best-of', coverUrl: MUSIC_TRACKS[0].artworkUrl },
   { groupId: 'web10/groups/users/nova/saved-synthwave-sessions-first-sets', name: 'First Sets', visibility: 'private', itemCount: 2, slug: 'first-sets' },
-  { groupId: 'web10/groups/users/nova/saved-synthwave-sessions-live', name: 'Live', visibility: 'public', itemCount: 6, slug: 'live' },
+  { groupId: 'web10/groups/users/nova/saved-synthwave-sessions-live', name: 'Live', visibility: 'public', itemCount: 6, slug: 'live', coverUrl: MUSIC_TRACKS[3].artworkUrl },
 ];
 export async function readGroupCollections(groupId: string): Promise<unknown[]> {
   return groupId === GROUP ? GROUP_COLLECTIONS : [];
@@ -365,6 +366,7 @@ export async function countComments(postId?: string): Promise<number> {
 export async function toggleReaction(): Promise<unknown> { return {}; }
 export async function readReactions(serviceOrPostId?: string, targetId?: string): Promise<unknown[]> {
   const postId = targetId ?? serviceOrPostId;
+  if (postId?.startsWith('music-')) return readMusicReactions(postId);
   // Own-profile and visitor-profile fixtures include the reader's existing
   // like so the real lightbox can be captured with a filled heart.
   if (postId === 'pp-1' || postId === 'dp-1') {
@@ -509,7 +511,7 @@ export async function sendDmMulti(): Promise<unknown> { return {}; }
 export async function updateComment(id: string, updates: { text?: string }): Promise<void> { mentionWrite({ kind: 'edit', id, ...updates }); }
 export async function updateFollowNotify(): Promise<void> {}
 export async function setReaction(): Promise<null> { return null; }
-export async function toggleReactionKind(): Promise<null> { return null; }
+export async function toggleReactionKind(id?: string, kind?: 'like' | 'dislike') { return id?.startsWith('music-') && kind ? toggleMusicReaction(id, kind) : null; }
 export async function toggleRepost(): Promise<boolean> { return true; }
 // Views / impressions (D86) — the harness has no backend, so view counts
 // degrade to empty (no tallies). There is no `recordView` (the view is the

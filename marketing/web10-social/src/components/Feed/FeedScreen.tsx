@@ -35,6 +35,10 @@ import {
   type KnobState,
 } from '@/lib/powerMean';
 import { KnobRack } from '@/components/Discover/KnobRack';
+import { FeedSourcesEditor } from './FeedSourcesEditor';
+import { useFeedSources } from './useFeedSources';
+import { createMixedFeedReader, type MixedFeedPage } from '@/data/mixedFeed';
+import type { ServerAllocation } from '@/lib/serverMixer';
 import { MoreHorizontal, Share2, Check, Edit3, Eye, EyeOff, Trash2, Repeat2, Megaphone, X, Film, Bookmark } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
@@ -788,6 +792,26 @@ function FeedEmptyState() {
   );
 }
 
+/** Foreign read results never call the home node's mutation/recovery helpers. */
+function ForeignFeedCard({ post }: { post: PostRecord }) {
+  const media = (post.media_refs || []).filter((ref): ref is ResolvedMediaRef => typeof ref === 'object' && ref !== null)
+    .map(ref => fromResolvedMediaRef(ref)).filter(item => !!item.url);
+  return <article data-testid="foreign-feed-card" className="overflow-hidden border-b border-border bg-card">
+    <header className="flex items-baseline justify-between gap-3 px-4 pt-4 text-sm">
+      <span className="truncate font-medium text-foreground">{post.profile?.display_name || post.author_username || post.author_key}</span>
+      <span className="shrink-0 font-mono text-[10px] text-muted-foreground">{new URL(post.source_origin!).host}</span>
+    </header>
+    {post.title && <h3 className="px-4 pt-2 font-semibold text-foreground">{post.title}</h3>}
+    {post.text && <p className="whitespace-pre-wrap break-words px-4 py-3 text-sm text-foreground">{post.text}</p>}
+    {post.repost_of && <p className="px-4 pb-2 text-xs text-muted-foreground">Original repost stays on its source server.</p>}
+    <MediaGrid mediaItems={media} audioTitle={post.title} audioArtist={post.profile?.display_name} />
+    <footer className="flex flex-wrap gap-x-3 gap-y-1 px-4 py-3 text-xs text-muted-foreground">
+      <span>{post.likes || 0} likes</span><span>{post.comments || 0} comments</span><span>{formatTimeAgo(post.created_at)}</span>
+      <span className="basis-full text-[10px]">Source-owned read · interactions are not routed through your home server</span>
+    </footer>
+  </article>;
+}
+
 function FeedSkeleton() {
   return (
     <div data-testid="feed-skeleton">
@@ -809,7 +833,13 @@ function FeedSkeleton() {
 }
 
 export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?: (username: string, provider: string) => void; onRepost?: (post: PostRecord) => void }) {
+  const sourceControl = useFeedSources();
+  const [sourceErrors, setSourceErrors] = useState<Record<string, string>>({});
+  const [sourceAllocations, setSourceAllocations] = useState<ServerAllocation[]>();
+  const [sourceRetry, retrySources] = useState(0);
   const actingIdentity = useActingAuthor();
+  const viewOwner = `${sourceControl.scope}:${actingIdentity || ''}`;
+  const [postOwner, setPostOwner] = useState(viewOwner);
   useEffect(() => { setLikedMap({}); setDislikedMap({}); setRepostedMap({}); }, [actingIdentity]);
   const [posts, setPosts] = useState<PostRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -855,12 +885,13 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
       .catch((e) => LOG('saved knobs — failed to load settings:', e));
   }, []);
 
+  const knobParam = searchParams.get('knobs');
   const knobState = useMemo<KnobState>(() => {
-    const fromUrl = parseKnobParam(searchParams.get('knobs'));
+    const fromUrl = parseKnobParam(knobParam);
     if (fromUrl) return fromUrl;
     if (savedKnobs) return savedKnobs;
     return FEED_DEFAULT_STATE();
-  }, [searchParams, savedKnobs]);
+  }, [knobParam, savedKnobs]);
   const activePreset = useMemo(() => presetIdForState(knobState), [knobState]);
 
   // Log the deep-link restore once on mount (the URL held the ranking).
@@ -890,6 +921,7 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
   // omitted when the state is the default, so the default URL stays clean.
   const setKnobUrl = useCallback((next: KnobState) => {
     const params = new URLSearchParams(searchParams);
+    params.delete('mixCursor'); params.delete('after');
     const encoded = encodeKnobState(next);
     if (encoded === FEED_DEFAULT_ENCODING) {
       params.delete('knobs');
@@ -936,28 +968,69 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
   // page server-side (the D36 power-mean sort). The cursor rides on the score
   // when ranked, created_at when chronological (the Newest preset).
   const engagementGeneration = useRef(0);
+  const paging = useRef({ observed: searchParams.get('mixCursor'), written: searchParams.get('mixCursor'),
+    requested: searchParams.get('mixCursor') || undefined, navigated: false, revision: 0, snapshot: undefined as string | undefined });
+  const cursorParam = searchParams.get('mixCursor');
+  if (cursorParam !== paging.current.observed) {
+    paging.current.observed = cursorParam;
+    if (cursorParam !== paging.current.written) {
+      paging.current.requested = cursorParam || undefined; paging.current.navigated = true; paging.current.revision++;
+      paging.current.written = cursorParam;
+    }
+  }
+  const sourceScope = JSON.stringify([sourceControl.ready, sourceControl.sources, [...sourceControl.approved].sort(), sourceControl.scope,
+    encodeKnobState(knobState), actingIdentity]);
+  const sourceSignature = JSON.stringify([sourceScope, sourceRetry, paging.current.revision]);
+  const sourceSignatureRef = useRef(sourceSignature);
+  sourceSignatureRef.current = sourceSignature;
+  const restoredSources = useRef(false);
+  const previousScope = useRef(sourceScope);
+  const mixedReader = useMemo(() => {
+    if (!sourceControl.ready || !sourceControl.credential) return null;
+    const options = { sources: sourceControl.sources.filter(row => sourceControl.approved.has(row.origin)),
+      homeOrigin: sourceControl.home, credential: sourceControl.credential, knobState, actingAuthor: actingIdentity,
+      isCurrent: () => sourceSignatureRef.current === sourceSignature && sourceControl.live() && getActingAuthor() === actingIdentity,
+      homeRead: readFeedPage };
+    const sameScope = previousScope.current === sourceScope;
+    const initialCursor = !restoredSources.current || paging.current.navigated ? paging.current.requested
+      : sameScope && sourceRetry ? paging.current.snapshot : undefined;
+    paging.current.navigated = false;
+    if (!sameScope) { paging.current.snapshot = undefined; paging.current.requested = undefined; }
+    previousScope.current = sourceScope;
+    restoredSources.current = true;
+    try { return createMixedFeedReader({ ...options, initialCursor }); }
+    catch { console.warn('[mixed-feed] invalid paging link; starting a fresh owned session'); return createMixedFeedReader(options); }
+  }, [sourceSignature]);
+  useEffect(() => {
+    setSourceErrors({}); setSourceAllocations(undefined);
+    return () => mixedReader?.dispose();
+  }, [mixedReader]);
+  const ownPosts = (page: PostRecord[]) => page.filter(post => !post.source_origin || post.source_origin === sourceControl.home);
   useEffect(() => {
     setLoadingMore(false);
     return () => { engagementGeneration.current++; };
-  }, [actingIdentity, token?.username, token?.provider, knobState]);
+  }, [actingIdentity, token?.username, token?.provider, knobState, mixedReader]);
 
   const loadFeed = useCallback(async (cursor: { created_at?: string; score?: number } | null = null, knob: KnobState) => {
     const generation = engagementGeneration.current;
     setLoading(true);
     setLoadFailed(false);
     try {
-      const page = await readFeedPage({ limit: 20, cursor, knobState: knob });
+      const page = mixedReader ? await mixedReader.next() : await readFeedPage({ limit: 20, cursor, knobState: knob });
       if (generation !== engagementGeneration.current) return;
+      if (mixedReader) { setSourceErrors((page as MixedFeedPage).errors); setSourceAllocations((page as MixedFeedPage).allocations); }
+      if (mixedReader) paging.current.snapshot = mixedReader.snapshot();
       setPosts(page.posts);
+      setPostOwner(viewOwner);
       setHasMore(page.has_more);
       setNextCursor(page.next_cursor);
       // The counts ride in the payload (post.likes / post.dislikes / post.comments) — no re-fetch.
       // Likes and dislikes are counted separately (the feed query counts each type), so the
       // heart and the thumb each show their own tally.
-      setLikeMap(Object.fromEntries(page.posts.map((p) => [p._id || '', p.likes || 0])));
-      setDislikeCountMap(Object.fromEntries(page.posts.map((p) => [p._id || '', p.dislikes || 0])));
-      setRepostCountMap(Object.fromEntries(page.posts.map((p) => [p._id || '', p.reposts || 0])));
-      setCommentMap(Object.fromEntries(page.posts.map((p) => [p._id || '', p.comments || 0])));
+      setLikeMap(Object.fromEntries(ownPosts(page.posts).map((p) => [p._id || '', p.likes || 0])));
+      setDislikeCountMap(Object.fromEntries(ownPosts(page.posts).map((p) => [p._id || '', p.dislikes || 0])));
+      setRepostCountMap(Object.fromEntries(ownPosts(page.posts).map((p) => [p._id || '', p.reposts || 0])));
+      setCommentMap(Object.fromEntries(ownPosts(page.posts).map((p) => [p._id || '', p.comments || 0])));
       // The reader's OWN reaction is NOT in the payload (D69 carries the like
       // count, not whether *I* liked it) — seed the liked/disliked/reposted
       // maps so a post the reader already liked/reposted shows a filled
@@ -969,7 +1042,7 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
       setRepostedMap({});
       try {
         const { liked, disliked, reposted } = await readFeedReactions(
-          page.posts.map((p) => p._id || '').filter(Boolean),
+          ownPosts(page.posts).map((p) => p._id || '').filter(Boolean),
         );
         if (generation !== engagementGeneration.current || getActingAuthor() !== actingIdentity) return;
         setLikedMap(liked);
@@ -989,43 +1062,49 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
       setLoadFailed(true);
     }
     setLoading(false);
-  }, [actingIdentity, token?.username, token?.provider]);
+  }, [actingIdentity, token?.username, token?.provider, mixedReader, sourceControl.scope, sourceControl.home]);
 
   const loadMore = useCallback(async () => {
     if (!hasMore || loadingMore || loading) return;
     const generation = engagementGeneration.current;
     setLoadingMore(true);
     try {
-      const page = await readFeedPage({ limit: 20, cursor: nextCursor, knobState: knobState });
+      const page = mixedReader ? await mixedReader.next() : await readFeedPage({ limit: 20, cursor: nextCursor, knobState: knobState });
       if (generation !== engagementGeneration.current) return;
-      setPosts((prev) => [...prev, ...page.posts]);
+      if (mixedReader) { setSourceErrors((page as MixedFeedPage).errors); setSourceAllocations((page as MixedFeedPage).allocations); }
+      if (mixedReader) paging.current.snapshot = mixedReader.snapshot();
+      setPosts((prev) => [...new Map([...prev, ...page.posts].map(post => [post.source_key || post._id, post])).values()]);
       setHasMore(page.has_more);
       setNextCursor(page.next_cursor);
-      setLikeMap((prev) => ({ ...prev, ...Object.fromEntries(page.posts.map((p) => [p._id || '', p.likes || 0])) }));
-      setDislikeCountMap((prev) => ({ ...prev, ...Object.fromEntries(page.posts.map((p) => [p._id || '', p.dislikes || 0])) }));
-      setRepostCountMap((prev) => ({ ...prev, ...Object.fromEntries(page.posts.map((p) => [p._id || '', p.reposts || 0])) }));
-      setCommentMap((prev) => ({ ...prev, ...Object.fromEntries(page.posts.map((p) => [p._id || '', p.comments || 0])) }));
+      setLikeMap((prev) => ({ ...prev, ...Object.fromEntries(ownPosts(page.posts).map((p) => [p._id || '', p.likes || 0])) }));
+      setDislikeCountMap((prev) => ({ ...prev, ...Object.fromEntries(ownPosts(page.posts).map((p) => [p._id || '', p.dislikes || 0])) }));
+      setRepostCountMap((prev) => ({ ...prev, ...Object.fromEntries(ownPosts(page.posts).map((p) => [p._id || '', p.reposts || 0])) }));
+      setCommentMap((prev) => ({ ...prev, ...Object.fromEntries(ownPosts(page.posts).map((p) => [p._id || '', p.comments || 0])) }));
       // Seed the reader's own reaction for the new page's posts (same gap as
       // loadFeed — the payload carries the count, not whether *I* liked it).
       const { liked, disliked, reposted } = await readFeedReactions(
-        page.posts.map((p) => p._id || '').filter(Boolean),
+        ownPosts(page.posts).map((p) => p._id || '').filter(Boolean),
       );
       if (generation !== engagementGeneration.current) return;
       setLikedMap((prev) => ({ ...prev, ...liked }));
       setDislikedMap((prev) => ({ ...prev, ...disliked }));
       setRepostedMap((prev) => ({ ...prev, ...reposted }));
       // The cursor deep-link (the URL holds the scroll position — ?after=).
-      const params = new URLSearchParams(searchParams);
-      if (page.next_cursor?.created_at) params.set('after', page.next_cursor.created_at);
-      else params.delete('after');
-      setSearchParams(params, { replace: true });
+      if (mixedReader) paging.current.written = (page as MixedFeedPage).page_cursor || mixedReader.snapshot();
+      setSearchParams(previous => {
+        const params = new URLSearchParams(previous);
+        if (mixedReader) { params.set('mixCursor', (page as MixedFeedPage).page_cursor || mixedReader.snapshot()); params.delete('after'); }
+        else if (page.next_cursor?.created_at) params.set('after', page.next_cursor.created_at);
+        else params.delete('after');
+        return params;
+      });
       LOG('loadMore — appended', page.posts.length, 'posts, has_more:', page.has_more);
     } catch (e) {
       if (generation !== engagementGeneration.current) return;
       console.error('Failed to load more feed:', e);
     }
     setLoadingMore(false);
-  }, [hasMore, loadingMore, loading, nextCursor, searchParams, setSearchParams, knobState]);
+  }, [hasMore, loadingMore, loading, nextCursor, searchParams, setSearchParams, knobState, mixedReader, sourceControl.home]);
 
   // The node ranks the feed (the D36 power-mean sort, server-side) — a knob
   // twist is a DEBOUNCED RE-READ of page one (the cursor resets; it was
@@ -1035,6 +1114,7 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
   const firstLoad = useRef(true);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
+    if (sourceControl.credential && !sourceControl.ready) { setLoading(false); return; }
     if (firstLoad.current) {
       firstLoad.current = false;
       const after = searchParams.get('after');
@@ -1046,7 +1126,7 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
     LOG('knob change — re-reading feed (page 1) in 400ms, knobs:', encodeKnobState(knobState));
     refreshTimer.current = setTimeout(() => loadFeed(null, knobState), 400);
     return () => { if (refreshTimer.current) clearTimeout(refreshTimer.current); };
-  }, [knobState, loadFeed]);
+  }, [knobState, loadFeed, sourceControl.ready, sourceControl.credential]);
 
   // Infinite scroll: a sentinel at the bottom of the feed triggers loadMore
   // when it scrolls into view (rootMargin prefetches a page early).
@@ -1119,9 +1199,8 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
     openComposer();
   }
 
-  if (loading) {
-    return <FeedSkeleton />;
-  }
+  const visiblePosts = (postOwner === viewOwner ? posts : []).filter(post => !sourceControl.credential ||
+    (sourceControl.ready && sourceControl.sources.some(row => row.origin === (post.source_origin || sourceControl.home) && row.weight > 0 && sourceControl.approved.has(row.origin))));
 
   return (
     <div className="md:max-w-2xl md:mx-auto">
@@ -1138,21 +1217,34 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
           activePreset={activePreset}
           onChange={handleKnobChange}
           onPreset={handlePreset}
-        />
+          expanded={searchParams.get('tune') === '1' || searchParams.get('editServers') === '1'}
+          onExpandedChange={expanded => setSearchParams(previous => {
+            const params = new URLSearchParams(previous);
+            if (expanded) params.set('tune', '1'); else { params.delete('tune'); params.delete('editServers'); params.delete('removeServer'); params.delete('approveServer'); }
+            return params;
+          })}
+        ><FeedSourcesEditor key={sourceControl.scope} control={sourceControl} allocations={sourceAllocations} errors={sourceErrors} onRetry={() => retrySources(n => n + 1)} /></KnobRack>
       </div>
 
+      {sourceControl.error && <div role="alert" className="px-4 py-3 text-sm text-muted-foreground">{sourceControl.error}<Button variant="ghost" onClick={sourceControl.reload}>Retry server settings</Button></div>}
+      {Object.entries(sourceErrors).filter(([origin]) => sourceControl.ready && sourceControl.sources.some(row => row.origin === origin)).map(([origin, message]) => <div key={origin} role="alert" className="px-4 py-2 text-xs text-muted-foreground">{new URL(origin).host}: {message}<Button variant="ghost" onClick={() => retrySources(n => n + 1)}>Retry source reads</Button></div>)}
+
       <div className="md:px-0">
-        {loadFailed ? (
+        {loading && !visiblePosts.length ? <FeedSkeleton /> : loadFailed ? (
           <div role="alert" data-testid="feed-load-error" className="px-4 py-16 text-center">
             <p className="text-foreground">Could not load your Following feed.</p>
             <p className="mt-2 text-sm text-muted-foreground">Your follows have not been changed. Try loading it again.</p>
             <Button className="mt-4" onClick={() => void loadFeed(null, knobState)}>Try again</Button>
           </div>
-        ) : !posts.length ? (
-          <FeedEmptyState />
+        ) : !visiblePosts.length ? (
+          sourceControl.credential && !sourceControl.ready ? <p role="status" className="px-4 py-8 text-sm text-muted-foreground">{sourceControl.error ? 'Server settings are unavailable. Retry above to open the feed.' : 'Loading private server settings…'}</p>
+            : sourceControl.credential && !sourceControl.sources.some(row => row.weight > 0 && sourceControl.approved.has(row.origin)) ? <p className="px-4 py-8 text-sm text-muted-foreground">Feed paused. Open Advanced to add, approve or unmute a server.</p>
+            : hasMore ? <Button variant="ghost" onClick={() => void loadMore()}>Continue reading sources</Button>
+            : <FeedEmptyState />
         ) : (
           <>
-            {posts.flatMap((post) => {
+            {visiblePosts.flatMap((post) => {
+              if (post.source_origin && post.source_origin !== sourceControl.home) return [<ForeignFeedCard key={post.source_key} post={post} />];
               // The feed carries everything per post (D69) — media (resolved +
               // HLS), the author's profile + avatar, and the counts. No maps,
               // no re-fetch. The counts display off the live maps (initialized
@@ -1196,7 +1288,7 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
                     setCommentMap((prev) => ({ ...prev, [post._id || '']: n }))
                   }
                   onAuthorClick={onAuthorClick}
-                  onPostUpdated={() => loadFeed(null, knobState)}
+                  onPostUpdated={() => mixedReader ? retrySources(n => n + 1) : loadFeed(null, knobState)}
                    isOwnPost={isOwnPost(post)}
                    signedIn={!!token}
                    surface="feed"

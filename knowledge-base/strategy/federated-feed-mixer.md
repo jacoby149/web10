@@ -85,7 +85,7 @@ This includes authenticated foreign reads, not a public-only substitute.
    - [✓ 5.1.0 local] Serving-node add/list/revoke/cleanup now use the certified
     exact principal; foreign delegated mutations deny, and existing trusted
     authenticator Origin checks remain. This is not destination-aware browser consent.
-   - [✓ 5.2.0 local module; activation gates OPEN] SDK transport PR #1428:
+   - [✓ 5.2.0 merged #1428; activation gates OPEN] SDK transport:
      isolated module with explicit credential
     or public mode, fixed actions, exact origin, no redirects/cookies/registration,
     byte ceilings, per-instance four-active/64-queued limits and owned aborts.
@@ -97,7 +97,11 @@ This includes authenticated foreign reads, not a public-only substitute.
   add/remove/retarget handling. No JWTs saved. Resolver cache expires by TTL,
   bounds size/work and rejects alias mismatch, ambiguity and old-account results.
   Gate: old node gone, same domain-follow ID, new public posts; private denial
-  and zero credentials to resolver/DNS-selected targets remain independently proved.
+   and zero credentials to resolver/DNS-selected targets remain independently proved.
+   Next operator request after approving the hardware rack: "+ Server" in the
+   header and a per-channel removal flow, backed by the owner-private catalog.
+   Removal stops source reads, never unfollows creators. Add no preview-only
+   enrollment, saved JWT or implicit destination credential approval.
 - [ ] **FM4 — Destination batching and composite paging.** Owns social data
   orchestration and tests. One main query per destination/authority bucket,
   normal engagement/view follow-ups, bounded concurrency and settled failures.
@@ -111,11 +115,12 @@ This includes authenticated foreign reads, not a public-only substitute.
   > defaults; reload/back/forward restore state. No fake remote options or
   unwired faders. Gate: real request budgets change, account/route isolation,
   desktop/375px screenshots inspected against `design.md`.
-   - [ ] Separate UI component PR: controlled `ServerMixer` horizontal faders,
+   - [✓ 5.3.0 local component; integration OPEN] UI component PR #1430:
+     controlled `ServerMixer` horizontal faders,
     relative budget allocator with tie rotation, mute/all-paused/empty states and
-     sanitizing URL codecs. Focused tests plus synthetic desktop/375px component
-     preview/keyboard/reload/overflow checks are required. Not included in this
-     backend PR or attached to real remote fetch budgets.
+     sanitizing URL codecs and active-tie-only rotation. Operator-approved dense
+     hardware face, native keyboard/touch controls and four-width preview checks;
+     not yet attached to actual source management or remote fetch budgets.
 - [ ] **FM6 — Full source-owned rendering and connected acceptance.** Owns the
   bounded social action/link/media consumers plus disposable test harness.
   Foreign cards never send reactions, comments, edits, analytics or recovery to
@@ -139,8 +144,10 @@ a single release PR. This backend unit is `feature/foreign-self-service`, based
 on merged dev; SDK transport and mixer component have separate branches/reviews.
 DNS/public-preview additions remain outside all three foundation PRs.
 Backend evidence: `../security/scans/2026-11/foreign-self-service.md`.
-Backend #1429 merged as `0753cd879` after every check passed; SDK #1428 is the
-next sequential merge unit, with its isolated review recorded in
+Backend #1429 merged as `0753cd879` and SDK #1428 as `ab6185320` after every
+executed check passed. SDK's first final-run e2e shard failed before API startup
+on fixture ClickHouse authentication; the unchanged failed-shard rerun passed,
+without an assertion/config change or pre-existing-cause claim. Isolated review:
 `../security/scans/2026-11/explicit-node-transport.md`. This does not activate FM2.
 Next: explicit destination-aware browser consent (FM2), catalog/DNS (FM3),
 composite paging/provenance (FM4), real customizer wiring (FM5), connected FM6.

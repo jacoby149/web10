@@ -24,6 +24,9 @@ export interface PostMention {
 }
 
 export interface PostRecord {
+  /** Client-owned read provenance; never take these fields from a document body. */
+  source_origin?: string;
+  source_key?: string;
   /** UI-only: identity lookup is pending, not a confirmed missing avatar. */
   author_face_pending?: boolean;
   _id?: string;

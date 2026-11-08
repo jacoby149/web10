@@ -3,6 +3,35 @@
 Newest at top. Format per AGENT-OPS.md §8. Read the top entries
 BEFORE doing ops work — someone may already be mid-fix.
 
+## 08.11.2026 08:20–08:55 EST — OpenCode (tripoli / fix/posthog-query-api; deploy via #1434) — PostHog D103 deploy: identity secrets staged, dev+prod on 5.0.4, still disabled
+did:
+  - SSH verified all-spark (LAN 192.168.8.25 default port + public 184.174.17.178:42422);
+    container map matched §2; top ledger entry (07.11, read-only research) confirmed nobody
+    was mid-fix.
+  - Staged POSTHOG_IDENTITY_SECRET (fresh 64-hex, distinct per env): appended to the
+    canonical /home/jacob/web10-ops/env.dev + env.prod AND the
+    /opt/web10/ubuntu-deployment/env.dev + env.prod copies that compose actually reads.
+    Dev prefix b07fa599, prod prefix 40defdb4 (full values live ONLY on the box —
+    operator to back them up from ~/web10-ops). No other container, volume, DNS, NPM
+    or edge touch.
+  - dev: recreated web10-dev-api-1 only — `docker compose -p web10-dev --env-file env.dev
+    up -d api` (no rebuild; a plain `docker restart` did NOT re-interpolate the env,
+    first attempt left identity_ready false). /telemetry flipped posthog_identity_ready
+    false→true.
+  - prod: promoted via #1434 (dev→main, 5.0.4; main carried the stale 4.16.2 promotion
+    commit 81c8aa0ee — ancestry reconciled by merging main into dev, 4 add/add/content
+    conflicts all resolved to dev's side since main had no unique content). deploy-prod
+    run 42482040298 green in 1m16s (compose --build + health + smoke.sh money path).
+    Verified public: /telemetry new shape, identity_ready:true; auth/social/www all 200.
+state: dev + prod both serve 5.0.4. PostHog DISABLED on both (no phc_ key in Node
+  Config yet — posthog_enabled:false, posthog_project_key:""). Identity secrets loaded
+  on both, so the 5.0.1 enablement gate passes. Nothing collects to any external
+  vendor today; first-party beacons/D86 unchanged.
+next: operator sets Node Config per env (phc_ key + US region + "Use PostHog"; replay
+  stays off until playback is inspected). Then the P5 connected run:
+  scripts/posthog-connected-check.mjs --run with .context/posthog/posthog.env
+  (WEB10_API_ORIGIN set to api.dev.web10.app; WEB10_ADMIN_TOKEN still to fill).
+
 ## 07.11.2026 21:49 EST — OpenCode (san-marino / jacoby149/sigmod-submission-review) — completed approved immutable research inputs
 did:
   - Read-only SSH verified all-spark and current web10 containers; inspected only
