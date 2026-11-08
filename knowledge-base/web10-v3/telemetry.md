@@ -129,7 +129,9 @@ gates. Do not relax masking to improve the recording.
    only managed dashboards/insights, use `--apply` with `POSTHOG_PROJECT_ID`,
    `POSTHOG_REGION=US|EU`, `POSTHOG_PERSONAL_API_KEY` in the operator environment.
    This writes the vendor project and requires explicit approval/access. Reports
-   are not made public, and live HogQL execution/permissions must be checked.
+   are not made public; live HogQL execution was checked 08.11.2026 via the
+   Query API (personal key; 0 rows pre-collection). Access/permission
+   restrictions remain an open gate.
 5. Local checks: three frontend builds/suites, SDK suite, API suite,
    `node --test scripts/posthog-reports.test.mjs`,
    `node scripts/check-posthog-browser.mjs [--replay]`, and from `api/`,

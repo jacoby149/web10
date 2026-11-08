@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 // P5 connected acceptance: the real journey against a real node and a real
 // PostHog project, end to end. Dry-run by default (manifest only, no network).
+// HogQL runs through the Query API (POST /api/projects/:id/query, personal key
+// with query read) — the web UI's /insights/query/ rejects personal keys (5.0.4).
 // Live run requires operator-provided credentials in the environment; it never
 // prints personal keys, auth tokens or passwords.
 //
@@ -69,18 +71,30 @@ export function manifest(env = {}) {
   };
 }
 
+// The Query API (docs: posthog.com/docs/sql → "Query API"): personal API key
+// auth, POST /api/projects/:id/query, { query: { kind: 'HogQLQuery', ... } }.
+// (The web UI's /insights/query/ endpoint rejects personal API keys.)
+function rowObject(row, columns) {
+  if (Array.isArray(row)) row = Object.fromEntries((columns ?? []).map((c, i) => [c, row[i]]));
+  const flat = {};
+  for (const [key, value] of Object.entries(row ?? {})) {
+    flat[key] = value;
+    flat[key.replace(/\./g, '_')] = value; // properties.capture_origin and friends
+  }
+  return flat;
+}
+
 function hogql(fetcher, host, projectId, key, query) {
-  return fetcher(`${host}/api/projects/${projectId}/insights/query/`, {
+  return fetcher(`${host}/api/projects/${projectId}/query`, {
     method: 'POST',
     redirect: 'error',
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id: 'p5-connected-check', name: 'P5 connected check', api_version: 1, from_dashboard: false, data: { kind: 'HogQLQuery', query } }),
+    body: JSON.stringify({ query: { kind: 'HogQLQuery', query }, name: 'p5-connected-check' }),
   }).then(async (response) => {
     if (!response.ok) throw new Error(`HogQL query failed (${response.status})`);
-    const result = await response.json();
-    const rowSet = result?.result?.results?.[0];
-    const rows = Array.isArray(rowSet?.data) ? rowSet.data : [];
-    return rows.map((row) => (Array.isArray(row) ? Object.fromEntries((rowSet?.types ?? []).map((type, i) => [type, row[i]])) : row));
+    const body = await response.json();
+    const rows = Array.isArray(body.results) ? body.results : [];
+    return rows.map((row) => rowObject(row, body.columns));
   });
 }
 
