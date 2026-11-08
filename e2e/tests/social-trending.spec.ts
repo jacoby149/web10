@@ -1,6 +1,7 @@
 import { test, expect, type APIRequestContext, type BrowserContext, type Page } from '@playwright/test';
 import { execSync } from 'node:child_process';
 import { API_BASE, v3Post, v3Login, v3Signup } from '../v3-helpers';
+import { SOCIAL_SERVICES, SOCIAL_OPERATIONS } from '../../marketing/web10-social/src/lib/socialContract';
 
 /**
  * Social trending — the /discover board surface (the in-app trending: the D36
@@ -36,19 +37,6 @@ const SERVICE = 'posts';
 // Mirror of SOCIAL_SERVICES / SOCIAL_OPERATIONS in
 // marketing/web10-social/src/interfaces/auth.ts — the app contract the D42
 // popup would create for this origin.
-const SOCIAL_SERVICES = [
-  'posts',
-  'media',
-  'public_media',
-  'profile',
-  'settings',
-  'comments',
-  'reactions',
-  'contacts',
-  'web10-social-group-identity',
-  'notifications',
-];
-const SOCIAL_OPERATIONS = ['create', 'readAll', 'updateOwn', 'deleteOwn'];
 
 const password = 'TestPass123!';
 const uniqueUser = (prefix: string) => `${prefix}${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;

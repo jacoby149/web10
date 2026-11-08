@@ -1,4 +1,5 @@
 import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
+import { SOCIAL_SERVICES, SOCIAL_OPERATIONS } from '../../marketing/web10-social/src/lib/socialContract';
 
 /**
  * Saved collections (D88) — the e2e gauntlet (the last of the five bites).
@@ -39,12 +40,6 @@ const password = 'TestPass123!';
 // origin that makes the API calls is granted these. `saved` (the
 // saved-collection store, D88) MUST be here: the API does strict per-service
 // matching, so a save without it 403s at the app-contract gate.
-const SOCIAL_SERVICES = [
-  'posts', 'media', 'public_media', 'profile', 'settings', 'comments',
-  'reactions', 'contacts', 'web10-social-group-identity',
-  'notifications', 'saved',
-];
-const SOCIAL_OPERATIONS = ['create', 'readAll', 'updateOwn', 'deleteOwn'];
 
 // The collection's role set (src/data/saved.ts SAVED_ROLES) — the D58 shape
 // {name, permissions: {service: [ops]}}. `owner` has full control; `reader` is

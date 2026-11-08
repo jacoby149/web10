@@ -15,6 +15,20 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Music live playlist pointers (08.11.2026) — bounded feature review, OPEN
+
+GPT-6.1 Sol read the new `musicLibrary.ts`, Music browser/reaction controls and
+their direct CRUD/group/auth-contract seams. The node read gate and role tables
+are unchanged. New bookmark documents attach only to the human's own followers
+group; canonical member/reader roles expose posts/profile, not this app service.
+Client tests cover exact owner scope, personal author filtering, duplicate removal,
+failed-read/no-create, pagination, denied metadata, unmount/account fencing and
+reaction follow-on write denial. Consent and access-oracle service lists match.
+These are local client controls, not an actual-node private-read denial receipt,
+independent security review or L1–L4 campaign PASS. Connected consent upgrades,
+two-account bookmark denial and target revocation remain OPEN in the Music lane.
+Contract: [music-social-library.md](../strategy/music-social-library.md).
+
 ## API contact delivery (08.11.2026) — bounded local, OPEN
 
 #1435 is merged; all functional CI passed but its method-size check failed.

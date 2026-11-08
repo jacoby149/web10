@@ -333,6 +333,13 @@ does not merge.
 
 ## Auth model
 
+Music's live playlist bookmarks use personal `web10-social-playlist-bookmarks`
+documents in the human's own followers group, never acting-group authority or a
+target membership grant. Login consent and access recovery both request this
+service; existing grants need normal re-consent. Public curator browsing uses
+existing public collection reads, not a global index. Contract and connected
+acceptance limits: `knowledge-base/strategy/music-social-library.md`.
+
 Contact delivery is implemented inside `api/`, not a new service (D105).
 Small-node settings connect a support Gmail with send-only OAuth; larger-node
 settings offer SendGrid email and optional Twilio Verify SMS. New credentials and

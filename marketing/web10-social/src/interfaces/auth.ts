@@ -26,6 +26,7 @@ import { getV3Client } from '../data/v3';
 import type { TokenPayload, V3AppCR, V3Client } from 'web10-npm';
 import { invalidateUploadSession } from '../lib/uploadSession';
 import { prepareAnalyticsHandoff, resetAnalytics } from '../lib/analytics';
+import { SOCIAL_SERVICES, SOCIAL_OPERATIONS } from '../lib/socialContract';
 
 const LOG = (...args: unknown[]) => console.log('[social]', ...args);
 const LOG_ERR = (...args: unknown[]) => console.error('[social]', ...args);
@@ -47,33 +48,8 @@ export interface SocialAuth {
 // grants this app's origin these services on the user's node; the API
 // enforces per-service operations on the request Origin header
 // (api/app/v3/endpoints/documents.py).
-const SOCIAL_SERVICES = [
-  'posts',
-  'media',
-  'public_media',
-  'profile',
-  'settings',
-  'comments',
-  'reactions',
-  'contacts',
-  // The group's face (D60) — documents in an app-named service, written by
-  // the create-group flow + the face editor (writeGroupIdentity). Without it
-  // in the contract, every group create/edit 403s at the app-contract gate
-  // ("No app contract … to create on web10-social-group-identity").
-  'web10-social-group-identity',
-  // The D69 notification store — a `notifications` doc (the last_seen cursor)
-  // in the followers group, read/created/updated by the notification store.
-  'notifications',
-  // The saved-collection store (D88) — a `saved` doc (a ref_value pointer at a
-  // post) in a collection group, written by the "Save to…" action + read by the
-  // Saved tab / collection view. Without it in the contract, every save/read
-  // 403s at the app-contract gate (the API does strict per-service matching).
-  'saved',
-] as const;
-
-// The four operations the documents endpoint enforces (create / read /
-// update / delete).
-const SOCIAL_OPERATIONS = ['create', 'readAll', 'updateOwn', 'deleteOwn'] as const;
+// Declarations live in lib/socialContract so access recovery and pre-granted
+// browser fixtures cannot drift from the actual requested contract.
 
 function socialAppContract(): V3AppCR {
   return {

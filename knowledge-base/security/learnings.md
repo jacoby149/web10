@@ -35,6 +35,16 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-08: Keep live playlist pointers separate from target access
+
+Music bookmarks store only a collection ID in an owner-only app service, never
+cached titles, covers, signed media URLs or a membership in the target. Resolve
+the original through current authorized reads; an unavailable target stays
+removable without its former content. The app consent service list and access
+oracle must expand together or existing users cannot obtain the new grant.
+Local client controls cover failed-read/no-create and ownership changes; actual
+node two-account denial and consent upgrades remain connected acceptance gates.
+
 ### 2026-11-08: Recovery credentials belong to an issuer, not the browser's current session
 
 An email secret cannot use the ordinary token-selected API helper: a retained
