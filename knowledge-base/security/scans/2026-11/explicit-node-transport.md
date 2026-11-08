@@ -42,7 +42,28 @@ authorization unchanged; no by-design conflict or new conventional deviation.
 The local credential/lifecycle/error delta is covered; real consent/CORS/grants,
 malicious-approved-node bearer replay and global bounds remain activation risks.
 This is one same-family dry review after the repaired finding, not diverse
-three-dry convergence or connected acceptance. The PR stays draft for that review.
+three-dry convergence or connected acceptance.
+
+## Foundation merge review
+
+After PostHog/dev and backend #1429 merge, the isolated source remains unchanged:
+full SDK **317 tests/typecheck pass**, the 344-line method gate passes, and the
+earlier refreshed CI run passes all executed checks. The final merged-base head
+must pass every check again before the operator-requested merge.
+
+Fresh independent reviewers `ses_e44da6132ffeKWlhAOav4OCacP` and
+`ses_e44d9b6b0ffeNdvaYikZrNBfvm` each rerun all 27 transport tests and find no
+additional demonstrable blocker. Extra synthetic probes cover inherited token/
+hook injection, abort during serialization, UTF-8 byte accounting, private
+generation/proxy/stream exceptions, invalidated 64-entry queue draining without
+dispatch and exact 1 MiB response acceptance. Only tests import the module.
+
+DESIGN-INTENT REVIEW: explicit dispatch remains caller-approved and server
+authorization remains authoritative; no by-design conflict or new conventional
+deviation. This makes three consecutive same-family scoped dry reviews after
+repair, not different-family convergence, connected acceptance or a full L1–L4
+PASS. The operator authorizes merging the unintegrated foundation; browser
+consent, real grants/issuer/storage and global fan-out remain activation gates.
 
 Full browser consent/grant/revoke, actual TLS/issuer/storage and diverse L1–L4
 coverage remain OPEN. No backend change, deployment or full-feature/security PASS.

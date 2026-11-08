@@ -50,6 +50,23 @@ escaping unchanged, retaining attached request/token/cause fields. Message equal
 is not error provenance. A private sentinel identifies stream-size failures and
 all outward errors are fresh ordinary errors; the exact reproduction is retained.
 
+### 2026-11-08: Federation must preserve admission as well as exact identity
+
+The [self-service record](scans/2026-11/foreign-self-service.md) extends group
+self-service and own app grants to certified foreign principals without borrowing
+local namesake rows. A request-policy join followed by the old accept-invite
+handler allowed pending requests to self-approve. Require an exact current
+`invited` row; pending still waits for manager approval. Retain local bare keys,
+foreign owner-heal exclusion and delegated grant-mutation denial. Route doubles
+do not prove issuer TLS, real storage or concurrent check/write atomicity.
+
+The same split review demonstrates inherited revoke-all leaving delegated grants
+active because its tombstone omitted `client_id`. Preserve the entire grant key,
+not just user/origin, in INSERT and SELECT. Actual helper-SQL/registered-route
+replays fail for both local/foreign revoke-all before the fix and pass afterward,
+with targeted origin/client controls and namesake isolation. SQLite is an
+execution substitute, not ClickHouse merge/timestamp or complete lifecycle proof.
+
 ### 2026-11-08: Gate analytics activation on the server identity prerequisite
 
 PostHog browser capture alone is not account-level measurement. New admin
