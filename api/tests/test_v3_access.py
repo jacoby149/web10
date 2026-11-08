@@ -233,14 +233,14 @@ class TestReadableGroups:
         # g1 is public (anyone can read). g2 is unknown (no group → not
         # readable). Order-preserving.
         with _mock(PUBLIC_READER, {"anyone": "public-reader"}):
-            result = ch.readable_groups("anon", "posts", False, ["g1", "g2"])
+            result = ch.readable_groups_per_group("anon", "posts", False, ["g1", "g2"])
         assert result == ["g1"]
 
     def test_preserves_order_and_drops_non_readable(self):
         with _mock(MEMBER, {"bob": "member"}):
             # bob (a member) can read g1; anon cannot.
-            assert ch.readable_groups("bob", "posts", True, ["g1"]) == ["g1"]
-            assert ch.readable_groups("anon", "posts", False, ["g1"]) == []
+            assert ch.readable_groups_per_group("bob", "posts", True, ["g1"]) == ["g1"]
+            assert ch.readable_groups_per_group("anon", "posts", False, ["g1"]) == []
 
 
 # ---------------------------------------------------------------------------

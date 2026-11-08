@@ -281,6 +281,12 @@ you if you arent ok with that." Full model:
 
 Single ClickHouse `documents` table, primary key `(author_key, doc_id)`. `doc_groups` maps documents to groups. `group_contracts` + `group_members` define access. Two contract types: app contracts (infrastructure trust, CORS-enforced) and group contracts (social access, role-enforced). Full model: `knowledge-base/web10-v3/db/clickhouse.md`.
 
+The generic readable-group helper defaults to byte-bounded batched resolution;
+`READABLE_RESOLUTION_MODE=per-group` retains an authorization-preserving rollback.
+Explicit research overrides remain separate from default-off policy bypass/stub
+flags. Source/Compose defaults are not production-deployment proof. Local parity
+and remaining rollout gates: `knowledge-base/security/scans/2026-11/readable-resolution-default.md`.
+
 ## The node stays generic (D60) — no app-specific surface in `api/`
 
 **The platform API (`api/`) exposes only universal primitives. It never learns an

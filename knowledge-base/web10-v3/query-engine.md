@@ -159,16 +159,31 @@ on the service):
   lookup **plus**, for non-members, an `effective_role_perms` lookup — so the
   phase is **O(K) ClickHouse round-trips from Python**. Correct first; the
   docstring names the batched variant as the fast-follow for high-fanout feed
-  reads. This is the path the feed currently takes (`query.py` `run_query` →
-  `ch.readable_groups`).
+   reads. Kept as `readable_groups_per_group` for explicit rollback/reference.
 - **Batched** (`readable_groups_batched`, `clickhouse.py`): resolves the whole
   candidate set in **three batched queries** (the principal's active
   memberships among the candidates; the reserved public-class member rows
   among the candidates; the role definitions for the candidate groups) and
   merges them in Python. Same dedup rule as the read path (latest row per
   (group, member) wins, tombstones included, then `deleted = 0`); unknown
-  groups (no live contract row) are never readable. **O(1) round-trips**
-  regardless of K.
+   non-members need a live role contract. Existing active memberships grant reads
+   before contract lookup, including the existing orphan-membership case. At most
+   **three round-trips per byte-bounded chunk per service**, not constant database
+   work regardless of K. Chunks conservatively budget escaped UTF-8 literals
+   below ClickHouse's default query-size limit; one exceptionally large ID uses
+   the scalar reference and retains its pre-existing server limit. Candidate
+   order/duplicates are restored after chunk results are combined.
+
+**Production selection:** `readable_groups` uses `READABLE_RESOLUTION_MODE`,
+`batched` by default or `per-group` for explicit rollback. This shared helper
+covers generic document reads, content views and the ordinary query path; the
+People directory's explicit batched call remains explicit. Invalid settings fail
+startup without printing their values. When all candidates have current principal
+memberships, batching returns after **one** membership query per chunk (also K=1); empty
+input executes none. This avoids inventing a small-K cutoff or caching grants.
+Non-members still go through the current class/service role checks. App contracts,
+authentication, document scoping and fresh permission checks are unchanged.
+These source defaults are not evidence of a production deployment.
 
 **The cost that matters is round-trips, not language.** The phase is
 I/O-bound (waiting on ClickHouse metadata), so the per-group vs. batched
@@ -199,16 +214,16 @@ default OFF so production behavior is unchanged unless one is set:
   ClickHouse baseline the causal overhead (B−A) is computed against. It also
   exempts the D42 explicit-group membership 403 (the baseline is unscoped by
   definition).
-- `QUERY_EVAL_READABLE_MODE` (`per-group` default | `batched`) — selects the
-  resolution algorithm so the experiment plots both against K.
+- `QUERY_EVAL_READABLE_MODE` (empty by default; explicit `per-group` or `batched`)
+   — query-only research override of the production resolver selection. An unset
+   override follows production; explicit per-group always calls the reference
+   loop, not the now-configurable production helper.
 
 These are **test-mode only**: A bypasses the I3 boundary and C returns
 synthetic rows, so neither may be enabled on a public node. The production
-default stays the per-group path; promoting the batched path to the production
-default is a separate, deliberate, reviewed change (the experiment's data is
-what justifies it). Pinned by `test_query_endpoint.py::TestEvaluationSeams`
-(inert when unset; each flag active when set; A unscoped + no 403; batched vs.
-per-group routing).
+algorithm setting never enables either flag. Tests pin ordinary default batching,
+explicit rollback and research precedence; the read-gate parity record is
+`knowledge-base/security/scans/2026-11/readable-resolution-default.md`.
 
 ## Group scoping (deferred)
 
