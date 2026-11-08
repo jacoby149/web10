@@ -8,7 +8,7 @@ import './index.css';
 import App from './App';
 import { installTelemetry, trackPageview, trackNodePageview, reportNodeError, trackProductSession } from './lib/analytics';
 
-// D103: runtime-selected PostHog, with legacy vendors retained until cutover.
+// D103: PostHog only, enabled through runtime node configuration.
 installTelemetry();
 
 // D56: first-party beacon to the node (persistent, in ClickHouse). Content-free.

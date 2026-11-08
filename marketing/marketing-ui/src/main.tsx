@@ -11,7 +11,7 @@ import './index.css'
 // Install JS error beacon (window.onerror + unhandledrejection)
 installErrorBeacon()
 
-// D103: runtime-selected PostHog, with legacy vendors retained until cutover.
+// D103: PostHog only, enabled through runtime node configuration.
 installTelemetry()
 
 function AnalyticsTracker() {

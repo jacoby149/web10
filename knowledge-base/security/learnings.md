@@ -35,6 +35,14 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-08: Gate analytics activation on the server identity prerequisite
+
+PostHog browser capture alone is not account-level measurement. New admin
+enablement now fails explicitly until the separate identity key is provisioned;
+disabling must remain available even when that key is absent. This prevents
+silent initial setup with missing canonical conversions, not a live-vendor or
+data-completeness guarantee. The enable/disable negative gate passes locally.
+
 ### 2026-11-08: Keep analytics identity, attribution and outcome authority separate
 
 5.0.0 verifies an existing local personal account before returning an opaque HMAC

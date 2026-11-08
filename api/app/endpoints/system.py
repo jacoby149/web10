@@ -175,6 +175,10 @@ def patch_config(token: Token, update: ConfigUpdate):
     check_admin(token)
     current = config_svc.get_config()
     changes = update.model_dump(exclude_none=True)
+    if changes.get("posthog_enabled") is True and len(settings.POSTHOG_IDENTITY_SECRET) < 32:
+        raise HTTPException(
+            status_code=422, detail="Configure POSTHOG_IDENTITY_SECRET on the API before enabling account analytics"
+        )
     if changes.get("posthog_enabled") is True and not current.get("posthog_capture_since"):
         from datetime import UTC, datetime
 

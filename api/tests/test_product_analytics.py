@@ -87,6 +87,31 @@ def test_config_outage_does_not_break_signup_and_is_recoverable():
     assert context["distinct_id"] == analytics.account_id("alice", STAMP)
 
 
+def test_enablement_requires_server_identity_key_but_disabling_remains_available(monkeypatch):
+    monkeypatch.setattr(settings, "POSTHOG_IDENTITY_SECRET", "")
+    token = jwt.encode(
+        {
+            "username": "alice",
+            "provider": settings.PROVIDER,
+            "site": "auth.localhost",
+            "expires": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
+        },
+        settings.PRIVATE_KEY,
+        algorithm=settings.ALGORITHM,
+    )
+    client = TestClient(app, raise_server_exceptions=False)
+    with (
+        patch("app.endpoints.system.check_admin"),
+        patch("app.endpoints.system.config_svc.get_config", return_value={}),
+        patch("app.endpoints.system.config_svc.save_config") as save,
+    ):
+        response = client.post("/config/update", json={"token": {"token": token}, "update": {"posthog_enabled": True}})
+        assert response.status_code == 422
+        save.assert_not_called()
+        response = client.post("/config/update", json={"token": {"token": token}, "update": {"posthog_enabled": False}})
+        assert response.status_code == 200
+
+
 def test_retry_after_vendor_acceptance_before_ack_reuses_event_identity():
     response = MagicMock(status_code=200)
     with patch.object(ch, "client") as client, patch.object(analytics.requests, "post", return_value=response) as post:

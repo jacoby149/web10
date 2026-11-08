@@ -350,7 +350,8 @@ class TestTelemetryEndpoint:
             with pytest.raises(ValidationError):
                 ConfigUpdate(**invalid)
 
-    def test_admin_can_persist_posthog_configuration(self, client, token):
+    def test_admin_can_persist_posthog_configuration(self, client, token, monkeypatch):
+        monkeypatch.setattr(settings, "POSTHOG_IDENTITY_SECRET", "synthetic-separate-identity-secret-123456")
         update = {
             "posthog_enabled": True,
             "posthog_project_key": "phc_synthetic_project",
@@ -400,7 +401,10 @@ class TestTelemetryConfigFields:
                 "/config/update",
                 json={
                     "token": {"token": token},
-                    "update": {"posthog_project_key": "phc_synthetic_project", "posthog_host": "https://eu.i.posthog.com"},
+                    "update": {
+                        "posthog_project_key": "phc_synthetic_project",
+                        "posthog_host": "https://eu.i.posthog.com",
+                    },
                 },
             )
         assert resp.status_code == 200

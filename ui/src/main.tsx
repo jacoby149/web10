@@ -2,7 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import ErrorBoundary from './components/shared/ErrorBoundary'
-// D103: runtime-selected PostHog; legacy collection retained until cutover.
+// D103: PostHog only, enabled through runtime node configuration.
 import { installTelemetry, trackPageview } from './lib/analytics'
 // Self-hosted variable fonts (design.md §5) — never a font CDN.
 import '@fontsource-variable/inter'

@@ -1275,6 +1275,7 @@ old implementation, not the new target.
 
 #### PostHog-only migration (five-influencer pilot is the first campaign)
 
+- [✓ 5.0.1 local] **Guard PostHog activation prerequisites** — reject enablement without the separate API identity secret, keep disabling available, and verify actual Terms/Privacy routes at desktop/375px without production beacons. No live-project or rollout acceptance.
 Source/acceptance: [posthog-migration.md](posthog-migration.md), D103. Operator explicitly authorizes local implementation and immediate legacy-code removal; deployment/activation gates remain. Preserve D86, backend facts and history. No custom acquisition dashboard. Own shared `marketing/shared/telemetry/` and focused report/check scripts; coordinated seams: node config/system/account lifecycle and tests, `clickhouse-init/`, SDK optional signup metadata/shipped artifacts, auth `Interface.tsx`, Node Config, social lifecycle and public legal copy. No unrelated lane edits or production changes.
 
 - [✓ 4.14.2 local planning only] **Five-influencer validation plan** — operator wants validated comparison of five $200/month creators. Source audit and bounded extracted-SQL SQLite probe identify mixed-event pageview inflation; API/UI date-range mismatch recorded. Define metric/identity/attribution defaults for approval, honest bot-risk labels and independent browser→API→ClickHouse→report proof. No runtime repair, deployment or analytics-readiness claim.

@@ -123,6 +123,8 @@ gates. Do not relax masking to improve the recording.
    masked replay/heatmaps. First enablement records `posthog_capture_since`.
    Turning collection off applies next load; accounts created explicitly while
    off are not backfilled. Historical settings are retained but inert.
+   Admin enablement is rejected until the API identity secret is configured;
+   disabling remains available even when that secret is missing.
 4. `node scripts/posthog-reports.mjs` is network-free dry-run. To create/update
    only managed dashboards/insights, use `--apply` with `POSTHOG_PROJECT_ID`,
    `POSTHOG_REGION=US|EU`, `POSTHOG_PERSONAL_API_KEY` in the operator environment.

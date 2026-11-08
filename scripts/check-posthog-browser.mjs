@@ -172,6 +172,19 @@ try {
         await page.getByTestId('config-telemetry-card').screenshot({ path: path.join(out, 'config-mobile.png') });
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'mobile overflow');
       }
+      if (app === 'marketing-ui' && !replay) {
+        // Actual public legal routes, with all API/vendor traffic intercepted.
+        // This checks the changed disclosure without production beacon writes.
+        for (const legal of ['privacy', 'terms']) {
+          await page.goto(`http://127.0.0.1:${port}/docs/${legal}`);
+          await page.getByRole('heading', { level: 1, name: legal === 'privacy' ? 'Privacy Policy' : 'Terms of Service' }).waitFor();
+          for (const [label, width] of [['desktop', 1440], ['mobile', 375]]) {
+            await page.setViewportSize({ width, height: 1000 });
+            await page.screenshot({ path: path.join(out, `${legal}-${label}.png`), fullPage: true });
+            assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${legal} overflow`);
+          }
+        }
+      }
       receipts.push({ app, sdk: 'posthog-js@1.447.3', events: events.map((entry) => ({ event: entry.event, path: entry.properties.$pathname ?? null })), legacyRequests: legacy.length, privateSentinelAbsent: true, realVendorPersistence: false });
     } finally {
       await context.close();
