@@ -37,7 +37,7 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
-- [ ] **FM3 source management — add/remove servers** — preserve the operator-approved hardware rack; + Server in its header and per-channel removal must use an owner-private home-node source catalog, not fake buttons. No saved JWTs or credential forwarding on enrollment. Removal stops node reads without unfollowing creators. Owns coordinated social data/Feed controls; private-list denial, account/queued-read invalidation, URL-held dialog state, real request ownership, desktop/375px and full checks are gates. Full cross-node paging/actions/consent remain separate; see `federated-feed-mixer.md`.
+- [~] **FM3 source management — add/remove servers** — current candidate preserves the approved rack with URL-owned Edit servers/Done and a private catalog. Saving an origin alone never permits credential forwarding; explicit current-credential destination approval does. Real query quotas and shared controls now target Following, Shorts, Music and marketing content boards. Source-owned full actions/consent, connected-node acceptance, split-sized PRs and CI remain gates; see `server-mixer-component.md` and `federated-feed-mixer.md`. Do not mark full FM2–FM6 complete from local tests.
 
 - [✓ 5.3.0 local component; integration OPEN] **FM5 server-mixer component split** — controlled horizontal faders, fetch-budget allocator/mute/tie rotation and sanitized URL codecs. Owns `ServerMixer.tsx`, `lib/serverMixer.ts` and focused tests. Not attached to Following/settings/real request quotas; desktop/375px preview is component evidence, not a working multi-node feed. Backend/SDK are separate PRs.
 

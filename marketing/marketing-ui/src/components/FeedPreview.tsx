@@ -223,6 +223,9 @@ interface DiscoveryPost {
 
 interface FeedPost {
   id: string;
+  /** Reader-owned provenance; never infer a foreign row's routes from raw id. */
+  sourceOrigin?: string;
+  sourceKey?: string;
   name: string;
   avatarUrl?: string;
   handle: string;

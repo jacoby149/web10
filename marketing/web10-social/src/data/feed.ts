@@ -442,10 +442,24 @@ export async function readFeed(sort: FeedSort = 'newest', limit = 50): Promise<P
 export interface FeedPage {
   posts: PostRecord[];
   has_more: boolean;
-  next_cursor: { created_at?: string; score?: number } | null;
+  next_cursor: FeedCursor | null;
 }
 
-type FeedRanking = { recency: number; likes: number; comments: number; half_life_ms: number; character: number };
+export type FeedCursor = { created_at?: string; score?: number; author_key?: string; doc_id?: string };
+export type FeedQueryOptions = { stable?: boolean; rankingClockMs?: number; tags?: string[] };
+export type FeedRanking = { recency: number; likes: number; comments: number; half_life_ms: number; character: number };
+
+/** Full keyset anchors are opt-in: legacy callers retain their cursor shape. */
+export function feedCursorFromPost(post: PostRecord): FeedCursor {
+  if (!post._id || !post.author_key || !Number.isFinite(Date.parse(post.created_at)) ||
+    (post.score != null && !Number.isFinite(post.score))) throw new Error('Invalid feed row anchor');
+  return { created_at: new Date(post.created_at).toISOString(), score: post.score, author_key: post.author_key, doc_id: post._id };
+}
+
+function feedSqlString(value: string): string {
+  if (typeof value !== 'string' || !value || value.length > 2048 || /[\u0000-\u001f]/.test(value)) throw new Error('Invalid feed cursor key');
+  return `'${value.replace(/\\/g, '\\\\').replace(/'/g, "''")}'`;
+}
 
 /**
  * The power-mean score as a ClickHouse SQL expression — mirrors the node's
@@ -455,13 +469,14 @@ type FeedRanking = { recency: number; likes: number; comments: number; half_life
  * runs raw SQL, no named params). `createdMs` / `reactions` / `comments` are
  * SQL expressions for the post's created_at, reaction count, comment count.
  */
-function powerMeanScoreSql(createdMs: string, reactions: string, comments: string, sort: FeedRanking): string {
+function powerMeanScoreSql(createdMs: string, reactions: string, comments: string, sort: FeedRanking, clockMs?: number): string {
   const wr = sort.recency;
   const wl = sort.likes;
   const wc = sort.comments;
   const p = sort.character;
   const hl = sort.half_life_ms;
-  const age = `greatest(0, toUnixTimestamp64Milli(now64(3)) - toUnixTimestamp64Milli(${createdMs}))`;
+  const clock = clockMs == null ? 'toUnixTimestamp64Milli(now64(3))' : String(clockMs);
+  const age = `greatest(0, ${clock} - toUnixTimestamp64Milli(${createdMs}))`;
   // Recency-only shortcut: the "Newest" preset → pure reverse-chron.
   if (wr > 0 && wl <= 0 && wc <= 0) return `-(${age})`;
   // No weighted signal at all → score 0 (the caller falls back to chronological).
@@ -487,14 +502,18 @@ function powerMeanScoreSql(createdMs: string, reactions: string, comments: strin
  * board base. `sort` is null for the Newest preset (chronological, cursor on
  * created_at); a tuned sort ranks in SQL (cursor on the score).
  */
-function buildFeedQuery(sort: FeedRanking | null, cursor: { created_at?: string; score?: number } | null, limit: number): string {
+export function buildFeedQuery(sort: FeedRanking | null, cursor: FeedCursor | null, limit: number, options: FeedQueryOptions = {}): string {
+  if (!Number.isSafeInteger(limit) || limit < 0 || (options.stable && (limit < 1 || limit > 1000))) throw new Error('Invalid feed limit');
+  if (sort && Object.values(sort).some((value) => typeof value !== 'number' || !Number.isFinite(value))) throw new Error('Invalid feed ranking');
+  if (options.rankingClockMs != null && (!Number.isSafeInteger(options.rankingClockMs) || options.rankingClockMs < 0 || options.rankingClockMs > 8640000000000000)) throw new Error('Invalid feed clock');
+  if (cursor?.score != null && (typeof cursor.score !== 'number' || !Number.isFinite(cursor.score))) throw new Error('Invalid feed cursor score');
   const s: FeedRanking = sort ?? { recency: 0, likes: 0, comments: 0, half_life_ms: 0, character: -1 };
   // The score's "reactions" signal is the TOTAL reaction count (likes + dislikes)
   // — the pre-3.101.0 `reaction_count`. 3.101.0 split the join into like_count /
   // dislike_count but left this reference pointing at the old column name, so any
   // tuned preset with a likes weight emitted a query referencing a non-existent
   // `eng.reaction_count` → ClickHouse error → the whole feed failed to load.
-  const score = powerMeanScoreSql('p.created_at', '(coalesce(eng.like_count, 0) + coalesce(eng.dislike_count, 0))', 'coalesce(cmt.comment_count, 0)', s);
+  const score = powerMeanScoreSql('p.created_at', '(coalesce(eng.like_count, 0) + coalesce(eng.dislike_count, 0))', 'coalesce(cmt.comment_count, 0)', s, options.rankingClockMs);
   // Newest (all-zero, or recency-only) → the cursor rides on created_at; a
   // tuned sort → the cursor rides on the score.
   const newest = (s.recency <= 0 && s.likes <= 0 && s.comments <= 0) || (s.recency > 0 && s.likes <= 0 && s.comments <= 0);
@@ -507,7 +526,16 @@ function buildFeedQuery(sort: FeedRanking | null, cursor: { created_at?: string;
   // backstop for the attached-ad join. Product docs (tagged `product`, D89)
   // are inventory too — the storefront is their public face, not a feed tile.
   const conditions = ["not has(p.tags, 'ad')", "not has(p.tags, 'product')"];
-  if (newest) {
+  if (options.tags?.length) conditions.push(...options.tags.map(tag => `has(p.tags, ${feedSqlString(tag)})`));
+  if (options.stable && cursor) {
+    if (typeof cursor.created_at !== 'string') throw new Error('Invalid feed cursor timestamp');
+    const cursorMs = Date.parse(cursor.created_at ?? '');
+    if (!Number.isFinite(cursorMs)) throw new Error('Invalid feed cursor timestamp');
+    if (!newest && cursor.score == null) throw new Error('Invalid feed cursor score');
+    const keys = `toUnixTimestamp64Milli(p.created_at), p.author_key, p.doc_id`;
+    const values = `${cursorMs}, ${feedSqlString(cursor.author_key!)}, ${feedSqlString(cursor.doc_id!)}`;
+    conditions.push(`tuple(${newest ? '' : `(${score}), `}${keys}) < tuple(${newest ? '' : `${cursor.score}, `}${values})`);
+  } else if (newest) {
     if (cursor?.created_at) {
       // ClickHouse requires DateTime64, not a String, in toUnixTimestamp64Milli.
       // Compare its millisecond integer with the cursor's UTC epoch directly.
@@ -519,7 +547,8 @@ function buildFeedQuery(sort: FeedRanking | null, cursor: { created_at?: string;
     conditions.push(`(${score}) < ${cursor.score}`);
   }
   const whereClause = `WHERE ${conditions.join(' AND ')} `;
-  const orderBy = newest ? 'toUnixTimestamp64Milli(p.created_at) DESC' : `${score} DESC`;
+  const orderBy = (newest ? 'toUnixTimestamp64Milli(p.created_at) DESC' : `${score} DESC`) +
+    (options.stable ? `${newest ? '' : ', toUnixTimestamp64Milli(p.created_at) DESC'}, p.author_key DESC, p.doc_id DESC` : '');
   // Every selected column carries an explicit alias. ClickHouse names a
   // result column after the qualified expression (`p.body`) whenever another
   // joined table in scope exposes a same-named column (the `eng`/`cmt`
@@ -560,7 +589,7 @@ function buildFeedQuery(sort: FeedRanking | null, cursor: { created_at?: string;
  * (minted by the prepare pass). Reuses `fromV3FeedPost` by shaping the row into
  * a V3FeedPost.
  */
-function fromFeedQueryRow(row: Record<string, unknown>): PostRecord {
+export function fromFeedQueryRow(row: Record<string, unknown>): PostRecord {
   const profileBody =
     typeof row.profile_body === 'string' && row.profile_body
       ? (JSON.parse(row.profile_body) as Record<string, unknown>)
@@ -684,11 +713,19 @@ async function readFeedEngagementCounts(
  */
 export async function readFeedPage(opts: {
   limit?: number;
-  cursor?: { created_at?: string; score?: number } | null;
+  cursor?: FeedCursor | null;
   knobState?: import('@/lib/powerMean').KnobState;
+  stable?: boolean;
+  rankingClockMs?: number;
+  isCurrent?: () => boolean;
+  groups?: string[];
+  tags?: string[];
 }): Promise<FeedPage> {
+  const current = () => { if (opts.isCurrent && !opts.isCurrent()) throw new Error('Feed scope ended'); };
+  current();
   const w = getV3Client();
-  const feedGroups = await getFeedGroups();
+  const feedGroups = opts.groups ?? await getFeedGroups();
+  current();
   console.log('[social-feed] readFeedPage — feed groups:', feedGroups.length, 'cursor:', JSON.stringify(opts.cursor ?? null));
 
   if (!feedGroups.length) {
@@ -698,7 +735,7 @@ export async function readFeedPage(opts: {
 
   const sort = opts.knobState ? knobStateToSort(opts.knobState) : null;
   const limit = opts.limit ?? 20;
-  const sql = buildFeedQuery(sort, opts.cursor ?? null, limit);
+  const sql = buildFeedQuery(sort, opts.cursor ?? null, limit, opts);
   // The prepare pass (D73): mint media + HLS + ads + the author's face so the
   // query returns render-ready rows in one round-trip. The D86 surface label +
   // content service: the node logs a delivery impression per returned post
@@ -713,6 +750,7 @@ export async function readFeedPage(opts: {
       face: { bodyField: 'profile_body', mediaField: 'avatar_ref', authorColumn: 'author_key', urlField: 'avatar_url' },
     },
   });
+  current();
   const posts = dropAdPosts(result.rows.map(fromFeedQueryRow));
   // The in-query reaction / comment joins are filtered to the feed's follower
   // groups, but the data lives in the discover group — so they return 0. Read
@@ -734,6 +772,7 @@ export async function readFeedPage(opts: {
           return {} as Record<string, { impressions: number; reach: number }>;
         }),
     ]);
+    current();
     for (const p of posts) {
       const id = p._id || '';
       if (counts.likes) p.likes = counts.likes[id] ?? 0;
@@ -746,13 +785,16 @@ export async function readFeedPage(opts: {
   const has_more = posts.length > limit;
   const page = posts.slice(0, limit);
   // The next cursor rides on the last row: created_at (Newest) or score (tuned).
-  let next_cursor: { created_at?: string; score?: number } | null = null;
+  let next_cursor: FeedCursor | null = null;
   if (has_more && page.length) {
     const last = page[page.length - 1];
-    next_cursor = sort ? { score: last.score ?? undefined } : { created_at: last.created_at };
+    next_cursor = opts.stable ? feedCursorFromPost(last) : sort ? { score: last.score ?? undefined } : { created_at: last.created_at };
   }
   console.log('[social-feed] readFeedPage — got', page.length, 'posts, has_more:', has_more);
-  return { posts: await resolvePostAuthors(page), has_more, next_cursor };
+  current();
+  const resolved = await resolvePostAuthors(page, opts.isCurrent);
+  current();
+  return { posts: resolved, has_more, next_cursor };
 }
 
 /**

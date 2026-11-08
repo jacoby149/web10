@@ -9,6 +9,9 @@ WORKDIR /app
 COPY marketing/web10-social/package.json marketing/web10-social/bun.lock* ./
 COPY sdk/package.json /sdk/package.json
 COPY sdk/dist/ /sdk/dist/
+# Repository-internal explicit transport, compiled into this app (no cookie-aware
+# SDK client or new public SDK export for foreign dispatch).
+COPY sdk/src/federatedTransport.ts /sdk/src/federatedTransport.ts
 # D74: the shared discover card is a local `file:../shared/discover` dep —
 # bun install (run in /app) resolves it to /shared/discover, so COPY
 # marketing/shared/ there (same pattern as the sdk/ COPY above).

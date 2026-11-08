@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 import { claimMediaPlayback } from '@web10/discover/media-recovery';
 import type { MusicTrack } from '@/data/feed';
 import { readMusicTrack } from '@/data/music';
-import { musicTitle, musicArtist } from '@/data/musicTrack';
+import { musicTitle, musicArtist, musicTrackKey } from '@/data/musicTrack';
 
 export type { MusicTrack } from '@/data/feed';
 type Repeat = 'off' | 'all' | 'one';
@@ -124,7 +124,7 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
   function select(track: MusicTrack, source?: MusicTrack[]) {
     const queue = source ? [...source] : [...snapshot.current.queue];
     let index = queue.indexOf(track);
-    if (index < 0) index = queue.findIndex(item => item.post._id === track.post._id);
+    if (index < 0) index = queue.findIndex(item => musicTrackKey(item) === musicTrackKey(track));
     if (index < 0) { index = queue.length; queue.push(track); }
     else queue[index] = track;
     resetTraversal(index, queue);
@@ -139,6 +139,11 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
   async function retry() {
     const s = snapshot.current;
     if (!s.current?.post._id) return;
+    if (s.current.readOnlySource) {
+      pause();
+      update({ error: 'This source cannot refresh playback yet. Reopen Music to load a fresh source URL.' });
+      return;
+    }
     pause();
     const generation = attempt.current;
     const element = audio.current;
@@ -193,7 +198,7 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
         }
         if (!remaining.current.length) { pause(); return; }
         // Preserve duplicate occurrences, but prefer a different track when available.
-        const alternatives = remaining.current.filter(i => s.queue[i].post._id !== s.current?.post._id);
+        const alternatives = remaining.current.filter(i => musicTrackKey(s.queue[i]) !== musicTrackKey(s.current!));
         const choices = alternatives.length ? alternatives : remaining.current;
         target = priority.current.shift() ?? choices[Math.floor(Math.random() * choices.length)];
         remaining.current.splice(remaining.current.indexOf(target), 1);

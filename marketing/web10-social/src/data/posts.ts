@@ -15,11 +15,19 @@ import { mentionedUsernames } from './mentions';
 import { sendNotification } from './notifications';
 
 /** Resolve group faces under their own readable groups, never as user profiles. */
-export async function resolvePostAuthors(posts: PostRecord[]): Promise<PostRecord[]> {
+export async function resolvePostAuthors(posts: PostRecord[], isCurrent?: () => boolean): Promise<PostRecord[]> {
+  const current = () => { if (isCurrent && !isCurrent()) throw new Error('Author scope ended'); };
+  current();
   const groups = [...new Set(posts.map((post) => post.author_key).filter((key): key is string => !!key?.includes('/groups/')))];
   if (!groups.length) return posts;
   const w = getV3Client();
-  const faces = await resolveFaceMedia(async (sql, scope, prepare) => (await w.query(sql, { groups: scope, prepare })).rows, GROUP_FACE_SQL, groups, 'group_id');
+  const faces = await resolveFaceMedia(async (sql, scope, prepare) => {
+    current();
+    const result = await w.query(sql, { groups: scope, prepare });
+    current();
+    return result.rows;
+  }, GROUP_FACE_SQL, groups, 'group_id');
+  current();
   return posts.map((post) => {
     if (!post.author_key?.includes('/groups/')) return post;
     const face = faces.get(post.author_key);

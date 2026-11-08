@@ -2,6 +2,8 @@ import { audioArtwork } from '@web10/discover/audio-artwork';
 import { mediaRefId, type PostRecord, type MediaRecord } from './types';
 
 export interface MusicTrack {
+  /** No home-node mutations/recovery for a track read from another source. */
+  readOnlySource?: boolean;
   post: PostRecord;
   media: MediaRecord;
   /** The resolved cover for this track — the shared album-art precedence
@@ -11,6 +13,7 @@ export interface MusicTrack {
   artworkUrl?: string;
 }
 
+export const musicTrackKey = (track: MusicTrack) => track.post.source_key || track.post._id;
 export const musicTitle = (track: MusicTrack) => track.post.title || track.post.text?.slice(0, 60) || 'Untitled track';
 export const musicArtist = (track: MusicTrack) => track.post.group_identity?.name || track.post.profile?.display_name || `@${track.post.author_username || 'Unknown artist'}`;
 

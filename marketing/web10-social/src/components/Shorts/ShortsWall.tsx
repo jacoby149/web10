@@ -5,6 +5,7 @@ import { readShortsPage, type ShortPost } from '@/data';
 import { HoverVideo } from '@web10/discover';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { postAuthor } from '@/lib/postAuthor';
+import { useTunedSurface, tunedShort, surfaceKey } from '@/components/Feed/useTunedSurface';
 
 const LOG = (...args: unknown[]) => console.log('[shorts-wall]', ...args);
 
@@ -25,6 +26,11 @@ const PAGE_SIZE = 50;
  * gate), so the wall and the lens show the same shorts.
  */
 export default function ShortsWall() {
+  const tuned = useTunedSurface('short');
+  return <div>{tuned.panel}<ShortsWallContent key={tuned.owner} tuned={tuned} /></div>;
+}
+
+function ShortsWallContent({ tuned }: { tuned: ReturnType<typeof useTunedSurface> }) {
   const navigate = useNavigate();
   const [shorts, setShorts] = useState<ShortPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,6 +73,7 @@ export default function ShortsWall() {
     : shorts;
 
   const load = useCallback(async () => {
+    if (tuned.enabled) return;
     setLoading(true);
     setError(null);
     try {
@@ -87,6 +94,7 @@ export default function ShortsWall() {
   // IntersectionObserver fires this). A full page means there may be another;
   // a short page is the last one.
   const loadMore = useCallback(async () => {
+    if (tuned.enabled) { await tuned.next(); return; }
     if (loadingMore || !hasMore) return;
     setLoadingMore(true);
     try {
@@ -108,7 +116,15 @@ export default function ShortsWall() {
     } finally {
       setLoadingMore(false);
     }
-  }, [loadingMore, hasMore]);
+  }, [loadingMore, hasMore, tuned.enabled, tuned.next]);
+
+  useEffect(() => {
+    if (!tuned.enabled) return;
+    setShorts(tuned.posts.flatMap(post => { const short = tunedShort(post); return short ? [short] : []; }));
+    setLoading(tuned.loading && !tuned.posts.length);
+    setLoadingMore(tuned.loading && !!tuned.posts.length);
+    setHasMore(tuned.hasMore);
+  }, [tuned.enabled, tuned.posts, tuned.loading, tuned.hasMore]);
 
   useEffect(() => {
     load();
@@ -169,6 +185,7 @@ export default function ShortsWall() {
           <p className="text-xs text-muted-foreground max-w-52">
             Vertical videos (9:16) you post will appear here.
           </p>
+          {tuned.enabled && tuned.hasMore && <button type="button" disabled={tuned.loading} onClick={tuned.next} className="min-h-11 rounded border border-border px-4 text-sm text-foreground focus-visible:ring-2 focus-visible:ring-ring">Look for more shorts</button>}
         </div>
       </div>
     );
@@ -225,11 +242,11 @@ export default function ShortsWall() {
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
         {visibleShorts.map((short) => (
           <button
-            key={short.post._id}
+            key={surfaceKey(short.post)}
             type="button"
             data-testid={`short-wall-tile-${short.post._id}`}
             aria-label={`Watch short by ${postAuthor(short.post).name}`}
-            onClick={() => navigate(`/shorts/${short.post._id}`)}
+            onClick={() => { const next = new URLSearchParams(searchParams); if (short.post.source_origin) next.set('source', short.post.source_origin); navigate({ pathname: `/shorts/${encodeURIComponent(short.post._id || '')}`, search: next.toString() }); }}
             className="relative aspect-[9/16] w-full bg-elevated overflow-hidden rounded-lg group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset text-left"
           >
             {/* The hover preview (the Video wall's "best of both worlds",
