@@ -37,6 +37,8 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
+- [✓ 4.19.0 local component; integration OPEN] **FM5 server-mixer component split** — controlled horizontal faders, fetch-budget allocator/mute/tie rotation and sanitized URL codecs. Owns `ServerMixer.tsx`, `lib/serverMixer.ts` and focused tests. Not attached to Following/settings/real request quotas; desktop/375px preview is component evidence, not a working multi-node feed. Backend/SDK are separate PRs.
+
 - [✓ 4.16.4 local; CI gate pending] **Discover identity/count enrichment race** — merge background counts into current post objects without dropping settled identity or newer human reaction counts; generation/reader/acting fences retained. Controlled lost-count and human-swap regressions plus 70 Discover tests/build pass; desktop/375px board inspected. PR #1426 CI must pass; no deployment or check waiver.
 
 - [✓ 4.12.14 local] **Name the DMCA designated agent** - Terms names Jacob Hoffman alongside unchanged `jacob@web10.app`; no other Terms text or Post-It Note process changes. Focused regression aligned. Separate Copyright Office registration and production publication verification are not completed by this repo edit.
