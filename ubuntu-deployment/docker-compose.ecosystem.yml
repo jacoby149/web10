@@ -87,6 +87,7 @@ services:
       - "host.docker.internal:host-gateway"
     environment:
       PROVIDER: ${PROVIDER:?set PROVIDER, e.g. api.dev.web10.app}
+      READABLE_RESOLUTION_MODE: "${READABLE_RESOLUTION_MODE:-batched}"
       CLICKHOUSE_HOST: ${STACK}-clickhouse
       CLICKHOUSE_PORT: 8123
       S3_ENDPOINT: http://${STACK}-minio:9000

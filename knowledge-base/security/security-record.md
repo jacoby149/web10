@@ -15,6 +15,18 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Production readable-resolution promotion (08.11.2026) — bounded local, OPEN
+
+GPT-6.1 Sol checks the generic helper/query selection, validated production
+setting, bounded batched candidate SQL and deployment/research wiring. The
+[bounded record](scans/2026-11/readable-resolution-default.md) retains the
+performance regression, independent expected permission sets, real ClickHouse
+24.8.14.39 Memory-history differential results and command budgets. All 2,089 API
+tests plus eight subtests pass with one opt-in skip. This is changed-hunk/direct
+call-path coverage, not full-file L1–L4 closure. Real MergeTree lifecycle,
+concurrent permission mutations, diverse review and approved deployment/load
+verification remain OPEN; no authorization-policy tightening or production claim.
+
 ## Link-unfurl SSRF surface (07.11.2026) — bounded local, OPEN
 
 A new browser-facing external-fetch seam: `GET /preview/unfurl?url=…` on the

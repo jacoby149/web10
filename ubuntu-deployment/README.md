@@ -224,6 +224,13 @@ after deployment. Do not run broad prune or DNS deletion commands as cleanup.
 
 ## Promotion flow (dev → prod)
 
+The API defaults `READABLE_RESOLUTION_MODE` to `batched`; the canonical Compose
+forwards it to API only. A per-stack `READABLE_RESOLUTION_MODE=per-group` is an
+authorization-preserving rollback, applied through the normal approved API
+release/recreate procedure. No research bypass/stub flags are forwarded. Check
+the running mode and permission controls in dev before production promotion;
+source/config wiring alone is not evidence this optimization is deployed.
+
 Keep it manual-button simple until E4 (automated provisioning):
 
 1. **Merge to `dev` branch** → redeploy the `web10-dev` stack

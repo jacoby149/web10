@@ -347,14 +347,12 @@ def run_query(request: Request, data: QueryRequest):
     if settings.QUERY_EVAL_NO_POLICY:
         readable = {svc: list(candidates) for svc in needed}
     else:
-        # QUERY_EVAL_READABLE_MODE selects the resolution algorithm: "per-group"
-        # (the current O(K) round-trip path) or "batched" (the O(1)-round-trip
-        # readable_groups_batched). Both have identical semantics; the
-        # experiment plots both against K to show the bottleneck + the fix.
-        # Referenced as ch.<name> (attribute lookup at call time) so the test
-        # patches on the clickhouse module apply to whichever is chosen.
+        # An explicit research override selects a named reference algorithm;
+        # otherwise use the production helper and its validated rollback setting.
         if settings.QUERY_EVAL_READABLE_MODE == "batched":
             _resolve = ch.readable_groups_batched
+        elif settings.QUERY_EVAL_READABLE_MODE == "per-group":
+            _resolve = ch.readable_groups_per_group
         else:
             _resolve = ch.readable_groups
         readable = {svc: _resolve(reader_principal, svc, authenticated, candidates) for svc in needed}
@@ -417,13 +415,14 @@ def run_query(request: Request, data: QueryRequest):
 
     diagnostic_id = uuid4().hex
     log.info(
-        "[query] id=%s services=%d group_meta=%s candidates=%d shape=%s compiled_shape=%s",
+        "[query] id=%s services=%d group_meta=%s candidates=%d shape=%s compiled_shape=%s resolver=%s",
         diagnostic_id,
         len(needed),
         bool(data.withGroupMeta),
         len(candidates),
         _query_shape(data.sql),
         _query_shape(compiled),
+        settings.QUERY_EVAL_READABLE_MODE or settings.READABLE_RESOLUTION_MODE,
     )
 
     t7 = time.perf_counter()

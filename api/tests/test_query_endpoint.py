@@ -611,18 +611,21 @@ class TestEvaluationSeams:
     def setup_method(self):
         query_ep._query_log.clear()
 
-    def test_flags_default_off_leaves_path_unchanged(self, client, token):
-        # With no flag set, the per-group readable path + real execute run.
+    @pytest.mark.parametrize("mode", ["batched", "per-group"])
+    def test_flags_default_off_uses_production_selection_and_real_execute(self, client, token, monkeypatch, mode):
+        monkeypatch.setattr(settings, "QUERY_EVAL_READABLE_MODE", "")
+        monkeypatch.setattr(settings, "READABLE_RESOLUTION_MODE", mode)
         with (
             patch("app.v3.services.clickhouse.get_user_groups", return_value=[{"group_id": "g1"}]),
-            patch("app.v3.services.clickhouse.readable_groups", return_value=["g1"]) as mock_pg,
+            patch("app.v3.services.clickhouse.readable_groups_per_group", return_value=["g1"]) as mock_pg,
             patch("app.v3.services.clickhouse.readable_groups_batched", return_value=["g1"]) as mock_batched,
             patch("app.v3.services.clickhouse.execute_query", return_value=(["doc_id"], [("d1",)])) as mock_exec,
         ):
             resp = client.post("/v3/query", json={"token": token, "sql": "SELECT doc_id FROM posts"})
         assert resp.status_code == 200
-        mock_pg.assert_called()  # per-group is the default
-        mock_batched.assert_not_called()
+        selected, other = (mock_batched, mock_pg) if mode == "batched" else (mock_pg, mock_batched)
+        selected.assert_called_once_with("testuser", "posts", True, ["g1"])
+        other.assert_not_called()
         mock_exec.assert_called()  # real scan, not the stub
 
     def test_stub_execute_returns_fixed_rows_and_skips_scan(self, client, token, monkeypatch):
@@ -678,6 +681,7 @@ class TestEvaluationSeams:
         assert resp.status_code == 200  # not the 403 the policy path would raise
 
     def test_batched_mode_calls_batched_not_per_group(self, client, token, monkeypatch):
+        monkeypatch.setattr(settings, "READABLE_RESOLUTION_MODE", "per-group")
         # readable mode "batched" routes to readable_groups_batched, not the
         # per-group loop — the experiment plots both against K.
         monkeypatch.setattr(settings, "QUERY_EVAL_READABLE_MODE", "batched")
@@ -692,13 +696,12 @@ class TestEvaluationSeams:
         mock_batched.assert_called()  # the batched path is used
         mock_pg.assert_not_called()  # the per-group loop is not
 
-    def test_per_group_mode_is_the_default_algorithm(self, client, token, monkeypatch):
-        # readable mode "per-group" (the explicit default) routes to the
-        # per-group loop — pinning that the default is unchanged.
+    def test_explicit_research_per_group_overrides_production_default(self, client, token, monkeypatch):
+        monkeypatch.setattr(settings, "READABLE_RESOLUTION_MODE", "batched")
         monkeypatch.setattr(settings, "QUERY_EVAL_READABLE_MODE", "per-group")
         with (
             patch("app.v3.services.clickhouse.get_user_groups", return_value=[{"group_id": "g1"}]),
-            patch("app.v3.services.clickhouse.readable_groups", return_value=["g1"]) as mock_pg,
+            patch("app.v3.services.clickhouse.readable_groups_per_group", return_value=["g1"]) as mock_pg,
             patch("app.v3.services.clickhouse.readable_groups_batched", return_value=["g1"]) as mock_batched,
             patch("app.v3.services.clickhouse.execute_query", return_value=(["doc_id"], [("d1",)])),
         ):

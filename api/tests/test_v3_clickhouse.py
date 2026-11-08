@@ -8,6 +8,9 @@ import re
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+from app import settings
 from app.v3.services import clickhouse as ch
 
 # ---------------------------------------------------------------------------
@@ -1490,6 +1493,11 @@ class TestResolvePinnedAdsServiceAgnostic:
 
 
 class TestCanReadCarrierPost:
+    @pytest.fixture(autouse=True)
+    def scalar_gate_fixture(self, monkeypatch):
+        # These carrier-shape tests stub can_read_group, not metadata tables.
+        monkeypatch.setattr(settings, "READABLE_RESOLUTION_MODE", "per-group")
+
     def test_true_when_reader_can_read_a_carrier_post_group(self):
         """D68 — the cross-user feed path: a post (by the media's author)
         carries the media doc and the reader can read one of the post's

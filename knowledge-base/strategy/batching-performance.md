@@ -24,7 +24,9 @@ At K1 Discover, batched readable was slower (25.370 versus 9.525 ms).
 `research/experiments/costfn/K1000-RESULTS.md` records the single-trial limitations.
 It excludes full feed enrichment, media preparation, browser latency and the
 Origin app-contract gate. These numbers do not measure the proposals below.
-The existing batch resolver is an evaluation option, not production promotion.
+The original trial used an evaluation option. The operator-requested production
+helper promotion is locally implemented in 4.16.3 with explicit rollback; this
+does not establish deployment or turn the historical trial into a current result.
 
 Do not replace Python `for` loops indiscriminately. In-memory permission checks,
 mapping and offline URL signing can remain loops. `Promise.all` overlaps calls;
@@ -74,16 +76,25 @@ traffic measurement. Each checkbox remains open until its own gates pass.
   `app/v3/endpoints/documents.py:290` (`read_documents`), and
   `app/v3/services/clickhouse.py` (`readable_groups`, `can_read_group`,
   `effective_role_perms`, `readable_groups_batched`). K groups times S services
-  currently repeat scalar checks; even all-membership candidates cost S*K member
-  queries. Non-members add contract/class lookups. Existing batching uses three
-  queries per service, not three for an entire multi-service request.
-- [ ] B01a: differential scalar/batch tests for membership, reserved principals,
+  repeated scalar checks at the original audit; even all-membership candidates
+  cost S*K member queries. The 4.16.3 helper promotion replaces those calls with
+  byte-bounded batch chunks: one query for all-member chunks, otherwise up to
+  three per service/chunk, not three for an entire multi-service request.
+- [✓ 4.16.3 local] Production default: generic helper and query selection,
+  validated rollback, explicit research references, byte-bounded chunks and
+  one-query all-member chunks. Twelve real ClickHouse Memory-history parity
+  combinations and member K1/10/100/1000 budgets pass. See
+  `../security/scans/2026-11/readable-resolution-default.md` for scope and exclusions.
+- [ ] B01a remaining: differential scalar/batch tests for membership, reserved principals,
   wildcard/service grants, revoked/tombstoned groups and D42 explicit-group denial;
-  establish command budgets and the K1 tradeoff.
-- [ ] B01b: promote the verified resolver on query reads with an explicit small-K
-  policy; do not enable no-policy/stub evaluation flags in production.
-- [ ] B01c: independently wire ordinary document/group reads and carrier readers
-  after equivalence gates. Preserve duplicate/order behavior and unreadable groups.
+  extend local Memory-history evidence to real schema/merge lifecycle and pin
+  mixed/public command budgets and the K1 tradeoff.
+- [ ] B01b remaining: approved dev/production verification of the promoted query
+  resolver, mixed-public crossover/load and diverse review; no guessed small-K
+  cutoff, no no-policy/stub evaluation flags in production.
+- [ ] B01c remaining: verify ordinary document/group and carrier reads under the
+  promoted shared-helper default on the real schema; the helper already routes
+  existing callers. Preserve duplicate/order behavior and unreadable groups.
 - Acceptance: high-K policy DB round trips bounded by service count/chunks,
   no permission widening, connected full-feed evidence separate from the paper.
 

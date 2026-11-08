@@ -110,6 +110,16 @@ print(json.dumps({'enabled':s.MEDIA_DELIVERY_ENABLED,'ttl':s.MEDIA_DELIVERY_TTL,
 
 
 @pytest.mark.parametrize("example", ["env.dev.example", "env.prod.example"])
+@pytest.mark.parametrize("mode", [None, "batched", "per-group"])
+def test_readable_resolver_default_and_rollback_are_api_only(tmp_path, example, mode):
+    config = render(tmp_path, example, {"READABLE_RESOLUTION_MODE": mode} if mode else {})
+    api = config["services"]["api"]["environment"]
+    assert api["READABLE_RESOLUTION_MODE"] == (mode or "batched")
+    assert "QUERY_EVAL_NO_POLICY" not in api and "QUERY_EVAL_STUB_EXECUTE" not in api
+    assert "READABLE_RESOLUTION_MODE" not in json.dumps({k: v for k, v in config["services"].items() if k != "api"})
+
+
+@pytest.mark.parametrize("example", ["env.dev.example", "env.prod.example"])
 @pytest.mark.parametrize("omitted", [True, False], ids=["old-env-file", "documented-defaults"])
 def test_disabled_defaults_keep_existing_delivery(tmp_path, example, omitted):
     environment = render(tmp_path, example, omitted=omitted)["services"]["api"]["environment"]
