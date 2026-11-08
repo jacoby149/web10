@@ -46,7 +46,12 @@ auth/storage doubles and confirms both shape/hidden-link repairs. Original split
 full social suite passes 2,217 tests in 148 files; refreshed-dev build passes.
 The first full run timed out in an infinite-scroll case; the unchanged full rerun
 passes, without a timeout/config/assertion change or pre-existing-failure claim.
-Refreshed-dev suite and remaining reviews/checks are still being collected.
+Refreshed-dev suite passes all 2,240 tests in 150 files; build/typecheck passes.
+Two further fresh bounded reviews `ses_e444e586bffe8C4y1qdAwwY6qq` and
+`ses_e444d2a24ffexKS1jdv6Xa243V` independently pass all 17 focused controls and
+are DRY. These are three consecutive fresh same-family dry reviews after repair,
+not model-diverse approval. Draft PR #1440 has no conflict; every CI check remains
+the publication/readiness gate, and no merge is requested.
 Review is bounded L1/L2, not a whole-surface security PASS. Independent
 model diversity, full L3/L4 coverage, actual browser/two-node Origin/app grants,
 concurrent storage lifecycle and consumer integration remain OPEN. Normal PR
