@@ -52,6 +52,14 @@ disconnect/reconnect races. Use a separate encryption key/private conditional
 state, never a JWT key or public media bucket. Same-family local review and real
 MinIO CAS evidence do not prove Google approval, inbox delivery or deployed logs.
 
+The read-only release preflight likewise reports the API's setup flags, not an
+independent check of sender credentials, bucket privacy or reset login. Its
+default is network-free even with credentials; explicit status reads use a fixed
+HTTPS origin/action, no redirects/cookies, bounded responses and only known
+booleans/provider in receipts. Unknown fields and sender addresses are discarded,
+and dependency errors are replaced rather than forwarded. Seven offline tests
+and three fresh same-family scoped dry reviews retain the live-transport gate.
+
 ### 2026-11-08: JSON serialization can replace a transport-owned credential
 
 The [isolated transport](scans/2026-11/explicit-node-transport.md) rejects root

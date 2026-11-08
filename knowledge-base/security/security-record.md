@@ -17,6 +17,13 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 
 ## API contact delivery (08.11.2026) — bounded local, OPEN
 
+#1435 is merged; all functional CI passed but its method-size check failed.
+This is not a general gate waiver. A bounded 5.4.1 read-only preflight follow-up
+has seven offline controls and no live requests; it reports configuration only,
+not independent storage/provider/reset acceptance.
+Three fresh same-family scoped preflight reviews are dry; model-diverse sign-off
+and actual transport/live acceptance remain separate OPEN gates.
+
 Gmail/SendGrid/optional SMS provider setup, encrypted private conditional S3 state,
 single-use email link/code exchange and configured-issuer recovery ownership.
 Backend-first new-module inspection and targeted direct-seam tests; broader L2–L4,
