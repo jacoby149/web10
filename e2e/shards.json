@@ -28,6 +28,7 @@
         "social-groups-directory.spec.ts",
         "social-post-feed.spec.ts",
         "social-saved.spec.ts",
+        "social-server-mixer.spec.ts",
         "discover-board.spec.ts"
       ]
     },
