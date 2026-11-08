@@ -1,5 +1,10 @@
 # Sixth-draft decisions — 6 November 2026
 
+> Latest 7 November follow-up: runnable V2 preparation and approved MinIO
+> publication now have source-bound local receipts. See the final entry below
+> and `../experiments/costfn/RUNNING-V2.md`. The earlier setup-only paragraph is
+> history; actual sized-host execution and manuscript results remain open.
+
 ## Source, scope, and current status
 
 7 November operator update: setup and scientific design validation only, not
@@ -479,3 +484,17 @@ exclusivity claim; importance is calibrated to the dated operating point.
 Those are editorial assessments, not acceptance guarantees or measured
 awe scores. No new capacity, security, economic, comparative-performance,
 or production-network result.
+## 7 November — runnable V2 preparation, not new manuscript measurements
+
+The operator requests fixes before execution and approves the exact immutable
+web10 MinIO prefix. The V2 hot/dispersed relational datasets and live core-feed,
+paired resolver, lifecycle/correlation/resource preparation receipts are in
+`../experiments/costfn/evidence/V2-README.md`; run protocol is `RUNNING-V2.md` in
+that directory. Actual preflight found unsupported QUALIFY on the legacy 24.3
+image and a real String-to-DateTime64 cursor error. New core evidence uses 24.8;
+the operator-authorized app cursor fix is source-pinned separately from history.
+
+The two-reader/three-pair floor is functional acceptance, not replacement
+performance data. `main.tex`, historical curves/table values and all earlier
+drafts remain unchanged. Actual large restore, separate-host headroom, approved
+budget/lifetime cleanup and independent repeated studies remain open.

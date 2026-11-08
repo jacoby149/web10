@@ -1,5 +1,12 @@
 # Preregistered study proposal — SETUP ONLY
 
+> **Follow-up:** the operator subsequently authorizes preparation, new offline
+> inputs, local functional acceptance and publication under the approved MinIO
+> prefix. [READYING.md](READYING.md) and [RUNNING-V2.md](RUNNING-V2.md) define that
+> implementation and receipt gates. This original proposal remains the design
+> history; its “unimplemented” statements below describe the 4.13.0 review, not
+> current tooling. No paid study execution or production rollout is implied.
+
 7 November 2026. Operator: “set up this experiment not run it, and then validate,
 is this testing what we actually want to test, and is this get us what we need
 to be at that sigmod industry grade”. **This supersedes the earlier run approval.**

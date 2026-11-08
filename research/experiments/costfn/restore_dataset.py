@@ -23,12 +23,15 @@ import dataset
 HERE = Path(__file__).resolve().parent
 
 
-def compose_command(project, port):
+def compose_command(project, port, research=False):
     if not re.fullmatch(r"web10-costfn-frozen-[a-z0-9-]{1,32}", project):
         raise ValueError("project must be a dedicated web10-costfn-frozen-* name")
     if not 1024 <= port <= 65535:
         raise ValueError("use an unprivileged localhost port")
-    return ["docker", "compose", "-f", str(HERE / "compose.yml"), "-p", project]
+    command = ["docker", "compose", "-f", str(HERE / "compose.yml")]
+    if research:
+        command += ["-f", str(HERE / "research.compose.yml")]
+    return command + ["-p", project]
 
 
 def run(command, env, data=None):
@@ -69,8 +72,10 @@ def api_json(base, path, payload):
         return json.load(response)
 
 
-def counts(compose, env):
-    return {table: int(ch(compose, env, f"SELECT count() FROM {table}")) for table in dataset.TABLES}
+def counts(compose, env, tables=dataset.TABLES):
+    if not set(tables) <= {*dataset.TABLES, "app_contracts"}:
+        raise ValueError("unknown fixture tables")
+    return {table: int(ch(compose, env, f"SELECT count() FROM {table}")) for table in tables}
 
 
 def check_empty_target(compose, env):
@@ -85,7 +90,7 @@ def check_empty_target(compose, env):
 
 
 def import_table(compose, env, directory, table):
-    if table not in dataset.TABLES:
+    if table not in (*dataset.TABLES, "app_contracts"):
         raise ValueError("table is not in the fixed import allowlist")
     command = compose + ["exec", "-T", "clickhouse", "clickhouse-client", "--user", "web10",
                          "--password", "web10", "--database", "web10", "--query",
@@ -118,13 +123,13 @@ def correctness(base, manifest):
     return {"login": True, "ordered_public_query_rows": len(wanted), "scope": "Public microbenchmark fixture only; no private/Origin/full-feed/concurrency assurance."}
 
 
-def restore(directory, project, port, receipt, expected_id=None):
+def restore(directory, project, port, receipt, expected_id=None, fixture=dataset, checker=correctness, research=False):
     start = time.monotonic()
-    compose = compose_command(project, port)
+    compose = compose_command(project, port, research=research)
     receipt = Path(receipt)
     if receipt.exists():
         raise FileExistsError("refusing to overwrite a restore receipt")
-    verified = dataset.validate(directory)  # all hashes/relationships BEFORE Docker writes
+    verified = fixture.validate(directory)  # all hashes/relationships BEFORE Docker writes
     if expected_id is not None and verified["dataset_id"] != expected_id:
         raise ValueError("dataset differs from the independently approved/pinned identity")
     manifest = json.loads((directory / "manifest.json").read_bytes())
@@ -149,17 +154,23 @@ def restore(directory, project, port, receipt, expected_id=None):
         raise ValueError("node provider differs from frozen group identifiers")
     run(compose + ["stop", "api"], env)
     baseline = check_empty_target(compose, env)
-    for table in dataset.TABLES:
+    if fixture.TABLES != dataset.TABLES:
+        for table in set(fixture.TABLES) - set(dataset.TABLES):
+            baseline[table] = int(ch(compose, env, f"SELECT count() FROM {table}"))
+            if baseline[table]:
+                raise ValueError("target contains existing app contracts")
+    for table in fixture.TABLES:
         print(f"[restore] importing {table}", flush=True)
         import_table(compose, env, directory, table)
-    after = counts(compose, env)
-    if after != {table: baseline[table] + verified["rows"][table] for table in dataset.TABLES}:
+    after = counts(compose, env, fixture.TABLES)
+    if after != {table: baseline[table] + verified["rows"][table] for table in fixture.TABLES}:
         raise ValueError("restored row counts differ; target is partial, not a valid trial input")
     run(compose + ["start", "api"], env)
     wait_for(lambda: urllib.request.urlopen(base + "/docs", timeout=5).status == 200, "restored API")
-    check = correctness(base, manifest)
+    check = checker(base, manifest)
     receipt.parent.mkdir(parents=True, exist_ok=True)
     result = {**verified, "complete": True, "project": project, "api": base, "api_port": port,
+              "research_observer": research,
               "counts_before": baseline, "counts_after": after, "correctness": check,
               "preparation_seconds": round(time.monotonic() - start, 3),
               "clickhouse_version": ch(compose, env, "SELECT version()").decode().strip()}
