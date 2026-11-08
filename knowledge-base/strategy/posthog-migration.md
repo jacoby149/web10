@@ -68,7 +68,9 @@ failed on a literal `%` in a parameterized LIKE; the corrected real SQL passes,
 with owned-container cleanup verified. Unit controls replay crash-before-ack with
 the same vendor event UUID and deny forged/expired/foreign/anon/deleted/revoked
 identity requests. Report provisioning and a five-campaign maturity oracle have
-offline tests; **live HogQL execution remains unverified**.
+offline tests; **live HogQL execution verified 08.11.2026 against project
+720098 via the Query API** (all five definitions execute; 0 rows — collection
+not yet enabled — so cohort reconciliation awaits real data).
 
 Third-party hosting is not an independent audit. Public project ingestion can be
 forged; a `capture_origin=server` field is a convention, not a vendor-enforced
@@ -84,7 +86,7 @@ across devices when only anonymous visits were observed.
 | P1 contract | Concrete runtime/metric defaults in telemetry.md | Region, actual project access/permissions, retention/deletion procedure, sampling, limits, spend/exclusions and legal activation review |
 | P2 capture/config | Merged | Independent boundary review and actual integrated route lifecycle/collection-health checks |
 | P3 identity/outcomes | Merged | Connected popup/signup/recovery, multi-tab/picker/logout, real process outage/restart/retry and actual vendor identity/event reconciliation |
-| P4 reports/replay | Provisioning and masked capture implemented | Explicitly approved vendor apply; execute actual HogQL and reconcile expected cohorts, inspect vendor playback/heatmaps, restrict investor access |
+| P4 reports/replay | Provisioning and masked capture implemented | Vendor apply done 08.11.2026 (managed dashboard 2321231 + five reports; live HogQL execution clean, 0 rows pre-collection). Remaining: reconcile expected cohorts once data flows, inspect vendor playback/heatmaps, restrict investor access |
 | P5 connected acceptance | Floors pass; connected-acceptance harness ready (`scripts/posthog-connected-check.mjs`, 5.0.3, offline-tested) | Live harness run against a deployed node + real project: full app/auth/SDK/API/ClickHouse/PostHog fixture→facts→events/persons→reports/export agreement, live HogQL execution of the five reports, failure/quota behavior and independent review |
 | P6 retirement/rollout | Legacy code/config wiring removed | Approved normal deployment, deployed revision/config, five final links on physical-phone Instagram plus desktop/Safari and explicit collection-gap/rollback receipt |
 

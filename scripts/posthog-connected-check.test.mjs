@@ -59,7 +59,7 @@ function syntheticNode(posthog) {
       return response({ enabled: true, distinct_id: DISTINCT, acquisition: state.properties });
     }
     if (url.endsWith('/admin/analytics/health')) return response({ sent: 1, failed: 0, complete: true, checked_at: '2026-11-08T12:00:00Z' });
-    if (url.startsWith('https://us.posthog.com/api/projects/4242/insights/query/')) return response(await posthog(body.data.query, state));
+    if (url === 'https://us.posthog.com/api/projects/4242/query') return response(await posthog(body.query.query, state));
     throw new Error(`unexpected request: ${url}`);
   };
   return { fetcher, calls, state };
@@ -67,8 +67,8 @@ function syntheticNode(posthog) {
 
 test('happy path: canonical journey agrees with the independent UUID oracle, and no credential leaks into the receipt', async () => {
   const node = syntheticNode((query, state) => {
-    if (query.includes('account_created')) return { result: { results: [{ data: [{ uuid: EXPECTED_EVENT, properties_capture_origin: 'server', properties_attribution_status: 'attributed', properties_utm_campaign: state.properties.utm_campaign, at: '2026-11-08 12:00:00' }] }] } };
-    return { result: { results: [{ data: [{ campaign: state.properties.utm_campaign, new_accounts: 1 }] }] } };
+    if (query.includes('account_created')) return { results: [[EXPECTED_EVENT, 'server', 'attributed', state.properties.utm_campaign, '2026-11-08 12:00:00']], columns: ['uuid', 'properties_capture_origin', 'properties_attribution_status', 'properties_utm_campaign', 'at'] };
+    return { results: [[state.properties.utm_campaign, 1]], columns: ['campaign', 'new_accounts'] };
   });
   const fetcher = node.fetcher;
   const receipt = await connectedCheck({ env: ENV, fetcher, now: () => '2026-11-08T12:00:00Z' });
@@ -86,7 +86,7 @@ test('happy path: canonical journey agrees with the independent UUID oracle, and
 });
 
 test('missing canonical outcome fails with the reconciliation pointer, not a silent pass', async () => {
-  const { fetcher } = syntheticNode(() => ({ result: { results: [{ data: [] }] } }));
+  const { fetcher } = syntheticNode(() => ({ results: [], columns: ['uuid'] }));
   await assert.rejects(
     connectedCheck({ env: ENV, fetcher, now: () => '2026-11-08T12:00:00Z', deadlineMs: 1 }),
     /account_created did not arrive.*admin\/analytics\/health/);
@@ -102,10 +102,10 @@ test('identity secret not provisioned fails before any signup', async () => {
 
 test('report HogQL failure marks the receipt incomplete and names the report', async () => {
   const { fetcher } = syntheticNode((query, state) => {
-    if (query.includes('account_created')) return { result: { results: [{ data: [{ uuid: EXPECTED_EVENT, properties_capture_origin: 'server', properties_attribution_status: 'attributed', properties_utm_campaign: state.properties.utm_campaign, at: 'x' }] }] } };
+    if (query.includes('account_created')) return { results: [[EXPECTED_EVENT, 'server', 'attributed', state.properties.utm_campaign, 'x']], columns: ['uuid', 'properties_capture_origin', 'properties_attribution_status', 'properties_utm_campaign', 'at'] };
     // 'Signed-in foreground activity' carries uniqExact(distinct_id) AS active_accounts
     if (query.includes('uniqExact(distinct_id) AS active_accounts')) throw new Error('HogQL query failed (500)');
-    return { result: { results: [{ data: [{}] }] } };
+    return { results: [[{}]], columns: ['x'] };
   });
   await assert.rejects(
     connectedCheck({ env: ENV, fetcher, now: () => '2026-11-08T12:00:00Z' }),
