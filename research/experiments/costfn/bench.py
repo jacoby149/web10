@@ -410,6 +410,8 @@ def main():
                     lines[("B", mode)]["_records"], lines[("A", "n/a")]["_records"])
 
     report = {
+        "dataset_id": manifest.get("dataset_id"),
+        "dataset_generator_sha256": manifest.get("generator_sha256"),
         "order_seed": args.order_seed,
         "warmup_per_cell": args.warmup,
         "comparison_scope": "Historical B-minus-A key is a pipeline-versus-direct-scan delta, NOT paired causal authorization overhead.",

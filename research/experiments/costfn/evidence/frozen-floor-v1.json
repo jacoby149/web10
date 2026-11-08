@@ -1,0 +1,31 @@
+{
+  "status": "PASS_LOCAL_RESTORE_AND_FUNCTIONAL_SMOKE",
+  "scope": "ARM64/8GB local Docker; one sample per cell, not performance, million-row import, private-policy or capacity evidence.",
+  "source_base": "214d30c23a2af13482bf550c8c5210da41340c91",
+  "api_tree": "8514237cfee630678883b4ceba8c014bc10728f7",
+  "dataset_id": "f8ea68bd2cc22a94c622174507671d1eb54361c45d9a7a0ddae7f3412dbcb50f",
+  "recipe": {"creators": 10, "follow": 10, "readers": 2, "seed": 42},
+  "clickhouse_version": "24.3.18.7",
+  "input_rows": {"users": 12, "documents": 20, "doc_groups": 20, "group_contracts": 11, "group_members": 64},
+  "boot_rows": {"users": 0, "documents": 0, "doc_groups": 0, "group_contracts": 1, "group_members": 1},
+  "restored_rows": {"users": 12, "documents": 20, "doc_groups": 20, "group_contracts": 12, "group_members": 65},
+  "login": true,
+  "exact_ordered_public_query_rows": 10,
+  "matrix_cells": 10,
+  "measured_samples_per_cell": 1,
+  "separately_retained_excluded_warmups_per_cell": 1,
+  "dataset_identity_matched_in_restore_input_receipt_and_report": true,
+  "restore_exit": 0,
+  "functional_smoke_exit": 0,
+  "cleanup_exit": 0,
+  "remaining_project_volumes": [],
+  "source_sha256": {
+    "dataset.py": "f0c6d148a57f0c45395dac9d79e250ea8830321537601451d03def872c520dc6",
+    "restore_dataset.py": "8178d682e2ff98b1f1ee823f22c2a5e7cdae8b753c2c5e45c015c45dd26a3163",
+    "measure_dataset.py": "25ca6ba507855117c510dd29000e7ef784c64c9e1896808bb7638ed3b2b1c44e",
+    "bench.py": "b171ca462a6f14aa90e4d5e077b3160a658d12fd5a0d50bf6cdf0425cbae21b7",
+    "compose.yml": "6d7a7072e06ddd5c0b4f521065bcd286add3efc5347b56f34bd5fde1aa38ca29"
+  },
+  "local_receipts": ".context/datasets/floor-guarded-restore.json, floor-guarded-smoke/, floor-guarded-status.json",
+  "initial_failure": "Checker expected storage-string body, but real query endpoint parses body as JSON; checker repaired without API changes; earlier logs retained."
+}

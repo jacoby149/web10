@@ -35,6 +35,24 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-07: Current membership and attachment do not establish creative visibility
+
+The [pinned-hidden evidence](scans/2026-11/h01-pinned-hidden-proof.md) executes
+the actual compiler boundary and pinned-loader SQL on the same synthetic snapshot.
+A current moderator hide excludes the creative from the boundary, yet registered
+read enrichment returns its body and an independently verified synthetic SigV4
+capability. Both personal and group authors reproduce; newer unhide and unrelated
+document/group hides retain permitted delivery. Six cases pass on SQLite and
+isolated ClickHouse-local Memory tables. These are disclosure assertions, not a
+repair. Fresh same-family review confirms the mismatch but blocks security
+classification/repair pending explicit same-group/cross-group pinned-hide policy
+and alternate-visible-group/crossed-grant controls. D59 hiding is group curation,
+not global secrecy; query exclusion is not proof of an I3 breach, and current
+direct-by-ID reads also omit hide filtering. Carrier/contract doubles,
+integer versions and synthetic signing are not actual moderation writes, real
+object retrieval, production or model-diverse/L1 closure. Broader roles/classes,
+app/service policy and other visibility predicates remain OPEN.
+
 ### 2026-11-05: Rank document history before testing inventory eligibility
 
 The [node-document repair](scans/2026-11/repair-h01-node-document.md) moves

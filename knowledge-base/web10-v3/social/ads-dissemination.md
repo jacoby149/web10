@@ -59,6 +59,16 @@ independent live alternate-group grants survive. See the
 [historical evidence](../../security/scans/2026-10/h01-pinned-attachment-proof.md).
 Other readers' tie ordering, production lifecycle and broader ad policy remain OPEN.
 
+**Hidden-creative evidence (07.11.2026):** current membership and attachment
+do not establish moderator visibility. The actual query boundary excludes a
+creative hidden in its sole readable group, while pinned-ad enrichment still
+delivers/signs it in the synthetic replay. [Six-case evidence](../../security/scans/2026-11/h01-pinned-hidden-proof.md)
+retains newer unhide, unrelated hides and independent uploaders. Runtime is
+unchanged. D59 hiding is group-scoped curation, not global secrecy; pinned
+same-group/cross-group inheritance needs an explicit policy and further controls
+before security classification or repair. This is not a proven I3 breach or
+whole-ad assurance.
+
 **Locked (the three open questions, resolved):**
 
 - **`ad_preference` lives in a column on `documents`** — not a body field. The
