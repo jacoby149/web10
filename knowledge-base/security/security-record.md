@@ -278,7 +278,10 @@ attachment for pinned delivery, regardless of carrier group. The
 same-group, visible alternate and revoked/removed/crossed-grant controls; synthetic
 carriers are persisted and independently checked by the actual full boundary.
 Seven approved-policy denials still deliver bodies/verified capabilities, while
-seven allowed cases remain. This confirms a group-curation bypass, not global
+seven allowed cases remain. All 2,072 API tests plus eight subtests pass with
+one opt-in skip; full Ruff lint/format pass. Fresh same-family review independently
+passes all fourteen SQLite cases and three direct probes without a blocker.
+This confirms a group-curation bypass, not global
 secrecy or a direct-by-ID restriction. Policy block resolved; runtime repair,
 real lifecycle/connected/CI/diverse review and protocol L1 remain OPEN.
 
