@@ -40,8 +40,12 @@ The binding runtime/measurement contract is
   age `[0h,24h)`; week-one returning requires activation plus another session at
   `[24h,168h)`, with immature cohorts pending. This is not the earlier proposed
   advertised-creator-follow requirement or verified content viewing.
-- Optional default-off text/input/attribute-masked, media-blocked replay and
-  sanitized coordinate heatmaps. Reduced replay fidelity is intentional.
+- Optional default-off replay and sanitized coordinate heatmaps. D106
+  (08.11.2026, operator decision after inspecting the first live recordings):
+  layout-faithful, content-blind — styling/fonts inlined and class/style kept,
+  while text/inputs stay masked, media stays blocked, and the wire sanitizer
+  drops content-bearing attributes (values, alt/title/placeholder, media srcs,
+  DOM ids, all data-*/aria-*), hrefs route-templated.
 - Dry-run-by-default provisioning of five vendor reports: canonical acquisition,
   activation/mature return, identified activity, anonymous campaign landings and
   event freshness/completeness. No homemade acquisition dashboard. Actual spend,

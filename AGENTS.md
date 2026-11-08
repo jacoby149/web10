@@ -249,8 +249,10 @@ not a native app.
 compete on experience, never post/DM/media content. 5.0.0 (merged) removes GA4/
 Hotjar runtime/config/build wiring on the operator's explicit request. Shared
 allowlisted capture, canonical opaque personal identity, signed campaign handoff,
-atomic account-row signup context, retryable server outcomes and optional masked
-replay/heatmaps are implemented; external collection remains default-off. The API
+atomic account-row signup context, retryable server outcomes and optional layout-faithful, content-blind
+replay/heatmaps (D106: styling reproduced; text/inputs masked, media and
+content-bearing attributes out) are implemented; external collection remains
+default-off. The API
 needs a separate persistent `POSTHOG_IDENTITY_SECRET`, never an auth key. Anonymous
 traffic is not aliased across accounts; attribution bridges campaign labels, not
 claimed anonymous person identity. Foreground sessions are browser evidence, not

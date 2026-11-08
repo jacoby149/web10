@@ -140,13 +140,21 @@ describe('PostHog explicit-capture boundary', () => {
     expect(campaignProperties(`?utm_id=${'x'.repeat(65)}`)).toEqual({})
   })
 
-  it('removes text, attributes, URLs and custom/plugin payloads from replay', () => {
-    const snapshots = [{ type: 2, data: { node: { type: 2, tagName: 'input', attributes: { value: 'SECRET', placeholder: 'SECRET' }, childNodes: [{ type: 3, textContent: 'SECRET' }] } } },
+  it('keeps layout fidelity but removes text, content attributes, URLs and plugin payloads from replay (D106)', () => {
+    const snapshots = [{ type: 2, data: { node: { type: 2, tagName: 'input', attributes: { value: 'SECRET', placeholder: 'SECRET', class: 'w10-feed-card', style: 'color: red', id: 'post-doc-123', 'data-private': 'SECRET', ariaLabel: 'SECRET', src: 'https://cdn.example/SECRET.jpg', href: 'https://auth.example/messages/private?token=SECRET' }, childNodes: [{ type: 3, textContent: 'SECRET' }] } } },
       { type: 4, data: { href: 'https://auth.example/messages/private?token=SECRET' } },
       { type: 5, data: { tag: 'console', payload: 'SECRET' } }]
     const output = maskReplay(snapshots)
-    expect(JSON.stringify(output)).not.toMatch(/SECRET|private\?|token|placeholder/)
-    expect(JSON.stringify(output)).toContain('input')
+    const serialized = JSON.stringify(output)
+    // content and identifiers stay out
+    expect(serialized).not.toMatch(/SECRET|private\?|token=|placeholder|post-doc-123|cdn\.example/)
+    // layout fidelity survives
+    expect(serialized).toContain('"class":"w10-feed-card"')
+    expect(serialized).toContain('"style":"color: red"')
+    expect(serialized).toContain('input')
+    // hrefs are route-templated, not raw
+    expect(serialized).toContain('web10.invalid')
+    expect(serialized).not.toContain('auth.example')
     const event = sanitizeEvent({ uuid: 'snapshot', event: '$snapshot', properties: { $snapshot_data: snapshots } })
     expect(event?.properties.$snapshot_data).toEqual(output)
   })
