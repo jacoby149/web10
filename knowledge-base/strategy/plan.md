@@ -37,6 +37,9 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
+- [~] **Federated Following and per-server mixer** — full authenticated client fan-out, reader-owned domain follows and horizontal per-server fetch controls; queue and gates in `federated-feed-mixer.md`.
+  - [✓ 5.1.0 local; review/connected OPEN] **FM1 backend foundation split** — certified foreign self-membership/own app grants, exact identities and pending self-approval denial. SDK transport, mixer and DNS work remain separate PRs; no live-feed activation.
+
 - [✓ 5.0.1 merged via #1422] **Guard PostHog activation prerequisites** — admin enablement requires the separate API identity secret; disabling still works. Actual legal-route desktop/375px captures are inspected with all external traffic intercepted. Local checks do not close vendor/auth/phone/review/rollout gates.
 - [✓ 4.14.2 local planning only] **Five-influencer acquisition validation plan** — corrected budget: five creators × $200/month = $1,000/month. [influencer-analytics.md](influencer-analytics.md) records current-source gaps, bounded SQL evidence, proposed attribution/activation/retention rules and the independent connected/deployed proof required before ranking creators. Existing D56/D86 work is reused. No runtime repair, live analytics verification or deployment.
 - [✓ 4.14.3 local decision/docs only] **PostHog-only analytics direction (P0, D103)** — operator selects PostHog, not Mixpanel/Amplitude, and explicitly declines retaining GA4. [posthog-migration.md](posthog-migration.md) supersedes the bespoke five-influencer A0–A6 build: third-party web/product analytics and investor reports, masked replay/heatmaps after proof, then GA4/Hotjar retirement. Preserve canonical backend facts, D86 and operational history. Current runtime is unchanged; no SDK/project/deployment or readiness claim.

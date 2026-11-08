@@ -364,6 +364,13 @@ Browser auth-token messages require a bound credential window and configured ori
 
 JWT tokens with `username, site, target, provider, expires`. Server verifies signature, checks app contracts + group membership. Full auth flow: `knowledge-base/web10-v3/auth/auth.md`.
 
+Certified foreign group self-service and own app-contract routes use exact
+home-certified principals; local callers retain bare keys and foreign listing
+never heals namesake ownership. Foreign delegated tokens cannot mutate app
+grants. Self-accept requires an actual invited row, not a pending join request.
+Browser consent, SDK transport, DNS/catalog, mixer and source-owned feed integration
+are separate gates in `knowledge-base/strategy/federated-feed-mixer.md`.
+
 The isolated D97 domain-portability prototype stores a domain-only subscription
 in the reader's private app service and re-resolves a configured public target;
 it does not change production web10-social follows or token/group principals.
