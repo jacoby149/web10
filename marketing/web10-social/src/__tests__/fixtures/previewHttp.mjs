@@ -41,6 +41,11 @@ export async function startPreviewFixture(handler) {
   }
   return {
     close,
+    /** The preview server's port. */
+    port,
+    /** The fake node-API's port (the SSRF tests point exploit urls at it to
+     *  prove a denied url is never fetched). */
+    apiPort: api.address().port,
     /** @returns {Promise<{status: number, html: string}>} */
     get(path) {
       return new Promise((resolve, reject) => {
@@ -49,6 +54,19 @@ export async function startPreviewFixture(handler) {
           res.on('data', chunk => { html += chunk })
           res.on('end', () => resolve({ status: res.statusCode, html }))
         }).on('error', reject)
+      })
+    },
+    /** A raw request (method + headers) — the CORS preflight and the
+     *  cross-origin GETs need headers the bare `get` can't set.
+     *  @returns {Promise<{status: number, headers: any}>} */
+    request(method, path, headers = {}) {
+      return new Promise((resolve, reject) => {
+        const req = http.request({ hostname: '127.0.0.1', port, path, method, headers }, res => {
+          res.resume()
+          res.on('end', () => resolve({ status: res.statusCode, headers: res.headers }))
+        })
+        req.on('error', reject)
+        req.end()
       })
     },
   }

@@ -9,6 +9,114 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D100 — The marketing site unfurls links cross-origin from the social preview server; the render moves to the shared package [decided]
+
+The operator's marketing pass (07.11.2026, /trending screenshot: "the social
+app looks like this but the marketing page is just some links") asked for
+the D99 link unfurling on the marketing site. D99 already decided WHERE the
+fetch lives (the social app's own preview server — never the node, D60);
+this decision is about the SECOND CONSUMER.
+
+**The decision: the marketing site consumes the same endpoint cross-origin.**
+`GET ${SOCIAL_ORIGIN}/preview/unfurl?url=…` with
+`Access-Control-Allow-Origin: *` on every verdict (+ the OPTIONS preflight)
+from the social preview server (`preview/server.mjs`). The render moves to
+the shared `@web10/discover` package (`src/unfurl.ts` + `src/UnfurlLink.tsx`
++ `src/linkEmbeds.ts` — the verbatim tail of the social app's `src/lib/
+unfurl.ts` + `LinkEmbed.tsx`), opt-in through `MarkdownText`'s and
+`DiscoverCard`'s new `unfurlEndpoint` prop; the marketing board
+(`FeedPreview.tsx`) + group detail (`GroupDetail.tsx`) wire it. The social
+app keeps its own copy for the full-density feed — unchanged.
+
+**Why CORS `*` (and not an origin list, and not an nginx proxy):** the
+answer is public card metadata — no session, no cookies, no credentials in
+or out. CORS is reader access, not the boundary: the SSRF guard + the
+60/min per-IP damper are unchanged, and a browser on any origin was already
+able to call the endpoint from server-side code; CORS just lets a second
+SPA read the same answer. `*` (not a list) so a self-hosted marketing build
+pointing at its own social origin works without a rebuild. An nginx
+proxy on the marketing side was rejected: it bakes the social container
+into the marketing network (a deploy-topology coupling the CORS answer
+doesn't need), and it silently breaks plain-vite dev.
+
+**Rejected:** (a) a node endpoint — the D99/D60 leak, already decided;
+(b) marketing running its own preview server — a second copy of the
+SSRF-guarded fetch tail, deployed with a static site that has no Node
+process; (c) client-only fetch (oEmbed/OG straight from the browser) — CORS
+makes it impossible for the generic OG case, the exact D99 reason;
+(d) unfurling the teaser surfaces (comments, the Top 10 rail, the tile
+captions, the repost embeds) — the D99 density rule: a block card in a
+line-clamped teaser blows the teaser up; they keep the plain link.
+
+**The caption link-out moves:** in remote mode the caption is a link-out to
+the post on web10 social. A caption that unfurls can't keep the wrapper
+(a card / player must not nest inside an `<a>` — interactive content in
+interactive content is invalid HTML), so the rich caption drops it and the
+post's link-out moves to the TITLE. A caption without an external link
+keeps the wrapper, exactly as before.
+
+**The floor holds:** every unfurl failure (network, blocked, no metadata,
+rate-limited) renders the plain link — on the marketing board, the group
+pages, and the social feed alike. Marketing against an undeployed social
+app degrades to plain links, never to a broken card.
+
+Contract: `web10-v3/social/link-unfurl.md` ("The second consumer: the
+marketing site (D100)"). Scan record unchanged in substance (the boundary
+is the SSRF guard; CORS is documented there as reader access).
+
+---
+
+### D99 — Link unfurling fetches live in the social app's preview server, not the node [decided]
+
+The operator's unfurl task (07.11.2026: "Spotify, article, and (presumably)
+other provider links render as bare text links … add link unfurling for post
+bodies") asked the exact D60 question the ad-creative need had parked
+(`ads-october/needs/external-link-embeds.md`: "where it lives — node vs
+preview server vs a third-party card API — is the open decision").
+
+**The decision: the social app's own preview server**
+(`marketing/web10-social/preview/unfurl.mjs`, the route
+`GET /preview/unfurl`, nginx-exposed to every user-agent). The SPA cannot
+fetch the page itself (CORS), so the fetch is server-side — but in the
+social container's Node process, not the node: the provider set (Spotify /
+SoundCloud / TikTok oEmbed, the Bandcamp/Instagram page shapes, the
+challenge-wall refusal) and the card shapes are SOCIAL link-curation
+concepts; a notes app or a shop does not unfurl Spotify. The node stays
+100% generic (it never fetches an external url and never learns a provider),
+the unfurl deploys with the app it renders (one service, like the share
+card), and its compromise blast-radius is contained (the preview server holds
+no credentials and reads only anon-public docs through its own node API).
+
+**Rejected:** (a) a node endpoint — the D60 leak (the node learning
+"Spotify"/"article preview"; an external-fetch surface on the trust core);
+(b) a third-party card API (Embedly-class) — per-call cost for a read-side
+convenience, a vendor dependency on the post render path, and it answers the
+ad-creative need's "reliable vs flaky" question only at money's price;
+the scrape-first + plain-link floor is the right posture for link groups,
+and the API door stays open for the ad-creative consumer; (c) client-only
+fetch — CORS makes it impossible for the generic case.
+
+**The safety contract** (the endpoint is attacker-influenced): the SSRF
+guard (scheme/shape refuses, every resolved address public, per-hop
+re-validation on redirects, timeout/byte/redirect caps), the two-sided
+iframe allowlist (server + SPA), the wall-refusal (a "Client Challenge" page
+is no card, the plain link), the positive/negative cache, and the per-IP
+damper. The DNS-rebinding resolve-then-fetch window is documented, not
+waived (record: `security/scans/2026-11/link-unfurl-ssrf.md`).
+
+**The floor:** a link that cannot be unfurl (walled, dead, blocked) posts
+and renders as the clickable plain link, exactly as before — unfurling is
+read-side only and never breaks posting. Existing posts pick it up with no
+backfill (the card is computed at read time from the url in the post body).
+
+Contract: `web10-v3/social/link-unfurl.md` (the provider matrix, the guard,
+the card's place in `BodyLink`). The ad-creative need's "where the fetch
+lives" question is answered by this build; its "third-party vs scrape"
+question stays open for the ad consumer (the ad's product-card shape —
+price, product title — is a different contract than the link group's card).
+
+---
+
 ### D98 — Wait for HLS through a generic durable create, not a browser-owned final write [in-progress]
 
 The operator chose **wait for HLS**, with automatic publication after browser
@@ -1137,6 +1245,17 @@ consideration).
 
 Full model: `knowledge-base/web10-v3/social/content-moderation.md`. Default
 list: `knowledge-base/web10-v3/social/sensitive-words-default.md`.
+
+**Pinned-ad clarification (07.11.2026):** the operator chose **Honor group hides**:
+"A hidden attachment cannot authorize pinned-ad delivery. Another current,
+readable, unhidden group attachment can still authorize it." This applies to
+same-group and cross-group carriers. Never combine membership in a hidden group
+with an unhidden attachment in an unreadable group. Newer unhide restores that
+attachment; an unrelated hide does not suppress a visible alternative. This
+extends the group-scoped curation rule to pinned enrichment without making hidden
+content globally secret or changing direct-by-ID/node-inventory behavior. Target
+contract: `web10-v3/social/ads-dissemination.md`; implementation remains a separate
+bounded repair after policy/evidence review.
 
 ### D59a — Node-level ban (`banned_users`) + retroactive user-hide [decided]
 Operator, 28.09.2026 — "the social app i tried to hide the posts from the user,

@@ -856,6 +856,38 @@ function adCreative(label: string, from: string, to: string, w = 800, h = 450): 
 
 const FEED_POSTS: SeedFeedPost[] = [
   {
+    // A LINK-ONLY post (the link-curation groups shape — New Music): the
+    // unfurl turns the bare URL into the provider's player (the spotify
+    // oEmbed answer, canned in the harness mock).
+    _id: 'fp-unfurl-spotify',
+    author_username: 'nova',
+    author_provider: 'web10',
+    text: 'https://open.spotify.com/track/0VjIjW4GlUZAMYd2vXMi3b',
+    created_at: minsAgo(0),
+    tags: ['music'],
+    likes: 41,
+    comments: 6,
+    reposts: 3,
+    impressions: 5210,
+    reach: 498,
+  },
+  {
+    // A LINK-ONLY post (the Reading Links shape): the generic OG card —
+    // title + the opening prose + the domain (paulgraham.com carries no og
+    // tags: the <title> + first-prose fallback, the verified live case).
+    _id: 'fp-unfurl-article',
+    author_username: 'kai',
+    author_provider: 'web10',
+    text: 'https://paulgraham.com/greatwork.html',
+    created_at: minsAgo(2),
+    tags: ['reading'],
+    likes: 27,
+    comments: 4,
+    reposts: 1,
+    impressions: 3105,
+    reach: 302,
+  },
+  {
     // A MARKDOWN post (D85) — exercises the <PostBody> renderer's full type
     // scale (heading, bold, list, code, link) so the PR shot shows markdown
     // rendering typeset, not as literal ** / # / - syntax.

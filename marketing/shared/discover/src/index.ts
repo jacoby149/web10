@@ -7,6 +7,25 @@
 
 export { DiscoverCard, type DiscoverCardProps } from './DiscoverCard';
 export { MarkdownText } from './MarkdownText';
+export { UnfurlLink, YouTubeEmbed, VimeoEmbed, DeterministicEmbed, PlainExternalLink, type LinkEmbedProps } from './UnfurlLink';
+export {
+  fetchUnfurl,
+  isUnfurlCandidate,
+  normalizeUnfurlCard,
+  unfurlEndpointHost,
+  __resetUnfurlCacheForTests,
+  type UnfurlCard,
+  type UnfurlEmbed,
+} from './unfurl';
+export {
+  parseEmbed,
+  extractLinks,
+  isEmbeddable,
+  containsExternalLink,
+  type EmbedInfo,
+  type EmbedProvider,
+  type ParsedLink,
+} from './linkEmbeds';
 export { HomeCard, truncateTitle, HOME_TITLE_LIMIT, type HomeCardProps } from './HomeCard';
 export { HoverVideo, __dwellState, __resetDwellForTests, type HoverVideoProps } from './HoverVideo';
 export { PersonCard, PersonCardSkeleton, type PersonCardProps, type DiscoverPerson } from './PersonCard';

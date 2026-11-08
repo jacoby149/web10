@@ -15,6 +15,31 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Link-unfurl SSRF surface (07.11.2026) — bounded local, OPEN
+
+A new browser-facing external-fetch seam: `GET /preview/unfurl?url=…` on the
+social app's own preview server (D60 — the node never fetches external urls).
+The endpoint is attacker-influenced, so it carries the full SSRF guard set:
+scheme/shape refuses (no credentials, no single-label/docker/mDNS hosts),
+resolve-then-judge (EVERY resolved address must be public — loopback,
+RFC1918, CGNAT, the cloud-metadata link-local, TEST-NET, reserved, and the
+IPv6 twins incl. the v4-mapped forms), `redirect: 'manual'` with a per-hop
+re-validation + 5-hop cap (the redirect-to-127.0.0.1 escape is replayed and
+denied — the fixture's own API port is the target and its request log stays
+empty), 8s/6s per-hop timeouts, 750KB/256KB byte caps (a truncated body keeps
+the head — the preview tags are the first bytes), a 7d/10m positive/negative
+cache, and a 60/min per-client-IP damper (429). The oEmbed `html` is
+parsed, never executed: the iframe src is entity-unescaped and
+per-provider-allowlisted on BOTH sides (server `unfurl.mjs` + SPA
+`unfurl.ts`); a wall ("Client Challenge" / `_fs-ch-`, the Bandcamp edge's
+verified refusal of this fetcher) degrades to the plain link, never a
+wall-shaped card. Coverage: `scans/2026-11/link-unfurl-ssrf.md` (L1/L2
+bounded, replay-gated; 62 + 13 focused tests green). The DNS-rebinding
+resolve-then-fetch window stays OPEN (documented, blast-radius contained:
+the preview server holds no credentials, reads only anon-public docs);
+the production-box live provider matrix (Bandcamp's TLS-fingerprint wall)
+stays OPEN for the deploy acceptance. No node surface, no production write.
+
 ## People-tag notification feature (05.11.2026) — bounded local, OPEN
 
 GPT-6.1 Sol adds app-owned local tags without changing API/SDK read authority.
@@ -245,6 +270,23 @@ reads restore four existing videos without data changes. Same-model review only;
 serving rollout/browser playback, cost, diverse review and broader L1 remain OPEN.
 
 ## Pinned-Ad Hidden-Creative Authority (07.11.2026) — evidence only, OPEN
+
+Follow-up at `c420b6f4c68a6465179ef527cdf0412212c2aca1` plus test/docs diff:
+the operator explicitly requires one current readable unhidden creative
+attachment for pinned delivery, regardless of carrier group. The
+[fourteen-case policy matrix](scans/2026-11/h01-pinned-hidden-policy.md) adds
+same-group, visible alternate and revoked/removed/crossed-grant controls; synthetic
+carriers are persisted and independently checked by the actual full boundary.
+Seven approved-policy denials still deliver bodies/verified capabilities, while
+seven allowed cases remain. All fourteen cases pass on both SQLite and isolated
+ClickHouse-local Memory tables. All 2,072 API tests plus eight subtests pass with
+one opt-in skip; full Ruff lint/format pass. Fresh same-family review independently
+passes all fourteen SQLite cases and three direct probes without a blocker.
+This confirms a group-curation bypass, not global
+secrecy or a direct-by-ID restriction. Policy block resolved; runtime repair,
+real lifecycle/connected/CI/diverse review and protocol L1 remain OPEN.
+
+Historical #1416 evidence and its then-unresolved policy follow:
 
 GPT-6.1 Sol reviews `clickhouse.py:3265-3329` at
 `80a8a1f2285e6b9bd6feceb527fd93ae582a247f` against all six checklist classes.
