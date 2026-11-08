@@ -37,7 +37,11 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
-- [✓ 5.2.0 local module; integration/review OPEN] **FM2 isolated transport split** — explicit per-node credential/public mode, exact-origin/action dispatch, no ambient cookie/registration/redirects, owned cancellation and bounded actual work. Owns `sdk/src/federatedTransport{,.test}.ts` only; no production export or browser-consent activation. Backend and mixer are separate foundation PRs; FM2 destination-aware approval remains open.
+- [ ] **FM3 source management — add/remove servers** — preserve the operator-approved hardware rack; + Server in its header and per-channel removal must use an owner-private home-node source catalog, not fake buttons. No saved JWTs or credential forwarding on enrollment. Removal stops node reads without unfollowing creators. Owns coordinated social data/Feed controls; private-list denial, account/queued-read invalidation, URL-held dialog state, real request ownership, desktop/375px and full checks are gates. Full cross-node paging/actions/consent remain separate; see `federated-feed-mixer.md`.
+
+- [✓ 5.3.0 local component; integration OPEN] **FM5 server-mixer component split** — controlled horizontal faders, fetch-budget allocator/mute/tie rotation and sanitized URL codecs. Owns `ServerMixer.tsx`, `lib/serverMixer.ts` and focused tests. Not attached to Following/settings/real request quotas; desktop/375px preview is component evidence, not a working multi-node feed. Backend/SDK are separate PRs.
+
+- [✓ 5.2.0 merged #1428; activation gates OPEN] **FM2 isolated transport split** — explicit per-node credential/public mode, exact-origin/action dispatch, no ambient cookie/registration/redirects, owned cancellation and bounded actual work. Owns `sdk/src/federatedTransport{,.test}.ts` only; no production export or browser-consent activation. FM2 destination-aware approval remains open.
 
 - [~] **Federated Following and per-server mixer** — full authenticated client fan-out, reader-owned domain follows and horizontal per-server fetch controls; queue and gates in `federated-feed-mixer.md`.
   - [✓ 5.1.0 merged #1429; connected/diverse OPEN] **FM1 backend foundation split** — certified foreign self-membership/own app grants, exact identities and pending self-approval denial. SDK transport, mixer and DNS work remain separate PRs; no live-feed activation.
