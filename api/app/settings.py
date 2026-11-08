@@ -46,6 +46,14 @@ TWILIO_NUMBER = "+12764004437"
 # in-memory code store instead of calling Twilio (CI has no real credentials).
 # Never set in prod. See services/twilio.py.
 TWILIO_E2E = ""
+# Contact delivery is opt-in. Provision a private conditional-write S3 bucket
+# and a separate persistent Fernet key; never reuse PRIVATE_KEY.
+CONTACT_DELIVERY_STATE_BUCKET = os.getenv("CONTACT_DELIVERY_STATE_BUCKET", "")
+CONTACT_DELIVERY_KEY = os.getenv("CONTACT_DELIVERY_KEY", "")
+CONTACT_AUTH_URL = os.getenv("CONTACT_AUTH_URL", "")
+GMAIL_CLIENT_ID = os.getenv("GMAIL_CLIENT_ID", "")
+GMAIL_CLIENT_SECRET = os.getenv("GMAIL_CLIENT_SECRET", "")
+GMAIL_REDIRECT_URI = os.getenv("GMAIL_REDIRECT_URI", "")
 STRIPE_STATUS = "live"
 STRIPE_TEST_KEY = "sk_test_51Khy....."
 STRIPE_LIVE_KEY = "sk_live_51Khyui......"

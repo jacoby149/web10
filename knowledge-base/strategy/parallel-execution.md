@@ -47,6 +47,14 @@ says what can happen **at the same time**.
 
 ## Lanes
 
+### Lane: node-config-usability
+
+**Owns:** `ui/src/components/Config/`, shared secret input and focused tests; operator-approved D105 integration extends this bite to SetupWizard contact/secret fields, App recovery entry, Interface/ForgotForm link exchange, `api/app/{endpoints,services}/contact*`, settings/dependency declaration and recovery/Twilio delivery seams. Coordinate broader contact-auth changes; no production configuration, proxy/Compose ownership, provider accounts or credentials.
+
+- [✓ 5.3.1 local] **Minimize App Store Approvals by default** — collapsed disclosure with visible pending/loading/error summary, keyboard operation and URL-backed reload/history. Four regressions, 280 UI tests and synthetic desktop/375px browser checks pass; screenshots inspected. Approval actions/access policy unchanged; no deployment.
+- [✓ 5.4.0 local implementation; release gates OPEN] **Reconcile verification admin UX and delivery setup** — D105 small-node Gmail / large-node SendGrid + optional SMS and email-link password reset implemented inside API. Private encrypted CAS state, staged OAuth/same-login finish, configured-issuer link/reset pinning, masked secrets and real contact-presence control. Local API/browser, actual App navigation and disposable MinIO concurrency/encryption/anonymous403 floors pass; no live-provider/verified-signup claim or deployment.
+- [ ] **Contact delivery release acceptance** — split/review bounded trust-boundary units, obtain model-diverse sign-off and all normal checks; provision private conditional storage/key and matching HTTPS API/authenticator, suppress callback query logs, register/approve Google OAuth and verify SendGrid sender. With explicit operator approval/access, test real Gmail and SendGrid reset emails, wrong/expired/replayed links, actual account password login, reconnect/revocation/quota/outage and optional SMS. Gates: independent review, bounded PRs/all checks green, explicit provider/storage/send/deployment approval. Acceptance: actual inbox/reset/new-password login receipts for both email providers, no credential leakage or provider-failure auth bypass, correct sender/connection/error UI at desktop/375px. No live sends, purchases or deployment without approval.
+
 ### Lane: marketing-legal-pages
 
 - [✓ 4.12.14 local] **Name the DMCA designated agent** - add Jacob Hoffman beside the unchanged Terms email; preserve all other Terms text and the Post-It Note process, align the focused regression. No deployment or Copyright Office registration; production publication verification remains OPEN.

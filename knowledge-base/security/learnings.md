@@ -35,6 +35,23 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-08: Recovery credentials belong to an issuer, not the browser's current session
+
+An email secret cannot use the ordinary token-selected API helper: a retained
+foreign session would route the issuing node's reset authority to another node.
+Pin both exchange and completion to the configured HTTPS API, and compare—not
+trust—the link's issuer hint. Clear consumed navigation intent before login.
+Single-use consumption also needs generation isolation: an old consumed link
+must not charge the newer challenge's attempt budget. The exact stale-link
+lockout replays red→green; actual Interface/App tests retain configured-origin
+dispatch and successful post-reset navigation. [Evidence and limits](scans/2026-11/contact-delivery.md).
+
+Sender OAuth is a separate authority from admin login: callback stages only,
+same-login live admin finalization commits, and connection generations fence
+disconnect/reconnect races. Use a separate encryption key/private conditional
+state, never a JWT key or public media bucket. Same-family local review and real
+MinIO CAS evidence do not prove Google approval, inbox delivery or deployed logs.
+
 ### 2026-11-08: JSON serialization can replace a transport-owned credential
 
 The [isolated transport](scans/2026-11/explicit-node-transport.md) rejects root

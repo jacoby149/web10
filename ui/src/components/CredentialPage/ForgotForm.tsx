@@ -3,6 +3,7 @@ import { Info } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import CredentialStatus from "./CredentialStatus";
+import { contactHandoff } from '@/lib/contactHandoff';
 
 // Contact-anchored auth (D61): contact (phone OR email) → 6-digit code → pick
 // an account on that contact (or create a new username) → sign in.
@@ -38,6 +39,8 @@ function ForgotForm({ I, embedded = false }: { I: Record<string, any>; embedded?
   const [selected, setSelected] = React.useState<string>("");
   const [newUsername, setNewUsername] = React.useState("");
   const [newPassword, setNewPassword] = React.useState("");
+  const [emailLink, setEmailLink] = React.useState(contactHandoff.recovery);
+  const [linkBusy, setLinkBusy] = React.useState(false);
 
   const step = I.recoveryStep || "contact";
   const contact = I.recoveryContact || "";
@@ -56,7 +59,7 @@ function ForgotForm({ I, embedded = false }: { I: Record<string, any>; embedded?
         <>
           <h1 className="font-display text-xl font-semibold text-foreground">Sign in or create your account</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Enter your phone number or email and we'll send you a code.
+            Enter your email or phone number and we'll send you a code.
           </p>
         </>
       )}
@@ -88,7 +91,7 @@ function ForgotForm({ I, embedded = false }: { I: Record<string, any>; embedded?
               className="h-9 w-full rounded-sm border border-input bg-transparent px-3 text-sm shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
           </div>
-          <span className="inline-flex h-9 w-9 shrink-0 cursor-help items-center justify-center text-muted-foreground" title="web10 uses Twilio to authenticate users">
+          <span className="inline-flex h-9 w-9 shrink-0 cursor-help items-center justify-center text-muted-foreground" title="Your node sends a verification code using its configured email or SMS provider.">
             <Info className="h-4 w-4" strokeWidth={1.5} />
           </span>
         </div>
@@ -264,13 +267,28 @@ function ForgotForm({ I, embedded = false }: { I: Record<string, any>; embedded?
           data-testid="recovery-sign-in"
           disabled={!canSubmit}
         >
-          {creating ? "Create account" : "Sign in"}
+          {creating ? "Create account" : newPassword ? "Reset password & sign in" : "Sign in"}
         </Button>
       </form>
     </>
   );
 
-  const content = step === "code" ? codeStep : step === "pick" ? pickStep : contactStep;
+  const linkStep = <>
+    <h1 className="font-display text-xl font-semibold text-foreground">Sign in or reset your password</h1>
+    <p className="mt-2 text-sm text-muted-foreground">Continue to verify your email. Then choose your account and set a new password if needed. This link can only be used once.</p>
+    <Button variant="brand" className="mt-4 w-full" disabled={linkBusy} data-testid="recovery-confirm-link"
+      onClick={async () => {
+        setLinkBusy(true);
+        try {
+          const verified = await I.recoverLink(emailLink);
+          if (verified) { setEmailLink(''); contactHandoff.recovery = ''; }
+        } finally { setLinkBusy(false); }
+      }}>{linkBusy ? 'Verifying…' : 'Continue with email link'}</Button>
+    <Button variant="ghost" className="mt-2 w-full" disabled={linkBusy} onClick={() => {
+      setEmailLink(''); contactHandoff.recovery = ''; I.setRecoveryStep('contact');
+    }}>Request a new code instead</Button>
+  </>;
+  const content = emailLink ? linkStep : step === "code" ? codeStep : step === "pick" ? pickStep : contactStep;
 
   if (embedded) {
     return (

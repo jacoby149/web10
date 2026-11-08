@@ -331,6 +331,19 @@ does not merge.
 
 ## Auth model
 
+Contact delivery is implemented inside `api/`, not a new service (D105).
+Small-node settings connect a support Gmail with send-only OAuth; larger-node
+settings offer SendGrid email and optional Twilio Verify SMS. New credentials and
+single-use email challenges use encrypted private conditional S3 state with a
+separate `CONTACT_DELIVERY_KEY`, never general config or the auth signing key.
+Google client/callback and authenticator URLs are server-configured; independent
+self-hosters supply their own Google client. Email reset-link exchange and
+completion pin the configured HTTPS API and reject mismatched issuer hints,
+never routing secrets to the current foreign session. Secret settings start
+masked with eye controls. Existing D61 five-minute verify-token/signup semantics
+remain separate; live vendor, diverse review and rollout gates stay OPEN.
+Contract: `knowledge-base/web10-v3/auth/contact-delivery.md`.
+
 Social acting identity remembers only a confirmed provider/account-scoped identifier
 across browser reopen, with independent per-tab snapshots, never a replacement
 credential or persisted grant. Generic `author_as` creates as the group with server-set `posted_by`;

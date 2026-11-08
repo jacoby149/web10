@@ -15,6 +15,18 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## API contact delivery (08.11.2026) — bounded local, OPEN
+
+Gmail/SendGrid/optional SMS provider setup, encrypted private conditional S3 state,
+single-use email link/code exchange and configured-issuer recovery ownership.
+Backend-first new-module inspection and targeted direct-seam tests; broader L2–L4,
+diverse review, bounded PR splitting and live provider/account/deployment gates
+remain OPEN. Fresh reviews found wrong-node recovery dispatch, post-reset routing
+and stale-link attempt charging; bounded regressions and repairs are recorded in
+[contact delivery](scans/2026-11/contact-delivery.md). Actual disposable MinIO
+CAS/encryption/anonymous403 evidence is separate from synthetic provider/browser
+controls. No whole-security PASS or live delivery claim.
+
 ## Isolated explicit-node transport (08.11.2026) — bounded local, OPEN
 
 Credential ownership, exact-origin/action dispatch, owned cancellation, bounded
