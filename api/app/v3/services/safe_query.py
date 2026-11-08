@@ -190,11 +190,14 @@ def _boundary_cte_sql(service: str, readable_groups: list[str], member_key: str)
         f"FROM documents WHERE collection_name = '{service}'"
         f") WHERE rn = 1 AND deleted = 0"
     )
+    # group_id is a partition key: remove whole unreadable histories before
+    # sorting, never deleted versions within a retained (doc_id, group_id).
+    # Keep the literal list once so large multi-service queries do not grow.
     dedup_groups = (
         "SELECT doc_id, group_id FROM ("
         "SELECT doc_id, group_id, deleted, "
         "row_number() OVER (PARTITION BY doc_id, group_id ORDER BY updated_at DESC) AS rn "
-        "FROM doc_groups"
+        f"FROM doc_groups WHERE group_id IN ({_quote_group_ids(readable_groups)})"
         ") WHERE rn = 1 AND deleted = 0"
     )
     if not readable_groups:
@@ -250,8 +253,7 @@ def _boundary_cte_sql(service: str, readable_groups: list[str], member_key: str)
         f"SELECT d.doc_id, d.author_key, d.posted_by, d.body, d.ref_value, d.tags, "
         f"d.created_at, d.updated_at, d.ad_mode, d.ad_target, dg.group_id FROM ({dedup_docs}) d "
         f"JOIN ({dedup_groups}) dg ON d.doc_id = dg.doc_id "
-        f"WHERE dg.group_id IN ({_quote_group_ids(readable_groups)}) "
-        f"AND {filters}"
+        f"WHERE {filters}"
     )
 
 

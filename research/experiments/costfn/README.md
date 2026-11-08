@@ -1,5 +1,12 @@
 # Access-Control Cost Function Experiment
 
+> **Actual-host result (8 November):** the small connected floor and million-author
+> restore pass, but strict concurrent acceptance fails at the ten-second SQL
+> limit before the primary matrix. Preserve this failed baseline. The bounded
+> partition-pruning source candidate, diagnostic parity and fresh replay/cleanup
+> are tracked in [the receipt](evidence/cloud-preflight-20261108.json); this is
+> neither a completed study nor a new manuscript result.
+
 > **8 November execution follow-up:** the operator now authorizes proceeding with
 > the isolated experiment and separately authorizes anonymous download of the two
 > frozen synthetic V2 inputs. The initial study cap remains $10 despite the

@@ -46,7 +46,7 @@ def test_hyphenated_service_cte_is_quoted():
     # The CTE def is quoted (a bare name would not re-parse).
     assert f"`{svc}` AS (" in out
     # The I3 group filter is unchanged — the CTE is group-filtered.
-    assert f"WHERE dg.group_id IN ('{DISCOVER}')" in out
+    assert f"FROM doc_groups WHERE group_id IN ('{DISCOVER}')" in out
     assert f"collection_name = '{svc}'" in out
     # The compiled query re-parses to a single statement (the backstop).
     import sqlglot
@@ -91,7 +91,7 @@ def test_boundary_cte_exposes_group_id():
     out = build_safe_query("SELECT doc_id, group_id FROM posts", {"posts": [DISCOVER]})
     assert "d.ad_target, dg.group_id" in out
     # The I3 group filter is unchanged — only readable groups are exposed.
-    assert f"WHERE dg.group_id IN ('{DISCOVER}')" in out
+    assert f"FROM doc_groups WHERE group_id IN ('{DISCOVER}')" in out
 
 
 def test_boundary_cte_group_id_null_when_no_readable_groups():

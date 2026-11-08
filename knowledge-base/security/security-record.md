@@ -15,6 +15,15 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Attachment-history partition pruning (08.11.2026) — bounded compiler review, OPEN
+
+Actual-host timeout evidence motivates trusted partition-key predicate placement,
+not weaker deletion/access checks. Fifteen durable AST/SQLite controls and eight
+actual ClickHouse constant-CTE comparisons retain expected rows. Three fresh
+same-family reviews are dry; diverse review, equal-timestamp/merge/concurrent
+history assurance, fresh study and PR/deployment gates remain OPEN. Source-specific
+single-pass diagnostics are not capacity results. [Record](scans/2026-11/query-partition-pruning.md).
+
 ## Public frozen research inputs (08.11.2026) — bounded live acceptance, broader coverage OPEN
 
 Operator-authorized exact fourteen-key anonymous GET publication; trusted receipt
