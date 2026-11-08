@@ -1468,6 +1468,8 @@ starting.
 
 ### Lane: multi-node-federation (D84)
 
+- [✓ 5.4.0 local foundation; activation OPEN] **FM3 private catalog split** — owns `src/data/feedSources.ts`, `feedSourceApprovals.ts`, `components/Feed/useFeedSources.ts` and focused tests only. Owner-private settings, separate current-credential tab consent and stale approve/save denial. No UI wiring or foreign dispatch. Next unticked FM3 item remains actual source-management/read integration; full connected/consent/domain gates stay OPEN.
+
 - [✓ 5.3.0 local component; integration OPEN] **FM5 server-mixer component split** — controlled faders and relative page-budget/URL helpers plus focused tests in social Feed/lib. Backend/SDK changes are separate; no production settings, catalog, network calls or quota wiring. Acceptance for this unit: focused/full social tests, build and inspected desktop/375px component preview. Full customizer/source-owned/connected feed gates remain OPEN.
 
 - [✓ 5.2.0 merged #1428; activation gates OPEN] **FM2 isolated transport split** — owns `sdk/src/federatedTransport{,.test}.ts`, explicit credential/public dispatch, cancellation and bounds. Record: `security/scans/2026-11/explicit-node-transport.md`. Destination-aware browser consent, real serving-node grants and global fan-out budget remain open; no feed activation.

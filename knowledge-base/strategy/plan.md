@@ -37,6 +37,8 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
+- [✓ 5.4.0 local foundation; activation OPEN] **FM3 private catalog split** — owner-private settings CRUD, separate credential-bound tab approval and retained approve/save removal controls. No screen imports or foreign dispatch. Remaining: editor/read consumer integration, connected grants and PR/CI. Record: `security/scans/2026-11/feed-source-catalog.md`.
+
 - [ ] **FM3 source management — add/remove servers** — preserve the operator-approved hardware rack; + Server in its header and per-channel removal must use an owner-private home-node source catalog, not fake buttons. No saved JWTs or credential forwarding on enrollment. Removal stops node reads without unfollowing creators. Owns coordinated social data/Feed controls; private-list denial, account/queued-read invalidation, URL-held dialog state, real request ownership, desktop/375px and full checks are gates. Full cross-node paging/actions/consent remain separate; see `federated-feed-mixer.md`.
 
 - [✓ 5.3.0 local component; integration OPEN] **FM5 server-mixer component split** — controlled horizontal faders, fetch-budget allocator/mute/tie rotation and sanitized URL codecs. Owns `ServerMixer.tsx`, `lib/serverMixer.ts` and focused tests. Not attached to Following/settings/real request quotas; desktop/375px preview is component evidence, not a working multi-node feed. Backend/SDK are separate PRs.
