@@ -18,6 +18,15 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: [
+      { find: 'posthog-js', replacement: path.resolve(root, 'node_modules/posthog-js') },
+      { find: '@web10/discover/source-controls', replacement: path.resolve(root, '../shared/discover/src/sourceControls.ts') },
+      { find: '@web10/discover/source-models', replacement: path.resolve(root, '../shared/discover/src/sourceModels.ts') },
+      { find: '@web10/discover/mixed-feed', replacement: path.resolve(root, '../shared/discover/src/mixedFeed.ts') },
+      { find: '@web10/discover/feed-query', replacement: path.resolve(root, '../shared/discover/src/feedQuery.ts') },
+      { find: 'react', replacement: path.resolve(root, 'node_modules/react') },
+      { find: 'react-dom', replacement: path.resolve(root, 'node_modules/react-dom') },
+      { find: 'react-router-dom', replacement: path.resolve(root, 'node_modules/react-router-dom') },
+      { find: 'lucide-react', replacement: path.resolve(root, 'node_modules/lucide-react') },
       { find: /^(?:@\/data\/v3|\.\/v3)$/, replacement: path.resolve(here, './harness/mock-v3.ts') },
       { find: '@/data/wapi', replacement: path.resolve(here, './harness/mock-wapi.ts') },
       { find: /^@\/data\/settings$/, replacement: path.resolve(here, './harness/mock-settings.ts') },

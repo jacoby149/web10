@@ -270,11 +270,7 @@ describe('TrendingCard featured layout', () => {
   });
 });
 
-const jsonOk = (body: unknown) => ({
-  ok: true,
-  headers: new Headers({ 'content-type': 'application/json' }),
-  json: () => Promise.resolve(body),
-});
+const jsonOk = (body: unknown) => new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } });
 
 // ── v3 discover-group docs (the shape /v3/read returns) ─────────────────────
 //
@@ -350,6 +346,23 @@ function mockDiscoverFeed(
     // The repost count (reposts.md) is a /v3/query over the discover group
     // (count(DISTINCT doc_id) of posts whose body.repost_of points at the
     // board's posts). Default: no reposts.
+    if (body?.sql?.includes('FROM posts p ')) {
+      // The public board now asks each node to rank/page prepared rows. This
+      // fixture supplies controlled server order; publicSources.test drives
+      // the actual shared reader/transport and asserts real query quotas.
+      const sql = body.sql as string;
+      const tags = [...sql.matchAll(/ AND has\(p.tags, '([^']+)'\)/g)].map(match => match[1]);
+      const selected = (posts as ReturnType<typeof v3Post>[]).filter(post =>
+        !post.tags.includes('ad') && !post.tags.includes('product') && tags.every(tag => post.tags.includes(tag)));
+      const newest = sql.includes('ORDER BY toUnixTimestamp64Milli(p.created_at) DESC');
+      selected.sort((a, b) => (newest ? 0 : (reactions[b.doc_id] || 0) - (reactions[a.doc_id] || 0)
+        || (comments[b.doc_id] || 0) - (comments[a.doc_id] || 0)) || Date.parse(b.created_at) - Date.parse(a.created_at));
+      const limit = Number(sql.match(/LIMIT (\d+)$/)?.[1] || 21);
+      return jsonOk({ rows: selected.slice(0, limit).map(post => ({ ...post,
+        likes: reactions[post.doc_id] || 0, comments: comments[post.doc_id] || 0,
+        reposts: reposts[post.doc_id] || 0, score: 1,
+      })) });
+    }
     if (body?.sql) return jsonOk({ rows: Object.entries(reposts).map(([repost_of, n]) => ({ repost_of, n })) });
     return jsonOk({});
   });
@@ -415,7 +428,7 @@ describe('Trending page', () => {
     expect(within(sidebar).getAllByTestId('trending-sidebar-entry')).toHaveLength(10);
   });
 
-  it('shows the D86 view metrics on the board cards (impressions + reach)', async () => {
+  it('does not invent D86 view metrics when the public prepared query has none', async () => {
     mockDiscoverFeed(
       makeV3Posts(20),
       {},
@@ -426,21 +439,20 @@ describe('Trending page', () => {
     const { default: Trending } = await import('@/pages/Trending');
     render(<MemoryRouter initialEntries={['/trending/hot-gossip' + window.location.search]}><Trending /></MemoryRouter>);
     await waitFor(() => expect(screen.getByTestId('trending-grid')).toBeInTheDocument());
-    // The first board post (post-0) carries the delivery metrics; the card's
-    // engagement row shows both (the same slots the social app's PostCard shows).
-    expect(await screen.findByTestId('post-actions-impressions')).toHaveTextContent('12.4k');
-    expect(screen.getByTestId('post-actions-reach')).toHaveTextContent('1.2k');
+    // Public explicit transport exposes query/read only, not contentViews.
+    // The standalone card still renders genuine supplied D86 counts above.
+    expect(screen.queryByTestId('post-actions-impressions')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('post-actions-reach')).not.toBeInTheDocument();
   });
 
   it('shows Load more when a full page returns, and fetches the next page', async () => {
-    mockDiscoverFeed();
+    mockDiscoverFeed(makeV3Posts(40));
     const { default: Trending } = await import('@/pages/Trending');
     render(<MemoryRouter initialEntries={['/trending/hot-gossip' + window.location.search]}><Trending /></MemoryRouter>);
     const loadMore = await screen.findByTestId('trending-load-more');
-    // The component reads the discover group via /v3/read (anon). Load more
-    // re-reads with a higher page limit → more /v3/read calls.
+    // Subsequent public pages execute the source-owned engine query again.
     const readCalls = () =>
-      vi.mocked(fetch).mock.calls.filter(c => String(c[0]).includes('/v3/read')).length;
+      vi.mocked(fetch).mock.calls.filter(c => String(c[0]).includes('/v3/query')).length;
     const initialCalls = readCalls();
     expect(initialCalls).toBeGreaterThan(0);
     fireEvent.click(loadMore);
@@ -575,7 +587,7 @@ describe('Knob re-ranking', () => {
     Element.prototype.scrollIntoView = vi.fn();
   });
 
-  it('twisting a knob reshuffles the grid with zero network requests', async () => {
+  it('a preset obtains fresh server-ranked rows instead of resorting a capped pool', async () => {
     // Two posts close in age but very different in engagement. Balanced
     // default (recency + likes + comments weighted) should favor the
     // high-engagement post; "Newest" flips to the newer post.
@@ -593,7 +605,7 @@ describe('Knob re-ranking', () => {
     const initialCards = screen.getAllByTestId('trending-card');
     const initialOrder = initialCards.map(c => c.id);
     const fetchCount = vi.mocked(fetch).mock.calls.filter(
-      c => String(c[0]).includes('/v3/read'),
+      c => String(c[0]).includes('/v3/query'),
     ).length;
     // Click the "Newest" preset — should reorder to put the newer post first
     fireEvent.click(screen.getByTestId('preset-most-recent'));
@@ -602,10 +614,10 @@ describe('Knob re-ranking', () => {
       const newOrder = newCards.map(c => c.id);
       return expect(newOrder).not.toEqual(initialOrder);
     });
-    // No new /v3/read calls after the preset click (client-side re-rank)
+    // The controls own actual reads, not just local sorting.
     expect(vi.mocked(fetch).mock.calls.filter(
-      c => String(c[0]).includes('/v3/read'),
-    ).length).toBe(fetchCount);
+      c => String(c[0]).includes('/v3/query'),
+    ).length).toBeGreaterThan(fetchCount);
   });
 });
 

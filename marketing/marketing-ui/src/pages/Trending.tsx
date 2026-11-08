@@ -1,19 +1,18 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useLocation, useNavigate, useSearchParams, Navigate } from 'react-router-dom';
+import { useEffect, useCallback, useMemo, useRef } from 'react';
+import { useLocation, useSearchParams, Navigate } from 'react-router-dom';
 import { ArrowUpRight, MessageCircleOff } from 'lucide-react';
 import {
   TrendingCard,
   TrendingSkeleton,
   YouTubeSkeleton,
-  fetchDiscoverFeed,
-  searchDiscoverPosts,
   mapDiscoveryToFeedPost,
   feedPostToDiscover,
-  parseCreatedAt,
   type FeedPost,
   type ResolvedMediaRef,
 } from '@/components/FeedPreview';
-import { HomeCard } from '@web10/discover';
+import { HomeCard, SourcePostCard } from '@web10/discover';
+import { FeedSourcesEditor } from '@web10/discover/source-controls';
+import { PUBLIC_HOME, usePublicSources, usePublicBoard } from '@/lib/publicSources';
 import { TrendingSidebar } from '@/components/TrendingSidebar';
 import { KnobRack } from '@/components/KnobRack';
 import { SearchBar } from '@/components/SearchBar';
@@ -26,17 +25,11 @@ import {
   encodeMix,
   decodeMix,
   getPreset,
-  rankPosts,
   PRESETS,
   type KnobState,
   type PresetId,
-  type PostSignals,
 } from '@/lib/powerMean';
 
-const API_ORIGIN = import.meta.env.VITE_API_URL || 'https://api.web10.app';
-const INITIAL_PAGE = 20;
-const PAGE_STEP = 20;
-const MAX_RESULTS = 100;
 
 // ── The four destinations (the Discover split, watch-page.md) ────────────────
 // The old /trending salad (a `Trending | People` tab row PLUS a `Home | Hot
@@ -141,25 +134,6 @@ function hashToColor(str: string): string {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
-async function fetchDiscoverUsers(limit = 20): Promise<DiscoverUser[]> {
-  // M1: the real D0 read (the anon public people directory). One round-trip:
-  // the node composes list_users + the I3 gate + profile faces + follower
-  // counts.
-  const resp = await fetch(`${API_ORIGIN}/v3/users/directory`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ limit, offset: 0 }),
-  });
-  if (!resp.ok) return [];
-  const data = await resp.json();
-  return (data.users || []).map((u: { username: string; follower_count: number }) => ({
-    username: u.username,
-    post_count: 0,
-    engagement_score: 0,
-    followers_count: u.follower_count,
-  }));
-}
-
 function formatFollowers(n: number): string {
   if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
   return String(n);
@@ -209,29 +183,16 @@ interface RankedPost extends FeedPost {
   featured: boolean;
 }
 
-// The marketing search (the social app's `searchPosts` shape, mirrored): the
-// discover board's pool, filtered client-side. The node has no multi-entity
-// search endpoint (the documented v1 floor — global-search.md), so the board
-// read + the client filter IS the search.
-async function fetchSearchResults(query: string, limit = 50): Promise<FeedPost[]> {
-  console.log('[trending] search —', query);
-  const results = await searchDiscoverPosts(query, limit);
-  console.log('[trending] search —', query, '→', results.length, 'result(s)');
-  return results;
+function isForeign(post: FeedPost) { return !!post.sourceOrigin && post.sourceOrigin !== PUBLIC_HOME; }
+
+function ForeignCard({ post, portrait = false }: { post: FeedPost; portrait?: boolean }) {
+  return <SourcePostCard origin={post.sourceOrigin!} author={post.name || post.author || ''}
+    title={post.title} text={post.content} media={feedPostToDiscover(post).media} portrait={portrait} />;
 }
 
 function buildTopic(allTags: string[]): string[] {
   const unique = Array.from(new Set(allTags)).sort();
   return unique.slice(0, 12);
-}
-
-function postToSignals(post: FeedPost): PostSignals {
-  return {
-    ageMs: Math.max(0, Date.now() - parseCreatedAt(post.createdAt)),
-    likes: post.likesCount,
-    comments: post.commentsCount,
-    reposts: post.repostsCount,
-  };
 }
 
 // The preset whose state matches exactly, or null (a custom tuning). The
@@ -251,9 +212,10 @@ function presetIdForState(state: KnobState): PresetId | null {
   return match ? match.id : null;
 }
 
-function readMixFromHash(): { state: KnobState; preset: PresetId | null } {
-  const hash = window.location.hash.slice(1);
-  const match = hash.match(/^mix=(\d{5})/);
+function readMixFromHash(search = window.location.search, fragment = window.location.hash): { state: KnobState; preset: PresetId | null } {
+  const queryMix = new URLSearchParams(search).get('mix');
+  const value = queryMix ? `mix=${queryMix}` : fragment.slice(1);
+  const match = value.match(/^mix=(\d{5})$/);
   if (match) {
     const state = decodeMix(match[1]);
     if (state) {
@@ -263,43 +225,58 @@ function readMixFromHash(): { state: KnobState; preset: PresetId | null } {
   return { state: defaultKnobState(), preset: 'balanced' };
 }
 
-function writeMixToHash(state: KnobState) {
-  const code = encodeMix(state);
-  window.location.hash = `mix=${code}`;
-}
-
 function Trending() {
-  const { pathname } = useLocation();
-  const navigate = useNavigate();
+  const { pathname, hash, search } = useLocation();
   const dest = destFromPath(pathname);
 
-  const [allPosts, setAllPosts] = useState<FeedPost[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [limit, setLimit] = useState(INITIAL_PAGE);
-  const [hasMore, setHasMore] = useState(true);
-  const [topic, setTopic] = useState<string>('All');
-  const [knobState, setKnobState] = useState<KnobState>(() => readMixFromHash().state);
-  const [activePreset, setActivePreset] = useState<PresetId | null>(
-    () => readMixFromHash().preset,
-  );
+  const { state: knobState, preset: activePreset } = useMemo(() => readMixFromHash(search, hash), [search, hash]);
   const cardRefs = useRef<Map<string, HTMLElement>>(new Map());
 
   // ── The URL is the state (the deep-link rule) ──────────────────────────────
   // One useSearchParams for the whole screen: the legacy-redirect check, the
   // search query (?q=), and the People destination's query chip all read it.
   const [searchParams, setSearchParams] = useSearchParams();
+  const writeMixToUrl = useCallback((state: KnobState) => {
+    // Canonical query state survives router-owned Advanced/Edit transitions;
+    // old #mix links remain readable on arrival.
+    setSearchParams(previous => { const next = new URLSearchParams(previous); next.set('mix', encodeMix(state)); return next; });
+  }, [setSearchParams]);
+  const sourceControl = usePublicSources();
+  const topic = searchParams.get('tag') || 'All';
+  const queryTag = (searchParams.get('q') || '').trim();
+  const tags = topic !== 'All' ? [topic] : queryTag.startsWith('#') && queryTag.length > 1 ? [queryTag.slice(1)] : undefined;
+  const board = usePublicBoard(sourceControl.sources, knobState, dest !== 'people', tags, dest);
+  const allPosts: FeedPost[] = useMemo(() => board.posts.map(post => {
+    const first = post.media_refs?.find(ref => typeof ref === 'object');
+    return { ...mapDiscoveryToFeedPost({
+      author: post.author_key || post.author_username || '', post_id: post._id!, service: 'posts',
+      display_name: post.profile?.display_name, avatar_url: post.avatar_url,
+      body_text: post.text || '', body_title: post.title, tags: post.tags || [], created_at: post.created_at,
+      engagement: { likes: post.likes || 0, comments: post.comments || 0, reposts: post.reposts || 0 },
+      engagement_score: post.score || 0, media_refs: post.media_refs,
+      first_attachment_mime: typeof first === 'object' ? first.mime_type || undefined : undefined,
+    }), sourceOrigin: post.source_origin, sourceKey: post.source_key };
+  }), [board.posts]);
+  const loading = board.loading;
+  const loadingMore = loading && allPosts.length > 0;
+  const hasMore = board.hasMore;
 
   // Search state — the query is URL-driven (?q=), the single source of truth
   // (the deep-link rule; the social Discover holds its query the same way).
   // The People destination's query chip (with its X) clears ?q= from the URL,
   // so a state-only query would make that X a no-op.
   const searchQuery = searchParams.get('q') ?? '';
-  const [searchResults, setSearchResults] = useState<FeedPost[]>([]);
-  const [searchUsers, setSearchUsers] = useState<DiscoverUser[]>([]);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [searchSearched, setSearchSearched] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
+  // Text search is explicitly scoped to loaded public pages. Tags are sent to
+  // every source's real query; neither path silently reads an unrelated home pool.
+  const searchSearched = !!searchQuery.trim();
+  const searchLoading = loading && !allPosts.length;
+  const searchError: string | null = null;
+  const searchUsers: DiscoverUser[] = [];
+  const searchResults = useMemo(() => {
+    const term = searchQuery.trim().toLowerCase();
+    return allPosts.filter(post => term.startsWith('#') ? post.tags?.some(tag => tag.toLowerCase() === term.slice(1))
+      : `${post.title || ''} ${post.content} ${post.author || ''} ${(post.tags || []).join(' ')}`.toLowerCase().includes(term));
+  }, [allPosts, searchQuery]);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Write ?q= into the URL (replace — no history spam while typing).
@@ -315,40 +292,12 @@ function Trending() {
     );
   }, [setSearchParams]);
 
-  const loadFeed = useCallback(async (nextLimit: number, append: boolean) => {
-    if (append) setLoadingMore(true); else setLoading(true);
-    try {
-      const [trendingResults, recentResults] = await Promise.all([
-        fetchDiscoverFeed('trending', nextLimit),
-        fetchDiscoverFeed('recent', nextLimit),
-      ]);
-      const all = [...trendingResults];
-      const seen = new Set(all.map(p => p.post_id));
-      for (const p of recentResults) {
-        if (!seen.has(p.post_id)) {
-          all.push(p);
-          seen.add(p.post_id);
-        }
-      }
-      const posts = all.map(mapDiscoveryToFeedPost);
-      setAllPosts(posts);
-      setHasMore(posts.length === nextLimit && nextLimit < MAX_RESULTS);
-    } catch {
-      setAllPosts([]);
-      setHasMore(false);
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
-    }
-  }, []);
-
   // The board read powers Video + Shorts + Hot Gossip (the People destination
   // has its own reads — ProfilesBrowser — and skips the board).
   useEffect(() => {
     if (dest === 'people') return;
-    loadFeed(INITIAL_PAGE, false);
     trackFunnel('trending_view', { dest });
-  }, [loadFeed, dest]);
+  }, [dest]);
 
   // Auto-focus search when navigated from nav (?focus=search)
   useEffect(() => {
@@ -364,60 +313,11 @@ function Trending() {
   }, []);
 
   useEffect(() => {
-    const onHash = () => {
-      const { state, preset } = readMixFromHash();
-      setKnobState(state);
-      setActivePreset(preset);
-    };
-    window.addEventListener('hashchange', onHash);
-    return () => window.removeEventListener('hashchange', onHash);
-  }, []);
-
-  // Debounced search
-  const doSearch = useCallback(async (query: string) => {
-    const trimmed = query.trim();
-    if (!trimmed) {
-      setSearchResults([]);
-      setSearchUsers([]);
-      setSearchSearched(false);
-      setSearchError(null);
-      return;
+    if (!searchParams.has('mix') && /^#mix=\d{5}$/.test(hash)) {
+      setSearchParams(previous => { const next = new URLSearchParams(previous); next.set('mix', hash.slice(5)); return next; }, { replace: true });
     }
-    setSearchLoading(true);
-    setSearchSearched(true);
-    setSearchError(null);
-    trackFunnel('trending_search', { query: trimmed.startsWith('#') ? 'tag' : 'text' });
-    try {
-      const cleaned = trimmed.startsWith('#') ? trimmed.slice(1) : trimmed;
-      const [posts, users] = await Promise.all([
-        fetchSearchResults(cleaned),
-        fetchDiscoverUsers(6),
-      ]);
-      setSearchResults(posts);
-      // Filter users by query match on username
-      const filteredUsers = cleaned.includes('#')
-        ? users
-        : users.filter(u =>
-            u.username.toLowerCase().includes(cleaned.toLowerCase()),
-          );
-      setSearchUsers(filteredUsers);
-    } catch (err) {
-      setSearchResults([]);
-      setSearchUsers([]);
-      setSearchError(err instanceof Error ? err.message : 'Search failed');
-    } finally {
-      setSearchLoading(false);
-    }
-  }, []);
+  }, [hash, searchParams, setSearchParams]);
 
-  // The query is URL-driven (?q=), so EVERY change — typing in the field, the
-  // People destination's query-chip X, a topic chip, a deep link — flows
-  // through this one debounced effect. (The chip's X rewrites ?q= via
-  // react-router; a state-only query would make it a no-op.)
-  useEffect(() => {
-    const t = setTimeout(() => doSearch(searchQuery), 300);
-    return () => clearTimeout(t);
-  }, [searchQuery, doSearch]);
 
   const handleSearchChange = useCallback(
     (value: string) => {
@@ -434,7 +334,7 @@ function Trending() {
   // When not searching, the topic chip already filters the board via setTopic
   const handleTopicClick = useCallback(
     (t: string) => {
-      setTopic(t);
+      setSearchParams(previous => { const next = new URLSearchParams(previous); if (t === 'All') next.delete('tag'); else next.set('tag', t); return next; });
       if (searchSearched && t !== 'All') {
         // If searching and a tag is selected, add it to the search query
         // (the ?q= effect runs the search).
@@ -444,7 +344,7 @@ function Trending() {
         handleSearchClear();
       }
     },
-    [searchSearched, setSearchQuery, handleSearchClear],
+    [searchSearched, setSearchQuery, handleSearchClear, setSearchParams],
   );
 
   const maxScore = useMemo(
@@ -453,12 +353,12 @@ function Trending() {
   );
 
   const topics = useMemo(
-    () => ['All', ...buildTopic(allPosts.flatMap(p => p.tags ?? []))],
-    [allPosts],
+     () => ['All', ...buildTopic([...allPosts.flatMap(p => p.tags ?? []), ...(topic === 'All' ? [] : [topic])])],
+    [allPosts, topic],
   );
 
   const ranked: RankedPost[] = useMemo(() => {
-    const sorted = rankPosts(allPosts, postToSignals, knobState);
+    const sorted = allPosts;
     return sorted.map((post, i) => ({
       ...post,
       rank: i + 1,
@@ -498,7 +398,7 @@ function Trending() {
 
   const rankedSearchResults: RankedPost[] = useMemo(() => {
     if (!searchSearched || searchResults.length === 0) return [];
-    const sorted = rankPosts(searchResults, postToSignals, knobState);
+    const sorted = searchResults;
     return sorted.map((post, i) => ({
       ...post,
       rank: i + 1,
@@ -515,22 +415,15 @@ function Trending() {
   );
 
   const handleKnobChange = useCallback((key: keyof KnobState, value: number) => {
-    setKnobState(prev => {
-      const next = { ...prev, [key]: value };
-      writeMixToHash(next);
-      setActivePreset(null);
-      return next;
-    });
-  }, []);
+    writeMixToUrl({ ...knobState, [key]: value });
+  }, [knobState, writeMixToUrl]);
 
   const handlePreset = useCallback((id: PresetId) => {
     const preset = getPreset(id);
     if (!preset) return;
-    setKnobState(preset.state);
-    setActivePreset(id);
-    writeMixToHash(preset.state);
+    writeMixToUrl(preset.state);
     trackFunnel('trending_preset', { preset: id });
-  }, []);
+  }, [writeMixToUrl]);
 
   const scrollToCard = useCallback((postId: string) => {
     const el = cardRefs.current.get(postId);
@@ -547,7 +440,7 @@ function Trending() {
 
   const handleReaction = (type: 'like' | 'repost', postId: string) => {
     trackFunnel(type === 'like' ? 'trending_like_attempt' : 'trending_repost_attempt');
-    const post = allPosts.find(p => p.id === postId) || searchResults.find(p => p.id === postId);
+    const post = allPosts.find(p => !isForeign(p) && p.id === postId) || searchResults.find(p => !isForeign(p) && p.id === postId);
     if (post?.author) {
       window.open(`${SOCIAL_ORIGIN}/u/${encodeURIComponent(post.author)}/p/${encodeURIComponent(postId)}`, '_blank');
     } else {
@@ -557,7 +450,7 @@ function Trending() {
 
   const handleComment = (postId: string) => {
     trackFunnel('trending_comment_attempt');
-    const post = allPosts.find(p => p.id === postId) || searchResults.find(p => p.id === postId);
+    const post = allPosts.find(p => !isForeign(p) && p.id === postId) || searchResults.find(p => !isForeign(p) && p.id === postId);
     if (post?.author) {
       window.open(`${SOCIAL_ORIGIN}/u/${encodeURIComponent(post.author)}/p/${encodeURIComponent(postId)}`, '_blank');
     } else {
@@ -566,10 +459,8 @@ function Trending() {
   };
 
   const handleLoadMore = () => {
-    const next = Math.min(limit + PAGE_STEP, MAX_RESULTS);
-    setLimit(next);
     trackFunnel('trending_load_more');
-    loadFeed(next, true);
+    board.loadMore();
   };
 
   const isInitialLoad = loading && allPosts.length === 0;
@@ -624,17 +515,33 @@ function Trending() {
         searchInputRef={searchInputRef}
       />
 
-      {/* Knob Rack — only show when not searching */}
-      {!isInitialLoad && allPosts.length > 0 && !isSearching && (
+      {/* One real chassis, available even when sources are empty or paused. */}
+      {(
         <div className="px-4 pt-4 pb-2 sm:px-6">
           <KnobRack
             state={knobState}
             activePreset={activePreset}
             onChange={handleKnobChange}
             onPreset={handlePreset}
-          />
+            expanded={searchParams.get('tune') === '1' || searchParams.get('editServers') === '1'}
+            onExpandedChange={expanded => setSearchParams(previous => {
+              const next = new URLSearchParams(previous);
+              if (expanded) next.set('tune', '1');
+              else { next.delete('tune'); next.delete('editServers'); next.delete('removeServer'); }
+              return next;
+            })}
+          >
+            <FeedSourcesEditor control={sourceControl} allocations={board.allocations} errors={board.errors} onRetry={board.retry} />
+          </KnobRack>
         </div>
       )}
+
+      {!!Object.keys(board.errors).length && <div role="alert" className="mx-4 mt-4 rounded-xl border border-danger/30 bg-surface p-4 text-sm text-muted-foreground">
+        {Object.entries(board.errors).map(([origin, message]) => <p key={origin}>{new URL(origin).host}: {message}</p>)}
+        <button type="button" onClick={board.retry} className="mt-2 min-h-11 rounded-sm border border-border px-4 text-foreground focus-visible:ring-2 focus-visible:ring-ring">Retry source reads</button>
+      </div>}
+      {sourceControl.error && <p role="alert" className="px-4 pt-3 text-sm text-danger">{sourceControl.error}<button type="button" className="ml-2 min-h-11 underline" onClick={() => sourceControl.save([{ origin: PUBLIC_HOME, weight: 100 }])}>Reset public servers</button></p>}
+      {isSearching && <div className="px-4 pt-3 text-sm text-muted-foreground">{searchQuery.trim().startsWith('#') ? 'Tag filtered on each selected server.' : 'Search within loaded public pages; load more to search further.'}{hasMore && <button type="button" disabled={loading} onClick={handleLoadMore} className="ml-2 min-h-11 underline">{loading ? 'Loading…' : 'Load more public pages'}</button>}</div>}
 
       {/* Topic filter — sticky, horizontal scroll */}
       <div
@@ -707,7 +614,7 @@ function Trending() {
                   </p>
                   <button
                     type="button"
-                    onClick={() => { setSearchError(null); doSearch(searchQuery); }}
+                    onClick={board.retry}
                     className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                   >
                     Try again
@@ -733,9 +640,9 @@ function Trending() {
                         data-testid="trending-grid"
                         className="mx-auto grid w-full max-w-2xl grid-cols-1"
                       >
-                        {visibleSearchResults.map(post => (
+                        {visibleSearchResults.map(post => isForeign(post) ? <ForeignCard key={post.sourceKey} post={post} /> : (
                           <TrendingCard
-                            key={post.id}
+                            key={post.sourceKey || post.id}
                             post={post}
                             rank={post.rank}
                             featured={post.featured}
@@ -786,6 +693,10 @@ function Trending() {
                     : <YouTubeSkeleton key={i} portrait={dest === 'shorts'} />
                 ))}
               </div>
+            ) : !sourceControl.sources.some(source => source.weight > 0) ? (
+              <EmptyBoard title={sourceControl.sources.length ? 'All servers are paused' : 'No public servers selected'}
+                body="Open Advanced to raise a fader or add a public server. No source reads run while this rack is paused."
+                ctaLabel="Open feed controls" ctaHref={`${pathname}?${new URLSearchParams({ ...Object.fromEntries(searchParams), tune: '1' }).toString()}`} />
             ) : dest === 'video' ? (
               /* Video — the YouTube-style video wall (16:9 thumbnails, title +
                  author attribution). Videos only. The 1:1 link-out: a
@@ -798,9 +709,9 @@ function Trending() {
                       data-testid="trending-home-grid"
                       className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3"
                     >
-                      {videoPosts.map(post => (
+                      {videoPosts.map(post => isForeign(post) ? <ForeignCard key={post.sourceKey} post={post} /> : (
                         <HomeCard
-                          key={post.id}
+                          key={post.sourceKey || post.id}
                           post={feedPostToDiscover(post)}
                           authorAvatar={post.avatarUrl}
                           remote
@@ -854,9 +765,9 @@ function Trending() {
                       data-testid="trending-shorts-grid"
                       className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4"
                     >
-                      {shortsPosts.map(post => (
+                      {shortsPosts.map(post => isForeign(post) ? <ForeignCard key={post.sourceKey} post={post} portrait /> : (
                         <HomeCard
-                          key={post.id}
+                          key={post.sourceKey || post.id}
                           post={feedPostToDiscover(post)}
                           authorAvatar={post.avatarUrl}
                           remote
@@ -910,9 +821,9 @@ function Trending() {
                   data-testid="trending-grid"
                   className="mx-auto grid w-full max-w-2xl grid-cols-1"
                 >
-                  {visible.map(post => (
+                  {visible.map(post => isForeign(post) ? <ForeignCard key={post.sourceKey} post={post} /> : (
                     <TrendingCard
-                      key={post.id}
+                      key={post.sourceKey || post.id}
                       post={post}
                       rank={post.rank}
                       featured={post.featured}
@@ -960,6 +871,7 @@ function Trending() {
                 external
               />
             )}
+            {!isSearching && hasMore && !loadingMore && ((dest === 'video' && !videoPosts.length) || (dest === 'shorts' && !shortsPosts.length) || !visible.length) && <div className="mt-6 flex justify-center"><button type="button" data-testid="trending-load-more" onClick={handleLoadMore} className="min-h-11 rounded-full border border-border px-5 text-sm text-foreground focus-visible:ring-2 focus-visible:ring-ring">Load more public pages</button></div>}
           </div>
 
           {/* Sidebar — the Top 10 rail is Hot Gossip only (the Video + Shorts
@@ -968,6 +880,7 @@ function Trending() {
           {dest === 'hot-gossip' && !isSearching && (
             <TrendingSidebar
               entries={ranked
+                .filter(p => !isForeign(p))
                 .filter(p => topic === 'All' || (p.tags?.includes(topic) ?? false))
                 .slice(0, 10)
                 .map(p => ({ post: p, rank: p.rank }))}

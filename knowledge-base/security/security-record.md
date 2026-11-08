@@ -15,6 +15,15 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Feed source integration candidate (08.11.2026) — bounded local, OPEN
+
+Private catalog, separate credential-generation approval, source-query transport
+and source-owned media paths. Fresh bounded L1/L2 review reproduced removed-consent
+resurrection and normalized/encoded credential URLs; three retained regressions
+fail before repair and pass afterward. [Candidate record](scans/2026-11/feed-source-integration.md).
+Convergence/diverse review, split PR/CI, actual two-node/browser grants and broader
+L3/L4 coverage remain OPEN. No released activation or whole-security PASS.
+
 ## Music live playlist pointers (08.11.2026) — bounded feature review, OPEN
 
 GPT-6.1 Sol read the new `musicLibrary.ts`, Music browser/reaction controls and

@@ -1,7 +1,7 @@
 // VERBATIM COPY from marketing/marketing-ui/src/components/KnobRack.tsx
 // Keep in sync with marketing-ui; see design.md §D22 (separate package, no premature sharing).
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { ChevronDown, SlidersHorizontal } from 'lucide-react';
 import { RotaryKnob } from './RotaryKnob';
 import {
@@ -34,9 +34,12 @@ interface KnobRackProps {
   activePreset: PresetId | null;
   onChange: (key: keyof KnobState, value: number) => void;
   onPreset: (id: PresetId) => void;
+  expanded?: boolean;
+  onExpandedChange?: (expanded: boolean) => void;
+  children?: ReactNode;
 }
 
-function KnobRack({ state, activePreset, onChange, onPreset }: KnobRackProps) {
+function KnobRack({ state, activePreset, onChange, onPreset, expanded: controlled, onExpandedChange, children }: KnobRackProps) {
   const weightLabels = useMemo(
     () => WEIGHT_DETENTS.map((_, i) => String(WEIGHT_DETENTS[i])),
     [],
@@ -44,7 +47,8 @@ function KnobRack({ state, activePreset, onChange, onPreset }: KnobRackProps) {
   // Knobs are power-user controls — presets are the default, the synth rack
   // hides behind "Advanced" so the surface reads clean (no heavy bordered
   // card colliding with the page's header/topic bars).
-  const [expanded, setExpanded] = useState(false);
+  const [localExpanded, setExpanded] = useState(false);
+  const expanded = controlled ?? localExpanded;
 
   return (
     <div data-testid="knob-rack" className="mx-auto max-w-4xl">
@@ -82,7 +86,7 @@ function KnobRack({ state, activePreset, onChange, onPreset }: KnobRackProps) {
           data-testid="knobs-advanced-toggle"
           aria-expanded={expanded}
           aria-controls="knob-advanced-panel"
-          onClick={() => setExpanded(e => !e)}
+          onClick={() => { setExpanded(!expanded); onExpandedChange?.(!expanded); }}
           className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium uppercase tracking-[0.06em] text-muted-foreground transition-colors duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           <SlidersHorizontal className="h-3.5 w-3.5" />
@@ -101,8 +105,8 @@ function KnobRack({ state, activePreset, onChange, onPreset }: KnobRackProps) {
           expanded ? 'mt-3 grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
         }`}
       >
-        <div className="overflow-hidden">
-          <div className="knob-row flex items-start justify-start gap-6 overflow-x-auto rounded-2xl bg-surface/50 px-4 py-6 sm:justify-center sm:gap-10 sm:overflow-visible" aria-hidden={!expanded}>
+        <div className={children ? 'overflow-hidden rounded-xl border border-border bg-surface' : 'overflow-hidden'} aria-hidden={!expanded} inert={!expanded}>
+          <div className="knob-row flex items-start justify-start gap-6 overflow-x-auto rounded-2xl bg-surface/50 px-4 py-6 sm:justify-center sm:gap-10 sm:overflow-visible">
             <RotaryKnob
               label="Recency"
               value={state.recency}
@@ -128,6 +132,7 @@ function KnobRack({ state, activePreset, onChange, onPreset }: KnobRackProps) {
               dataTestId="knob-comments"
             />
           </div>
+          {children}
         </div>
       </div>
     </div>

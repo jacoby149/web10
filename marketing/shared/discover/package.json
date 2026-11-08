@@ -14,11 +14,16 @@
     "./mentions": "./src/mentions.ts",
     "./media-recovery": "./src/mediaRecovery.ts",
     "./image": "./src/ReliableImage.tsx",
-    "./video": "./src/ReliableVideo.tsx"
+    "./video": "./src/ReliableVideo.tsx",
+    "./source-controls": "./src/sourceControls.ts",
+    "./source-models": "./src/sourceModels.ts",
+    "./mixed-feed": "./src/mixedFeed.ts",
+    "./feed-query": "./src/feedQuery.ts"
   },
   "peerDependencies": {
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.0.0"
   },
   "dependencies": {
     "clsx": "^2.1.1",

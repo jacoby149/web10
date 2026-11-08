@@ -35,6 +35,21 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-08: Removed consent and usable URLs need ownership checks at the sink
+
+The [candidate source integration](scans/2026-11/feed-source-integration.md)
+reproduces a retained same-account approval callback resurrecting removed consent;
+credential scope alone is insufficient. Bind approval to the captured controller
+generation and catalog-write sequence. A stale consent-bearing `save()` can
+otherwise reopen the removed grant too; both entry points need the same guard.
+A separate reader replay inserts a newline
+or percent-encodes an echoed credential: URL normalization reconstructs it after
+a raw-text guard. Check the normalized and bounded decoded URL before automatic
+media consumers receive it. Three actual hook/reader regressions fail before the
+repairs and pass afterward. This is bounded local evidence, not a guarantee that
+an explicitly approved malicious node cannot transform a credential by other means.
+Independent convergence, connected acceptance and split PR/CI gates remain OPEN.
+
 ### 2026-11-08: Keep live playlist pointers separate from target access
 
 Music bookmarks store only a collection ID in an owner-only app service, never

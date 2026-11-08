@@ -1,10 +1,42 @@
-# Server mixer component — a control, not yet a connected feed
+# Server mixer — shared controls and source-read integration
 
 The reader should be able to turn a server down without deleting their follows.
-This unit supplies the horizontal faders and relative page-budget arithmetic;
-subscription discovery and actual remote fetches remain separate integration.
+The approved component supplies horizontal faders and page-budget arithmetic.
+The current integration adds real source reads across Feed, Shorts, Music and
+marketing boards; connected-node acceptance remains separate, not implied.
 
-## Hardware, not a settings form
+## Source-editor implementation contract (08.11.2026)
+
+Operator: keep the elegant rack clean; an **Edit servers** button reveals its
+management controls, and **Done** hides them. Ranking knobs and sources belong
+inside one Feed Advanced chassis. Advanced/edit state is URL-owned; closing
+editing does not reset weights. No permanent add/remove chrome in normal mode.
+
+FM3's first live unit saves a bounded personal source catalog through existing
+`settings` CRUD in a dedicated closed, undiscoverable, hidden-membership group
+with exactly the human owner. Never reuse the followers group, save JWTs, send
+credentials merely because an origin was saved, or repair an unsafe group. Check
+current client/credential scope before and after asynchronous work, verify ACL
+and document owner/attachments, and fail rather than overwrite duplicate catalogs.
+This reuses the existing app-granted settings service; no API/SDK grant expansion.
+
+Operator correction: private content does not require a separate feed pipeline.
+Every selected node receives the same authenticated engine query; it certifies
+the home token, checks its existing app contract and group roles, and returns
+authorized rows. The faders control actual per-node quotas; the client assembles
+a weighted round-robin feed with separate cursors/buffers, not a global cursor.
+Zero mutes; empty catalog pauses. Errors stay source-specific; never retry a
+denied credential anonymously or label every foreign source feature-pending.
+
+Source data is not credential-dispatch authority. A catalog row alone (including
+one changed by another settings-authorized app) cannot authorize token forwarding.
+Manual Add/Approve explicitly confirms the exact HTTPS origin for the current
+credential. Keep a separate tab-local approval keyed by a SHA-256 digest of that
+credential, never the JWT itself; a changed token, account, target or removed
+source invalidates dispatch/late results. The receiving node still grants all
+read/write authority, not this preference. Cross-tab catalog CAS is not promised.
+
+## Component split contract (5.3.0; historical scope)
 
 Operator review: "those knobs dont look like an fl studio mixer, like really
 tight ... the feed tuning circle knobs look right out of fl studio design wise
@@ -82,8 +114,9 @@ Next operator request: "missing how to add or remove a server from the feed now
 though...." Keep this approved rack; add **+ Server** in its header and a removal
 control per channel only with a real owner-private saved source catalog (FM3),
 not fake buttons or preview-only enrollment. Removal stops that node's reads,
-never deletes creator follows or memberships. Addition defaults to credential-free
-public reads; authenticated routing requires separate destination approval/grants.
+never deletes creator follows or memberships. Superseding the earlier public-only
+proposal, social queries use the current credential only after separate exact-node
+approval; marketing remains public. Receiving nodes enforce their own live grants.
 Dialog state belongs in the URL; persist subscriptions on the home node, never
 tokens. Account-switch, removal/queued-read invalidation and reload/retry controls
 are required before claiming the source-management flow implemented.
@@ -97,3 +130,62 @@ root preview lacked the newly merged telemetry dependency; frozen installation
 and the refreshed browser run pass without changing application/test config.
 CI's earlier source-head HTTP504 happened while downloading Bun, before tests;
 the final candidate still requires all fresh checks, with no waiver.
+
+## Cross-surface integration (08.11.2026; workspace PR candidate)
+
+The user wants the rack across Feed, Shorts, Music and marketing content boards:
+the same controls must change actual reads, not decorate a capped home-node pool.
+Ranking knobs select node SQL order; server faders allocate a twenty-post page.
+Shared smooth quotas carry fractional credits so weight 1 beside 100 still gets
+two posts over two hundred slots. A source may underfill; counts are budgets,
+never a promise of inventory or node health.
+
+`marketing/shared/discover` owns controls, SQL/ranking parity, source allocation,
+the reader and a four-active/64-queued destination-sequence budget across reader
+generations. An ignored abort does not release a live sequence early. A home
+sequence may itself contain parallel follow-ups; this is not a four-HTTP-call cap.
+Readers pin the ranking clock, buffer lookahead, preserve per-node delivered
+anchors and serialize page reads. `page_cursor` precedes the displayed page;
+`snapshot()` follows delivery and is used to resume failed-source retries.
+URL history changes restore an owned reader, not the page after the bookmark.
+
+Social sources use the owner-private settings catalog and current-credential
+approval described above. Marketing sources are validated browser preferences,
+with URL precedence, and always `credential: null`; no cookie-aware client is
+imported by the shared reader. Explicit HTTP development-home reads are public
+only; other destinations remain HTTPS. The receiving node's normal query gate
+decides public/private authority in either case. A denial never causes an
+anonymous retry. Removing a node changes neither follows nor group membership.
+
+Source-qualified keys keep colliding node/author/document IDs distinct. Prepared
+media paths and HLS capabilities stay on the serving node. Foreign cards and
+media expose only implemented read-only behavior: home comments, mutations,
+profile navigation, analytics and recovery are not substitute destination APIs.
+Marketing text search explicitly covers loaded pages; tags reach source SQL.
+People is a directory, not a post board, and does not run the post mixer.
+
+Fresh scoped review reproduced two boundary bugs: a retained approval callback
+resurrected removed consent, and URL normalization/percent encoding bypassed the
+credential-echo guard. Actual hook/reader regressions fail before repair and pass
+after generation/sequence ownership and normalized/decoded URL checks. Receipts:
+`.context/server-editor-review-{red,green}.log`. This is bounded local evidence,
+not cryptographic audience binding or protection against every transformation an
+already-approved malicious node might perform.
+
+Full fresh suites, all-surface browser captures, container builds, independent
+review and split-sized PR/CI gates are being checked. Separate real HTTPS nodes,
+browser Origin/app grants, revoke/regrant, actual media renewal, domain continuity,
+physical phone and approved rollout remain OPEN. Do not mark all FM2–FM6 complete.
+
+Candidate receipts: both frontend builds and original container builds pass;
+marketing full suite passes 337 tests before the final removal regression, and
+an earlier social full suite passes 2,285 tests. A later assembly run catches the
+subsequently repaired stale save plus a Shorts timeout; do not relabel it green.
+Latest browser replay drives clean/Edit/Add/keyboard weight 1/Remove/Done on all
+six named surfaces at desktop and 375px (12 cases), no page exceptions or viewport
+overflow. Images `.context/mixer-*-{clean,edit}-{desktop,375}.png`; receipt
+`mixer-capture-receipt.json`. These are synthetic fixtures, not connected nodes or
+actual playback. Draft #1440 isolates only the dormant catalog on refreshed dev;
+the operator explicitly requests the full current-workspace PR, not that split.
+This assembly carries the complete integration; method/CI and connected gates
+remain independent and must not be called green merely because a PR is opened.

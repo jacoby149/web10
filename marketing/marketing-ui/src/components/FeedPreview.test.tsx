@@ -18,6 +18,10 @@ const ok = (data: unknown) => ({ ok: true, json: async () => data }) as Response
 function mockReads(faceResult: 'ok' | 'empty' | 'denied' | 'throw' = 'ok') {
   const transport = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
     const body = JSON.parse(String(init?.body || '{}'));
+    if (body.sql?.includes('FROM posts p')) return new Response(JSON.stringify({ rows: [
+      { ...doc('g1', group), score: 0 }, { ...doc('g2', group), score: 0 },
+      { ...doc('u1', 'ordinary_user'), score: 0 },
+    ] }), { headers: { 'Content-Type': 'application/json' } });
     if (body.prepare?.face && body.sql !== GROUP_FACE_SQL) return ok({ rows: [] });
     if (body.prepare?.face) {
       expect(url).toBe(`${API_ORIGIN}/v3/query`);
@@ -27,10 +31,11 @@ function mockReads(faceResult: 'ok' | 'empty' | 'denied' | 'throw' = 'ok') {
       if (faceResult === 'throw') throw new Error('offline');
       if (faceResult === 'denied') return { ok: false, status: 403 } as Response;
       if (faceResult === 'empty') return ok({ rows: [] });
-      return ok({ rows: [{
+      const result = { rows: [{
         group_id: group, author_key: 'creator', body: { name: 'Music Collective' },
         ...(body.prepare.face.mediaField === 'avatar_ref' ? { avatar_url: avatar } : {}),
-      }] });
+      }] };
+      return new Response(JSON.stringify(result), { headers: { 'Content-Type': 'application/json' } });
     }
     if (body.service === 'posts') return ok([
       doc('g1', group), doc('g2', group), doc('u1', 'ordinary_user'),
