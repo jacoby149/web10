@@ -22,7 +22,9 @@ not weaker deletion/access checks. Fifteen durable AST/SQLite controls and eight
 actual ClickHouse constant-CTE comparisons retain expected rows. Three fresh
 same-family reviews are dry; diverse review, equal-timestamp/merge/concurrent
 history assurance, fresh study and PR/deployment gates remain OPEN. Source-specific
-single-pass diagnostics are not capacity results. [Record](scans/2026-11/query-partition-pruning.md).
+single-pass diagnostics are not capacity results. Fresh candidate strict
+acceptance still fails three measured main requests; lifecycle controls pass,
+and all test hosts/firewalls are removed. [Record](scans/2026-11/query-partition-pruning.md).
 
 ## Public frozen research inputs (08.11.2026) — bounded live acceptance, broader coverage OPEN
 

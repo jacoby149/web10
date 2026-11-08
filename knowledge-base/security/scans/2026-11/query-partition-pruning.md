@@ -25,6 +25,13 @@ after ranking. No new CTE, external field, grant cache, bypass or timeout change
 - Eight actual ClickHouse 24.8 constant-CTE controls compare original compiler,
   candidate and expected rows. EXPLAIN confirms no storage tables are reached:
   no production data or test-table writes. All eight match.
+- Fresh source-patch replay restores the same million-author input and passes
+  initial exact results, but strict acceptance still fails: two warm-up feeds
+  and one measured feed complete; three measured main requests return 400.
+  Seven lifecycle controls pass before/after; 15 requests correlate. No
+  five-reader ramp or primary study point runs. The runtime patch is not an
+  end-to-end performance solution. Both attempts are archived; all three test
+  droplets/firewalls are deleted and verified empty (estimated compute $2.0106).
 - Named single-pass SQL diagnostics on the restored synthetic input: main
   7,606 → 2,423 ms with identical ordered output; canonical post read
   1,691 → 577 ms with identical complete row multiset (no SQL ordering contract).

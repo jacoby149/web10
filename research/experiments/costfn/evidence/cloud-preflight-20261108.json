@@ -46,7 +46,33 @@
     "controls_reach_no_storage_tables": true,
     "additional_hypotheses_not_implemented": ["exact-ID partition pruning", "readable-link document semijoin"]
   },
-  "candidate": {"fresh_source_patch_preflight": "RUNNING", "production_deployed": false},
-  "cleanup": {"status": "SCHEDULED_AFTER_CANDIDATE_REPLAY", "hard_deadline_utc": "2026-11-09T00:09:07Z"},
+  "candidate": {
+    "fresh_source_patch_preflight": "STRICT_ACCEPTANCE_FAILED",
+    "api_python_sha256": "9006235cf8f82e6987f5dc686672a88e04b818122ac08b3477a5f991e97482e3",
+    "api_image_id": "sha256:d5c7c1f25b007c24a74f84aab26f58f2ecac947fc992f3e993d1bc8fed3fd245",
+    "large_restore_initial_results_passed": true,
+    "warmup_feeds_completed": 2,
+    "measured_feeds_completed": 1,
+    "measured_feeds_failed": 3,
+    "failed_main_http_status": 400,
+    "correlated_requests": 15,
+    "lifecycle_controls_passed_before_and_after": 7,
+    "paired_smoke_pairs": 3,
+    "resource_samples": 7,
+    "http_requests_after_drain": 0,
+    "five_reader_diagnostic_started": false,
+    "primary_points_completed": 0,
+    "production_deployed": false
+  },
+  "cleanup": {
+    "status": "VERIFIED_EMPTY",
+    "deleted_at_utc": "2026-11-08T23:53:35.827235+00:00",
+    "owned_droplets_remaining": 0,
+    "owned_firewalls_remaining": 0,
+    "estimated_compute_usd": 2.0106,
+    "settled_provider_invoice": false,
+    "final_raw_archive_sha256": "f85f11261fb11d6d30e395cb8898fe156b4538e155c5616da6c0b78f5dd57de7",
+    "final_raw_archive_bytes": 63812
+  },
   "scope": "Failed functional baseline plus source-specific diagnostics, not a completed load study, capacity result or seventh-draft measurement. Equal-timestamp history winner ambiguity is unchanged."
 }
