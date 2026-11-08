@@ -278,7 +278,11 @@ hide history and unhide-winning timestamp ties. Eleven independently verified
 synthetic signing deliveries reproduce red and now deny before signing; all 22
 SQLite controls and 47 retained membership/attachment/node cases pass. Visible
 alternatives, unrelated tombstones, same/cross-group carriers, independent
-uploaders and non-posts selection remain. Full Ruff lint/format pass. Real
+uploaders and non-posts selection remain. All 2,080 API tests plus eight subtests
+pass with one opt-in skip; full Ruff lint/format pass. Fresh same-family review
+independently passes 22 plus 47 cases and replays all eleven verified baseline
+disclosures by removing only the new filter in memory, without a blocking defect.
+Multi-target and representative query-cost receipts remain release gates. Real
 lifecycle/driver/object retrieval, broader ad authority, connected acceptance,
 CI/rollout/diverse and protocol L1 remain OPEN; no broader PASS claim.
 

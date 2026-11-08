@@ -55,9 +55,42 @@ uv run ruff format --check .
 
 SQLite: **22 pass**, eleven denied before signing, eleven permitted. All 47
 retained membership/attachment/node cases pass. Full API Ruff lint/format pass.
-ClickHouse-local matrix, full-suite and fresh review results are recorded when
-complete; no uncompleted run is counted as passing. Logs live under
+Full API: **2,080 passed plus eight subtests, one opt-in skip**, with 2,440 existing
+warnings (433.31 seconds). ClickHouse-local results are recorded when complete;
+no uncompleted run is counted as passing. Logs live under
 `.context/h01-pinned-hidden-repair-{red,api,clickhouse}.log` locally.
+
+## Fresh Review And Design-Intent Gate
+
+Separate same-family `openrouter/openai/gpt-6.1-sol` context,
+session `ses_e46fad30bffekZidUSEMNbV49t`, independently passes all 22 SQLite
+cases (64.32 seconds) and 47 retained controls (224.58 seconds). In-memory-only
+query substitution removing precisely the new hide anti-filter reproduces
+11 failures after independently verified synthetic signing, with eleven permitted
+controls passing. This is an old-query/new-query contrast, not a historical full
+checkout. No blocking defect found; no files edited. The reviewer did not run
+ClickHouse-local or the full API. One bounded same-family review is not
+three-dry/model-diverse convergence or security PASS.
+
+### DESIGN-INTENT REVIEW
+
+1. **Intent:** a pinned creative needs its own qualifying visible attachment;
+   one hide never suppresses every other group. D59/D75 retain same/cross-group
+   carriers, arbitrary creative services and independent upload ownership.
+2. **Delta:** fans no longer receive the inline creative/fresh media signing
+   through hidden-only member/attachment authority. The carrier remains; newer/
+   tied unhide and another visible qualifying attachment retain enrichment.
+3. **Conflict:** none found with the explicit operator rule, D59 group curation,
+   D75 service agnosticism or D41 node-readable storage. No owner-only/global veto.
+4. **Standards:** no new deviation; group hides remain scoped curation, not
+   universal secrecy or revocation of previously issued capabilities.
+5. **Intent risk:** arbitrary-service fixtures prove generic lookup/filtering,
+   not real service authorization (readable fixtures still use posts/member roles).
+   HTTP carrier/group-contract readers and actual app/class/anonymous authority
+   remain doubled. Moderation writers, DateTime64 precision, equal-version merge
+   collapse, concurrent lifecycle, multi-target batches and representative hide
+   history latency remain release gates. Accept the bounded SQL repro repair,
+   not rollout; require those receipts before broader creative-authority claims.
 
 ## Limits And Remaining Gates
 
