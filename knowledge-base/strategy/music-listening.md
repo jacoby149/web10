@@ -21,7 +21,9 @@ not establish real-media playback or connected collection persistence.
 The extension is not deployed. Release checks remain:
 isolated real-storage first/return saves and unavailable refs; real MP3/video
 playback and expired-URL refresh; actual phone Media Session/background
-behavior. Public playlist discovery and catalog-wide indexing stay deferred.
+behavior. Bounded public-curator browsing and live playlist bookmarks are now
+approved in [music-social-library.md](music-social-library.md); catalog-wide
+indexing stays deferred.
 
 4.4.1 adds the bounded device-report repair: consistent caption titles,
 failed-art fallback and one-shot media-error recovery. Seven new regressions,
@@ -61,6 +63,12 @@ all social tests and the production build/typecheck are green in this branch.
 Deployment and receiving-app cache refresh remain separate release checks.
 
 ## Starting Point
+
+5.5.0 adds original-post reactions, URL-backed public curator browsing and personal
+live playlist bookmarks. The local 2,223-test/build/desktop/375px Chromium receipt
+and explicit connected-node/consent/phone limits are recorded in
+[music-social-library.md](music-social-library.md). Catalog-wide indexing remains
+deferred; saving a playlist keeps its live original, not copied tracks.
 
 - Music-tagged Discover reads, MP3 upload and author-marked music videos.
 - Album-art cards, duration and a route-local play/pause strip.
@@ -151,7 +159,7 @@ adds its audience gate; saved reads retain their original target gates.
 
 ## Later
 
-Catalog-wide indexed music/playlist search, public playlist discovery,
+Catalog-wide indexed music/playlist search and global playlist discovery,
 recommendations/radio, albums, offline downloads, cross-device queue sync,
 gapless playback, lyrics and music-specific creator publishing metadata.
 Existing public collection links remain usable; no new public index is implied.

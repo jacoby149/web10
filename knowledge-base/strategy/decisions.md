@@ -9,6 +9,48 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D106 — Replay is layout-faithful, content-blind [decided]
+
+Operator, 08.11.2026 (after inspecting the first live recordings in the vendor
+UI: "session replay looks unusable it is so masked up"): a recording that
+renders as gray boxes fails at its job — the operator cannot see which screen
+they are looking at. Replay therefore reproduces **layout and styling**
+(stylesheet + fonts inlined, class/style attributes kept on the wire) while
+staying **content-blind**: all text and input values remain masked, media
+(img/video/audio/canvas/svg/iframe) remains blocked, and the wire sanitizer
+drops content-bearing attributes — input values, alt/title/placeholder, media
+srcs, DOM ids (route/document identifiers), and every `data-*`/`aria-*`
+payload; hrefs are route-templated. Supersedes D103's "deliberately reduced
+fidelity" replay posture, not its content-out boundary: content is still never
+recorded. Terms/Privacy copy updated to match. Re-verified: pinned wire test,
+real-Chromium/SDK intercepted-batch check with a class-survival assertion and
+sentinel absence, and a live dev recording for operator inspection.
+
+---
+
+### D105 — API-integrated Gmail for small nodes; SendGrid email and optional Twilio SMS for larger nodes [decided; live acceptance OPEN]
+
+Operator, 08.11.2026: “connect with GMAIL support email” for small nodes,
+“For large nodes! connect with Twilio + Sendgrid”; explicitly keep it in the API,
+not a separate service. Password resets must work from email links through either
+email provider. Sensitive settings start masked with an explicit eye toggle.
+
+The API owns send-only Gmail OAuth, refresh, email delivery and one-time code/link
+verification. SendGrid is the transactional-email option; Twilio Verify remains
+optional SMS and the legacy compatibility email path until explicitly switched.
+Node-size labels guide setup, not hard limits. Independent self-hosters configure
+their own Google OAuth client; no shared client secret in the image, centralized
+broker or inbox access. Private conditional S3 state reuses existing infrastructure;
+a separate persistent encryption key protects sender credentials and challenges.
+Email-link credentials stay bound to the authenticator's configured issuing API,
+never a logged-in foreign provider or arbitrary URL from the fragment.
+
+Reject silently forcing phone verification, automatic delivery fallback, claiming
+provider submission proves inbox delivery, or presenting a working Google button
+without its API prerequisites. Existing D61 verify-token/admission semantics are
+not silently strengthened by provider setup. Contract and remaining gates:
+`../web10-v3/auth/contact-delivery.md`.
+
 ### D104 — Federated Following uses home certification and a per-server mixer [decided; implementation staged]
 
 Operator, 08.11.2026: implement authenticated client fan-out, not only public

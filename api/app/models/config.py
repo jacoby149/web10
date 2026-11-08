@@ -14,6 +14,7 @@ class SetupRequest(BaseModel):
     brand_text: str = "web10"
     beta_required: bool = False
     verify_required: bool = False
+    require_contact: bool = False
     pay_required: bool = False
     beta_code: str = ""
     free_credits: float = 0.10

@@ -6,7 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Lock, UserPlus, X, Check, Store } from 'lucide-react';
+import { SecretInput } from '@/components/ui/secret-input';
+import ContactDelivery from './ContactDelivery';
+import { Lock, UserPlus, X, Check, Store, ChevronDown } from 'lucide-react';
 
 function ToggleRow({ label, description, checked, onChange, testId }: {
   label: string; description: string; checked: boolean; onChange: () => void; testId: string;
@@ -68,6 +70,26 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
   const [appsLoading, setAppsLoading] = React.useState(true);
   const [appsError, setAppsError] = React.useState<string | null>(null);
   const [approvingUrl, setApprovingUrl] = React.useState<string | null>(null);
+  const [appsExpanded, setAppsExpanded] = React.useState(() =>
+    new URLSearchParams(window.location.search).get('approvals') === 'open');
+
+  React.useEffect(() => {
+    const syncApprovals = () => setAppsExpanded(
+      new URLSearchParams(window.location.search).get('approvals') === 'open');
+    window.addEventListener('popstate', syncApprovals);
+    return () => window.removeEventListener('popstate', syncApprovals);
+  }, []);
+
+  const toggleApprovals = () => {
+    const expanded = !appsExpanded;
+    const url = new URL(window.location.href);
+    url.searchParams.set('mode', 'config');
+    if (expanded) url.searchParams.set('approvals', 'open');
+    else url.searchParams.delete('approvals');
+    window.history.pushState(window.history.state, '', url);
+    console.log('[auth-ui] App Store approvals disclosure', { expanded });
+    setAppsExpanded(expanded);
+  };
 
   const nodePost = async (path: string, body: Record<string, any>) => {
     const token = I.v3.state.token;
@@ -320,12 +342,27 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
 
           <Card data-testid="config-appstore-card">
             <CardHeader>
-              <div className="flex items-center gap-2">
-                <Store className="h-4 w-4 text-brand-300" strokeWidth={1.5} />
-                <CardTitle>App Store Approvals</CardTitle>
-              </div>
+              <CardTitle>
+              <button
+                type="button"
+                onClick={toggleApprovals}
+                aria-expanded={appsExpanded}
+                aria-controls="config-appstore-content"
+                className="flex min-h-11 w-full items-center gap-2 rounded-sm text-left transition-colors hover:text-brand-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                data-testid="config-appstore-toggle"
+              >
+                <Store className="h-4 w-4 shrink-0 text-brand-300" strokeWidth={1.5} />
+                <span className="min-w-0 flex-1">App Store Approvals</span>
+                <ChevronDown aria-hidden="true" className={`h-4 w-4 shrink-0 transition-transform motion-reduce:transition-none ${appsExpanded ? 'rotate-180' : ''}`} strokeWidth={1.5} />
+              </button>
+              </CardTitle>
+              <p className="text-xs text-muted-foreground" role="status">
+                {appsLoading ? 'Loading apps…' : appsError ? 'Could not load apps. Expand for details.' : pendingCount > 0 ? (
+                  <span className="font-medium text-warning">{pendingCount} pending {pendingCount === 1 ? 'app' : 'apps'}</span>
+                ) : 'No pending apps'}
+              </p>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent id="config-appstore-content" className="space-y-4" hidden={!appsExpanded}>
               <p className="text-xs text-muted-foreground">
                 Any app can register on the node — but it stays hidden from the
                 public App Store until you approve it. {pendingCount > 0 && (
@@ -434,7 +471,7 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
                 Existing content/ad metrics are unchanged.
               </p>
               <ToggleRow label="Use PostHog" description="Off by default. When off or unavailable, no external usage analytics vendor loads." checked={config?.posthog_enabled === true} onChange={() => updateField("posthog_enabled", config?.posthog_enabled !== true)} testId="config-posthog-enabled" />
-              <ToggleRow label="Masked replay and heatmaps" description="Optional. Text, attributes, media and network content are removed; recording fidelity is intentionally reduced." checked={config?.posthog_replay_enabled === true} onChange={() => updateField("posthog_replay_enabled", config?.posthog_replay_enabled !== true)} testId="config-posthog-replay" />
+              <ToggleRow label="Masked replay and heatmaps" description="Optional. Layout and styling are reproduced (D106); text, inputs, media and network content are masked or removed." checked={config?.posthog_replay_enabled === true} onChange={() => updateField("posthog_replay_enabled", config?.posthog_replay_enabled !== true)} testId="config-posthog-replay" />
               <Field label="PostHog project ingest key" description="Starts with phc_. Public identifier; blank or invalid configuration disables collection.">
                 <Input value={config?.posthog_project_key || ""} onChange={e => updateField("posthog_project_key", e.target.value)} placeholder="phc_…" data-testid="config-posthog-key" />
               </Field>
@@ -453,7 +490,7 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
             </CardHeader>
             <CardContent className="space-y-4">
               <Field label="ClickHouse URL" description="Connection string the node uses at startup. A change here is persisted for reference, but a running node will not reconnect until restarted.">
-                <Input value={config?.db_url || ""} onChange={e => updateField("db_url", e.target.value)} data-testid="config-db-url" />
+                <SecretInput label="ClickHouse URL" value={config?.db_url || ""} onChange={e => updateField("db_url", e.target.value)} data-testid="config-db-url" />
               </Field>
               <Field label="Database Name">
                 <Input value={config?.db_name || "web10"} onChange={e => updateField("db_name", e.target.value)} data-testid="config-db-name" />
@@ -476,16 +513,16 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
               {config?.beta_required && (
                 <div className="mb-2 mt-3 pl-5">
                   <Field label="Beta Code">
-                    <Input value={config?.beta_code || ""} onChange={e => updateField("beta_code", e.target.value)} data-testid="config-beta-code" />
+                    <SecretInput label="Beta Code" value={config?.beta_code || ""} onChange={e => updateField("beta_code", e.target.value)} data-testid="config-beta-code" />
                   </Field>
                 </div>
               )}
               <ToggleRow
-                label="Phone Verification"
-                description="Require phone number on signup"
-                checked={config?.verify_required || false}
-                onChange={() => updateField("verify_required", !config?.verify_required)}
-                testId="config-toggle-verify-required"
+                label="Email or Phone Required"
+                description="Require a contact on signup. Verification codes and password recovery are configured below."
+                checked={config?.require_contact || false}
+                onChange={() => updateField("require_contact", !config?.require_contact)}
+                testId="config-toggle-require-contact"
               />
               <ToggleRow
                 label="Payment Required"
@@ -496,6 +533,8 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
               />
             </CardContent>
           </Card>
+
+          <ContactDelivery key={I.v3.state.token} I={I} />
 
           <Card>
             <CardHeader>
@@ -523,10 +562,10 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
                 <Input value={config?.s3_bucket || ""} onChange={e => updateField("s3_bucket", e.target.value)} data-testid="config-s3-bucket" />
               </Field>
               <Field label="Access Key">
-                <Input value={config?.s3_access_key || ""} onChange={e => updateField("s3_access_key", e.target.value)} data-testid="config-s3-access-key" />
+                <SecretInput label="S3 Access Key" value={config?.s3_access_key || ""} onChange={e => updateField("s3_access_key", e.target.value)} data-testid="config-s3-access-key" />
               </Field>
               <Field label="Secret Key">
-                <Input value={config?.s3_secret_key || ""} onChange={e => updateField("s3_secret_key", e.target.value)} data-testid="config-s3-secret-key" />
+                <SecretInput label="S3 Secret Key" value={config?.s3_secret_key || ""} onChange={e => updateField("s3_secret_key", e.target.value)} data-testid="config-s3-secret-key" />
               </Field>
               <Field label="Region">
                 <Input value={config?.s3_region || "us-east-1"} onChange={e => updateField("s3_region", e.target.value)} data-testid="config-s3-region" />
@@ -544,11 +583,10 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Twilio (SMS Verification)</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+          <details className="rounded border border-border bg-card p-6">
+            <summary className="min-h-11 cursor-pointer text-sm text-brand-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Advanced · Existing Twilio settings</summary>
+            <div className="mt-3 space-y-4">
+              <p className="text-xs text-muted-foreground">Compatibility configuration for the existing Twilio Verify flow. New Gmail and SendGrid setup is above.</p>
               <Field label="Service SID">
                 <Input value={config?.twilio_service || ""} onChange={e => updateField("twilio_service", e.target.value)} data-testid="config-twilio-service" />
               </Field>
@@ -556,13 +594,13 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
                 <Input value={config?.twilio_account_sid || ""} onChange={e => updateField("twilio_account_sid", e.target.value)} data-testid="config-twilio-account-sid" />
               </Field>
               <Field label="Auth Token">
-                <Input value={config?.twilio_auth_token || ""} onChange={e => updateField("twilio_auth_token", e.target.value)} data-testid="config-twilio-auth-token" />
+                <SecretInput label="Twilio Auth Token" value={config?.twilio_auth_token || ""} onChange={e => updateField("twilio_auth_token", e.target.value)} data-testid="config-twilio-auth-token" />
               </Field>
               <Field label="Phone Number">
                 <Input value={config?.twilio_number || ""} onChange={e => updateField("twilio_number", e.target.value)} data-testid="config-twilio-number" />
               </Field>
-            </CardContent>
-          </Card>
+            </div>
+          </details>
         </div>
       </div>
     </ConfigShell>

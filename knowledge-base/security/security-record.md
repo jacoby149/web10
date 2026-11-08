@@ -24,6 +24,39 @@ fail before repair and pass afterward. [Candidate record](scans/2026-11/feed-sou
 Convergence/diverse review, split PR/CI, actual two-node/browser grants and broader
 L3/L4 coverage remain OPEN. No released activation or whole-security PASS.
 
+## Music live playlist pointers (08.11.2026) — bounded feature review, OPEN
+
+GPT-6.1 Sol read the new `musicLibrary.ts`, Music browser/reaction controls and
+their direct CRUD/group/auth-contract seams. The node read gate and role tables
+are unchanged. New bookmark documents attach only to the human's own followers
+group; canonical member/reader roles expose posts/profile, not this app service.
+Client tests cover exact owner scope, personal author filtering, duplicate removal,
+failed-read/no-create, pagination, denied metadata, unmount/account fencing and
+reaction follow-on write denial. Consent and access-oracle service lists match.
+These are local client controls, not an actual-node private-read denial receipt,
+independent security review or L1–L4 campaign PASS. Connected consent upgrades,
+two-account bookmark denial and target revocation remain OPEN in the Music lane.
+Contract: [music-social-library.md](../strategy/music-social-library.md).
+
+## API contact delivery (08.11.2026) — bounded local, OPEN
+
+#1435 is merged; all functional CI passed but its method-size check failed.
+This is not a general gate waiver. A bounded 5.4.1 read-only preflight follow-up
+has seven offline controls and no live requests; it reports configuration only,
+not independent storage/provider/reset acceptance.
+Three fresh same-family scoped preflight reviews are dry; model-diverse sign-off
+and actual transport/live acceptance remain separate OPEN gates.
+
+Gmail/SendGrid/optional SMS provider setup, encrypted private conditional S3 state,
+single-use email link/code exchange and configured-issuer recovery ownership.
+Backend-first new-module inspection and targeted direct-seam tests; broader L2–L4,
+diverse review, bounded PR splitting and live provider/account/deployment gates
+remain OPEN. Fresh reviews found wrong-node recovery dispatch, post-reset routing
+and stale-link attempt charging; bounded regressions and repairs are recorded in
+[contact delivery](scans/2026-11/contact-delivery.md). Actual disposable MinIO
+CAS/encryption/anonymous403 evidence is separate from synthetic provider/browser
+controls. No whole-security PASS or live delivery claim.
+
 ## Isolated explicit-node transport (08.11.2026) — bounded local, OPEN
 
 Credential ownership, exact-origin/action dispatch, owned cancellation, bounded
@@ -54,8 +87,14 @@ and optional masked replay/heatmaps; removes legacy integrations by instruction.
 Freshness/local issuer/current-account/delegated-client denials, stale-reply
 fences, real ClickHouse lifecycle/ack floor and real SDK snapshot/heatmap sentinel
 checks pass locally. Anonymous identities deliberately stay separate; public
-vendor ingest remains forgeable. Full connected vendor/auth/phone/restart/quota/
-playback, independent review and L1–L4/rollout remain OPEN. Details and historical
+vendor ingest remains forgeable. Connected P5 acceptance ran live on dev and
+prod 08.11.2026 (5.0.5): journey-account 403 on the admin health seam verified
+the I5 floor in production; uuid-oracle agreement and live HogQL passed on both
+nodes. D106 (5.0.6, 08.11.2026): replay moved to layout-faithful/
+content-blind — attribute blocklist instead of blanket strip; pinned wire test
+and real-SDK class-survival/sentinel checks re-pass, live recording pending
+operator playback inspection. Phone/restart/quota drills, replay playback
+inspection, independent review and L1–L4/rollout remain OPEN. Details and historical
 4.15.0 scope follow in the linked scan; no production or independent-audit claim.
 
 GPT-6.1 Sol adds optional public project config and browser capture, not account

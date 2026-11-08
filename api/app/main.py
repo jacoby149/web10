@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 
 import app.docs as docs
 import app.exceptions as exceptions
-from app.endpoints import system
+from app.endpoints import contact_delivery, system
 from app.middleware import log_requests
 from app.v3 import endpoints as v3
 
@@ -45,6 +45,7 @@ app.add_middleware(
 app.middleware("http")(log_requests)
 
 app.include_router(system.router)
+app.include_router(contact_delivery.router)
 app.include_router(v3.router)
 
 

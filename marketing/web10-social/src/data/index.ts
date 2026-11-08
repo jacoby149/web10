@@ -17,6 +17,7 @@ export * from './saved';
 export * from './settings';
 export * from './feed';
 export * from './music';
+export * from './musicLibrary';
 export * from './access';
 export * from './moderation';
 export * from './views';

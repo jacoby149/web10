@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useLocation, useSearchParams } from 'react-router-dom';
 import MusicScreen from '@/components/Music/MusicScreen';
 import ShortsScreen from '@/components/Shorts/ShortsScreen';
 import { MusicProvider, useMusic } from '@/context/MusicContext';
@@ -104,6 +104,10 @@ describe('real media-surface mixed reads', () => {
     expect(source).toHaveBeenCalledWith('https://foreign.example/song.mp3');
     expect(screen.queryByRole('button', { name: 'More actions: Foreign song' })).toBeNull();
     expect(screen.getByText('Read-only source')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Open expanded player' }));
+    expect(await screen.findByRole('button', { name: 'Comments' })).toBeDisabled();
+    expect(screen.queryByTestId('music-reactions')).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Open original post' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Retry playback' }));
     await screen.findByText(/This source cannot refresh playback yet/);
     expect(homeRecovery).not.toHaveBeenCalled();
@@ -124,7 +128,9 @@ describe('real media-surface mixed reads', () => {
 function LocationValue() { return useLocation().search; }
 function PlaybackProbe() {
   const music = useMusic();
-  return <><button onClick={music.retry}>Retry playback</button><output>{music.error}</output></>;
+  const [, setParams] = useSearchParams();
+  return <><button onClick={music.retry}>Retry playback</button><output>{music.error}</output>
+    <button onClick={() => setParams(previous => { const next = new URLSearchParams(previous); next.set('panel', 'player'); return next; })}>Open expanded player</button></>;
 }
 
 describe('prepared source media gates', () => {

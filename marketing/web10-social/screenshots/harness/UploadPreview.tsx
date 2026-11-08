@@ -156,5 +156,6 @@ export function UploadPreviewDock() {
   const { tasks } = usePreviewQueue();
   const { pathname } = useLocation();
   if (pathname === '/uploads' || pathname === '/upload-compose') return null;
-  return <><div className="fixed bottom-60 right-4 z-40 rounded bg-card px-3 py-2 text-xs text-muted-foreground md:bottom-48 sm:right-6">Upload UI preview</div><UploadIndicator tasks={tasks} /></>;
+  if (pathname === '/music' && tasks.length === 0) return null;
+  return <><div className="pointer-events-none fixed bottom-60 right-4 z-40 rounded bg-card px-3 py-2 text-xs text-muted-foreground md:bottom-48 sm:right-6">Upload UI preview</div><UploadIndicator tasks={tasks} /></>;
 }

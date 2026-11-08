@@ -30,6 +30,9 @@ vi.mock('@/data', async (importOriginal) => {
     toggleSavedMusic: vi.fn(),
     createCollection: vi.fn(),
     setCollectionVisibility: vi.fn(),
+    readReactions: vi.fn(),
+    toggleReactionKind: vi.fn(),
+    readPlaylistBookmarks: vi.fn(),
   };
 });
 
@@ -142,6 +145,9 @@ describe('MusicScreen', () => {
     vi.mocked(data.toggleSavedMusic).mockResolvedValue({ groupId: 'favorites' });
     vi.mocked(data.createCollection).mockResolvedValue('new-playlist');
     vi.mocked(data.setCollectionVisibility).mockResolvedValue(undefined);
+    vi.mocked(data.readReactions).mockResolvedValue([]);
+    vi.mocked(data.toggleReactionKind).mockResolvedValue('like');
+    vi.mocked(data.readPlaylistBookmarks).mockResolvedValue([]);
     vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();
     vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
     vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => {});
@@ -354,6 +360,20 @@ describe('MusicScreen', () => {
     expect(within(screen.getByRole('list')).getAllByRole('listitem').map(row => row.textContent)).toEqual([expect.stringContaining('Second'), expect.stringContaining('First')]);
     expect(data.createCollection).not.toHaveBeenCalled();
     expect(data.toggleSavedMusic).not.toHaveBeenCalled();
+  });
+
+  it('opens an anonymous public playlist in Music without autoplay, management or library writes', async () => {
+    vi.mocked(data.getWapi).mockReturnValue({ readToken: () => null, isSignedIn: () => false } as never);
+    const songs = [track({ id: 'last', author: 'alice', title: 'Curator first' }), track({ id: 'first', author: 'bob', title: 'Curator second' })];
+    vi.mocked(data.readMusicCollection).mockResolvedValue({ tracks: songs, name: 'A public mix', skipped: 1 });
+    renderScreen([], '/music?view=playlists&scope=browse&collection=public');
+    expect(await screen.findByRole('button', { name: 'Play Curator first' })).toBeVisible();
+    expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
+    expect(data.getMyCollections).not.toHaveBeenCalled();
+    expect(screen.queryByRole('link', { name: 'Manage collection & order' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Play all' }));
+    expect(within(screen.getByRole('list')).getAllByRole('listitem').map(row => row.textContent)).toEqual([expect.stringContaining('Curator first'), expect.stringContaining('Curator second')]);
+    expect(data.createCollection).not.toHaveBeenCalled(); expect(data.toggleSavedMusic).not.toHaveBeenCalled();
   });
 
   it('explains an unavailable target deep link and lets the user dismiss it', async () => {
