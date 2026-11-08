@@ -89,6 +89,26 @@ before and after concurrent traffic. A separate paired smoke checks ordered
 output, compiler SQL hash and EXPLAIN PLAN equivalence. The two-reader defaults
 are **functional evidence only**, not latency percentiles for the manuscript.
 
+After source changes, regenerate and review the offline first-page and pagination
+captures in new versioned files; never overwrite historical captures or relabel
+an old acceptance receipt as current. The current captures are
+`evidence/core-feed-wire-v4.json` and `evidence/core-feed-next-page-v3.json`.
+The single-node first-page payloads are unchanged from v3. They do not capture
+the federated reader's destination discovery, quotas, merge or paging sequence.
+Run `readiness_v2.py` against the newly generated acceptance receipt:
+
+```sh
+python3 research/experiments/costfn/readiness_v2.py \
+  --acceptance .context/v2-acceptance/acceptance.json \
+  --publication research/experiments/costfn/evidence/v2-hot-publication.json \
+  --publication research/experiments/costfn/evidence/v2-dispersed-publication.json \
+  --require-prepared
+```
+
+Stale captures/receipts report `PREPARATION_INCOMPLETE` and exit nonzero with
+`--require-prepared`. Even `PREPARED_FOR_HOST_PREFLIGHT` does not approve paid
+execution or replace actual-host acceptance.
+
 The old 24.3 image rejects the current app's QUALIFY syntax. V2 therefore uses
 24.8; receipts record the exact server version, resolved image IDs, API package
 versions and source/config hashes. Do not pool this with the historical 24.3

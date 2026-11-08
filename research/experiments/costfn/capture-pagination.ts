@@ -2,13 +2,12 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 
-export function paginationCapture() {
-  const source = readFileSync(new URL('../../../marketing/web10-social/src/data/feed.ts', import.meta.url), 'utf8');
+export function paginationCapture(source = readFileSync(new URL('../../../marketing/web10-social/src/data/feed.ts', import.meta.url), 'utf8')) {
   const extract = (name: string) => {
-    const start = source.search(new RegExp(`^function ${name}\\(`, 'm'));
+    const start = source.search(new RegExp(`^(?:export )?function ${name}\\(`, 'm'));
     const end = source.slice(start).match(/^}[ \t]*$/m);
     if (start < 0 || !end) throw new Error(`Missing trusted builder ${name}`);
-    return source.slice(start, start + end.index! + end[0].length);
+    return source.slice(start, start + end.index! + end[0].length).replace(/^export /, '');
   };
   const code = ['powerMeanScoreSql', 'buildFeedQuery'].map(extract).join('\n');
   const sample = '2026-01-01T00:00:19.123Z';

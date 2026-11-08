@@ -1,0 +1,115 @@
+{
+  "local_acceptance": true,
+  "measurement_valid": true,
+  "dataset_id": "c633ecbab2b31f5f20619737319277707405876417384bb68a82b7b21ec5d92c",
+  "sources": {
+    "api_python_sha256": "1dad271424c0a93dc094913932f628e892320bb7de1bc0b6e2dc581d346a0e6f",
+    "api_lock_sha256": "ecaa9988e333b039c47ba7e7ef0284c6af5ad03259b766eb122d30783ed38ea8",
+    "research_compose_sha256": "a57449315530b463793daa62bd4b6a3fdbca3b4cb5076ed522543ee220b66d53",
+    "harness_python_sha256": "745e2ef24e1e42615e30be03cd6a5aa928d5b1bb7fee0a6b8cea7a872f6b683e",
+    "pagination_capture_sha256": "2892a239131b39e176b8ff24288434a2149daecebb12d5f7e019820500c2f4de",
+    "wire_sha256": "fff8e1c6359642578d8308ee1d51c6dadf74cf92c0d1744366b259b9231223d7"
+  },
+  "users": 2,
+  "interval": 5,
+  "warmup": 5,
+  "duration": 10,
+  "drain": 60,
+  "api_origin": "http://127.0.0.1:6094",
+  "recipe": {
+    "creators": 40,
+    "follow": 25,
+    "locality": "dispersed",
+    "readers": 2,
+    "seed": 42
+  },
+  "generator_sha256": "4ef34b16cd3aeb2f16c0538dc07972115bd31488945bff7363464bf9fa0f4e64",
+  "runtime": {
+    "api": [
+      {
+        "name": "/web10-costfn-frozen-pos-repair-api-1",
+        "image_id": "sha256:0e20ccddc51c50a553ea094b1feaea05a8dd723180ac36065988e4e3c9255d62",
+        "image_ref": "web10-costfn-frozen-pos-repair-api"
+      },
+      {
+        "name": "/web10-costfn-frozen-pos-repair-clickhouse-1",
+        "image_id": "sha256:999a072d6f927d54b32742a0ca619a94786a34d6c39bf90caabf0530ec9b076b",
+        "image_ref": "ghcr.io/jacoby149/base-clickhouse:24.8"
+      },
+      {
+        "name": "/web10-costfn-frozen-pos-repair-minio-1",
+        "image_id": "sha256:8f08aee614800a237906bd48114d733e5ac5bfac4ccdf731f141b0e880d7a253",
+        "image_ref": "ghcr.io/jacoby149/base-minio:latest"
+      }
+    ],
+    "db": [
+      {
+        "name": "/web10-costfn-frozen-pos-repair-api-1",
+        "image_id": "sha256:0e20ccddc51c50a553ea094b1feaea05a8dd723180ac36065988e4e3c9255d62",
+        "image_ref": "web10-costfn-frozen-pos-repair-api"
+      },
+      {
+        "name": "/web10-costfn-frozen-pos-repair-clickhouse-1",
+        "image_id": "sha256:999a072d6f927d54b32742a0ca619a94786a34d6c39bf90caabf0530ec9b076b",
+        "image_ref": "ghcr.io/jacoby149/base-clickhouse:24.8"
+      },
+      {
+        "name": "/web10-costfn-frozen-pos-repair-minio-1",
+        "image_id": "sha256:8f08aee614800a237906bd48114d733e5ac5bfac4ccdf731f141b0e880d7a253",
+        "image_ref": "ghcr.io/jacoby149/base-minio:latest"
+      }
+    ],
+    "api_software": {
+      "python": "3.12.12",
+      "packages": {
+        "fastapi": "0.139.0",
+        "starlette": "1.3.1",
+        "sqlglot": "30.18.0",
+        "clickhouse-connect": "1.6.0",
+        "uvicorn": "0.51.0",
+        "PyJWT": "2.13.0",
+        "bcrypt": "5.0.0"
+      }
+    },
+    "clickhouse_version": "24.8.14.39"
+  },
+  "epoch": 1794152015.302325,
+  "lifecycle_before": [
+    "private_nonmember_denied",
+    "private_grant_exact_result",
+    "app_revoke_denied",
+    "app_regrant_exact_result",
+    "membership_revoke_denied",
+    "membership_regrant_exact_result",
+    "document_tombstone_denied"
+  ],
+  "lifecycle_after": [
+    "private_nonmember_denied",
+    "private_grant_exact_result",
+    "app_revoke_denied",
+    "app_regrant_exact_result",
+    "membership_revoke_denied",
+    "membership_regrant_exact_result",
+    "document_tombstone_denied"
+  ],
+  "paired_measured_pairs": 3,
+  "correlated_requests": 24,
+  "resource_samples": 3,
+  "resource_errors": [],
+  "scope": "Functional receipt for specified readers/durations. Two-reader defaults are not statistical performance or cloud generator headroom. Interpret large points only with raw failures/resources and independent trials.",
+  "cloud_execution_authorized": false,
+  "submission_ready": false,
+  "archive": "v2-local-acceptance-r3.tar.gz",
+  "archive_sha256": "d61691cfaa13b8a3008d4f775e7000c2747277eea916fad95c9361291d3caf09",
+  "peak_http_requests": 3,
+  "http_requests_after_drain": 0,
+  "cleanup": {
+    "project": "web10-costfn-frozen-pos-repair",
+    "verified_empty": true,
+    "remaining": {
+      "containers": [],
+      "volumes": [],
+      "networks": []
+    }
+  }
+}
