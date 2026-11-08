@@ -25,6 +25,7 @@ import { API_ORIGIN, AUTH_ORIGIN } from '../lib/origins';
 import { getV3Client } from '../data/v3';
 import type { TokenPayload, V3AppCR, V3Client } from 'web10-npm';
 import { invalidateUploadSession } from '../lib/uploadSession';
+import { prepareAnalyticsHandoff, resetAnalytics } from '../lib/analytics';
 
 const LOG = (...args: unknown[]) => console.log('[social]', ...args);
 const LOG_ERR = (...args: unknown[]) => console.error('[social]', ...args);
@@ -118,6 +119,7 @@ function createSocialAuth(): SocialAuth {
       return;
     }
     LOG('login tapped — opening auth portal at', authOrigin);
+    prepareAnalyticsHandoff();
     const popup = web10.openAuthPortal(authOrigin);
     if (!popup) {
       LOG_ERR('auth popup blocked or failed to open — login aborted');
@@ -151,6 +153,7 @@ function createSocialAuth(): SocialAuth {
   }
 
   function signOut(): void {
+    resetAnalytics();
     invalidateUploadSession();
     if (!web10) return;
     LOG('signOut — scrubbing token cookie');

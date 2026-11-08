@@ -85,22 +85,30 @@ encrypted black boxes no one can find, search, or hold accountable.
 the data-policy frame is not a privacy frame — and it is not a
 no-telemetry frame either. web10 competes with Meta and TikTok for the
 same attention, and their UX is the output of a decade of aggressive
-telemetry. so web10 tracks hard, platform-wide: GA4 + Hotjar on every
+telemetry. so web10 tracks hard, platform-wide: PostHog on every
 user-facing surface (marketing site, social app, authenticator). the
 recording is **content-blind by construction** — text masked, images
 blocked; the operator sees cursor + layout + timing, never words or
-pictures. GA4 events are **content-free by convention**: paths,
-actions, counts — never post text, media URLs, or PII.
+pictures. events are **content-free and allowlisted**: route templates,
+actions, campaign labels and opaque account IDs — never post text, media URLs,
+contacts or credentials.
 
 the line: **content is never tracked.** posts, DMs, media — not in the
-recordings, not in the events, not sold, not fed to any ad machine (GA4
-advertising features stay off; the only sponsors a fan sees are the
+recordings, not in the events, not sold, not fed to any ad machine (the
+only sponsors a fan sees are the
 creator's, D50/D55). the trade is stated in the terms, not hidden
 behind a consent popup: the platform watches how you use it so it can
 keep being the best version of itself — if that is not for you, this
 is the wrong platform for you.
 
 full model: `knowledge-base/web10-v3/telemetry.md`. decision: D56.
+
+**Vendor direction, D103 (08.11.2026): PostHog only.** On explicit operator
+instruction, local 5.0.0 removes the GA4/Hotjar integrations and implements opaque
+identity, campaign handoff, durable signup outcomes, vendor-report provisioning
+and optional masked replay/heatmaps. Collection stays default-off; live vendor
+reconciliation, actual auth/phone/playback and approved rollout remain OPEN. Plan:
+`posthog-migration.md`. D86 creator-facing content/ad metrics remain separate.
 
 ## what this buys (the value)
 

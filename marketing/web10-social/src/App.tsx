@@ -33,7 +33,7 @@ import { readSettings } from '@/data/settings';
 import { initP2P, teardownP2P, setPeer } from '@/data/p2p';
 import { initNotifications, teardownNotifications } from '@/data/notifications';
 import { initMessagesUnread, teardownMessagesUnread } from '@/data/messagesUnread';
-import { trackEvent, hotjarIdentify } from '@/lib/analytics';
+import { trackEvent, identifyAnalytics, resetAnalytics, trackProductSession } from '@/lib/analytics';
 import { PostLightbox } from '@/components/Bio/PostLightbox';
 import { RepostProvider } from '@/context/RepostContext';
 import { ComposerProvider } from '@/context/ComposerContext';
@@ -307,6 +307,7 @@ function App() {
     const auth = getSocialAuth();
     LOG('app mount — isSignedIn:', auth.isSignedIn());
     if (auth.isSignedIn()) {
+      void identifyAnalytics(() => getV3Client().state.token ?? window.web10?.readTokenCookie() ?? null).then(trackProductSession);
       setSignedIn(true);
       runAccessRecovery(false);
     }
@@ -316,7 +317,7 @@ function App() {
       trackEvent('login');
       const who = auth.readToken();
       setMusicSession(who ? JSON.stringify([who.provider, who.username, getV3Client().readToken()?.expires ?? null]) : 'anonymous');
-      if (who) hotjarIdentify(who.username);
+      void identifyAnalytics(() => getV3Client().state.token ?? window.web10?.readTokenCookie() ?? null).then(trackProductSession);
       // The sign-in (or a reauth) IS the recovery — no need to re-verify here.
       // Verifying during the sign-in transition hits a "Failed to fetch" (the
       // session is mid-handoff). The mount + reactive-failure paths cover it.
@@ -325,6 +326,7 @@ function App() {
     // The recovery's terminal signout (user not found) clears the cookie and
     // signals us to show the login screen.
     const onSignedOut = () => {
+      resetAnalytics();
       setMusicSession('anonymous');
       setSignedIn(false);
       setSessionAlert(null);

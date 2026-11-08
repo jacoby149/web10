@@ -11,6 +11,7 @@ export default defineConfig({
   envPrefix: ['VITE_', 'REACT_APP_'],
   resolve: {
     alias: {
+      'posthog-js': path.resolve(__dirname, 'node_modules/posthog-js'),
       '@': path.resolve(__dirname, './src'),
     },
   },
