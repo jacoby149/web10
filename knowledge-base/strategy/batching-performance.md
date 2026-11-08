@@ -25,7 +25,7 @@ At K1 Discover, batched readable was slower (25.370 versus 9.525 ms).
 It excludes full feed enrichment, media preparation, browser latency and the
 Origin app-contract gate. These numbers do not measure the proposals below.
 The original trial used an evaluation option. The operator-requested production
-helper promotion is locally implemented in 4.16.1 with explicit rollback; this
+helper promotion is locally implemented in 4.16.3 with explicit rollback; this
 does not establish deployment or turn the historical trial into a current result.
 
 Do not replace Python `for` loops indiscriminately. In-memory permission checks,
@@ -77,10 +77,10 @@ traffic measurement. Each checkbox remains open until its own gates pass.
   `app/v3/services/clickhouse.py` (`readable_groups`, `can_read_group`,
   `effective_role_perms`, `readable_groups_batched`). K groups times S services
   repeated scalar checks at the original audit; even all-membership candidates
-  cost S*K member queries. The 4.16.1 helper promotion replaces those calls with
+  cost S*K member queries. The 4.16.3 helper promotion replaces those calls with
   byte-bounded batch chunks: one query for all-member chunks, otherwise up to
   three per service/chunk, not three for an entire multi-service request.
-- [✓ 4.16.1 local] Production default: generic helper and query selection,
+- [✓ 4.16.3 local] Production default: generic helper and query selection,
   validated rollback, explicit research references, byte-bounded chunks and
   one-query all-member chunks. Twelve real ClickHouse Memory-history parity
   combinations and member K1/10/100/1000 budgets pass. See
