@@ -1,5 +1,11 @@
 # Frozen synthetic inputs, separate from measurement
 
+> **V2 follow-up:** [RUNNING-V2.md](RUNNING-V2.md) documents the separately frozen
+> hot/dispersed relational datasets, canonical `/followers`, app grants, default
+> Discover post links and approved MinIO prefix. This page describes preserved
+> V1, not an app-compatible full-feed fixture. The later operator instruction
+> authorizes preparation/publication, not a paid study run.
+
 > **7 November: execution paused for design review.** These preparation/measure
 > commands are reference only. V1 stays frozen as a control; do not regenerate
 > it, provision hosts or run traffic before [STUDY.md](STUDY.md) is approved.

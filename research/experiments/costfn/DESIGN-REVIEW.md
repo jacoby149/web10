@@ -1,5 +1,10 @@
 # Experiment design review — 7 November 2026
 
+> Historical pre-implementation review (4.13.0). The authorized follow-up is
+> [RUNNING-V2.md](RUNNING-V2.md), with pinned new inputs and receipt-driven
+> preparation readiness. Keep the findings as the rationale; do not mistake
+> passing local acceptance for actual cloud/large-restore/headroom evidence.
+
 ## Verdict
 
 **Not yet testing enough to support the broad claims we want.** The frozen-input

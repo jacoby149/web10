@@ -1,5 +1,15 @@
 # Evaluation Plan - web10 Paper
 
+> **7 November preparation follow-up:** the operator authorizes fixing the study
+> tooling, generating separately frozen V2 hot/dispersed relational inputs, local
+> functional acceptance and publication to the exact approved web10 MinIO prefix.
+> [RUNNING-V2.md](experiments/costfn/RUNNING-V2.md) is the executable contract;
+> `readiness_v2.py` derives preparation status from current-source live receipts
+> and verified publications. The earlier setup-only review below remains history.
+> No paid study, new capacity result, production rollout or CMT submission is
+> authorized or completed by this preparation. Actual sized-host restore,
+> three-host connectivity/headroom and budget/watchdog preflight remain gates.
+
 > **7 November operator override: SETUP AND DESIGN VALIDATION ONLY.** No new
 > cloud resources, study traffic, large generation or publication. Read the
 > [preregistered study](experiments/costfn/STUDY.md) and
