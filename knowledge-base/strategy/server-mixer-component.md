@@ -189,3 +189,33 @@ actual playback. Draft #1440 isolates only the dormant catalog on refreshed dev;
 the operator explicitly requests the full current-workspace PR, not that split.
 This assembly carries the complete integration; method/CI and connected gates
 remain independent and must not be called green merely because a PR is opened.
+
+## Discover and Video boards (5.8.0)
+
+Operator: "not seeing the server mixer on the social app itself ... was thinking
+all social surfaces." The default `/feed` tab (Discover/Hot Gossip) and the
+Video wall had a knob rack with no mixer. Both now host the same editor and
+catalog. A home-only active set keeps the board's offset read (one server at any
+weight is the same page); an approved active foreign server switches to the
+shared reader with `groupMode: 'discover'`. Foreign rows use the Following tab's
+read-only card and are excluded from enrichment, reactions and the Top 10 rail;
+board identity is source-qualified. People is a directory and does not read the
+board. Profile, group and saved-collection views are single-owner and do not
+take the mixer.
+
+Operator: "mixer knobs are just too shiny." The chrome cap gradient is replaced
+by a matte top-lit cap using the rotary knob's language, rendered as positioned
+HTML so it is not stretched by the track's `preserveAspectRatio="none"`.
+
+## Release browser gate (5.8.1)
+
+The production social image copied `sdk/src/federatedTransport.ts`, but the
+E2E development image did not. CI's real browser traces show Vite's missing-import
+overlay before React could mount, explaining the downstream recovery/feed/profile
+and moderation/ad failures. Align the E2E image, not the existing assertions.
+`e2e/tests/social-server-mixer.spec.ts` runs against the actual container and node
+at desktop/375px: save weight 37, retain it across Discover/Following/Video/Shorts/
+Music and reload, and drive Edit servers/Done with URL state. Ten local board
+flows pass with no failed modules or page exceptions; captures are under
+`.context/mixer-connected/`. This is a home-node persistence/rendering receipt,
+not foreign HTTPS grants, source-owned actions, physical-phone or rollout proof.

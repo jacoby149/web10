@@ -8,7 +8,7 @@ These are preparation/functional receipts, **not new paper performance results**
   research prefix in the existing bucket. No bucket policy or existing object
   was changed. Public synthetic account credentials are intentional; JWTs and
   storage/signing credentials are not artifacts.
-- `v2-local-receipt.json`: actual current-source two-reader acceptance, runtime
+- `v2-local-receipt.json`: historical 7 November two-reader acceptance, runtime
   software/image IDs, seven lifecycle controls before/after, three measured
   paired smoke pairs, 24 correlated core requests, three resource samples, peak
   three actual HTTP requests with zero after drain, and verified empty owned
@@ -28,6 +28,20 @@ These are preparation/functional receipts, **not new paper performance results**
 - `core-feed-next-page-v1.json`: initial builder reproduction of the String
   cursor expression; `core-feed-next-page-v2.json` is the repaired numeric
   millisecond expression. These are source captures, not measured timings.
+- `core-feed-wire-v4.json` and `core-feed-next-page-v3.json`: 8 November source
+  refresh after feed integration. First-page payloads remain identical to v3;
+  pagination extraction now accepts exported and local function declarations.
+  Earlier captures and acceptance receipts stay unchanged. These captures alone
+  do not renew live acceptance or measure the federated reader.
+- `v2-local-receipt-r3.json` and `v2-local-acceptance-r3.tar.gz`: 8 November
+  current-source two-reader acceptance after that refresh, on a disposable local
+  project. Seven lifecycle controls pass before/after; three paired smoke pairs,
+  24 correlated core requests, three resource samples, peak three HTTP requests
+  with zero after drain, and verified empty owned storage after cleanup. The
+  archive's `preparation.json` is the receipt-driven 30-point dry schedule with
+  status `PREPARED_FOR_HOST_PREFLIGHT` and sources equal to the receipt. Same
+  scope as the 7 November receipt: functional evidence, not performance results,
+  actual-host acceptance or federated-reader evidence.
 
 ## Failures that informed the preparation
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 
 import dataset
 import provenance
@@ -10,6 +11,13 @@ import topology
 
 
 class ReadinessTests(unittest.TestCase):
+    def test_stale_capture_reports_incomplete_without_authorizing_execution(self):
+        with patch.object(readiness_v2.core_feed, "wire", side_effect=ValueError("stale core-feed source capture")):
+            result = readiness_v2.audit({}, [])
+        self.assertEqual(result["status"], "PREPARATION_INCOMPLETE")
+        self.assertIn("stale core-feed source capture", result["preparation_blockers"])
+        self.assertFalse(result["cloud_execution_authorized"])
+
     def test_missing_live_receipt_or_published_fixture_never_prepared(self):
         result = readiness_v2.audit({}, [])
         self.assertFalse(result["software_and_inputs_ready"])

@@ -29,7 +29,10 @@ def audit(acceptance, publications):
     for locality in ("hot", "dispersed"):
         if locality not in inputs:
             blockers.append(f"missing approved {locality} input")
-    core_feed.wire()  # current app/SDK source pin, not a live-result assertion
+    try:
+        core_feed.wire()  # current app/SDK source pin, not a live-result assertion
+    except ValueError as error:
+        blockers.append(str(error))
     points = study_plan.matrix()
     for point in points:
         locality = "hot" if point["locality"] == "hot_shared" else "dispersed"

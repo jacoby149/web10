@@ -33,6 +33,9 @@ test('empty feed is not falsely counted as a four-request load', async () => {
 test('wire capture is reproducible and explicitly not live-system proof', async () => {
   const fresh = await capture();
   expect(fresh).toEqual(await capture());
-    expect(fresh).toEqual(JSON.parse(readFileSync(new URL('./evidence/core-feed-wire-v3.json', import.meta.url), 'utf8')));
+  expect(fresh).toEqual(JSON.parse(readFileSync(new URL('./evidence/core-feed-wire-v4.json', import.meta.url), 'utf8')));
+  // Source refresh must not silently change the historical single-node workload.
+  const previous = JSON.parse(readFileSync(new URL('./evidence/core-feed-wire-v3.json', import.meta.url), 'utf8'));
+  expect(fresh.requests).toEqual(previous.requests);
   expect(fresh.capture_kind).toBe('OFFLINE_BUILDERS_FAKE_TRANSPORT');
 });
