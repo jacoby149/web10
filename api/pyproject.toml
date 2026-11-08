@@ -9,6 +9,7 @@ dependencies = [
     "uvicorn[standard]>=0.32",
     "gunicorn>=23",
     "PyJWT[crypto]>=2.9",
+    "cryptography>=43",
     "clickhouse-connect>=0.8",
     "dnspython>=2.7",
     # The flexible-read boundary (safe_query.py) parses caller SQL into an AST
