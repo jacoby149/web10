@@ -87,6 +87,14 @@ import pytest
         "pinned-hidden-alternate-revoked",
         "pinned-hidden-alternate-removed",
         "pinned-hidden-crossed-grants",
+        "pinned-hidden-unhidden-tie",
+        "pinned-hidden-unhidden-tie-reversed",
+        "pinned-hidden-rehidden",
+        "pinned-hidden-hidden-other-document-unhide",
+        "pinned-hidden-hidden-other-group-unhide",
+        "pinned-hidden-alternate-hidden-primary-visible",
+        "pinned-hidden-active-other-service",
+        "pinned-hidden-hidden-other-service",
     ],
 )
 def test_read_url_owner_boundary(case):
@@ -228,6 +236,7 @@ def _probe(case):
             "documents (doc_id String, author_key String, body String, tags Array(String), posted_by String, deleted UInt8, updated_at UInt64)",
             "doc_groups (doc_id String, group_id String, deleted UInt8, updated_at UInt64)",
             "group_members (group_id String, member_key String, role String, joined_at UInt64, deleted UInt8, updated_at UInt64)",
+            "group_hidden_docs (group_id String, doc_id String, deleted UInt8, updated_at UInt64)",
         ]
         body = json.dumps({"text": "synthetic restricted creative", "type": "minio", "value": key, "status": "active"})
         setup = (
@@ -237,6 +246,7 @@ def _probe(case):
                 "CREATE TABLE documents (doc_id TEXT, author_key TEXT, body TEXT, tags TEXT, posted_by TEXT, deleted INTEGER, updated_at INTEGER)",
                 "CREATE TABLE doc_groups (doc_id TEXT, group_id TEXT, deleted INTEGER, updated_at INTEGER)",
                 "CREATE TABLE group_members (group_id TEXT, member_key TEXT, role TEXT, joined_at INTEGER, deleted INTEGER, updated_at INTEGER)",
+                "CREATE TABLE group_hidden_docs (group_id TEXT, doc_id TEXT, deleted INTEGER, updated_at INTEGER)",
             ]
         )
         if is_doc or is_hidden:
@@ -259,6 +269,11 @@ def _probe(case):
             "INSERT INTO documents (doc_id,author_key,body,tags,posted_by,deleted,updated_at) "
             f"VALUES ('creative','{author}','{body}',{tags},'bob',0,1)",
         ]
+        if is_hidden and state.endswith("other-service"):
+            setup[-1] = (
+                "INSERT INTO documents (doc_id,author_key,body,tags,posted_by,deleted,updated_at,collection_name) "
+                f"VALUES ('creative','{author}','{body}',{tags},'bob',0,1,'scores')"
+            )
         if not is_link or state != "never":
             setup.append("INSERT INTO doc_groups VALUES ('creative','creative-group',0,1)")
         if is_link and (state.startswith("removed") or state == "reattached"):
@@ -351,6 +366,10 @@ def _probe(case):
                 "same-group-active",
                 "same-group-unhidden",
                 "alternate-visible",
+                "unhidden-tie",
+                "unhidden-tie-reversed",
+                "alternate-hidden-primary-visible",
+                "active-other-service",
             }
             setup += [
                 "INSERT INTO documents (doc_id,author_key,body,tags,posted_by,deleted,updated_at,ad_mode,ad_target) "
@@ -364,7 +383,6 @@ def _probe(case):
                 "user_blacklist (user_key String, blocked_key String, deleted UInt8, updated_at UInt64)",
                 "group_blacklist (user_key String, group_id String, blocked_key String, deleted UInt8, updated_at UInt64)",
                 "user_group_sharing (user_key String, group_id String, sharing_enabled UInt8, deleted UInt8, updated_at UInt64)",
-                "group_hidden_docs (group_id String, doc_id String, deleted UInt8, updated_at UInt64)",
                 "banned_users (username String, deleted UInt8, updated_at UInt64)",
             ]
             for schema in visibility_schemas:
@@ -374,12 +392,23 @@ def _probe(case):
                     else "CREATE TABLE "
                     + schema.replace("String", "TEXT").replace("UInt8", "INTEGER").replace("UInt64", "INTEGER")
                 )
-            if state not in {"active", "same-group-active"}:
+            if state not in {"active", "same-group-active", "alternate-hidden-primary-visible", "active-other-service"}:
                 hidden_doc = "unrelated" if state == "other-document" else "creative"
                 hidden_group = "unrelated-group" if state == "other-group" else "creative-group"
                 setup.append(f"INSERT INTO group_hidden_docs VALUES ('{hidden_group}','{hidden_doc}',0,2)")
-                if state in {"unhidden", "same-group-unhidden"}:
-                    setup.append("INSERT INTO group_hidden_docs VALUES ('creative-group','creative',1,3)")
+                if state in {"unhidden", "same-group-unhidden", "rehidden"} or state.startswith("unhidden-tie"):
+                    unhide_version = 2 if state.startswith("unhidden-tie") else 3
+                    unhide = f"INSERT INTO group_hidden_docs VALUES ('creative-group','creative',1,{unhide_version})"
+                    if state == "unhidden-tie-reversed":
+                        setup.insert(-1, unhide)
+                    else:
+                        setup.append(unhide)
+                if state == "rehidden":
+                    setup.append("INSERT INTO group_hidden_docs VALUES ('creative-group','creative',0,4)")
+                if state in {"hidden-other-document-unhide", "hidden-other-group-unhide"}:
+                    other_doc = "unrelated" if state == "hidden-other-document-unhide" else "creative"
+                    other_group = "unrelated-group" if state == "hidden-other-group-unhide" else "creative-group"
+                    setup.append(f"INSERT INTO group_hidden_docs VALUES ('{other_group}','{other_doc}',1,3)")
             if state.startswith("alternate-") or state == "crossed-grants":
                 setup.append("INSERT INTO doc_groups VALUES ('creative','alternate-group',0,1)")
                 if state != "crossed-grants":
@@ -388,6 +417,8 @@ def _probe(case):
                     setup.append("INSERT INTO group_members VALUES ('alternate-group','alice','reader',1,1,3)")
                 if state == "alternate-removed":
                     setup.append("INSERT INTO doc_groups VALUES ('creative','alternate-group',1,3)")
+                if state == "alternate-hidden-primary-visible":
+                    setup.append("INSERT INTO group_hidden_docs VALUES ('alternate-group','creative',0,3)")
         db = sqlite3.connect(":memory:", check_same_thread=False)
         if not connected:
             db.create_function("has", 2, lambda tags, tag: tag in json.loads(tags))
@@ -456,7 +487,8 @@ def _probe(case):
                 # Use actual live membership gates; an attachment and grant in
                 # different groups must not combine into creative authority.
                 readable = [g for g in creative_groups if ch.can_read_group(g, "alice", "posts", authenticated=True)]
-                boundary_rows = execute(sq._boundary_cte_sql("posts", readable, "alice"), {}).result_rows
+                creative_service = "scores" if state.endswith("other-service") else "posts"
+                boundary_rows = execute(sq._boundary_cte_sql(creative_service, readable, "alice"), {}).result_rows
                 visible = [r for r in boundary_rows if r[0] == "creative"]
                 assert bool(visible) is expected_visible
                 carrier_rows = execute(sq._boundary_cte_sql("posts", [carrier_group], "alice"), {}).result_rows
@@ -518,15 +550,23 @@ def _probe(case):
         assert response.status_code == 200
         doc = response.json()[0]
         if is_hidden:
-            # Evidence, not desired behavior: hidden creatives still disclose/sign.
-            creative = doc["ad"]
-            assert creative["author_key"] == author and creative["posted_by"] == "bob"
-            verify(creative["body"]["url"], key)
-            factory.assert_called_once()
+            # Exploit replay: no fresh signing or creative delivery from hidden-only authority.
+            assert doc["doc_id"] == "carrier" and doc["body"]["text"] == "readable carrier"
+            if not expected_visible:
+                if "ad" in doc:
+                    verify(doc["ad"]["body"]["url"], key)
+                    print("hidden-only synthetic capability independently verified before denial assertion")
+                assert "ad" not in doc
+                factory.assert_not_called()
+            else:
+                creative = doc["ad"]
+                assert creative["author_key"] == author and creative["posted_by"] == "bob"
+                verify(creative["body"]["url"], key)
+                factory.assert_called_once()
             print(
                 f"pinned hidden evidence: engine={'ClickHouse-local' if connected else 'SQLite substitute'} "
                 f"state={state} boundary_visible={bool(visible)} policy_allows={expected_visible} "
-                "carrier_visible=True inline_ad=True verified_capability=True"
+                f"carrier_visible=True inline_ad={'ad' in doc} signer_calls={factory.call_count}"
             )
             return
         if is_doc:
