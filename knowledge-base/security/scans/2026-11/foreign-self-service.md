@@ -53,7 +53,29 @@ self-service/local bare compatibility and manager admission are preserved;
 revocation now addresses the real delegated grant key. No by-design conflict or
 new conventional deviation; local handler/SQL delta covered, actual
 issuer/TLS/ClickHouse/browser/concurrency/author-as risks remain unproven. This is
-one same-family dry review, not diverse three-dry convergence; PR remains draft.
+the first same-family dry review after repair, not diverse three-dry convergence.
+
+## Refreshed-base merge review
+
+After merging dev `c75758a2a` (#1422), the full API suite passes **2,171 tests
+plus eight subtests**, one opt-in skip; Ruff lint/format and the 435-line method
+gate pass. First post-merge CI passes every executed check, including all four
+e2e shards; later documentation-only head changes must pass fresh CI too.
+
+Two additional fresh reviewers, `ses_e44eaa7a7fferMpUT54nWmhKDF` and
+`ses_e44e99606ffeiv52yA3WmLo7g2`, each independently run all 58 focused cases
+and find no new demonstrable blocker. Their extra synthetic controls cover
+no-Origin foreign delegated mutation denial, personal cleanup dispatch, actual
+effective-role exact/service/author-as isolation and invitation histories with
+denial/approval/tombstones/deletion-winning ties. These supplement, not replace,
+the permanent tests and do not prove live storage/concurrency or issuer TLS.
+
+DESIGN-INTENT REVIEW: all three post-repair scoped reviews preserve generic
+primitives, exact foreign identity, local bare compatibility, manager-controlled
+admission and serving-node app/group authority; no new by-design conflict or
+conventional deviation identified. Three consecutive same-family scoped dry
+passes support the operator-requested foundation merge, not model-diverse
+convergence or authorization to activate the full federated feed.
 
 Remaining: actual-node/browser/storage controls, delegated author-as list intent,
 successful cleanup/real merge lifecycle, diverse convergence and full L1–L4

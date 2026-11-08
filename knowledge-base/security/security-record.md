@@ -20,7 +20,9 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 Exact certified foreign self-membership and own app-grant routes, with local-key
 compatibility, request-versus-invitation admission and delegated revoke-all key
 retention controls. Two inherited admission/revocation failures are replayed and
-repaired; 2,147 API tests plus eight subtests pass, one opt-in skip. Scope, repro and
+repaired; refreshed-base 2,171 API tests plus eight subtests pass, one opt-in skip.
+Three fresh same-family scoped dry reviews retain the broader diverse/connected
+gates. Scope, repro and
 fresh split-branch validation: [record](scans/2026-11/foreign-self-service.md).
 No SDK/UI/DNS integration in this unit. Real issuer/storage/browser/concurrency
 and model-diverse L1–L4 sign-off remain OPEN; no whole-security PASS or deployment.
