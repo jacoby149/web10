@@ -1,12 +1,14 @@
 # Access-Control Cost Function Experiment
 
-> **Current mode: SETUP ONLY (7 November 2026).** No provisioning, study traffic,
-> publication or new large generation until a new explicit approval. Start with
-> [STUDY.md](STUDY.md) and [DESIGN-REVIEW.md](DESIGN-REVIEW.md). The current setup
-> is **not run-ready**: V1 is a hot/public sparse control, not the proposed
-> dispersed/nonempty core-feed study; matched cost and concurrent instrumentation
-> remain open. The earlier “go for it” was superseded by the operator's design
-> validation instruction. Execution examples below are reference, not approval.
+> **7 November follow-up: preparation authorized, cloud study not started.**
+> The operator requests runnable fixtures, comparator and core-feed tooling and
+> approves immutable publication to web10 MinIO. Start with [RUNNING-V2.md](RUNNING-V2.md)
+> and the receipt-driven `readiness_v2.py`, not the historical harness below.
+> V1 remains a sparse control. V2 adds relational hot/dispersed inputs, actual
+> discovery/Origin controls, real core HTTP scheduling, correlation/resource
+> receipts and a paired resolver comparator. Sized-host restore/topology/headroom,
+> explicit execution approval and budget/watchdog acceptance remain run gates.
+> No provisioning, paid study or production deployment is authorized here.
 
 Offline setup checks (no HTTP, database or cloud execution):
 
@@ -16,7 +18,7 @@ python3 research/experiments/costfn/study_plan.test.py
 python3 research/experiments/costfn/study_plan.py --artifact-dir .context/datasets/one-million
 ```
 
-The source-captured [wire contract](evidence/core-feed-wire-v2.json) verifies the
+The source-captured [wire contract](evidence/core-feed-wire-v3.json) verifies the
 actual app/SDK builders' three queries plus views, including 21 fetched versus
 20 displayed rows, prepare and delivery flags. It is fake-transport evidence,
 not a live core-feed result. The planning tool has no execution mode and
@@ -32,7 +34,8 @@ Start at [DATASET.md](DATASET.md), not the legacy combined `run.sh` below.
 without signup, generation or import. The validated 1M-author + 20k-reader
 artifact is ~150 MB compressed; [pinned file/manifest receipt](evidence/frozen-1m-v1.json).
 This is a sparse public fixture, not measured capacity or full-feed realism.
-MinIO publication and the large concurrent load runner remain separate gates.
+This V1 workflow is not the V2 core-feed runner; see RUNNING-V2 for its inputs,
+approved MinIO publication and actual-host gates.
 The previous tier-max run was operator-cancelled (9/20 cells); receipts were
 collected and the cloud droplet/local driver stopped. No new cloud run is active.
 

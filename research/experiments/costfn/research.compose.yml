@@ -1,0 +1,16 @@
+# Explicit research-only overlay; production app and routes remain untouched.
+services:
+  clickhouse:
+    # Current app SQL uses QUALIFY (unsupported in historical 24.3).
+    image: ghcr.io/jacoby149/base-clickhouse:24.8
+  api:
+    volumes:
+      - ${COSTFN_RESEARCH_DIR:-.}:/research:ro
+      - ${COSTFN_REPO_DIR:-../../..}/sdk/src:/source/sdk/src:ro
+      - ${COSTFN_REPO_DIR:-../../..}/marketing/web10-social/src/data:/source/marketing/web10-social/src/data:ro
+    environment:
+      PYTHONPATH: /research:/web10
+      COSTFN_DISPOSABLE: "1"
+      COSTFN_SOURCE_ROOT: /source
+      QUERY_EVAL_READABLE_MODE: "${COSTFN_RESOLVER:-batched}"
+    command: ["uv", "run", "uvicorn", "research_api:application", "--host", "0.0.0.0", "--port", "80", "--no-access-log"]

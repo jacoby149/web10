@@ -1,0 +1,67 @@
+{
+  "dataset_id": "53b16c1072a8e80032b20ae23c5675040b851274ad7a314a106b7557be3b5363",
+  "bucket": "web10-media",
+  "prefix": "research/costfn/datasets/53b16c1072a8e80032b20ae23c5675040b851274ad7a314a106b7557be3b5363/",
+  "objects": [
+    {
+      "key": "research/costfn/datasets/53b16c1072a8e80032b20ae23c5675040b851274ad7a314a106b7557be3b5363/app_contracts.jsonl.gz",
+      "sha256": "4d7a2f2aa30c0f17597c31806822db0c175e9cd7069d43ab7c0f082f8abd1a6d",
+      "bytes": 66337
+    },
+    {
+      "key": "research/costfn/datasets/53b16c1072a8e80032b20ae23c5675040b851274ad7a314a106b7557be3b5363/doc_groups.jsonl.gz",
+      "sha256": "34509cb9fc3c727d712fc8fe08ccac57ea6489ad9665819d2cb7ab6324304fe8",
+      "bytes": 90784900
+    },
+    {
+      "key": "research/costfn/datasets/53b16c1072a8e80032b20ae23c5675040b851274ad7a314a106b7557be3b5363/documents.jsonl.gz",
+      "sha256": "9a6a1559e032856de39494b0449469c003120a0945b82ed1f4887e27930381be",
+      "bytes": 111162080
+    },
+    {
+      "key": "research/costfn/datasets/53b16c1072a8e80032b20ae23c5675040b851274ad7a314a106b7557be3b5363/group_contracts.jsonl.gz",
+      "sha256": "7b9cb9c6b64230c648935200f51b51a04d52411eac4b8b84d3c5adca9c7928a8",
+      "bytes": 5081811
+    },
+    {
+      "key": "research/costfn/datasets/53b16c1072a8e80032b20ae23c5675040b851274ad7a314a106b7557be3b5363/group_members.jsonl.gz",
+      "sha256": "223655383eef3a93a5eb9e5384c5a5218ea5491579c98f123400456a175947d5",
+      "bytes": 72227520
+    },
+    {
+      "key": "research/costfn/datasets/53b16c1072a8e80032b20ae23c5675040b851274ad7a314a106b7557be3b5363/users.jsonl.gz",
+      "sha256": "4f4be372874eb79cd912462d01f00e0579cf16fbf87c7cad3214e44e6650306f",
+      "bytes": 3252309
+    },
+    {
+      "key": "research/costfn/datasets/53b16c1072a8e80032b20ae23c5675040b851274ad7a314a106b7557be3b5363/manifest.json",
+      "sha256": "f7630fc9a927e5bc7440b240c2ebeabd5cc4c65687b457503e2ade1a9199642d",
+      "bytes": 360875
+    }
+  ],
+  "complete": true,
+  "public_policy_changed": false,
+  "verification": "full authenticated object reads, not ETag inference",
+  "endpoint": "https://minio.web10.app",
+  "download_verified": {
+    "dataset_id": "53b16c1072a8e80032b20ae23c5675040b851274ad7a314a106b7557be3b5363",
+    "rows": {
+      "users": 1020000,
+      "documents": 3100000,
+      "doc_groups": 4100000,
+      "group_contracts": 1000000,
+      "group_members": 23020000,
+      "app_contracts": 20000
+    },
+    "registered_accounts": 1020000,
+    "compressed_bytes": 282574957
+  },
+  "recipe": {
+    "creators": 1000000,
+    "follow": 1000,
+    "locality": "hot",
+    "readers": 20000,
+    "seed": 42
+  },
+  "generator_sha256": "4ef34b16cd3aeb2f16c0538dc07972115bd31488945bff7363464bf9fa0f4e64"
+}

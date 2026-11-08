@@ -150,20 +150,58 @@ describe('PostBody (D85 read side)', () => {
 
 // ── The link unfurl (the read-side card / player, KB: link-unfurl.md) ──────
 describe('PostBody — the link unfurl', () => {
-  it('renders a plain link first, then the spotify player placeholder (title + play), and the iframe on click', async () => {
+  it('renders the spotify provider player WITHOUT a click (the chrome, then the iframe on view)', async () => {
     fetchUnfurlMock.mockImplementation(async () => SPOTIFY_CARD);
     const { container } = render(<PostBody text="New drop: https://open.spotify.com/track/0VjIjW4GlUZAMYd2vXMi3b" density="full" />);
     // While loading: the plain link of today (the unfurl never blocks the text).
     expect(container.querySelector('a[href="https://open.spotify.com/track/0VjIjW4GlUZAMYd2vXMi3b"]')).toBeTruthy();
-    const placeholder = await screen.findByTestId('unfurl-player-placeholder');
-    expect(placeholder).toHaveTextContent('Blinding Lights');
-    expect(screen.queryByRole('link', { name: 'https://open.spotify.com/track/0VjIjW4GlUZAMYd2vXMi3b' })).toBeNull(); // the link is replaced by the card
-    fireEvent.click(placeholder);
+    // The provider-identity chrome arrives first (artwork + title + the
+    // provider domain — no play button: there is nothing to press).
+    const chrome = await screen.findByTestId('unfurl-player-chrome');
+    expect(chrome.querySelector('button')).toBeNull();
+    expect(screen.getByTestId('unfurl-player-provider')).toHaveTextContent('spotify.com');
+    // The embed scrolls into view (the setup's controllable observer) → the
+    // provider's iframe loads — no click involved.
+    (globalThis as unknown as Record<string, () => void>).fireIntersectionObservers?.();
     const player = await screen.findByTestId('unfurl-player');
     const iframe = player.querySelector('iframe');
     expect(iframe?.getAttribute('src')).toBe('https://open.spotify.com/embed/track/0VjIjW4GlUZAMYd2vXMi3b');
     expect(iframe?.getAttribute('allowfullscreen')).toBe('');
     expect(iframe?.getAttribute('style')).toContain('height: 152px');
+    // No fake play button anywhere (the provider's player is not a web10
+    // music post).
+    expect(screen.queryByTestId('unfurl-player-placeholder')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Play from spotify\.com/ })).toBeNull();
+  });
+
+  it('shows the provider-identity chrome (the title + the provider domain, no play button) until the embed scrolls into view', async () => {
+    // A never-firing IntersectionObserver: the chrome stays, the iframe waits.
+    let fireIntersect: (() => void) | null = null;
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        constructor(cb: (entries: { isIntersecting: boolean }[]) => void) {
+          fireIntersect = () => cb([{ isIntersecting: true }]);
+        }
+        observe = vi.fn();
+        unobserve = vi.fn();
+        disconnect = vi.fn();
+      },
+    );
+    fetchUnfurlMock.mockImplementation(async () => SPOTIFY_CARD);
+    render(<PostBody text="New drop: https://open.spotify.com/track/0VjIjW4GlUZAMYd2vXMi3b" density="full" />);
+    const chrome = await screen.findByTestId('unfurl-player-chrome');
+    // The provider identity is visible (never a native web10 music track).
+    expect(screen.getByTestId('unfurl-player-title')).toHaveTextContent('Blinding Lights');
+    expect(screen.getByTestId('unfurl-player-provider')).toHaveTextContent('spotify.com');
+    // No play button in the chrome (there is nothing to press) and no iframe yet.
+    expect(chrome.querySelector('button')).toBeNull();
+    expect(screen.queryByTestId('unfurl-player')).toBeNull();
+    // The scroll into view loads the provider's iframe (no click involved).
+    fireIntersect?.();
+    const player = await screen.findByTestId('unfurl-player');
+    expect(player.querySelector('iframe')?.getAttribute('src')).toContain('open.spotify.com/embed');
+    vi.unstubAllGlobals();
   });
 
   it('renders the article as a rich card (title + description + domain + image, the whole card is the link)', async () => {

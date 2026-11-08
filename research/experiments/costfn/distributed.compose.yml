@@ -1,0 +1,15 @@
+# Existing explicitly approved hosts only. Never bind these to a public interface.
+services:
+  clickhouse:
+    ports:
+      - "${COSTFN_DB_IP:?private DB IP required}:18123:8123"
+  minio:
+    ports:
+      - "${COSTFN_DB_IP:?private DB IP required}:19000:9000"
+  api:
+    ports:
+      - "${COSTFN_API_IP:?private API IP required}:${API_PORT:-6091}:80"
+    environment:
+      CLICKHOUSE_HOST: "${COSTFN_DB_IP:?private DB IP required}"
+      CLICKHOUSE_PORT: "18123"
+      S3_ENDPOINT: "http://${COSTFN_DB_IP:?private DB IP required}:19000"

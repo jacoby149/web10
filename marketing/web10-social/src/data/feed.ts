@@ -508,7 +508,13 @@ function buildFeedQuery(sort: FeedRanking | null, cursor: { created_at?: string;
   // are inventory too — the storefront is their public face, not a feed tile.
   const conditions = ["not has(p.tags, 'ad')", "not has(p.tags, 'product')"];
   if (newest) {
-    if (cursor?.created_at) conditions.push(`toUnixTimestamp64Milli(p.created_at) < toUnixTimestamp64Milli('${cursor.created_at}')`);
+    if (cursor?.created_at) {
+      // ClickHouse requires DateTime64, not a String, in toUnixTimestamp64Milli.
+      // Compare its millisecond integer with the cursor's UTC epoch directly.
+      const cursorMs = Date.parse(cursor.created_at);
+      if (!Number.isFinite(cursorMs)) throw new Error('Invalid feed cursor timestamp');
+      conditions.push(`toUnixTimestamp64Milli(p.created_at) < ${cursorMs}`);
+    }
   } else if (cursor?.score != null) {
     conditions.push(`(${score}) < ${cursor.score}`);
   }

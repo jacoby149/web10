@@ -4,6 +4,9 @@
 probe extension. Author: `openrouter/openai/gpt-6.1-sol`. Evidence only;
 runtime unchanged, visibility-policy discrepancy and protocol L1 OPEN.
 
+Follow-up: [operator-approved policy and fourteen-case evidence](h01-pinned-hidden-policy.md)
+settle the policy blocker below; this receipt preserves the original #1416 state.
+
 ## Intent And Orientation
 
 A moderator hides a creative from a group. Ordinary group-query reads exclude

@@ -64,10 +64,24 @@ do not establish moderator visibility. The actual query boundary excludes a
 creative hidden in its sole readable group, while pinned-ad enrichment still
 delivers/signs it in the synthetic replay. [Six-case evidence](../../security/scans/2026-11/h01-pinned-hidden-proof.md)
 retains newer unhide, unrelated hides and independent uploaders. Runtime is
-unchanged. D59 hiding is group-scoped curation, not global secrecy; pinned
-same-group/cross-group inheritance needs an explicit policy and further controls
-before security classification or repair. This is not a proven I3 breach or
-whole-ad assurance.
+unchanged. D59 hiding is group-scoped curation, not global secrecy; the original
+receipt left pinned same-group/cross-group inheritance unresolved. The operator
+settled that rule below. This is not a proof of global unreadability or whole-ad
+assurance.
+
+**Pinned-hide rule (operator decision, 07.11.2026):** a current hide on a creative's
+document/group attachment prevents that attachment from authorizing pinned-ad
+delivery. The rule applies whether the carrier is read from that group or a
+different one. Another current, readable, unhidden attachment of the creative
+still permits delivery; the carrier's membership does not supply creative access.
+An unhidden attachment in a group the reader cannot read does not combine with
+membership in a different hidden group. A newer unhide restores eligibility.
+No global hide veto, owner-only restriction or posts-only rule: D59 group curation
+and D75 arbitrary-service creatives remain. This is the target contract, not an
+implemented fix; the current pinned loader still ignores hide state. Direct-by-ID,
+other visibility rules and node-ad inventory behavior are not changed by this
+pinned-loader decision. [Fourteen-case policy evidence](../../security/scans/2026-11/h01-pinned-hidden-policy.md)
+pins same/cross-group carriers, unhide, visible alternatives and crossed grants.
 
 **Locked (the three open questions, resolved):**
 

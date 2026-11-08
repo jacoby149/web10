@@ -1,0 +1,119 @@
+{
+  "local_acceptance": true,
+  "measurement_valid": true,
+  "dataset_id": "c633ecbab2b31f5f20619737319277707405876417384bb68a82b7b21ec5d92c",
+  "sources": {
+    "api_python_sha256": "2ba5c6669417fde28d9617641a98a6f9e45d49d5163647b7d65cbcdd46597e7c",
+    "api_lock_sha256": "03c53df62e5e683636cfafc8179c8cf0bcf234f977e7e9ca60a9501f18ba070a",
+    "research_compose_sha256": "a57449315530b463793daa62bd4b6a3fdbca3b4cb5076ed522543ee220b66d53",
+    "harness_python_sha256": "dcdce2eee484c46c5cfbf42aba1dab8cef9e969cfae638ffc36d11a61a6b958d",
+    "pagination_capture_sha256": "cd7473c67b52958b7fe2e62980248de11ff44002f3bc26c22be719559956f6a0",
+    "wire_sha256": "514a2cce237928ffcc32d741f6bc0047cb4bc6e5b88a8f777dad094156fd5b86"
+  },
+  "users": 2,
+  "interval": 5,
+  "warmup": 5,
+  "duration": 10,
+  "drain": 60,
+  "api_origin": "http://127.0.0.1:6092",
+  "recipe": {
+    "creators": 40,
+    "follow": 25,
+    "locality": "dispersed",
+    "readers": 2,
+    "seed": 42
+  },
+  "generator_sha256": "4ef34b16cd3aeb2f16c0538dc07972115bd31488945bff7363464bf9fa0f4e64",
+  "runtime": {
+    "api": [
+      {
+        "name": "/web10-costfn-frozen-san-marino-final-api-1",
+        "image_id": "sha256:19b4cf5bc0f53e59b945d827e9a3b5003a41d98c3201c8e528f357a86fbb2633",
+        "image_ref": "web10-costfn-frozen-san-marino-final-api"
+      },
+      {
+        "name": "/web10-costfn-frozen-san-marino-final-clickhouse-1",
+        "image_id": "sha256:999a072d6f927d54b32742a0ca619a94786a34d6c39bf90caabf0530ec9b076b",
+        "image_ref": "ghcr.io/jacoby149/base-clickhouse:24.8"
+      },
+      {
+        "name": "/web10-costfn-frozen-san-marino-final-minio-1",
+        "image_id": "sha256:8f08aee614800a237906bd48114d733e5ac5bfac4ccdf731f141b0e880d7a253",
+        "image_ref": "ghcr.io/jacoby149/base-minio:latest"
+      }
+    ],
+    "db": [
+      {
+        "name": "/web10-costfn-frozen-san-marino-final-api-1",
+        "image_id": "sha256:19b4cf5bc0f53e59b945d827e9a3b5003a41d98c3201c8e528f357a86fbb2633",
+        "image_ref": "web10-costfn-frozen-san-marino-final-api"
+      },
+      {
+        "name": "/web10-costfn-frozen-san-marino-final-clickhouse-1",
+        "image_id": "sha256:999a072d6f927d54b32742a0ca619a94786a34d6c39bf90caabf0530ec9b076b",
+        "image_ref": "ghcr.io/jacoby149/base-clickhouse:24.8"
+      },
+      {
+        "name": "/web10-costfn-frozen-san-marino-final-minio-1",
+        "image_id": "sha256:8f08aee614800a237906bd48114d733e5ac5bfac4ccdf731f141b0e880d7a253",
+        "image_ref": "ghcr.io/jacoby149/base-minio:latest"
+      }
+    ],
+    "api_software": {
+      "python": "3.12.12",
+      "packages": {
+        "fastapi": "0.139.0",
+        "starlette": "1.3.1",
+        "sqlglot": "30.18.0",
+        "clickhouse-connect": "1.6.0",
+        "uvicorn": "0.51.0",
+        "PyJWT": "2.13.0",
+        "bcrypt": "5.0.0"
+      }
+    },
+    "clickhouse_version": "24.8.14.39"
+  },
+  "epoch": 1794106041.163486,
+  "lifecycle_before": [
+    "private_nonmember_denied",
+    "private_grant_exact_result",
+    "app_revoke_denied",
+    "app_regrant_exact_result",
+    "membership_revoke_denied",
+    "membership_regrant_exact_result",
+    "document_tombstone_denied"
+  ],
+  "lifecycle_after": [
+    "private_nonmember_denied",
+    "private_grant_exact_result",
+    "app_revoke_denied",
+    "app_regrant_exact_result",
+    "membership_revoke_denied",
+    "membership_regrant_exact_result",
+    "document_tombstone_denied"
+  ],
+  "paired_measured_pairs": 3,
+  "correlated_requests": 24,
+  "resource_samples": 3,
+  "resource_errors": [],
+  "scope": "Functional receipt for specified readers/durations. Two-reader defaults are not statistical performance or cloud generator headroom. Interpret large points only with raw failures/resources and independent trials.",
+  "cloud_execution_authorized": false,
+  "submission_ready": false,
+  "archive": "v2-local-acceptance.tar.gz",
+  "archive_sha256": "3ae2d8905768a80ed60ba39c17250f2225313689a44bd659d6c7672fd1ccb0ad",
+  "cleanup": {
+    "verified_empty": true,
+    "owned_projects": {
+      "web10-costfn-frozen-san-marino-v2": {
+        "containers": [],
+        "volumes": [],
+        "networks": []
+      },
+      "web10-costfn-frozen-san-marino-final": {
+        "containers": [],
+        "volumes": [],
+        "networks": []
+      }
+    }
+  }
+}

@@ -236,6 +236,21 @@ describe('feed v3 data layer', () => {
       ]);
     });
 
+    it.each(['2026-01-01T00:00:19.123Z', '2025-12-31T19:00:19.123-05:00'])('uses numeric UTC milliseconds for a Newest cursor (%s)', async (created_at) => {
+      mock.query.mockResolvedValue({ rows: [] });
+      await readFeedPage({ limit: 20, cursor: { created_at } });
+      const sql = mock.query.mock.calls[0][0];
+      expect(sql).toContain(`toUnixTimestamp64Milli(p.created_at) < ${Date.parse('2026-01-01T00:00:19.123Z')}`);
+      expect(sql).not.toContain(`toUnixTimestamp64Milli('${created_at}')`);
+      expect(sql).toContain('LIMIT 21');
+    });
+
+    it('rejects an invalid Newest timestamp before issuing SQL', async () => {
+      mock.query.mockResolvedValue({ rows: [] });
+      await expect(readFeedPage({ cursor: { created_at: "not-a-date'" } })).rejects.toThrow('Invalid feed cursor timestamp');
+      expect(mock.query).not.toHaveBeenCalled();
+    });
+
     it('maps the prepared rows to PostRecords (counts from the discover group + profile + avatar)', async () => {
       mock.query.mockImplementation(async (sql: string) => {
         if (sql.includes('FROM posts p')) return { rows: [feedRow()], count: 1 };

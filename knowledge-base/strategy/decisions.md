@@ -9,6 +9,186 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D102 — The audio provider embeds render the provider's player without a click (the scroll is the gate, not a play button) [decided]
+
+The operator's live pass (08.11.2026, social.web10.app): the Spotify and
+SoundCloud links "look like native web10 music posts" — a web10-styled card
+with a purple play button that plays nothing in web10 (it just swaps in the
+provider's embed), while the VIDEO links (YouTube, TikTok) show the playable
+frame immediately. "The audio links should behave the same way: the
+provider's player visible from the start, no intermediate card."
+
+**The decision:** the landscape (audio) provider embeds — Spotify /
+SoundCloud / Bandcamp — render the provider's own iframe **without a
+click**. The old click-to-reveal existed for one legitimate reason (a feed
+can carry many embeds; N provider iframes at once is heavy), and that
+reason is kept: the iframe loads when the embed **scrolls into view**
+(an `IntersectionObserver`, 200px rootMargin — an embed at the viewport
+edge is ready by the time it is seen), not on a tap. What changes is what
+the reader sees in the meantime: the **provider-identity chrome** — the
+artwork + the title + the description + the provider's domain with its
+favicon. It says "the player is from spotify.com", never "this is a web10
+track, press play" (the fake play button is gone — there is nothing to
+press, the player arrives without one). No IntersectionObserver (the test
+env, very old engines) → the iframe loads immediately (never a dead
+end).
+
+**The portrait video player (TikTok) is UNCHANGED** (click-to-load, the
+poster + the centered play button — the YouTube Shorts shape): a VIDEO
+poster with a play affordance reads correctly; the complaint was specific
+to the audio bars reading as native web10 music. YouTube / Vimeo
+(deterministic) and the article cards are unchanged.
+
+**One code, two apps:** the pattern lives in the shared `PlayerEmbed`
+(`shared/discover/src/UnfurlLink.tsx` — `PortraitPlayerEmbed` for the
+portrait click-to-load, `AudioProviderEmbed` for the scroll-gated provider
+iframe) with the social app's `LinkEmbed.tsx` kept in lockstep (the
+verbatim-tail rule, D100). The two-sided iframe allowlist is unchanged —
+the src is the same server-allowlisted embed; only the trigger moved from
+the click to the scroll.
+
+**Rejected:** (a) loading every audio iframe eagerly on mount (the
+performance reason the click existed — a board with six audio posts would
+hydrate six provider JS apps at once, off-screen); (b) keeping the
+play-button card and just relabeling it (the operator's exact complaint —
+the button plays nothing in web10, so any card with a web10 play affordance
+keeps lying); (c) a "tap the card" affordance on the chrome (a tap is a
+click in disguise — the scroll is the trigger, full stop).
+
+Contract: `web10-v3/social/link-unfurl.md` ("The card, in the body" — the
+two presentation patterns). Tests: `postBody.test.tsx` (the no-click load
+via the setup's controllable observer + the provider-identity chrome with
+no button) and `marketing-ui/src/components/UnfurlMarketing.test.tsx`
+(the same, the marketing side). No security surface change (the scan record
+is untouched — the iframe gate is the same two-sided allowlist).
+
+---
+
+### D101 — The challenge-wall retry fetches via curl; Instagram Reels' inline floor is the provider's, documented [decided]
+
+The operator's live pass on D99/D100 (08.11.2026, social.web10.app): every
+provider unfurled except two — **Bandcamp links stayed plain** (the edge's
+"Client Challenge" wall) and **Instagram Reels rendered a card that links
+out** instead of playing inline.
+
+**Bandcamp — the root cause is the TLS fingerprint, not the parse.** The
+page fetch itself was fingerprinted: Node's built-in fetch (undici) presents
+a bot TLS signature that Bandcamp's Fastly edge walls ("Client Challenge",
+the `_fs-ch-` interstitial — detected and refused as `no_metadata` by the D99
+wall check), while a libcurl client gets the real 366KB page with the full
+`twitter:card=player` + `twitter:player` + og set. Reproduced live
+08.11.2026 from a residential host (undici → the 3KB wall, curl → the page)
+— so the fix is testable locally, not just on the production box. **The
+decision: one bounded retry through a curl subprocess (`makeCurlStealthFetch`
+in `preview/unfurl.mjs`)** when — and only when — the default fetcher comes
+back walled. It is a TRANSPORT swap inside the existing guard, not a second
+path: `guardedFetch` re-runs the full validation before the spawn (the url
+was already SSRF-checked — scheme/shape/DNS-public), curl runs
+`--max-redirs 0` (a 3xx returns to the per-hop loop, which re-validates the
+Location exactly as the default fetcher's), `--max-time` + the execFile
+timeout + the abort-signal kill bound it, the body still flows through the
+guard's byte cap, and `execFile`'s argument array means the validated url is
+never shell-interpolated. `curl` is pinned into the image (`apk add curl` in
+the social Dockerfile); absent it, the wall verdict stands (the plain link —
+the floor, unchanged). The same fix lands the **Bandcamp player at the
+correct size**: the embed now takes the player's DECLARED
+`twitter:player:width/height` (350×467 for a size=large track player) over
+the page's `og:video:height` (120 — the small-player figure that would have
+clipped the large iframe). Because the fetch lives in the shared preview
+server, the marketing site (D100) inherits both fixes with zero code of its
+own.
+
+**Rejected for Bandcamp:** (a) doing nothing (the documented residual — the
+operator now wants it fixed); (b) curl as the PRIMARY fetcher (the wall is
+the exception, not the rule — undici stays first: in-process, no spawn, the
+common path unchanged); (c) a residential-IP fetch box / a paid link-card API
+(D99's rejected classes — new infra or money for one provider, when a
+subprocess in the existing container clears it); (d) special-casing the
+Bandcamp URL (the wall is an EDGE property, not a host property — the
+retry is keyed on the detected wall, so any future TLS-fingerprinting edge
+gets it too).
+
+**Instagram — the inline floor is the provider's, and it is documented, not
+silent.** No keyless oEmbed exists (`graph.instagram.com/oembed` →
+"Invalid OAuth 2.0 Access Token"; `api.instagram.com/oembed` → dead) and the
+provider's own embed pages (`/reel/…/embed/` + `/embed/captioned/`) send
+`x-frame-options: DENY` and serve a login shell to anonymous fetchers — the
+browser will refuse the iframe regardless of what we ship. The rich preview
+card (the reel's poster + "Name … on Instagram" + the likes/comments
+description) is therefore the end state, with the evidence pinned in the KB
+provider matrix (re-visit only if Instagram ships a keyless oEmbed — the
+oEmbed dispatch is already the seam). The card keeps its link-out
+affordance (the ExternalLink icon + the whole card is the link) — it is a
+designed preview of external content, not a fake player.
+
+Both apps: the social feed (its own unfurl copy) and the marketing board /
+group pages (the shared D100 tail) — the fix is server-side, so both ride
+it. The two-sided iframe gate is unchanged (bandcamp.com was already
+allowlisted; instagram gains no embed host — there is no embed).
+
+Contract: `web10-v3/social/link-unfurl.md` (the provider matrix rows, the
+wall-retry flow, the Open section). The SSRF scan record carries the curl
+subprocess as a documented seam (the boundary is unchanged).
+
+---
+
+### D100 — The marketing site unfurls links cross-origin from the social preview server; the render moves to the shared package [decided]
+
+The operator's marketing pass (07.11.2026, /trending screenshot: "the social
+app looks like this but the marketing page is just some links") asked for
+the D99 link unfurling on the marketing site. D99 already decided WHERE the
+fetch lives (the social app's own preview server — never the node, D60);
+this decision is about the SECOND CONSUMER.
+
+**The decision: the marketing site consumes the same endpoint cross-origin.**
+`GET ${SOCIAL_ORIGIN}/preview/unfurl?url=…` with
+`Access-Control-Allow-Origin: *` on every verdict (+ the OPTIONS preflight)
+from the social preview server (`preview/server.mjs`). The render moves to
+the shared `@web10/discover` package (`src/unfurl.ts` + `src/UnfurlLink.tsx`
++ `src/linkEmbeds.ts` — the verbatim tail of the social app's `src/lib/
+unfurl.ts` + `LinkEmbed.tsx`), opt-in through `MarkdownText`'s and
+`DiscoverCard`'s new `unfurlEndpoint` prop; the marketing board
+(`FeedPreview.tsx`) + group detail (`GroupDetail.tsx`) wire it. The social
+app keeps its own copy for the full-density feed — unchanged.
+
+**Why CORS `*` (and not an origin list, and not an nginx proxy):** the
+answer is public card metadata — no session, no cookies, no credentials in
+or out. CORS is reader access, not the boundary: the SSRF guard + the
+60/min per-IP damper are unchanged, and a browser on any origin was already
+able to call the endpoint from server-side code; CORS just lets a second
+SPA read the same answer. `*` (not a list) so a self-hosted marketing build
+pointing at its own social origin works without a rebuild. An nginx
+proxy on the marketing side was rejected: it bakes the social container
+into the marketing network (a deploy-topology coupling the CORS answer
+doesn't need), and it silently breaks plain-vite dev.
+
+**Rejected:** (a) a node endpoint — the D99/D60 leak, already decided;
+(b) marketing running its own preview server — a second copy of the
+SSRF-guarded fetch tail, deployed with a static site that has no Node
+process; (c) client-only fetch (oEmbed/OG straight from the browser) — CORS
+makes it impossible for the generic OG case, the exact D99 reason;
+(d) unfurling the teaser surfaces (comments, the Top 10 rail, the tile
+captions, the repost embeds) — the D99 density rule: a block card in a
+line-clamped teaser blows the teaser up; they keep the plain link.
+
+**The caption link-out moves:** in remote mode the caption is a link-out to
+the post on web10 social. A caption that unfurls can't keep the wrapper
+(a card / player must not nest inside an `<a>` — interactive content in
+interactive content is invalid HTML), so the rich caption drops it and the
+post's link-out moves to the TITLE. A caption without an external link
+keeps the wrapper, exactly as before.
+
+**The floor holds:** every unfurl failure (network, blocked, no metadata,
+rate-limited) renders the plain link — on the marketing board, the group
+pages, and the social feed alike. Marketing against an undeployed social
+app degrades to plain links, never to a broken card.
+
+Contract: `web10-v3/social/link-unfurl.md` ("The second consumer: the
+marketing site (D100)"). Scan record unchanged in substance (the boundary
+is the SSRF guard; CORS is documented there as reader access).
+
+---
+
 ### D99 — Link unfurling fetches live in the social app's preview server, not the node [decided]
 
 The operator's unfurl task (07.11.2026: "Spotify, article, and (presumably)
@@ -1188,6 +1368,17 @@ consideration).
 
 Full model: `knowledge-base/web10-v3/social/content-moderation.md`. Default
 list: `knowledge-base/web10-v3/social/sensitive-words-default.md`.
+
+**Pinned-ad clarification (07.11.2026):** the operator chose **Honor group hides**:
+"A hidden attachment cannot authorize pinned-ad delivery. Another current,
+readable, unhidden group attachment can still authorize it." This applies to
+same-group and cross-group carriers. Never combine membership in a hidden group
+with an unhidden attachment in an unreadable group. Newer unhide restores that
+attachment; an unrelated hide does not suppress a visible alternative. This
+extends the group-scoped curation rule to pinned enrichment without making hidden
+content globally secret or changing direct-by-ID/node-inventory behavior. Target
+contract: `web10-v3/social/ads-dissemination.md`; implementation remains a separate
+bounded repair after policy/evidence review.
 
 ### D59a — Node-level ban (`banned_users`) + retroactive user-hide [decided]
 Operator, 28.09.2026 — "the social app i tried to hide the posts from the user,

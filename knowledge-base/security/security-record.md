@@ -271,6 +271,23 @@ serving rollout/browser playback, cost, diverse review and broader L1 remain OPE
 
 ## Pinned-Ad Hidden-Creative Authority (07.11.2026) — evidence only, OPEN
 
+Follow-up at `c420b6f4c68a6465179ef527cdf0412212c2aca1` plus test/docs diff:
+the operator explicitly requires one current readable unhidden creative
+attachment for pinned delivery, regardless of carrier group. The
+[fourteen-case policy matrix](scans/2026-11/h01-pinned-hidden-policy.md) adds
+same-group, visible alternate and revoked/removed/crossed-grant controls; synthetic
+carriers are persisted and independently checked by the actual full boundary.
+Seven approved-policy denials still deliver bodies/verified capabilities, while
+seven allowed cases remain. All fourteen cases pass on both SQLite and isolated
+ClickHouse-local Memory tables. All 2,072 API tests plus eight subtests pass with
+one opt-in skip; full Ruff lint/format pass. Fresh same-family review independently
+passes all fourteen SQLite cases and three direct probes without a blocker.
+This confirms a group-curation bypass, not global
+secrecy or a direct-by-ID restriction. Policy block resolved; runtime repair,
+real lifecycle/connected/CI/diverse review and protocol L1 remain OPEN.
+
+Historical #1416 evidence and its then-unresolved policy follow:
+
 GPT-6.1 Sol reviews `clickhouse.py:3265-3329` at
 `80a8a1f2285e6b9bd6feceb527fd93ae582a247f` against all six checklist classes.
 [H01-AD-HIDDEN-PROOF](scans/2026-11/h01-pinned-hidden-proof.md) reproduces two
