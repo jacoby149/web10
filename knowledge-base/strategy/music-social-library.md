@@ -92,3 +92,14 @@ social-library connected acceptance** in the lane/plan. The older connected
 listening task still owns real-media/expiry/physical-phone behavior. No
 deployment, production writes, global public index, cross-node discovery or
 whole-playlist copy.
+
+PR #1438's first complete CI run reproduced a stale pre-granted browser fixture:
+the settings re-login waited for “Continue as” while the real popup correctly
+requested the new bookmark-service consent. The settings/saved/trending seeds,
+real login and access oracle now import one pure `lib/socialContract.ts` service
+declaration rather than retaining duplicated lists. A source-list comparison
+reproduced the exact missing grant before replacement; existing contract/oracle
+tests pin the shared declarations. No extra approval click, bypass, relaxed
+assertion or timeout increase.
+Full connected bookmark acceptance above remains separate from this existing
+already-granted re-login journey.
