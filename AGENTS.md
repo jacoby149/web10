@@ -246,7 +246,7 @@ search / auditability), there is no default e2e, and the client is a PWA,
 not a native app.
 
 **Telemetry (D56 intent, D103 vendor): PostHog only.** web10 tracks usage to
-compete on experience, never post/DM/media content. Local 5.0.0 removes GA4/
+compete on experience, never post/DM/media content. 5.0.0 (merged) removes GA4/
 Hotjar runtime/config/build wiring on the operator's explicit request. Shared
 allowlisted capture, canonical opaque personal identity, signed campaign handoff,
 atomic account-row signup context, retryable server outcomes and optional masked

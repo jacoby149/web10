@@ -104,7 +104,7 @@ is the wrong platform for you.
 full model: `knowledge-base/web10-v3/telemetry.md`. decision: D56.
 
 **Vendor direction, D103 (08.11.2026): PostHog only.** On explicit operator
-instruction, local 5.0.0 removes the GA4/Hotjar integrations and implements opaque
+instruction, 5.0.0 (merged) removes the GA4/Hotjar integrations and implements opaque
 identity, campaign handoff, durable signup outcomes, vendor-report provisioning
 and optional masked replay/heatmaps. Collection stays default-off; live vendor
 reconciliation, actual auth/phone/playback and approved rollout remain OPEN. Plan:
