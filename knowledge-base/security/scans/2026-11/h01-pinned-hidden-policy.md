@@ -90,8 +90,8 @@ uv run ruff check .
 uv run ruff format --check .
 ```
 
-SQLite matrix: fourteen pass. ClickHouse-local/full API/review results are
-recorded after completion. The initial combined ClickHouse matrix exceeded the
+SQLite matrix: fourteen pass; fresh review is recorded below. ClickHouse-local
+and full API results are recorded after completion. The initial combined ClickHouse matrix exceeded the
 120-second outer command timeout after eight successful cases. Restrict alternate
 group probes to cases that actually have alternate attachments, then rerun with
 no outer timeout; each child probe and container query retains its own timeout.
@@ -149,3 +149,12 @@ same/cross-group hides deny only the affected creative authorization, not the
 carrier or legitimate visible alternatives; preserve independent uploaders and
 arbitrary services. No global hide veto, owner-only/service restriction, new
 schema/endpoint, direct-by-ID/node-ad policy change or L2 advancement.
+
+## Publication Preparation
+
+Merge `origin/dev` at `f51d72317` before PR creation; incoming research and link
+unfurling work changes no API runtime or tests. Retain both release histories and
+renumber only this branch's entry/plan/lane from 4.12.16 to 4.14.1 above dev's
+4.14.0. Restore the changelog entry boundary without rewriting incoming entries.
+Original base pin and local evidence remain explicit; normal PR checks are a
+separate gate.
