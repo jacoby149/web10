@@ -1,4 +1,6 @@
-from pydantic import BaseModel, ConfigDict
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class SetupRequest(BaseModel):
@@ -59,8 +61,10 @@ class ConfigUpdate(BaseModel):
     twilio_auth_token: str | None = None
     twilio_number: str | None = None
     dev_pay_pct: int | None = None
-    ga4_measurement_id: str | None = None
-    hotjar_site_id: str | None = None
+    posthog_enabled: bool | None = None
+    posthog_replay_enabled: bool | None = None
+    posthog_project_key: str | None = Field(default=None, pattern=r"^(?:phc_[A-Za-z0-9_-]{8,200})?$")
+    posthog_host: Literal["https://us.i.posthog.com", "https://eu.i.posthog.com"] | None = None
     sensitive_words: list[str] | None = None
     auto_moderate: bool | None = None
     moderation_enabled: bool | None = None

@@ -32,7 +32,7 @@ def run(manifest, pairs=20, seed=42, mode="batched"):
     settings.QUERY_EVAL_NO_POLICY = False
     settings.QUERY_EVAL_STUB_EXECUTE = False
     settings.QUERY_EVAL_READABLE_MODE = mode
-    resolver_name = "readable_groups_batched" if mode == "batched" else "readable_groups"
+    resolver_name = "readable_groups_batched" if mode == "batched" else "readable_groups_per_group"
     resolver = getattr(ch, resolver_name)
     observations = []
     client = TestClient(research_api.application)

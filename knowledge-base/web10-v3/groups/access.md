@@ -126,6 +126,16 @@ cover, the name, the about, the member count, and the Join button — but
 *content* is access-controlled. The D53 directory is a public metadata list
 for the same reason.
 
+**Current content-read compatibility:** the implemented `can_read_group` first
+accepts an active principal membership, without consulting that member role's
+service map. Non-members need the applicable public/authenticated service grant.
+The role-map table above must not be used to silently remove this legacy member
+read behavior during resolver optimization. Scalar and batched implementations
+also currently accept an active orphan/undefined-role membership; parity fixtures
+pin that existing behavior, not approval of inconsistent metadata or a new policy.
+Any tightening needs its own policy decision and repair. Neither algorithm
+promises an atomic snapshot across simultaneous permission writes.
+
 ## Public / private / signed-in-only
 
 There is no separate "visibility" flag. Publicness **is** a role grant to a
@@ -260,8 +270,9 @@ lookup. The scan stays a scan. AWS-level control, zero scan-time penalty.
 **The one cost that does scale: resolving the readable set.** The "cheap" above
 is per-group. Resolving *which* of the reader's K candidate groups they can
 read is the `readable` phase, and it has two implementations with identical
-semantics — a **per-group** loop (O(K) ClickHouse round-trips from Python, the
-current feed path) and a **batched** variant (3 round-trips total, O(1) in K).
+semantics — a **per-group** reference loop (O(K) ClickHouse round-trips from
+Python) and the production-default **batched** helper (up to three round-trips
+per byte-bounded chunk and service, or one if every candidate is a member).
 The cost is round-trips, not language (the phase is I/O-bound). Full detail +
 the measurement seam for the paper's access-control cost function:
 `../query-engine.md` §"Readable-set resolution: the per-group vs. batched

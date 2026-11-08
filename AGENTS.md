@@ -245,19 +245,22 @@ not a privacy platform (D41): the node is readable by design (discovery /
 search / auditability), there is no default e2e, and the client is a PWA,
 not a native app.
 
-**Telemetry (D56):** web10 tracks hard — GA4 + Hotjar on every user-facing
-surface (marketing site, social app, authenticator) — because it competes
-with Meta and TikTok on user experience, and their UX is the output of a
-decade of aggressive telemetry. The recording is content-blind by
-construction (Hotjar `maskAllText` + `blockAllImages` — text blurred,
-images blocked), and GA4 events are content-free by convention. **Content
-is never tracked** — posts, DMs, media are not in the recordings, not in
-the events, not sold, not fed to any ad machine (GA4 advertising features
-stay off; the only sponsors a fan sees are the creator's, D50/D55). The
-trade is terms-level, not a consent popup: "it is the wrong platform for
-you if you arent ok with that." Full model:
-`knowledge-base/web10-v3/telemetry.md`. Do not "tighten" or
-"privacy-wash" tracking without re-reading D56.
+**Telemetry (D56 intent, D103 vendor): PostHog only.** web10 tracks usage to
+compete on experience, never post/DM/media content. 5.0.0 (merged) removes GA4/
+Hotjar runtime/config/build wiring on the operator's explicit request. Shared
+allowlisted capture, canonical opaque personal identity, signed campaign handoff,
+atomic account-row signup context, retryable server outcomes and optional masked
+replay/heatmaps are implemented; external collection remains default-off. The API
+needs a separate persistent `POSTHOG_IDENTITY_SECRET`, never an auth key. Anonymous
+traffic is not aliased across accounts; attribution bridges campaign labels, not
+claimed anonymous person identity. Foreground sessions are browser evidence, not
+verified content viewing/humanity. Keep D86 and operational history; no bespoke
+acquisition dashboard. Vendor report provisioning is dry-run unless explicitly
+applied with operator access. Third-party hosting is not an independent audit;
+live vendor/auth/phone/playback and review/rollout gates remain OPEN. Contract:
+`knowledge-base/web10-v3/telemetry.md`; queue:
+`knowledge-base/strategy/posthog-migration.md`. The tracking trade stays terms-level;
+do not privacy-wash D56 or put content/credentials into events or recordings.
 
 ## The stack
 
@@ -280,6 +283,12 @@ you if you arent ok with that." Full model:
 ## How the data model works
 
 Single ClickHouse `documents` table, primary key `(author_key, doc_id)`. `doc_groups` maps documents to groups. `group_contracts` + `group_members` define access. Two contract types: app contracts (infrastructure trust, CORS-enforced) and group contracts (social access, role-enforced). Full model: `knowledge-base/web10-v3/db/clickhouse.md`.
+
+The generic readable-group helper defaults to byte-bounded batched resolution;
+`READABLE_RESOLUTION_MODE=per-group` retains an authorization-preserving rollback.
+Explicit research overrides remain separate from default-off policy bypass/stub
+flags. Source/Compose defaults are not production-deployment proof. Local parity
+and remaining rollout gates: `knowledge-base/security/scans/2026-11/readable-resolution-default.md`.
 
 ## The node stays generic (D60) — no app-specific surface in `api/`
 
@@ -354,6 +363,13 @@ Authenticator profile/admin/contracts/group display reads are owned by the curre
 Browser auth-token messages require a bound credential window and configured origin. Legacy contractOnReady no-callback metadata stays available; opener callbacks and token handoff require its trusted-auth-origin argument. User grants may skip repeated consent, never authentication checks.
 
 JWT tokens with `username, site, target, provider, expires`. Server verifies signature, checks app contracts + group membership. Full auth flow: `knowledge-base/web10-v3/auth/auth.md`.
+
+Certified foreign group self-service and own app-contract routes use exact
+home-certified principals; local callers retain bare keys and foreign listing
+never heals namesake ownership. Foreign delegated tokens cannot mutate app
+grants. Self-accept requires an actual invited row, not a pending join request.
+Browser consent, SDK transport, DNS/catalog, mixer and source-owned feed integration
+are separate gates in `knowledge-base/strategy/federated-feed-mixer.md`.
 
 The isolated D97 domain-portability prototype stores a domain-only subscription
 in the reader's private app service and re-resolves a configured public target;

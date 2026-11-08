@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class Signup(BaseModel):
@@ -6,6 +6,7 @@ class Signup(BaseModel):
     password: str
     phone: str | None = None
     email: str | None = None
+    analytics_context: str | None = Field(default=None, max_length=4096)
 
 
 class Login(BaseModel):
@@ -55,3 +56,4 @@ class RecoveryComplete(BaseModel):
     verify_token: str
     username: str
     new_password: str | None = None
+    analytics_context: str | None = Field(default=None, max_length=4096)

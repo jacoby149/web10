@@ -189,13 +189,26 @@ def test_row_copy_preserves_latest_account_sql(monkeypatch, mutation, args):
     db.create_function("addMilliseconds", 2, lambda value, delta: str(float(value) + delta / 1000))
     db.create_function("greatest", 2, max)
     db.execute(
-        "CREATE TABLE users (username, password_hash, phone, phone_verified, email, email_verified, domain, domain_verified, created_at, updated_at, deleted)"
+        "CREATE TABLE users (username, password_hash, phone, phone_verified, email, email_verified, domain, domain_verified, created_at, updated_at, deleted, analytics_context)"
     )
     db.executemany(
-        "INSERT INTO users VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO users VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
         [
-            ("alice", "old", "old", 0, "old", 0, "stale.example", 1, "0", "1", 0),
-            ("alice", "current-hash", "current-phone", 1, "current-email", 1, "current.example", 1, "0", "2", 0),
+            ("alice", "old", "old", 0, "old", 0, "stale.example", 1, "0", "1", 0, "{}"),
+            (
+                "alice",
+                "current-hash",
+                "current-phone",
+                1,
+                "current-email",
+                1,
+                "current.example",
+                1,
+                "0",
+                "2",
+                0,
+                '{"event_id":"retained"}',
+            ),
         ],
     )
 
@@ -207,6 +220,10 @@ def test_row_copy_preserves_latest_account_sql(monkeypatch, mutation, args):
     monkeypatch.setattr(ch, "client", SimpleNamespace(command=command))
     getattr(ch, mutation)("alice", *args)
     assert db.execute("SELECT count(*) FROM users").fetchone()[0] == 3
+    assert (
+        db.execute("SELECT analytics_context FROM users ORDER BY rowid DESC LIMIT 1").fetchone()[0]
+        == '{"event_id":"retained"}'
+    )
     row = db.execute(
         "SELECT password_hash, phone, email, domain, domain_verified FROM users ORDER BY rowid DESC LIMIT 1"
     ).fetchone()
@@ -218,7 +235,7 @@ def test_row_copy_preserves_latest_account_sql(monkeypatch, mutation, args):
         1,
     )
     db.execute(
-        "INSERT INTO users SELECT username,password_hash,phone,phone_verified,email,email_verified,domain,domain_verified,created_at,'9999',1 FROM users LIMIT 1"
+        "INSERT INTO users SELECT username,password_hash,phone,phone_verified,email,email_verified,domain,domain_verified,created_at,'9999',1,analytics_context FROM users LIMIT 1"
     )
     getattr(ch, mutation)("alice", *args)
     assert db.execute("SELECT count(*) FROM users").fetchone()[0] == 4
@@ -253,7 +270,7 @@ def test_schema_migration_idempotent_statements(monkeypatch):
     client = Mock()
     monkeypatch.setattr(ch, "client", client)
     ch.ensure_users_domain_schema()
-    assert client.command.call_count == 2
+    assert client.command.call_count == 3
     assert all("ADD COLUMN IF NOT EXISTS" in call.args[0] for call in client.command.call_args_list)
 
 

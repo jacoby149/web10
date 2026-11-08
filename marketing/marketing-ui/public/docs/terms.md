@@ -31,11 +31,12 @@ or pick a node whose terms fit you.
 
 ## Telemetry
 
-web10 tracks hard — GA4 + Hotjar on the user-facing surfaces — because it
+web10 tracks hard — PostHog on the user-facing surfaces — because it
 competes with Meta and TikTok on user experience, and their UX is the output
 of a decade of aggressive telemetry. The recording is **content-blind by
-construction** (text blurred, images blocked), and GA4 events are
-content-free by convention. **Content is never tracked** — posts, messages,
+construction** (text and inputs masked, attributes removed, media blocked), and
+usage events are content-free. Opaque identifiers link signed-in usage and
+confirmed signup outcomes; campaign labels measure acquisition. **Content is never tracked** — posts, messages,
 media are not in the recordings, not in the events, not sold, and not fed to
 any ad machine. The only sponsors a fan sees are the creator's and the node's.
 

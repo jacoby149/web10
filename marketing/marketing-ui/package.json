@@ -15,6 +15,7 @@
     "render:icons": "node scripts/render-demo-icons.mjs"
   },
   "dependencies": {
+    "@web10/telemetry": "file:../shared/telemetry",
     "@fontsource-variable/inter": "^5.3.0",
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
     "@fontsource-variable/space-grotesk": "^5.3.0",

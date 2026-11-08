@@ -105,9 +105,10 @@ describe('DiscoverScreen', () => {
     ['/hot-gossip', true], ['/video', true],
     ['/hot-gossip', false], ['/video', false],
   ] as const)('paints posts with neutral identity skeletons until profiles settle on %s (signed in: %s)', async (route, signedIn) => {
+    let releaseCounts!: (docs: unknown[]) => void;
     const query = vi.fn().mockResolvedValue({ rows: [{ author_key: 'jacoby149', avatar_url: 'https://cdn.example/current-avatar.jpg' }] });
     vi.mocked(data.getV3Client).mockReturnValue({
-      read: vi.fn().mockResolvedValue([]), query,
+      read: vi.fn().mockImplementation((service) => service === 'reactions' ? new Promise((resolve) => { releaseCounts = resolve; }) : Promise.resolve([])), query,
       readToken: () => signedIn ? { username: 'testuser', provider: 'test.localhost' } : null,
     } as unknown as ReturnType<typeof data.getV3Client>);
     const { getWapi } = await import('@/data/wapi');
@@ -135,6 +136,17 @@ describe('DiscoverScreen', () => {
       media_refs: [{ doc_id: 'old-video', read_url: 'https://cdn.example/old.mp4', mime_type: 'video/mp4', width: 1920, height: 1080 }],
     })));
     await waitFor(() => expect(document.querySelectorAll('img[src="https://cdn.example/current-avatar.jpg"]')).toHaveLength(2));
+    if (signedIn) {
+      if (route === '/video') {
+        fireEvent.click(screen.getAllByRole('button', { name: 'Like' })[0]); fireEvent.click(screen.getAllByRole('button', { name: 'Dislike' })[0]);
+      }
+      await act(async () => { releaseCounts(Array.from({ length: 5 }, () => ({ ref_value: 'old-one', author_key: 'other', body: { type: 'like' } }))); });
+      await waitFor(() => {
+        if (route === '/video') expect(screen.getAllByRole('button', { name: 'Remove dislike' }).some(button => button.textContent === '1')).toBe(true);
+        else expect(screen.getAllByLabelText(/5 likes/).length).toBeGreaterThan(0);
+      });
+      expect(document.querySelectorAll('img[src="https://cdn.example/current-avatar.jpg"]')).toHaveLength(2);
+    }
     expect(screen.queryByTestId(route === '/video' ? 'home-author-avatar-loading' : 'post-author-avatar-loading')).not.toBeInTheDocument();
     expect(screen.queryByTestId('discover-grid-skeleton')).not.toBeInTheDocument();
     expect(query.mock.calls.filter(([, options]) => options.prepare?.face)).toHaveLength(0);

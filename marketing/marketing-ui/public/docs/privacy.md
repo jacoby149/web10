@@ -29,9 +29,15 @@ whose terms fit you.
 
 ## What we track
 
-We use GA4 and Hotjar on the user-facing surfaces to improve the experience.
-Recordings are content-blind by construction: text is blurred, images are
-blocked. GA4 events are content-free by convention.
+We use PostHog on the user-facing surfaces to improve the experience and measure
+acquisition, signup and return activity. Opaque account identifiers link signed-in
+usage across sessions; we do not send contacts, usernames or credentials to
+PostHog. Campaign labels can travel between our marketing, social and login
+surfaces. Anonymous visits are not proof of unique people.
+
+Optional recordings mask text and inputs, remove DOM attributes and block media;
+network bodies and console content are not recorded. Heatmaps contain interaction
+coordinates, not your content. This deliberately reduces recording fidelity.
 
 The marketing site also sends first-party usage and error reports to the
 node, including page paths, referrers, browser information, actions, and

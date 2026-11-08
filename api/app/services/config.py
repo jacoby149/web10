@@ -160,8 +160,12 @@ def effective_config() -> dict:
         # Telemetry (D56) — public analytics IDs, admin-set in the Node
         # Config UI. No settings.py default (empty = tracking off); the
         # saved node_config is the only source. Served via GET /telemetry.
-        "ga4_measurement_id": "",
-        "hotjar_site_id": "",
+        # D103: opt-in migration. Only the public project ingest key is served
+        # to browsers, never a personal/admin PostHog API key.
+        "posthog_enabled": False,
+        "posthog_replay_enabled": False,
+        "posthog_project_key": "",
+        "posthog_host": "https://us.i.posthog.com",
         # Content moderation (D59) — the blocklist ships with a default
         # (hate speech only); the operator curates it in the Node Config UI.
         # auto_moderate + moderation_enabled default on; auto_hide_users empty.

@@ -35,6 +35,96 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-08: JSON serialization can replace a transport-owned credential
+
+The [isolated transport](scans/2026-11/explicit-node-transport.md) rejects root
+`toJSON`, copies into a null-prototype envelope and assigns credential fields
+last. A root serialization hook otherwise replaces the whole envelope, including
+adding a token in public mode. Callback/serialization errors must not echo private
+messages. Per-instance request limits are not global feed limits; exact-origin
+dispatch is not cryptographic audience binding. Destination consent and real
+browser grants remain separate activation gates.
+
+Fresh split review also reproduced an exception with an internal-looking message
+escaping unchanged, retaining attached request/token/cause fields. Message equality
+is not error provenance. A private sentinel identifies stream-size failures and
+all outward errors are fresh ordinary errors; the exact reproduction is retained.
+
+### 2026-11-08: Federation must preserve admission as well as exact identity
+
+The [self-service record](scans/2026-11/foreign-self-service.md) extends group
+self-service and own app grants to certified foreign principals without borrowing
+local namesake rows. A request-policy join followed by the old accept-invite
+handler allowed pending requests to self-approve. Require an exact current
+`invited` row; pending still waits for manager approval. Retain local bare keys,
+foreign owner-heal exclusion and delegated grant-mutation denial. Route doubles
+do not prove issuer TLS, real storage or concurrent check/write atomicity.
+
+The same split review demonstrates inherited revoke-all leaving delegated grants
+active because its tombstone omitted `client_id`. Preserve the entire grant key,
+not just user/origin, in INSERT and SELECT. Actual helper-SQL/registered-route
+replays fail for both local/foreign revoke-all before the fix and pass afterward,
+with targeted origin/client controls and namesake isolation. SQLite is an
+execution substitute, not ClickHouse merge/timestamp or complete lifecycle proof.
+
+### 2026-11-08: Gate analytics activation on the server identity prerequisite
+
+PostHog browser capture alone is not account-level measurement. New admin
+enablement now fails explicitly until the separate identity key is provisioned;
+disabling must remain available even when that key is absent. This prevents
+silent initial setup with missing canonical conversions, not a live-vendor or
+data-completeness guarantee. The enable/disable negative gate passes locally.
+
+### 2026-11-08: Keep analytics identity, attribution and outcome authority separate
+
+5.0.0 verifies an existing local personal account before returning an opaque HMAC
+identifier, using a dedicated key rather than auth material. Signed campaign
+labels grant no identity/access authority; anonymous-to-account merging is
+deliberately avoided across shared devices. Immutable source context in the same
+canonical creation row closes the cross-table conversion-write gap; every
+account-version writer must retain it (verified on real ClickHouse). Stable
+vendor UUIDs plus persisted acks permit retry, not exactly-once cross-system
+delivery. Public vendor ingest can forge origin labels, so vendor charts still
+need canonical reconciliation. Recorder tests must include text, attributes,
+URLs and credentials, not just a masking-config assertion. Live playback and
+independent review remain separate gates. [Evidence/limits](scans/2026-11/posthog-capture.md).
+
+### 2026-11-08: Analytics vendor selection is not content-safe capture or account authority
+
+The PostHog migration keeps replay/autocapture/person identification disabled
+while adding explicit browser events. SDKs enrich manual events with URLs,
+referrers and person updates; stripping caller metadata alone is insufficient.
+Use a final wire allowlist, sanitize route identifiers/query and disable automatic
+collection/persistence channels separately. Public project ingest keys are not
+personal API keys: validate on admin write and redact invalid historical values
+at the public read seam. Selected-but-failed replacement capture must not silently
+enable alternative vendors. The real SDK also filters webdriver/automation;
+synthetic browser fixtures must declare their normalization rather than disable
+production bot filtering or claim real-human proof. Local intercepted compressed
+batches validate the wire shape, not vendor storage, identity linkage or reliable
+backend conversions. [Bounded evidence](scans/2026-11/posthog-capture.md); broader
+review, account/outcome/replay and rollout gates remain OPEN.
+
+### 2026-11-08: Promote the read algorithm without changing the policy
+
+The [production resolver record](scans/2026-11/readable-resolution-default.md)
+compares the original scalar reference and batched SQL against independently
+specified allowed groups, including revocation, tombstone ties, class/service
+grants and exact foreign principals. Existing active memberships grant reads
+before role/contract checks, even orphan/undefined-role membership rows. Preserve
+that compatibility in a performance change; tightening it is a separate decision,
+not an incidental optimization. Batched rounds are bounded per service/chunk,
+not constant database work: escaped UTF-8 candidate bytes need a query-size
+budget. All-member chunks can stop after the membership query, including K1,
+without an empirical threshold or a cross-request permission cache.
+
+Local ClickHouse Memory histories do not prove actual ReplacingMergeTree merge
+lifecycle or atomic reads during permission writes. Mixed/public small-set cost,
+connected full-feed load and approved deployment verification remain rollout
+gates; these limitations are retained rather than calling local parity a whole
+security or production-speedup guarantee. Historical research receipts are not
+silently refreshed after runtime source changes.
+
 ### 2026-11-07: Pinned-hide authority must come from one visible, readable attachment
 
 After #1416, the operator selected **Honor group hides**: a hidden attachment

@@ -282,7 +282,13 @@ class TestTelemetryEndpoint:
             mock_ch.query.return_value = _config_result(None)
             resp = client.get("/telemetry")
         assert resp.status_code == 200
-        assert resp.json() == {"ga4_measurement_id": "", "hotjar_site_id": ""}
+        assert resp.json() == {
+            "posthog_enabled": False,
+            "posthog_project_key": "",
+            "posthog_host": "https://us.i.posthog.com",
+            "posthog_replay_enabled": False,
+            "posthog_identity_ready": False,
+        }
 
     def test_returns_saved_ids(self, client):
         saved = {
@@ -294,13 +300,70 @@ class TestTelemetryEndpoint:
             mock_ch.query.return_value = _config_result(saved)
             resp = client.get("/telemetry")
         assert resp.status_code == 200
-        assert resp.json() == {"ga4_measurement_id": "G-ABC123", "hotjar_site_id": "123456"}
+        assert resp.json() == {
+            "posthog_enabled": False,
+            "posthog_project_key": "",
+            "posthog_host": "https://us.i.posthog.com",
+            "posthog_replay_enabled": False,
+            "posthog_identity_ready": False,
+        }
 
     def test_partial_save_only_returns_that_id(self, client):
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = _config_result({"ga4_measurement_id": "G-ONLY"})
             resp = client.get("/telemetry")
-        assert resp.json() == {"ga4_measurement_id": "G-ONLY", "hotjar_site_id": ""}
+        assert "ga4_measurement_id" not in resp.json()
+        assert "hotjar_site_id" not in resp.json()
+        assert resp.json()["posthog_enabled"] is False
+
+    def test_only_public_posthog_configuration_is_exposed(self, client):
+        saved = {
+            "posthog_enabled": True,
+            "posthog_project_key": "phc_synthetic_project",
+            "posthog_host": "https://eu.i.posthog.com",
+            "posthog_personal_api_key": "PRIVATE",
+            "s3_secret_key": "PRIVATE",
+            "admins": ["private-account"],
+        }
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.return_value = _config_result(saved)
+            resp = client.get("/telemetry")
+        assert resp.json()["posthog_enabled"] is True
+        assert resp.json()["posthog_project_key"] == "phc_synthetic_project"
+        assert resp.json()["posthog_host"] == "https://eu.i.posthog.com"
+        assert "PRIVATE" not in resp.text
+        assert "private-account" not in resp.text
+
+    def test_personal_key_in_legacy_saved_config_is_not_published(self, client):
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.return_value = _config_result({"posthog_enabled": True, "posthog_project_key": "phx_PRIVATE"})
+            resp = client.get("/telemetry")
+        assert resp.json()["posthog_project_key"] == ""
+        assert resp.json()["posthog_enabled"] is True
+
+    def test_posthog_config_validates_key_and_destination(self):
+        from pydantic import ValidationError
+
+        from app.models.config import ConfigUpdate
+
+        for invalid in [{"posthog_project_key": "phx_PRIVATE"}, {"posthog_host": "https://attacker.example"}]:
+            with pytest.raises(ValidationError):
+                ConfigUpdate(**invalid)
+
+    def test_admin_can_persist_posthog_configuration(self, client, token, monkeypatch):
+        monkeypatch.setattr(settings, "POSTHOG_IDENTITY_SECRET", "synthetic-separate-identity-secret-123456")
+        update = {
+            "posthog_enabled": True,
+            "posthog_project_key": "phc_synthetic_project",
+            "posthog_host": "https://eu.i.posthog.com",
+        }
+        with patch("app.v3.services.clickhouse.client") as mock_ch:
+            mock_ch.query.return_value = _config_result({"admins": ["testuser"]})
+            resp = client.post("/config/update", json={"token": {"token": token}, "update": update})
+        assert resp.status_code == 200
+        row = [c for c in mock_ch.insert.call_args_list if c[0] and c[0][0] == "node_config"][-1][0][1][0]
+        saved = json.loads(row[1])
+        assert all(saved[k] == v for k, v in update.items())
 
 
 class TestTelemetryConfigFields:
@@ -313,18 +376,19 @@ class TestTelemetryConfigFields:
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = _config_result(None)
             cfg = config_svc.effective_config()
-        assert cfg["ga4_measurement_id"] == ""
-        assert cfg["hotjar_site_id"] == ""
+        assert "ga4_measurement_id" not in cfg
+        assert "hotjar_site_id" not in cfg
+        assert cfg["posthog_enabled"] is False
 
     def test_saved_ids_surface_in_effective_config(self, client):
         from app.services import config as config_svc
 
-        saved = {"ga4_measurement_id": "G-XYZ", "hotjar_site_id": "999"}
+        saved = {"posthog_project_key": "phc_synthetic_project", "posthog_host": "https://eu.i.posthog.com"}
         with patch("app.v3.services.clickhouse.client") as mock_ch:
             mock_ch.query.return_value = _config_result(saved)
             cfg = config_svc.effective_config()
-        assert cfg["ga4_measurement_id"] == "G-XYZ"
-        assert cfg["hotjar_site_id"] == "999"
+        assert cfg["posthog_project_key"] == "phc_synthetic_project"
+        assert cfg["posthog_host"] == "https://eu.i.posthog.com"
 
     def test_config_update_accepts_telemetry_fields(self, client, token):
         """An admin can set the IDs via /config/update; they persist and
@@ -337,20 +401,23 @@ class TestTelemetryConfigFields:
                 "/config/update",
                 json={
                     "token": {"token": token},
-                    "update": {"ga4_measurement_id": "G-NEW", "hotjar_site_id": "42"},
+                    "update": {
+                        "posthog_project_key": "phc_synthetic_project",
+                        "posthog_host": "https://eu.i.posthog.com",
+                    },
                 },
             )
         assert resp.status_code == 200
         assert resp.json()["status"] == "updated"
-        assert set(resp.json()["changed"]) == {"ga4_measurement_id", "hotjar_site_id"}
+        assert set(resp.json()["changed"]) == {"posthog_project_key", "posthog_host"}
         # the merged body was persisted with the new IDs — find the
         # node_config insert and check its body column (index 1 of the row).
         node_inserts = [c for c in mock_ch.insert.call_args_list if c[0] and c[0][0] == "node_config"]
         assert node_inserts, "expected a node_config insert"
         row = node_inserts[-1][0][1][0]
         inserted = json.loads(row[1])
-        assert inserted["ga4_measurement_id"] == "G-NEW"
-        assert inserted["hotjar_site_id"] == "42"
+        assert inserted["posthog_project_key"] == "phc_synthetic_project"
+        assert inserted["posthog_host"] == "https://eu.i.posthog.com"
 
 
 class TestMarketingEvents:

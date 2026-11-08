@@ -15,6 +15,63 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Isolated explicit-node transport (08.11.2026) — bounded local, OPEN
+
+Credential ownership, exact-origin/action dispatch, owned cancellation, bounded
+streams/queues and safe error/log controls. [Split record](scans/2026-11/explicit-node-transport.md).
+Refreshed-base 317 SDK tests/typecheck and three fresh same-family scoped dry
+reviews pass; diverse/connected assurance remains separate.
+Not exported or wired into production. Real destination consent, browser grants,
+connected two-node tests, global fan-out bounds and diverse L1–L4 sign-off remain
+OPEN; no new server authorization or whole-security PASS.
+
+## Foreign self-service foundations (08.11.2026) — bounded local, OPEN
+
+Exact certified foreign self-membership and own app-grant routes, with local-key
+compatibility, request-versus-invitation admission and delegated revoke-all key
+retention controls. Two inherited admission/revocation failures are replayed and
+repaired; refreshed-base 2,171 API tests plus eight subtests pass, one opt-in skip.
+Three fresh same-family scoped dry reviews retain the broader diverse/connected
+gates. Scope, repro and
+fresh split-branch validation: [record](scans/2026-11/foreign-self-service.md).
+No SDK/UI/DNS integration in this unit. Real issuer/storage/browser/concurrency
+and model-diverse L1–L4 sign-off remain OPEN; no whole-security PASS or deployment.
+
+## PostHog capture/configuration (08.11.2026) — bounded local, OPEN
+
+5.0.0 continuation adds canonical opaque identity, signed source metadata,
+atomic account-row signup context, worker acks/health, vendor-report provisioning
+and optional masked replay/heatmaps; removes legacy integrations by instruction.
+Freshness/local issuer/current-account/delegated-client denials, stale-reply
+fences, real ClickHouse lifecycle/ack floor and real SDK snapshot/heatmap sentinel
+checks pass locally. Anonymous identities deliberately stay separate; public
+vendor ingest remains forgeable. Full connected vendor/auth/phone/restart/quota/
+playback, independent review and L1–L4/rollout remain OPEN. Details and historical
+4.15.0 scope follow in the linked scan; no production or independent-audit claim.
+
+GPT-6.1 Sol adds optional public project config and browser capture, not account
+identity or new authority. Backend-first field/response inspection and local
+negative tests cover personal-key redaction, arbitrary-host rejection, default-off
+selection, allowlisted events/metadata and safe startup failure. Real Chromium/
+SDK intercepted-batch verification covers all three adapters; private query/
+conversation sentinels are absent and selected PostHog makes no legacy requests.
+Replay/autocapture/person profiles remain off. Scope, failed probe explanations
+and remaining gates: [posthog-capture.md](scans/2026-11/posthog-capture.md).
+Independent review, full L1–L4, live vendor/account journey and rollout remain
+OPEN; no whole-telemetry privacy/security or analytics-readiness claim.
+
+## Production readable-resolution promotion (08.11.2026) — bounded local, OPEN
+
+GPT-6.1 Sol checks the generic helper/query selection, validated production
+setting, bounded batched candidate SQL and deployment/research wiring. The
+[bounded record](scans/2026-11/readable-resolution-default.md) retains the
+performance regression, independent expected permission sets, real ClickHouse
+24.8.14.39 Memory-history differential results and command budgets. All 2,089 API
+tests plus eight subtests pass with one opt-in skip. This is changed-hunk/direct
+call-path coverage, not full-file L1–L4 closure. Real MergeTree lifecycle,
+concurrent permission mutations, diverse review and approved deployment/load
+verification remain OPEN; no authorization-policy tightening or production claim.
+
 ## Link-unfurl SSRF surface (07.11.2026) — bounded local, OPEN
 
 A new browser-facing external-fetch seam: `GET /preview/unfurl?url=…` on the

@@ -10,6 +10,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
+      'posthog-js': path.resolve(__dirname, 'node_modules/posthog-js'),
       // Single instance: the shared @web10/discover package has no node_modules
       // of its own (a second react would break the hooks dispatcher), so its
       // bare imports resolve to THIS app's deps. Aliased explicitly because the

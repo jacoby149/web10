@@ -182,6 +182,7 @@ def complete(data: RecoveryComplete):
             pw_hash,
             phone=contact if kind == "phone" else "",
             email=contact if kind == "email" else "",
+            **({"analytics_context": data.analytics_context} if data.analytics_context else {}),
         )
         if not created:
             raise exceptions.EXISTS
