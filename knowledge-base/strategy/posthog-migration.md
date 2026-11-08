@@ -78,6 +78,16 @@ signature. Reconcile important claims with canonical account facts. Do not
 promise perfect attribution, causal lift, complete bot detection or known people
 across devices when only anonymous visits were observed.
 
+**Connected runs (08.11.2026):** P5 executed live on dev (api.dev.web10.app) and
+prod (api.web10.app) against project 720098 — canonical journey receipts with
+uuid-oracle agreement on both; the first live run's admin 403 against the journey
+account was the I5 gate working, not a defect. The PostHog cloud Query API
+indexed delivered events up to ~4.5 minutes late in the first hours — expect
+vendor-side lag in any automation that polls fresh events. The dev and prod
+nodes share one project (operator's choice): account-level events are
+provider-scoped distinct ids so they never mix, but anonymous pageviews share
+the project and env separation is an operational exclusion, not a schema gate.
+
 ## Remaining delivery queue
 
 | Bite | Local implementation | Acceptance still required |
@@ -87,7 +97,7 @@ across devices when only anonymous visits were observed.
 | P2 capture/config | Merged | Independent boundary review and actual integrated route lifecycle/collection-health checks |
 | P3 identity/outcomes | Merged | Connected popup/signup/recovery, multi-tab/picker/logout, real process outage/restart/retry and actual vendor identity/event reconciliation |
 | P4 reports/replay | Provisioning and masked capture implemented | Vendor apply done 08.11.2026 (managed dashboard 2321231 + five reports; live HogQL execution clean, 0 rows pre-collection). Remaining: reconcile expected cohorts once data flows, inspect vendor playback/heatmaps, restrict investor access |
-| P5 connected acceptance | Floors pass; connected-acceptance harness ready (`scripts/posthog-connected-check.mjs`, 5.0.3, offline-tested) | Live harness run against a deployed node + real project: full app/auth/SDK/API/ClickHouse/PostHog fixture→facts→events/persons→reports/export agreement, live HogQL execution of the five reports, failure/quota behavior and independent review |
+| P5 connected acceptance | **Live run complete on dev AND prod, 08.11.2026 (5.0.5)** — receipts in `.context/posthog/p5-receipt-*.json`, `complete: true` on both: uuid-oracle agreement, campaign round-trip, health receipts, all five reports live-executed with real rows; live `product_session` observed; QA-exclusion accounts recorded | Replay/heatmap validation against real ingested sessions (no `$snapshot` batches had arrived by check time), week-one cohort observations (immature), failure/quota/restart drills and independent boundary review |
 | P6 retirement/rollout | Legacy code/config wiring removed | Approved normal deployment, deployed revision/config, five final links on physical-phone Instagram plus desktop/Safari and explicit collection-gap/rollback receipt |
 
 Keep all gates honest. The full system is not launch-ready just because the code

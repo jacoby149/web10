@@ -137,10 +137,16 @@ gates. Do not relax masking to improve the recording.
    `node scripts/check-posthog-browser.mjs [--replay]`, and from `api/`,
    `uv run python scripts/check_product_analytics.py` (owned disposable ClickHouse).
    Sanitized local receipts/screenshots live in `.context/posthog/`.
-6. Connected acceptance (P5, needs a live project + deployed node + identity
-   secret): `node scripts/posthog-connected-check.mjs` previews the steps with no
-   network; `--run` executes them and writes a sanitized receipt — the synthetic
-   account's username is reported for the QA exclusion list.
+6. Connected acceptance (P5): `node scripts/posthog-connected-check.mjs` previews
+   the steps with no network; `--run` (env: `POSTHOG_API_ORIGIN`,
+   `POSTHOG_PROJECT_ID`, `POSTHOG_PERSONAL_API_KEY`, `WEB10_API_ORIGIN`,
+   `WEB10_ADMIN_TOKEN`) executes them and persists a sanitized receipt to
+   `.context/posthog/` — the synthetic account's username is reported for the QA
+   exclusion list. Executed live on dev and prod 08.11.2026 (5.0.5), both
+   `complete: true`; the Query API's property columns come back bare
+   (`capture_origin`, not `properties_capture_origin`), so automation must use
+   explicit aliases. Replay/heatmap validation against real sessions and
+   week-one cohort observations remain open.
 
 Before activation, verify current legal copy, retention/deletion procedure and
 approved project access. Live vendor storage/report reconciliation, playback,

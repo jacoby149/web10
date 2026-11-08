@@ -98,62 +98,79 @@ function hogql(fetcher, host, projectId, key, query) {
   });
 }
 
-export async function connectedCheck({ env = {}, fetcher = fetch, now = () => new Date().toISOString(), deadlineMs = Number(env.P5_DEADLINE_MS) || 120000 } = {}) {
+// 600s default: delivery is one 30s worker tick, but the PostHog cloud Query
+// API surfaced delivered events ~4.5 minutes later in first connected runs.
+export async function connectedCheck({ env = {}, fetcher = fetch, now = () => new Date().toISOString(), deadlineMs = Number(env.P5_DEADLINE_MS) || 600000 } = {}) {
   const missing = Object.entries(requiredEnv(env)).filter(([, why]) => why !== '');
   if (missing.length) throw new Error(`P5 connected check cannot run: ${missing.map(([key, why]) => `${key}: ${why}`).join(' · ')}`);
   const api = env.WEB10_API_ORIGIN.replace(/\/$/, '');
-  const post = (path, body) => fetcher(`${api}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const post = async (path, body) => {
+    const response = await fetcher(`${api}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (!response.ok) {
+      let detail = '';
+      try { detail = String((await response.clone().text()).slice(0, 300)); } catch { /* no body */ }
+      fail(`${path} failed (${response.status}) ${detail}`);
+    }
+    return response;
+  };
   const receipt = { scope: 'P5 connected acceptance against a deployed node + live PostHog project. Credentials and auth tokens are never included.', at: now(), steps: {} };
+  const fail = (message) => { const error = new Error(message); error.partialReceipt = receipt; throw error; };
 
   const telemetryResponse = await fetcher(`${api}/telemetry`);
-  if (!telemetryResponse.ok) throw new Error(`node telemetry endpoint unreachable (${telemetryResponse.status})`);
+  if (!telemetryResponse.ok) fail(`node telemetry endpoint unreachable (${telemetryResponse.status})`);
   const telemetry = await telemetryResponse.json();
   receipt.steps.telemetry = { enabled: telemetry.posthog_enabled === true, identity_ready: telemetry.posthog_identity_ready === true };
-  if (telemetry.posthog_enabled !== true) throw new Error('PostHog is not enabled in Node Config — set the public phc_ key, matching region and Use PostHog');
-  if (telemetry.posthog_identity_ready !== true) throw new Error('POSTHOG_IDENTITY_SECRET is not provisioned on the API — the 5.0.1 gate blocks account analytics without it; this is expected pre-deployment');
+  if (telemetry.posthog_enabled !== true) fail('PostHog is not enabled in Node Config — set the public phc_ key, matching region and Use PostHog');
+  if (telemetry.posthog_identity_ready !== true) fail('POSTHOG_IDENTITY_SECRET is not provisioned on the API — the 5.0.1 gate blocks account analytics without it; this is expected pre-deployment');
 
   const stamp = Date.now().toString(36);
   const campaign = { utm_source: 'harness', utm_medium: 'connected-check', utm_campaign: `p5-${stamp}`, utm_content: 'harness' };
   const contextResponse = await post('/analytics/context', { campaign });
-  if (!contextResponse.ok) throw new Error(`/analytics/context failed (${contextResponse.status})`);
+  if (!contextResponse.ok) fail(`/analytics/context failed (${contextResponse.status})`);
   const context = await contextResponse.json();
-  if (typeof context.ticket !== 'string' || context.properties?.utm_campaign !== campaign.utm_campaign) throw new Error('first-touch ticket did not round-trip the campaign labels');
+  if (typeof context.ticket !== 'string' || context.properties?.utm_campaign !== campaign.utm_campaign) fail('first-touch ticket did not round-trip the campaign labels');
   receipt.steps.first_touch = { ticket_present: true, properties: context.properties };
 
-  const username = `p5check_${stamp}${Math.random().toString(36).slice(2, 8)}`;
+  // Node username policy: 1-30 letters/digits/hyphens, no underscore.
+  const username = `p5check-${stamp}${Math.random().toString(36).slice(2, 8)}`;
   const password = `p5-${stamp}-x7f`;
   const signupResponse = await post('/v3/signup', { username, password, analytics_context: context.ticket });
-  if (signupResponse.status !== 200) throw new Error(`canonical signup failed (${signupResponse.status})`);
+  if (signupResponse.status !== 200) fail(`canonical signup failed (${signupResponse.status})`);
   const loginResponse = await post('/v3/login', { username, password, site: new URL(api).hostname });
-  if (!loginResponse.ok) throw new Error(`login failed (${loginResponse.status})`);
+  if (!loginResponse.ok) fail(`login failed (${loginResponse.status})`);
   const login = await loginResponse.json();
   const token = login.token ?? login;
   const identityResponse = await post('/analytics/identity', { token });
-  if (!identityResponse.ok) throw new Error(`/analytics/identity failed (${identityResponse.status})`);
+  if (!identityResponse.ok) fail(`/analytics/identity failed (${identityResponse.status})`);
   const identity = await identityResponse.json();
-  if (!identity.enabled || !/^w10_[a-f0-9]{64}$/.test(identity.distinct_id ?? '')) throw new Error('identity endpoint did not return a verified w10_ pseudonym');
-  if (identity.acquisition?.utm_campaign !== campaign.utm_campaign) throw new Error('identity acquisition labels do not match the signed first touch');
+  if (!identity.enabled || !/^w10_[a-f0-9]{64}$/.test(identity.distinct_id ?? '')) fail('identity endpoint did not return a verified w10_ pseudonym');
+  if (identity.acquisition?.utm_campaign !== campaign.utm_campaign) fail('identity acquisition labels do not match the signed first touch');
   receipt.steps.identity = { distinct_id: identity.distinct_id, acquisition: identity.acquisition };
 
   const expectedEventId = uuid5(`${identity.distinct_id}:account_created`);
   const deadline = Date.now() + deadlineMs;
   let outcome = null;
   while (Date.now() < deadline) {
-    const healthResponse = await post('/admin/analytics/health', { token });
+    // The admin-gated health receipt needs the operator's admin token, not the
+    // journey account's login token (p5check-* is deliberately not an admin —
+    // a 403 there is the I5 gate working, not a failure of this step).
+    const healthResponse = await post('/admin/analytics/health', { token: env.WEB10_ADMIN_TOKEN });
     if (healthResponse.ok) receipt.steps.health = await healthResponse.json();
+    // Explicit aliases: HogQL strips the properties. prefix from returned
+    // column names, so bare aliases are the only predictable contract.
     const rows = await hogql(fetcher, env.POSTHOG_API_ORIGIN.replace(/\/$/, ''), env.POSTHOG_PROJECT_ID, env.POSTHOG_PERSONAL_API_KEY,
-      `SELECT uuid, event, properties.capture_origin, properties.attribution_status, properties.utm_campaign, toString(timestamp) AS at FROM events WHERE event = 'account_created' AND distinct_id = '${identity.distinct_id}'`);
+      `SELECT uuid, event, toString(properties.capture_origin) AS capture_origin, toString(properties.attribution_status) AS attribution_status, toString(properties.utm_campaign) AS utm_campaign, toString(timestamp) AS at FROM events WHERE event = 'account_created' AND distinct_id = '${identity.distinct_id}'`);
     if (rows.length) { outcome = rows[0]; break; }
     receipt.steps.outcome_polls = (receipt.steps.outcome_polls ?? 0) + 1;
     await new Promise((resolve) => setTimeout(resolve, 5000));
   }
-  if (!outcome) throw new Error(`account_created did not arrive in PostHog within ${deadlineMs}ms — check the reconciliation worker and /admin/analytics/health`);
+  if (!outcome) fail(`account_created did not arrive in PostHog within ${deadlineMs}ms — check the reconciliation worker and /admin/analytics/health`);
   const agreement = outcome.uuid === expectedEventId
-    && outcome.properties_capture_origin === 'server'
-    && outcome.properties_attribution_status === 'attributed'
-    && outcome.properties_utm_campaign === campaign.utm_campaign;
-  receipt.steps.outcome = { uuid: outcome.uuid, oracle_uuid: expectedEventId, agreement, raw_fields: { capture_origin: outcome.properties_capture_origin, attribution_status: outcome.properties_attribution_status, utm_campaign: outcome.properties_utm_campaign, at: outcome.at } };
-  if (!agreement) throw new Error('outcome event disagrees with the independent oracle (UUID/provenance/attribution)');
+    && outcome.capture_origin === 'server'
+    && outcome.attribution_status === 'attributed'
+    && outcome.utm_campaign === campaign.utm_campaign;
+  receipt.steps.outcome = { uuid: outcome.uuid, oracle_uuid: expectedEventId, agreement, raw_fields: { capture_origin: outcome.capture_origin, attribution_status: outcome.attribution_status, utm_campaign: outcome.utm_campaign, expected_campaign: campaign.utm_campaign, at: outcome.at } };
+  if (!agreement) fail('outcome event disagrees with the independent oracle: ' + JSON.stringify(receipt.steps.outcome));
 
   const reportRuns = [];
   for (const report of reports) {
@@ -167,13 +184,32 @@ export async function connectedCheck({ env = {}, fetcher = fetch, now = () => ne
   receipt.steps.reports = reportRuns;
   receipt.qa_exclusion_username = username;
   receipt.complete = reportRuns.every((run) => run.executed);
-  if (!receipt.complete) throw new Error('live HogQL execution failed for: ' + reportRuns.filter((run) => !run.executed).map((run) => run.name).join(', '));
+  if (!receipt.complete) fail('live HogQL execution failed for: ' + reportRuns.filter((run) => !run.executed).map((run) => run.name).join(', '));
   return receipt;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const { mkdir, writeFile } = await import('node:fs/promises');
+  const outDir = new URL('../.context/posthog/', import.meta.url).pathname;
+  const receiptName = `p5-receipt-${(process.env.WEB10_API_ORIGIN ?? 'local').replace(/^https?:\/\//, '').replace(/[^a-z0-9.-]/g, '_')}.json`;
   try {
-    if (process.argv.includes('--run')) console.log(JSON.stringify(await connectedCheck({ env: process.env }), null, 2));
-    else console.log(JSON.stringify(manifest(process.env), null, 2));
-  } catch (error) { console.error(error.message); process.exitCode = 1; }
+    if (!process.argv.includes('--run')) {
+      console.log(JSON.stringify(manifest(process.env), null, 2));
+    } else {
+      const receipt = await connectedCheck({ env: process.env });
+      console.log(JSON.stringify(receipt, null, 2));
+      await mkdir(outDir, { recursive: true });
+      await writeFile(new URL(receiptName, `file://${outDir}/`), JSON.stringify({ ...receipt, complete: true }, null, 2));
+      console.error(`receipt persisted: ${outDir}${receiptName}`);
+    }
+  } catch (error) {
+    // The receipt so far is diagnostic evidence — print and persist it.
+    if (error.partialReceipt) {
+      console.error(JSON.stringify(error.partialReceipt, null, 2));
+      await mkdir(outDir, { recursive: true }).catch(() => {});
+      await writeFile(new URL(receiptName, `file://${outDir}/`), JSON.stringify({ ...error.partialReceipt, complete: false, failure: error.message }, null, 2)).catch(() => {});
+    }
+    console.error(error.message);
+    process.exitCode = 1;
+  }
 }

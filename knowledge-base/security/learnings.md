@@ -84,6 +84,20 @@ replays fail for both local/foreign revoke-all before the fix and pass afterward
 with targeted origin/client controls and namesake isolation. SQLite is an
 execution substitute, not ClickHouse merge/timestamp or complete lifecycle proof.
 
+### 2026-11-08: Live P5 runs verified the admin gate and exposed vendor-side contract drift
+
+The first connected P5 run used the journey account's login token on
+`/admin/analytics/health` and got 403 NOT_ADMIN — the I5 floor working in
+production (a freshly signed-up account is not an admin; the operator admin
+token is the only path). Never reuse journey/test credentials on admin seams.
+The PostHog cloud Query API returns property columns BARE (`capture_origin`),
+not dotted — synthetic test vendors that assume `properties_capture_origin`
+mask real contract drift; use explicit `toString(properties.x) AS x` aliases
+and validate against the live API before trusting fixtures. Delivered events
+were query-lag-visible up to ~4.5 minutes later: automation that polls fresh
+vendor events needs minute-scale deadlines, and "not arrived yet" is not
+"lost" until the lag window passes.
+
 ### 2026-11-08: Gate analytics activation on the server identity prerequisite
 
 PostHog browser capture alone is not account-level measurement. New admin
