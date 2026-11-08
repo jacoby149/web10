@@ -79,6 +79,14 @@ import pytest
         "pinned-hidden-other-document",
         "pinned-hidden-other-group",
         "pinned-hidden-hidden-group-uploader",
+        "pinned-hidden-same-group-active",
+        "pinned-hidden-same-group-hidden",
+        "pinned-hidden-same-group-unhidden",
+        "pinned-hidden-same-group-hidden-group-uploader",
+        "pinned-hidden-alternate-visible",
+        "pinned-hidden-alternate-revoked",
+        "pinned-hidden-alternate-removed",
+        "pinned-hidden-crossed-grants",
     ],
 )
 def test_read_url_owner_boundary(case):
@@ -334,6 +342,23 @@ def _probe(case):
                         f"VALUES ('creative','{author}','{current_body}',{tags},'bob',0,3)"
                     )
         if is_hidden:
+            carrier_group = creative_group if state.startswith("same-group-") else "carrier-group"
+            expected_visible = state in {
+                "active",
+                "unhidden",
+                "other-document",
+                "other-group",
+                "same-group-active",
+                "same-group-unhidden",
+                "alternate-visible",
+            }
+            setup += [
+                "INSERT INTO documents (doc_id,author_key,body,tags,posted_by,deleted,updated_at,ad_mode,ad_target) "
+                f"VALUES ('carrier','alice','{json.dumps(carrier['body'])}',{tags},'alice',0,1,'pinned','creative')",
+                f"INSERT INTO doc_groups VALUES ('carrier','{carrier_group}',0,1)",
+            ]
+            if carrier_group != creative_group:
+                setup.append(f"INSERT INTO group_members VALUES ('{carrier_group}','alice','reader',1,0,1)")
             # Execute the entire actual compiler boundary against the same snapshot.
             visibility_schemas = [
                 "user_blacklist (user_key String, blocked_key String, deleted UInt8, updated_at UInt64)",
@@ -349,12 +374,20 @@ def _probe(case):
                     else "CREATE TABLE "
                     + schema.replace("String", "TEXT").replace("UInt8", "INTEGER").replace("UInt64", "INTEGER")
                 )
-            if state != "active":
+            if state not in {"active", "same-group-active"}:
                 hidden_doc = "unrelated" if state == "other-document" else "creative"
                 hidden_group = "unrelated-group" if state == "other-group" else "creative-group"
                 setup.append(f"INSERT INTO group_hidden_docs VALUES ('{hidden_group}','{hidden_doc}',0,2)")
-                if state == "unhidden":
+                if state in {"unhidden", "same-group-unhidden"}:
                     setup.append("INSERT INTO group_hidden_docs VALUES ('creative-group','creative',1,3)")
+            if state.startswith("alternate-") or state == "crossed-grants":
+                setup.append("INSERT INTO doc_groups VALUES ('creative','alternate-group',0,1)")
+                if state != "crossed-grants":
+                    setup.append("INSERT INTO group_members VALUES ('alternate-group','alice','reader',1,0,1)")
+                if state == "alternate-revoked":
+                    setup.append("INSERT INTO group_members VALUES ('alternate-group','alice','reader',1,1,3)")
+                if state == "alternate-removed":
+                    setup.append("INSERT INTO doc_groups VALUES ('creative','alternate-group',1,3)")
         db = sqlite3.connect(":memory:", check_same_thread=False)
         if not connected:
             db.create_function("has", 2, lambda tags, tag: tag in json.loads(tags))
@@ -402,7 +435,7 @@ def _probe(case):
             patch.object(
                 ch, "get_group", return_value={"roles": [{"name": "reader", "permissions": {"posts": ["readAll"]}}]}
             ),
-            patch.object(ch, "readable_groups", return_value=["carrier-group"]),
+            patch.object(ch, "readable_groups", return_value=[carrier_group if is_hidden else "carrier-group"]),
             patch.object(ch, "read_documents_in_groups", return_value=[carrier]),
             patch.object(ch, "get_s3_signing_client", return_value=signer) as factory,
             patch.object(
@@ -417,8 +450,18 @@ def _probe(case):
             if is_hidden:
                 from app.v3.services import safe_query as sq
 
-                visible = execute(sq._boundary_cte_sql("posts", [creative_group], "alice"), {}).result_rows
-                assert bool(visible) is (not state.startswith("hidden"))
+                creative_groups = [creative_group]
+                if state.startswith("alternate-") or state == "crossed-grants":
+                    creative_groups.append("alternate-group")
+                # Use actual live membership gates; an attachment and grant in
+                # different groups must not combine into creative authority.
+                readable = [g for g in creative_groups if ch.can_read_group(g, "alice", "posts", authenticated=True)]
+                boundary_rows = execute(sq._boundary_cte_sql("posts", readable, "alice"), {}).result_rows
+                visible = [r for r in boundary_rows if r[0] == "creative"]
+                assert bool(visible) is expected_visible
+                carrier_rows = execute(sq._boundary_cte_sql("posts", [carrier_group], "alice"), {}).result_rows
+                assert any(r[0] == "carrier" for r in carrier_rows)
+                assert ch.can_read_group(carrier_group, "alice", "posts", authenticated=True)
             if is_link:
                 from sqlglot import exp, parse_one
 
@@ -464,7 +507,12 @@ def _probe(case):
             if state == "alternate-group" and not is_node:
                 assert ch.can_read_group("alternate-group", "alice", "posts", authenticated=True)
             response = TestClient(app).post(
-                "/v3/read", json={"token": token(), "service": "posts", "groups": ["carrier-group"]}
+                "/v3/read",
+                json={
+                    "token": token(),
+                    "service": "posts",
+                    "groups": [carrier_group if is_hidden else "carrier-group"],
+                },
             )
         db.close()
         assert response.status_code == 200
@@ -477,7 +525,8 @@ def _probe(case):
             factory.assert_called_once()
             print(
                 f"pinned hidden evidence: engine={'ClickHouse-local' if connected else 'SQLite substitute'} "
-                f"state={state} boundary_visible={bool(visible)} inline_ad=True verified_capability=True"
+                f"state={state} boundary_visible={bool(visible)} policy_allows={expected_visible} "
+                "carrier_visible=True inline_ad=True verified_capability=True"
             )
             return
         if is_doc:

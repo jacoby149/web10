@@ -1189,6 +1189,17 @@ consideration).
 Full model: `knowledge-base/web10-v3/social/content-moderation.md`. Default
 list: `knowledge-base/web10-v3/social/sensitive-words-default.md`.
 
+**Pinned-ad clarification (07.11.2026):** the operator chose **Honor group hides**:
+"A hidden attachment cannot authorize pinned-ad delivery. Another current,
+readable, unhidden group attachment can still authorize it." This applies to
+same-group and cross-group carriers. Never combine membership in a hidden group
+with an unhidden attachment in an unreadable group. Newer unhide restores that
+attachment; an unrelated hide does not suppress a visible alternative. This
+extends the group-scoped curation rule to pinned enrichment without making hidden
+content globally secret or changing direct-by-ID/node-inventory behavior. Target
+contract: `web10-v3/social/ads-dissemination.md`; implementation remains a separate
+bounded repair after policy/evidence review.
+
 ### D59a — Node-level ban (`banned_users`) + retroactive user-hide [decided]
 Operator, 28.09.2026 — "the social app i tried to hide the posts from the user,
 but the posts were still visible" + "no ability to ban, just to hide from
