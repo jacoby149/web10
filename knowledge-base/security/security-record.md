@@ -15,6 +15,16 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Isolated explicit-node transport (08.11.2026) — bounded local, OPEN
+
+Credential ownership, exact-origin/action dispatch, owned cancellation, bounded
+streams/queues and safe error/log controls. [Split record](scans/2026-11/explicit-node-transport.md).
+Refreshed-base 317 SDK tests/typecheck and three fresh same-family scoped dry
+reviews pass; diverse/connected assurance remains separate.
+Not exported or wired into production. Real destination consent, browser grants,
+connected two-node tests, global fan-out bounds and diverse L1–L4 sign-off remain
+OPEN; no new server authorization or whole-security PASS.
+
 ## Foreign self-service foundations (08.11.2026) — bounded local, OPEN
 
 Exact certified foreign self-membership and own app-grant routes, with local-key

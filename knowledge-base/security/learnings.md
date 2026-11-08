@@ -35,6 +35,21 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-08: JSON serialization can replace a transport-owned credential
+
+The [isolated transport](scans/2026-11/explicit-node-transport.md) rejects root
+`toJSON`, copies into a null-prototype envelope and assigns credential fields
+last. A root serialization hook otherwise replaces the whole envelope, including
+adding a token in public mode. Callback/serialization errors must not echo private
+messages. Per-instance request limits are not global feed limits; exact-origin
+dispatch is not cryptographic audience binding. Destination consent and real
+browser grants remain separate activation gates.
+
+Fresh split review also reproduced an exception with an internal-looking message
+escaping unchanged, retaining attached request/token/cause fields. Message equality
+is not error provenance. A private sentinel identifies stream-size failures and
+all outward errors are fresh ordinary errors; the exact reproduction is retained.
+
 ### 2026-11-08: Federation must preserve admission as well as exact identity
 
 The [self-service record](scans/2026-11/foreign-self-service.md) extends group

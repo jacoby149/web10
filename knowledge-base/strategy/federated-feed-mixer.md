@@ -65,7 +65,7 @@ This includes authenticated foreign reads, not a public-only substitute.
 
 ## Implementation queue (separate review-sized units)
 
-- [✓ 5.1.0 local; connected/review gates OPEN] **FM1 — Certified foreign self-membership lifecycle.** Owns exact
+- [✓ 5.1.0 merged #1429; connected/diverse OPEN] **FM1 — Certified foreign self-membership lifecycle.** Owns exact
   self-service hunks in `api/app/v3/endpoints/groups.py` and focused API tests.
   Join/request/list/leave/accept/decline use the certified principal; locals
   retain bare keys. Foreign namesakes never borrow membership, pending invites
@@ -85,11 +85,12 @@ This includes authenticated foreign reads, not a public-only substitute.
    - [✓ 5.1.0 local] Serving-node add/list/revoke/cleanup now use the certified
     exact principal; foreign delegated mutations deny, and existing trusted
     authenticator Origin checks remain. This is not destination-aware browser consent.
-   - [ ] Separate SDK transport PR: isolated module with explicit credential
+   - [✓ 5.2.0 local module; activation gates OPEN] SDK transport PR #1428:
+     isolated module with explicit credential
     or public mode, fixed actions, exact origin, no redirects/cookies/registration,
     byte ceilings, per-instance four-active/64-queued limits and owned aborts.
-     Root serialization-hook/credential override regressions are required. Not
-     included in this backend PR; approval UI and global fan-out limits remain open.
+     Root serialization-hook/credential override and private-error regressions
+     pass. Approval UI, diverse/connected review and global fan-out limits remain open.
 - [ ] **FM3 — Reader-owned source catalog and domain resolution.** Owns social
   `src/data/` subscription/resolver modules and tests. Persist node/domain
   subscriptions in an owner-only private group via generic CRUD, with explicit
@@ -138,5 +139,8 @@ a single release PR. This backend unit is `feature/foreign-self-service`, based
 on merged dev; SDK transport and mixer component have separate branches/reviews.
 DNS/public-preview additions remain outside all three foundation PRs.
 Backend evidence: `../security/scans/2026-11/foreign-self-service.md`.
+Backend #1429 merged as `0753cd879` after every check passed; SDK #1428 is the
+next sequential merge unit, with its isolated review recorded in
+`../security/scans/2026-11/explicit-node-transport.md`. This does not activate FM2.
 Next: explicit destination-aware browser consent (FM2), catalog/DNS (FM3),
 composite paging/provenance (FM4), real customizer wiring (FM5), connected FM6.
