@@ -9,6 +9,40 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D103 — PostHog only for operator acquisition and product analytics [decided; migration OPEN]
+
+Operator, 08.11.2026: "lets go all the way posthog then please!"; explicitly
+selected **PostHog only** rather than PostHog + GA4. Use managed PostHog for
+web/product analytics, campaign attribution, funnels, activation/retention,
+cohorts and, after content-blind validation, replay/heatmaps across marketing,
+social and the authenticator. Follow-up instruction explicitly requests the
+remaining implementation and immediate removal of GA4/Hotjar from code; this
+supersedes the earlier retain-until-acceptance implementation sequence, not the
+review/production-deployment gates.
+The five-influencer pilot is the first campaign, not a bespoke analytics system.
+
+Why: reuse established analysis/reporting rather than build our own acquisition
+engine, and give operators/investors inspectable third-party reports. Hosting by
+a third party is not an independent audit, proof of real humans or causal lift.
+Backend facts still define successful outcomes; our integration must be tested.
+
+Supersedes D56's GA4/Hotjar vendor selection, not its content-free usage tracking
+or content-blind recording rules. Preserves D86 creator-facing content/ad metrics,
+canonical business records and operational diagnostics/history. Rejects running
+PostHog, Mixpanel and Amplitude together, retaining GA4 as the target companion,
+and building a custom acquisition ledger/report engine by default. Necessary
+generic backend event delivery/reconciliation remains our responsibility (D60).
+
+Local 5.0.0 removes legacy loaders/config/build wiring and implements canonical
+opaque identity, signed campaign handoff, atomic user-row conversion context,
+retry/dedup acknowledgements, report provisioning and masked replay/heatmaps.
+Existing operational ClickHouse analytics and D86 remain. Real ClickHouse and
+browser/SDK intercepted-transport receipts are bounded local evidence, not live
+vendor, actual auth flow, playback, independent review or rollout acceptance.
+Anonymous traffic is kept separate from signed-in identities to avoid unsafe
+cross-account merging. Contract/queue:
+[posthog-migration.md](posthog-migration.md), P0–P6. No production action, paid
+purchase or legacy-history deletion is authorized by this decision.
 ### D102 — The audio provider embeds render the provider's player without a click (the scroll is the gate, not a play button) [decided]
 
 The operator's live pass (08.11.2026, social.web10.app): the Spotify and

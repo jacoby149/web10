@@ -44,45 +44,42 @@ describe('ConfigPage telemetry (D56)', () => {
     vi.clearAllMocks()
   })
 
-  it('renders the GA4 + Hotjar fields with loaded values', async () => {
-    mockLoad({ ga4_measurement_id: 'G-EXISTING', hotjar_site_id: '42' })
+  it('renders only PostHog controls, even with historical vendor settings', async () => {
+    mockLoad({ ga4_measurement_id: 'G-EXISTING', hotjar_site_id: '42', posthog_project_key: 'phc_existing_project' })
     render(<ConfigPage I={mockI as any} />)
     await waitFor(() =>
       expect(screen.getByTestId('config-telemetry-card')).toBeInTheDocument(),
     )
-    expect(
-      (screen.getByTestId('config-ga4-id') as HTMLInputElement).value,
-    ).toBe('G-EXISTING')
-    expect(
-      (screen.getByTestId('config-hotjar-id') as HTMLInputElement).value,
-    ).toBe('42')
+    expect((screen.getByTestId('config-posthog-key') as HTMLInputElement).value).toBe('phc_existing_project')
+    expect(screen.queryByTestId('config-ga4-id')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('config-hotjar-id')).not.toBeInTheDocument()
   })
 
   it('Save sends the nested {token:{token}, update:{...}} shape with the changed telemetry field', async () => {
-    mockLoad({ ga4_measurement_id: '', hotjar_site_id: '' })
+    mockLoad({ posthog_project_key: '' })
     render(<ConfigPage I={mockI as any} />)
-    const ga4 = await screen.findByTestId('config-ga4-id')
-    fireEvent.change(ga4, { target: { value: 'G-NEW' } })
+    const key = await screen.findByTestId('config-posthog-key')
+    fireEvent.change(key, { target: { value: 'phc_new_project' } })
     fireEvent.click(screen.getByTestId('config-save-button'))
     await waitFor(() => expect(updateBody()).toBeDefined())
     // The API takes two body models — token (nested) + update (the diff).
     expect(updateBody()).toEqual({
       token: { token: 'admin-token' },
-      update: { ga4_measurement_id: 'G-NEW' },
+      update: { posthog_project_key: 'phc_new_project' },
     })
   })
 
   it('an unchanged field stays off the wire (diff-only save)', async () => {
-    mockLoad({ ga4_measurement_id: 'G-SAME', hotjar_site_id: '7' })
+    mockLoad({ posthog_project_key: 'phc_same_project', posthog_replay_enabled: false })
     render(<ConfigPage I={mockI as any} />)
-    const hotjar = await screen.findByTestId('config-hotjar-id')
-    fireEvent.change(hotjar, { target: { value: '8' } })
+    const replay = await screen.findByTestId('config-posthog-replay')
+    fireEvent.click(replay)
     fireEvent.click(screen.getByTestId('config-save-button'))
     await waitFor(() => expect(updateBody()).toBeDefined())
-    // Only the changed field is sent; ga4_measurement_id is untouched.
+    // Only the changed field is sent; the project key is untouched.
     expect(updateBody()).toEqual({
       token: { token: 'admin-token' },
-      update: { hotjar_site_id: '8' },
+      update: { posthog_replay_enabled: true },
     })
   })
 
@@ -97,5 +94,21 @@ describe('ConfigPage telemetry (D56)', () => {
       token: { token: 'admin-token' },
       update: { admins: ['admin', 'newadmin'] },
     })
+  })
+
+  it('renders disabled-by-default PostHog settings and saves only the new configuration', async () => {
+    mockLoad({ posthog_enabled: false, posthog_project_key: '', posthog_host: 'https://us.i.posthog.com' })
+    render(<ConfigPage I={mockI as any} />)
+    const enabled = await screen.findByTestId('config-posthog-enabled')
+    expect(enabled).not.toBeChecked()
+    fireEvent.change(screen.getByTestId('config-posthog-key'), { target: { value: 'phc_synthetic_project' } })
+    fireEvent.change(screen.getByTestId('config-posthog-host'), { target: { value: 'https://eu.i.posthog.com' } })
+    fireEvent.click(enabled)
+    fireEvent.click(screen.getByTestId('config-save-button'))
+    await waitFor(() => expect(updateBody()).toBeDefined())
+    expect(updateBody()).toEqual({ token: { token: 'admin-token' }, update: {
+      posthog_enabled: true, posthog_project_key: 'phc_synthetic_project', posthog_host: 'https://eu.i.posthog.com',
+    } })
+    expect(screen.getByText(/separate identity secret/)).toBeInTheDocument()
   })
 })

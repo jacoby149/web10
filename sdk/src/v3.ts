@@ -986,8 +986,8 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
       return res
     },
 
-    async signup(username: string, password: string, phone?: string, email?: string): Promise<V3User> {
-      return authPost<V3User>(`${apiOrigin}/v3/signup`, { username, password, phone, email })
+    async signup(username: string, password: string, phone?: string, email?: string, analytics_context?: string): Promise<V3User> {
+      return authPost<V3User>(`${apiOrigin}/v3/signup`, { username, password, phone, email, ...(analytics_context ? { analytics_context } : {}) })
     },
 
     async getProfile(): Promise<V3User> {
@@ -1868,7 +1868,7 @@ export interface V3Client {
 
   // Auth
   login(username: string, password: string, site?: string): Promise<V3LoginResponse>
-  signup(username: string, password: string, phone?: string, email?: string): Promise<V3User>
+  signup(username: string, password: string, phone?: string, email?: string, analytics_context?: string): Promise<V3User>
   getProfile(): Promise<V3User>
   verifyAccess(options?: VerifyAccessOptions): Promise<AccessVerdict>
   changePassword(currentPassword: string, newPassword: string): Promise<{ status: string }>

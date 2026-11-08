@@ -23,6 +23,29 @@ Not exported or wired into production. Real destination consent, browser grants,
 connected two-node tests, global fan-out bounds and diverse L1–L4 sign-off remain
 OPEN; no new server authorization or whole-security PASS.
 
+## PostHog capture/configuration (08.11.2026) — bounded local, OPEN
+
+5.0.0 continuation adds canonical opaque identity, signed source metadata,
+atomic account-row signup context, worker acks/health, vendor-report provisioning
+and optional masked replay/heatmaps; removes legacy integrations by instruction.
+Freshness/local issuer/current-account/delegated-client denials, stale-reply
+fences, real ClickHouse lifecycle/ack floor and real SDK snapshot/heatmap sentinel
+checks pass locally. Anonymous identities deliberately stay separate; public
+vendor ingest remains forgeable. Full connected vendor/auth/phone/restart/quota/
+playback, independent review and L1–L4/rollout remain OPEN. Details and historical
+4.15.0 scope follow in the linked scan; no production or independent-audit claim.
+
+GPT-6.1 Sol adds optional public project config and browser capture, not account
+identity or new authority. Backend-first field/response inspection and local
+negative tests cover personal-key redaction, arbitrary-host rejection, default-off
+selection, allowlisted events/metadata and safe startup failure. Real Chromium/
+SDK intercepted-batch verification covers all three adapters; private query/
+conversation sentinels are absent and selected PostHog makes no legacy requests.
+Replay/autocapture/person profiles remain off. Scope, failed probe explanations
+and remaining gates: [posthog-capture.md](scans/2026-11/posthog-capture.md).
+Independent review, full L1–L4, live vendor/account journey and rollout remain
+OPEN; no whole-telemetry privacy/security or analytics-readiness claim.
+
 ## Production readable-resolution promotion (08.11.2026) — bounded local, OPEN
 
 GPT-6.1 Sol checks the generic helper/query selection, validated production
