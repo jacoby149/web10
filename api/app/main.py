@@ -66,6 +66,9 @@ def _start_hls_workers():
 
     ch.ensure_apps_schema()
     ch.ensure_users_domain_schema()
+    from app.services import product_analytics
+
+    product_analytics.start_workers()
 
     # The universal discover group is a node default (KB: social-contracts.md):
     # create it if missing, enroll anon, and backfill existing users so every

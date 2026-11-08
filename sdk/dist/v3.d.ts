@@ -484,7 +484,7 @@ export interface V3Client {
     isSignedIn(): boolean;
     signOut(): void;
     login(username: string, password: string, site?: string): Promise<V3LoginResponse>;
-    signup(username: string, password: string, phone?: string, email?: string): Promise<V3User>;
+    signup(username: string, password: string, phone?: string, email?: string, analytics_context?: string): Promise<V3User>;
     getProfile(): Promise<V3User>;
     verifyAccess(options?: VerifyAccessOptions): Promise<AccessVerdict>;
     changePassword(currentPassword: string, newPassword: string): Promise<{

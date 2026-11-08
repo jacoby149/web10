@@ -43,6 +43,7 @@ def signup(data: Signup):
         password_hash=password_hash,
         phone=data.phone or "",
         email=data.email or "",
+        **({"analytics_context": data.analytics_context} if data.analytics_context else {}),
     )
     if not result:
         raise exceptions.EXISTS
