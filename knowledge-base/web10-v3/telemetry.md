@@ -135,6 +135,10 @@ gates. Do not relax masking to improve the recording.
    `node scripts/check-posthog-browser.mjs [--replay]`, and from `api/`,
    `uv run python scripts/check_product_analytics.py` (owned disposable ClickHouse).
    Sanitized local receipts/screenshots live in `.context/posthog/`.
+6. Connected acceptance (P5, needs a live project + deployed node + identity
+   secret): `node scripts/posthog-connected-check.mjs` previews the steps with no
+   network; `--run` executes them and writes a sanitized receipt — the synthetic
+   account's username is reported for the QA exclusion list.
 
 Before activation, verify current legal copy, retention/deletion procedure and
 approved project access. Live vendor storage/report reconciliation, playback,
