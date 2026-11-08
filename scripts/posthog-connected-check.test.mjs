@@ -67,7 +67,7 @@ function syntheticNode(posthog) {
 
 test('happy path: canonical journey agrees with the independent UUID oracle, and no credential leaks into the receipt', async () => {
   const node = syntheticNode((query, state) => {
-    if (query.includes('account_created')) return { results: [[EXPECTED_EVENT, 'server', 'attributed', state.properties.utm_campaign, '2026-11-08 12:00:00']], columns: ['uuid', 'properties_capture_origin', 'properties_attribution_status', 'properties_utm_campaign', 'at'] };
+    if (query.includes('account_created')) return { results: [[EXPECTED_EVENT, 'account_created', 'server', 'attributed', state.properties.utm_campaign, '2026-11-08 12:00:00']], columns: ['uuid', 'event', 'capture_origin', 'attribution_status', 'utm_campaign', 'at'] };
     return { results: [[state.properties.utm_campaign, 1]], columns: ['campaign', 'new_accounts'] };
   });
   const fetcher = node.fetcher;
@@ -78,11 +78,14 @@ test('happy path: canonical journey agrees with the independent UUID oracle, and
   assert.equal(receipt.steps.outcome.agreement, true);
   assert.equal(receipt.steps.reports.length, 5);
   assert.ok(receipt.steps.reports.every((run) => run.executed));
+  const healthCall = node.calls.find((call) => call.url.endsWith('/admin/analytics/health'));
+  assert.equal(healthCall.body.token, ENV.WEB10_ADMIN_TOKEN, 'admin health must use the operator admin token, not the journey account token');
+  assert.notEqual(healthCall.body.token, 'synthetic-login-jwt');
   const serialized = JSON.stringify(receipt);
   assert.ok(!serialized.includes('phx_synthetic_personal_key'), 'personal key leaked into the receipt');
   assert.ok(!serialized.includes('synthetic-login-jwt'), 'auth token leaked into the receipt');
   assert.ok(!serialized.includes('-x7f'), 'password suffix leaked into the receipt');
-  assert.match(serialized, /p5check_/, 'QA exclusion username is reported');
+  assert.match(serialized, /p5check-/, 'QA exclusion username is reported');
 });
 
 test('missing canonical outcome fails with the reconciliation pointer, not a silent pass', async () => {
@@ -102,7 +105,7 @@ test('identity secret not provisioned fails before any signup', async () => {
 
 test('report HogQL failure marks the receipt incomplete and names the report', async () => {
   const { fetcher } = syntheticNode((query, state) => {
-    if (query.includes('account_created')) return { results: [[EXPECTED_EVENT, 'server', 'attributed', state.properties.utm_campaign, 'x']], columns: ['uuid', 'properties_capture_origin', 'properties_attribution_status', 'properties_utm_campaign', 'at'] };
+    if (query.includes('account_created')) return { results: [[EXPECTED_EVENT, 'account_created', 'server', 'attributed', state.properties.utm_campaign, 'x']], columns: ['uuid', 'event', 'capture_origin', 'attribution_status', 'utm_campaign', 'at'] };
     // 'Signed-in foreground activity' carries uniqExact(distinct_id) AS active_accounts
     if (query.includes('uniqExact(distinct_id) AS active_accounts')) throw new Error('HogQL query failed (500)');
     return { results: [[{}]], columns: ['x'] };

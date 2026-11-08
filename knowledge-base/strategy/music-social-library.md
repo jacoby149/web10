@@ -61,7 +61,7 @@ then proceed!” after the song-reaction/public-playlist/live-bookmark proposal.
    not deployed persistence, actual-node denial or physical-phone behavior. Those
    remain in the existing connected-listening task.
 
-## Local implementation receipt — 5.4.0
+## Local implementation receipt — 5.5.0
 
 MS1–MS4's local gates are complete. `MusicReactions` composes the shared action
 bar in the expanded player and track sheet, with read/retry/pending/rollback

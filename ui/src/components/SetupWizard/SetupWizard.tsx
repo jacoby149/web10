@@ -4,6 +4,7 @@ import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { SecretInput } from '@/components/ui/secret-input';
 import { Label } from '@/components/ui/label';
 
 const STEPS = [
@@ -208,11 +209,11 @@ function AccessPolicyStep({ data, onChange, onNext, onBack }: {
 
         <div className="flex items-center justify-between border-b border-border py-3">
           <div>
-            <div className="text-sm font-medium text-foreground">Phone Verification</div>
-            <div className="text-xs text-muted-foreground">Require phone number on signup</div>
+            <div className="text-sm font-medium text-foreground">Email or Phone Required</div>
+            <div className="text-xs text-muted-foreground">Require a contact on signup. Configure email and SMS delivery later in Node Config.</div>
           </div>
           <label className="switch">
-            <input type="checkbox" checked={data.verify_required} onChange={() => toggle("verify_required")} data-testid="wizard-toggle-verify-required" />
+            <input type="checkbox" checked={data.require_contact} onChange={() => toggle("require_contact")} data-testid="wizard-toggle-require-contact" />
             <span className="slider round"></span>
           </label>
         </div>
@@ -298,7 +299,8 @@ function StorageStep({ data, onChange, onNext, onBack }: {
 
           <div>
             <Label className="mb-1 block text-muted-foreground">Access Key</Label>
-            <Input
+            <SecretInput
+              label="S3 Access Key"
               value={data.s3_access_key}
               onChange={e => onChange("s3_access_key", e.target.value)}
               placeholder="minioadmin"
@@ -308,8 +310,8 @@ function StorageStep({ data, onChange, onNext, onBack }: {
 
           <div>
             <Label className="mb-1 block text-muted-foreground">Secret Key</Label>
-            <Input
-              type="password"
+            <SecretInput
+              label="S3 Secret Key"
               value={data.s3_secret_key}
               onChange={e => onChange("s3_secret_key", e.target.value)}
               placeholder="minioadmin"
@@ -330,7 +332,7 @@ function StorageStep({ data, onChange, onNext, onBack }: {
               </div>
               <div>
                 <Label className="mb-1 block text-muted-foreground">Auth Token</Label>
-                <Input type="password" value={data.twilio_auth_token} onChange={e => onChange("twilio_auth_token", e.target.value)} data-testid="wizard-twilio-auth-token" />
+                <SecretInput label="Twilio Auth Token" value={data.twilio_auth_token} onChange={e => onChange("twilio_auth_token", e.target.value)} data-testid="wizard-twilio-auth-token" />
               </div>
               <div>
                 <Label className="mb-1 block text-muted-foreground">Phone Number</Label>
@@ -390,7 +392,7 @@ const SetupWizard = ({ I }: { I: Record<string, any> }) => {
     admin_password: "",
     admin_password_confirm: "",
     beta_required: false,
-    verify_required: false,
+    require_contact: false,
     pay_required: false,
     beta_code: "web10betacode",
     free_credits: 0.10,
@@ -441,7 +443,7 @@ const SetupWizard = ({ I }: { I: Record<string, any> }) => {
         db_name: formData.db_name,
         brand_text: formData.brand_text,
         beta_required: formData.beta_required,
-        verify_required: formData.verify_required,
+        require_contact: formData.require_contact,
         pay_required: formData.pay_required,
         beta_code: formData.beta_code,
         free_credits: formData.free_credits,

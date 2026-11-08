@@ -12,6 +12,7 @@ import ConsentView from './components/Consent/ConsentView';
 import OauthConsentView from './components/Oauth/OauthConsentView';
 import GroupsPage from './components/Groups/GroupsPage';
 import { config } from './config';
+import { contactHandoff } from './lib/contactHandoff';
 
 function StatusBar({ I }: { I: Record<string, any> }) {
   if (!I.status) return null;
@@ -92,8 +93,11 @@ function App() {
   }, []);
 
   React.useEffect(() => {
-    if (forgot) I.setMode("forgot");
+    if (forgot || contactHandoff.recovery || queryParameters.get('mode') === 'forgot') I.setMode("forgot");
   }, []);
+  React.useEffect(() => {
+    if (I.isAuthenticated() && queryParameters.get('mode') === 'config') I.setMode('config');
+  }, [I.auth]);
 
   // Set up the contract postMessage listener immediately if opened as a popup
   // (window.open) — before auth. The demo sends the GCR before the user logs in,
@@ -165,7 +169,7 @@ function App() {
           case "groups": return <GroupsPage I={I} />;
           case "requests": return <RequestPage I={I} />;
           case "settings": return <Settings I={I} />;
-          case "config": return <ConfigPage I={I} />;
+          case "config": return <ConfigPage key={I.v3.state.token} I={I} />;
           case "analytics": return <AnalyticsPage I={I} />;
           case "login": return <CredentialPage I={I} />;
           case "signup": return <CredentialPage I={I} />;

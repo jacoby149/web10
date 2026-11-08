@@ -64,7 +64,7 @@ Deployment and receiving-app cache refresh remain separate release checks.
 
 ## Starting Point
 
-5.4.0 adds original-post reactions, URL-backed public curator browsing and personal
+5.5.0 adds original-post reactions, URL-backed public curator browsing and personal
 live playlist bookmarks. The local 2,223-test/build/desktop/375px Chromium receipt
 and explicit connected-node/consent/phone limits are recorded in
 [music-social-library.md](music-social-library.md). Catalog-wide indexing remains
