@@ -69,6 +69,8 @@ const SOCIAL_SERVICES = [
   // Saved tab / collection view. Without it in the contract, every save/read
   // 403s at the app-contract gate (the API does strict per-service matching).
   'saved',
+  // Personal live playlist pointers; followers/public roles grant no access.
+  'web10-social-playlist-bookmarks',
 ] as const;
 
 // The four operations the documents endpoint enforces (create / read /

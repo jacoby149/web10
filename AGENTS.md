@@ -331,6 +331,13 @@ does not merge.
 
 ## Auth model
 
+Music's live playlist bookmarks use personal `web10-social-playlist-bookmarks`
+documents in the human's own followers group, never acting-group authority or a
+target membership grant. Login consent and access recovery both request this
+service; existing grants need normal re-consent. Public curator browsing uses
+existing public collection reads, not a global index. Contract and connected
+acceptance limits: `knowledge-base/strategy/music-social-library.md`.
+
 Social acting identity remembers only a confirmed provider/account-scoped identifier
 across browser reopen, with independent per-tab snapshots, never a replacement
 credential or persisted grant. Generic `author_as` creates as the group with server-set `posted_by`;

@@ -6,6 +6,7 @@ import type { MusicTrack } from '@/data';
 import { Button } from '@/components/ui/button';
 import { musicTitle, musicArtist } from '@/data/musicTrack';
 import MusicArtwork from './MusicArtwork';
+import MusicReactions from './MusicReactions';
 
 interface Props {
   track: MusicTrack;
@@ -59,6 +60,7 @@ export default function MusicTrackMenu({ track, saved, signedIn, disabled, messa
       </div>
       {message && <p role="status" className="px-4 pt-3 text-xs text-brand-300">{message}</p>}
       <div className="px-2 pt-2">
+        <MusicReactions track={track} signedIn={signedIn} />
         <Button variant="ghost" className={actionClass} onClick={onNext}><SkipForward className="h-5 w-5 text-muted-foreground" />Play next</Button>
         <Button variant="ghost" className={actionClass} onClick={onQueue}><ListPlus className="h-5 w-5 text-muted-foreground" />Add to queue</Button>
         {signedIn && <>

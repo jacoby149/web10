@@ -47,6 +47,7 @@ const SOCIAL_SERVICES = [
   // The saved-collection store (D88) — a `saved` doc in a collection group.
   // Must stay in lockstep with SOCIAL_SERVICES in src/interfaces/auth.ts.
   'saved',
+  'web10-social-playlist-bookmarks',
 ];
 const SOCIAL_OPERATIONS = ['readAll', 'create'];
 

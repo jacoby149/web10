@@ -65,6 +65,24 @@ const items = new Map<string, string[]>([
   [SAVED_COLLECTIONS[2].groupId, ['nonmusic-post']],
   [SAVED_COLLECTIONS[3].groupId, ['music-1', 'music-2', 'music-5']],
 ]);
+const publicPlaylist = 'web10/groups/users/nova/saved-synthwave-sessions-best-of';
+items.set(publicPlaylist, ['music-4', 'music-1', 'music-5']);
+const bookmarkedPlaylists = new Set<string>();
+export async function readPlaylistBookmarks() { return [...bookmarkedPlaylists].map(collectionId => ({ collectionId })); }
+export async function readPlaylistBookmarkName(id: string) { return id === publicPlaylist ? 'Best Of' : null; }
+export async function setPlaylistBookmarked(id: string, saved: boolean, assertCurrent?: () => void) {
+  assertCurrent?.();
+  if (saved) bookmarkedPlaylists.add(id); else bookmarkedPlaylists.delete(id);
+}
+const songReactions = new Map<string, 'like' | 'dislike'>();
+export async function readMusicReactions(id: string) {
+  const type = songReactions.get(id);
+  return type ? [{ _id: `reaction-${id}`, type, author_key: 'me', author_username: 'me', target_id: id }] : [];
+}
+export async function toggleMusicReaction(id: string, kind: 'like' | 'dislike') {
+  if (songReactions.get(id) === kind) { songReactions.delete(id); return null; }
+  songReactions.set(id, kind); return kind;
+}
 export async function readMusicPage(limit = 30, offset = 0) {
   const tracks = MUSIC_TRACKS.slice(offset, offset + limit);
   if (new URLSearchParams(window.location.search).has('music-regression') && offset === 0) {
@@ -88,7 +106,7 @@ export async function readSavedPostIds(groupId: string) {
 export async function readMusicCollection(groupId: string) {
   const ids = items.get(groupId) ?? [];
   const tracks = ids.flatMap(id => MUSIC_TRACKS.filter(track => track.post._id === id));
-  return { tracks, skipped: ids.length - tracks.length, name: SAVED_COLLECTIONS.find(collection => collection.groupId === groupId)?.name || '' };
+  return { tracks, skipped: ids.length - tracks.length, name: groupId === publicPlaylist ? 'Best Of' : SAVED_COLLECTIONS.find(collection => collection.groupId === groupId)?.name || '' };
 }
 export async function savePostToCollection(groupId: string, postId: string) {
   const ids = items.get(groupId) ?? [];
