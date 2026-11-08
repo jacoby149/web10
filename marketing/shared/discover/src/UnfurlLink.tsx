@@ -12,7 +12,7 @@
 // render. A card arriving after first paint is a content-driven pop-in —
 // the Facebook model; the server + client caches make repeat views instant.
 import { ReliableImage } from './ReliableImage';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Play, ExternalLink } from 'lucide-react';
 import { cn } from './utils';
 import type { EmbedInfo } from './linkEmbeds';
@@ -190,68 +190,138 @@ export function UnfurlLink({
   return <span className="block my-2">{body}</span>;
 }
 
-// ── The provider player (click-to-load, the YouTube placeholder pattern) ───
+// ── The provider player ─────────────────────────────────────────────────────
+//
+// Two presentation patterns (the operator's 08.11.2026 pass: the audio
+// providers must not read as native web10 music posts):
+//
+// The PORTRAIT video player (TikTok) keeps the click-to-load poster pattern
+// (the YouTube Shorts shape — a video, so a play affordance reads correctly).
+//
+// The AUDIO provider embeds (Spotify / SoundCloud / Bandcamp — the
+// landscape players) show the PROVIDER'S PLAYER WITHOUT A CLICK: a fake
+// play button that "just swaps in the embed" reads as a web10-native music
+// post (the operator's exact complaint). Instead: the provider-identity
+// chrome (the artwork + the title + the provider's domain — the player is
+// about to arrive, nothing to press) and the iframe loads when the embed
+// scrolls into view (the performance reason the old card existed — a feed
+// can carry many embeds; the IntersectionObserver is that gate, not a
+// click). No IntersectionObserver (the test env, very old engines) → the
+// iframe loads immediately.
 
 function PlayerEmbed({ card }: { card: UnfurlCard }) {
-  const [loaded, setLoaded] = useState(false);
   const embed = card.embed!; // UnfurlLink gates on card.embed
   const portrait = Boolean(embed.width && embed.height > embed.width * 1.4);
+  return portrait ? <PortraitPlayerEmbed card={card} embed={embed} /> : <AudioProviderEmbed card={card} embed={embed} />;
+}
+
+// The portrait click-to-load (the TikTok shape — unchanged by the audio pass).
+function PortraitPlayerEmbed({ card, embed }: { card: UnfurlCard; embed: NonNullable<UnfurlCard['embed']> }) {
+  const [loaded, setLoaded] = useState(false);
   const allow = embed.allow || 'autoplay; encrypted-media';
-  // A portrait player (TikTok) is capped at the provider's width and
-  // centered — a full-width 578px-tall iframe would eat the card.
-  const frameClass = portrait ? 'mx-auto w-[325px] max-w-full' : 'w-full';
+  // A portrait player is capped at the provider's width and centered — a
+  // full-width 578px-tall iframe would eat the card.
+  const frameClass = 'mx-auto w-[325px] max-w-full';
 
   if (!loaded) {
-    if (portrait) {
-      // The poster (the reel's og:image) full-bleed + the centered play
-      // button — the exact YouTube Shorts placeholder shape.
-      return (
-        <button
-          type="button"
-          onClick={() => setLoaded(true)}
-          className={cn(
-            'group relative block overflow-hidden rounded-lg bg-elevated cursor-pointer',
-            frameClass,
-            'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-          )}
-          style={{ aspectRatio: `${embed.width}/${embed.height}` }}
-          aria-label={`Play video from ${card.domain}`}
-          data-testid="unfurl-player-placeholder"
-        >
-          {card.image ? (
-            <ReliableImage
-              src={card.image}
-              alt=""
-              loading="lazy"
-              className="absolute inset-0 h-full w-full object-cover transition-transform duration-150 group-hover:scale-105"
-            />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center bg-brand-muted">
-              <span className="text-xs font-medium text-muted-foreground">{card.domain}</span>
-            </div>
-          )}
-          <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors duration-150 flex items-center justify-center">
-            <div className="flex items-center justify-center w-14 h-14 rounded-full bg-background/90 backdrop-blur-sm shadow-lg transition-transform duration-150 group-hover:scale-110">
-              <Play className="w-6 h-6 text-foreground ml-0.5" strokeWidth={2} fill="currentColor" />
-            </div>
-          </div>
-        </button>
-      );
-    }
-    // The music bar (Spotify / SoundCloud / Bandcamp): the square artwork,
-    // the title + description, and the play button — Spotify's own embed
-    // chrome, tokens only.
+    // The poster (the reel's og:image) full-bleed + the centered play
+    // button — the exact YouTube Shorts placeholder shape.
     return (
       <button
         type="button"
         onClick={() => setLoaded(true)}
         className={cn(
-          'flex w-full items-center gap-3 rounded-lg border border-border bg-surface p-3 text-left cursor-pointer',
-          'transition-colors duration-150 hover:border-brand/40',
+          'group relative block overflow-hidden rounded-lg bg-elevated cursor-pointer',
+          frameClass,
           'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
         )}
-        aria-label={`Play from ${card.domain}`}
+        style={{ aspectRatio: `${embed.width}/${embed.height}` }}
+        aria-label={`Play video from ${card.domain}`}
         data-testid="unfurl-player-placeholder"
+      >
+        {card.image ? (
+          <ReliableImage
+            src={card.image}
+            alt=""
+            loading="lazy"
+            className="absolute inset-0 h-full w-full object-cover transition-transform duration-150 group-hover:scale-105"
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center bg-brand-muted">
+            <span className="text-xs font-medium text-muted-foreground">{card.domain}</span>
+          </div>
+        )}
+        <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors duration-150 flex items-center justify-center">
+          <div className="flex items-center justify-center w-14 h-14 rounded-full bg-background/90 backdrop-blur-sm shadow-lg transition-transform duration-150 group-hover:scale-110">
+            <Play className="w-6 h-6 text-foreground ml-0.5" strokeWidth={2} fill="currentColor" />
+          </div>
+        </div>
+      </button>
+    );
+  }
+
+  return (
+    <div className={cn('overflow-hidden rounded-lg bg-black', frameClass)} data-testid="unfurl-player">
+      <iframe
+        src={embed.src}
+        title={card.title || card.domain}
+        className="block w-full border-0"
+        style={{ height: embed.height }}
+        allow={allow}
+        allowFullScreen
+        referrerPolicy="strict-origin-when-cross-origin"
+      />
+    </div>
+  );
+}
+
+// The audio provider embed (Spotify / SoundCloud / Bandcamp): the
+// provider-identity chrome until the embed scrolls into view, then the
+// provider's own iframe (its own artwork, title, controls — no click).
+function AudioProviderEmbed({ card, embed }: { card: UnfurlCard; embed: NonNullable<UnfurlCard['embed']> }) {
+  const allow = embed.allow || 'autoplay; encrypted-media';
+  const ref = useRef<HTMLDivElement>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  // The performance gate: load the iframe when the embed scrolls into view
+  // (200px ahead, so a player at the viewport edge is ready by the time it
+  // is seen). The gate is the SCROLL, not a click — the provider's player
+  // must be reachable without one (08.11.2026 pass). No IntersectionObserver
+  // (the test env / very old engines) → load immediately.
+  useEffect(() => {
+    if (loaded) return;
+    const el = ref.current;
+    if (typeof IntersectionObserver === 'undefined' || !el) {
+      setLoaded(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setLoaded(true);
+            io.disconnect();
+          }
+        }
+      },
+      { rootMargin: '200px' },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [loaded]);
+
+  const favicon = `https://www.google.com/s2/favicons?domain=${card.domain}&sz=32`;
+
+  if (!loaded) {
+    // The provider-identity chrome: the square artwork, the title +
+    // description, and the provider's domain (favicon row) — it says "the
+    // player is from spotify.com", never "this is a web10 track with a play
+    // button" (there is no button: the player arrives without a click).
+    return (
+      <div
+        ref={ref}
+        className="flex w-full items-center gap-3 rounded-lg border border-border bg-surface p-3"
+        data-testid="unfurl-player-chrome"
       >
         {card.image ? (
           <ReliableImage
@@ -269,19 +339,33 @@ function PlayerEmbed({ card }: { card: UnfurlCard }) {
           <span className="block truncate text-sm font-medium text-foreground" data-testid="unfurl-player-title">
             {card.title || card.domain}
           </span>
-          <span className="mt-0.5 block truncate text-xs text-muted-foreground" data-testid="unfurl-player-subtitle">
-            {card.description || card.domain}
+          {card.description ? (
+            <span className="mt-0.5 block truncate text-xs text-muted-foreground" data-testid="unfurl-player-subtitle">
+              {card.description}
+            </span>
+          ) : null}
+          <span className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+            {/* The favicon is decorative (the domain text is the content) —
+                the documented local-only exception (media-surface-inventory). */}
+            <img
+              src={favicon}
+              alt=""
+              loading="lazy"
+              className="h-3.5 w-3.5 shrink-0 rounded-sm"
+              data-testid="unfurl-chrome-favicon"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
+            />
+            <span data-testid="unfurl-player-provider">{card.domain}</span>
           </span>
         </span>
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand text-brand-foreground shadow-lg">
-          <Play className="w-5 h-5 ml-0.5" strokeWidth={2} fill="currentColor" />
-        </span>
-      </button>
+      </div>
     );
   }
 
   return (
-    <div className={cn('overflow-hidden rounded-lg bg-black', frameClass)} data-testid="unfurl-player">
+    <div ref={ref} className="w-full overflow-hidden rounded-lg bg-black" data-testid="unfurl-player">
       <iframe
         src={embed.src}
         title={card.title || card.domain}
