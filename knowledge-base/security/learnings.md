@@ -35,6 +35,20 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-07: Filter current hides inside the qualifying creative attachment
+
+The [pinned-hide repair](scans/2026-11/repair-h01-pinned-hidden.md) correlates
+current hide state to the same document/group pair that supplies current reader
+membership and attachment. Eleven independently verified synthetic-capability
+deliveries fail denial tests before repair and deny afterward; eleven permitted
+controls retain alternative visible groups, unrelated hides/unhides, uploader
+identity and non-posts creatives. Rank hide history before filtering. Unlike
+document deletion, a hide table's `deleted=1` is **unhide**: deletion-winning ties
+restore that attachment; a newer live hide removes it again. Never treat a hide
+in any group as a global creative veto. This is local repro closure, not writer/
+merge/connected/CI/rollout/model-diverse or protocol L1 assurance. Other attached-ad
+authority and visibility checks remain OPEN; existing capability TTL is unchanged.
+
 ### 2026-11-07: Pinned-hide authority must come from one visible, readable attachment
 
 After #1416, the operator selected **Honor group hides**: a hidden attachment

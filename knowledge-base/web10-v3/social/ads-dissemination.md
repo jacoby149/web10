@@ -77,11 +77,21 @@ still permits delivery; the carrier's membership does not supply creative access
 An unhidden attachment in a group the reader cannot read does not combine with
 membership in a different hidden group. A newer unhide restores eligibility.
 No global hide veto, owner-only restriction or posts-only rule: D59 group curation
-and D75 arbitrary-service creatives remain. This is the target contract, not an
-implemented fix; the current pinned loader still ignores hide state. Direct-by-ID,
+and D75 arbitrary-service creatives remain. The local repair below implements
+this pinned-loader predicate, not broader visibility assurance. Direct-by-ID,
 other visibility rules and node-ad inventory behavior are not changed by this
 pinned-loader decision. [Fourteen-case policy evidence](../../security/scans/2026-11/h01-pinned-hidden-policy.md)
 pins same/cross-group carriers, unhide, visible alternatives and crossed grants.
+
+**Local hide repair (07.11.2026):** pinned lookup excludes current hidden
+document/group pairs inside its existing current member/attachment subquery.
+Rank hide history before filtering; an unhide tombstone wins equal timestamps.
+The eleven reproduced hidden-only deliveries now deny before fresh signing,
+while eleven allowed controls retain visible alternatives, newer/tied unhide,
+independent uploaders and arbitrary-service selection. [Repair receipt](../../security/scans/2026-11/repair-h01-pinned-hidden.md).
+Real writer/merge lifecycle, broader app/service/visibility policy, connected
+acceptance, CI/rollout and diverse review remain OPEN; no global hide veto or
+whole-ad assurance.
 
 **Locked (the three open questions, resolved):**
 

@@ -469,7 +469,10 @@ Do not claim whole-media or whole-prepare assurance.
 Pinned creative membership reads locally rank current reader/group history before
 removal filtering, with deletion winning timestamp ties. Pinned doc_groups reads
 also rank current document/group attachments before filtering, with deletion-winning
-ties. This denies reproduced stale-membership and removed-attachment signing; broader
+ties. Pinned hide history also ranks per document/group before filtering; current
+hides disqualify only that attachment, while newer/tied unhide and another visible
+readable attachment retain delivery. This locally denies reproduced hidden-only,
+stale-membership and removed-attachment signing without a global hide veto. Broader
 ad policy, real-schema lifecycle and rollout assurance remain separate OPEN gates.
 
 Node-ad inventory locally ranks current Discover attachment history before removal

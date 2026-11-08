@@ -269,7 +269,28 @@ Synthetic signed-manifest/SQL red-green plus isolated real production handler
 reads restore four existing videos without data changes. Same-model review only;
 serving rollout/browser playback, cost, diverse review and broader L1 remain OPEN.
 
-## Pinned-Ad Hidden-Creative Authority (07.11.2026) — evidence only, OPEN
+## Pinned-Ad Hidden-Creative Authority (07.11.2026) — local repair, OPEN
+
+Local [hide repair](scans/2026-11/repair-h01-pinned-hidden.md) at
+`7381d872d950be036741c88a8e73bdcc07684b42` plus diff excludes current hidden
+document/group pairs inside the qualifying member/attachment query, with ranked
+hide history and unhide-winning timestamp ties. Eleven independently verified
+synthetic signing deliveries reproduce red and now deny before signing; all 22
+SQLite controls and 47 retained membership/attachment/node cases pass. All 22
+ClickHouse-local cases verify across the initial twenty passes and unchanged
+targeted retries, not one clean matrix run; two initial 60-second timeouts and
+one retry timeout are retained in the receipt. The last case passes in 37.07
+seconds under the original bounds, with no query/test/timeout relaxation. Visible
+alternatives, unrelated tombstones, same/cross-group carriers, independent
+uploaders and non-posts selection remain. All 2,080 API tests plus eight subtests
+pass with one opt-in skip; full Ruff lint/format pass. Fresh same-family review
+independently passes 22 plus 47 cases and replays all eleven verified baseline
+disclosures by removing only the new filter in memory, without a blocking defect.
+Multi-target and representative query-cost receipts remain release gates. Real
+lifecycle/driver/object retrieval, broader ad authority, connected acceptance,
+CI/rollout/diverse and protocol L1 remain OPEN; no broader PASS claim.
+
+Historical pre-repair policy/evidence:
 
 Follow-up at `c420b6f4c68a6465179ef527cdf0412212c2aca1` plus test/docs diff:
 the operator explicitly requires one current readable unhidden creative

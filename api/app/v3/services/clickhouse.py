@@ -3272,10 +3272,13 @@ def resolve_pinned_ads(docs: list[dict], reader: str) -> dict[str, dict]:
 
     Membership and attachment versions are ranked before removal filtering;
     tombstones win timestamp ties. A newer rejoin or reattachment grants access.
+    A current group hide disqualifies only that attachment (D59); another
+    readable, unhidden attachment can still authorize the creative. Hide history
+    is ranked before filtering, so newer unhide tombstones restore eligibility.
 
     Service-agnostic (D75): the ad is whatever doc `ad_target` references — the
     node does not vet its `collection_name`. The `ad` tag + the `ad_preference`
-    pointer + group membership (I3) are the whole model; "an ad is a post" is a
+    pointer + visible group access (I3/D59) are the whole model; "an ad is a post" is a
     web10-social shape (the app's catalog), not a protocol rule. A non-social
     app can pin an ad that is any doc it references.
     Returns a map of ad_target -> the ad dict, for the ads the reader can see.
@@ -3298,7 +3301,12 @@ def resolve_pinned_ads(docs: list[dict], reader: str) -> dict[str, dict]:
         "JOIN (SELECT group_id, deleted, "
         "row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC, deleted DESC) AS rn "
         "FROM group_members WHERE member_key = %(reader)s) gm ON pg.group_id = gm.group_id "
-        "WHERE pg.rn = 1 AND gm.rn = 1 AND pg.deleted = 0 AND gm.deleted = 0)",
+        "WHERE pg.rn = 1 AND gm.rn = 1 AND pg.deleted = 0 AND gm.deleted = 0 "
+        "AND (pg.doc_id, pg.group_id) NOT IN (SELECT doc_id, group_id FROM ("
+        "SELECT doc_id, group_id, deleted, "
+        "row_number() OVER (PARTITION BY doc_id, group_id ORDER BY updated_at DESC, deleted DESC) AS rn "
+        f"FROM group_hidden_docs WHERE doc_id IN ({placeholders})) "
+        "WHERE rn = 1 AND deleted = 0))",
         params,
     )
     log.info("[ads] pinned membership read: completed creatives=%d", len(result.result_rows))
