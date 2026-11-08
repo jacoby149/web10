@@ -2,6 +2,14 @@
 
 These are preparation/functional receipts, **not new paper performance results**.
 
+- `v2-public-access.json`: separately operator-authorized 8 November public
+  release of only the two frozen million-author inputs. Fourteen exact GET-only
+  object grants; full authenticated verification and independent anonymous HTTPS
+  downloads match all 565,891,567 bytes and pinned digests. Listing, uploads,
+  conditional overwrite, neighboring objects and an existing non-research object
+  remain HTTP 403. Original publication receipts are unchanged historical proof.
+  This removes the dataset-read credential blocker, not actual-host/study gates.
+
 - `v2-hot-publication.json`, `v2-dispersed-publication.json`: six frozen table
   objects plus manifest, full authenticated remote-byte verification and a fresh
   download/all-row replay validation. The operator approved only this immutable

@@ -15,6 +15,18 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Public frozen research inputs (08.11.2026) — bounded live acceptance, broader coverage OPEN
+
+Operator-authorized exact fourteen-key anonymous GET publication; trusted receipt
+and full-byte verification, private before-policy backup and preserved statements.
+Independent anonymous HTTPS downloads verify all pinned bytes; listing, uploads,
+conditional overwrite, neighbor and existing user-media reads remain 403. Ten
+offline controls include a live-found MinIO Resource-order readback/idempotency
+repair. Three fresh pre-apply scoped reviews found no operation blocker; they
+are not model-diverse assurance. Record: `research/experiments/costfn/evidence/v2-public-access.json`.
+Policy races and later key replacement remain procedural exclusions, not CAS or
+storage-enforced immutability. No L3/L4, whole-bucket or whole-security PASS.
+
 ## Feed source integration candidate (08.11.2026) — bounded local, OPEN
 
 Private catalog, separate credential-generation approval, source-query transport

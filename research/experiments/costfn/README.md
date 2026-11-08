@@ -1,5 +1,12 @@
 # Access-Control Cost Function Experiment
 
+> **8 November execution follow-up:** the operator now authorizes proceeding with
+> the isolated experiment and separately authorizes anonymous download of the two
+> frozen synthetic V2 inputs. The initial study cap remains $10 despite the
+> reported $1,000 credit. This supersedes the setup-only authorization below,
+> not the actual-host restore/correctness/headroom or independent-cleanup gates.
+> Public access is restricted to fourteen exact input objects; see [RUNNING-V2.md](RUNNING-V2.md).
+
 > **7 November follow-up: preparation authorized, cloud study not started.**
 > The operator requests runnable fixtures, comparator and core-feed tooling and
 > approves immutable publication to web10 MinIO. Start with [RUNNING-V2.md](RUNNING-V2.md)
