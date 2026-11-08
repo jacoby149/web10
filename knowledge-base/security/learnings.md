@@ -92,6 +92,20 @@ replays fail for both local/foreign revoke-all before the fix and pass afterward
 with targeted origin/client controls and namesake isolation. SQLite is an
 execution substitute, not ClickHouse merge/timestamp or complete lifecycle proof.
 
+### 2026-11-08: Replay fidelity and content-blindness are separate dials (D106)
+
+The operator's live inspection of the first recordings showed that stripping
+ALL attributes (for content safety) also stripped layout (for usability) —
+recordings rendered as unstyled gray boxes and failed at their job. The wire
+sanitizer must therefore be an attribute BLOCKLIST, not a blanket wipe:
+keep `class`/`style` (app-controlled static values) and inline the
+stylesheet/fonts; drop input values, alt/title/placeholder, media srcs, DOM
+ids (route/document identifiers), and every `data-*`/`aria-*` payload;
+template hrefs. Text masking and media blocking stay unchanged — content is
+still never in the recording. Pin the blocklist with a test that asserts both
+survival (class/style present) and absence (sentinel content absent), and
+re-verify with a real-SDK intercepted batch before shipping fidelity changes.
+
 ### 2026-11-08: Live P5 runs verified the admin gate and exposed vendor-side contract drift
 
 The first connected P5 run used the journey account's login token on

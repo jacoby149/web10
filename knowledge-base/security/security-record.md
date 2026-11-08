@@ -67,8 +67,11 @@ checks pass locally. Anonymous identities deliberately stay separate; public
 vendor ingest remains forgeable. Connected P5 acceptance ran live on dev and
 prod 08.11.2026 (5.0.5): journey-account 403 on the admin health seam verified
 the I5 floor in production; uuid-oracle agreement and live HogQL passed on both
-nodes. Phone/restart/quota drills, replay masking against real ingested
-sessions, independent review and L1–L4/rollout remain OPEN. Details and historical
+nodes. D106 (5.0.6, 08.11.2026): replay moved to layout-faithful/
+content-blind — attribute blocklist instead of blanket strip; pinned wire test
+and real-SDK class-survival/sentinel checks re-pass, live recording pending
+operator playback inspection. Phone/restart/quota drills, replay playback
+inspection, independent review and L1–L4/rollout remain OPEN. Details and historical
 4.15.0 scope follow in the linked scan; no production or independent-audit claim.
 
 GPT-6.1 Sol adds optional public project config and browser capture, not account
