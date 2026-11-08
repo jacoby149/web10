@@ -278,7 +278,8 @@ attachment for pinned delivery, regardless of carrier group. The
 same-group, visible alternate and revoked/removed/crossed-grant controls; synthetic
 carriers are persisted and independently checked by the actual full boundary.
 Seven approved-policy denials still deliver bodies/verified capabilities, while
-seven allowed cases remain. All 2,072 API tests plus eight subtests pass with
+seven allowed cases remain. All fourteen cases pass on both SQLite and isolated
+ClickHouse-local Memory tables. All 2,072 API tests plus eight subtests pass with
 one opt-in skip; full Ruff lint/format pass. Fresh same-family review independently
 passes all fourteen SQLite cases and three direct probes without a blocker.
 This confirms a group-curation bypass, not global

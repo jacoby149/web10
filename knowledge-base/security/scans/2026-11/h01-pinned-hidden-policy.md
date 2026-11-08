@@ -90,11 +90,13 @@ uv run ruff check .
 uv run ruff format --check .
 ```
 
-SQLite matrix: fourteen pass; fresh review is recorded below. Full API: **2,072
-passed plus eight subtests, one opt-in skip**, with 2,440 existing warnings.
+SQLite and isolated ClickHouse-local matrices: **fourteen pass on each**; the
+completed ClickHouse-local rerun takes 347.49 seconds. Fresh review is recorded
+below. Full API: **2,072 passed plus eight subtests, one opt-in skip**, with
+2,440 existing warnings.
 Full Ruff lint/format and whitespace checks pass. Local full-suite log:
-`.context/h01-pinned-hidden-policy-api.log`. ClickHouse-local results are recorded
-after completion. The initial combined ClickHouse matrix exceeded the
+`.context/h01-pinned-hidden-policy-api.log`; completed real-engine matrix log:
+`.context/h01-pinned-hidden-policy-clickhouse.log`. The initial combined ClickHouse matrix exceeded the
 120-second outer command timeout after eight successful cases. Restrict alternate
 group probes to cases that actually have alternate attachments, then rerun with
 no outer timeout; each child probe and container query retains its own timeout.
