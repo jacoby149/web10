@@ -512,6 +512,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
   // first paint (the inline media map is built synchronously in loadDiscover /
   // loadMore before this fires).
   const enrichBoard = useCallback((results: PostRecord[]) => {
+    const initialReactions = new Map(results.map((post) => [post._id, [post.likes || 0, post.dislikes || 0]]));
     const generation = faceGeneration.current;
     const reader = JSON.stringify(getWapi()?.readToken() || null);
     const pending = results.filter((post) => post.author_face_pending);
@@ -554,7 +555,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
             // engine's delivery metrics (the same object the dashboard reads).
             readViewCounts(results.map((p) => p._id || '').filter(Boolean), [discoverId]),
           ]);
-          if (getActingAuthor() !== actingIdentity) return;
+          if (generation !== faceGeneration.current || reader !== JSON.stringify(getWapi()?.readToken() || null) || getActingAuthor() !== actingIdentity) return;
           const likesByPost: Record<string, number> = {};
           const dislikesByPost: Record<string, number> = {};
           const commentsByPost: Record<string, number> = {};
@@ -608,10 +609,15 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
             if (myReposts.has(id) || legacyRepostedByPost[id]) repostedByPost[id] = true;
           }
           setRepostedMap((prev) => ({ ...prev, ...repostedByPost }));
-          // The tallies above mutated the post objects in place — bump the
-          // array so the `scoredPosts` memo (which spreads each post for the
-          // Top 10 rail's tally) recomputes with the real counts.
-          setPosts((prev) => prev.map((p) => ({ ...p })));
+          // Identity enrichment may already have replaced these objects.
+          const counts = new Map(results.map((post) => [post._id, post]));
+          setPosts((prev) => prev.map((post) => {
+            const current = counts.get(post._id);
+            const initial = initialReactions.get(post._id);
+            const changed = (post.likes || 0) !== initial?.[0] || (post.dislikes || 0) !== initial?.[1];
+            return current ? { ...post, likes: changed ? post.likes : current.likes, dislikes: changed ? post.dislikes : current.dislikes, reposts: current.reposts,
+              comments: current.comments, impressions: current.impressions, reach: current.reach } : post;
+          }));
           LOG(
             'engagement — counted',
             Object.values(likesByPost).reduce((a, b) => a + b, 0), 'reactions +',

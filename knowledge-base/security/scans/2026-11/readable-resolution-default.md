@@ -118,6 +118,22 @@ closure; those gates remain OPEN rather than being silently waived.
 
 ## Remaining gates — OPEN
 
+CI continuation (4.16.4): the trending browser received the five expected likes
+but showed zero after profile enrichment cloned the current posts before a later
+count mutation. A source-extracted controlled-order replay reproduces this race
+on parent eb4225db2 and unchanged dev887057a79; this is not a complete base e2e
+run. The repair merges only counts into current state and preserves newer local
+like/dislike changes, with generation/reader/acting guards. Correct held-count
+regressions fail before repair; the 70-test Discover file and build pass after.
+Fresh UI review reproduced the human-reaction overwrite in the initial patch;
+its own red control is retained and now passes. No authorization gate or seeded
+count is relaxed. This adjacent UI repair is included only to close the actual
+PR check; all CI must still pass, and it does not alter resolver parity evidence.
+Repair confirmation from fresh UI reviewer `ses_e451204ebffe32bk6fJfdlDBG9`
+passes all70 Discover tests with no remaining blocker. The final one-worker
+social suite passes all2,205 tests across143 files and production build passes;
+these local results are not a substitute for the connected CI gate.
+
 Real ReplacingMergeTree lifecycle, concurrent permission mutations and atomic
 snapshots are not certified (neither algorithm promises an atomic snapshot).
 Mixed/public small-set crossover, representative full-feed resource/load,

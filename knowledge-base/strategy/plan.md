@@ -37,6 +37,8 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
+- [✓ 4.16.4 local; CI gate pending] **Discover identity/count enrichment race** — merge background counts into current post objects without dropping settled identity or newer human reaction counts; generation/reader/acting fences retained. Controlled lost-count and human-swap regressions plus 70 Discover tests/build pass; desktop/375px board inspected. PR #1426 CI must pass; no deployment or check waiver.
+
 - [✓ 4.12.14 local] **Name the DMCA designated agent** - Terms names Jacob Hoffman alongside unchanged `jacob@web10.app`; no other Terms text or Post-It Note process changes. Focused regression aligned. Separate Copyright Office registration and production publication verification are not completed by this repo edit.
 - [✓ 4.12.13 local] **Correct copyright contact** - operator confirms the old inbox does not exist; Terms, Privacy and the social Report copyright dialog now use `jacob@web10.app`. D81/moderation guidance and exact-recipient regressions aligned; no deployment.
 - [✓ 4.12.12 local; legal review OPEN] **Server ads Terms clause + Privacy Policy** - hosted-only ad reservation, no post rights or numeric split, both sponsor contradictions reconciled and ownership section unchanged. `/docs/privacy`, For Users index and Home/Join/Freedom footer links; 304 marketing tests, typecheck/build and local desktop/375px Chromium checks pass. Claim trace and Jacob's unresolved legal details: `legal-pages.md`. No publication/deployment implied.

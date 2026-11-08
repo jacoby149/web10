@@ -1,5 +1,7 @@
 # Parallel Execution
 
+- [✓ 4.16.4 local; CI gate pending] **Discover identity/count enrichment race** (`marketing/web10-social/`) — repair the current-state count merge exposed by #1426's trending-browser gate; preserve settled profiles and newer human like/dislike counts with generation/reader/acting fences. Lost-count and human-swap red→green controls, 70 Discover tests/build and desktop/375px board inspection pass. No authorization changes, deployment or CI waiver.
+
 - [✓ 3.257.12 local] **Mobile acting-identity header spacing** (`marketing/web10-social/`) - retain mobile trigger border/background but reduce desktop padding; keep a 44px touch target, 8px horizontal padding and unchanged desktop styling/picker behavior. All 15 picker tests pass after operator clarification; build/typecheck passed before border restoration. Updated desktop/375px header inspection passes. Not deployed.
 
 - [✓ 3.257.7 local] **Identity picker resolved-picture repair** (`marketing/web10-social/`) - consume the shared resolver's `avatar_url` using FaceUrls; rendered-image regression reproduces the previous field mismatch. All 19 picker tests, production build/typecheck and seeded desktop/375px inspection pass. Resolver batches avatar and banner separately, not one HTTP request. No API/auth changes, deployment or live-account verification.
