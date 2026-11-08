@@ -57,8 +57,11 @@ and optional masked replay/heatmaps; removes legacy integrations by instruction.
 Freshness/local issuer/current-account/delegated-client denials, stale-reply
 fences, real ClickHouse lifecycle/ack floor and real SDK snapshot/heatmap sentinel
 checks pass locally. Anonymous identities deliberately stay separate; public
-vendor ingest remains forgeable. Full connected vendor/auth/phone/restart/quota/
-playback, independent review and L1–L4/rollout remain OPEN. Details and historical
+vendor ingest remains forgeable. Connected P5 acceptance ran live on dev and
+prod 08.11.2026 (5.0.5): journey-account 403 on the admin health seam verified
+the I5 floor in production; uuid-oracle agreement and live HogQL passed on both
+nodes. Phone/restart/quota drills, replay masking against real ingested
+sessions, independent review and L1–L4/rollout remain OPEN. Details and historical
 4.15.0 scope follow in the linked scan; no production or independent-audit claim.
 
 GPT-6.1 Sol adds optional public project config and browser capture, not account
