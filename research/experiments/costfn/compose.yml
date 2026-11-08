@@ -5,7 +5,7 @@ services:
       - clickhouse
       - minio
     ports:
-      - "127.0.0.1:6000:80"
+      - "127.0.0.1:${API_PORT:-6000}:80"
     environment:
       CLICKHOUSE_HOST: clickhouse
       CLICKHOUSE_PORT: "8123"

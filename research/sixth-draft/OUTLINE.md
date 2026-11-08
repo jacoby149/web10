@@ -1,10 +1,16 @@
 # Sixth draft — authorized composition, priced alternatives, bounded evidence
 
+**7 November:** replacement experiment is in setup/design review only; no run or
+new measured values. See `../experiments/costfn/STUDY.md` and `DESIGN-REVIEW.md`.
+Do not freeze or infer submission readiness from generated data, offline request
+capture or a proposed load matrix. Execution requires a new explicit approval.
+
 6 November 2026. Refinement of v5 (`8d7460d8`, PR #1409), not resynthesis.
 The initial exact-copy build matched v5's 14 pages and extracted text on
 all pages (`.context/sixth-draft/baseline.json`). All earlier drafts remain
-unchanged. **Task 4's operator-approved tier-max follow-up is in progress;
-final freeze and upload readiness are OPEN.**
+unchanged. **The tier-max follow-up was cancelled at 9/20 cells; replacement
+work separates frozen inputs, restoration and measurement. No complete new
+result is integrated; final freeze and upload readiness are OPEN.**
 
 ## The compression
 
@@ -81,7 +87,9 @@ font/underfull/BibTeX metadata diagnostics remain.
 
 Task 4's first provisioning attempt failed HTTP 422 for the restricted
 8-vCPU host. The operator then approved the largest listed four-vCPU host
-(12 GB), now running in atl1; no new results yet. Run the independent
+(12 GB), subsequently cancelled at 9/20 cells and deleted. Frozen synthetic
+inputs are generated/validated separately for the replacement experiment;
+no complete new trial is available. Run the independent
 repeat, keeping tier-limited configuration separate from shipped-default
 deployment evidence, then build the paired
 same-engine baseline with raw samples, warm-up exclusion and randomized

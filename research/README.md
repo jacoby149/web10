@@ -1,5 +1,12 @@
 # web10 - Research Paper Strategy
 
+> **7 November: experiment setup/design review only.** No provisioning, traffic,
+> new large generation, publication or submission. The
+> [study proposal](experiments/costfn/STUDY.md) and
+> [design review](experiments/costfn/DESIGN-REVIEW.md) identify the claim/workload,
+> corpus, comparator and instrumentation gaps before any run. The offline
+> source-captured core is not a completed load study or SIGMOD readiness proof.
+
 **Author:** Jacob Hoffman, web10 Inc.
 
 **Working manuscript (6 November 2026, not frozen):**
@@ -12,9 +19,12 @@ all five earlier manuscripts remain unchanged records. AT's custom path is
 priced in synchronization/database/serving work; Solid's crawl-or-index fork
 is distinct from a million-user capacity result. Genericity and experimental
 limits are explicit. The [new measurement record](experiments/costfn/SIXTH-DRAFT-RESULTS.md)
-records the initial DigitalOcean larger-instance account-tier restriction and
-the subsequent operator-approved 4-vCPU/12-GB tier-max follow-up, now provisioned
-with connected setup/run pending: no new measurements exist yet. Historical K1000 values are not an
+records the initial DigitalOcean larger-instance restriction and the subsequent
+tier-max follow-up, cancelled by the operator at 9/20 cells with partial receipts
+retained and cloud deletion verified. The replacement
+[frozen-dataset workflow](experiments/costfn/DATASET.md) has generated and all-row
+validated 1M authors plus 20k readers; this is preparation, not capacity evidence.
+No replacement cloud test is active. Historical K1000 values are not an
 independent repeat or matched causal baseline. Final freeze and submission
 readiness remain OPEN. Do not upload or finalize on CMT.
 Historical framing notes below do not override this working manuscript.

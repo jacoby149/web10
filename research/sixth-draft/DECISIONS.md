@@ -2,6 +2,15 @@
 
 ## Source, scope, and current status
 
+7 November operator update: setup and scientific design validation only, not
+execution. The new study/review under `research/experiments/costfn/` source-check
+the real core-feed request graph and find corpus/Discover/app-Origin, matched
+comparator, queue/correlation and telemetry/dedupe gaps. Current design remains
+not run-ready; no new study or measured manuscript values are produced. Keep
+the draft's narrower engine-placement wording: ClickHouse row policies exist,
+including in 24.3.18.7; the contribution is the platform/policy/query integration.
+The latest instruction supersedes the earlier execution approval.
+
 Source: fifth draft at `8d7460d81f8bba8c51d189a35ea7216118762f7e`
 (PR #1409), copied on 6 November 2026. This is a refinement, not a fresh
 resynthesis. Planned changes: price AT's custom-view extensibility in
@@ -107,7 +116,7 @@ Task 4 and are not available. **Not frozen; not upload-ready.**
 - `api/app/settings.py:135–139`: production/default mode remains per-group.
   No runtime changes are made or implied by this paper pass.
 
-### Task 4 and freeze — tier-max follow-up / OPEN
+### Task 4 and freeze — cancelled repeat, frozen inputs / OPEN
 
 The parent's new larger-host provisioning attempt failed HTTP 422: the
 `s-8vcpu-16gb` size is restricted at the current account tier in `sfo2`.
@@ -120,8 +129,14 @@ approved tier-limited follow-up, not a silent fallback or a purchased
 8-vCPU host. Its startup failed before seeding on a temporary ClickHouse
 server handoff; receipts were collected and droplet deletion verified.
 The bounded schema-template retry has offline refusal/exhaustion controls.
-A fresh same-size/region retry (616683895, `2026-11-06T20:32:58Z`) is in
-connected setup/build; **no new measurement exists yet**.
+A fresh same-size/region retry (616683895, `2026-11-06T20:32:58Z`) reached
+nine of twenty complete cells before the operator cancelled it. The 180 measured
+samples were retained separately, the droplet deleted and local driver stopped;
+**no completed new repeat is incorporated here**. Replacement work now freezes
+and all-row validates 1M authors plus 20k readers offline, then restores and
+measures through separate commands. Its small real-stack floor is functional
+evidence, not a new paper latency/capacity result. Review, large restore,
+full-feed load, MinIO publication and upgraded hardware remain separate gates.
 Exact hardware/run/cleanup receipts belong to
 `research/experiments/costfn/SIXTH-DRAFT-RESULTS.md`.
 Harness preparation does not constitute a repeat. The deployed-batched
