@@ -793,7 +793,7 @@ function FeedEmptyState() {
 }
 
 /** Foreign read results never call the home node's mutation/recovery helpers. */
-function ForeignFeedCard({ post }: { post: PostRecord }) {
+export function ForeignFeedCard({ post }: { post: PostRecord }) {
   const media = (post.media_refs || []).filter((ref): ref is ResolvedMediaRef => typeof ref === 'object' && ref !== null)
     .map(ref => fromResolvedMediaRef(ref)).filter(item => !!item.url);
   return <article data-testid="foreign-feed-card" className="overflow-hidden border-b border-border bg-card">

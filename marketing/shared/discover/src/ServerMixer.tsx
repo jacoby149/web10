@@ -9,30 +9,26 @@ function ChannelFader({ server, onChange, descriptionId, disabled }: {
   descriptionId: string;
   disabled?: boolean;
 }) {
-  const capId = useId();
   const x = 10 + server.weight * 2.6;
   return <div className="group/fader relative h-11 min-w-0 rounded-sm focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-surface">
     <svg viewBox="0 0 280 44" preserveAspectRatio="none" aria-hidden="true" className="pointer-events-none h-full w-full">
-      <defs>
-        <linearGradient id={capId} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="var(--color-border)" />
-          <stop offset="22%" stopColor="var(--color-muted-foreground)" />
-          <stop offset="48%" stopColor="var(--color-elevated)" />
-          <stop offset="78%" stopColor="var(--color-muted-foreground)" />
-          <stop offset="100%" stopColor="var(--color-surface)" />
-        </linearGradient>
-      </defs>
       {Array.from({ length: 21 }, (_, index) => <g key={index} className={index <= server.weight / 5 && server.weight > 0 ? 'stroke-brand-400/60' : 'stroke-border'}>
         <path d={`M ${10 + index * 13} ${index % 5 === 0 ? 7 : 10} V 13 M ${10 + index * 13} 31 V ${index % 5 === 0 ? 37 : 34}`} strokeWidth="1" />
       </g>)}
       <rect x="7" y="18" width="266" height="8" rx="3" className="fill-background stroke-border" />
       <path d="M 10 22 H 270" className="stroke-elevated" strokeWidth="2" />
       {server.weight > 0 && <path d={`M 10 22 H ${x}`} className="stroke-brand group-hover/fader:stroke-brand-400" strokeWidth="2" />}
-      <rect x={x - 7} y="9" width="14" height="28" rx="2" className="fill-background stroke-background" strokeWidth="2" />
-      <rect x={x - 6} y="8" width="12" height="26" rx="2" fill={`url(#${capId})`} className="stroke-muted-foreground/70" />
-      <path d={`M ${x - 4} 12 H ${x + 4} M ${x - 4} 30 H ${x + 4}`} className="stroke-foreground/20" />
-      <path d={`M ${x - 5} 21 H ${x + 5}`} className={server.weight ? 'stroke-brand-300' : 'stroke-muted-foreground'} strokeWidth="2" />
     </svg>
+    {/* The cap matches the rotary knobs: a matte, top-lit dark cap with a fine
+        border and a lit indicator — not chrome. It sits outside the stretched
+        SVG so it keeps its proportions at any rack width. */}
+    <span aria-hidden="true" style={{ left: `${(x / 280) * 100}%`,
+      background: 'linear-gradient(to bottom, var(--color-elevated), var(--color-surface) 55%, var(--color-background))' }}
+      className="pointer-events-none absolute top-[7px] flex h-[30px] w-4 -translate-x-1/2 flex-col items-center justify-between rounded-[3px] border border-border py-1 shadow-[0_1px_3px_rgb(0_0_0/0.6)]">
+      <span className="h-px w-2 bg-foreground/10" />
+      <span className={`h-0.5 w-2.5 rounded-full ${server.weight ? 'bg-brand-300' : 'bg-muted-foreground'}`} />
+      <span className="h-px w-2 bg-foreground/10" />
+    </span>
     <input type="range" min="0" max="100" step="1" value={server.weight} disabled={disabled}
       aria-label={`Fetch weight for ${new URL(server.origin).host}`}
       aria-describedby={descriptionId}

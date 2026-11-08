@@ -43,7 +43,16 @@ import DiscoverExploreTab from './DiscoverExploreTab';
 // full-width, touching vertically, compact muted engagement row). The
 // Discover board renders the SAME card as the Following tab, so the two
 // tabs look exactly the same (the operator, 30.09.2026).
-import { PostCard } from '@/components/Feed/FeedScreen';
+import { PostCard, ForeignFeedCard } from '@/components/Feed/FeedScreen';
+// The server mixer (server-mixer-component.md): the same Advanced chassis as
+// Following / Shorts / Music — one owner-private source catalog, separate
+// current-credential approval, real per-node quotas.
+import { FeedSourcesEditor } from '@/components/Feed/FeedSourcesEditor';
+import { useFeedSources } from '@/components/Feed/useFeedSources';
+import { createMixedFeedReader } from '@/data/mixedFeed';
+import { readFeedPage } from '@/data/feed';
+import { homeFeedOrigin } from '@/data/feedSources';
+import type { ServerAllocation } from '@/lib/serverMixer';
 import { useRepost } from '@/context/RepostContext';
 import { useComposer } from '@/context/ComposerContext';
 // The Video wall (the YouTube shape) keeps the shared HomeCard — one source,
@@ -54,6 +63,18 @@ const LOG = (...args: unknown[]) => console.log('[social:discover]', ...args);
 
 function withPendingFace(post: PostRecord): PostRecord {
   return { ...post, author_face_pending: !post.author_key?.includes('/groups/') && !post.avatar_url };
+}
+
+/** A row read from another node. Foreign rows never reach home-node
+ *  enrichment, reactions, reposts or profile routes — the same read-only
+ *  floor as the Following tab's ForeignFeedCard. */
+function isForeignPost(post: PostRecord): boolean {
+  return !!post.source_origin && post.source_origin !== homeFeedOrigin();
+}
+
+/** Board identity: a foreign row's document id can collide with a home row's. */
+function boardKey(post: PostRecord): string {
+  return (isForeignPost(post) ? post.source_key : post._id) || post.created_at || '';
 }
 
 // ── Knob state ↔ URL (the deep-linkable ranking, D36) ───────────────────────
@@ -383,14 +404,30 @@ function modeFromPath(pathname: string): DiscoverMode {
 }
 
 export default function DiscoverScreen({ mode: modeOverride }: { mode?: DiscoverMode }) {
-  const actingIdentity = useActingAuthor();
-  useEffect(() => { setLikedMap({}); setDislikedMap({}); setRepostedMap({}); }, [actingIdentity]);
   const { pathname } = useLocation();
+  const [searchParams] = useSearchParams();
   // The mode is normally derived from the route path (the path IS the mode).
   // An explicit `mode` override wins — the What's New screen embeds this board
   // at /feed (the Following/Hot Gossip tabs) where the path is /feed, not
   // /hot-gossip, so it passes mode="hot-gossip" directly.
   const mode = modeOverride ?? modeFromPath(pathname);
+  // People — the people + groups browser (the old `?tab=explore`). A
+  // directory, not a post board: it neither reads the board nor runs the post
+  // mixer. The sidebar owns the nav; the screen is the browser.
+  if (mode === 'people') {
+    return (
+      <div className="flex flex-col min-h-full bg-background">
+        <div className="w-full"><DiscoverExploreTab query={searchParams.get('q') || ''} /></div>
+      </div>
+    );
+  }
+  return <DiscoverBoard mode={mode} />;
+}
+
+function DiscoverBoard({ mode }: { mode: Exclude<DiscoverMode, 'people'> }) {
+  const actingIdentity = useActingAuthor();
+  useEffect(() => { setLikedMap({}); setDislikedMap({}); setRepostedMap({}); }, [actingIdentity]);
+  const { pathname } = useLocation();
   const [posts, setPosts] = useState<PostRecord[]>([]);
   const faceGeneration = useRef(0);
   useEffect(() => () => { faceGeneration.current++; }, [actingIdentity, pathname]);
@@ -455,6 +492,48 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
     return parseKnobParam(searchParams.get('knobs')) ?? defaultKnobState();
   }, [searchParams]);
   const activePreset = useMemo<PresetId | null>(() => presetIdForState(knobState), [knobState]);
+
+  // ── Server mixer (server-mixer-component.md) ──────────────────────────────
+  // The board shares the owner-private source catalog with Following, Shorts
+  // and Music. Home-only (the default, or before the catalog loads) keeps the
+  // board's own discover read — one server at any non-zero weight is the same
+  // page. Once an approved foreign server is active, the faders become real
+  // per-node quotas: every selected node gets the same Discover-group query
+  // under the current credential and the client round-robins the pages.
+  // All-zero pauses; an empty catalog pauses.
+  const sourceControl = useFeedSources();
+  const [sourceErrors, setSourceErrors] = useState<Record<string, string>>({});
+  const [sourceAllocations, setSourceAllocations] = useState<ServerAllocation[]>();
+  const [sourceRetry, retrySources] = useState(0);
+  const approvedSources = sourceControl.ready
+    ? sourceControl.sources.filter(row => sourceControl.approved.has(row.origin)) : [];
+  const activeOrigins = new Set(approvedSources.filter(row => row.weight > 0).map(row => row.origin));
+  const sourcesPaused = sourceControl.ready && activeOrigins.size === 0;
+  const mixing = sourceControl.ready && !!sourceControl.credential &&
+    [...activeOrigins].some(origin => origin !== sourceControl.home);
+  // The reader's identity: the destinations + weights, the credential scope,
+  // the acting identity, the ranking and the surface. Any change is a new
+  // owned paging session (a fader move restarts at page one).
+  const mixKey = mixing ? JSON.stringify([approvedSources, sourceControl.scope, actingIdentity,
+    encodeKnobState(knobState), mode, sourceRetry]) : '';
+  const mixKeyRef = useRef(mixKey);
+  mixKeyRef.current = mixKey;
+  const mixedReader = useMemo(() => {
+    if (!mixKey) return null;
+    return createMixedFeedReader({
+      sources: approvedSources, homeOrigin: sourceControl.home, credential: sourceControl.credential,
+      knobState, actingAuthor: actingIdentity || undefined, groupMode: 'discover',
+      isCurrent: () => mixKeyRef.current === mixKey && sourceControl.live() && getActingAuthor() === actingIdentity,
+      homeRead: options => readFeedPage({ ...options, groups: [getDiscoverGroupId()] }),
+    });
+  // The key encodes every captured input; the control object is transient.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mixKey]);
+  useEffect(() => {
+    setSourceErrors({});
+    setSourceAllocations(undefined);
+    return () => mixedReader?.dispose();
+  }, [mixedReader]);
 
   // Log the deep-link restore once on mount (the URL held the ranking).
   useEffect(() => {
@@ -521,6 +600,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
         if (generation !== faceGeneration.current || reader !== JSON.stringify(getWapi()?.readToken() || null)) return;
         const faces = new Map(resolved.map((post) => [post._id, post]));
         setPosts((previous) => previous.map((post) => {
+          if (isForeignPost(post)) return post;
           const face = faces.get(post._id);
           return face && face.author_key === post.author_key && face.author_username === post.author_username && face.author_provider === post.author_provider ? {
             ...post, profile: face.profile, avatar_url: face.avatar_url, author_face_pending: false,
@@ -612,6 +692,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
           // Identity enrichment may already have replaced these objects.
           const counts = new Map(results.map((post) => [post._id, post]));
           setPosts((prev) => prev.map((post) => {
+            if (isForeignPost(post)) return post;
             const current = counts.get(post._id);
             const initial = initialReactions.get(post._id);
             const changed = (post.likes || 0) !== initial?.[0] || (post.dislikes || 0) !== initial?.[1];
@@ -730,25 +811,44 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
       // capture — the on-surface "N views" is the reach over these). 'video'
       // for the video wall, 'discover' for the board (the /feed default +
       // hot-gossip).
-      const page = await readDiscoverFeed(sort, 50, undefined, 0, mode === 'video' ? 'video' : 'discover');
-      if (generation !== faceGeneration.current) return;
-      const results = page.map(withPendingFace);
+      // Every server paused (or an empty catalog): no reads, an explicit
+      // paused state — never a silent fallback to the home board.
+      if (sourcesPaused) {
+        setPosts([]);
+        setHasMore(false);
+        hasLoadedRef.current = true;
+        return;
+      }
+      let results: PostRecord[];
+      if (mixedReader) {
+        const page = await mixedReader.next();
+        if (generation !== faceGeneration.current) return;
+        setSourceErrors(page.errors);
+        setSourceAllocations(page.allocations);
+        results = (page.posts as PostRecord[]).map(post => isForeignPost(post) ? post : withPendingFace(post));
+        setHasMore(page.has_more);
+      } else {
+        const page = await readDiscoverFeed(sort, 50, undefined, 0, mode === 'video' ? 'video' : 'discover');
+        if (generation !== faceGeneration.current) return;
+        results = page.map(withPendingFace);
+        // The board page size (before the video-wall filter) — the paging
+        // signal. A full page (>= PAGE_SIZE) means there may be another.
+        nextOffsetRef.current = 50;
+        setHasMore(results.length >= 50);
+      }
       LOG('loadDiscover — got', results.length, 'posts');
-      // The board page size (before the video-wall filter) — the paging
-      // signal. A full page (>= PAGE_SIZE) means there may be another.
-      const more = results.length >= 50;
-      nextOffsetRef.current = 50;
       sortRef.current = sort;
-      setHasMore(more);
       // Paint content immediately. Unresolved personal identity uses skeletons,
       // never a guessed final name/avatar while its optional read is pending.
-      const inlineMap = inlineMediaMap(results);
+      const home = results.filter(post => !isForeignPost(post));
+      const inlineMap = inlineMediaMap(home);
       if (Object.keys(inlineMap).length) setMediaMap(inlineMap);
       setPosts(results);
       hasLoadedRef.current = true;
       setLoading(false);
-      // Enrich in the background (never blocks the first paint).
-      enrichBoard(results);
+      // Enrich in the background (never blocks the first paint). Home rows
+      // only — foreign rows are source-owned reads.
+      enrichBoard(home);
     } catch (e) {
       LOG('loadDiscover — failed:', e);
       // A failed re-read (a knob twist) keeps the previous grid on screen —
@@ -757,7 +857,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
     } finally {
       setLoading(false);
     }
-  }, [inlineMediaMap, enrichBoard]);
+  }, [inlineMediaMap, enrichBoard, mixedReader, sourcesPaused, mode]);
 
   // Infinite scroll: append the next board page (the sentinel's
   // IntersectionObserver fires this). A full page means there may be another;
@@ -770,28 +870,41 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
     setLoadingMore(true);
     try {
       const generation = faceGeneration.current;
-      const page = await readDiscoverFeed(sortRef.current, 50, undefined, nextOffsetRef.current);
-      if (generation !== faceGeneration.current) return;
-      const results = page.map(withPendingFace);
+      let results: PostRecord[];
+      if (mixedReader) {
+        const page = await mixedReader.next();
+        if (generation !== faceGeneration.current) return;
+        setSourceErrors(page.errors);
+        setSourceAllocations(page.allocations);
+        results = (page.posts as PostRecord[]).map(post => isForeignPost(post) ? post : withPendingFace(post));
+        setHasMore(page.has_more);
+      } else {
+        // The surface label rides every page (D86 delivery capture), not
+        // just page one.
+        const page = await readDiscoverFeed(sortRef.current, 50, undefined, nextOffsetRef.current, mode === 'video' ? 'video' : 'discover');
+        if (generation !== faceGeneration.current) return;
+        results = page.map(withPendingFace);
+        // Advance by the BOARD page size (not the filtered count) — the video
+        // wall filters to video posts, so advancing by page.length would re-read
+        // posts. A full board page (hasMore true) is exactly PAGE_SIZE.
+        nextOffsetRef.current += 50;
+        setHasMore(results.length >= 50);
+      }
       LOG('loadMore — got', results.length, 'more posts');
-      // Advance by the BOARD page size (not the filtered count) — the video
-      // wall filters to video posts, so advancing by page.length would re-read
-      // posts. A full board page (hasMore true) is exactly PAGE_SIZE.
-      nextOffsetRef.current += 50;
-      setHasMore(results.length >= 50);
-      const inlineMap = inlineMediaMap(results);
+      const home = results.filter(post => !isForeignPost(post));
+      const inlineMap = inlineMediaMap(home);
       if (Object.keys(inlineMap).length) setMediaMap((prev) => ({ ...prev, ...inlineMap }));
       setPosts((prev) => {
-        const seen = new Set(prev.map((p) => p._id).filter(Boolean));
-        return [...prev, ...results.filter((p) => !p._id || !seen.has(p._id))];
+        const seen = new Set(prev.map(boardKey).filter(Boolean));
+        return [...prev, ...results.filter((p) => !boardKey(p) || !seen.has(boardKey(p)))];
       });
-      enrichBoard(results);
+      enrichBoard(home);
     } catch (e) {
       console.error('[social:discover] loadMore failed:', e);
     } finally {
       setLoadingMore(false);
     }
-  }, [loadingMore, hasMore, inlineMediaMap, enrichBoard]);
+  }, [loadingMore, hasMore, inlineMediaMap, enrichBoard, mixedReader, mode]);
 
   // Infinite scroll: a sentinel at the bottom of the board triggers loadMore
   // when it scrolls into view (rootMargin prefetches a page early). Only
@@ -871,7 +984,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
     setDislikedMap((prev) => ({ ...prev, [postId]: nextDisliked }));
     setPosts((prev) =>
       prev.map((p) =>
-        p._id === postId
+        p._id === postId && !isForeignPost(p)
           ? { ...p, likes: Math.max(0, (p.likes || 0) + likeDelta), dislikes: Math.max(0, (p.dislikes || 0) + dislikeDelta) }
           : p,
       ),
@@ -885,7 +998,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
       setDislikedMap((prev) => ({ ...prev, [postId]: wasDisliked }));
       setPosts((prev) =>
         prev.map((p) =>
-          p._id === postId
+          p._id === postId && !isForeignPost(p)
             ? { ...p, likes: Math.max(0, (p.likes || 0) - likeDelta), dislikes: Math.max(0, (p.dislikes || 0) - dislikeDelta) }
             : p,
         ),
@@ -941,12 +1054,14 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
   // The per-post power-mean score is computed for the watch queue's relatedness
   // boost only; the Top 10 rail's tally is the raw engagement count
   // (likes + comments + reposts), not the normalized score.
+  const activeKey = sourceControl.ready ? [...activeOrigins].sort().join(' ') : null;
   const scoredPosts = useMemo(() => {
-    return posts.map(p => ({
+    const active = activeKey === null ? null : new Set(activeKey.split(' '));
+    return posts.filter(p => !active || active.has(p.source_origin || sourceControl.home)).map(p => ({
       ...p,
       score: scorePost(postToSignals(p), { ...knobState, character: FIXED_CHARACTER_DETEENT }),
     }));
-  }, [posts, knobState]);
+  }, [posts, knobState, activeKey, sourceControl.home]);
 
   const topics = useMemo(
     () => ['All', ...buildTopics(scoredPosts.flatMap(p => p.tags ?? []))],
@@ -984,11 +1099,6 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
   return (
     <div className="flex flex-col min-h-full bg-background">
       <div className="w-full">
-      {mode === 'people' ? (
-        /* People — the people + groups browser (the old `?tab=explore`). The
-           sidebar owns the nav; the screen is the browser. */
-        <DiscoverExploreTab query={urlQuery} />
-      ) : (
         <>
           {/* The active ?q= filter (from the top bar's search) — the same
               chip the People tab shows, so the search can be X'd from either
@@ -1027,7 +1137,23 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
               activePreset={activePreset}
               onChange={handleKnobChange}
               onPreset={handlePreset}
-            />
+              expanded={searchParams.get('tune') === '1' || searchParams.get('editServers') === '1'}
+              onExpandedChange={expanded => setSearchParams(previous => {
+                const params = new URLSearchParams(previous);
+                if (expanded) params.set('tune', '1');
+                else { params.delete('tune'); params.delete('editServers'); params.delete('removeServer'); params.delete('approveServer'); }
+                return params;
+              })}
+            >
+              <FeedSourcesEditor key={sourceControl.scope} control={sourceControl}
+                allocations={mixing ? sourceAllocations : undefined} errors={sourceErrors}
+                onRetry={() => retrySources(n => n + 1)} />
+            </KnobRack>
+            {mixing && Object.keys(sourceErrors).length > 0 && (
+              <p role="status" data-testid="discover-source-errors" className="mt-2 text-xs text-muted-foreground">
+                Some servers could not be read. Open Advanced → Edit servers to retry; available results remain.
+              </p>
+            )}
           </div>
 
           {/* Topic filter chips */}
@@ -1079,7 +1205,12 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
                 "no padding at all on the sides" — a gutter, not full-bleed);
                 mobile stays full-bleed. */}
           <div className="flex-1 py-4 md:px-4 lg:px-6">
-            {isInitialLoad ? (
+            {sourcesPaused ? (
+              <div data-testid="discover-sources-paused" className="mx-auto w-full max-w-2xl px-4 py-16 text-center">
+                <p className="text-foreground">{sourceControl.sources.length ? 'All servers are paused' : 'No servers selected'}</p>
+                <p className="mt-2 text-sm text-muted-foreground">Raise a fader in Advanced to read from a server again. Your follows are unchanged.</p>
+              </div>
+            ) : isInitialLoad ? (
               <div className="mx-auto w-full max-w-2xl" data-testid="discover-grid-skeleton">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <DiscoverSkeleton key={i} />
@@ -1090,6 +1221,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
               mediaPosts.length > 0 ? (
                 <div className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3" data-testid="discover-home-grid">
                   {mediaPosts.map((post, index) => {
+                    if (isForeignPost(post)) return <ForeignFeedCard key={boardKey(post)} post={post} />;
                     const profile = post.profile;
                     const mediaItems = mediaMap[post._id || ''] || [];
                     const authorName = post.group_identity?.name || profile?.display_name || (post.author_username || '').replace(/[-_]/g, ' ');
@@ -1131,6 +1263,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
                 <div className="min-w-0 flex-1">
                   <div className="mx-auto w-full max-w-2xl" data-testid="discover-grid">
                     {visiblePosts.flatMap((post) => {
+                      if (isForeignPost(post)) return [<ForeignFeedCard key={boardKey(post)} post={post} />];
                       const profile = post.profile;
                       const mediaItems = mediaMap[post._id || ''] || [];
                       const authorName = post.group_identity?.name || profile?.display_name || (post.author_username || '').replace(/[-_]/g, ' ');
@@ -1206,6 +1339,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
                 {urlQuery.trim() === '' && (
                   <HotGossipSidebar
                     entries={scoredPosts
+                      .filter(p => !isForeignPost(p))
                       .filter(p => activeTag === 'All' || (p.tags?.includes(activeTag) ?? false))
                       .slice(0, 10)
                       .map((p, i) => ({ post: p, rank: i + 1, score: (p.likes || 0) + (p.comments || 0) + (p.reposts || 0) }))}
@@ -1221,7 +1355,7 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
           {/* Infinite scroll sentinel — triggers loadMore when it scrolls into
               view (the Shorts wall's pattern). Only present when the board is
               unfiltered (no active ?q=) and there's another page to load. */}
-          {!queryActive && hasMore && (
+          {!queryActive && hasMore && !sourcesPaused && (
             <div
               ref={sentinelRef}
               data-testid="discover-board-sentinel"
@@ -1236,7 +1370,6 @@ export default function DiscoverScreen({ mode: modeOverride }: { mode?: Discover
             </div>
           )}
         </>
-      )}
       </div>
     </div>
   );
