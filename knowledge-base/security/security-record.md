@@ -276,7 +276,11 @@ Local [hide repair](scans/2026-11/repair-h01-pinned-hidden.md) at
 document/group pairs inside the qualifying member/attachment query, with ranked
 hide history and unhide-winning timestamp ties. Eleven independently verified
 synthetic signing deliveries reproduce red and now deny before signing; all 22
-SQLite controls and 47 retained membership/attachment/node cases pass. Visible
+SQLite controls and 47 retained membership/attachment/node cases pass. All 22
+ClickHouse-local cases verify across the initial twenty passes and unchanged
+targeted retries, not one clean matrix run; two initial 60-second timeouts and
+one retry timeout are retained in the receipt. The last case passes in 37.07
+seconds under the original bounds, with no query/test/timeout relaxation. Visible
 alternatives, unrelated tombstones, same/cross-group carriers, independent
 uploaders and non-posts selection remain. All 2,080 API tests plus eight subtests
 pass with one opt-in skip; full Ruff lint/format pass. Fresh same-family review

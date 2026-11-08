@@ -56,8 +56,23 @@ uv run ruff format --check .
 SQLite: **22 pass**, eleven denied before signing, eleven permitted. All 47
 retained membership/attachment/node cases pass. Full API Ruff lint/format pass.
 Full API: **2,080 passed plus eight subtests, one opt-in skip**, with 2,440 existing
-warnings (433.31 seconds). ClickHouse-local results are recorded when complete;
-no uncompleted run is counted as passing. Logs live under
+warnings (433.31 seconds). Initial ClickHouse-local matrix: **20 passed, two
+failed by 60-second outer probe timeout** (736.89 seconds), specifically
+`same-group-hidden-group-uploader` and `alternate-revoked`. Neither failure reaches
+a SQL/policy/signing assertion. The unchanged two-case retry passes the uploader
+case but again times out on `alternate-revoked` (one pass/one timeout, 94.82 seconds).
+A diagnostic timing wrapper then completes the latter's actual SQL/HTTP/denial
+path in 45.07 seconds: eleven disposable container launches, each 1.97–5.67
+seconds, returning no ad and zero signer calls. It bypasses the pytest envelope,
+so is diagnostic only, not a gate pass. A fresh unchanged pytest invocation of
+the remaining case retains the original 60-second probe/30-second query bounds
+and **passes in 37.07 seconds**. Thus all 22 real-engine cases are verified across
+the initial twenty passes and targeted retries, **not one clean 22-case run**.
+No timeout increase, skipped assertion or runtime change is used. Keep the failed
+runs as failed diagnostics. Retry/timing receipts are
+`.context/h01-pinned-hidden-repair-clickhouse-retry.log`,
+`.context/h01-pinned-hidden-repair-clickhouse-revoked-retry.log` and
+`.context/h01-pinned-hidden-repair-timing.log`. Primary logs live under
 `.context/h01-pinned-hidden-repair-{red,api,clickhouse}.log` locally.
 
 ## Fresh Review And Design-Intent Gate
