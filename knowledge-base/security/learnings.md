@@ -35,6 +35,22 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-07: Pinned-hide authority must come from one visible, readable attachment
+
+After #1416, the operator selected **Honor group hides**: a hidden attachment
+cannot authorize pinned delivery, while another current readable unhidden
+attachment can. The [policy/evidence follow-up](scans/2026-11/h01-pinned-hidden-policy.md)
+records the same/cross-group rule and extends the fixture to fourteen cases.
+Seven policy-denied cases still deliver/sign through the unchanged loader;
+seven permitted cases preserve unhide, unrelated hides and visible alternatives.
+Revoked/removed alternate authority and crossed grants do not make a hidden-only
+creative visible. Membership and attachment must correlate to the same eligible
+group; a global hide veto would wrongly remove legitimate alternative access.
+This settles the earlier policy block, not the runtime finding. Classification
+is a pinned-ad group-curation bypass, not proof of globally private data or a
+direct-by-ID restriction. Carrier/contract doubles and reduced snapshots remain
+bounded evidence; separate repair, real lifecycle/connected/diverse/L1 gates OPEN.
+
 ### 2026-11-07: Current membership and attachment do not establish creative visibility
 
 The [pinned-hidden evidence](scans/2026-11/h01-pinned-hidden-proof.md) executes
