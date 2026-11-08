@@ -56,5 +56,18 @@ export async function startPreviewFixture(handler) {
         }).on('error', reject)
       })
     },
+    /** A raw request (method + headers) — the CORS preflight and the
+     *  cross-origin GETs need headers the bare `get` can't set.
+     *  @returns {Promise<{status: number, headers: any}>} */
+    request(method, path, headers = {}) {
+      return new Promise((resolve, reject) => {
+        const req = http.request({ hostname: '127.0.0.1', port, path, method, headers }, res => {
+          res.resume()
+          res.on('end', () => resolve({ status: res.statusCode, headers: res.headers }))
+        })
+        req.on('error', reject)
+        req.end()
+      })
+    },
   }
 }

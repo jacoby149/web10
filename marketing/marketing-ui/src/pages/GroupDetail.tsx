@@ -235,7 +235,15 @@ function GroupDetail() {
                       <span className="ml-auto text-xs text-muted-foreground">{formatDate(p.created_at)}</span>
                     </div>
                     {p.body?.text ? (
-                      <p className="mt-2 text-sm leading-relaxed text-foreground"><MarkdownText text={p.body.text} /></p>
+                      <p className="mt-2 text-sm leading-relaxed text-foreground">
+                        <MarkdownText
+                          text={p.body.text}
+                          // Link unfurling (D99 + D100): a pasted link renders
+                          // the provider's player / the rich preview card — the
+                          // group's posts get the same treatment as the board.
+                          unfurlEndpoint={`${SOCIAL_ORIGIN}/preview/unfurl`}
+                        />
+                      </p>
                     ) : (
                       <p className="mt-2 text-sm italic text-muted-foreground">(media post)</p>
                     )}

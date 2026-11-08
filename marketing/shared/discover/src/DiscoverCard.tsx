@@ -8,6 +8,7 @@ import { MediaCarousel } from './MediaCarousel';
 import { AudioPlayer, audioArtwork } from './AudioPlayer';
 import { PostActions, type ReactionKind } from './PostActions';
 import { MarkdownText } from './MarkdownText';
+import { containsExternalLink } from './linkEmbeds';
 import type { DiscoverPost, MediaItem, ReadComments, ReadReplies, CreateComment, DiscoverAd, RepostOriginal, ReadRepostOriginal } from './types';
 
 // The card's time-ago line — the social feed's `formatTimeAgo` (now / 42m / 3h /
@@ -335,6 +336,20 @@ export interface DiscoverCardProps {
    * unchanged). Applies to a single video AND a single portrait photo.
    */
   mediaMaxHeight?: string;
+  /**
+   * The link-unfurl endpoint (`<origin>/preview/unfurl`, D99 + the marketing
+   * second consumer). When set AND the caption carries an external link, the
+   * link renders RICH in the caption — the deterministic YouTube / Vimeo
+   * player (no round-trip) or the server-fetched unfurl (the provider's
+   * oEmbed player or the Open Graph card; every failure degrades to the
+   * plain link). A caption with an external link loses its whole-text
+   * link-out wrapper (the card / player must never nest inside an `<a>`);
+   * the post's link-out moves to the TITLE (→ `postHref`). A caption
+   * without one keeps today's wrapper, exactly as before. Absent (default,
+   * and the teaser surfaces: the repost quote, the repost embed, comments)
+   * → the plain link, the D99 density rule.
+   */
+  unfurlEndpoint?: string;
 }
 
 export function DiscoverCard({
@@ -364,6 +379,7 @@ export function DiscoverCard({
   className,
   testId = 'discover-card',
   mediaMaxHeight,
+  unfurlEndpoint,
 }: DiscoverCardProps) {
   const derivedName = (post.author_username || post.author).replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   const displayName = post.display_name || derivedName;
@@ -381,6 +397,16 @@ export function DiscoverCard({
   // The author + post are click-throughs in remote mode (open web10 social);
   // in interactive mode the surface wires onAuthorClick (in-app navigation).
   const authorIsLink = remote && !!authorHref;
+
+  // The rich caption (unfurl, D99 + the marketing second consumer): set when
+  // the surface passes an unfurl endpoint AND the caption carries an external
+  // link. The link then renders RICH in the caption (the deterministic
+  // YouTube / Vimeo player or the server-fetched card), and the caption's
+  // whole-text link-out wrapper moves OFF (an unfurl card / player must never
+  // nest inside an `<a>` — interactive content in interactive content is
+  // invalid HTML). The post's link-out moves to the title instead. A caption
+  // without an external link keeps today's wrapper, exactly as before.
+  const richCaption = !!unfurlEndpoint && !!post.text && !post.repost_of && containsExternalLink(post.text);
 
   // The media's portrait cap: a single video or a single portrait photo is
   // capped to a square-ish frame (centered in a black letterbox) when the
@@ -523,16 +549,33 @@ export function DiscoverCard({
 
       {/* Title + caption (D82) — the feed's PostCard order (title heading, then
           caption). A repost's caption is the quote (shown above the embed).
-          Remote mode: the caption is a link-out to the post on web10 social. */}
+          Remote mode: the caption is a link-out to the post on web10 social —
+          UNLESS the rich caption (unfurl, above): the external links render
+          in place and the link-out wrapper moves to the title. */}
       {(post.title || (post.text && !post.repost_of)) && (
         <div className="px-4 pt-3">
           {post.title && (
             <h3 className="mb-1 text-base font-semibold leading-snug text-foreground" data-testid="discover-card-title">
-              {post.title}
+              {richCaption && postHref ? (
+                <a
+                  href={postHref}
+                  target="_blank"
+                  rel="noopener"
+                  className="transition-colors duration-150 hover:text-brand-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                >
+                  {post.title}
+                </a>
+              ) : (
+                post.title
+              )}
             </h3>
           )}
           {post.text && !post.repost_of ? (
-            postHref ? (
+            richCaption ? (
+              <p className="text-sm leading-relaxed text-foreground">
+                <MarkdownText text={post.text} unfurlEndpoint={unfurlEndpoint} />
+              </p>
+            ) : postHref ? (
               <a
                 href={postHref}
                 target="_blank"
