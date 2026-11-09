@@ -208,6 +208,48 @@ describe('CommentThread — paged threaded replies (comments.md, the Facebook mo
     expect(vi.mocked(createThreadComment).mock.calls[0][0].parentId).toBeUndefined();
   });
 
+  it('a fresh own comment shows Edit/Delete immediately (the optimistic insert carries the seam\'s affordances, no refetch)', async () => {
+    const { createThreadComment } = await import('@/data');
+    // The social seam resolves isOwn/canEdit/canDelete against the created
+    // doc's own author — the shared thread inserts the node optimistically
+    // and never re-reads the page, so absent affordances = read-only until
+    // a refetch (the operator's videos-tab report).
+    vi.mocked(createThreadComment).mockResolvedValueOnce({
+      _id: 'c10',
+      text: 'mine',
+      author_username: 'me',
+      created_at: '2026-01-01T11:00:00Z',
+      isOwn: true,
+      canEdit: true,
+      canDelete: true,
+    } as never);
+    await renderThread();
+    fireEvent.change(screen.getByTestId('comment-input'), { target: { value: 'mine' } });
+    fireEvent.click(screen.getByTestId('comment-send'));
+    await waitFor(() => expect(screen.getByTestId('comment-c10')).toBeInTheDocument());
+    expect(screen.getByTestId('comment-edit-c10')).toBeInTheDocument();
+    expect(screen.getByTestId('comment-delete-c10')).toBeInTheDocument();
+  });
+
+  it('a fresh comment without affordances stays read-only (no dead Edit/Delete tap targets)', async () => {
+    const { createThreadComment } = await import('@/data');
+    vi.mocked(createThreadComment).mockResolvedValueOnce({
+      _id: 'c11',
+      text: 'not mine',
+      author_username: 'bob',
+      created_at: '2026-01-01T12:00:00Z',
+      isOwn: false,
+      canEdit: false,
+      canDelete: false,
+    } as never);
+    await renderThread();
+    fireEvent.change(screen.getByTestId('comment-input'), { target: { value: 'not mine' } });
+    fireEvent.click(screen.getByTestId('comment-send'));
+    await waitFor(() => expect(screen.getByTestId('comment-c11')).toBeInTheDocument());
+    expect(screen.queryByTestId('comment-edit-c11')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('comment-delete-c11')).not.toBeInTheDocument();
+  });
+
   it('remote mode (shared thread, no writer): compose is a link-out, the like is display-only', async () => {
     const { CommentThread: SharedThread } = await import('@web10/discover');
     render(

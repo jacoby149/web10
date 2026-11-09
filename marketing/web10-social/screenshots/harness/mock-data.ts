@@ -310,7 +310,7 @@ export async function readMyAds(): Promise<{ ads: unknown[]; albums: unknown[] }
  // ("view more replies"), and writes top-level comments or replies (parentId).
  // Seed a small threaded conversation so the screenshot shows the thread shape.
  export async function readThreadComments(postId?: string): Promise<unknown> {
-    if (postId === 'fp-0' || postId === 'fp-1' || postId === 'pp-1' || new URLSearchParams(window.location.search).has('people-tags')) {
+    if (postId === 'fp-0' || postId === 'fp-1' || postId === 'pp-1' || postId === 'dp-1' || new URLSearchParams(window.location.search).has('people-tags')) {
      return {
        comments: [
           { _id: 'tc-1', post_id: postId, text: new URLSearchParams(window.location.search).has('people-tags') ? 'You should join us, @nova. Bring @kai too.' : 'This is a great post!', author_username: 'alice', created_at: '2026-01-01T00:00:00Z', likeCount: 3, likedByMe: false },

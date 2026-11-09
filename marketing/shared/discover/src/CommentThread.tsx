@@ -280,6 +280,10 @@ export function CommentThread({
   const groupsKey = useMemo(() => (groups ? groups.join('\u0000') : ''), [groups]);
   useEffect(() => { hasScrolled.current = false; commentRefs.current = {}; }, [postId, groupsKey, highlightedCommentId]);
   const engagementGeneration = useRef(0);
+  /** The initial read settled with a real tree (success path only) — the
+   *  count report is gated on it so a FAILED load (empty tree, comments
+   *  still exist) never overwrites the parent's decoupled total with 0. */
+  const settled = useRef(false);
   useEffect(() => {
     setLoadingMore(false);
     return () => { engagementGeneration.current++; };
@@ -290,6 +294,7 @@ export function CommentThread({
   useEffect(() => {
     if (!isOpen) return;
     let cancelled = false;
+    settled.current = false;
     setLoading(true);
     readComments(postId, groups)
       .then(async (page) => {
@@ -320,9 +325,16 @@ export function CommentThread({
           }
         }
         if (cancelled) return;
-        setTopLevel(nodes);
+        // Merge, don't replace: a comment sent while this load was in flight
+        // is already in the tree (the optimistic insert) — a blind
+        // `setTopLevel(nodes)` would clobber it (the load's server page
+        // predates the write, so it never contains it). `mergeCommentNodes`
+        // dedupes on `_id`, so a server page that DOES contain the comment
+        // (a slow read issued after the write) lands once, with its read-path
+        // enrichment.
+        setTopLevel((prev) => mergeCommentNodes(prev, nodes));
         setTopCursor(page.nextCursor);
-        onCountChange(countTree(nodes));
+        settled.current = true;
       })
       .catch((e) => console.error('[discover:comments] failed to load:', e))
       .finally(() => {
@@ -337,6 +349,20 @@ export function CommentThread({
     // load (stable primitives, never fresh objects).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, postId, groupsKey, actionIdentity, highlightedCommentId]);
+
+  // Report the live tree's count to the parent — from an effect, never from
+  // INSIDE a `setTopLevel` functional updater: an updater must stay pure, and
+  // the in-updater `onCountChange` was a parent setState during this
+  // component's render (the React "cannot update a component while rendering"
+  // error, fired on the send path). Gated on the initial read having settled
+  // (success path — a FAILED load must not overwrite the parent's decoupled
+  // total with the empty tree's 0). Fires on every tree change after the load
+  // settles (send, delete, view-more pages) and is idempotent for the parent
+  // (an unchanged count bails out of its setState).
+  useEffect(() => {
+    if (loading || !settled.current) return;
+    onCountChange(countTree(topLevel));
+  }, [topLevel, loading, onCountChange, countTree]);
 
   // Scroll to + flash the anchored comment once comments are loaded
   useEffect(() => {
@@ -447,10 +473,6 @@ export function CommentThread({
     setTopLevel((list) => removeNode(list, id));
     try {
       await onDeleteComment(id);
-      setTopLevel((list) => {
-        onCountChange(countTree(list));
-        return list;
-      });
     } catch (e) {
       console.error('[discover:comments] delete failed, rolling back:', e);
       setTopLevel((list) => insertNode(list, prev, prev.parent_id));
@@ -475,11 +497,7 @@ export function CommentThread({
         nodes = page.comments.map(toNode);
       }
       if (generation !== engagementGeneration.current) return;
-      setTopLevel((prev) => {
-        const next = mergeCommentNodes(prev, nodes);
-        onCountChange(countTree(next));
-        return next;
-      });
+      setTopLevel((prev) => mergeCommentNodes(prev, nodes));
       setTopCursor(page.nextCursor);
     } catch (e) {
       if (generation !== engagementGeneration.current) return;
@@ -500,8 +518,8 @@ export function CommentThread({
       const page = await readReplies(parentId, groups, { cursor: parent.replyCursor });
       if (generation !== engagementGeneration.current) return;
       const nodes = page.comments.map(toNode);
-      setTopLevel((prev) => {
-        const next = prev.map((n) =>
+      setTopLevel((prev) =>
+        prev.map((n) =>
           n._id === parentId
             ? {
                 ...n,
@@ -510,10 +528,8 @@ export function CommentThread({
                 hasMoreReplies: page.nextCursor !== null,
               }
             : n,
-        );
-        onCountChange(countTree(next));
-        return next;
-      });
+        ),
+      );
     } catch (e) {
       if (generation !== engagementGeneration.current) return;
       console.error('[discover:comments] failed to load replies:', e);
@@ -594,7 +610,6 @@ export function CommentThread({
           } else {
             next = [...prev, node];
           }
-          onCountChange(countTree(next));
           return next;
         });
         clearAttached();
