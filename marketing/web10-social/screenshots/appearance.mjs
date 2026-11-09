@@ -51,6 +51,15 @@ try {
     page.on('pageerror', error => { errors.push(error.message); console.error('[appearance] page error:', error.message); });
     await page.goto(`${base}?screen=settings`, { waitUntil: 'networkidle' });
     await page.getByTestId('appearance-settings').waitFor();
+    // PR #1458: the two independent live regions must coexist. Replay the
+    // actual settings UI with isolated writes, retaining the exact Saved gate.
+    await page.getByTestId('settings-visibility-private').click();
+    const saved = page.getByRole('status').filter({ hasText: /^Saved\.$/ });
+    await saved.waitFor();
+    assert.equal(await saved.textContent(), 'Saved.');
+    assert.equal(await page.getByTestId('appearance-settings').getByRole('status').isVisible(), true);
+    assert.ok(await page.getByRole('status').count() > 1);
+    console.log('[appearance] independent theme/save live regions verified', width);
     await theme(page, 'light');
     await page.emulateMedia({ colorScheme: 'dark' });
     await theme(page, 'dark');

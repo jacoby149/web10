@@ -37,6 +37,8 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
+- [✓ 5.13.3 local] **Settings live-region gauntlet repair** — scope the exact “Saved.” status after Appearance adds an independent live region; retain both accessible statuses and all original timeout/persistence/re-login assertions. Actual Settings UI browser replay at desktop/375px passes; the real connected CI journey remains the release gate, with no runtime UI or auth behavior change.
+
 - [✓ 5.13.1 local] **Name the social entry CTA** — operator requests “Go to web10 social” instead of “Enter web10”; Home and Freedom labels aligned, configured destination unchanged, exact-label/href regressions and desktop/375px light/dark browser captures pass.
 
 - [✓ 5.13.0 local] **Marketing appearance and theme-aware brand artwork (D108 follow-up)** — device-default System / Light / Dark, remembered origin-local overrides, live OS/tabs and blocking startup/native/browser behavior. Shared pure store, public marketing Appearance route and transparent white/dark artwork pairs replace black-backed social keys/white-only marketing lockups. All 360 marketing/2,349 social tests and both builds pass; desktop/375px navigation/keyboard/theme/logo captures, exact decoded alpha/size, AA and 768/1280 controls pass. No authenticator/API/SDK, cross-origin/account synchronization or deployment; normal review/CI/rollout and phone/Safari remain separate.

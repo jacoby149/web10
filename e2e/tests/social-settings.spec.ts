@@ -260,8 +260,11 @@ test.describe('Social settings gauntlet — real flow + log sequence', () => {
     await expect(page.locator('[data-testid="settings-visibility-private"]')).not.toHaveClass(/bg-brand-muted/);
 
     // --- Change the setting ---
+    await expect(page.getByTestId('appearance-settings').getByRole('status')).toBeVisible();
     await page.locator('[data-testid="settings-visibility-private"]').click();
-    await expect(page.getByRole('status')).toHaveText('Saved.', { timeout: 20000 });
+    // Appearance has its own live status; require the exact save confirmation
+    // rather than assuming the entire Settings page has only one live region.
+    await expect(page.getByRole('status').filter({ hasText: /^Saved\.$/ })).toHaveText('Saved.', { timeout: 20000 });
     await expect(page.locator('[data-testid="settings-visibility-private"]')).toHaveClass(/bg-brand-muted/);
 
     // Node-level check: the doc exists with the new value.
