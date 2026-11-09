@@ -253,6 +253,51 @@ into canonical reads; indexing values but then repeating the same broad history
 windows is not acceptance. No schema/indexer/planner migration or new host run is
 authorized here; IX-DATE remains the first storage investigation.
 
+## Storage direction after the date-projection experiment (09.11.2026 — D109)
+
+State: IX-DATE's first storage investigation ran on a disposable
+ClickHouse 24.8 against the frozen 1M-author derivative and a new
+5%-recent K=1,000 workload, on branch `jacoby149/hello-chat-v3` (PR 1464).
+The operator deemed that PR failed as a merge vehicle (09.11.2026); the
+receipts remain on the branch and are cited with that provenance, not as
+merged evidence. What it measured:
+
+- **Old-heavy clustered:** ~70× physical-read reduction with a
+  time-ordered layout (381 MB → 5.3 MB; query memory ~1.1 GB → ~19 MB) —
+  the mechanism is real.
+- **Mixed/dense blocks:** the win vanishes (383 MB read) — a date
+  predicate alone does not make the physical read small.
+- **All-recent:** negative (candidate work reads 4M rows / ~487 MB against
+  2M / 381 MB) — why the plan stays default-off, not a universal fix.
+- **1M-author local strict traffic:** 4/4 measured feeds failed at the
+  unchanged 10 s SQL deadline (6× native code-159, no memory exception).
+  Different hardware from the Q01-VERIFY cloud run, so neither a
+  regression nor a win — only that the current shape does not finish that
+  workload on the smallest reasonable box.
+- **Both approved cloud attempts:** SSH-blocked pre-workload (22, then
+  controller-only 443); combined compute cap $0.256; the matched A/B/C
+  design (`MATCHED-DATES.md`) was paused before the million-author run.
+
+**Direction committed (D109):** (1) a server-assigned integer `version` per
+`(author_key, doc_id)` becomes the engine version key
+(`ReplacingMergeTree(version)`) — making last-write-wins exact, "latest" a
+point read, tombstones ordered, and updates CAS-able; (2) per-service
+physical tables routed by the app's own `collection_name` label,
+sort-keyed per access pattern — D60 intact, the node hardcodes no app
+concept; (3) a node release stamp on every row is rejected. Schema target +
+migration outline: `web10-v3/db/clickhouse.md` "Document versioning +
+per-service layout (target)". The date-bounded Discover UI and the
+default-off pruning compiler that shipped only on the failed branch are a
+separate, undecided promotion — not lost, not revived by this section.
+
+**The two-claim rule (recorded here because the experiment nearly
+violated it):** per-request cost — *bytes read per K=1,000 feed request on
+the frozen input*, hardware-independent — and fleet capacity — *matched
+silicon only* — are separate claims and are never conflated. This is the
+acceptance metric for IX2 feasibility work. No production migration,
+deployment, timeout relaxation, matched-hardware capacity claim or paid
+execution is authorized by this section.
+
 ## Small independent implementation bites
 
 | Bite | Ownership | Acceptance / gates |
@@ -262,6 +307,7 @@ authorized here; IX-DATE remains the first storage investigation.
 | **FB1: bounded feed candidate/page strategy** | Social `data/feed.ts`, feed/board adapters and focused tests; API boundary only by separately claimed bite | AS1/product sign-off; exact Newest page-first and justified mixed-ranking behavior; date/budget boundaries, old/zero-count/sparse nodes and cursor ties; live grants/tombstones; measure native scans/windows/joins plus client latency and existing accounting. Keep rejected Q02 out; 100k is not an accepted threshold. |
 | **IX-DATE: recent Discover range-read feasibility** | Isolated ClickHouse/API research/tests + social query seam reservation + KB | First storage investigation: current-version-safe date predicate/index/projection with actual old-block skipping. Test old-heavy/recent-heavy/mixed granules, full aggregate/profile work, top-k/cursors/access parity and read-first latency/concurrency. No production migration or fresh paid run without approval. |
 | **IX1: generic access-path feasibility** | Isolated API/ClickHouse tests/research + KB, coordinated storage/security owners | EXPLAIN indexes/parts/granules, actual rows/bytes, CRUD/ingest/storage/merge costs, declared-path/JSON compatibility, history/security and sparse/broad/overlap parity. Compare current engine and an explicitly approved upgrade experiment separately. No app-specific API/table or production migration. |
+| **IX2: document versioning + per-service layout feasibility** (D109) | Isolated ClickHouse research/tests + KB; storage/security/compiler owners coordinate | D109 direction: server-assigned integer `version` as the engine version key + per-service tables routed by the app's own label. Acceptance = bytes read per K=1,000 feed on the frozen input before/after, same-millisecond race red→green, parity receipts against the old table. Backfill rule, sort-key default + read-order hint, table lifecycle and I3-per-table are design gates, not assumptions. No production migration, deployment, paid run or capacity claim without explicit approval. |
 | **AS3: deep-search execution budget** | Generic execution primitive only if needed, separately claimed backend/SDK and client-status bites | AS1 plus real filters; explicit bounded long-running semantics, cancellation, fairness, current credentials/visibility and response completeness. Default-off until independently reviewed; no broad timeout relaxation. |
 
 All bites retain normal PR checks; trust-boundary code/test units stay within the

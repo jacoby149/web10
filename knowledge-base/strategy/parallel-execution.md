@@ -239,6 +239,59 @@ recent-Discover feasibility remains the first storage investigation.
 - [ ] **IX1-C: planner/canonical integration** — separately reserve supported AST predicates, bounded intersections, selective current canonical lookup, exact fallback and raw-index isolation after prototype. Acceptance: no private/stale results or missing authorized matches misreported as exhaustive, preserved service/group/version/deletion semantics and public API compatibility. No migration/deployment or cloud run without approval.
 - [ ] **IX1-D / PAPER-INDEX: validation and follow-up research** — owns isolated multi-app evaluation/KB and later research-design records, not the current manuscript. Gates: source-matched selective fixed-result growth plus broad/intersection/authorization-sparse/overlap/recovery cases, native read/concurrency/resource metrics and exact outputs; fresh related work/novelty and preregistered matched baselines. Acceptance: reviewed evidence/design for a possible follow-up paper, no “bajillions” guarantee, manuscript overwrite or new submission. New data generation/publication/paid execution needs explicit approval.
 
+### Lane: doc-version-per-service (future architecture / follow-up research)
+
+**09.11.2026 — direction committed (D109)** after the operator reviewed the
+date-projection experiment (branch `jacoby149/hello-chat-v3`, PR 1464,
+deemed failed as a merge vehicle; receipts remain there, cited with
+provenance). Two changes: (1) integer `version`, server-assigned per
+`(author_key, doc_id)`, becomes the engine version key
+(`ReplacingMergeTree(version)`); (2) per-service physical tables routed by
+the app's own `collection_name` label, sort-keyed per access pattern. D60
+intact — the app supplies the routing key and any read-order hint; the node
+hardcodes nothing. Node release stamp on rows: rejected (derivable, stale
+under rolling deploys, foreign-row trivia, semver string trap). Schema
+target + migration outline: `web10-v3/db/clickhouse.md` "Document
+versioning + per-service layout (target)". Storage direction + two-claim
+rule: `advanced-search-feed-budgets.md`.
+
+**Owns:** isolated research/tests/KB only, coordinated with
+storage/security/compiler owners. No `api/` runtime, SDK or frontend work
+without separately bounded claims; ≤500 code/test lines per trust-boundary
+PR; no production migration, deployment, timeout relaxation,
+matched-hardware capacity claim or paid execution without explicit operator
+approval.
+
+- [✓ 5.13.4 planning only] **IX2-PLAN: direction captured** — D109,
+  clickhouse.md target section, advanced-search-feed-budgets.md storage
+  direction + IX2 bite row, plan.md IX2 item, this lane. No
+  runtime/schema/deployment change.
+- [ ] **IX2-A: backfill rule + version contract** — KB/design only, no
+  code. Rank existing per-document history into `1..N` under a
+  deterministic total order (deletion-wins-ties generalized,
+  receipt-pinned); define the CAS surface and what retires (the tie
+  convention's load-bearing status). Gates: D60 check, I3 unchanged,
+  `created_at`/`updated_at` roles preserved. Acceptance: an approved
+  contract section in clickhouse.md + a decisions.md line, not a migration.
+- [ ] **IX2-B: version-column feasibility (disposable CH)** — isolated
+  native bite on the frozen 1M-author input: `documents_v2` with
+  `version` in the PK. Red→green: same-millisecond double-write race
+  repro, latest-read point lookup, tombstone ordering, parity receipt vs
+  the old table (per-document max-version row hash). Acceptance: native
+  rows/bytes/memory on frozen input; no production table, no migration.
+- [ ] **IX2-C: per-service split feasibility (disposable CH)** — compiler
+  FROM-routing rewrite against service tables on the frozen input.
+  Acceptance metric: **bytes read per K=1,000 feed request** before/after
+  (hardware-independent claim). Engagement joins on `ref_value`-leading
+  keys; I3 conformance per service table. Gates: IX2-B, table-lifecycle
+  design (on-demand DDL for arbitrary service strings, escaping,
+  drop/retention) reviewed separately. No production routing change.
+- [ ] **IX2-D: cutover/migration design** — dual-write window, parity
+  receipts, rollback path, and the matched-hardware question for
+  fleet-capacity claims (separate from per-request cost — never
+  conflated). Requires explicit operator approval before any production
+  action; this lane does not authorize it.
+
 ### Lane: acting-identity (current workspace)
 **Owns:** social identity/navigation/composer/action consumers in
 `marketing/web10-social/`; generic delegated-document and group-list seams in
@@ -876,7 +929,7 @@ with their owners. No app-specific API search or schema/engine upgrade is implie
 - [ ] **AS1: filter and feed-budget contract** — owns planning KB, coordinating search/feed/media owners. Encode approved one-month normal Discover, tunable ranking inside it and explicit potentially slower Advanced mode for older content; settle UTC cutoff/cursor, metadata, URL/source/sparse behavior and any separate 100k proposal. Gates: visible coverage, preserved other surfaces/ownership, D60/I3/history and bounded deep execution. Acceptance: executable contract and small claims, not a promised speedup or silent archive restriction.
 - [ ] **AS2: advanced-filter UI/data** — owns social `components/Search/`, `data/search.ts` and focused tests; route/board wiring reserved with owners. Gates: AS1, actual metadata and generic authorized query primitives. Acceptance: URL-owned query/filter/sort/source/panel/continuation with apply/reset/cancel/history/login return, real beyond-preview filtering, supported fields only, tokens/all states/keyboard/touch and desktop/375px inspected screenshots. No app-specific node endpoint or false exhaustive/no-results claim.
 - [ ] **FB1: bounded feed strategy** — owns social `data/feed.ts`, reserved feed/board adapters and focused tests; backend compiler only by separate bounded claim. Gates: AS1 product choices, exact Newest page-first selection, justified mixed-rank pruning or explicitly bounded coverage, old/zero-engagement/sparse/tie cases, current grants/tombstones/accounting and actual native scans/bytes/latency. Acceptance: measured bounded work with visible Older/Advanced search escape hatch, no raw-history LIMIT or silent loss of valid winners; 100k is not a selected constant. Rejected Q02 stays out.
-- [ ] **IX-DATE: recent Discover range-read feasibility** — owns isolated ClickHouse/API research/tests/KB; social predicate seams reserved with feed owners. First storage priority: date predicate plus actual index/projection skipping on old-heavy/recent-heavy/mixed-block inputs, with complete histories, all aggregate/profile costs, exact ranking/cursors/grants and read latency/concurrency measured. A >10x scan win is a hypothesis, not an end-to-end promise; no empty-fixture pass, production migration or new paid run without approval.
+- [ ] **IX-DATE: recent Discover range-read feasibility** — owns isolated ClickHouse/API research/tests/KB; social predicate seams reserved with feed owners. First storage priority: date predicate plus actual index/projection skipping on old-heavy/recent-heavy/mixed-block inputs, with complete histories, all aggregate/profile costs, exact ranking/cursors/grants and read latency/concurrency measured. A >10x scan win is a hypothesis, not an end-to-end promise; no empty-fixture pass, production migration or new paid run without approval. *State (09.11.2026): ran on disposable ClickHouse 24.8 — old-heavy ~70× physical read, mixed/dense + all-recent negative, local 1M-author strict 4/4 at the unchanged 10 s deadline, cloud SSH-blocked ($0.256 cap); receipts unmerged on `jacoby149/hello-chat-v3` (PR 1464, deemed failed); direction carried forward as IX2 in the doc-version-per-service lane (D109).*
 - [ ] **IX1: generic JSON/access-path feasibility** — later isolated ClickHouse/API research/tests/KB under storage/security coordination, after date-range feasibility. Shared typed path/value access tables are a candidate for arbitrary app fields: new paths as rows, canonical JSON unchanged, no developer physical DDL. Prioritize read latency/concurrency over write/storage minimization. Gates: selective/broad/intersection native costs, exact numbers/paths/same-array-element semantics, current canonical/service/group/version authority, raw-index SQL isolation and coverage/watermark/partial-write/backfill/rebuild/fallback; stale-hit denial alone cannot prevent missing-entry false negatives. No hardcoded social counters, engine switch, read/write split, schema/indexer/planner migration or new paid run is authorized.
 - [ ] **AS3: deep-search execution budget** — separately claim generic backend/SDK and client-status bites only if required by AS1/AS2. Gates: explicit long-running budget, cancellation/progress/retry/fairness, identity-owned results, current grants and labelled completeness. Acceptance: bounded deeper search without global timeout relaxation, indefinite work or private stale-result disclosure. Normal review/CI and explicit deployment/cloud approval remain required.
 

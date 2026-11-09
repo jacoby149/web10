@@ -296,7 +296,7 @@ do not privacy-wash D56 or put content/credentials into events or recordings.
 
 ## How the data model works
 
-Single ClickHouse `documents` table, primary key `(author_key, doc_id)`. `doc_groups` maps documents to groups. `group_contracts` + `group_members` define access. Two contract types: app contracts (infrastructure trust, CORS-enforced) and group contracts (social access, role-enforced). Full model: `knowledge-base/web10-v3/db/clickhouse.md`.
+Single ClickHouse `documents` table, primary key `(author_key, doc_id)`. `doc_groups` maps documents to groups. `group_contracts` + `group_members` define access. Two contract types: app contracts (infrastructure trust, CORS-enforced) and group contracts (social access, role-enforced). Full model: `knowledge-base/web10-v3/db/clickhouse.md`. Committed storage direction (D109, 09.11.2026; unimplemented): server-assigned integer `version` per document replacing `updated_at` as the engine version key, and per-service physical tables routed by the app's own service label — target schema + migration outline in `knowledge-base/web10-v3/db/clickhouse.md` ("Document versioning + per-service layout (target)"); the single `documents` table remains the production truth until IX2 feasibility evidence lands.
 
 The generic readable-group helper defaults to byte-bounded batched resolution;
 `READABLE_RESOLUTION_MODE=per-group` retains an authorization-preserving rollback.

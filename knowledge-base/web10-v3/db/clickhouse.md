@@ -168,6 +168,97 @@ ORDER BY (author_key, doc_id);
 
 **`tags`:** freeform labels. Fast filtering with `has(tags, 'jazz')`.
 
+## Document versioning + per-service layout (target — D109, unimplemented)
+
+Status as of 09.11.2026: committed direction (D109), not built. No runtime,
+schema, deployment or migration change ships with this section; the table
+above remains the production truth until IX2 feasibility evidence lands.
+
+### Why the current shape is the bottleneck
+
+`documents` is sort-keyed `(author_key, doc_id)` and versioned by
+`updated_at` — right for the ownership question (I3: does this token own
+this document), wrong for the read questions the node actually gets:
+
+- **Latest reads are ranked scans.** "The current version of document X" is
+  `row_number() OVER (PARTITION BY author_key, doc_id ORDER BY updated_at
+  DESC)` — the profile join in every feed query pays it per row.
+  Timestamps are millisecond wall clocks and can tie: two writes to one
+  document in the same millisecond are a merge-time coin flip, and the
+  "deletion wins timestamp ties" convention exists to paper over it.
+- **Time-ordered reads scan the whole history.** A date-bounded
+  K=1,000-group feed filters `created_at` after the sort key can no longer
+  help; the physical read is the entire history, then JSON-layer filtering.
+  The 09.11 projection experiment measured exactly this: on old-heavy
+  clustered input a time-ordered shadow layout cut the physical read 381 MB
+  → 5.3 MB (~70×) and query memory ~1.1 GB → ~19 MB; on mixed/dense blocks
+  the win vanished; on all-recent input candidate work cost more than it
+  saved.
+- **Engagement joins are full-table JSON passes.** Reactions and comments
+  live in the same table with the same shape; every feed's like/comment
+  counts are `countIf(JSONExtractString(...))` over the whole service.
+
+### The target
+
+Two independent changes, one direction:
+
+1. **Integer `version`, server-assigned per `(author_key, doc_id)`,
+   strictly increasing from 1.** The engine becomes
+   `ReplacingMergeTree(version)`, ordered `(author_key, doc_id, version)`.
+   `created_at` (already on the envelope, retained through tombstones) and
+   `updated_at` (wall-clock "last touched") stay. What becomes exact:
+   last-write-wins (no millisecond coin flip), "latest" (a `max(version)` +
+   primary-key point read — no window function), tombstones (an ordered
+   version; the tie convention retires), and updates gain a CAS surface
+   (the client asserts the version it read; the server rejects stale).
+2. **Per-service physical tables.** The app's own `collection_name` label
+   routes its documents to that service's table; the sort key is chosen for
+   how that type is read (default: author-leading time order — feed shapes;
+   `ref_value`-leading — engagement count shapes). The query compiler
+   rewrites `FROM documents WHERE collection_name = 'x'` to the service
+   table transparently; app SQL and the SDK are unchanged. D60 holds: the
+   node hardcodes no app concept — the routing key is the string the app
+   already wrote, and any read-order hint is app-declared at service
+   registration, node-applied physically. Access semantics are untouched:
+   `doc_groups`/`group_contracts` attach to documents, not to the physical
+   table, and I3 re-asserts per service table by construction
+   (`author_key` leads the sort key).
+
+Considered and rejected: a node release version stamp (5.x.x) on every row
+— derivable, stale under rolling deploys, local trivia on foreign rows,
+lexicographically unsortable. See D109.
+
+### Migration outline (design, not authorization)
+
+- **Stage 1 — `documents_v2`:** the same single table, `version` in the PK,
+  backfilled by ranking each document's existing history under a
+  documented, receipt-pinned deterministic total order (deletion-wins-ties
+  generalized). The old table stays read-only as the parity oracle until
+  per-document max-version-row hashes match.
+- **Stage 2 — the split:** copy `documents_v2` into service tables; flip
+  the compiler routing; keep `documents_v2` read-only as the oracle;
+  parity receipts; then drop.
+- Each stage is its own claim, its own receipts, and its own ≤500-line gate
+  where it touches `api/`. Neither stage is authorized by this section. No
+  production migration, deployment, matched-hardware run, timeout
+  relaxation or paid execution without explicit operator approval.
+
+### Evidence and provenance
+
+The 09.11.2026 experiment (disposable ClickHouse 24.8, frozen 1M-author
+derivative, K=1,000 feed) ran on branch `jacoby149/hello-chat-v3` (PR
+1464), which the operator deemed failed as a merge vehicle; the receipts
+remain there and must be cited with that provenance — they are not merged
+evidence: `research/experiments/costfn/DATE-RESULTS.md` (projection
+numbers, strict traffic 4/4 at the 10 s deadline, cloud SSH-block) and
+`MATCHED-DATES.md` (the matched A/B/C design — A: all-time without
+pruning, B: date-filtered without pruning, C: date-filtered with pruning —
+paused before the million-author run). The acceptance metric for IX2
+feasibility is **bytes read per K=1,000 feed request** on the same frozen
+input, before/after — hardware-independent by construction.
+Fleet-capacity claims additionally require matched silicon; the two claims
+are never conflated.
+
 ## Doc Groups
 
 Document-to-group mapping. Groups define who can see the document.
