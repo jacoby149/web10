@@ -184,6 +184,9 @@ explicit operator reactivation during v4 planning. Existing v3 lanes are unchang
 
 ### Lane: batching-performance (coordination queue)
 
+- [✓ 5.9.2 local; release gates OPEN] **Q01: exact-ID canonical preparation pruning** — operator: "okay, keep optimizing". Owns `safe_query.py` boundary/compiler exact-ID hunks, `_canonical_prepare_docs` wiring and focused API tests/KB. Twenty-four controls and all 2,226 API tests pass; twelve native ClickHouse cases plus real 3,000-UUID helper fallback retain output/authority. Read bytes fall in the local 100k-identity diagnostic, not strict full-feed acceptance. Review-found size/empty-hint regressions are repaired; three fresh same-family scoped reviews are dry, diverse/CI/rollout gates remain OPEN. No cloud spend, production deployment or capacity claim. Record: `security/scans/2026-11/query-exact-id-pruning.md`.
+- [ ] **Q02: readable-link document semijoin** — owns `safe_query.py` boundary document-input narrowing and focused API tests/KB, serialized after Q01. Gates: current/tombstoned/restored attachment and document equivalence, per-readable-group multiplicity, all visibility rules, actual ClickHouse plans/rows/bytes, bounded review and unchanged strict full-feed acceptance before capacity claims. Acceptance: only document histories with readable candidate links enter ranking, without early LIMIT/deletion filtering or weaker canonical authority. No cloud spend or production changes without approval.
+
 **Plan:** `batching-performance.md`. **Ownership:** planning record only until a
 sub-bite is claimed; reserve exact functions with existing API/media/security,
 acting-identity, social/paint-on-read, UI and marketing lanes. Never assign all of
