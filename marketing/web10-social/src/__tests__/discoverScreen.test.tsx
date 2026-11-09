@@ -694,10 +694,11 @@ describe('DiscoverScreen', () => {
     });
 
     // Balanced is the default preset — the initial read carries the Balanced
-    // (power-mean) sort config.
+    // (power-mean) sort config. Recency resolves on the steeper detent scale
+    // (detent 3 → 2.0, the recency-potency fix); likes/comments stay 0..1.
     expect(screen.getByTestId('preset-balanced').classList).toContain('border-brand');
     const firstSort = (data.readDiscoverFeed as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    expect(firstSort).toMatchObject({ recency: 0.6, likes: 0.6 });
+    expect(firstSort).toMatchObject({ recency: 2, likes: 0.6 });
 
     vi.useFakeTimers();
     try {

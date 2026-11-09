@@ -7,8 +7,10 @@ import {
   FIXED_HALF_LIFE_MS,
   CHARACTER_DETENTS,
   WEIGHT_DETENTS,
+  RECENCY_WEIGHTS,
   HALF_LIFE_DETENTS,
   defaultKnobState,
+  scorePost,
   type KnobState,
 } from '@/lib/powerMean';
 
@@ -38,15 +40,58 @@ describe('FIXED_HALF_LIFE (the removed Time knob)', () => {
 });
 
 describe('knobStateToSort (detent state → server PowerMeanSort)', () => {
-  it('maps the weight detents to 0..1 and always pins the half-life to 1 day', () => {
+  it('maps the weight detents (recency 0..8, likes/comments 0..1) and always pins the half-life to 1 day', () => {
     // The Time knob is gone — the half-life is fixed at the middle (1 day)
     // regardless of the state's (stale/persisted) halfLife detent.
     const state: KnobState = { recency: 5, likes: 0, comments: 3, halfLife: 0, character: 0 };
     const sort = knobStateToSort(state);
-    expect(sort.recency).toBe(WEIGHT_DETENTS[5]); // 1
+    expect(sort.recency).toBe(RECENCY_WEIGHTS[5]); // 8
     expect(sort.likes).toBe(WEIGHT_DETENTS[0]); // 0
     expect(sort.comments).toBe(WEIGHT_DETENTS[3]); // 0.6
     expect(sort.half_life_ms).toBe(FIXED_HALF_LIFE_MS); // 1d (fixed)
+  });
+
+  it('maps the recency detents on the steeper scale (each step doubles the pull)', () => {
+    // The recency knob carries its own 0 → 8 curve so the top detent outweighs
+    // likes + comments at their combined max (1.0 + 1.0) four-fold.
+    expect(RECENCY_WEIGHTS).toHaveLength(6);
+    expect(RECENCY_WEIGHTS[0]).toBe(0);
+    expect(RECENCY_WEIGHTS[5]).toBe(8);
+    // Each step from detent 1 up doubles the pull (0.5 → 1 → 2 → 4 → 8).
+    for (let i = 2; i < 6; i++) expect(RECENCY_WEIGHTS[i]).toBe(RECENCY_WEIGHTS[i - 1] * 2);
+    // The likes / comments scale is unchanged (0..1).
+    expect(WEIGHT_DETENTS[3]).toBe(0.6);
+    expect(WEIGHT_DETENTS[5]).toBe(1);
+  });
+
+  it('cranked recency prioritizes today over a little engagement on an old post (the potency fix)', () => {
+    // Operator: "when i crank it up and have likes and comments just a little
+    // bit it gets dominated by likes and comments". At the top recency detent
+    // a fresh zero-engagement post must beat a two-day-old post with a few
+    // likes/comments. (Before the fix the 1e-12 dead-signal floor made that
+    // old post win by ~500×, no matter how far recency was cranked.)
+    const cranked: KnobState = { recency: 5, likes: 1, comments: 1, halfLife: 3, character: 0 };
+    const hourOld = { ageMs: 3_600_000, likes: 0, comments: 0, reposts: 0 };
+    const twoDaysOld = { ageMs: 2 * 86_400_000, likes: 3, comments: 1, reposts: 0 };
+    expect(scorePost(hourOld, cranked)).toBeGreaterThan(scorePost(twoDaysOld, cranked));
+  });
+
+  it('low recency detents keep engagement potency (the knob does not snap to chronological)', () => {
+    // At the bottom of the steeper scale (0.5) a genuinely viral old post
+    // still beats a fresh zero-engagement one — resolution across the range.
+    const lowRecency: KnobState = { recency: 1, likes: 5, comments: 0, halfLife: 3, character: 0 };
+    const hourOld = { ageMs: 3_600_000, likes: 0, comments: 0, reposts: 0 };
+    const twoDaysViral = { ageMs: 2 * 86_400_000, likes: 200, comments: 50, reposts: 0 };
+    expect(scorePost(twoDaysViral, lowRecency)).toBeGreaterThan(scorePost(hourOld, lowRecency));
+  });
+
+  it('floors a dead weighted signal at 0.05, not epsilon (a dead signal is a cost, not a veto)', () => {
+    // Geometric mean over recency (age 0 → 1.0) + likes (0 → floored):
+    // exp((8·ln(1) + 1·ln(0.05)) / 9) — the floor value is what the dead
+    // likes signal contributes.
+    const state: KnobState = { recency: 5, likes: 5, comments: 0, halfLife: 3, character: 0 };
+    const s = scorePost({ ageMs: 0, likes: 0, comments: 0, reposts: 0 }, state);
+    expect(s).toBeCloseTo(Math.exp(Math.log(0.05) / 9), 10);
   });
 
   it('always pins character to the fixed middle (the knob is gone)', () => {
@@ -68,9 +113,11 @@ describe('knobStateToSort (detent state → server PowerMeanSort)', () => {
   });
 
   it('maps the Balanced default to the node config', () => {
+    // The default recency detent (3) now resolves on the steeper scale — the
+    // mixed default is recency-forward (2.0 vs 0.6 likes + 0.4 comments).
     const sort = knobStateToSort(defaultKnobState());
     expect(sort).toEqual({
-      recency: WEIGHT_DETENTS[3], // 0.6
+      recency: RECENCY_WEIGHTS[3], // 2
       likes: WEIGHT_DETENTS[3], // 0.6
       comments: WEIGHT_DETENTS[2], // 0.4
       half_life_ms: FIXED_HALF_LIFE_MS, // 1d (fixed)

@@ -2546,6 +2546,25 @@ class TestPowerMeanScore:
         with_comments = _power_mean_score(0, 9999, 9999, sort)
         assert with_dead_comments == with_comments
 
+    def test_dead_weighted_signal_is_floored_at_the_signal_floor(self):
+        # The signal floor (parity with the client's SIGNAL_FLOOR = 0.05): a
+        # zeroed WEIGHTED signal counts 0.05 on the normalized scale, not the
+        # old 1e-12 epsilon — in the geometric mean the epsilon made one dead
+        # signal a near-veto that no recency weight could outrank.
+        sort = {"recency": 0.0, "likes": 1.0, "comments": 0.0, "half_life_ms": 0, "character": 0.0}
+        dead_likes = _power_mean_score(0, 0, 0, sort)
+        assert dead_likes == pytest.approx(0.05, rel=1e-9)
+
+    def test_cranked_recency_outranks_a_little_engagement_on_an_old_post(self):
+        # The app's recency detents run 0..8 (steeper than the likes/comments
+        # 0..1 scale — parity with the client's RECENCY_WEIGHTS): at the top
+        # detent a fresh zero-engagement post beats a two-day-old post with a
+        # few likes/comments.
+        sort = {"recency": 8.0, "likes": 0.2, "comments": 0.2, "half_life_ms": 86_400_000, "character": 0.0}
+        fresh = _power_mean_score(3_600_000, 0, 0, sort)  # 1h old
+        old = _power_mean_score(2 * 86_400_000, 3, 1, sort)  # 2d old
+        assert fresh > old
+
 
 class TestPowerMeanRead:
     """read_documents_in_groups with a `sort` config runs ONE ranked query:
