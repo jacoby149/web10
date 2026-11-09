@@ -19,6 +19,16 @@ i.e. they must run ON the box (or through an SSH tunnel).
 | `deploy-stacks.py gitops [edge\|dev\|prod\|all]` | **DEPRECATED** — legacy git-backed stacks with 5-min polling | yes |
 | `sync-npm.py` | one Cloudflare DNS-01 cert covering every vhost + all proxy hosts (forwarding by stack-prefixed alias) | yes |
 | `smoke.sh` | HTTP + money-path (signup→token) checks for both envs | yes |
+| `public-research-datasets.py` | separately authorized, dry-run-first anonymous GET policy for only fourteen frozen synthetic V2 input objects; verify trusted publication receipts/bytes, require private exclusive rollback backup, retain existing policy | yes, with a fresh backup path |
+
+The research-policy helper runs inside the configured API runtime, not as an app
+deployment. Supply both trusted `research/experiments/costfn/evidence/v2-*-publication.json`
+receipts with `--publication`; apply requires `--apply --backup <private-path>`.
+Serialize bucket-policy administration and prevent replacement of the fourteen
+published keys: policy writes have no compare-and-swap and object permissions are
+key-based, not digest-bound. Verify public GET/checksums and denied listing,
+writes and unrelated-object reads independently. Keep a durable private copy of
+the before-policy; restoring it is a separately reviewed operator rollback.
 
 ## Deploy model (E6: SSH-deploy CI/CD)
 

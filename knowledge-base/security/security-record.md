@@ -15,6 +15,52 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Readable-join investigation (08.11.2026) — REJECTED, code removed
+
+Sparse gains do not outweigh the demonstrated tradeoffs: unrestricted early
+joining reproduces 8.3× duration/34.2× memory with overlapping histories, while
+even the single-group restriction costs more on dense reads. Operator rejects
+promotion and requests docs only; all unpublished runtime/test changes removed.
+Structured local evidence and physical-history fixture learnings are retained.
+Prototype parity/tests are historical, not shipped regression coverage or broad
+security approval. Q01 remains intact; post-#1448 million-author acceptance is
+unknown, with no fresh actual-host run. Existing L1–L4/churn/rollout gaps remain.
+[Record](scans/2026-11/query-readable-join.md).
+
+## Exact-ID canonical pruning (08.11.2026) — bounded compiler/wiring review, OPEN
+
+Internal exact-ID restrictions retain complete document/attachment histories,
+current input authority and ambiguous identity denial. Twenty-four local controls,
+twelve native ClickHouse cases plus 3,000-UUID fallback and all 2,226 API tests
+pass. The 100k-identity query diagnostic reduces bytes/window memory, not
+full-feed concurrency proof.
+Three fresh same-family scoped reviews are dry; broader L1–L4/diverse sign-off, merge/concurrent
+mutation, million-author acceptance and PR/deployment gates remain OPEN.
+[Record](scans/2026-11/query-exact-id-pruning.md).
+
+## Attachment-history partition pruning (08.11.2026) — bounded compiler review, OPEN
+
+Actual-host timeout evidence motivates trusted partition-key predicate placement,
+not weaker deletion/access checks. Fifteen durable AST/SQLite controls and eight
+actual ClickHouse constant-CTE comparisons retain expected rows. Three fresh
+same-family reviews are dry; diverse review, equal-timestamp/merge/concurrent
+history assurance, fresh study and PR/deployment gates remain OPEN. Source-specific
+single-pass diagnostics are not capacity results. Fresh candidate strict
+acceptance still fails three measured main requests; lifecycle controls pass,
+and all test hosts/firewalls are removed. [Record](scans/2026-11/query-partition-pruning.md).
+
+## Public frozen research inputs (08.11.2026) — bounded live acceptance, broader coverage OPEN
+
+Operator-authorized exact fourteen-key anonymous GET publication; trusted receipt
+and full-byte verification, private before-policy backup and preserved statements.
+Independent anonymous HTTPS downloads verify all pinned bytes; listing, uploads,
+conditional overwrite, neighbor and existing user-media reads remain 403. Ten
+offline controls include a live-found MinIO Resource-order readback/idempotency
+repair. Three fresh pre-apply scoped reviews found no operation blocker; they
+are not model-diverse assurance. Record: `research/experiments/costfn/evidence/v2-public-access.json`.
+Policy races and later key replacement remain procedural exclusions, not CAS or
+storage-enforced immutability. No L3/L4, whole-bucket or whole-security PASS.
+
 ## Feed source integration candidate (08.11.2026) — bounded local, OPEN
 
 Private catalog, separate credential-generation approval, source-query transport
@@ -80,6 +126,14 @@ No SDK/UI/DNS integration in this unit. Real issuer/storage/browser/concurrency
 and model-diverse L1–L4 sign-off remain OPEN; no whole-security PASS or deployment.
 
 ## PostHog capture/configuration (08.11.2026) — bounded local, OPEN
+
+09.11.2026, GPT-6.1 Sol: bounded shared-adapter/pinned-SDK follow-up reproduces
+discarded Meta events and masked/inert CSS. Original-HEAD controls plus six
+desktop/375px real-SDK/intercepted-wire playback fixtures pass after repair;
+private sentinels remain absent. Public social/marketing bundles still contain
+the old callback. No backend/auth change, production/vendor write, hosted-player
+acceptance or independent review. Scope/results/limits in the linked scan;
+L1–L4 and release status remain OPEN.
 
 5.0.0 continuation adds canonical opaque identity, signed source metadata,
 atomic account-row signup context, worker acks/health, vendor-report provisioning

@@ -3,6 +3,32 @@
 Newest at top. Format per AGENT-OPS.md §8. Read the top entries
 BEFORE doing ops work — someone may already be mid-fix.
 
+## 08.11.2026 20:50 UTC — OpenCode (montreal-v1 / jacoby149/experiment-7th-draft-readiness) — public frozen synthetic experiment inputs
+did:
+  - Operator explicitly requests public experimental data. LAN SSH timed out;
+    documented public SSH path verified all-spark and web10-prod runtime.
+  - Existing web10-media bucket policy was absent. Dry-run then authenticated
+    full verification of fourteen pinned V2 input objects (565,891,567 bytes).
+    Applied only anonymous s3:GetObject on those exact keys; no wildcard prefix,
+    listing, writes, object changes, credential export, restart or deployment.
+  - Before-policy backup mode 0600 retained durably at
+    ~/web10-ops/costfn-public-policy-before-20261108-montreal-v1.json.
+    MinIO reordered Resource arrays: initial strict readback raised after the
+    correct policy was applied. Independent exact action/resource inspection
+    confirmed scope; red→green helper repair normalizes only Resource ordering.
+    Corrected full verification/reapply passes without another policy write.
+  - Independent controller downloads all fourteen files over anonymous public
+    HTTPS and checks every pinned byte count/SHA-256. Six public denial controls
+    (listing, prefix listing, existing user-media object, neighbor, conditional
+    overwrite and new upload) all return 403; zero successful object writes.
+    Public-endpoint probes inside the API container hit connection refusal;
+    external controller checks, not that failed path, establish public acceptance.
+state: dataset reads need no credentials; only the fourteen frozen keys are public.
+  Original authenticated receipts unchanged; v2-public-access.json records the
+  separate publication. Existing user-media access remains unchanged.
+next: approved isolated-host restore/network/headroom and independent cleanup
+  watchdog before the study. No droplets or new paper measurements here.
+
 ## 08.11.2026 08:20–08:55 EST — OpenCode (tripoli / fix/posthog-query-api; deploy via #1434) — PostHog D103 deploy: identity secrets staged, dev+prod on 5.0.4, still disabled
 did:
   - SSH verified all-spark (LAN 192.168.8.25 default port + public 184.174.17.178:42422);

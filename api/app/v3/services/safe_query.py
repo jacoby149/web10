@@ -141,7 +141,9 @@ def _quote_ident(name: str) -> str:
     return name if _IDENT_SAFE.match(name) else f"`{name}`"
 
 
-def _boundary_cte_sql(service: str, readable_groups: list[str], member_key: str) -> str:
+def _boundary_cte_sql(
+    service: str, readable_groups: list[str], member_key: str, document_ids: list[str] | None = None
+) -> str:
     """The body of the boundary CTE for ``service``: the service's docs,
     deduped (ReplacingMergeTree latest-row, not-deleted), joined to
     ``doc_groups``, filtered to ``readable_groups`` (the caller's groups where
@@ -183,18 +185,32 @@ def _boundary_cte_sql(service: str, readable_groups: list[str], member_key: str)
     # (deleted=0 excludes it). Filter-then-dedup (WHERE deleted=0 before the
     # row_number) is wrong: the tombstone is invisible, the original (deleted=0)
     # is still picked, and the delete never takes effect in the read.
+    # Internal canonical lookups can narrow whole identity partitions, never
+    # versions within them. IDs request a lookup, not permission to read it.
+    exact_ids = ""
+    if document_ids is not None:
+        exact_ids = (
+            " AND doc_id IN ("
+            + ", ".join(exp.Literal.string(i).sql(dialect=DIALECT) for i in sorted(set(document_ids)))
+            + ")"
+            if document_ids
+            else " AND 1 = 0"
+        )
     dedup_docs = (
         f"SELECT {_CTE_COLUMNS} FROM ("
         f"SELECT {_CTE_COLUMNS}, deleted, "
         f"row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
-        f"FROM documents WHERE collection_name = '{service}'"
+        f"FROM documents WHERE collection_name = '{service}'{exact_ids}"
         f") WHERE rn = 1 AND deleted = 0"
     )
+    # group_id is a partition key: remove whole unreadable histories before
+    # sorting, never deleted versions within a retained (doc_id, group_id).
+    # Keep the literal list once so large multi-service queries do not grow.
     dedup_groups = (
         "SELECT doc_id, group_id FROM ("
         "SELECT doc_id, group_id, deleted, "
         "row_number() OVER (PARTITION BY doc_id, group_id ORDER BY updated_at DESC) AS rn "
-        "FROM doc_groups"
+        f"FROM doc_groups WHERE group_id IN ({_quote_group_ids(readable_groups)}){exact_ids}"
         ") WHERE rn = 1 AND deleted = 0"
     )
     if not readable_groups:
@@ -250,8 +266,7 @@ def _boundary_cte_sql(service: str, readable_groups: list[str], member_key: str)
         f"SELECT d.doc_id, d.author_key, d.posted_by, d.body, d.ref_value, d.tags, "
         f"d.created_at, d.updated_at, d.ad_mode, d.ad_target, dg.group_id FROM ({dedup_docs}) d "
         f"JOIN ({dedup_groups}) dg ON d.doc_id = dg.doc_id "
-        f"WHERE dg.group_id IN ({_quote_group_ids(readable_groups)}) "
-        f"AND {filters}"
+        f"WHERE {filters}"
     )
 
 
@@ -458,6 +473,7 @@ def build_safe_query(
     allowed_services: frozenset[str] | set[str] | None = None,
     max_limit: int | None = None,
     group_meta: tuple[list[str], list[str]] | None = None,
+    document_ids_by_service: dict[str, list[str]] | None = None,
 ) -> str:
     """Compile a caller's ClickHouse SELECT into a boundary-enforced query.
 
@@ -485,6 +501,10 @@ def build_safe_query(
             CASE-based NULLing on the readable set). When None, ``group_meta``
             is rejected as an unknown table. The raw tables stay blocked
             regardless.
+        document_ids_by_service: internal canonical-read restriction, not a
+            request field or grant. Narrow complete document/attachment history
+            partitions before ranking. Omitted services retain the normal path;
+            an explicitly empty ID list returns no rows for that service.
 
     Returns:
         The final SQL — the boundary CTEs (API-built, group-filtered, with the
@@ -525,7 +545,7 @@ def build_safe_query(
         # ClickHouse; the round-trip re-parse below rejects a malformed result.
         caller_sql = f"{caller_sql} LIMIT {int(max_limit)}"
     cte_defs = [
-        f"{_quote_ident(service)} AS ({_boundary_cte_sql(service, readable_groups_by_service.get(service, []), member_key)})"
+        f"{_quote_ident(service)} AS ({_boundary_cte_sql(service, readable_groups_by_service.get(service, []), member_key, (document_ids_by_service or {}).get(service))})"
         for service in sorted(s for s in needed if s != GROUP_META)
     ]
     if GROUP_META in needed and group_meta is not None:

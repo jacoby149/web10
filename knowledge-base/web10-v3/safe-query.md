@@ -52,19 +52,23 @@ The boundary CTE for a service looks like:
 posts AS (
   SELECT d.doc_id, d.author_key, d.body, d.ref_value, d.tags, d.created_at, d.updated_at, d.ad_mode, d.ad_target, dg.group_id
   FROM (
-    SELECT doc_id, author_key, body, ref_value, tags, created_at, updated_at, ad_mode, ad_target, deleted
-    FROM documents
-    WHERE collection_name = 'posts'
-    QUALIFY row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) = 1
+    SELECT * FROM (
+      SELECT doc_id, author_key, body, ref_value, tags, created_at, updated_at, ad_mode, ad_target, deleted,
+             row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn
+      FROM documents WHERE collection_name = 'posts'
+    ) WHERE rn = 1 AND deleted = 0
   ) d
   JOIN (
-    SELECT doc_id, group_id FROM doc_groups WHERE deleted = 0
-    QUALIFY row_number() OVER (PARTITION BY doc_id, group_id ORDER BY updated_at DESC) = 1
+    SELECT doc_id, group_id FROM (
+      SELECT doc_id, group_id, deleted,
+             row_number() OVER (PARTITION BY doc_id, group_id ORDER BY updated_at DESC) AS rn
+      FROM doc_groups WHERE group_id IN (<the caller's readable groups for posts>)
+    ) WHERE rn = 1 AND deleted = 0
   ) dg ON d.doc_id = dg.doc_id
-  WHERE dg.group_id IN (<the caller's readable groups for posts>)
+  WHERE
     -- block/sharing/hidden, as NOT IN / tuple-NOT IN (see "Why NOT IN, not
     -- LEFT ANTI JOIN"):
-    AND d.author_key NOT IN (<user_blacklist: authors the reader blocked>)
+    d.author_key NOT IN (<user_blacklist: authors the reader blocked>)
     AND (d.author_key, dg.group_id) NOT IN (<group_blacklist: blocked in this group>)
     AND NOT (d.author_key != <reader> AND (d.author_key, dg.group_id) IN (<user_group_sharing: paused in this group>))
     AND (d.doc_id, dg.group_id) NOT IN (<group_hidden_docs: hidden in this group>)
@@ -75,6 +79,16 @@ The caller's `SELECT … FROM posts` now reads that CTE. `posts` is no longer th
 raw table — it is the caller's own groups, and nothing else. A doc in N readable
 groups surfaces N rows (one per group); `group_id` is the join key for group
 metadata (QE-A0).
+
+**Prune complete history partitions, never tombstones.** The readable-group
+predicate belongs inside the attachment history read: `group_id` is part of its
+`(doc_id, group_id)` window partition key, so excluding other groups removes
+whole partitions without changing the latest row of any retained partition.
+Rank all versions of those retained links, then filter `deleted = 0`. Document
+history, block/sharing/hidden rules, empty access and multi-group multiplicity
+are unchanged. Never move deletion, visibility or arbitrary caller predicates
+before history resolution. This bounds window work; it does not promise index
+pruning when the physical primary-key prefix does not match the group filter.
 
 **Hyphenated service names are quoted.** A service name that is not a bare
 identifier (`[A-Za-z_][A-Za-z0-9_]*`) — the D60 app-named services, e.g.

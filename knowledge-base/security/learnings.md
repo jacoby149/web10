@@ -35,6 +35,72 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-09: Replay masking must preserve the recorder's structural protocol
+
+The pinned PostHog SDK uses its network-mask callback for Meta URLs as well as
+network entries. Returning null for both silently discards page/viewport metadata;
+masking rrweb stylesheet text as ordinary text separately destroys layout.
+Retain only route-templated name-only callbacks and parsed, resource/content-free
+stylesheet declarations; actual network entries and private DOM text stay out.
+Class survival and snapshot delivery are not playback tests. Reconstruct sanitized
+wire events and check computed layout, alongside content/credential sentinels.
+This is bounded adapter evidence, not vendor-hosted playback or a complete
+CSS/content-boundary audit. Review and deployed/new-session verification stay open.
+
+### 2026-11-08: Filter document windows without duplicating attachment windows
+
+Readable-ID semijoins repeat inlined attachment work; unrestricted early joins
+instead amplify document histories per readable link (reproduced 34× memory).
+One distinct group prevents replication, not all resource regressions: dense
+reads still cost more. Both prototypes are rejected and all unpublished code/
+tests removed. Native ReplacingMergeTree fixtures need separate version parts
+and physical-count assertions; stopping merges alone does not prevent
+single-insert collapse. Preserve failed resource results as well as parity
+passes. Sparse memory wins do not establish fewer physical reads, full-feed
+success or post-#1448 million-author acceptance; that run has not happened.
+[Record](scans/2026-11/query-readable-join.md).
+
+### 2026-11-08: Exact document IDs narrow work, never canonical authority
+
+Canonical media/ad reads already request exact IDs; restricting both history
+inputs to those IDs removes whole partitions without dropping tombstones. Keep
+all authors/services eligible for ambiguity checks and retain readable groups,
+visibility and the outer exact-ID predicate. Repeated ID lists can exceed the
+engine's parser limit: a native 3,000-UUID regression requires byte-budget
+fallback to the existing canonical read, not a new page-size cap. Only that
+helper may discard its redundant hint; generic compiler fallback could silently
+discard empty restrictions. No generic caller-predicate pushdown or
+projected-owner shortcut follows. Twenty-four local controls and
+twelve native ClickHouse cases pass; a 100k-identity diagnostic reduces bytes
+and window memory, but the author-first document scan remains. The failed
+million-author concurrency gate is not closed. [Record](scans/2026-11/query-exact-id-pruning.md).
+
+### 2026-11-08: Prune complete history partitions, not denying versions
+
+The actual million-author preflight times out while the boundary ranks global
+attachment history. Moving its trusted readable `group_id` filter before the
+window is safe because it is part of `(doc_id, group_id)`; all versions of each
+retained link still rank before deletion filtering. Do not push `deleted`, tags
+or visibility predicates the same way. Fifteen durable controls and eight actual
+ClickHouse constant-CTE parity cases retain removals, alternates, multiplicity and
+visibility. Diagnostic latency falls without reducing main physical rows read;
+there is no index-pruning or capacity claim. Equal-timestamp winner ambiguity is
+inherited and remains open. [Record](scans/2026-11/query-partition-pruning.md).
+
+### 2026-11-08: Public synthetic inputs need exact object grants, not a public media bucket
+
+The operator separately approves public release of two frozen research datasets.
+Grant only `s3:GetObject` on their fourteen exact table/manifest keys, verify full
+bytes against trusted Git receipts before publication, and independently repeat
+anonymous downloads plus neighboring-media/list/write denials. All fourteen
+downloads match; six negative controls stay 403. MinIO reorders Resource arrays;
+normalize that unordered list for verification without dropping fields or
+deduplicating grants. A red→green control pins readback and idempotency. Policy
+administration is serialized, not CAS, and key grants do not freeze later bytes;
+keep these keys unchanged. Public copies cannot be recalled. Receipt:
+`research/experiments/costfn/evidence/v2-public-access.json`. No whole-bucket or
+L1–L4 security PASS follows from this bounded operational acceptance.
+
 ### 2026-11-08: Removed consent and usable URLs need ownership checks at the sink
 
 The [candidate source integration](scans/2026-11/feed-source-integration.md)

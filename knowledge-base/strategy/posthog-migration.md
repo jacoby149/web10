@@ -63,6 +63,14 @@ UA/UA-CH/webdriver because production SDK bot filtering rejects automation.
 It is **not** human/bot validation, live storage, vendor playback or actual auth.
 Config desktop/375px images are inspected in `.context/posthog/`.
 
+09.11.2026 replay follow-up: the operator still sees a blank player. Local
+capture reproduces absent Meta/viewport events and stylesheet text replaced
+by `[masked]`; the earlier class-survival assertion did not establish playback.
+The check now requires Meta dimensions and reconstructs the actual sanitized
+wire events with pinned `@rrweb/replay@2.2.1`, asserting computed grid/gap/height
+and capturing desktop/375px playback. This remains a synthetic adapter fixture,
+not PostHog-hosted playback or a production-screen acceptance receipt.
+
 `api/scripts/check_product_analytics.py` uses disposable ClickHouse 24.8.14.39:
 actual account insertion, duplicate denial, six account mutations preserving
 context, one canonical outcome and a fresh pass sending none after persisted ack.

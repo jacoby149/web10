@@ -28,11 +28,16 @@ s3://web10-media/research/costfn/datasets/<dataset-id>/
 ```
 
 The tracked publication receipts in `evidence/v2-*-publication.json` pin each
-identity, object digest/size and verified authenticated download. No bucket
-policy is changed. Use approved read-only S3 credentials through the standard AWS
-credential chain on future test hosts; never copy production storage/admin keys
-into a droplet, shell history, dataset or measurement receipt. Short-lived access
-provisioning is an operator step, not authority conferred by a public checksum.
+identity, object digest/size and the original authenticated download. On
+8 November the operator separately authorizes making these two synthetic inputs
+public: anonymous `s3:GetObject` for their fourteen exact table/manifest keys,
+not bucket listing, uploads, neighboring objects or the whole research prefix.
+The original receipts remain historical and unchanged. The bounded ops helper is
+`ubuntu-deployment/scripts/public-research-datasets.py`; it defaults to dry-run,
+verifies pinned bytes before apply and preserves the existing bucket policy.
+Public access must be confirmed by independent anonymous downloads and digest
+checks, not inferred from the policy read-back. Never copy production storage/
+admin keys into a droplet, shell history, dataset or measurement receipt.
 
 | Case | Frozen identity | Compressed table bytes |
 |---|---|---:|
@@ -51,8 +56,18 @@ These remain clean synthetic text fixtures with one current version per document
 The small lifecycle controls test tombstones and permission changes separately;
 they do not simulate write churn or deep production histories under load.
 
-Download before restoration, from the repo root (Python 3.12+, API dependencies
-plus httpx; `uv sync --project api --frozen` supplies them):
+For anonymous access, download each receipt's seven exact object URLs, formed as
+`https://minio.web10.app/web10-media/<object-key>`. Verify the receipt's byte count
+and SHA-256 for every file, including `manifest.json`, then run the existing
+all-row validator against that directory before restore:
+
+```sh
+python3 research/experiments/costfn/dataset_v2.py validate .context/hot-input
+```
+
+The existing authenticated downloader remains available where a read-only profile
+is explicitly configured. From the repo root (Python 3.12+, API dependencies plus
+httpx; `uv sync --project api --frozen` supplies them):
 
 ```sh
 uv run --project api python research/experiments/costfn/dataset_store.py download \

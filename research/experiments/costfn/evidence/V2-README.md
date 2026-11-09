@@ -2,6 +2,24 @@
 
 These are preparation/functional receipts, **not new paper performance results**.
 
+- `cloud-preflight-20261108.json`: actual three-host small acceptance and large
+  dispersed restore pass; strict large acceptance stops on six HTTP 400 / engine
+  code 159 timeouts, not incorrect IDs or missing permissions. Seven lifecycle
+  controls pass before/after; zero primary points complete. Bounded read-only
+  plans and SQL hypotheses motivate whole readable-group partition pruning;
+  diagnostic timings/equivalence are not independent study repeats. The failed
+  baseline is archived before a fresh, explicitly source-patched candidate
+  replay. Current candidate/cleanup status is in the receipt, not inferred from
+  the old local preparation index.
+
+- `v2-public-access.json`: separately operator-authorized 8 November public
+  release of only the two frozen million-author inputs. Fourteen exact GET-only
+  object grants; full authenticated verification and independent anonymous HTTPS
+  downloads match all 565,891,567 bytes and pinned digests. Listing, uploads,
+  conditional overwrite, neighboring objects and an existing non-research object
+  remain HTTP 403. Original publication receipts are unchanged historical proof.
+  This removes the dataset-read credential blocker, not actual-host/study gates.
+
 - `v2-hot-publication.json`, `v2-dispersed-publication.json`: six frozen table
   objects plus manifest, full authenticated remote-byte verification and a fresh
   download/all-row replay validation. The operator approved only this immutable

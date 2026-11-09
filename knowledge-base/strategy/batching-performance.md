@@ -70,6 +70,29 @@ single-flight deduplication are separate tools.
 Paths in this section are under `api/`. Priority is source-based, not production
 traffic measurement. Each checkbox remains open until its own gates pass.
 
+### Q01/Q02 - P1: History work exposed by the million-author preflight
+
+- [✓ 5.9.2 merged #1448; rollout OPEN] Q01: canonical media/ad reads supply internal exact IDs to both history
+  inputs before ranking; all versions, current authority and ambiguity checks
+  remain. Twenty-four controls, twelve actual ClickHouse cases and a native 3,000-UUID
+  query-byte fallback pass; local
+  100k-identity diagnostics reduce bytes/window memory, not the failed full-feed
+  concurrency gate. Owns compiler/canonical-helper hunks and focused API tests.
+  [Evidence](../security/scans/2026-11/query-exact-id-pruning.md).
+- [✓ 5.9.3 findings only; REJECTED] Q02: assessment closed, not implemented.
+  Semijoin/early-join prototypes produce sparse gains but broad/dense regressions,
+  including 8.3× time/34.2× memory with overlapping histories. Even one readable
+  group is not a universal cost win. All unpublished code/tests removed; Q01 is
+  untouched. Native physical-history counts and resource receipts retained.
+  [Evidence](../security/scans/2026-11/query-readable-join.md).
+- [ ] Q01-VERIFY: coordinate source-matched actual-host acceptance after #1448.
+  This queue owns receipt review/KB only; existing research/ops owners retain
+  `research/experiments/costfn/` and execution. Gates: merged source hashes,
+  frozen inputs, unchanged workload/limits, approved hosts/budget/watchdog and
+  verified cleanup. Acceptance: a fresh strict receipt determines whether Q01
+  clears the old failure; no success claim from local lookup timings, no paid
+  run or production action without explicit approval. Q02 is not a dependency.
+
 ### B01 - P1: Readable-Set Authorization
 
 - Evidence: `app/v3/endpoints/query.py:223` (`run_query`),
