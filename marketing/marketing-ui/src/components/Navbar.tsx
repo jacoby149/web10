@@ -5,6 +5,7 @@ import { Button } from './ui/button'
 import GitHubStarButton from './GitHubStarButton'
 import { trackFunnel } from '../lib/analytics'
 import { SOCIAL_ORIGIN } from '../lib/origins'
+import BrandLogo from './BrandLogo'
 
 // The nav leads with the pitch (the SELL): the landing page is the front door
 // (Home, `/`), and the social experience is Trending (`/trending`) — the
@@ -27,6 +28,7 @@ const learnItems = [
   { path: '/freedom', label: 'Freedom' },
   { path: '/everything', label: 'The Everything App' },
   { path: '/docs', label: 'Docs' },
+  { path: '/appearance', label: 'Appearance' },
 ]
 
 function Navbar() {
@@ -81,7 +83,7 @@ function Navbar() {
     >
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         <Link to="/" className="flex shrink-0 items-center" onClick={() => setMobileOpen(false)}>
-          <img src="/brand/logo-lockup.png" className="h-7" alt="web10" />
+          <BrandLogo className="h-7" />
         </Link>
 
         <div className="hidden items-center gap-1 md:flex">
