@@ -9,6 +9,24 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D108 — Social follows device appearance, with explicit light/dark choices [decided]
+
+**09.11.2026 — operator:** “lets build that whole system please!” after
+System / Light / Dark, device detection and remembered overrides were proposed.
+Social now has two token palettes, defaults to System, follows live OS changes
+and synchronizes this browser's override across tabs. Apply before first app
+paint; update native controls and browser chrome too. Settings and public
+`/appearance` expose the same keyboard-accessible choice. Media stages stay
+dark; content pixels are never inverted. No account setting, API, marketing-site
+or authenticator theme change. Contract/palette: `design.md` §13.
+
+**Follow-up, same day:** operator requests marketing too and corrects the
+black-backed key in light screenshots. Extend the system to marketing with
+its own origin-local preference and public Appearance route; share the pure
+store, not account state. White artwork on dark, derived zinc artwork on
+light, no black badge. This supersedes the social-only scope and fixed logo
+backing above; authenticator remains unchanged.
+
 ### D107 — Replay is visible by default; mask sensitive regions [decided; rollout OPEN]
 
 Operator, 09.11.2026: "posthog is still masking way more thanit should, on the

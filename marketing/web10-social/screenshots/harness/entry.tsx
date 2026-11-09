@@ -15,6 +15,8 @@ import '../../src/index.css';
 import Layout from '@/components/Social/Layout';
 import DmsScreen from '@/components/Chat/DmsScreen';
 import SettingsScreen from '@/components/Settings/SettingsScreen';
+import AppearanceScreen from '@/components/Settings/Appearance';
+import { getThemeStore } from '@/lib/theme';
 import GroupsScreen from '@/components/Groups/GroupsScreen';
 import GroupDetailScreen from '@/components/Groups/GroupDetailScreen';
 import PostsScreen from '@/components/Feed/PostsScreen';
@@ -116,6 +118,7 @@ function GroupSavedCollectionRoute() {
   );
 }
 
+getThemeStore();
 const params = new URLSearchParams(window.location.search);
 const screen = params.get('screen');
 // Anon mode (?anon=1): a signed-out visitor. The chrome is the anon shell
@@ -145,6 +148,7 @@ if (screen === 'post-detail' || screen === 'group-post-detail') {
 } else {
   const initialRoute =
     screen === 'settings' ? '/settings'
+    : screen === 'appearance' ? '/appearance'
     : screen === 'feed' ? '/feed'
     : screen === 'posts' ? '/feed'
     : screen === 'posts-following' ? '/feed?tab=following'
@@ -170,8 +174,10 @@ if (screen === 'post-detail' || screen === 'group-post-detail') {
      : screen === 'discover-people' ? '/discover?tab=explore'
      : screen === 'discover-groups' ? '/discover?tab=explore'
      : screen === 'discover-explore' ? '/discover?tab=explore'
-     : screen === 'watch' ? '/watch/dp-1'
-     : screen === 'shorts' || screen === 'install-prompt' ? '/shorts'
+      : screen === 'watch' ? '/watch/dp-1'
+      : screen === 'watch-hls' ? '/watch/dp-5'
+      : screen === 'shorts' || screen === 'install-prompt' ? '/shorts'
+      : screen === 'shorts-lens' ? '/shorts/dp-2'
      : screen === 'shorts-searched' ? '/shorts?q=studio'
     : screen === 'groups' ? '/groups'
     : screen === 'groups-discover' ? '/groups?tab=discover'
@@ -231,6 +237,7 @@ if (screen === 'post-detail' || screen === 'group-post-detail') {
           <Route path="/shorts/:postId" element={<ShortsScreen />} />
           <Route path="/messages/*" element={<DmsScreen />} />
           <Route path="/settings" element={<SettingsScreen onLogout={() => {}} onReportBug={() => {}} />} />
+          <Route path="/appearance" element={<AppearanceScreen />} />
           <Route path="/groups" element={<GroupsScreen />} />
           <Route path="/groups/:groupId" element={<GroupDetailRoute />} />
           <Route path="/groups/:groupId/saved/:collectionId" element={<GroupSavedCollectionRoute />} />

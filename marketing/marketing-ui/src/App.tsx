@@ -14,6 +14,7 @@ import Freedom from './pages/Freedom'
 
 import Links from './pages/Links'
 import Everything from './pages/Everything'
+import Appearance from './pages/Appearance'
 
 // The pitch is the front door again (the pre-Discover-split layout): `/` is
 // the landing page, and the social experience lives at `/trending` (the tab
@@ -29,6 +30,7 @@ function App() {
             manifesto + reach gap + stats + CTA. (design.md §10: a creator's
             manager believes this is a company in 30 seconds.) Front and center. */}
         <Route path="/" element={<Home />} />
+        <Route path="/appearance" element={<Appearance />} />
         {/* The experience (the SHOW) — the content pyramid: People → Posts →
             Video → Shorts. Posts is the default (the index) — the content, not
             the profiles (the operator, 29.09.2026: "the people tab is kind of

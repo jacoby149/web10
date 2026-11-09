@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { requestInstallPrompt } from '@/lib/pwa';
 import { Settings as SettingsIcon, User, Database, Info, LogOut, ExternalLink, Shield, Bug, Eye, Lock, Loader2, Zap, Download, Copyright } from 'lucide-react';
 import { ReportCopyright } from '@/components/shared/ReportCopyright';
+import { Appearance } from './Appearance';
 
 const APP_VERSION = import.meta.env?.VITE_GIT_COMMIT || '0.1.0';
 const AUTH_ORIGIN = import.meta.env?.VITE_AUTH_ORIGIN || 'https://auth.web10.app';
@@ -213,6 +214,8 @@ export default function SettingsScreen({ onLogout, onReportBug }: { onLogout: ()
         <SettingsIcon className="w-6 h-6 text-foreground" strokeWidth={1.75} />
         <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">Settings</h1>
       </div>
+
+      <Appearance />
 
       <Section title="Account" icon={User}>
         <Row
