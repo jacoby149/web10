@@ -218,7 +218,7 @@ function RepostEmbed({
   const isVideo = first?.mime_type?.startsWith('video/');
 
   return (
-    <div className="mt-3 rounded-lg border border-border bg-elevated/30 overflow-hidden" data-testid="repost-embed">
+    <div className="mt-3 rounded-lg border border-border bg-elevated/30 overflow-hidden" data-testid="repost-embed" data-replay-private>
       <div className="flex items-center gap-2.5 px-3 py-2.5">
         <Avatar className={`h-8 w-8 ${avatarColor}`}>
           {original.avatar_url ? (

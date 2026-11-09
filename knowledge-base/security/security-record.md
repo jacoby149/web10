@@ -31,6 +31,17 @@ independently verified. Matching
 cloud, model-diverse review and promotion remain open. No production migration
 or L1–L4 PASS. [Record](scans/2026-11/query-date-pruning.md).
 
+## D107 visible-by-default replay (09.11.2026) — bounded review, OPEN
+
+Operator-approved public/UI text and readable image pixels replace blanket
+masking. Bounded L1/L2 checks cover SDK/wire policy and sensitive caller roots;
+local wire/component controls and six intercepted desktop/375px reconstructions
+retain private/input/credential denial. Review finds and repairs Music comments,
+private playlist/share portals and profile/saved grid gaps; public variants stay
+visible. Not a completed L3/L4 scan or model-diverse sign-off. Broad real-screen
+coverage, CI and approved deployment/fresh hosted recordings remain OPEN.
+[Record](scans/2026-11/posthog-capture.md).
+
 ## Q01 actual-host verification (09.11.2026) — strict acceptance FAILED
 
 Merged #1448's exact source runs on approved isolated DB/API/generator hosts.

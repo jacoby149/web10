@@ -475,7 +475,7 @@ function feedSqlString(value: string): string {
 
 /**
  * The power-mean score as a ClickHouse SQL expression — mirrors the node's
- * `_power_mean_score_sql` exactly (the same saturating normalizers, epsilon
+ * `_power_mean_score_sql` exactly (the same saturating normalizers, signal
  * floor, p=0 geometric mean, recency-only reverse-chron shortcut) so the query
  * ranks identically to the old `/v3/feed`. The values are inlined (the engine
  * runs raw SQL, no named params). `createdMs` / `reactions` / `comments` are
@@ -493,7 +493,11 @@ function powerMeanScoreSql(createdMs: string, reactions: string, comments: strin
   if (wr > 0 && wl <= 0 && wc <= 0) return `-(${age})`;
   // No weighted signal at all → score 0 (the caller falls back to chronological).
   if (wr <= 0 && wl <= 0 && wc <= 0) return '0';
-  const eps = 1e-12;
+  // Signal floor (parity with the node + powerMean.ts SIGNAL_FLOOR): a dead
+  // weighted signal counts 0.05 on the normalized scale, not ~0 — in the
+  // geometric mean a 1e-12 floor was a near-veto that no recency weight could
+  // outrank.
+  const eps = 0.05;
   const r = `least(1, greatest(${eps}, if(${hl} <= 0, 1, exp(-(${age}) / ${hl}))))`;
   const likesN = `least(1, greatest(${eps}, ln(1 + (${reactions})) / (1 + ln(1 + (${reactions})))))`;
   const c = `least(1, greatest(${eps}, 0.5 * ln(1 + (${comments})) / (1 + 0.5 * ln(1 + (${comments})))))`;

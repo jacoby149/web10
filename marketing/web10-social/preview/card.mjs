@@ -2,11 +2,14 @@
 //
 // The social-specific tail of the generic thumbnailing primitive. The platform
 // (the node) is 100% generic — it answers "what's the picture for this doc?"
-// (`POST /v3/media/thumbnail`) and "render a card from this spec"
+// (`POST /v3/media/thumbnail`), "run this SELECT over my groups" (the query
+// engine, `POST /v3/query` — including the D73 face-prepare that mints a face
+// URL bound to the face doc's uploader), and "render a card from this spec"
 // (`POST /v3/preview/render`). This module is the social part: it maps the
 // social permalink → a doc, reads the doc via the generic read, picks the
-// thumbnail via the generic primitive, applies the social fallback (author
-// avatar → brand mark), and asks the generic renderer for the card HTML.
+// thumbnail via the generic primitive, applies the social fallback (the
+// author's face through the anon face-prepare seam → brand mark), and asks
+// the generic renderer for the card HTML.
 //
 // Pure of `node:http` (the server is `server.mjs`) so the card logic is
 // unit-testable: mock `fetch` (the platform's endpoints) and drive
@@ -84,32 +87,112 @@ async function renderCardAnon(spec) {
   return res.text()
 }
 
-// Read the author's profile doc. The profile is a doc in the `profile` service
-// in the author's followers group — a social detail this module owns (it is the
-// social app's preview logic, so it knows its own group structure). The read is
-// anon-capable for a public profile (the face is public identity, D41).
-async function readAuthorProfile(username) {
-  const followersGroup = `${PROVIDER}/groups/users/${username}/followers`
-  const res = await fetch(`${API_ORIGIN}/v3/read`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ service: 'profile', groups: [followersGroup] }),
-  })
-  if (!res.ok) return null
-  const docs = await res.json()
-  return Array.isArray(docs) ? docs[0] ?? null : null
+// ── The anon face-prepare seam (D73) ─────────────────────────────────────────
+// The face's avatar/banner is a media doc in the uploader's PRIVATE namespace;
+// the platform's `/v3/media/thumbnail` I3-gates it to a 404 for anon (the
+// media doc's groups deny it), so a direct thumb call can never mint a face
+// for a share card — the card fell back to the brand mark even though the
+// same face is publicly displayed on the profile / group page (the 4.12.3
+// playlist diagnosis, the same defect class). The query engine's face-prepare
+// does: the caller's own SELECT over the face doc (I3-scoped to the caller's
+// readable groups) + `prepare.face` mints the face URL bound to the face doc's
+// UPLOADER (`posted_by or author_key`) — not the viewer — so anon can mint it
+// for any face the caller's groups allow reading. The floor holds: a private
+// profile / non-public group → no readable row → no URL → the generic card.
+//
+// Same contract as the shared resolver (`@web10/discover` face.ts, the
+// marketing `hydrateAuthors` / the social People tab): the SQL mirrors
+// `peopleFaceSql` / `GROUP_FACE_SQL` (latest doc wins — the node orders the
+// face stream `created_at DESC`, the QUALIFY pins it), ONE media field per
+// query (the face-prepare contract), and a failed query degrades to no face,
+// never a throw.
+const PROFILE_FACE_SQL =
+  'SELECT author_key AS author_key, body AS body FROM profile ' +
+  'QUALIFY row_number() OVER (PARTITION BY author_key ORDER BY created_at DESC) = 1'
+
+const GROUP_FACE_SQL =
+  'SELECT group_id AS group_id, author_key AS author_key, body AS body ' +
+  'FROM `web10-social-group-identity` ' +
+  'QUALIFY row_number() OVER (PARTITION BY group_id ORDER BY created_at DESC) = 1'
+
+// One anon face-prepare query (no token — the crawler's reader is anon).
+// Returns the result rows (each carries the face doc's `body` + the minted
+// urlField column when the face is readable and its ref resolvable), or [] on
+// any failure (denied group, no face, engine error — the card degrades).
+async function faceQuery(sql, groups, mediaField, urlField) {
+  try {
+    const res = await fetch(`${API_ORIGIN}/v3/query`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sql, groups, prepare: { face: { bodyField: 'body', mediaField, urlField } } }),
+    })
+    if (!res.ok) return []
+    const data = await res.json()
+    return Array.isArray(data.rows) ? data.rows : []
+  } catch {
+    return []
+  }
+}
+
+// The followers group for an author key: a qualified foreign key
+// (`{provider}/users/{username}` — D84) keeps its own provider; a bare local
+// key (the node's own users) uses the node's provider (the API host, the same
+// derivation as `PROVIDER`).
+function followersGroupFor(authorKey) {
+  const parts = authorKey.split('/users/')
+  if (parts.length === 2 && parts[0]) return `${parts[0]}/groups/users/${parts[1]}/followers`
+  return `${PROVIDER}/groups/users/${authorKey}/followers`
+}
+
+// The profile face: the latest `profile` doc in the author's followers group
+// + its avatar URL (face-prepare-minted for the face doc's uploader). The row
+// carries the body (name/bio) AND the picture in one read. null when the
+// profile is absent or not readable by anon (the I3 floor).
+async function profileFace(authorKey) {
+  const rows = await faceQuery(PROFILE_FACE_SQL, [followersGroupFor(authorKey)], 'avatar_ref', 'avatar_url')
+  const row = rows.find((r) => r && typeof r === 'object')
+  if (!row) return null
+  const body = row.body && typeof row.body === 'object' ? row.body : null
+  return {
+    body,
+    avatarUrl: typeof row.avatar_url === 'string' && row.avatar_url ? row.avatar_url : null,
+  }
+}
+
+// The group face: the latest identity doc in the group + its cover (banner)
+// and avatar URLs. Two face-prepares (one media field per query — the
+// face-prepare contract), the same split as the shared resolver. null when
+// the group has no readable face (non-public, or never set — the I3 floor).
+async function groupFace(groupId) {
+  const [bannerRows, avatarRows] = await Promise.all([
+    faceQuery(GROUP_FACE_SQL, [groupId], 'banner_ref', 'banner_url'),
+    faceQuery(GROUP_FACE_SQL, [groupId], 'avatar_ref', 'avatar_url'),
+  ])
+  const row = bannerRows[0] ?? avatarRows[0]
+  if (!row) return null
+  const body = row.body && typeof row.body === 'object' ? row.body : null
+  if (!body) return null
+  return {
+    face: body,
+    bannerUrl: typeof bannerRows[0]?.banner_url === 'string' ? bannerRows[0].banner_url : null,
+    avatarUrl: typeof avatarRows[0]?.avatar_url === 'string' ? avatarRows[0].avatar_url : null,
+  }
 }
 
 // The social fallback: when a doc has no picture of its own, use the author's
-// avatar, then the brand mark. This is the SOCIAL decision — the platform
-// returns null and steps back; we decide what to show.
+// face — a personal author's profile avatar, a group author's group-face
+// avatar (a group post with no media previews the group's face, not a
+// nonsense "users/<group id>/followers" read the pre-fix code built) — else
+// the caller uses the brand mark. The face resolves through the anon
+// face-prepare seam (D73) above — never a media-doc thumbnail call.
 export async function authorAvatarUrl(authorKey) {
   if (!authorKey) return null
-  const profile = await readAuthorProfile(authorKey)
-  const avatarRef = profile?.body?.avatar_ref
-  if (!avatarRef) return null
-  const thumb = await getThumbnailAnon(avatarRef) // a media doc → its own url
-  return thumb?.url ?? null
+  if (authorKey.includes('/groups/')) {
+    const face = await groupFace(authorKey)
+    return face?.avatarUrl ?? null
+  }
+  const face = await profileFace(authorKey)
+  return face?.avatarUrl ?? null
 }
 
 // Read a group's face (D60: documents in the `web10-social-group-identity`
@@ -141,11 +224,14 @@ async function readGroupFace(groupId) {
 // readable face (non-public, or never set) renders a generic card — the I3 floor.
 export async function groupCard(groupId) {
   const canonicalUrl = `${SOCIAL_ORIGIN}/groups/${encodeURIComponent(groupId)}`
-  const faceDoc = await readGroupFace(groupId)
-  const face = faceDoc?.body ?? null
+  // The group's face (the identity doc + the cover/avatar URLs) resolves
+  // through the anon face-prepare seam (D73) — the face's media docs are
+  // I3-denied for anon on /v3/media/thumbnail (the pre-fix brand-mark
+  // fallback), so the cover can only be minted the way the app mints it:
+  // bound to the face doc's uploader. A non-public group (or no face doc) →
+  // no readable face → the generic card, no group content (the I3/D41 floor).
+  const face = await groupFace(groupId)
   if (!face) {
-    // No readable face (non-public group, or no face doc) → a generic card, no
-    // group content (the I3/D41 privacy floor — same posture as a private post).
     return renderCardAnon({
       title: 'A group on web10',
       description: 'Open web10 to view this group.',
@@ -156,28 +242,16 @@ export async function groupCard(groupId) {
     })
   }
   // The image is the group's cover (banner), else its avatar, else the brand
-  // mark. Both are bare media doc_ids — resolved via the generic thumbnail
-  // (a media doc → its own image), the same as the author-avatar fallback.
-  let image = null
-  let imageAlt = null
-  for (const ref of [face.banner_ref, face.avatar_ref]) {
-    if (!ref) continue
-    const thumb = await getThumbnailAnon(ref)
-    if (thumb?.url) {
-      image = thumb.url
-      imageAlt = thumb.alt ?? null
-      break
-    }
-  }
-  if (!image) image = BRAND_IMAGE
-  const name = face.name ?? null
+  // mark.
+  const image = face.bannerUrl ?? face.avatarUrl ?? BRAND_IMAGE
+  const name = face.face.name ?? null
   const title = truncate(name, TITLE_LIMIT) ?? 'A group on web10'
-  const description = truncate(face.description, DESC_LIMIT) ?? 'A group on web10'
+  const description = truncate(face.face.description, DESC_LIMIT) ?? 'A group on web10'
   return renderCardAnon({
     title,
     description,
     image,
-    image_alt: imageAlt ?? name ?? title,
+    image_alt: name ?? title,
     url: canonicalUrl,
     og_type: 'website',
   })
@@ -423,17 +497,18 @@ async function buildPostCard(postId, canonicalUrl, usernameHint) {
 export async function profileCard(username) {
   const canonicalUrl = `${SOCIAL_ORIGIN}/u/${encodeURIComponent(username)}`
   // The profile's face is the account's public identity (the avatar + name are
-  // already on the discover board; there are no private accounts) — no
-  // anon-read gate, matching the platform's readable-by-design posture (D41).
-  const profile = await readAuthorProfile(username)
-  const displayName = profile?.body?.display_name ?? null
-  const bio = profile?.body?.bio ?? null
-  const avatarRef = profile?.body?.avatar_ref ?? null
-  let image = null
-  if (avatarRef) {
-    const thumb = await getThumbnailAnon(avatarRef) // a media doc → its own url
-    image = thumb?.url ?? null
-  }
+  // already on the discover board; there are no private accounts) — read
+  // through the anon face-prepare seam (D73): ONE query returns the profile
+  // doc (name/bio) AND the avatar URL minted for the face doc's uploader. The
+  // pre-fix path called /v3/media/thumbnail on the avatar media doc, which the
+  // node I3-denies for anon (the avatar doc 404s) — the card fell back to the
+  // brand mark for every profile share. Absent / unreadable profile → no row →
+  // the generic @username card (the I3 floor).
+  const face = await profileFace(username)
+  const body = face?.body ?? null
+  const displayName = body?.display_name ?? null
+  const bio = body?.bio ?? null
+  let image = face?.avatarUrl ?? null
   if (!image) image = BRAND_IMAGE
   const title = truncate(displayName, TITLE_LIMIT) ?? `@${username} on web10`
   const description = truncate(bio, DESC_LIMIT) ?? 'A profile on web10'

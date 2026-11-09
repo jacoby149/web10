@@ -1,5 +1,24 @@
 # Messages screenshots — how to capture them (read this before you try)
 
+## System / Light / Dark appearance
+
+`SCREENSHOT_OUTPUT_DIR="$PWD/../../.context/appearance" node screenshots/appearance.mjs`
+boots and stops its own server. It drives real radio keyboard selection,
+live device changes, remembered overrides/reload, two-tab synchronization,
+signed-out entry points, light-token AA contrast and theme/native/browser colors at desktop/375px,
+with responsive checks at 768/1280. Blocking-startup cases hold React back
+entirely. Captures include Settings/Appearance in both palettes and light
+Posts/Music/profile/watch/Shorts. Data is isolated fixtures, not a connected
+node, deployed release or physical-phone receipt.
+
+Marketing's actual-app counterpart (run from `marketing/marketing-ui`):
+`SCREENSHOT_OUTPUT_DIR="$PWD/../../.context/marketing-appearance" node scripts/appearance-browser.mjs`.
+It intercepts network data, captures landing/docs/Appearance in both palettes,
+drives the real Learn/mobile navigation and checks transparent theme artwork,
+decoded PNG alpha/size parity, selected borders, AA and 768/1280 bounds.
+`node scripts/render-theme-brand.mjs` reproduces the two derived dark assets
+from the canonical white originals without changing geometry or dimensions.
+
 PR screenshots for the **messages screen** (the Chat view) are
 produced by ONE command, with **no docker stack and no login**:
 

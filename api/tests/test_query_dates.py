@@ -131,7 +131,7 @@ def test_realistic_thousand_group_multi_service_query_can_use_the_date_plan():
 
 def test_actual_captured_main_query_emits_a_date_candidate_plan():
     root = Path(__file__).parents[2]
-    capture = json.loads((root / "research/experiments/costfn/evidence/core-feed-date-wire-v1.json").read_bytes())
+    capture = json.loads((root / "research/experiments/costfn/evidence/core-feed-date-wire-v2.json").read_bytes())
     groups = [f"api.localhost/groups/users/c42-c{i:06d}/followers" for i in range(1000)]
     readable = {service: groups for service in ("posts", "profile", "reactions", "comments")}
     sql = capture["requests"][0]["payload"]["sql"]

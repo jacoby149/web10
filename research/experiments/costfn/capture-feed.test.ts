@@ -34,7 +34,7 @@ test('empty feed is not falsely counted as a four-request load', async () => {
 test('wire capture is reproducible and explicitly not live-system proof', async () => {
   const fresh = await capture();
   expect(fresh).toEqual(await capture());
-  expect(fresh).toEqual(JSON.parse(readFileSync(new URL('./evidence/core-feed-wire-v5.json', import.meta.url), 'utf8')));
+  expect(fresh).toEqual(JSON.parse(readFileSync(new URL('./evidence/core-feed-wire-v6.json', import.meta.url), 'utf8')));
   // Source refresh must not silently change the historical single-node workload.
   const previous = JSON.parse(readFileSync(new URL('./evidence/core-feed-wire-v3.json', import.meta.url), 'utf8'));
   expect(fresh.requests).toEqual(previous.requests);
@@ -43,9 +43,9 @@ test('wire capture is reproducible and explicitly not live-system proof', async 
 
 test('dated wire and next-page captures execute the real builders with the same cutoff', async () => {
   const options = { createdAfterMs: Date.parse('2026-10-10T12:00:00Z') };
-  expect(await capture(21, options)).toEqual(JSON.parse(readFileSync(new URL('./evidence/core-feed-date-wire-v1.json', import.meta.url), 'utf8')));
+  expect(await capture(21, options)).toEqual(JSON.parse(readFileSync(new URL('./evidence/core-feed-date-wire-v2.json', import.meta.url), 'utf8')));
   const page = paginationCapture(undefined, options);
-  expect(page).toEqual(JSON.parse(readFileSync(new URL('./evidence/core-feed-date-next-page-v1.json', import.meta.url), 'utf8')));
+  expect(page).toEqual(JSON.parse(readFileSync(new URL('./evidence/core-feed-date-next-page-v2.json', import.meta.url), 'utf8')));
   expect(page.sql).toContain(`p.created_at >= fromUnixTimestamp64Milli(${options.createdAfterMs})`);
   expect(page.sql).toContain('__CURSOR_MS__');
 });

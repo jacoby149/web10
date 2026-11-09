@@ -129,3 +129,8 @@ gitignored workspace `.context/`; it is not a portable controller shipped by thi
 PR. Before any replay, provide/review an independent exact-project lifetime
 controller and obtain fresh local execution approval. No experiment is currently
 running, and no new cloud spend or deployment is authorized by the PR request.
+
+PR base reconciliation refreshes the active builder snapshots for current `dev`
+while preserving every earlier snapshot and receipt. The existing derivative's
+generator/source pins are historical; any current-source replay must explicitly
+derive and admit a matching new input identity rather than relabel old evidence.

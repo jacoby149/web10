@@ -76,6 +76,9 @@ The tour, in this order:
 1. **Top-level folders** — `api/` (FastAPI node: data, auth, billing,
    media; `api/rtc/` WebRTC), `ui/` (React admin/consent UI), `sdk/`
    (wapi.js), `marketing/` (web10-social killer app, marketing-ui site),
+   `marketing-importing/` (OPS: the headless creator-import pipeline —
+    `web10identify` / `web10import` / `web10accountsync`; its README is
+    the "how we do it"),
     `knowledge-base/` (the web10 brain — below),
     `ai-pack/` (the AI method cartridge — below),
      `ubuntu-deployment/` (server deploy), `e2e/` + `scripts/` (tests +
@@ -244,6 +247,15 @@ before any product or security call** — web10 is a data-policy platform,
 not a privacy platform (D41): the node is readable by design (discovery /
 search / auditability), there is no default e2e, and the client is a PWA,
 not a native app.
+
+**D107 replay policy (09.11.2026): visible by default, mask sensitive regions.**
+The operator explicitly rejects mask-everything-then-allowlist. Normal UI and
+public content across Posts/Video/Shorts/Music remain readable without markers;
+public images may be inlined as pixels, never signed source URLs. Mask inputs,
+editable drafts, DMs, private/unknown-visibility posts and private admin surfaces.
+Video/audio streams, cross-origin iframes and canvas are not recorded. Events
+remain content-free. Supersedes the blanket D56/D106 replay exclusion below;
+see `knowledge-base/web10-v3/telemetry.md`. Hosted/deployment gates stay open.
 
 **Telemetry (D56 intent, D103 vendor): PostHog only.** web10 tracks usage to
 compete on experience, never post/DM/media content. 5.0.0 (merged) removes GA4/

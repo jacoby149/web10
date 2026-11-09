@@ -319,7 +319,7 @@ function ContactPicker({
   }
 
   return (
-    <div className="flex flex-col h-full" data-testid="dm-contact-picker">
+    <div className="flex flex-col h-full" data-testid="dm-contact-picker" data-replay-private>
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
         <button
@@ -1352,7 +1352,7 @@ export default function DmsScreen() {
     const p2pOn = isP2PReady();
 
     return (
-      <div className="flex flex-col h-full" data-testid="dm-conversation">
+      <div className="flex flex-col h-full" data-testid="dm-conversation" data-replay-private>
         {/* Header — group chat (name + member count, no presence) vs DM (peer + presence) */}
         {isGroupChat ? (
           <div className="flex items-center gap-3 px-2 py-2 border-b border-border">
@@ -1509,7 +1509,7 @@ export default function DmsScreen() {
 
   if (!conversations.length && !groupChats.length) {
     return (
-      <div className="flex flex-col h-full" data-testid="dms-screen">
+      <div className="flex flex-col h-full" data-testid="dms-screen" data-replay-private>
         <div className="px-4 py-4 border-b border-border flex items-center justify-between">
           <h1 className="font-display text-lg font-bold text-foreground">Messages</h1>
           <div className="flex items-center gap-2">
@@ -1542,7 +1542,7 @@ export default function DmsScreen() {
   }
 
   return (
-    <div className="flex flex-col h-full" data-testid="dms-screen">
+    <div className="flex flex-col h-full" data-testid="dms-screen" data-replay-private>
       <div className="px-4 py-4 border-b border-border flex items-center justify-between">
         <h1 className="font-display text-lg font-bold text-foreground">Messages</h1>
         <div className="flex items-center gap-2">

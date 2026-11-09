@@ -2709,11 +2709,17 @@ def _power_mean_score(age_ms: float, likes: int, comments: int, sort: dict) -> f
 
     Mirrors marketing-ui/src/lib/powerMean.ts exactly so client and server
     score identically: the normalizers are set-independent saturating curves
-    (recency = exp decay, likes/comments = log1p then saturate), signals are
-    floored to epsilon so p <= 0 never nukes a post for one dead signal, and
-    the weighted power mean is (Σ wᵢ·xᵢ^p / Σ wᵢ)^(1/p) with p = 0 the
-    weighted geometric mean. Recency-only (the "Newest" preset) short-circuits
-    to pure reverse-chron.
+    (recency = exp decay, likes/comments = log1p then saturate), a dead
+    weighted signal is floored to the signal floor (0.05 — at the old 1e-12
+    epsilon the geometric mean made one dead signal a near-veto, ln(1e-12) ≈
+    27.6 log points, that no recency weight could outrank) so p <= 0 never
+    nukes a post for one dead signal, and the weighted power mean is
+    (Σ wᵢ·xᵢ^p / Σ wᵢ)^(1/p) with p = 0 the weighted geometric mean.
+    Recency-only (the "Newest" preset) short-circuits to pure reverse-chron.
+    The app's recency detents run 0..8 (steeper than the likes/comments 0..1
+    scale) so a cranked Recency outweighs a little engagement; the node just
+    consumes the weights it is sent (no range gate — D60: the app owns the
+    tuning).
     """
     wr = float(sort.get("recency", 0.0))
     wl = float(sort.get("likes", 0.0))
@@ -2731,11 +2737,12 @@ def _power_mean_score(age_ms: float, likes: int, comments: int, sort: dict) -> f
     likes_n = math.log1p(likes) / (1 + math.log1p(likes))
     c = (0.5 * math.log1p(comments)) / (1 + 0.5 * math.log1p(comments))
 
-    # Floor to epsilon so p <= 0 never nukes a post for one dead signal.
-    EPSILON = 1e-12
-    r = max(EPSILON, min(1.0, r))
-    likes_n = max(EPSILON, min(1.0, likes_n))
-    c = max(EPSILON, min(1.0, c))
+    # Signal floor so p <= 0 never nukes a post for one dead signal (parity
+    # with the client's SIGNAL_FLOOR).
+    SIGNAL_FLOOR = 0.05
+    r = max(SIGNAL_FLOOR, min(1.0, r))
+    likes_n = max(SIGNAL_FLOOR, min(1.0, likes_n))
+    c = max(SIGNAL_FLOOR, min(1.0, c))
 
     # Weighted power mean. Zero-weighted signals are excluded from both the
     # numerator and the denominator.
@@ -2767,8 +2774,9 @@ def _power_mean_score_sql(
     Mirrors `_power_mean_score` (and marketing-ui/src/lib/powerMean.ts) exactly
     so the node ranks identically to the client: the same saturating
     normalizers (recency = exp decay, likes/comments = log1p then saturate),
-    the same epsilon floor, p = 0 the weighted geometric mean, and the
-    recency-only reverse-chron shortcut. `created_ms` / `reactions` /
+    the same signal floor (0.05 — a dead weighted signal is a small cost, not
+    a veto), p = 0 the weighted geometric mean, and the recency-only
+    reverse-chron shortcut. `created_ms` / `reactions` /
     `comments` are SQL expressions for the post's created_at (a DateTime64
     column), its reaction count, and its comment count. `now_expr` defaults to
     the query time; a fixed value makes the age deterministic (tests).
@@ -2787,7 +2795,7 @@ def _power_mean_score_sql(
     if wr <= 0 and wl <= 0 and wc <= 0:
         return "0"
 
-    eps = 1e-12
+    eps = 0.05
     r = f"least(1, greatest({eps}, if(%(hl)s <= 0, 1, exp(-({age}) / %(hl)s))))"
     likes_n = f"least(1, greatest({eps}, ln(1 + ({reactions})) / (1 + ln(1 + ({reactions})))))"
     c = f"least(1, greatest({eps}, 0.5 * ln(1 + ({comments})) / (1 + 0.5 * ln(1 + ({comments})))))"

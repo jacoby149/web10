@@ -31,21 +31,25 @@ whose terms fit you.
 
 We use PostHog on the user-facing surfaces to improve the experience and measure
 acquisition, signup and return activity. Opaque account identifiers link signed-in
-usage across sessions; we do not send contacts, usernames or credentials to
+usage across sessions; we do not send contacts, private account identifiers or credentials to
 PostHog. Campaign labels can travel between our marketing, social and login
 surfaces. Anonymous visits are not proof of unique people.
 
-Optional recordings reproduce the page's layout and styling but mask all text
-and inputs, remove content-bearing attributes and block media; network bodies
+Optional recordings show normal interface text and public content by default
+across Posts, Video, Shorts and Music, including public image pixels. We mask
+form values, editable drafts, direct messages, private records and private
+administration. Credentials, signed media URLs and audio/video streams are
+excluded. Network bodies
 and console content are not recorded. Heatmaps contain interaction coordinates,
-not your content. Content is still never in the recording.
+not your content. Private content and credentials are excluded from recordings.
 
 The marketing site also sends first-party usage and error reports to the
 node, including page paths, referrers, browser information, actions, and
 error details.
 
-Content is never tracked: your posts, messages, and media are not in the
-recordings, not in the events, not sold, and not fed to any ad machine.
+Private posts, messages and private media are not in recordings or events.
+Public content may appear in optional recordings as described above.
+Content is not sold or fed to any ad machine.
 
 ## Ads
 

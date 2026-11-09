@@ -9,7 +9,47 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
-### D106 — Replay is layout-faithful, content-blind [decided]
+### D108 — Social follows device appearance, with explicit light/dark choices [decided]
+
+**09.11.2026 — operator:** “lets build that whole system please!” after
+System / Light / Dark, device detection and remembered overrides were proposed.
+Social now has two token palettes, defaults to System, follows live OS changes
+and synchronizes this browser's override across tabs. Apply before first app
+paint; update native controls and browser chrome too. Settings and public
+`/appearance` expose the same keyboard-accessible choice. Media stages stay
+dark; content pixels are never inverted. No account setting, API, marketing-site
+or authenticator theme change. Contract/palette: `design.md` §13.
+
+**Follow-up, same day:** operator requests marketing too and corrects the
+black-backed key in light screenshots. Extend the system to marketing with
+its own origin-local preference and public Appearance route; share the pure
+store, not account state. White artwork on dark, derived zinc artwork on
+light, no black badge. This supersedes the social-only scope and fixed logo
+backing above; authenticator remains unchanged.
+
+### D107 — Replay is visible by default; mask sensitive regions [decided; rollout OPEN]
+
+Operator, 09.11.2026: "posthog is still masking way more thanit should, on the
+discover things, we could see the posts that are there it is all public! and
+dont need to mask the ui buttons" (screenshot: `.context/attachments/E9we4l/image.png`).
+Follow-up: "all surfaces ... posts videos shorts music ... masked almost
+NOTHING" and "prefer masking nothing and tightening". This rejects the first
+narrow title/caption/label-allowlist draft. Normal product UI and public content
+are visible by default; no label dictionary or public opt-in marker. The short
+denylist is form values/editable drafts, DMs, private/unknown-visibility post
+records, private admin/account surfaces and credentials. Public images can be
+inlined as raster pixels without exporting their signed source URLs. SVG UI
+geometry survives; actual audio/video streams, canvas and cross-origin embeds
+remain unsupported, not claimed as recorded playback. Preserve static UI and
+public author/title/caption/count text across Posts, Video, Shorts and Music.
+Usage events remain content-free. Supersedes D56/D103/D106's blanket replay
+content exclusion. Verify snapshots and incremental updates with the pinned
+SDK and desktop/375px reconstruction; deployment and fresh hosted recordings
+remain gates. Old discarded content cannot be recovered.
+
+---
+
+### D106 — Replay is layout-faithful, content-blind [decided; text exclusion narrowed by D107]
 
 Operator, 08.11.2026 (after inspecting the first live recordings in the vendor
 UI: "session replay looks unusable it is so masked up"): a recording that
@@ -3083,6 +3123,35 @@ actually understands: Recency, Likes, Comments** (no mobile sideways scroll).
 half-life changes nothing for that preset. The node's `PowerMeanSort`
 contract is unchanged (`half_life_ms` is still sent, now always 1 day); the
 server-side `_power_mean_score` / `_power_mean_score_sql` are untouched.
+
+**Amendment (09.11.2026, 5.13.2):** operator: "in the feed tuner, recency
+needs to be much more potent … when i crank it up and have likes and comments
+just a little bit it gets dominated by likes and comments. when recency is
+cranked up, should prioritize things from today, even the last hour." The
+complaint was the math, not the UI: in the weighted geometric mean the
+weights are RELATIVE, and a dead weighted signal was floored at 1e-12 —
+ln(1e-12) ≈ 27.6 log points, a near-veto — so a fresh zero-engagement post
+lost to an old post with a little engagement at ANY recency weight, and the
+top recency detent (1.0) was only half the default log-score share anyway
+(likes 0.6 + comments 0.4). Two changes, in all five copies of the shared
+ranking math (both `powerMean.ts` apps, the shared `feedQuery.ts` detent map +
+SQL mirror, the social D73 `feed.ts` SQL mirror, the node's
+`_power_mean_score` / `_power_mean_score_sql`): **(1) the Recency detents run
+their own steeper scale `[0, 0.5, 1, 2, 4, 8]`** (`RECENCY_WEIGHTS`) — each
+step doubles recency's pull; the top detent (8.0) outweighs likes + comments
+at their combined max (2.0) four-fold, so a cranked Recency prioritizes
+today's posts over a little engagement on older ones, while at the low
+detents genuinely viral old posts still win (the knob keeps resolution across
+its range; the rack's Recency readout shows that knob's own scale).
+**(2) the dead-signal floor is 0.05** (`SIGNAL_FLOOR`), not 1e-12 — a zeroed
+weighted signal costs ln(0.05) ≈ 3 log points instead of 27.6: it still ranks
+below a real signal, without annihilating the post. Unchanged: detent
+indices (0..5), the four presets, `?knobs=` / `#mix=` / persisted-settings
+shapes, the fixed 1-day half-life, p = 0, and the node's `PowerMeanSort`
+contract (the node consumes whatever non-negative weights it is sent — D60:
+the app owns the tuning). The Balanced default is now recency-forward
+(recency 2.0 vs likes 0.6 / comments 0.4) — today's posts lead the default
+feed.
 
 ### D35 — Public media is a COLLECTION (`public_media`), not a flag or a blanket whitelist [decided]
 Cross-user media reads are dead today: the `media` service ships with no read

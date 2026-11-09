@@ -1,6 +1,7 @@
 import { getV3Client, readTokenCookie, extractDetail, Web10Error, type V3Group, type V3Document, type V3Client, type V3GroupContractSpec } from './v3';
 import { extractUsername, fromV3DocToPost, type PostRecord } from './types';
 import { API_HOST, API_ORIGIN } from '../lib/origins';
+import { resolveSocialProvider } from '../lib/socialProvider';
 
 const LOG = (...args: unknown[]) => console.log('[social:groups]', ...args);
 
@@ -58,7 +59,7 @@ function currentProvider(): string {
  * discover board (`web10.app/groups/web10/discover`).
  */
 export function followersGroupId(username: string, provider?: string): string {
-  const p = provider || currentProvider();
+  const p = resolveSocialProvider(provider, currentProvider());
   return `${p}/groups/users/${username}/followers`;
 }
 

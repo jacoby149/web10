@@ -124,7 +124,7 @@ export default function ShareCollectionSheet({ name, url, visibility, canMakePub
   const privateNote = visibility === 'private';
   return createPortal(<div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center" data-testid={`${testId}-backdrop`} onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
     <div className="pointer-events-none absolute inset-0 bg-background/80 backdrop-blur-sm" />
-    <div ref={panel} role="dialog" aria-modal="true" aria-labelledby={`${testId}-title`} className="relative w-full max-w-sm rounded-lg border border-border bg-popover p-4 shadow-xl sm:p-5" data-testid={`${testId}-sheet`}>
+    <div ref={panel} role="dialog" aria-modal="true" aria-labelledby={`${testId}-title`} className="relative w-full max-w-sm rounded-lg border border-border bg-popover p-4 shadow-xl sm:p-5" data-testid={`${testId}-sheet`} data-replay-private={visibility !== 'public' ? '' : undefined}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0"><h2 id={`${testId}-title`} className="truncate text-base font-medium">Share “{name}”</h2>
           <p className="mt-1 text-xs text-muted-foreground">{privateNote ? 'This playlist is private — people with the link can’t open it yet.' : 'Anyone with the link can listen.'}</p></div>

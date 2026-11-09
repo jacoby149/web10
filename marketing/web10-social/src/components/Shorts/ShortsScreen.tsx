@@ -548,7 +548,8 @@ function ShortsLensContent({ postId, tuned }: { postId: string; tuned: ReturnTyp
         <div
           key={surfaceKey(short.post)}
           data-testid={`short-slide-${i}`}
-          className="relative h-full w-full snap-start overflow-hidden bg-black flex items-center justify-center"
+          data-replay-private={short.post.visibility !== 'public' ? '' : undefined}
+          className="media-theme relative h-full w-full snap-start overflow-hidden bg-black flex items-center justify-center"
         >
           <div
             data-testid={`short-frame-${i}`}

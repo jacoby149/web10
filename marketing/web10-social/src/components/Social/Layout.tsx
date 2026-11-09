@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { User, Users, MessageSquare, LogOut, LogIn, Bug, Store, Gamepad2, Radio, Zap, Clapperboard, Settings, MoreHorizontal, X, Bell, ChevronDown, DollarSign, Flame, Shield, Video, Music } from 'lucide-react';
+import { User, Users, MessageSquare, LogOut, LogIn, Bug, Store, Gamepad2, Radio, Zap, Clapperboard, Settings, MoreHorizontal, X, Bell, ChevronDown, DollarSign, Flame, Shield, Video, Music, Palette } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getWapi } from '@/data/wapi';
@@ -16,6 +16,7 @@ import GlobalSearch from '@/components/Search/GlobalSearch';
 import { NewPostFab } from '@/components/Feed/NewPostFab';
 import ActingIdentitySwitcher from './ActingIdentitySwitcher';
 import { useActingAuthor } from '@/data/actingIdentity';
+import { ThemeMark } from '@/components/shared/ThemeMark';
 
 interface LayoutProps {
   onLogout: () => void;
@@ -85,8 +86,8 @@ function Wordmark({ className }: { className?: string }) {
   // Facebook-style variant was retired with the sidebar search).
   return (
     <span className={cn('flex items-center gap-2', className)}>
-      <img src="/keys-mark.png" alt="" className="h-6 w-6 shrink-0" aria-hidden="true" />
-      <span className="font-display text-lg font-bold tracking-tight text-foreground">
+      <ThemeMark className="h-6 w-6" />
+      <span className="wordmark-label font-display text-lg font-bold tracking-tight text-foreground">
         web<span className="text-brand">10</span>
       </span>
     </span>
@@ -390,6 +391,11 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                 data-testid="more-menu"
                 className="absolute left-0 right-0 bottom-full mb-1 z-30 rounded-lg border border-border bg-popover p-1 shadow-[0_8px_30px_rgb(0,0,0/0.35)] max-h-[min(70vh,420px)] overflow-y-auto"
               >
+                <button type="button" role="menuitem" data-testid="nav-appearance-desktop"
+                  onClick={() => { setMoreMenuOpen(false); navigate('/appearance'); }}
+                  className="flex min-h-11 w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-elevated">
+                  <Palette className="h-5 w-5" strokeWidth={1.75} />Appearance
+                </button>
                 {isNodeAdmin && (
                   <button
                     type="button"
@@ -430,11 +436,15 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
         </nav>
       </aside>
 
-      <main className="flex-1 flex flex-col min-w-0 min-h-0">
+      <main className="flex-1 flex flex-col min-w-0 min-h-0" data-replay-private={/^\/(?:messages|settings|node-settings|monetize|notifications|uploads)(?:\/|$)/.test(pathname) ? '' : undefined}>
         <header className="md:hidden flex items-center justify-between px-4 h-14 border-b border-border bg-surface/95 backdrop-blur-md sticky top-0 z-20 gap-2">
-          <Wordmark className="shrink-0 [&>span]:hidden" />
+          <Wordmark className="shrink-0 [&_.wordmark-label]:hidden" />
           {!isAnon && <ActingIdentitySwitcher personalName={displayName || username} personalAvatar={avatarUrl} />}
           <div className="flex items-center gap-1">
+            {isAnon && <button type="button" aria-label="Appearance" data-testid="nav-appearance-anon"
+              onClick={() => navigate('/appearance')} className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-elevated hover:text-foreground">
+              <Palette className="h-5 w-5" strokeWidth={1.75} />
+            </button>}
             <GlobalSearch variant="mobile" />
             {isAnon ? (
               <Button
@@ -752,6 +762,10 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
               </div>
 
               <div className="space-y-1">
+                <button type="button" data-testid="nav-appearance-mobile" onClick={() => go('/appearance')}
+                  className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground hover:bg-elevated">
+                  <Palette className="h-5 w-5" strokeWidth={1.75} />Appearance
+                </button>
                 {/* Profile — demoted from the bottom bar (the bar is full with
                     Feed, Video, Shorts, Messages + More); it lives here now. */}
                 <button

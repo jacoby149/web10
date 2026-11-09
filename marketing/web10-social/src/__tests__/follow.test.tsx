@@ -198,6 +198,36 @@ describe('Follow button -> followUser call', () => {
     });
   });
 
+  it.each(['web10', '', 'foreign.node'])('uses the resolved provider throughout the profile for %j navigation state', async (incoming) => {
+    const data = await import('@/data');
+    const { default: UserProfileScreen } = await import('@/components/Bio/UserProfileScreen');
+    const provider = incoming === 'foreign.node' ? incoming : 'test.localhost';
+    render(<MemoryRouter><UserProfileScreen username="adam" provider={incoming} /></MemoryRouter>);
+    await waitFor(() => expect(data.countFollowers).toHaveBeenCalledWith('adam', provider));
+    expect(data.readUserProfile).toHaveBeenCalledWith('adam', provider);
+    expect(data.readFollow).toHaveBeenCalledWith('adam', provider);
+    expect(data.readUserPublicProfile).toHaveBeenCalledWith('adam', provider, 50, 'profile');
+    fireEvent.click(screen.getByTestId('follow-button'));
+    await waitFor(() => expect(data.followUser).toHaveBeenCalledWith('adam', provider));
+    await waitFor(() => expect(screen.getByTestId('follow-button')).toHaveTextContent('Following'));
+    fireEvent.click(screen.getByTestId('follow-button'));
+    await waitFor(() => expect(data.unfollowUser).toHaveBeenCalledWith('adam', provider));
+  });
+
+  it('keeps a real join failure retryable without falsely claiming Following', async () => {
+    const data = await import('@/data');
+    vi.mocked(data.followUser).mockRejectedValueOnce(new Error('entry not found'));
+    const { default: UserProfileScreen } = await import('@/components/Bio/UserProfileScreen');
+    render(<MemoryRouter><UserProfileScreen username="adam" provider="web10" /></MemoryRouter>);
+    fireEvent.click(await screen.findByTestId('follow-button'));
+    expect(await screen.findByText('entry not found')).toBeInTheDocument();
+    expect(screen.getByTestId('follow-button')).not.toHaveTextContent('Following');
+    fireEvent.click(screen.getByText('Retry'));
+    await waitFor(() => expect(screen.getByTestId('follow-button')).toHaveTextContent('Following'));
+    expect(data.followUser).toHaveBeenNthCalledWith(1, 'adam', 'test.localhost');
+    expect(data.followUser).toHaveBeenNthCalledWith(2, 'adam', 'test.localhost');
+  });
+
   it('the "People to follow" rail is retired from the Posts view (D1: it moves to the People subtab)', async () => {
     const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
 
@@ -223,6 +253,12 @@ describe('Follow button -> followUser call', () => {
 });
 
 describe('UserProfileScreen', () => {
+  it.each([true, false])('keeps profile/saved wall tile text and media under their replay boundary (%s)', async (replayPrivate) => {
+    const { WallTile } = await import('@/components/Bio/UserProfileScreen');
+    render(<WallTile media={{ url: '', created_at: '' }} testId="replay-wall-tile" title="Tile headline" caption="Tile caption" replayPrivate={replayPrivate} onClick={() => {}} />);
+    expect(screen.getByTestId('replay-wall-tile').hasAttribute('data-replay-private')).toBe(replayPrivate);
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({

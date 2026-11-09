@@ -107,7 +107,7 @@ are **functional evidence only**, not latency percentiles for the manuscript.
 After source changes, regenerate and review the offline first-page and pagination
 captures in new versioned files; never overwrite historical captures or relabel
 an old acceptance receipt as current. The current captures are
-`evidence/core-feed-wire-v5.json` and `evidence/core-feed-next-page-v4.json`.
+`evidence/core-feed-wire-v6.json` and `evidence/core-feed-next-page-v5.json`.
 The single-node first-page payloads are unchanged from v3. They do not capture
 the federated reader's destination discovery, quotas, merge or paging sequence.
 
@@ -120,7 +120,7 @@ documents/links of indices modulo 100 below five receive distinct recent timesta
 21 fetched and 20 displayed. Counts/profiles and all other query joins remain;
 permission and deletion checks are not replaced by the candidate index.
 
-`core-feed-date-wire-v1.json` and `core-feed-date-next-page-v1.json` execute the
+`core-feed-date-wire-v2.json` and `core-feed-date-next-page-v2.json` execute the
 actual app/SDK builders with that cutoff. Their byte digests are recorded in
 date-run provenance. `run_date_case.py` runs one arm against a fresh dedicated
 local project or an already approved isolated topology. `candidate` explicitly

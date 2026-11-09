@@ -92,7 +92,7 @@ def validate(directory):
 
 
 def capture():
-    value = json.loads((Path(__file__).parent / "evidence/core-feed-date-wire-v1.json").read_bytes())
+    value = json.loads((Path(__file__).parent / "evidence/core-feed-date-wire-v2.json").read_bytes())
     if study_plan.wire_errors(value):
         raise ValueError("stale date source capture")
     if f"p.created_at >= fromUnixTimestamp64Milli({CUTOFF_MS})" not in value["requests"][0]["payload"]["sql"]:
@@ -102,8 +102,8 @@ def capture():
 
 def sources():
     here = Path(__file__).parent
-    return {**provenance.sources(), "date_wire_sha256": v1.digest(here / "evidence/core-feed-date-wire-v1.json"),
-            "date_pagination_sha256": v1.digest(here / "evidence/core-feed-date-next-page-v1.json")}
+    return {**provenance.sources(), "date_wire_sha256": v1.digest(here / "evidence/core-feed-date-wire-v2.json"),
+            "date_pagination_sha256": v1.digest(here / "evidence/core-feed-date-next-page-v2.json")}
 
 
 def indices(manifest, reader, offset=0):
@@ -148,7 +148,7 @@ def correctness(base, manifest):
                 checks.append(check_result(manifest, reader, rows, followups))
                 second = core_feed.payload(wire["requests"][0]["payload"], token, groups)
                 cursor = round(datetime.fromisoformat(rows[19]["created_at"].replace("Z", "+00:00")).timestamp() * 1000)
-                page = json.loads((Path(__file__).parent / "evidence/core-feed-date-next-page-v1.json").read_bytes())
+                page = json.loads((Path(__file__).parent / "evidence/core-feed-date-next-page-v2.json").read_bytes())
                 if page["feed_sha256"] != study_plan.sha(study_plan.ROOT / study_plan.SOURCES["feed"]) or page["capture_sha256"] != v1.digest(Path(__file__).parent / "capture-pagination.ts"):
                     raise ValueError("stale actual date pagination builder")
                 if f"p.created_at >= fromUnixTimestamp64Milli({CUTOFF_MS})" not in page["sql"]:

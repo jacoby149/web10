@@ -302,7 +302,7 @@ export default function SavedCollectionScreen({ username, provider, groupId, onB
   ).href;
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto max-w-5xl" data-replay-private={visibility !== 'public' ? '' : undefined}>
       {/* Header — back to the Saved tab + the collection face + the owner's
           controls (the visibility toggle + a kebab for rename / delete). */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border" data-testid="saved-collection-header">
@@ -536,6 +536,7 @@ export default function SavedCollectionScreen({ username, provider, groupId, onB
                   <WallTile
                     media={firstMedia ?? { _id: post._id, url: '', created_at: '' }}
                     testId="saved-post-cell"
+                    replayPrivate={post.visibility !== 'public'}
                     title={post.title}
                     caption={post.text}
                     postId={post._id}

@@ -93,7 +93,14 @@ pictures. events are **content-free and allowlisted**: route templates,
 actions, campaign labels and opaque account IDs — never post text, media URLs,
 contacts or credentials.
 
-the line: **content is never tracked.** posts, DMs, media — not in the
+**D107 (09.11.2026)** supersedes the blanket replay exclusion: optional replay
+shows normal UI and public content by default across Posts/Video/Shorts/Music,
+including bounded image pixels. Mask sensitive regions—inputs, drafts, DMs,
+private records/admin and credentials—not a growing public-content allowlist.
+Signed media URLs and audio/video streams remain excluded; usage events stay
+content-free. The older content-blind description above is historical.
+
+the line for private content: posts, DMs, media — not in the
 recordings, not in the events, not sold, not fed to any ad machine (the
 only sponsors a fan sees are the
 creator's, D50/D55). the trade is stated in the terms, not hidden

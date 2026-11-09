@@ -56,7 +56,11 @@ export interface SourcePost {
 /** Same app detents: retired Time/Character knobs never change ranking. */
 export function knobStateToSort(state: KnobState): FeedRanking | null {
   const weights = [0, 0.2, 0.4, 0.6, 0.8, 1];
-  const recency = weights[state.recency];
+  // Recency carries the app's steeper detents (each step doubles its pull;
+  // top detent 8.0 outweighs likes + comments at their combined max) — parity
+  // with the powerMean.ts RECENCY_WEIGHTS the social app resolves.
+  const recencyWeights = [0, 0.5, 1, 2, 4, 8];
+  const recency = recencyWeights[state.recency];
   const likes = weights[state.likes];
   const comments = weights[state.comments];
   if (likes <= 0 && comments <= 0) return null;
@@ -84,7 +88,11 @@ function powerMeanScoreSql(createdMs: string, reactions: string, comments: strin
   const age = `greatest(0, ${clock} - toUnixTimestamp64Milli(${createdMs}))`;
   if (wr > 0 && wl <= 0 && wc <= 0) return `-(${age})`;
   if (wr <= 0 && wl <= 0 && wc <= 0) return '0';
-  const eps = 1e-12;
+  // Signal floor (parity with powerMean.ts SIGNAL_FLOOR + the node's
+  // _power_mean_score): a dead weighted signal counts 0.05 on the normalized
+  // scale, not ~0 — in the geometric mean a 1e-12 floor was a near-veto that
+  // no recency weight could outrank.
+  const eps = 0.05;
   const r = `least(1, greatest(${eps}, if(${hl} <= 0, 1, exp(-(${age}) / ${hl}))))`;
   const likesN = `least(1, greatest(${eps}, ln(1 + (${reactions})) / (1 + ln(1 + (${reactions})))))`;
   const c = `least(1, greatest(${eps}, 0.5 * ln(1 + (${comments})) / (1 + 0.5 * ln(1 + (${comments})))))`;

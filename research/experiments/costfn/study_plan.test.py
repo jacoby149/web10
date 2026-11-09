@@ -10,7 +10,7 @@ import study_plan as study
 
 class StudyTests(unittest.TestCase):
     def setUp(self):
-        self.wire = json.loads((study.HERE / "evidence/core-feed-wire-v5.json").read_bytes())
+        self.wire = json.loads((study.HERE / "evidence/core-feed-wire-v6.json").read_bytes())
 
     def test_current_wire_is_valid_but_study_is_not_ready(self):
         result = study.audit(wire=self.wire)

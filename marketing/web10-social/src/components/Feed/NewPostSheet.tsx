@@ -55,6 +55,7 @@ export function NewPostSheet() {
       aria-modal="true"
       aria-label={isEditing ? 'Edit post' : repostingTo ? 'Repost' : 'New post'}
       data-testid="new-post-sheet"
+      data-replay-private
     >
       <div
         className="absolute inset-0 bg-background/80 backdrop-blur-sm animate-overlay-in"

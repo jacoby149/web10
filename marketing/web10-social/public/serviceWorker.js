@@ -14,7 +14,7 @@
 // Bump VERSION on a deploy that changes the shell — the versioned cache names
 // make the old shell get garbage-collected on activate.
 
-const VERSION = 'v1';
+const VERSION = 'v3';
 const STATIC_CACHE = `web10-social-static-${VERSION}`;
 const RUNTIME_CACHE = `web10-social-runtime-${VERSION}`;
 
@@ -30,9 +30,11 @@ const PRECACHE_URLS = [
   '/logo512.png',
   '/favicon.ico',
   '/keys-mark.png',
+  '/keys-mark-dark.png',
   '/apple-touch-icon.png',
   '/hls.min.js',
   '/wapi.js',
+  '/theme-init.js',
 ];
 
 // Paths that are dynamic / user content / API — NEVER cached (the invariant).

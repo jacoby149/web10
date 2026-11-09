@@ -39,6 +39,7 @@ import { SavedCollectionsGrid } from './SavedCollectionsGrid';
 import { textTileColor } from './textTileColor';
 import { toast, errorMessage } from '@/components/shared/Toast';
 import { cn } from '@/lib/utils';
+import { resolveSocialProvider } from '@/lib/socialProvider';
 import { requestInstallPrompt, isMobile } from '@/lib/pwa';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -125,6 +126,7 @@ interface WallTileProps {
   /** The post's doc_id — seeds the deterministic text-tile background color. */
   postId?: string;
   multiCount?: number;
+  replayPrivate?: boolean;
   onClick: () => void;
 }
 
@@ -136,7 +138,7 @@ interface WallTileProps {
  * `<img>`. The grid is responsive — 4 across on desktop (the Instagram
  * shape), fewer as the width shrinks (explicit breakpoints).
  */
-export function WallTile({ media, testId, title, caption, postId, multiCount, onClick }: WallTileProps) {
+export function WallTile({ media, testId, title, caption, postId, multiCount, replayPrivate = true, onClick }: WallTileProps) {
   const video = isVideo(media);
   const audio = !!media.mime_type?.startsWith('audio/');
   // The text-only tile's heading: the title (D82) when present, else the
@@ -148,6 +150,7 @@ export function WallTile({ media, testId, title, caption, postId, multiCount, on
       tabIndex={0}
       aria-label={heading ? `View ${heading}` : 'View post'}
       data-testid={testId}
+      data-replay-private={replayPrivate ? '' : undefined}
       onClick={onClick}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -189,7 +192,7 @@ export function WallTile({ media, testId, title, caption, postId, multiCount, on
         // display face (Space Grotesk) with the caption under it. Vertically
         // centered, not corner-dumped — it reads as a card, not an empty box.
         <div
-          className="relative w-full h-full flex flex-col justify-center p-3 sm:p-5"
+          className="media-theme relative w-full h-full flex flex-col justify-center p-3 sm:p-5"
           style={{ backgroundColor: textTileColor(postId) }}
           data-testid={`${testId}-text`}
         >
@@ -251,7 +254,8 @@ export function WallTile({ media, testId, title, caption, postId, multiCount, on
   );
 }
 
-export default function UserProfileScreen({ username, provider, onBack }: UserProfileScreenProps) {
+export default function UserProfileScreen({ username, provider: requestedProvider, onBack }: UserProfileScreenProps) {
+  const provider = resolveSocialProvider(requestedProvider, getWapi().readToken()?.provider);
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
   const [posts, setPosts] = useState<PostRecord[]>([]);
   const [postsError, setPostsError] = useState(false);
@@ -435,8 +439,8 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         // no profile picture. The query engine is anon-capable, author-scoped,
         // and returns the posts with media resolved inline + the face URLs.
         const [p, fr, pub] = await Promise.all([
-          readUserProfile(username).catch(() => null),
-          readFollow(username).catch(() => null),
+          readUserProfile(username, provider).catch(() => null),
+          readFollow(username, provider).catch(() => null),
           readUserPublicProfile(username, provider, 50, 'profile').catch((e) => {
             console.error('[social] loadData — readUserPublicProfile failed:', e);
             postsFailed = true;
@@ -1157,6 +1161,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                     key={post._id}
                     media={firstMedia ?? { _id: post._id, url: '', created_at: '' }}
                     testId="profile-post-cell"
+                    replayPrivate={post.visibility !== 'public'}
                     title={post.title}
                     caption={post.text}
                     postId={post._id}
@@ -1184,6 +1189,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                     key={mediaRefId(ref)}
                     media={media}
                     testId="profile-media-cell"
+                    replayPrivate={post.visibility !== 'public'}
                     title={post.title}
                     caption={post.text}
                     postId={post._id}
