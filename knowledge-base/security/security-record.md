@@ -15,6 +15,17 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Exact-ID canonical pruning (08.11.2026) — bounded compiler/wiring review, OPEN
+
+Internal exact-ID restrictions retain complete document/attachment histories,
+current input authority and ambiguous identity denial. Twenty-four local controls,
+twelve native ClickHouse cases plus 3,000-UUID fallback and all 2,226 API tests
+pass. The 100k-identity query diagnostic reduces bytes/window memory, not
+full-feed concurrency proof.
+Three fresh same-family scoped reviews are dry; broader L1–L4/diverse sign-off, merge/concurrent
+mutation, million-author acceptance and PR/deployment gates remain OPEN.
+[Record](scans/2026-11/query-exact-id-pruning.md).
+
 ## Attachment-history partition pruning (08.11.2026) — bounded compiler review, OPEN
 
 Actual-host timeout evidence motivates trusted partition-key predicate placement,

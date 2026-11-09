@@ -35,6 +35,21 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-08: Exact document IDs narrow work, never canonical authority
+
+Canonical media/ad reads already request exact IDs; restricting both history
+inputs to those IDs removes whole partitions without dropping tombstones. Keep
+all authors/services eligible for ambiguity checks and retain readable groups,
+visibility and the outer exact-ID predicate. Repeated ID lists can exceed the
+engine's parser limit: a native 3,000-UUID regression requires byte-budget
+fallback to the existing canonical read, not a new page-size cap. Only that
+helper may discard its redundant hint; generic compiler fallback could silently
+discard empty restrictions. No generic caller-predicate pushdown or
+projected-owner shortcut follows. Twenty-four local controls and
+twelve native ClickHouse cases pass; a 100k-identity diagnostic reduces bytes
+and window memory, but the author-first document scan remains. The failed
+million-author concurrency gate is not closed. [Record](scans/2026-11/query-exact-id-pruning.md).
+
 ### 2026-11-08: Prune complete history partitions, not denying versions
 
 The actual million-author preflight times out while the boundary ranks global

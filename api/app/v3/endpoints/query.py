@@ -23,6 +23,8 @@ log = logging.getLogger(__name__)
 # the execution time. A caller-supplied LIMIT is always honored as-is.
 MAX_ROWS = 1000
 MAX_EXECUTION_TIME_S = 10
+# Optimization budget only; large canonical reads retain their existing path.
+_MAX_CANONICAL_HINT_BYTES = 128 * 1024
 
 # Per-user query rate limit (D65): abuse prevention, not security. Keyed on
 # the verified user_key (not IP — the node sits behind a proxy, so XFF is
@@ -210,17 +212,27 @@ def _canonical_prepare_docs(rows: list[dict], reader: str, readable: dict[str, l
             .where(exp.In(this=exp.column("doc_id"), expressions=[exp.Literal.string(i) for i in sorted(ids)]))
             .distinct()
         )
+        lookup_sql = select.sql(dialect="clickhouse")
+        options = {
+            "member_key": reader,
+            "allowed_services": frozenset({service}),
+            "max_limit": max(MAX_ROWS, len(ids) + 1),
+        }
         compiled = sq.build_safe_query(
-            select.sql(dialect="clickhouse"),
-            {service: groups},
-            member_key=reader,
-            allowed_services=frozenset({service}),
-            max_limit=max(MAX_ROWS, len(ids) + 1),
+            lookup_sql, {service: groups}, **options, document_ids_by_service={service: sorted(ids)}
         )
+        if len(compiled.encode("utf-8")) > _MAX_CANONICAL_HINT_BYTES:
+            # Only this helper can drop the hint: its server-written outer
+            # exact-ID predicate independently retains the lookup restriction.
+            log.info("[query] canonical prepare read: byte-budget fallback")
+            compiled = sq.build_safe_query(lookup_sql, {service: groups}, **options)
+        log.info("[query] canonical prepare read: starting exact_ids=%d", len(ids))
         try:
             columns, values = ch.execute_query(compiled, settings={"max_execution_time": MAX_EXECUTION_TIME_S})
         except ch.QueryExecutionError:
+            log.warning("[query] canonical prepare read: failed")
             raise HTTPException(status_code=403, detail="canonical prepare read failed")
+        log.info("[query] canonical prepare read: completed rows=%d", len(values))
         for values_row in values:
             doc = _serialize_row(dict(zip(columns, values_row)))
             doc_id = doc["doc_id"]

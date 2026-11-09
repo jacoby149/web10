@@ -356,6 +356,20 @@ prepared projections receive canonical fields, not caller-transformed body/owner
 values. A concurrent hide/deletion can fail the entire request closed. Not
 social-specific (the passes are universal; the `face` spec is caller-supplied).
 
+**Exact-ID preparation optimization.** Canonical media/ad reads may supply an
+internal per-service document-ID restriction to the safe compiler. Apply it to
+both document and attachment histories before ranking: `doc_id` belongs to both
+partition keys, so every version of each requested identity remains eligible.
+Keep the outer exact-ID predicate, current readable groups, post-rank deletion,
+visibility filters and ambiguous-author/service denial. IDs request a lookup;
+they never authorize one. This is not a new request field or arbitrary caller
+predicate pushdown. Ordinary queries and face preparation retain their existing
+compilation path. Empty restrictions mean no rows, not an unrestricted read.
+For large canonical requests, a 128-KiB UTF-8 hinted-query budget selects the
+existing unhinted lookup instead; supported result sizes are not reduced.
+Same-engine parity and rows/bytes diagnostics precede any speedup claim; local
+synthetic evidence does not close the failed million-author concurrency gate.
+
 ## Group metadata (QE-A)
 
 The engine now supports an opt-in `group_meta` boundary CTE that exposes group

@@ -70,6 +70,21 @@ single-flight deduplication are separate tools.
 Paths in this section are under `api/`. Priority is source-based, not production
 traffic measurement. Each checkbox remains open until its own gates pass.
 
+### Q01/Q02 - P1: History work exposed by the million-author preflight
+
+- [✓ 5.9.2 local; release gates OPEN] Q01: canonical media/ad reads supply internal exact IDs to both history
+  inputs before ranking; all versions, current authority and ambiguity checks
+  remain. Twenty-four controls, twelve actual ClickHouse cases and a native 3,000-UUID
+  query-byte fallback pass; local
+  100k-identity diagnostics reduce bytes/window memory, not the failed full-feed
+  concurrency gate. Owns compiler/canonical-helper hunks and focused API tests.
+  [Evidence](../security/scans/2026-11/query-exact-id-pruning.md).
+- [ ] Q02: use readable attachment candidates to narrow the main document
+  history input. Separate bite after Q01; retain complete histories, visibility,
+  multi-group multiplicity and canonical authority. Actual ClickHouse plans and
+  rows/bytes parity precede unchanged strict concurrency acceptance. No paid
+  execution or production changes without approval.
+
 ### B01 - P1: Readable-Set Authorization
 
 - Evidence: `app/v3/endpoints/query.py:223` (`run_query`),
