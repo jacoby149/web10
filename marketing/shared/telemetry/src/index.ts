@@ -111,9 +111,37 @@ export function sanitizeEvent(event: CaptureResult | null): CaptureResult | null
 // input values, placeholders, alt/title text, DOM ids (route/doc identifiers)
 // and all custom data-*/aria-* payloads.
 const REPLAY_BLOCKED_ATTRS = new Set(['value', 'alt', 'title', 'placeholder', 'src', 'srcdoc', 'poster', 'id', 'contenteditable']);
+const REPLAY_TYPES = new Set(['text/css', 'button', 'submit', 'reset', 'text', 'password', 'email', 'tel', 'url', 'search', 'number', 'checkbox', 'radio', 'range', 'date', 'datetime-local', 'month', 'time', 'week', 'color', 'file', 'hidden']);
 
 function replayHref(value: string): string {
   return 'https://web10.invalid' + analyticsPath(value.startsWith('/') ? value : (() => { try { return new URL(value).pathname; } catch { return '/other'; } })());
+}
+
+// Parse as inert CSS, not DOM text. Never attach this sheet: @import must not
+// fetch. Keep layout, but remove generated content and resource/attribute reads.
+// Browsers without constructed stylesheets fail closed rather than sending CSS.
+function replayCss(value: string): string {
+  try {
+    const sheet = new CSSStyleSheet();
+    if (sheet.replaceSync) sheet.replaceSync(value);
+    else sheet.insertRule(`@media all { ${value} }`);
+    const clean = (rules: CSSRuleList): string => Array.from(rules).map((rule) => {
+      const styled = rule as CSSStyleRule;
+      if (styled.style) {
+        for (const property of Array.from(styled.style)) {
+          const declaration = styled.style.getPropertyValue(property);
+          if (property === 'content' || property === 'src' || /(?:url|image-set|attr)\s*\(/i.test(declaration)) styled.style.removeProperty(property);
+        }
+      }
+      const group = rule as CSSGroupingRule;
+      if (group.cssRules?.length) {
+        const children = clean(group.cssRules);
+        return rule.cssText.slice(0, rule.cssText.indexOf('{') + 1) + (styled.style?.cssText ?? '') + children + '}';
+      }
+      return rule.type === CSSRule.IMPORT_RULE ? '' : rule.cssText;
+    }).join('\n');
+    return clean(sheet.replaceSync ? sheet.cssRules : (sheet.cssRules[0] as CSSGroupingRule).cssRules);
+  } catch { return ''; }
 }
 
 /** Defense after rrweb masking: no user content, no log/plugin/custom data,
@@ -130,13 +158,29 @@ export function maskReplay(value: unknown, key = ''): unknown {
         .map(([attr, v]) => {
           const a = attr.toLowerCase();
           if (a === 'href') return [attr, replayHref(String(v ?? ''))];
-          if (a === 'class' || a === 'style') return [attr, typeof v === 'string' ? v : '[masked]'];
+          // Invalid style MIME types disable CSS; blocked-media dimensions are
+          // rrweb protocol fields, not content. Preserve only fixed safe forms.
+          if (a === 'type' && typeof v === 'string' && REPLAY_TYPES.has(v)) return [attr, v];
+          if (a === 'rel' && v === 'stylesheet') return [attr, v];
+          if ((a === 'rr_width' || a === 'rr_height') && typeof v === 'string' && /^\d+(?:\.\d+)?px$/.test(v)) return [attr, v];
+          if (a === '_csstext') return [attr, typeof v === 'string' ? replayCss(v) : ''];
+          if (a === 'style') {
+            const css = typeof v === 'string' ? replayCss(`x { ${v} }`) : '';
+            return [attr, css.slice(css.indexOf('{') + 1, css.lastIndexOf('}')).trim()];
+          }
+          if (a === 'class') return [attr, typeof v === 'string' ? v : '[masked]'];
           return [attr, maskReplay(v, attr)];
         }),
     );
   }
   if (Array.isArray(value)) return value.filter((v) => !(v && typeof v === 'object' && [5, 6].includes(v.type))).map((v) => maskReplay(v));
-  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, maskReplay(v, k)]));
+  if (value && typeof value === 'object') {
+    const node = value as { type?: number; isStyle?: boolean };
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k,
+      node.type === 3 && node.isStyle === true && k === 'textContent' && typeof v === 'string'
+        ? replayCss(v) : maskReplay(v, k),
+    ]));
+  }
   if (typeof value !== 'string') return value;
   if (key === 'tagName' && /^[a-z][a-z0-9-]{0,30}$/.test(value)) return value;
   if (key === 'href') return replayHref(value);
@@ -165,7 +209,12 @@ export function posthogOptions(host: string, replay = false): Partial<PostHogCon
       blockSelector: 'img, video, audio, canvas, svg, iframe, object, embed, input[type="file"]',
       recordCrossOriginIframes: false, recordHeaders: false, recordBody: false,
       captureCanvas: { recordCanvas: false }, collectFonts: true, inlineStylesheet: true, captureJsonLd: false,
-      compress_events: false, maskCapturedNetworkRequestFn: () => null,
+      compress_events: false,
+      // The pinned SDK also invokes this with {name} for rrweb's Meta URL.
+      // Returning null there drops the viewport/page metadata and breaks replay.
+      // Real network entries (timings/headers/body/etc.) still return null.
+      maskCapturedNetworkRequestFn: (request) => Object.keys(request).length === 1 && typeof request.name === 'string'
+        ? { ...request, name: replayHref(request.name) } : null,
     },
     disable_surveys: true,
     disable_conversations: true,

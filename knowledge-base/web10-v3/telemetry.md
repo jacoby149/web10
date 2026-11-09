@@ -116,6 +116,19 @@ batches and checks private sentinels plus class survival; a live dev recording
 was operator-inspected 08.11.2026. Do not relax masking to improve the
 recording.
 
+Replay compatibility follow-up (09.11.2026): preserving class names alone did
+not preserve stylesheets. rrweb style-text and `_cssText` need an inert CSS
+parser, retaining layout declarations while dropping generated `content`,
+resource URLs/imports and attribute reads. Ordinary DOM text stays masked.
+The pinned SDK also calls `maskCapturedNetworkRequestFn` with only `{name}`
+for its Meta URL: return a route template for that call, not null, or the
+recorder discards the page/viewport Meta event. Actual network entries still
+return null. Verify decoded wire events **and reconstructed playback**, not
+merely that a `$snapshot` batch exists. New recordings after deployment are
+required; removed metadata/CSS cannot be recovered from old recordings.
+Fixed structural MIME/input types, stylesheet rel and numeric rrweb blocked-media
+dimensions also survive; masking `type="text/css"` disables the stylesheet.
+
 ## Configure and verify
 
 1. Provision one PostHog project in the chosen region; configure its access,

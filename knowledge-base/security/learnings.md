@@ -35,6 +35,18 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-09: Replay masking must preserve the recorder's structural protocol
+
+The pinned PostHog SDK uses its network-mask callback for Meta URLs as well as
+network entries. Returning null for both silently discards page/viewport metadata;
+masking rrweb stylesheet text as ordinary text separately destroys layout.
+Retain only route-templated name-only callbacks and parsed, resource/content-free
+stylesheet declarations; actual network entries and private DOM text stay out.
+Class survival and snapshot delivery are not playback tests. Reconstruct sanitized
+wire events and check computed layout, alongside content/credential sentinels.
+This is bounded adapter evidence, not vendor-hosted playback or a complete
+CSS/content-boundary audit. Review and deployed/new-session verification stay open.
+
 ### 2026-11-08: Filter document windows without duplicating attachment windows
 
 Readable-ID semijoins repeat inlined attachment work; unrestricted early joins

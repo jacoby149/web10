@@ -43,12 +43,14 @@ function payload(request) {
 }
 
 try {
-  for (const [app, directory] of [['marketing-ui', 'marketing/marketing-ui'], ['web10-social', 'marketing/web10-social'], ['auth-ui', 'ui']]) {
+  const surfaces = [['marketing-ui', 'marketing/marketing-ui'], ['web10-social', 'marketing/web10-social'], ['auth-ui', 'ui']];
+  const cases = surfaces.flatMap(([app, directory]) => (replay ? [['desktop', 1440], ['mobile', 375]] : [['desktop', 1440]]).map(([label, width]) => ({ app, directory, label, width })));
+  for (const { app, directory, label, width } of cases) {
     let server;
     // Exercise a synthetic ordinary-browser environment without changing SDK
     // bot filtering: default Playwright UA/UA-CH/webdriver are deliberately
     // dropped. This normalization is fixture-only, never app configuration.
-    const context = await browser.newContext({ userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36' });
+    const context = await browser.newContext({ viewport: { width, height: 1000 }, userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36' });
     await context.addInitScript(() => {
       Object.defineProperty(navigator, 'webdriver', { get: () => false });
       Object.defineProperty(navigator, 'userAgentData', { get: () => undefined });
@@ -61,7 +63,7 @@ try {
     page.on('console', (message) => {
       if (message.text().startsWith('[telemetry]')) console.log(app, message.text());
     });
-    const html = `<!doctype html><html><head><meta name="referrer" content="no-referrer"><title>PostHog verification</title></head><body><div data-private="PRIVATE_SENTINEL"><p>PRIVATE_SENTINEL</p><input value="PRIVATE_SENTINEL"><video poster="https://private.invalid/PRIVATE_SENTINEL"></video></div><div id="root"></div><script type="module">
+    const html = `<!doctype html><html><head><meta name="referrer" content="no-referrer"><title>PostHog verification</title><style>.replay-layout-probe { display: grid; grid-template-columns: 1fr 2fr; gap: 24px; min-height: 160px; background: var(--color-surface); } .replay-layout-probe::before { content: 'PRIVATE_SENTINEL'; background-image: url('https://private.invalid/PRIVATE_SENTINEL'); }</style></head><body><section class="replay-layout-probe"><nav>PRIVATE_SENTINEL</nav><article>PRIVATE_SENTINEL</article></section><div data-private="PRIVATE_SENTINEL"><p>PRIVATE_SENTINEL</p><input value="PRIVATE_SENTINEL"><video poster="https://private.invalid/PRIVATE_SENTINEL"></video></div><div id="root"></div><script type="module">
       import React from 'react';
       import { createRoot } from 'react-dom/client';
       import '/src/index.css';
@@ -154,7 +156,31 @@ try {
         assert.ok(events.some((entry) => entry.event === '$$heatmap'), 'real heatmap emitted no coordinates');
         // D106: layout fidelity — class attributes must survive the wire gate.
         const snapshot = events.find((entry) => entry.event === '$snapshot');
+        await writeFile(path.join(out, `${app}-${label}-snapshots.json`), JSON.stringify(events.filter((entry) => entry.event === '$snapshot').flatMap((entry) => entry.properties.$snapshot_data), null, 2));
         assert.ok(JSON.stringify(snapshot?.properties?.$snapshot_data).match(/"class":"[^"]{3,}/), 'D106 layout fidelity: no class attributes survived the wire gate');
+        const snapshots = events.filter((entry) => entry.event === '$snapshot').flatMap((entry) => entry.properties.$snapshot_data);
+        assert.ok(snapshots.some((entry) => entry.type === 4 && entry.data.width > 0 && entry.data.height > 0), 'Replay lost its Meta event / viewport');
+        const playback = await context.newPage();
+        try {
+          await playback.addScriptTag({ path: path.join(root, 'marketing/marketing-ui/node_modules/@rrweb/replay/dist/replay.umd.cjs') });
+          await playback.addStyleTag({ path: path.join(root, 'marketing/marketing-ui/node_modules/@rrweb/replay/dist/style.css') });
+          await playback.evaluate((events) => {
+            window.replayer = new window.rrwebReplay.Replayer(events, { root: document.body, skipInactive: false });
+            window.replayer.pause(events.at(-1).timestamp - events[0].timestamp);
+          }, snapshots);
+          const frame = playback.frames().find((frame) => frame !== playback.mainFrame());
+          assert.ok(frame, 'Replayer did not construct the recorded document');
+          const layout = await frame.locator('.replay-layout-probe').evaluate((element) => {
+            const style = getComputedStyle(element);
+            return { display: style.display, gap: style.gap, height: element.getBoundingClientRect().height, font: getComputedStyle(document.body).fontFamily };
+          });
+          assert.equal(layout.display, 'grid', 'Replay lost the captured stylesheet');
+          assert.equal(layout.gap, '24px');
+          assert.ok(layout.height >= 160);
+          assert.match(layout.font, /Inter|sans-serif/, 'Replay lost the actual app stylesheet (not just the probe CSS)');
+          await playback.screenshot({ path: path.join(out, `${app}-playback-${label}.png`) });
+          console.log('[telemetry] local playback verified', { app, viewport: label, ...layout });
+        } finally { await playback.close(); }
       }
       else assert.ok(!events.some((entry) => entry.event === '$snapshot'));
       for (const event of events) {
@@ -188,7 +214,7 @@ try {
           }
         }
       }
-      receipts.push({ app, sdk: 'posthog-js@1.447.3', events: events.map((entry) => ({ event: entry.event, path: entry.properties.$pathname ?? null })), legacyRequests: legacy.length, privateSentinelAbsent: true, realVendorPersistence: false });
+      receipts.push({ app, viewport: label, localPlaybackVerified: replay, sdk: 'posthog-js@1.447.3', events: events.map((entry) => ({ event: entry.event, path: entry.properties.$pathname ?? null })), legacyRequests: legacy.length, privateSentinelAbsent: true, realVendorPersistence: false });
     } finally {
       await context.close();
       await server?.close();
