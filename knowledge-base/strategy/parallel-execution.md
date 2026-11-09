@@ -182,6 +182,14 @@ docs] its proposal lane and protocol-decision task were removed from this queue.
 No agent should claim research/runtime ownership or emit a kickoff for it without
 explicit operator reactivation during v4 planning. Existing v3 lanes are unchanged.
 
+### Lane: profile-follow-provider (bounded production report)
+
+**Owns:** social provider-resolution helper, follower-group addressing,
+`follows.ts` provider forwarding, `UserProfileScreen.tsx` provider handling and
+focused tests/fixtures; no API/SDK/mixer or production configuration changes.
+- [✓ 5.9.9 local; rollout OPEN] **Repair legacy-provider profile follows** — missing/legacy `web10` resolves to the current node, explicit providers remain intact and profile/follow-state reads forward the provider. Public production metadata finds Adam's canonical open group but not the placeholder address. Five red regressions, 58 focused controls/build and inspected desktop/375px synthetic Following captures pass; genuine missing groups still fail without alternate-provider retry/creation. No production writes/deployment or authenticated production-replay claim.
+- [ ] **Profile-follow production acceptance** — after this fix merges, all checks pass and normal deployment is explicitly approved, replay post-author → Adam profile → Follow with operator-approved account actions. Verify the canonical group address, persisted follow state after reopen and no false success on denied writes at desktop/375px. Owns focused social tests/fixtures and KB receipts; no API/SDK changes, deployment or production membership writes without approval.
+
 ### Lane: batching-performance (coordination queue)
 
 - [✓ 5.9.2 merged #1448; rollout OPEN] **Q01: exact-ID canonical preparation pruning** — operator: "okay, keep optimizing". Owns `safe_query.py` boundary/compiler exact-ID hunks, `_canonical_prepare_docs` wiring and focused API tests/KB. Twenty-four controls and all 2,226 API tests pass; twelve native ClickHouse cases plus real 3,000-UUID helper fallback retain output/authority. Read bytes fall in the local 100k-identity diagnostic, not strict full-feed acceptance. Review-found size/empty-hint regressions are repaired; three fresh same-family scoped reviews and all thirteen PR checks pass. Diverse/rollout and post-fix actual-host acceptance remain OPEN; no capacity claim. Record: `security/scans/2026-11/query-exact-id-pruning.md`.

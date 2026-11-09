@@ -2,6 +2,7 @@ import { getV3Client } from './v3';
 import { followersGroupId, getGroupMembers, blockUser, unblockUser, GROUP_TAG } from './groups';
 import { extractUsername } from './types';
 import { sendNotification } from './notifications';
+import { resolveSocialProvider } from '../lib/socialProvider';
 
 // ── Follows data layer (v3) ──────────────────────────────────────────────────
 // Follows ARE group membership. Following a user = joining their followers group.
@@ -15,11 +16,14 @@ import { sendNotification } from './notifications';
 export async function followUser(username: string, provider?: string): Promise<{ username: string; status: 'active' }> {
   const w = getV3Client();
   const token = w.readToken();
-  await w.joinGroup(followersGroupId(username, provider));
+  const resolvedProvider = resolveSocialProvider(provider, token?.provider);
+  console.log('[social-follows] joining followers group', { legacyProvider: provider === 'web10' });
+  await w.joinGroup(followersGroupId(username, resolvedProvider));
+  console.log('[social-follows] followers group joined');
   // The write side (D69): nudge the user you followed so their badge bumps.
   if (token) {
     sendNotification(
-      { username, provider: provider || token.provider },
+      { username, provider: resolvedProvider },
       { type: 'follow_request', from: token.username },
     );
   }
@@ -174,8 +178,8 @@ export async function countUserFollowingReal(username: string, provider?: string
 // ── Backward compat aliases ──────────────────────────────────────────────────
 
 /** @deprecated use isFollowing */
-export async function readFollow(username: string, _provider?: string): Promise<{ _id?: string; status: 'active' | 'rejected' } | null> {
-  const following = await isFollowing(username);
+export async function readFollow(username: string, provider?: string): Promise<{ _id?: string; status: 'active' | 'rejected' } | null> {
+  const following = await isFollowing(username, provider);
   return following ? { status: 'active' } : { status: 'rejected' };
 }
 

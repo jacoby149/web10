@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as v3 from '../../data/v3';
 import * as follows from '../../data/follows';
 import * as groups from '../../data/groups';
+import { extractProvider } from '../../data/types';
 
 function mockV3Client() {
   const mock = {
@@ -58,6 +59,39 @@ describe('follows v3 data layer', () => {
   });
 
   describe('followUser (v3: join followers group)', () => {
+    it('uses the current node for the legacy bare-author provider, including unfollow and follow state', async () => {
+      mock.readToken.mockReturnValue({ provider: 'api.web10.app', username: 'alice' });
+      mock.getMyGroups.mockResolvedValue([{ group_id: 'api.web10.app/groups/users/adam/followers' }]);
+      const provider = extractProvider('adam'); // The actual local post-author conversion.
+      expect(provider).toBe('web10');
+      await follows.followUser('adam', provider);
+      expect(mock.joinGroup).toHaveBeenCalledWith('api.web10.app/groups/users/adam/followers');
+      await follows.unfollowUser('adam', provider);
+      expect(mock.leaveGroup).toHaveBeenCalledWith('api.web10.app/groups/users/adam/followers');
+      await expect(follows.isFollowing('adam', 'web10')).resolves.toBe(true);
+      mock.getGroupMembers.mockResolvedValue([]);
+      await follows.countFollowers('adam', 'web10');
+      expect(mock.getGroupMembers).toHaveBeenCalledWith('api.web10.app/groups/users/adam/followers', { limit: 100, offset: 0 });
+    });
+
+    it('propagates a genuinely missing group without trying a different provider or creating a group', async () => {
+      const missing = new Error('entry not found');
+      mock.joinGroup.mockRejectedValue(missing);
+      await expect(follows.followUser('adam', 'other.node')).rejects.toBe(missing);
+      expect(mock.joinGroup).toHaveBeenCalledExactlyOnceWith('other.node/groups/users/adam/followers');
+      expect(mock.createGroup).not.toHaveBeenCalled();
+    });
+
+    it('keeps explicit providers for writes and the readFollow compatibility seam', async () => {
+      mock.getMyGroups.mockResolvedValue([{ group_id: 'other.node/groups/users/adam/followers' }]);
+      await follows.followUser('adam', 'other.node');
+      await follows.unfollowUser('adam', 'other.node');
+      expect(mock.joinGroup).toHaveBeenCalledWith('other.node/groups/users/adam/followers');
+      expect(mock.leaveGroup).toHaveBeenCalledWith('other.node/groups/users/adam/followers');
+      await expect(follows.readFollow('adam', 'other.node')).resolves.toEqual({ status: 'active' });
+      await expect(follows.readFollow('adam', 'web10.app')).resolves.toEqual({ status: 'rejected' });
+    });
+
     it('joins the target users followers group', async () => {
       mock.joinGroup.mockResolvedValue({ member_key: 'alice', role: 'member' });
       await follows.followUser('bob');
