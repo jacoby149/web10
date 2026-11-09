@@ -1,0 +1,22 @@
+# Explicit local functional floor only; volatile storage is not cloud evidence.
+services:
+  api:
+    build: !reset null
+    image: ${COSTFN_LOCAL_API_IMAGE:?explicit cached API image required for disk-full local floor}
+    volumes:
+      - ../../../api/app:/web10/app:ro
+      - ../../../api/pyproject.toml:/web10/pyproject.toml:ro
+      - ../../../api/uv.lock:/web10/uv.lock:ro
+    environment:
+      UV_NO_SYNC: "1"
+  clickhouse:
+    mem_limit: 5g
+    volumes: !override
+      - ../../../clickhouse-init:/docker-entrypoint-initdb.d:ro
+    tmpfs:
+      - /var/lib/clickhouse:size=${COSTFN_LOCAL_TMPFS_SIZE:-1g}
+      - /var/log/clickhouse-server:size=64m
+  minio:
+    volumes: !override []
+    tmpfs:
+      - /data:size=128m

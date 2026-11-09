@@ -22,6 +22,7 @@ export type HomeReadOptions = {
   knobState?: KnobState;
   stable?: boolean;
   rankingClockMs?: number;
+  createdAfterMs?: number;
   isCurrent?: () => boolean;
   groups?: string[];
   tags?: string[];
@@ -38,6 +39,7 @@ export type MixedFeedOptions = {
   initialCursor?: string;
   actingAuthor?: string;
   groupMode?: 'following' | 'discover';
+  createdAfterMs?: number;
   tags?: string[];
 };
 type SourceState = {
@@ -117,7 +119,8 @@ export function createMixedFeedReader(options: MixedFeedOptions) {
   const tags = options.tags ? [...options.tags] : undefined;
   const groupMode = options.groupMode ?? 'following';
   if (tags && (tags.length > 16 || tags.some(tag => typeof tag !== 'string' || !tag || tag.length > 64))) throw new Error('Invalid source tags');
-  const view = JSON.stringify({ groupMode, tags: tags ?? [] });
+  const createdAfterMs = options.createdAfterMs;
+  const view = JSON.stringify({ groupMode, tags: tags ?? [], createdAfterMs });
   const home = new URL(options.homeOrigin).origin;
   if (credential && home.includes(credential)) throw new Error('Invalid mixed feed home');
   if ((credential !== null && (typeof credential !== 'string' || !credential.trim())) || options.sources.length > 32) throw new Error('Invalid mixed feed scope');
@@ -209,7 +212,7 @@ export function createMixedFeedReader(options: MixedFeedOptions) {
     }
     const missing = Math.max(0, limit - state.buffer.length);
     if (!state.ended && missing) {
-      const sql = buildFeedQuery(sort, state.fetched, missing, { stable: true, rankingClockMs: clock, tags });
+      const sql = buildFeedQuery(sort, state.fetched, missing, { stable: true, rankingClockMs: clock, tags, createdAfterMs });
       const result = await state.transport.post('query', {
         sql, groups: state.groups, surface: 'feed', content_service: 'posts', prepare,
       });
@@ -256,7 +259,7 @@ export function createMixedFeedReader(options: MixedFeedOptions) {
       let posts: SourcedPost[];
       if (state.origin === home && homeRead) {
         const result = await homeRead({
-          limit, cursor: state.delivered, knobState: knobs, stable: true, rankingClockMs: clock, isCurrent: current,
+          limit, cursor: state.delivered, knobState: knobs, stable: true, rankingClockMs: clock, isCurrent: current, createdAfterMs,
           ...(tags ? { tags } : {}),
         });
         assertCurrent();

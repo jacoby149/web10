@@ -22,7 +22,7 @@ class CoreRequestFailure(RuntimeError):
 
 
 def wire():
-    value = json.loads((HERE / "evidence/core-feed-wire-v4.json").read_bytes())
+    value = json.loads((HERE / "evidence/core-feed-wire-v5.json").read_bytes())
     errors = study_plan.wire_errors(value)
     if errors:
         raise ValueError("stale core-feed source capture: " + "; ".join(errors))
@@ -30,7 +30,7 @@ def wire():
 
 
 def next_page_payload(capture, token, groups, cursor):
-    page = json.loads((HERE / "evidence/core-feed-next-page-v3.json").read_bytes())
+    page = json.loads((HERE / "evidence/core-feed-next-page-v4.json").read_bytes())
     if page["feed_sha256"] != study_plan.sha(study_plan.ROOT / study_plan.SOURCES["feed"]) or page["capture_sha256"] != study_plan.sha(HERE / "capture-pagination.ts"):
         raise ValueError("stale cursor builder capture")
     if not isinstance(cursor, str) or not re.fullmatch(r"[0-9T:+.Z -]{19,40}", cursor):
@@ -83,13 +83,15 @@ async def request(client, path, body, origin, records, kind, phase, reader):
         records.append(record)  # metadata only; never body, token, signed URL or exception text
 
 
-async def feed(client, capture, token, groups, records, phase, reader):
+async def feed(client, capture, token, groups, records, phase, reader, main_checker=None):
     requests = capture["requests"]
     main = await request(client, requests[0]["path"], payload(requests[0]["payload"], token, groups),
                          fixture.ORIGIN, records, "main", phase, reader)
     rows = main.get("rows", [])
     if not rows:
         raise ValueError("empty main result is not a core-feed sample")
+    if main_checker is not None:
+        main_checker(reader, rows)
     ids = [r["doc_id"] for r in rows]
     results = await asyncio.gather(*(request(client, item["path"], payload(item["payload"], token, groups, ids),
         fixture.ORIGIN, records, kind, phase, reader) for item, kind in zip(requests[1:], ("reactions", "comments", "views"))), return_exceptions=True)

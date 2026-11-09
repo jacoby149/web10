@@ -13,4 +13,6 @@ services:
       COSTFN_DISPOSABLE: "1"
       COSTFN_SOURCE_ROOT: /source
       QUERY_EVAL_READABLE_MODE: "${COSTFN_RESOLVER:-batched}"
+      QUERY_EVAL_DATE_PRUNING: "${QUERY_EVAL_DATE_PRUNING:-0}"
+      COSTFN_QUERY_IDS: "${COSTFN_QUERY_IDS:-0}"
     command: ["uv", "run", "uvicorn", "research_api:application", "--host", "0.0.0.0", "--port", "80", "--no-access-log"]

@@ -107,9 +107,34 @@ are **functional evidence only**, not latency percentiles for the manuscript.
 After source changes, regenerate and review the offline first-page and pagination
 captures in new versioned files; never overwrite historical captures or relabel
 an old acceptance receipt as current. The current captures are
-`evidence/core-feed-wire-v4.json` and `evidence/core-feed-next-page-v3.json`.
+`evidence/core-feed-wire-v5.json` and `evidence/core-feed-next-page-v4.json`.
 The single-node first-page payloads are unchanged from v3. They do not capture
 the federated reader's destination discovery, quotas, merge or paging sequence.
+
+The separately labelled date sensitivity is **not** a revision of the frozen
+January experiment. `date_case.derive(source, destination)` verifies the original
+V2 input and writes a new identity: 95% of creator identities retain old timestamps;
+documents/links of indices modulo 100 below five receive distinct recent timestamps. The clock is
+9 November 2026 12:00 UTC and the inclusive 30-day cutoff is
+`1791633600000`. At K=1,000 there are 50 eligible creator posts per reader, with
+21 fetched and 20 displayed. Counts/profiles and all other query joins remain;
+permission and deletion checks are not replaced by the candidate index.
+
+`core-feed-date-wire-v1.json` and `core-feed-date-next-page-v1.json` execute the
+actual app/SDK builders with that cutoff. Their byte digests are recorded in
+date-run provenance. `run_date_case.py` runs one arm against a fresh dedicated
+local project or an already approved isolated topology. `candidate` explicitly
+enables date pruning and materializes the time-ordered projection; `baseline`
+uses the **same date-filtered workload** without that plan/projection. Each arm
+records strict existing two-reader traffic, before/after lifecycle checks, raw
+request/resource/native metrics and verified project cleanup. No paired resolver
+trial is claimed. The runner never provisions or deletes cloud hosts; the
+approved external controller owns host-lifetime watchdog, backups and teardown.
+
+If the shared local Docker disk is full, `COSTFN_LOCAL_TMPFS=1` plus an explicitly
+named `COSTFN_LOCAL_API_IMAGE` uses volatile storage and a cached API image with
+current app/lock mounts. This is a separately labelled functional floor, not a
+matching-cloud latency sample. Never prune other workspaces to make room.
 Run `readiness_v2.py` against the newly generated acceptance receipt:
 
 ```sh

@@ -15,6 +15,22 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Date candidate pruning (09.11.2026) — bounded review, default-off, OPEN
+
+Per-reference historical candidates retain complete current authorization and
+date checks. Fresh review reproduces default-filled outer-join and SQL-size
+regressions; retained red→green unit/native controls cover conservative skips
+and argument-preserving fallback. Actual app admission adds collision-free
+trusted constant sets and an emitted-plan witness. Three final same-family
+scoped reviews are dry. Native old-heavy wins coexist with dense/mixed costs;
+small real API acceptance passes. Cloud preparation is SSH-blocked and all owned
+resources are verified absent. Local million-author initial correctness passes,
+but all four measured feeds fail with the candidate plan witnessed; six native
+SQL timeouts and passing lifecycle controls are retained. Local cleanup is
+independently verified. Matching
+cloud, model-diverse review and promotion remain open. No production migration
+or L1–L4 PASS. [Record](scans/2026-11/query-date-pruning.md).
+
 ## Q01 actual-host verification (09.11.2026) — strict acceptance FAILED
 
 Merged #1448's exact source runs on approved isolated DB/API/generator hosts.

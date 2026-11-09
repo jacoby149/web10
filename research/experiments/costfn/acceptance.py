@@ -22,9 +22,10 @@ import provenance
 import topology
 
 
-async def accept(directory, receipt, out, users=2, interval=5, warmup=5, duration=10, drain=60, pairs=3, api_origin=None, strict=True):
+async def accept(directory, receipt, out, users=2, interval=5, warmup=5, duration=10, drain=60, pairs=3, api_origin=None, strict=True,
+                 fixture=dataset_v2, capture=None, result_checker=None, main_checker=None):
     manifest = json.loads((directory / "manifest.json").read_bytes())
-    identity = dataset_v2.validate(directory)
+    identity = fixture.validate(directory)
     if not (receipt.get("complete") and receipt.get("research_observer") and receipt["dataset_id"] == identity["dataset_id"]):
         raise ValueError("matching local research restore required")
     out.mkdir(parents=True, exist_ok=False)
@@ -66,7 +67,13 @@ async def accept(directory, receipt, out, users=2, interval=5, warmup=5, duratio
     sampling = asyncio.create_task(sampler())
     try:
         # 12 requests/minute/reader, each with 3 queries: below normal 60/min limiter.
-        result = await load_core.run_point(base, manifest, users, interval, warmup, duration, drain, out)
+        if capture is None and result_checker is None and main_checker is None:
+            result = await load_core.run_point(base, manifest, users, interval, warmup, duration, drain, out)
+        else:
+            options = {"capture": capture, "result_checker": result_checker}
+            if main_checker is not None:
+                options["main_checker"] = main_checker
+            result = await load_core.run_point(base, manifest, users, interval, warmup, duration, drain, out, **options)
     finally:
         stop.set()
         await sampling

@@ -2,8 +2,8 @@
 // and the Video wall): the same Advanced chassis as Following / Shorts / Music,
 // and the faders change the actual reads (server-mixer-component.md).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import '@testing-library/jest-dom';
 import { lucideMock } from './helpers/lucideMock';
 import { readDiscoverFeed, readFeedPage } from '@/data/feed';
@@ -25,7 +25,11 @@ const homePost = { _id: 'same', author_key: 'bob', author_username: 'bob', text:
 
 async function renderAt(path: string) {
   const { default: DiscoverScreen } = await import('@/components/Discover/DiscoverScreen');
-  render(<MemoryRouter initialEntries={[path]}><DiscoverScreen /></MemoryRouter>);
+  function NavigationProbe() {
+    const location = useLocation(); const navigate = useNavigate();
+    return <><output data-testid="location">{location.search}</output><button onClick={() => navigate(-1)}>History back</button></>;
+  }
+  render(<MemoryRouter initialEntries={[path]}><DiscoverScreen /><NavigationProbe /></MemoryRouter>);
 }
 
 beforeEach(() => {
@@ -35,7 +39,7 @@ beforeEach(() => {
   vi.mocked(readDiscoverFeed).mockResolvedValue([homePost]);
   vi.mocked(readFeedPage).mockResolvedValue({ posts: [homePost], has_more: false, next_cursor: null });
 });
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.clearAllMocks(); });
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.clearAllMocks(); });
 
 describe('Discover board server mixer', () => {
   it.each(['/hot-gossip', '/video'])('renders the mixer in the %s rack', async path => {
@@ -89,5 +93,44 @@ describe('Discover board server mixer', () => {
     expect(readDiscoverFeed).not.toHaveBeenCalled();
     expect(readFeedPage).not.toHaveBeenCalled();
     expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it('pins the recent cutoff in the URL and restores all-time/recent through history', async () => {
+    const now = Date.parse('2026-11-09T12:00:00Z');
+    vi.spyOn(Date, 'now').mockReturnValue(now);
+    setup.approved = new Set([setup.home]);
+    await renderAt('/hot-gossip');
+    await waitFor(() => expect(vi.mocked(readDiscoverFeed).mock.calls.at(-1)?.[5]).toBe(now - 30 * 86400000), { timeout: 2000 });
+    expect(screen.getByTestId('location')).toHaveTextContent(`asOf=${now}`);
+    const before = vi.mocked(readDiscoverFeed).mock.calls.length;
+    fireEvent.click(screen.getByRole('button', { name: 'Older / Advanced' }));
+    await waitFor(() => {
+      expect(vi.mocked(readDiscoverFeed).mock.calls.length).toBeGreaterThan(before);
+      expect(vi.mocked(readDiscoverFeed).mock.calls.at(-1)?.[5]).toBeUndefined();
+    }, { timeout: 2000 });
+    expect(screen.getByTestId('location')).toHaveTextContent('history=all');
+    fireEvent.click(screen.getByRole('button', { name: 'History back' }));
+    await waitFor(() => expect(vi.mocked(readDiscoverFeed).mock.calls.at(-1)?.[5]).toBe(now - 30 * 86400000), { timeout: 2000 });
+    expect(screen.getByTestId('discover-date-window')).toHaveTextContent('Last 30 days');
+  });
+
+  it('passes the same date eligibility to home and foreign Discover queries', async () => {
+    const now = Date.parse('2026-11-09T12:00:00Z');
+    vi.spyOn(Date, 'now').mockReturnValue(now);
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ rows: [] })));
+    vi.stubGlobal('fetch', fetcher);
+    await renderAt(`/hot-gossip?asOf=${now}`);
+    await waitFor(() => expect(readFeedPage).toHaveBeenCalled());
+    expect(readFeedPage).toHaveBeenCalledWith(expect.objectContaining({ createdAfterMs: now - 30 * 86400000 }));
+    const query = fetcher.mock.calls.map(call => JSON.parse(String((call as unknown as [string, RequestInit])[1].body))).find(payload => payload.sql?.includes('FROM posts p'));
+    expect(query.sql).toContain(`p.created_at >= fromUnixTimestamp64Milli(${now - 30 * 86400000})`);
+  });
+
+  it('does not restrict the Video board', async () => {
+    setup.approved = new Set([setup.home]);
+    await renderAt('/video');
+    await waitFor(() => expect(readDiscoverFeed).toHaveBeenCalled());
+    expect(vi.mocked(readDiscoverFeed).mock.calls.at(-1)?.[5]).toBeUndefined();
+    expect(screen.queryByTestId('discover-date-window')).not.toBeInTheDocument();
   });
 });

@@ -31,6 +31,8 @@ def compose_command(project, port, research=False):
     command = ["docker", "compose", "-f", str(HERE / "compose.yml")]
     if research:
         command += ["-f", str(HERE / "research.compose.yml")]
+    if os.environ.get("COSTFN_LOCAL_TMPFS") == "1":
+        command += ["-f", str(HERE / "memory.compose.yml")]
     return command + ["-p", project]
 
 
@@ -123,7 +125,7 @@ def correctness(base, manifest):
     return {"login": True, "ordered_public_query_rows": len(wanted), "scope": "Public microbenchmark fixture only; no private/Origin/full-feed/concurrency assurance."}
 
 
-def restore(directory, project, port, receipt, expected_id=None, fixture=dataset, checker=correctness, research=False):
+def restore(directory, project, port, receipt, expected_id=None, fixture=dataset, checker=correctness, research=False, on_created=None):
     start = time.monotonic()
     compose = compose_command(project, port, research=research)
     receipt = Path(receipt)
@@ -143,6 +145,10 @@ def restore(directory, project, port, receipt, expected_id=None, fixture=dataset
         command = ["docker", "ps", "-aq"] if kind == "container" else ["docker", kind, resource, "-q"]
         if run(command + ["--filter", f"label=com.docker.compose.project={project}"], env).strip():
             raise ValueError("project already has resources; select a fresh disposable project")
+    if on_created:
+        # Admission follows every existing-resource guard, before an up that
+        # can create partial resources and then fail.
+        on_created()
     run(compose + ["up", "-d", "clickhouse", "minio"], env)
     wait_for(lambda: ch(compose, env, "SELECT 1").strip() == b"1", "ClickHouse")
     for template in sorted((HERE.parents[2] / "clickhouse-init").glob("*.sql.template")):

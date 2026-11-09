@@ -1,0 +1,364 @@
+{
+  "status": "STRICT_ACCEPTANCE_FAILED",
+  "scope": "Local date-filtered sensitivity, not matching-cloud or production capacity",
+  "dataset": {
+    "dataset_id": "e15e8bce6f2730ccb5eed1d0115ffbbdee9a6c8dc3df0cec2b0cdfedf2491291",
+    "rows": {
+      "users": 1020000,
+      "documents": 3100000,
+      "doc_groups": 4100000,
+      "group_contracts": 1000000,
+      "group_members": 23020000,
+      "app_contracts": 20000
+    },
+    "date_contract": {
+      "clock": "2026-11-09T12:00:00+00:00",
+      "cutoff_ms": 1791633600000,
+      "recent_percent": 5,
+      "selection": "creator index modulo 100 < 5",
+      "window_days": 30,
+      "scope": "Explicit date-filtered Following sensitivity, not normal Following eligibility or original study"
+    }
+  },
+  "sources": {
+    "api_python_sha256": "7352f6fde46f006b070a85601af25c2ad000f1fb9536fcbf8b8483627d0712be",
+    "api_lock_sha256": "ecaa9988e333b039c47ba7e7ef0284c6af5ad03259b766eb122d30783ed38ea8",
+    "research_compose_sha256": "177a5226d30520bb863a683309b993f373b027f6f2980c3a96acfae9c3fd23e1",
+    "harness_python_sha256": "329e9131f27a761b15715321ae8bdee2d364231f85360cd8d2a40ca795b7952f",
+    "pagination_capture_sha256": "1549b214f390f5ae0c54bfb91cc40060167c74ee216b8dc9efc45d43c46157cc",
+    "wire_sha256": "2304f84829008e3f0e5cb15795f70739cd96fed7bfc32b38e77f27f9948b4e1b",
+    "date_wire_sha256": "b811240116a208fe1f77cd7feab87cb9e9cec4c5316629f827c85f1d16b8d954",
+    "date_pagination_sha256": "421b3b3b734a24b06e80e2159c36b971cd42bee9c699fce772731171096e21b1"
+  },
+  "runtime": {
+    "api": [
+      {
+        "name": "/web10-costfn-frozen-date-million-7b90c5-api-1",
+        "image_id": "sha256:19b4cf5bc0f53e59b945d827e9a3b5003a41d98c3201c8e528f357a86fbb2633",
+        "image_ref": "web10-costfn-frozen-san-marino-final-api:latest"
+      },
+      {
+        "name": "/web10-costfn-frozen-date-million-7b90c5-clickhouse-1",
+        "image_id": "sha256:999a072d6f927d54b32742a0ca619a94786a34d6c39bf90caabf0530ec9b076b",
+        "image_ref": "ghcr.io/jacoby149/base-clickhouse:24.8"
+      },
+      {
+        "name": "/web10-costfn-frozen-date-million-7b90c5-minio-1",
+        "image_id": "sha256:8f08aee614800a237906bd48114d733e5ac5bfac4ccdf731f141b0e880d7a253",
+        "image_ref": "ghcr.io/jacoby149/base-minio:latest"
+      }
+    ],
+    "db": [
+      {
+        "name": "/web10-costfn-frozen-date-million-7b90c5-api-1",
+        "image_id": "sha256:19b4cf5bc0f53e59b945d827e9a3b5003a41d98c3201c8e528f357a86fbb2633",
+        "image_ref": "web10-costfn-frozen-san-marino-final-api:latest"
+      },
+      {
+        "name": "/web10-costfn-frozen-date-million-7b90c5-clickhouse-1",
+        "image_id": "sha256:999a072d6f927d54b32742a0ca619a94786a34d6c39bf90caabf0530ec9b076b",
+        "image_ref": "ghcr.io/jacoby149/base-clickhouse:24.8"
+      },
+      {
+        "name": "/web10-costfn-frozen-date-million-7b90c5-minio-1",
+        "image_id": "sha256:8f08aee614800a237906bd48114d733e5ac5bfac4ccdf731f141b0e880d7a253",
+        "image_ref": "ghcr.io/jacoby149/base-minio:latest"
+      }
+    ],
+    "api_software": {
+      "python": "3.12.12",
+      "packages": {
+        "fastapi": "0.139.0",
+        "starlette": "1.3.1",
+        "sqlglot": "30.18.0",
+        "clickhouse-connect": "1.6.0",
+        "uvicorn": "0.51.0",
+        "PyJWT": "2.13.0",
+        "bcrypt": "5.0.0"
+      }
+    },
+    "clickhouse_version": "24.8.14.39"
+  },
+  "local_configuration": {
+    "docker_cpus": 8,
+    "docker_memory_bytes": 8218251264,
+    "clickhouse_memory_limit": "5g",
+    "tmpfs_limit": "4g",
+    "cached_image_current_app_mounts": true
+  },
+  "restore_complete": true,
+  "initial_correctness": {
+    "checks": [
+      {
+        "fetched": 21,
+        "displayed": 20,
+        "date": true,
+        "profiles": true,
+        "engagement": true,
+        "views": true
+      },
+      {
+        "fetched": 21,
+        "displayed": 20,
+        "date": true,
+        "profiles": true,
+        "engagement": true,
+        "views": true
+      }
+    ],
+    "real_discovery": true,
+    "pagination": true,
+    "origin_denial": true,
+    "sources": {
+      "api_python_sha256": "7352f6fde46f006b070a85601af25c2ad000f1fb9536fcbf8b8483627d0712be",
+      "api_lock_sha256": "ecaa9988e333b039c47ba7e7ef0284c6af5ad03259b766eb122d30783ed38ea8",
+      "research_compose_sha256": "177a5226d30520bb863a683309b993f373b027f6f2980c3a96acfae9c3fd23e1",
+      "harness_python_sha256": "329e9131f27a761b15715321ae8bdee2d364231f85360cd8d2a40ca795b7952f",
+      "pagination_capture_sha256": "1549b214f390f5ae0c54bfb91cc40060167c74ee216b8dc9efc45d43c46157cc",
+      "wire_sha256": "2304f84829008e3f0e5cb15795f70739cd96fed7bfc32b38e77f27f9948b4e1b"
+    },
+    "date_contract": {
+      "clock": "2026-11-09T12:00:00+00:00",
+      "cutoff_ms": 1791633600000,
+      "recent_percent": 5,
+      "selection": "creator index modulo 100 < 5",
+      "window_days": 30,
+      "scope": "Explicit date-filtered Following sensitivity, not normal Following eligibility or original study"
+    }
+  },
+  "measurement_valid": true,
+  "strict_acceptance": false,
+  "traffic": {
+    "counts": {
+      "warmup:scheduled": 2,
+      "warmup:started": 2,
+      "all:peak_feed_in_flight": 6,
+      "measured:scheduled": 4,
+      "measured:started": 4,
+      "measured:failed": 4,
+      "warmup:failed": 1,
+      "warmup:completed": 1
+    },
+    "request_counts": {
+      "warmup:main:200": 2,
+      "measured:main:400": 4,
+      "warmup:views:200": 2,
+      "warmup:comments:400": 1,
+      "warmup:reactions:400": 1,
+      "warmup:comments:200": 1,
+      "warmup:reactions:200": 1
+    },
+    "generator_window_cpu_seconds": 0.27951499999994667,
+    "generator_maxrss_platform_units": 42696704,
+    "generator_platform": "macOS-26.3.1-arm64-arm-64bit",
+    "generator_logical_cpus": 8,
+    "generator_fd_limits": [
+      1048576,
+      9223372036854775807
+    ],
+    "peak_http_requests": 8,
+    "http_requests_after_drain": 0,
+    "valid_offered_load": true,
+    "scope": "Text-only core API sequence. Inspect raw failures/censoring and resource/correlation receipts; no automatic capacity claim."
+  },
+  "lifecycle_before": [
+    "private_nonmember_denied",
+    "private_grant_exact_result",
+    "app_revoke_denied",
+    "app_regrant_exact_result",
+    "membership_revoke_denied",
+    "membership_regrant_exact_result",
+    "document_tombstone_denied"
+  ],
+  "lifecycle_after": [
+    "private_nonmember_denied",
+    "private_grant_exact_result",
+    "app_revoke_denied",
+    "app_regrant_exact_result",
+    "membership_revoke_denied",
+    "membership_regrant_exact_result",
+    "document_tombstone_denied"
+  ],
+  "date_plan_witness_from_retained_correlation": true,
+  "main_requests_witnessed": 6,
+  "correlated_requests": 12,
+  "resource_samples": 8,
+  "native_timeout_count": 6,
+  "native_timeouts": [
+    {
+      "event_time_microseconds": "2026-11-09 21:45:32.560998",
+      "type": "ExceptionWhileProcessing",
+      "query_id": "4d00ee99-1a72-4a9e-9137-c07af5cbb57f",
+      "query_duration_ms": "10062",
+      "read_rows": "18475437",
+      "read_bytes": "1629585052",
+      "memory_usage": "547194319",
+      "exception_code": 159
+    },
+    {
+      "event_time_microseconds": "2026-11-09 21:45:35.986054",
+      "type": "ExceptionWhileProcessing",
+      "query_id": "017b9849-8566-46a7-9b78-c7411278489d",
+      "query_duration_ms": "10405",
+      "read_rows": "11766955",
+      "read_bytes": "1005042417",
+      "memory_usage": "579832336",
+      "exception_code": 159
+    },
+    {
+      "event_time_microseconds": "2026-11-09 21:45:38.799439",
+      "type": "ExceptionWhileProcessing",
+      "query_id": "f91f7f3c-b8eb-4010-ab26-5a0042ad806e",
+      "query_duration_ms": "10033",
+      "read_rows": "11045611",
+      "read_bytes": "919399770",
+      "memory_usage": "575320105",
+      "exception_code": 159
+    },
+    {
+      "event_time_microseconds": "2026-11-09 21:45:40.605811",
+      "type": "ExceptionWhileProcessing",
+      "query_id": "8622c104-c9b5-4d62-b497-eb0fa245ef3d",
+      "query_duration_ms": "10025",
+      "read_rows": "10668779",
+      "read_bytes": "880957281",
+      "memory_usage": "513422230",
+      "exception_code": 159
+    },
+    {
+      "event_time_microseconds": "2026-11-09 21:45:48.198825",
+      "type": "ExceptionWhileProcessing",
+      "query_id": "472d17b3-a168-479c-855d-36e7720bb449",
+      "query_duration_ms": "17303",
+      "read_rows": "4100000",
+      "read_bytes": "423704509",
+      "memory_usage": "1379259161",
+      "exception_code": 159
+    },
+    {
+      "event_time_microseconds": "2026-11-09 21:45:48.788455",
+      "type": "ExceptionWhileProcessing",
+      "query_id": "91e209f7-762e-47f6-b6b1-c2772e6e68ca",
+      "query_duration_ms": "17951",
+      "read_rows": "4100000",
+      "read_bytes": "423704509",
+      "memory_usage": "1380920500",
+      "exception_code": 159
+    }
+  ],
+  "native_exception_counts": {
+    "16": 2,
+    "159": 6
+  },
+  "native_http_query_id_exact_join_claimed": false,
+  "cleanup": {
+    "project": "web10-costfn-frozen-date-million-7b90c5",
+    "started_epoch": 1794259660.86006,
+    "max_seconds": 1800,
+    "out": ".context/date-million-run",
+    "cloud": false,
+    "tmpfs_limit": "4g",
+    "clickhouse_memory_limit": "5g",
+    "child_pid": 44072,
+    "cleanup_exit_code": 0,
+    "remaining": {
+      "containers": [],
+      "volumes": [],
+      "networks": []
+    },
+    "cleanup_verified": true,
+    "finished_epoch": 1794260770.893829,
+    "child_exit_code": 1
+  },
+  "small_witnessed_floor": {
+    "status": "STRICT_ACCEPTANCE_PASSED",
+    "date_plan_witness": true,
+    "cleanup": "verified-empty"
+  },
+  "cloud_preparation": "date-cloud-preparation-20261109.json",
+  "production_deployed": false,
+  "archive": {
+    "name": "date-local-million-20261109-receipts.tar.gz",
+    "bytes": 46485,
+    "sha256": "4f028e6a94516e7a9789b25eedf5b0944510d75644014a88f8ee6ad9756dd447",
+    "files": [
+      {
+        "name": "acceptance/acceptance.json",
+        "bytes": 3876,
+        "sha256": "1691744d0582b1204cf15346c988a8fb67f17ae75f94ef0e8b39e61cab5f1a88"
+      },
+      {
+        "name": "acceptance/correlation.json",
+        "bytes": 16551,
+        "sha256": "24b73fe8567e5d5d8042dc2c0f57889ea05d835401344e6e765e1642f0140e86"
+      },
+      {
+        "name": "acceptance/feeds.jsonl",
+        "bytes": 1625,
+        "sha256": "db0ecfbaf89275db86cc262ab8af51aa39f95f716951d4df723da1e23651efe7"
+      },
+      {
+        "name": "acceptance/generator.jsonl",
+        "bytes": 10374,
+        "sha256": "7d3be25faf68e06fc3fea890356dae2511a452a370ed40d355448628675f74e3"
+      },
+      {
+        "name": "acceptance/lifecycle-after.json",
+        "bytes": 435,
+        "sha256": "3bec0c195c29e6318d8f3c1c91023e49527a62e8c3e96d80ad8cd9cb0208fdcd"
+      },
+      {
+        "name": "acceptance/lifecycle-before.json",
+        "bytes": 435,
+        "sha256": "3bec0c195c29e6318d8f3c1c91023e49527a62e8c3e96d80ad8cd9cb0208fdcd"
+      },
+      {
+        "name": "acceptance/requests.jsonl",
+        "bytes": 3173,
+        "sha256": "38349333bf3189bf94d1e722a7965f73fa3b8ca2cafd91b01f3bc4588fd75bd1"
+      },
+      {
+        "name": "acceptance/resources.jsonl",
+        "bytes": 10462,
+        "sha256": "ef0958406289853e7c25e77384171f9fed1d05decf3b456eb2e4d2c1dbfd515b"
+      },
+      {
+        "name": "acceptance/summary.json",
+        "bytes": 955,
+        "sha256": "c5ccaed63745ebe04807f35309dcd068b38504e35defa164bb8dd39a6b569eb0"
+      },
+      {
+        "name": "candidate-explain.txt",
+        "bytes": 334,
+        "sha256": "a1d2f316d7a36878a8846f88759838e71723ec64eff424fe818edbcad2d0eeac"
+      },
+      {
+        "name": "database-query-metrics.jsonl",
+        "bytes": 339302,
+        "sha256": "d47b00844b4de664c778e59ab2089a70f7689525bed431a8eeba13367cc13515"
+      },
+      {
+        "name": "restore.json",
+        "bytes": 2532,
+        "sha256": "9553b97946dc1d13e6844a9271af0c239e2e4781d634b761db69b78558f48c79"
+      },
+      {
+        "name": "stage.json",
+        "bytes": 1932,
+        "sha256": "50ab03d14d1312dc348efd8a721738fb5d3ac5e8e138febb9a111331808e9a1e"
+      },
+      {
+        "name": "controller.json",
+        "bytes": 453,
+        "sha256": "ec31c45ae7fd91565f1df9b8f62e8ce6dbd90045a95201030c91a2c13def4503"
+      },
+      {
+        "name": "small-floor/stage.json",
+        "bytes": 5949,
+        "sha256": "946242266b79391b1b0b2dd207061d136cd83329e8bb170bfc26cc125289c650"
+      }
+    ],
+    "credential_shape_scan": "no JWT/private-key matches",
+    "container_logs_excluded": true
+  }
+}

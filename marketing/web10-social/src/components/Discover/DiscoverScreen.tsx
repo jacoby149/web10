@@ -461,6 +461,23 @@ function DiscoverBoard({ mode }: { mode: Exclude<DiscoverMode, 'people'> }) {
 
   // Deep-link: active tag from ?tag= (refresh-safe, shareable)
   const [searchParams, setSearchParams] = useSearchParams();
+  const olderContent = searchParams.get('history') === 'all';
+  const [windowClock, setWindowClock] = useState(() => Date.now());
+  const [dateReadError, setDateReadError] = useState(false);
+  const urlClock = Number(searchParams.get('asOf'));
+  const dateClock = Number.isSafeInteger(urlClock) && urlClock > 0 && urlClock <= windowClock ? urlClock : windowClock;
+  const createdAfterMs = mode !== 'video' && !olderContent ? Math.max(0, dateClock - 30 * 86400000) : undefined;
+  useEffect(() => {
+    ++faceGeneration.current;
+    setPosts([]);
+    setHasMore(false);
+    hasLoadedRef.current = false;
+  }, [createdAfterMs]);
+  // Pin the same UTC cutoff in refresh/share/back-forward and every source page.
+  useEffect(() => {
+    if (mode === 'video' || olderContent || searchParams.get('asOf') === String(dateClock)) return;
+    setSearchParams(previous => { const next = new URLSearchParams(previous); next.set('asOf', String(dateClock)); return next; }, { replace: true });
+  }, [mode, olderContent, dateClock, searchParams, setSearchParams]);
   const urlTag = searchParams.get('tag') || '';
   const [activeTag, setActiveTag] = useState<string>(urlTag || 'All');
 
@@ -488,9 +505,10 @@ function DiscoverBoard({ mode }: { mode: Exclude<DiscoverMode, 'people'> }) {
   // refresh restores it and a shared link carries it. The URL is the single
   // source of truth (the deep-link rule); the state derives from it. Starts
   // at the Balanced preset (the default) when the URL carries no knobs.
+  const knobParam = searchParams.get('knobs');
   const knobState = useMemo<KnobState>(() => {
-    return parseKnobParam(searchParams.get('knobs')) ?? defaultKnobState();
-  }, [searchParams]);
+    return parseKnobParam(knobParam) ?? defaultKnobState();
+  }, [knobParam]);
   const activePreset = useMemo<PresetId | null>(() => presetIdForState(knobState), [knobState]);
 
   // ── Server mixer (server-mixer-component.md) ──────────────────────────────
@@ -515,7 +533,7 @@ function DiscoverBoard({ mode }: { mode: Exclude<DiscoverMode, 'people'> }) {
   // the acting identity, the ranking and the surface. Any change is a new
   // owned paging session (a fader move restarts at page one).
   const mixKey = mixing ? JSON.stringify([approvedSources, sourceControl.scope, actingIdentity,
-    encodeKnobState(knobState), mode, sourceRetry]) : '';
+    encodeKnobState(knobState), mode, sourceRetry, createdAfterMs]) : '';
   const mixKeyRef = useRef(mixKey);
   mixKeyRef.current = mixKey;
   const mixedReader = useMemo(() => {
@@ -523,6 +541,7 @@ function DiscoverBoard({ mode }: { mode: Exclude<DiscoverMode, 'people'> }) {
     return createMixedFeedReader({
       sources: approvedSources, homeOrigin: sourceControl.home, credential: sourceControl.credential,
       knobState, actingAuthor: actingIdentity || undefined, groupMode: 'discover',
+      createdAfterMs,
       isCurrent: () => mixKeyRef.current === mixKey && sourceControl.live() && getActingAuthor() === actingIdentity,
       homeRead: options => readFeedPage({ ...options, groups: [getDiscoverGroupId()] }),
     });
@@ -798,6 +817,7 @@ function DiscoverBoard({ mode }: { mode: Exclude<DiscoverMode, 'people'> }) {
 
   const loadDiscover = useCallback(async (sort: PowerMeanSortConfig | null = null) => {
     const generation = ++faceGeneration.current;
+    setDateReadError(false);
     // `loading` is the INITIAL skeleton only — a knob-triggered re-read keeps
     // the previous grid on screen (no skeleton flash per twist).
     if (!hasLoadedRef.current) setLoading(true);
@@ -828,7 +848,7 @@ function DiscoverBoard({ mode }: { mode: Exclude<DiscoverMode, 'people'> }) {
         results = (page.posts as PostRecord[]).map(post => isForeignPost(post) ? post : withPendingFace(post));
         setHasMore(page.has_more);
       } else {
-        const page = await readDiscoverFeed(sort, 50, undefined, 0, mode === 'video' ? 'video' : 'discover');
+        const page = await readDiscoverFeed(sort, 50, undefined, 0, mode === 'video' ? 'video' : 'discover', createdAfterMs);
         if (generation !== faceGeneration.current) return;
         results = page.map(withPendingFace);
         // The board page size (before the video-wall filter) — the paging
@@ -850,14 +870,16 @@ function DiscoverBoard({ mode }: { mode: Exclude<DiscoverMode, 'people'> }) {
       // only — foreign rows are source-owned reads.
       enrichBoard(home);
     } catch (e) {
+      if (generation !== faceGeneration.current) return;
+      setDateReadError(true);
       LOG('loadDiscover — failed:', e);
       // A failed re-read (a knob twist) keeps the previous grid on screen —
       // only a cold-start failure shows the empty state.
       if (!hasLoadedRef.current) setPosts([]);
     } finally {
-      setLoading(false);
+      if (generation === faceGeneration.current) setLoading(false);
     }
-  }, [inlineMediaMap, enrichBoard, mixedReader, sourcesPaused, mode]);
+  }, [inlineMediaMap, enrichBoard, mixedReader, sourcesPaused, mode, createdAfterMs]);
 
   // Infinite scroll: append the next board page (the sentinel's
   // IntersectionObserver fires this). A full page means there may be another;
@@ -881,7 +903,7 @@ function DiscoverBoard({ mode }: { mode: Exclude<DiscoverMode, 'people'> }) {
       } else {
         // The surface label rides every page (D86 delivery capture), not
         // just page one.
-        const page = await readDiscoverFeed(sortRef.current, 50, undefined, nextOffsetRef.current, mode === 'video' ? 'video' : 'discover');
+        const page = await readDiscoverFeed(sortRef.current, 50, undefined, nextOffsetRef.current, mode === 'video' ? 'video' : 'discover', createdAfterMs);
         if (generation !== faceGeneration.current) return;
         results = page.map(withPendingFace);
         // Advance by the BOARD page size (not the filtered count) — the video
@@ -904,7 +926,7 @@ function DiscoverBoard({ mode }: { mode: Exclude<DiscoverMode, 'people'> }) {
     } finally {
       setLoadingMore(false);
     }
-  }, [loadingMore, hasMore, inlineMediaMap, enrichBoard, mixedReader, mode]);
+  }, [loadingMore, hasMore, inlineMediaMap, enrichBoard, mixedReader, mode, createdAfterMs]);
 
   // Infinite scroll: a sentinel at the bottom of the board triggers loadMore
   // when it scrolls into view (rootMargin prefetches a page early). Only
@@ -1132,6 +1154,21 @@ function DiscoverBoard({ mode }: { mode: Exclude<DiscoverMode, 'people'> }) {
 
           {/* Controls: presets + knobs */}
           <div className="px-4 py-3 md:px-4 lg:px-6">
+            {mode !== 'video' && (
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm" data-testid="discover-date-window">
+                <p className="text-muted-foreground">{olderContent ? 'Advanced · All time — loading may take longer' : `Discover · Last 30 days · as of ${new Date(dateClock).toISOString().slice(0, 10)} UTC`}</p>
+                <button type="button" className="min-h-11 rounded-md px-3 text-brand-300 hover:bg-brand-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  onClick={() => setSearchParams(previous => {
+                    const next = new URLSearchParams(previous);
+                    if (olderContent) { const now = Date.now(); setWindowClock(now); next.delete('history'); next.set('asOf', String(now)); }
+                    else next.set('history', 'all');
+                    return next;
+                  })}>
+                  {olderContent ? 'Back to recent' : 'Older / Advanced'}
+                </button>
+              </div>
+            )}
+            {dateReadError && <p role="alert" className="mb-3 text-sm text-danger">This read did not complete. Results are not exhaustive. Try another preset or retry the read.</p>}
             <KnobRack
               state={knobState}
               activePreset={activePreset}

@@ -1,0 +1,31 @@
+{
+  "epoch": 1794259623.5363798,
+  "owned_remaining": {
+    "droplets": [],
+    "firewalls": [],
+    "ssh_keys": [],
+    "tags": []
+  },
+  "unrelated_ssh_key_preserved": true,
+  "both_private_keys_deleted": true,
+  "estimated_total_compute_usd_upper_bound": 0.2558998932937781,
+  "settled_invoice": false,
+  "cloud_workload_started": false,
+  "status": "PREPARATION_BLOCKED_SSH",
+  "attempts": [
+    {
+      "run_id": "q01-verify-712df488dba5",
+      "controller_ssh_port": 22,
+      "status": "UNREACHABLE",
+      "workload_started": false,
+      "cleanup": "VERIFIED_EMPTY"
+    },
+    {
+      "run_id": "q01-verify-256e8e2e8e39",
+      "controller_ssh_port": 443,
+      "status": "UNREACHABLE",
+      "workload_started": false,
+      "cleanup": "VERIFIED_EMPTY"
+    }
+  ]
+}

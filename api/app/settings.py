@@ -148,6 +148,9 @@ QUERY_EVAL_STUB_ROWS = int(os.getenv("QUERY_EVAL_STUB_ROWS", "20"))
 # resolution + the boundary-CTE scoping (runs the caller's SQL unscoped) — the
 # credited ClickHouse baseline the causal overhead (B−A) is computed against.
 QUERY_EVAL_NO_POLICY = os.getenv("QUERY_EVAL_NO_POLICY", "").lower() in ("1", "true", "yes")
+# Experimental candidate discovery retains the read boundary; unlike NO_POLICY,
+# this is only a query-plan choice. Broad/recent-heavy promotion remains gated.
+QUERY_EVAL_DATE_PRUNING = os.getenv("QUERY_EVAL_DATE_PRUNING", "").lower() in ("1", "true", "yes")
 # Unset follows production; explicit research overrides retain both algorithms.
 QUERY_EVAL_READABLE_MODE = os.getenv("QUERY_EVAL_READABLE_MODE", "").strip().lower()
 if QUERY_EVAL_READABLE_MODE not in ("", "per-group", "batched"):

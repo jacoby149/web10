@@ -56,6 +56,8 @@ import sqlglot
 from sqlglot import exp
 from sqlglot.dialects.clickhouse import ClickHouse
 
+from app.v3.services.query_dates import dated_references
+
 DIALECT = "clickhouse"
 
 
@@ -142,7 +144,12 @@ def _quote_ident(name: str) -> str:
 
 
 def _boundary_cte_sql(
-    service: str, readable_groups: list[str], member_key: str, document_ids: list[str] | None = None
+    service: str,
+    readable_groups: list[str],
+    member_key: str,
+    document_ids: list[str] | None = None,
+    created_after_ms: int | None = None,
+    group_set_name: str | None = None,
 ) -> str:
     """The body of the boundary CTE for ``service``: the service's docs,
     deduped (ReplacingMergeTree latest-row, not-deleted), joined to
@@ -196,11 +203,22 @@ def _boundary_cte_sql(
             if document_ids
             else " AND 1 = 0"
         )
+    date_docs = date_groups = ""
+    if created_after_ms is not None:
+        # Seek potential identities, NOT current values. Include tombstones and
+        # all versions; recheck the caller's date only after canonical ranking.
+        candidates = (
+            "SELECT author_key, doc_id FROM documents "
+            f"WHERE collection_name = '{service}' "
+            f"AND created_at >= fromUnixTimestamp64Milli({created_after_ms})"
+        )
+        date_docs = f" AND (author_key, doc_id) IN ({candidates})"
+        date_groups = f" AND doc_id IN (SELECT doc_id FROM ({candidates}))"
     dedup_docs = (
         f"SELECT {_CTE_COLUMNS} FROM ("
         f"SELECT {_CTE_COLUMNS}, deleted, "
         f"row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn "
-        f"FROM documents WHERE collection_name = '{service}'{exact_ids}"
+        f"FROM documents WHERE collection_name = '{service}'{exact_ids}{date_docs}"
         f") WHERE rn = 1 AND deleted = 0"
     )
     # group_id is a partition key: remove whole unreadable histories before
@@ -210,7 +228,7 @@ def _boundary_cte_sql(
         "SELECT doc_id, group_id FROM ("
         "SELECT doc_id, group_id, deleted, "
         "row_number() OVER (PARTITION BY doc_id, group_id ORDER BY updated_at DESC) AS rn "
-        f"FROM doc_groups WHERE group_id IN ({_quote_group_ids(readable_groups)}){exact_ids}"
+        f"FROM doc_groups WHERE group_id IN ({'SELECT group_id FROM ' + _quote_ident(group_set_name) if group_set_name else _quote_group_ids(readable_groups)}){exact_ids}{date_groups}"
         ") WHERE rn = 1 AND deleted = 0"
     )
     if not readable_groups:
@@ -474,6 +492,7 @@ def build_safe_query(
     max_limit: int | None = None,
     group_meta: tuple[list[str], list[str]] | None = None,
     document_ids_by_service: dict[str, list[str]] | None = None,
+    optimize_dates: bool = False,
 ) -> str:
     """Compile a caller's ClickHouse SELECT into a boundary-enforced query.
 
@@ -537,6 +556,48 @@ def build_safe_query(
     caller_ctes = _caller_cte_names(tree)
     needed = _validate(tree, allowed, caller_ctes, group_meta is not None)
 
+    dated = list(dated_references(tree, needed - caller_ctes - {GROUP_META})) if optimize_dates else []
+    group_sets, group_defs = {}, []
+    if (
+        dated
+        and sum(
+            len(_quote_group_ids(readable_groups_by_service.get(service, [])).encode())
+            for service in needed - {GROUP_META}
+        )
+        > 32 * 1024
+    ):
+        # Share trusted constant sets, not authorization decisions or document
+        # histories. Per-reference boundaries otherwise repeat K-long literals
+        # until the real multi-service app query exceeds the native parser cap.
+        names = {identifier.name.casefold() for identifier in tree.find_all(exp.Identifier)}
+        by_ids = {}
+        for service in sorted(needed - {GROUP_META}):
+            ids = tuple(readable_groups_by_service.get(service, []))
+            if not ids:
+                continue
+            if ids not in by_ids:
+                name = "__web10_date_groups_" + str(len(names))
+                while name.casefold() in names:
+                    name += "_"
+                names.add(name.casefold())
+                by_ids[ids] = name
+                group_defs.append(f"{name} AS (SELECT arrayJoin([{_quote_group_ids(list(ids))}]) AS group_id)")
+            group_sets[service] = by_ids[ids]
+    if optimize_dates:
+        for table, lower in dated:
+            service = table.name
+            boundary = _boundary_cte_sql(
+                service,
+                readable_groups_by_service.get(service, []),
+                member_key,
+                (document_ids_by_service or {}).get(service),
+                lower,
+                group_sets.get(service),
+            )
+            replacement = sqlglot.parse_one(boundary, read=DIALECT).subquery(table.alias_or_name)
+            table.replace(replacement)
+            logging.getLogger(__name__).info("[query] date candidate history pruning selected")
+
     # 4. Re-emit the (validated) caller query, then inject the boundary CTEs
     #    first so caller CTEs that reference a service resolve.
     caller_sql = tree.sql(dialect=DIALECT).strip()
@@ -544,8 +605,8 @@ def build_safe_query(
         # A trailing LIMIT is valid on both a SELECT and a set operation in
         # ClickHouse; the round-trip re-parse below rejects a malformed result.
         caller_sql = f"{caller_sql} LIMIT {int(max_limit)}"
-    cte_defs = [
-        f"{_quote_ident(service)} AS ({_boundary_cte_sql(service, readable_groups_by_service.get(service, []), member_key, (document_ids_by_service or {}).get(service))})"
+    cte_defs = group_defs + [
+        f"{_quote_ident(service)} AS ({_boundary_cte_sql(service, readable_groups_by_service.get(service, []), member_key, (document_ids_by_service or {}).get(service), group_set_name=group_sets.get(service))})"
         for service in sorted(s for s in needed if s != GROUP_META)
     ]
     if GROUP_META in needed and group_meta is not None:
@@ -557,6 +618,21 @@ def build_safe_query(
         final_sql = f"WITH {', '.join(cte_defs)}, {caller_sql[5:].strip()}"
     else:
         final_sql = f"WITH {', '.join(cte_defs)} {caller_sql}"
+
+    if optimize_dates and len(final_sql.encode()) > 240 * 1024:
+        # Inline per-reference boundaries duplicate group lists. Fall back to
+        # the original compiler, retaining EVERY internal ID restriction.
+        logging.getLogger(__name__).info("[query] date pruning skipped: compiled byte budget")
+        return build_safe_query(
+            user_sql,
+            readable_groups_by_service,
+            member_key,
+            allowed_services,
+            max_limit,
+            group_meta,
+            document_ids_by_service,
+            optimize_dates=False,
+        )
 
     # 5. Round-trip backstop: the result must re-parse as exactly one
     #    statement (a malformed injection would break this).

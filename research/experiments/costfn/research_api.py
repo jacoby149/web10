@@ -16,8 +16,10 @@ if os.environ.get("COSTFN_DISPOSABLE") != "1":
 from app.main import app
 from app import settings
 from app.v3.services import safe_query
+from app.v3.services import clickhouse as ch
 from pathlib import Path
 from provenance import tree_hash
+from query_observation import instrument_client
 
 if settings.QUERY_EVAL_NO_POLICY or settings.QUERY_EVAL_STUB_EXECUTE:
     raise RuntimeError("observer refuses policy-bypass or synthetic-output flags")
@@ -33,10 +35,24 @@ def capture_compile(*args, **kwargs):
     observation = current.get()
     if observation is not None:
         observation["compiled_sha256"] = hashlib.sha256(sql.encode()).hexdigest()
+        observation.setdefault("compiled_query_sha256s", []).append(observation["compiled_sha256"])
+        # Witness the emitted candidate plan, not merely its enable flag. OR
+        # retains main-query evidence across later canonical preparation calls.
+        observation["date_plan_applied"] = observation.get("date_plan_applied", False) or (
+            "IN (SELECT author_key, doc_id FROM documents WHERE" in sql
+        )
     return sql
 
 
 safe_query.build_safe_query = capture_compile
+
+if os.environ.get("COSTFN_QUERY_IDS") == "1":
+    original_get_client = ch._get_client
+
+    def observed_client():
+        return instrument_client(original_get_client(), current.get)
+
+    ch._get_client = observed_client
 
 
 class TimingCapture(logging.Handler):
@@ -66,7 +82,8 @@ async def application(scope, receive, send):
     if not re.fullmatch(r"[a-f0-9]{32}", request_id):
         request_id = "unlabelled"
     observation = {"request_id": request_id, "status": 500, "api_python_sha256": API_SOURCE,
-                   "observer_sha256": OBSERVER_SOURCE, "resolver_mode": settings.QUERY_EVAL_READABLE_MODE or settings.READABLE_RESOLUTION_MODE,
+                    "observer_sha256": OBSERVER_SOURCE, "resolver_mode": settings.QUERY_EVAL_READABLE_MODE or settings.READABLE_RESOLUTION_MODE,
+                    "date_pruning_enabled": settings.QUERY_EVAL_DATE_PRUNING,
                    "worker_pid": os.getpid()}
     token = current.set(observation)
     start = time.perf_counter()

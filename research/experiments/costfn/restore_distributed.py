@@ -19,10 +19,10 @@ from restore_v2 import correctness
 import topology
 
 
-def prepare(directory, config, receipt_path, expected_id):
+def prepare(directory, config, receipt_path, expected_id, fixture=dataset_v2, checker=correctness, on_created=None):
     if receipt_path.exists():
         raise FileExistsError("restore receipt already exists")
-    verified = dataset_v2.validate(directory)
+    verified = fixture.validate(directory)
     if verified["dataset_id"] != expected_id:
         raise ValueError("input differs from approved dataset")
     manifest = json.loads((directory / "manifest.json").read_bytes())
@@ -35,6 +35,8 @@ def prepare(directory, config, receipt_path, expected_id):
         for kind, args in (("volume", ["volume", "ls", "-q"]), ("container", ["ps", "-aq"]), ("network", ["network", "ls", "-q"])):
             if restore.run(prefix + args + ["--filter", f"label=com.docker.compose.project={config['project']}"], env).strip():
                 raise ValueError("target project already has resources; select fresh contexts/project")
+    if on_created:
+        on_created()
     restore.run(db + ["up", "-d", "clickhouse", "minio"], env)
     restore.wait_for(lambda: restore.ch(db, env, "SELECT 1").strip() == b"1", "remote ClickHouse")
     for template in sorted((restore.HERE.parents[2] / "clickhouse-init").glob("*.sql.template")):
@@ -46,14 +48,14 @@ def prepare(directory, config, receipt_path, expected_id):
     baseline["app_contracts"] = int(restore.ch(db, env, "SELECT count() FROM app_contracts"))
     if baseline["app_contracts"]:
         raise ValueError("remote target contains app grants")
-    for table in dataset_v2.TABLES:
+    for table in fixture.TABLES:
         restore.import_table(db, env, directory, table)
-    counts = restore.counts(db, env, dataset_v2.TABLES)
-    if counts != {t: baseline[t] + verified["rows"][t] for t in dataset_v2.TABLES}:
+    counts = restore.counts(db, env, fixture.TABLES)
+    if counts != {t: baseline[t] + verified["rows"][t] for t in fixture.TABLES}:
         raise ValueError("remote restore counts differ; target is partial")
     restore.run(api + ["start", "api"], env)
     restore.wait_for(lambda: urllib.request.urlopen(base + "/docs", timeout=5).status == 200, "remote restored API")
-    check = correctness(base, manifest)
+    check = checker(base, manifest)
     # Verify actual provider, not the public endpoint chosen for test traffic.
     provider = restore.run(api + ["exec", "-T", "api", "uv", "run", "python", "-c", "from app import settings; print(settings.PROVIDER)"], env).decode().strip()
     if provider != manifest["provider"]:
