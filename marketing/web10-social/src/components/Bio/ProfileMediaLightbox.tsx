@@ -339,6 +339,7 @@ export function ProfileMediaLightbox({
       aria-modal="true"
       aria-label={label}
       data-testid="profile-media-lightbox"
+      data-replay-private={isOwner ? '' : undefined}
     >
       <div
         className="relative flex w-full max-w-2xl max-h-[88vh] flex-col overflow-hidden rounded-lg border border-border bg-card shadow-[0_8px_30px_rgb(0_0_0/0.35)] animate-panel-in"

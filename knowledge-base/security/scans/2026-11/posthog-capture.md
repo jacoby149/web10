@@ -5,6 +5,51 @@ folded into 5.0.0 before merge (one branch, one PR — the pre-gut capture entry
 was superseded, not shipped separately). Not a completed
 L1–L4 scan, independent review, live-project acceptance or production change.
 
+## 09.11.2026 D107 public-text policy follow-up
+
+The operator supersedes blanket content exclusion, then explicitly rejects the
+first narrow public-caption/label-allowlist draft: visible by default, mask
+sensitive regions. Bounded L1/L2 inspection covers SDK callbacks/wire sanitizer,
+ID-policy tracking and sensitive caller annotations, not L3/L4 coverage.
+Normal DOM text is readable without a marker. Form values/editable drafts,
+DMs, private/unknown-visibility post views, pickers and private admin/account
+regions are masked/blocked. Portaled lightboxes/menus carry their own scope.
+Sensitivity reasons are independent: removing an attribute cannot override a
+different private reason. Privacy changes apply before text/attribute mutations;
+unknown IDs and paths through removed ancestors deny until re-observed.
+
+SVG UI geometry survives. Public image snapshots use the supported
+`maskAttributeFn`: only already-decoded CORS-readable pixels, longest edge 512px,
+raster data URL bounded at the wire. No source URLs/srcset, CORS mutation or new
+fetch. The SDK silently ignores unsupported `inlineImages`; initial browser
+assertion and frontend typechecks catch that mistake before switching callback.
+Unloaded/tainted images omit pixels until a later snapshot. Actual audio/video
+streams, canvas and cross-origin iframes remain excluded. Event properties and
+arbitrary plugin/network/input channels retain their content-free gate.
+
+Unit controls exercise callback/wire independently, including raw private
+sentinels. Real pinned-SDK/browser fixtures capture ordinary/public text, an
+in-place mutation, UI SVG and loaded image pixels, reconstruct sanitized wire
+at desktop/375px and assert private/credential absence. These are synthetic
+DOM/config/identity fixtures, not full screens or vendor-hosted playback.
+The first scoped reviewer found the discarded allowlist's private-word equality
+exception and failure to recover newly public text. Default-visible policy
+removes the dictionary; independent sensitivity reasons support recovery.
+Original-HEAD synthetic wire control reproduces ordinary button text becoming
+`[masked]`; `.context/posthog/d107-original-head-repro.json`. Current local
+receipts: 349 marketing tests, 292 authenticator tests and all three frontend
+builds pass; six intercepted adapter reconstruction cases pass with public
+text/SVG/pixels and private/credential sentinel absence. Full social-suite and
+current-policy review were still pending at that receipt point.
+The current-policy reviewer then found missing sensitive ancestry on Music
+comments, private playlist list/detail/share metadata and profile/saved wall
+tiles. Add visibility-derived markers at each repeat/portal and private
+collection roots; public variants stay visible. Focused component controls
+cover the comments/list/detail/share/tile branches alongside the wire tests;
+these are not full browser exploit receipts. Model-diverse convergence, broad-screen private
+coverage, normal CI, disclosure publication and approved deployment/new hosted
+recordings remain OPEN. No production/vendor writes.
+
 ## 09.11.2026 replay compatibility follow-up
 
 Operator screenshot: `.context/attachments/h9T3Po/image.png`, blank player.

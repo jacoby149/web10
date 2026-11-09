@@ -245,6 +245,15 @@ not a privacy platform (D41): the node is readable by design (discovery /
 search / auditability), there is no default e2e, and the client is a PWA,
 not a native app.
 
+**D107 replay policy (09.11.2026): visible by default, mask sensitive regions.**
+The operator explicitly rejects mask-everything-then-allowlist. Normal UI and
+public content across Posts/Video/Shorts/Music remain readable without markers;
+public images may be inlined as pixels, never signed source URLs. Mask inputs,
+editable drafts, DMs, private/unknown-visibility posts and private admin surfaces.
+Video/audio streams, cross-origin iframes and canvas are not recorded. Events
+remain content-free. Supersedes the blanket D56/D106 replay exclusion below;
+see `knowledge-base/web10-v3/telemetry.md`. Hosted/deployment gates stay open.
+
 **Telemetry (D56 intent, D103 vendor): PostHog only.** web10 tracks usage to
 compete on experience, never post/DM/media content. 5.0.0 (merged) removes GA4/
 Hotjar runtime/config/build wiring on the operator's explicit request. Shared

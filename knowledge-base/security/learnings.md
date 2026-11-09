@@ -35,6 +35,21 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-09: Visible-by-default replay needs explicit sensitive boundaries
+
+D107 rejects the initial label/public-caption allowlist: normal UI and public
+content stay visible; mask sensitive regions instead. Mark private post records,
+DMs, drafts/pickers and admin/account content, including portals that do not
+inherit their trigger's DOM ancestry. rrweb mutations carry IDs, not ancestors;
+retain structural sensitivity across batches and apply privacy changes before
+text/attribute changes. A word such as "Done" inside a private region is still
+private, not a dictionary-based exemption. PostHog's pinned option allowlist
+silently ignores rrweb `inlineImages`; use the supported attribute callback
+for bounded already-loaded readable pixels, without mutating CORS or fetching.
+Strip source capabilities regardless. CORS/unloaded-image, stream/iframe,
+broad-screen and model-diverse/rollout gates remain explicit; synthetic replay
+is not a full audit. See `scans/2026-11/posthog-capture.md`.
+
 ### 2026-11-09: Replay masking must preserve the recorder's structural protocol
 
 The pinned PostHog SDK uses its network-mask callback for Meta URLs as well as

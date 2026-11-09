@@ -99,6 +99,8 @@ describe('anonymous personal author pictures', () => {
     render(<TrendingCard post={posts[0]} rank={1} maxScore={1} onLike={() => {}} onComment={() => {}} onRepost={() => {}} />);
     expect(screen.getByRole('img', { name: 'Ordinary user' })).toHaveAttribute('src', 'https://cdn.example/person.jpg');
     expect(screen.getAllByRole('link', { name: /Ordinary user/ })[0]).toHaveAttribute('href', `${SOCIAL_ORIGIN}/u/ordinary_user`);
+    expect(screen.getByText('matching post').closest('[data-replay-private]')).toBeNull();
+    expect(screen.getByTestId('trending-card')).not.toHaveAttribute('data-replay-public');
   });
 
   it.each(['empty', 'denied', 'throw'] as const)('retains posts and group pictures when personal faces are %s', async (failure) => {

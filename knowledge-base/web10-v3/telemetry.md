@@ -102,6 +102,20 @@ is a provenance convention, not cryptographic vendor enforcement. Reconcile
 important claims against canonical facts; do not treat the public project key as
 an anti-fraud or payout boundary.
 
+**D107 (09.11.2026) supersedes the blanket exclusion below: visible by default,
+mask sensitive regions.** The operator rejects mask-everything-then-allowlist.
+Normal UI and public author/title/caption/count text across Posts, Video, Shorts
+and Music need no public marker or label dictionary. The denylist is form
+values/editable drafts, DMs, private/unknown-visibility records, private admin/
+account surfaces and credentials. Public images may be inlined as bounded
+raster pixels; signed source URLs/srcset are dropped. SVG UI geometry survives.
+Audio/video streams, canvas and cross-origin embeds remain unsupported—not a
+claim that playback frames are recorded. SDK masking and the ID-aware wire
+gate both enforce sensitive ancestry, including incremental text/marker changes.
+Unknown IDs deny until a known snapshot/addition; no arbitrary plugin/network
+payloads. Event properties remain content-free. Deployment, fresh vendor
+recordings and broad real-screen/review coverage remain release gates.
+
 Optional replay/heatmaps are separately default-off, and **D106 (08.11.2026)
 makes them layout-faithful, content-blind**: the recorder masks all
 text/inputs, blocks media/canvas/iframes, and keeps console/network
@@ -114,7 +128,7 @@ route templates. Heatmap URL keys are route templates; only numeric
 coordinates/type survive. Local Chromium captures real snapshot/heatmap
 batches and checks private sentinels plus class survival; a live dev recording
 was operator-inspected 08.11.2026. Do not relax masking to improve the
-recording.
+recording except under the superseding D107 policy above.
 
 Replay compatibility follow-up (09.11.2026): preserving class names alone did
 not preserve stylesheets. rrweb style-text and `_cssText` need an inert CSS

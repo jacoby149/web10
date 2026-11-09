@@ -100,6 +100,31 @@ function renderScreen(tracks: MusicTrack[] = [], url = '/music') {
 }
 
 describe('MusicScreen', () => {
+  it.each(['private', 'public'] as const)('keeps %s track comments under the track replay boundary', async (visibility) => {
+    const song = track({ id: 'song', author: 'artist', title: 'Replay track' });
+    song.post.visibility = visibility;
+    song.post.text = 'Replay caption';
+    vi.spyOn(data, 'readThreadComments').mockResolvedValue({ comments: [], nextCursor: null, replyCounts: {} });
+    vi.mocked(data.readMusicTrack).mockResolvedValue(song);
+    renderScreen([song]);
+    const menu = await openMenu('Replay track');
+    fireEvent.click(menu.getByRole('link', { name: 'Comments' }));
+    const comments = await screen.findByTestId('music-comments');
+    expect(comments.hasAttribute('data-replay-private')).toBe(visibility !== 'public');
+    expect(within(comments).getByText('Replay caption')).toBeVisible();
+  });
+
+  it.each(['private', 'public'] as const)('keeps %s playlist list/detail metadata under its replay boundary', async (visibility) => {
+    vi.mocked(data.getMyCollections).mockResolvedValue([{ ...collection('replay-list', 'Replay playlist'), visibility }]);
+    vi.mocked(data.readMusicCollection).mockResolvedValue({ tracks: [], name: 'Replay playlist', skipped: 0 });
+    renderScreen([], '/music?view=playlists');
+    const name = await screen.findByRole('heading', { name: 'Replay playlist' });
+    expect(!!name.closest('[data-replay-private]')).toBe(visibility !== 'public');
+    fireEvent.click(name.closest('button')!);
+    const detail = await screen.findByRole('heading', { name: 'Replay playlist' });
+    expect(!!detail.closest('[data-replay-private]')).toBe(visibility !== 'public');
+  });
+
   it('opens a track-native URL-backed comment panel from the action sheet and returns with browser history', async () => {
     const song = track({ id: 'song', author: 'artist', title: 'Our song' });
     vi.spyOn(data, 'readThreadComments').mockResolvedValue({ comments: [], nextCursor: null, replyCounts: {} });

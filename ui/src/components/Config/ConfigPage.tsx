@@ -471,7 +471,7 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
                 Existing content/ad metrics are unchanged.
               </p>
               <ToggleRow label="Use PostHog" description="Off by default. When off or unavailable, no external usage analytics vendor loads." checked={config?.posthog_enabled === true} onChange={() => updateField("posthog_enabled", config?.posthog_enabled !== true)} testId="config-posthog-enabled" />
-              <ToggleRow label="Masked replay and heatmaps" description="Optional. Layout and styling are reproduced (D106); text, inputs, media and network content are masked or removed." checked={config?.posthog_replay_enabled === true} onChange={() => updateField("posthog_replay_enabled", config?.posthog_replay_enabled !== true)} testId="config-posthog-replay" />
+              <ToggleRow label="Masked replay and heatmaps" description="Optional. Normal UI and public content/images are visible by default (D107). Masks inputs, drafts, DMs, private records/admin and credentials. Signed URLs and audio/video streams are excluded." checked={config?.posthog_replay_enabled === true} onChange={() => updateField("posthog_replay_enabled", config?.posthog_replay_enabled !== true)} testId="config-posthog-replay" />
               <Field label="PostHog project ingest key" description="Starts with phc_. Public identifier; blank or invalid configuration disables collection.">
                 <Input value={config?.posthog_project_key || ""} onChange={e => updateField("posthog_project_key", e.target.value)} placeholder="phc_…" data-testid="config-posthog-key" />
               </Field>

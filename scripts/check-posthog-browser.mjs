@@ -68,6 +68,7 @@ try {
       import { createRoot } from 'react-dom/client';
       import '/src/index.css';
       import * as analytics from '/src/lib/analytics.ts';
+      for (const node of document.querySelectorAll('.replay-layout-probe > *, [data-private]')) node.setAttribute('data-replay-private', '');
       analytics.trackPageview('/join');
       analytics.trackPageview('/join');
       await analytics.installTelemetry();
@@ -80,6 +81,19 @@ try {
       }
       window.probe = analytics;
       window.probeReady = true;
+      const publicPost = document.createElement('section');
+      publicPost.innerHTML = '<h2>PUBLIC_POST_TITLE</h2><p>PUBLIC_POST_CAPTION</p><textarea>PRIVATE_SENTINEL</textarea><span data-replay-private>PRIVATE_SENTINEL</span>';
+      publicPost.className = 'replay-public-post-probe';
+      document.body.prepend(publicPost);
+      const navigation = document.createElement('nav');
+      navigation.style.cssText = 'display: flex; align-items: center; gap: 24px; padding: 16px; flex-wrap: wrap';
+      navigation.innerHTML = '<button>Discover</button><button>Music</button><button>New product control without an allowlist</button><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M 5 3 L 19 12 L 5 21 Z" /></svg>';
+      publicPost.style.cssText = 'margin: 16px; padding: 24px; border: 1px solid var(--color-border); border-radius: 12px';
+      document.body.prepend(navigation);
+      const canvas = document.createElement('canvas'); canvas.width = 16; canvas.height = 16;
+      const paint = canvas.getContext('2d'); paint.fillStyle = '#8b5cf6'; paint.fillRect(0, 0, 16, 16);
+      const artwork = document.createElement('img'); artwork.className = 'replay-public-artwork-probe'; artwork.src = canvas.toDataURL();
+      await artwork.decode(); publicPost.append(artwork);
       ${app === 'auth-ui' ? `
         const axios = (await import('axios')).default;
         axios.post = async (url, body) => ({ data: url.endsWith('/config') ? {
@@ -130,13 +144,20 @@ try {
       });
       await page.goto(`http://127.0.0.1:${port}/__posthog_probe.html?utm_source=instagram&utm_campaign=pilot&utm_content=creator_a&token=PRIVATE_SENTINEL`);
       await page.waitForFunction(() => window.probeReady === true);
+      if (replay) {
+        await page.locator('.replay-public-post-probe').waitFor();
+        // Keep the same text node: this must exercise rrweb's incremental text
+        // path, not just serialize an added subtree.
+        await page.waitForTimeout(300);
+        await page.locator('.replay-public-post-probe p').evaluate((node) => { node.firstChild.textContent = 'PUBLIC_POST_UPDATED'; });
+      }
       await page.mouse.click(12, 12);
       // SDK batch transport is real; wait for its actual two pageviews.
       await new Promise((resolve, reject) => {
         const deadline = Date.now() + 15000;
         const check = () => {
           const events = capturedEvents(vendor);
-          if (events.filter((entry) => entry.event === '$pageview').length >= 2 && (!replay || (events.some((entry) => entry.event === '$snapshot') && events.some((entry) => entry.event === '$$heatmap')))) return resolve();
+           if (events.filter((entry) => entry.event === '$pageview').length >= 2 && (!replay || (JSON.stringify(events).includes('PUBLIC_POST_UPDATED') && events.some((entry) => entry.event === '$$heatmap')))) return resolve();
           if (Date.now() >= deadline) return reject(new Error(`SDK transport did not capture two pageviews for ${app}; requests=${JSON.stringify(vendor.map((r) => ({method: r.method, path: new URL(r.url).pathname, keys: Object.keys(r.data ?? {})})))}, events=${events.map((e) => e.event).join(',')}, pageErrors=${errors.join(',')}`));
           setTimeout(check, 100);
         };
@@ -159,6 +180,11 @@ try {
         await writeFile(path.join(out, `${app}-${label}-snapshots.json`), JSON.stringify(events.filter((entry) => entry.event === '$snapshot').flatMap((entry) => entry.properties.$snapshot_data), null, 2));
         assert.ok(JSON.stringify(snapshot?.properties?.$snapshot_data).match(/"class":"[^"]{3,}/), 'D106 layout fidelity: no class attributes survived the wire gate');
         const snapshots = events.filter((entry) => entry.event === '$snapshot').flatMap((entry) => entry.properties.$snapshot_data);
+        assert.ok(JSON.stringify(snapshots).includes('PUBLIC_POST_TITLE'), 'Public post title still masked');
+        assert.ok(JSON.stringify(snapshots).includes('Discover'), 'Fixed UI labels still masked');
+        assert.ok(JSON.stringify(snapshots).includes('New product control without an allowlist'), 'Replay is still label-allowlisted');
+        assert.ok(/data:image\/(?:png|webp);base64,/.test(JSON.stringify(snapshots)), 'Public image pixels still masked');
+        assert.ok(snapshots.some((entry) => entry.type === 3 && entry.data.source === 0 && entry.data.texts?.some((text) => text.value === 'PUBLIC_POST_UPDATED')), 'Public text mutation still masked');
         assert.ok(snapshots.some((entry) => entry.type === 4 && entry.data.width > 0 && entry.data.height > 0), 'Replay lost its Meta event / viewport');
         const playback = await context.newPage();
         try {
@@ -178,6 +204,11 @@ try {
           assert.equal(layout.gap, '24px');
           assert.ok(layout.height >= 160);
           assert.match(layout.font, /Inter|sans-serif/, 'Replay lost the actual app stylesheet (not just the probe CSS)');
+          await frame.getByRole('heading', { name: 'PUBLIC_POST_TITLE' }).waitFor();
+          await frame.getByText('PUBLIC_POST_UPDATED', { exact: true }).waitFor();
+          assert.equal(await frame.getByRole('button', { name: 'Discover', exact: true }).count(), 1);
+          assert.ok(await frame.locator('.replay-public-artwork-probe').evaluate((image) => image.naturalWidth > 0), 'Public artwork did not reconstruct');
+          assert.equal(await frame.locator('svg path[d="M 5 3 L 19 12 L 5 21 Z"]').count(), 1, 'Public UI icon is still blocked');
           await playback.screenshot({ path: path.join(out, `${app}-playback-${label}.png`) });
           console.log('[telemetry] local playback verified', { app, viewport: label, ...layout });
         } finally { await playback.close(); }
