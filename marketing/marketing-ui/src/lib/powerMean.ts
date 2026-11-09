@@ -39,11 +39,17 @@ function normalizeReposts(reposts: number): number {
 // ── Weighted Power Mean ─────────────────────────────────────────────────────
 
 // p → ±∞ limits, p = 0 geometric mean, weight-zeroing.
-// Signals are floored to epsilon so p <= 0 never nukes a post for one dead signal.
-const EPSILON = 1e-12;
+// A dead (zeroed) weighted signal is floored to a small share of the
+// normalized scale, not to epsilon: with a 1e-12 floor the geometric mean
+// cost one dead signal ln(1e-12) ≈ 27.6 log points — a near-veto. "A little"
+// engagement on an old post then outranked a fresh one no matter how far the
+// Recency knob was cranked, which is why recency read as powerless. At the
+// 0.05 floor a dead signal costs ln(0.05) ≈ 3 log points: it still ranks
+// below a real one, without annihilating the post.
+const SIGNAL_FLOOR = 0.05;
 
 function floorSignal(x: number): number {
-  return Math.max(EPSILON, Math.min(1, x));
+  return Math.max(SIGNAL_FLOOR, Math.min(1, x));
 }
 
 /**
@@ -87,8 +93,19 @@ function weightedPowerMean(
 
 // Each knob has 6 detents (indices 0..5).
 
-// Weight detents: 0, 0.2, 0.4, 0.6, 0.8, 1.0
+// Weight detents (likes / comments): 0, 0.2, 0.4, 0.6, 0.8, 1.0
 const WEIGHT_DETENTS = [0, 0.2, 0.4, 0.6, 0.8, 1];
+
+// Recency detents: 0, 0.5, 1, 2, 4, 8 — each step doubles recency's pull.
+// Recency is the signal that reads as "the feed went stale", and the power
+// mean compares signals by RELATIVE weight, so the Recency knob carries its
+// own steeper scale: at the top detent (8.0) it outweighs likes + comments at
+// their combined max (1.0 + 1.0) four-fold — a cranked Recency prioritizes
+// today's posts, even the last hour, over a little engagement on older ones.
+// At the low detents (0.5 / 1.0) strong engagement still wins, so the knob
+// keeps real resolution across its range instead of snapping between "off"
+// and "chronological".
+const RECENCY_WEIGHTS = [0, 0.5, 1, 2, 4, 8];
 
 // Time horizon half-life (ms): 1h, 4h, 12h, 1d, 7d, ∞
 const HALF_LIFE_DETENTS = [
@@ -229,7 +246,9 @@ interface PostSignals {
 }
 
 function scorePost(signals: PostSignals, state: KnobState): number {
-  const wr = WEIGHT_DETENTS[state.recency];
+  // Recency takes its own steeper detents (0 → 8) so the top of the knob can
+  // outweigh the engagement knobs' combined max (see RECENCY_WEIGHTS).
+  const wr = RECENCY_WEIGHTS[state.recency];
   const wl = WEIGHT_DETENTS[state.likes];
   const wc = WEIGHT_DETENTS[state.comments];
   // The Time knob is gone — the recency half-life is fixed at the middle
@@ -286,6 +305,7 @@ export {
   weightedPowerMean,
   // Detents
   WEIGHT_DETENTS,
+  RECENCY_WEIGHTS,
   HALF_LIFE_DETENTS,
   HALF_LIFE_LABELS,
   CHARACTER_DETENTS,
