@@ -85,13 +85,18 @@ traffic measurement. Each checkbox remains open until its own gates pass.
   group is not a universal cost win. All unpublished code/tests removed; Q01 is
   untouched. Native physical-history counts and resource receipts retained.
   [Evidence](../security/scans/2026-11/query-readable-join.md).
-- [ ] Q01-VERIFY: coordinate source-matched actual-host acceptance after #1448.
-  This queue owns receipt review/KB only; existing research/ops owners retain
-  `research/experiments/costfn/` and execution. Gates: merged source hashes,
-  frozen inputs, unchanged workload/limits, approved hosts/budget/watchdog and
-  verified cleanup. Acceptance: a fresh strict receipt determines whether Q01
-  clears the old failure; no success claim from local lookup timings, no paid
-  run or production action without explicit approval. Q02 is not a dependency.
+- [✓ 5.9.5 actual-host receipt; strict FAILED] Q01-VERIFY: the approved matching
+  topology restores the frozen large input and passes initial checks, but two of
+  four measured feeds fail native ten-second SQL timeouts. Lifecycle/correlation
+  valid; all cloud resources deleted, estimated upper compute $0.326. Receipt:
+  `research/experiments/costfn/evidence/Q01-PREFLIGHT-20261109.md`. No primary
+  points or reliable before/after speedup estimate; K=1,000 is a stress case.
+- [ ] Q01-NEXT: inspect retained main-query costs and design a separately labelled
+  K=20 case, not an empirical-average claim. Declare graph/post/fetch/paging
+  differences and retain real app/SDK correctness/permission checks. Research
+  owners retain execution; no historical-receipt rewrite, guessed optimization,
+  Q02 revival, new generation/publication/paid run or production action without
+  approval.
 
 ### B01 - P1: Readable-Set Authorization
 
