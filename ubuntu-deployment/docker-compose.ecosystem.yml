@@ -181,6 +181,8 @@ services:
       # RUNTIME env (internal origin); the VITE build arg VITE_API_ORIGIN above
       # is the public origin (a separate variable) — no conflict.
       API_ORIGIN: http://${STACK}-api:80
+      # Group-ID identity must match the API, not the internal transport alias.
+      PROVIDER: ${PROVIDER:?set PROVIDER, e.g. api.dev.web10.app}
       # SOCIAL_ORIGIN — the social app's public origin (the canonical og:url
       # the preview server puts in the card).
       SOCIAL_ORIGIN: ${SOCIAL_ORIGIN:-http://social.localhost}
