@@ -37,7 +37,7 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
-- [✓ 5.13.2 local] **Settings live-region gauntlet repair** — scope the exact “Saved.” status after Appearance adds an independent live region; retain both accessible statuses and all original timeout/persistence/re-login assertions. Actual Settings UI browser replay at desktop/375px passes; the real connected CI journey remains the release gate, with no runtime UI or auth behavior change.
+- [✓ 5.13.3 local] **Settings live-region gauntlet repair** — scope the exact “Saved.” status after Appearance adds an independent live region; retain both accessible statuses and all original timeout/persistence/re-login assertions. Actual Settings UI browser replay at desktop/375px passes; the real connected CI journey remains the release gate, with no runtime UI or auth behavior change.
 
 - [✓ 5.13.1 local] **Name the social entry CTA** — operator requests “Go to web10 social” instead of “Enter web10”; Home and Freedom labels aligned, configured destination unchanged, exact-label/href regressions and desktop/375px light/dark browser captures pass.
 
