@@ -15,6 +15,18 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Readable-join investigation (08.11.2026) — REJECTED, code removed
+
+Sparse gains do not outweigh the demonstrated tradeoffs: unrestricted early
+joining reproduces 8.3× duration/34.2× memory with overlapping histories, while
+even the single-group restriction costs more on dense reads. Operator rejects
+promotion and requests docs only; all unpublished runtime/test changes removed.
+Structured local evidence and physical-history fixture learnings are retained.
+Prototype parity/tests are historical, not shipped regression coverage or broad
+security approval. Q01 remains intact; post-#1448 million-author acceptance is
+unknown, with no fresh actual-host run. Existing L1–L4/churn/rollout gaps remain.
+[Record](scans/2026-11/query-readable-join.md).
+
 ## Exact-ID canonical pruning (08.11.2026) — bounded compiler/wiring review, OPEN
 
 Internal exact-ID restrictions retain complete document/attachment histories,
