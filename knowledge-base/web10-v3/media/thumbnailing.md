@@ -128,7 +128,8 @@ around. It composes the social card from the platform's thumbnail:
   same post, a different URL shape) is fetched by a crawler, the
   **social app's own preview server** renders the Open Graph / Twitter Card:
   map the permalink → the doc → read it (media resolved) → `pickThumbnail` →
-   the social fallback (author avatar / brand mark) → the card HTML (title from
+   the social fallback (the author's face through the anon face-prepare seam,
+   below / brand mark) → the card HTML (title from
    the saved headline or caption, `og:type`, the canonical URL). The social app owns the
   permalink shape, the card shape, and the fallback — all social concepts. The
   platform contributes exactly one thing: the thumbnail.
@@ -223,6 +224,33 @@ name + count but the cover fell back to the brand mark, because the pre-fix
 card logic called `media/thumbnail` on the media doc directly — and the
 synthetic preview tests had modeled that call as anon-readable, a corrupted
 measure; the fixtures now model the real node's I3 404.)
+
+**The profile + group share cards' faces resolve through the same anon
+face-prepare seam** (09.11.2026, the same I3 defect class): `profileCard` /
+`groupCard` (and a media-less post card's author fallback) called
+`media/thumbnail` on the face's `avatar_ref` / `banner_ref` media docs, which
+the node I3-denies for anon (production-verified: the owner's avatar doc
+404s) — so every profile / group share fell back to the brand mark even though
+the same face is publicly displayed on the page. The face now resolves the way
+the app resolves it: a `POST /v3/query` over the face doc — the `profile` doc
+in the followers group, or the `web10-social-group-identity` doc in the group
+— with `prepare.face` (D73) minting the face URL bound to the face doc's
+uploader (`posted_by or author_key`), not the viewer. Same contract as the
+shared resolver (`@web10/discover` face.ts, the marketing `hydrateAuthors` /
+the social People tab): the SQL mirrors `peopleFaceSql` / `GROUP_FACE_SQL`
+(latest doc wins — `QUALIFY row_number() OVER (PARTITION BY … ORDER BY
+created_at DESC) = 1`; the identity service backtick-quoted), ONE media field
+per query (the profile card runs one face-prepare for the avatar; the group
+card runs two, cover + avatar, one per field), and a denied / failed query
+degrades to no face — the generic card (profile) or the brand mark
+(face-without-picture) — never a throw, never a content leak. The media-less
+post-card author fallback splits by author kind: a personal author key
+(bare local, or the D84-qualified `{provider}/users/{username}` — the
+provider keeps its own prefix) → the profile face; a group author
+(`…/groups/…`) → the group face's avatar (the pre-fix code built a nonsense
+`users/<group id>/followers` read for group authors). The floor is the
+engine's read gate, not this module: an unreadable profile / group → no
+readable row → no mint → the generic card.
 
 Still open:
 
