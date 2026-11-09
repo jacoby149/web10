@@ -2,6 +2,18 @@
 
 These are preparation/functional receipts, **not new paper performance results**.
 
+- `q01-preflight-20261109.json` and its pinned receipt archive: source-matched
+  actual-host rerun after #1448. Small floor passes; the frozen dispersed
+  million-author restore/initial results pass, but strict acceptance fails two
+  of four measured feeds. Native code-159 timeouts still read about 36M rows
+  each. Seven lifecycle controls before/after, three paired smoke pairs and 18
+  correlated requests remain valid negative evidence; zero primary points.
+  All owned cloud resources are removed and independently verified; estimated
+  compute upper bound $0.326, not a settled invoice. K=1,000 is a heavy-follow
+  stress case, not an observed average. Full account:
+  `Q01-PREFLIGHT-20261109.md`. This supersedes “no post-#1448 run”, not the
+  historical receipts or the need for accepted full-feed/load evidence.
+
 - `cloud-preflight-20261108.json`: actual three-host small acceptance and large
   dispersed restore pass; strict large acceptance stops on six HTTP 400 / engine
   code 159 timeouts, not incorrect IDs or missing permissions. Seven lifecycle
@@ -92,10 +104,12 @@ The final identical full branch command passes all 2,088. No timeout/config chan
 was used; the earlier failures remain recorded rather than being labelled proven
 pre-existing. These are local checks, not PR/CI acceptance.
 
-No million-row DB restore, three-physical-host integration/headroom receipt,
-independent performance repeats or paid study has been run here. The distributed
-adapter has offline controls and Compose validation, not connected cloud proof.
+The original local receipts do not certify million-author restore or separate-
+host headroom. Later actual-host restores and failed strict acceptance are
+recorded in the dated receipts above; independent performance repeats and the
+primary paid study remain unexecuted. Do not infer readiness from this historical
+local floor or omit the subsequent actual-host failures.
 Normal document histories are clean synthetic current versions; media, ads,
 private-policy load mixes, user-write churn and browser rendering remain outside
-the named workload. The production batching default and manuscript measurements
-are unchanged. See `../RUNNING-V2.md` for actual-host gates and execution controls.
+the named workload. This verification changes no production configuration or
+manuscript measurements. See `../RUNNING-V2.md` for remaining execution controls.
