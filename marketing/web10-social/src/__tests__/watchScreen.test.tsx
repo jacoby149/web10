@@ -575,8 +575,15 @@ describe('WatchScreen (the watch page)', () => {
     // also replays disconnected observers from earlier tests and wakes every
     // preview tile; neither event models scrolling to the queue's next page.
     const IO = IntersectionObserver as unknown as { instances: { observed: Element | null; fire: () => void }[] };
-    const observer = [...IO.instances].reverse().find((item) => item.observed === sentinel);
-    expect(observer).toBeDefined();
+    // Poll for the sentinel's observer instead of looking it up immediately
+    // after the DOM wait: the commit that renders the cards and the effect
+    // that attaches the observer are separate steps, and under CI runner load
+    // the lookup could land between them (the 5.9.9 class of race).
+    let observer: { fire: () => void } | undefined;
+    await waitFor(() => {
+      observer = [...IO.instances].reverse().find((item) => item.observed === sentinel);
+      expect(observer).toBeDefined();
+    });
     await act(async () => { observer!.fire(); });
     await waitFor(() => expect(screen.getAllByTestId('watch-queue-card')).toHaveLength(52));
     // The second page was fetched with the next board offset (PAGE_SIZE = 50).
