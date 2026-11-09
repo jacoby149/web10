@@ -566,14 +566,22 @@ describe('WatchScreen (the watch page)', () => {
     // on the board, so nothing is excluded).
     await waitFor(() => expect(screen.getAllByTestId('watch-queue-card')).toHaveLength(50));
     // The sentinel is present (hasMore true — a full board page).
-    expect(screen.getByTestId('watch-queue-sentinel')).toBeInTheDocument();
+    const sentinel = screen.getByTestId('watch-queue-sentinel');
+    expect(sentinel).toBeInTheDocument();
 
     // The sentinel is visible → the observer fires → loadMore appends page 2
     // (offset 50) and re-ranks the whole board.
-    (globalThis as unknown as Record<string, () => void>).fireIntersectionObservers();
+    // Only this live sentinel enters the viewport. The global fire-all helper
+    // also replays disconnected observers from earlier tests and wakes every
+    // preview tile; neither event models scrolling to the queue's next page.
+    const IO = IntersectionObserver as unknown as { instances: { observed: Element | null; fire: () => void }[] };
+    const observer = [...IO.instances].reverse().find((item) => item.observed === sentinel);
+    expect(observer).toBeDefined();
+    await act(async () => { observer!.fire(); });
     await waitFor(() => expect(screen.getAllByTestId('watch-queue-card')).toHaveLength(52));
     // The second page was fetched with the next board offset (PAGE_SIZE = 50).
     expect(data.readDiscoverFeed).toHaveBeenLastCalledWith(expect.anything(), 50, undefined, 50);
+    expect(data.readDiscoverFeed).toHaveBeenCalledTimes(2);
     // hasMore is now false (page 2 was short) → the sentinel is gone (the board
     // is exhausted).
     expect(screen.queryByTestId('watch-queue-sentinel')).toBeNull();
