@@ -6,6 +6,7 @@ import {
   normalizeReposts,
   weightedPowerMean,
   WEIGHT_DETENTS,
+  RECENCY_WEIGHTS,
   HALF_LIFE_DETENTS,
   HALF_LIFE_LABELS,
   CHARACTER_DETENTS,
@@ -113,11 +114,19 @@ describe('weightedPowerMean', () => {
     expect(weightedPowerMean(signals, weights, 1)).toBeCloseTo(0.4);
   });
 
-  it('floors signals to epsilon for p <= 0', () => {
+  it('floors a dead signal to the signal floor (0.05) for p <= 0', () => {
     const signals = [0, 0.5, 0.5];
     const weights = [1, 1, 1];
     const result = weightedPowerMean(signals, weights, -1);
     expect(result).toBeGreaterThan(0);
+  });
+
+  it('the dead-signal floor is 0.05, not epsilon (a cost, not a veto)', () => {
+    // Geometric mean (p = 0) over one live signal (1.0) and one dead signal:
+    // the dead one contributes ln(0.05) — at the old 1e-12 floor it
+    // contributed ln(1e-12) ≈ 27.6 log points, which no recency weight could
+    // outrank (the recency-potency fix).
+    expect(weightedPowerMean([1, 0], [1, 1], 0)).toBeCloseTo(Math.exp(Math.log(0.05) / 2), 10);
   });
 });
 
@@ -126,6 +135,18 @@ describe('detents', () => {
     expect(WEIGHT_DETENTS).toHaveLength(6);
     expect(WEIGHT_DETENTS[0]).toBe(0);
     expect(WEIGHT_DETENTS[5]).toBe(1);
+  });
+
+  it('RECENCY_WEIGHTS is the steeper 6-step scale (each detent doubles the pull)', () => {
+    // The recency knob runs 0 → 8 (not 0 → 1): the power mean compares
+    // signals by RELATIVE weight, and a top recency weight of 1.0 could never
+    // outweigh likes + comments at their combined max — the "recency is not
+    // potent" complaint. 8.0 outweighs the engagement knobs four-fold.
+    expect(RECENCY_WEIGHTS).toHaveLength(6);
+    expect(RECENCY_WEIGHTS[0]).toBe(0);
+    expect(RECENCY_WEIGHTS[5]).toBe(8);
+    // Each step from detent 1 up doubles the pull (0.5 → 1 → 2 → 4 → 8).
+    for (let i = 2; i < 6; i++) expect(RECENCY_WEIGHTS[i]).toBe(RECENCY_WEIGHTS[i - 1] * 2);
   });
 
   it('HALF_LIFE_DETENTS has 6 entries, last is ∞ (0)', () => {
@@ -286,6 +307,27 @@ describe('scorePost', () => {
     const freshLow = scorePost({ ageMs: 0, likes: 1, comments: 0, reposts: 0 }, ml);
     const oldHigh = scorePost({ ageMs: 1_000_000_000, likes: 1000, comments: 0, reposts: 0 }, ml);
     expect(oldHigh).toBeGreaterThan(freshLow);
+  });
+
+  it('cranked recency prioritizes today over a little engagement on an old post (the potency fix)', () => {
+    // Operator: "when i crank it up and have likes and comments just a little
+    // bit it gets dominated by likes and comments". At the top recency detent
+    // a fresh zero-engagement post must beat a two-day-old post with a few
+    // likes/comments. (Before the fix the 1e-12 dead-signal floor made that
+    // old post win by ~500×, no matter how far recency was cranked.)
+    const cranked = { recency: 5, likes: 1, comments: 1, halfLife: 3, character: 0 };
+    const hourOld = { ageMs: 3_600_000, likes: 0, comments: 0, reposts: 0 };
+    const twoDaysOld = { ageMs: 2 * 86_400_000, likes: 3, comments: 1, reposts: 0 };
+    expect(scorePost(hourOld, cranked)).toBeGreaterThan(scorePost(twoDaysOld, cranked));
+  });
+
+  it('low recency detents keep engagement potency (the knob does not snap to chronological)', () => {
+    // At the bottom of the steeper scale (0.5) a genuinely viral old post
+    // still beats a fresh zero-engagement one — resolution across the range.
+    const lowRecency = { recency: 1, likes: 5, comments: 0, halfLife: 3, character: 0 };
+    const hourOld = { ageMs: 3_600_000, likes: 0, comments: 0, reposts: 0 };
+    const twoDaysViral = { ageMs: 2 * 86_400_000, likes: 200, comments: 50, reposts: 0 };
+    expect(scorePost(twoDaysViral, lowRecency)).toBeGreaterThan(scorePost(hourOld, lowRecency));
   });
 });
 

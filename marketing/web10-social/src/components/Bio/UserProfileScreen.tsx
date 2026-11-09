@@ -192,7 +192,7 @@ export function WallTile({ media, testId, title, caption, postId, multiCount, re
         // display face (Space Grotesk) with the caption under it. Vertically
         // centered, not corner-dumped — it reads as a card, not an empty box.
         <div
-          className="relative w-full h-full flex flex-col justify-center p-3 sm:p-5"
+          className="media-theme relative w-full h-full flex flex-col justify-center p-3 sm:p-5"
           style={{ backgroundColor: textTileColor(postId) }}
           data-testid={`${testId}-text`}
         >

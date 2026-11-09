@@ -6,9 +6,11 @@ import '@fontsource-variable/inter/standard.css';
 import '@fontsource-variable/space-grotesk';
 import './index.css';
 import App from './App';
+import { getThemeStore } from './lib/theme';
 import { installTelemetry, trackPageview, trackNodePageview, reportNodeError, trackProductSession } from './lib/analytics';
 
 // D103: PostHog only, enabled through runtime node configuration.
+getThemeStore();
 installTelemetry();
 
 // D56: first-party beacon to the node (persistent, in ClickHouse). Content-free.

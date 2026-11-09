@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { INSTALL_PROMPT_EVENT, useInstallPrompt } from '@/lib/pwa';
+import { ThemeMark } from './ThemeMark';
 
 /**
  * The install surface (D72, pwa.md) — one tasteful, dismissible card that
@@ -63,12 +64,7 @@ export function InstallPrompt() {
         data-testid="install-prompt"
       >
         <div className="flex items-start gap-3">
-          <img
-            src="/keys-mark.png"
-            alt=""
-            className="h-12 w-12 shrink-0 rounded-lg"
-            aria-hidden="true"
-          />
+          <ThemeMark className="h-12 w-12" />
           <div className="flex-1 min-w-0">
             <h3 className="font-display text-base font-medium text-foreground">
               web<span className="text-brand">10</span> social

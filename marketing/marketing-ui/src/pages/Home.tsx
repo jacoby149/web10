@@ -10,6 +10,7 @@ import {
 } from '../lib/reachGap'
 import { trackFunnel } from '../lib/analytics'
 import { SOCIAL_ORIGIN } from '../lib/origins'
+import BrandLogo from '../components/BrandLogo'
 
 function nodeApi(): string {
   if (typeof window !== 'undefined') {
@@ -150,9 +151,7 @@ function Hero() {
         <p className="reveal mb-6 text-[0.75rem] font-medium uppercase tracking-[0.04em] text-muted-foreground">
           The web10 node
         </p>
-        <img
-          src="/brand/logo-lockup.png"
-          alt="web10"
+        <BrandLogo
           className="reveal mb-8 h-10 [animation-delay:80ms] sm:h-12"
         />
         <h1 className="reveal font-display text-4xl font-bold leading-[1.1] tracking-[-0.02em] [animation-delay:160ms] sm:text-5xl lg:text-[3.5rem]">
@@ -164,7 +163,7 @@ function Hero() {
         </p>
         <div className="reveal mt-10 [animation-delay:320ms]">
           <Button asChild size="lg" variant="brand">
-            <a href={SOCIAL_ORIGIN}>Enter web10!</a>
+            <a href={SOCIAL_ORIGIN}>Go to web10 social</a>
           </Button>
         </div>
         <HomeStatsBar />

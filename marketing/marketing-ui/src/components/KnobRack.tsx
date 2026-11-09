@@ -3,6 +3,7 @@ import { ChevronDown, SlidersHorizontal } from 'lucide-react';
 import { RotaryKnob } from './RotaryKnob';
 import {
   PRESETS,
+  RECENCY_WEIGHTS,
   WEIGHT_DETENTS,
   type KnobState,
   type PresetId,
@@ -35,6 +36,12 @@ interface KnobRackProps {
 function KnobRack({ state, activePreset, onChange, onPreset, expanded: controlled, onExpandedChange, children }: KnobRackProps) {
   const weightLabels = useMemo(
     () => WEIGHT_DETENTS.map((_, i) => String(WEIGHT_DETENTS[i])),
+    [],
+  );
+  // The Recency knob runs its own steeper scale (0 → 8) — the readout shows
+  // that knob's real weights, not the engagement knobs' 0..1 scale.
+  const recencyLabels = useMemo(
+    () => RECENCY_WEIGHTS.map((_, i) => String(RECENCY_WEIGHTS[i])),
     [],
   );
   // Knobs are power-user controls — presets are the default, the synth rack
@@ -104,7 +111,7 @@ function KnobRack({ state, activePreset, onChange, onPreset, expanded: controlle
           label="Recency"
           value={state.recency}
           maxValue={5}
-          labels={weightLabels}
+          labels={recencyLabels}
           onChange={v => onChange('recency', v)}
           dataTestId="knob-recency"
         />

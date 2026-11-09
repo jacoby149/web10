@@ -80,12 +80,84 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* D108 / design.md §13: runtime overrides, not a second utility palette. */
+:root[data-theme="light"] {
+  --color-background: #fafafa;
+  --color-foreground: #18181b;
+  --color-surface: #ffffff;
+  --color-card: #ffffff;
+  --color-card-foreground: #18181b;
+  --color-elevated: #f4f4f5;
+  --color-muted: #f4f4f5;
+  --color-border: #d4d4d8;
+  --color-input: #d4d4d8;
+  --color-muted-foreground: #52525b;
+  --color-ring: #7c3aed;
+  --color-brand-300: #6d28d9;
+  --color-brand-400: #5b21b6;
+  --color-brand: #7c3aed;
+  --color-brand-600: #6d28d9;
+  --color-brand-muted: #ede9fe;
+  --color-success: #166534;
+  --color-warning: #854d0e;
+  --color-danger: #b91c1c;
+  --color-destructive: #b91c1c;
+  --color-danger-muted: #fee2e2;
+  --color-popover: #ffffff;
+  --color-popover-foreground: #18181b;
+  --color-primary: #18181b;
+  --color-primary-foreground: #fafafa;
+  --color-secondary: #f4f4f5;
+  --color-secondary-foreground: #18181b;
+  --color-accent: #f4f4f5;
+  --color-accent-foreground: #18181b;
+}
+
+/* Local dark islands: film controls/immersive captions must not turn into
+   dark text on a black scrim. Scope here so other consuming apps are unchanged. */
+:where(.media-theme, [data-testid="hls-video-player"], [data-testid="player-controls"]) {
+  color-scheme: dark;
+  --color-background: #09090b;
+  --color-foreground: #fafafa;
+  --color-surface: #111113;
+  --color-elevated: #18181b;
+  --color-border: #27272a;
+  --color-input: #27272a;
+  --color-muted: #18181b;
+  --color-muted-foreground: #a1a1aa;
+  --color-ring: #8b5cf6;
+  --color-brand-300: #c4b5fd;
+  --color-brand-400: #a78bfa;
+  --color-brand: #8b5cf6;
+  --color-brand-600: #7c3aed;
+  --color-brand-muted: #2e1065;
+  --color-card: #111113;
+  --color-card-foreground: #fafafa;
+  --color-popover: #18181b;
+  --color-popover-foreground: #fafafa;
+  --color-primary: #fafafa;
+  --color-primary-foreground: #09090b;
+  --color-secondary: #27272a;
+  --color-secondary-foreground: #fafafa;
+  --color-accent: #27272a;
+  --color-accent-foreground: #fafafa;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-destructive: #ef4444;
+  --color-danger-muted: #450a0a;
+}
+
 @layer base {
   * {
     border-color: var(--color-border);
   }
 
   html {
+    color-scheme: light;
+  }
+
+  html[data-theme="dark"] {
     color-scheme: dark;
   }
 
