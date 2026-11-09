@@ -34,6 +34,25 @@ function mockPlatform(handlers: Record<string, unknown>) {
     if (url.includes('/v3/media/thumbnail')) {
       return json(handlers[`thumb:${body.doc_id}`] ?? { thumbnail: null })
     }
+    if (url.includes('/v3/query')) {
+      // The face-prepare route: key by (media field, groups) — the query SQL is
+      // the module's own constant, the discriminator is which face field + which
+      // readable group(s) the card asked for. An explicit `null` handler models
+      // the node's 403 (a denied group / a face the reader can't read); an
+      // absent handler answers no rows (no face — the card degrades).
+      const mediaField = body.prepare?.face?.mediaField ?? ''
+      const groupsKey = JSON.stringify(body.groups)
+      const key = `query:${mediaField}:${groupsKey}`
+      if (handlers[key] === null) {
+        return new Response(
+          JSON.stringify({ detail: 'not a member of the requested group' }),
+          { status: 403, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
+      const handler = handlers[key]
+      const rows = Array.isArray(handler) ? handler : []
+      return json({ rows, count: rows.length })
+    }
     if (url.includes('/v3/preview/render')) {
       // The renderer echoes the spec as a recognizable HTML string (the test
       // asserts the spec the card logic sent, not the platform's HTML).
@@ -184,10 +203,13 @@ describe('web10-social link-preview card logic (KB: media/thumbnailing.md)', () 
     mockPlatform({
       'read:p1': { author_key: 'nova', body: { text: 'just words' } },
       'thumb:p1': { thumbnail: null }, // no media
-      'read:groups:["api.test/groups/users/nova/followers"]': [
-        { author_key: 'nova', body: { display_name: 'Nova', avatar_ref: 'av-1' } },
+      // The author's avatar media doc is I3-denied for anon on
+      // /v3/media/thumbnail (no 'thumb:av-1' handler — the default answers
+      // { thumbnail: null }, the real node 404s it). The face-prepare query
+      // mints the avatar URL bound to the face doc's uploader instead.
+      'query:avatar_ref:["api.test/groups/users/nova/followers"]': [
+        { author_key: 'nova', body: { display_name: 'Nova', avatar_ref: 'av-1' }, avatar_url: 'http://minio.test/nova/avatar.png' },
       ],
-      'thumb:av-1': { thumbnail: { url: 'http://minio.test/nova/avatar.png', alt: null, is_video: false } },
     })
     const html = await postCard('nova', 'p1')
     // No media → the author's avatar is the image (the social fallback).
@@ -199,10 +221,47 @@ describe('web10-social link-preview card logic (KB: media/thumbnailing.md)', () 
     mockPlatform({
       'read:p1': { author_key: 'nova', body: { text: 'just words' } },
       'thumb:p1': { thumbnail: null },
-      'read:groups:["api.test/groups/users/nova/followers"]': [], // no profile
+      'query:avatar_ref:["api.test/groups/users/nova/followers"]': [], // no profile face
     })
     const html = await postCard('nova', 'p1')
     expect(html).toContain('http://social.test/keys-mark.png')
+  })
+
+  it('postCard: a group-authored post with no media falls back to the group face avatar', async () => {
+    // The pre-fix code built a nonsense `users/<group id>/followers` read for a
+    // group author (and I3-404d the face media doc either way). A group post's
+    // no-media preview is the GROUP's face avatar, minted by the group
+    // face-prepare scoped to the group itself.
+    const CLUB = 'api.test/groups/users/nova/club'
+    mockPlatform({
+      'read:p1': { author_key: CLUB, posted_by: 'nova', body: { text: 'club words' } },
+      'thumb:p1': { thumbnail: null },
+      ['query:avatar_ref:' + JSON.stringify([CLUB])]: [
+        { group_id: CLUB, body: { name: 'The Club', avatar_ref: 'gav-1' }, avatar_url: 'http://minio.test/club/avatar.png' },
+      ],
+    })
+    const html = await postCard('club', 'p1')
+    expect(html).toContain('http://minio.test/club/avatar.png')
+    expect(html).toContain('club words')
+  })
+
+  it('postCard: a foreign (qualified) author key keeps its provider in the face group', async () => {
+    const fetchMock = mockPlatform({
+      'read:p1': { author_key: 'web10.app/users/nova', body: { text: 'just words' } },
+      'thumb:p1': { thumbnail: null },
+      'query:avatar_ref:["web10.app/groups/users/nova/followers"]': [
+        { author_key: 'web10.app/users/nova', body: { display_name: 'Nova' }, avatar_url: 'http://minio.test/nova/foreign.png' },
+      ],
+    })
+    const html = await postCard('nova', 'p1')
+    expect(html).toContain('http://minio.test/nova/foreign.png')
+    // The face-prepare is scoped to the FOREIGN provider's followers group
+    // (the D84 qualified key), not the local node's.
+    expect(
+      fetchMock.mock.calls.some(
+        ([u, init]) => String(u).includes('/v3/query') && String(init?.body).includes('web10.app/groups/users/nova/followers'),
+      ),
+    ).toBe(true)
   })
 
   it('postCard: a private / unreadable post renders a generic card with no content', async () => {
@@ -218,106 +277,168 @@ describe('web10-social link-preview card logic (KB: media/thumbnailing.md)', () 
     expect(html).not.toContain('secret')
   })
 
-  it('profileCard: a profile with an avatar renders the name + bio + the avatar', async () => {
-    mockPlatform({
-      'read:groups:["api.test/groups/users/nova/followers"]': [
-        { author_key: 'nova', body: { display_name: 'Nova', bio: 'Synthwave producer', avatar_ref: 'av-1' } },
-      ],
-      'thumb:av-1': { thumbnail: { url: 'http://minio.test/nova/avatar.png', alt: null, is_video: false } },
+  describe('profileCard — the /u/:username share (the anon face-prepare seam)', () => {
+    const PROFILE_GROUP = 'api.test/groups/users/nova/followers'
+
+    it('a profile with an avatar renders the name + bio + the avatar', async () => {
+      const fetchMock = mockPlatform({
+        // The REAL node shape: the avatar media doc is I3-denied for anon on
+        // /v3/media/thumbnail (no 'thumb:av-1' handler — the default answers
+        // { thumbnail: null }; the node 404s it). ONE face-prepare query returns
+        // the profile doc (name/bio) AND the avatar URL minted for the face
+        // doc's uploader.
+        ['query:avatar_ref:' + JSON.stringify([PROFILE_GROUP])]: [
+          { author_key: 'nova', body: { display_name: 'Nova', bio: 'Synthwave producer', avatar_ref: 'av-1' }, avatar_url: 'http://minio.test/nova/avatar.png' },
+        ],
+      })
+      const html = await profileCard('nova')
+      expect(html).toContain('Nova')
+      expect(html).toContain('Synthwave producer')
+      expect(html).toContain('http://minio.test/nova/avatar.png')
+      expect(html).toContain('http://social.test/u/nova')
+      // A profile card is og:type=profile.
+      expect(html).toContain('"og_type":"profile"')
+      // The face is NEVER a media-doc thumbnail call (the pre-fix seam; the
+      // real node 404s it for anon) — the seam is the face-prepare query.
+      expect(fetchMock.mock.calls.some(([u]) => String(u).includes('/thumbnail'))).toBe(false)
+      expect(
+        fetchMock.mock.calls.some(
+          ([u, init]) => String(u).includes('/v3/query') && String(init?.body).includes('"mediaField":"avatar_ref"'),
+        ),
+      ).toBe(true)
     })
-    const html = await profileCard('nova')
-    expect(html).toContain('Nova')
-    expect(html).toContain('Synthwave producer')
-    expect(html).toContain('http://minio.test/nova/avatar.png')
-    expect(html).toContain('http://social.test/u/nova')
-    // A profile card is og:type=profile.
-    expect(html).toContain('"og_type":"profile"')
+
+    it('the face-prepare answer wins when the legacy media-doc thumb also answers (the seam, not the I3-404 path)', async () => {
+      // Anti-test: the pre-fix measure (read the profile, thumb the media doc)
+      // is answered RIGHT here on purpose — the card must not use it. The
+      // face-prepare URL is the only one that lands in the card.
+      mockPlatform({
+        ['read:groups:' + JSON.stringify([PROFILE_GROUP])]: [
+          { author_key: 'nova', body: { display_name: 'Nova', bio: 'Synthwave producer', avatar_ref: 'av-1' } },
+        ],
+        'thumb:av-1': { thumbnail: { url: 'http://minio.test/LEGACY-thumb.png', alt: null, is_video: false } },
+        ['query:avatar_ref:' + JSON.stringify([PROFILE_GROUP])]: [
+          { author_key: 'nova', body: { display_name: 'Nova', bio: 'Synthwave producer', avatar_ref: 'av-1' }, avatar_url: 'http://minio.test/nova/avatar.png' },
+        ],
+      })
+      const html = await profileCard('nova')
+      expect(html).toContain('http://minio.test/nova/avatar.png')
+      expect(html).not.toContain('LEGACY-thumb.png')
+    })
+
+    it('a profile with no avatar falls back to the brand mark', async () => {
+      mockPlatform({
+        ['query:avatar_ref:' + JSON.stringify([PROFILE_GROUP])]: [
+          { author_key: 'nova', body: { display_name: 'Nova', bio: 'hi' } }, // no avatar_ref → no minted url
+        ],
+      })
+      const html = await profileCard('nova')
+      expect(html).toContain('Nova')
+      expect(html).toContain('http://social.test/keys-mark.png')
+    })
+
+    it('an unknown user (no profile doc) renders a generic @username card', async () => {
+      mockPlatform({}) // the face query returns no rows → the generic card
+      const html = await profileCard('ghost')
+      expect(html).toContain('@ghost on web10')
+      expect(html).toContain('http://social.test/keys-mark.png')
+      expect(html).toContain('http://social.test/u/ghost')
+    })
+
+    it('a private profile (the face read 403s) renders the generic @username card, no leak', async () => {
+      mockPlatform({
+        ['query:avatar_ref:"api.test/groups/users/bob/followers"']: null, // the node denies
+      })
+      const html = await profileCard('bob')
+      expect(html).toContain('@bob on web10')
+      expect(html).toContain('http://social.test/keys-mark.png')
+      expect(html).toContain('http://social.test/u/bob')
+      // The face must not leak.
+      expect(html).not.toContain('secret')
+    })
+
+    it('a failed face query degrades to the brand mark, never a throw', async () => {
+      const fetchMock = mockPlatform({})
+      // Simulate the seam failing hard (a network error, not just empty rows).
+      fetchMock.mockRejectedValueOnce(new Error('boom'))
+      const html = await profileCard('nova')
+      expect(html).toContain('@nova on web10')
+      expect(html).toContain('http://social.test/keys-mark.png')
+    })
   })
 
-  it('profileCard: a profile with no avatar falls back to the brand mark', async () => {
-    mockPlatform({
-      'read:groups:["api.test/groups/users/nova/followers"]': [
-        { author_key: 'nova', body: { display_name: 'Nova', bio: 'hi' } },
-      ],
-    })
-    const html = await profileCard('nova')
-    expect(html).toContain('Nova')
-    expect(html).toContain('http://social.test/keys-mark.png')
-  })
+  describe('groupCard — the /groups/:groupId share (the anon face-prepare seam)', () => {
+    const GROUP_ID = 'api.web10.app/groups/users/alice/jazz'
+    const groupsJson = JSON.stringify([GROUP_ID])
+    const FACE_BODY = { name: 'Jazz Collectors', description: 'A vinyl-first jazz community.', banner_ref: 'banner-1', avatar_ref: 'avatar-1' }
 
-  it('profileCard: an unknown user (no profile doc) renders a generic @username card', async () => {
-    mockPlatform({
-      'read:groups:["api.test/groups/users/ghost/followers"]': [], // no profile
+    it('a public group with a face renders the name + about + the cover', async () => {
+      const fetchMock = mockPlatform({
+        // The face media docs are I3-denied for anon on /v3/media/thumbnail
+        // (no 'thumb:*' handlers — the real node 404s them). The face-prepares
+        // mint the cover + avatar bound to the face doc's uploader.
+        ['query:banner_ref:' + groupsJson]: [
+          { group_id: GROUP_ID, author_key: GROUP_ID, body: FACE_BODY, banner_url: 'http://minio.test/jazz/cover.png' },
+        ],
+        ['query:avatar_ref:' + groupsJson]: [
+          { group_id: GROUP_ID, author_key: GROUP_ID, body: FACE_BODY, avatar_url: 'http://minio.test/jazz/avatar.png' },
+        ],
+      })
+      const html = await groupCard(GROUP_ID)
+      expect(html).toContain('Jazz Collectors')
+      expect(html).toContain('A vinyl-first jazz community.')
+      // The cover (banner) is the image, not the avatar.
+      expect(html).toContain('http://minio.test/jazz/cover.png')
+      expect(html).not.toContain('http://minio.test/jazz/avatar.png')
+      // The bare media doc refs never leak into the card (only minted URLs).
+      expect(html).not.toContain('banner-1')
+      expect(html).not.toContain('avatar-1')
+      // The canonical URL encodes the group id (it contains slashes).
+      expect(html).toContain(`http://social.test/groups/${encodeURIComponent(GROUP_ID)}`)
+      // A group card is og:type=website.
+      expect(html).toContain('"og_type":"website"')
+      // No media-doc thumbnail call for the face (the pre-fix seam; the real
+      // node 404s it for anon).
+      expect(fetchMock.mock.calls.some(([u]) => String(u).includes('/thumbnail'))).toBe(false)
     })
-    const html = await profileCard('ghost')
-    expect(html).toContain('@ghost on web10')
-    expect(html).toContain('http://social.test/keys-mark.png')
-    expect(html).toContain('http://social.test/u/ghost')
-  })
 
-  const GROUP_ID = 'api.web10.app/groups/users/alice/jazz'
-
-  it('groupCard: a public group with a face renders the name + about + the cover', async () => {
-    mockPlatform({
-      'read:groups:["api.web10.app/groups/users/alice/jazz"]': [
-        {
-          author_key: 'alice',
-          body: {
-            name: 'Jazz Collectors',
-            description: 'A vinyl-first jazz community.',
-            banner_ref: 'banner-1',
-            avatar_ref: 'avatar-1',
-          },
-        },
-      ],
-      'thumb:banner-1': { thumbnail: { url: 'http://minio.test/jazz/cover.png', alt: null, is_video: false } },
+    it('a face with no cover falls back to the avatar', async () => {
+      mockPlatform({
+        ['query:banner_ref:' + groupsJson]: [
+          { group_id: GROUP_ID, body: { name: 'Jazz Collectors', avatar_ref: 'avatar-1' } }, // no banner_url
+        ],
+        ['query:avatar_ref:' + groupsJson]: [
+          { group_id: GROUP_ID, body: { name: 'Jazz Collectors', avatar_ref: 'avatar-1' }, avatar_url: 'http://minio.test/jazz/avatar.png' },
+        ],
+      })
+      const html = await groupCard(GROUP_ID)
+      expect(html).toContain('Jazz Collectors')
+      expect(html).toContain('http://minio.test/jazz/avatar.png')
     })
-    const html = await groupCard(GROUP_ID)
-    expect(html).toContain('Jazz Collectors')
-    expect(html).toContain('A vinyl-first jazz community.')
-    // The cover (banner) is the image, not the avatar.
-    expect(html).toContain('http://minio.test/jazz/cover.png')
-    expect(html).not.toContain('avatar-1')
-    // The canonical URL encodes the group id (it contains slashes).
-    expect(html).toContain(`http://social.test/groups/${encodeURIComponent(GROUP_ID)}`)
-    // A group card is og:type=website.
-    expect(html).toContain('"og_type":"website"')
-  })
 
-  it('groupCard: a face with no cover falls back to the avatar', async () => {
-    mockPlatform({
-      'read:groups:["api.web10.app/groups/users/alice/jazz"]': [
-        { author_key: 'alice', body: { name: 'Jazz Collectors', avatar_ref: 'avatar-1' } },
-      ],
-      'thumb:avatar-1': { thumbnail: { url: 'http://minio.test/jazz/avatar.png', alt: null, is_video: false } },
+    it('a face with no cover and no avatar falls back to the brand mark', async () => {
+      mockPlatform({
+        ['query:banner_ref:' + groupsJson]: [{ group_id: GROUP_ID, body: { name: 'Jazz Collectors' } }],
+        ['query:avatar_ref:' + groupsJson]: [{ group_id: GROUP_ID, body: { name: 'Jazz Collectors' } }],
+      })
+      const html = await groupCard(GROUP_ID)
+      expect(html).toContain('Jazz Collectors')
+      expect(html).toContain('http://social.test/keys-mark.png')
     })
-    const html = await groupCard(GROUP_ID)
-    expect(html).toContain('Jazz Collectors')
-    expect(html).toContain('http://minio.test/jazz/avatar.png')
-  })
 
-  it('groupCard: a face with no cover and no avatar falls back to the brand mark', async () => {
-    mockPlatform({
-      'read:groups:["api.web10.app/groups/users/alice/jazz"]': [
-        { author_key: 'alice', body: { name: 'Jazz Collectors' } },
-      ],
+    it('a group with no readable face renders a generic card with no content', async () => {
+      mockPlatform({
+        // The face reads 403 (a non-public group) → no rows → the generic card.
+        'query:banner_ref:["api.web10.app/groups/users/bob/secret"]': null,
+        'query:avatar_ref:["api.web10.app/groups/users/bob/secret"]': null,
+      })
+      const html = await groupCard('api.web10.app/groups/users/bob/secret')
+      expect(html).toContain('A group on web10')
+      expect(html).toContain('http://social.test/keys-mark.png')
+      expect(html).toContain(`http://social.test/groups/${encodeURIComponent('api.web10.app/groups/users/bob/secret')}`)
+      // The face must not leak.
+      expect(html).not.toContain('secret club name')
     })
-    const html = await groupCard(GROUP_ID)
-    expect(html).toContain('Jazz Collectors')
-    expect(html).toContain('http://social.test/keys-mark.png')
-  })
-
-  it('groupCard: a group with no readable face renders a generic card with no content', async () => {
-    mockPlatform({
-      // The face read 403s (a non-public group) → null → the generic card.
-      'read:groups:["api.web10.app/groups/users/bob/secret"]': null,
-    })
-    const html = await groupCard('api.web10.app/groups/users/bob/secret')
-    expect(html).toContain('A group on web10')
-    expect(html).toContain('http://social.test/keys-mark.png')
-    expect(html).toContain(`http://social.test/groups/${encodeURIComponent('api.web10.app/groups/users/bob/secret')}`)
-    // The face must not leak.
-    expect(html).not.toContain('secret club name')
   })
 
   describe('musicCard — the query-based track share link', () => {
@@ -386,10 +507,11 @@ describe('web10-social link-preview card logic (KB: media/thumbnailing.md)', () 
       mockPlatform({
         'read:p1': { author_key: 'nova', body: { text: 'just words' } },
         'thumb:p1': { thumbnail: null },
-        'read:groups:["api.test/groups/users/nova/followers"]': [
-          { author_key: 'nova', body: { display_name: 'Nova', avatar_ref: 'av-1' } },
+        // The avatar media doc is I3-denied for anon (the default thumb answer
+        // is { thumbnail: null }); the face-prepare mints it instead.
+        'query:avatar_ref:["api.test/groups/users/nova/followers"]': [
+          { author_key: 'nova', body: { display_name: 'Nova', avatar_ref: 'av-1' }, avatar_url: 'http://minio.test/nova/avatar.png' },
         ],
-        'thumb:av-1': { thumbnail: { url: 'http://minio.test/nova/avatar.png', alt: null, is_video: false } },
       })
       const html = await watchCard('p1')
       expect(html).toContain('http://minio.test/nova/avatar.png')
@@ -443,10 +565,11 @@ describe('web10-social link-preview card logic (KB: media/thumbnailing.md)', () 
       mockPlatform({
         'read:p1': { author_key: 'nova', body: { text: 'just words' } },
         'thumb:p1': { thumbnail: null },
-        'read:groups:["api.test/groups/users/nova/followers"]': [
-          { author_key: 'nova', body: { display_name: 'Nova', avatar_ref: 'av-1' } },
+        // The avatar media doc is I3-denied for anon (the default thumb answer
+        // is { thumbnail: null }); the face-prepare mints it instead.
+        'query:avatar_ref:["api.test/groups/users/nova/followers"]': [
+          { author_key: 'nova', body: { display_name: 'Nova', avatar_ref: 'av-1' }, avatar_url: 'http://minio.test/nova/avatar.png' },
         ],
-        'thumb:av-1': { thumbnail: { url: 'http://minio.test/nova/avatar.png', alt: null, is_video: false } },
       })
       const html = await shortsCard('p1')
       expect(html).toContain('http://minio.test/nova/avatar.png')
