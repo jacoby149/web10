@@ -421,7 +421,7 @@ export async function createThreadComment(args: {
   postService?: string;
   mediaRefs?: string[];
 }): Promise<ThreadComment> {
-  return createComment(
+  const created = await createComment(
     {
       post_id: args.postId,
       text: args.text,
@@ -433,6 +433,19 @@ export async function createThreadComment(args: {
     args.postService,
     args.identity === undefined ? getActingAuthor() || null : args.identity,
   );
+  // The thread inserts this node OPTIMISTICALLY and does not re-read the page
+  // afterwards, so the write must carry the same mutation affordances the read
+  // path resolves (enrichLikes): absent `isOwn`/`canEdit`/`canDelete`, the
+  // shared thread renders the reader's own fresh comment read-only (no
+  // Edit/Delete) until the thread next refetches. Resolve them against the
+  // created doc's own author (username-alone for personal, the group role's
+  // grants when posted under an acting identity) — the exact same rule.
+  const authority = await readMutationAuthority(created.author_key || created.author_username, 'comments');
+  return {
+    ...created,
+    isOwn: !!authority.canEdit || !!authority.canDelete,
+    ...authority,
+  };
 }
 
 // ── Comment photo upload (comments.md "Photos in comments") ──────────────────

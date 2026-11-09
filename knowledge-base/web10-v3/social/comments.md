@@ -266,7 +266,12 @@ injected, the same way the discover card injects its data (D74). The seam is
   replies" page.
 - `createComment({ postId, text, parentId?, … })` — `parentId` absent =
   top-level (`ref_value = postId`), present = a reply (`ref_value =
-  parentId`).
+  parentId`). Returns the created comment **with the same mutation
+  affordances the read resolves** (`isOwn`/`canEdit`/`canDelete`, against the
+  created doc's own author): the thread inserts the node optimistically and
+  never re-reads the page, so a write that returned the bare doc would leave
+  the reader's own fresh comment read-only (no Edit/Delete) until the
+  thread next refetches (the 5.13.3 defect).
 - `onToggleCommentLike?(commentId)` — the app's comment-like writer. The
   **thread** owns the optimistic flip + rollback (the post-like pattern): it
   flips the node's `likedByMe` + nudges `likeCount` immediately on tap, calls
@@ -289,7 +294,10 @@ Each page's comments carry `likeCount` + `likedByMe` + `isOwn` when the app
 resolves them (web10-social does — `likeCount`/`likedByMe` from the reactions
 read over the *loaded* comments only, `isOwn` from the token's username vs the
 comment's `author_username`); the thread renders what it is given and degrades
-(no like UI, no owner controls) when a seam or field is absent.
+(no like UI, no owner controls) when a seam or field is absent. The write side
+keeps parity: `createComment`'s return carries the same affordances as the
+read path resolves (the optimistic insert is the only node the thread will
+ever have for that comment, until a refetch).
 
 ## Security invariants
 
