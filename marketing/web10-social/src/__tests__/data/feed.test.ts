@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as v3 from '../../data/v3';
-import { readDiscoverFeed, resolveDiscoverProfiles, readShortsFeed, readMusicFeed, readFeedPage, readFeedReactions } from '../../data/feed';
+import { buildFeedQuery, readDiscoverFeed, resolveDiscoverProfiles, readShortsFeed, readMusicFeed, readFeedPage, readFeedReactions } from '../../data/feed';
 import { getFeedGroups } from '../../data/groups';
 
 function mockV3Client() {
@@ -36,6 +36,26 @@ describe('feed v3 data layer', () => {
   });
 
   describe('readDiscoverFeed (v3: read the discover board, server-side ranking)', () => {
+    it('sends the inclusive date predicate before ranking/paging and preserves all-time counts', async () => {
+      mock.query.mockResolvedValue({ rows: [] });
+      await readDiscoverFeed(null, 50, undefined, 50, 'discover', 1791633600000);
+      const [sql, options] = mock.query.mock.calls[0];
+      expect(sql).toContain('p.created_at >= fromUnixTimestamp64Milli(1791633600000)');
+      expect(sql).toContain('LIMIT 50 OFFSET 50');
+      expect(sql).toContain('FROM reactions WHERE ref_value');
+      expect(sql).not.toContain('reactions WHERE created_at');
+      expect(options).toMatchObject({ surface: 'discover', contentService: 'posts', prepare: { media: true, ads: true } });
+      expect(mock.read).not.toHaveBeenCalled();
+    });
+
+    it('all-time Discover keeps query errors distinct from an empty archive', async () => {
+      mock.query.mockRejectedValue(new Error('deadline'));
+      await expect(readDiscoverFeed(null, 50, undefined, 0, 'discover')).rejects.toThrow('deadline');
+    });
+
+    it.each([NaN, Infinity, -1, 1.5, '0) OR 1=1' as any])('rejects an invalid date cutoff %s', value => {
+      expect(() => buildFeedQuery(null, null, 20, { createdAfterMs: value })).toThrow('Invalid feed cutoff');
+    });
     it.each([1, 10, 100])('uses one personal profile request for %i distinct authors', async (count) => {
       mock.read.mockResolvedValue(Array.from({ length: count }, (_, i) => ({
         doc_id: `p${i}`, author_key: `web10.app/users/u${i}`, body: {}, created_at: '2026-10-01T00:00:00Z',

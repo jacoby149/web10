@@ -67,11 +67,12 @@ class Records:
         self.failures += bool(record["error"])
 
 
-async def run_point(base, manifest, users, interval, warmup, duration, drain, output, max_lag=1.0):
+async def run_point(base, manifest, users, interval, warmup, duration, drain, output, max_lag=1.0, capture=None, result_checker=None, main_checker=None):
     validate_target(base)
     if users > len(manifest["readers"]) or manifest["recipe"]["follow"] < 21:
         raise ValueError("fixture needs distinct readers and at least 21 followed authors")
-    capture = core_feed.wire()
+    capture = core_feed.wire() if capture is None else capture
+    result_checker = result_checker or core_feed.check_result
     counters = collections.Counter()
     in_flight = set()
     # No semaphore/admission cap: generator overload is retained, never hidden.
@@ -115,8 +116,11 @@ async def run_point(base, manifest, users, interval, warmup, duration, drain, ou
                           "scheduler_lag_ms": lag * 1000, "task_start_lag_ms": (began - start - due) * 1000,
                           "success": False, "censored": False}
                 try:
-                    rows, results = await core_feed.feed(client, capture, *sessions[reader], records, phase, reader)
-                    core_feed.check_result(manifest, reader, rows, results)
+                    if main_checker is None:
+                        rows, results = await core_feed.feed(client, capture, *sessions[reader], records, phase, reader)
+                    else:
+                        rows, results = await core_feed.feed(client, capture, *sessions[reader], records, phase, reader, main_checker=main_checker)
+                    result_checker(manifest, reader, rows, results)
                     record["success"] = True
                 except asyncio.CancelledError:
                     record["censored"] = True

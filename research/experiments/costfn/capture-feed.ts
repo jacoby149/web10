@@ -28,7 +28,7 @@ function method(source: string, name: string): string {
   return source.slice(start, end + 7);
 }
 
-export async function capture(rowCount = 21) {
+export async function capture(rowCount = 21, options: { createdAfterMs?: number } = {}) {
   const source = Object.fromEntries(Object.entries(paths).map(([key, path]) => [key, readFileSync(new URL(path, root), 'utf8')]));
   const requests: { path: string; payload: Record<string, any> }[] = [];
   let queryCount = 0;
@@ -56,7 +56,7 @@ export async function capture(rowCount = 21) {
       'fromV3DocToPost', 'fromV3FeedPost', 'dropAdPosts'].map(name => declaration(source.types, name)).join('\n');
   const app = new Function('getV3Client', 'getFeedGroups', 'getDiscoverGroupId',
     'knobStateToSort', 'resolveFaceMedia', 'GROUP_FACE_SQL', 'console',
-    transpiler.transformSync(appCode) + '; return readFeedPage({ limit: 20 });')(
+     transpiler.transformSync(appCode) + `; return readFeedPage({ limit: 20, ...${JSON.stringify(options)} });`)(
       () => sdk, async () => ['__FEED_GROUPS__'], () => '__DISCOVER__',
       () => { throw new Error('Tuned ranking is outside this capture'); },
       () => { throw new Error('Group-author enrichment is outside this capture'); }, '',

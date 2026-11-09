@@ -420,6 +420,7 @@ def run_query(request: Request, data: QueryRequest):
                 allowed_services=allowed,
                 max_limit=MAX_ROWS,
                 group_meta=group_meta,
+                optimize_dates=settings.QUERY_EVAL_DATE_PRUNING,
             )
     except sq.UnsafeQueryError as e:
         raise HTTPException(status_code=403, detail=str(e))

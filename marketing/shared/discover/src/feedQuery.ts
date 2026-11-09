@@ -1,7 +1,7 @@
 /** Pure feed SQL/ranking and prepared-row mapping. No app client or SDK state. */
 export type KnobState = { recency: number; likes: number; comments: number; halfLife: number; character: number };
 export type FeedCursor = { created_at?: string; score?: number; author_key?: string; doc_id?: string };
-export type FeedQueryOptions = { stable?: boolean; rankingClockMs?: number; tags?: string[] };
+export type FeedQueryOptions = { stable?: boolean; rankingClockMs?: number; tags?: string[]; createdAfterMs?: number };
 export type FeedRanking = { recency: number; likes: number; comments: number; half_life_ms: number; character: number };
 
 /** Only paging/render controls are interpreted here; other content stays opaque.
@@ -115,6 +115,10 @@ export function buildFeedQuery(sort: FeedRanking | null, cursor: FeedCursor | nu
   const score = powerMeanScoreSql('p.created_at', '(coalesce(eng.like_count, 0) + coalesce(eng.dislike_count, 0))', 'coalesce(cmt.comment_count, 0)', s, options.rankingClockMs);
   const newest = (s.recency <= 0 && s.likes <= 0 && s.comments <= 0) || (s.recency > 0 && s.likes <= 0 && s.comments <= 0);
   const conditions = ["not has(p.tags, 'ad')", "not has(p.tags, 'product')"];
+  if (options.createdAfterMs != null) {
+    if (!Number.isSafeInteger(options.createdAfterMs) || options.createdAfterMs < 0 || options.createdAfterMs > 253402300799999) throw new Error('Invalid feed cutoff');
+    conditions.push(`p.created_at >= fromUnixTimestamp64Milli(${options.createdAfterMs})`);
+  }
   if (options.tags?.length) conditions.push(...options.tags.map(tag => `has(p.tags, ${feedSqlString(tag)})`));
   if (options.stable && cursor) {
     if (typeof cursor.created_at !== 'string') throw new Error('Invalid feed cursor timestamp');

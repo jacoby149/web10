@@ -2,7 +2,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 
-export function paginationCapture(source = readFileSync(new URL('../../../marketing/web10-social/src/data/feed.ts', import.meta.url), 'utf8')) {
+export function paginationCapture(source = readFileSync(new URL('../../../marketing/web10-social/src/data/feed.ts', import.meta.url), 'utf8'), options: { createdAfterMs?: number } = {}) {
   const extract = (name: string) => {
     const start = source.search(new RegExp(`^(?:export )?function ${name}\\(`, 'm'));
     const end = source.slice(start).match(/^}[ \t]*$/m);
@@ -12,7 +12,7 @@ export function paginationCapture(source = readFileSync(new URL('../../../market
   const code = ['powerMeanScoreSql', 'buildFeedQuery'].map(extract).join('\n');
   const sample = '2026-01-01T00:00:19.123Z';
   const rawSql: string = new Function(new Bun.Transpiler({ loader: 'ts' }).transformSync(code)
-    + `; return buildFeedQuery(null, {created_at: ${JSON.stringify(sample)}}, 20);`)();
+     + `; return buildFeedQuery(null, {created_at: ${JSON.stringify(sample)}}, 20, ${JSON.stringify(options)});`)();
   const fragment = ` < ${Date.parse(sample)}`;
   if (!rawSql.includes(fragment)) throw new Error('Cursor builder changed; inspect before capture');
   const sql = rawSql.replace(fragment, ' < __CURSOR_MS__');

@@ -1,0 +1,618 @@
+{
+  "engine": "24.8.14.39",
+  "identities": 1000000,
+  "observations": [
+    {
+      "layout": "clustered",
+      "projection": false,
+      "density": "one-percent-recent",
+      "optimized": false,
+      "warmup": true,
+      "rows": 2000000,
+      "bytes": 381001611,
+      "ms": 434,
+      "memory": 1026767367
+    },
+    {
+      "layout": "clustered",
+      "projection": false,
+      "density": "one-percent-recent",
+      "optimized": true,
+      "warmup": true,
+      "rows": 2027252,
+      "bytes": 49360679,
+      "ms": 54,
+      "memory": 17929424
+    },
+    {
+      "layout": "clustered",
+      "projection": false,
+      "density": "one-percent-recent",
+      "optimized": true,
+      "warmup": false,
+      "rows": 2027252,
+      "bytes": 49360679,
+      "ms": 36,
+      "memory": 17976656
+    },
+    {
+      "layout": "clustered",
+      "projection": false,
+      "density": "one-percent-recent",
+      "optimized": false,
+      "warmup": false,
+      "rows": 2000000,
+      "bytes": 381001611,
+      "ms": 366,
+      "memory": 1235927892
+    },
+    {
+      "layout": "clustered",
+      "projection": false,
+      "density": "one-percent-recent",
+      "optimized": false,
+      "warmup": false,
+      "rows": 2000000,
+      "bytes": 381001611,
+      "ms": 309,
+      "memory": 1058893500
+    },
+    {
+      "layout": "clustered",
+      "projection": false,
+      "density": "one-percent-recent",
+      "optimized": true,
+      "warmup": false,
+      "rows": 2027252,
+      "bytes": 49360679,
+      "ms": 32,
+      "memory": 17918696
+    },
+    {
+      "layout": "clustered",
+      "projection": false,
+      "density": "all-recent",
+      "optimized": false,
+      "warmup": true,
+      "rows": 2000000,
+      "bytes": 381001611,
+      "ms": 477,
+      "memory": 1061042679
+    },
+    {
+      "layout": "clustered",
+      "projection": false,
+      "density": "all-recent",
+      "optimized": true,
+      "warmup": true,
+      "rows": 4000000,
+      "bytes": 487001611,
+      "ms": 880,
+      "memory": 1427490354
+    },
+    {
+      "layout": "clustered",
+      "projection": false,
+      "density": "all-recent",
+      "optimized": true,
+      "warmup": false,
+      "rows": 4000000,
+      "bytes": 487001611,
+      "ms": 719,
+      "memory": 1429994148
+    },
+    {
+      "layout": "clustered",
+      "projection": false,
+      "density": "all-recent",
+      "optimized": false,
+      "warmup": false,
+      "rows": 2000000,
+      "bytes": 381001611,
+      "ms": 213,
+      "memory": 1171335807
+    },
+    {
+      "layout": "clustered",
+      "projection": false,
+      "density": "all-recent",
+      "optimized": false,
+      "warmup": false,
+      "rows": 2000000,
+      "bytes": 381001611,
+      "ms": 190,
+      "memory": 1173658859
+    },
+    {
+      "layout": "clustered",
+      "projection": false,
+      "density": "all-recent",
+      "optimized": true,
+      "warmup": false,
+      "rows": 4000000,
+      "bytes": 487001611,
+      "ms": 620,
+      "memory": 1436856399
+    },
+    {
+      "layout": "clustered",
+      "projection": true,
+      "density": "one-percent-recent",
+      "optimized": false,
+      "warmup": true,
+      "rows": 2000000,
+      "bytes": 381001611,
+      "ms": 249,
+      "memory": 1245695940
+    },
+    {
+      "layout": "clustered",
+      "projection": true,
+      "density": "one-percent-recent",
+      "optimized": true,
+      "warmup": true,
+      "rows": 47836,
+      "bytes": 5305623,
+      "ms": 19,
+      "memory": 18699426
+    },
+    {
+      "layout": "clustered",
+      "projection": true,
+      "density": "one-percent-recent",
+      "optimized": true,
+      "warmup": false,
+      "rows": 47836,
+      "bytes": 5305623,
+      "ms": 15,
+      "memory": 18778137
+    },
+    {
+      "layout": "clustered",
+      "projection": true,
+      "density": "one-percent-recent",
+      "optimized": false,
+      "warmup": false,
+      "rows": 2000000,
+      "bytes": 381001611,
+      "ms": 192,
+      "memory": 1177265613
+    },
+    {
+      "layout": "clustered",
+      "projection": true,
+      "density": "one-percent-recent",
+      "optimized": false,
+      "warmup": false,
+      "rows": 2000000,
+      "bytes": 381001611,
+      "ms": 179,
+      "memory": 1094320084
+    },
+    {
+      "layout": "clustered",
+      "projection": true,
+      "density": "one-percent-recent",
+      "optimized": true,
+      "warmup": false,
+      "rows": 47836,
+      "bytes": 5305623,
+      "ms": 15,
+      "memory": 18678098
+    },
+    {
+      "layout": "clustered",
+      "projection": true,
+      "density": "all-recent",
+      "optimized": false,
+      "warmup": true,
+      "rows": 2000000,
+      "bytes": 381001611,
+      "ms": 369,
+      "memory": 1081371347
+    },
+    {
+      "layout": "clustered",
+      "projection": true,
+      "density": "all-recent",
+      "optimized": true,
+      "warmup": true,
+      "rows": 4000000,
+      "bytes": 487001611,
+      "ms": 640,
+      "memory": 1478077897
+    },
+    {
+      "layout": "clustered",
+      "projection": true,
+      "density": "all-recent",
+      "optimized": true,
+      "warmup": false,
+      "rows": 4000000,
+      "bytes": 487001611,
+      "ms": 548,
+      "memory": 1419106858
+    },
+    {
+      "layout": "clustered",
+      "projection": true,
+      "density": "all-recent",
+      "optimized": false,
+      "warmup": false,
+      "rows": 2000000,
+      "bytes": 381001611,
+      "ms": 270,
+      "memory": 1093794834
+    },
+    {
+      "layout": "clustered",
+      "projection": true,
+      "density": "all-recent",
+      "optimized": false,
+      "warmup": false,
+      "rows": 2000000,
+      "bytes": 381001611,
+      "ms": 452,
+      "memory": 1208648039
+    },
+    {
+      "layout": "clustered",
+      "projection": true,
+      "density": "all-recent",
+      "optimized": true,
+      "warmup": false,
+      "rows": 4000000,
+      "bytes": 487001611,
+      "ms": 560,
+      "memory": 1432278824
+    },
+    {
+      "layout": "clustered",
+      "candidate_explain": [
+        [
+          "Expression ((Project names + Projection))"
+        ],
+        [
+          "  Filter"
+        ],
+        [
+          "    ReadFromMergeTree (date_candidates)"
+        ],
+        [
+          "    Indexes:"
+        ],
+        [
+          "      PrimaryKey"
+        ],
+        [
+          "        Keys: "
+        ],
+        [
+          "          collection_name"
+        ],
+        [
+          "          created_at"
+        ],
+        [
+          "        Condition: and((created_at in ['1000', +Inf)), (collection_name in ['posts', 'posts']))"
+        ],
+        [
+          "        Parts: 1/2"
+        ],
+        [
+          "        Granules: 2/123"
+        ]
+      ]
+    },
+    {
+      "layout": "mixed",
+      "projection": false,
+      "density": "one-percent-recent",
+      "optimized": false,
+      "warmup": true,
+      "rows": 2000000,
+      "bytes": 381001611,
+      "ms": 213,
+      "memory": 1134278707
+    },
+    {
+      "layout": "mixed",
+      "projection": false,
+      "density": "one-percent-recent",
+      "optimized": true,
+      "warmup": true,
+      "rows": 4000000,
+      "bytes": 487001476,
+      "ms": 61,
+      "memory": 51839324
+    },
+    {
+      "layout": "mixed",
+      "projection": false,
+      "density": "one-percent-recent",
+      "optimized": true,
+      "warmup": false,
+      "rows": 4000000,
+      "bytes": 487001476,
+      "ms": 58,
+      "memory": 50937834
+    },
+    {
+      "layout": "mixed",
+      "projection": false,
+      "density": "one-percent-recent",
+      "optimized": false,
+      "warmup": false,
+      "rows": 2000000,
+      "bytes": 381001611,
+      "ms": 228,
+      "memory": 1202019235
+    },
+    {
+      "layout": "mixed",
+      "projection": false,
+      "density": "one-percent-recent",
+      "optimized": false,
+      "warmup": false,
+      "rows": 2000000,
+      "bytes": 381001611,
+      "ms": 201,
+      "memory": 1172323682
+    },
+    {
+      "layout": "mixed",
+      "projection": false,
+      "density": "one-percent-recent",
+      "optimized": true,
+      "warmup": false,
+      "rows": 4000000,
+      "bytes": 487001476,
+      "ms": 58,
+      "memory": 49517191
+    },
+    {
+      "layout": "mixed",
+      "projection": false,
+      "density": "all-recent",
+      "optimized": false,
+      "warmup": true,
+      "rows": 2000000,
+      "bytes": 381001611,
+      "ms": 173,
+      "memory": 1154494873
+    },
+    {
+      "layout": "mixed",
+      "projection": false,
+      "density": "all-recent",
+      "optimized": true,
+      "warmup": true,
+      "rows": 4000000,
+      "bytes": 487001611,
+      "ms": 478,
+      "memory": 1415818328
+    },
+    {
+      "layout": "mixed",
+      "projection": false,
+      "density": "all-recent",
+      "optimized": true,
+      "warmup": false,
+      "rows": 4000000,
+      "bytes": 487001611,
+      "ms": 468,
+      "memory": 1409599860
+    },
+    {
+      "layout": "mixed",
+      "projection": false,
+      "density": "all-recent",
+      "optimized": false,
+      "warmup": false,
+      "rows": 2000000,
+      "bytes": 381001611,
+      "ms": 162,
+      "memory": 1139379242
+    },
+    {
+      "layout": "mixed",
+      "projection": false,
+      "density": "all-recent",
+      "optimized": false,
+      "warmup": false,
+      "rows": 2000000,
+      "bytes": 381001611,
+      "ms": 162,
+      "memory": 1110238753
+    },
+    {
+      "layout": "mixed",
+      "projection": false,
+      "density": "all-recent",
+      "optimized": true,
+      "warmup": false,
+      "rows": 4000000,
+      "bytes": 487001611,
+      "ms": 464,
+      "memory": 1479405419
+    },
+    {
+      "layout": "mixed",
+      "projection": true,
+      "density": "one-percent-recent",
+      "optimized": false,
+      "warmup": true,
+      "rows": 2000000,
+      "bytes": 381001611,
+      "ms": 156,
+      "memory": 1206938057
+    },
+    {
+      "layout": "mixed",
+      "projection": true,
+      "density": "one-percent-recent",
+      "optimized": true,
+      "warmup": true,
+      "rows": 2050304,
+      "bytes": 383667588,
+      "ms": 48,
+      "memory": 49452286
+    },
+    {
+      "layout": "mixed",
+      "projection": true,
+      "density": "one-percent-recent",
+      "optimized": true,
+      "warmup": false,
+      "rows": 2050304,
+      "bytes": 383667588,
+      "ms": 48,
+      "memory": 55354914
+    },
+    {
+      "layout": "mixed",
+      "projection": true,
+      "density": "one-percent-recent",
+      "optimized": false,
+      "warmup": false,
+      "rows": 2000000,
+      "bytes": 381001611,
+      "ms": 171,
+      "memory": 1201136599
+    },
+    {
+      "layout": "mixed",
+      "projection": true,
+      "density": "one-percent-recent",
+      "optimized": false,
+      "warmup": false,
+      "rows": 2000000,
+      "bytes": 381001611,
+      "ms": 159,
+      "memory": 1164544053
+    },
+    {
+      "layout": "mixed",
+      "projection": true,
+      "density": "one-percent-recent",
+      "optimized": true,
+      "warmup": false,
+      "rows": 2050304,
+      "bytes": 383667588,
+      "ms": 45,
+      "memory": 49043165
+    },
+    {
+      "layout": "mixed",
+      "projection": true,
+      "density": "all-recent",
+      "optimized": false,
+      "warmup": true,
+      "rows": 2000000,
+      "bytes": 381001611,
+      "ms": 161,
+      "memory": 1180547461
+    },
+    {
+      "layout": "mixed",
+      "projection": true,
+      "density": "all-recent",
+      "optimized": true,
+      "warmup": true,
+      "rows": 4000000,
+      "bytes": 487001611,
+      "ms": 458,
+      "memory": 1446978651
+    },
+    {
+      "layout": "mixed",
+      "projection": true,
+      "density": "all-recent",
+      "optimized": true,
+      "warmup": false,
+      "rows": 4000000,
+      "bytes": 487001611,
+      "ms": 448,
+      "memory": 1428492807
+    },
+    {
+      "layout": "mixed",
+      "projection": true,
+      "density": "all-recent",
+      "optimized": false,
+      "warmup": false,
+      "rows": 2000000,
+      "bytes": 381001611,
+      "ms": 155,
+      "memory": 1132362143
+    },
+    {
+      "layout": "mixed",
+      "projection": true,
+      "density": "all-recent",
+      "optimized": false,
+      "warmup": false,
+      "rows": 2000000,
+      "bytes": 381001611,
+      "ms": 156,
+      "memory": 1185062889
+    },
+    {
+      "layout": "mixed",
+      "projection": true,
+      "density": "all-recent",
+      "optimized": true,
+      "warmup": false,
+      "rows": 4000000,
+      "bytes": 487001611,
+      "ms": 449,
+      "memory": 1468392114
+    },
+    {
+      "layout": "mixed",
+      "candidate_explain": [
+        [
+          "Expression ((Project names + Projection))"
+        ],
+        [
+          "  Filter"
+        ],
+        [
+          "    ReadFromMergeTree (date_candidates)"
+        ],
+        [
+          "    Indexes:"
+        ],
+        [
+          "      PrimaryKey"
+        ],
+        [
+          "        Keys: "
+        ],
+        [
+          "          collection_name"
+        ],
+        [
+          "          created_at"
+        ],
+        [
+          "        Condition: and((created_at in ['1000', +Inf)), (collection_name in ['posts', 'posts']))"
+        ],
+        [
+          "        Parts: 2/2"
+        ],
+        [
+          "        Granules: 4/123"
+        ]
+      ]
+    }
+  ],
+  "boundary_controls": [
+    "cutoff-1ms denied",
+    "cutoff included",
+    "cutoff+1ms included",
+    "default-filled RIGHT/FULL parity"
+  ],
+  "scope": "Native synthetic date query diagnostic; not API/full-feed/cloud acceptance.",
+  "receipt_scope": "Earlier primitive diagnostic before final compiler admission fixes; not final-source full-feed or cloud evidence."
+}

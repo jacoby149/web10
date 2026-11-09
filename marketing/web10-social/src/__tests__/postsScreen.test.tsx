@@ -116,7 +116,8 @@ describe('PostsScreen (the merged Feed + Hot Gossip surface)', () => {
     fireEvent.click(followingTab);
     // The URL gains ?tab=following (the tab is screen state the URL holds).
     await waitFor(() => {
-      expect(lastSearch).toBe('?tab=following');
+      expect(new URLSearchParams(lastSearch).get('tab')).toBe('following');
+      expect(Number(new URLSearchParams(lastSearch).get('asOf'))).toBeGreaterThan(0);
     });
     // The Following tab is now active.
     expect(screen.getByTestId('posts-tab-following')).toHaveAttribute('aria-selected', 'true');
@@ -127,7 +128,7 @@ describe('PostsScreen (the merged Feed + Hot Gossip surface)', () => {
     expect(screen.queryByTestId('discover-grid')).not.toBeInTheDocument();
   });
 
-  it('clicking Discover (from Following) navigates back to the bare /feed', async () => {
+  it('clicking Discover removes the tab selector and pins its recent window', async () => {
     await renderPosts('/feed?tab=following');
     // Start on Following (the feed renders).
     await screen.findByTestId('feed-empty');
@@ -135,7 +136,8 @@ describe('PostsScreen (the merged Feed + Hot Gossip surface)', () => {
     fireEvent.click(discoverTab);
     // The ?tab= param is removed (Discover is the default, the bare URL).
     await waitFor(() => {
-      expect(lastSearch).toBe('');
+      expect(new URLSearchParams(lastSearch).has('tab')).toBe(false);
+      expect(Number(new URLSearchParams(lastSearch).get('asOf'))).toBeGreaterThan(0);
     });
     // The board renders again, the feed is gone.
     await screen.findByTestId('discover-grid');

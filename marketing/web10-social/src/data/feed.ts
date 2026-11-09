@@ -34,8 +34,20 @@ export async function readDiscoverFeed(
   tags?: string[],
   offset = 0,
   surface?: string,
+  createdAfterMs?: number,
 ): Promise<PostRecord[]> {
   const w = getV3Client();
+  if (createdAfterMs != null || surface === 'discover') {
+    if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(limit) || limit < 1) throw new Error('Invalid Discover page');
+    console.log('[discover] dated page read started', { limit, offset });
+    const ranking = sort ? { recency: 0, likes: 0, comments: 0, half_life_ms: 0, character: -1, ...sort } : null;
+    const { rows } = await w.query(buildFeedQuery(ranking, null, limit - 1, { createdAfterMs }) + ` OFFSET ${offset}`, {
+      groups: [getDiscoverGroupId()], surface, contentService: 'posts',
+      prepare: { media: true, ads: true, face: { bodyField: 'profile_body', mediaField: 'avatar_ref', authorColumn: 'author_key', urlField: 'avatar_url' } },
+    });
+    console.log('[discover] dated page read completed', { rows: rows.length });
+    return resolvePostAuthors(dropAdPosts(rows.map(fromFeedQueryRow)));
+  }
   try {
     const docs = await w.read('posts', {
       groups: [getDiscoverGroupId()],
@@ -446,7 +458,7 @@ export interface FeedPage {
 }
 
 export type FeedCursor = { created_at?: string; score?: number; author_key?: string; doc_id?: string };
-export type FeedQueryOptions = { stable?: boolean; rankingClockMs?: number; tags?: string[] };
+export type FeedQueryOptions = { stable?: boolean; rankingClockMs?: number; tags?: string[]; createdAfterMs?: number };
 export type FeedRanking = { recency: number; likes: number; comments: number; half_life_ms: number; character: number };
 
 /** Full keyset anchors are opt-in: legacy callers retain their cursor shape. */
@@ -530,6 +542,10 @@ export function buildFeedQuery(sort: FeedRanking | null, cursor: FeedCursor | nu
   // backstop for the attached-ad join. Product docs (tagged `product`, D89)
   // are inventory too — the storefront is their public face, not a feed tile.
   const conditions = ["not has(p.tags, 'ad')", "not has(p.tags, 'product')"];
+  if (options.createdAfterMs != null) {
+    if (!Number.isSafeInteger(options.createdAfterMs) || options.createdAfterMs < 0 || options.createdAfterMs > 253402300799999) throw new Error('Invalid feed cutoff');
+    conditions.push(`p.created_at >= fromUnixTimestamp64Milli(${options.createdAfterMs})`);
+  }
   if (options.tags?.length) conditions.push(...options.tags.map(tag => `has(p.tags, ${feedSqlString(tag)})`));
   if (options.stable && cursor) {
     if (typeof cursor.created_at !== 'string') throw new Error('Invalid feed cursor timestamp');
@@ -721,6 +737,7 @@ export async function readFeedPage(opts: {
   knobState?: import('@/lib/powerMean').KnobState;
   stable?: boolean;
   rankingClockMs?: number;
+  createdAfterMs?: number;
   isCurrent?: () => boolean;
   groups?: string[];
   tags?: string[];

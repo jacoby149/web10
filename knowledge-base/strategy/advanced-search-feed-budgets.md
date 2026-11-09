@@ -1,4 +1,4 @@
-# Fast browsing, explicit deep search — planning only
+# Fast browsing, explicit deep search — date-path candidate
 
 ## Direction and reference
 
@@ -20,9 +20,10 @@ ranking remains tunable within it.** Exact calendar-month/rolling-day UTC bounda
 and cursor encoding are AS1 details to settle before code. A 100,000-candidate
 cap and automatic exclusion of zero-engagement posts are not selected defaults.
 
-No UI/API/schema, deployment flag, timeout extension or feed eligibility change
-ships with this plan. Existing S1–S10 search work is reused, not rebuilt. This is
-not revival of rejected Q02 or proof the failed experiment is now solved.
+The initial 5.9.6 plan shipped no runtime change. The later operator request
+activates the bounded date-path implementation below, not a full search rebuild,
+production migration or timeout extension. Existing S1–S10 search work is reused.
+This is not revival of rejected Q02 or proof the failed experiment is now solved.
 
 ## Current-source findings
 
@@ -255,6 +256,44 @@ authorized here; IX-DATE remains the first storage investigation.
 
 ## Small independent implementation bites
 
+### Active date-path implementation (9 November 2026)
+
+The operator now requests implementation followed by an experiment. The first
+bounded implementation uses an explicit rolling **30 × 24 hours**, inclusive UTC
+lower bound, frozen for the paging session. All-time remains an explicit choice;
+no default restriction is applied to Following, profiles or direct reads. A date
+range is eligibility, never a deletion or an engagement-count time window.
+
+The social board uses `asOf=<UTC epoch milliseconds>` to retain the lower bound
+across refresh/share/paging; `history=all` explicitly selects Older / Advanced.
+The clock is an eligibility anchor, not a cross-request database snapshot or an
+upper bound excluding newly published posts. The label names its UTC date.
+Other filters/ranking/source parameters survive. Older mode retains the existing
+bounded ten-second SQL execution limit; this bite does not build queued deep
+search, custom date pickers, a candidate cap or a full advanced-filter panel.
+
+The generic compiler may use a qualified `created_at >=
+fromUnixTimestamp64Milli(integer)` conjunct to discover candidate identities.
+Candidate discovery includes deleted and superseded rows. It restricts whole
+document/attachment histories, then retains canonical latest/deletion/visibility
+checks and the original outer date predicate. Even inconsistent historical
+creation dates must not resurrect a retired version. Other references to the
+same service (for example all-time repost counts) remain unrestricted.
+
+First prove parity and physical costs on disposable ClickHouse 24.8, including
+old-heavy, recent-heavy and mixed-block inputs. Compare the same date-filtered
+query with and without candidate pruning. Keep frozen inputs/receipts unchanged;
+the new experiment has a fixed clock, nonempty recent results, independent date
+oracle and separately identified workload. Paid host provisioning must retain
+explicit cost/lifetime approval and independently verified teardown protection.
+
+The current candidate is default-off (`QUERY_EVAL_DATE_PRUNING`). The native
+diagnostic shows why: old-heavy clustered inputs improve, while an all-recent
+input pays extra candidate work and mixed blocks retain broad canonical reads.
+The time-ordered `date_candidates` projection is installed/materialized only in
+owned research databases, with `deduplicate_merge_projection_mode='rebuild'`
+required by 24.8. There is no boot migration or production activation.
+
 | Bite | Ownership | Acceptance / gates |
 |---|---|---|
 | **AS1: filter/budget contract** | Planning KB; coordinate search/feed/media owners | Encode approved one-month normal Discover + explicit older Advanced mode; settle exact cutoff/URL/source/sparse behavior, metadata/ranking and any separate 100k proposal. Preserve screenshot reference; no runtime work. |
@@ -265,8 +304,10 @@ authorized here; IX-DATE remains the first storage investigation.
 | **AS3: deep-search execution budget** | Generic execution primitive only if needed, separately claimed backend/SDK and client-status bites | AS1 plus real filters; explicit bounded long-running semantics, cancellation, fairness, current credentials/visibility and response completeness. Default-off until independently reviewed; no broad timeout relaxation. |
 
 All bites retain normal PR checks; trust-boundary code/test units stay within the
-existing ≤500-line gate. No runtime implementation, screenshots of a fake feature,
-new host purchase, input publication or production change is part of this plan.
+existing ≤500-line gate. The operator separately approves the date implementation
+and a matching isolated three-host preflight, $5 ceiling, two-hour hard stop and
+independent watchdog/backup/cleanup. This does not authorize the 30-point study,
+new input publication, production migration or deployment.
 The frozen K=1,000 study remains unchanged: its January 2026 timestamps would all
 fall outside “last month” in November. Adding `now()-30 days` to make that fixture
 empty is not a successful optimization. Any filtered/K=20 study is a new labelled

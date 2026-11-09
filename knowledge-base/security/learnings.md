@@ -35,6 +35,34 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-09: Date candidates are hints; outer-join defaults and SQL size still matter
+
+Discover's recent eligibility is app-owned. The generic experimental compiler
+finds identities from every historical version meeting a literal lower bound,
+then ranks complete histories and rechecks the original date/access predicates.
+It must not globally restrict unrelated references to the same service or treat
+an index hit as current state. A new source-matched workload retains nonempty
+recent results instead of filtering frozen January data into an empty pass.
+
+Fresh review reproduces two correctness regressions: default-filled RIGHT/FULL
+rows can satisfy an epoch-zero bound after pruning a matched pre-epoch document;
+six dated references with 1,000 group IDs grow SQL past ClickHouse's 256-KiB limit.
+Skip those outer-join forms and fall back at 240 KiB to the original compiler,
+forwarding every internal ID restriction, including empty lists. Retained
+red→green unit/native controls pin the repairs. An old-heavy projection win is
+not universal: dense recent candidates cost more, and mixed canonical granules
+can retain broad bytes. The plan stays default-off. Review/cloud/promotion scope:
+`scans/2026-11/query-date-pruning.md`; no whole-security PASS follows.
+
+Actual app admission needs its own gate. Exact identity projection
+`p.created_at AS created_at` is not a computed alias shadow. Moreover, four
+readable K=1,000 service lists plus an inline dated boundary exceed the parser
+envelope. For large quoted input bytes, share identical trusted constant lists
+under collision-free internal CTE names; do not share/union permissions or
+document histories. The research observer witnesses emitted candidate SQL and
+the runner refuses a flag-only/fallback "candidate" pass. Earlier small receipts
+without this witness are only functional preparation, not optimized-path proof.
+
 ### 2026-11-09: Visible-by-default replay needs explicit sensitive boundaries
 
 D107 rejects the initial label/public-caption allowlist: normal UI and public

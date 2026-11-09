@@ -2414,7 +2414,7 @@ describe('DiscoverScreen — the control rows keep the desktop gutter (operator 
     });
     await waitFor(() => expect(screen.getAllByTestId('discover-card')).toHaveLength(52));
     // The second page was fetched with the next board offset (PAGE_SIZE = 50).
-    expect(data.readDiscoverFeed).toHaveBeenLastCalledWith(expect.anything(), 50, undefined, 50, 'discover');
+    expect(data.readDiscoverFeed).toHaveBeenLastCalledWith(expect.anything(), 50, undefined, 50, 'discover', expect.any(Number));
     // hasMore is now false (page 2 was short) → the sentinel is gone (the board
     // is exhausted).
     expect(screen.queryByTestId('discover-board-sentinel')).toBeNull();

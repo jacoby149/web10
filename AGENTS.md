@@ -304,6 +304,16 @@ Explicit research overrides remain separate from default-off policy bypass/stub
 flags. Source/Compose defaults are not production-deployment proof. Local parity
 and remaining rollout gates: `knowledge-base/security/scans/2026-11/readable-resolution-default.md`.
 
+Normal social Discover has a URL-owned rolling 30-day lower bound (`asOf` is its
+UTC anchor), with explicit `history=all` Older / Advanced access. Following,
+Video, profiles and direct reads retain their existing eligibility. The generic
+date-candidate compiler plan remains experimental/default-off
+(`QUERY_EVAL_DATE_PRUNING`); the time-ordered projection is research-only, not a
+boot migration. Old-heavy native gains coexist with dense/mixed costs. Current
+contracts, experiment status and production gates:
+`knowledge-base/strategy/advanced-search-feed-budgets.md` and
+`knowledge-base/security/scans/2026-11/query-date-pruning.md`.
+
 ## The node stays generic (D60) — no app-specific surface in `api/`
 
 **The platform API (`api/`) exposes only universal primitives. It never learns an
