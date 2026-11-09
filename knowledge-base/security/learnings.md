@@ -35,6 +35,41 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-09: Visible-by-default replay needs explicit sensitive boundaries
+
+D107 rejects the initial label/public-caption allowlist: normal UI and public
+content stay visible; mask sensitive regions instead. Mark private post records,
+DMs, drafts/pickers and admin/account content, including portals that do not
+inherit their trigger's DOM ancestry. rrweb mutations carry IDs, not ancestors;
+retain structural sensitivity across batches and apply privacy changes before
+text/attribute changes. A word such as "Done" inside a private region is still
+private, not a dictionary-based exemption. PostHog's pinned option allowlist
+silently ignores rrweb `inlineImages`; use the supported attribute callback
+for bounded already-loaded readable pixels, without mutating CORS or fetching.
+Strip source capabilities regardless. CORS/unloaded-image, stream/iframe,
+broad-screen and model-diverse/rollout gates remain explicit; synthetic replay
+is not a full audit. See `scans/2026-11/posthog-capture.md`.
+
+### 2026-11-09: Component wins need source-matched acceptance and workload labels
+
+Q01 #1448's local exact-ID gains do not clear actual-host acceptance: the unchanged
+source restores the million-author dispersed fixture but fails two of four
+measured feeds on ten-second SQL timeouts. Preserve failed requests and native
+metrics alongside seven before/after lifecycle controls; correctness/correlation
+can pass while strict acceptance fails. K=1,000 is a heavy-follow stress case,
+not an empirical average. K=20 needs its own labelled recipe/acceptance, not a
+silent relabelling or a promised pass while broad scans remain.
+
+Temporary infrastructure also needs irreversible cleanup admission: a reviewed
+pre-execution controller race could report empty before an in-flight creation
+returned. Child-inherited fencing and durable uncertain-operation settling pass
+three offline replays before apply. This is an operational helper finding, not
+a production auth exploit or full security PASS. Watchdog/backup verification,
+exact ownership selectors and independent empty-resource checks retain the
+approved $5/two-hour scope; total controller/network/provider loss is not a
+provider-enforced billing guarantee. Receipt:
+`research/experiments/costfn/evidence/Q01-PREFLIGHT-20261109.md`.
+
 ### 2026-11-09: Replay masking must preserve the recorder's structural protocol
 
 The pinned PostHog SDK uses its network-mask callback for Meta URLs as well as

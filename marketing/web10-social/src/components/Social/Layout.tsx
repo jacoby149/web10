@@ -430,7 +430,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
         </nav>
       </aside>
 
-      <main className="flex-1 flex flex-col min-w-0 min-h-0">
+      <main className="flex-1 flex flex-col min-w-0 min-h-0" data-replay-private={/^\/(?:messages|settings|node-settings|monetize|notifications|uploads)(?:\/|$)/.test(pathname) ? '' : undefined}>
         <header className="md:hidden flex items-center justify-between px-4 h-14 border-b border-border bg-surface/95 backdrop-blur-md sticky top-0 z-20 gap-2">
           <Wordmark className="shrink-0 [&>span]:hidden" />
           {!isAnon && <ActingIdentitySwitcher personalName={displayName || username} personalAvatar={avatarUrl} />}

@@ -245,6 +245,7 @@ function ShortsWallContent({ tuned }: { tuned: ReturnType<typeof useTunedSurface
             key={surfaceKey(short.post)}
             type="button"
             data-testid={`short-wall-tile-${short.post._id}`}
+            data-replay-private={short.post.visibility !== 'public' ? '' : undefined}
             aria-label={`Watch short by ${postAuthor(short.post).name}`}
             onClick={() => { const next = new URLSearchParams(searchParams); if (short.post.source_origin) next.set('source', short.post.source_origin); navigate({ pathname: `/shorts/${encodeURIComponent(short.post._id || '')}`, search: next.toString() }); }}
             className="relative aspect-[9/16] w-full bg-elevated overflow-hidden rounded-lg group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset text-left"

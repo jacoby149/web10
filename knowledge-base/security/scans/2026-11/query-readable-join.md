@@ -113,12 +113,16 @@ The rejected source/tests and raw local diagnostics are archived, gitignored, at
 All owned native containers were removed and absence verified. No unrelated
 Docker pruning, paid hosts, production writes or deployment occurred.
 
-**Did #1448 make the million-author experiment pass? Unknown.** Its local
-exact-ID lookup gains are separate. The last actual-host strict acceptance
-failed three of four measured feeds **before** #1448; no source-matched
-post-#1448 million-author acceptance has run here. Do not relabel that old
-failure as a post-fix failure, or local gains as full-feed success. Historical
-study receipts and manuscript measurements are unchanged.
+**At Q02 rejection, #1448's million-author outcome was unknown.** The earlier
+actual-host failure predated #1448, and no source-matched rerun had occurred.
+On 9 November UTC the operator-approved rerun restored the frozen large input
+but failed strict acceptance on two of four measured feeds, with native
+code-159 SQL timeouts. That new receipt, not a relabelled old failure, now
+establishes that Q01 is insufficient in this K=1,000 heavy-follow run. It is not
+a typical-user average or capacity estimate. Full account:
+`research/experiments/costfn/evidence/Q01-PREFLIGHT-20261109.md`. The Q02 evidence
+extract remains its original pre-rerun assessment; manuscript measurements stay
+unchanged.
 
 Q02 implementation is rejected/removed. A new non-amplifying design would need
 fresh approval, complete-history/visibility/multiplicity parity and sparse,

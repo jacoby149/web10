@@ -1237,6 +1237,7 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
                             key={post._id}
                             media={firstMedia ?? { _id: post._id, url: '', created_at: '' }}
                             testId="group-grid-cell"
+                            replayPrivate={post.visibility !== 'public'}
                             title={post.title}
                             caption={post.text}
                             postId={post._id}

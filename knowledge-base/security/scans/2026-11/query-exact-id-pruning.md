@@ -113,3 +113,11 @@ PR receipt: #1448 merged to `dev` on 9 November UTC (8 November local), commit
 `2ae3f52c9cbd601b937859a9c5cb1550919cfa8e`. All thirteen checks passed, including
 four browser shards and both security checks. This closes its PR/CI gate, not
 model-diverse sign-off, production acceptance or the million-author load gate.
+
+Actual-host follow-up, 9 November UTC: the unchanged merged Q01 source passes
+the small floor and frozen million-author restore/initial results, but strict
+acceptance still fails two of four measured feeds (native code 159, ten-second
+SQL limit). Lifecycle controls and correlation remain valid. All test resources
+are deleted; no primary points or capacity result. K=1,000 is a high-follow
+stress case, not an established average. Full receipt:
+`research/experiments/costfn/evidence/Q01-PREFLIGHT-20261109.md`.

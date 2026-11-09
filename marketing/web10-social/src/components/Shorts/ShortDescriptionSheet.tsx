@@ -49,7 +49,7 @@ export function ShortDescriptionSheet({ post, likes, views, onClose }: {
       <div className="pointer-events-none absolute inset-0 bg-background/80 backdrop-blur-sm animate-overlay-in" />
       <div ref={panel} id="short-description" role="dialog" aria-modal="true" aria-labelledby="short-description-title"
         className="relative flex max-h-[85dvh] w-full max-w-xl flex-col overflow-hidden rounded-lg border border-border bg-card text-foreground shadow-xl animate-panel-in"
-        data-testid="short-description-sheet">
+        data-testid="short-description-sheet" data-replay-private={post.visibility !== 'public' ? '' : undefined}>
         <header className="flex shrink-0 items-start gap-3 border-b border-border p-4 sm:p-6">
           <div className="min-w-0 flex-1">
             <p className="mb-1 text-xs font-medium text-muted-foreground">Short description</p>

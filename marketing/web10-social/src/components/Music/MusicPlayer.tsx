@@ -23,7 +23,7 @@ export default function MusicPlayer() {
         <Button size="sm" variant="outline" onClick={() => void music.retry()}>Retry playback</Button>
       </div>}
       <div className="flex items-center gap-1 px-2 pt-2 md:gap-3 md:px-4">
-        <Link to={`${link}player`} className={`flex min-w-0 flex-1 items-center gap-3 rounded-sm ${focus}`} aria-label={`Open player: ${musicTitle(track)}`}>
+        <Link to={`${link}player`} data-replay-private={track.post.visibility !== 'public' ? '' : undefined} className={`flex min-w-0 flex-1 items-center gap-3 rounded-sm ${focus}`} aria-label={`Open player: ${musicTitle(track)}`}>
           <MusicArtwork url={track.artworkUrl} className="h-11 w-11 rounded-sm" />
           <span className="min-w-0"><span className="block truncate text-sm font-medium text-foreground">{musicTitle(track)}</span><span className="block truncate text-xs text-muted-foreground">{musicArtist(track)}</span></span>
         </Link>

@@ -15,6 +15,30 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## D107 visible-by-default replay (09.11.2026) — bounded review, OPEN
+
+Operator-approved public/UI text and readable image pixels replace blanket
+masking. Bounded L1/L2 checks cover SDK/wire policy and sensitive caller roots;
+local wire/component controls and six intercepted desktop/375px reconstructions
+retain private/input/credential denial. Review finds and repairs Music comments,
+private playlist/share portals and profile/saved grid gaps; public variants stay
+visible. Not a completed L3/L4 scan or model-diverse sign-off. Broad real-screen
+coverage, CI and approved deployment/fresh hosted recordings remain OPEN.
+[Record](scans/2026-11/posthog-capture.md).
+
+## Q01 actual-host verification (09.11.2026) — strict acceptance FAILED
+
+Merged #1448's exact source runs on approved isolated DB/API/generator hosts.
+Small floor and frozen dispersed million-author restore/initial results pass;
+two of four measured feeds fail with native code-159 SQL timeouts. Seven
+before/after lifecycle controls, three paired checks and 18 HTTP/ASGI correlations
+remain valid negative evidence, not security/capacity acceptance. All owned
+droplets/firewalls/key/tags are independently verified absent. Temporary ops
+admission-race repair has scoped offline review, not L1–L4 or diverse assurance.
+K=1,000 is a stress case, not an observed user average; production and primary
+study gates remain open. Receipt:
+`research/experiments/costfn/evidence/Q01-PREFLIGHT-20261109.md`.
+
 ## Readable-join investigation (08.11.2026) — REJECTED, code removed
 
 Sparse gains do not outweigh the demonstrated tradeoffs: unrestricted early
