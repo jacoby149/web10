@@ -7,6 +7,9 @@ import { ReportBug } from './components/ReportBug'
 import { Button } from './components/ui/button'
 import { trackPageview, installErrorBeacon, installTelemetry } from './lib/analytics'
 import './index.css'
+import { getThemeStore } from './lib/theme'
+
+getThemeStore()
 
 // Install JS error beacon (window.onerror + unhandledrejection)
 installErrorBeacon()

@@ -20,6 +20,7 @@ import GroupDetailScreen from '@/components/Groups/GroupDetailScreen';
 import DmsScreen from '@/components/Chat/DmsScreen';
 import NotificationsScreen from '@/components/Notifications/NotificationsScreen';
 import SettingsScreen from '@/components/Settings/SettingsScreen';
+import AppearanceScreen from '@/components/Settings/Appearance';
 import MonetizationScreen from '@/components/Monetization/MonetizationScreen';
 import StorefrontScreen from '@/components/Monetization/StorefrontScreen';
 import NodeSettingsScreen from '@/components/NodeSettings/NodeSettingsScreen';
@@ -516,6 +517,7 @@ function App() {
           <Route path="/u/:username/p/:postId" element={<UserProfilePostLinkRoute />} />
           <Route path="/groups/:groupId/p/:postId" element={<UserProfilePostLinkRoute />} />
           <Route path="/monetize" element={isAnon ? <Navigate to="/video" replace /> : <MonetizationScreen />} />
+          <Route path="/appearance" element={<AppearanceScreen />} />
           <Route path="/settings" element={isAnon ? <Navigate to="/video" replace /> : <SettingsScreen onLogout={handleLogout} onReportBug={() => handleReportBug('button')} />} />
           <Route path="/node-settings" element={isAnon ? <Navigate to="/video" replace /> : <NodeSettingsScreen />} />
           <Route path="*" element={<Navigate to="/feed" replace />} />

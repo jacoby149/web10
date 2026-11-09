@@ -249,7 +249,7 @@ function Freedom() {
               href={SOCIAL_ORIGIN}
               className="group inline-flex items-center gap-2 rounded-lg border border-brand bg-brand px-5 py-2.5 text-sm font-medium text-brand-foreground transition-colors duration-150 hover:bg-brand-600"
             >
-              Enter web10
+              Go to web10 social
               <ArrowUpRight className="h-4 w-4" strokeWidth={1.5} />
             </a>
             <a

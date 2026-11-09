@@ -329,7 +329,7 @@ export function PostIdentityRow({
                           type="button"
                           onClick={(e) => { e.stopPropagation(); closeMenu(); menu.onDelete(); }}
                           disabled={deleteConfirm !== 'delete'}
-                          className="flex-1 rounded-md bg-danger px-2 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-danger/90 disabled:opacity-50"
+                          className="flex-1 rounded-md bg-danger px-2 py-1.5 text-xs font-medium text-brand-foreground transition-colors hover:bg-danger/90 disabled:opacity-50"
                           data-testid="post-delete-confirm-button"
                         >
                           Confirm Delete

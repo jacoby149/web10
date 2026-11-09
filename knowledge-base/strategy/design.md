@@ -64,12 +64,13 @@ entire thesis in one image: *you hold the keys to your own data.*
 Every visual choice should reinforce ownership, permanence, and
 self-possession. The brand is confident and quiet; it never begs.
 
-- **Dark-first.** The brand's native habitat is dark. The only logo
-  assets that exist are white-on-transparent; creator/streaming
+- **Dark-first.** The brand's native habitat is dark. Its original logo
+  assets are white-on-transparent, with derived dark counterparts; creator/streaming
   culture (Kick, Twitch, OBS, Discord) lives in dark mode; and dark
   is where the violet accent reads as electric instead of corporate.
-  Dark is the default on every surface. Light mode is a later opt-in
-  built from tokens, never a hardcode.
+   The console remains dark by default. Social and marketing follow the
+   device by default, with remembered System / Light / Dark choices (D108).
+   Both palettes are built from tokens; media stages retain dark controls.
 - **Voice.** Declarative, restrained, no gush. The fan-facing voice
   lives in `manifesto.md`, the creator pitch in `outreach.md` — match
   them. Never claim what isn't built. Headlines state facts:
@@ -92,6 +93,7 @@ a wrong logo is worse than no logo.
 |---|---|---|---|
 | **Full lockup** | `marketing/marketing-ui/public/brand/logo-lockup.png` (1200×400, moved from `layouts/images/logo_white.png` by D13) | Keys-on-keyring mark + lowercase thin-outline "web10" wordmark, white on transparent | Navbars, footers, hero, og-image. Dark backgrounds ONLY (it is white). Min height 24px; keep clear space ≥ the height of the "w" on all sides. |
 | **Square mark** | `.context/brand-assets/keys-mark-source-transparent.png` (369×389, white on transparent, corrected by D13 — see below) | The keys mark alone, cropped from the full lockup | Avatars, favicons, PWA icons, app-store tiles, anywhere square. Dark backgrounds only. Also the default profile picture in web10-social. |
+| **Dark counterparts (D108)** | `marketing/marketing-ui/public/brand/logo-lockup-dark.png`, `marketing/web10-social/public/keys-mark-dark.png` | Zinc-900 copies with exactly the original dimensions/alpha | Light-mode lockup and square mark; never put a dark backing behind them. White originals remain unchanged. |
 
 **Correction (D13, 19.07.2026):** this table used to point the square mark
 at `marketing/web10-social/public/alternative.png` (842×854). That file
@@ -107,10 +109,14 @@ file or a proper crop of it (lane D12/B5 — D13 doesn't edit those apps'
 code, only dropped ready-made icon PNGs in `.context/brand-assets/`).
 
 Rules of use:
-- Never stretch, recolor, outline, shadow, or rotate the marks.
-- Never place the white marks on light backgrounds — if a light
-  surface needs a logo, that surface should probably be dark, or use
-  the (to-be-generated) dark variant below.
+- Never stretch, outline, shadow, rotate or apply runtime color filters to the marks.
+- Use the white original on dark surfaces and its zinc-900 transparent
+  counterpart on light surfaces. D108's follow-up explicitly rejects a
+  black backing tile in light chrome. Derive the dark PNG from the original
+  alpha geometry; do not redraw it or use the unrelated white-label fixtures.
+  Square pair: social `/keys-mark{,-dark}.png`; lockup pair: marketing
+  `/brand/logo-lockup{,-dark}.png`. `marketing/marketing-ui/scripts/render-theme-brand.mjs`
+  reproduces the dark assets. Keep image dimensions and alpha unchanged.
 - Never typeset "web10" in a way that imitates the wordmark. In
   running text it is plain lowercase `web10` in the current font. If
   a heading needs the brand set as type, use the display font (§5) in
@@ -129,13 +135,14 @@ Rules of use:
 
 ### Asset debt (queued work, lane D unless noted)
 
-The brand currently exists ONLY as two white PNGs. Generate, from the
+The brand originates in two white PNGs. Generate further formats from the
 existing files (do not invent a new mark):
 
 1. **SVG vectorization** of both marks (trace or rebuild) — PNGs don't
    scale to hero sizes cleanly.
-2. **Dark-on-light variants** (black/zinc-950 fills) for the rare
-   light surface and for print/docs.
+2. **Dark-on-light variants** — implemented by D108 for marketing/social;
+   zinc-900 transparent PNGs preserve original alpha/size. Print/vector
+   counterparts still follow the original geometry.
 3. **Icon set**: favicon.ico + 192/512 PNG + apple-touch-icon per app,
    all from the square mark on `#09090b`, replacing every squatter above.
 4. **One shared og-image** (1200×630): full lockup on `#09090b` with
@@ -357,7 +364,7 @@ Creators will open this on a phone in the middle of a pitch.
 The job: a creator's manager lands here and in 30 seconds believes
 this is a company, not a weekend project. **Bulma comes out entirely**
 (D22 already rejected it) — Tailwind v4 + tokens + the shadcn idiom.
-Dark, cinematic, restrained: hero = full lockup + one declarative line
+Theme-aware, cinematic, restrained: hero = full lockup + one declarative line
 in the manifesto voice + one CTA; a reach-gap proof section (the
 1M-subs-300k-views mechanic, shown as a simple chart, not adjectives);
 real product screenshots in device frames; docs pages stay light-on-
@@ -434,6 +441,40 @@ the doc is wrong, fix the doc, then the code.
 
 
 ## 13. Canonical tokens (copy verbatim)
+
+### Social and marketing appearance (D108)
+
+Social and marketing default to System (`prefers-color-scheme`), follow live device
+changes, and offers explicit Light / Dark overrides in Settings and the
+public `/appearance` screen (More → Appearance; signed-out phones use the
+header's Appearance button). Marketing exposes the same choices at
+`/appearance` through Learn → Appearance. Each preference belongs to
+this browser/origin, not an account or acting identity. Store only
+`system`, `light` or `dark` under `web10-social:theme` or `web10-marketing:theme`;
+synchronize tabs within each site, not across different origins,
+and treat missing/invalid/removed preferences as System. Storage denial
+must not break switching: keep the choice in memory and say it cannot be
+remembered. Appearance is not a URL override; the screen is URL-owned.
+
+Apply the resolved theme before the app module paints, then update the
+root theme/class, native `color-scheme` and browser `theme-color` together.
+The small blocking startup script is the only non-CSS copy of the two
+background values below. Its behavior is checked against the runtime.
+
+Light neutral overrides: background `#fafafa`, foreground `#18181b`,
+surface/card/popover `#ffffff`, elevated/muted/secondary/accent `#f4f4f5`,
+border/input `#d4d4d8`, muted foreground `#52525b`. Foreground aliases
+follow foreground; primary is `#18181b` on `#fafafa`. Light brand text
+300/400 is `#6d28d9` / `#5b21b6`, brand/ring `#7c3aed`, pressed
+`#6d28d9`, muted `#ede9fe`; brand foreground stays `#fafafa`.
+Light success/warning/danger are `#166534` / `#854d0e` / `#b91c1c`,
+danger-muted `#fee2e2`. These keep body text ≥4.5:1 on neutral surfaces.
+Both apps consume the same framework-free store in `marketing/shared/appearance/`,
+with app-local React hooks and startup initializers. Existing text-tile colors
+stay dark with tile foreground. Dark media
+controls use a locally scoped copy of the original dark tokens, not
+inverted images/video. Theme-aware artwork swaps white/dark transparent assets;
+there is no black logo tile in light mode. The authenticator is unchanged.
 
 Tailwind v4 `@theme` block — the single source of truth. Each app
 carries a copy in `src/styles/tokens.css` (or its `index.css @theme`
