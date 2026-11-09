@@ -35,6 +35,32 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-08: Prune complete history partitions, not denying versions
+
+The actual million-author preflight times out while the boundary ranks global
+attachment history. Moving its trusted readable `group_id` filter before the
+window is safe because it is part of `(doc_id, group_id)`; all versions of each
+retained link still rank before deletion filtering. Do not push `deleted`, tags
+or visibility predicates the same way. Fifteen durable controls and eight actual
+ClickHouse constant-CTE parity cases retain removals, alternates, multiplicity and
+visibility. Diagnostic latency falls without reducing main physical rows read;
+there is no index-pruning or capacity claim. Equal-timestamp winner ambiguity is
+inherited and remains open. [Record](scans/2026-11/query-partition-pruning.md).
+
+### 2026-11-08: Public synthetic inputs need exact object grants, not a public media bucket
+
+The operator separately approves public release of two frozen research datasets.
+Grant only `s3:GetObject` on their fourteen exact table/manifest keys, verify full
+bytes against trusted Git receipts before publication, and independently repeat
+anonymous downloads plus neighboring-media/list/write denials. All fourteen
+downloads match; six negative controls stay 403. MinIO reorders Resource arrays;
+normalize that unordered list for verification without dropping fields or
+deduplicating grants. A red→green control pins readback and idempotency. Policy
+administration is serialized, not CAS, and key grants do not freeze later bytes;
+keep these keys unchanged. Public copies cannot be recalled. Receipt:
+`research/experiments/costfn/evidence/v2-public-access.json`. No whole-bucket or
+L1–L4 security PASS follows from this bounded operational acceptance.
+
 ### 2026-11-08: Removed consent and usable URLs need ownership checks at the sink
 
 The [candidate source integration](scans/2026-11/feed-source-integration.md)

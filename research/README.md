@@ -1,5 +1,13 @@
 # web10 - Research Paper Strategy
 
+> **8 November actual-host follow-up:** isolated three-host small acceptance and
+> a million-author dispersed restore pass. The subsequent strict concurrency
+> preflight fails with six ten-second SQL timeouts; no primary load points run.
+> A bounded compiler partition-pruning repair is locally tested, with diagnostic
+> equivalence and a separately recorded fresh candidate replay/cleanup. See
+> [the receipt](experiments/costfn/evidence/cloud-preflight-20261108.json).
+> This supersedes the setup-only state below, not the manuscript/measurement gates.
+
 > **7 November: experiment setup/design review only.** No provisioning, traffic,
 > new large generation, publication or submission. The
 > [study proposal](experiments/costfn/STUDY.md) and
