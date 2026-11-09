@@ -1324,6 +1324,8 @@ old implementation, not the new target.
 
 #### PostHog-only migration (five-influencer pilot is the first campaign)
 
+- [✓ 5.9.4 local; release OPEN] **Repair blank PostHog replay** — restore route-templated Meta/viewport callbacks, parsed CSS and structural stylesheet/media attributes in the shared adapter. Original-HEAD controls and actual intercepted SDK playback cover desktop/375px on all three adapters; the live social/marketing bundles still contain the old callback. Content/credential sentinels stay out. Not vendor-hosted playback or deployment; P1–P6 remain OPEN.
+
 - [✓ 5.0.1 local] **Guard PostHog activation prerequisites** — reject enablement without the separate API identity secret, keep disabling available, and verify actual Terms/Privacy routes at desktop/375px without production beacons. No live-project or rollout acceptance.
 Source/acceptance: [posthog-migration.md](posthog-migration.md), D103. Operator explicitly authorizes local implementation and immediate legacy-code removal; deployment/activation gates remain. Preserve D86, backend facts and history. No custom acquisition dashboard. Own shared `marketing/shared/telemetry/` and focused report/check scripts; coordinated seams: node config/system/account lifecycle and tests, `clickhouse-init/`, SDK optional signup metadata/shipped artifacts, auth `Interface.tsx`, Node Config, social lifecycle and public legal copy. No unrelated lane edits or production changes.
 

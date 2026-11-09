@@ -150,13 +150,37 @@ describe('PostHog explicit-capture boundary', () => {
     expect(serialized).not.toMatch(/SECRET|private\?|token=|placeholder|post-doc-123|cdn\.example/)
     // layout fidelity survives
     expect(serialized).toContain('"class":"w10-feed-card"')
-    expect(serialized).toContain('"style":"color: red"')
+    expect(serialized).toContain('"style":"color: red;"')
     expect(serialized).toContain('input')
     // hrefs are route-templated, not raw
     expect(serialized).toContain('web10.invalid')
     expect(serialized).not.toContain('auth.example')
     const event = sanitizeEvent({ uuid: 'snapshot', event: '$snapshot', properties: { $snapshot_data: snapshots } })
     expect(event?.properties.$snapshot_data).toEqual(output)
+  })
+
+  it('keeps stylesheet structure without generated content or resource URLs', () => {
+    const css = '.layout { display: grid; gap: 24px; background-image: url("https://private.invalid/SECRET"); } .layout::before { content: "SECRET"; }'
+    const nodes = [
+      { type: 3, isStyle: true, textContent: css },
+      { type: 2, tagName: 'style', attributes: { type: 'text/css', _cssText: css } },
+      { type: 2, tagName: 'div', attributes: { style: 'display: grid; background: url("https://private.invalid/SECRET")' } },
+      { type: 3, textContent: 'SECRET' },
+      { type: 2, tagName: 'div', attributes: { rr_width: '300px', rr_height: '160.5px', type: 'SECRET' } },
+    ]
+    const output = maskReplay(nodes)
+    expect(JSON.stringify(output)).toContain('display: grid')
+    expect(JSON.stringify(output)).toContain('gap: 24px')
+    expect(JSON.stringify(output)).not.toMatch(/SECRET|private\.invalid|url\(/)
+    expect((output as any[])[3].textContent).toBe('[masked]')
+    expect((output as any[])[1].attributes.type).toBe('text/css')
+    expect((output as any[])[4].attributes).toEqual({ rr_width: '300px', rr_height: '160.5px', type: '[masked]' })
+  })
+
+  it('preserves the SDK Meta URL callback but still drops real network entries', () => {
+    const mask = posthogOptions(config.posthog_host, true).session_recording!.maskCapturedNetworkRequestFn!
+    expect(mask({ name: 'https://social.example/messages/private?token=SECRET' } as any)).toEqual({ name: 'https://web10.invalid/messages' })
+    expect(mask({ name: 'https://social.example/api', startTime: 1, requestBody: 'SECRET' } as any)).toBeNull()
   })
 
   it('strips heatmap URL query and target content but retains coordinates', () => {
