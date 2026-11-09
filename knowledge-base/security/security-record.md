@@ -127,6 +127,14 @@ and model-diverse L1–L4 sign-off remain OPEN; no whole-security PASS or deploy
 
 ## PostHog capture/configuration (08.11.2026) — bounded local, OPEN
 
+09.11.2026, GPT-6.1 Sol: bounded shared-adapter/pinned-SDK follow-up reproduces
+discarded Meta events and masked/inert CSS. Original-HEAD controls plus six
+desktop/375px real-SDK/intercepted-wire playback fixtures pass after repair;
+private sentinels remain absent. Public social/marketing bundles still contain
+the old callback. No backend/auth change, production/vendor write, hosted-player
+acceptance or independent review. Scope/results/limits in the linked scan;
+L1–L4 and release status remain OPEN.
+
 5.0.0 continuation adds canonical opaque identity, signed source metadata,
 atomic account-row signup context, worker acks/health, vendor-report provisioning
 and optional masked replay/heatmaps; removes legacy integrations by instruction.

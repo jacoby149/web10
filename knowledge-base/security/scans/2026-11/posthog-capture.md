@@ -5,6 +5,38 @@ folded into 5.0.0 before merge (one branch, one PR — the pre-gut capture entry
 was superseded, not shipped separately). Not a completed
 L1–L4 scan, independent review, live-project acceptance or production change.
 
+## 09.11.2026 replay compatibility follow-up
+
+Operator screenshot: `.context/attachments/h9T3Po/image.png`, blank player.
+Read-only inspection of the shared adapter and the pinned SDK's
+`LazyLoadedSessionRecording._maskUrl/onRRwebEmit` confirms that our null network
+mask also removes Meta events. Original-HEAD synthetic replay reproduces this
+and stylesheet text replaced with `[masked]`; retained baseline receipt:
+`.context/posthog/baseline-replay-failure.json`. The strengthened real-SDK
+browser check fails on absent Meta dimensions before repair.
+
+Repair preserves route-templated name-only SDK URL callbacks, still rejects real
+network entries, and parses style text/`_cssText` and inline declarations in an
+unattached stylesheet. Remove generated content, font sources, imports and
+URL/image-set/attribute-read declarations; ordinary text/inputs, media and
+content-bearing DOM attributes remain excluded. No active DOM is used to parse
+CSS; unsupported/invalid parsing yields empty CSS. Stylesheet selectors/static
+declarations retain the existing app-controlled-CSS assumption, not arbitrary
+untrusted stylesheet support or complete CSS-channel assurance.
+Preserve fixed structural MIME/input types, stylesheet rel and numeric rrweb
+blocked-media dimensions; the prior masked CSS MIME type made styles inert.
+Public, read-only bundle fetches on 09.11.2026 confirm that both social.web10.app
+(`/assets/index-CpI73rln.js`) and web10.app (`/assets/index-DCbZjd-S.js`) still
+contain the null callback. Receipt: `.context/posthog/public-bundle-check.json`.
+No live browser/ingestion, vendor write, configuration change or deployment.
+
+The browser harness now reconstructs intercepted wire snapshots with pinned
+`@rrweb/replay@2.2.1`, requires positive Meta dimensions and asserts computed
+grid/gap/height. Its fixture uses each actual adapter and app stylesheet, plus
+synthetic DOM/identity/config and all external transport interception. It is
+not the full social app or PostHog's hosted player. Independent/model-diverse
+review, actual deployed revision and new-session vendor playback remain OPEN.
+
 ## 5.0.0 continuation — identity/outcomes/legacy removal, still OPEN
 
 The operator explicitly requests the remaining implementation and removal of
