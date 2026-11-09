@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll, beforeEach, onTestFinished } from 'vitest';
-import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import '@testing-library/jest-dom';
 import * as data from '@/data';
@@ -78,6 +78,20 @@ describe('DiscoverScreen', () => {
       read: vi.fn().mockResolvedValue([]),
       readToken: vi.fn().mockReturnValue({ provider: 'test.localhost', username: 'testuser' }),
     });
+  });
+
+  it.each(['public', 'private', undefined] as const)('masks sensitive post records rather than allowlisting public captions (%s)', async (visibility) => {
+    vi.mocked(data.readDiscoverFeed).mockResolvedValueOnce([{
+      _id: 'replay-post', author_username: 'someone', author_provider: 'test.localhost',
+      title: 'Replay post title', text: 'Replay post caption', visibility,
+      created_at: new Date().toISOString(),
+    }]);
+    render(<MemoryRouter initialEntries={['/hot-gossip']}><DiscoverScreen /></MemoryRouter>);
+    const title = await screen.findByTestId('post-card-title');
+    const caption = within(screen.getByTestId('discover-card')).getByText('Replay post caption');
+    expect(!!title.closest('[data-replay-private]')).toBe(visibility !== 'public');
+    expect(!!caption.closest('[data-replay-private]')).toBe(visibility !== 'public');
+    expect(title.closest('[data-replay-public]')).toBeNull();
   });
 
   it.each(['/hot-gossip', '/video'])('preserves the prepared group face on %s', async (route) => {

@@ -13,6 +13,13 @@ superseding the earlier retain-until-acceptance coding sequence. It does not
 authorize deployment, production configuration, paid purchases, vendor writes or
 vendor-account cancellation.
 
+**D107 follow-up (09.11.2026):** visible by default, mask sensitive regions.
+The operator rejects the initial narrow title/caption/label-allowlist draft.
+Normal UI and public content across Posts/Video/Shorts/Music are readable;
+image pixels can be inlined. Inputs/drafts, DMs, private records/admin and
+credentials remain masked. Signed URLs and video/audio streams stay excluded.
+The earlier blanket content-blind policy below is superseded, not silently kept.
+
 ## What is implemented (5.0.0–5.0.2, merged to dev)
 
 The binding runtime/measurement contract is

@@ -1,6 +1,7 @@
 // D103: explicit, content-free browser capture. No auth credentials or person
 // merging here. Backend-confirmed outcomes and cross-domain identity are separate.
 import type { PostHog, PostHogConfig, CaptureResult } from 'posthog-js/dist/module.full.no-external';
+import { createReplayTextPolicy, PRIVATE_SELECTOR, replayAttribute, replayText } from './replayText';
 
 export const POSTHOG_HOSTS = ['https://us.i.posthog.com', 'https://eu.i.posthog.com'] as const;
 export type TelemetryConfig = {
@@ -66,7 +67,7 @@ export function campaignProperties(search: string): Record<string, string> {
 }
 
 /** Final wire gate, including SDK-added automatic URL/referrer/person fields. */
-export function sanitizeEvent(event: CaptureResult | null): CaptureResult | null {
+export function sanitizeEvent(event: CaptureResult | null, replaySanitizer = maskReplay): CaptureResult | null {
   if (!event || (!EVENTS.has(event.event) && !['$identify', '$snapshot', '$$heatmap'].includes(event.event))) return null;
   const properties: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(event.properties ?? {})) {
@@ -79,7 +80,7 @@ export function sanitizeEvent(event: CaptureResult | null): CaptureResult | null
   if (event.event === '$snapshot') {
     const data = event.properties?.$snapshot_data;
     if (!data || typeof data !== 'object') return null;
-    properties.$snapshot_data = maskReplay(data);
+    properties.$snapshot_data = replaySanitizer(data);
     properties.$snapshot_bytes = JSON.stringify(properties.$snapshot_data).length;
   }
   if (event.event === '$$heatmap') {
@@ -104,13 +105,9 @@ export function sanitizeEvent(event: CaptureResult | null): CaptureResult | null
   return { uuid: event.uuid, event: event.event, properties, timestamp: event.timestamp };
 }
 
-// D106: layout fidelity, content-blind. Styling attributes are reproduced so a
-// recording looks like the page; everything that can carry user content or
-// identifiers is still removed at the wire. class/style are app-controlled
-// static values; href is route-templated; the blocklist drops media sources,
-// input values, placeholders, alt/title text, DOM ids (route/doc identifiers)
-// and all custom data-*/aria-* payloads.
-const REPLAY_BLOCKED_ATTRS = new Set(['value', 'alt', 'title', 'placeholder', 'src', 'srcdoc', 'poster', 'id', 'contenteditable']);
+// D107: normal DOM content is visible; mask sensitive regions. Attribute/URL
+// channels still exclude credentials, form values and arbitrary data payloads.
+const REPLAY_BLOCKED_ATTRS = new Set(['value', 'alt', 'title', 'placeholder', 'src', 'srcset', 'srcdoc', 'poster', 'id', 'contenteditable']);
 const REPLAY_TYPES = new Set(['text/css', 'button', 'submit', 'reset', 'text', 'password', 'email', 'tel', 'url', 'search', 'number', 'checkbox', 'radio', 'range', 'date', 'datetime-local', 'month', 'time', 'week', 'color', 'file', 'hidden']);
 
 function replayHref(value: string): string {
@@ -144,16 +141,16 @@ function replayCss(value: string): string {
   } catch { return ''; }
 }
 
-/** Defense after rrweb masking: no user content, no log/plugin/custom data,
- * no arbitrary strings cross the replay boundary — but layout survives. */
-export function maskReplay(value: unknown, key = ''): unknown {
+/** Defense after rrweb masking: content belongs only in ordinary visible DOM
+ * text/pixels, never arbitrary plugin/network/input or credential attributes. */
+export function maskReplay(value: unknown, key = '', readable: (id: number) => boolean = () => false, ownerId?: number): unknown {
   if (key === 'attributes') {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
     return Object.fromEntries(
       Object.entries(value)
         .filter(([attr]) => {
           const a = attr.toLowerCase();
-          return !a.startsWith('data-') && !a.startsWith('aria-') && !REPLAY_BLOCKED_ATTRS.has(a);
+          return !a.startsWith('data-') && !a.startsWith('aria-') && (!REPLAY_BLOCKED_ATTRS.has(a) || a === 'src');
         })
         .map(([attr, v]) => {
           const a = attr.toLowerCase();
@@ -169,16 +166,27 @@ export function maskReplay(value: unknown, key = ''): unknown {
             return [attr, css.slice(css.indexOf('{') + 1, css.lastIndexOf('}')).trim()];
           }
           if (a === 'class') return [attr, typeof v === 'string' ? v : '[masked]'];
-          return [attr, maskReplay(v, attr)];
+          // Pixel snapshot, never the signed source URL. CORS/oversize/unsupported
+          // images fail closed; video/audio transports remain outside replay.
+          if (a === 'src' || a === 'rr_dataurl') return [attr, ownerId !== undefined && readable(ownerId) && typeof v === 'string' && v.length <= 2_000_000 && /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(v) ? v : ''];
+          if (['viewbox', 'd', 'points', 'cx', 'cy', 'r', 'rx', 'ry', 'x', 'y', 'x1', 'x2', 'y1', 'y2', 'width', 'height', 'stroke-width', 'stroke-dasharray', 'stroke-dashoffset', 'opacity', 'fill-opacity', 'stroke-opacity', 'transform'].includes(a) && typeof v === 'string' && /^[\d\s.,+eE()a-zA-Z%-]{0,4096}$/.test(v)) return [attr, v];
+          if (['fill', 'stroke'].includes(a) && typeof v === 'string' && /^(?:none|currentColor|transparent|#[a-fA-F0-9]{3,8})$/.test(v)) return [attr, v];
+          if (['stroke-linecap', 'stroke-linejoin'].includes(a) && ['butt', 'round', 'square', 'miter', 'bevel'].includes(String(v))) return [attr, v];
+          return [attr, maskReplay(v, attr, readable)];
         }),
     );
   }
-  if (Array.isArray(value)) return value.filter((v) => !(v && typeof v === 'object' && [5, 6].includes(v.type))).map((v) => maskReplay(v));
+  if (Array.isArray(value)) return value.filter((v) => !(v && typeof v === 'object' && [5, 6].includes(v.type))).map((v) => maskReplay(v, '', readable));
   if (value && typeof value === 'object') {
-    const node = value as { type?: number; isStyle?: boolean };
+    const node = value as { type?: number; isStyle?: boolean; id?: number; source?: number };
     return Object.fromEntries(Object.entries(value).map(([k, v]) => [k,
       node.type === 3 && node.isStyle === true && k === 'textContent' && typeof v === 'string'
-        ? replayCss(v) : maskReplay(v, k),
+        ? replayCss(v) : node.source === 0 && k === 'texts' && Array.isArray(v)
+          ? v.map((entry) => ({ id: entry.id, value: typeof entry.value === 'string' && readable(entry.id) ? entry.value : '[masked]' }))
+          : node.source === 0 && k === 'attributes' && Array.isArray(v)
+            ? v.map((entry) => ({ id: entry.id, attributes: maskReplay(entry.attributes, 'attributes', readable, entry.id) }))
+          : node.type === 3 && k === 'textContent' && typeof v === 'string' && readable(node.id!)
+           ? v : maskReplay(v, k, readable, node.id),
     ]));
   }
   if (typeof value !== 'string') return value;
@@ -188,6 +196,12 @@ export function maskReplay(value: unknown, key = ''): unknown {
 }
 
 export function posthogOptions(host: string, replay = false): Partial<PostHogConfig> {
+  const policy = createReplayTextPolicy();
+  const sanitizeReplay = (value: unknown): unknown => {
+    const events = Array.isArray(value) ? value : [value];
+    const safe = events.map((event) => { policy.observe(event); return maskReplay(event, '', policy.allowed); });
+    return Array.isArray(value) ? safe : safe[0];
+  };
   return {
     api_host: host,
     autocapture: false,
@@ -201,12 +215,12 @@ export function posthogOptions(host: string, replay = false): Partial<PostHogCon
     enable_heatmaps: replay,
     enable_recording_console_log: false,
     session_recording: {
-      // D106: text/inputs stay masked and media stays blocked, but attributes
-      // are kept (the wire sanitizer strips the content-bearing ones) and the
-      // stylesheet/fonts inline so the recording shows the real layout.
-      maskAllInputs: true, maskTextSelector: '*', maskAllElementAttributes: false,
-      maskTextFn: () => '[masked]', maskInputFn: () => '[masked]',
-      blockSelector: 'img, video, audio, canvas, svg, iframe, object, embed, input[type="file"]',
+      // Visible by default. Explicit sensitive roots and editable/input fields
+      // are the exceptions, not a public-content or product-copy allowlist.
+      maskAllInputs: true, maskTextSelector: PRIVATE_SELECTOR, maskAllElementAttributes: false,
+      maskTextFn: replayText, maskInputFn: () => '[masked]',
+      blockSelector: 'video, audio, canvas, iframe, object, embed, input[type="file"], [data-replay-private], .ph-no-capture',
+      maskAttributeFn: replayAttribute,
       recordCrossOriginIframes: false, recordHeaders: false, recordBody: false,
       captureCanvas: { recordCanvas: false }, collectFonts: true, inlineStylesheet: true, captureJsonLd: false,
       compress_events: false,
@@ -232,7 +246,7 @@ export function posthogOptions(host: string, replay = false): Partial<PostHogCon
     ip: false,
     debug: false,
     get_current_url: () => `${location.origin}${analyticsPath(location.pathname)}`,
-    before_send: sanitizeEvent,
+    before_send: (event) => sanitizeEvent(event, sanitizeReplay),
   };
 }
 

@@ -163,7 +163,7 @@ function App() {
   return (
     <>
       <StatusBar I={I} />
-      {(() => {
+      <div data-replay-private={!credentialModes.includes(effectiveMode) ? '' : undefined} className="contents">{(() => {
         switch (effectiveMode) {
           case "contracts": return <ContractPage I={I} />;
           case "groups": return <GroupsPage I={I} />;
@@ -176,7 +176,7 @@ function App() {
           case "forgot": return <CredentialPage I={I} />;
           default: return <ContractPage I={I} />;
         }
-      })()}
+      })()}</div>
     </>
   );
 }
