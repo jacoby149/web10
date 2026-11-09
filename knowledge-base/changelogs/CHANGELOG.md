@@ -1,3 +1,6 @@
+5.13.2 || 09.11.2026
+test(social): PR #1458's registry retry exposes an actual Settings gauntlet regression: the new Appearance live region makes the page-global status locator ambiguous when “Saved.” appears. Select the exact posting-defaults confirmation while preserving the theme status, original timeout, node persistence checks and complete reload/sign-out/sign-in flow. The actual-UI browser harness replays both independent statuses with isolated writes at desktop/375px; normal CI remains required. No runtime UI, save behavior, authentication, test bypass or deployment change.
+
 5.13.1 || 09.11.2026
 fix(marketing): on operator instruction, replace “Enter web10” with “Go to web10 social” on the Home and Freedom entry CTAs, retaining the configured social destination. Add exact accessible-label/destination regressions for both pages and refresh desktop/375px light/dark captures in the actual marketing browser harness. No navigation, API, authenticator or deployment change.
 
