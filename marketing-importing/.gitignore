@@ -1,0 +1,6 @@
+# media + metadata caches and logs stay out of git; the JSON state (inventory,
+# synced, people) is the source of truth and IS committed.
+state/*/media/
+state/*/meta/
+state/*/*.log
+state/*/ig-console.log
