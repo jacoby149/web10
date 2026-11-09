@@ -46,7 +46,12 @@ comments, private playlist list/detail/share metadata and profile/saved wall
 tiles. Add visibility-derived markers at each repeat/portal and private
 collection roots; public variants stay visible. Focused component controls
 cover the comments/list/detail/share/tile branches alongside the wire tests;
-these are not full browser exploit receipts. Model-diverse convergence, broad-screen private
+these are not full browser exploit receipts. A follow-up review catches the
+group-grid caller missing that same flag and private collection membership/order
+being visible when the original songs are public. Carry the flag through the
+group caller, default unknown WallTile callers to sensitive and scope the private
+collection list rather than just its title; public-song rows and all three
+group visibility variants have dedicated controls. Model-diverse convergence, broad-screen private
 coverage, normal CI, disclosure publication and approved deployment/new hosted
 recordings remain OPEN. No production/vendor writes.
 

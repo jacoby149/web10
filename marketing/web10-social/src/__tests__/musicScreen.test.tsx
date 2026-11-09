@@ -116,13 +116,17 @@ describe('MusicScreen', () => {
 
   it.each(['private', 'public'] as const)('keeps %s playlist list/detail metadata under its replay boundary', async (visibility) => {
     vi.mocked(data.getMyCollections).mockResolvedValue([{ ...collection('replay-list', 'Replay playlist'), visibility }]);
-    vi.mocked(data.readMusicCollection).mockResolvedValue({ tracks: [], name: 'Replay playlist', skipped: 0 });
+    const song = track({ id: 'public-song', author: 'artist', title: 'Public song in a collection' });
+    song.post.visibility = 'public';
+    vi.mocked(data.readMusicCollection).mockResolvedValue({ tracks: [song], name: 'Replay playlist', skipped: 0 });
     renderScreen([], '/music?view=playlists');
     const name = await screen.findByRole('heading', { name: 'Replay playlist' });
     expect(!!name.closest('[data-replay-private]')).toBe(visibility !== 'public');
     fireEvent.click(name.closest('button')!);
     const detail = await screen.findByRole('heading', { name: 'Replay playlist' });
     expect(!!detail.closest('[data-replay-private]')).toBe(visibility !== 'public');
+    const publicSong = await screen.findByRole('button', { name: 'Play Public song in a collection' });
+    expect(!!publicSong.closest('[data-replay-private]')).toBe(visibility !== 'public');
   });
 
   it('opens a track-native URL-backed comment panel from the action sheet and returns with browser history', async () => {

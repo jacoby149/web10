@@ -1321,6 +1321,14 @@ describe('GroupDetailScreen', () => {
     expect(screen.queryByTestId('group-detail-grid')).not.toBeInTheDocument();
   });
 
+  it.each(['private', 'public', undefined] as const)('preserves post replay sensitivity at the group-grid caller (%s)', async (visibility) => {
+    vi.mocked(readGroupDetail).mockResolvedValue({ ...gridDetail, posts: [{ ...gridDetail.posts[1], body: { text: 'Grid replay caption', visibility } }] } as never);
+    await loadDetail();
+    fireEvent.click(await screen.findByTestId('profile-view-grid'));
+    const tile = await screen.findByTestId('group-grid-cell');
+    expect(tile.hasAttribute('data-replay-private')).toBe(visibility !== 'public');
+  });
+
   it('switching to the grid lens renders the 9:16 wall of tiles (the profile shape)', async () => {
     await loadGridDetail();
     fireEvent.click(screen.getByTestId('profile-view-grid'));

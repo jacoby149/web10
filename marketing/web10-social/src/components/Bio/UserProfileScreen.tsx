@@ -137,7 +137,7 @@ interface WallTileProps {
  * `<img>`. The grid is responsive — 4 across on desktop (the Instagram
  * shape), fewer as the width shrinks (explicit breakpoints).
  */
-export function WallTile({ media, testId, title, caption, postId, multiCount, replayPrivate = false, onClick }: WallTileProps) {
+export function WallTile({ media, testId, title, caption, postId, multiCount, replayPrivate = true, onClick }: WallTileProps) {
   const video = isVideo(media);
   const audio = !!media.mime_type?.startsWith('audio/');
   // The text-only tile's heading: the title (D82) when present, else the
