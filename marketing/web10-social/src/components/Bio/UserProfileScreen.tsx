@@ -39,6 +39,7 @@ import { SavedCollectionsGrid } from './SavedCollectionsGrid';
 import { textTileColor } from './textTileColor';
 import { toast, errorMessage } from '@/components/shared/Toast';
 import { cn } from '@/lib/utils';
+import { resolveSocialProvider } from '@/lib/socialProvider';
 import { requestInstallPrompt, isMobile } from '@/lib/pwa';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -253,7 +254,8 @@ export function WallTile({ media, testId, title, caption, postId, multiCount, re
   );
 }
 
-export default function UserProfileScreen({ username, provider, onBack }: UserProfileScreenProps) {
+export default function UserProfileScreen({ username, provider: requestedProvider, onBack }: UserProfileScreenProps) {
+  const provider = resolveSocialProvider(requestedProvider, getWapi().readToken()?.provider);
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
   const [posts, setPosts] = useState<PostRecord[]>([]);
   const [postsError, setPostsError] = useState(false);
@@ -437,8 +439,8 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
         // no profile picture. The query engine is anon-capable, author-scoped,
         // and returns the posts with media resolved inline + the face URLs.
         const [p, fr, pub] = await Promise.all([
-          readUserProfile(username).catch(() => null),
-          readFollow(username).catch(() => null),
+          readUserProfile(username, provider).catch(() => null),
+          readFollow(username, provider).catch(() => null),
           readUserPublicProfile(username, provider, 50, 'profile').catch((e) => {
             console.error('[social] loadData — readUserPublicProfile failed:', e);
             postsFailed = true;
