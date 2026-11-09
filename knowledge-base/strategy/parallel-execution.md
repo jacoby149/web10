@@ -262,7 +262,7 @@ PR; no production migration, deployment, timeout relaxation,
 matched-hardware capacity claim or paid execution without explicit operator
 approval.
 
-- [✓ 5.13.3 planning only] **IX2-PLAN: direction captured** — D109,
+- [✓ 5.13.4 planning only] **IX2-PLAN: direction captured** — D109,
   clickhouse.md target section, advanced-search-feed-budgets.md storage
   direction + IX2 bite row, plan.md IX2 item, this lane. No
   runtime/schema/deployment change.
