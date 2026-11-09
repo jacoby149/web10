@@ -1,0 +1,54 @@
+{
+  "kind": "REJECTED_Q02_LOCAL_DIAGNOSTIC_EXTRACT",
+  "baseline": "Q01 merged in PR #1448, 2ae3f52c9cbd601b937859a9c5cb1550919cfa8e",
+  "clickhouse": "24.8.14.39",
+  "units": {"duration": "milliseconds", "memory": "bytes", "data_read": "bytes"},
+  "unrestricted_overlap": {
+    "source_receipt_sha256": "6bd706044c8f1a64a567dd15f6dd9c4d911a560bff27c0df6944c7b19e76c1b9",
+    "fixture": {"identities": 200, "versions_per_identity": 10, "asserted_physical_document_rows": 2000, "asserted_distinct_timestamps": 10, "links_per_document": 100, "body_bytes": 257},
+    "query_limits": {"threads": 2, "memory_bytes": 536870912, "execution_seconds": 10},
+    "container_limits": {"cpus": 2, "memory_gib": 1},
+    "query": "SELECT doc_id,group_id,body FROM posts ORDER BY doc_id,group_id LIMIT 21",
+    "all_outputs_matched": true,
+    "read_rows_each_query": 22000,
+    "read_bytes_each_query": 1316899,
+    "measured_samples": [
+      {"groups": 1, "arm": "baseline", "duration_ms": [11,12,9], "memory_bytes": [1402482,1345138,1345138]},
+      {"groups": 1, "arm": "early_join", "duration_ms": [11,11,14], "memory_bytes": [2540482,2540482,2597826]},
+      {"groups": 10, "arm": "baseline", "duration_ms": [12,9,8], "memory_bytes": [1455908,1455908,1513252]},
+      {"groups": 10, "arm": "early_join", "duration_ms": [18,14,26], "memory_bytes": [20073240,23565852,20073080]},
+      {"groups": 100, "arm": "baseline", "duration_ms": [19,13,14], "memory_bytes": [10137062,6857496,6718048]},
+      {"groups": 100, "arm": "early_join", "duration_ms": [116,116,102], "memory_bytes": [227838033,234678942,248534280]}
+    ]
+  },
+  "single_group_constrained_candidate": {
+    "source_log_sha256": "a44fdbee2449f09229e0a732a6c00be1a796f9a9991a40f1dc41326db88bdc51",
+    "fixture": {"irrelevant_identities": 100000, "asserted_initial_document_history_rows": 8, "asserted_initial_attachment_history_rows": 11, "separate_version_parts": true},
+    "container_limits": {"cpus": 2, "memory_gib": 2},
+    "query_limits": {"threads": 2, "memory_bytes": 536870912, "execution_seconds": 10},
+    "native_parity_cases": 24,
+    "all_outputs_matched": true,
+    "many_group_sql_identical_to_baseline": true,
+    "measured_samples": [
+      {"shape": "sparse", "arm": "baseline", "read_rows": 200019, "read_bytes": 34078878, "duration_ms": [111,79,59], "memory_bytes": [103705164,106977157,112093772]},
+      {"shape": "sparse", "arm": "early_join", "read_rows": 200019, "read_bytes": 34078878, "duration_ms": [34,20,20], "memory_bytes": [11111700,9787526,9818805]},
+      {"shape": "public_broad", "arm": "baseline", "read_rows": 200019, "read_bytes": 36867516, "duration_ms": [45,56,85], "memory_bytes": [124160150,135410855,135353511]},
+      {"shape": "public_broad", "arm": "early_join", "read_rows": 200019, "read_bytes": 36867516, "duration_ms": [43,86,67], "memory_bytes": [121965496,122022840,114678976]},
+      {"shape": "mixed_broad", "arm": "baseline", "read_rows": 200019, "read_bytes": 36867795, "duration_ms": [63,41,62], "memory_bytes": [125431608,135222317,124028829]},
+      {"shape": "mixed_broad", "arm": "candidate_same_sql", "read_rows": 200019, "read_bytes": 36867795, "duration_ms": [34,48,47], "memory_bytes": [135222317,130548240,135222317]}
+    ],
+    "overlap_fixture": {"asserted_document_rows": 2000, "identities": 200, "distinct_timestamps": 10, "asserted_links": 20000},
+    "overlap_measured_samples": [
+      {"groups": 1, "arm": "baseline", "duration_ms": [7,8,7], "memory_bytes": [1081790,1081790,1139134]},
+      {"groups": 1, "arm": "early_join", "duration_ms": [9,8,8], "memory_bytes": [2303758,2303758,2303758]},
+      {"groups": 10, "arm": "baseline", "duration_ms": [8,8,9], "memory_bytes": [1281792,1281792,1224448]},
+      {"groups": 10, "arm": "candidate_same_sql", "duration_ms": [8,9,8], "memory_bytes": [1224448,1224448,1281792]},
+      {"groups": 100, "arm": "baseline", "duration_ms": [9,10,9], "memory_bytes": [10887736,10945080,10887736]},
+      {"groups": 100, "arm": "candidate_same_sql", "duration_ms": [10,11,11], "memory_bytes": [10945080,10945080,10887736]}
+    ]
+  },
+  "method": "Three alternating measured pairs per shape after an excluded warm-up; fixed synthetic inputs and matching outputs. Measured arrays exclude warm-ups. Local diagnostics, not an independent performance study.",
+  "disposition": "All unpublished Q02 runtime and test changes removed on operator request; no production change or Q02 promotion. Q01 remains intact.",
+  "post_1448_million_author_acceptance_run": false,
+  "scope": "Not production, full-feed/HTTP, million-author capacity, merge/churn or security assurance. Receipts are structured extracts, not a standalone executable reproduction package."
+}

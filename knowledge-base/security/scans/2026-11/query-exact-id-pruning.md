@@ -108,3 +108,8 @@ stopped merges do not certify real background merges or concurrent revocation.
 The million-author strict-concurrency gate, normal PR/CI and approved deployment
 remain OPEN. Q02 readable-link document narrowing is a separate bite. No cloud
 spend, production write, deployment or manuscript measurement occurred.
+
+PR receipt: #1448 merged to `dev` on 9 November UTC (8 November local), commit
+`2ae3f52c9cbd601b937859a9c5cb1550919cfa8e`. All thirteen checks passed, including
+four browser shards and both security checks. This closes its PR/CI gate, not
+model-diverse sign-off, production acceptance or the million-author load gate.

@@ -370,6 +370,13 @@ existing unhinted lookup instead; supported result sizes are not reduced.
 Same-engine parity and rows/bytes diagnostics precede any speedup claim; local
 synthetic evidence does not close the failed million-author concurrency gate.
 
+**Rejected experiment, not implementation (Q02).** Readable-ID semijoins and
+joining attachments before document ranking produced sparse gains but broad/
+dense regressions, including historical-version amplification with overlapping
+groups. Both unrestricted and single-group prototypes were removed; no new
+compiler flag or execution path ships. The existing ordinary read boundary and
+Q01 exact-ID preparation remain unchanged. [Findings and limits](../security/scans/2026-11/query-readable-join.md).
+
 ## Group metadata (QE-A)
 
 The engine now supports an opt-in `group_meta` boundary CTE that exposes group

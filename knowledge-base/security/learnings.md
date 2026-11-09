@@ -35,6 +35,19 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-08: Filter document windows without duplicating attachment windows
+
+Readable-ID semijoins repeat inlined attachment work; unrestricted early joins
+instead amplify document histories per readable link (reproduced 34× memory).
+One distinct group prevents replication, not all resource regressions: dense
+reads still cost more. Both prototypes are rejected and all unpublished code/
+tests removed. Native ReplacingMergeTree fixtures need separate version parts
+and physical-count assertions; stopping merges alone does not prevent
+single-insert collapse. Preserve failed resource results as well as parity
+passes. Sparse memory wins do not establish fewer physical reads, full-feed
+success or post-#1448 million-author acceptance; that run has not happened.
+[Record](scans/2026-11/query-readable-join.md).
+
 ### 2026-11-08: Exact document IDs narrow work, never canonical authority
 
 Canonical media/ad reads already request exact IDs; restricting both history
