@@ -33,12 +33,14 @@ or pick a node whose terms fit you.
 
 web10 tracks hard — PostHog on the user-facing surfaces — because it
 competes with Meta and TikTok on user experience, and their UX is the output
-of a decade of aggressive telemetry. The recording is **content-blind by
-construction** (layout and styling are reproduced, but text and inputs are
-masked, content-bearing attributes removed, and media blocked), and
+of a decade of aggressive telemetry. Optional recordings reproduce layout,
+styling, interface text and public content across Posts, Video, Shorts and
+Music, including public images. Form values, editable drafts, direct messages,
+private records and private administration are masked or blocked. Credentials
+and signed media URLs are excluded; audio/video streams are not recorded, and
 usage events are content-free. Opaque identifiers link signed-in usage and
-confirmed signup outcomes; campaign labels measure acquisition. **Content is never tracked** — posts, messages,
-media are not in the recordings, not in the events, not sold, and not fed to
+confirmed signup outcomes; campaign labels measure acquisition. Private posts,
+messages and private media are not in recordings or events. Content is not sold or fed to
 any ad machine. The only sponsors a fan sees are the creator's and the node's.
 
 ## Server ads

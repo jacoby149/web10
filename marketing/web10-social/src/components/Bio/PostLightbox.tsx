@@ -470,6 +470,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
       aria-modal="true"
       aria-label="Post"
       data-testid="post-lightbox"
+      data-replay-private={post.visibility !== 'public' ? '' : undefined}
     >
       <div
         className="relative flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-border bg-card shadow-[0_8px_30px_rgb(0_0_0/0.35)] animate-panel-in"

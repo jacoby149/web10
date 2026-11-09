@@ -278,7 +278,7 @@ function RepostedEmbed({
 
   const authorName = original.profile?.display_name || original.author_username || 'Original author';
   return (
-    <div className="mx-4 mb-3 rounded-lg border border-border bg-elevated/30 overflow-hidden" data-testid="repost-embed">
+    <div className="mx-4 mb-3 rounded-lg border border-border bg-elevated/30 overflow-hidden" data-testid="repost-embed" data-replay-private={original.visibility !== 'public' ? '' : undefined}>
       <div className="flex items-center gap-2.5 px-3 py-2.5">
         <Avatar className="h-8 w-8">
           {original.avatar_url ? (
@@ -492,6 +492,7 @@ export function PostCard({
   return (
     <article
       ref={cardRef}
+      data-replay-private={post.visibility !== 'public' ? '' : undefined}
       data-testid={testId}
       id={id}
       className={cn(

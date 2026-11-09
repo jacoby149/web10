@@ -223,6 +223,12 @@ describe('Follow button -> followUser call', () => {
 });
 
 describe('UserProfileScreen', () => {
+  it.each([true, false])('keeps profile/saved wall tile text and media under their replay boundary (%s)', async (replayPrivate) => {
+    const { WallTile } = await import('@/components/Bio/UserProfileScreen');
+    render(<WallTile media={{ url: '', created_at: '' }} testId="replay-wall-tile" title="Tile headline" caption="Tile caption" replayPrivate={replayPrivate} onClick={() => {}} />);
+    expect(screen.getByTestId('replay-wall-tile').hasAttribute('data-replay-private')).toBe(replayPrivate);
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({

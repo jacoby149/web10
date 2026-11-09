@@ -828,7 +828,7 @@ export default function WatchScreen() {
   const isOwnAuthor = !!token && author === token.username && (post.author_provider || '') === token.provider;
 
   return (
-    <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-4 py-6 md:grid-cols-[1fr_360px]">
+    <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-4 py-6 md:grid-cols-[1fr_360px]" data-replay-private={post.visibility !== 'public' ? '' : undefined}>
       {/* ── Left: the video + title + author + engagement + comments ── */}
       <div className="min-w-0 space-y-4">
         {video ? (

@@ -9,7 +9,29 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
-### D106 — Replay is layout-faithful, content-blind [decided]
+### D107 — Replay is visible by default; mask sensitive regions [decided; rollout OPEN]
+
+Operator, 09.11.2026: "posthog is still masking way more thanit should, on the
+discover things, we could see the posts that are there it is all public! and
+dont need to mask the ui buttons" (screenshot: `.context/attachments/E9we4l/image.png`).
+Follow-up: "all surfaces ... posts videos shorts music ... masked almost
+NOTHING" and "prefer masking nothing and tightening". This rejects the first
+narrow title/caption/label-allowlist draft. Normal product UI and public content
+are visible by default; no label dictionary or public opt-in marker. The short
+denylist is form values/editable drafts, DMs, private/unknown-visibility post
+records, private admin/account surfaces and credentials. Public images can be
+inlined as raster pixels without exporting their signed source URLs. SVG UI
+geometry survives; actual audio/video streams, canvas and cross-origin embeds
+remain unsupported, not claimed as recorded playback. Preserve static UI and
+public author/title/caption/count text across Posts, Video, Shorts and Music.
+Usage events remain content-free. Supersedes D56/D103/D106's blanket replay
+content exclusion. Verify snapshots and incremental updates with the pinned
+SDK and desktop/375px reconstruction; deployment and fresh hosted recordings
+remain gates. Old discarded content cannot be recovered.
+
+---
+
+### D106 — Replay is layout-faithful, content-blind [decided; text exclusion narrowed by D107]
 
 Operator, 08.11.2026 (after inspecting the first live recordings in the vendor
 UI: "session replay looks unusable it is so masked up"): a recording that

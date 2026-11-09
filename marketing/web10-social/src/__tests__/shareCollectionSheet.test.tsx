@@ -38,6 +38,12 @@ afterEach(() => {
 });
 
 describe('ShareCollectionSheet — the shared playlist link dialog', () => {
+  it.each(['private', 'public'] as const)('keeps the portaled %s collection under its own replay boundary', (visibility) => {
+    renderSheet({ visibility });
+    expect(!!screen.getByTestId('sc-url').closest('[data-replay-private]')).toBe(visibility !== 'public');
+    expect(!!screen.getByRole('heading', { name: 'Share “Jazz Nights”' }).closest('[data-replay-private]')).toBe(visibility !== 'public');
+  });
+
   it('a public playlist shows the canonical URL and a copy path (no navigator.share in jsdom)', async () => {
     const props = renderSheet();
     const sheet = screen.getByRole('dialog');

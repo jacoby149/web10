@@ -125,6 +125,7 @@ interface WallTileProps {
   /** The post's doc_id — seeds the deterministic text-tile background color. */
   postId?: string;
   multiCount?: number;
+  replayPrivate?: boolean;
   onClick: () => void;
 }
 
@@ -136,7 +137,7 @@ interface WallTileProps {
  * `<img>`. The grid is responsive — 4 across on desktop (the Instagram
  * shape), fewer as the width shrinks (explicit breakpoints).
  */
-export function WallTile({ media, testId, title, caption, postId, multiCount, onClick }: WallTileProps) {
+export function WallTile({ media, testId, title, caption, postId, multiCount, replayPrivate = true, onClick }: WallTileProps) {
   const video = isVideo(media);
   const audio = !!media.mime_type?.startsWith('audio/');
   // The text-only tile's heading: the title (D82) when present, else the
@@ -148,6 +149,7 @@ export function WallTile({ media, testId, title, caption, postId, multiCount, on
       tabIndex={0}
       aria-label={heading ? `View ${heading}` : 'View post'}
       data-testid={testId}
+      data-replay-private={replayPrivate ? '' : undefined}
       onClick={onClick}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -1157,6 +1159,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                     key={post._id}
                     media={firstMedia ?? { _id: post._id, url: '', created_at: '' }}
                     testId="profile-post-cell"
+                    replayPrivate={post.visibility !== 'public'}
                     title={post.title}
                     caption={post.text}
                     postId={post._id}
@@ -1184,6 +1187,7 @@ export default function UserProfileScreen({ username, provider, onBack }: UserPr
                     key={mediaRefId(ref)}
                     media={media}
                     testId="profile-media-cell"
+                    replayPrivate={post.visibility !== 'public'}
                     title={post.title}
                     caption={post.text}
                     postId={post._id}

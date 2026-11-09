@@ -1306,8 +1306,11 @@ Full-platform telemetry: D103 selects **PostHog only**. On explicit follow-up
 instruction, merged 5.0.0 removes GA4/Hotjar runtime/config/build wiring and adds
 identity, signed source handoff, durable signup outcomes, report provisioning
 and optional masked replay/heatmaps. Do not claim live-vendor or rollout
-acceptance from local receipts. D56's content-free usage and content-blind
-recording rules remain. The trade is terms-level, not a consent popup.
+acceptance from local receipts. D56's content-free usage remains; D107 replaces
+blanket replay exclusion with visible-by-default public content/UI and explicit
+sensitive regions. Inputs/private text/credentials stay out; readable loaded
+image pixels may be copied, never signed source URLs. The trade is terms-level,
+not a consent popup.
 The KB is the spec — read `knowledge-base/web10-v3/telemetry.md` and
 `posthog-migration.md` first. Historical completion entries below describe the
 old implementation, not the new target.
@@ -1323,6 +1326,8 @@ old implementation, not the new target.
 - [✓ 5.0.0 local copy; publication/review OPEN] Terms/Privacy telemetry disclosure exists and now names PostHog, opaque account measurement and optional masked recording. Not production publication or legal approval.
 
 #### PostHog-only migration (five-influencer pilot is the first campaign)
+
+- [✓ 5.9.8 local; release OPEN] **D107: visible-by-default replay, mask sensitive regions** — no product-label/public-content allowlist. Public Posts/Video/Shorts/Music text, SVG geometry and readable loaded image pixels survive; DMs/private records/drafts/admin and form values remain excluded. SDK/rrweb wire policy cover snapshots and incremental text/attributes. Signed URLs, audio/video streams/canvas/iframes stay out. CORS/unloaded images, broad real-screen coverage, independent/model-diverse review, CI and approved deployment/fresh hosted recordings remain OPEN.
 
 - [✓ 5.9.4 local; release OPEN] **Repair blank PostHog replay** — restore route-templated Meta/viewport callbacks, parsed CSS and structural stylesheet/media attributes in the shared adapter. Original-HEAD controls and actual intercepted SDK playback cover desktop/375px on all three adapters; the live social/marketing bundles still contain the old callback. Content/credential sentinels stay out. Not vendor-hosted playback or deployment; P1–P6 remain OPEN.
 

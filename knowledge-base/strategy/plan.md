@@ -37,6 +37,8 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
+- [✓ 5.9.8 local; release OPEN] **D107: visible-by-default replay, mask sensitive regions** — operator rejects mask-everything-then-allowlist. Normal UI/public Posts/Video/Shorts/Music text, SVG geometry and readable loaded image pixels survive; explicit sensitive roots/form values remain masked. Signed URLs/audio/video streams/canvas/iframes stay excluded. SDK plus ID-aware wire policy cover incremental updates/privacy changes; disclosures aligned. CORS/unloaded images and broad real-screen coverage remain limits; review/CI/deployment/fresh vendor recordings remain gates.
+
 - [✓ 5.9.4 local; release OPEN] **Repair blank PostHog replay** — restore route-templated Meta/viewport callbacks, parsed CSS and structural stylesheet/media attributes in the shared adapter. Original-HEAD controls and actual intercepted SDK playback cover desktop/375px on all three adapters; the live social/marketing bundles still contain the old callback. Content/credential sentinels stay out. Not vendor-hosted playback or deployment; P1–P6 remain OPEN.
 
 - [~] **FM3 source management — add/remove servers** — current candidate preserves the approved rack with URL-owned Edit servers/Done and a private catalog. Saving an origin alone never permits credential forwarding; explicit current-credential destination approval does. Real query quotas and shared controls now target Following, Shorts, Music and marketing content boards. Source-owned full actions/consent, connected-node acceptance, split-sized PRs and CI remain gates; see `server-mixer-component.md` and `federated-feed-mixer.md`. Do not mark full FM2–FM6 complete from local tests.
