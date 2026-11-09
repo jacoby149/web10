@@ -50,6 +50,13 @@ says what can happen **at the same time**.
 
 ## Lanes
 
+### Lane: social-appearance
+
+**Owns:** social startup, appearance store/hook, Settings/public Appearance route and chrome entry points, CSS tokens/media scopes, focused tests and screenshot fixtures; serialized design/decision/plan/changelog records. No API, SDK, marketing-site or authenticator changes.
+- [✓ 5.11.1 local] **Name the social entry CTA** — “Go to web10 social” on Home and Freedom instead of “Enter web10”, retaining the configured social destination. Owns those two marketing labels, focused label/href regressions and updated browser captures; no behavior or deployment change.
+- [✓ 5.11.0 local] **Marketing appearance and theme-aware brand artwork (D108 follow-up)** — operator extends this lane to `marketing/marketing-ui/` startup/hook, Appearance route/navigation, palettes, logo variants and focused tests/screenshots; `marketing/shared/appearance/` pure store and corresponding social store/artwork wiring. Implemented origin-local system/override/OS/tab/startup behavior and transparent dark-on-light/white-on-dark artwork. All 360 marketing/2,349 social tests and both builds pass; actual Chromium desktop/375px navigation/keyboard/theme/brand captures, decoded PNG alpha/size, AA and 768/1280 responsive checks pass. No authenticator/API/SDK, cross-origin preference transport or deployment. Review/CI/rollout and physical-phone/Safari remain separate gates.
+- [✓ 5.10.0 local] **Social system/light/dark appearance (D108)** — device-default and remembered overrides, live OS/cross-tab changes, blocking pre-React startup, native/browser chrome, keyboard-accessible public and signed-in controls, light/dark palettes with dark media islands. Fourteen focused controls and social suite/build pass. Chromium checks keyboard radios, OS/override/reload/two-tab behavior, signed-out entry points, actual light-token AA and responsive bounds at desktop/375px plus 768/1280; light/dark screenshots inspected. Synthetic data is not live-node/physical-phone/Safari evidence. Normal review/PR checks and approved deployment remain separate gates.
+
 ### Lane: node-config-usability
 
 **Owns:** `ui/src/components/Config/`, shared secret input and focused tests; operator-approved D105 integration extends this bite to SetupWizard contact/secret fields, App recovery entry, Interface/ForgotForm link exchange, `api/app/{endpoints,services}/contact*`, settings/dependency declaration and recovery/Twilio delivery seams. Coordinate broader contact-auth changes; no production configuration, proxy/Compose ownership, provider accounts or credentials.
