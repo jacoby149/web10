@@ -3124,7 +3124,7 @@ half-life changes nothing for that preset. The node's `PowerMeanSort`
 contract is unchanged (`half_life_ms` is still sent, now always 1 day); the
 server-side `_power_mean_score` / `_power_mean_score_sql` are untouched.
 
-**Amendment (09.11.2026, 5.10.1):** operator: "in the feed tuner, recency
+**Amendment (09.11.2026, 5.13.2):** operator: "in the feed tuner, recency
 needs to be much more potent … when i crank it up and have likes and comments
 just a little bit it gets dominated by likes and comments. when recency is
 cranked up, should prioritize things from today, even the last hour." The
