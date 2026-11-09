@@ -121,6 +121,16 @@ const screen = params.get('screen');
 // Anon mode (?anon=1): a signed-out visitor. The chrome is the anon shell
 // (Sign in affordance + public-only nav) and the default surface is Discover.
 const anon = params.get('anon') === '1';
+// The Discover board's URL-owned tuner state (?tune=1 expands the knob rack;
+// ?knobs=r,l,c,hl,ch deep-links the knob detents) — forwarded into the
+// router URL so captures can show the rack in a specific state.
+const discoverTunerParams = () =>
+  [params.get('tune') ? `tune=${params.get('tune')}` : null,
+    params.get('knobs') ? `knobs=${params.get('knobs')}` : null]
+    .filter(Boolean)
+    .join('&');
+const discoverUrl = (base: string) =>
+  discoverTunerParams() ? `${base}?${discoverTunerParams()}` : base;
 // The install-prompt capture: render over Shorts and force the surface open
 // (?pwa-prompt=1) so the shot shows the real card without a live beforeinstallprompt.
 if (screen === 'install-prompt') {
@@ -144,7 +154,7 @@ if (screen === 'post-detail' || screen === 'group-post-detail') {
     : screen === 'upload-browse' ? '/feed'
       : screen === 'notifications' ? '/notifications'
       : screen === 'notifications-all' ? '/notifications?filter=all'
-      : screen === 'discover' ? '/discover'
+      : screen === 'discover' ? discoverUrl('/discover')
       : screen === 'video' ? '/video'
       : screen === 'music' ? '/music'
       : screen === 'music-saved' ? '/music?view=saved'

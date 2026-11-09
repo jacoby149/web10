@@ -50,7 +50,10 @@ class PowerMeanSort(BaseModel):
     The same knobs the marketing /trending knob rack and the social app's
     DiscoverScreen hold client-side (marketing-ui/src/lib/powerMean.ts), sent
     to the node so ClickHouse does the ranking and returns pre-sorted results.
-    Weights are 0..1 (0 = that signal is ignored); half_life_ms is the recency
+    Weights are non-negative floats (0 = that signal is ignored); the app's
+    detent scale maps likes/comments to 0..1 and recency to 0..8 (the steeper
+    curve makes a cranked Recency outweigh a little engagement — the node
+    consumes whatever it is sent, D60-generic). half_life_ms is the recency
     decay half-life (0 = all time, no decay); character is the power-mean
     exponent p (negative = strict, 0 = geometric, positive = loose).
     """

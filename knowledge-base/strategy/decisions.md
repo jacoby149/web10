@@ -3106,6 +3106,35 @@ half-life changes nothing for that preset. The node's `PowerMeanSort`
 contract is unchanged (`half_life_ms` is still sent, now always 1 day); the
 server-side `_power_mean_score` / `_power_mean_score_sql` are untouched.
 
+**Amendment (09.11.2026, 5.10.1):** operator: "in the feed tuner, recency
+needs to be much more potent … when i crank it up and have likes and comments
+just a little bit it gets dominated by likes and comments. when recency is
+cranked up, should prioritize things from today, even the last hour." The
+complaint was the math, not the UI: in the weighted geometric mean the
+weights are RELATIVE, and a dead weighted signal was floored at 1e-12 —
+ln(1e-12) ≈ 27.6 log points, a near-veto — so a fresh zero-engagement post
+lost to an old post with a little engagement at ANY recency weight, and the
+top recency detent (1.0) was only half the default log-score share anyway
+(likes 0.6 + comments 0.4). Two changes, in all five copies of the shared
+ranking math (both `powerMean.ts` apps, the shared `feedQuery.ts` detent map +
+SQL mirror, the social D73 `feed.ts` SQL mirror, the node's
+`_power_mean_score` / `_power_mean_score_sql`): **(1) the Recency detents run
+their own steeper scale `[0, 0.5, 1, 2, 4, 8]`** (`RECENCY_WEIGHTS`) — each
+step doubles recency's pull; the top detent (8.0) outweighs likes + comments
+at their combined max (2.0) four-fold, so a cranked Recency prioritizes
+today's posts over a little engagement on older ones, while at the low
+detents genuinely viral old posts still win (the knob keeps resolution across
+its range; the rack's Recency readout shows that knob's own scale).
+**(2) the dead-signal floor is 0.05** (`SIGNAL_FLOOR`), not 1e-12 — a zeroed
+weighted signal costs ln(0.05) ≈ 3 log points instead of 27.6: it still ranks
+below a real signal, without annihilating the post. Unchanged: detent
+indices (0..5), the four presets, `?knobs=` / `#mix=` / persisted-settings
+shapes, the fixed 1-day half-life, p = 0, and the node's `PowerMeanSort`
+contract (the node consumes whatever non-negative weights it is sent — D60:
+the app owns the tuning). The Balanced default is now recency-forward
+(recency 2.0 vs likes 0.6 / comments 0.4) — today's posts lead the default
+feed.
+
 ### D35 — Public media is a COLLECTION (`public_media`), not a flag or a blanket whitelist [decided]
 Cross-user media reads are dead today: the `media` service ships with no read
 whitelist (web10-social serviceTerms.ts — owner-only), and both
