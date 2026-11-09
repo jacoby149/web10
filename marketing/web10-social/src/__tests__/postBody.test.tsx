@@ -151,6 +151,8 @@ describe('PostBody (D85 read side)', () => {
 // ── The link unfurl (the read-side card / player, KB: link-unfurl.md) ──────
 describe('PostBody — the link unfurl', () => {
   it('renders the spotify provider player WITHOUT a click (the chrome, then the iframe on view)', async () => {
+    // Headroom past the 5s default: under CI runner load the fetch-unfurl
+    // microtasks + the observer fire can exceed it (the 5.9.9 class).
     fetchUnfurlMock.mockImplementation(async () => SPOTIFY_CARD);
     const { container } = render(<PostBody text="New drop: https://open.spotify.com/track/0VjIjW4GlUZAMYd2vXMi3b" density="full" />);
     // While loading: the plain link of today (the unfurl never blocks the text).
@@ -172,7 +174,7 @@ describe('PostBody — the link unfurl', () => {
     // music post).
     expect(screen.queryByTestId('unfurl-player-placeholder')).toBeNull();
     expect(screen.queryByRole('button', { name: /Play from spotify\.com/ })).toBeNull();
-  });
+  }, 15_000);
 
   it('shows the provider-identity chrome (the title + the provider domain, no play button) until the embed scrolls into view', async () => {
     // A never-firing IntersectionObserver: the chrome stays, the iframe waits.

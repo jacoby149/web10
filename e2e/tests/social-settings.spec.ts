@@ -261,7 +261,10 @@ test.describe('Social settings gauntlet — real flow + log sequence', () => {
 
     // --- Change the setting ---
     await page.locator('[data-testid="settings-visibility-private"]').click();
-    await expect(page.getByRole('status')).toHaveText('Saved.', { timeout: 20000 });
+    // The Appearance section (#1458) renders its own permanent role="status"
+    // line — scope to the settings save feedback by accessible name, not the
+    // bare role (the bare role is a strict-mode violation now).
+    await expect(page.getByRole('status', { name: 'Saved.' })).toHaveText('Saved.', { timeout: 20000 });
     await expect(page.locator('[data-testid="settings-visibility-private"]')).toHaveClass(/bg-brand-muted/);
 
     // Node-level check: the doc exists with the new value.

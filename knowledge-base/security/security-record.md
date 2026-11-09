@@ -15,6 +15,27 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Feed ranking constants (09.11.2026) — L1 bounded review, behavior-only
+
+5.13.2 changed the power-mean score constants in `clickhouse.py`
+(`_power_mean_score` / `_power_mean_score_sql`): the dead-signal floor is
+1e-12 → 0.05, and the app's recency detents now resolve to weights 0..8
+(client-side mapping — the node just consumes the sort config it is sent).
+No trust-surface change: the score expression only orders rows the existing
+group/visibility anti-joins already authorized (the I3 boundary is the same
+SQL with the same params — the weights are request floats the node accepted
+before), no new endpoint/table/field/credential, and no read-path
+authorization or logging change. L1 review of the two changed functions +
+the `PowerMeanSort` docstring: `_power_mean_score_sql` keeps its weights as
+bound parameters (`%(wr)s`/`%(wl)s`/`%(wc)s`/`%(hl)s`/`%(p)s` — no
+interpolation); the D73 client-side SQL mirrors inline only finite numbers
+through the pre-existing `FeedRanking` validation (`buildFeedQuery` throws
+on any non-number/NaN/Infinity field). Evidence: two new API unit pins (the
+0.05 floor value; the cranked-recency ordering) + all 160
+`test_v3_endpoints.py` green; the client math pins in both apps. This row is
+coverage recording for a behavior change, not a finding disposition; the
+read path's existing L1–L4 gaps are unchanged.
+
 ## D107 visible-by-default replay (09.11.2026) — bounded review, OPEN
 
 Operator-approved public/UI text and readable image pixels replace blanket
