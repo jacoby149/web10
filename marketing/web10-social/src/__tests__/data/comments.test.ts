@@ -15,6 +15,7 @@ function mockV3Client() {
     delete: vi.fn(),
     query: vi.fn().mockResolvedValue({ rows: [], count: 0 }),
     getMyGroups: vi.fn(),
+    getGroup: vi.fn(),
   };
   vi.spyOn(v3, 'getV3Client').mockReturnValue(mock as any);
   return mock;
@@ -230,6 +231,48 @@ describe('comments v3 data layer (the Facebook model, comments.md)', () => {
         expect.anything(),
         expect.objectContaining({ ref_value: 'p1' }),
       );
+    });
+
+    it('the reader\'s own fresh comment comes back Edit/Delete-capable (the thread inserts it optimistically, no refetch)', async () => {
+      const { createThreadComment } = await import('../../data/comments');
+      // the token is alice; the created doc's author_key is alice (v3 bare key)
+      mock.create.mockResolvedValue({ doc_id: 'cm1', author_key: 'alice', body: { post_id: 'p1', text: 'top' }, ref_value: 'p1' });
+      const created = await createThreadComment({ postId: 'p1', text: 'top', groups: ['me'] });
+      // the optimistic-insert node must carry the same affordances enrichLikes
+      // resolves on the read path — without them the shared thread renders it
+      // read-only (no Edit/Delete) until a refetch
+      expect(created).toMatchObject({ _id: 'cm1', isOwn: true, canEdit: true, canDelete: true });
+    });
+
+    it('a fresh comment authored by someone else comes back read-only', async () => {
+      const { createThreadComment } = await import('../../data/comments');
+      mock.create.mockResolvedValue({ doc_id: 'cm1', author_key: 'bob', body: { post_id: 'p1', text: 'top' }, ref_value: 'p1' });
+      const created = await createThreadComment({ postId: 'p1', text: 'top', groups: ['me'] });
+      expect(created).toMatchObject({ isOwn: false, canEdit: false, canDelete: false });
+    });
+
+    it('a comment posted under a group acting identity carries the group role\'s comments grants', async () => {
+      const { createThreadComment } = await import('../../data/comments');
+      const group = 'web10.app/groups/web10/my-group';
+      mock.create.mockResolvedValue({ doc_id: 'cm1', author_key: group, posted_by: 'alice', body: { post_id: 'p1', text: 'as the group' }, ref_value: 'p1' });
+      mock.getGroup.mockResolvedValue({
+        group_id: group,
+        roles: [{ name: 'editor', permissions: { comments: ['updateOwn'] } }],
+      });
+      mock.getMyGroups.mockResolvedValue([{ group_id: group, my_role: 'editor' }]);
+      const created = await createThreadComment({ postId: 'p1', text: 'as the group', groups: ['me'], identity: group });
+      // updateOwn present, deleteOwn absent → edit-only affordances
+      expect(created).toMatchObject({ isOwn: true, canEdit: true, canDelete: false });
+    });
+
+    it('a failed group authority read denies the affordances but still returns the created comment', async () => {
+      const { createThreadComment } = await import('../../data/comments');
+      const group = 'web10.app/groups/web10/my-group';
+      mock.create.mockResolvedValue({ doc_id: 'cm1', author_key: group, body: { post_id: 'p1', text: 'as the group' }, ref_value: 'p1' });
+      mock.getGroup.mockRejectedValue(new Error('boom'));
+      const created = await createThreadComment({ postId: 'p1', text: 'as the group', groups: ['me'], identity: group });
+      expect(created._id).toBe('cm1');
+      expect(created).toMatchObject({ isOwn: false, canEdit: false, canDelete: false });
     });
   });
 
