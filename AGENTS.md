@@ -76,6 +76,9 @@ The tour, in this order:
 1. **Top-level folders** — `api/` (FastAPI node: data, auth, billing,
    media; `api/rtc/` WebRTC), `ui/` (React admin/consent UI), `sdk/`
    (wapi.js), `marketing/` (web10-social killer app, marketing-ui site),
+   `marketing-importing/` (OPS: the headless creator-import pipeline —
+    `web10identify` / `web10import` / `web10accountsync`; its README is
+    the "how we do it"),
     `knowledge-base/` (the web10 brain — below),
     `ai-pack/` (the AI method cartridge — below),
      `ubuntu-deployment/` (server deploy), `e2e/` + `scripts/` (tests +
