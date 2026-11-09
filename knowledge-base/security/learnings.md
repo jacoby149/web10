@@ -35,6 +35,26 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-09: Component wins need source-matched acceptance and workload labels
+
+Q01 #1448's local exact-ID gains do not clear actual-host acceptance: the unchanged
+source restores the million-author dispersed fixture but fails two of four
+measured feeds on ten-second SQL timeouts. Preserve failed requests and native
+metrics alongside seven before/after lifecycle controls; correctness/correlation
+can pass while strict acceptance fails. K=1,000 is a heavy-follow stress case,
+not an empirical average. K=20 needs its own labelled recipe/acceptance, not a
+silent relabelling or a promised pass while broad scans remain.
+
+Temporary infrastructure also needs irreversible cleanup admission: a reviewed
+pre-execution controller race could report empty before an in-flight creation
+returned. Child-inherited fencing and durable uncertain-operation settling pass
+three offline replays before apply. This is an operational helper finding, not
+a production auth exploit or full security PASS. Watchdog/backup verification,
+exact ownership selectors and independent empty-resource checks retain the
+approved $5/two-hour scope; total controller/network/provider loss is not a
+provider-enforced billing guarantee. Receipt:
+`research/experiments/costfn/evidence/Q01-PREFLIGHT-20261109.md`.
+
 ### 2026-11-09: Replay masking must preserve the recorder's structural protocol
 
 The pinned PostHog SDK uses its network-mask callback for Meta URLs as well as

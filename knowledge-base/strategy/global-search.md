@@ -37,6 +37,24 @@ expanded field, focus → dropdown, X clears the query, the typed query
 persists) is unchanged. Everything below is the
 historical record; the current desktop home is the **top bar**.
 
+**09.11.2026 planning amendment — advanced filters + bounded browsing:** S1–S10
+are reused, not redone. The operator supplies a grouped search-filter reference
+and requests an explicit deep-search path for older material, alongside measured
+fast-feed candidate budgets. Current previews filter small loaded pools; no
+advanced date/duration/author/engagement filter UI or deep-search execution budget
+is claimed shipped. Contract, proposals, current index/JSON limitations, owners
+and AS1/AS2/FB1/IX1/AS3 gates:
+[advanced-search-feed-budgets.md](advanced-search-feed-budgets.md). Older references
+here to a node multi-entity endpoint are historical proposals, not authorization
+for app-specific API surface; new node capabilities must pass D60.
+
+Follow-up direction: normal Discover explicitly covers one month, with its
+ranking knobs still active inside that window; older content is reachable via
+explicit potentially slower Advanced mode. Date-range/index feasibility is the
+first storage priority, before eventual generic JSON-path indexing. Reads take
+priority over minimizing writes/storage. Exact cutoff/cursor details and any
+100k candidate cap still need definition; nothing is implemented by this doc.
+
 > **The shape (operator, 18.09.2026):** "maybe good to have an everything
 > search on the topbar, people groups, everything. AND have people tab in
 > discover and if dropdown you hit see more people results it shoots you to

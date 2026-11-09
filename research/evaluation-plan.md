@@ -1,5 +1,16 @@
 # Evaluation Plan - web10 Paper
 
+> **9 November result and follow-up scope:** the source-matched #1448 actual-host
+> rerun restores the frozen million-author input but fails strict acceptance on
+> two of four measured feeds; all test resources are deleted. See
+> [the dated receipt](experiments/costfn/evidence/Q01-PREFLIGHT-20261109.md).
+> K=1,000 is a heavy-follow case, not an observed average. Date-bounded recent
+> Discover is a separately labelled hypothesis/workload, not a successful rerun
+> of the January fixture. The operator's planned
+> [shared typed-index architecture/follow-up research](shared-typed-indexes-follow-up.md)
+> is separate from this manuscript: no rearchitecture, new measurements, novelty
+> claim or new paper submission is implied by the plan.
+
 > **7 November preparation follow-up:** the operator authorizes fixing the study
 > tooling, generating separately frozen V2 hot/dispersed relational inputs, local
 > functional acceptance and publication to the exact approved web10 MinIO prefix.
