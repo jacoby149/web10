@@ -9,6 +9,79 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D109 — Documents get a server-assigned integer version; storage target is per-service layout; node release stamp on rows rejected [decided]
+
+Operator, 09.11.2026 — after reviewing the date-projection experiment
+(branch `jacoby149/hello-chat-v3`, PR 1464, deemed failed as a merge
+vehicle; the receipts remain on that branch): "really great optimization
+idea that i didnt want to lose", "we need to take this to the next level",
+"we should probably give the docs version numbers, on all services now"; on
+the proposed node release stamp on every row: "forget this stamp i said,
+doesnt make sense".
+
+**Decided (direction; unimplemented — no runtime, schema or deployment
+change ships with this decision):**
+
+1. **Integer `version`, server-assigned per `(author_key, doc_id)`,
+   strictly increasing from 1, becomes the engine version key:**
+   `ReplacingMergeTree(version)` on `documents` replaces
+   `ReplacingMergeTree(updated_at)`. Today's "version" is the millisecond
+   wall clock: two writes to one document in the same millisecond are a
+   merge-time coin flip (the code notes it: "dedups by updated_at, so a
+   second-precision timestamp can lose the tie"), and "latest" is a
+   `row_number() OVER (... ORDER BY updated_at DESC)` ranked scan on every
+   read — the profile join in every feed query pays it per row. The integer
+   makes last-write-wins exact, makes "latest" a `max(version)` +
+   primary-key point read, makes tombstones an ordered version (retiring
+   the "deletion wins timestamp ties" convention from load-bearing status)
+   and gives updates a CAS surface (the client asserts the version it read;
+   the server rejects stale).
+2. **Per-service physical layout is the committed storage target:** each
+   application's own `collection_name` label routes its documents to that
+   service's table, sort-keyed for how that type is read (default
+   author-leading time order for feed shapes; `ref_value`-leading for
+   engagement count shapes). The query compiler rewrites
+   `FROM documents WHERE collection_name = 'x'` to the service table
+   transparently; app SQL and the SDK are unchanged. D60 intact — the node
+   hardcodes no app concept: the routing key is the string the app already
+   wrote, and any read-order hint is app-declared at service registration,
+   node-applied physically. One table forcing one physical shape on every
+   app that will ever exist is the problem being solved, not the invariant
+   being kept.
+3. **Node release version stamp (5.x.x) on every document row: rejected.**
+   Derivable from `created_at` + deploy history; goes stale exactly when it
+   matters (rolling deploy mid-write); local trivia on foreign rows in a
+   federated world (the row carries the home node's build, not this
+   node's); semver strings are lexicographically unsortable. Time questions
+   are `created_at`'s job — the envelope gains one column, not two.
+
+**Open (sequenced as IX2 lane items; not decided here):** the backfill
+ranking rule for existing history (deterministic total order,
+receipt-pinned), the per-service sort-key default + read-order hint
+contract, table lifecycle (on-demand DDL for arbitrary service strings,
+escaping, drop/retention), I3 re-assertion per table, and the
+matched-hardware question for fleet-capacity claims.
+
+**Evidence base (unmerged branch — cited with provenance, not as merged
+evidence):** the 09.11 projection experiment on disposable ClickHouse 24.8
+measured ~70× physical-read reduction on old-heavy clustered input
+(381 MB → 5.3 MB; query memory ~1.1 GB → ~19 MB), the win vanishing on
+mixed/dense blocks, all-recent input negative, and the 1M-author local
+strict traffic failing 4/4 measured feeds at the unchanged 10 s SQL
+deadline (6× native code-159, no memory exception); both approved cloud
+attempts were SSH-blocked pre-workload (combined compute cap $0.256). The
+two-claim rule: per-request cost (bytes read per feed request on frozen
+input, hardware-independent) and fleet capacity (matched silicon only) are
+separate claims and are never conflated — Q01-VERIFY's 2/4 at ~36M rows per
+read is the standing counter-example. Schema target + migration outline:
+`web10-v3/db/clickhouse.md` "Document versioning + per-service layout
+(target)". Direction + acceptance metric:
+`strategy/advanced-search-feed-budgets.md` storage direction. Receipts:
+`research/experiments/costfn/DATE-RESULTS.md`, `MATCHED-DATES.md` on the
+branch named above.
+
+---
+
 ### D108 — Social follows device appearance, with explicit light/dark choices [decided]
 
 **09.11.2026 — operator:** “lets build that whole system please!” after
