@@ -206,15 +206,15 @@ def trial(study, cell, slot, layout, treatment, mode, kind, trial_no, seed, log)
         if kind == "sample":
             driver = outdir / "sample_driver.py"
             driver.write_text(f'''
-import json, sys
+import asyncio, json, sys
 from pathlib import Path
 sys.path.insert(0, r"{HERE}")
 import load_core
-manifest = json.loads(Path(r"{input_dir(slot)}").read_text() if False else (Path(r"{input_dir(slot)}/manifest.json")).read_text())
+manifest = json.loads((Path(r"{input_dir(slot)}") / "manifest.json").read_text())
 outdir = Path(r"{outdir}/run"); outdir.mkdir(parents=True, exist_ok=True)
-result = load_core.run_point("http://127.0.0.1:{PORT}", manifest, {SAMPLE['users']}, {SAMPLE['interval']},
-                             {SAMPLE['warmup']}, {SAMPLE['duration']}, {SAMPLE['drain']}, outdir,
-                             reader_indices=[{reader_index}])
+result = asyncio.run(load_core.run_point("http://127.0.0.1:{PORT}", manifest, {SAMPLE['users']}, {SAMPLE['interval']},
+                                         {SAMPLE['warmup']}, {SAMPLE['duration']}, {SAMPLE['drain']}, outdir,
+                                         reader_indices=[{reader_index}]))
 (outdir / "summary.json").write_text(json.dumps(result, indent=2))
 print(json.dumps({{"measured_completed": result["counts"].get("measured:completed", 0),
                    "measured_failed": result["counts"].get("measured:failed", 0),
@@ -222,8 +222,13 @@ print(json.dumps({{"measured_completed": result["counts"].get("measured:complete
 ''')
             proc = subprocess.run([sys.executable, str(driver)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                   timeout=3600, cwd=str(HERE))
-            sample_out = proc.stdout.decode().strip().splitlines()[-1]
-            record["sample"] = json.loads(sample_out) if sample_out else {}
+            (outdir / "driver.out").write_text(proc.stdout.decode(errors="replace"))
+            sample_out = proc.stdout.decode().strip().splitlines()[-1] if proc.stdout else ""
+            try:
+                record["sample"] = json.loads(sample_out) if sample_out else {}
+            except json.JSONDecodeError:
+                record["sample"] = {}
+                record["driver_output_tail"] = proc.stdout.decode(errors="replace")[-1500:]
             record["sample_rc"] = proc.returncode
         else:  # paired
             run_cmd([sys.executable, str(HERE / "paired_trial.py"), str(input_dir(slot)),
