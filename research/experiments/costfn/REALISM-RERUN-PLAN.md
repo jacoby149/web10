@@ -362,6 +362,37 @@ No claim that the satellite solves incremental indexing, that views
   are named as scope, §10.2).
 No research-treatment number presented as a production-endpoint
   number.
+
+10.4 The media scope boundary — pending v7 addition (Jacob, Nov 10)
+Not yet in the draft; add to v7 in two places, plain language only (a scope
+statement, not a pitch; no "byte delivery" / "payloads" / "delegated" wording).
+- Methods / evaluation scope (one short paragraph): "Media files live in MinIO
+  and are not part of the measurements. In practice, most requests for those
+  files never reach MinIO at all — a CDN in front of it serves them. Posts
+  referencing media are in the measurements, as documents." BEFORE stating the
+  CDN sentence as fact, check it against the production / deployment record; if
+  the CDN is the deployment pattern rather than a verified current fact, phrase
+  it conditionally ("in a production deployment, …"). If space is tight
+  (12-page body), shorten to: "Media files live in MinIO and are not part of
+  the measurements. Posts referencing them are, as documents."
+- Limitations / Future Work (one sentence): "Serving media at scale — object
+  storage plus a CDN, and what that costs a node operator — is a separate
+  question from the document queries studied here, and a subject for follow-up
+  work." (A follow-up direction only; not work already done or measured.)
+- Why: media is a different axis from the document layer this paper measures
+  (finding / ordering / authorizing posts in the canonical documents store).
+  Files live in MinIO (an ordinary S3 store); benchmarking them would measure
+  MinIO, not web10. A CDN in front serves most real-world file requests. Posts
+  that reference media ARE in the measurements (as documents pointing to
+  files); their file size does not change the document query.
+- Do NOT: add photo/video files to the dataset or benchmarks; benchmark MinIO
+  or any CDN; claim any media-serving performance/cost/capacity number; change
+  any existing measurement, table, or result; reintroduce pitch-style language.
+- Done when: both placements are in v7 in plain language; the CDN sentence
+  matches what the production/deployment record supports (conditional if
+  unverified); the paper still fits 12 pages. No measurement/dataset/result was
+  changed by this.
+
 11. Dataset release — "web10-social-1m" (operator direction, Nov 10)
 The paper frames the evaluation store as a released dataset, not a
 private fixture — the closest available substitute for the canonical
