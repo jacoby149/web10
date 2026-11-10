@@ -439,6 +439,16 @@ manuscript that doesn't trace to a raw record in one step. No CMT upload or
 submission without Jacob's explicit go-ahead. Internal freeze Nov 20, 2026;
 deadline Nov 24, 2026 11:59pm AoE.
 
+> **Cloud exception (operator direction, 10.11.2026):** the realism rerun
+> (`REALISM-RERUN-PLAN.md` §12) runs on **DigitalOcean droplets, in parallel,
+> with a generate-once -> S3/MinIO -> pull-per-droplet store import**. This
+> reverses the local-only constraint *for the rerun only*; the base-only
+> receipts above stay local, labelled, and superseded for citation. The
+> droplet size + CH cap + S3 store seed are declared in every rerun receipt.
+> The Nov 6-9 cloud failures (SSH-blocks, tier 422s, 3-host ceremony) are the
+> stated anti-pattern: independent droplets + S3 pull + the standard
+> `research.compose.yml`, no cluster.
+
 ## 9. Superseded (record, so it isn't repeated)
 
 - **The 30-point H/S × 1k/3k/5k/10k/20k × three-trial offered-load matrix**
