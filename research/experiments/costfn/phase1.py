@@ -158,18 +158,21 @@ def restart_api(project, treatment, mode):
 
 
 def native_breakdown(project, outdir, since_epoch):
+    # f-string, never %-formatting: the LIKE patterns contain literal '%'.
     query = (
-        "SELECT CASE WHEN query LIKE '%CASE d.author_key%' THEN 'main-treated' "
-        "WHEN query LIKE 'WITH%' AND query LIKE '%ref_value IN (%' THEN 'followup-treated' "
-        "WHEN query LIKE '%node_ad%' THEN 'ad-inventory' "
-        "WHEN query LIKE 'WITH%' AND query LIKE '%group_id IN (%' THEN 'followup-armA' "
-        "WHEN query LIKE 'WITH%' THEN 'main-armA' "
-        "WHEN query LIKE '%groups/list%' THEN 'group-meta' ELSE 'other' END AS shape, "
-        "count() AS n, round(avg(read_rows),0) AS avg_rows, round(avg(read_bytes)/1048576,1) AS avg_mb, "
-        "round(avg(query_duration_ms),0) AS avg_ms, sum(exception_code != 0) AS failures "
-        "FROM system.query_log WHERE type='QueryFinish' AND event_time >= toDateTime(%d) "
-        "GROUP BY shape ORDER BY n DESC FORMAT JSONEachRow" % int(since_epoch))
-    rows = json.loads("[]" if not ch_query(project, query) else ch_query(project, query))
+        f"SELECT CASE WHEN query LIKE '%CASE d.author_key%' THEN 'main-treated' "
+        f"WHEN query LIKE '%counting_numbers%' THEN 'followup-satellite' "
+        f"WHEN query LIKE 'WITH%' AND query LIKE '%ref_value IN (%' THEN 'followup-treated' "
+        f"WHEN query LIKE '%node_ad%' THEN 'ad-inventory' "
+        f"WHEN query LIKE 'WITH%' AND query LIKE '%group_id IN (%' THEN 'followup-armA' "
+        f"WHEN query LIKE 'WITH%' THEN 'main-armA' "
+        f"WHEN query LIKE '%groups/list%' THEN 'group-meta' ELSE 'other' END AS shape, "
+        f"count() AS n, round(avg(read_rows),0) AS avg_rows, round(avg(read_bytes)/1048576,1) AS avg_mb, "
+        f"round(avg(query_duration_ms),0) AS avg_ms, sum(exception_code != 0) AS failures "
+        f"FROM system.query_log WHERE type='QueryFinish' AND event_time >= toDateTime({int(since_epoch)}) "
+        f"GROUP BY shape ORDER BY n DESC FORMAT JSONEachRow")
+    out = ch_query(project, query)
+    rows = json.loads(out) if out else []
     (outdir / "native.json").write_text(json.dumps(rows, indent=1) + "\n")
     return rows
 
@@ -192,7 +195,11 @@ def trial(study, cell, slot, layout, treatment, mode, kind, trial_no, seed, log)
               "mode": mode, "kind": kind, "trial": trial_no, "seed": f"{seed}:{study}:{cell}:{trial_no}",
               "reader_index": reader_index, "project": project, "port": PORT,
               "started_utc": datetime.now(timezone.utc).isoformat()}
-    warmups = 3 if "1m" in slot else 0
+    # Six excluded warm-up feeds before the strict preflight on 1M inputs:
+    # the post-import merge storm makes the cold strict check memory-
+    # contended (recorded b-1m-d t2, 10.11.2026). Warm-ups are excluded,
+    # not study samples.
+    warmups = 6 if "1m" in slot else 0
     try:
         since = time.time()
         restored = restore(slot, project, PINNED_IDS[slot], outdir, log, warmups)
