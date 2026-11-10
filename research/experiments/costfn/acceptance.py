@@ -120,5 +120,20 @@ if __name__ == "__main__":
     parser.add_argument("directory", type=Path)
     parser.add_argument("--receipt", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
+    # PROTOCOL Phase-1 sampling cells call accept() with non-default shapes
+    # (more measured samples per cell, longer warm-up, optional non-strict
+    # retention of a failed baseline). Defaults match the two-reader floor.
+    parser.add_argument("--users", type=int, default=2)
+    parser.add_argument("--interval", type=float, default=5)
+    parser.add_argument("--warmup", type=float, default=5)
+    parser.add_argument("--duration", type=float, default=10)
+    parser.add_argument("--drain", type=float, default=60)
+    parser.add_argument("--pairs", type=int, default=3)
+    parser.add_argument("--no-strict", action="store_true",
+        help="retain a failed baseline (measurement_valid only); local_acceptance stays false")
+    parser.add_argument("--api-origin", help="explicit loopback/private API origin; never production")
     args = parser.parse_args()
-    print(json.dumps(asyncio.run(accept(args.directory, json.loads(args.receipt.read_bytes()), args.out)), indent=2))
+    report = asyncio.run(accept(args.directory, json.loads(args.receipt.read_bytes()), args.out,
+        users=args.users, interval=args.interval, warmup=args.warmup, duration=args.duration,
+        drain=args.drain, pairs=args.pairs, api_origin=args.api_origin, strict=not args.no_strict))
+    print(json.dumps(report, indent=2))
