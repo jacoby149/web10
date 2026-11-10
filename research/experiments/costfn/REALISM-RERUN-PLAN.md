@@ -174,6 +174,15 @@ Phase 2 — the 37k-DAU demonstration on the realism store, at the
    conservative workload reading (state think time; 46 feeds/s at 30s or
    23/s at 60s, mix as declared), success criteria unchanged from the
    ratified plan.
+Sensitivity cell (§12.1 — an envelope-comparison on the SAME realism store, NOT
+   a base-store number): one extra b-1m at the ORIGINAL local envelope
+   (container cap 5 GiB, CH server limit 4 GiB), 3 trials, reported as an
+   envelope-sensitivity point. The printed bridge between the base series and
+   the rerun series; tests whether the treated sequence's efficiency survives
+   the tight allocation on the big store. Expected to be the flakiest cell
+   (5 GiB cap + the realism store = disk-bound + 241/137) — that roughness is
+   the finding, not a harness bug. Everything else in the rerun uses the
+   §12.1 envelope only.
 §8 production migration decision unchanged — still a separate,
    explicit operator call after the evidence is in.
 7. Freeze discipline
@@ -398,18 +407,36 @@ does not fit the Mac's 7.65 GiB VM / 5 GB CH cap (disk-bound, slower, more
 241/137 on the A + K=1000 cells), and per-trial layer generation is the new
 time sink.
 
-### 12.1 Droplets sized to the store (fixes the disk-bound CH)
-- Each droplet is big enough that the CH store is **cache-resident, not
-  disk-bound**: the CH `mem_limit` (the pinned allocation, recorded per
-  receipt as before) is set to the droplet's RAM minus headroom for the OS +
-  API + the store's page cache. E.g. a 32 GiB droplet -> CH cap ~24 GiB. The
-  store (single-digit GB native) then sits in the page cache -> clean, fast
-  queries, no disk-bound slowness, no spurious 137s on the treated cells.
-- The 5 GB Mac cap was a LOCAL constraint, not a property of the workload; the
-  paper's allocation claim becomes "a node sized to a 1M-account realism
-  store" (the receipt records the exact droplet + CH cap). The 241-vs-137
-  distinction (§10.2) still applies: the cap sits strictly inside the cgroup,
-  so overload surfaces as 241 (system result) not 137 (infra).
+### 12.1 Uniform substrate + the declared envelope (amended 10.11.2026)
+- **Uniform substrate:** every rerun droplet (D1-D5, Phase 2 included) is the
+  SAME SKU and configuration — vCPU count AND RAM, not just RAM. No study runs
+  on a bigger or smaller machine than another; cross-study comparability depends
+  on it (and the Phase 2 load cell needs the vCPU headroom on record). Receipts
+  record the substrate block per trial: provider, SKU (vCPU + RAM), ClickHouse
+  server limit, container cap, store seed.
+- **The envelope is a declared constant, not "RAM minus headroom"** (replaces
+  the earlier sizing rule): droplet class **32 GiB**; pinned, identical
+  everywhere: **container cap 28 GiB, CH `max_server_memory_usage` 22 GiB**
+  (the local series' ~0.8 server/cap ratio, scaled), **4 GiB outside the
+  container** for OS + API. Commodity sizing for a 1M-account node, chosen once
+  before the pilot and frozen. The droplet's RAM buys page-cache residency +
+  speed OUTSIDE the tracked allocation; it does not vary the experimental
+  envelope.
+- **Baseline parity:** Arm A and every untreated cell run under the SAME
+  declared envelope as the treated cells. The baseline gets full resources on
+  purpose (Rule 1 applied to hardware: the adverse-end choice). Whatever Arm A
+  does at this envelope IS the baseline result — completion or failure, reported
+  as measured.
+- **Citation rule:** the paper cites the rerun series for all results.
+  Base-series absolute numbers are never pooled with, or printed alongside,
+  rerun absolutes — different declared envelope. The base series is referenced
+  as protocol development, receipts retained in the repo. Methods (verbatim, for
+  §10 / the paper): "The protocol and treatments were developed and debugged on
+  a local workstation under a constrained 5 GB store allocation; all results
+  reported here were measured on the declared node sizing (a single 32 GiB
+  server; ClickHouse allocated 22 GiB within a 28 GiB container cap) on the
+  released dataset, with one sensitivity cell at the development allocation.
+  Development-phase receipts are retained in the project repository."
 
 ### 12.2 Shared-store import — generate once, pull per droplet (fixes the gen cost)
 - Build the realism store **once** (on the Mac or one droplet): the frozen base
@@ -454,3 +481,29 @@ time sink.
   dependencies (gate15 before Phase 2), and the §10/§11 drafting + dataset-release
   framing all stand. Only the execution substrate (where the trials run) and the
   store import (generate-once -> S3 -> pull) change.
+
+### 12.6 Pilot on substrate (amended 10.11.2026)
+- The §6 pilot cell runs **end-to-end on a production-identical droplet**
+  (provision -> S3 pull -> restore -> trials), not locally: a local pilot would
+  not test the S3 pull, the §12.1 envelope, or generation/import on real
+  hardware. SKU and envelope **freeze at the pilot**; a change after the pilot
+  restarts the rerun, per §7.
+
+### 12.7 Watch items (from the review pass — what the pilot must settle)
+- **Cache-residency of the 22 GiB envelope:** the store is single-digit GB
+  native (§3), so 22 GiB holds it with headroom — but the pilot must confirm CH
+  memory is steady (not thrashing) on the loaded store. If the store came in
+  bigger than §3's single-digit-GB, the valve is to **scale the store down**
+  (§3) — **never raise the envelope** (it is frozen at the pilot).
+- **vCPU headroom on the uniform SKU:** Phase 2 (the load cell) is CPU-sensitive
+  (1400 sessions / ~23 feeds/s at 60 s think time). Declare the droplet's vCPU
+  count in the substrate block; the "generator CPU < 50% while the server is
+  the bottleneck" success criterion needs that number on record.
+- **The sensitivity cell is expected to be the flakiest trial** (5 GiB cap +
+  the big store = disk-bound + 241/137). That roughness is the measured finding
+  (does the treated sequence survive the tight allocation?), not a harness bug —
+  label it so a future reader doesn't chase it.
+- **Frame the sensitivity cell as an envelope-comparison on the SAME store**
+  (a rerun-series point, two envelopes), NOT a base-store number — so it stays
+  consistent with the §12.1 citation rule (which forbids pooling base-*store*
+  absolutes with rerun absolutes).
