@@ -251,6 +251,7 @@ function Trending() {
     return { ...mapDiscoveryToFeedPost({
       author: post.author_key || post.author_username || '', post_id: post._id!, service: 'posts',
       display_name: post.profile?.display_name, avatar_url: post.avatar_url,
+      author_face_pending: post.author_face_pending,
       body_text: post.text || '', body_title: post.title, tags: post.tags || [], created_at: post.created_at,
       engagement: { likes: post.likes || 0, comments: post.comments || 0, reposts: post.reposts || 0 },
       engagement_score: post.score || 0, media_refs: post.media_refs,
@@ -714,6 +715,7 @@ function Trending() {
                           key={post.sourceKey || post.id}
                           post={feedPostToDiscover(post)}
                           authorAvatar={post.avatarUrl}
+                          authorLoading={post.authorLoading}
                           remote
                           postHref={videoPostHref(post, knobState)}
                           authorHref={authorProfileHref(post)}
@@ -770,6 +772,7 @@ function Trending() {
                           key={post.sourceKey || post.id}
                           post={feedPostToDiscover(post)}
                           authorAvatar={post.avatarUrl}
+                          authorLoading={post.authorLoading}
                           remote
                           frame="portrait"
                           postHref={shortsPostHref(post)}

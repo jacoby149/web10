@@ -261,7 +261,10 @@ test.describe('Social settings gauntlet — real flow + log sequence', () => {
 
     // --- Change the setting ---
     await page.locator('[data-testid="settings-visibility-private"]').click();
-    await expect(page.getByRole('status')).toHaveText('Saved.', { timeout: 20000 });
+    const postingDefaults = page.locator('div.space-y-3').filter({
+      has: page.getByRole('heading', { name: 'Posting Defaults', exact: true }),
+    });
+    await expect(postingDefaults.getByRole('status')).toHaveText('Saved.', { timeout: 20000 });
     await expect(page.locator('[data-testid="settings-visibility-private"]')).toHaveClass(/bg-brand-muted/);
 
     // Node-level check: the doc exists with the new value.

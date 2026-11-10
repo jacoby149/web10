@@ -5,11 +5,13 @@ import { parsePublicSources, publicHomeRead, PUBLIC_HOME, PUBLIC_SOURCES_KEY, us
 import { defaultKnobState, getPreset } from './powerMean';
 import { SourcePostCard } from '../../../shared/discover/src/SourcePostCard';
 import { FeedSourcesEditor } from '@web10/discover/source-controls';
+import Trending from '@/pages/Trending';
 
 const remote = 'https://api.creator.example';
 const rows = (count: number, label = 'post') => Array.from({ length: count }, (_, index) => ({
   doc_id: `${label}-${index}`, author_key: 'writer', created_at: '2026-11-08T00:00:00Z',
   body: { text: label }, tags: ['art'], score: 1, likes: 2, comments: 3, reposts: 0,
+  profile_body: { display_name: 'Writer' }, avatar_url: 'https://cdn.example/writer.jpg',
 }));
 const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'content-type': 'application/json' } });
 
@@ -87,6 +89,108 @@ function BoardContent({ sources = [{ origin: PUBLIC_HOME, weight: 100 }], knobs 
 function BoardHarness(props: Parameters<typeof BoardContent>[0]) {
   return <MemoryRouter><BoardContent {...props} /></MemoryRouter>;
 }
+
+describe('paint-first public personal profiles', () => {
+  function pendingProfiles() {
+    const settlements: ((response: Response) => void)[] = [];
+    const transport = vi.mocked(fetch).mockImplementation(async (_url, init) => {
+      const body = JSON.parse(String(init?.body));
+      if (body.prepare?.face?.bodyField === 'body') {
+        expect(body.groups).toEqual([`${new URL(PUBLIC_HOME).host}/groups/users/adam/followers`]);
+        expect(body.prepare.face).toEqual({ bodyField: 'body', mediaField: 'avatar_ref', urlField: 'avatar_url' });
+        expect(body.token).toBeUndefined(); expect(init?.credentials).toBe('omit');
+        return new Promise<Response>(resolve => { settlements.push(resolve); });
+      }
+      return json({ rows: rows(2).map(row => ({ ...row, author_key: 'adam', profile_body: undefined, avatar_url: undefined })) });
+    });
+    return { transport, settle: (response: Response) => settlements[0](response) };
+  }
+
+  it('paints base posts while one deduplicated profile batch is pending, then patches both name and picture', async () => {
+    const probe = pendingProfiles();
+    render(<BoardHarness />);
+    const posts = () => JSON.parse(screen.getByTestId('posts').textContent!);
+    await waitFor(() => expect(posts()).toHaveLength(2));
+    expect(screen.getByTestId('done').textContent).toBe('true');
+    expect(posts().every((post: { author_face_pending?: boolean }) => post.author_face_pending)).toBe(true);
+    expect(probe.transport).toHaveBeenCalledTimes(2);
+    await act(async () => probe.settle(json({ rows: [{ author_key: 'adam', body: { display_name: 'Adam Malev' }, avatar_url: 'https://cdn.example/adam.jpg' }] })));
+    await waitFor(() => expect(posts()[0].profile?.display_name).toBe('Adam Malev'));
+    expect(posts().map((post: { _id: string }) => post._id)).toEqual(['post-0', 'post-1']);
+    expect(posts().every((post: { avatar_url?: string; author_face_pending?: boolean }) => post.avatar_url === 'https://cdn.example/adam.jpg' && !post.author_face_pending)).toBe(true);
+  });
+
+  it('drives the actual Posts route from author skeleton to resolved name, picture and profile link', async () => {
+    const probe = pendingProfiles();
+    render(<MemoryRouter initialEntries={['/trending']}><Trending /></MemoryRouter>);
+    await waitFor(() => expect(screen.getAllByTestId('trending-card')).toHaveLength(2));
+    expect(screen.getAllByTestId('discover-author-name-loading')).toHaveLength(2);
+    for (const card of screen.getAllByTestId('trending-card')) expect(card.textContent).toContain('post');
+    expect(screen.queryByRole('img', { name: 'Adam Malev' })).toBeNull();
+    await act(async () => probe.settle(json({ rows: [{ author_key: 'adam', body: { display_name: 'Adam Malev' }, avatar_url: 'https://cdn.example/adam.jpg' }] })));
+    await waitFor(() => expect(screen.queryAllByTestId('discover-author-name-loading')).toHaveLength(0));
+    expect(screen.getAllByRole('img', { name: 'Adam Malev' })).toHaveLength(2);
+    expect(screen.getAllByRole('link', { name: 'Adam Malev' })[0].getAttribute('href')).toMatch(/\/u\/adam$/);
+  });
+
+  it.each([200, 403, 500])('settles absent/denied/failed profiles to fallback without losing posts (%s)', async status => {
+    const probe = pendingProfiles();
+    render(<BoardHarness />);
+    await waitFor(() => expect(probe.transport).toHaveBeenCalledTimes(2));
+    await act(async () => probe.settle(json({ rows: [] }, status)));
+    await waitFor(() => expect(JSON.parse(screen.getByTestId('posts').textContent!)[0].author_face_pending).toBe(false));
+    expect(JSON.parse(screen.getByTestId('posts').textContent!)).toHaveLength(2);
+    expect(screen.getByTestId('errors').textContent).toBe('{}');
+  });
+
+  it('does not enrich unresolved foreign lookalikes through the home API', async () => {
+    const transport = vi.mocked(fetch).mockResolvedValue(json({ rows: rows(1).map(row => ({
+      ...row, author_key: 'adam', profile_body: undefined, avatar_url: undefined,
+    })) }));
+    render(<BoardHarness sources={[{ origin: remote, weight: 100 }]} />);
+    await waitFor(() => expect(screen.getByTestId('done').textContent).toBe('true'));
+    expect(transport).toHaveBeenCalledTimes(1);
+    expect(String(transport.mock.calls[0][0])).toBe(`${remote}/v3/query`);
+    const [post] = JSON.parse(screen.getByTestId('posts').textContent!);
+    expect(post.source_origin).toBe(remote);
+    expect(post.author_face_pending).toBe(false);
+    expect(post.avatar_url).toBeUndefined();
+  });
+
+  it('keeps same-username qualified authors and their provider-scoped profiles distinct', async () => {
+    const authors = ['one.example/users/alex', 'two.example/users/alex'];
+    vi.mocked(fetch).mockImplementation(async (_url, init) => {
+      const body = JSON.parse(String(init?.body));
+      if (body.prepare?.face?.bodyField === 'body') {
+        expect(body.groups).toEqual(authors.map(author => author.replace('/users/', '/groups/users/') + '/followers'));
+        return json({ rows: authors.map((author, i) => ({ author_key: author,
+          body: { display_name: `Alex ${i}` }, avatar_url: `https://cdn.example/alex-${i}.jpg` })) });
+      }
+      return json({ rows: rows(2).map((row, i) => ({ ...row, author_key: authors[i], profile_body: undefined, avatar_url: undefined })) });
+    });
+    render(<BoardHarness />);
+    await waitFor(() => expect(JSON.parse(screen.getByTestId('posts').textContent!)[0]?.profile?.display_name).toBe('Alex 0'));
+    const posts = JSON.parse(screen.getByTestId('posts').textContent!);
+    expect(posts.map((post: { profile: { display_name: string }; avatar_url: string }) => [post.profile.display_name, post.avatar_url]))
+      .toEqual([['Alex 0', 'https://cdn.example/alex-0.jpg'], ['Alex 1', 'https://cdn.example/alex-1.jpg']]);
+  });
+
+  it.each([
+    ['view', { view: 'shorts' }],
+    ['sources', { sources: [] }],
+    ['ranking', { knobs: getPreset('most-recent')!.state }],
+    ['disabled directory', { enabled: false }],
+  ] as const)('does not let a delayed profile overwrite a new %s generation', async (_label, next) => {
+    const probe = pendingProfiles();
+    const { rerender } = render(<BoardHarness />);
+    await waitFor(() => expect(probe.transport).toHaveBeenCalledTimes(2));
+    const oldSignal = probe.transport.mock.calls[1][1]?.signal;
+    rerender(<BoardHarness {...next} />);
+    expect(oldSignal?.aborted).toBe(true);
+    await act(async () => probe.settle(json({ rows: [{ author_key: 'adam', body: { display_name: 'STALE' } }] })));
+    expect(screen.getByTestId('posts').textContent).not.toContain('STALE');
+  });
+});
 
 describe('public mixed reads (actual shared reader + explicit SDK transport)', () => {
   it('sends no token or ambient cookies and applies real 3:1 quotas to two nodes', async () => {

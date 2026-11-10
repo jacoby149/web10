@@ -252,6 +252,14 @@ provider keeps its own prefix) → the profile face; a group author
 engine's read gate, not this module: an unreadable profile / group → no
 readable row → no mint → the generic card.
 
+The preview's runtime `PROVIDER` is the node's public group-ID identity, passed
+from the same deployment setting as the API. `API_ORIGIN` is transport only:
+in Docker it names the internal service (`http://web10-prod-api:80`), not
+`api.web10.app`. Deriving group IDs from that alias silently returns no profile
+rows and the brand fallback, even after a successful deployment. Standalone
+callers without `PROVIDER` retain the API-host fallback. Face-query logs record
+counts/status only, never the returned capability URLs.
+
 Still open:
 
 - **A preview for the app's own root** (`social.web10.app/`) — a static brand

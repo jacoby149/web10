@@ -17,6 +17,7 @@
 //
 // Config via env:
 //   API_ORIGIN    — the node's origin (e.g. http://api:80 in Docker).
+//   PROVIDER      — the node's public identity, independent of Docker transport.
 //   SOCIAL_ORIGIN — the social app's public origin (the canonical og:url).
 
 import { stripMarkdown } from './markdown.mjs'
@@ -24,14 +25,9 @@ import { stripMarkdown } from './markdown.mjs'
 const API_ORIGIN = (process.env.API_ORIGIN || 'http://api.localhost').replace(/\/$/, '')
 const SOCIAL_ORIGIN = (process.env.SOCIAL_ORIGIN || 'http://social.localhost').replace(/\/$/, '')
 
-// The node's PROVIDER — the host prefix every group id carries
-// (`{provider}/groups/users/{username}/followers`). The API derives it from its
-// own hostname (settings.PROVIDER), and the preview server's API_ORIGIN is that
-// same host over the proxy network, so the provider is API_ORIGIN's hostname.
-// Deriving it (instead of hardcoding) is what lets a profile share resolve the
-// author's real followers group on every node — a hardcoded `web10` prefix only
-// matches a node whose provider is literally `web10`.
-export const PROVIDER = new URL(API_ORIGIN).hostname
+// Group IDs use the node's PUBLIC identity, never its Docker service alias.
+// Non-container callers retain the historical API-host fallback.
+export const PROVIDER = process.env.PROVIDER || new URL(API_ORIGIN).hostname
 
 // The social brand mark — the fallback image when a doc has no picture and the
 // author has no avatar. Served from the social app's static assets (the crawler
@@ -120,16 +116,23 @@ const GROUP_FACE_SQL =
 // urlField column when the face is readable and its ref resolvable), or [] on
 // any failure (denied group, no face, engine error — the card degrades).
 async function faceQuery(sql, groups, mediaField, urlField) {
+  console.log('[preview] face query started', { groups: groups.length, mediaField })
   try {
     const res = await fetch(`${API_ORIGIN}/v3/query`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sql, groups, prepare: { face: { bodyField: 'body', mediaField, urlField } } }),
     })
-    if (!res.ok) return []
+    if (!res.ok) {
+      console.warn('[preview] face query unavailable', { status: res.status })
+      return []
+    }
     const data = await res.json()
-    return Array.isArray(data.rows) ? data.rows : []
+    const rows = Array.isArray(data.rows) ? data.rows : []
+    console.log('[preview] face query completed', { rows: rows.length })
+    return rows
   } catch {
+    console.warn('[preview] face query failed; retaining generic card')
     return []
   }
 }

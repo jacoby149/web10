@@ -192,6 +192,7 @@ interface DiscoveryPost {
   author: string;
   display_name?: string;
   avatar_url?: string;
+  author_face_pending?: boolean;
   service: string;
   post_id: string;
   body_text: string;
@@ -228,6 +229,7 @@ interface FeedPost {
   sourceKey?: string;
   name: string;
   avatarUrl?: string;
+  authorLoading?: boolean;
   handle: string;
   initial: string;
   avatarColor: string;
@@ -324,6 +326,7 @@ function mapDiscoveryToFeedPost(d: DiscoveryPost): FeedPost {
     id: d.post_id,
     name: d.display_name || name.charAt(0).toUpperCase() + name.slice(1),
     avatarUrl: d.avatar_url,
+    authorLoading: d.author_face_pending,
     handle: `@${d.author}`,
     initial: d.author.charAt(0).toUpperCase(),
     avatarColor: hashToColor(d.author),
@@ -406,6 +409,7 @@ function TrendingCard({
     <DiscoverCard
       post={feedPostToDiscover(post)}
       authorAvatar={post.avatarUrl}
+      authorLoading={post.authorLoading}
       rank={rank}
       maxScore={maxScore}
       remote
@@ -661,8 +665,9 @@ async function hydrateAuthors(posts: DiscoveryPost[]): Promise<DiscoveryPost[]> 
   })();
   const [groupPosts, faces] = await Promise.all([hydrateGroupAuthors(posts), personalFaces]);
   return groupPosts.map((post) => {
-    const avatar = faces.get(post.author)?.avatar_url;
-    return !post.author.includes('/groups/') && avatar ? { ...post, avatar_url: avatar } : post;
+    const face = faces.get(post.author);
+    return !post.author.includes('/groups/') && face
+      ? { ...post, display_name: face.name || post.display_name, avatar_url: face.avatar_url || post.avatar_url } : post;
   });
 }
 

@@ -2,9 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { normalizeFeedSource, type FeedSource } from '@web10/discover/source-models';
 import type { SourceEditorControl } from '@web10/discover/source-controls';
-import { createMixedFeedReader, type SourcedPost, type HomeRead } from '@web10/discover/mixed-feed';
+import { createMixedFeedReader, type HomeRead } from '@web10/discover/mixed-feed';
 import { buildFeedQuery, knobStateToSort, fromFeedQueryRow, feedCursorFromPost, type KnobState } from '@web10/discover/feed-query';
 import { API_ORIGIN } from './origins';
+import { pendingPublicProfiles, resolvePublicProfiles, type PublicPost } from './publicProfiles';
 
 export const PUBLIC_HOME = new URL(API_ORIGIN).origin;
 export const PUBLIC_SOURCES_KEY = `web10:public-sources:v1:${PUBLIC_HOME}`;
@@ -133,7 +134,7 @@ export function usePublicBoard(sources: FeedSource[], knobs: KnobState, enabled:
       paging.current.written = cursorParam;
     }
   }
-  const [posts, setPosts] = useState<SourcedPost[]>([]);
+  const [posts, setPosts] = useState<PublicPost[]>([]);
   const [loading, setLoading] = useState(enabled);
   const [hasMore, setHasMore] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -184,9 +185,20 @@ export function usePublicBoard(sources: FeedSource[], knobs: KnobState, enabled:
         const result = await reader.next();
         if (!live || liveKey.current !== generationKey) return;
         paging.current.snapshot = reader.snapshot(); paging.current.requested = undefined;
+        const page = pendingPublicProfiles(result.posts, PUBLIC_HOME);
         setPosts(previous => {
           const seen = new Set(previous.map(post => post.source_key));
-          return [...previous, ...result.posts.filter(post => !seen.has(post.source_key) && !!seen.add(post.source_key))];
+          return [...previous, ...page.filter(post => !seen.has(post.source_key) && !!seen.add(post.source_key))];
+        });
+        // Optional author enrichment must never hold the board's first paint.
+        void resolvePublicProfiles(page, owner.signal).then(resolved => {
+          if (!live || liveKey.current !== generationKey || owner.signal.aborted) return;
+          const faces = new Map(resolved.filter(post => post.author_face_pending === false).map(post => [post.source_key, post]));
+          setPosts(previous => previous.map(post => {
+            const face = faces.get(post.source_key);
+            return post.author_face_pending && face && post.source_origin === face.source_origin && post.author_key === face.author_key
+              ? { ...post, profile: face.profile, avatar_url: face.avatar_url, author_face_pending: false } : post;
+          }));
         });
         setHasMore(result.has_more); setErrors(result.errors); setAllocations(result.allocations);
         if (pages.current++ > 0 && result.page_cursor) {
