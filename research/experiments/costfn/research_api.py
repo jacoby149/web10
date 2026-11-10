@@ -27,10 +27,55 @@ OBSERVER_SOURCE = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
 current = contextvars.ContextVar("costfn_request", default=None)
 original_compile = safe_query.build_safe_query
 
+# Arm D treatment (PROTOCOL §4): research-only, off by default, enabled by
+# COSTFN_ARM_D=1 on the research stack. Rewrites the personal-feed compiled
+# main query to the key-exploiting author-set form after point-scale
+# verification (membership + ownership + empty gate tables). Any failure
+# refuses the treatment with a recorded 403 — the arm is a treatment, and it
+# is never issued unverified.
+ARM_D_ENABLED = os.environ.get("COSTFN_ARM_D") == "1"
+if ARM_D_ENABLED:
+    import arm_d_rewrite
+    from app.v3.services import clickhouse as ch
+
+
+def _arm_d_treat(args, kwargs):
+    if len(args) < 2 or not isinstance(args[1], dict):
+        return None
+    readable = args[1]
+    member_key = kwargs.get("member_key")
+    if not member_key or set(readable) != {"posts", "reactions", "comments", "profile"}:
+        return None
+    if len({frozenset(v) for v in readable.values()}) != 1:
+        return None
+    groups = sorted(next(iter(readable.values())))
+    try:
+        authors = [arm_d_rewrite.owner_of_group(g) for g in groups]
+    except ValueError:
+        return None
+    for query, want in arm_d_rewrite.verify_sql(member_key, groups, authors):
+        columns, values = ch.execute_query(query, settings={"max_execution_time": 30})
+        got = int(values[0][0])
+        if got != want:
+            raise safe_query.UnsafeQueryError(f"arm-d verification failed: got {got}, want {want}")
+    return groups, authors
+
 
 def capture_compile(*args, **kwargs):
     sql = original_compile(*args, **kwargs)
     observation = current.get()
+    if ARM_D_ENABLED and observation is not None:
+        treated = None
+        try:
+            treated = _arm_d_treat(args, kwargs)
+        except ValueError:
+            treated = None
+        if treated is not None:
+            groups, authors = treated
+            sql = arm_d_rewrite.transform(sql, kwargs.get("member_key"), groups, authors)
+            observation["arm_d_treatment"] = {"form": "author-set", "groups": len(groups),
+                                              "memberships_verified": len(groups),
+                                              "owners_verified": len(groups), "gates_empty": True}
     if observation is not None:
         observation["compiled_sha256"] = hashlib.sha256(sql.encode()).hexdigest()
     return sql
