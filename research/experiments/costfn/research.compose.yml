@@ -3,6 +3,13 @@ services:
   clickhouse:
     # Current app SQL uses QUALIFY (unsupported in historical 24.3).
     image: ghcr.io/jacoby149/base-clickhouse:24.8
+    # PROTOCOL §6/§11: Docker allocations pinned and recorded per run. The
+    # 09.11.2026 K=20/1M trial without this cap OOM-killed the ClickHouse
+    # server (container exit 137) inside the shared Docker VM — recorded as a
+    # setup failure, not data. 5 GB matches the earlier local 1M runs
+    # (#1464 matched-dates record). Data stays on the volume (VM disk has
+    # headroom), not tmpfs: the VM RAM also hosts the API + other workspaces.
+    mem_limit: 5g
   api:
     volumes:
       - ${COSTFN_RESEARCH_DIR:-.}:/research:ro
