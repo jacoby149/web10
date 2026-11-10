@@ -394,3 +394,51 @@ def transform_followup_satellite(compiled, reader, service):
     except Exception as exc:
         raise ValueError(f"Arm D satellite follow-up: result failed parse validation: {exc}") from None
     return treated
+
+
+# ---------------------------------------------------------------------------
+# Phase-1.6 views follow-up treatment (Step-0 classified 10.11.2026; memo in
+# results/phase1.6-decision-memo.md). The contentViews follow-up returns
+# COUNTS (impressions + reach), so it is NOT the counting_numbers satellite
+# (freshness conflict: content_events is written by the study's window-deduped
+# delivery logging; reach is countDistinct, not a sum). The 1M capture showed
+# its cost is the doc_groups readability SUBQUERY (~4.1M rows: it scans every
+# readable group's attachments), not content_events (60 rows). The treatment
+# is the Step-1 exact-ID move: add `doc_id IN (<returned ids>)` to that inner
+# subquery so it is a prefix seek (doc_groups is ORDER BY (doc_id, group_id)).
+# The outer `e.doc_id IN` already intersects, so the result is byte-identical;
+# only the native read drops to point-scale. Research-only (gated), mirroring
+# the node-ad monkeypatch.
+# ---------------------------------------------------------------------------
+
+def views_treated_sql(doc_ids, service, group_ids):
+    """The treated contentViews query: identical to the production
+    content_event_views_for_docs SQL EXCEPT the inner doc_groups readability
+    subquery also carries `doc_id IN (<returned ids>)` (the point-scale prefix
+    seek). Returns (sql, params); raises if the structure is not the pinned
+    point-scale form (drift refuses)."""
+    if not doc_ids or not group_ids:
+        return None, None
+    n = len(doc_ids)
+    d_ph = ", ".join(f"%(d{i})s" for i in range(n))
+    g_ph = ", ".join(f"%(g{i})s" for i in range(len(group_ids)))
+    sql = (
+        f"SELECT e.doc_id, count() AS impressions, countDistinct(e.reader_key) AS reach "
+        f"FROM content_events e WHERE e.service = %(svc)s AND e.event_type = 'delivery' "
+        f"AND e.doc_id IN ({d_ph}) "
+        f"AND e.doc_id IN (SELECT doc_id FROM doc_groups WHERE doc_id IN ({d_ph}) "
+        f"AND group_id IN ({g_ph}) AND deleted = 0) GROUP BY e.doc_id")
+    # Golden pin: the inner subquery must seek by doc_id (the point-scale
+    # marker), present in BOTH the outer filter and the inner subquery.
+    if "doc_groups WHERE doc_id IN (" not in sql or sql.count("e.doc_id IN") < 1:
+        raise ValueError("Phase-1.6 views pin: the point-scale doc_id seek is missing")
+    params = {"svc": service}
+    params.update({f"d{i}": d for i, d in enumerate(doc_ids)})
+    params.update({f"g{i}": g for i, g in enumerate(group_ids)})
+    # Parse-check with placeholders substituted by sample literals (sqlglot
+    # cannot see %(…s) tokens).
+    sample = (sql.replace("%(svc)s", "'posts'")
+              .replace(", ".join(f"%(d{i})s" for i in range(n)), "x")
+              .replace(", ".join(f"%(g{i})s" for i in range(len(group_ids))), "y"))
+    sqlglot.parse_one(sample, read="clickhouse")
+    return sql, params

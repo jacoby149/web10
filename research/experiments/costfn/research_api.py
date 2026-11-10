@@ -37,6 +37,26 @@ ARM_D_ENABLED = os.environ.get("COSTFN_ARM_D") == "1"
 # Phase-1.5 satellite treatment (PROTOCOL amendment): follow-up counting
 # moves to counting_numbers point seeks; off by default, research-only.
 SATELLITE_ENABLED = os.environ.get("COSTFN_SATELLITE") == "1"
+# Phase-1.6 views treatment (PROTOCOL amendment, 10.11.2026): the contentViews
+# readability subquery seeks by doc_id (point-scale prefix) instead of scanning
+# every readable group's attachments (~4.1M @1M). Independent of the satellite
+# (views are counts with a refreshed source — no counting_numbers; see the
+# decision memo). Research-only, off by default.
+VIEWS_TREAT_ENABLED = os.environ.get("COSTFN_VIEWS_TREAT") == "1"
+if VIEWS_TREAT_ENABLED:
+    from app.v3.services import clickhouse as _ch_views
+    import arm_d_rewrite
+    _original_cvd = _ch_views.content_event_views_for_docs
+
+    def _treated_content_event_views_for_docs(doc_ids, service, group_ids):
+        sql, params = arm_d_rewrite.views_treated_sql(doc_ids, service, group_ids)
+        if sql is None:
+            return {}
+        result = _ch_views.client.query(sql, params)
+        return {row[0]: {"impressions": int(row[1] or 0), "reach": int(row[2] or 0)}
+                for row in result.result_rows}
+
+    _ch_views.content_event_views_for_docs = _treated_content_event_views_for_docs
 if ARM_D_ENABLED:
     import arm_d_rewrite
     from app.v3.services import clickhouse as ch

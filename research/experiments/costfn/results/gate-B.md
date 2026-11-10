@@ -71,3 +71,28 @@ the main feed is well-treated at full scale and the engagement follow-ups are at
 declared residual, exactly the surface Phase 1.5 (counting_numbers) is scoped to drop to
 point-seek. Full-sequence cost is not yet at the main-query target (views + ad-inventory
 remain Arm A shape) — as declared in Phase 0. Proceed to Study C.
+
+---
+
+## ERRATA (10.11.2026, from Phase 1.6 Step-0 10k native capture)
+
+The "views follow-up: still followup-armA shape (3.7M / 214.7 MB)" line above is a
+MISATTRIBUTION and is retracted. Phase 1.6 Step-0 captured the raw `query_log` on a
+fresh Arm-A k20-10k debug stack (one feed + follow-ups = 44 native queries, grouped by
+SQL fingerprint) and found:
+
+- The `contentViews` (views) follow-up is a **top-level `SELECT … FROM content_events`**
+  (classifier → `other`, NOT `followup-armA`), reading **41,040 rows @10k** — dominated
+  by its `doc_groups` I3-readability subquery; `content_events` itself is ~40 rows.
+- The `followup-armA` 3.7M/214.7 MB bucket is the **reactions/comments
+  service-partition `WITH` CTEs** (the main feed's engagement JOINs + the separate
+  reactions/comments follow-ups). `n≈124`/window = ~3–4 `WITH … group_id IN` CTEs per
+  feed × 33 feeds.
+- So the "views threat" (and the Phase-2 arithmetic 23 loads/s × 3.7M that inherited it)
+  was really the **reactions/comments** scan — Phase 1.5's `counting_numbers`
+  responsibility, not Phase 1.6's. Views' only real cost is its `doc_groups`
+  readability subquery.
+
+The per-shape table above (rows/MB per label) is retained as-is (it is what the
+fingerprint emitted); only the *attribution of the `followup-armA` label to "views"*
+is corrected. See `results/phase1.6-decision-memo.md`.

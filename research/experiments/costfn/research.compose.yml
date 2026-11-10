@@ -36,4 +36,8 @@ services:
       # Phase-1.5 satellite treatment (PROTOCOL amendment): follow-up
       # counting via counting_numbers point seeks. Research-only.
       COSTFN_SATELLITE: "${COSTFN_SATELLITE:-0}"
+      # Phase-1.6 views treatment: the contentViews readability subquery seeks
+      # by doc_id (point-scale prefix) instead of scanning every readable
+      # group's attachments. Research-only, off by default.
+      COSTFN_VIEWS_TREAT: "${COSTFN_VIEWS_TREAT:-0}"
     command: ["uv", "run", "uvicorn", "research_api:application", "--host", "0.0.0.0", "--port", "80", "--no-access-log"]

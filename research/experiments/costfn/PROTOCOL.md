@@ -244,6 +244,62 @@ built here — counting_numbers only, at counts scope.
   fall back to the 255 MB sequence — report and stop for operator
   decision.
 
+**Phase 1.6 — the views follow-up (amendment, Step-0 classification
+10.11.2026, BEFORE any code change; operator task "Phase 1.6"):**
+
+The views follow-up (`/v3/contentViews`, the `contentViews` entry of the §2
+workload) was never treated in Step-1 (no views golden was declared). Step-0
+classified it on a fresh Arm-A debug stack (k20-10k) + source citation;
+full receipt: `results/phase1.6-step0-views-classification.md`.
+
+- **Returns COUNTS, not rows -> Branch A.** `content_event_views_for_docs`
+  (`api/app/v3/services/clickhouse.py:4920`) runs
+  `SELECT e.doc_id, count() AS impressions, countDistinct(e.reader_key) AS reach
+  FROM content_events e WHERE e.service='posts' AND e.event_type='delivery'
+  AND e.doc_id IN (<returned ids>) AND e.doc_id IN (SELECT doc_id FROM doc_groups
+  WHERE group_id IN (<readable>) AND deleted=0) GROUP BY e.doc_id` and returns
+  `{doc_id: {impressions, reach}}` (absent doc_id = absent key = 0). The same
+  counts-shaped object as the reactions/comments satellite counters.
+- **Pure read, but the source is refreshed (steady-refresh).** The
+  `/v3/contentViews` call does not write. The study's MAIN FEED (`/v3/query`
+  with `surface` + `content_service`, which the feed wire carries) logs a
+  delivery impression per returned doc (`query.py:478` -> `log_content_deliveries`),
+  **window-deduped** (`clickhouse.py:4714`: re-delivery within the window is
+  gated). Empirically `content_events` stays constant across repeated in-window
+  feeds. In a fresh study stack it holds only the study reader's ~20-40 deliveries.
+- **Cost is the `doc_groups` readability subquery, not content_events.**
+  Arm-A native read @10k: contentViews = 41,040 rows / 3.73 MB / 113 ms,
+  dominated by the I3 `doc_groups` subquery; the content_events read is ~40 rows.
+  The reactions/comments follow-ups read ~72,000 rows each @10k (-> ~3.6M @1M)
+  — THAT is the `followup-armA` shape Studies B/C flagged, not the views.
+- **Discrepancy vs the task premise (declared, not papered over):** the task
+  stated "views ~3.7M rows / 215 MB per call" and "Phase 2 cannot run with views
+  untreated (23 loads/sec x 3.7M rows)". The 3.7M is the reactions/comments
+  service-partition read; the views query's real dominant cost is the
+  `doc_groups` readability subquery (~2M @1M) and it is classified `other` in
+  `native_breakdown` (a top-level SELECT, not `WITH...`), not `followup-armA`.
+ - **1M confirmation (10.11.2026) -> outcome #2 (the Step-1 readability move,
+   NOT the satellite).** A re-captured Arm-A 1M feed showed contentViews reads
+   4,100,060 rows / 372.8 MB / 670 ms — the `doc_groups` I3-readability subquery
+   (`content_events` is 60 rows). So views is NOT small at 1M, and the counting
+   satellite is the wrong tool (freshness: `content_events` is written by the
+   study's window-deduped delivery logging; reach is `countDistinct`). The
+   `3.7M followup-armA` is the reactions/comments service-partition CTEs (Phase
+   1.5's job), not views.
+ - **Treatment (implemented, gated `COSTFN_VIEWS_TREAT=1`, research-only):** the
+   contentViews query's inner `doc_groups` subquery gains `doc_id IN (<returned
+   ids>)` (`doc_groups` is `ORDER BY (doc_id, group_id)` -> a prefix seek). The
+   outer `e.doc_id IN` already intersects, so the result is byte-identical; only
+   the native read drops. `arm_d_rewrite.views_treated_sql` builds + golden-pins
+   the point-scale marker; `research_api` monkeypatches
+   `ch.content_event_views_for_docs` (mirrors the node-ad pattern). No
+   `counting_numbers`, no freshness contract, no reach handling.
+ - **Gate (1M, reader 5's 20 returned posts):** parity PASS — 20 docs
+   byte-identical impressions + reach; native read 4,100,060 -> **1,240 rows**
+   (372.8 -> 1.2 MB, 670 -> 5 ms). Point-seek scale confirmed (the key is used).
+   **Phase 1.6 closes:** the full sequence now runs with views at point-seek
+   scale; Phase 2 may proceed on D + counting_numbers + views-treat.
+
 **Study configurations (declared 10.11.2026 for Phase 1):** Study B/C run
 the winning configuration (D layout + all three sequence treatments,
 batched resolver mode as the research default; the paper notes the
