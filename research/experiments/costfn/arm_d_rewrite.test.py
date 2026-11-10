@@ -70,5 +70,40 @@ class ArmDTests(unittest.TestCase):
         self.assertIn("role = 'owner'", checks[1][0])
 
 
+
+RE_GOLDEN = (HERE / "evidence/arm-d-compiled-followup-reactions-golden-20261110.sql").read_text().strip()
+CM_GOLDEN = (HERE / "evidence/arm-d-compiled-followup-comments-golden-20261110.sql").read_text().strip()
+FOLLOWUP_GROUPS = [f"api.localhost/groups/users/c42-c{i:06d}/followers" for i in range(20)] + ["api.localhost/groups/web10/discover"]
+
+
+class ArmDFollowupTests(unittest.TestCase):
+    def test_transform_followup(self):
+        rw = arm_d_rewrite.transform_followup(RE_GOLDEN, READER, "reactions")
+        self.assertIsNotNone(rw)
+        self.assertIn("ref_value IN ('c42-doc-0'", rw)
+        self.assertNotIn("doc_groups", rw)
+        self.assertIn("NULL AS group_id", rw)
+        rw2 = arm_d_rewrite.transform_followup(CM_GOLDEN, READER, "comments")
+        self.assertIsNotNone(rw2)
+        self.assertIn("ref_value IN ('c42-doc-0'", rw2)
+
+    def test_returns_none_on_non_followup_shape(self):
+        self.assertIsNone(arm_d_rewrite.transform_followup(GOLDEN, READER, "reactions"))
+
+    def test_refuses_drift(self):
+        with self.assertRaises(ValueError):
+            arm_d_rewrite.transform_followup(RE_GOLDEN.replace("ORDER BY updated_at DESC", "ORDER BY updated_at ASC", 1),
+                                             READER, "reactions")
+        with self.assertRaises(ValueError):
+            arm_d_rewrite.transform_followup(RE_GOLDEN, READER, "profile")
+
+    def test_verify_sql_shapes(self):
+        ids = arm_d_rewrite.followup_ids(RE_GOLDEN)
+        checks = arm_d_rewrite.followup_verify_sql(READER, ids, FOLLOWUP_GROUPS)
+        self.assertEqual([c[1] for c in checks], [20, 1, 0])
+        self.assertIn("count(DISTINCT doc_id)", checks[0][0])
+        self.assertIn("discover", checks[1][0])
+
+
 if __name__ == "__main__":
     unittest.main()

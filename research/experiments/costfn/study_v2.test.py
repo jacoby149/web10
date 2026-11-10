@@ -80,7 +80,7 @@ class CoreTests(unittest.IsolatedAsyncioTestCase):
         token = "synthetic." + claims + ".not-a-signature"
         manifest = {"recipe": {"follow": 25}, "readers": ["a", "b"]}
 
-        async def prepared(*args):
+        async def prepared(*args, **kwargs):
             return [(token, ["g"]), (token + "x", ["g"])]
 
         async def slow(*args):

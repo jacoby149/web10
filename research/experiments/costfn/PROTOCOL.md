@@ -174,6 +174,42 @@ receipt as the treatment, measured against Arm A's un-rekeyed mechanism.
 On the date-k20 input the time predicate additionally prunes to the
 in-window cohort (the ~1/30 minority the operator engineered).
 
+**Step-1 sequence treatments (declared 10.11.2026, operator task: "finish
+the feed sequence"):** beyond the main-query treatment above, the full
+sequence carries two more, both bounded and evidence-backed (Q01/#1448
+family — no new optimizer ideas):
+- **(a) Engagement follow-ups (reactions/comments counts): exact-ID
+  pushdown.** The compiled follow-up's one boundary CTE (full `documents`
+  window + full `doc_groups` window over 21 groups) is rewritten to push
+  the returned-ID list into both windows: `doc_id IN (ids)` on
+  `doc_groups` (its key prefix — 20 seeks, not the 4.1M scan) and
+  `doc_id IN (ids)` alongside `collection_name='<svc>'` on `documents`.
+  The join and every gate (group-keyed AND author-keyed) are RETAINED —
+  a pure readability-resolution rewrite. Declared residual: the
+  documents-side service read remains a full-service scan on the D key
+  (`collection_name`/`ref_value` carry no key prefix) — on this input
+  ~3.1M native rows filtered to ~310k reactions / ~31k comments; recorded
+  in every receipt, not hidden. No counts satellite is built in this step.
+- **(b) Node-ad inventory: verified TTL short-circuit (chosen option; the
+  alternative — declaring it an exclusion — was not chosen).** The
+  inventory read is a shared node-level surface (PLAN §1.4: cache where it's
+  the same for everybody): the research layer serves one live, verified
+  read per 60 s window to all sessions; the live-read count, cache hits and
+  creatives seen are recorded per request. This input has zero node ads, so
+  the live read returns [] — the short-circuit is verified, not assumed.
+
+**Study configurations (declared 10.11.2026 for Phase 1):** Study B/C run
+the winning configuration (D layout + all three sequence treatments,
+batched resolver mode as the research default; the paper notes the
+production default remains per-group). Study A (mechanism repeat) runs the
+UN-treated Arm A query with the readable-resolution mode varied
+(per-group vs batched) — the treatment is removed from the measured path
+so the resolver mechanism is what's priced. Study P (paired resolver
+ablation) uses the #1424 comparator on the un-treated query. The
+attribution control declared by the operator: the main-query author-set
+treatment applied to the OLD Arm A key (author_key is the prefix on both
+keys) — prices mechanism vs layout separately.
+
 **Arm B cutoff anchor (declared constant per dataset):**
 `cutoff = input max(created_at) − 30 days` on the base all-recent inputs;
 the date-k20 long-span input uses its pinned manifest `date_contract`
@@ -250,9 +286,13 @@ of DAU in peak hour, 15-min sessions):
 > 37,000 DAU → 5,550 peak-hour sessions/hr → **~1,400 concurrent sessions** →
 > **~23 feed loads/s at 60 s think time** (46/s at 30 s).
 
-- **Mix** (per the cache principle): Discover-balanced reads served from the
-  shared cache (one computation per refresh interval, served to all);
-  Following reads computed live per user at K=20.
+- **Mix** (per the cache principle, modelled at the node boundary, declared
+  10.11.2026): Discover-balanced is a shared surface — one computation per
+  refresh interval served to all — so the node sees **≤1 Discover
+  computation per 60 s** (the miss); the other Discover sessions are cache
+  hits that never reach the node. Following reads are computed live per
+  user at K=20: **~23.3 live Following feeds/s** from ~1,400 concurrent
+  distinct reader sessions at 60 s think time. The receipt states the mix.
 - **Input:** the FULL 1M-author store (`k20-1m-dispersed`) — deliberately
   bigger than a real 37k-DAU node's store; conservative, declared.
 - **Setup:** everything on the Mac. Docker allocations pinned and recorded in

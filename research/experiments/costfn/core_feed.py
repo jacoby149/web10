@@ -127,12 +127,17 @@ def check_result(manifest, reader_index, rows, followups):
             "likes": True, "comments": True, "views": True, "exact_order": True}
 
 
-async def prepare(client, manifest, count):
-    if count < 1 or count > len(manifest["readers"]):
-        raise ValueError("distinct session count exceeds fixture")
-    sessions = [None] * count
+async def prepare(client, manifest, count, indices=None):
+    """Prepare distinct reader sessions. By default readers 0..count-1; with
+    `indices` (Phase-1 randomized-reader cells) exactly those fixture reader
+    indices — the oracle (check_result) is index-arithmetic, so any index is
+    exact. The returned sessions are ordered by index."""
+    wanted = sorted(set(indices)) if indices is not None else list(range(count))
+    if not wanted or max(wanted) >= len(manifest["readers"]) or len(wanted) != len(set(wanted)):
+        raise ValueError("distinct session indices exceed the fixture")
+    sessions = {index: None for index in wanted}
     queue = asyncio.Queue()
-    for index in range(count):
+    for index in wanted:
         queue.put_nowait(index)
 
     async def prepare_one(index):
@@ -150,14 +155,16 @@ async def prepare(client, manifest, count):
             raise ValueError("real group discovery differs from fixture follow graph")
         sessions[index] = (token, groups)
 
+    total = len(wanted)
+
     async def worker():
         while not queue.empty():
             index = queue.get_nowait()
             await prepare_one(index)
-            if index % 100 == 0 or index == count - 1:
-                print(f"[core-feed] prepared reader index {index + 1}/{count}", flush=True)
+            if index % 100 == 0 or index == wanted[-1]:
+                print(f"[core-feed] prepared reader index {index} (fixture {total} sessions)", flush=True)
 
-    workers = [asyncio.create_task(worker()) for _ in range(min(8, count))]
+    workers = [asyncio.create_task(worker()) for _ in range(min(8, total))]
     try:
         await asyncio.gather(*workers)
     except BaseException:
@@ -165,4 +172,4 @@ async def prepare(client, manifest, count):
             task.cancel()
         await asyncio.gather(*workers, return_exceptions=True)
         raise
-    return sessions
+    return [sessions[index] for index in wanted]

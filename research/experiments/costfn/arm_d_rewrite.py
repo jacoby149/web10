@@ -177,3 +177,145 @@ def transform(compiled, reader, groups, authors):
 
 def treatment_meta(rewritten):
     return {"compiled_sha256": hashlib.sha256(rewritten.encode()).hexdigest()}
+
+
+# ---------------------------------------------------------------------------
+# Engagement follow-ups (Step 1a): exact-ID readability, residual declared.
+#
+# The follow-up (reaction counts / comment counts over the returned IDs)
+# compiles to ONE boundary CTE: a full documents window (collection_name
+# filter — 3.1M native rows on the D key) JOIN a doc_groups window over 21
+# groups. The returned IDs are the POST doc_ids; the reaction/comment docs
+# carry their post id in ref_value, so the readability resolution is:
+#   1. VERIFY (point-scale, per request): every returned post is readable via
+#      the requested groups — doc_id IN (20) against doc_groups, where doc_id
+#      IS the key prefix (the task's prescribed check; Q01/#1448 family) —
+#      plus the reader's Discover membership (the follow-up's extra group)
+#      plus the empty gate tables.
+#   2. REWRITE: the documents window gains `AND ref_value IN (20 ids)` — the
+#      candidate set is the asked-for refs; the doc_groups join and the
+#      group-keyed gates come out (readability was just verified outside the
+#      SQL); the author-keyed gates are retained; group_id is unused by the
+#      outer aggregate and synthesized as NULL.
+# DECLARED RESIDUAL: the documents window still reads the whole service
+# partition (collection_name / ref_value carry no key prefix on the D key):
+# ~3.1M native rows filtered to ~310k reactions / ~31k comments, result 20.
+# Recorded in every receipt, not hidden. No counts satellite is built here.
+# Completeness posture (fixture-declared, oracle-checked): reactions/comments
+# on readable posts are themselves linked to a group the reader belongs to
+# (Discover in this input); the engagement oracle's exact counts catch any
+# divergence per trial.
+# ---------------------------------------------------------------------------
+
+_FOLLOWUP_GOLDEN = {
+    "reactions": "evidence/arm-d-compiled-followup-reactions-golden-20261110.sql",
+    "comments": "evidence/arm-d-compiled-followup-comments-golden-20261110.sql",
+}
+
+
+def followup_groups(compiled):
+    """The group IN-list in a follow-up compiled SQL."""
+    m = re.search(r"group_id IN \((?:'[^']*'(?:,\s*'[^']*')*)\)", compiled)
+    return re.findall(r"'([^']*)'", m.group(0)) if m else []
+
+
+def followup_ids(compiled):
+    """The outer exact post-ID list (the IN (...) immediately before GROUP BY)."""
+    m = re.search(r"IN \((?:'[^']*'(?:,\s*'[^']*')*)\)\s+GROUP BY", compiled)
+    return re.findall(r"'([^']*)'", m.group(0)) if m else []
+
+
+def followup_verify_sql(reader, post_ids, groups):
+    """Point-scale verification for the follow-up treatment (per request):
+    (posts readable via the requested groups, reader's discover membership,
+    gate tables empty) must be (len(post_ids), 1, 0)."""
+    n = len(post_ids)
+    discover = [g for g in groups if not g.endswith("/followers")]
+    if len(discover) != 1:
+        raise ValueError("Arm D follow-up: expected exactly one non-follower group (the Discover board)")
+    doc_pairs = ", ".join(f"'{d}'" for d in post_ids)
+    return [
+        (f"SELECT count(DISTINCT doc_id) FROM doc_groups WHERE doc_id IN ({doc_pairs}) "
+         f"AND group_id IN ({quoted(groups)}) AND deleted = 0", n),
+        (f"SELECT count() FROM group_members WHERE (group_id, member_key) = "
+         f"('{discover[0]}', '{reader}') AND deleted = 0", 1),
+        ("SELECT (SELECT count() FROM user_blacklist) + (SELECT count() FROM group_blacklist) "
+         "+ (SELECT count() FROM user_group_sharing) + (SELECT count() FROM group_hidden_docs) "
+         "+ (SELECT count() FROM banned_users)", 0),
+    ]
+
+
+def _followup_template_raw(service):
+    """The service golden with the group list, ID list and reader parameterised."""
+    import pathlib
+    golden = (pathlib.Path(__file__).resolve().parent / _FOLLOWUP_GOLDEN[service]).read_text().strip()
+    groups = followup_groups(golden)
+    ids = followup_ids(golden)
+    reader = re.search(r"blocked_key = '([^']+)'", golden).group(1)
+    tmpl = (golden
+            .replace("group_id IN (" + ", ".join(f"'{g}'" for g in groups) + "))",
+                     "group_id IN ({GROUPS}))")
+            .replace("IN (" + ", ".join(f"'{i}'" for i in ids) + ") GROUP BY",
+                     "IN ({IDS}) GROUP BY"))
+    if tmpl.count(f"'{reader}'") != 3:
+        raise ValueError(f"Arm D follow-up pin: reader literal count is not 3 in the {service} golden")
+    return tmpl.replace(f"'{reader}'", "'{READER}'")
+
+
+_JOIN_SEGMENT = (" JOIN (SELECT doc_id, group_id FROM (SELECT doc_id, group_id, deleted, "
+                 "row_number() OVER (PARTITION BY doc_id, group_id ORDER BY updated_at DESC) "
+                 "AS rn FROM doc_groups WHERE group_id IN ({GROUPS})) WHERE rn = 1 AND "
+                 "deleted = 0) dg ON d.doc_id = dg.doc_id ")
+
+_GATE_SEGMENT = (" AND (d.author_key, dg.group_id) NOT IN (SELECT user_key, group_id FROM "
+                 "(SELECT user_key, group_id, blocked_key, deleted, row_number() OVER "
+                 "(PARTITION BY user_key, group_id, blocked_key ORDER BY updated_at DESC, "
+                 "deleted DESC) AS rn FROM group_blacklist) WHERE rn = 1 AND deleted = 0 AND "
+                 "blocked_key = '{READER}') AND NOT (d.author_key != '{READER}' AND "
+                 "(d.author_key, dg.group_id) IN (SELECT user_key, group_id FROM (SELECT "
+                 "user_key, group_id, sharing_enabled, deleted, row_number() OVER "
+                 "(PARTITION BY user_key, group_id ORDER BY updated_at DESC) AS rn FROM "
+                 "user_group_sharing) WHERE rn = 1 AND deleted = 0 AND sharing_enabled = 0)) "
+                 "AND (d.doc_id, dg.group_id) NOT IN (SELECT doc_id, group_id FROM (SELECT "
+                 "group_id, doc_id, deleted, row_number() OVER (PARTITION BY group_id, doc_id "
+                 "ORDER BY updated_at DESC, deleted DESC) AS rn FROM group_hidden_docs) WHERE "
+                 "rn = 1 AND deleted = 0)")
+
+
+def transform_followup(compiled, reader, service):
+    """Exact-ID readability treatment for the reactions/comments follow-up.
+    Returns None when the compiled SQL is not the follow-up shape at all
+    (e.g. a prepare-pass canonical read compiles single-service but carries
+    a different SQL); raises on a detected follow-up shape that drifts from
+    the pin."""
+    if service not in _FOLLOWUP_GOLDEN:
+        raise ValueError(f"Arm D follow-up treatment declared for reactions/comments only, got {service}")
+    groups = followup_groups(compiled)
+    ids = followup_ids(compiled)
+    if not groups or not ids:
+        return None
+    raw = _followup_template_raw(service)
+    expected = (raw
+                .replace("{GROUPS}", ", ".join(f"'{g}'" for g in groups))
+                .replace("{IDS}", ", ".join(f"'{v}'" for v in ids))
+                .replace("{READER}", reader))
+    if compiled != expected:
+        raise ValueError("Arm D follow-up pin: compiled SQL differs from the pinned golden structure")
+    treated = (raw
+        .replace("WHERE collection_name = '" + service + "')",
+                 "WHERE collection_name = '" + service + "' AND ref_value IN ({IDS}))")
+        .replace("WHERE group_id IN ({GROUPS}))", "WHERE group_id IN ({GROUPS}))")
+        .replace(_JOIN_SEGMENT.replace("{GROUPS}", "{GROUPS}"), " ")
+        .replace(", dg.group_id FROM", ", NULL AS group_id FROM")
+        .replace(_GATE_SEGMENT, ""))
+    treated = (treated
+        .replace("{GROUPS}", ", ".join(f"'{g}'" for g in groups))
+        .replace("{IDS}", ", ".join(f"'{v}'" for v in ids))
+        .replace("{READER}", reader))
+    if "doc_groups" in treated or "dg." in treated:
+        raise ValueError("Arm D follow-up: a group-keyed reference survived")
+    try:
+        sqlglot.parse_one(treated, read="clickhouse")
+    except Exception as exc:
+        raise ValueError(f"Arm D follow-up: result failed parse validation: {exc}") from None
+    return treated
