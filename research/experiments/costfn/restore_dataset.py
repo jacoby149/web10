@@ -72,6 +72,38 @@ def wait_for(probe, label):
     raise RuntimeError(f"{label} did not become ready within 180 seconds")
 
 
+def container_state(project, service):
+    """The compose container's State.Status ('running'/'exited'/...); '' if gone."""
+    name = f"{project}-{service}-1"
+    out = subprocess.run(["docker", "inspect", "-f", "{{.State.Status}}", name],
+                         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).stdout.decode().strip()
+    return out
+
+
+def wait_api_ready(compose, env, base, project, seconds=120):
+    """Poll the API /docs until 200. The app's startup CH probe does not retry:
+    if its first cross-container clickhouse:8123 attempt lands before the compose
+    network/DNS settles, the API exits(3) and /docs never comes up. CH is already
+    confirmed up by the caller (native + HTTP 8123), so on a startup crash restart
+    the API once — by then the network is settled and it comes up. Recorded."""
+    deadline = time.monotonic() + seconds
+    restarted = False
+    while time.monotonic() < deadline:
+        try:
+            if urllib.request.urlopen(base + "/docs", timeout=5).status == 200:
+                return
+        except (OSError, urllib.error.URLError):
+            pass
+        if not restarted:
+            state = container_state(project, "api")
+            if state == "exited":
+                print("[restore] api exited on its startup CH probe; restarting once (CH confirmed up)", flush=True)
+                run(compose + ["start", "api"], env)
+                restarted = True
+        time.sleep(3)
+    raise RuntimeError(f"API did not become ready within {seconds} seconds")
+
+
 def api_json(base, path, payload):
     request = urllib.request.Request(base + path, data=json.dumps(payload).encode(),
                                      headers={"Content-Type": "application/json"})
@@ -168,7 +200,7 @@ def restore(directory, project, port, receipt, expected_id=None, fixture=dataset
     # on a connection-refused CH probe and the /docs readiness then times out.
     wait_for(lambda: b"Ok" in run(compose + ["exec", "-T", "clickhouse", "wget", "-q", "-O-", "http://localhost:8123/ping"], env), "ClickHouse HTTP 8123")
     run(compose + ["up", "-d", "--no-deps", "--build", "api"], env)
-    wait_for(lambda: urllib.request.urlopen(base + "/docs", timeout=5).status == 200, "API")
+    wait_api_ready(compose, env, base, project)
     provider = run(compose + ["exec", "-T", "api", "uv", "run", "python", "-c", "from app import settings; print(settings.PROVIDER)"], env).decode().strip()
     if provider != manifest["provider"]:
         raise ValueError("node provider differs from frozen group identifiers")
