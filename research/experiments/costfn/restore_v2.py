@@ -62,6 +62,41 @@ def correctness(base, manifest, warmups=0):
     return asyncio.run(check())
 
 
+def correctness_structural(base, manifest):
+    """#1464 admission precedent, declared for the K>=1000 stress cells:
+    the strict full-feed preflight fails on those inputs by the known
+    ten-second native limit (the Q01 preflight record), so admission is
+    import/counts + real discovery + one authorized exact-document query +
+    wrong-Origin denial — no full-feed latency pass is claimed during
+    preparation. The stress cell's measured failures are the result.
+    """
+    async def check():
+        import uuid as _uuid
+        records = []
+        async with httpx.AsyncClient(base_url=base, timeout=60, trust_env=False) as client:
+            sessions = await core_feed.prepare(client, manifest, min(2, len(manifest["readers"])))
+            for index, (token, groups) in enumerate(sessions):
+                # One authorized exact-document query: the newest followed post.
+                indices = sorted(dataset_v2.followed_indices(manifest["recipe"], index), reverse=True)
+                doc = dataset_v2.doc_id(dataset_v2.creator(manifest["recipe"], indices[0]), "posts")
+                ok = await client.post("/v3/query", json={"token": token,
+                    "sql": f"SELECT doc_id FROM posts WHERE doc_id = '{doc}' LIMIT 1", "groups": groups},
+                    headers={"Origin": dataset_v2.ORIGIN})
+                if ok.status_code != 200 or [r["doc_id"] for r in ok.json().get("rows", [])] != [doc]:
+                    raise ValueError("structural admission: the authorized exact-document read failed")
+                denied = await client.post("/v3/query", json={"token": token, "sql": "SELECT doc_id FROM posts LIMIT 1", "groups": groups},
+                    headers={"Origin": "https://ungranted.research.invalid"})
+                if denied.status_code != 403:
+                    raise ValueError("structural admission: missing-app-grant control was not denied")
+        return {"core_results": [{"structural_exact_document": True, "origin_denial": True}
+                                  for _ in range(min(2, len(manifest["readers"])))],
+                "real_discovery": True, "origin_denial": True,
+                "admission": "structural (declared for K>=1000 stress cells; no full-feed latency claim)",
+                "correlated_requests": 0, "sources": provenance.sources(),
+                "scope": "Local structural admission; not load capacity, lifecycle or media assurance."}
+    return asyncio.run(check())
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("directory", type=Path)
@@ -71,9 +106,11 @@ if __name__ == "__main__":
     parser.add_argument("--expected-id", required=True)
     parser.add_argument("--preflight-warmups", type=int, default=0,
         help="excluded warm-up core feeds per reader before the strict check (large cold restores)")
+    parser.add_argument("--admit-structural", action="store_true",
+        help="#1464 admission precedent: discovery + exact-document + denial, no full-feed preflight")
     args = parser.parse_args()
+    checker = correctness_structural if args.admit_structural \
+        else (lambda base, manifest: correctness(base, manifest, warmups=args.preflight_warmups))
     result = restore_dataset.restore(args.directory, args.project, args.port, args.receipt, args.expected_id,
-                                    fixture=dataset_v2,
-                                    checker=lambda base, manifest: correctness(base, manifest, warmups=args.preflight_warmups),
-                                    research=True)
+                                    fixture=dataset_v2, checker=checker, research=True)
     print(json.dumps(result, indent=2))

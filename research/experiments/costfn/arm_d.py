@@ -131,7 +131,7 @@ async def live_feeds(base, manifest, readers=2):
     return out
 
 
-def arm_d(directory, receipt_path, out_path, spot=25):
+def arm_d(directory, receipt_path, out_path, spot=25, no_live_parity=False):
     directory = Path(directory)
     manifest = json.loads((directory / "manifest.json").read_bytes())
     verified = dataset_v2.validate(directory)
@@ -225,9 +225,15 @@ def _arm_d_body(directory, manifest, verified, receipt, project, compose, env, c
         spot_hashes.append({"doc_id": doc_id, "row_sha256": new_row})
     steps.append({"name": "spot_document_lookups", "checked": len(spot_hashes), "samples": spot_hashes})
 
-    # 4 — live feed parity, old key.
-    pre_feeds = asyncio.run(live_feeds(receipt["api"], manifest))
-    steps.append({"name": "live_feeds_pre_flip", "feeds": pre_feeds})
+    # 4 — live feed parity, old key (declared skippable for the K>=1000
+    # stress cells: the strict feed fails there by the known ten-second
+    # limit; the trial's sampling oracle covers output correctness).
+    if no_live_parity:
+        steps.append({"name": "live_feeds_pre_flip", "feeds": None, "declared_skip": True})
+        pre_feeds = None
+    else:
+        pre_feeds = asyncio.run(live_feeds(receipt["api"], manifest))
+        steps.append({"name": "live_feeds_pre_flip", "feeds": pre_feeds})
 
     # 5 — flip (atomic rename; old table kept as the rollback path).
     record("flip", lambda: ch(f"RENAME TABLE documents TO {ROLLBACK_NAME}, documents_armd TO documents") or "flipped")
@@ -237,12 +243,16 @@ def _arm_d_body(directory, manifest, verified, receipt, project, compose, env, c
     steps.append({"name": "post_flip_key_asserted", "rollback_table": ROLLBACK_NAME})
 
     # 6 — live feed parity, new key: exact same main rows and checks.
-    post_feeds = asyncio.run(live_feeds(receipt["api"], manifest))
-    for pre, post in zip(pre_feeds, post_feeds):
-        if pre["main_rows_sha256"] != post["main_rows_sha256"] or pre["check"] != post["check"]:
-            raise ValueError("feed output parity failed across the flip; the arm is INVALID, not slow — roll back and keep the evidence")
-    steps.append({"name": "live_feeds_post_flip", "feeds": post_feeds,
-                  "exact_main_output_parity": True})
+    if no_live_parity:
+        steps.append({"name": "live_feeds_post_flip", "feeds": None, "declared_skip": True,
+                      "exact_main_output_parity": None})
+    else:
+        post_feeds = asyncio.run(live_feeds(receipt["api"], manifest))
+        for pre, post in zip(pre_feeds, post_feeds):
+            if pre["main_rows_sha256"] != post["main_rows_sha256"] or pre["check"] != post["check"]:
+                raise ValueError("feed output parity failed across the flip; the arm is INVALID, not slow — roll back and keep the evidence")
+        steps.append({"name": "live_feeds_post_flip", "feeds": post_feeds,
+                      "exact_main_output_parity": True})
 
     out = Path(out_path)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -268,5 +278,7 @@ if __name__ == "__main__":
     parser.add_argument("--receipt", type=Path, required=True, help="completed local research restore receipt")
     parser.add_argument("--out", type=Path, required=True, help="Arm D receipt path")
     parser.add_argument("--spot", type=int, default=25)
+    parser.add_argument("--no-live-parity", action="store_true",
+        help="skip the pre/post-flip live-feed parity (K>=1000 stress cells; declared in the receipt)")
     args = parser.parse_args()
-    arm_d(args.directory, args.receipt, args.out, spot=args.spot)
+    arm_d(args.directory, args.receipt, args.out, spot=args.spot, no_live_parity=args.no_live_parity)
