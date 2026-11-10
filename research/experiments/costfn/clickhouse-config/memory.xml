@@ -1,0 +1,12 @@
+<clickhouse>
+    <!-- CH server memory limit, pinned 1 GB BELOW the 5 GB cgroup cap.
+         Without this, the shared Docker VM's cgroup OOM-kills the CH process
+         (exit 137) the moment CH's tracked query memory + the OS page cache
+         cross 5 GB: the service goes down, in-flight feeds 500, and the
+         system.query_log is lost at teardown. With it, an over-large query
+         returns a clean code-241 "total_memory_limit" (a valid measured
+         result) and CH stays up, so the native per-shape log survives.
+         The 5 GB cgroup cap remains the pinned experimental condition; this
+         only makes CH honor it with headroom instead of crashing into it. -->
+    <max_server_memory_usage>4294967296</max_server_memory_usage>
+</clickhouse>

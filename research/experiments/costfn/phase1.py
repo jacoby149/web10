@@ -171,8 +171,10 @@ def native_breakdown(project, outdir, since_epoch):
         f"round(avg(query_duration_ms),0) AS avg_ms, sum(exception_code != 0) AS failures "
         f"FROM system.query_log WHERE type='QueryFinish' AND event_time >= toDateTime({int(since_epoch)}) "
         f"GROUP BY shape ORDER BY n DESC FORMAT JSONEachRow")
+    # JSONEachRow = one JSON object per line: parse as JSON lines, never as
+    # a single document.
     out = ch_query(project, query)
-    rows = json.loads(out) if out else []
+    rows = [json.loads(line) for line in out.splitlines() if line.strip()] if out else []
     (outdir / "native.json").write_text(json.dumps(rows, indent=1) + "\n")
     return rows
 
@@ -199,7 +201,7 @@ def trial(study, cell, slot, layout, treatment, mode, kind, trial_no, seed, log)
     # the post-import merge storm makes the cold strict check memory-
     # contended (recorded b-1m-d t2, 10.11.2026). Warm-ups are excluded,
     # not study samples.
-    warmups = 6 if "1m" in slot else 0
+    warmups = 10 if "1m" in slot else 0
     try:
         since = time.time()
         restored = restore(slot, project, PINNED_IDS[slot], outdir, log, warmups)
@@ -225,7 +227,8 @@ result = asyncio.run(load_core.run_point("http://127.0.0.1:{PORT}", manifest, {S
 (outdir / "summary.json").write_text(json.dumps(result, indent=2))
 print(json.dumps({{"measured_completed": result["counts"].get("measured:completed", 0),
                    "measured_failed": result["counts"].get("measured:failed", 0),
-                   "valid_offered_load": result["valid_offered_load"]}}))
+                   "valid_offered_load": result["valid_offered_load"],
+                   "request_counts": result["request_counts"]}}))
 ''')
             proc = subprocess.run([sys.executable, str(driver)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                   timeout=3600, cwd=str(HERE))
@@ -316,9 +319,27 @@ def main():
             for n in range(1, TRIALS + 1):
                 outdir = P1 / study / cell / f"trial-{n}"
                 trial_receipt = outdir / "trial.json"
-                if trial_receipt.exists() and "error" not in json.loads(trial_receipt.read_text()):
-                    print(f"[phase1] {study}/{cell} t{n} already has a clean receipt; skipping", flush=True)
-                    continue
+                if trial_receipt.exists():
+                    r = json.loads(trial_receipt.read_text())
+                    request_counts = r.get("request_counts", {})
+                    app_exception = any(k.endswith(":500") or k.endswith(":502") for k in request_counts)
+                    sample = r.get("sample") or {}
+                    # Old-format receipts (no request_counts) with zero completed
+                    # measured feeds are infra-invalid too — re-run them.
+                    usable = (r.get("kind") == "paired") or sample.get("measured_completed", 0) > 0 \
+                        or (bool(request_counts) and not app_exception)
+                    if "error" not in r and usable:
+                        print(f"[phase1] {study}/{cell} t{n} already has a usable receipt; skipping", flush=True)
+                        continue
+                if outdir.exists():
+                    # A prior failed attempt leaves stale artifacts (restored.json
+                    # etc.) that the restore/re-key steps refuse to overwrite:
+                    # archive the whole directory (receipts ride with the bite)
+                    # and re-run from a clean one.
+                    import shutil
+                    stale = outdir.with_name(f"{outdir.name}.stale-{int(time.time())}")
+                    shutil.move(str(outdir), str(stale))
+                    print(f"[phase1] {study}/{cell} t{n}: archived prior failed attempt -> {stale.name}", flush=True)
                 print(f"[phase1] {study}/{cell} trial {n}/{TRIALS} "
                       f"(layout={layout} treatment={treatment} mode={mode} kind={kind})", flush=True)
                 trial(study, cell, slot, layout, treatment, mode, kind, n, int(log.stat().st_mtime), log)

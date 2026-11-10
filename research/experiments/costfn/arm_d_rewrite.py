@@ -134,14 +134,34 @@ _GATE_SEGMENT = (" AND (d.author_key, dg.group_id) NOT IN (SELECT user_key, grou
                  "rn = 1 AND deleted = 0)")
 
 
+_GROUP_IN = re.compile(r"group_id IN \((?:'[^']*'(?:,\s*'[^']*')*)\)\)")
+
+
+def compiled_group_order(compiled):
+    """The group IN-list actually present in the compiled SQL (all four
+    boundary CTEs carry the identical list — asserted). Order-independent
+    pinning: the compiler's group order is whatever the readable-resolution
+    produced (discovery order, not sorted), so the pin must use the
+    compiled order, never the caller's."""
+    lists = _GROUP_IN.findall(compiled)
+    if len(lists) != 4 or len(set(lists)) != 1:
+        raise ValueError("Arm D pin: the four boundary CTEs do not carry one identical readable list")
+    return re.findall(r"'([^']*)'", lists[0])
+
+
 def transform(compiled, reader, groups, authors):
     """Rewrite all four boundary CTEs to the author-set form; refuse anything
     that is not the pinned personal-feed compiled shape."""
     if len(groups) != len(authors) or not groups:
         raise ValueError("groups/authors mismatch")
+    actual = compiled_group_order(compiled)
+    if sorted(actual) != sorted(groups):
+        raise ValueError("Arm D pin: the compiled readable set differs from the verified groups")
+    # Re-derive authors in the compiled order (owner mapping is per group).
+    owner = {g: a for g, a in zip(groups, authors)}
+    actual_authors = [owner[g] for g in actual]
     template = _template()
-    glist = quoted(groups)
-    expected = template.replace("group_id IN ({GROUPS}))", f"group_id IN ({glist}))").replace("'{READER}'", f"'{reader}'")
+    expected = template.replace("group_id IN ({GROUPS}))", f"group_id IN ({quoted(actual)}))").replace("'{READER}'", f"'{reader}'")
     if compiled != expected:
         raise ValueError("Arm D pin: compiled SQL differs from the pinned golden structure; re-capture and review before treating")
     case = " ".join(f"WHEN '{a}' THEN '{g}'" for a, g in zip(authors, groups))
@@ -163,8 +183,8 @@ def transform(compiled, reader, groups, authors):
     if d.count(_GATE_SEGMENT) != 4:
         raise ValueError("Arm D transform: the group-gate segment moved")
     d = d.replace(_GATE_SEGMENT, "")
-    d = d.replace("{{AUTHORS}}", quoted(authors)).replace("{AUTHORS}", quoted(authors))
-    d = d.replace("group_id IN ({GROUPS}))", f"group_id IN ({glist}))")
+    d = d.replace("{{AUTHORS}}", quoted(actual_authors)).replace("{AUTHORS}", quoted(actual_authors))
+    d = d.replace("group_id IN ({GROUPS}))", f"group_id IN ({quoted(actual)}))")
     d = d.replace("'{READER}'", f"'{reader}'")
     if "doc_groups" in d or "dg." in d:
         raise ValueError("Arm D transform: a group-keyed reference survived")

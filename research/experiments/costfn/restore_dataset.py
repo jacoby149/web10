@@ -23,6 +23,13 @@ import dataset
 HERE = Path(__file__).resolve().parent
 
 
+class ChRestartError(RuntimeError):
+    """A ClickHouse process restart (exit 210 / connection refused) hit the
+    import at connect time: zero rows were written for that table, the on-disk
+    volume is intact, and a settle + re-wait + retry is safe. Distinct from a
+    fatal partial import (rows were written, counts no longer reconcile)."""
+
+
 def compose_command(project, port, research=False):
     if not re.fullmatch(r"web10-costfn-frozen-[a-z0-9-]{1,32}", project):
         raise ValueError("project must be a dedicated web10-costfn-frozen-* name")
@@ -65,6 +72,38 @@ def wait_for(probe, label):
     raise RuntimeError(f"{label} did not become ready within 180 seconds")
 
 
+def container_state(project, service):
+    """The compose container's State.Status ('running'/'exited'/...); '' if gone."""
+    name = f"{project}-{service}-1"
+    out = subprocess.run(["docker", "inspect", "-f", "{{.State.Status}}", name],
+                         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).stdout.decode().strip()
+    return out
+
+
+def wait_api_ready(compose, env, base, project, seconds=120):
+    """Poll the API /docs until 200. The app's startup CH probe does not retry:
+    if its first cross-container clickhouse:8123 attempt lands before the compose
+    network/DNS settles, the API exits(3) and /docs never comes up. CH is already
+    confirmed up by the caller (native + HTTP 8123), so on a startup crash restart
+    the API once — by then the network is settled and it comes up. Recorded."""
+    deadline = time.monotonic() + seconds
+    restarted = False
+    while time.monotonic() < deadline:
+        try:
+            if urllib.request.urlopen(base + "/docs", timeout=5).status == 200:
+                return
+        except (OSError, urllib.error.URLError):
+            pass
+        if not restarted:
+            state = container_state(project, "api")
+            if state == "exited":
+                print("[restore] api exited on its startup CH probe; restarting once (CH confirmed up)", flush=True)
+                run(compose + ["start", "api"], env)
+                restarted = True
+        time.sleep(3)
+    raise RuntimeError(f"API did not become ready within {seconds} seconds")
+
+
 def api_json(base, path, payload):
     request = urllib.request.Request(base + path, data=json.dumps(payload).encode(),
                                      headers={"Content-Type": "application/json"})
@@ -105,8 +144,16 @@ def import_table(compose, env, directory, table):
                 pass
             finally:
                 process.stdin.close()
-            if process.wait() != 0:
-                raise RuntimeError(f"import failed for {table}; disposable target is partial ({errors.tell()} stderr bytes)")
+            rc = process.wait()
+    if rc != 0:
+        errors.seek(0)
+        err = errors.read().decode(errors="replace")
+        # Connection refused at connect time: CH restarted under the pinned
+        # allocation, ZERO rows written for this table, volume intact -> the
+        # caller settles, re-waits for CH, and retries once (safe + recorded).
+        if "Connection refused" in err or "Code: 210" in err:
+            raise ChRestartError(f"import {table} hit a CH restart (0 rows, recoverable): {err[-240:]}")
+        raise RuntimeError(f"import failed for {table}; disposable target is partial (exit={rc}, {len(err)} stderr bytes)")
 
 
 def correctness(base, manifest):
@@ -147,8 +194,13 @@ def restore(directory, project, port, receipt, expected_id=None, fixture=dataset
     wait_for(lambda: ch(compose, env, "SELECT 1").strip() == b"1", "ClickHouse")
     for template in sorted((HERE.parents[2] / "clickhouse-init").glob("*.sql.template")):
         wait_for(lambda p=template: run(compose + ["exec", "-T", "clickhouse", "clickhouse-client", "--user", "web10", "--password", "web10", "--database", "web10", "--multiquery"], env, p.read_bytes()) == b"", "schema")
+    # The API's startup probes CH over HTTP (8123), which binds slightly after
+    # the native port (9000) that `ch("SELECT 1")` above confirms. Confirm the
+    # HTTP endpoint is answering before launching the API, or the app exits(3)
+    # on a connection-refused CH probe and the /docs readiness then times out.
+    wait_for(lambda: b"Ok" in run(compose + ["exec", "-T", "clickhouse", "wget", "-q", "-O-", "http://localhost:8123/ping"], env), "ClickHouse HTTP 8123")
     run(compose + ["up", "-d", "--no-deps", "--build", "api"], env)
-    wait_for(lambda: urllib.request.urlopen(base + "/docs", timeout=5).status == 200, "API")
+    wait_api_ready(compose, env, base, project)
     provider = run(compose + ["exec", "-T", "api", "uv", "run", "python", "-c", "from app import settings; print(settings.PROVIDER)"], env).decode().strip()
     if provider != manifest["provider"]:
         raise ValueError("node provider differs from frozen group identifiers")
@@ -159,9 +211,18 @@ def restore(directory, project, port, receipt, expected_id=None, fixture=dataset
             baseline[table] = int(ch(compose, env, f"SELECT count() FROM {table}"))
             if baseline[table]:
                 raise ValueError("target contains existing app contracts")
+    # Defensive: re-confirm CH is answering right before the (large) import
+    # loop, so a slow/ restarting CH is caught here, not mid-stream.
+    wait_for(lambda: ch(compose, env, "SELECT 1").strip() == b"1", "ClickHouse pre-import")
     for table in fixture.TABLES:
         print(f"[restore] importing {table}", flush=True)
-        import_table(compose, env, directory, table)
+        try:
+            import_table(compose, env, directory, table)
+        except ChRestartError as restart:
+            print(f"[restore] {table}: {restart}; settling 30 s, re-waiting for CH, retrying once", flush=True)
+            time.sleep(30)
+            wait_for(lambda: ch(compose, env, "SELECT 1").strip() == b"1", "ClickHouse post-restart")
+            import_table(compose, env, directory, table)
     after = counts(compose, env, fixture.TABLES)
     if after != {table: baseline[table] + verified["rows"][table] for table in fixture.TABLES}:
         raise ValueError("restored row counts differ; target is partial, not a valid trial input")

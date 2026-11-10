@@ -13,11 +13,37 @@ import provenance
 import restore_dataset
 
 
+async def feed_sequential(client, token, groups, records, phase, index):
+    """The core-feed sequence with the follow-ups awaited ONE AT A TIME.
+
+    The preflight is a FUNCTIONAL check (exact results, discovery, denial) —
+    not a concurrency test (concurrency is the measured window's own
+    property). At 1M the pre-treatment concurrent fan-out peaks past the
+    pinned 5 GB cap (CH 137 -> 500s downstream), so the preflight uses the
+    sequential shape; the warm-ups keep the study's concurrent shape
+    (failures there are tolerated + recorded)."""
+    wire = core_feed.wire()
+    main = await core_feed.request(client, wire["requests"][0]["path"],
+                                   core_feed.payload(wire["requests"][0]["payload"], token, groups),
+                                   dataset_v2.ORIGIN, records, "main", phase, index)
+    rows = main.get("rows", [])
+    if not rows:
+        raise ValueError("empty main result is not a core-feed sample")
+    ids = [r["doc_id"] for r in rows]
+    followups = []
+    for item, kind in zip(wire["requests"][1:], ("reactions", "comments", "views")):
+        followups.append(await core_feed.request(client, item["path"],
+                                                 core_feed.payload(item["payload"], token, groups, ids),
+                                                 dataset_v2.ORIGIN, records, kind, phase, index))
+    return rows, followups
+
+
 def correctness(base, manifest, warmups=0):
     async def check():
         records = []
         warmup_records = []
         warmup_stats = None
+        preflight_retries = 0
         async with httpx.AsyncClient(base_url=base, timeout=120, trust_env=False) as client:
             sessions = await core_feed.prepare(client, manifest, min(2, len(manifest["readers"])))
             checks = []
@@ -39,7 +65,18 @@ def correctness(base, manifest, warmups=0):
                                 "preflight_warmup_failures": warmup_failures,
                                 "preflight_warmup_records": len(warmup_records)}
             for index, (token, groups) in enumerate(sessions):
-                rows, followups = await core_feed.feed(client, core_feed.wire(), token, groups, records, "preflight", index)
+                try:
+                    rows, followups = await feed_sequential(client, token, groups, records, "preflight", index)
+                except (httpx.HTTPError, core_feed.CoreRequestFailure):
+                    # A cold/contended large stack (post-import merge storm under
+                    # the pinned allocation) can fail the strict feed once:
+                    # settle 90 s and retry ONCE — recorded, never silent.
+                    if preflight_retries >= 1:
+                        raise
+                    preflight_retries += 1
+                    print(f"[restore] preflight feed {index} hit a contended stack; settling 90 s and retrying once", flush=True)
+                    await asyncio.sleep(90)
+                    rows, followups = await feed_sequential(client, token, groups, records, "preflight", index)
                 checks.append(core_feed.check_result(manifest, index, rows, followups))
                 if len(rows) > 20:
                     second = await core_feed.request(client, "/v3/query", core_feed.next_page_payload(core_feed.wire(), token, groups, rows[19]["created_at"]),
@@ -57,6 +94,7 @@ def correctness(base, manifest, warmups=0):
                 raise ValueError("research observation/correlation is absent")
         return {"core_results": checks, "real_discovery": True, "origin_denial": True,
                 "preflight_warmups": warmup_stats,
+                "preflight_strict_retries": preflight_retries,
                 "correlated_requests": len(records), "sources": provenance.sources(),
                 "scope": "Local text-only core API floor; not load capacity, lifecycle or media assurance."}
     return asyncio.run(check())
