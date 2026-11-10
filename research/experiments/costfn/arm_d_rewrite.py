@@ -319,3 +319,58 @@ def transform_followup(compiled, reader, service):
     except Exception as exc:
         raise ValueError(f"Arm D follow-up: result failed parse validation: {exc}") from None
     return treated
+
+
+# ---------------------------------------------------------------------------
+# Phase-1.5 satellite treatment (PROTOCOL amendment, declared before runs):
+# the counting step moves to counting_numbers point seeks on the
+# (doc_id, counter_name) key. The Step-1 readability verification is
+# UNCHANGED; only the counting SQL differs. Golden pin: the compiled
+# follow-up must still match the Step-1 goldens (app/compiler drift
+# refuses); the satellite form is then emitted. Absent satellite rows are
+# zero-filled — absence is a value, not an error.
+# ---------------------------------------------------------------------------
+
+def satellite_followup_sql(service, post_ids):
+    """The satellite-form follow-up: one (doc_id, counter_name) point-seek
+    subquery per returned ID per counter, zero-filled, output shape
+    identical to the app follow-up (ref_value + like_count/dislike_count,
+    or post_id + comment_count)."""
+    n = len(post_ids)
+    ids = ", ".join(f"'{v}'" for v in post_ids)
+    if service == "reactions":
+        return (f"WITH [{ids}] AS ids SELECT arrayElement(ids, number) AS ref_value, "
+                f"coalesce((SELECT sum(value) FROM counting_numbers WHERE doc_id = arrayElement(ids, number) "
+                f"AND counter_name = 'reactions:like'), 0) AS like_count, "
+                f"coalesce((SELECT sum(value) FROM counting_numbers WHERE doc_id = arrayElement(ids, number) "
+                f"AND counter_name = 'reactions:dislike'), 0) AS dislike_count FROM numbers({n})")
+    if service == "comments":
+        return (f"WITH [{ids}] AS ids SELECT arrayElement(ids, number) AS post_id, "
+                f"coalesce((SELECT sum(value) FROM counting_numbers WHERE doc_id = arrayElement(ids, number) "
+                f"AND counter_name = 'comments'), 0) AS comment_count FROM numbers({n})")
+    raise ValueError(f"satellite follow-up declared for reactions/comments only, got {service}")
+
+
+def transform_followup_satellite(compiled, reader, service):
+    """Pin-check the compiled follow-up against the Step-1 goldens (the
+    readability side is unchanged), then emit the satellite counting form.
+    Returns None when the compiled SQL is not the follow-up shape at all."""
+    if service not in _FOLLOWUP_GOLDEN:
+        raise ValueError(f"Arm D satellite follow-up declared for reactions/comments only, got {service}")
+    groups = followup_groups(compiled)
+    ids = followup_ids(compiled)
+    if not groups or not ids:
+        return None
+    raw = _followup_template_raw(service)
+    expected = (raw
+                .replace("{GROUPS}", ", ".join(f"'{g}'" for g in groups))
+                .replace("{IDS}", ", ".join(f"'{v}'" for v in ids))
+                .replace("{READER}", reader))
+    if compiled != expected:
+        raise ValueError("Arm D satellite follow-up pin: compiled SQL differs from the pinned golden structure")
+    treated = satellite_followup_sql(service, ids)
+    try:
+        sqlglot.parse_one(treated, read="clickhouse")
+    except Exception as exc:
+        raise ValueError(f"Arm D satellite follow-up: result failed parse validation: {exc}") from None
+    return treated

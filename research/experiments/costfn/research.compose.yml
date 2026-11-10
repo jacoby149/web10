@@ -22,4 +22,7 @@ services:
       QUERY_EVAL_READABLE_MODE: "${COSTFN_RESOLVER:-batched}"
       # Arm D treatment switch (PROTOCOL §4): 0 = Arm A queries unchanged.
       COSTFN_ARM_D: "${COSTFN_ARM_D:-0}"
+      # Phase-1.5 satellite treatment (PROTOCOL amendment): follow-up
+      # counting via counting_numbers point seeks. Research-only.
+      COSTFN_SATELLITE: "${COSTFN_SATELLITE:-0}"
     command: ["uv", "run", "uvicorn", "research_api:application", "--host", "0.0.0.0", "--port", "80", "--no-access-log"]

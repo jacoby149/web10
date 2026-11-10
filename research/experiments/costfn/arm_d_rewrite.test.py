@@ -105,5 +105,40 @@ class ArmDFollowupTests(unittest.TestCase):
         self.assertIn("discover", checks[1][0])
 
 
+
+
+class ArmDSatelliteTests(unittest.TestCase):
+    def test_satellite_sql_shapes(self):
+        ids = [f"c42-doc-{i}" for i in range(20)]
+        re_sql = arm_d_rewrite.satellite_followup_sql("reactions", ids)
+        cm_sql = arm_d_rewrite.satellite_followup_sql("comments", ids)
+        import sqlglot
+        sqlglot.parse_one(re_sql, read="clickhouse")
+        sqlglot.parse_one(cm_sql, read="clickhouse")
+        self.assertIn("counting_numbers", re_sql)
+        self.assertIn("'reactions:like'", re_sql)
+        self.assertIn("'reactions:dislike'", re_sql)
+        self.assertIn("coalesce", re_sql)
+        self.assertIn("'comments'", cm_sql)
+        self.assertNotIn("documents", re_sql)
+        self.assertNotIn("doc_groups", re_sql)
+
+    def test_satellite_transform_pins_golden(self):
+        rw = arm_d_rewrite.transform_followup_satellite(RE_GOLDEN, READER, "reactions")
+        self.assertIsNotNone(rw)
+        self.assertIn("counting_numbers", rw)
+        rw2 = arm_d_rewrite.transform_followup_satellite(CM_GOLDEN, READER, "comments")
+        self.assertIsNotNone(rw2)
+
+    def test_satellite_transform_refuses_drift(self):
+        with self.assertRaises(ValueError):
+            arm_d_rewrite.transform_followup_satellite(RE_GOLDEN.replace("ORDER BY updated_at DESC", "ORDER BY updated_at ASC", 1),
+                                                       READER, "reactions")
+        self.assertIsNone(arm_d_rewrite.transform_followup_satellite(GOLDEN, READER, "reactions"))  # main SQL: not the follow-up shape -> None
+    def test_satellite_refuses_wrong_service(self):
+        with self.assertRaises(ValueError):
+            arm_d_rewrite.satellite_followup_sql("posts", ["a"])
+
+
 if __name__ == "__main__":
     unittest.main()
