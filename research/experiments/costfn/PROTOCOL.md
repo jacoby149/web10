@@ -133,7 +133,8 @@ follow=20, readers=2`, both localities, local disposable stack, strict
 `acceptance.py` pass: exact nonempty results, real joins firing (reactions
 nonempty on all followed posts; comments nonempty on every-tenth), Discover
 links present, distinct timestamps, missing-Origin denial, and next-page
-oracle where applicable. Floor receipts: `evidence/k20-floor-20261109.json`.
+oracle where applicable. Floor receipts:
+`evidence/protocol-inputs-20261109.json` (`small_floor_strict_acceptance`).
 Small-floor success is a **functional gate only** — it never claims transfer
 to the full store (#1452 rule).
 
