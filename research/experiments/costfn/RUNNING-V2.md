@@ -107,7 +107,10 @@ are **functional evidence only**, not latency percentiles for the manuscript.
 After source changes, regenerate and review the offline first-page and pagination
 captures in new versioned files; never overwrite historical captures or relabel
 an old acceptance receipt as current. The current captures are
-`evidence/core-feed-wire-v4.json` and `evidence/core-feed-next-page-v3.json`.
+`evidence/core-feed-wire-v5.json` and `evidence/core-feed-next-page-v4.json`
+(the 9 November 2026 re-capture: `feed.ts` source pin refreshed after the 5.10.1
+feed tuner; all four request payloads byte-identical to v4/v3 — the workload
+is unchanged, only the source pin moved).
 The single-node first-page payloads are unchanged from v3. They do not capture
 the federated reader's destination discovery, quotas, merge or paging sequence.
 Run `readiness_v2.py` against the newly generated acceptance receipt:

@@ -37,6 +37,9 @@ def run(manifest, pairs=20, seed=42, mode="batched"):
     observations = []
     client = TestClient(research_api.application)
     reader = manifest["reader"]
+    # Declared K shapes (PROTOCOL): the main response carries min(21, K) rows —
+    # K >= 21 fetches 21 and displays 20; K = 10/20 is the sub-21 page.
+    expected_rows = min(21, manifest["recipe"]["follow"])
     response = client.post("/v3/login", json={"username": reader, "password": dataset_v2.PASSWORD, "site": "costfn"})
     response.raise_for_status()
     token = response.json()["token"]
@@ -89,7 +92,7 @@ def run(manifest, pairs=20, seed=42, mode="batched"):
                     response = client.post("/v3/query", json=body,
                         headers={"Origin": dataset_v2.ORIGIN, "X-Research-ID": uuid.uuid4().hex})
                 response.raise_for_status()
-                if len(observations) != before + 1 or len(response.json().get("rows", [])) != 21:
+                if len(observations) != before + 1 or len(response.json().get("rows", [])) != expected_rows:
                     raise ValueError("missing timing or nonempty result")
                 response_hashes[arm] = hashlib.sha256(json.dumps(response.json(), sort_keys=True).encode()).hexdigest()
                 records[arm] = observations[-1]

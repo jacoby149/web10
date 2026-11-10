@@ -1,0 +1,42 @@
+{
+ "kind": "PHASE0_ARM_D_TRIAL_RECORD",
+ "date": "10.11.2026",
+ "input": {"slot": "k20-1m-dispersed", "dataset_id": "424cdf26029869728e73033921583160d47764d76175f2ec4b3f7b2a5d1ea0d2"},
+ "allocation": "ClickHouse 5 GB pinned (research.compose.yml mem_limit, commit 9fd52dadd); Docker VM 7.654 GiB shared with ~1.5 GiB of other workspaces; 8 logical CPUs; recorded per receipt via provenance.runtime",
+ "engine": "24.8.14.39",
+ "arm_a_baseline_trial": {
+  "project": "web10-costfn-frozen-k20-1m-disp3",
+  "strict_acceptance": "FAILED: 4/4 measured mains 400; measurement_valid true; raw records retained",
+  "native_breakdown": {
+   "code_241_total_memory_limit": {"count": 5, "avg_read_rows": 4114746, "avg_read_mb": 406.3, "avg_memory_mb": 1248.2},
+   "code_159_timeout_10s": {"count": 5, "avg_read_rows": 25101069, "avg_read_mb": 2247.9, "avg_memory_mb": 699.2}
+  },
+  "warm_single_threaded": {"main_execute_ms": "1400-3900", "main_total_with_prepare_ms": "3200-6700", "followups_ms": "1400-2800"},
+  "mechanism": "every main query natively reads the whole documents + whole doc_groups tables (boundary CTEs resolve the 20 readable groups by full-scan; doc_groups is ordered (doc_id, group_id) so group->docs is not a prefix seek); ~30M rows across the four service CTEs per main",
+  "scope": "Preserved failed baseline (PLAN: 'keep every failed baseline measurement')"
+ },
+ "arm_d_rekey": {
+  "receipt": ".context/k20-1m-disp3-armD-receipt.json",
+  "single_pass": "create -> INSERT SELECT re-sort (3.1M rows, 2.5 s) -> row/content/per-author/25-spot parity (all equal) -> sequential live feeds pre-flip -> atomic RENAME flip (0.2 s, old table kept as documents_old_arma) -> sequential live feeds post-flip: exact main-output parity (identical row hashes both readers)",
+  "scope": "PLAN §8 production-migration mechanics dry-run on the frozen input; rollback path retained"
+ },
+ "arm_d_treatment": {
+  "declared": "PROTOCOL §4: 'the query must be written to exploit the key (author set + time predicate pushed into the scan)'",
+  "mechanism": "each of the four boundary CTEs rewritten from documents-full-scan + doc_groups-full-scan to documents WHERE collection_name='<svc>' AND author_key IN (20 verified owners) — 20 prefix seeks on the D key; the group-keyed gates dropped (verified empty per request); dg.group_id synthesized as a CASE over the verified author->owner mapping; I3 retained via per-request point verification (20 memberships, 20 owner pairs, 5 gate tables empty); the compiled SQL must byte-match the pinned golden structure (evidence/arm-d-compiled-main-golden-20261109.sql, parameterised) or the treatment refuses",
+  "research_only": "gated by COSTFN_ARM_D=1 in research_api (research entry point only; production app.main never sees the flag); offline regression arm_d_rewrite.test.py (7 tests) pins the transform + refusals",
+  "output_parity": "exact 20 IDs/order on every probe and trial main (oracle check_result)"
+ },
+ "arm_d_trial": {
+  "project": "web10-costfn-frozen-k20-1m-disp3 (same stack, post-flip, treatment armed)",
+  "strict_acceptance": "FAILED: mains 4/4 200 (the treatment held under concurrency), engagement follow-ups + node-ad inventory still in Arm A shape drove 2x code-159 then a 137 (CH OOM-killed at the pinned 5 GB cap); lifecycle post-500s downstream of the CH death; measurement_valid true; raw records retained (.context/k20-1m-disp3-armD-trial/)",
+  "native_shape_breakdown_15min": [
+   {"shape": "D-treated main", "n": 10, "avg_rows": 73777, "avg_mb": 2.6, "avg_ms": 262, "max_mb": 2.9},
+   {"shape": "followup/other CTE (Arm A shape)", "n": 94, "avg_rows": 7280316, "avg_mb": 567.8, "avg_ms": 731, "max_mb": 3323.0},
+   {"shape": "node-ad inventory (Arm A shape)", "n": 13, "avg_rows": 7200012, "avg_mb": 843.2, "avg_ms": 4577, "max_mb": 843.2},
+   {"shape": "other (lifecycle, views, verification)", "n": 881, "avg_rows": 49841, "avg_mb": 4.2, "avg_ms": 28, "max_mb": 419.4}
+  ]
+ },
+ "result_statement": "At K=20/N=1M on the frozen input, the personal main feed query went from Arm A (3.7M-7.2M native rows, 215-885 MB, 1.4-3.9 s cold single-threaded; concurrent sequence fails the pinned allocation) to Arm D treated (74k rows / 2.6 MB / ~36 ms native execute, ~260 ms end-to-end including point verification): ~50x fewer bytes per main query, exact output parity, I3-verified. The pre-declared main-query target (p95 < 500 ms AND bytes < 25 MB) is MET by the treated main query. The full feed SEQUENCE does not yet meet it: the two engagement follow-ups (~3.7M rows / ~215 MB each) and the node-ad inventory read (7.2M rows / 843 MB) are still Arm A shape.",
+ "next_bounded_iteration": "declared, evidence-backed, same family as merged Q01 (#1448 exact-ID pruning): (1) engagement follow-ups are exact-ID queries — resolve their readability by doc_id IN (20) against doc_groups (doc_id is its key prefix: 20 seeks) instead of the group-scan, leaving the service-table read (reactions ~310k / comments ~31k) as the residual; (2) the node-ad inventory read is a fixture constant (zero node ads in the input) — either a bounded treatment (empty-inventory short-circuit verified against node_config) or a declared exclusion from the feed-sequence cost metric; either way named before the run. No new optimizer idea beyond these.",
+ "scope": "Phase-0 local evidence on the frozen input, pinned allocation, research stack. Not Phase-1 study discipline (no multi-trial yet), not a capacity claim, not production. The 4 extra documents on this stack are the Arm A trial's lifecycle-control writes (steady-refresh condition), present on both key states."
+}
