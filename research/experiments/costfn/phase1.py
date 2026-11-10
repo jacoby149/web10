@@ -171,8 +171,10 @@ def native_breakdown(project, outdir, since_epoch):
         f"round(avg(query_duration_ms),0) AS avg_ms, sum(exception_code != 0) AS failures "
         f"FROM system.query_log WHERE type='QueryFinish' AND event_time >= toDateTime({int(since_epoch)}) "
         f"GROUP BY shape ORDER BY n DESC FORMAT JSONEachRow")
+    # JSONEachRow = one JSON object per line: parse as JSON lines, never as
+    # a single document.
     out = ch_query(project, query)
-    rows = json.loads(out) if out else []
+    rows = [json.loads(line) for line in out.splitlines() if line.strip()] if out else []
     (outdir / "native.json").write_text(json.dumps(rows, indent=1) + "\n")
     return rows
 
