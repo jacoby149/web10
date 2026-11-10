@@ -253,5 +253,71 @@
   "harness_python_sha256": "459fdcdcf7863c6b0a8d7f50e86ede03e0f6efe9b23d12aacb848b6ddaf42c75",
   "pagination_capture_sha256": "b2241bde1799eb2d0a1c9bd0ee78e187fc4f81025cf9badde0d7586df6f9d02e",
   "wire_sha256": "3d631391138d409b5a7059b64e8af863fb5cd3dfbc681706f24b7474bd31848c"
+ },
+ "addendum_date_k20": {
+  "added": "09.11.2026 (operator engineering: ~1/30 of the posts 30 days old)",
+  "slot": "k20-1m-longspan",
+  "dataset_id": "06b81bc94e60af8494dd6e92a42fd02807362661721890b791f4b1886615883b",
+  "format": "web10-costfn-date-k20-v1",
+  "parent_dataset_id": "ed2e8a02c2c213eb12d4d2fb1ce78c1ec13b6f58b7de0c4f968eca0a45bbf637",
+  "derived_by": "dataset_v2_date.py (all-row validator replayed the transform against the parent recipe)",
+  "date_contract": {
+   "clock": "2026-11-09T12:00:00+00:00",
+   "cutoff_ms": 1791633600000,
+   "window_days": 30,
+   "cohort": "creators 0..19 (every reader's hot followed set), newest 20 s",
+   "background": "last 33,333 creators spread across the window",
+   "posts_in_window": 33353,
+   "re_stamped_tables": [
+    "documents",
+    "doc_groups"
+   ]
+  },
+  "rows": {
+   "users": 1020000,
+   "documents": 3100000,
+   "doc_groups": 4100000,
+   "group_contracts": 1000000,
+   "group_members": 3420000,
+   "app_contracts": 20000
+  },
+  "compressed_bytes": 223305058,
+  "storage": ".context/inputs/k20-1m-longspan/ (local-only; no MinIO publication)"
+ },
+ "addendum_arm_a_baseline_trial1": {
+  "recorded": "09.11.2026",
+  "project": "web10-costfn-frozen-k20-1m-disp3",
+  "allocation": "ClickHouse 5 GB pinned (research.compose.yml mem_limit; commit 9fd52dadd)",
+  "strict_acceptance": "FAILED: 4/4 measured mains 400; measurement_valid: true; all raw records retained",
+  "native_failures": {
+   "code_241_total_memory": {
+    "count": 5,
+    "avg_read_rows": 4114746,
+    "avg_read_mb": 406.3,
+    "avg_mem_mb": 1248.2
+   },
+   "code_159_timeout_10s": {
+    "count": 5,
+    "avg_read_rows": 25101069,
+    "avg_read_mb": 2247.9,
+    "avg_mem_mb": 699.2
+   }
+  },
+  "per_request_mechanism": "every core-feed request natively reads ~7.2M rows / ~0.9 GB on single-threaded warm runs (whole documents + whole doc_groups: group->docs resolution is not a prefix on doc_groups' (doc_id, group_id) key); ~1.6 GB per-query memory peaks",
+  "warm_single_threaded_ms": {
+   "main_execute": [
+    1400,
+    3900
+   ],
+   "main_total_with_prepare": [
+    3200,
+    6700
+   ],
+   "followups": [
+    1400,
+    2800
+   ]
+  },
+  "scope": "Preserved failed Arm A baseline at K=20/N=1M on the frozen input + pinned allocation (PLAN: 'keep every failed baseline measurement'); local evidence .context/disp2-trial1/ and .context/k20-1m-disp3-armA/ (query_log exports, observer logs, raw request/feed records)"
  }
 }

@@ -68,30 +68,59 @@ class Step:
 
 
 
+# ClickHouse 24.8: SHA256 (uppercase) over strings only; arraySort gives a
+# deterministic multiset digest. Per-row digest -> sorted concat -> SHA256.
+_ROW_DIGEST = ("HEX(SHA256(concat(doc_id, '|', author_key, '|', collection_name, '|', "
+               "toString(created_at), '|', toString(updated_at), '|', toString(deleted))))")
+_FULL_ROW_DIGEST = ("HEX(SHA256(concat(doc_id, '|', author_key, '|', collection_name, '|', body, "
+                    "'|', ref_value, '|', arrayStringConcat(tags), '|', toString(created_at), '|', "
+                    "toString(updated_at), '|', toString(deleted), '|', ad_mode, '|', ad_target, '|', "
+                    "posted_by)))")
+
+
 def content_hash(table):
-    return (f"SELECT toString(sha256(groupArray(tuple(doc_id, author_key, collection_name, "
-            f"created_at, updated_at, deleted)))) FROM {table}").strip()
+    return (f"SELECT HEX(SHA256(arrayStringConcat(arraySort(groupArray({_ROW_DIGEST}))))) "
+            f"FROM {table}").strip()
 
 
 def author_distribution_hash(table):
-    return (f"SELECT toString(sha256(groupArray(tuple(author_key, c)))) FROM "
-            f"(SELECT author_key, count() AS c FROM {table} GROUP BY author_key)").strip()
+    return (f"SELECT HEX(SHA256(arrayStringConcat(arraySort(groupArray(concat(author_key, '|', toString(c))))))) "
+            f"FROM (SELECT author_key, count() AS c FROM {table} GROUP BY author_key)").strip()
 
 
 def spot_doc_ids(n=25, seed_mod=400000, offset=7):
     # Deterministic hash sampling: no global sort over the full table.
-    return (f"SELECT doc_id FROM documents WHERE cityHash16(doc_id) % {seed_mod} = {offset} "
+    return (f"SELECT doc_id FROM documents WHERE cityHash64(doc_id) % {seed_mod} = {offset} "
             f"ORDER BY doc_id LIMIT {n} FORMAT TSVRaw")
 
 
 async def live_feeds(base, manifest, readers=2):
-    """Full real core-feed sequence for `readers` readers; main-row hashes + checks."""
+    """Real core-feed sequence for `readers` readers; main-row hashes + checks.
+
+    Sequential request shape on purpose: this step proves the re-key changes
+    no output, not latency. Concurrent K=20 feeds on this pinned-allocation
+    machine are memory-contended (that contention IS a measured result — see
+    the trial records); the performance trials use the standard concurrent
+    acceptance shape instead.
+    """
     out = []
+    wire = core_feed.wire()
     async with httpx.AsyncClient(base_url=base, timeout=120, trust_env=False) as client:
         sessions = await core_feed.prepare(client, manifest, readers)
         for index, (token, groups) in enumerate(sessions):
-            rows, followups = await core_feed.feed(client, core_feed.wire(), token, groups, [],
-                                                   "arm-d-parity", index)
+            records = []
+            main = await core_feed.request(client, wire["requests"][0]["path"],
+                                           core_feed.payload(wire["requests"][0]["payload"], token, groups),
+                                           dataset_v2.ORIGIN, records, "main", "arm-d-parity", index)
+            rows = main["rows"]
+            if not rows:
+                raise ValueError("empty main result is not an Arm D parity sample")
+            ids = [r["doc_id"] for r in rows]
+            followups = []
+            for item, kind in zip(wire["requests"][1:], ("reactions", "comments", "views")):
+                followups.append(await core_feed.request(client, item["path"],
+                    core_feed.payload(item["payload"], token, groups, ids),
+                    dataset_v2.ORIGIN, records, kind, "arm-d-parity", index))
             check = core_feed.check_result(manifest, index, rows, followups)
             reactions, comments, views = followups
             out.append({"reader_index": index, "main_rows_sha256":
@@ -116,21 +145,45 @@ def arm_d(directory, receipt_path, out_path, spot=25):
     compose = topology.commands(receipt)
     env = topology.environment(receipt, os.environ) if receipt.get("docker_contexts") else os.environ.copy()
 
-    def ch(query, timeout=900):
+    def ch(query):
+        # restore_dataset.run() carries its own 900 s subprocess timeout.
         return restore_dataset.run(compose + ["exec", "-T", "clickhouse", "clickhouse-client",
                                               "--user", "web10", "--password", "web10",
                                               "--database", "web10", "--query", query],
-                                   env, timeout=timeout).decode().strip()
+                                   env).decode().strip()
 
     steps = []
 
     def record(name, fn, **extra):
-        with Step(name) as step:
+        step = Step(name)
+        with step:
             value = fn()
-            result = {"name": name, "elapsed_seconds": step.elapsed_seconds, "value": value, **extra}
-            steps.append(result)
-            return value
+        result = {"name": name, "elapsed_seconds": step.elapsed_seconds, "value": value, **extra}
+        steps.append(result)
+        return value
 
+    try:
+        _arm_d_body(directory, manifest, verified, receipt, project, compose, env, ch, spot, steps, record, out_path)
+    except Exception as exc:
+        # Retain the partial evidence before re-raising: which step failed,
+        # which parity held, whether the flip happened (it is the last
+        # destructive step; a pre-flip failure leaves the A table intact).
+        out = Path(out_path)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps({
+            "kind": "ARM_D_FAILED", "error": f"{type(exc).__name__}: {exc}",
+            "project": project, "dataset_id": verified["dataset_id"], "recipe": manifest["recipe"],
+            "ddl": ARM_D_DDL, "rollback_table": ROLLBACK_NAME,
+            "steps_completed": [s.get("name") for s in steps],
+            "steps": steps, "sources": provenance.sources(),
+            "scope": "Partial Arm D evidence; the failed step is the failure. Pre-flip failures leave "
+                     "the Arm A table intact (the flip is the last step).",
+        }, indent=1) + "\n")
+        print(f"[arm-d] FAILED; partial receipt retained at {out}", flush=True)
+        raise
+
+
+def _arm_d_body(directory, manifest, verified, receipt, project, compose, env, ch, spot, steps, record, out_path):
     # 0 — pre-state: the A key is in place and no Arm D artifacts exist.
     old_create = ch("SHOW CREATE TABLE documents")
     if OLD_KEY_MARK not in old_create:
@@ -165,8 +218,8 @@ def arm_d(directory, receipt_path, out_path, spot=25):
         raise ValueError(f"spot sample returned {len(ids)} ids; deterministic sampling failed, keep the evidence")
     spot_hashes = []
     for doc_id in ids:
-        old_row = ch(f"SELECT sha256(groupArray(tuple(*))) FROM documents WHERE doc_id = '{doc_id}'", timeout=120)
-        new_row = ch(f"SELECT sha256(groupArray(tuple(*))) FROM documents_armd WHERE doc_id = '{doc_id}'", timeout=120)
+        old_row = ch(f"SELECT {_FULL_ROW_DIGEST} FROM documents WHERE doc_id = '{doc_id}'")
+        new_row = ch(f"SELECT {_FULL_ROW_DIGEST} FROM documents_armd WHERE doc_id = '{doc_id}'")
         if not old_row or old_row != new_row:
             raise ValueError(f"spot document lookup parity failed for {doc_id}; drop the arm, keep the evidence")
         spot_hashes.append({"doc_id": doc_id, "row_sha256": new_row})
