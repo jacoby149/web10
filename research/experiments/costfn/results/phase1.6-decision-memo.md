@@ -64,12 +64,44 @@ two outcomes, to be confirmed by the pending 1M `query_log` re-capture:
   so contentViews reads a handful of `content_events` rows by `doc_id` seek at any
   scale. **No `counting_numbers`, no freshness contract, no reach problem.**
 
-## Pending (the decisive 1M check)
-Re-capture one clean 1M trial's raw `query_log` (B/C retained only the aggregate
-`native_breakdown`; the raw SQL lived in the torn-down CH). Confirm at 1M, where
-`doc_groups` = 4.1M rows and its `(doc_id, group_id)` key cannot prefix-seek by group:
-(a) the 3.66M `followup-armA` is the reactions/comments CTEs; (b) what contentViews
-reads. Held until a C trial slot frees (to avoid stacking two 1M restores in the VM).
+## 1M confirmation (done 10.11.2026) — outcome #2
+Re-captured one clean Arm-A 1M feed's raw `query_log` (fresh `views1m` stack,
+k20-1m-dispersed; the B/C aggregate-only retention meant a re-capture). Confirmed:
+
+| follow-up | native rows @1M | MB | ms | owner |
+|-----------|----------------|-----|----|-------|
+| reactions | 7,200,000 | 872 | 1081 | reactions service-partition CTE |
+| comments  | 7,200,000 | 808 | 833  | comments service-partition CTE |
+| **contentViews (views)** | **4,100,060** | **372.8** | **670** | **the `doc_groups` I3-readability subquery** (`content_events` itself is 60 rows) |
+
+So the "3.66M `followup-armA`" is the reactions/comments service-partition reads
+(**Phase 1.5's** `counting_numbers` job), and views' real cost is the **`doc_groups`
+readability subquery at ~4.1M @1M — not small.** **Outcome #2: the treatment is the
+Step-1 readability move, not the satellite.**
+
+## Treatment (implemented, gated `COSTFN_VIEWS_TREAT=1`, research-only)
+The contentViews query's inner `doc_groups` subquery gains `doc_id IN (<returned ids>)`
+(`doc_groups` is `ORDER BY (doc_id, group_id)` → a prefix seek). The outer `e.doc_id IN`
+already intersects, so the result is byte-identical; only the native read drops.
+- `arm_d_rewrite.views_treated_sql(doc_ids, service, group_ids)` — builds the treated
+  SQL, golden-pins the point-scale marker (`doc_groups WHERE doc_id IN (`), parse-validates.
+- `research_api.py` — monkeypatches `ch.content_event_views_for_docs` (mirrors the node-ad
+  pattern) when `COSTFN_VIEWS_TREAT=1`; `research.compose.yml` exposes the flag.
+- `arm_d_rewrite.test.py` — 2 new tests (point-scale marker, empty case).
+
+## Gate (1M, reader 5's 20 returned posts)
+| | rows | MB | ms |
+|---|---|---|---|
+| ORACLE (untreated contentViews) | 4,100,060 | 372.8 | 670 |
+| TREATED (`COSTFN_VIEWS_TREAT=1`) | **1,240** | **1.2** | **5** |
+
+**Parity: PASS** — 20 docs, byte-identical impressions + reach. Native read
+4,100,060 → 1,240 rows (~3,300×), 372.8 → 1.2 MB (~300×), 670 → 5 ms (~130×).
+The 1,240 rows = `content_events` (60) + the `doc_id IN` point-seek on `doc_groups`.
+Point-seek scale confirmed; the key is being used. **Phase 1.6 closes: views is
+treated by the Step-1 readability move; Phase 2 may now run the full sequence with
+views at point-seek scale.** No `counting_numbers`, no freshness contract, no reach
+problem.
 
 ## Method note (for the paper's journey section)
 Second confident shape-label that turned out to be a misattribution. The per-shape

@@ -7,6 +7,7 @@ transform must succeed on it, refuse on any drift, and produce the exact
 declared author-set shape. No ClickHouse, no network.
 """
 import unittest
+import uuid
 
 import arm_d_rewrite
 
@@ -160,6 +161,24 @@ class ArmDSatelliteTests(unittest.TestCase):
                                    "group_id IN (" + ", ".join(f"'{g}'" for g in swapped) + "))")
         with self.assertRaises(ValueError):
             arm_d_rewrite.transform(reordered, READER, GROUPS, AUTHORS)
+
+
+class ArmDViewsTreatTests(unittest.TestCase):
+    IDS = [str(uuid.UUID(int=i)) for i in range(1, 21)]
+
+    def test_treated_sql_point_scale_marker(self):
+        sql, params = arm_d_rewrite.views_treated_sql(self.IDS, "posts", FOLLOWUP_GROUPS)
+        self.assertIsNotNone(sql)
+        # the inner doc_groups subquery seeks by doc_id (the point-scale marker)
+        self.assertIn("doc_groups WHERE doc_id IN (", sql)
+        self.assertIn("countDistinct(e.reader_key)", sql)
+        self.assertEqual(params["svc"], "posts")
+        self.assertEqual(sum(1 for k in params if k.startswith("d")), 20)
+        self.assertEqual(sum(1 for k in params if k.startswith("g")), len(FOLLOWUP_GROUPS))
+
+    def test_treated_sql_empty(self):
+        self.assertEqual(arm_d_rewrite.views_treated_sql([], "posts", FOLLOWUP_GROUPS), (None, None))
+        self.assertEqual(arm_d_rewrite.views_treated_sql(self.IDS, "posts", []), (None, None))
 
 
 if __name__ == "__main__":

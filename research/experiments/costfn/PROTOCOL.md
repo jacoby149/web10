@@ -278,28 +278,27 @@ full receipt: `results/phase1.6-step0-views-classification.md`.
   service-partition read; the views query's real dominant cost is the
   `doc_groups` readability subquery (~2M @1M) and it is classified `other` in
   `native_breakdown` (a top-level SELECT, not `WITH...`), not `followup-armA`.
-- **Branch A implementation (declared before the build):**
-  1. Extend the Phase-1.5 satellite build: `counting_numbers` gains the views
-     counters as `counter_name` DATA values `views:impressions` (count) and
-     `views:reach` (countDistinct reader_key), built from `content_events`
-     (event_type='delivery', service='posts') grouped by doc_id. No schema change
-     (D60). Same wholesale rebuild + receipt.
-  2. Rewrite the contentViews call (research-only, mirroring the node-ad
-     monkeypatch): readability via the Step-1 exact-ID pattern (point-scale
-     `doc_id` seeks on `doc_groups`, dropping the full subquery) + counting via
-     `counting_numbers` point-seeks (`doc_id IN returned ids,
-     counter_name IN (views:impressions, views:reach)`), absent row = 0.
-     Golden-pin the rewrite; drift refuses. Gated by `COSTFN_SATELLITE=1`.
-  3. Freshness: the views snapshot is built AFTER the trial reader's delivery
-     logging has settled (window-deduped, so stable) and before the measured
-     window, matching the Phase-1.5 freshness contract.
-- **Gate (receipts retained either way):** views counts equal the current
-  untreated contentViews outputs on every probe/measured feed (oracle = the
-  Arm-A-shape contentViews on this fixture; disagreement = arm INVALID, oracle
-  never adjusted); native rows per views calls at point-seek scale (hundreds,
-  verified in the query log — if still large, the key is not used: investigate,
-  do not report around it). Then per-shape sequence table with views
-  before/after + parity, before Phase 2.
+ - **1M confirmation (10.11.2026) -> outcome #2 (the Step-1 readability move,
+   NOT the satellite).** A re-captured Arm-A 1M feed showed contentViews reads
+   4,100,060 rows / 372.8 MB / 670 ms — the `doc_groups` I3-readability subquery
+   (`content_events` is 60 rows). So views is NOT small at 1M, and the counting
+   satellite is the wrong tool (freshness: `content_events` is written by the
+   study's window-deduped delivery logging; reach is `countDistinct`). The
+   `3.7M followup-armA` is the reactions/comments service-partition CTEs (Phase
+   1.5's job), not views.
+ - **Treatment (implemented, gated `COSTFN_VIEWS_TREAT=1`, research-only):** the
+   contentViews query's inner `doc_groups` subquery gains `doc_id IN (<returned
+   ids>)` (`doc_groups` is `ORDER BY (doc_id, group_id)` -> a prefix seek). The
+   outer `e.doc_id IN` already intersects, so the result is byte-identical; only
+   the native read drops. `arm_d_rewrite.views_treated_sql` builds + golden-pins
+   the point-scale marker; `research_api` monkeypatches
+   `ch.content_event_views_for_docs` (mirrors the node-ad pattern). No
+   `counting_numbers`, no freshness contract, no reach handling.
+ - **Gate (1M, reader 5's 20 returned posts):** parity PASS — 20 docs
+   byte-identical impressions + reach; native read 4,100,060 -> **1,240 rows**
+   (372.8 -> 1.2 MB, 670 -> 5 ms). Point-seek scale confirmed (the key is used).
+   **Phase 1.6 closes:** the full sequence now runs with views at point-seek
+   scale; Phase 2 may proceed on D + counting_numbers + views-treat.
 
 **Study configurations (declared 10.11.2026 for Phase 1):** Study B/C run
 the winning configuration (D layout + all three sequence treatments,
