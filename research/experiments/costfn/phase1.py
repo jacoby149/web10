@@ -201,7 +201,7 @@ def trial(study, cell, slot, layout, treatment, mode, kind, trial_no, seed, log)
     # the post-import merge storm makes the cold strict check memory-
     # contended (recorded b-1m-d t2, 10.11.2026). Warm-ups are excluded,
     # not study samples.
-    warmups = 6 if "1m" in slot else 0
+    warmups = 10 if "1m" in slot else 0
     try:
         since = time.time()
         restored = restore(slot, project, PINNED_IDS[slot], outdir, log, warmups)
