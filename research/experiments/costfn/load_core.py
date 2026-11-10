@@ -69,8 +69,11 @@ class Records:
 
 async def run_point(base, manifest, users, interval, warmup, duration, drain, output, max_lag=1.0):
     validate_target(base)
-    if users > len(manifest["readers"]) or manifest["recipe"]["follow"] < 21:
-        raise ValueError("fixture needs distinct readers and at least 21 followed authors")
+    if users > len(manifest["readers"]) or manifest["recipe"]["follow"] < 10:
+        # Declared K (PROTOCOL): 10/20/100/1000. K >= 21 fetches 21 and
+        # displays 20; K = 10/20 is the sub-21 page: K fetched / K displayed,
+        # empty second page. check_result oracles both shapes exactly.
+        raise ValueError("fixture needs distinct readers and a declared K >= 10")
     capture = core_feed.wire()
     counters = collections.Counter()
     in_flight = set()

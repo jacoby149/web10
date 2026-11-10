@@ -1,0 +1,257 @@
+{
+ "kind": "PROTOCOL_INPUT_FREEZE",
+ "date": "09.11.2026",
+ "directive": "research/experiments/costfn/PLAN.md (ratified 09.11.2026)",
+ "protocol": "research/experiments/costfn/PROTOCOL.md (frozen 09.11.2026)",
+ "engine_pin": "ClickHouse 24.8 (research overlay image ghcr.io/jacoby149/base-clickhouse:24.8; floor restores recorded 24.8.14.39)",
+ "wire_capture_repin": {
+  "reason": "09.11.2026 source pin moved: feed.ts refreshed after the 5.10.1 feed tuner; sdk/posts/types unchanged; all four request payloads byte-identical to core-feed-wire-v4.json / core-feed-next-page-v3.json (workload unchanged, pin moved)",
+  "current_first_page": "evidence/core-feed-wire-v5.json",
+  "current_pagination": "evidence/core-feed-next-page-v4.json",
+  "historical_unchanged": [
+   "evidence/core-feed-wire-v4.json",
+   "evidence/core-feed-next-page-v3.json"
+  ]
+ },
+ "harness_fixes_this_bite": {
+  "load_core.run_point": "K guard 21 -> declared K >= 10 (K=10/20 sub-21 page: K fetched / K displayed, empty second page; check_result oracles both shapes)",
+  "paired_resolver": "expected main rows min(21, K) instead of hardcoded 21"
+ },
+ "inputs": {
+  "k20-1m-dispersed": {
+   "dataset_id": "424cdf26029869728e73033921583160d47764d76175f2ec4b3f7b2a5d1ea0d2",
+   "recipe": {
+    "creators": 1000000,
+    "follow": 20,
+    "locality": "dispersed",
+    "readers": 20000,
+    "seed": 42
+   },
+   "rows": {
+    "app_contracts": 20000,
+    "doc_groups": 4100000,
+    "documents": 3100000,
+    "group_contracts": 1000000,
+    "group_members": 3420000,
+    "users": 1020000
+   },
+   "total_rows": 12660000,
+   "compressed_bytes": 223048301,
+   "all_row_validator_replayed": true,
+   "storage": ".context/inputs/ (local-only; no MinIO publication)"
+  },
+  "k20-1m-hot": {
+   "dataset_id": "ed2e8a02c2c213eb12d4d2fb1ce78c1ec13b6f58b7de0c4f968eca0a45bbf637",
+   "recipe": {
+    "creators": 1000000,
+    "follow": 20,
+    "locality": "hot",
+    "readers": 20000,
+    "seed": 42
+   },
+   "rows": {
+    "app_contracts": 20000,
+    "doc_groups": 4100000,
+    "documents": 3100000,
+    "group_contracts": 1000000,
+    "group_members": 3420000,
+    "users": 1020000
+   },
+   "total_rows": 12660000,
+   "compressed_bytes": 223056820,
+   "all_row_validator_replayed": true,
+   "storage": ".context/inputs/ (local-only; no MinIO publication)"
+  },
+  "k100-1m-dispersed": {
+   "dataset_id": "2fededb9dfd73ffca1d81904b5c3b96bad4d955f4fc6f3286d4dddec4ce74656",
+   "recipe": {
+    "creators": 1000000,
+    "follow": 100,
+    "locality": "dispersed",
+    "readers": 20000,
+    "seed": 42
+   },
+   "rows": {
+    "app_contracts": 20000,
+    "doc_groups": 4100000,
+    "documents": 3100000,
+    "group_contracts": 1000000,
+    "group_members": 5020000,
+    "users": 1020000
+   },
+   "total_rows": 14260000,
+   "compressed_bytes": 227158071,
+   "all_row_validator_replayed": true,
+   "storage": ".context/inputs/ (local-only; no MinIO publication)"
+  },
+  "k100-1m-hot": {
+   "dataset_id": "017949e4ae89d87f28683cf07ae7e751070d1cabce9e4895ca6b48b42066c839",
+   "recipe": {
+    "creators": 1000000,
+    "follow": 100,
+    "locality": "hot",
+    "readers": 20000,
+    "seed": 42
+   },
+   "rows": {
+    "app_contracts": 20000,
+    "doc_groups": 4100000,
+    "documents": 3100000,
+    "group_contracts": 1000000,
+    "group_members": 5020000,
+    "users": 1020000
+   },
+   "total_rows": 14260000,
+   "compressed_bytes": 227963992,
+   "all_row_validator_replayed": true,
+   "storage": ".context/inputs/ (local-only; no MinIO publication)"
+  },
+  "k10-1m-dispersed": {
+   "dataset_id": "880adce4e61aca0110d6ebbe6fbf14dd7aa136b1f4cebcf520357fd30b12b9d3",
+   "recipe": {
+    "creators": 1000000,
+    "follow": 10,
+    "locality": "dispersed",
+    "readers": 20000,
+    "seed": 42
+   },
+   "rows": {
+    "app_contracts": 20000,
+    "doc_groups": 4100000,
+    "documents": 3100000,
+    "group_contracts": 1000000,
+    "group_members": 3220000,
+    "users": 1020000
+   },
+   "total_rows": 12460000,
+   "compressed_bytes": 222499451,
+   "all_row_validator_replayed": true,
+   "storage": ".context/inputs/ (local-only; no MinIO publication)"
+  },
+  "k20-100k-dispersed": {
+   "dataset_id": "43d14a2b8abd062ceed71c2952ca1fa34d386245adb4ad95fb75a9d77de6d92d",
+   "recipe": {
+    "creators": 100000,
+    "follow": 20,
+    "locality": "dispersed",
+    "readers": 20000,
+    "seed": 42
+   },
+   "rows": {
+    "app_contracts": 20000,
+    "doc_groups": 410000,
+    "documents": 310000,
+    "group_contracts": 100000,
+    "group_members": 720000,
+    "users": 120000
+   },
+   "total_rows": 1680000,
+   "compressed_bytes": 23481548,
+   "all_row_validator_replayed": true,
+   "storage": ".context/inputs/ (local-only; no MinIO publication)"
+  },
+  "k20-10k-dispersed": {
+   "dataset_id": "6118af723d7918049d891f1245255d723e0e5a9f0ae951b746c3634aad0bd692",
+   "recipe": {
+    "creators": 10000,
+    "follow": 20,
+    "locality": "dispersed",
+    "readers": 20000,
+    "seed": 42
+   },
+   "rows": {
+    "app_contracts": 20000,
+    "doc_groups": 41000,
+    "documents": 31000,
+    "group_contracts": 10000,
+    "group_members": 450000,
+    "users": 30000
+   },
+   "total_rows": 582000,
+   "compressed_bytes": 3526710,
+   "all_row_validator_replayed": true,
+   "storage": ".context/inputs/ (local-only; no MinIO publication)"
+  },
+  "floor-k20-dispersed": {
+   "dataset_id": "99f3faece33e1e1c94890e4e354544b104089f5a2ee2fa66236720244a6c5d27",
+   "recipe": {
+    "creators": 40,
+    "follow": 20,
+    "locality": "dispersed",
+    "readers": 2,
+    "seed": 42
+   },
+   "total_rows": 534,
+   "compressed_bytes": 10488,
+   "all_row_validator_replayed": true,
+   "storage": ".context/ (local-only floor inputs)"
+  },
+  "floor-k20-hot": {
+   "dataset_id": "44a0a1cdafa6c3422315ffa5c159f343e88bbd7ab7ea15dc7de1def6460991f4",
+   "recipe": {
+    "creators": 40,
+    "follow": 20,
+    "locality": "hot",
+    "readers": 2,
+    "seed": 42
+   },
+   "total_rows": 534,
+   "compressed_bytes": 10512,
+   "all_row_validator_replayed": true,
+   "storage": ".context/ (local-only floor inputs)"
+  }
+ },
+ "small_floor_strict_acceptance": {
+  "floor-k20-dispersed": {
+   "local_acceptance": true,
+   "measurement_valid": true,
+   "project": "http://127.0.0.1:6092",
+   "clickhouse_version": "24.8.14.39",
+   "measured_feeds_completed": 4,
+   "measured_feeds_failed": 0,
+   "lifecycle_before_after": [
+    "7/7 pass",
+    "7/7 pass"
+   ],
+   "paired_measured_pairs": 3,
+   "correlated_requests": 24,
+   "http_requests_after_drain": 0,
+   "receipts": [
+    ".context/floor-k20-disp-acceptance/acceptance.json",
+    ".context/floor-k20-disp-acceptance/summary.json",
+    ".context/floor-k20-disp-acceptance/requests.jsonl",
+    ".context/floor-k20-disp-acceptance/feeds.jsonl"
+   ]
+  },
+  "floor-k20-hot": {
+   "local_acceptance": true,
+   "measurement_valid": true,
+   "project": "http://127.0.0.1:6093",
+   "clickhouse_version": "24.8.14.39",
+   "measured_feeds_completed": 4,
+   "measured_feeds_failed": 0,
+   "lifecycle_before_after": [
+    "7/7 pass",
+    "7/7 pass"
+   ],
+   "paired_measured_pairs": 3,
+   "correlated_requests": 24,
+   "http_requests_after_drain": 0,
+   "receipts": [
+    ".context/floor-k20-hot-acceptance/acceptance.json",
+    ".context/floor-k20-hot-acceptance/summary.json",
+    ".context/floor-k20-hot-acceptance/requests.jsonl",
+    ".context/floor-k20-hot-acceptance/feeds.jsonl"
+   ]
+  }
+ },
+ "scope": "Input freeze + K=20 small-floor functional gates only (PLAN.md schedule Nov 10-11). No 1M-author measurement, no arm result, no capacity claim, no cloud, no production action. Floor success is a functional gate, never a transfer claim (#1452 rule).",
+ "sources": {
+  "api_python_sha256": "ca97f5d41a43e254f188356674c12d83dc4b0eb0c95253774d3821fa52a8db3d",
+  "api_lock_sha256": "ecaa9988e333b039c47ba7e7ef0284c6af5ad03259b766eb122d30783ed38ea8",
+  "research_compose_sha256": "a57449315530b463793daa62bd4b6a3fdbca3b4cb5076ed522543ee220b66d53",
+  "harness_python_sha256": "459fdcdcf7863c6b0a8d7f50e86ede03e0f6efe9b23d12aacb848b6ddaf42c75",
+  "pagination_capture_sha256": "b2241bde1799eb2d0a1c9bd0ee78e187fc4f81025cf9badde0d7586df6f9d02e",
+  "wire_sha256": "3d631391138d409b5a7059b64e8af863fb5cd3dfbc681706f24b7474bd31848c"
+ }
+}

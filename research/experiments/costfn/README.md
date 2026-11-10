@@ -1,5 +1,16 @@
 # Access-Control Cost Function Experiment
 
+> **09.11.2026: the K=20-first plan is ratified.** [PLAN.md](PLAN.md) is the
+> directive (per-request cost first, local-only, K≈20 headline, four arms,
+> 37k-DAU demonstration last); [PROTOCOL.md](PROTOCOL.md) is the frozen
+> claim/workload/input/arm/target unit. The 30-point VU matrix in
+> `STUDY.md`/`study_plan.py` and the cloud L-point path in `READYING.md` are
+> superseded as the primary study — read PLAN.md §2/§9 before running
+> anything. Current captures: `core-feed-wire-v5.json` +
+> `core-feed-next-page-v4.json` (09.11.2026 source repin, payloads
+> unchanged). Input freeze + K=20 small-floor receipts:
+> `evidence/protocol-inputs-20261109.json`.
+
 > **Actual-host result (8 November):** the small connected floor and million-author
 > restore pass, but strict concurrent acceptance fails at the ten-second SQL
 > limit before the primary matrix. Preserve this failed baseline. The bounded
