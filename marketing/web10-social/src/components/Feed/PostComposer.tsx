@@ -40,6 +40,48 @@ import { EditorMentions } from '@/components/shared/EditorMentions';
 
 let nextMediaId = 0;
 
+/**
+ * The paste-to-attach idiom (the third attach path after the picker button and
+ * drag-and-drop): when the clipboard carries FILE items that are images — a
+ * screenshot from the OS menu bar, a copied photo — collect them as Files so
+ * the tray can process them exactly like a picked/dropped file. Text/URL-only
+ * pastes return [] and the editor's default paste handling runs untouched
+ * (the caption still receives the text). Non-image file items (a copied PDF,
+ * …) are ignored — the tray's validation is the picker's validation, and a
+ * paste that lands an error card for content the user meant to keep on the
+ * clipboard is worse than no paste path at all.
+ */
+function clipboardImageFiles(clipboard: DataTransfer | null): File[] {
+  if (!clipboard) return [];
+  const files: File[] = [];
+  for (const item of Array.from(clipboard.items)) {
+    if (item.kind !== 'file') continue;
+    // Clipboard images declare `image/*`; some browsers leave the type empty
+    // on copied pixels — an empty-typed file item is treated as an image.
+    if (item.type && !item.type.startsWith('image/')) continue;
+    const raw = item.getAsFile();
+    if (!raw) continue;
+    const type = raw.type || item.type || 'image/png';
+    const ext =
+      type === 'image/jpeg'
+        ? 'jpg'
+        : type === 'image/webp'
+          ? 'webp'
+          : type === 'image/gif'
+            ? 'gif'
+            : 'png';
+    // Screenshots arrive nameless or as a generic "image.png" — give every
+    // pasted photo a stable, non-colliding name (multiple pastes in one
+    // session, or two copies in one clipboard, must not share a file name).
+    const name =
+      raw.name && raw.name !== 'image.png'
+        ? raw.name
+        : `pasted-image-${Date.now()}-${files.length + 1}.${ext}`;
+    files.push(new File([raw], name, { type }));
+  }
+  return files;
+}
+
 function formatAudioDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.round(seconds % 60);
@@ -714,6 +756,21 @@ export default function PostComposer({
     if (e.dataTransfer.files) processAndAddFiles(e.dataTransfer.files);
   }
 
+  // Cmd/Ctrl+V with pixels on the clipboard attaches the image(s) to the
+  // tray — the same path as the picker button and drag-drop (processAndAddFiles
+  // runs validation + the background processing). Plain-text pastes return no
+  // files: no preventDefault, the editor owns the paste. Edit mode is
+  // remove-only (you can't attach new media to an existing post), so a pasted
+  // image is left to the editor's default handling (the schema has no image
+  // node — it drops, same as before this handler existed).
+  function handlePaste(e: React.ClipboardEvent) {
+    if (isEditing) return;
+    const files = clipboardImageFiles(e.clipboardData);
+    if (!files.length) return;
+    e.preventDefault();
+    processAndAddFiles(files);
+  }
+
   function removeMedia(id: number) {
     const item = mediaItems.find((m) => m.id === id);
     if (item) {
@@ -1126,6 +1183,7 @@ export default function PostComposer({
       }}
       onDragLeave={() => setDragOver(false)}
       onDrop={handleDrop}
+      onPaste={handlePaste}
       data-testid="post-composer"
     >
       {focused && (
