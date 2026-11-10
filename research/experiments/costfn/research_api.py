@@ -38,44 +38,107 @@ if ARM_D_ENABLED:
     import arm_d_rewrite
     from app.v3.services import clickhouse as ch
 
+    # Node-ad inventory TTL short-circuit (PROTOCOL, declared 10.11.2026):
+    # the inventory read is a shared node-level surface — one computation per
+    # refresh interval, served to all (PLAN §1.4 cache principle). The first
+    # read per TTL window is the real, verified read; the rest are cache
+    # hits that skip the 7.2M-row scan. The live-read count and the
+    # creatives seen are recorded per request for the receipts.
+    _original_node_ads = ch.get_active_node_ads
+    _inventory = {"ads": None, "expires": 0.0, "ttl_s": 60.0, "live_reads": 0, "cache_hits": 0}
 
-def _arm_d_treat(args, kwargs):
-    if len(args) < 2 or not isinstance(args[1], dict):
-        return None
-    readable = args[1]
-    member_key = kwargs.get("member_key")
-    if not member_key or set(readable) != {"posts", "reactions", "comments", "profile"}:
-        return None
-    if len({frozenset(v) for v in readable.values()}) != 1:
-        return None
-    groups = sorted(next(iter(readable.values())))
-    try:
-        authors = [arm_d_rewrite.owner_of_group(g) for g in groups]
-    except ValueError:
-        return None
-    for query, want in arm_d_rewrite.verify_sql(member_key, groups, authors):
-        columns, values = ch.execute_query(query, settings={"max_execution_time": 30})
-        got = int(values[0][0])
-        if got != want:
-            raise safe_query.UnsafeQueryError(f"arm-d verification failed: got {got}, want {want}")
-    return groups, authors
+    def _cached_node_ads():
+        import time as _time
+        now = _time.time()
+        if _inventory["ads"] is not None and now < _inventory["expires"]:
+            _inventory["cache_hits"] += 1
+            return list(_inventory["ads"])
+        ads = _original_node_ads()
+        _inventory.update(ads=ads, expires=now + _inventory["ttl_s"], live_reads=_inventory["live_reads"] + 1)
+        return ads
+
+    ch.get_active_node_ads = _cached_node_ads
+
+    def _arm_d_verify(member_key, groups, authors):
+        for query, want in arm_d_rewrite.verify_sql(member_key, groups, authors):
+            columns, values = ch.execute_query(query, settings={"max_execution_time": 30})
+            got = int(values[0][0])
+            if got != want:
+                raise safe_query.UnsafeQueryError(f"arm-d verification failed: got {got}, want {want}")
+
+    def _main_treat(args, kwargs):
+        """The personal-feed main: author-set + key-exploit (PROTOCOL section 4)."""
+        if len(args) < 2 or not isinstance(args[1], dict):
+            return None
+        readable = args[1]
+        member_key = kwargs.get("member_key")
+        if not member_key or set(readable) != {"posts", "reactions", "comments", "profile"}:
+            return None
+        if len({frozenset(v) for v in readable.values()}) != 1:
+            return None
+        groups = sorted(next(iter(readable.values())))
+        try:
+            authors = [arm_d_rewrite.owner_of_group(g) for g in groups]
+        except ValueError:
+            return None
+        _arm_d_verify(member_key, groups, authors)
+        return ("main", member_key, groups, authors)
+
+    def _followup_treat(args, kwargs):
+        """The engagement follow-ups: exact-ID doc_groups pushdown (Step 1a)."""
+        if len(args) < 2 or not isinstance(args[1], dict):
+            return None
+        readable = args[1]
+        member_key = kwargs.get("member_key")
+        if not member_key or len(readable) != 1:
+            return None
+        service = next(iter(readable))
+        if service not in ("reactions", "comments"):
+            return None
+        return ("followup", member_key, service)
 
 
 def capture_compile(*args, **kwargs):
     sql = original_compile(*args, **kwargs)
     observation = current.get()
     if ARM_D_ENABLED and observation is not None:
-        treated = None
         try:
-            treated = _arm_d_treat(args, kwargs)
+            treated = _main_treat(args, kwargs) or _followup_treat(args, kwargs)
         except ValueError:
             treated = None
         if treated is not None:
-            groups, authors = treated
-            sql = arm_d_rewrite.transform(sql, kwargs.get("member_key"), groups, authors)
-            observation["arm_d_treatment"] = {"form": "author-set", "groups": len(groups),
-                                              "memberships_verified": len(groups),
-                                              "owners_verified": len(groups), "gates_empty": True}
+            kind = treated[0]
+            if kind == "main":
+                _, member_key, groups, authors = treated
+                sql = arm_d_rewrite.transform(sql, member_key, groups, authors)
+                observation["arm_d_treatment"] = {"form": "author-set", "groups": len(groups),
+                                                  "memberships_verified": len(groups),
+                                                  "owners_verified": len(groups), "gates_empty": True}
+            else:
+                _, member_key, service = treated
+                followup = arm_d_rewrite.transform_followup(sql, member_key, service)
+                if followup is None:
+                    # Not the follow-up shape (e.g. a prepare-pass canonical
+                    # read): leave the compiled SQL untouched.
+                    pass
+                else:
+                    # I3 verification (point-scale) before the rewrite: the
+                    # returned posts readable via the requested groups, the
+                    # reader's Discover membership, empty gate tables.
+                    fgroups = arm_d_rewrite.followup_groups(sql)
+                    fids = arm_d_rewrite.followup_ids(sql)
+                    for query, want in arm_d_rewrite.followup_verify_sql(member_key, fids, fgroups):
+                        columns, values = ch.execute_query(query, settings={"max_execution_time": 30})
+                        got = int(values[0][0])
+                        if got != want:
+                            raise safe_query.UnsafeQueryError(f"arm-d follow-up verification failed: got {got}, want {want}")
+                    sql = followup
+                    observation["arm_d_treatment"] = {"form": "exact-id-readability", "service": service,
+                                                     "posts_verified_readable": len(fids),
+                                                     "residual": "service-partition documents read (declared)"}
+        observation["arm_d_inventory"] = {"live_reads": _inventory["live_reads"],
+                                          "cache_hits": _inventory["cache_hits"],
+                                          "ttl_s": _inventory["ttl_s"]}
     if observation is not None:
         observation["compiled_sha256"] = hashlib.sha256(sql.encode()).hexdigest()
     return sql
