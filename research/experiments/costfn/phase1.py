@@ -321,11 +321,13 @@ def main():
                 trial_receipt = outdir / "trial.json"
                 if trial_receipt.exists():
                     r = json.loads(trial_receipt.read_text())
-                    request_counts = r.get("request_counts", {})
-                    app_exception = any(k.endswith(":500") or k.endswith(":502") for k in request_counts)
                     sample = r.get("sample") or {}
-                    # Old-format receipts (no request_counts) with zero completed
-                    # measured feeds are infra-invalid too — re-run them.
+                    request_counts = sample.get("request_counts", {})
+                    app_exception = any(k.endswith(":500") or k.endswith(":502") for k in request_counts)
+                    # usable: paired (always kept), OR some feeds completed, OR a
+                    # valid system result (request_counts present with no 5xx infra
+                    # errors — the K>=1000 0/30 mains-400/403 stress cell is a real
+                    # measurement, keep it; a 0/30 with 5xx is infra-invalid, re-run).
                     usable = (r.get("kind") == "paired") or sample.get("measured_completed", 0) > 0 \
                         or (bool(request_counts) and not app_exception)
                     if "error" not in r and usable:
