@@ -140,5 +140,27 @@ class ArmDSatelliteTests(unittest.TestCase):
             arm_d_rewrite.satellite_followup_sql("posts", ["a"])
 
 
+    def test_accepts_compiler_group_order_independence(self):
+        # The compiler emits the readable groups in discovery order (not
+        # sorted): the pin must accept any order of the same 20 groups.
+        shuffled = [GROUPS[i] for i in (7, 3, 0, 19, 12, 1, 9, 15, 4, 11,
+                                        2, 17, 6, 10, 18, 5, 14, 8, 13, 16)]
+        reordered = GOLDEN.replace("group_id IN (" + ", ".join(f"'{g}'" for g in GROUPS) + "))",
+                                   "group_id IN (" + ", ".join(f"'{g}'" for g in shuffled) + "))")
+        self.assertNotEqual(reordered, GOLDEN)
+        rw = arm_d_rewrite.transform(reordered, READER, GROUPS, AUTHORS)
+        self.assertIn("author_key IN (", rw)
+        import sqlglot
+        sqlglot.parse_one(rw, read="clickhouse")
+
+    def test_compiled_group_order_rejects_foreign_group(self):
+        swapped = [GROUPS[i] for i in range(20)]
+        swapped[5] = "api.localhost/groups/users/c42-c000099/followers"
+        reordered = GOLDEN.replace("group_id IN (" + ", ".join(f"'{g}'" for g in GROUPS) + "))",
+                                   "group_id IN (" + ", ".join(f"'{g}'" for g in swapped) + "))")
+        with self.assertRaises(ValueError):
+            arm_d_rewrite.transform(reordered, READER, GROUPS, AUTHORS)
+
+
 if __name__ == "__main__":
     unittest.main()
