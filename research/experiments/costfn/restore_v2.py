@@ -13,12 +13,31 @@ import provenance
 import restore_dataset
 
 
-def correctness(base, manifest):
+def correctness(base, manifest, warmups=0):
     async def check():
         records = []
+        warmup_records = []
+        warmup_stats = None
         async with httpx.AsyncClient(base_url=base, timeout=120, trust_env=False) as client:
             sessions = await core_feed.prepare(client, manifest, min(2, len(manifest["readers"])))
             checks = []
+            if warmups > 0:
+                # Excluded preparation warm-ups: the same real app/SDK sequence,
+                # run before the strict functional check so a large cold restore
+                # is checked under the study's declared steady-refresh-after-
+                # warm-up condition (PROTOCOL §2). They are not study samples:
+                # warm-up failures are counted, never raised — the strict check
+                # below is the gate.
+                warmup_failures = 0
+                for index, (token, groups) in enumerate(sessions):
+                    for _ in range(warmups):
+                        try:
+                            await core_feed.feed(client, core_feed.wire(), token, groups, warmup_records, "preflight-warmup", index)
+                        except (httpx.HTTPError, core_feed.CoreRequestFailure, ValueError):
+                            warmup_failures += 1
+                warmup_stats = {"preflight_warmups_excluded": warmups * len(sessions),
+                                "preflight_warmup_failures": warmup_failures,
+                                "preflight_warmup_records": len(warmup_records)}
             for index, (token, groups) in enumerate(sessions):
                 rows, followups = await core_feed.feed(client, core_feed.wire(), token, groups, records, "preflight", index)
                 checks.append(core_feed.check_result(manifest, index, rows, followups))
@@ -37,6 +56,7 @@ def correctness(base, manifest):
             if not all(r.get("correlated") for r in records):
                 raise ValueError("research observation/correlation is absent")
         return {"core_results": checks, "real_discovery": True, "origin_denial": True,
+                "preflight_warmups": warmup_stats,
                 "correlated_requests": len(records), "sources": provenance.sources(),
                 "scope": "Local text-only core API floor; not load capacity, lifecycle or media assurance."}
     return asyncio.run(check())
@@ -49,7 +69,11 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=6091)
     parser.add_argument("--receipt", type=Path, required=True)
     parser.add_argument("--expected-id", required=True)
+    parser.add_argument("--preflight-warmups", type=int, default=0,
+        help="excluded warm-up core feeds per reader before the strict check (large cold restores)")
     args = parser.parse_args()
     result = restore_dataset.restore(args.directory, args.project, args.port, args.receipt, args.expected_id,
-                                    fixture=dataset_v2, checker=correctness, research=True)
+                                    fixture=dataset_v2,
+                                    checker=lambda base, manifest: correctness(base, manifest, warmups=args.preflight_warmups),
+                                    research=True)
     print(json.dumps(result, indent=2))
