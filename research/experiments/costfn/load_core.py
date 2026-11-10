@@ -117,13 +117,13 @@ async def run_point(base, manifest, users, interval, warmup, duration, drain, ou
 
             monitoring = asyncio.create_task(monitor())
 
-            async def one(due, reader, phase, lag):
+            async def one(due, slot, reader, phase, lag):
                 began = time.perf_counter()
                 record = {"scheduled_seconds": due, "reader_index": reader, "phase": phase,
                           "scheduler_lag_ms": lag * 1000, "task_start_lag_ms": (began - start - due) * 1000,
                           "success": False, "censored": False}
                 try:
-                    rows, results = await core_feed.feed(client, capture, *sessions[reader], records, phase, reader)
+                    rows, results = await core_feed.feed(client, capture, *sessions[slot], records, phase, reader)
                     core_feed.check_result(manifest, reader, rows, results)
                     record["success"] = True
                 except asyncio.CancelledError:
@@ -158,7 +158,7 @@ async def run_point(base, manifest, users, interval, warmup, duration, drain, ou
                         feeds.write(json.dumps({"scheduled_seconds": due, "reader_index": reader, "phase": phase,
                             "missed_start": True, "scheduler_lag_ms": lag * 1000}) + "\n")
                         continue
-                    task = asyncio.create_task(one(due, reader, phase, lag))
+                    task = asyncio.create_task(one(due, slot, reader, phase, lag))
                     in_flight.add(task)
                     counters[(phase, "started")] += 1
                     counters[("all", "peak_feed_in_flight")] = max(counters[("all", "peak_feed_in_flight")], len(in_flight))
