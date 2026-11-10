@@ -92,7 +92,8 @@ export function reduceFaceRows(
     const body = row.body;
     if (body && typeof body === 'object') {
       const b = body as Record<string, unknown>;
-      if (typeof b.name === 'string') entry.name = b.name;
+      if (typeof b.display_name === 'string') entry.name = b.display_name;
+      else if (typeof b.name === 'string') entry.name = b.name;
       if (typeof b.status === 'string') entry.status = b.status;
     }
     if (typeof row.avatar_url === 'string') entry.avatar_url = row.avatar_url;

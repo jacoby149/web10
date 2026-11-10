@@ -68,7 +68,7 @@ describe('anonymous personal author pictures', () => {
         if (failure === 'throw') throw new Error('offline');
         if (failure === 'denied') return { ok: false, status: 403 } as Response;
         if (failure === 'empty') return ok({ rows: [] });
-        return ok({ rows: [{ author_key: 'ordinary_user', body: { name: 'Personal Name' }, avatar_url: 'https://cdn.example/person.jpg' }] });
+        return ok({ rows: [{ author_key: 'ordinary_user', body: { display_name: 'Personal Name' }, avatar_url: 'https://cdn.example/person.jpg' }] });
       }
       if (body.service === 'posts') return ok([
         doc('u1', 'ordinary_user'), doc('u2', 'ordinary_user'),
@@ -97,8 +97,8 @@ describe('anonymous personal author pictures', () => {
     });
     expect(personalQueries).toHaveLength(1);
     render(<TrendingCard post={posts[0]} rank={1} maxScore={1} onLike={() => {}} onComment={() => {}} onRepost={() => {}} />);
-    expect(screen.getByRole('img', { name: 'Ordinary user' })).toHaveAttribute('src', 'https://cdn.example/person.jpg');
-    expect(screen.getAllByRole('link', { name: /Ordinary user/ })[0]).toHaveAttribute('href', `${SOCIAL_ORIGIN}/u/ordinary_user`);
+    expect(screen.getByRole('img', { name: 'Personal Name' })).toHaveAttribute('src', 'https://cdn.example/person.jpg');
+    expect(screen.getAllByRole('link', { name: /Personal Name/ })[0]).toHaveAttribute('href', `${SOCIAL_ORIGIN}/u/ordinary_user`);
     expect(screen.getByText('matching post').closest('[data-replay-private]')).toBeNull();
     expect(screen.getByTestId('trending-card')).not.toHaveAttribute('data-replay-public');
   });

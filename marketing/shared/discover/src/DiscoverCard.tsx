@@ -280,6 +280,8 @@ export interface DiscoverCardProps {
    *  floating shape — the rank lives in the rail now). */
   maxScore?: number;
   authorAvatar?: string;
+  /** Optional profile enrichment is still pending; not an absent identity. */
+  authorLoading?: boolean;
   /** Remote (marketing) mode: anon, click-through to web10 social. */
   remote?: boolean;
   /** The post permalink on web10 social (remote mode's link-out target). */
@@ -357,6 +359,7 @@ export function DiscoverCard({
   rank,
   maxScore,
   authorAvatar,
+  authorLoading = false,
   remote = false,
   postHref,
   authorHref,
@@ -427,7 +430,9 @@ export function DiscoverCard({
     >
       {/* Header: avatar + name + time + repost tell (the feed's PostCard row). */}
       <div className="flex items-center gap-2.5 px-4 py-3">
-        {authorIsLink ? (
+        {authorLoading ? (
+          <Skeleton className="h-9 w-9 shrink-0 rounded-full" aria-label="Loading author picture" />
+        ) : authorIsLink ? (
           <a
             href={authorHref}
             target="_blank"
@@ -468,7 +473,9 @@ export function DiscoverCard({
           </Avatar>
         )}
         <div className="flex min-w-0 flex-1 items-baseline gap-1.5">
-          {authorIsLink ? (
+          {authorLoading ? (
+            <Skeleton className="h-4 w-24" data-testid="discover-author-name-loading" aria-label="Loading author name" />
+          ) : authorIsLink ? (
             <a
               href={authorHref}
               target="_blank"
