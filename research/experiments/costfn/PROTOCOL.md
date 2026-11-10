@@ -118,14 +118,15 @@ bytes, generator hashes and validator receipts):
 | `k10-1m-dispersed` | `880adce4e61aca0110d6ebbe6fbf14dd7aa136b1f4cebcf520357fd30b12b9d3` |
 | `k20-100k-dispersed` | `43d14a2b8abd062ceed71c2952ca1fa34d386245adb4ad95fb75a9d77de6d92d` |
 | `k20-10k-dispersed` | `6118af723d7918049d891f1245255d723e0e5a9f0ae951b746c3634aad0bd692` |
+| `k1000-1m-dispersed` (existing frozen) | `dbed2201952f9ca1b581c30a541e44b6912a5a6ba1bec84ee166aa80575132b4` |
+| `k1000-1m-hot` (existing frozen) | `53b16c1072a8e80032b20ae23c5675040b851274ad7a314a106b7557be3b5363` |
+| `k20-1m-longspan` (**date-k20 derivative** — 09.11.2026 operator engineering: "~1/30 of the posts 30 days old") | derived from `k20-1m-hot` by `dataset_v2_date.py` (format `web10-costfn-date-k20-v1`; identity recorded in the `evidence/protocol-inputs-20261109.json` addendum): pinned clock 2026-11-09T12:00Z, cutoff = clock − 30 d; cohort = creators 0..19 (every reader's hot followed set) re-stamped to the newest 20 s; background = last 33,333 creators spread across the window (~1/30 of the posts in-window, ~1.1% of all docs); all other creators keep the old January stamps. Only `documents` + `doc_groups` re-stamped; new dataset identity. Purpose: make the date mechanisms (Arms B/C) non-vacuous on the personal feed while every arm's top-20 = the cohort (output parity by construction) |
 
-All seven new inputs: all-row validator replayed 09.11.2026 (generator
+All seven new base inputs: all-row validator replayed 09.11.2026 (generator
 `4ef34b16…`, shared `f0c6d148…`); row counts 12.46M–14.26M at N=1M; 222–228 MB
 compressed each. Floor inputs (40 creators / K=20 / 2 readers, 534 rows each):
 `99f3faec…` dispersed, `44a0a1cd…` hot. Full receipts:
 `evidence/protocol-inputs-20261109.json`.
-| `k1000-1m-dispersed` | `dbed2201952f9ca1b581c30a541e44b6912a5a6ba1bec84ee166aa80575132b4` |
-| `k1000-1m-hot` | `53b16c1072a8e80032b20ae23c5675040b851274ad7a314a106b7557be3b5363` |
 
 **Small-floor gate (the #1417 rule, applied before any input is treated as
 frozen):** the workload must be proven on a small K=20 input — `creators=40,
@@ -159,21 +160,49 @@ above, the 30-day bound, and the arm treatments. No Q02 revival (#1449:
 rejected, 8.3× duration / 34.2× memory on overlap). No new optimizer idea,
 no D109/IX build, no production rebuild.
 
+**Arm D treatment mechanics (the key-exploiting query the directive
+mandates: "author set + time predicate pushed into the scan"):** on the
+personal feed, "readable via my 20 followers groups" collapses to
+"posted by my 20 followed authors" — verified by 20 group-ownership point
+checks (member + owner-of-group, cheap seeks on the group tables'
+`group_id` keys), not the 4.1M-row `doc_groups` full-scan. The posts read
+then becomes 20 author-prefix seeks on the re-keyed `documents` table
+(+ the time predicate where declared). The collapse is valid under the
+fixture's posting semantics and the I3 gate (no document returns for an
+`author_key` the token doesn't own or sit in); it is declared in the arm
+receipt as the treatment, measured against Arm A's un-rekeyed mechanism.
+On the date-k20 input the time predicate additionally prunes to the
+in-window cohort (the ~1/30 minority the operator engineered).
+
 **Arm B cutoff anchor (declared constant per dataset):**
-`cutoff = input max(created_at) − 30 days`. Anchored to the frozen input,
-not wall-clock, so receipts stay reproducible on the frozen artifact. On the
-all-recent base inputs this makes Arm B a **declared vacuous control on the
-personal feed**: a K=20 reader has exactly 20 eligible posts (one per
-follower), all inside any 30-day window that keeps the output identical — so
-the bound cannot shrink the candidate set without changing the result.
-Expected: neutral-to-negative (cost of a no-op predicate; #1464's
-all-recent-NEGATIVE evidence predicts no win). That is a publishable
-finding, not a failure to hide. The **non-vacuous** date-bound measurement
-belongs where the surface honestly applies the bound — the **Discover
-balanced feed** (rolling-30-day lower bound; the personal Newest surface has
-no bound) — on a long-span derivative input (#1464 tool family: a recent
-cohort so each reader's top-21 is inside the window), generated and named in
-Phase-0 iteration. A scattered-layout "no win" remains a publishable answer.
+`cutoff = input max(created_at) − 30 days` on the base all-recent inputs;
+the date-k20 long-span input uses its pinned manifest `date_contract`
+cutoff (2026-10-10T12:00Z = clock − 30 d). `arm_b.cutoff_for(manifest)`
+resolves the declared constant per input. Anchored to the frozen input, not
+wall-clock, so receipts stay reproducible. On the all-recent base inputs
+this makes Arm B a **declared vacuous control on the personal feed**: a
+K=20 reader has exactly 20 eligible posts (one per follower), all inside
+any 30-day window that keeps the output identical — so the bound cannot
+shrink the candidate set without changing the result. Expected:
+neutral-to-negative (cost of a no-op predicate; #1464's all-recent-NEGATIVE
+evidence predicts no win). That is a publishable finding, not a failure to
+hide. The **non-vacuous** personal-feed date measurement runs on the
+**date-k20 long-span input** (~1/30 of the posts in-window; the measured
+cohort = the reader's followed set; every arm's top-20 = the cohort, so
+output parity holds by construction). The **Discover balanced feed**
+(rolling-30-day lower bound — the surface that honestly applies the bound;
+the personal Newest surface has none) remains the second declared
+non-vacuous site. A scattered-layout "no win" stays a publishable answer.
+
+**Trial-1 mechanism record (09.11.2026, preserved):** on the base
+`k20-1m-dispersed` input under the pinned 5 GB allocation, every core-feed
+request natively read **7,200,000 rows / ~0.9 GB** (whole `documents` +
+whole `doc_groups`: the boundary CTEs resolve the 20 readable groups by
+full-scan — `doc_groups` is ordered `(doc_id, group_id)`, so group→docs is
+not a prefix seek) with ~1.6 GB per-query memory peaks; warm
+single-threaded main = 1.4–3.9 s execute + up to 5.2 s prepare; concurrent
+follow-up fan-out hit 3× code-241 total-memory-limit kills. Evidence:
+`.context/disp2-trial1/` (query_log export + observer log; local).
 
 **Pre-declared success targets to proceed (Phase 0 → Phase 1):**
 **p95 < 500 ms AND bytes read per feed request < 25 MB at K=20 / N=1M on the
