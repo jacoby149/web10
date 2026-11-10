@@ -162,6 +162,11 @@ def restore(directory, project, port, receipt, expected_id=None, fixture=dataset
     wait_for(lambda: ch(compose, env, "SELECT 1").strip() == b"1", "ClickHouse")
     for template in sorted((HERE.parents[2] / "clickhouse-init").glob("*.sql.template")):
         wait_for(lambda p=template: run(compose + ["exec", "-T", "clickhouse", "clickhouse-client", "--user", "web10", "--password", "web10", "--database", "web10", "--multiquery"], env, p.read_bytes()) == b"", "schema")
+    # The API's startup probes CH over HTTP (8123), which binds slightly after
+    # the native port (9000) that `ch("SELECT 1")` above confirms. Confirm the
+    # HTTP endpoint is answering before launching the API, or the app exits(3)
+    # on a connection-refused CH probe and the /docs readiness then times out.
+    wait_for(lambda: b"Ok" in run(compose + ["exec", "-T", "clickhouse", "wget", "-q", "-O-", "http://localhost:8123/ping"], env), "ClickHouse HTTP 8123")
     run(compose + ["up", "-d", "--no-deps", "--build", "api"], env)
     wait_for(lambda: urllib.request.urlopen(base + "/docs", timeout=5).status == 200, "API")
     provider = run(compose + ["exec", "-T", "api", "uv", "run", "python", "-c", "from app import settings; print(settings.PROVIDER)"], env).decode().strip()
