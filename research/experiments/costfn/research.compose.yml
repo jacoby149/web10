@@ -10,6 +10,13 @@ services:
     # (#1464 matched-dates record). Data stays on the volume (VM disk has
     # headroom), not tmpfs: the VM RAM also hosts the API + other workspaces.
     mem_limit: 5g
+    # Restate the base volumes (compose replaces, not appends, list values on
+    # merge) and add the server-memory throttle config so CH backpressures
+    # (code 241) under the pinned cap instead of being cgroup OOM-killed.
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - ../../../clickhouse-init:/docker-entrypoint-initdb.d:ro
+      - ./clickhouse-config:/etc/clickhouse-server/config.d:ro
   api:
     volumes:
       - ${COSTFN_RESEARCH_DIR:-.}:/research:ro
