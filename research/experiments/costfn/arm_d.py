@@ -163,7 +163,8 @@ def arm_d(directory, receipt_path, out_path, spot=25, no_live_parity=False):
         return value
 
     try:
-        _arm_d_body(directory, manifest, verified, receipt, project, compose, env, ch, spot, steps, record, out_path)
+        _arm_d_body(directory, manifest, verified, receipt, project, compose, env, ch, spot, steps, record, out_path,
+                    no_live_parity=no_live_parity)
     except Exception as exc:
         # Retain the partial evidence before re-raising: which step failed,
         # which parity held, whether the flip happened (it is the last
@@ -183,7 +184,7 @@ def arm_d(directory, receipt_path, out_path, spot=25, no_live_parity=False):
         raise
 
 
-def _arm_d_body(directory, manifest, verified, receipt, project, compose, env, ch, spot, steps, record, out_path):
+def _arm_d_body(directory, manifest, verified, receipt, project, compose, env, ch, spot, steps, record, out_path, no_live_parity=False):
     # 0 — pre-state: the A key is in place and no Arm D artifacts exist.
     old_create = ch("SHOW CREATE TABLE documents")
     if OLD_KEY_MARK not in old_create:
