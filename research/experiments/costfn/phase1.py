@@ -324,7 +324,10 @@ def main():
                     request_counts = r.get("request_counts", {})
                     app_exception = any(k.endswith(":500") or k.endswith(":502") for k in request_counts)
                     sample = r.get("sample") or {}
-                    usable = (r.get("kind") == "paired") or sample.get("measured_completed", 0) > 0 or not app_exception
+                    # Old-format receipts (no request_counts) with zero completed
+                    # measured feeds are infra-invalid too — re-run them.
+                    usable = (r.get("kind") == "paired") or sample.get("measured_completed", 0) > 0 \
+                        or (bool(request_counts) and not app_exception)
                     if "error" not in r and usable:
                         print(f"[phase1] {study}/{cell} t{n} already has a usable receipt; skipping", flush=True)
                         continue
