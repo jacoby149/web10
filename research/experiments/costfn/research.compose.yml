@@ -13,10 +13,14 @@ services:
     # Restate the base volumes (compose replaces, not appends, list values on
     # merge) and add the server-memory throttle config so CH backpressures
     # (code 241) under the pinned cap instead of being cgroup OOM-killed.
+    # The throttle is mounted as a SINGLE FILE into config.d (not the whole
+    # directory): the base image ships config.d/docker_related_config.xml with
+    # listen_host 0.0.0.0/::, and a directory bind would shadow it, leaving CH
+    # on localhost-only and breaking the API's cross-container clickhouse:8123.
     volumes:
       - clickhouse-data:/var/lib/clickhouse
       - ../../../clickhouse-init:/docker-entrypoint-initdb.d:ro
-      - ./clickhouse-config:/etc/clickhouse-server/config.d:ro
+      - ./clickhouse-config/memory.xml:/etc/clickhouse-server/config.d/costfn-memory.xml:ro
   api:
     volumes:
       - ${COSTFN_RESEARCH_DIR:-.}:/research:ro
