@@ -299,6 +299,7 @@ def main():
             raise SystemExit("no cells selected")
         log = P1 / f"run-{args.study}.log"
         log.parent.mkdir(parents=True, exist_ok=True)
+        log.touch(exist_ok=True)
         for (study, cell, slot, layout, treatment, mode, kind) in cells:
             for n in range(1, TRIALS + 1):
                 outdir = P1 / study / cell / f"trial-{n}"
