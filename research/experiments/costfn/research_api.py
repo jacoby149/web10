@@ -34,6 +34,9 @@ original_compile = safe_query.build_safe_query
 # refuses the treatment with a recorded 403 — the arm is a treatment, and it
 # is never issued unverified.
 ARM_D_ENABLED = os.environ.get("COSTFN_ARM_D") == "1"
+# Phase-1.5 satellite treatment (PROTOCOL amendment): follow-up counting
+# moves to counting_numbers point seeks; off by default, research-only.
+SATELLITE_ENABLED = os.environ.get("COSTFN_SATELLITE") == "1"
 if ARM_D_ENABLED:
     import arm_d_rewrite
     from app.v3.services import clickhouse as ch
@@ -116,7 +119,9 @@ def capture_compile(*args, **kwargs):
                                                   "owners_verified": len(groups), "gates_empty": True}
             else:
                 _, member_key, service = treated
-                followup = arm_d_rewrite.transform_followup(sql, member_key, service)
+                transform = arm_d_rewrite.transform_followup_satellite if SATELLITE_ENABLED \
+                    else arm_d_rewrite.transform_followup
+                followup = transform(sql, member_key, service)
                 if followup is None:
                     # Not the follow-up shape (e.g. a prepare-pass canonical
                     # read): leave the compiled SQL untouched.
@@ -133,9 +138,12 @@ def capture_compile(*args, **kwargs):
                         if got != want:
                             raise safe_query.UnsafeQueryError(f"arm-d follow-up verification failed: got {got}, want {want}")
                     sql = followup
-                    observation["arm_d_treatment"] = {"form": "exact-id-readability", "service": service,
+                    observation["arm_d_treatment"] = {"form": ("satellite-point-seek" if SATELLITE_ENABLED
+                                                               else "exact-id-readability"),
+                                                     "service": service,
                                                      "posts_verified_readable": len(fids),
-                                                     "residual": "service-partition documents read (declared)"}
+                                                     "residual": ("counting_numbers point seeks" if SATELLITE_ENABLED
+                                                                  else "service-partition documents read (declared)")}
         observation["arm_d_inventory"] = {"live_reads": _inventory["live_reads"],
                                           "cache_hits": _inventory["cache_hits"],
                                           "ttl_s": _inventory["ttl_s"]}

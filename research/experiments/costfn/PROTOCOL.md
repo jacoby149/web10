@@ -198,6 +198,52 @@ family — no new optimizer ideas):
   creatives seen are recorded per request. This input has zero node ads, so
   the live read returns [] — the short-circuit is verified, not assumed.
 
+**Phase 1.5 — the `counting_numbers` satellite (amendment, declared
+10.11.2026 BEFORE any run it affects; operator task "Branch continued"):**
+one GENERIC typed satellite, named after a type, never after an app or
+feature (D60): `counting_numbers(doc_id String, counter_name String,
+value Int64) ORDER BY (doc_id, counter_name)` — ReplacingMergeTree
+snapshot (rebuilt wholesale, no incremental maintenance in this study, no
+claim about any). `counter_name` is application-supplied DATA: this
+study's values are `reactions:like`, `reactions:dislike` (the app oracle
+needs the like/dislike split; a single `reactions` total cannot satisfy
+it — the split is data values, not schema) and `comments`. No
+app/feature words in the schema; the word "engagement" may appear only in
+receipts. The wider typed family (floats, strings, dates, refs) is NOT
+built here — counting_numbers only, at counts scope.
+
+- **Build (dedup-correct, receipted):** `INSERT SELECT` from the canonical
+  `documents` on the frozen input — latest version per
+  (doc_id, author_key) FIRST (rn = 1, deleted = 0 — the tombstone
+  invariant; dedup before filter), then count DISTINCT live engagement
+  doc_ids grouped by `ref_value`, one row per (target doc_id,
+  counter_name). Counting raw rows/versions is a correctness bug.
+  Receipt: source dataset ID, build SQL hash, rows written, distinct
+  target docs, per-counter-name row/value totals, duration.
+- **Freshness contract:** a snapshot of the frozen input, rebuilt after
+  any fixture or lifecycle writes and before every measured window. NOT
+  incrementally maintained; a measured feed whose counts could postdate
+  the last rebuild invalidates the cell (rebuild, re-run).
+- **Treatment (follow-ups only; main + ad TTL unchanged):** the Step-1
+  readability verification is unchanged; only the counting step changes —
+  counts come from `counting_numbers` via `(doc_id, counter_name)`
+  point-seek subqueries (one per returned ID per counter), zero-filled
+  for absent posts (absence is a value, not an error). The rewritten
+  follow-up SQL is golden-pinned per service; drift refuses. Gated by
+  `COSTFN_SATELLITE=1` (research entry point only; off by default).
+- **Gates (receipts retained either way):** (1) count parity — satellite
+  counts equal the Step-1 treated follow-up outputs on every probe and
+  measured feed; disagreement = the arm is INVALID, the oracle is never
+  adjusted; (2) the sequence gate re-run on the same stack/input —
+  strict acceptance passes, per-shape native table published, follow-ups
+  verified in the native log at point-seek scale (if rows read is still
+  large, the key is not being used — investigate, do not report around
+  it); (3) ablation statement — sequence bytes/request before (~255 MB)
+  vs after; follow-up rows/bytes before vs after. Phase 2 runs on
+  D + counting_numbers; if the gates fail, Phase 2 does NOT silently
+  fall back to the 255 MB sequence — report and stop for operator
+  decision.
+
 **Study configurations (declared 10.11.2026 for Phase 1):** Study B/C run
 the winning configuration (D layout + all three sequence treatments,
 batched resolver mode as the research default; the paper notes the
