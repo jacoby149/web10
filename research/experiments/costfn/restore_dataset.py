@@ -23,6 +23,13 @@ import dataset
 HERE = Path(__file__).resolve().parent
 
 
+class ChRestartError(RuntimeError):
+    """A ClickHouse process restart (exit 210 / connection refused) hit the
+    import at connect time: zero rows were written for that table, the on-disk
+    volume is intact, and a settle + re-wait + retry is safe. Distinct from a
+    fatal partial import (rows were written, counts no longer reconcile)."""
+
+
 def compose_command(project, port, research=False):
     if not re.fullmatch(r"web10-costfn-frozen-[a-z0-9-]{1,32}", project):
         raise ValueError("project must be a dedicated web10-costfn-frozen-* name")
@@ -105,8 +112,16 @@ def import_table(compose, env, directory, table):
                 pass
             finally:
                 process.stdin.close()
-            if process.wait() != 0:
-                raise RuntimeError(f"import failed for {table}; disposable target is partial ({errors.tell()} stderr bytes)")
+            rc = process.wait()
+    if rc != 0:
+        errors.seek(0)
+        err = errors.read().decode(errors="replace")
+        # Connection refused at connect time: CH restarted under the pinned
+        # allocation, ZERO rows written for this table, volume intact -> the
+        # caller settles, re-waits for CH, and retries once (safe + recorded).
+        if "Connection refused" in err or "Code: 210" in err:
+            raise ChRestartError(f"import {table} hit a CH restart (0 rows, recoverable): {err[-240:]}")
+        raise RuntimeError(f"import failed for {table}; disposable target is partial (exit={rc}, {len(err)} stderr bytes)")
 
 
 def correctness(base, manifest):
@@ -159,9 +174,18 @@ def restore(directory, project, port, receipt, expected_id=None, fixture=dataset
             baseline[table] = int(ch(compose, env, f"SELECT count() FROM {table}"))
             if baseline[table]:
                 raise ValueError("target contains existing app contracts")
+    # Defensive: re-confirm CH is answering right before the (large) import
+    # loop, so a slow/ restarting CH is caught here, not mid-stream.
+    wait_for(lambda: ch(compose, env, "SELECT 1").strip() == b"1", "ClickHouse pre-import")
     for table in fixture.TABLES:
         print(f"[restore] importing {table}", flush=True)
-        import_table(compose, env, directory, table)
+        try:
+            import_table(compose, env, directory, table)
+        except ChRestartError as restart:
+            print(f"[restore] {table}: {restart}; settling 30 s, re-waiting for CH, retrying once", flush=True)
+            time.sleep(30)
+            wait_for(lambda: ch(compose, env, "SELECT 1").strip() == b"1", "ClickHouse post-restart")
+            import_table(compose, env, directory, table)
     after = counts(compose, env, fixture.TABLES)
     if after != {table: baseline[table] + verified["rows"][table] for table in fixture.TABLES}:
         raise ValueError("restored row counts differ; target is partial, not a valid trial input")
