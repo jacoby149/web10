@@ -14,6 +14,7 @@ The document is the status surface: `transcoding_settings.status` goes
 `processing` → `done` | `failed`. Clients poll by reading the document.
 """
 
+import json
 import logging
 import math
 import queue
@@ -230,7 +231,7 @@ def _probe_duration(path: Path) -> float:
 
 
 def _probe_dimensions(path: Path) -> tuple[int, int, float]:
-    """(width, height, fps) of the first video stream."""
+    """Display (width, height, fps), matching ffmpeg's default autorotation."""
     proc = subprocess.run(
         [
             "ffprobe",
@@ -239,9 +240,9 @@ def _probe_dimensions(path: Path) -> tuple[int, int, float]:
             "-select_streams",
             "v:0",
             "-show_entries",
-            "stream=width,height,r_frame_rate",
+            "stream=width,height,r_frame_rate:stream_side_data=rotation",
             "-of",
-            "csv=p=0",
+            "json",
             str(path),
         ],
         capture_output=True,
@@ -250,11 +251,26 @@ def _probe_dimensions(path: Path) -> tuple[int, int, float]:
     )
     if proc.returncode != 0:
         raise RuntimeError(f"ffprobe dimensions failed: {proc.stderr[-500:]}")
-    # csv=p=0 → "720,1280,15/1" (width,height,r_frame_rate) — three values.
-    w_s, h_s, fps_s = proc.stdout.strip().split(",")
-    num, _, den = fps_s.partition("/")
-    fps = float(num) / float(den or 1)
-    return int(w_s), int(h_s), round(fps) or 30
+    # CSV includes extra fields/rows for display-matrix side data on phone
+    # uploads. Read named fields instead of unpacking an assumed three columns.
+    streams = json.loads(proc.stdout).get("streams") or []
+    if not streams:
+        raise RuntimeError("ffprobe found no video stream")
+    stream = streams[0]
+    width, height = int(stream["width"]), int(stream["height"])
+    if width <= 0 or height <= 0:
+        raise RuntimeError("ffprobe returned invalid video dimensions")
+    rotation = next((float(side["rotation"]) for side in stream.get("side_data_list", []) if "rotation" in side), 0)
+    # FFmpeg rotates before the scale filter. Plan using the same orientation,
+    # or a portrait phone recording gets stretched back into encoded landscape.
+    if math.isclose(abs(rotation) % 180, 90, abs_tol=0.01):
+        width, height = height, width
+    num, _, den = stream.get("r_frame_rate", "0/0").partition("/")
+    denominator = float(den or 1)
+    fps = float(num) / denominator if denominator else 0
+    fps = round(fps) or 30
+    logger.info("[transcode] video probe — display=%sx%s fps=%s rotation=%s", width, height, fps, rotation)
+    return width, height, fps
 
 
 def _process_job(doc_id: str, author_key: str) -> None:
