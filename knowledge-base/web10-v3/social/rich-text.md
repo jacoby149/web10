@@ -163,6 +163,18 @@ every interactive element has all its states).
   thumbnails *inside* the composer (with remove + the video's edit control), so
   you see exactly what will post before you do. No "did it attach?" anxiety.
   (The composer already has this — `MediaTrayItem`; the pattern is to keep it.)
+  Three attach paths feed the one tray: the picker button, drag-and-drop, and
+  **paste** — Cmd/Ctrl+V with pixels on the clipboard (a screenshot, a copied
+  photo) attaches the image(s) exactly like a picked or dropped file (the same
+  `validateMedia` gate, the same background processing). A paste with no image
+  files (plain text, a URL) is left to the editor untouched; a non-image file
+  on the clipboard is ignored rather than surfacing an error card; edit mode is
+  remove-only, so a pasted image there attaches nothing (the editor's schema
+  has no image node, so it drops — the pre-paste-path behavior, preserved).
+  Pasted screenshots arrive nameless or as a generic `image.png`; the composer
+  mints each a stable `pasted-image-<ts>-<n>.<ext>` name so repeated pastes in
+  one session never collide. (`PostComposer`'s root `onPaste`;
+  `composerPaste.test.tsx`.)
 - **The composer expands, it doesn't jump.** In the compact (collapsed) mode
   the composer rests as a single line and expands to the full form on focus or
   on content — no layout shift, no yank (design.md §1: nothing shifts). The

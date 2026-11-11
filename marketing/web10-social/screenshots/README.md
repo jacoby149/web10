@@ -269,6 +269,27 @@ Use `--extra 'signed-out=1'` to capture its signed-out screen.
 Preview publication never invents a post link. Production
 callers, upload transport, notification behavior and size cap are unchanged.
 
+## Composer paste-to-attach capture
+
+Paste-to-attach (5.15.0: Cmd/Ctrl+V with pixels on the clipboard attaches the
+image to the post composer's tray, the same seam as picker/drag-drop) is
+verified with real Chromium against the real `PostComposer`:
+
+```bash
+SCREENSHOT_PORT=4502 SCREENSHOT_OUTPUT_DIR="$PWD/../../.context/composer-paste" node screenshots/composer-paste.mjs
+```
+
+Per viewport it (A) writes a canvas-drawn PNG to the page's clipboard via
+`navigator.clipboard.write` and presses a real Meta/Ctrl+V — the operator's
+exact flow; (B) if the headless build refuses to deliver the keyboard paste,
+dispatches a real `ClipboardEvent('paste')` with a real `DataTransfer` + `File`
+on the composer root (stated in the receipt, never silent). It then requires
+the tray to settle (real in-browser downscale/encode), the preview image to be
+decoded, and the Post button enabled. Outputs:
+`composer-paste-{desktop,375}.png` + `composer-paste-receipt.json` (written even
+on failure). Isolated harness data; not node upload, deployment or
+physical-clipboard proof.
+
 ## Capture diagnostics
 
 `capture.mjs` buffers the page's console + uncaught errors and dumps them on
