@@ -24,6 +24,7 @@ import {
   getVideoInfo,
   getAudioInfo,
   validateVideoDuration,
+  type VideoThumbnailSelection,
 } from '@/lib/mediaProcessing';
 import type { ProcessingError as MediaProcessingError } from '@/lib/mediaProcessing';
 import { Image, Paperclip, X, Send, Loader2, AlertTriangle, GripVertical, Globe, Lock, Megaphone, Scissors, Repeat2, Bold, Italic, Strikethrough, Heading2, List, Code, Link as LinkIcon, Film, Music } from 'lucide-react';
@@ -31,6 +32,7 @@ import { cn } from '@/lib/utils';
 import { AdPicker } from './AdPicker';
 import { VideoEditorSheet } from './VideoEditorSheet';
 import type { VideoEditResult } from './VideoEditorSheet';
+import { VideoThumbnailSheet } from './VideoThumbnailSheet';
 import { editVideo, isNoopEdit } from '@/lib/videoEditing';
 import { markdownToHtml } from '@/lib/markdownHtml';
 import { DiscoverAudience } from './DiscoverAudience';
@@ -124,6 +126,14 @@ interface AttachedMedia {
   albumArt?: File;
   /** The album art preview URL (object URL, revoked on remove/unmount). */
   albumArtUrl?: string;
+  /** The creator's video thumbnail pick (video-experience.md "Cover frame
+   *  pick"): a captured frame (its `time`) or their own image (`custom`).
+   *  Rides the existing `thumbnail_object_key` — zero node surface. A
+   *  trim/crop edit drops a frame pick (it no longer matches the re-encode);
+   *  a custom image survives. */
+  thumbnail?: VideoThumbnailSelection;
+  /** The picked thumbnail's preview URL (the tray's poster + chip). */
+  thumbnailUrl?: string;
   error?: MediaProcessingError;
 }
 
@@ -138,6 +148,7 @@ function MediaTrayItem({
   onDrop,
   onDragEnd,
   onEdit,
+  onThumbnail,
   onAlbumArtChange,
   disabled,
 }: {
@@ -151,6 +162,7 @@ function MediaTrayItem({
   onDrop: (e: React.DragEvent, index: number) => void;
   onDragEnd: () => void;
   onEdit?: () => void;
+  onThumbnail?: () => void;
   onAlbumArtChange?: (file: File) => void;
   disabled: boolean;
 }) {
@@ -232,6 +244,7 @@ function MediaTrayItem({
       ) : item.isVideo ? (
         <ReliableVideo
           src={item.previewUrl}
+          poster={item.thumbnailUrl || undefined}
           className="w-full h-full object-cover rounded-lg ring-1 ring-border"
           preload="metadata"
           controls
@@ -292,6 +305,27 @@ function MediaTrayItem({
           data-testid="media-edit-button"
         >
           <Scissors className="w-4 h-4" />
+        </button>
+      )}
+
+      {/* Thumbnail chip — videos only (video-experience.md "Cover frame
+          pick"): choose the poster from a few captured frames or an own
+          image. The tray's poster (above) previews the current pick. */}
+      {item.isVideo && onThumbnail && (
+        <button
+          onClick={onThumbnail}
+          disabled={disabled || item.processing || !!item.error}
+          aria-label="Choose video thumbnail"
+          className="absolute top-1.5 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 rounded-full bg-background/80 px-2 py-0.5 text-[0.625rem] font-medium text-foreground hover:bg-background transition-colors duration-150 disabled:opacity-50"
+          data-testid="media-thumbnail-button"
+        >
+          <Image className="w-3 h-3" />
+          {/* Icon-only below the desktop width: on a 375px tray the tile is
+              ~115px wide and the labelled chip collides with the 44px
+              remove target (the album-art chip is the small-chip precedent). */}
+          <span className="hidden sm:inline whitespace-nowrap">
+            {item.thumbnail ? 'Change thumbnail' : 'Thumbnail'}
+          </span>
         </button>
       )}
 
@@ -480,6 +514,9 @@ export default function PostComposer({
   const [albums, setAlbums] = useState<AdAlbum[]>([]);
   const [loadingAds, setLoadingAds] = useState(false);
   const [editingMediaId, setEditingMediaId] = useState<number | null>(null);
+  // The video thumbnail picker (video-experience.md "Cover frame pick"):
+  // which tray item's poster the sheet is choosing.
+  const [thumbnailMediaId, setThumbnailMediaId] = useState<number | null>(null);
   // The "mark as music" toggle (music.md): opt-in, shown when the post has
   // video media attached. A video CAN be music — checking this sets the same
   // `music` tag the dedicated audio flow sets, so the post appears in the
@@ -819,6 +856,10 @@ export default function PostComposer({
     if (item) {
       previewUrlsRef.current.delete(item.previewUrl);
       if (item.albumArtUrl) URL.revokeObjectURL(item.albumArtUrl);
+      if (item.thumbnailUrl) {
+        previewUrlsRef.current.delete(item.thumbnailUrl);
+        URL.revokeObjectURL(item.thumbnailUrl);
+      }
     }
     setMediaItems((prev) => prev.filter((m) => m.id !== id));
   }
@@ -841,6 +882,24 @@ export default function PostComposer({
     );
   }
 
+  // The thumbnail picker's apply (video-experience.md "Cover frame pick"):
+  // the pick becomes the tray item's poster (the <video> poster attr) and,
+  // at post time, the media doc's thumbnail_object_key (uploadMedia's
+  // thumbnailFile — the existing seam, zero node surface).
+  function handleThumbnailApply(id: number, selection: VideoThumbnailSelection) {
+    setMediaItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        const url = URL.createObjectURL(selection.blob);
+        previewUrlsRef.current.add(url);
+        if (item.thumbnailUrl) URL.revokeObjectURL(item.thumbnailUrl);
+        console.log('[social-composer] thumbnail picked — item:', id, 'time:', selection.time, 'custom:', !!selection.custom);
+        return { ...item, thumbnail: selection, thumbnailUrl: url };
+      }),
+    );
+    setThumbnailMediaId(null);
+  }
+
   // The editor's finished file replaces the original — the trimmed/cropped
   // file is what gets uploaded, the node never sees the source.
   const handleVideoEdited = useCallback((id: number, result: VideoEditResult) => {
@@ -850,6 +909,19 @@ export default function PostComposer({
         const newPreviewUrl = URL.createObjectURL(result.file);
         previewUrlsRef.current.delete(item.previewUrl);
         previewUrlsRef.current.add(newPreviewUrl);
+        // A frame pick is a timestamp in the ORIGINAL file — after the
+        // re-encode it points at different content, so drop it (the tray
+        // falls back to the auto-captured poster). A custom image is the
+        // creator's own art: it survives the edit.
+        let thumbnailUrl = item.thumbnailUrl;
+        let thumbnail = item.thumbnail;
+        if (thumbnail && !thumbnail.custom) {
+          console.log('[social-composer] video edited — dropping the frame pick (it no longer matches the re-encode)');
+          previewUrlsRef.current.delete(thumbnailUrl!);
+          URL.revokeObjectURL(thumbnailUrl!);
+          thumbnailUrl = undefined;
+          thumbnail = undefined;
+        }
         console.log('[social-composer] video edited — replacing file, new dims:', result.width, 'x', result.height);
         return {
           ...item,
@@ -858,6 +930,8 @@ export default function PostComposer({
           width: result.width,
           height: result.height,
           edited: true,
+          thumbnail,
+          thumbnailUrl,
         };
       }),
     );
@@ -1001,6 +1075,11 @@ export default function PostComposer({
           media: mediaItems.map(item => ({
             file: item.file, width: item.width, height: item.height, duration: item.duration,
             altText: item.altText, edited: item.edited, albumArt: item.albumArt,
+            // The creator's thumbnail pick (a captured frame or their own
+            // image) — the queue transport cannot carry it yet, so a picked
+            // draft takes the standard path (the pick is never silently
+            // dropped; the follow-up lane item extends the multipart confirm).
+            thumbnail: item.thumbnail ? new File([item.thumbnail.blob], `poster-${item.id}.webp`, { type: item.thumbnail.mimeType }) : undefined,
           })),
         });
         if (accepted !== false) {
@@ -1077,9 +1156,23 @@ export default function PostComposer({
             console.log('[social-composer] video not edited — no-op edit, uploading original (no re-encode):', item.file.name);
           }
 
-          // Capture poster frame (from the finished file — matches what ships)
-          const poster = await captureVideoPoster(fileToUpload);
-          const posterFile = new File([poster.blob], `poster-${Date.now()}.webp`, { type: poster.mimeType });
+          // The poster: the creator's pick if they made one (the thumbnail
+          // picker — a captured frame or their own image), else the auto-
+          // captured 25% frame (the pre-picker behavior; a user who never
+          // opens the picker gets exactly what they got before).
+          let posterFile: File;
+          if (item.thumbnail) {
+            const ext = item.thumbnail.mimeType === 'image/jpeg' ? 'jpg' : 'webp';
+            posterFile = new File([item.thumbnail.blob], `poster-${item.id}-${Date.now()}.${ext}`, { type: item.thumbnail.mimeType });
+            console.log(
+              '[social-composer] video poster — creator pick',
+              item.thumbnail.custom ? '(own image)' : `(${item.thumbnail.time}s frame)`,
+            );
+          } else {
+            const poster = await captureVideoPoster(fileToUpload);
+            posterFile = new File([poster.blob], `poster-${Date.now()}.webp`, { type: poster.mimeType });
+            console.log('[social-composer] video poster — auto capture (no pick yet)');
+          }
 
           record = await uploadMedia({
             file: fileToUpload,
@@ -1340,6 +1433,7 @@ export default function PostComposer({
                       onDrop={handleMediaDrop}
                       onDragEnd={handleDragEnd}
                       onEdit={item.isVideo ? () => setEditingMediaId(item.id) : undefined}
+                      onThumbnail={item.isVideo ? () => setThumbnailMediaId(item.id) : undefined}
                       onAlbumArtChange={item.isAudio ? (f) => handleAlbumArtChange(item.id, f) : undefined}
                       disabled={posting || uploading}
                     />
@@ -1629,6 +1723,20 @@ export default function PostComposer({
         onClose={() => setEditingMediaId(null)}
         onEdited={(result) => {
           if (editingMediaId !== null) handleVideoEdited(editingMediaId, result);
+        }}
+      />
+
+      <VideoThumbnailSheet
+        open={thumbnailMediaId !== null}
+        item={(() => {
+          const target = mediaItems.find((m) => m.id === thumbnailMediaId);
+          return target?.isVideo
+            ? { id: target.id, file: target.file, duration: target.duration, thumbnail: target.thumbnail }
+            : null;
+        })()}
+        onClose={() => setThumbnailMediaId(null)}
+        onApply={(selection) => {
+          if (thumbnailMediaId !== null) handleThumbnailApply(thumbnailMediaId, selection);
         }}
       />
     </div>

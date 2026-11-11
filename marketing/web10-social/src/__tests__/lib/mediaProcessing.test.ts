@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   validateMedia,
   validateVideoDuration,
+  thumbnailCandidateTimes,
 } from '@/lib/mediaProcessing';
 
 describe('validateMedia', () => {
@@ -86,5 +87,33 @@ describe('validateVideoDuration', () => {
   it('accepts short video', () => {
     expect(validateVideoDuration(10)).toBeNull();
     expect(validateVideoDuration(7 * 60 + 40)).toBeNull();
+  });
+});
+
+describe('thumbnailCandidateTimes (the picker\'s candidate frames)', () => {
+  it('spreads three candidates through a normal clip', () => {
+    expect(thumbnailCandidateTimes(10)).toEqual([2.5, 5, 7.5]);
+    expect(thumbnailCandidateTimes(4)).toEqual([1, 2, 3]);
+  });
+
+  it('caps the quarter frame at 5s on long videos (the auto-poster\'s exact seek)', () => {
+    expect(thumbnailCandidateTimes(7200)).toEqual([5, 3600, 5400]);
+    expect(thumbnailCandidateTimes(3600)).toEqual([5, 1800, 2700]);
+  });
+
+  it('keeps the candidates inside the file for short clips (deduped at 0.2s)', () => {
+    // 1s: 0.25 / 0.5 / 0.75 are all ≥ 0.2s apart — three candidates.
+    expect(thumbnailCandidateTimes(1)).toEqual([0.25, 0.5, 0.75]);
+    // 0.6s: the 0.2s floor drops the middle candidate, keeping the two
+    // ends (0.15s / 0.45s — the clip has very little to choose from, but
+    // two distinct frames, honest).
+    expect(thumbnailCandidateTimes(0.6)).toEqual([0.15, 0.45]);
+  });
+
+  it('returns no candidates for an unreadable duration', () => {
+    expect(thumbnailCandidateTimes(0)).toEqual([]);
+    expect(thumbnailCandidateTimes(-5)).toEqual([]);
+    expect(thumbnailCandidateTimes(NaN)).toEqual([]);
+    expect(thumbnailCandidateTimes(Infinity)).toEqual([]);
   });
 });

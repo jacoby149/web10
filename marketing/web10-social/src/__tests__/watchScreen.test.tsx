@@ -575,9 +575,14 @@ describe('WatchScreen (the watch page)', () => {
     // also replays disconnected observers from earlier tests and wakes every
     // preview tile; neither event models scrolling to the queue's next page.
     const IO = IntersectionObserver as unknown as { instances: { observed: Element | null; fire: () => void }[] };
-    const observer = [...IO.instances].reverse().find((item) => item.observed === sentinel);
-    expect(observer).toBeDefined();
-    await act(async () => { observer!.fire(); });
+    // DOM presence can precede the passive effect that observes the sentinel.
+    // Wait for that effect's actual observation, not just its rendered target.
+    const observer = await waitFor(() => {
+      const current = [...IO.instances].reverse().find((item) => item.observed === sentinel);
+      expect(current).toBeDefined();
+      return current!;
+    });
+    await act(async () => { observer.fire(); });
     await waitFor(() => expect(screen.getAllByTestId('watch-queue-card')).toHaveLength(52));
     // The second page was fetched with the next board offset (PAGE_SIZE = 50).
     expect(data.readDiscoverFeed).toHaveBeenLastCalledWith(expect.anything(), 50, undefined, 50);

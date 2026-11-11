@@ -10,3 +10,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 *.tsbuildinfo
+# Regenerable browser fixture for the video-thumbnail receipt (ffmpeg testsrc2,
+# see screenshots/video-thumbnail.mjs) — evidence goes to .context/, not the repo.
+screenshots/harness/fixtures/
