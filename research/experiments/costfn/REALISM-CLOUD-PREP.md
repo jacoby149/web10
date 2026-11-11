@@ -8,6 +8,12 @@ the measured study fleet, production deployment or submission.
 
 ## Approved scope
 
+**Latest storage amendment:** [REALISM-STORAGE.md](REALISM-STORAGE.md) governs:
+after validation, private region-matched Spaces for rerun delivery **and** the
+canonical MinIO copy alongside V2 under the realism ID. Verify both copies'
+manifest/file digests. Public posting requires freeze and operator statistics
+review and uses MinIO only. Earlier MinIO-only/prefix wording below is history.
+
 - SKU `s-8vcpu-32gb-amd`: **8 vCPU / 32 GiB / 400 GB**, catalogue price
   **$0.25/hour**, actual provisioned shape verified in NYC3.
 - Retain the proposed **four-hour deadline / $5 budget target**. The deadline
@@ -82,6 +88,16 @@ claimed complete. Required floor receipts are restored at their original
 relative paths on the preparation host from the verified recovery bundle.
 
 ## Remaining gates
+
+The first 1M preparation attempt was profiled while still before table export:
+the active stack was `allocate` at `realism_dataset.py:50`, called by the
+impression-body allocation at line 88. It repeatedly scans the large vector
+while distributing small integer residuals. The owned service was stopped;
+its empty output directory, status and read-only stack evidence were retained.
+This is a preparation CPU bottleneck, not a ClickHouse performance result.
+The repair batches only provably identical integer-update rounds; targets,
+caps, tie ordering, row counts and distributions are not relaxed. Fresh
+source-bound floors and preserved-reference data-byte parity gate a restart.
 
 1M generation/validation, artifact persistence and human statistics review are
 not closed by successful provisioning. The full Parquet-to-node/selected-cohort
