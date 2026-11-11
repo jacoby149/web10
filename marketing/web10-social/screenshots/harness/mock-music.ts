@@ -116,6 +116,11 @@ export async function readMusicPage(limit = 30, offset = 0) {
   return { tracks, hasMore: offset + limit < MUSIC_TRACKS.length, nextOffset: offset + limit };
 }
 export async function readMusicTrack(postId: string) {
+  // Opt-in capture fixture (5.16.1): the panel's designed loading state — the
+  // home read is in flight forever, so the skeleton + "Loading your track…"
+  // stays on screen. Keyed on the harness screen param (?screen=…), not the
+  // in-app route (MemoryRouter). Never the default.
+  if (new URLSearchParams(window.location.search).get('screen') === 'music-track-pending') return new Promise<never>(() => {});
   const track = MUSIC_TRACKS.find(track => track.post._id === postId) ?? null;
   if (track && new URLSearchParams(window.location.search).has('music-regression')) {
     return { ...track, post: { ...track.post, title: undefined }, media: { ...track.media, url: '/music-regression/fresh.mp3' } };

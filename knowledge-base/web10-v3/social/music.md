@@ -137,10 +137,19 @@ that a particular production object or phone codec works.
 
 URL state: `q` is a case-insensitive loaded-track/name search; `view=saved` or
 `view=playlists` selects the library; `collection` is the full collection ID;
-`track` restores one readable track without autoplay; `panel=player|queue`
-opens listening views; `menu` addresses a track action sheet. Search is not
-catalog-wide indexed search. Paging offsets count raw returned rows, not only
-tracks surviving the media gate; read errors show retry, not normal empty UI.
+`track` restores one readable track without autoplay; `source` pins the node
+the track's row came from — the home origin (or its absence) names the home
+post and resolves it by a DIRECT read on the home node (the mix reader stamps
+`source_origin` on its home rows too, so a signed-in share carries
+`&source=<home>`; that must never gate the link on the board load); a truly
+foreign origin binds the loaded board row (a foreign post is unreadable by id
+from home) and reports "not in the loaded mix" only after the board settles;
+`panel=player|queue` opens listening views; `menu` addresses a track action
+sheet. While the URL's `track` resolves, the player panel shows its designed
+loading state (skeleton + "Loading your track…", no layout shift), not the
+empty "choose a track" session. Search is not catalog-wide indexed search.
+Paging offsets count raw returned rows, not only tracks surviving the media
+gate; read errors show retry, not normal empty UI.
 
 Saved Music is a personal normal private-by-default collection created only
 on explicit first save with `createCollection('Saved Music', {slug:'saved-music'})`.
