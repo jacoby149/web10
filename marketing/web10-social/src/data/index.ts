@@ -11,6 +11,7 @@ export * from './reactions';
 export * from './follows';
 export * from './people';
 export * from './profile';
+export * from './profilePins';
 export * from './dms';
 export * from './groupChat';
 export * from './saved';

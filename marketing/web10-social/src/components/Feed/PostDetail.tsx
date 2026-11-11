@@ -24,7 +24,7 @@ import { useState, type ReactNode } from 'react';
 import {
   Heart, ThumbsDown, MessageCircle, Repeat2, Share2, Check,
   MoreHorizontal, Globe, Lock, Edit3, Eye, EyeOff, Trash2, Bookmark,
-  ArrowUpRight,
+  ArrowUpRight, Pin, PinOff,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatCount } from '@web10/discover';
@@ -169,6 +169,10 @@ export interface PostIdentityRowProps {
     onToggleVisibility?: () => void;
     visibilityToggling?: boolean;
     onDelete?: () => void;
+    // Profile pins (profile-pins.md) — the owner's held-up state (the profile
+    // lightbox supplies them; the watch / permalink surfaces don't).
+    onPin?: () => void;
+    onUnpin?: () => void;
     /** The full post (the Save-to… target). */
     post: { _id?: string };
   };
@@ -205,7 +209,7 @@ export function PostIdentityRow({
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const { openSave } = useSave();
 
-  const hasMenu = !!menu && (menu.onEdit || menu.onToggleVisibility || menu.onDelete);
+  const hasMenu = !!menu && (menu.onEdit || menu.onToggleVisibility || menu.onDelete || menu.onPin || menu.onUnpin);
 
   function closeMenu() {
     setMenuOpen(false);
@@ -299,6 +303,30 @@ export function PostIdentityRow({
                   >
                     <Edit3 className="h-4 w-4" />
                     Edit post
+                  </button>
+                )}
+                {/* Pin / unpin (profile-pins.md): exactly one is supplied —
+                    onPin for an unpinned post, onUnpin for a pinned one. */}
+                {menu.onUnpin && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); closeMenu(); menu.onUnpin(); }}
+                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-elevated"
+                    data-testid="post-option-unpin"
+                  >
+                    <PinOff className="h-4 w-4" />
+                    Unpin from profile
+                  </button>
+                )}
+                {menu.onPin && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); closeMenu(); menu.onPin(); }}
+                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-elevated"
+                    data-testid="post-option-pin"
+                  >
+                    <Pin className="h-4 w-4" />
+                    Pin to profile
                   </button>
                 )}
                 {menu.onToggleVisibility && (
@@ -554,6 +582,12 @@ export interface PostDetailProps {
   onToggleVisibility?: () => void;
   visibilityToggling?: boolean;
   onDelete?: () => void;
+  // Profile pins (profile-pins.md) — the owner's held-up state for THIS post
+  // (exactly one present: onPin when the post is not pinned, onUnpin when it
+  // is). The profile lightbox supplies them; the other detail surfaces
+  // (watch / permalink) don't, so they never grow the item.
+  onPin?: () => void;
+  onUnpin?: () => void;
   /** The surface's media (the lightbox's carousel / the watch player). Rendered
    *  between the body and the stats row. */
   media?: ReactNode;
@@ -592,6 +626,8 @@ export function PostDetail({
   onToggleVisibility,
   visibilityToggling,
   onDelete,
+  onPin,
+  onUnpin,
   media,
   productPic,
   testId = 'post-detail',
@@ -615,6 +651,8 @@ export function PostDetail({
           onToggleVisibility,
           visibilityToggling,
           onDelete,
+          onPin,
+          onUnpin,
           post,
         } : undefined}
         testId={testId}

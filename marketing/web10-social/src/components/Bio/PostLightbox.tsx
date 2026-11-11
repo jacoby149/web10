@@ -98,9 +98,15 @@ interface PostLightboxProps {
   // the index; the lightbox just swaps the `post` prop it renders.
   onPrevPost?: () => void;
   onNextPost?: () => void;
+  // Profile pins (profile-pins.md): the owner's held-up post ids + the toggle
+  // (the profile screen supplies both; other surfaces don't, so their
+  // post-detail menu never grows the pin items). The items reflect the LIVE
+  // post (currentPost — the lightbox swaps it on the profile's post nav).
+  pinnedPostIds?: string[];
+  onTogglePin?: (postId: string, wantPin: boolean) => void;
 }
 
-export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, postService, isOwner: isOwnerProp, highlightedCommentId, onPrevPost, onNextPost }: PostLightboxProps) {
+export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, postService, isOwner: isOwnerProp, highlightedCommentId, onPrevPost, onNextPost, pinnedPostIds, onTogglePin }: PostLightboxProps) {
   const navigate = useNavigate();
   // Track the live post — initialized from the prop but updated in-place
   // after mutations (visibility toggle, edit) so a re-toggle uses the fresh
@@ -403,6 +409,14 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
     }
   }
 
+  // Profile pins (profile-pins.md): the lightbox's pin items forward to the
+  // profile screen's toggle (the optimistic write + rollback lives there —
+  // the lightbox renders the result via the `pinnedPostIds` prop). The items
+  // exist only for the owner's personal posts (the screen supplies the props
+  // in exactly that case) — group-authored posts pin to their own surface.
+  const isPinnedPost = pinnedPostIds?.includes(currentPost._id || '') ?? false;
+  const canPin = !!onTogglePin && authority.canEdit && !currentPost.author_key?.includes('/groups/');
+
   async function handleShare() {
     const url = `${window.location.origin}${postPath({ ...currentPost, author_username: postAuthor || currentPost.author_username })}${highlightedCommentId ? `?comment=${encodeURIComponent(highlightedCommentId)}` : ''}`;
     // Share is a link (navigator.share / clipboard) — not a data write. The
@@ -567,6 +581,8 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
             onToggleVisibility={!authority.canEdit || currentPost.author_key?.includes('/groups/') ? undefined : handleToggleVisibility}
             visibilityToggling={togglingVisibility}
             onDelete={authority.canDelete ? handleDelete : undefined}
+            onPin={canPin && !isPinnedPost ? () => onTogglePin(currentPost._id || '', true) : undefined}
+            onUnpin={canPin && isPinnedPost ? () => onTogglePin(currentPost._id || '', false) : undefined}
             media={mediaPane}
             productPic={productPic}
             testId="post-lightbox-detail"

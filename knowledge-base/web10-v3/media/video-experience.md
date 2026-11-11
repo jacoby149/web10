@@ -58,7 +58,7 @@ The document records which style was used (`body.style`) so the feed can lay the
 
 `transcoding_settings` is **user-owned data on the creator's node** — same shape as "your algorithm is your prompt." The killer move is letting the creator edit it:
 
-- **Cover frame pick — shipped in the social composer (5.18.0).** The creator
+- **Cover frame pick — shipped in the social composer (5.20.0).** The creator
   chooses the poster instead of the auto-extracted one, at upload time: the
   tray's "Thumbnail" chip opens the picker sheet, which captures a few
   candidate frames client-side (the quarter frame capped at 5s — the

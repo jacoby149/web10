@@ -24,6 +24,7 @@ import {
   readPostById,
   resolveMediaRefs,
   readMyAds,
+  MAX_PROFILE_PINS,
   type AdAlbum,
 } from '@/data';
 import { getWapi } from '@/data/wapi';
@@ -39,7 +40,7 @@ import { FeedSourcesEditor } from './FeedSourcesEditor';
 import { useFeedSources } from './useFeedSources';
 import { createMixedFeedReader, type MixedFeedPage } from '@/data/mixedFeed';
 import type { ServerAllocation } from '@/lib/serverMixer';
-import { MoreHorizontal, Share2, Check, Edit3, Eye, EyeOff, Trash2, Repeat2, Megaphone, X, Film, Bookmark } from 'lucide-react';
+import { MoreHorizontal, Share2, Check, Edit3, Eye, EyeOff, Trash2, Repeat2, Megaphone, X, Film, Bookmark, Pin, PinOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { PostActions } from './PostActions';
@@ -366,6 +367,15 @@ export interface PostCardProps {
    *  owner-of-the-token only — an anon visitor has no collections, so the
    *  kebab's Save item is hidden for them). */
   signedIn?: boolean;
+  // Profile pins (profile-pins.md) — the owner's held-up post state, supplied
+  // only by the profile's feed view (pinning is a profile concept; no other
+  // surface offers the item). Absent → no pin items.
+  /** This post is currently on the owner's pin list. */
+  pinned?: boolean;
+  /** The owner's current pin count (the slots-full check). */
+  pinCount?: number;
+  /** The owner's pin toggle (`wantPin` = the desired state after the tap). */
+  onTogglePin?: (wantPin: boolean) => void;
   onPostUpdated?: () => void;
   testId?: string;
   /** A DOM id for the card (the Discover board's ?post= highlight target). */
@@ -407,6 +417,9 @@ export function PostCard({
   groups = post.groups,
   isOwnPost,
   signedIn = false,
+  pinned,
+  pinCount,
+  onTogglePin,
   onPostUpdated,
   testId = 'post-card',
   id,
@@ -614,6 +627,33 @@ export function PostCard({
                         <Edit3 className="w-4 h-4" />
                         Edit post
                       </button>}
+                      {/* Pin to profile (profile-pins.md): the owner's personal
+                          posts only (group-authored posts pin to their own
+                          surface, not the person's). The item HIDES when the
+                          slots are full (MAX_PROFILE_PINS) — pinning is
+                          unpin-then-pin, and the full state is visible on the
+                          profile itself. */}
+                      {onTogglePin && authority.canEdit && !post.author_key?.includes('/groups/') && (pinned ? (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onTogglePin(false); }}
+                          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors"
+                          data-testid="post-option-unpin"
+                        >
+                          <PinOff className="w-4 h-4" />
+                          Unpin from profile
+                        </button>
+                      ) : (pinCount ?? 0) < MAX_PROFILE_PINS ? (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onTogglePin(true); }}
+                          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-foreground hover:bg-elevated transition-colors"
+                          data-testid="post-option-pin"
+                        >
+                          <Pin className="w-4 h-4" />
+                          Pin to profile
+                        </button>
+                      ) : null)}
                       {authority.canEdit && <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); handleToggleVisibility(); }}
