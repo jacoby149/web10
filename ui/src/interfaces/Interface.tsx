@@ -1369,7 +1369,13 @@ function applyACR(cr: any) {
                 I.v3GroupsLoad?.();
                 I.v3GroupsManagesLoad?.();
                 if (results.some(result => result.status === 'rejected')) {
-                    I.setStatus("Some requests failed. Start a new request from the app.");
+                    // The real reason (the API's `detail`, e.g. "incorrect
+                    // token") goes in the on-screen status, not just the
+                    // console — the death-loop report's screen showed only
+                    // this generic line, which names no cause to fix.
+                    const failed = results.find((result: any) => result.status === 'rejected');
+                    const detail = failed?.reason?.message || (failed?.reason ? String(failed.reason) : '');
+                    I.setStatus("Some requests failed" + (detail ? `: ${detail}` : "") + ". Start a new request from the app.");
                     return;
                 }
                 if (I.pendingContracts.some((c: any) => c._consent && !c._consent.settled)) return;

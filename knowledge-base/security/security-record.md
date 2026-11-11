@@ -58,8 +58,8 @@ stale-401-after-account-transition control), the social app's
 popup's honest failure, the mount-time signout) + `authContract.test.ts` +3
 (`login()`'s boolean truth), a live Chromium receipt (the real auth UI against
 a stub node that rejects the cookie — the report's exact screen scrubbing to
-the login screen, desktop + 375px), full ui (297) + social (2,516) suites and
-both production builds. Physical-phone/Safari acceptance is OPEN. Shipped as
+the login screen, desktop + 375px), full ui (298) + social (2,516) suites and
+both production builds; the e2e `authenticator-dead-session.spec.ts` gauntlet (the real auth UI + real node: the scrub, the live-token anti-test, the 401/200 API floor — `auth` shard). Physical-phone/Safari acceptance is OPEN. Shipped as
 5.23.4.
 
 Model attribution: this row is Qwen 3.8 27B single-model work (the gate's

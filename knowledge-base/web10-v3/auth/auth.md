@@ -110,7 +110,9 @@ confirmation flag cleared, routed to the login screen. Re-login mints a token
 the node accepts, and the pending consent card approves in the same cycle.
 Non-auth failures (network, 5xx) are NOT a dead session — they keep the
 session. The account-generation guard applies as usual: a stale 401 from an
-old account's read cannot scrub a newer session.
+old account's read cannot scrub a newer session. Gauntlet:
+`e2e/tests/authenticator-dead-session.spec.ts` (the real popup + real node:
+the scrub, the live-token anti-test, the 401/200 API floor).
 
 ### SDK Methods
 
