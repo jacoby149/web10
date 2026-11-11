@@ -35,8 +35,8 @@ const MOBILE = { width: 375, height: 812 };
 
 // Expected computed background-color per palette (index.css glass tokens).
 const FILL = {
-  dark: { glass: 'rgba(17, 17, 19, 0.65)', open: 'rgba(17, 17, 19, 0.92)', solid: 'rgb(17, 17, 19)' },
-  light: { glass: 'rgba(255, 255, 255, 0.65)', open: 'rgba(255, 255, 255, 0.92)', solid: 'rgb(255, 255, 255)' },
+  dark: { glass: 'rgba(17, 17, 19, 0.45)', open: 'rgba(17, 17, 19, 0.92)', solid: 'rgb(17, 17, 19)' },
+  light: { glass: 'rgba(255, 255, 255, 0.55)', open: 'rgba(255, 255, 255, 0.92)', solid: 'rgb(255, 255, 255)' },
 };
 
 async function waitForServer(url, timeoutMs = 30000) {
@@ -115,8 +115,7 @@ async function shoot(browser, viewport, colorScheme, go, ready, asserts, shotNam
 }
 
 // Same as shoot, but with a click before the ready wait (open-state shots).
-async function openAndShoot(browser, viewport, colorScheme, go, readyAfterLoad, clickSel, readySel, assert, shotName) {
-  const page = await browser.newPage({ viewport, colorScheme, deviceScaleFactor: 2 });
+async function openAndShoot(browser, viewport, colorScheme, go, readyAfterLoad, clickSel, readySel, assert, shotName) {  const page = await browser.newPage({ viewport, colorScheme, deviceScaleFactor: 2 });
   try {
     await page.goto(`${URL}?screen=${go}`, { waitUntil: 'networkidle' });
     if (readyAfterLoad) await page.waitForSelector(`${readyAfterLoad} >> visible=true`, { timeout: 15000 });
@@ -143,6 +142,25 @@ try {
       { name: `topbar-${scheme}-saturate`, sel: '[data-testid="topbar-desktop"]', expect: { backdropFilter: 'saturate(1.6)' } },
       { name: `topbar-${scheme}-fill`, sel: '[data-testid="topbar-desktop"]', expect: { backgroundColor: FILL[scheme].glass } },
     ], `glass-feed-${scheme}`);
+
+    // 1b. Scrolled feed — media under the bar. This is where glass reads:
+    //     the blur + saturate over the purple poster, the fill only 0.45/0.55.
+    {
+      const page = await browser.newPage({ viewport: DESKTOP, colorScheme: scheme, deviceScaleFactor: 2 });
+      try {
+        await page.goto(`${URL}?screen=feed`, { waitUntil: 'networkidle' });
+        await page.waitForSelector('[data-testid="post-author-link"] >> visible=true', { timeout: 15000 });
+        await page.mouse.move(720, 450);
+        await page.mouse.wheel(0, 1400); // poster up under the top bar
+        await page.waitForTimeout(500);
+        check(`topbar-${scheme}-scrolled-fill`, '[data-testid="topbar-desktop"]', page, { backgroundColor: FILL[scheme].glass });
+        const out = path.join(OUT, `glass-feed-scrolled-${scheme}.png`);
+        await page.screenshot({ path: out });
+        console.log('wrote', out);
+      } finally {
+        await page.close();
+      }
+    }
 
     // 2. Open state: the search dropdown hangs off the bar -> the fill steps
     //    up to --color-glass-open (caught by the .glass-bar:has() rule).

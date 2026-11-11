@@ -15,7 +15,12 @@ Operator, 10.11.2026 (external feedback): "make the navbar glassier, like
 apple glass." The four floating chrome bars of web10-social — desktop top
 bar, mobile header, mobile bottom nav, group-detail sticky bar — move from
 near-solid `bg-surface/95 + backdrop-blur-md` to a tokenized liquid-glass
-treatment: translucent `--color-glass` fill (0.65 dark / white-based light),
+treatment: translucent `--color-glass` fill (0.45 dark / white-based light,
+corrected same-day from the first 0.65 cut on operator feedback —
+"this is just not looking very glassy to me" — the heavier fill made
+resting bars read near-solid over the dark feed; 0.45/0.55 is light
+enough that scrolling media visibly bleeds through, with the rim bumped
+to 0.22 white),
 `blur(20px) saturate(160%)` behind it, a 1px `--color-glass-edge` specular
 rim on the content-facing edge, and a soft `--shadow-glass` float in light
 mode only (dark elevation stays border+step, §6). The fill steps up to

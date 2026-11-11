@@ -210,9 +210,9 @@ white-label overrides stay token-driven.
 
 | Token | Dark | Light | Role |
 |---|---|---|---|
-| `--color-glass` | `rgba(17, 17, 19, 0.65)` | `rgba(255, 255, 255, 0.65)` | Resting bar fill |
+| `--color-glass` | `rgba(17, 17, 19, 0.45)` | `rgba(255, 255, 255, 0.55)` | Resting bar fill — light enough that scrolling media visibly bleeds through (operator correction, 10.11.2026: at 0.65 the resting bars read near-solid, not glassy) |
 | `--color-glass-open` | `rgba(17, 17, 19, 0.92)` | `rgba(255, 255, 255, 0.92)` | Fill when a popover hangs off the bar (search results, user menu, notifications) — content scrolling under an open menu is noise |
-| `--color-glass-edge` | `rgba(255, 255, 255, 0.14)` | `rgba(255, 255, 255, 0.7)` | 1px rim highlight |
+| `--color-glass-edge` | `rgba(255, 255, 255, 0.22)` | `rgba(255, 255, 255, 0.8)` | 1px rim highlight |
 | `--shadow-glass` | none | `0 1px 2px rgb(0 0 0 / 0.06)` | Light-mode float (§6) |
 
 Usage discipline:
@@ -560,9 +560,9 @@ the missing steps.
   --color-glow-danger: rgba(239, 68, 68, 0.25);
 
   /* glass chrome — the app bars float over content (§4 "Glass chrome", §6) */
-  --color-glass: rgba(17, 17, 19, 0.65);
+  --color-glass: rgba(17, 17, 19, 0.45);
   --color-glass-open: rgba(17, 17, 19, 0.92);
-  --color-glass-edge: rgba(255, 255, 255, 0.14);
+  --color-glass-edge: rgba(255, 255, 255, 0.22);
   --shadow-glass: 0 1px 2px rgb(0 0 0 / 0);
 
   /* semantic (§4) */
