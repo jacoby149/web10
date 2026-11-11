@@ -70,6 +70,9 @@ describe('access recovery — verifyAndRecover', () => {
     _resetRecoveryCooldown();
     mockReadToken.mockReturnValue(TOKEN);
     mockEnsureFollowers.mockResolvedValue('api.localhost/groups/users/testuser/followers');
+    // The auth seam's login() reports whether the popup actually opened.
+    // Default: it does (the success shape); the blocked-popup tests override.
+    mockLogin.mockReturnValue(true);
   });
 
   afterEach(() => {
@@ -170,6 +173,82 @@ describe('access recovery — verifyAndRecover', () => {
     expect(res.actions).toEqual(['reauth']);
     expect(mockLogin).toHaveBeenCalledTimes(1);
     expect(mockEnsureFollowers).not.toHaveBeenCalled();
+  });
+
+  it('on mount (allowReauth: false) a dead token defers reauth — no gesture-less popup, no armed cooldown', async () => {
+    // The recovery's documented intent: on mount, reauth (the consent popup)
+    // is deferred to the user's trigger — a gesture-less window.open is
+    // blocked on iOS, and executing it would arm the 5-minute cooldown
+    // against an attempt that never happened (the death-loop shape: zombie
+    // session + "cooldown:reauth" banner). The mount surfaces the manual
+    // signal; the "Log in again" CTA is the gesture.
+    mockVerifyAccess.mockResolvedValue(
+      verdict({
+        status: 'invalid',
+        token: 'expired',
+        actions: ['reauth'],
+      }),
+    );
+    const res = await verifyAndRecover({ allowReauth: false });
+    expect(res.outcome).toBe('needs_manual');
+    if (res.outcome !== 'needs_manual') return;
+    expect(res.reason).toBe('reauth_deferred');
+    expect(mockLogin).not.toHaveBeenCalled(); // no popup on mount
+    expect(mockSignOut).not.toHaveBeenCalled();
+    expect(mockEnsureFollowers).not.toHaveBeenCalled(); // a dead token can't heal
+
+    // The deferral armed NO cooldown — the next (reactive) run really re-auths.
+    const res2 = await verifyAndRecover();
+    expect(res2.outcome).toBe('recovered');
+    if (res2.outcome !== 'recovered') return;
+    expect(res2.actions).toEqual(['reauth']);
+    expect(mockLogin).toHaveBeenCalledTimes(1);
+  });
+
+  it('a blocked reauth popup reports the failure (no fake recovery, no armed cooldown)', async () => {
+    // login() returns false when the popup was blocked (no user gesture) or
+    // the SDK is missing. The reauth did NOT happen — the recovery must
+    // surface the manual "Log in again" (action_failed), NOT claim
+    // 'recovered' and arm the 5-minute cooldown against a no-op.
+    mockVerifyAccess.mockResolvedValue(
+      verdict({
+        status: 'invalid',
+        token: 'invalid',
+        actions: ['reauth'],
+      }),
+    );
+    mockLogin.mockReturnValue(false);
+    const res = await verifyAndRecover();
+    expect(res.outcome).toBe('needs_manual');
+    if (res.outcome !== 'needs_manual') return;
+    expect(res.reason).toBe('action_failed:reauth');
+    expect(mockSignOut).not.toHaveBeenCalled(); // replace-not-strand still holds
+
+    // The failure armed NO cooldown — the retry immediately tries again.
+    const res2 = await verifyAndRecover();
+    expect(res2.outcome).toBe('needs_manual');
+    if (res2.outcome !== 'needs_manual') return;
+    expect(res2.reason).toBe('action_failed:reauth');
+    expect(mockLogin).toHaveBeenCalledTimes(2);
+  });
+
+  it('on mount a deleted account still signs out (the terminal action needs no popup)', async () => {
+    // signout is a safe local action (it clears the session) — it runs on
+    // mount even when reauth is deferred, and a deleted account can't be
+    // re-authed.
+    mockVerifyAccess.mockResolvedValue(
+      verdict({
+        status: 'invalid',
+        user: 'not_found',
+        actions: ['signout'],
+      }),
+    );
+    const res = await verifyAndRecover({ allowReauth: false });
+    expect(res.outcome).toBe('recovered');
+    if (res.outcome !== 'recovered') return;
+    expect(res.actions).toEqual(['signout']);
+    expect(mockSignOut).toHaveBeenCalledTimes(1);
+    expect(mockLogin).not.toHaveBeenCalled();
   });
 
   it('on mount (allowReauth: false) a missing contract heals the group but defers reauth', async () => {

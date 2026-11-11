@@ -391,6 +391,19 @@ it('real approve-all failure settles every row exactly once without retrying fai
   expect(apply).toHaveBeenCalledTimes(2)
 })
 
+it("approve-all surfaces the failing write's real reason in the on-screen status", async () => {
+  // The death-loop report's screen showed only the generic "Some requests
+  // failed" — the actual cause (the API's `detail`) lived in the console
+  // alone. The status must name it: a 401 "incorrect token" on the approve
+  // is the dead-session signal the user can act on (log out + log back in).
+  mountView()
+  const source = { postMessage: vi.fn() }
+  apply.mockRejectedValueOnce(Object.assign(new Error('incorrect token'), { status: 401 }))
+  receive(source, [appContract()], 'detail-status')
+  await act(async () => { fireEvent.click(screen.getByTestId('consent-approve-all')) })
+  expect(window.I.status).toBe('Some requests failed: incorrect token. Start a new request from the app.')
+})
+
 it('a replacement request fences the previous delayed close', async () => {
   const I = mount(), source = { postMessage: vi.fn() }, close = vi.spyOn(window, 'close').mockImplementation(() => {})
   window.opener = { postMessage: vi.fn() }

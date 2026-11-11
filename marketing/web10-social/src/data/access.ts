@@ -113,6 +113,18 @@ export async function verifyAndRecover(
   // heal the group; the reauth re-derives a live session first.
   if (verdict.status === 'invalid') {
     for (const action of verdict.actions) {
+      if (action === 'reauth' && !allowReauth) {
+        // Mount path: the reauth opens the consent popup, which needs a user
+        // gesture on iOS (a gesture-less window.open is blocked). The
+        // documented intent is that reauth is deferred to the user's trigger
+        // on mount — executing it here would open a blocked popup, arm the
+        // 5-minute cooldown against an attempt that never happened, and leave
+        // the app zombie on its dead token. Surface the manual signal instead
+        // (the "Log in again" CTA IS the gesture). The terminal signout still
+        // runs on mount: it needs no popup.
+        LOG('verifyAndRecover — reauth deferred (mount); surfacing a manual signal');
+        return { outcome: 'needs_manual', reason: 'reauth_deferred' };
+      }
       if (inCooldown(action)) {
         LOG(`verifyAndRecover — ${action} is in cooldown; deferring to manual`);
         return { outcome: 'needs_manual', reason: `cooldown:${action}` };
@@ -187,7 +199,15 @@ async function executeAction(action: string): Promise<void> {
       // (authListen does this naturally). We do NOT scrub first — a blocked
       // popup or a transient failure must not strand the user signed-out.
       LOG('reauth — re-deriving the session via the authenticator');
-      auth.login();
+      const opened = auth.login();
+      if (!opened) {
+        // The popup never opened (blocked — e.g. no user gesture on iOS — or
+        // the SDK is missing). The re-auth did NOT happen: report it as a
+        // failed action so the recovery surfaces the manual "Log in again"
+        // instead of claiming a recovery and arming the cooldown against a
+        // no-op (the death-loop shape).
+        throw new Error('auth popup did not open (blocked or SDK missing)');
+      }
       return;
     }
     case 'signout': {
