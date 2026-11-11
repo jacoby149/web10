@@ -66,6 +66,29 @@ class LeaseTests(unittest.TestCase):
                 lease.cleanup(row)
         self.assertFalse(row.get('cleanup_verified',False))
 
+    def test_six_hours_requires_recorded_operator_approval_and_cannot_reopen(self):
+        row=example()
+        original=row['deadline']
+        row['deadline']+=7200
+        with self.assertRaises(ValueError):
+            lease.validate(row)
+        row['operator_extension']={'hours':2,'original_deadline':original,'approved_epoch':200}
+        lease.validate(row)
+        row['cancelled']=True
+        with self.assertRaises(ValueError):
+            lease.admits_creation(row,now=300)
+
+    def test_extension_never_grants_unbounded_time_or_wrong_original_clock(self):
+        row=example()
+        row['operator_extension']={'hours':2,'original_deadline':row['deadline'],'approved_epoch':200}
+        row['deadline']+=7201
+        with self.assertRaises(ValueError):
+            lease.validate(row)
+        row['deadline']-=1
+        row['operator_extension']['original_deadline']-=1
+        with self.assertRaises(ValueError):
+            lease.validate(row)
+
 
 if __name__=="__main__":
     unittest.main()

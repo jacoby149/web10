@@ -267,6 +267,13 @@ validation, private-storage or explicit production/submission requirements.
 
 ## Feasibility consequences to calculate before generation
 
+**Later storage authority:** [REALISM-STORAGE.md](REALISM-STORAGE.md) preserves
+the operator's two-copy decision: private Spaces in the droplet region for the
+rerun, canonical MinIO alongside V2 under the realism identity, verified
+manifest/file digests on both; public posting only after freeze and statistics
+review, from MinIO. Earlier MinIO-only staging text is superseded, not a claim
+that either transfer has already happened.
+
 These are **necessary-bound calculations, not generated statistics or an
 approved replacement total**. Use the nominal contract here; actual finite-size
 rounding, tolerances and the chosen store horizon must be explicit in the

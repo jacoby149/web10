@@ -30,6 +30,12 @@ original deadline, setup attempts, monitoring and cleanup limits are in
 wording is superseded for this host; distributions, guard, validation and
 separate full-study/production/submission gates are not waived.
 
+**Latest storage decision:** [REALISM-STORAGE.md](REALISM-STORAGE.md) requires
+two private verified copies after validation: Spaces in the droplet region for
+the rerun, AND canonical existing MinIO alongside V2 under the realism ID.
+Public posting is a separate gate after freeze AND operator statistics review,
+from MinIO only. This replaces the earlier either/or storage proposal.
+
 1. The decision
 The base fixture is structurally sound but demographically empty in the places
 a real 1M-user node is heaviest:
@@ -562,15 +568,20 @@ time sink.
   Development-phase receipts are retained in the project repository."
 
 ### 12.2 Shared-store import — generate once, pull per droplet (fixes the gen cost)
-- Build the derived realism store **once locally after passing 10k/100k floors**:
+- Build the derived realism store **once on the approved preparation host after passing source-bound 10k/100k floors**:
   the new coherent seeded generator (§4) -> the full store as importable
-  files (`documents.jsonl.gz`, `doc_groups.jsonl.gz`, `content_events.jsonl.gz`,
+  files (`documents.parquet`, `doc_groups.parquet`, `content_events.parquet`,
   ...) + the new manifest/identity + the §5 stats receipt. Suggested name:
   `web10-social-1m realism-derived v1`; seed and source/file hashes are pinned.
   No V2 ID reuse, relabelled original rows or per-trial regeneration.
-- Only after validation passes and operator receipt review, upload the
-  approved store to object storage (the existing MinIO, or a DO Space / S3
-  bucket). It is shared, versioned by seed, pull-able by any droplet.
+- After validation, privately stage the same frozen input in Spaces in the
+  droplet region and sync the canonical copy to existing MinIO alongside V2:
+  `web10-media/research/costfn/datasets/<realism-id>/`. Verify manifest identity
+  and every file size/SHA-256 by readback on BOTH copies; no ETag inference.
+  Configured scoped access is required; approval is not a completed upload.
+  Spaces is temporary rerun distribution and may be removed after the rerun
+  and confirmed canonical retention. Public posting requires freeze AND
+  operator 1M-statistics review, from MinIO only. No public-policy changes.
 - Each droplet trial **PULLS** the store from S3 and loads it into its fresh CH
   volume (the restore step loads pre-generated data instead of running the
   generation SQL) -> no per-trial regeneration, no per-machine drift.

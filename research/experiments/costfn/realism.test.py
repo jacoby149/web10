@@ -2,6 +2,7 @@
 import json
 import csv
 import statistics
+import random
 from pathlib import Path
 import tempfile
 import unittest
@@ -44,6 +45,49 @@ class ContractTests(unittest.TestCase):
         for total,weights,caps in ((31,[1,1,1],[10,10,10]),(1,[1,1],[2,2]),(10,[0,1],[10,10])):
             with self.assertRaises(ValueError):
                 generator.allocate(total,weights,caps,minimum=1)
+
+    def test_batched_rounds_are_exactly_the_previous_update_rule(self):
+        def reference(total,weights,caps,minimum):
+            result=[minimum]*len(weights)
+            left=total-sum(result)
+            while left:
+                indices=[i for i in range(len(weights)) if result[i]<caps[i]]
+                denominator=sum(weights[i] for i in indices)
+                shares=[(i,left*weights[i]/denominator) for i in indices]
+                used=0
+                for i,share in shares:
+                    delta=min(caps[i]-result[i],int(share))
+                    result[i]+=delta
+                    used+=delta
+                left-=used
+                if left and not used:
+                    for i,_ in sorted(shares,key=lambda x:(-x[1],x[0])):
+                        result[i]+=1
+                        left-=1
+                        if not left:
+                            break
+            return result
+        rng=random.Random(42)
+        for _ in range(150):
+            n=rng.randrange(2,70)
+            minimum=rng.randrange(0,3)
+            caps=[minimum+rng.randrange(1,100) for _ in range(n)]
+            weights=[10**rng.uniform(-5,5) for _ in range(n)]
+            total=rng.randrange(n*minimum,sum(caps)+1)
+            self.assertEqual(generator.allocate(total,weights,caps,minimum),reference(total,weights,caps,minimum))
+
+    def test_sparse_integer_tail_skips_hundreds_of_identical_vector_sweeps(self):
+        repeats=[]
+        original=generator._repeat_rounds
+        def observed(*args):
+            value=original(*args)
+            repeats.append(value)
+            return value
+        with patch.object(generator,'_repeat_rounds',side_effect=observed):
+            result=generator.allocate(1900,[1]+[.1]*9990)
+        self.assertEqual(sum(result),1900)
+        self.assertGreater(max(repeats),800)
+        self.assertLess(len(repeats),10)
 
     def test_million_does_not_create_output_without_floor_receipts(self):
         with tempfile.TemporaryDirectory() as tmp:

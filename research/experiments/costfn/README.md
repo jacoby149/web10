@@ -28,6 +28,11 @@ weaken the guard; the larger preparation disk is separately approved. Generated
 reports are indexed in [evidence/REALISM-ARTIFACTS.md](evidence/REALISM-ARTIFACTS.md),
 not committed as piles of JSON/TAR. Provisioning is not 1M validation or fleet readiness.
 
+**Latest storage rule:** [REALISM-STORAGE.md](REALISM-STORAGE.md): validated
+private Spaces in the droplet region plus a canonical MinIO copy alongside V2,
+both manifest/digest verified. No public posting before freeze and operator
+review of the 1M statistics; any approved public release comes from MinIO.
+
 **Current source capture after dev integration:** `core-feed-wire-v6.json` plus
 cursor `core-feed-next-page-v4.json`. v6 refreshes only the merged profile type
 source pin; the four request payloads are exactly unchanged from v5. Historical
