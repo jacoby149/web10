@@ -37,6 +37,8 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
+- [✓ 5.25.2 local] **Center the Recency / Likes / Comments dials on mobile** — center the row at every breakpoint in both social and marketing; keep dial sizing, gaps and ranking unchanged. Chromium pre-fix mobile repro and light/dark 375/768/1280/1440 geometry checks, 165 focused tests and both builds/typechecks pass; desktop/375px captures inspected. No deployment.
+
 - [✓ 5.23.3 local; rollout/retry OPEN] **Repair frozen homepage phone video** — the reported “Ramblin” card plays the HEVC original's audio without decoded video because its HLS transcode failed at the fixed-three-column FFprobe CSV parser. Use named JSON fields and display-matrix rotation for display-oriented rendition/thumbnail planning. Twelve regression controls include a generated rotated HEVC file reproducing the exact pre-fix crash and completing the real FFmpeg worker pipeline after repair; all 2,241 API tests plus eight subtests pass (one opt-in skip), Ruff clean, desktop/375px Chromium proves increasing HLS decoded frames and pause/resume on synthetic worker output. No UI/auth/TTL change or production write. Evidence/remaining gate: `media-reliability.md`.
 - [ ] **Phone-video repair rollout and failed-upload recovery** — after reviewed deployment and operator approval, retry only the exact failed media behind the reported “Ramblin” post using existing owner-authorized transcode authority; wait for `done`, re-read its original carrier and verify moving decoded frames plus pause/seek on the live desktop homepage and 375px. Owns HLS worker/focused tests and acceptance evidence; no global backfill, post re-upload or access/TTL change. Local 5.23.3 repair is not deployed recovery.
 
