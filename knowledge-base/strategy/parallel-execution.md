@@ -1640,14 +1640,14 @@ Paper briefing is v7 work, not permission to rewrite frozen drafts.
   - [✓ 5.22.1 repo cleanup] **RD3-ARTIFACTS: clear generated report clutter without losing unique evidence** — fourteen new untracked realism JSON/TAR files removed only after verified backup. Compact `evidence/REALISM-ARTIFACTS.md` preserves hashes/locations; fixtures/manifests/active monitoring protected. Remote MinIO copy pending; floor receipt bytes restored on prep host from local recovery bundle. No loss of unique evidence asserted.
 - [ ] **RD4: approved DO pilot, then full rerun** — RD3 validation and operator statistics review first; verify exact SKU eligibility, approved pilot budget and independent bounded resource-lifetime cleanup. Same SKU across D1–D5/Phase 2: 32 GiB / container 28 / CH 22 / outside 4; 8 vCPU at $0.25/h is catalogue only. Approved generate-once store upload/pull/fresh restore; Study B 1M pilot three trials, report before full B/C/A/P/X fan-out. Then satellite + ordinary/viral views gates, Phase 2 last; 5 GiB sensitivity remains. Only rerun results in v7, release generator/contract/citations/validator, media excluded. No production migration/CMT without separate approval; Nov 20 freeze / Nov 24 deadline unchanged.
 
-**Latest operator override [✓ 5.24.0 tooling/direct start; 1M completion OPEN]:** use explicit `--skip-floor-gates` to stop
+**Latest operator override [✓ 5.25.0 tooling/direct start; 1M completion OPEN]:** use explicit `--skip-floor-gates` to stop
 repeating pre-1M graph/floor checks and run the repaired 1M generator directly.
 Skipped prerequisites are recorded in manifest/status, not passed; defaults
 still require current floors. Same host, 2 GB allowance, approved deadline/$5
 ceiling, final independent 1M validation, two-copy digests and review remain.
 This supersedes fresh-floor admission below for the explicitly opted-in attempt.
 
-**RD3-PROGRESS [✓ 5.24.1 logging/restart; 1M completion OPEN]:** operator requests stage/work logging and permits a
+**RD3-PROGRESS [✓ 5.25.1 logging/restart; 1M completion OPEN]:** operator requests stage/work logging and permits a
 restart of the direct 1M attempt. Five-second throttled allocation counters,
 model row counters and stage start/end timings replace the silent CPU phase;
 two new controls and nine offline suites pass. Same-runtime old/logged 10k CSV
@@ -1656,7 +1656,7 @@ attempt. Direct 1M restart is active with work logs; keep
 the explicit floor skip and final validation/resource/lease controls. No claim
 that a heartbeat, allocated-unit fraction or stage timing is overall completion.
 
-**Earlier RD3 repair:** [✓ 5.23.3 local/remote controls; full graph/floor proof interrupted by operator]
+**Earlier RD3 repair:** [✓ 5.24.2 local/remote controls; full graph/floor proof interrupted by operator]
 **RD3-GRAPH: bound complete-request candidate expansion at 2 GB** — actual 1M
 generation reached the global `CREATE TABLE edges` window and OOMed before any
 Parquet export. Preserve the empty attempt/status/traceback and source/floor

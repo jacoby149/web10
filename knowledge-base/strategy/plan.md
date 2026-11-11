@@ -1403,14 +1403,14 @@ intact. The measured rerun is all DigitalOcean, but generator/validator floors
 are local and **no droplets, uploads or spend** are allowed until validation
 passes and the operator has seen the generated statistics receipt.
 
-**Latest operator override [✓ 5.24.0 tooling/direct start; 1M completion OPEN]:** explicit `--skip-floor-gates` stops the
+**Latest operator override [✓ 5.25.0 tooling/direct start; 1M completion OPEN]:** explicit `--skip-floor-gates` stops the
 repeat graph/floor pipeline and admits a direct repaired 1M attempt. Defaults
 still require current floors; waived inputs/status explicitly record the skip
 and resume requires opt-in again. Preserve 2 GB/disk/cleanup/deadline/$5 controls,
 final independent 1M validation, both private verified copies and review. This
 supersedes fresh-floor admission below for that opted-in preparation only.
 
-**RD3-PROGRESS [✓ 5.24.1 logging/restart; 1M completion OPEN]:** operator authorizes a restart for real stage/work
+**RD3-PROGRESS [✓ 5.25.1 logging/restart; 1M completion OPEN]:** operator authorizes a restart for real stage/work
 logging, not another 100k gate cycle. Named allocation/model counters and SQL/
 export start/end timings are tested with throttling and exact result controls;
 all nine offline suites pass. Same-runtime old/logged 10k model CSV bytes match;
@@ -1418,7 +1418,7 @@ the previous empty output is retained and the direct 1M logging restart is
 active. Preserve prior work and retain explicit floor
 skip, final validation and the same memory/disk/cleanup deadline/$5 ceiling.
 
-**Earlier RD3 repair:** [✓ 5.23.3 local/remote controls; full graph/floor proof interrupted by operator]
+**Earlier RD3 repair:** [✓ 5.24.2 local/remote controls; full graph/floor proof interrupted by operator]
 **RD3-GRAPH: bound complete-request candidate expansion at 2 GB** — the first
 repaired-generator 1M attempt OOMed in the global graph window before exporting
 Parquet. Empty output/failure/source evidence retained. Candidate-count batches
