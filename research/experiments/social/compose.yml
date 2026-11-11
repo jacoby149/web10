@@ -33,7 +33,10 @@ services:
     volumes: ["minio-data:/data"]
   api:
     build:
-      context: ../../../api
+      # Repo-root context (api/Dockerfile bakes /web10/VERSION from the
+      # changelog — the node's update check).
+      context: ../../..
+      dockerfile: api/Dockerfile
       labels: *source
     environment:
       PROVIDER: api.localhost

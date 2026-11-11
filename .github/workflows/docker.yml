@@ -25,7 +25,13 @@ jobs:
       matrix:
         service:
           - name: api
-            context: api
+            # Repo-root context so the Dockerfile bakes /web10/VERSION from
+            # the changelog (the node's update check). Cache key stays
+            # scoped to api/ via hashPath — the context is the whole repo
+            # (the .git + research dirs would otherwise poison the hash).
+            context: .
+            dockerfile: api/Dockerfile
+            hashPath: api
           - name: ui
             # Repo-root context so the Dockerfile can COPY ../sdk/ (the v3 SDK
             # the auth app depends on). Cache key stays scoped to ui/.

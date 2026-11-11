@@ -1,7 +1,8 @@
 # Repository-root .dockerignore — used when a service is built with the
-# repo root as its context (currently marketing-ui: the build needs
-# CHANGELOG.md + .git to bake status.json). Tuned to send only what that
-# build touches while keeping the door open for other services (api, ui,
+# repo root as its context (marketing-ui: the build needs CHANGELOG.md +
+# .git to bake status.json; api: the build bakes the changelog's top line
+# into /web10/VERSION for the node's update check). Tuned to send only what
+# those builds touch while keeping the door open for other services (ui,
 # social) that may later move to a repo-root context too.
 
 # Universal dev/build crud — never needed in any image build.
@@ -48,8 +49,11 @@ marketing/web10-social/node_modules
 marketing/web10-cli/node_modules
 mobile/node_modules
 
-# Editor docs + research dumps the build never reads.
+# Editor docs + research dumps the build never reads. EXCEPT the changelog:
+# the api image bakes its top line into /web10/VERSION at build time
+# (api/Dockerfile — the node's update check, KB setup/update-check.md).
 knowledge-base/**/*.md
+!knowledge-base/changelogs/CHANGELOG.md
 ai-pack/**/*.md
 e2e/screenshots
 e2e/.playwright
