@@ -273,7 +273,25 @@ export async function readGroupPublicCollections(groupId: string): Promise<unkno
 export async function createGroupCollection(): Promise<string> {
   return 'web10/groups/users/nova/saved-synthwave-sessions-new';
 }
-export async function readCollection(): Promise<unknown> {
+export async function readCollection(groupId?: string): Promise<unknown> {
+  // The group's "Best Of" playlist — ALL music (the D88 screen's music
+  // handoff: the "Listen in Music" affordance + the listening-permalink share
+  // link). The wall renders the tracks' album-art tiles.
+  if (groupId === 'web10/groups/users/nova/saved-synthwave-sessions-best-of') {
+    const tracks = ['music-4', 'music-1', 'music-5']
+      .map((id) => MUSIC_TRACKS.find((t) => t.post._id === id))
+      .filter((t): t is NonNullable<typeof t> => Boolean(t));
+    const mediaMap: Record<string, unknown> = {};
+    for (const track of tracks) mediaMap[track.media._id] = track.media;
+    return {
+      face: { name: 'Best Of', visibility: 'public', owner_group: 'web10/groups/users/nova/synthwave-sessions' },
+      posts: tracks.map((track, i) => ({
+        _id: `sc-m${i + 1}`, postId: track.post._id, savedAt: minsAgo(600 + i * 120),
+        unavailable: false, post: track.post,
+      })),
+      mediaMap,
+    };
+  }
   const posts = [
     { _id: 'sc-1', postId: 'pp-1', savedAt: minsAgo(120), unavailable: false, post: PROFILE_POSTS[0] },
     { _id: 'sc-2', postId: 'pp-2', savedAt: minsAgo(300), unavailable: false, post: PROFILE_POSTS[1] },

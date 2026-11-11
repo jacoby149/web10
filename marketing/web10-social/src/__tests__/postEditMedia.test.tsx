@@ -165,3 +165,55 @@ describe('PostComposer edit mode — the ONE edit path (title + body + media rem
     expect(caption).not.toHaveTextContent('**');
   });
 });
+
+describe('PostComposer edit mode — the "mark as music" choice (music.md: a video CAN be music; an audio post can opt OUT)', () => {
+  const musicAudioPost: PostRecord = {
+    _id: 'post-audio',
+    title: 'Late Night Loop',
+    text: 'an mp3',
+    author_username: 'testuser',
+    author_provider: 'test.localhost',
+    created_at: new Date().toISOString(),
+    visibility: 'public',
+    tags: ['music'],
+    media_refs: ['media-music'],
+  };
+  const musicMedia: MediaRecord = { _id: 'media-music', url: 'https://cdn/track.mp3', mime_type: 'audio/mpeg', created_at: new Date().toISOString() };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resolveMediaRefs.mockResolvedValue([musicMedia]);
+  });
+
+  it('an AUDIO post offers the toggle in edit mode — removing the tag opts it out of Music (saves separately from content)', async () => {
+    render(<PostComposer editingPost={musicAudioPost} onPostCreated={vi.fn()} />);
+    const section = await screen.findByTestId('edit-mark-as-music');
+    // The post carries the tag → the control offers the REMOVAL.
+    expect(section).toHaveTextContent('Remove music tag');
+    fireEvent.click(screen.getByRole('button', { name: 'Remove music tag' }));
+    await waitFor(() => expect(updatePost).toHaveBeenCalled());
+    const call = updatePost.mock.calls[0];
+    expect(call[0]).toBe('post-audio');
+    expect(call[1].tags).toBeUndefined(); // the last (only) tag removed → no tags written
+    expect(call[1].media_refs).toBeUndefined(); // the toggle never touches content
+    expect(call[1].title).toBeUndefined();
+  });
+
+  it('a VIDEO post offers the toggle in edit mode — marking it opts it in to Music', async () => {
+    const videoPost: PostRecord = { ...musicAudioPost, _id: 'post-video', tags: [], media_refs: ['media-video'] };
+    resolveMediaRefs.mockResolvedValue([{ _id: 'media-video', url: 'https://cdn/clip.mp4', mime_type: 'video/mp4', width: 1280, height: 720, created_at: new Date().toISOString() }]);
+    render(<PostComposer editingPost={videoPost} onPostCreated={vi.fn()} />);
+    const section = await screen.findByTestId('edit-mark-as-music');
+    expect(section).toHaveTextContent('Mark as music');
+    fireEvent.click(screen.getByRole('button', { name: 'Mark as music' }));
+    await waitFor(() => expect(updatePost).toHaveBeenCalled());
+    expect(updatePost.mock.calls[0][1].tags).toEqual(['music']);
+  });
+
+  it('an image-only post offers no music toggle in edit mode', async () => {
+    resolveMediaRefs.mockResolvedValue([mediaA, mediaB]);
+    renderEdit();
+    await screen.findByTestId('composer-edit-remove-media-0');
+    expect(screen.queryByTestId('edit-mark-as-music')).not.toBeInTheDocument();
+  });
+});

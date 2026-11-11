@@ -840,10 +840,17 @@ describe('PostComposer', () => {
     expect(empty?.getAttribute('data-placeholder')).toBe("What's on your mind?");
   });
 
-  it('shows image upload button', async () => {
+  it('shows the general-media attach button (the paperclip — photos, videos, MP3)', async () => {
     const { default: PostComposer } = await import('@/components/Feed/PostComposer');
     render(<PostComposer />);
-    expect(document.querySelector('[data-testid="icon-image"]')).toBeInTheDocument();
+    const button = document.querySelector('[data-testid="attach-media-button"]');
+    expect(button).toBeInTheDocument();
+    expect(button?.querySelector('[data-testid="icon-paperclip"]')).toBeInTheDocument();
+    // The picker accepts every media kind the validateMedia gate accepts.
+    const input = document.querySelector('input[type="file"][multiple]') as HTMLInputElement;
+    expect(input.accept).toContain('image/jpeg');
+    expect(input.accept).toContain('video/mp4');
+    expect(input.accept).toContain('audio/mpeg');
   });
 
   it('disables post button when empty', async () => {

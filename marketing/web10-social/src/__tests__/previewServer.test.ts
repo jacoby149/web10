@@ -197,4 +197,27 @@ describe('music preview HTTP routing', () => {
     const services = calls.map(call => call.body.service).filter(Boolean)
     expect(services).toEqual(['web10-social-group-identity'])
   })
+
+  it('routes the Music-view playlist share link through the playlist card (the incidental track state stays out of the card URL)', async () => {
+    calls.length = 0
+    const result = await get(`/music?view=playlists&collection=${encodeURIComponent(PLAYLIST)}&track=track%2B1&panel=player`)
+    expect(result.status).toBe(200)
+    expect(result.html).toContain('"title":"Jazz Nights"')
+    expect(result.html).toContain('"image":"https://media.test/playlist-cover.webp"')
+    expect(result.html).toContain('2 saved items')
+    expect(result.html).toContain(`https://social.test/music?view=playlists&collection=${encodeURIComponent(PLAYLIST)}`)
+    expect(result.html).not.toContain('track=')
+    const services = calls.map(call => call.body.service).filter(Boolean)
+    expect(services).toEqual(['web10-social-group-identity', 'saved', 'posts'])
+  })
+
+  it('returns the generic playlist card for a denied collection on the Music-view share link', async () => {
+    calls.length = 0
+    const secret = 'api.test/groups/users/nova/saved-secret'
+    const result = await get(`/music?view=playlists&collection=${encodeURIComponent(secret)}`)
+    expect(result.status).toBe(200)
+    expect(result.html).toContain('A playlist on web10')
+    const services = calls.map(call => call.body.service).filter(Boolean)
+    expect(services).toEqual(['web10-social-group-identity'])
+  })
 })

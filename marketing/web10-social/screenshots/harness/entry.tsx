@@ -143,6 +143,8 @@ if (screen === 'install-prompt') {
 // directly (no Layout chrome) — the modal is the whole shot.
 if (screen === 'post-detail' || screen === 'group-post-detail') {
   createRoot(document.getElementById('root')!).render(<PostDetailHarness group={screen === 'group-post-detail'} />);
+} else if (screen === 'post-detail-audio') {
+  createRoot(document.getElementById('root')!).render(<PostDetailHarness audio />);
 } else if (screen === 'product-detail') {
   createRoot(document.getElementById('root')!).render(<ProductDetailHarness />);
 } else {
@@ -165,6 +167,7 @@ if (screen === 'post-detail' || screen === 'group-post-detail') {
       : screen === 'music-playlists' ? '/music?view=playlists'
       : screen === 'music-player' ? '/music?track=music-1&panel=player'
       : screen === 'music-queue' ? '/music?track=music-1&panel=queue'
+      : screen === 'music-video-player' ? '/music?track=music-7&panel=player'
       : screen === 'music-playlist' ? '/music?view=playlists&collection=web10%2Fgroups%2Fusers%2Fme%2Fsaved-tour-sets'
       : screen === 'hot-gossip' ? '/hot-gossip'
       : screen === 'discover-searched' ? '/discover?q=lofi'

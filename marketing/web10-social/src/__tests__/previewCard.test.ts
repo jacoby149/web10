@@ -77,6 +77,7 @@ describe('web10-social link-preview card logic (KB: media/thumbnailing.md)', () 
   let watchCard: (p: string) => Promise<string>
   let shortsCard: (p: string) => Promise<string>
   let musicCard: (p?: string | null) => Promise<string>
+  let musicPlaylistCard: (c: string) => Promise<string>
   let savedCard: (u: string, c: string) => Promise<string>
   let groupSavedCard: (g: string, c: string) => Promise<string>
   let truncate: (s: string, n: number) => string | null
@@ -92,6 +93,7 @@ describe('web10-social link-preview card logic (KB: media/thumbnailing.md)', () 
     watchCard = mod.watchCard
     shortsCard = mod.shortsCard
     musicCard = mod.musicCard
+    musicPlaylistCard = mod.musicPlaylistCard
     savedCard = mod.savedCard
     groupSavedCard = mod.groupSavedCard
     truncate = mod.truncate
@@ -839,6 +841,30 @@ describe('web10-social link-preview card logic (KB: media/thumbnailing.md)', () 
       expect(html).toContain('1 saved item')
       expect(html).not.toContain('by @')
       expect(html).toContain(`http://social.test/groups/${encodeURIComponent(CLUB)}/saved/${encodeURIComponent(PLAYLIST)}`)
+    })
+
+    it('musicPlaylistCard: the Music-view share link renders the playlist card (no user attribution — the URL carries no username)', async () => {
+      mockPlatform(
+        faceHandlers([item(1, 'p1')], 'cover-1', {
+          'read:p1': audioPost('cover-1', 'http://minio.test/nova/album.webp', 'http://minio.test/nova/recording.mp3'),
+        }),
+      )
+      const html = await musicPlaylistCard(PLAYLIST)
+      expect(html).toContain('"title":"Jazz Nights"')
+      expect(html).toContain('"image":"http://minio.test/nova/album.webp"')
+      expect(html).toContain('1 saved item')
+      expect(html).not.toContain('by @')
+      expect(html).toContain(`http://social.test/music?view=playlists&collection=${encodeURIComponent(PLAYLIST)}`)
+      expect(html).toContain('"og_type":"website"')
+    })
+
+    it('musicPlaylistCard: a denied (private) collection falls to the generic card (the I3 floor)', async () => {
+      const fetchMock = mockPlatform({})
+      const html = await musicPlaylistCard('api.test/groups/users/nova/saved-secret')
+      expect(html).toContain('A playlist on web10')
+      expect(html).toContain('http://social.test/keys-mark.png')
+      expect(html).toContain(`http://social.test/music?view=playlists&collection=${encodeURIComponent('api.test/groups/users/nova/saved-secret')}`)
+      expect(fetchMock).toHaveBeenCalledTimes(2)
     })
   })
 })

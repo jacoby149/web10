@@ -42,6 +42,9 @@ export default defineConfig({
       '@web10/discover/video': path.resolve(__dirname, '../shared/discover/src/ReliableVideo.tsx'),
       '@web10/discover/face': path.resolve(__dirname, '../shared/discover/src/face.ts'),
       '@web10/discover/audio-artwork': path.resolve(__dirname, '../shared/discover/src/audioArtwork.ts'),
+      // `/video-source` the PURE video-source selector (data layer + the music
+      // transport import it directly, no React barrel — the same pattern).
+      '@web10/discover/video-source': path.resolve(__dirname, '../shared/discover/src/videoSource.ts'),
       '@web10/discover/mentions': path.resolve(__dirname, '../shared/discover/src/mentions.ts'),
       '@web10/discover': path.resolve(__dirname, '../shared/discover/src/index.ts'),
     },

@@ -32,6 +32,21 @@ composer tray; it becomes the track's thumbnail (the media doc's
 - `createPost` writes `tags: ['music']` when the post has exactly one audio
   item.
 
+**A video CAN be music — the "mark as music" choice (both directions, the
+operator's 10.11.2026 ask).** A single-video post is opt-OUT of the music
+tab by default (a video is usually just a video); the choice is a tag, never
+a new column:
+
+- **Create:** when the tray has video media, the composer shows a "Mark as
+  music" checkbox (opt-in, never automatic — audio keeps its auto-tag).
+  Checked → `tags: ['music']` on the create.
+- **Edit:** when the post's media is video OR audio, the composer's edit
+  mode shows the same choice as a separate-save control (`MusicTagToggle`,
+  the Discover-audience pattern — it writes the tag via `updatePost`
+  without touching title/text/media): "Mark as music" / "Remove music
+  tag". Audio posts get the REMOVAL path (the auto-tag can be undone);
+  video posts get the addition. Image-only posts get no control.
+
 ## The read + the render-time gate
 
 `readMusicPage` (paged, the wall's infinite scroll) + `readMusicFeed`
@@ -85,8 +100,18 @@ can explore/play/share, but cannot save. Group display names stay separate
 from exact group IDs. Desktop Explore has a compact artwork feature; mobile
 prioritizes the track list. Load more is explicit, not infinite scroll.
 
-The app-level MusicProvider owns one Audio instance, session queue and transport;
-navigation does not dispose playback. The persistent player sits above mobile
+The app-level MusicProvider owns the session transports — one `Audio` element
+AND one `Video` element (music.md: a video CAN be a track) — plus the session
+queue and transport state; navigation does not dispose playback. The session
+has ONE voice: the active transport is the element of the current track's kind
+(a video track routes to the video element and releases the audio one, and
+vice-versa). The video element is DETACHED by default (audio-only in the
+mini-player state) — the expanded player panel borrows it into its visible
+video stage (the provider owns the element; the surface lends a parent, so
+position + hls state survive the move). A transcoded video (status done +
+minted manifest) rides hls.js through the app's vendored build + the shared
+`resolveManifestHref` (the same source seam every video surface uses); a raw
+MP4 plays the direct file. The persistent player sits above mobile
 navigation. Seek/time, volume, previous/next, finite shuffle, repeat off/all/one,
 automatic advance and queue removal are session state, never playlist writes.
 Duplicate queue entries retain occurrence identity. Explicit Play next wins

@@ -174,7 +174,17 @@ every interactive element has all its states).
   Pasted screenshots arrive nameless or as a generic `image.png`; the composer
   mints each a stable `pasted-image-<ts>-<n>.<ext>` name so repeated pastes in
   one session never collide. (`PostComposer`'s root `onPaste`;
-  `composerPaste.test.tsx`.)
+  `composerPaste.test.tsx`.) The attach button is the GENERAL-media
+   affordance (a paperclip — "Add media — photos, videos or MP3"), not a photo
+   icon: the picker accepts every type the `validateMedia` gate accepts.
+   **The album-cover shortcut (music.md):** when the tray holds EXACTLY ONE
+   audio item, an incoming image — pasted at the root, dropped anywhere, or
+   dropped/pasted on the track's "Add art" chip (the chip is a focusable drop
+   + paste target, not click-only) — becomes that track's ALBUM ART (its
+   `thumbnail_object_key`, the shared album-art precedence's first pick), not a
+   second media item; a mixed/multi-item tray keeps the normal tray routing,
+   and a non-image on the art chip is ignored. (`PostComposer`'s root
+   `onPaste`/`onDrop` → `routeAttachFiles`; `composerPaste.test.tsx`.)
 - **The composer expands, it doesn't jump.** In the compact (collapsed) mode
   the composer rests as a single line and expands to the full form on focus or
   on content — no layout shift, no yank (design.md §1: nothing shifts). The

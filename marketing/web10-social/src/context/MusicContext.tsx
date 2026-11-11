@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { claimMediaPlayback } from '@web10/discover/media-recovery';
+import { sourceFromMedia, resolveManifestHref } from '@web10/discover/video-source';
 import type { MusicTrack } from '@/data/feed';
+import type { MediaRecord } from '@/data/types';
 import { readMusicTrack } from '@/data/music';
 import { musicTitle, musicArtist, musicTrackKey } from '@/data/musicTrack';
 
@@ -33,6 +35,22 @@ export interface MusicContextValue extends Playback {
   enqueue(track: MusicTrack, next?: boolean): void;
   remove(index: number): void;
   clear(): void;
+  /**
+   * The session's hidden VIDEO transport (music.md: a video CAN be a track —
+   * a music video marked as music). A detached element: the player panel
+   * attaches it into its visible stage while open (playback survives the
+   * move — same element, same position), and it plays audio-only while
+   * detached (the mini-player state). Null until the provider mounts.
+   */
+  videoElement: HTMLVideoElement | null;
+  /**
+   * Borrow the video transport into a visible stage (the expanded player
+   * panel's video frame) or return it to detached (audio-only) state. The
+   * provider owns the element — the surface only lends it a parent. Reparent
+   * while playing is safe (the element keeps its position; hls.js keeps its
+   * attachment).
+   */
+  attachVideoStage(stage: HTMLElement | null): void;
 }
 const initial: Playback = { queue: [], current: null, currentIndex: -1, isPlaying: false, currentTime: 0, duration: 0, volume: 1, shuffle: false, repeat: 'off', error: null };
 const MusicContext = createContext<MusicContextValue | null>(null);
@@ -42,6 +60,8 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
   const [state, setState] = useState<Playback>(initial);
   const snapshot = useRef(state);
   const audio = useRef<HTMLAudioElement | null>(null);
+  const video = useRef<HTMLVideoElement | null>(null);
+  const hls = useRef<{ destroy: () => void } | null>(null);
   const attempt = useRef(0);
   const requested = useRef(false);
   const recovered = useRef(false);
@@ -51,15 +71,61 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
   const history = useRef<number[]>([]);
   const priority = useRef<number[]>([]);
   const actions = useRef<MusicContextValue | null>(null);
+  // The session has ONE voice: the active transport is the element of the
+  // CURRENT track's kind (music.md: a video CAN be a track — a music video
+  // marked as music rides the same queue/transport as an mp3).
+  const isVideoTrack = (track?: MusicTrack | null) => !!track?.media.mime_type?.startsWith('video/');
+  function activeElement(): HTMLMediaElement | null {
+    return isVideoTrack(snapshot.current.current) ? video.current : audio.current;
+  }
   function update(patch: Partial<Playback>) {
     snapshot.current = { ...snapshot.current, ...patch };
     setState(snapshot.current);
+  }
+  function detachVideoSource() {
+    if (hls.current) {
+      try { hls.current.destroy(); } catch { /* the element is already gone */ }
+      hls.current = null;
+    }
+  }
+  // Attach a track's source to the hidden video element: a transcoded video
+  // (status done + minted manifest) rides hls.js (the app's vendored build —
+  // the same source seam every other video surface uses); anything else is a
+  // direct file. A dead element (no Hls + no native HLS) surfaces the
+  // existing load-error state instead of hanging silent.
+  function attachVideoSource(element: HTMLVideoElement, media: MediaRecord) {
+    detachVideoSource();
+    const source = sourceFromMedia(media);
+    if (source.type === 'hls') {
+      const Hls = (window as unknown as { Hls?: { isSupported: () => boolean; new (): { loadSource: (u: string) => void; attachMedia: (el: HTMLVideoElement) => void; destroy: () => void } } }).Hls;
+      const manifest = resolveManifestHref(source.manifestUrl);
+      if (Hls && Hls.isSupported()) {
+        const instance = new Hls();
+        hls.current = { destroy: () => instance.destroy() };
+        instance.loadSource(manifest);
+        instance.attachMedia(element);
+        log('video source attached (hls)');
+        return;
+      }
+      if (element.canPlayType('application/vnd.apple.mpegurl')) {
+        element.src = manifest;
+        element.load();
+        log('video source attached (native hls)');
+        return;
+      }
+      update({ error: 'This track could not be loaded. Try again.' });
+      log('video source unavailable (no hls support)');
+      return;
+    }
+    element.src = source.type === 'file' ? source.url : media.url || '';
+    element.load();
+    log('video source attached (file)');
   }
   function pause() {
     attempt.current++;
     requested.current = false;
     recovering.current = false;
-    audio.current?.pause();
+    activeElement()?.pause();
     update({ isPlaying: false });
   }
   function clear() {
@@ -71,11 +137,14 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
     if (audio.current) audio.current.volume = initial.volume;
     audio.current?.removeAttribute('src');
     audio.current?.load();
+    detachVideoSource();
+    video.current?.removeAttribute('src');
+    video.current?.load();
     update({ ...initial });
     log('cleared');
   }
   function start() {
-    const element = audio.current;
+    const element = activeElement();
     if (!element || !snapshot.current.current) return;
     const generation = ++attempt.current;
     requested.current = true;
@@ -110,7 +179,16 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
     resumeAt.current = null;
     const track = queue[index];
     update({ queue, current: track, currentIndex: index, currentTime: 0, duration: 0, error: null });
-    if (audio.current) {
+    if (isVideoTrack(track) && video.current) {
+      // The video kind owns the session now: release the audio transport and
+      // attach the track's source to the (detached) video element. The
+      // element's volume follows the session's (it was created at the
+      // session default; setVolume keeps both in step).
+      if (audio.current) { audio.current.removeAttribute('src'); audio.current.load(); }
+      video.current.volume = snapshot.current.volume;
+      attachVideoSource(video.current, track.media);
+    } else if (audio.current) {
+      if (video.current) { detachVideoSource(); video.current.removeAttribute('src'); video.current.load(); }
       audio.current.src = track.media.url || '';
       audio.current.load();
     }
@@ -146,7 +224,7 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
     }
     pause();
     const generation = attempt.current;
-    const element = audio.current;
+    const element = activeElement();
     const position = s.currentTime;
     recovering.current = true;
     recovered.current = true;
@@ -155,7 +233,7 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
     log('refresh requested');
     try {
       const track = await readMusicTrack(s.current.post._id);
-      if (attempt.current !== generation || audio.current !== element) return;
+      if (attempt.current !== generation || activeElement() !== element) return;
       if (!track?.media.url) throw new Error('Unavailable track');
       const queue = [...snapshot.current.queue];
       queue[s.currentIndex] = track;
@@ -164,7 +242,7 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
       start();
       log('refresh accepted');
     } catch {
-      if (attempt.current !== generation || audio.current !== element) return;
+      if (attempt.current !== generation || activeElement() !== element) return;
       recovering.current = false;
       requested.current = false;
       update({ error: 'This track could not be refreshed. Try again.', isPlaying: false });
@@ -173,9 +251,10 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
   }
   function play(track: MusicTrack, source?: MusicTrack[]) { select(track, source); start(); }
   function seek(seconds: number) {
-    if (!audio.current || !Number.isFinite(seconds)) return;
+    const element = activeElement();
+    if (!element || !Number.isFinite(seconds)) return;
     const time = Math.max(0, Math.min(seconds, snapshot.current.duration || 0));
-    audio.current.currentTime = time;
+    element.currentTime = time;
     update({ currentTime: time });
   }
   function advance(back = false, ended = false) {
@@ -212,14 +291,33 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
     loadOccurrence(target);
     start();
   }
+  // The video stage seam (music.md): the expanded player panel lends its
+  // frame to the session's video element; leaving the panel returns it to
+  // detached audio-only. The provider owns the element — the surface never
+  // renders it through React (it is NOT in the React tree).
+  function attachVideoStage(stage: HTMLElement | null) {
+    const el = video.current;
+    if (!el) return;
+    if (stage && el.parentNode !== stage) {
+      el.className = 'h-full w-full object-contain bg-black';
+      stage.appendChild(el);
+      log('video attached to stage');
+    } else if (!stage && el.parentNode) {
+      el.remove();
+      log('video returned to detached (audio-only)');
+    }
+  }
+
   const value: MusicContextValue = {
-    ...state, play, playQueue, retry, select, clear, seek,
+    ...state, play, playQueue, retry, select, clear, seek, attachVideoStage,
+    videoElement: video.current,
     toggle() { if (requested.current || snapshot.current.isPlaying) pause(); else if (snapshot.current.error) void retry(); else start(); },
     next() { advance(); }, previous() { advance(true); },
     setVolume(volume) {
       if (!Number.isFinite(volume)) return;
       const clamped = Math.max(0, Math.min(1, volume));
       if (audio.current) audio.current.volume = clamped;
+      if (video.current) video.current.volume = clamped;
       update({ volume: clamped });
     },
     toggleShuffle() {
@@ -275,6 +373,17 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
     element.preload = 'none';
     element.volume = initial.volume;
     audio.current = element;
+    // The video transport (music.md: a video CAN be a track). DETACHED by
+    // default — it plays audio-only while the mini-player is the surface; the
+    // expanded player panel reparents it into its visible stage (same element,
+    // so position + hls state survive the move). It never lives in the React
+    // tree (the context owns it, the panel just borrows it).
+    const videoElement = document.createElement('video');
+    videoElement.preload = 'none';
+    videoElement.playsInline = true;
+    videoElement.volume = initial.volume;
+    videoElement.setAttribute('aria-hidden', 'true');
+    video.current = videoElement;
     remaining.current = [];
     history.current = [];
     priority.current = [];
@@ -282,42 +391,51 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
     recovering.current = false;
     resumeAt.current = null;
     update({ ...initial });
-    const onPlay = () => {
-      if (!requested.current) { element.pause(); return; }
-      claimMediaPlayback(element);
-      update({ isPlaying: true, error: null });
+    // One handler set per element: the two transports report into the SAME
+    // session state — but only the ACTIVE one ever has a source attached, so
+    // the inactive element's events never fire.
+    const bind = (el: HTMLMediaElement) => {
+      const onPlay = () => {
+        if (!requested.current) { el.pause(); return; }
+        claimMediaPlayback(el);
+        update({ isPlaying: true, error: null });
+      };
+      const onPause = () => update({ isPlaying: false });
+      const onTime = () => update({ currentTime: Number.isFinite(el.currentTime) ? el.currentTime : 0 });
+      const onDuration = () => {
+        const duration = Number.isFinite(el.duration) ? el.duration : 0;
+        if (resumeAt.current !== null && duration > 0) {
+          el.currentTime = Math.min(resumeAt.current, duration);
+          resumeAt.current = null;
+          update({ currentTime: el.currentTime });
+        }
+        update({ duration });
+      };
+      const onEnd = () => { log('ended'); advance(false, true); };
+      const onError = () => {
+        if (!snapshot.current.current) return;
+        // Re-read through the existing authorized post path, never the owner-only
+        // media URL endpoint. One attempt per selection prevents broken-file loops.
+        console.log('[music-player] media error', { kind: el instanceof HTMLVideoElement ? 'video' : 'audio', code: el.error?.code ?? 0, automaticRefresh: requested.current && !recovered.current });
+        if (recovering.current) return;
+        if (requested.current && !recovered.current) { void actions.current?.retry(); return; }
+        pause();
+        update({ error: 'This track could not be loaded. Try again.' });
+        log('media error');
+      };
+      const listeners: Record<string, EventListener> = { play: onPlay, playing: onPlay, pause: onPause, timeupdate: onTime, durationchange: onDuration, loadedmetadata: onDuration, ended: onEnd, error: onError };
+      Object.entries(listeners).forEach(([name, handler]) => el.addEventListener(name, handler));
+      return () => { Object.entries(listeners).forEach(([name, handler]) => el.removeEventListener(name, handler)); };
     };
-    const onPause = () => update({ isPlaying: false });
-    const onTime = () => update({ currentTime: Number.isFinite(element.currentTime) ? element.currentTime : 0 });
-    const onDuration = () => {
-      const duration = Number.isFinite(element.duration) ? element.duration : 0;
-      if (resumeAt.current !== null && duration > 0) {
-        element.currentTime = Math.min(resumeAt.current, duration);
-        resumeAt.current = null;
-        update({ currentTime: element.currentTime });
-      }
-      update({ duration });
-    };
-    const onEnd = () => { log('ended'); advance(false, true); };
-    const onError = () => {
-      if (!snapshot.current.current) return;
-      // Re-read through the existing authorized post path, never the owner-only
-      // media URL endpoint. One attempt per selection prevents broken-file loops.
-      console.log('[music-player] media error', { code: element.error?.code ?? 0, automaticRefresh: requested.current && !recovered.current });
-      if (recovering.current) return;
-      if (requested.current && !recovered.current) { void actions.current?.retry(); return; }
-      pause();
-      update({ error: 'This track could not be loaded. Try again.' });
-      log('media error');
-    };
+    const unbindAudio = bind(element);
+    const unbindVideo = bind(videoElement);
     const onOtherPlay = (event: Event) => {
       const target = event.target;
-      if (target instanceof HTMLMediaElement && target !== element && !target.muted && target.volume > 0) {
+      // The session's OWN two transports never count as "other media".
+      if (target instanceof HTMLMediaElement && target !== element && target !== videoElement && !target.muted && target.volume > 0) {
         pause(); log('paused for other media');
       }
     };
-    const listeners = { play: onPlay, playing: onPlay, pause: onPause, timeupdate: onTime, durationchange: onDuration, loadedmetadata: onDuration, ended: onEnd, error: onError };
-    Object.entries(listeners).forEach(([name, handler]) => element.addEventListener(name, handler));
     document.addEventListener('play', onOtherPlay, true);
     const mediaSession = navigator.mediaSession;
     const handlers: Partial<Record<MediaSessionAction, MediaSessionActionHandler>> = {
@@ -335,10 +453,14 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
     return () => {
       attempt.current++;
       requested.current = false;
-      Object.entries(listeners).forEach(([name, handler]) => element.removeEventListener(name, handler));
+      unbindAudio();
+      unbindVideo();
       document.removeEventListener('play', onOtherPlay, true);
       element.pause(); element.removeAttribute('src'); element.load();
+      detachVideoSource();
+      videoElement.pause(); videoElement.removeAttribute('src'); videoElement.load();
       audio.current = null;
+      video.current = null;
       registered.forEach(name => { try { mediaSession.setActionHandler(name, null); } catch { /* Unsupported action. */ } });
       if (mediaSession) { mediaSession.metadata = null; mediaSession.playbackState = 'none'; }
       log('audio disposed');

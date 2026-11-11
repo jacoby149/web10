@@ -509,8 +509,55 @@ export async function readCollection(groupId: string): Promise<CollectionContent
     }
   }
 
+  // Stale-cover self-heal: a post is deleted by TOMBSTONE (the `posts` doc),
+  // but its media docs outlive it — so the face's `avatar_ref` (the cover)
+  // keeps resolving to a displayable URL for a post that no longer exists,
+  // and every card shows the dead post's picture forever ("the post is
+  // lingering"). The cover only belongs to the list through a live item: when
+  // the media it names is no longer referenced by any readable item here,
+  // reselect it from the first live item with media (the auto-cover rule) or
+  // clear it (the card falls back to the placeholder). The write is
+  // best-effort owner persistence (a visitor's attempt 403s and is ignored);
+  // the returned face is healed either way, so the in-session render never
+  // carries the dead cover.
+  const healedFace = healCollectionCover(face, posts);
+  if (healedFace) {
+    try {
+      await writeGroupIdentity(groupId, healedFace);
+      LOG('readCollection — stale cover reselected', groupId, healedFace.avatar_ref ?? '(cleared)');
+    } catch (e) {
+      LOG('readCollection — cover self-heal write failed (degrading)', groupId, (e as Error)?.message);
+    }
+  }
+
   LOG('readCollection — got', posts.length, 'saved posts,', mediaMap.length, 'media');
-  return { face, posts, mediaMap };
+  return { face: healedFace ?? face, posts, mediaMap };
+}
+
+/**
+ * The stale-cover check (pure — `readCollection` persists the result). The
+ * cover is a media doc_id the face's `avatar_ref` names; it is stale when no
+ * LIVE item in the collection references it (its source post was deleted
+ * upstream or the item was removed — the media doc outlives the post, so the
+ * picture would otherwise linger on every card). Returns the corrected face,
+ * or null when the cover is live or the face has none. The reselection is the
+ * auto-cover rule (`savePostToCollection`'s first-item media) — the first
+ * live item with media; no live media at all clears the cover (the card's
+ * brand-tinted placeholder).
+ */
+export function healCollectionCover(face: GroupIdentity, posts: SavedPost[]): GroupIdentity | null {
+  const coverRef = face.avatar_ref;
+  if (!coverRef) return null;
+  const live = posts.filter((p) => !p.unavailable && p.post);
+  const liveMedia = new Set(
+    live.flatMap((p) => (p.post!.media_refs || []).map((ref) => mediaRefId(ref)).filter(Boolean)),
+  );
+  if (liveMedia.has(coverRef)) return null; // still the live item's media — the pinned/auto cover stands
+  const nextRef = live
+    .map((p) => (p.post!.media_refs?.length ? mediaRefId(p.post!.media_refs[0]) : ''))
+    .find((id) => id !== '');
+  if ((nextRef || '') === coverRef) return null;
+  return { ...face, avatar_ref: nextRef || undefined };
 }
 
 // ── Save / remove a post ─────────────────────────────────────────────────────
