@@ -18,6 +18,11 @@ export interface MediaPostDraft {
     altText: string;
     edited?: boolean;
     albumArt?: File;
+    /** The creator's chosen video thumbnail (a captured frame or their own
+     *  image). The multipart transport does not carry it yet — a draft with
+     *  a pick takes the standard upload path instead of the queue, so the
+     *  pick is never silently dropped. */
+    thumbnail?: File;
   }[];
 }
 
