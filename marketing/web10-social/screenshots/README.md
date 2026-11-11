@@ -2,6 +2,21 @@
 
 ## System / Light / Dark appearance
 
+Navigation glass trial: `SCREENSHOT_OUTPUT_DIR="$PWD/../../.context/navigation-glass" node screenshots/navigation-glass.mjs`
+boots/stops its own server and captures light/dark desktop/375px shell and menus.
+Checks 768/1280 bounds, navigation from Appearance, focus, 44px dock targets,
+extreme-backdrop neutral-label contrast, simulated safe-area/compose/music
+clearance, opaque fallbacks, signed-out controls and hidden immersive-Shorts dock.
+Real Chromium/CSS with isolated data; not Safari, physical-phone or production proof.
+
+Refraction pixel gate: `SCREENSHOT_OUTPUT_DIR="$PWD/../../.context/refraction" node screenshots/refraction.mjs`.
+Compares actual rendered dock pixels with the configured displacement versus zero over
+synthetic straight stripes, requires changed rim pixels and unchanged center,
+checks normal-map regeneration on resize and a non-Chromium engine-hint fallback.
+Set `REFRACTION_FRAMES=1` to also export 24 moving-pattern frames for a demo GIF.
+Pattern motion is fixture-only; the app lens/filter never animates or captures
+the page. This is current Chromium rendering evidence, not Safari/phone/frame-rate proof.
+
 `SCREENSHOT_OUTPUT_DIR="$PWD/../../.context/appearance" node screenshots/appearance.mjs`
 boots and stops its own server. It drives real radio keyboard selection,
 live device changes, remembered overrides/reload, two-tab synchronization,
