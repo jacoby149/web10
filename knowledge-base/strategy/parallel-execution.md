@@ -92,16 +92,18 @@ degrades gracefully on an endpoint-less node).
   Five foundation controls; built image verified live. Security-record row
   (L1) updated. Gates: all PR checks green; connected proof is the bake in a
   real stack build (the e2e/api images pick it up automatically — no
-  separate evidence owed).
-- [ ] **U2: the upstream check + `POST /admin/update_status`** — pinned TLS
+  separate evidence owed). PR #1485.
+- [~ 5.17.0] **U2: the upstream check + `POST /admin/update_status`** — pinned TLS
   read of the upstream changelog's top line on `UPSTREAM_REPO`/`UPSTREAM_REF`
   (default `jacoby149/web10`/`main`; GitHub *releases* are NOT the source —
   they stopped at v2.0.0 while the project is on 5.x, and GitOps tracks the
   ref): public-DNS-only, hostname-asserted, no redirects, first-line-only
   (4 KiB cap), no credentials, 5 s bound, per-worker cache (1 h / 5 min),
   `?force=true`, admin-gated, GitHub outages → `unavailable` never 500.
-  Gates: the endpoint/transport/cache/failure-class controls, security-record
-  L2 row, stacked-on-U1 merge order.
+  15 transport-boundary controls; live in-container read verified.
+  Security-record L2 row. Gates: all PR checks green; stacked on U1
+  (merge U1 first — the security gate diffs against origin/dev, so this PR's
+  500-line budget holds only once U1 lands).
 - [ ] **U3: the Node Config "Version & Updates" card** — the card leads
   Node Configuration: update-available / up-to-date / version-unknown /
   unavailable + force-bypassing "Check now" + the honest redeploy hint

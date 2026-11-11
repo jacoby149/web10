@@ -188,6 +188,20 @@ def patch_config(token: Token, update: ConfigUpdate):
     return {"status": "updated", "changed": list(changes.keys())}
 
 
+@router.post("/admin/update_status", tags=["system"])
+def admin_update_status(token: Token, force: bool = False):
+    """Admin-gated update check: the node's baked version vs. the upstream
+    changelog. Node Config calls this on load; ``force=true`` ("Check now")
+    bypasses the per-worker cache. Detection, not auto-update; a GitHub
+    outage degrades to ``status: "unavailable"``, never a 500. Admin-gated
+    like /config. KB: knowledge-base/web10-v3/setup/update-check.md.
+    """
+    check_admin(token)
+    from app.services import update_check
+
+    return update_check.update_status(force=force)
+
+
 @router.get("/telemetry", tags=["system"])
 def telemetry_config():
     """Public runtime telemetry configuration (D56/D103).
