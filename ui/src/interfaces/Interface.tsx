@@ -1373,7 +1373,9 @@ function applyACR(cr: any) {
                     // token") goes in the on-screen status, not just the
                     // console — the death-loop report's screen showed only
                     // this generic line, which names no cause to fix.
-                    const failed = results.find((result: any) => result.status === 'rejected');
+                    const failed = results.find(
+                        (result): result is { status: 'rejected'; reason: any } => result.status === 'rejected',
+                    );
                     const detail = failed?.reason?.message || (failed?.reason ? String(failed.reason) : '');
                     I.setStatus("Some requests failed" + (detail ? `: ${detail}` : "") + ". Start a new request from the app.");
                     return;
