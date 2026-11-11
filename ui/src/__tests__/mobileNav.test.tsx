@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createHash } from 'node:crypto';
 import MobileNav from '@/components/shared/MobileNav';
 import { glassLensMap, supportsGlassRefraction } from '@/lib/glassLens';
 
@@ -56,10 +57,16 @@ describe('console mobile dock', () => {
 });
 
 describe('local social lens parity', () => {
-  it('retains the social capsule normals byte-for-byte', async () => {
-    const social = await import('../../../marketing/web10-social/src/components/Social/glassLens');
-    for (const [width, height] of [[351, 72], [726, 72]]) {
-      expect(glassLensMap(width, height)).toEqual(social.glassLensMap(width, height));
+  it('retains the social capsule normals byte-for-byte', () => {
+    // SHA-256 of social's glassLensMap output at merged-dev 19603a79b.
+    // Pin the original bytes, not a cross-app source import: ui's standalone
+    // Docker build deliberately does not contain the social application.
+    const references = [
+      [351, 72, 'cc3bda0c32981666c015d1825d7cb068b024159fcfa1f9b0cf77e29933aaa6ae'],
+      [726, 72, '16cc6c44220d76c989f2f0b9feeeb81c365e4c665df79d3372c226c02e33416c'],
+    ] as const;
+    for (const [width, height, digest] of references) {
+      expect(createHash('sha256').update(glassLensMap(width, height)).digest('hex')).toBe(digest);
     }
   });
 
