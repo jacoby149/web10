@@ -17,6 +17,28 @@ const server = spawn('bunx', ['vite', '--config', 'screenshots/vite.config.ts'],
 const receipts = [];
 let browser;
 const settle = page => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+const compare = (page, on, off) => page.evaluate(async ([on, off]) => {
+  const pixels = async base64 => {
+    const blob = await (await fetch(`data:image/png;base64,${base64}`)).blob();
+    const bitmap = await createImageBitmap(blob);
+    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(bitmap, 0, 0);
+    return { width: bitmap.width, height: bitmap.height, data: ctx.getImageData(0, 0, bitmap.width, bitmap.height).data };
+  };
+  const [a, b] = await Promise.all([pixels(on), pixels(off)]);
+  let changed = 0;
+  let centerChanged = 0;
+  for (let y = 0; y < a.height; y++) for (let x = 0; x < a.width; x++) {
+    const i = (y * a.width + x) * 4;
+    const delta = Math.abs(a.data[i] - b.data[i]) + Math.abs(a.data[i + 1] - b.data[i + 1]) + Math.abs(a.data[i + 2] - b.data[i + 2]);
+    if (delta > 15) {
+      changed++;
+      if (x > a.height && x < a.width - a.height && y > 12 && y < a.height - 12) centerChanged++;
+    }
+  }
+  return { changed, centerChanged };
+}, [on.toString('base64'), off.toString('base64')]);
 try {
   const deadline = Date.now() + 30000;
   for (;;) {
@@ -33,6 +55,21 @@ try {
     const rim = page.getByTestId('dock-refraction');
     await rim.waitFor();
     const dock = page.getByRole('navigation', { name: 'Primary mobile', exact: true });
+    // A uniform backdrop has nothing to bend. Any on/zero difference is
+    // self-refraction of chrome, not content behind the glass (the gray rings).
+    const flatStyle = await page.addStyleTag({ content: 'body::after { content:""; position:fixed; inset:0; z-index:19; background:var(--color-background); pointer-events:none; }' });
+    const flatBox = await dock.boundingBox();
+    const lensScale = await page.locator('feDisplacementMap').getAttribute('scale');
+    await settle(page);
+    const flatOn = await page.screenshot({ path: path.join(output, `flat-on-${mode}.png`), clip: flatBox });
+    await page.locator('feDisplacementMap').evaluate(el => el.setAttribute('scale', '0'));
+    await settle(page);
+    const flatZero = await page.screenshot({ path: path.join(output, `flat-zero-${mode}.png`), clip: flatBox });
+    const flatDifference = await compare(page, flatOn, flatZero);
+    console.log('[refraction] flat backdrop self-refraction', { mode, ...flatDifference });
+    assert.equal(flatDifference.changed, 0, 'a flat backdrop must not produce refracted chrome rings');
+    await page.locator('feDisplacementMap').evaluate((el, scale) => el.setAttribute('scale', scale), lensScale);
+    await flatStyle.evaluate(el => el.remove());
     // Deliberately synthetic bright lines behind the actual app dock make
     // bending measurable. No cloned page, fake glass texture or painted bend.
     await page.evaluate(() => {
@@ -57,32 +94,10 @@ try {
       await page.locator('#optics-fixture').evaluate(el => { el.style.backgroundPositionX = '0px'; });
       await settle(page);
     }
-    const lensScale = await page.locator('feDisplacementMap').getAttribute('scale');
     await page.locator('feDisplacementMap').evaluate(el => el.setAttribute('scale', '0'));
     await settle(page);
     const off = await page.screenshot({ path: path.join(output, `rim-zero-${mode}.png`), clip: box });
-    const difference = await page.evaluate(async ([on, off]) => {
-      const pixels = async base64 => {
-        const blob = await (await fetch(`data:image/png;base64,${base64}`)).blob();
-        const bitmap = await createImageBitmap(blob);
-        const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(bitmap, 0, 0);
-        return { width: bitmap.width, height: bitmap.height, data: ctx.getImageData(0, 0, bitmap.width, bitmap.height).data };
-      };
-      const [a, b] = await Promise.all([pixels(on), pixels(off)]);
-      let changed = 0;
-      let centerChanged = 0;
-      for (let y = 0; y < a.height; y++) for (let x = 0; x < a.width; x++) {
-        const i = (y * a.width + x) * 4;
-        const delta = Math.abs(a.data[i] - b.data[i]) + Math.abs(a.data[i + 1] - b.data[i + 1]) + Math.abs(a.data[i + 2] - b.data[i + 2]);
-        if (delta > 15) {
-          changed++;
-          if (x > a.height && x < a.width - a.height && y > 12 && y < a.height - 12) centerChanged++;
-        }
-      }
-      return { changed, centerChanged };
-    }, [on.toString('base64'), off.toString('base64')]);
+    const difference = await compare(page, on, off);
     assert.ok(difference.changed > 150, `real displacement must change rim pixels: ${JSON.stringify(difference)}`);
     assert.equal(difference.centerChanged, 0, 'controls and inner reading surface must not be displaced');
     await page.locator('feDisplacementMap').evaluate((el, scale) => el.setAttribute('scale', scale), lensScale);
@@ -98,7 +113,7 @@ try {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     assert.equal(await page.getByTestId('dock-refraction').isVisible(), true, 'static refraction needs no animation');
     assert.deepEqual(errors, []);
-    receipts.push({ mode, ...difference, errors });
+    receipts.push({ mode, flatDifference, ...difference, errors });
     console.log('[refraction] actual pixels', receipts.at(-1));
     await page.close();
   }

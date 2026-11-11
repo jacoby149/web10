@@ -441,6 +441,11 @@ as content behind the glass and explicitly requests the original refraction,
 not the briefly tried softened variant. Retain the original 18-unit displacement,
 unblurred rim input and 8px inner bed inset in both themes. No scratch texture.
 
+**Persistent-ring correction:** the dock must not refract its own border or
+highlight into extra gray arcs. Paint its outline/shadow above the optical
+layers, not into their backdrop input. Keep the approved lens strength and
+inset; on a uniform backdrop, displacement must add no lines.
+
 ## 11. Accessibility (part of pretty, not opposed to it)
 
 - Contrast per §4. Focus-visible per §8. Reduced motion per §7.
