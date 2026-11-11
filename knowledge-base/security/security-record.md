@@ -15,7 +15,7 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
-## Consent-popup dead-session self-scrub + the recovery's reauth honesty (11.11.2026) — L1/L2 bounded, Qwen 3.8 27B single-model, shipped 5.23.3
+## Consent-popup dead-session self-scrub + the recovery's reauth honesty (11.11.2026) — L1/L2 bounded, Qwen 3.8 27B single-model, shipped 5.23.4
 
 The consent popup's "Signed in as …" is local cookie state, and every on-mount
 read swallows 401s (profile / contracts / groups / `/am_admin` — the last one
@@ -60,7 +60,7 @@ popup's honest failure, the mount-time signout) + `authContract.test.ts` +3
 a stub node that rejects the cookie — the report's exact screen scrubbing to
 the login screen, desktop + 375px), full ui (297) + social (2,516) suites and
 both production builds. Physical-phone/Safari acceptance is OPEN. Shipped as
-5.23.3.
+5.23.4.
 
 Model attribution: this row is Qwen 3.8 27B single-model work (the gate's
 per-PR method, L1/L2 bounded). It is NOT a model-diverse sign-off: the
