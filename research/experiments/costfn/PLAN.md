@@ -1,4 +1,14 @@
 FINAL experiment plan — get one query fast, prove its cost, then prove 37k DAU
+
+CURRENT AMENDMENTS (11 November 2026): this ratified November 9 directive is
+preserved as history. For the current derived realism dataset and measured DO
+rerun, read REALISM-DATASET-DECISIONS.md first, then REALISM-RERUN-PLAN.md.
+They supersede conflicting local-only/input/authorship instructions here;
+the source workload, gate discipline, separate production/submission approval
+and failure-retention rules remain. No droplets, uploads or spend until the
+new generator/independent oracle and local 10k/100k floors pass and the actual
+statistics receipt is presented for operator review. Implementation is open.
+
 INSTRUCTIONS FOR THE WORKSPACE (read first)
 This file IS the directive. It contains, in full detail, everything the
 workspace needs from the Nov 9, 2026 planning conversation — principles,

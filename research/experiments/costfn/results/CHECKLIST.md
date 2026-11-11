@@ -1,5 +1,14 @@
 # K=20-first experiment — CHECKLIST
 
+> **Historical base-series checklist, not the current kickoff.** The
+> [November 11 derived-dataset directive](../REALISM-DATASET-DECISIONS.md)
+> and [amended rerun plan](../REALISM-RERUN-PLAN.md) supersede local-only and
+> resume instructions below for the new study. Start RD1 feasibility, then
+> joint generator/independent oracle/28–22 GiB runner integration, local
+> 10k/100k floors, 1M statistics and operator review. No droplets, uploads or
+> spend before validation/review. Existing results remain unchanged history;
+> do not resume P/X against V2 and call it the derived realism rerun.
+
 Order: Phase 0 → B → C → A → P → X → gate15 (Phase 1.5) → Phase 2.
 Local-only per the frozen protocol (**no DigitalOcean / no cloud**). All receipts in
 `.context/p1/`; gate records in `results/`. **5 of 9 complete** as of this checkpoint

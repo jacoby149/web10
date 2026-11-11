@@ -1,5 +1,19 @@
 # web10 - Research Paper Strategy
 
+> **Current experiment directive, 11 November 2026:**
+> [derived-realism operator decisions](experiments/costfn/REALISM-DATASET-DECISIONS.md)
+> preserve the complete attachment and conversation approvals; the
+> [rerun plan](experiments/costfn/REALISM-RERUN-PLAN.md) is amended. New joint
+> generator and independent oracle, van Mierlo-only authorship, explicit
+> feasibility/attention-horizon checks, local 10k/100k floors before the 1M
+> build, actual statistics review before any droplets/uploads/spend. Then
+> uniform DigitalOcean pilot and measured rerun (28 GiB container / 22 GiB CH).
+> V2 files/receipts and existing manuscripts stay untouched; live RD1–RD4 status
+> is in the plan/sigmod-paper lane. The separately approved monitored preparation
+> host is documented in [the cloud-prep record](experiments/costfn/REALISM-CLOUD-PREP.md).
+> Older cloud/local/VU checkpoints below are
+> history, not the current execution directive.
+
 > **8 November actual-host follow-up:** isolated three-host small acceptance and
 > a million-author dispersed restore pass. The subsequent strict concurrency
 > preflight fails with six ten-second SQL timeouts; no primary load points run.

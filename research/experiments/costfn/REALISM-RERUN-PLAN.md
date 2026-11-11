@@ -1,11 +1,34 @@
-The Realism Layer + Full Rerun Plan — SIGMOD cost-function experiments
-Date: Nov 10, 2026 · Status: operator direction (Jacob) — supersedes the
+The Derived Realism Dataset + Full Rerun Plan — SIGMOD cost-function experiments
+Date: Nov 10, 2026; amended Nov 11 · Status: operator direction (Jacob) — supersedes the
 input and run-scope sections of final-experiment-plan.md; all protocol discipline
 in that plan (pre-declared targets, per-shape receipts, infra-invalid vs system
 results, failures kept) remains fully in force.
 Companion evidence: "Social Media Distribution Evidence" (goal document) —
 the researched literature base for every parameter below, with sources and
 evidence grades. Full research report retained in the research notes.
+
+**Governing amendment (11 November):** read
+[REALISM-DATASET-DECISIONS.md](REALISM-DATASET-DECISIONS.md) first. It preserves
+the operator's full directive and implementation approval. The new input is a
+**derived realism dataset**, not an additive modification of V2. V2 files and
+base-series receipts stay untouched. One source governs each quantity;
+van Mierlo alone governs authorship. Build a coherent joint model and an
+independent oracle; pass 10k/100k floors before the 1M build. No droplets,
+uploads or spend until the validation gates pass and the operator has seen the
+generated statistics receipt. Existing tooling is not yet compliant: its 5/4
+GiB allocation and one-post-per-creator oracle are historical, not the rerun.
+The new local tools and their remaining integration gates are mapped in
+[REALISM-DATASET.md](REALISM-DATASET.md); do not run the old Phase-1 entry point
+as if it already imports this new format.
+
+**Later operator approval, same day:** after the passing floors and measured
+local scratch were reviewed, one monitored 400-GB DO preparation host is
+approved instead of a blind local 1M retry. Private staging to existing web10
+MinIO is separately approved after validation/hash checks. Exact scope,
+original deadline, setup attempts, monitoring and cleanup limits are in
+[REALISM-CLOUD-PREP.md](REALISM-CLOUD-PREP.md). Earlier local-only preparation
+wording is superseded for this host; distributions, guard, validation and
+separate full-study/production/submission gates are not waived.
 
 1. The decision
 The base fixture is structurally sound but demographically empty in the places
@@ -17,29 +40,28 @@ content_events (impressions) is not in the fixture at all — a running
 Node ads: zero, while the sequence reads an ad inventory on a TTL cache.
 Engagement (reactions/comments per post) and authorship (posts per user) are
   thin and near-uniform where every measured platform is heavy-tailed.
-Plan: build a declared realism layer on top of the frozen base fixture —
-Pareto/heavy-tailed authorship, engagement, and impression distributions whose
-parameters come from published platform measurements (cited, §2) — then
-re-run the entire study programme from the top on base+layer (pilot first,
-§6), so that every number in the paper comes from a store that is *data-identical
-to what a real 1M-user node holds*. The base-only receipts stay in the repo as
-history; they stop being what the paper cites.
-Why this is worth a day of machine time: the paper's claim becomes
-unattackable on the usual axis. "Fast on toy data" stops being available as an
-objection when the dataset table (generated from the store, §5) shows 1M
-accounts, heavy-tailed everything, an events table outweighing the documents
-table, and a post carrying ~1M impressions — with a reference behind every
-distribution.
+Plan: generate a separately identified derived realism dataset — accounts with
+latent activity/popularity jointly generating original posts, follows,
+engagement, impressions and plausible timestamps — then rerun the entire
+programme on it (10k/100k floors, 1M build, operator receipt review, paid pilot,
+§6). Do not merely relabel old post authors. Published source distributions
+govern the declared model (§2); this is synthetic evaluation of a modelled
+1M-account node, not data-identical production traffic. V2 files and base-only
+receipts stay untouched as history; they stop being what the paper cites.
+Why rerun: the dataset table (§5) should demonstrate a validated synthetic
+population of 1M accounts, jointly heavy-tailed activity and a viral post, not
+an empty events table. Literature parameters and validation make the modelling
+choices inspectable; they do not prove identity to real production traffic.
 2. Evidence base and the three rules
 Parameters are adopted from the researched literature. Strongest anchors:
-Participation: van Mierlo (JMIR 2014) — <25% of users ever post; top 1%
-  produce 74.7% of content. Nielsen's 90-9-1 is a rule of thumb, cited as such,
-  never as a measurement.
-Posting concentration: Pew (2019) — top 10% of users write 80% of tweets,
-  median user 2 posts/month vs top-decile median 138; Pew (2021) — top 25%
-  produce 97% counting replies/retweets. Contribution exponents α ≈ 1.8–2.5
-  (Wilkinson 2008; Bild et al. 2015 for shape: discrete Weibull / power-law
-  with cutoff).
+Authorship, sole governing source: van Mierlo (JMIR 2014) — <25% of accounts
+  ever posted; jointly measured post shares 74.7% / 24.0% / 1.3% for top 1% /
+  next 9% / bottom 90%. Adopt 85% nonposting original-post accounts. Profiles
+  do not count; report like/comment-only participation separately. Top-10%
+  share is derived as 98.7%, not fitted independently. Pew's authorship target
+  is withdrawn, including as a paper cross-check; other sources must not be
+  blended into this contract. The governing decision preserves the required
+  census-versus-Pew justification and moderated-health-community caveat.
 Degree: Kwak et al. (WWW 2010) — followers power-law α = 2.276 (41.7M
   users). Ugander et al. (2011) — Facebook degree is heavy-tailed but not a
   strict power law (mean 190, median 99 friends).
@@ -53,11 +75,19 @@ Virality: Goel et al. (2016, ~1B events) — >99% of cascades end within
   one generation; ~1/1,000 reach ≥100 adoptions.
 Modern shape check: Quelle & Bovet (PLoS ONE 2025, Bluesky, 5M users) —
   likes/post, reposts/post, comments/thread, posts/user all heavy-tailed.
+Source rule — One governing source per quantity, recorded in the manifest and
+paper. Use van Mierlo for authorship, Kwak for followers, Ugander for following,
+and McGrady for per-post likes/comments/impressions. Other cited observations
+below provide context only, never competing calibration targets. Reach and ads
+are declared parameters; the total delivery budget is derived from attention.
+If quantities conflict, preserve their governing distributions and explicitly
+adjust totals/time horizons under REALISM-DATASET-DECISIONS.md §7; report the
+arithmetic before generation, never silently relax a distribution.
 Rule 1 — Conservative adoption. Where the literature gives a range, adopt
 the end adverse to our system (the value that makes our measured costs
 worse), and print the rule in the paper. Never step outside a sourced range.
 Rule 2 — Conservation closes. Likes received = likes given; impressions
-are bounded by audience × attention. The layer's totals must satisfy these
+are bounded by audience × attention. The derived dataset's totals must satisfy these
 identities (this is what rules out brand-page averages as population
 parameters: Socialinsider-style brand means — e.g. 335 likes/post on
 Instagram — run ~15–200× above random-sample population means and, applied to
@@ -77,19 +107,20 @@ budget under Rule 2, not imported from YouTube); reach (distinct viewers) is
 barely measured anywhere — adopted at the adverse end (~0.8 distinct per
 impression at ordinary scale). Broido & Clauset (2019) caution applies
 throughout: claim "heavy-tailed," not "power-law," where the fit is ambiguous.
-3. Adopted layer parameters (frozen once the pilot validates)
+3. Adopted derived-dataset parameters (frozen when the pilot starts)
 Quantity
 Adopted target
 Source anchor
-Accounts that never post
-~85% (range 75–90%)
-van Mierlo 2014; Pew
-Post share of top 1% / 10% of users
-~70% / ~80%
-van Mierlo; Pew 2019
-Posts per posting user
-median 1–2, α ≈ 2.0 (1.8–2.5), top author ~5,000 posts in-store
-Wilkinson; Bild et al.
+Accounts that never post original posts
+85%; profiles excluded, like/comment-only participation reported separately
+van Mierlo 2014 (sole authorship source)
+Post shares of top 1% / next 9% / bottom 90% of all accounts
+74.7% / 24.0% / 1.3%; top-10% share = 98.7%, derived, never an independent fit
+van Mierlo 2014; replaces the withdrawn blended 70%/80% target
+Posts per posting user and in-store maximum
+Outputs of the joint model and chosen horizon, reported from finished records;
+the old median 1–2 / exponent / ~5,000 maximum are not competing authorship targets
+van Mierlo contract plus declared joint-model/time-horizon choices
 Following per user
 median ~75, mean ~150
 Ugander; Kwak
@@ -109,59 +140,103 @@ Reach
 ~0.8 × impressions at ordinary scale, saturating on viral items
 declared (thin evidence, adverse end)
 Total impressions (events)
-set by attention budget under Rule 2 (~30 days of a 37k-DAU node ≈ 150M events)
-conservation
+Attention budget under Rule 2; the original 150M / 30-day estimate is subject
+to pre-generation feasibility. Preserve governing distributions, declare any
+adjusted total and horizon in the stats receipt and paper, never silently clamp
+conservation; REALISM-DATASET-DECISIONS.md §7
 Node ads
 ~300 ads across groups
 declared (fills the zero)
 Follows per study reader (K)
 20 standard; 100 / 1,000 as the existing study cells declare
 study design (unchanged)
-Totals (documents / events row counts) are outputs of these parameters at
-1M-account scale, computed and reported by the stats receipt (§5) — expected
-order: documents in the tens of millions, events ~150M, i.e. the events table
-several times the documents table, as on a real node. If the pilot shows
-generation cost per trial threatening the schedule, totals scale down
-proportionally with distributions (shape, shares, medians) held fixed —
-the statistics are the claim, not the raw count.
-4. Layer build spec (for the workspace)
-Additive, in-stack, post-restore. The frozen base inputs never change.
-  The layer is generated by deterministic seeded SQL after each restore and
-  before rekey/treatment steps, and is part of the trial's input identity
-  ("base + realism-v1") recorded in every receipt.
-Components: (a) authorship top-up — extra posts (documents + doc_groups
-  rows) concentrating production per §3; (b) engagement documents — reactions
-  and comments at the adopted per-post distributions, assigned to real users
-  (conservation: giving side drawn from the same account population);
-  (c) impression events in content_events (event_type='delivery', distinct
-  reader_keys consistent with reach), including the declared viral head —
-  at least one followed-set post at ~1M impressions, so the views gate faces
-  it inside a real feed; (d) ~300 node ads.
+Totals (documents / events / graph links) are outputs of the coherent joint
+model and explicit horizon at 1M total accounts, computed from the finished
+store (§5), not copied from a recipe. The nominal authorship split requires
+P >= 0.05N/0.013 original posts; median 50 impressions plus 93% in the top
+3.7% requires I >= (0.5-0.037)P*50/0.07. Together these imply roughly 1.27B
+impressions at 1M accounts, so 150M is not an unconditional target. These are
+necessary bounds, not an approved final total or generated evidence. Reconcile
+all totals/horizons and estimate generation/storage cost before any generation;
+see the governing decision's feasibility section. Do not independently scale
+counts to fit hardware while retaining incompatible medians/concentration or
+change the pinned envelope. Report any remaining conflict before proceeding.
+The executable contract now declares `P=4N` and `I=400P`: **1.6B impressions
+and a 320-day horizon at 1M accounts**, under the operator's §7 adjustment rule.
+This preserves the sourced shares/medians rather than relaxing them; actual
+floor/generated statistics must validate the joint construction. The chosen
+total/horizon and coupling parameters are in `realism_contract.py`, not a claim
+about production traffic. Local resource admission may still block the 1M build.
+4. Derived realism dataset build spec (for the workspace)
+New deterministic generator, format/name, seed, manifest, file/source hashes
+  and dataset identity. Keep every V2 file and base-series receipt untouched;
+  never reuse their IDs. Generate once, validate, then import the frozen new
+  files per trial (§12); no post-restore additive layer or mere author relabel.
+Joint model: account-level latent activity/popularity jointly drives original
+  posts, following/follower choices, post popularity, engagement and deliveries.
+  Rebuild hot/dispersed cohorts from that graph; K is the declared follow count,
+  not the number of active authors or eligible posts. Active/popular authors
+  should produce/receive more, follows bias toward active accounts, and dormant
+  accounts cannot own viral original posts except an explicitly modelled case.
+  Spread prolific authors' timestamps over the declared history; count profiles
+  separately from original posts and likes/comments-only participation.
+Components: (a) original posts/profiles and current groups/links; (b) reaction
+  and comment documents assigned to actual eligible accounts, with exact
+  giving/receiving conservation; (c) delivery content_events with valid readers,
+  impression/reach/audience bounds and a ~1M-impression post inside a real
+  followed-set feed; (d) ~300 node ads. Every reference resolves and each
+  interaction/delivery timestamp follows its referenced post under the declared
+  horizon and visibility. Generate these together, not as independent marginals.
 Dedup/version semantics preserved: engagement counts obey the same
   latest-version / tombstone rules as base documents; the satellite build's
   dedup-before-count invariant is exercised by construction (the oracle
   verifies counts from canonical documents, as always).
-Validation before any trial: the stats receipt (§5) recomputed from the
-  finished stack must match §3 targets within declared tolerances (shares
-  ±5 pts, medians exact-order, max-impressions post present, conservation
-  identities closing to the row). A layer that misses its own targets is a
-  setup failure, never data.
+Independent oracle: retire the V2 one-post-per-creator assumptions for this
+  dataset, without changing historical V2 inputs/receipts. Derive expected feed
+  candidates/order, joined profiles, engagement and delivery/reach counts from
+  finished records independently of the generator's sampling logic. Preserve
+  current-version/tombstone/authorization/visibility checks; no weakened oracle.
+Validation before the 1M build: local 10k AND 100k account floors must pass
+  marginal checks, conservation, referential/timestamp integrity, directed
+  joint correlations and each K/hot/dispersed cell's per-reader distribution
+  of active followed authors, candidate posts and nonempty feeds. Report zero
+  participation and missing/error states, not only successful feeds. Recipe
+  parameters or marginal-only fits are not validation. The finished-store
+  receipt (§5) must meet declared tolerances (shares ±5 points, medians
+  exact-order, scaled-floor/viral-head rules declared before execution,
+  conservation to the row). A contract miss is setup failure, never data.
+Research runner: rerun cells use the independent oracle and the 28 GiB
+  container / 22 GiB ClickHouse envelope (§12), identically for baseline and
+  treatments. Keep the 5 GiB sensitivity cell explicit. No paid provisioning,
+  uploads or spend until generator/oracle/validation pass and the operator has
+  seen the generated statistics receipt; then verify pilot budget, lifetime
+  cleanup and exact SKU eligibility before provisioning.
 5. The stats receipt → the paper's dataset table
-The layer builder emits a machine-generated stats table from the finished
+The validator emits a machine-generated stats table from the finished
 store: for each quantity — total, mean, median, p99, max, top-1% share —
-plus store totals (documents rows, content_events rows, doc_groups rows).
+plus store totals (accounts, original posts, profiles, documents, content_events,
+doc_groups and graph edges), directed joint-correlation checks, per-cell
+candidate distributions and exact conservation/referential/timestamp results.
+Record source-per-quantity, adjusted totals/horizons and reasons, finite-size
+tolerances, input/source hashes and independent-oracle results. A declared
+parameter is not a measured statistic. Keep failures and preparation logs.
 **The paper's dataset table is transcribed from this receipt, and the receipt
 is retained in the repo.** If generated data drifts from targets, the receipt
 is what prints. Next to it, the paper carries the §2 sources and the Rule 1–3
 statements — that page is the dataset's defence.
 6. Run plan
-Pilot: one Study B 1M cell (3 trials) on base+layer. Purposes: prove
+First: feasibility arithmetic → new generator/independent oracle/validator and
+  declared runner envelope → passing local 10k/100k floors → 1M build and
+  finished-store statistics → operator receipt review. No paid resources,
+  uploads or spend before this gate. Catalogue availability alone is not a pass.
+Pilot: one Study B 1M cell (3 trials) on the derived realism dataset. Purposes: prove
    generation time per trial, validate the stats receipt, shake the harness
    on the big store. Pilot trials count toward the rerun if clean.
-Full rerun from the top, all on base+realism-v1: Phase 0 floors and
+Full rerun from the top, all on the derived realism dataset: Phase 0 floors and
    gates → Study B (9 trials) → Study C (18) → Study A (18) → Study P (3) →
-   Study X (3). Expected order of magnitude: ~25–30 min/trial, ≈ one day of
-   continuous machine time. The runner's receipt-resume discipline applies
+   Study X (3). The earlier ~25–30 min/trial / one-day estimate is unverified
+   for the revised total/horizon; recompute it from the floors and pilot, not
+   as a spending promise. The runner's receipt-resume discipline applies
    unchanged; per-shape native breakdowns now retain per-query fingerprints
    (the harvest fix) on every trial.
 gate15 (counting_numbers satellite) on the final treated sequence —
@@ -186,10 +261,10 @@ Sensitivity cell (§12.1 — an envelope-comparison on the SAME realism store, N
 §8 production migration decision unchanged — still a separate,
    explicit operator call after the evidence is in.
 7. Freeze discipline
-Layer parameters (§3) freeze when the pilot starts. A parameter change
+Derived-dataset parameters (§3) freeze when the pilot starts. A parameter change
   after that restarts the rerun clock; treat any urge accordingly.
-No treatment changes mid-study; the realism layer is an input, applied
-  identically to every cell, Arm A and treated alike — it must never become
+No treatment changes mid-study; the derived realism dataset is the input,
+identical for matching cells, Arm A and treated alike — it must never become
   a confound between arms.
 Base-only results are kept, labelled, and superseded for citation —
   keep every iteration, as always.
@@ -206,8 +281,10 @@ The journey narrative gains its final honest beat: the first series ran
 Schedule: the rerun is the schedule's main consumer; v7 drafting
   proceeds in parallel and does not wait for it. Freeze is Nov 20; the
   plan holds ~8 days of buffer after the rerun.
-Generation cost: governed by the §3 totals valve — statistics fixed,
-  totals scalable.
+Generation cost: reconcile §3 distributions, totals and horizons first; estimate
+   the much larger store before floors. No silent proportional downscaling of
+   incompatible quantities, changed envelope or paid spillover. Report any
+   remaining resource/consistency conflict before generation/provisioning.
 A realism bug found mid-rerun: receipts make it visible per-trial;
   the pilot exists to find it in hour one. If it is found late, the
   affected cells re-run; the freeze rule (Rule: no silent input changes)
@@ -247,12 +324,20 @@ Reach (distinct viewers per post). Support: thinnest parameter in
 90-9-1. Support: Nielsen 2006 is a practitioner rule of thumb; his
   own examples range from 95-5-0.1 (blogs) to 99.8-0.2-0.003 (Wikipedia).
   The measurement is van Mierlo 2014 — with its own caveat: four health
-  support networks, not general-purpose platforms. Pew's US-adult Twitter
-  panels corroborate the concentration independently. v7 move: cite
-  van Mierlo as the measurement and Nielsen as the origin of the rule,
-  with the population caveat carried in the same sentence.
+   support networks, not general-purpose platforms. v7 move: van Mierlo alone
+   governs original-post participation and the 74.7/24.0/1.3 concentration
+   split; 85% nonposting is the declared choice within its measured bound.
+   Never blend Nielsen/Pew into calibration or use Pew as a cross-check.
+Why van Mierlo, not Pew (required v7 explanation): preserve the full argument
+   in REALISM-DATASET-DECISIONS.md §5. Van Mierlo's complete server-side census
+   (four networks, 63,990 accounts, 578,349 posts) jointly measures nonposting
+   accounts and concentration; Pew's 2,791 consenting U.S. adult handle sample
+   does not measure the registered-account zero class and counts retweets/quote
+   tweets. The chosen census matches this account-store modelling question.
+   State that these were moderated health communities. Top-10% share 98.7% is
+   the consequence of the split, never an independently tuned target.
 Cross-platform, cross-era assembly. Follower evidence is 2007–2011;
-  Pew is US adults; McGrady is one video platform; Bluesky (2025)
+   van Mierlo is moderated health communities; McGrady is one video platform; Bluesky (2025)
   confirms the shapes on a modern platform but with exponents we could
   not extract. v7 move: Rule 3's declaration sentence (parameters model
   a mature node from published evidence; not web10 production
@@ -269,7 +354,12 @@ Do-not-cite register: the 2026 AI-authored, unreviewed "X attention
   peer-reviewed source exists; the paper makes no claim needing one.
   Ordinary-user Facebook/Instagram per-post engagement — industry data
   only; unused.
-10.2 Findings from the runs that v7 must narrate
+10.2 Development findings to recheck on the derived dataset for v7
+The numbers below are preserved base-series diagnosis, not rerun results.
+Carry their methodological lessons, but use only reviewed rerun measurements
+for the paper's result tables (§12.1); never pool absolute values. Describe the
+new input as the derived realism dataset, not the old fixture plus an additive
+layer. Earlier approved manuscripts remain historical; these are v7 tasks.
 The views episode (dataset section + journey). The base fixture
   ships no content_events; Step-0 classification (Phase 1.6) found the
   study's views were ~40–60 self-generated rows against 1M posts, and
@@ -277,7 +367,7 @@ The views episode (dataset section + journey). The base fixture
   label was actually the reactions/comments partitions; erratum in
   gate-B stands). The views treatment fixed the real cost — the
   doc_groups readability subquery (4,100,060 → 1,240 rows at 1M,
-  byte-identical output, #1474). v7 move: the realism layer is
+   byte-identical output, #1474). v7 move: the derived realism dataset is
   presented as the input-level correction of a self-found flaw; the
   misattribution is disclosed in one honest sentence in Methods
   (shape labels are classifier hypotheses; fingerprints are evidence).
@@ -304,7 +394,7 @@ K=1,000 is a measured bound, not an embarrassment. Under the
   claims live at K=20–100, K=1,000 is the documented edge. Relatedly,
   reader cost scales with the followed corpus (a few prolific
   followed authors dominate), the framing Jacob set: real follow sets
-  are a few heavy authors plus mostly quiet ones — the realism layer's
+   are a few heavy authors plus mostly quiet ones — the derived dataset's
   authorship shape is what makes the C cells speak to this; a
   per-author newest-page cap is named as future work, not implemented
   or claimed.
@@ -400,20 +490,21 @@ benchmark this workload lacks (LDBC SNB, the standard synthetic social
 benchmark, models graph interactions and has no impression/delivery-event
 model; the related-work paragraph in §10 terms states the delta).
 What ships (the release is the generator, not the rows):
-The base-fixture generator (already in the repo as the V2 dataset code)
-  and the realism-layer generator — deterministic, seeded SQL/scripts.
+The new derived-dataset generator — deterministic, seeded SQL/scripts with
+   a new format/identity/manifest and an independent oracle. Original V2 files
+   and receipts remain historical records, not the new dataset's identity.
 The frozen parameter table (§3) with its literature citations, and the
   stats-receipt validator: anyone can regenerate the store and check the
   published statistics against their copy.
 A README stating the model (documents / doc_groups / content_events),
   the three rules (§2), and the thin-support register (§10.1) — the
   caveats travel with the data.
-Size, honestly: the release download is small — base fixture files are
-~230 MB uncompressed (far less compressed) and the layer is code, so a
-GitHub repo + release carries it without LFS heroics. The *generated
-store* is the big object (documents in the tens of millions of rows;
-~150M event rows, single-digit GB in ClickHouse native form) — generated
-on the consumer's machine in minutes, exactly as our own trials do. An
+Size, honestly: release generator/validator code, the parameter contract and
+validation receipts; report generated file/native sizes and generation time
+from the derived dataset's actual receipts, not the old V2 archive. The old
+~150M-event / single-digit-GB / minutes-to-generate estimates are unverified
+after the authorship/attention feasibility correction and must not be printed
+as facts. The generated store is the large object, not the release code. An
 optional pre-generated snapshot may additionally be deposited with a DOI
 (Zenodo or Hugging Face Datasets) for readers who want the bytes
 directly; the paper's availability statement cites the repo, and the DOI
@@ -428,14 +519,15 @@ available; no adoption or standard-status language (that is for later
 papers to confer).
 
 ## 12. Execution substrate — DigitalOcean, parallel + shared-store import
-(operator addendum, 10.11.2026 — reverses the local-only constraint for the
+(operator addendum, 10.11.2026; input/gate amendment 11.11.2026 — reverses the local-only constraint for the
 realism rerun; the base-only receipts stay local and labelled & superseded)
 
-Everything in the rerun (§6: Phase 0 gates, B, C, A, P, X, gate15, Phase 2)
+After local generator/validation floors, the 1M build and operator receipt
+review, everything in the measured rerun (§6: Phase 0 gates, B, C, A, P, X, gate15, Phase 2)
 runs on DigitalOcean droplets, in parallel. This resolves the two risks the
-plan carried: the realism store (tens of millions of docs + ~150M events)
+plan carried: the realism store (totals recomputed under the governing directive)
 does not fit the Mac's 7.65 GiB VM / 5 GB CH cap (disk-bound, slower, more
-241/137 on the A + K=1000 cells), and per-trial layer generation is the new
+241/137 on the A + K=1000 cells), and per-trial dataset generation is the new
 time sink.
 
 ### 12.1 Uniform substrate + the declared envelope (amended 10.11.2026)
@@ -470,30 +562,35 @@ time sink.
   Development-phase receipts are retained in the project repository."
 
 ### 12.2 Shared-store import — generate once, pull per droplet (fixes the gen cost)
-- Build the realism store **once** (on the Mac or one droplet): the frozen base
-  fixture + the deterministic seeded layer (§4) -> the full store as importable
+- Build the derived realism store **once locally after passing 10k/100k floors**:
+  the new coherent seeded generator (§4) -> the full store as importable
   files (`documents.jsonl.gz`, `doc_groups.jsonl.gz`, `content_events.jsonl.gz`,
-  ...) + the manifest + the §5 stats receipt. This is the frozen input identity
-  "base + realism-v1 + <seed>".
-- Upload the store to object storage (the existing MinIO, or a DO Space / S3
+  ...) + the new manifest/identity + the §5 stats receipt. Suggested name:
+  `web10-social-1m realism-derived v1`; seed and source/file hashes are pinned.
+  No V2 ID reuse, relabelled original rows or per-trial regeneration.
+- Only after validation passes and operator receipt review, upload the
+  approved store to object storage (the existing MinIO, or a DO Space / S3
   bucket). It is shared, versioned by seed, pull-able by any droplet.
 - Each droplet trial **PULLS** the store from S3 and loads it into its fresh CH
   volume (the restore step loads pre-generated data instead of running the
   generation SQL) -> no per-trial regeneration, no per-machine drift.
-- The §3 "scale totals down" valve still applies to the generated store (build
-  the scaled version once, pull it). Determinism: the seed is in the input
-  identity; the §5 stats receipt is the regenerate-and-check proof.
+- Resolve distributions/totals/horizons together under §3 before generation;
+  no independent scale-down that breaks them. Any approved revised store has
+  a new identity and is built/validated once, then pulled. The §5 receipt is
+  the finished-store check, not a declaration that the recipe is correct.
 
 ### 12.3 Parallel split (one droplet per study; trials sequential on a droplet)
-- The store fits cache-resident, so one trial at a time per droplet (the CH cap
-  is per trial). Studies split across droplets run in parallel:
+- Cache residency remains a pilot check, not an assumption. Run one trial at
+  a time per droplet under the fixed CH cap. After the pilot is reported and
+  admitted, studies split across independent droplets in parallel:
   - D1: Phase 0 floors + gates + Study B (9 trials)
   - D2: Study C (18 trials)
   - D3: Study A (18 trials)
   - D4: Study P (3) + Study X (3)
   - D5 (after B-X land): gate15 (satellite) + Phase 2 (37k-DAU load demo)
-- Wall-clock ~= the longest droplet (C or A, ~18 x trial time) + gate15/Phase 2,
-  instead of the ~2-day sequential sum.
+- Wall-clock is dominated by the longest worker (C or A, ~18 trials) plus
+  gate15/Phase 2. Use measured floor/pilot trial times for any estimate; the old
+  ~2-day sequential sum is not a revised-dataset result or spending approval.
 
 ### 12.4 Learn from the Nov 6-9 cloud failures (PLAN.md history)
 - No 3-host cluster, no ceremony: **independent droplets + S3 pull + the
@@ -511,7 +608,9 @@ time sink.
   kept), the treatments (Arm D, Step-1, views, satellite), the K cells, the gate
   dependencies (gate15 before Phase 2), and the §10/§11 drafting + dataset-release
   framing all stand. Only the execution substrate (where the trials run) and the
-  store import (generate-once -> S3 -> pull) change.
+  store import (generate-once -> S3 -> pull) change in this substrate addendum.
+  The later November 11 directive separately replaces the input model and adds
+  local floors/independent validation/operator review before paid execution.
 
 ### 12.6 Pilot on substrate (amended 10.11.2026)
 - The §6 pilot cell runs **end-to-end on a production-identical droplet**
@@ -521,11 +620,13 @@ time sink.
   restarts the rerun, per §7.
 
 ### 12.7 Watch items (from the review pass — what the pilot must settle)
-- **Cache-residency of the 22 GiB envelope:** the store is single-digit GB
-  native (§3), so 22 GiB holds it with headroom — but the pilot must confirm CH
-  memory is steady (not thrashing) on the loaded store. If the store came in
-  bigger than §3's single-digit-GB, the valve is to **scale the store down**
-  (§3) — **never raise the envelope** (it is frozen at the pilot).
+- **Cache-residency of the 22 GiB envelope:** the old single-digit-GB estimate
+  is not established for the revised post/event totals. Estimate before
+  generation; record finished-store sizes from the floors, and confirm the
+  loaded pilot's memory/cache behavior. Do not claim cache residency or
+  silently scale counts/change distributions to obtain it. Report a resource
+  conflict before an unaffordable build or provisioning; never silently raise
+  the envelope (it freezes at the pilot).
 - **vCPU headroom on the uniform SKU:** Phase 2 (the load cell) is CPU-sensitive
   (1400 sessions / ~23 feeds/s at 60 s think time). Declare the droplet's vCPU
   count in the substrate block; the "generator CPU < 50% while the server is
