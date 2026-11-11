@@ -27,7 +27,10 @@ jobs:
       matrix:
         service:
           - name: api
-            context: api
+            # Repo-root context so the Dockerfile bakes /web10/VERSION from
+            # the changelog (the node's update check). Mirrors docker.yml.
+            context: .
+            dockerfile: api/Dockerfile
           - name: ui
             # Repo-root context so the Dockerfile can COPY ui/ + sdk/ (the
             # auth app bundles the v3 SDK). Mirrors docker.yml.

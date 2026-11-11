@@ -78,8 +78,13 @@ services:
 
   api:
     build:
-      context: ../api
-      dockerfile: Dockerfile
+      # Repo-root context so the Dockerfile bakes /web10/VERSION from the
+      # live CHANGELOG at build time — the node's update check
+      # (KB: setup/update-check.md). The same self-sufficiency marketing-ui
+      # earns for its /status pill: Portainer's 5-min GitOps poll rebuilds
+      # without any env vars, and the version must still come out right.
+      context: ..
+      dockerfile: api/Dockerfile
     depends_on:
       - minio
       - clickhouse

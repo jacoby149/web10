@@ -18,7 +18,14 @@ services:
       - /var/run/docker.sock:/tmp/docker.sock:ro
 
   api: # The web10 API, that holds all the data.
-    build: api
+    build:
+      # Repo-root context so the Dockerfile bakes /web10/VERSION from the
+      # changelog (the update check). The api/ volume below still shadows it
+      # in this dev stack — the service reports "unknown" here, which it is:
+      # a code-mounted dev node runs whatever the checkout is (KB:
+      # setup/update-check.md).
+      context: .
+      dockerfile: api/Dockerfile
     depends_on:
       - minio
       - clickhouse

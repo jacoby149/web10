@@ -281,7 +281,13 @@ do not privacy-wash D56 or put content/credentials into events or recordings.
 - `api/` — FastAPI. The node. All data + auth + billing + media. Entry:
   `api/app/main.py`. Layered: `main.py` app init + middleware + router
   includes; `models/` Pydantic schemas; `services/` business logic;
-  `endpoints/` routers; `settings.py` config.
+  `endpoints/` routers; `settings.py` config. System endpoints
+  (`/ready`, `/setup`, `/config`, …) include the update check:
+  `POST /admin/update_status` (admin-gated) reports the node's baked
+  version (`/web10/VERSION`, from the CHANGELOG top line at image build —
+  repo-root context in `api/Dockerfile`) against the upstream changelog on
+  GitHub (`UPSTREAM_REPO`/`UPSTREAM_REF`); detection, not auto-update.
+  Contract: `knowledge-base/web10-v3/setup/update-check.md`.
 - `ui/` — React admin/consent UI.
 - `sdk/` — `wapi.js`, the frontend library apps are built with.
 - `api/rtc/` — WebRTC signaling (merged into api; used for P2P data

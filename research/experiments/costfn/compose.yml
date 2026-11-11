@@ -1,6 +1,10 @@
 services:
   api:
-    build: ../../../api
+    # Repo-root context (api/Dockerfile bakes /web10/VERSION from the
+    # changelog — the node's update check).
+    build:
+      context: ../../..
+      dockerfile: api/Dockerfile
     depends_on:
       - clickhouse
       - minio
