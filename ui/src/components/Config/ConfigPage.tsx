@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SecretInput } from '@/components/ui/secret-input';
 import ContactDelivery from './ContactDelivery';
+import UpdateStatus from './UpdateStatus';
 import { Lock, UserPlus, X, Check, Store, ChevronDown } from 'lucide-react';
 
 function ToggleRow({ label, description, checked, onChange, testId }: {
@@ -115,6 +116,16 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
 
   const loadConfig = async () => {
     try {
+      // ?mock=1 preview has no node — the AnalyticsPage isMock branch is the
+      // house pattern for console screens without a backend.
+      if (I.isMock) {
+        const cfg = { admins: ["creator"], provider: "api.localhost" };
+        setConfig(cfg);
+        setLoadedConfig({ ...cfg });
+        setApps([]);
+        setAppsLoading(false);
+        return;
+      }
       const resp = await nodePost("/config", { token: I.v3.state.token });
       setConfig(resp.data);
       setLoadedConfig({ ...resp.data });
@@ -129,6 +140,10 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
     setAppsLoading(true);
     setAppsError(null);
     try {
+      if (I.isMock) {
+        setApps([]);
+        return;
+      }
       const resp = await nodePost("/v3/apps/admin", { token: I.v3.state.token });
       setApps(resp.data?.apps ?? []);
     } catch (e: any) {
@@ -290,6 +305,10 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
         )}
 
         <div className="space-y-6">
+          {/* The update check leads the page: the operator's first question
+              about this node is "is it current?" (KB: setup/update-check.md). */}
+          <UpdateStatus I={I} post={nodePost} />
+
           <Card data-testid="config-admins-card">
             <CardHeader>
               <CardTitle>Admins</CardTitle>
