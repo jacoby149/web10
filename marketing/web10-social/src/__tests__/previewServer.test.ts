@@ -164,7 +164,7 @@ describe('music preview HTTP routing', () => {
     // for anon on the real node).
     expect(result.html).toContain('"image":"https://media.test/playlist-cover.webp"')
     expect(result.html).not.toContain('playlist-recording.mp3')
-    expect(result.html).not.toContain('keys-mark.png')
+    expect(result.html).not.toContain('og-image.png')
     expect(result.html).toContain('2 saved items')
     expect(result.html).toContain('by @nova')
     expect(result.html).toContain(`https://social.test/u/nova/saved/${encodeURIComponent(PLAYLIST)}`)
@@ -192,7 +192,7 @@ describe('music preview HTTP routing', () => {
     const result = await get(`/u/nova/saved/${encodeURIComponent(secret)}`)
     expect(result.status).toBe(200)
     expect(result.html).toContain('A playlist on web10')
-    expect(result.html).toContain('https://social.test/keys-mark.png')
+    expect(result.html).toContain('https://social.test/og-image.png')
     expect(result.html).not.toContain('playlist-cover.webp')
     const services = calls.map(call => call.body.service).filter(Boolean)
     expect(services).toEqual(['web10-social-group-identity'])

@@ -40,9 +40,14 @@ add a decisions.md line if the asset path becomes permanent.
   in `ui/`, not just aesthetic).
 - `favicon.ico` (16/32 multi-size) — replaces the unverified boilerplate
   favicon in both apps.
-- `og-image.png` (1200×630) — the shared og:image asset (lockup + violet
-  glow on `#09090b`). Social/ui likely don't need their own og:image, but
-  it's here if a share surface needs one.
+- `og-image.png` (1200×630) — the shared og:image asset; tracks
+  `marketing/marketing-ui/public/brand/og-image.png`. D109 (10.11.2026,
+  operator: the share card "should be black background"): regenerated on
+  `#09090b` with the glow cut so the background reads black. It is opaque
+  on purpose — a share image composites onto the receiving app's white card
+  frame and must own its background. Social's share surface uses its own
+  square `marketing/web10-social/public/og-image.png` (keys mark on
+  `#09090b`); the authenticator has no share surface.
 
 ## Still debt (not paid by this lane)
 

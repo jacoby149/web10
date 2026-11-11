@@ -47,6 +47,16 @@ concepts). The split (KB: `../media/thumbnailing.md`):
   card HTML. The social nginx User-Agent split proxies crawler requests to it
   (same container, localhost); browsers get the SPA.
 
+**The brand image bakes in its own background (D109).** Every share image is
+an opaque asset: the receiving app (Instagram, WhatsApp, iMessage, X)
+composites `og:image` onto its OWN card frame, and where the PNG is
+transparent that frame is white — a white mark on transparent went invisible
+in the card. The social app-root static tags + the preview server's
+`BRAND_IMAGE` fallback therefore use `public/og-image.png` (the keys mark on
+its `#09090b` dark back, subtle violet glow), not the in-app transparent
+`keys-mark.png`. The in-app marks stay transparent — there, the page owns
+the background.
+
 **The read is the same as the app's, minus the token.** The preview server:
 
 1. Reads the post by `doc_id` (the generic read, anon-capable — a public post
