@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTheme } from '@/lib/theme';
 
 interface BrandingProps {
   I: Record<string, any>;
@@ -8,12 +9,14 @@ interface BrandingProps {
 }
 
 function Branding({ I, size = 'lg', tagline = true }: BrandingProps) {
-  // The logo asset is a white-label placeholder (config.REACT_APP_LOGO_DARK,
-  // ./YourOrgsLogo/*) and is missing from some deploys — never show a broken
+  // Defaults are the canonical theme pair; a node may configure its own.
+  // Custom artwork can be missing on a deploy — never show a broken
   // <img>. If it fails to load, drop it and let the wordmark carry the brand
   // (design.md §1: "no broken image icons").
-  const [logoOk, setLogoOk] = useState(true);
-  const showLogo = I.logo && logoOk;
+  const { resolved } = useTheme();
+  const logo = (resolved === 'light' ? I.config?.REACT_APP_LOGO_LIGHT : I.config?.REACT_APP_LOGO_DARK) || I.logo;
+  const [failedLogo, setFailedLogo] = useState<string | null>(null);
+  const showLogo = logo && failedLogo !== logo;
 
   const large = size === 'lg';
   const markSize = large ? 'h-11 w-11' : 'h-8 w-8';
@@ -25,9 +28,9 @@ function Branding({ I, size = 'lg', tagline = true }: BrandingProps) {
         {showLogo && (
           <img
             className={`${markSize} object-contain`}
-            src={I.logo}
+            src={logo}
             alt="web10"
-            onError={() => setLogoOk(false)}
+            onError={() => setFailedLogo(logo)}
             data-testid="brand-logo"
           />
         )}

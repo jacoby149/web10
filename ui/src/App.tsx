@@ -8,6 +8,7 @@ import RequestPage from './components/Contracts/RequestPage';
 import SetupWizard from './components/SetupWizard/SetupWizard';
 import ConfigPage from './components/Config/ConfigPage';
 import AnalyticsPage from './components/Analytics/AnalyticsPage';
+import AppearancePage from './components/Settings/Appearance';
 import ConsentView from './components/Consent/ConsentView';
 import OauthConsentView from './components/Oauth/OauthConsentView';
 import GroupsPage from './components/Groups/GroupsPage';
@@ -96,7 +97,8 @@ function App() {
     if (forgot || contactHandoff.recovery || queryParameters.get('mode') === 'forgot') I.setMode("forgot");
   }, []);
   React.useEffect(() => {
-    if (I.isAuthenticated() && queryParameters.get('mode') === 'config') I.setMode('config');
+    const mode = queryParameters.get('mode');
+    if (I.isAuthenticated() && (mode === 'config' || mode === 'settings')) I.setMode(mode);
   }, [I.auth]);
 
   // Set up the contract postMessage listener immediately if opened as a popup
@@ -151,8 +153,11 @@ function App() {
     return <ConsentView I={I} />;
   }
 
-  // The credential (login/signup/forgot) screens are the only ones a
-  // signed-out user may see. Anything else — including an expired/scrubbed
+  if (queryParameters.get('mode') === 'appearance') return <AppearancePage I={I} />;
+
+  // Apart from public Appearance above, credential (login/signup/forgot)
+  // screens are the only ones a signed-out user may see. Anything else —
+  // including an expired/scrubbed
   // token that leaves mode on "contracts" — routes to the login page so a
   // signed-out visitor never lands on an empty authenticated screen with no
   // way back in (B7).
