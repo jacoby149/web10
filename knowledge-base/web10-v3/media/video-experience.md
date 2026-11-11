@@ -58,7 +58,26 @@ The document records which style was used (`body.style`) so the feed can lay the
 
 `transcoding_settings` is **user-owned data on the creator's node** — same shape as "your algorithm is your prompt." The killer move is letting the creator edit it:
 
-- **Cover frame pick** — the creator chooses which frame is the thumbnail, not the auto-extracted one.
+- **Cover frame pick — shipped in the social composer (5.18.0).** The creator
+  chooses the poster instead of the auto-extracted one, at upload time: the
+  tray's "Thumbnail" chip opens the picker sheet, which captures a few
+  candidate frames client-side (the quarter frame capped at 5s — the
+  auto-poster's exact seek, so "keep the default" is candidate 0 — the half,
+  the three-quarter; `thumbnailCandidateTimes`) or takes the creator's own
+  image (downscaled through the album-art idiom). The pick rides the
+  existing `thumbnail_object_key` seam (`uploadMedia`'s `thumbnailFile`) —
+  the media doc stays the source of truth and the transcode worker's
+  auto-thumbnails only fill the key when it is absent, so every read
+  surface (feed cards, the watch page, hover previews, share cards) shows
+  the pick through the normal presigned thumbnail read. Zero node surface
+  (D60). A trim/crop edit drops a frame pick (the re-encode moved the
+  frames — the tray falls back to the auto capture of the finished file);
+  the creator's own image survives the edit. A draft whose video carries a
+  pick is NOT eligible for the resumable-queue transport (the multipart
+  `confirm` does not carry the pick yet — follow-up: extend `confirm` to
+  carry a pre-uploaded `thumbnail_object_key`, then the queue honors it);
+  such drafts take the standard upload path instead, so the pick is never
+  silently dropped.
 - **Encoding settings as an owned record** — default quality, max resolution, "don't upscale my 4K." The settings live in the document; the node honors them on (re)transcode.
 
 This is the feature that turns the architecture into a product claim: the delivery proof (real view + watch-time numbers, "reached 100% of your followers — here's the ledger") and the owned settings both read from data the creator already owns.

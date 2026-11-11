@@ -266,7 +266,22 @@ export function UploadProvider({ children, sessionKey }: { children: ReactNode; 
   }, []);
 
   async function queue(draft: MediaPostDraft) {
-    if (!enabled || draft.media.length !== 1 || !draft.media[0].file.type.startsWith('video/') || draft.media[0].edited) return false;
+    // The queue transport is a single UNEDITED video with no thumbnail pick:
+    // an edited file is already the finished re-encode (the standard path),
+    // and the multipart confirm does not carry the creator's thumbnail yet
+    // (the pick would be silently lost — the follow-up lane item extends
+    // confirm to carry it). A draft with a pick returns false and the
+    // standard upload runs, honoring the pick.
+    if (
+      !enabled ||
+      draft.media.length !== 1 ||
+      !draft.media[0].file.type.startsWith('video/') ||
+      draft.media[0].edited ||
+      draft.media[0].thumbnail
+    ) {
+      if (draft.media[0]?.thumbnail) console.log('[upload] draft has a thumbnail pick — standard path (the queue transport cannot carry it yet)');
+      return false;
+    }
     const owner = currentUploadIdentity();
     if (!owner) throw new Error('Log in before queuing a video.');
     const admission = uploadAttempt();

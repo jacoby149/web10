@@ -185,6 +185,23 @@ every interactive element has all its states).
    second media item; a mixed/multi-item tray keeps the normal tray routing,
    and a non-image on the art chip is ignored. (`PostComposer`'s root
    `onPaste`/`onDrop` → `routeAttachFiles`; `composerPaste.test.tsx`.)
+   **The video thumbnail pick (video-experience.md "Cover frame pick"):**
+   a video tray item carries a "Thumbnail" chip (top-center) that opens the
+   picker sheet: three candidate frames captured client-side from the video
+   (the quarter frame capped at 5s — the auto-poster's exact seek, so the
+   default is candidate 0 — the half, the three-quarter;
+   `thumbnailCandidateTimes` + `captureVideoFrames` in `mediaProcessing.ts`)
+   plus the creator's own image (downscaled through the album-art idiom).
+   The pick becomes the tray item's `<video poster>` (what you see is what
+   ships) and, at post time, the media doc's `thumbnail_object_key` through
+   the existing `uploadMedia` `thumbnailFile` seam — zero node surface (D60).
+   No pick = the pre-picker auto-captured poster (unchanged). A trim/crop
+   edit drops a frame pick (the re-encode moved the frames) but keeps the
+   creator's own image. A draft whose video carries a pick is not eligible
+   for the resumable-queue transport (the multipart `confirm` does not carry
+   it yet — `multipart-uploads.md`) and takes the standard path instead.
+   (`VideoThumbnailSheet.tsx` + `PostComposer`; `videoThumbnail.test.tsx`,
+   `uploadThumbnailGuard.test.tsx`.)
 - **The composer expands, it doesn't jump.** In the compact (collapsed) mode
   the composer rests as a single line and expands to the full form on focus or
   on content — no layout shift, no yank (design.md §1: nothing shifts). The

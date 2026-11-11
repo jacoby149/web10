@@ -28,6 +28,26 @@ export interface Thumbnail {
   mimeType: string;
 }
 
+export interface VideoFrameCapture {
+  /** The requested seek time (seconds), clamped into the file. */
+  time: number;
+  blob: Blob;
+  mimeType: string;
+}
+
+/**
+ * The creator's chosen poster for a video (video-experience.md "Creator
+ * Controls — Cover frame pick"): either a frame captured from the video
+ * (its `time`, in seconds) or the creator's own image (`custom`). The pick
+ * rides the existing `thumbnail_object_key` — zero node surface.
+ */
+export interface VideoThumbnailSelection {
+  blob: Blob;
+  mimeType: string;
+  time?: number;
+  custom?: boolean;
+}
+
 export interface VideoInfo {
   duration: number;
   width: number;
@@ -213,6 +233,115 @@ export async function captureVideoPoster(file: File): Promise<Thumbnail> {
 }
 
 const METADATA_TIMEOUT_MS = 15000;
+
+/** The seek settle budget per candidate frame (a stalled decode drops the
+ *  candidate, it never hangs the picker). */
+const FRAME_SEEK_TIMEOUT_MS = 8000;
+
+/**
+ * The candidate poster frames offered for a video of `duration` seconds —
+ * "picking the thumbnail, or at least from a few options" (the operator,
+ * 11.11.2026). Three points spread through the body:
+ *
+ * - the quarter frame, capped at 5s — exactly the auto-poster's seek
+ *   (captureVideoPoster's `min(duration * 0.25, 5)`, the black-intro
+ *   avoidance), so "keep the default" is candidate 0;
+ * - the half;
+ * - the three-quarter.
+ *
+ * Points are clamped off the very edges (a seek past the last decodable
+ * frame can stall) and de-duped at a 0.2s floor (short clips).
+ */
+export function thumbnailCandidateTimes(duration: number): number[] {
+  if (!Number.isFinite(duration) || duration <= 0) return [];
+  const raw = [Math.min(duration * 0.25, 5), duration * 0.5, duration * 0.75];
+  const times: number[] = [];
+  for (const t of raw) {
+    const clamped = Math.max(0.05, Math.min(t, duration - 0.05));
+    if (times.length && clamped - times[times.length - 1] < 0.2) continue;
+    times.push(Math.round(clamped * 1000) / 1000);
+  }
+  return times;
+}
+
+/**
+ * Capture frames from a video file at the given times — one `<video>`,
+ * sequential seeks, each frame drawn to a canvas at the source's native
+ * resolution and encoded webp (jpeg fallback) at THUMBNAIL_QUALITY, the
+ * same constants captureVideoPoster uses. A seek that never settles (a
+ * stalled decode) drops that candidate; a file the browser cannot decode
+ * rejects outright.
+ */
+export async function captureVideoFrames(file: File, times: number[]): Promise<VideoFrameCapture[]> {
+  if (!times.length) return [];
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement('video');
+    video.preload = 'auto';
+    video.muted = true;
+    video.playsInline = true;
+
+    const cleanup = () => {
+      URL.revokeObjectURL(url);
+      video.remove();
+    };
+
+    const captures: VideoFrameCapture[] = [];
+    let index = 0;
+
+    const captureNext = () => {
+      if (index >= times.length) {
+        cleanup();
+        if (!captures.length) reject(new Error('Could not capture any frame from this video.'));
+        else resolve(captures);
+        return;
+      }
+      const time = times[index];
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      let settled = false;
+      const settle = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        if (!canvas.width || !canvas.height) {
+          // Undecodable at this point — drop the candidate, keep going.
+          index += 1;
+          captureNext();
+          return;
+        }
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const mimeType = preferWebp() ? 'image/webp' : 'image/jpeg';
+        canvas.toBlob(
+          (b) => {
+            if (b) captures.push({ time, blob: b, mimeType });
+            index += 1;
+            captureNext();
+          },
+          mimeType,
+          THUMBNAIL_QUALITY,
+        );
+      };
+      const timer = setTimeout(settle, FRAME_SEEK_TIMEOUT_MS);
+      const onSeeked = () => video.removeEventListener('seeked', onSeeked);
+      video.addEventListener('seeked', () => {
+        onSeeked();
+        settle();
+      });
+      video.currentTime = time;
+    };
+
+    video.onloadedmetadata = () => captureNext();
+    video.onerror = () => {
+      cleanup();
+      reject(new Error('Failed to load the video for thumbnail capture.'));
+    };
+    video.src = url;
+  });
+}
 
 /**
  * Get video metadata (duration, dimensions) without playing.
