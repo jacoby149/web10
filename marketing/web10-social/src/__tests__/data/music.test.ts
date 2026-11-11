@@ -107,6 +107,30 @@ describe('music composition', () => {
     await expect(readMusicCollection('g')).rejects.toThrow('denied');
   });
 
+  // The D42 anon-read asymmetry (the connected-acceptance finding,
+  // 11.11.2026): a private/unknown collection reads as EMPTY for a logged-out
+  // reader instead of 403ing (anon is exempt from the authenticated
+  // access-failure branch). An empty face + zero items must therefore mean
+  // NO ACCESS for anon — not "an empty public playlist".
+  it('anon: an empty face + zero items is the no-access state (private or deleted), not an empty playlist', async () => {
+    token = null;
+    vi.mocked(saved.readCollection).mockResolvedValue({ face: {}, posts: [], mediaMap: {} } as saved.CollectionContents);
+    await expect(readMusicCollection('g')).rejects.toThrow('This playlist is private or no longer available.');
+  });
+
+  it('anon: a NAMED face with zero items is an empty public playlist (no false unavailable)', async () => {
+    token = null;
+    vi.mocked(saved.readCollection).mockResolvedValue({ face: { name: 'Fresh public' }, posts: [], mediaMap: {} } as saved.CollectionContents);
+    const result = await readMusicCollection('g');
+    expect(result).toMatchObject({ tracks: [], name: 'Fresh public', visibility: 'private' });
+  });
+
+  it('signed-in: an empty face + zero items is NOT the anon no-access state (their 403s come from the saved read)', async () => {
+    vi.mocked(saved.readCollection).mockResolvedValue({ face: {}, posts: [], mediaMap: {} } as saved.CollectionContents);
+    const result = await readMusicCollection('g');
+    expect(result).toMatchObject({ tracks: [], name: '' });
+  });
+
   it('restores a track by original authorized post read and media resolution, never creating', async () => {
     vi.mocked(posts.readPostById).mockResolvedValue(post());
     expect((await readMusicTrack('track'))?.post._id).toBe('track');
