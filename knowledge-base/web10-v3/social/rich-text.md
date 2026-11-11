@@ -163,6 +163,28 @@ every interactive element has all its states).
   thumbnails *inside* the composer (with remove + the video's edit control), so
   you see exactly what will post before you do. No "did it attach?" anxiety.
   (The composer already has this — `MediaTrayItem`; the pattern is to keep it.)
+  Three attach paths feed the one tray: the picker button, drag-and-drop, and
+  **paste** — Cmd/Ctrl+V with pixels on the clipboard (a screenshot, a copied
+  photo) attaches the image(s) exactly like a picked or dropped file (the same
+  `validateMedia` gate, the same background processing). A paste with no image
+  files (plain text, a URL) is left to the editor untouched; a non-image file
+  on the clipboard is ignored rather than surfacing an error card; edit mode is
+  remove-only, so a pasted image there attaches nothing (the editor's schema
+  has no image node, so it drops — the pre-paste-path behavior, preserved).
+  Pasted screenshots arrive nameless or as a generic `image.png`; the composer
+  mints each a stable `pasted-image-<ts>-<n>.<ext>` name so repeated pastes in
+  one session never collide. (`PostComposer`'s root `onPaste`;
+  `composerPaste.test.tsx`.) The attach button is the GENERAL-media
+   affordance (a paperclip — "Add media — photos, videos or MP3"), not a photo
+   icon: the picker accepts every type the `validateMedia` gate accepts.
+   **The album-cover shortcut (music.md):** when the tray holds EXACTLY ONE
+   audio item, an incoming image — pasted at the root, dropped anywhere, or
+   dropped/pasted on the track's "Add art" chip (the chip is a focusable drop
+   + paste target, not click-only) — becomes that track's ALBUM ART (its
+   `thumbnail_object_key`, the shared album-art precedence's first pick), not a
+   second media item; a mixed/multi-item tray keeps the normal tray routing,
+   and a non-image on the art chip is ignored. (`PostComposer`'s root
+   `onPaste`/`onDrop` → `routeAttachFiles`; `composerPaste.test.tsx`.)
 - **The composer expands, it doesn't jump.** In the compact (collapsed) mode
   the composer rests as a single line and expands to the full form on focus or
   on content — no layout shift, no yank (design.md §1: nothing shifts). The

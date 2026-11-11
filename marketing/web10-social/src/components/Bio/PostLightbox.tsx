@@ -29,13 +29,32 @@ import { toast, errorMessage } from '@/components/shared/Toast';
 import { cn } from '@/lib/utils';
 import { VideoPlayer, sourceFromMedia } from '@/components/Feed/VideoPlayer';
 import { PostMediaRenewal } from '@/components/Feed/PostMediaRenewal';
+import { AudioPlayer, audioArtwork } from '@web10/discover';
+import { musicArtist, musicTitle, musicTrackFromPost } from '@/data/musicTrack';
 
 /** A single frame in the lightbox's swipeable media strip. Video renders
- *  through the full player (the modal modality); an image is an `<img>` fit to
- *  the frame. The strip (below) lays these out as full-width snap slides so a
- *  mobile swipe pages the post's frames (native scroll-snap, no dep). */
-function LightboxSlide({ media, testId }: { media: MediaRecord; testId?: string }) {
+ *  through the full player (the modal modality); audio through the shared
+ *  `AudioPlayer` (the same control the Posts feed renders for a music track —
+ *  album art + the recording, never an `<img>` pointed at an mp3); an image
+ *  is an `<img>` fit to the frame. The strip (below) lays these out as
+ *  full-width snap slides so a mobile swipe pages the post's frames (native
+ *  scroll-snap, no dep). */
+function LightboxSlide({ media, items, title, artist, testId }: { media: MediaRecord; items: MediaRecord[]; title?: string; artist?: string; testId?: string }) {
   const isVideo = media.mime_type?.startsWith('video/');
+  const isAudio = media.mime_type?.startsWith('audio/');
+  if (isAudio) {
+    return (
+      <div className="w-full max-w-md px-1 py-2" data-testid="post-lightbox-audio">
+        <AudioPlayer
+          src={media.url}
+          durationSeconds={media.duration_seconds}
+          title={title}
+          artist={artist}
+          artworkUrl={audioArtwork(media, items)}
+        />
+      </div>
+    );
+  }
   if (isVideo) {
     const source = sourceFromMedia(media);
     // width/height exist on the hls + file variants (not the youtube embed, which
@@ -96,7 +115,23 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   const productPic = currentPost.product?.pics?.[0] ? mediaMap[currentPost.product.pics[0]] : undefined;
   const [index, setIndex] = useState(0);
   const hasMedia = media.length > 0;
-  const multiple = media.length > 1;
+  // The music-track collapse (music.md): a post that passes the shared
+  // music gate (the `music` tag + exactly one playable media, audio or video)
+  // renders as a SINGLE slide — for an audio track, the shared `AudioPlayer`
+  // with the track's album art. Without this, a music post's frames would
+  // page as [recording-slide, album-art-slide] and the recording would render
+  // as an `<img>` (the "profile mp3 posts don't play" break — the audio
+  // mime has no image to draw). A non-music audio item (a voice note) keeps
+  // the per-frame strip; a music-video track keeps the video player.
+  const musicAudio = (() => {
+    if (!media.length) return null;
+    const track = musicTrackFromPost(currentPost, media);
+    return track && track.media.mime_type?.startsWith('audio/') ? track : null;
+  })();
+  const strip = musicAudio ? [musicAudio.media] : media;
+  const multiple = strip.length > 1;
+  const slideTitle = musicAudio ? musicTitle(musicAudio) : currentPost.title || undefined;
+  const slideArtist = musicAudio ? musicArtist(musicAudio) : postAuthor;
 
   // The parent can swap the post in place (the profile grid's Instagram-style
   // prev/next post arrows). `currentPost` is internal state (it tracks
@@ -173,18 +208,18 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   function onStripScroll(e: React.UIEvent<HTMLDivElement>) {
     const el = e.currentTarget;
     if (!el || el.clientWidth === 0) return;
-    const i = Math.min(media.length - 1, Math.max(0, Math.round(el.scrollLeft / el.clientWidth)));
+    const i = Math.min(strip.length - 1, Math.max(0, Math.round(el.scrollLeft / el.clientWidth)));
     indexRef.current = i;
     setIndex(i);
   }
 
   // The arrows + keyboard page the strip (a swipe updates `index` the same way).
   const prevFrame = useCallback(() => {
-    scrollToIndex((indexRef.current - 1 + media.length) % media.length);
-  }, [media.length, scrollToIndex]);
+    scrollToIndex((indexRef.current - 1 + strip.length) % strip.length);
+  }, [strip.length, scrollToIndex]);
   const nextFrame = useCallback(() => {
-    scrollToIndex((indexRef.current + 1) % media.length);
-  }, [media.length, scrollToIndex]);
+    scrollToIndex((indexRef.current + 1) % strip.length);
+  }, [strip.length, scrollToIndex]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -201,7 +236,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
         } else onPrevPost?.();
       } else if (e.key === 'ArrowRight') {
         if (multiple) {
-          if (indexRef.current === media.length - 1 && onNextPost) onNextPost();
+          if (indexRef.current === strip.length - 1 && onNextPost) onNextPost();
           else nextFrame();
         } else onNextPost?.();
       }
@@ -213,7 +248,7 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
       window.removeEventListener('keydown', onKey);
       document.body.style.overflow = prevOverflow;
     };
-  }, [onClose, prevFrame, nextFrame, multiple, onPrevPost, onNextPost, media.length]);
+  }, [onClose, prevFrame, nextFrame, multiple, onPrevPost, onNextPost, strip.length]);
 
   // Load reaction + comment state (the lightbox reads fresh — it's a modal,
   // not a feed). The like and dislike counts are derived from the reactions
@@ -395,29 +430,40 @@ export function PostLightbox({ post, mediaMap, onClose, onReload, postAuthor, po
   // carousel (native scroll-snap, no dep), and the arrows + keyboard converge
   // on the same `index`. A single frame is the same strip with one slide (no
   // arrows/indicator). The pane sizes to the first frame's ratio (capped) so
-  // the `h-full` slides have a defined box.
-  const frameRatio = media[0]?.width && media[0]?.height ? media[0].width / media[0].height : 4 / 3;
+  // the `h-full` slides have a defined box — EXCEPT the music-track slide
+  // (the audio player sizes to its own content; a 4:3 black stage around a
+  // music bar would read as a dead video frame).
+  const frameRatio = strip[0]?.width && strip[0]?.height ? strip[0].width / strip[0].height : 4 / 3;
   const mediaPane = hasMedia && (
     <div
-      className="relative w-full overflow-hidden rounded-lg bg-black max-h-[50vh] sm:max-h-[88vh]"
-      style={{ aspectRatio: frameRatio }}
+      className={cn(
+        'relative w-full overflow-hidden rounded-lg',
+        musicAudio ? '' : 'bg-black max-h-[50vh] sm:max-h-[88vh]',
+      )}
+      style={{ aspectRatio: musicAudio ? undefined : frameRatio }}
       data-testid="post-lightbox-media-pane"
     >
       <div
         ref={stripRef}
         onScroll={onStripScroll}
         data-testid="post-lightbox-strip"
-        className="flex h-full w-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className={cn(
+          'flex w-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+          musicAudio ? 'items-start' : 'h-full items-center',
+        )}
         role="group"
-        aria-label={`${media.length} media items`}
+        aria-label={`${strip.length} media items`}
       >
-        {media.map((m, i) => (
+        {strip.map((m, i) => (
           <div
             key={m._id || i}
-            className="flex h-full w-full shrink-0 snap-start items-center justify-center"
+            className={cn(
+              'flex w-full shrink-0 snap-start justify-center',
+              musicAudio ? 'items-start' : 'h-full items-center',
+            )}
           >
             <PostMediaRenewal postId={currentPost._id}>
-              <LightboxSlide media={m} testId={`post-lightbox-media-${i}`} />
+              <LightboxSlide media={m} items={media} title={slideTitle} artist={slideArtist} testId={`post-lightbox-media-${i}`} />
             </PostMediaRenewal>
           </div>
         ))}

@@ -67,17 +67,25 @@ class Records:
         self.failures += bool(record["error"])
 
 
-async def run_point(base, manifest, users, interval, warmup, duration, drain, output, max_lag=1.0):
+async def run_point(base, manifest, users, interval, warmup, duration, drain, output, max_lag=1.0, reader_indices=None):
     validate_target(base)
-    if users > len(manifest["readers"]) or manifest["recipe"]["follow"] < 21:
-        raise ValueError("fixture needs distinct readers and at least 21 followed authors")
+    # Phase-1 randomized-reader cells: one (or a named set) of distinct
+    # fixture readers per trial instead of always readers 0..n-1. The oracle
+    # is index-arithmetic, so any indices are exact.
+    if reader_indices is not None:
+        users = len(reader_indices)
+    if users > len(manifest["readers"]) or manifest["recipe"]["follow"] < 10:
+        # Declared K (PROTOCOL): 10/20/100/1000. K >= 21 fetches 21 and
+        # displays 20; K = 10/20 is the sub-21 page: K fetched / K displayed,
+        # empty second page. check_result oracles both shapes exactly.
+        raise ValueError("fixture needs distinct readers and a declared K >= 10")
     capture = core_feed.wire()
     counters = collections.Counter()
     in_flight = set()
     # No semaphore/admission cap: generator overload is retained, never hidden.
     limits = httpx.Limits(max_connections=None, max_keepalive_connections=users * 4, keepalive_expiry=75)
     async with httpx.AsyncClient(base_url=base, timeout=60, limits=limits, trust_env=False) as client:
-        sessions = await core_feed.prepare(client, manifest, users)
+        sessions = await core_feed.prepare(client, manifest, users, indices=reader_indices)
         # JWT metadata is only a preflight deadline check, never authorization.
         import base64
         from datetime import datetime, timezone
@@ -109,13 +117,13 @@ async def run_point(base, manifest, users, interval, warmup, duration, drain, ou
 
             monitoring = asyncio.create_task(monitor())
 
-            async def one(due, reader, phase, lag):
+            async def one(due, slot, reader, phase, lag):
                 began = time.perf_counter()
                 record = {"scheduled_seconds": due, "reader_index": reader, "phase": phase,
                           "scheduler_lag_ms": lag * 1000, "task_start_lag_ms": (began - start - due) * 1000,
                           "success": False, "censored": False}
                 try:
-                    rows, results = await core_feed.feed(client, capture, *sessions[reader], records, phase, reader)
+                    rows, results = await core_feed.feed(client, capture, *sessions[slot], records, phase, reader)
                     core_feed.check_result(manifest, reader, rows, results)
                     record["success"] = True
                 except asyncio.CancelledError:
@@ -137,8 +145,10 @@ async def run_point(base, manifest, users, interval, warmup, duration, drain, ou
                 if not task.cancelled() and task.exception() is not None:
                     counters[("all", "internal_task_errors")] += 1
 
+            reader_of = reader_indices if reader_indices is not None else None
             try:
-                for due, reader in schedule(users, interval, warmup + duration):
+                for due, slot in schedule(users, interval, warmup + duration):
+                    reader = slot if reader_of is None else reader_of[slot]
                     await asyncio.sleep(max(0, start + due - time.perf_counter()))
                     lag = time.perf_counter() - start - due
                     phase = "warmup" if due < warmup else "measured"
@@ -148,7 +158,7 @@ async def run_point(base, manifest, users, interval, warmup, duration, drain, ou
                         feeds.write(json.dumps({"scheduled_seconds": due, "reader_index": reader, "phase": phase,
                             "missed_start": True, "scheduler_lag_ms": lag * 1000}) + "\n")
                         continue
-                    task = asyncio.create_task(one(due, reader, phase, lag))
+                    task = asyncio.create_task(one(due, slot, reader, phase, lag))
                     in_flight.add(task)
                     counters[(phase, "started")] += 1
                     counters[("all", "peak_feed_in_flight")] = max(counters[("all", "peak_feed_in_flight")], len(in_flight))

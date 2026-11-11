@@ -6,7 +6,7 @@ test('actual app cursor builder is pinned, exclusive and chronological', () => {
   const value = paginationCapture();
   expect(value.sql).toContain('toUnixTimestamp64Milli(p.created_at) < __CURSOR_MS__');
   expect(value.sql).toContain('LIMIT 21');
-  expect(value).toEqual(JSON.parse(readFileSync(new URL('./evidence/core-feed-next-page-v3.json', import.meta.url), 'utf8')));
+  expect(value).toEqual(JSON.parse(readFileSync(new URL('./evidence/core-feed-next-page-v4.json', import.meta.url), 'utf8')));
 });
 
 test('exported and local builder declarations capture the same SQL', () => {

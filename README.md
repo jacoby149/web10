@@ -2,7 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/web10-npm)](https://www.npmjs.com/package/web10-npm)
 
-<img src="ui/public/logo512.png" alt="web10 logo" height="75" />
+<img src="marketing/marketing-ui/public/brand/og-image.png" alt="web10 — the keys mark and wordmark" width="720" />
 
 web10 starts from one premise: **what you make is yours.**
 
@@ -32,82 +32,153 @@ paid for value delivered, not for permission granted.
 | | |
 | --- | --- |
 | **You own your data** | One collection per user — the record of your own life, held by you. Export it, move it, erase it. Delete means delete. |
-| **No shadow ban** | Every post reaches every follower, by construction (fan-out on write). The feed is chronological, because a feed should report — not editorialize. |
+| **No shadow ban** | Every post reaches every follower, by construction (fan-out on write). Delivery is 100% — and how the reader ranks what they see is the reader's own choice, not the platform's. |
+| **Apps write their own queries** | The node ships a query engine: the app's read SQL is compiled against the reader's grants, and the string itself never executes. A new read pattern is a new query, not a new backend. |
 | **Built like the best, owned like yours** | web10 uses PostHog for usage analytics and optional content-masked replay/heatmaps to compete on experience. Your content is never tracked, sold, or fed to an ad machine; the trade is stated in the terms (D56/D103). |
 | **Apps are just frontends** | An app earns access through a scoped, expiring, revocable token. It never owns what it touches. |
 | **Federated identity** | Identity is `(username, provider)`, like email. No central registry to petition, no account that can be taken from you. |
 | **Private, not permanent** | Unlike a blockchain, your data can be private, temporary, and deletable. You set who sees it via terms — and delete means delete. |
 | **Self-hostable** | One `docker compose up` runs a node on hardware you own. The escape hatch is real, and that is what makes the ownership real. |
 
+## How it works
+
+The node is small on purpose. One ClickHouse `documents` table holds the
+data of every user on it — each record is `{service, body}`, keyed by
+`(author_key, doc_id)` — and everything else is a policy engine on top:
+
+- **Groups and grants** decide who can read or write which service.
+  "Make my profile public" is one row: a reserved `anyone` principal with
+  a read grant on the `profile` service. The API has no app concepts —
+  it stays generic on purpose.
+- **Apps get scoped, expiring tokens** (`username, site, target,
+  provider, expires`). The node verifies the signature and re-checks the
+  grants on every read: a token is a claim, not a key to the vault.
+- **The query engine** is how apps read at scale: the app writes its own
+  SQL over its services, and the node compiles it against what this
+  particular reader may see.
+- **Media lives in S3-compatible storage** (MinIO on the reference node);
+  delivery URLs are signed and expire.
+- **Federation is the client's job.** Identity is `(username, provider)`;
+  cross-node token checks happen over `/certify` — an email-style
+  handshake, not a registry. A multi-node feed is a union of
+  independently authorized reads, and a node never queries another node's
+  database.
+
+The contracts live in [`knowledge-base/web10-v3/`](knowledge-base/web10-v3/):
+`db/clickhouse.md` (the data model), `auth/auth.md` (tokens and consent),
+`query-engine.md` (the read gate), `groups/access.md` (grants), and
+[`strategy/multi-node.md`](knowledge-base/strategy/multi-node.md)
+(federation).
+
 ## Run a node locally
 
 Requirements: Docker.
 
 ```bash
-git clone <your fork of this repo>
+git clone https://github.com/jacoby149/web10
 cd web10
 docker compose up --build
 ```
 
-Then open **http://auth.localhost** and sign up on your own node.
+The node is the whole platform — database, API, Authenticator, media
+storage — in one Compose stack. Open **http://auth.localhost**: the first
+visit is the **setup wizard** (node identity → admin account → the signup
+gates, beta code / phone / subscription — all off is an open node → the
+storage wiring). Complete it and you're logged in as the node's admin;
+from there, users sign up.
 
 No config archaeology — settings are environment variables, with working
-defaults (see `api/app/settings.py` for the full list). The compose stack
-includes:
+defaults (the full list is `api/app/settings.py`). The stack includes:
 
-- **api** — the node itself: data, auth, billing, media (`api.localhost`)
-- **ui** — signup/login, consent, contracts, admin (`auth.localhost`)
-- **ferretdb + postgres** — the default open database backend
-  (FerretDB speaks the MongoDB wire protocol on top of DocumentDB/postgres)
+- **proxy** — routes the `*.localhost` vhosts so the browser experience just works
+- **api** — the node itself: data, auth, billing, media, and the query engine (`api.localhost`)
+- **ui** — the Authenticator: setup wizard, signup/login, consent, contracts, node admin (`auth.localhost`)
+- **clickhouse** — the v3 database (schema init from `clickhouse-init/`)
 - **minio** — S3-compatible blob storage for media
 - **rtc** — WebRTC signaling (`rtc.localhost`)
-- **sdk** — serves `wapi.js` and demos (`sdk.localhost`)
+- **sdk** — serves `wapi.js` and the SDK demos (`sdk.localhost`)
 
-Prefer real MongoDB? It's a supported backend:
-
-```bash
-DB_URL=mongodb://mongo:27017 docker compose --profile mongo up
-```
-
-Atlas or any external Mongo works the same way — just set `DB_URL`. If
-something else owns port 80 on your machine, set `WEB10_HTTP_PORT`.
+Bring your own ClickHouse? Set `CLICKHOUSE_HOST` / `CLICKHOUSE_PORT` /
+`CLICKHOUSE_DATABASE` / `CLICKHOUSE_USER` / `CLICKHOUSE_PASSWORD`
+(`CLICKHOUSE_SECURE` when it's over TLS). If something else owns port 80
+on your machine, `WEB10_HTTP_PORT` moves the local proxy.
 
 ## Deploy to a server
 
-`ubuntu-deployment/` has a one-shot deploy script for a fresh Ubuntu VM:
-Docker, Caddy with automatic TLS, and the full node stack. Point your DNS
-at the box and the certificates provision themselves. See
-[`ubuntu-deployment/README.md`](ubuntu-deployment/README.md).
+`ubuntu-deployment/` runs a whole node on one Linux box: one
+parameterized compose file (`docker-compose.ecosystem.yml`) deployed as
+two Portainer stacks — **dev** (LAN/VPN-only; merged work soaks here
+under real DNS names) and **prod** (the public node) — with Nginx Proxy
+Manager terminating TLS and Cloudflare doing the DNS. The deployment is
+idempotent code in `ubuntu-deployment/scripts/`, driven by GitHub
+Actions. See [`ubuntu-deployment/README.md`](ubuntu-deployment/README.md).
 
 ## What's in this repo
 
 | directory | what it is |
 | --- | --- |
-| `api/` | FastAPI — the node. All data + auth + billing + media. |
-| `api/rtc/` | WebRTC signaling server. |
-| `ui/` | React admin/consent UI (signup, login, contracts, settings). |
-| `sdk/` | `wapi.js`, the frontend library web10 apps are built with. |
-| `marketing/web10-social/` | The killer app: all-in-one social app (feed, profiles, DMs, media). CRM and Mail live here as sub-apps. |
-| `marketing/marketing-ui/` | web10 Inc.'s site: landing page, docs, App Store, Exporter UI. |
+| `api/` | FastAPI — the node. All data + auth + billing + media, and the query engine. |
+| `api/rtc/` | WebRTC signaling server (P2P data channels — messages run on it). |
+| `ui/` | The Authenticator — React: setup wizard, signup/login, consent, contracts, node admin. |
+| `sdk/` | `wapi.js` (`web10-npm`), the frontend library web10 apps are built with. |
+| `marketing/web10-social/` | The killer app: all-in-one social lens — feed, profiles, DMs, media, video + streaming. |
+| `marketing/marketing-ui/` | web10 Inc.'s site: landing, docs, App Store, creator discovery. |
 | `marketing/web10-cli/` | CLI tool for web10. |
-| `ubuntu-deployment/` | One-shot server deploy (Docker + Caddy + TLS). |
+| `marketing/shared/` | Shared modules (telemetry, discover, appearance) used across the marketing surfaces and web10-social. |
+| `marketing-importing/` | OPS: the headless creator-import pipeline (Instagram → web10) — `web10identify` / `web10import` / `web10accountsync`. |
+| `clickhouse-init/` | v3 schema initialization for the node's ClickHouse. |
+| `media-delivery/` | Protected CDN media delivery — edge-verified capabilities, off by default. |
+| `ubuntu-deployment/` | Server deploy: one box, Portainer + Nginx Proxy Manager + Cloudflare. |
+| `e2e/` + `scripts/` | End-to-end test stack and helpers. |
+| `knowledge-base/` | The project's brain — the v3 contracts, the strategy (plan, decisions, design standard, manifest), the changelogs, and written security. |
+| `ai-pack/` | The portable AI method — how agents (and people) work with this codebase. |
+| `research/` | The paper — "Your Data, Your Rules: Extending the Decentralized Web." (SIGMOD 2027 industry track) — plus the experiment harness. |
 
-The marketing site and social app call the node API directly for imports,
-reporting and analytics. There is no separate marketing API service (D91).
+The marketing site and social app call the node API directly for reporting
+and analytics. There is no separate marketing API service (D91).
+
+## Contributing
+
+Docs first, then code: [`knowledge-base/`](knowledge-base/README.md) is the
+root of trust — the contracts, the plan, and the decisions are what the
+implementation follows — and [`AGENTS.md`](AGENTS.md) is the operating
+manual for working in this repo (yes, the AI agents read it too; this codebase
+is built with them).
+
+- PRs target **`dev`**; merge small, merge often. `main` only by deliberate promotion.
+- Branch naming: `feature/`, `fix/`, `refactor/`, `docs/`, `chore/`, `test/`.
+- The permission-matrix test suite is the seatbelt — nothing merges red.
+- UI work follows [`strategy/design.md`](knowledge-base/strategy/design.md); every change ships with a line in [`knowledge-base/changelogs/CHANGELOG.md`](knowledge-base/changelogs/CHANGELOG.md).
+- By submitting work you agree to the [Contributor Agreement](<web10 Contributor Agreement.pdf>).
 
 ## Learn more
 
-- **[`plan.txt`](plan.txt)** — the roadmap and the why.
-- **[`decisions.md`](decisions.md)** — why the big calls were made.
-- **[`manifesto.md`](manifesto.md)** — the fan-facing pitch that ships on every node.
-- **Developer docs** — protocol spec, conventions, schemas: `marketing/marketing-ui/public/docs/`.
+- **[`knowledge-base/`](knowledge-base/README.md)** — where to start
+  understanding web10: the v3 contracts, the strategy docs, the changelogs,
+  and written security, with a suggested reading order.
+- **[`strategy/plan.md`](knowledge-base/strategy/plan.md)** — the roadmap
+  and the why.
+- **[`strategy/decisions.md`](knowledge-base/strategy/decisions.md)** — why
+  the big calls were made.
+- **[`strategy/manifesto.md`](knowledge-base/strategy/manifesto.md)** — the
+  fan-facing pitch that ships on every node.
+- **[`changelogs/CHANGELOG.md`](knowledge-base/changelogs/CHANGELOG.md)** —
+  what shipped and why, newest first.
+- **The paper** — [research strategy and maps](research/README.md) · the
+  [working manuscript](research/sixth-draft/main.pdf) · the
+  [decentralized-IAM thesis](research/decentralized-iam-thesis.md) that is
+  the paper's spine.
+- **[`strategy/SECURITY.md`](knowledge-base/strategy/SECURITY.md)** — how to
+  report vulnerabilities, and the security invariants (I1–I6) that define
+  what a break means.
+- **Developer docs** — protocol spec, conventions, schemas:
+  `marketing/marketing-ui/public/docs/` (live at [web10.app/docs](https://www.web10.app/docs)).
 - **SDK** — `npm install web10-npm` · [npm](https://www.npmjs.com/package/web10-npm) · [docs](https://www.web10.app/docs/sdk)
-- **[`SECURITY.md`](SECURITY.md)** — how to report vulnerabilities, and the security invariants (I1–I5) that define what a break means.
 
 ## Community
 
+- Live node: https://web10.app · social app: https://social.web10.app
 - Discord: https://discord.gg/Dbd4VEDznU
-- Live node: https://web10.app
 
 ## License
 

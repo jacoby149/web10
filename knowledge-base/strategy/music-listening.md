@@ -91,7 +91,14 @@ deferred; saving a playlist keeps its live original, not copied tracks.
    The sheet repeats the selected title/artist so its target stays unambiguous;
    Escape/outside/Close dismiss and keyboard focus returns to the trigger.
    Never squeeze the song metadata to make room for secondary actions.
-2. One app-level audio player that survives route navigation. Include seek,
+2. One app-level player that survives route navigation — a dual transport
+    (an `Audio` element + a `Video` element, one voice: the active element is
+    the current track's kind; a music VIDEO is a track, the operator's
+    10.11.2026 "can videos be made to be treated like music"). The video
+    element is detached by default; the expanded panel borrows it into its
+    visible stage (position + hls state survive the move; transcoded tracks
+    ride hls.js through the shared source seam + `resolveManifestHref`).
+    Include seek,
    elapsed/total time, volume, previous/next, shuffle, repeat off/all/one,
    automatic next-track playback, and an editable session queue (play next,
    append, remove). Failed playback has a visible retryable state.

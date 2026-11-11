@@ -27,6 +27,22 @@ then proceed!” after the song-reaction/public-playlist/live-bookmark proposal.
   mixed collections say “saved items,” not song counts. Opening a collection
   hydrates eligible music in existing order, explains unavailable/nonmusic items
   and allows play-all without rewriting the source.
+- The shared playlist link is the Music view’s LISTENING permalink
+  (`/music?view=playlists&collection=<group_id>`), not the D88 collection
+  screen (`/u/:username/saved/:collectionId` stays the MANAGE shape —
+  visibility / reorder / cover controls; the owner’s “Manage collection &
+  order” link keeps it). A URL-opened collection loads for ANYONE: public ones
+  read through the collection’s `anyone` grant, so a signed-out recipient sees
+  the playlist, not a sign-in wall — the wall is reserved for the anonymous
+  playlists-GRID and Saved Music views (no collection in the URL). I3 is the
+  access control, not the session: a private collection 403s into “This
+  playlist is private or no longer available.” No new read authority, no node
+  surface.
+- A saved collection whose live items are ALL music tracks (the shared
+  `musicTrackFromPost` gate; dead items excluded, no-live-items is not music)
+  is detected on the D88 screen: a “Listen in Music” handoff to the listening
+  permalink (owner/visitor/anon), and its share link is the listening
+  permalink; a mixed collection keeps the D88 permalink + no handoff.
 - “Save playlist” bookmarks the live original, not a copy. Persist one document
   per target in `web10-social-playlist-bookmarks`, attached only to the human's
   own followers group (owner wildcard; followers/public roles cannot read this
@@ -103,3 +119,45 @@ tests pin the shared declarations. No extra approval click, bypass, relaxed
 assertion or timeout increase.
 Full connected bookmark acceptance above remains separate from this existing
 already-granted re-login journey.
+
+## Operator report follow-up (10.11.2026) — share links, anon access, the music surface
+
+Operator: shared playlists must open for logged-out recipients (public ones),
+must land on the LISTENING surface (not the D88 collection wall), profile mp3
+posts must play (the collection "botch" is the same root), and a deleted post
+must not keep its picture on the collection card.
+
+- **Anon deep-link access (`MusicScreen`)** — the playlists-view gates
+  (`view=playlists&collection=…`) now hold the collection state the URL says
+  holds: a signed-out visitor loads the URL-opened collection (public → the
+  playlist + play-all; private → the I3 403 error state). The sign-in wall is
+  kept for the anonymous playlists grid (no collection in the URL) and the
+  Saved Music view (the reader's own library). No new read authority — the
+  `anyone` grant on the collection group is the access control.
+- **The share shape** — the Music app's "Share playlist" (and the D88 screen's
+  share for an ALL-MUSIC collection) hands out the listening permalink
+  `/music?view=playlists&collection=<group_id>`; the preview edge answers that
+  shape with the same saved-collection card (name + cover + count, the I3
+  floor). The D88 screen gains the "Listen in Music" handoff for all-music
+  collections (the `musicTrackFromPost` gate over the live items).
+- **Audio in the post lightbox** — `PostLightbox`'s media strip renders a
+  music-track post as ONE slide: the shared `AudioPlayer` (the Posts feed's
+  own control) with the album-art precedence; a non-music audio item (a voice
+  note) gets the same slide per frame; music-video posts keep the video
+  player. This is the single root cause behind "profile mp3 posts don't play"
+  AND "music collections on the profile are botched" (the D88 wall opens
+  posts through the same lightbox).
+- **Stale-cover self-heal (`readCollection`)** — a post delete tombstones the
+  `posts` doc but its media docs outlive it, so a cover pointing at a dead
+  post's media would linger on every card. The cover is valid only through a
+  live item: `readCollection` reselects it from the first live item with media
+  (or clears it) and persists best-effort (the owner's write; a visitor's 403
+  is ignored, the in-session face is healed either way). Contract:
+  `web10-v3/social/saved-collections.md` ("A stale cover self-heals on read").
+
+Local gates: the focused controls above (musicScreen anon suite, saved.test
+cover-heal, postLightboxAudio, savedCollection music-compat, previewCard +
+previewServer playlist shape) + the full social suite + typecheck/build +
+desktop/375px captures remain this branch's receipt. Connected acceptance
+(actual node, actual accounts, the real share round-trip into a receiving
+app) stays with the existing Music connected-acceptance lanes.

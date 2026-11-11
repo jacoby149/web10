@@ -118,7 +118,7 @@ describe('MusicScreen', () => {
     vi.mocked(data.getMyCollections).mockResolvedValue([{ ...collection('replay-list', 'Replay playlist'), visibility }]);
     const song = track({ id: 'public-song', author: 'artist', title: 'Public song in a collection' });
     song.post.visibility = 'public';
-    vi.mocked(data.readMusicCollection).mockResolvedValue({ tracks: [song], name: 'Replay playlist', skipped: 0 });
+    vi.mocked(data.readMusicCollection).mockResolvedValue({ tracks: [song], name: 'Replay playlist', skipped: 0, visibility });
     renderScreen([], '/music?view=playlists');
     const name = await screen.findByRole('heading', { name: 'Replay playlist' });
     expect(!!name.closest('[data-replay-private]')).toBe(visibility !== 'public');
@@ -169,7 +169,7 @@ describe('MusicScreen', () => {
     vi.mocked(data.getWapi).mockImplementation(() => ({ readToken: () => ({ provider: 'node.test', username: mocks.username }), isSignedIn: () => true }) as ReturnType<typeof data.getWapi>);
     vi.mocked(data.getMyCollections).mockResolvedValue([]);
     vi.mocked(data.readSavedPostIds).mockResolvedValue(new Set());
-    vi.mocked(data.readMusicCollection).mockResolvedValue({ tracks: [], name: '', skipped: 0 });
+    vi.mocked(data.readMusicCollection).mockResolvedValue({ tracks: [], name: '', skipped: 0, visibility: 'private' });
     vi.mocked(data.readMusicTrack).mockResolvedValue(null);
     vi.mocked(data.toggleSavedMusic).mockResolvedValue({ groupId: 'favorites' });
     vi.mocked(data.createCollection).mockResolvedValue('new-playlist');
@@ -265,7 +265,7 @@ describe('MusicScreen', () => {
 
   it('round-trips saved and playlist views and edited search through the URL', async () => {
     vi.mocked(data.getMyCollections).mockResolvedValue([collection('favorites', 'Saved Music', 'saved-music'), collection('night', 'Night drives')]);
-    vi.mocked(data.readMusicCollection).mockResolvedValue({ tracks: [track({ id: 'saved', author: 'alice', title: 'Private favorite' })], name: 'Saved Music', skipped: 0 });
+    vi.mocked(data.readMusicCollection).mockResolvedValue({ tracks: [track({ id: 'saved', author: 'alice', title: 'Private favorite' })], name: 'Saved Music', skipped: 0, visibility: 'private' });
     renderScreen([], '/music?view=saved');
     expect(await screen.findByRole('button', { name: 'Play Private favorite' })).toBeInTheDocument();
     expect(data.readMusicCollection).toHaveBeenCalledWith('favorites');
@@ -292,11 +292,15 @@ describe('MusicScreen', () => {
     renderScreen([], '/music?view=playlists');
     fireEvent.change(screen.getByLabelText('New private playlist'), { target: { value: '  Night drives  ' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create' }));
+    // The creation lands in the library (the re-read after the version bump
+    // picks it up) — the manage link requires the collection in the reader's
+    // own library (it targets /u/<reader>/saved/…).
+    vi.mocked(data.getMyCollections).mockResolvedValue([collection('new-playlist', 'Night drives')]);
     await waitFor(() => expect(data.createCollection).toHaveBeenCalledExactlyOnceWith('Night drives', { assertCurrent: expect.any(Function) }));
     expect(vi.mocked(data.createCollection).mock.calls[0][1]).not.toHaveProperty('visibility');
     await waitFor(() => expect(data.readMusicCollection).toHaveBeenCalledWith('new-playlist'));
     expect(screen.getByTestId('location')).toHaveTextContent('view=playlists&collection=new-playlist');
-    expect(screen.getByRole('link', { name: 'Manage collection & order' })).toHaveAttribute('href', '/u/listener/saved/new-playlist');
+    expect(await screen.findByRole('link', { name: 'Manage collection & order' })).toHaveAttribute('href', '/u/listener/saved/new-playlist');
   });
 
   it('replaces failed playlist art with the music fallback and retries a changed cover URL', async () => {
@@ -379,7 +383,7 @@ describe('MusicScreen', () => {
 
   it('hydrates a playlist in collection order and explains skipped targets without rewriting it', async () => {
     const songs = [track({ id: 'second', author: 'bob', title: 'Second' }), track({ id: 'first', author: 'alice', title: 'First' })];
-    vi.mocked(data.readMusicCollection).mockResolvedValue({ tracks: songs, name: 'My order', skipped: 2 });
+    vi.mocked(data.readMusicCollection).mockResolvedValue({ tracks: songs, name: 'My order', skipped: 2, visibility: 'public' });
     renderScreen([], '/music?view=playlists&collection=ordered');
     await waitFor(() => expect(screen.getAllByTestId('music-track-card')).toHaveLength(2));
     expect(screen.getAllByTestId('music-track-card').map(row => row.getAttribute('aria-label'))).toEqual(['Play Second', 'Play First']);
@@ -394,7 +398,7 @@ describe('MusicScreen', () => {
   it('opens an anonymous public playlist in Music without autoplay, management or library writes', async () => {
     vi.mocked(data.getWapi).mockReturnValue({ readToken: () => null, isSignedIn: () => false } as never);
     const songs = [track({ id: 'last', author: 'alice', title: 'Curator first' }), track({ id: 'first', author: 'bob', title: 'Curator second' })];
-    vi.mocked(data.readMusicCollection).mockResolvedValue({ tracks: songs, name: 'A public mix', skipped: 1 });
+    vi.mocked(data.readMusicCollection).mockResolvedValue({ tracks: songs, name: 'A public mix', skipped: 1, visibility: 'public' });
     renderScreen([], '/music?view=playlists&scope=browse&collection=public');
     expect(await screen.findByRole('button', { name: 'Play Curator first' })).toBeVisible();
     expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
@@ -421,6 +425,27 @@ describe('MusicScreen', () => {
     expect(screen.getByRole('button', { name: 'Play track' })).toBeInTheDocument();
     expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
     expect(screen.getByRole('link', { name: 'Open original post' })).toHaveAttribute('href', '/u/alice/p/linked');
+  });
+
+  it('opens a VIDEO track on the panel\'s video stage (the session element is borrowed — one transport, never a second)', async () => {
+    const vid = track({ id: 'vid', author: 'nova', title: 'Live set' });
+    vid.post.tags = ['music'];
+    vid.media = { _id: 'm-vid', url: 'https://cdn/v.mp4', mime_type: 'video/mp4', duration_seconds: 60, thumbnail_url: 'https://cdn/poster.webp' } as never;
+    vi.mocked(data.readMusicTrack).mockResolvedValue(vid);
+    renderScreen([], '/music?track=vid&panel=player');
+    const stage = await screen.findByTestId('music-video-stage');
+    // The provider's video element is borrowed into the stage (a direct DOM
+    // move — wait for the provider's mount effect to create it).
+    await waitFor(() => expect(stage.querySelector('video')).not.toBeNull());
+    expect(document.querySelectorAll('video').length).toBe(1);
+  });
+
+  it('keeps the artwork stage for an audio track in the panel (no video stage)', async () => {
+    vi.mocked(data.readMusicTrack).mockResolvedValue(track({ id: 'aud', author: 'alice', title: 'Audio only' }));
+    renderScreen([], '/music?track=aud&panel=player');
+    expect(await screen.findByRole('heading', { name: 'Audio only' })).toBeInTheDocument();
+    expect(screen.queryByTestId('music-video-stage')).not.toBeInTheDocument();
+    expect(document.querySelectorAll('video').length).toBe(0);
   });
 
   it('loads more using nextOffset and appends tracks without duplicate rows', async () => {
@@ -475,9 +500,9 @@ describe('MusicScreen', () => {
   });
 
   it('retries a failed playlist read without losing its deep link', async () => {
-    vi.mocked(data.readMusicCollection).mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce({ tracks: [track({ id: 'retry', author: 'alice', title: 'Recovered playlist song' })], name: 'Recovered playlist', skipped: 0 });
+    vi.mocked(data.readMusicCollection).mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce({ tracks: [track({ id: 'retry', author: 'alice', title: 'Recovered playlist song' })], name: 'Recovered playlist', skipped: 0, visibility: 'public' });
     renderScreen([], '/music?view=playlists&collection=retry-list');
-    expect(await screen.findByRole('alert')).toHaveTextContent('This playlist could not be opened. It may be unavailable.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('This playlist is private or no longer available.');
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(await screen.findByRole('button', { name: 'Play Recovered playlist song' })).toBeInTheDocument();
     expect(screen.getByTestId('location')).toHaveTextContent('collection=retry-list');
@@ -711,26 +736,29 @@ describe('MusicScreen', () => {
     expect(screen.queryByTestId('music-share-playlist')).not.toBeInTheDocument();
   });
 
-  it('an open playlist offers Share with its canonical /u/…/saved/… link', async () => {
+  it('an open playlist offers Share with the Music-view listening permalink', async () => {
     vi.mocked(data.getMyCollections).mockResolvedValue([collection('night', 'Night drives')]);
-    vi.mocked(data.readMusicCollection).mockResolvedValue({ tracks: [track({ id: 'n1', author: 'alice', title: 'Night one' })], name: 'Night drives', skipped: 0 });
+    vi.mocked(data.readMusicCollection).mockResolvedValue({ tracks: [track({ id: 'n1', author: 'alice', title: 'Night one' })], name: 'Night drives', skipped: 0, visibility: 'public' });
     renderScreen([], '/music?view=playlists&collection=night');
     await screen.findByRole('button', { name: 'Share playlist' });
     expect(screen.getByRole('button', { name: 'Share playlist' })).toBeVisible();
+    // The D88 manage link is the owner's, and still points at the collection
+    // screen (visibility + reorder live there) — the share shape is separate.
+    expect(screen.getByRole('link', { name: 'Manage collection & order' })).toHaveAttribute('href', '/u/listener/saved/night');
   });
 
   it('the playlist share sheet copies the link (public collections share straight away)', async () => {
     const writeText = stubClipboard();
     vi.mocked(data.getMyCollections).mockResolvedValue([{ ...collection('night', 'Night drives'), visibility: 'public' }]);
-    vi.mocked(data.readMusicCollection).mockResolvedValue({ tracks: [], name: 'Night drives', skipped: 0 });
+    vi.mocked(data.readMusicCollection).mockResolvedValue({ tracks: [], name: 'Night drives', skipped: 0, visibility: 'public' });
     renderScreen([], '/music?view=playlists&collection=night');
     fireEvent.click(await screen.findByRole('button', { name: 'Share playlist' }));
     const sheet = await screen.findByTestId('music-share-playlist-sheet');
     expect(sheet).toHaveAccessibleName('Share “Night drives”');
-    expect(screen.getByTestId('music-share-playlist-url')).toHaveTextContent(`/u/listener/saved/night`);
+    expect(screen.getByTestId('music-share-playlist-url')).toHaveTextContent(`/music?view=playlists&collection=night`);
     fireEvent.click(screen.getByTestId('music-share-playlist-share'));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(
-      new URL('/u/listener/saved/night', window.location.origin).href,
+      new URL('/music?view=playlists&collection=night', window.location.origin).href,
     ));
     expect(screen.getByTestId('music-share-playlist-status')).toHaveTextContent('Link copied.');
     expect(screen.getByText('Playlist link copied.')).toBeInTheDocument();
@@ -739,7 +767,7 @@ describe('MusicScreen', () => {
   it('the playlist share sheet makes a private playlist public before the link goes out', async () => {
     const writeText = stubClipboard();
     vi.mocked(data.getMyCollections).mockResolvedValue([collection('night', 'Night drives')]); // private by default
-    vi.mocked(data.readMusicCollection).mockResolvedValue({ tracks: [], name: 'Night drives', skipped: 0 });
+    vi.mocked(data.readMusicCollection).mockResolvedValue({ tracks: [], name: 'Night drives', skipped: 0, visibility: 'private' });
     renderScreen([], '/music?view=playlists&collection=night');
     fireEvent.click(await screen.findByRole('button', { name: 'Share playlist' }));
     await screen.findByTestId('music-share-playlist-sheet');
@@ -747,25 +775,134 @@ describe('MusicScreen', () => {
     fireEvent.click(screen.getByTestId('music-share-playlist-make-public-share'));
     await waitFor(() => expect(data.setCollectionVisibility).toHaveBeenCalledWith('night', 'public'));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(
-      new URL('/u/listener/saved/night', window.location.origin).href,
+      new URL('/music?view=playlists&collection=night', window.location.origin).href,
     ));
     expect(screen.getByTestId('music-share-playlist-status')).toHaveTextContent('Playlist is public');
   });
 
   it('the Saved Music view shares its reserved collection too', async () => {
     vi.mocked(data.getMyCollections).mockResolvedValue([collection('favorites', 'Saved Music', 'saved-music')]);
-    vi.mocked(data.readMusicCollection).mockResolvedValue({ tracks: [track({ id: 'f1', author: 'alice', title: 'Favorite' })], name: 'Saved Music', skipped: 0 });
+    vi.mocked(data.readMusicCollection).mockResolvedValue({ tracks: [track({ id: 'f1', author: 'alice', title: 'Favorite' })], name: 'Saved Music', skipped: 0, visibility: 'public' });
     renderScreen([], '/music?view=saved');
     fireEvent.click(await screen.findByRole('button', { name: 'Share playlist' }));
     await screen.findByTestId('music-share-playlist-sheet');
-    expect(screen.getByTestId('music-share-playlist-url')).toHaveTextContent(`/u/listener/saved/favorites`);
+    expect(screen.getByTestId('music-share-playlist-url')).toHaveTextContent(`/music?view=playlists&collection=favorites`);
   });
 
   it('an open collection that is not in the library offers no share (stale url)', async () => {
     vi.mocked(data.getMyCollections).mockResolvedValue([]);
-    vi.mocked(data.readMusicCollection).mockResolvedValue({ tracks: [], name: 'Ghost', skipped: 0 });
+    vi.mocked(data.readMusicCollection).mockResolvedValue({ tracks: [], name: 'Ghost', skipped: 0, visibility: 'private' });
     renderScreen([], '/music?view=playlists&collection=ghost');
     await screen.findByRole('heading', { name: 'Ghost' });
     expect(screen.queryByTestId('music-share-playlist')).not.toBeInTheDocument();
+    // A signed-in reader opening someone else's collection (the shared-link
+    // case): the manage link targets the READER's own /u/…/saved/… — it only
+    // exists for a collection in the reader's own library.
+    expect(screen.queryByRole('link', { name: 'Manage collection & order' })).not.toBeInTheDocument();
+  });
+
+  it('hides the manage link on a foreign collection a signed-in visitor opens by URL', async () => {
+    vi.mocked(data.getMyCollections).mockResolvedValue([]); // the visitor's own (empty) library
+    vi.mocked(data.readMusicCollection).mockResolvedValue({ tracks: [track({ id: 'curated', author: 'nova', title: 'Curated tune' })], name: 'Nova mix', skipped: 0, visibility: 'public' });
+    renderScreen([], '/music?view=playlists&collection=nova-mix');
+    expect(await screen.findByRole('button', { name: 'Play Curated tune' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Manage collection & order' })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('music-share-playlist')).not.toBeInTheDocument();
+  });
+});
+
+describe('MusicScreen — the shared playlist deep link (anon access)', () => {
+  // The operator's report: a shared playlist link (`/music?view=playlists&
+  // collection=…`) opened by a logged-out visitor showed the "sign in" wall
+  // instead of the playlist. Publicness is the collection's `anyone` grant
+  // (I3 is the access control), so a URL-opened collection must load for
+  // anyone — and only the playlists view (Saved Music is the reader's own
+  // library and has no anon read).
+  beforeEach(() => {
+    // This describe is a sibling of the signed-in suite: reset the call
+    // history AND re-establish the anon session (a leaked signed-in mock or
+    // stale call log makes "no library read" assertions meaningless).
+    vi.resetAllMocks();
+    vi.mocked(data.getWapi).mockReturnValue({ readToken: () => null, isSignedIn: () => false } as never);
+    vi.mocked(data.readMusicPage).mockResolvedValue({ tracks: [], hasMore: false });
+    vi.mocked(data.getMyCollections).mockResolvedValue([]);
+    vi.mocked(data.readSavedPostIds).mockResolvedValue(new Set());
+    vi.mocked(data.readMusicCollection).mockResolvedValue({ tracks: [], name: '', skipped: 0, visibility: 'private' });
+    vi.mocked(data.readMusicTrack).mockResolvedValue(null);
+    vi.mocked(data.toggleSavedMusic).mockResolvedValue({ groupId: 'favorites' });
+    vi.mocked(data.createCollection).mockResolvedValue('new-playlist');
+    vi.mocked(data.setCollectionVisibility).mockResolvedValue(undefined);
+    vi.mocked(data.readReactions).mockResolvedValue([]);
+    vi.mocked(data.toggleReactionKind).mockResolvedValue('like');
+    vi.mocked(data.readPlaylistBookmarks).mockResolvedValue([]);
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();
+    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
+    vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => {});
+  });
+
+  it('opens a public shared playlist for an anonymous visitor (no wall, no library read)', async () => {
+    const songs = [track({ id: 's1', author: 'alice', title: 'Shared one' }), track({ id: 's2', author: 'bob', title: 'Shared two' })];
+    vi.mocked(data.readMusicCollection).mockResolvedValue({ tracks: songs, name: 'Shared mix', skipped: 0, visibility: 'public' });
+    renderScreen([], '/music?view=playlists&collection=api.web10.app%2Fgroups%2Fusers%2Fcurator%2Fshared-mix');
+    expect(await screen.findByRole('button', { name: 'Play Shared one' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Shared mix' })).toBeInTheDocument();
+    expect(data.getMyCollections).not.toHaveBeenCalled();
+    expect(data.readMusicCollection).toHaveBeenCalledWith('api.web10.app/groups/users/curator/shared-mix');
+    // No owner affordances for the visitor.
+    expect(screen.queryByRole('link', { name: 'Manage collection & order' })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('music-share-playlist')).not.toBeInTheDocument();
+    // No sign-in wall (the pre-fix behavior).
+    expect(screen.queryByText('A library of your own')).not.toBeInTheDocument();
+    // Play-all works anonymously (ordered playback — MS2).
+    fireEvent.click(screen.getByRole('button', { name: 'Play all' }));
+    expect(within(screen.getByRole('list')).getAllByRole('listitem').map(row => row.textContent)).toEqual([expect.stringContaining('Shared one'), expect.stringContaining('Shared two')]);
+  });
+
+  it('keeps a logged-out visitor out of a PRIVATE shared playlist (I3 read fails → the unavailable state)', async () => {
+    vi.mocked(data.readMusicCollection).mockRejectedValue(new Error('forbidden'));
+    renderScreen([], '/music?view=playlists&collection=private-mix');
+    expect(await screen.findByRole('alert')).toHaveTextContent('This playlist is private or no longer available.');
+    expect(screen.queryByRole('button', { name: 'Play all' })).not.toBeInTheDocument();
+    expect(screen.queryByText('A library of your own')).not.toBeInTheDocument();
+  });
+
+  it('keeps the sign-in wall for the anonymous PLAYLISTS GRID (no collection in the url)', async () => {
+    renderScreen([], '/music?view=playlists');
+    expect(await screen.findByText('A library of your own')).toBeInTheDocument();
+    expect(data.readMusicCollection).not.toHaveBeenCalled();
+  });
+
+  it('keeps the sign-in wall for the anonymous Saved Music view', async () => {
+    renderScreen([], '/music?view=saved');
+    expect(await screen.findByText('A library of your own')).toBeInTheDocument();
+    expect(data.readMusicCollection).not.toHaveBeenCalled();
+  });
+
+  it('marks the anonymous open collection by the FACE visibility (D107: public unmasked, private masked)', async () => {
+    const renderAndRead = async (visibility: 'public' | 'private') => {
+      vi.mocked(data.readMusicCollection).mockResolvedValue({ tracks: [track({ id: 'a1', author: 'alice', title: 'Vis' })], name: 'Vis', skipped: 0, visibility });
+      const view = renderScreen([], '/music?view=playlists&collection=vis');
+      const section = await screen.findByRole('heading', { name: 'Vis' });
+      const masked = !!section.closest('[data-replay-private]');
+      view.unmount();
+      return masked;
+    };
+    await expect(renderAndRead('public')).resolves.toBe(false);
+    await expect(renderAndRead('private')).resolves.toBe(true);
+  });
+
+  it('loads the deep-linked track of a shared playlist link for an anonymous visitor', async () => {
+    const song = track({ id: 'linked', author: 'alice', title: 'Deep track' });
+    vi.mocked(data.readMusicCollection).mockResolvedValue({ tracks: [song], name: 'Deep mix', skipped: 0, visibility: 'public' });
+    vi.mocked(data.readMusicTrack).mockResolvedValue(song);
+    renderScreen([], '/music?view=playlists&collection=deep-mix&track=linked');
+    expect(await screen.findByRole('button', { name: 'Play Deep track' })).toBeVisible();
+    // The URL's track= is resolved for the visitor (no login, no wall).
+    expect(data.readMusicTrack).toHaveBeenCalledWith('linked');
+    expect(screen.queryByRole('alert', { name: /This track is unavailable/ })).not.toBeInTheDocument();
+    // Play all opens the player panel on the resolved track.
+    fireEvent.click(screen.getByRole('button', { name: 'Play all' }));
+    expect(await screen.findByText('Now playing')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Deep track' })).toBeInTheDocument();
   });
 });

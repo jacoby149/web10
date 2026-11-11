@@ -193,8 +193,10 @@ Add `discover-inline-art=1` to include the synthetic cover; use
 Wait for `[data-testid="audio-artwork"] img.opacity-100` to capture loaded art.
 Without the art flag, the same post exercises the deliberate disc fallback.
 
-Music uses the real app-level `MusicProvider` and `MusicPlayer`, with six
-synthetic tracks, inline SVG artwork and a short silent WAV data URL. Restoring
+Music uses the real app-level `MusicProvider` and `MusicPlayer`, with seven
+synthetic tracks (six inline-SVG-artwork audio tracks on a short silent WAV
+data URL + one MUSIC VIDEO — a real one-second H.264 MP4 data URL, `music-7`),
+inline SVG artwork and a short silent WAV data URL. Restoring
 a track URL selects it without autoplay. Audio duration reflects the one-second
 fixture, not the synthetic catalog metadata; these are not playback evidence.
 Collection saves, removals and creation remain in memory until page reload.
@@ -216,11 +218,15 @@ node screenshots/capture.mjs --name music-playlists --route /music-playlists --r
 node screenshots/capture.mjs --name music-player --route /music-player --ready '[data-testid="music-player"]'
 node screenshots/capture.mjs --name music-queue --route /music-queue --ready '[data-testid="music-player"]'
 node screenshots/capture.mjs --name music-playlist --route /music-playlist --ready '[data-testid="music-track-card"]'
+# The music-video track (music.md: a video CAN be a track) on the panel's
+# video stage — the session's own <video> element, borrowed into the frame:
+node screenshots/capture.mjs --name music-video-player --route /music-video-player --ready '[data-testid="music-video-stage"]'
 ```
 
 `capture.mjs` turns `--route` into a harness screen key, not a literal app URL.
 The keys above map to `/music`, `?view=saved`, `?view=playlists`,
-`?track=music-1&panel=player`, `?track=music-1&panel=queue`, and the seeded
+`?track=music-1&panel=player`, `?track=music-1&panel=queue`,
+`?track=music-7&panel=player` (the music video), and the seeded
 Tour Sets collection respectively. Each command writes desktop and 375px PNGs.
 
 The bounded playback regression uses ffmpeg to generate an eight-second MP3,
@@ -268,6 +274,27 @@ rejects retained callbacks from old sessions/attempts; it is not an auth gate.
 Use `--extra 'signed-out=1'` to capture its signed-out screen.
 Preview publication never invents a post link. Production
 callers, upload transport, notification behavior and size cap are unchanged.
+
+## Composer paste-to-attach capture
+
+Paste-to-attach (5.15.0: Cmd/Ctrl+V with pixels on the clipboard attaches the
+image to the post composer's tray, the same seam as picker/drag-drop) is
+verified with real Chromium against the real `PostComposer`:
+
+```bash
+SCREENSHOT_PORT=4502 SCREENSHOT_OUTPUT_DIR="$PWD/../../.context/composer-paste" node screenshots/composer-paste.mjs
+```
+
+Per viewport it (A) writes a canvas-drawn PNG to the page's clipboard via
+`navigator.clipboard.write` and presses a real Meta/Ctrl+V — the operator's
+exact flow; (B) if the headless build refuses to deliver the keyboard paste,
+dispatches a real `ClipboardEvent('paste')` with a real `DataTransfer` + `File`
+on the composer root (stated in the receipt, never silent). It then requires
+the tray to settle (real in-browser downscale/encode), the preview image to be
+decoded, and the Post button enabled. Outputs:
+`composer-paste-{desktop,375}.png` + `composer-paste-receipt.json` (written even
+on failure). Isolated harness data; not node upload, deployment or
+physical-clipboard proof.
 
 ## Capture diagnostics
 
