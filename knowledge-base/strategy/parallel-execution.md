@@ -85,15 +85,13 @@ ConfigPage `isMock` branch). No auth-flow, data model or other-endpoint
 changes; the Node Config page itself stays owned by node-config-usability
 (PR 3 adds ONE card + the mock branch to it). Merge order: 1 → 2 → 3 (3
 degrades gracefully on an endpoint-less node).
-- [~ 5.16.0] **U1: the node learns its own version (baking)** — repo-root
+- [✓ 5.16.0 local] **U1: the node learns its own version (baking)** — repo-root
   `api/Dockerfile` bakes the changelog top line into `/web10/VERSION`
   (GitOps-poll self-sufficiency, the marketing-ui precedent); all seven api
   build sites move; `WEB10_VERSION` env override; dev/e2e shadow → `unknown`.
   Five foundation controls; built image verified live. Security-record row
-  (L1) updated. Gates: all PR checks green; connected proof is the bake in a
-  real stack build (the e2e/api images pick it up automatically — no
-  separate evidence owed). PR #1485.
-- [~ 5.17.0] **U2: the upstream check + `POST /admin/update_status`** — pinned TLS
+  (L1) updated. PR #1485.
+- [✓ 5.17.0 local] **U2: the upstream check + `POST /admin/update_status`** — pinned TLS
   read of the upstream changelog's top line on `UPSTREAM_REPO`/`UPSTREAM_REF`
   (default `jacoby149/web10`/`main`; GitHub *releases* are NOT the source —
   they stopped at v2.0.0 while the project is on 5.x, and GitOps tracks the
@@ -101,10 +99,9 @@ degrades gracefully on an endpoint-less node).
   (4 KiB cap), no credentials, 5 s bound, per-worker cache (1 h / 5 min),
   `?force=true`, admin-gated, GitHub outages → `unavailable` never 500.
   15 transport-boundary controls; live in-container read verified.
-  Security-record L2 row. Gates: all PR checks green; stacked on U1
-  (merge U1 first — the security gate diffs against origin/dev, so this PR's
-  500-line budget holds only once U1 lands).
-- [ ] **U3: the Node Config "Version & Updates" card** — the card leads
+  Security-record L2 row. PR #1487 (stacked on #1485; the gate's 500-line
+  budget holds once U1 lands — verified locally at 478).
+- [~ 5.18.0] **U3: the Node Config "Version & Updates" card** — the card leads
   Node Configuration: update-available / up-to-date / version-unknown /
   unavailable + force-bypassing "Check now" + the honest redeploy hint
   (detection, NOT auto-update — no docker socket by design); endpoint-less

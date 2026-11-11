@@ -15,6 +15,31 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Node Config update card (10.11.2026) — L1 file-scan, PASS (local)
+
+The admin UI surface for the update check (`ui/src/components/Config/
+UpdateStatus.tsx` + the ConfigPage card slot + the `isMock` preview
+branch). L1 scan of the touched surface: the card renders only the
+admin-gated endpoint's payload (`node_version`, `latest_version`,
+`upstream.{repo,ref,url}`, `status`, `reason` — no secrets, the version
+is public data); React escapes every payload field as text (no HTML
+injection from a poisoned upstream line — the API's parse gate
+`X.Y.Z-only` is the first layer, this the second); the two outbound links
+are constructed, never taken, from the payload — the changelog link is
+pinned to `github.com/{repo}/blob/{ref}/…` (repo/ref are
+settings-validated `owner/name`/ref strings, and `encodeURIComponent`
+fences the ref) and the repo link is `github.com/{repo}` only — no
+open-redirect vector through the card. The `I.isMock` branch renders a
+canned fixture (no network, labeled mock — the AnalyticsPage house
+pattern); an endpoint-less node (404 / non-object / missing `status`)
+degrades to a static error note instead of throwing (payload-shape
+guard). No new credentials, no new storage, no consent/contract change.
+Seven card-state controls pass (`configUpdateStatus.test.tsx`): all four
+states, the force query-param, the 404 degradation, and the no-network
+mock. Residual OPEN: connected acceptance on the deployed dev stack
+(with U1+U2 merged, a redeploy flips the card to up-to-date).
+Contract: `web10-v3/setup/update-check.md`.
+
 ## Update-check endpoint (10.11.2026) — L2 call-graph, PASS (local)
 
 `POST /admin/update_status` (admin-gated via `check_admin`) adds the node's
