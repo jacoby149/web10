@@ -1,5 +1,6 @@
 import { FileText, Inbox, Settings as SettingsIcon, SlidersHorizontal, Users, Activity } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import DockGlass from './DockGlass';
 
 interface MobileNavProps {
   I: Record<string, any>;
@@ -25,14 +26,17 @@ function MobileNav({ I }: MobileNavProps) {
 
   const items = ITEMS.filter((item) => !('adminOnly' in item && item.adminOnly) || I.isAdmin);
 
+  // The social shell's floating dock pill (design.md §10): the frosted
+  // chrome, the refraction rim (DockGlass's optical layers — Chromium-only,
+  // CSS-only frost elsewhere) and the selected-state pill. Content reserves
+  // the dock's bed through AppShell's chrome-content-clearance.
   return (
-    // chrome-glass (design.md §10): the mobile bottom bar wears the social
-    // shell's frosted navigation material — content scrolls behind it
-    // (main's pb-16), so the frost is real here.
     <nav
-      className="chrome-glass fixed inset-x-0 bottom-0 z-40 flex items-center border-t md:hidden"
+      aria-label="Primary mobile"
+      className="chrome-glass chrome-floating chrome-mobile-dock fixed inset-x-3 z-20 flex items-stretch gap-1 border p-1.5 md:hidden"
       data-testid="mobile-nav"
     >
+      <DockGlass />
       {items.map(({ mode, label, icon: ItemIcon }) => {
         const active = I.mode === mode;
         return (
@@ -42,7 +46,7 @@ function MobileNav({ I }: MobileNavProps) {
             onClick={() => I.setMode(mode)}
             aria-current={active ? 'page' : undefined}
             className={cn(
-              'flex min-h-[44px] flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              'chrome-nav-item relative min-w-0 flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[44px] py-2 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               active ? 'text-brand' : 'text-muted-foreground hover:text-foreground',
             )}
           >

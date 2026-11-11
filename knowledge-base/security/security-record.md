@@ -20,20 +20,27 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 `ui/src/` sits on the trust-boundary list, so the gate wants a record row even
 for visual work; the row is this: **there is no security change.** The
 authenticator console's navigation chrome (the AppShell TopBar header, the
-SideBar + its brand/settings/footer hairlines, the mobile bottom bar, the
-account menu — `ui/src/components/shared/{TopBar,SideBar,MobileNav}.tsx` plus
-the material block in `ui/src/index.css`) adopts the social shell's frosted
+SideBar + its brand/settings/footer hairlines, the mobile PILL DOCK, the
+account menu — `ui/src/components/shared/{TopBar,SideBar,MobileNav,DockGlass,glassLens}.tsx`
+plus the material block in `ui/src/index.css`) adopts the social shell's frosted
 `--chrome-*` material from the 5.17.0/5.17.1 trial: palette-derived CSS custom
-properties, class swaps on four surface elements, and the
+properties, the dock pill's optical layers (the `DockGlass`/`glassLens` ports —
+decorative spans + a generated lens-normal map that never reads page pixels;
+Chromium-only displacement, CSS-only frost elsewhere), the
 `@supports (backdrop-filter)` / `prefers-reduced-transparency` / `forced-colors`
-fallbacks. No auth/session/consent/token logic changed, no fetch surface
-changed, no DOM structure changed on the consent UI (behavior and every
-`data-testid` intact; only the surface classes were replaced). The material is
-opaque by default and degrades to opaque Canvas surfaces under reduced
-transparency / forced colors — readability is never the blur's dependency.
-Evidence: `ui/src/__tests__/navChrome.test.tsx` (8 controls: the four surfaces
-carry the material with the superseded utilities gone; the signed-out bars and
-the auth-only mobile bar are intact; the CSS fallbacks are pinned), all 306 UI
+fallbacks, and `chrome-content-clearance` reserving the dock's bed. No
+auth/session/consent/token logic changed, no fetch surface changed, no consent-
+UI behavior changed (the dock buttons are the same `<button>`s with the same
+`aria-current` state; only the surface classes were replaced, and the nav's
+`data-testid`/destination semantics are intact). The material is opaque by
+default and degrades to opaque Canvas surfaces under reduced transparency /
+forced colors — readability is never the blur's dependency. Evidence:
+`ui/src/__tests__/navChrome.test.tsx` (9 controls: the four surfaces carry the
+material with the superseded utilities gone; the dock's pill geometry, bed
+span, engine-gated rim and selected pills; the signed-out bars; the CSS
+fallbacks/ring-correction/clearance pinned) + `ui/src/components/shared/
+glassLens.test.ts` (12 — the social shell's lens pin: neutral center, opposite
+rim normals, corner symmetry, the Chromium-family engine gate), all 319 UI
 tests + `tsc --noEmit` + production build, real-Chromium mock-console captures
 at 1280/375px. No L-scan owed by this change; `ui/` remains open under
 L1-009 as before.

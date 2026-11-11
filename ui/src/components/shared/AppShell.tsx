@@ -27,7 +27,10 @@ function AppShell({ I, children, maxWidth = 'max-w-4xl', testid, padded = true }
       <SideBar I={I} />
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar I={I} />
-        <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
+        {/* chrome-content-clearance (design.md §10): reserves the floating
+            mobile dock's bed in the scrolling content — replaces the old
+            pb-16, which sized to the edge-to-edge bar. */}
+        <main className="flex-1 overflow-y-auto chrome-content-clearance md:pb-0">
           {padded ? (
             <div className={cn('mx-auto p-4 sm:p-6', maxWidth)} data-testid={testid}>
               {children}

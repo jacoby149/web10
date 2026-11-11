@@ -40,9 +40,23 @@ describe('console navigation chrome (the social navigation-glass material, desig
     glassy(screen.getByTestId('sidebar'))
   })
 
-  it('the mobile bottom bar wears the frosted material', () => {
+  it('the mobile dock is the floating frosted pill with the refraction layers', () => {
     render(<AppShell I={mockI}>{'content'}</AppShell>)
-    glassy(screen.getByTestId('mobile-nav'))
+    const dock = screen.getByTestId('mobile-nav')
+    glassy(dock)
+    // the pill geometry (floating, inset, rounded) + the refraction layers
+    expect(dock.classList.contains('chrome-floating')).toBe(true)
+    expect(dock.classList.contains('chrome-mobile-dock')).toBe(true)
+    expect(dock.classList.contains('inset-x-3')).toBe(true)
+    expect(dock.querySelector('.chrome-dock-bed')).not.toBeNull()
+    // the rim is engine-gated (Chromium-only, DockGlass's capability check):
+    // in jsdom (a non-Chromium UA) the decorative displacement layer is absent
+    // and the CSS-only frost remains
+    expect(dock.querySelector('[data-testid="dock-refraction"]')).toBeNull()
+    // the items are the selected-state pills, and the active one says so
+    const items = Array.from(dock.querySelectorAll('button'))
+    expect(items.every((b) => b.classList.contains('chrome-nav-item'))).toBe(true)
+    expect(items.filter((b) => b.getAttribute('aria-current') === 'page')).toHaveLength(1)
   })
 
   it('the account menu floats as frosted chrome', () => {
@@ -81,13 +95,36 @@ describe('chrome material fallbacks (index.css)', () => {
   })
 
   it('stays opaque under reduced transparency and forced colors', () => {
-    const reduced = css.match(/@media \(prefers-reduced-transparency: reduce\) \{[\s\S]*?\n\}/)
-    expect(reduced).not.toBeNull()
-    expect(reduced![0]).toContain('background: var(--color-surface);')
-    expect(reduced![0]).toContain('backdrop-filter: none;')
-    const forced = css.match(/@media \(forced-colors: active\) \{[\s\S]*?\n\}/)
-    expect(forced).not.toBeNull()
-    expect(forced![0]).toContain('background: Canvas;')
-    expect(forced![0]).toContain('border-color: CanvasText;')
+    const reduced = css.match(/@media \(prefers-reduced-transparency: reduce\) \{[\s\S]*?\n\}/g)
+    // the material block: the glass + the dock bed + the rim fallbacks
+    const reducedBlock = (reduced ?? []).join('')
+    expect(reducedBlock).toContain('background: var(--color-surface);')
+    expect(reducedBlock).toContain('backdrop-filter: none;')
+    expect(reducedBlock).toContain('.chrome-dock-rim { display: none; }')
+    expect(reducedBlock).toContain('clip-path: none;')
+    const forced = css.match(/@media \(forced-colors: active\) \{[\s\S]*?\n\}/g)
+    const forcedBlock = (forced ?? []).join('')
+    expect(forcedBlock).toContain('background: Canvas;')
+    expect(forcedBlock).toContain('border-color: CanvasText;')
+    expect(forcedBlock).toContain('.chrome-dock-rim { display: none; }')
+    expect(forcedBlock).toContain('.chrome-mobile-dock::after { display: none; }')
+  })
+
+  it('the dock paints its outline above the optical layers and reserves its bed', () => {
+    // the persistent-ring correction (5.17.1): ::after carries the border +
+    // shadow, never into the rim's backdrop input
+    expect(css).toContain('.chrome-mobile-dock::after {')
+    expect(css).toContain('border: 1px solid var(--chrome-edge);')
+    expect(css).toContain('box-shadow: inset 0 1px 0 var(--chrome-highlight), 0 8px 32px var(--chrome-shadow);')
+    // the rim samples the live page through a masked 8px ring; the bed clips
+    // to the inner capsule so no square frost corners show
+    expect(css).toContain('.chrome-dock-rim {')
+    expect(css).toContain('mask-composite: exclude;')
+    expect(css).toContain('clip-path: inset(8px round var(--radius-full));')
+    // scrolling content clears the floating dock's bed (+ safe area)
+    expect(css).toContain('--chrome-dock-clearance: calc(4.5rem + var(--chrome-dock-bottom));')
+    expect(css).toContain('.chrome-content-clearance { padding-bottom: calc(var(--chrome-dock-clearance) + 1rem); }')
+    // the selected pill state is aria-current, not a per-item class
+    expect(css).toContain('.chrome-nav-item[aria-current="page"], .chrome-nav-item[aria-expanded="true"]')
   })
 })
