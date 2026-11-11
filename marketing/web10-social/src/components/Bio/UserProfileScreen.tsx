@@ -24,12 +24,17 @@ import {
   getMyCollections,
   readUserPublicCollections,
   createPost,
+  readPinnedPosts,
+  savePinnedPostIds,
+  orderPinnedPosts,
+  togglePinnedPostIds,
+  MAX_PROFILE_PINS,
 } from '@/data';
 import { getWapi } from '@/data/wapi';
 import type { ProfileRecord, PostRecord, MediaRecord, FollowRecord } from '@/data/types';
 import type { CollectionRecord } from '@/data/saved';
 import { mediaRefId, fromResolvedMediaRef } from '@/data/types';
-import { MapPin, Globe, Link, Users, UserPlus, UserCheck, Loader2, ArrowLeft, MessageSquare, Play, Camera, Edit3, Check, X, ImagePlus, LayoutGrid, Clapperboard, Music, User, Bookmark, Store } from 'lucide-react';
+import { MapPin, Globe, Link, Users, UserPlus, UserCheck, Loader2, ArrowLeft, MessageSquare, Play, Camera, Edit3, Check, X, ImagePlus, LayoutGrid, Clapperboard, Music, User, Bookmark, Store, Pin } from 'lucide-react';
 import { PostLightbox } from './PostLightbox';
 import { ProfileFeed } from './ProfileFeed';
 import { PostBodyInline } from '@/components/Feed/PostBody';
@@ -126,6 +131,9 @@ interface WallTileProps {
   /** The post's doc_id — seeds the deterministic text-tile background color. */
   postId?: string;
   multiCount?: number;
+  /** Pinned to the top of the profile's Posts tab (profile-pins.md) — the
+   *  tile's pin badge (top-left, stacking above the multi-media count). */
+  pinned?: boolean;
   replayPrivate?: boolean;
   onClick: () => void;
 }
@@ -138,7 +146,7 @@ interface WallTileProps {
  * `<img>`. The grid is responsive — 4 across on desktop (the Instagram
  * shape), fewer as the width shrinks (explicit breakpoints).
  */
-export function WallTile({ media, testId, title, caption, postId, multiCount, replayPrivate = true, onClick }: WallTileProps) {
+export function WallTile({ media, testId, title, caption, postId, multiCount, pinned = false, replayPrivate = true, onClick }: WallTileProps) {
   const video = isVideo(media);
   const audio = !!media.mime_type?.startsWith('audio/');
   // The text-only tile's heading: the title (D82) when present, else the
@@ -237,10 +245,27 @@ export function WallTile({ media, testId, title, caption, postId, multiCount, re
           <Play className="w-3.5 h-3.5 text-white ml-px" fill="currentColor" strokeWidth={0} />
         </div>
       )}
-      {typeof multiCount === 'number' && multiCount > 1 && (
-        <div className="absolute top-2 left-2 flex items-center gap-1 bg-black/50 text-white text-xs px-1.5 py-0.5 rounded-md backdrop-blur-sm">
-          <ImagePlus className="w-3 h-3" />
-          {multiCount}
+      {/* The tile's top-left chips (stacked, 4px rhythm): the pin badge
+          (profile-pins.md — the post is held up at the top of the Posts tab)
+          over the multi-media count. Both absolute — nothing shifts. */}
+      {(pinned || (typeof multiCount === 'number' && multiCount > 1)) && (
+        <div className="absolute top-2 left-2 flex flex-col items-start gap-1">
+          {pinned && (
+            <div
+              className="flex items-center gap-1 bg-black/50 text-white text-xs px-1.5 py-0.5 rounded-md backdrop-blur-sm"
+              data-testid={`${testId}-pin`}
+              title="Pinned to profile"
+              aria-label="Pinned to profile"
+            >
+              <Pin className="w-3 h-3" fill="currentColor" strokeWidth={0} />
+            </div>
+          )}
+          {typeof multiCount === 'number' && multiCount > 1 && (
+            <div className="flex items-center gap-1 bg-black/50 text-white text-xs px-1.5 py-0.5 rounded-md backdrop-blur-sm">
+              <ImagePlus className="w-3 h-3" />
+              {multiCount}
+            </div>
+          )}
         </div>
       )}
       {/* The caption (the post text, the Instagram/TikTok overlay) — media tiles
@@ -286,6 +311,12 @@ export default function UserProfileScreen({ username, provider: requestedProvide
   // by-user read returns only membership_visibility='public' groups, so a
   // private collection never surfaces). null = not loaded (the tab is absent).
   const [collections, setCollections] = useState<CollectionRecord[] | null>(null);
+  // Profile pins (profile-pins.md): the owner's held-up post ids, in pin order
+  // (index 0 = the top slot). Loaded from the face doc (both paths — the
+  // visitor reads the public face, the owner reads their own). The Posts tab
+  // renders the pinned posts first; the pin menu (card ⋯ + lightbox ⋯) is the
+  // owner's write surface.
+  const [pinnedIds, setPinnedIds] = useState<string[]>([]);
   const navigate = useNavigate();
   // Deep-link: the active tab from ?tab= (refresh-safe, shareable) — the
   // address bar holds the screen state (the deep-link rule).
@@ -377,7 +408,46 @@ export default function UserProfileScreen({ username, provider: requestedProvide
 
       let profile: ProfileRecord | null = null;
       let postsData: PostRecord[] = [];
+      // Pinned posts fetched by exact doc_id (the main read's gap — profile-pins.md).
+      let pinnedExtra: PostRecord[] = [];
+      let finalPins: string[] = [];
       let fc = 0;
+
+      // The pinned gap read + the owner's self-heal (profile-pins.md): the
+      // pinned ids the main read didn't load get fetched by exact doc_id —
+      // the bounded D73 prepare read, I3 still gating each one (a pinned post
+      // THIS reader cannot read simply doesn't come back; nothing is fetched
+      // through a new path). The owner's dead pins (the read succeeded, the
+      // rows didn't) get cleaned off the face doc best-effort — the 5.16.0
+      // stale-cover precedent: the owner's read heals the doc, the write never
+      // blocks the screen. A visitor never writes: a missing pin may be the
+      // owner's private post, and the owner's next read heals it.
+      const loadPinnedGap = async (face: ProfileRecord | null, loaded: PostRecord[]) => {
+        const pinIds = face?.pinned_post_ids ?? [];
+        if (!pinIds.length) return { pins: pinIds, extra: [] as PostRecord[] };
+        const haveIds = new Set(loaded.map((x) => x._id).filter(Boolean));
+        const missingIds = pinIds.filter((id) => !haveIds.has(id));
+        let extra: PostRecord[] = [];
+        let pins = pinIds;
+        if (missingIds.length) {
+          const res = await readPinnedPosts({ username, provider, docIds: missingIds, isOwn });
+          if (res !== null) {
+            extra = res;
+            if (isOwn && res.length < missingIds.length) {
+              const alive = new Set(res.map((x) => x._id).filter(Boolean));
+              const healed = pinIds.filter((id) => haveIds.has(id) || alive.has(id));
+              if (healed.length !== pinIds.length) {
+                console.log('[social] loadData — pin self-heal:', pinIds.length, 'pin(s) →', healed.length);
+                pins = healed;
+                savePinnedPostIds(face, healed).catch((e) => {
+                  console.warn('[social] loadData — pin self-heal persist failed (in-session only):', e);
+                });
+              }
+            }
+          }
+        }
+        return { pins, extra };
+      };
       // null = count not loaded (hide the tile); 0 is a REAL count (render it) —
       // `0 || null` here hid the Followers tile for every zero-follower profile
       // (gauntlet step-3 regression, #434).
@@ -414,6 +484,12 @@ export default function UserProfileScreen({ username, provider: requestedProvide
         if (!current()) return;
         profile = p;
         postsData = postsRes || [];
+        // The pinned gap (the owner's own pins, incl. ones older than the
+        // first-50 page): fetch by doc_id + self-heal dead ids.
+        const pinGap = await loadPinnedGap(profile, postsData);
+        if (!current()) return;
+        pinnedExtra = pinGap.extra;
+        finalPins = pinGap.pins;
         if (fC === null) {
           setFollowingCountError(true);
         } else {
@@ -463,12 +539,22 @@ export default function UserProfileScreen({ username, provider: requestedProvide
         });
         if (!current()) return;
         setCollections(loadedCollections);
+        // The pinned gap (profile-pins.md): the owner's public pins not on the
+        // main read (followers + discover scope). I3-gated — a pin pointing at
+        // a post THIS reader cannot read (e.g. the owner's private post on a
+        // public profile) simply doesn't come back and renders nowhere.
+        const pinGap = await loadPinnedGap(profile, postsData);
+        if (!current()) return;
+        pinnedExtra = pinGap.extra;
+        finalPins = pinGap.pins;
         // The face (avatar / banner) — presigned URLs the query engine minted
         // (author-scoped, so they render for any viewer, not just the owner).
         // Build the media map from the posts' inline-resolved media + the face
         // records (the grid / banner look up mediaMap by the media doc_id).
+        // The extra pinned posts' media is inline-resolved too (the prepare
+        // pass) — the pinned tiles render like the rest of the wall.
         const mediaMapInit: Record<string, MediaRecord> = {};
-        for (const post of pub.posts) {
+        for (const post of [...pub.posts, ...pinnedExtra]) {
           for (const ref of post.media_refs || []) {
             if (typeof ref === 'string') continue; // unresolved — nothing to render
             const id = mediaRefId(ref);
@@ -507,7 +593,20 @@ export default function UserProfileScreen({ username, provider: requestedProvide
       if (isOwn) {
         setDraft(profile || {});
       }
-      setPosts(postsData);
+      // The loaded set: the main read's posts + the extra pinned ones (deduped
+      // by _id — a pinned post on the main page is not added twice). The
+      // pinned ORDER is applied at render time (the orderPinnedPosts memo), so
+      // this state stays the plain loaded set the Media tab / face picker /
+      // stats count all read from.
+      const seenPostIds = new Set<string>();
+      const mergedPosts = [...pinnedExtra, ...postsData].filter((p) => {
+        const id = p._id;
+        if (!id || seenPostIds.has(id)) return false;
+        seenPostIds.add(id);
+        return true;
+      });
+      setPosts(mergedPosts);
+      setPinnedIds(finalPins);
       setFollowingCount(fc);
       setFollowerCount(fCount);
 
@@ -516,7 +615,9 @@ export default function UserProfileScreen({ username, provider: requestedProvide
       // media-read failure degrades the images, never the profile/posts/counts
       // already set.
       if (isOwn) {
-        const allRefs = postsData.flatMap((post) => post.media_refs || []);
+        // The merged set — the extra pinned posts' media refs included (their
+        // inline-resolved refs + the string refs both ride resolveMediaRefs).
+        const allRefs = mergedPosts.flatMap((post) => post.media_refs || []);
         if (profile?.avatar_ref) allRefs.push(profile.avatar_ref);
         if (profile?.banner_ref) allRefs.push(profile.banner_ref);
         const mediaMapInit: Record<string, MediaRecord> = {};
@@ -618,6 +719,43 @@ export default function UserProfileScreen({ username, provider: requestedProvide
     }
     return out;
   }, [posts, mediaMap]);
+
+  // The Posts tab's display list: the pinned posts first (in pin order — only
+  // those the reader actually has; a dead / unreadable pinned id renders
+  // nowhere), the rest in the loaded order. Presentation only: the raw
+  // `posts` state is untouched (the Media tab, the face picker and the stats
+  // count read it), and the lightbox's Instagram-style post nav walks THIS
+  // order (pinned posts reachable in the pinned sequence).
+  const orderedPosts = useMemo(() => orderPinnedPosts(posts, pinnedIds), [posts, pinnedIds]);
+  const pinnedSet = useMemo(() => new Set(pinnedIds), [pinnedIds]);
+
+  // The owner's pin toggle (profile-pins.md): optimistic (the wall re-orders
+  // on the same tick), persisted through the face doc's update-in-place path,
+  // rolled back + toasted on failure. The data layer caps the slots at
+  // MAX_PROFILE_PINS — the UI hides the pin item at the cap, this is the
+  // backstop.
+  async function handleTogglePin(postId: string, wantPin: boolean) {
+    if (!postId) return;
+    const before = pinnedIds;
+    let next: string[];
+    try {
+      next = togglePinnedPostIds(before, postId, wantPin);
+    } catch (e) {
+      console.error('[social] handleTogglePin — toggle rejected:', e);
+      toast.error(errorMessage(e, 'Could not update your pinned posts.'));
+      return;
+    }
+    setPinnedIds(next);
+    try {
+      const saved = await savePinnedPostIds(profile, next);
+      setProfile(saved);
+      setDraft(saved); // the draft round-trips the pins (the Bio editor's save)
+    } catch (e) {
+      console.error('[social] handleTogglePin — persist failed, rolling back:', e);
+      setPinnedIds(before);
+      toast.error(errorMessage(e, wantPin ? 'Could not pin the post to your profile.' : 'Could not unpin the post.'));
+    }
+  }
 
   if (loading) {
     return <UserProfileSkeleton />;
@@ -1139,19 +1277,21 @@ export default function UserProfileScreen({ username, provider: requestedProvide
           {posts.length ? (
             viewMode === 'feed' ? (
               <ProfileFeed
-                posts={posts}
+                posts={orderedPosts}
                 mediaMap={mediaMap}
                 authorName={profile?.display_name || username}
                 authorUsername={username}
                 authorProvider={provider}
                 authorAvatar={avatarMedia?.url}
                 isOwnProfile={isOwnProfile}
+                pinnedIds={pinnedIds}
+                onTogglePin={isOwnProfile ? handleTogglePin : undefined}
                 onPostUpdated={loadData}
                 onAuthorClick={(u) => navigate(`/u/${u}`)}
               />
             ) : (
             <div className="grid grid-cols-3 gap-0.5 sm:gap-2 lg:grid-cols-4">
-              {posts.map((post) => {
+              {orderedPosts.map((post) => {
                 const firstMedia = post.media_refs?.[0] ? mediaMap[mediaRefId(post.media_refs[0])] : null;
                 // A post with no media renders as a caption-only tile (the
                 // text is the face); a post with media renders the first media
@@ -1166,6 +1306,7 @@ export default function UserProfileScreen({ username, provider: requestedProvide
                     caption={post.text}
                     postId={post._id}
                     multiCount={post.media_refs?.length}
+                    pinned={pinnedSet.has(post._id || '')}
                     onClick={() => setLightboxPost(post)}
                   />
                 );
@@ -1208,10 +1349,12 @@ export default function UserProfileScreen({ username, provider: requestedProvide
 
       {lightboxPost && (() => {
         // Instagram-style post navigation: the modal's side arrows step
-        // through the profile's posts (wrapping, like the Instagram grid).
-        // The lightbox owns the modal; the profile owns the list + index.
-        const idx = posts.findIndex((p) => p._id === lightboxPost._id);
-        const canNav = idx >= 0 && posts.length > 1;
+        // through the profile's posts (wrapping, like the Instagram grid) —
+        // in the DISPLAY order (pinned first), so the arrows walk the wall the
+        // grid just showed. The lightbox owns the modal; the profile owns the
+        // list + index.
+        const idx = orderedPosts.findIndex((p) => p._id === lightboxPost._id);
+        const canNav = idx >= 0 && orderedPosts.length > 1;
         return (
           <PostLightbox
             post={lightboxPost}
@@ -1221,8 +1364,13 @@ export default function UserProfileScreen({ username, provider: requestedProvide
             postAuthor={username}
             postService={'public_posts'}
             isOwner={isOwnProfile}
-            onPrevPost={canNav ? () => setLightboxPost(posts[(idx - 1 + posts.length) % posts.length]) : undefined}
-            onNextPost={canNav ? () => setLightboxPost(posts[(idx + 1) % posts.length]) : undefined}
+            // The pin items (profile-pins.md): the owner's own personal posts
+            // only — the lightbox offers "Pin to profile" / "Unpin" in its
+            // post-detail menu (the shared PostIdentityRow's ⋯).
+            pinnedPostIds={isOwnProfile ? pinnedIds : undefined}
+            onTogglePin={isOwnProfile ? (postId, wantPin) => { void handleTogglePin(postId, wantPin); } : undefined}
+            onPrevPost={canNav ? () => setLightboxPost(orderedPosts[(idx - 1 + orderedPosts.length) % orderedPosts.length]) : undefined}
+            onNextPost={canNav ? () => setLightboxPost(orderedPosts[(idx + 1) % orderedPosts.length]) : undefined}
           />
         );
       })()}

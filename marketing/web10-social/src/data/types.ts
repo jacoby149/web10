@@ -571,6 +571,11 @@ export interface ProfileRecord {
   bio?: string;
   website?: string;
   location?: string;
+  /** The post doc_ids pinned to the top of the owner's profile Posts tab
+   *  (social/profile-pins.md). Order = display order (index 0 = top); at most
+   *  3 (MAX_PROFILE_PINS, profilePins.ts). A doc-id-only list — never an
+   *  access grant: each pinned post still passes its own read gate (I3). */
+  pinned_post_ids?: string[];
   updated_at?: string;
 }
 
@@ -584,8 +589,28 @@ export function fromV3DocToProfile(doc: V3Document): ProfileRecord {
     bio: (body.bio as string) || undefined,
     website: (body.website as string) || undefined,
     location: (body.location as string) || undefined,
+    // The wire is not trusted to be tidy: string ids only, deduped, capped at
+    // the pin limit (the same normalization the data layer applies — keep the
+    // two in step, profile-pins.md).
+    pinned_post_ids: normalizePinsField(body.pinned_post_ids),
     updated_at: doc.updated_at,
   };
+}
+
+/** The parse-side pin normalization (types stays dependency-free — the
+ *  behavior twin of profilePins.normalizePinnedPostIds, pinned by tests in
+ *  both directions). */
+function normalizePinsField(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const v of value) {
+    if (typeof v !== 'string' || !v || seen.has(v)) continue;
+    seen.add(v);
+    out.push(v);
+    if (out.length === 3) break;
+  }
+  return out.length ? out : undefined;
 }
 
 // ── Comments (refs) ─────────────────────────────────────────────────────────

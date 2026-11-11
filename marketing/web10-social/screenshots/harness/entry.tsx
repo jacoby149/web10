@@ -198,6 +198,7 @@ if (screen === 'post-detail' || screen === 'group-post-detail') {
        : screen === 'people-groups' ? '/people?section=groups'
        : screen === 'profile' ? '/u/nova'
        : screen === 'profile-me' ? '/u/me'
+      : screen === 'profile-me-feed' ? '/u/me?view=feed'
       : screen === 'profile-followers' ? '/u/nova/followers'
       : screen === 'profile-following' ? '/u/nova/following'
       : screen === 'profile-feed' ? '/u/nova?view=feed'
