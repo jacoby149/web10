@@ -158,7 +158,7 @@ ORDER BY (author_key, doc_id);
 
 **ReplacingMergeTree:** updates are inserts with higher `updated_at`. The engine keeps the latest version.
 
-**Tombstones:** deletes are inserts with `deleted = 1`. Queries filter `WHERE deleted = 0`. (No TTL — the `documents` table keeps data until explicitly deleted; the node is the user's data lake.)
+**Tombstones:** deletes are inserts with `deleted = 1`. The engine is a ReplacingMergeTree, so the live row and its tombstone COEXIST until a background merge physically compacts them — a raw `WHERE deleted = 0` therefore keeps serving the live row in that window (a deleted post "lingers" on whatever read path took the raw filter). The read contract is **dedup-then-filter**: rank the latest version per key with `row_number() OVER (PARTITION BY … ORDER BY updated_at DESC, deleted DESC)` (the deletion wins timestamp ties), take `rn = 1`, and only then apply `deleted = 0`. The board/group reads (`_board_base_sql`), the by-author read (`read_documents`), the single-doc read (`read_document_by_id` — the last raw reader, fixed 11.11.2026 after the music-social-library connected acceptance caught a deleted post lingering on a collection's items until a merge happened to run) and the media list all carry the dedup; a new read path that filters `deleted = 0` on `documents` without the `row_number()` rank is a review rejection. (No TTL — the `documents` table keeps data until explicitly deleted; the node is the user's data lake.)
 
 **`ref_value`:** the universal link. Comments, reactions, replies, quotes, bookmarks, votes — all just documents with a `ref`.
 

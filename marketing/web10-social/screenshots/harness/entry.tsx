@@ -168,6 +168,7 @@ if (screen === 'post-detail' || screen === 'group-post-detail') {
       : screen === 'music-player' ? '/music?track=music-1&panel=player'
       : screen === 'music-queue' ? '/music?track=music-1&panel=queue'
       : screen === 'music-video-player' ? '/music?track=music-7&panel=player'
+      : screen === 'music-track-pending' ? '/music?track=music-1&panel=player&music-track-pending=1'
       : screen === 'music-playlist' ? '/music?view=playlists&collection=web10%2Fgroups%2Fusers%2Fme%2Fsaved-tour-sets'
       : screen === 'hot-gossip' ? '/hot-gossip'
       : screen === 'discover-searched' ? '/discover?q=lofi'

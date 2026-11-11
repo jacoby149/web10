@@ -448,6 +448,48 @@ describe('MusicScreen', () => {
     expect(document.querySelectorAll('video').length).toBe(0);
   });
 
+  it('resolves a HOME-source track link off-page via the direct post read, not the loaded board', async () => {
+    // The operator's 10.11.2026 link shape: share() stamps `&source=<home>`
+    // on every tuned-board row (the mix stamps source_origin on home posts
+    // too), and a home-origin source must NOT ride the whole-board gate —
+    // the original readable post is read directly, off-page.
+    const song = track({ id: 'offpage', author: 'alice', title: 'Off page' });
+    vi.mocked(data.readMusicTrack).mockResolvedValue(song);
+    renderScreen([], '/music?track=offpage&panel=player&source=https://api.web10.app');
+    expect(await screen.findByRole('heading', { name: 'Off page' })).toBeInTheDocument();
+    expect(data.readMusicTrack).toHaveBeenCalledWith('offpage');
+    expect(screen.getByRole('button', { name: 'Play track' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open original post' })).toHaveAttribute('href', '/u/alice/p/offpage');
+    expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
+  });
+
+  it('shows the panel loading state while a track link resolves, not the empty-session state', async () => {
+    const song = track({ id: 'slow', author: 'alice', title: 'Slow read' });
+    const pending = deferred<MusicTrack | null>();
+    vi.mocked(data.readMusicTrack).mockReturnValueOnce(pending.promise);
+    renderScreen([], '/music?track=slow&panel=player');
+    // No dead air: while the original post read is in flight the panel names
+    // its state instead of rendering "choose a track".
+    expect(screen.getByText('Loading your track…')).toBeInTheDocument();
+    expect(screen.queryByText('Choose a track to start listening.')).not.toBeInTheDocument();
+    await act(async () => { pending.resolve(song); });
+    expect(await screen.findByRole('heading', { name: 'Slow read' })).toBeInTheDocument();
+    expect(screen.queryByText('Loading your track…')).not.toBeInTheDocument();
+    expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
+  });
+
+  it('keeps a foreign-source track link bound to the board: pending while it loads, error when settled, no home read', async () => {
+    // A foreign node's post is unreadable by id from home — the board is its
+    // only resolution path, but the wait must be visible, not silent.
+    const board = deferred<Awaited<ReturnType<typeof data.readMusicPage>>>();
+    vi.mocked(data.readMusicPage).mockReturnValueOnce(board.promise);
+    render(tree('/music?track=far&panel=player&source=https://foreign-node.example'));
+    expect(screen.getByText('Loading your track…')).toBeInTheDocument();
+    await act(async () => { board.resolve({ tracks: [], hasMore: false }); });
+    expect(await screen.findByRole('alert')).toHaveTextContent('This source track is not in the loaded mix');
+    expect(data.readMusicTrack).not.toHaveBeenCalled();
+  });
+
   it('loads more using nextOffset and appends tracks without duplicate rows', async () => {
     const first = track({ id: 'first', author: 'alice', title: 'First' });
     vi.mocked(data.readMusicPage).mockResolvedValueOnce({ tracks: [first], hasMore: true, nextOffset: 77 }).mockResolvedValueOnce({ tracks: [first, track({ id: 'next', author: 'bob', title: 'Next page' })], hasMore: false, nextOffset: 90 });

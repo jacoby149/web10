@@ -29,10 +29,13 @@ const SOCIAL_ORIGIN = (process.env.SOCIAL_ORIGIN || 'http://social.localhost').r
 // Non-container callers retain the historical API-host fallback.
 export const PROVIDER = process.env.PROVIDER || new URL(API_ORIGIN).hostname
 
-// The social brand mark — the fallback image when a doc has no picture and the
-// author has no avatar. Served from the social app's static assets (the crawler
-// resolves it against the social origin, where the SPA is hosted).
-export const BRAND_IMAGE = `${SOCIAL_ORIGIN}/keys-mark.png`
+// The social share-card brand mark — the fallback image when a doc has no
+// picture and the author has no avatar. Served from the social app's static
+// assets (the crawler resolves it against the social origin, where the SPA is
+// hosted). D109: the keys mark on its #09090b dark back — the bare white-on-
+// transparent mark composites onto the receiving app's white card and goes
+// invisible there, so the share image bakes its own background in.
+export const BRAND_IMAGE = `${SOCIAL_ORIGIN}/og-image.png`
 
 export const TITLE_LIMIT = 100
 export const DESC_LIMIT = 200

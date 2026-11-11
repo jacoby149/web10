@@ -21,6 +21,7 @@ const focus = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:rin
 const postLink = (track: MusicTrack) => track.post.author_key?.includes('/groups/')
   ? `/groups/${encodeURIComponent(track.post.author_key)}/p/${encodeURIComponent(track.post._id || '')}`
   : `/u/${encodeURIComponent(track.post.author_username || '')}/p/${encodeURIComponent(track.post._id || '')}`;
+const originOf = (value: string) => { try { return new URL(value).origin; } catch { return value; } };
 function time(seconds: number) {
   const value = Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds)) : 0;
   return `${Math.floor(value / 60)}:${String(value % 60).padStart(2, '0')}`;
@@ -79,6 +80,10 @@ export default function MusicScreen() {
   const [playlistLoading, setPlaylistLoading] = useState(false);
   const [playlistError, setPlaylistError] = useState('');
   const [linkError, setLinkError] = useState('');
+  // The URL's track is resolving (its original post read or the board read it
+  // is bound to). Drives the panel's designed loading state — a deep-linked
+  // track must never render as the empty "choose a track" session.
+  const [trackPending, setTrackPending] = useState(() => Boolean(trackId));
   const [busy, setBusy] = useState('');
   const [notice, setNotice] = useState('');
   const [newName, setNewName] = useState('');
@@ -188,27 +193,74 @@ export default function MusicScreen() {
     return () => { cancelled = true; };
   }, [session, signedIn, view, activeCollection, libraryVersion, saveOpen]);
 
+  // The URL's source, normalized: the home origin (or its absence) names the
+  // home post; anything else is a foreign node whose rows only exist on the
+  // board. The mix reader stamps `source_origin` on its HOME rows too, so a
+  // signed-in share carries `&source=<home>` — that must NOT gate the link on
+  // the whole board loading (the operator's "loads for a minute" report).
+  const sourceNorm = sourceOrigin ? originOf(sourceOrigin) : '';
+  const isHomeSource = !sourceNorm || sourceNorm === originOf(tuned.home);
+  const targetCurrent = () => {
+    const current = musicRef.current.current;
+    return current?.post._id === trackId && matchesSource(current);
+  };
+
+  // Board binder: a source-pinned link whose row is already on the board binds
+  // it without a read (the row carries the source-bound media URLs and the
+  // read-only state the URL promises). A truly FOREIGN source's post lives on
+  // that node — the home node cannot read it by id, so the loaded board is its
+  // only resolution path: hold the designed loading state until the board
+  // settles; only then is "not in the mix" a real answer (no dead-air panel).
+  // The binder owns linkError only in its own territory (a pinned source); the
+  // home/no-source error belongs to the direct reader, and board churn must
+  // never clear it.
   useEffect(() => {
+    if (!trackId) { setLinkError(''); return; }
+    if (!sourceOrigin) return;
+    if (targetCurrent()) { setTrackPending(false); setLinkError(''); return; }
+    const found = tracks.find(track => track.post._id === trackId && matchesSource(track));
+    if (found) { setTrackPending(false); setLinkError(''); musicRef.current.select(found); return; }
+    if (isHomeSource) return;
+    setTrackPending(true);
+    console.log('[music] track link: foreign source, waiting on board', { source: sourceOrigin, boardLoading: loading });
+    if (!loading) setLinkError('This source track is not in the loaded mix. Load more or check its server connection.');
+  }, [trackId, session, sourceOrigin, isHomeSource, loading, tracks]);
+
+  // Direct reader: no source — or the home node's own origin — resolves the
+  // original readable post DIRECTLY, including tracks outside the current
+  // Explore page (music-listening.md: "A track link resolves the original
+  // readable post"). This effect's lifetime is the link target's identity, not
+  // the board's: a settled/arrived board read must never cancel a read already
+  // in flight for the same target (the pinned history-restoration +
+  // stale-session controls assert exactly one read).
+  useEffect(() => {
+    if (!trackId) { setLinkError(''); return; }
+    if (!isHomeSource) return;
+    if (targetCurrent()) { setTrackPending(false); setLinkError(''); return; }
     let cancelled = false;
     setLinkError('');
-    if (!trackId || (musicRef.current.current?.post._id === trackId && matchesSource(musicRef.current.current))) return;
-    if (sourceOrigin) {
-      const found = tracks.find(track => track.post._id === trackId && matchesSource(track));
-      if (found) musicRef.current.select(found);
-      else if (!tuned.loading) setLinkError('This source track is not in the loaded mix. Load more or check its server connection.');
-      return;
-    }
+    setTrackPending(true);
+    console.log('[music] track link read start', { track: trackId, source: sourceNorm || 'home' });
     readMusicTrack(trackId).then(track => {
       if (cancelled) return;
+      setTrackPending(false);
+      console.log('[music] track link read complete', { track: trackId, resolved: Boolean(track) });
+      // The board binder may have bound a loaded row for this same target in
+      // the meantime — never reselect over it (one queue entry per track).
+      if (targetCurrent()) return;
       if (track) musicRef.current.select(track);
       else setLinkError('This track is unavailable or is no longer music.');
-    }).catch(() => { if (!cancelled) setLinkError('This track could not be opened.'); });
+    }).catch(() => { if (!cancelled) { setTrackPending(false); setLinkError('This track could not be opened.'); } });
     return () => { cancelled = true; };
-  }, [trackId, session, sourceOrigin, tuned.enabled ? tuned.loading : false, tuned.enabled ? tracks : null]);
+  }, [trackId, session, isHomeSource, sourceNorm]);
 
   // Transport changes keep the expanded player link on the audible track.
+  // The home origin and "no source" name the same home post — neither
+  // rewrites the other (a shared link keeps its exact shape; the pinned
+  // history-restoration controls rely on no mid-session entry rewrite).
   useEffect(() => {
-    if (music.current && trackId && (music.current.post._id !== trackId || (music.current.post.source_origin || null) !== sourceOrigin)) change({ track: music.current.post._id || null, source: music.current.post.source_origin || null }, true);
+    const homeish = (value: string | null) => !value ? tuned.home : originOf(value) === originOf(tuned.home) ? tuned.home : value;
+    if (music.current && trackId && (music.current.post._id !== trackId || homeish(music.current.post.source_origin || null) !== homeish(sourceOrigin))) change({ track: music.current.post._id || null, source: music.current.post.source_origin || null }, true);
   }, [music.current && musicTrackKey(music.current)]);
 
   async function loadMore() {
@@ -341,7 +393,14 @@ export default function MusicScreen() {
           <div className="mx-auto mt-6 max-w-sm"><label className="sr-only" htmlFor="full-music-seek">Playback position</label><input id="full-music-seek" type="range" min="0" max={music.duration || 0} value={Math.min(music.currentTime, music.duration)} disabled={!music.duration} onChange={e => music.seek(Number(e.target.value))} className={cn('h-11 w-full accent-brand disabled:opacity-40', focus)} /><div className="flex justify-between text-xs tabular-nums text-muted-foreground"><span>{time(music.currentTime)}</span><span>{time(music.duration || current.media.duration_seconds || 0)}</span></div>
             <div className="my-4 flex items-center justify-center gap-3"><Button variant="ghost" size="icon" aria-label="Shuffle" aria-pressed={music.shuffle} className={cn('h-11 w-11', music.shuffle && 'text-brand-300')} onClick={music.toggleShuffle}><Shuffle className="h-5 w-5" /></Button><Button variant="ghost" size="icon" className="h-11 w-11" aria-label="Previous" onClick={music.previous}><SkipBack className="h-5 w-5" /></Button><Button variant="brand" size="icon" className="h-14 w-14 rounded-full" aria-label={music.isPlaying ? 'Pause track' : 'Play track'} data-testid="music-player-toggle" onClick={music.toggle}>{music.isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}</Button><Button variant="ghost" size="icon" className="h-11 w-11" aria-label="Next" onClick={music.next}><SkipForward className="h-5 w-5" /></Button><Button variant="ghost" size="icon" className={cn('h-11 w-11', music.repeat !== 'off' && 'text-brand-300')} aria-label={`Repeat: ${music.repeat}`} onClick={music.cycleRepeat}>{music.repeat === 'one' ? <Repeat1 className="h-5 w-5" /> : <Repeat className="h-5 w-5" />}</Button></div>
             <div className="flex flex-wrap items-center justify-center gap-1">{!menuTrack && !current.readOnlySource && <MusicReactions track={current} signedIn={signedIn} />}<Button variant="ghost" disabled={current.readOnlySource} title={current.readOnlySource ? 'Source comments are not connected' : undefined} className="h-11 gap-2" onClick={() => change({ panel: 'comments' })}><MessageCircle className="h-4 w-4" />Comments</Button>{actions(current)}</div>{!current.readOnlySource && <Link to={postLink(current)} className={cn('mt-3 flex h-11 items-center justify-center gap-2 rounded text-sm text-muted-foreground hover:text-foreground', focus)}>Open original post<ArrowUpRight className="h-4 w-4" /></Link>}
-          </div></> : <p className="rounded border border-border p-8 text-muted-foreground">Choose a track to start listening.</p>}
+          </div></> : trackId && trackPending ? <div aria-label="Loading track" className="flex flex-col items-center">
+          {/* The designed loading state (design.md §1): a deep-linked track
+              resolves off-page (or off-board for a foreign source) — the panel
+              names that instead of faking the empty session. The skeleton
+              reserves the artwork's footprint so nothing shifts on land. */}
+          <div className="h-56 w-56 animate-pulse rounded bg-elevated sm:h-64 sm:w-64" />
+          <p className="mt-6 text-sm text-muted-foreground">Loading your track…</p>
+        </div> : <p className="rounded border border-border p-8 text-muted-foreground">Choose a track to start listening.</p>}
       </div>
       {panel === 'comments' ? current && <section data-testid="music-comments" data-replay-private={current.post.visibility !== 'public' ? '' : undefined} className="min-w-0 rounded-lg border border-border bg-surface py-4"><header className="px-4 pb-4"><p className="text-xs text-brand-300">The conversation</p><h2 className="mt-2 font-display text-xl">{title(current)}</h2>{current.post.text && <PostBody text={current.post.text} density="light" className="mt-2" />}</header><MusicComments key={`${session}:${current.post._id}`} track={current} signedIn={signedIn} highlightedCommentId={params.get('comment') || undefined} /></section> : <div className={cn('rounded-lg border border-border bg-surface p-4 sm:p-6', panel !== 'queue' && 'hidden lg:block')}><div className="mb-4 flex items-center justify-between"><h2 className="font-display text-2xl">Your queue</h2><span className="text-xs text-muted-foreground">{music.queue.length} tracks</span></div><p className="mb-6 text-sm text-muted-foreground">Just this listening session. Your playlists stay unchanged.</p>
         {!music.queue.length && <p className="py-8 text-sm text-muted-foreground">Use Play next or Add to queue on any track.</p>}
