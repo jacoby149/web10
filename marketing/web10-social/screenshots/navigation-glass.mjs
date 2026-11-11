@@ -133,6 +133,8 @@ try {
         await client.send('Emulation.setEmulatedMedia', { features: [] });
         await page.emulateMedia({ forcedColors: 'active' });
         assert.equal(await dock.evaluate(el => getComputedStyle(el).backdropFilter), 'none');
+        assert.equal(await dock.evaluate(el => getComputedStyle(el, '::after').display), 'none', 'forced colors use the native dock border, not a decorative overlay');
+        assert.equal(await dock.evaluate(el => getComputedStyle(el).borderTopStyle), 'solid');
         await page.emulateMedia({ forcedColors: 'none' });
         // Remove only the enhancement rule to simulate an unsupported browser.
         await page.evaluate(() => {
