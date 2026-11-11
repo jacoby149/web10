@@ -197,6 +197,40 @@ screen" to "glow is the texture, not the content." If the feed looks like
 a dark spreadsheet, add glow. If it looks like a purple laser show, pull
 back. The middle is Kick-grade: energy without chaos.
 
+### Glass chrome (social flagship)
+
+The app's floating chrome — the desktop top bar, the mobile header, the
+mobile bottom nav, the group-detail sticky bar — is **liquid glass**: a
+translucent fill over whatever scrolls beneath it, `blur(20px)`
+`saturate(160%)` behind it (the saturate is what keeps the content reading
+*alive* through the glass instead of gray), and a 1px specular rim on the
+content-facing edge. One `.glass-bar` class in `index.css` carries it; the
+fill, rim and shadow come from tokens so both palettes (D108) and
+white-label overrides stay token-driven.
+
+| Token | Dark | Light | Role |
+|---|---|---|---|
+| `--color-glass` | `rgba(17, 17, 19, 0.65)` | `rgba(255, 255, 255, 0.65)` | Resting bar fill |
+| `--color-glass-open` | `rgba(17, 17, 19, 0.92)` | `rgba(255, 255, 255, 0.92)` | Fill when a popover hangs off the bar (search results, user menu, notifications) — content scrolling under an open menu is noise |
+| `--color-glass-edge` | `rgba(255, 255, 255, 0.14)` | `rgba(255, 255, 255, 0.7)` | 1px rim highlight |
+| `--shadow-glass` | none | `0 1px 2px rgb(0 0 0 / 0.06)` | Light-mode float (§6) |
+
+Usage discipline:
+- **Chrome only.** Bars that float over content. Feed cards, modals and
+  popovers stay solid — frosted-card-everywhere is the glassmorphism
+  cliché, and the brand is confident and quiet (§2).
+- **Open state is a fill step, not a new material.** `bg-glass` →
+  `bg-glass-open`; the blur and rim are constant.
+- **Reduced transparency is honored.** Under
+  `prefers-reduced-transparency: reduce` the glass collapses to a solid
+  surface with no backdrop-filter — the bar stays a bar, and scroll
+  content stops smearing. This is the a11y floor; don't opt out of it.
+- The blur is capped at 20px: the cost of a backdrop-filter over a
+  scrolling media feed is real on mid-range phones, and 20px is where
+  the effect reads without buying more.
+- A glass bar must be positioned (sticky / fixed / relative) — the rim
+  is an absolutely-positioned `::before`.
+
 ### Glow — ambient light (console & marketing)
 
 The node console (`ui/`) and marketing site (`marketing-ui`) remain
@@ -277,7 +311,10 @@ thin thing in the brand).
   (`background` → `surface` → `elevated`) plus 1px `border`. Shadows
   are reserved for things that float: dropdowns, popovers, modals
   (`0 8px 30px rgb(0 0 0 / 0.35)`). The one decorative exception is
-  the brand glow (§4).
+  the brand glow (§4). Floating CHROME (the app bars) is glass instead:
+  translucent token fill + backdrop blur + rim highlight (§4 "Glass
+  chrome"); in light mode the glass earns the soft `--shadow-glass`
+  float, in dark it does not.
 - Dense surfaces (admin tables, Studio analytics) tighten to the
   small type step and 8px internal rhythm — density is a feature in
   operator tools, as long as alignment stays exact.
@@ -521,6 +558,12 @@ the missing steps.
   --color-glow: rgba(139, 92, 246, 0.15);
   --color-glow-intense: rgba(139, 92, 246, 0.35);
   --color-glow-danger: rgba(239, 68, 68, 0.25);
+
+  /* glass chrome — the app bars float over content (§4 "Glass chrome", §6) */
+  --color-glass: rgba(17, 17, 19, 0.65);
+  --color-glass-open: rgba(17, 17, 19, 0.92);
+  --color-glass-edge: rgba(255, 255, 255, 0.14);
+  --shadow-glass: 0 1px 2px rgb(0 0 0 / 0);
 
   /* semantic (§4) */
   --color-success: #22c55e;

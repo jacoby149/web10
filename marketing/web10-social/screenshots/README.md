@@ -269,6 +269,27 @@ Use `--extra 'signed-out=1'` to capture its signed-out screen.
 Preview publication never invents a post link. Production
 callers, upload transport, notification behavior and size cap are unchanged.
 
+## Glass chrome capture (D109)
+
+The app bars' liquid-glass treatment (design.md §4 "Glass chrome") is
+verified with real Chromium against the harness in BOTH palettes at
+desktop/375px, plus the two desktop open states (search dropdown, user
+menu). It asserts the computed `backdrop-filter` (blur 20px + saturate) and
+fill of every bar — resting `--color-glass`, open-state `--color-glass-open`,
+and the flat/none escape on the desktop group-detail bar. The
+`prefers-reduced-transparency` floor is asserted statically against the
+production build's CSS (headless Chromium cannot emulate that media feature
+live — the `--force-prefers-reduced-motion` control is inert in the same
+build, which is how that was verified):
+
+```bash
+bun run build   # the static control reads dist/
+SCREENSHOT_OUTPUT_DIR="$PWD/../../.context/glass-navbar" node screenshots/glass-navbar.mjs
+```
+
+PNGs + `glass-navbar-receipt.json` land in the output dir. Isolated
+fixtures; UI evidence, not node/deployment proof.
+
 ## Composer paste-to-attach capture
 
 Paste-to-attach (5.15.0: Cmd/Ctrl+V with pixels on the clipboard attaches the

@@ -9,6 +9,29 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D109 — App chrome is liquid glass [decided]
+
+Operator, 10.11.2026 (external feedback): "make the navbar glassier, like
+apple glass." The four floating chrome bars of web10-social — desktop top
+bar, mobile header, mobile bottom nav, group-detail sticky bar — move from
+near-solid `bg-surface/95 + backdrop-blur-md` to a tokenized liquid-glass
+treatment: translucent `--color-glass` fill (0.65 dark / white-based light),
+`blur(20px) saturate(160%)` behind it, a 1px `--color-glass-edge` specular
+rim on the content-facing edge, and a soft `--shadow-glass` float in light
+mode only (dark elevation stays border+step, §6). The fill steps up to
+`--color-glass-open` (0.92) while a popover hangs off the bar — the desktop
+search dropdown via `.glass-bar:has()`, user menu/notifications via
+`bg-glass-open` in Layout. `prefers-reduced-transparency: reduce` collapses
+the glass to a solid surface with no backdrop-filter. One escape: the
+group-detail bar flattens to a plain in-flow bar at md (it is page content
+there, not floating chrome). Glass is chrome-only — cards, modals and
+popovers stay solid; frosted-card-everywhere is the glassmorphism cliché
+the brand (§2 "confident and quiet") rejects. Blur capped at 20px
+(mid-range phone cost over a scrolling media feed). Contract: design.md
+§4 "Glass chrome" + §6.
+
+---
+
 ### D108 — Social follows device appearance, with explicit light/dark choices [decided]
 
 **09.11.2026 — operator:** “lets build that whole system please!” after

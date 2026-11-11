@@ -47,6 +47,13 @@
   --color-glow-intense: rgba(139, 92, 246, 0.35);
   --color-glow-danger: rgba(239, 68, 68, 0.25);
 
+  /* glass chrome — the app bars float over content (§4 "Glass chrome", §6).
+     Dark defaults; light overrides below. */
+  --color-glass: rgba(17, 17, 19, 0.65);
+  --color-glass-open: rgba(17, 17, 19, 0.92);
+  --color-glass-edge: rgba(255, 255, 255, 0.14);
+  --shadow-glass: 0 1px 2px rgb(0 0 0 / 0);
+
   /* semantic (§4) */
   --color-success: #22c55e;
   --color-warning: #f59e0b;
@@ -111,6 +118,11 @@
   --color-secondary-foreground: #18181b;
   --color-accent: #f4f4f5;
   --color-accent-foreground: #18181b;
+  /* light glass floats: white-based fill + a soft under-shadow (§6) */
+  --color-glass: rgba(255, 255, 255, 0.65);
+  --color-glass-open: rgba(255, 255, 255, 0.92);
+  --color-glass-edge: rgba(255, 255, 255, 0.7);
+  --shadow-glass: 0 1px 2px rgb(0 0 0 / 0.06);
 }
 
 /* Local dark islands: film controls/immersive captions must not turn into
@@ -146,6 +158,10 @@
   --color-danger: #ef4444;
   --color-destructive: #ef4444;
   --color-danger-muted: #450a0a;
+  --color-glass: rgba(17, 17, 19, 0.65);
+  --color-glass-open: rgba(17, 17, 19, 0.92);
+  --color-glass-edge: rgba(255, 255, 255, 0.14);
+  --shadow-glass: 0 1px 2px rgb(0 0 0 / 0);
 }
 
 @layer base {
@@ -507,5 +523,82 @@
 
   .gradient-border:hover::before {
     opacity: 1;
+  }
+
+  /* Glass chrome — the app bars (design.md §4 "Glass chrome", §6). Liquid-glass
+     treatment for the chrome that floats over scrolling content: a translucent
+     --color-glass fill, blur(20px) saturate(160%) behind it (the saturate is
+     what makes the content read "alive" through the glass), and a 1px
+     specular rim on the content-facing (top) edge. The rim is a ::before
+     hairline, so the bar must be positioned (sticky / fixed / relative).
+
+     Open state: when a popover hangs off the bar, the fill steps up to
+     --color-glass-open — content scrolling under an open menu is noise. The
+     desktop search dropdown is caught here in CSS (:has — its results div
+     renders inside the top bar; the mobile fullscreen search portals to
+     <body>, so it can never match). The user menu + notifications panel use
+     the bg-glass-open utility in Layout.tsx.
+
+     Glass is CHROME ONLY — bars that float over content. Feed cards, modals
+     and popovers stay solid: frosted-card-everywhere is the glassmorphism
+     cliché, and the brand is confident and quiet (§2). */
+  .glass-bar {
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    backdrop-filter: blur(20px) saturate(160%);
+    box-shadow: var(--shadow-glass);
+  }
+
+  .glass-bar::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--color-glass-edge);
+    pointer-events: none;
+  }
+
+  .glass-bar:has([data-testid="global-search-results"]) {
+    background-color: var(--color-glass-open);
+  }
+
+  /* The group-detail sticky bar is the one glass surface that flattens on
+     desktop (md:static + md:bg-transparent, in-flow over the cover): kill the
+     glass there — at md it is page content, not floating chrome. (The
+     bg-transparent md-utility handles the fill; this handles the rest.) */
+  @media (min-width: 768px) {
+    .glass-bar[data-testid="group-detail-topbar"] {
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      box-shadow: none;
+    }
+
+    .glass-bar[data-testid="group-detail-topbar"]::before {
+      display: none;
+    }
+  }
+}
+
+/* Reduced transparency: the glass collapses to a solid surface — the bar
+   stays a bar, and scroll content stops smearing behind it. UNLAYERED on
+   purpose: it must override BOTH the @theme token layer and the unlayered
+   D108 light-palette block above, so it sits after every layer and matches
+   that block's specificity for the light theme. */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --color-glass: #111113;
+    --color-glass-open: #111113;
+    --color-glass-edge: transparent;
+  }
+
+  :root[data-theme="light"] {
+    --color-glass: #ffffff;
+    --color-glass-open: #ffffff;
+  }
+
+  .glass-bar {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 }
