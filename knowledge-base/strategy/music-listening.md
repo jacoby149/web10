@@ -110,7 +110,14 @@ deferred; saving a playlist keeps its live original, not copied tracks.
    Media Session. Missing or failed artwork uses the same designed fallback.
 3. URL-addressable now-playing and queue panels. A track link resolves the
    original readable post, including tracks outside the current Explore page.
-   Reload restores the selected view/track without unsolicited autoplay.
+   The URL's `source` pins the node: the home origin (or no source) resolves
+   by a direct home read with the link target's identity as the read's
+   lifetime (board churn never cancels a same-target read in flight); a
+   genuinely foreign source binds the loaded board row (the post is unreadable
+   by id from home) and its wait is visible, not silent. The player panel
+   shows a designed loading state while the URL's track resolves (never the
+   empty "choose a track" session). Reload restores the selected view/track
+   without unsolicited autoplay.
 4. Save/unsave in a normal private-by-default collection named Saved Music.
    It is created only on the first explicit save, never just by visiting Music.
    Identify the personal collection by its reserved saved-music slug, not a
