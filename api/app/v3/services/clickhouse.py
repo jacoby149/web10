@@ -3254,6 +3254,16 @@ def read_document_by_id(doc_id: str, member_key: str, service: str, authenticate
     tombstones included) then filters deleted = 0 — same reason as
     read_documents_in_groups: a raw `deleted = 0` join keeps matching the
     stale pre-unblock row until a background merge.
+
+    The DOCUMENTS read is tombstone-safe the same way (the house dedup the
+    board/author reads carry): `documents` is a ReplacingMergeTree, so a
+    delete's tombstone row and the live row coexist until a background
+    merge. A raw `deleted = 0` filter would keep serving the live row in
+    that window (a deleted post lingering on its detail / collection
+    items). The latest version per (doc_id, author_key) is ranked with the
+    deletion winning timestamp ties, then `deleted = 0` filters the
+    tombstoned doc — the single-doc read degrades as soon as the delete
+    lands, like the group reads.
     """
     # The reader's allowed member_keys: their own membership + the reserved
     # public-class rows (anyone — always; authenticated — for real users).
@@ -3268,7 +3278,12 @@ def read_document_by_id(doc_id: str, member_key: str, service: str, authenticate
     }
     result = client.query(
         "SELECT p.doc_id, p.author_key, p.body, p.tags, p.created_at, p.ref_value, p.ad_mode, p.ad_target, p.posted_by "
-        "FROM documents p "
+        "FROM ( "
+        "SELECT doc_id, author_key, body, tags, created_at, ref_value, ad_mode, ad_target, posted_by, deleted, "
+        "row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC, deleted DESC) AS rn "
+        "FROM documents "
+        "WHERE doc_id = %(doc_id)s AND collection_name = %(coll)s "
+        ") p "
         "LEFT SEMI JOIN ( "
         "SELECT pg.doc_id FROM doc_groups pg "
         "JOIN group_members gm ON pg.group_id = gm.group_id "
@@ -3278,10 +3293,8 @@ def read_document_by_id(doc_id: str, member_key: str, service: str, authenticate
         "row_number() OVER (PARTITION BY user_key, blocked_key ORDER BY updated_at DESC, deleted DESC) AS rn "
         "FROM user_blacklist) WHERE rn = 1 AND deleted = 0) ub "
         "ON ub.user_key = p.author_key AND ub.blocked_key = %(member_key)s "
-        "WHERE p.doc_id = %(doc_id)s "
-        "AND p.deleted = 0 "
-        "AND p.collection_name = %(coll)s "
-        "ORDER BY p.updated_at DESC LIMIT 1",
+        "WHERE p.rn = 1 "
+        "AND p.deleted = 0",
         params,
     )
     if not result.result_rows:
