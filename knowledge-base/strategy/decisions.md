@@ -9,6 +9,38 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D109 — Share cards bake in their own dark background [decided]
+
+**10.11.2026 — operator** (Instagram story screenshot of a shared
+`social.web10.app` link): "when sharing web10 social, the background looks
+terrible should be black background... same for web10.app too, same issues" +
+"if the key is white that is what i am saying."
+
+**The defect class:** a share card's `og:image` is an *opaque* asset. The
+receiving app (Instagram, WhatsApp, iMessage, X) composites it onto its own
+card frame — and where the PNG is transparent, that frame is **white**.
+web10-social's static tags + the preview server's brand fallback used
+`keys-mark.png` (the white mark on transparent, the in-app asset) → a white
+key on a white card: invisible. The in-app use was never wrong — there, the
+page owns the background.
+
+**The decision:** share-surface images own their background.
+(1) New `marketing/web10-social/public/og-image.png` — a 1200×1200 square
+(the mark centered, uncut in Instagram's near-square story frame or a 16:9
+cover crop), the keys mark from its existing geometry (upscaled, not
+redrawn) on `#09090b` with a subtle violet glow. It is the app-root static
+`og:`/`twitter:` image AND the crawler card's `BRAND_IMAGE` fallback.
+(2) `marketing/marketing-ui/public/brand/og-image.png` regenerated — the same
+lockup geometry + placement on `#09090b`, the glow cut so the background
+reads black (it was a mid-purple field). The `.context/brand-assets/og-image.png`
+shared copy tracks it.
+
+**Rejected:** expecting the host to be dark (Instagram's frame is white —
+that is the bug); an HTML/CSS card background (crawlers read `og:image`, the
+HTML never ships); changing the in-app transparent mark pair (correct in
+chrome, where the page owns the background — D108's "never put a dark
+backing behind them" still holds inside the app).
+
 ### D108 — Social follows device appearance, with explicit light/dark choices [decided]
 
 **09.11.2026 — operator:** “lets build that whole system please!” after
