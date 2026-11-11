@@ -10,7 +10,7 @@ TABLES=('users','documents','doc_groups','group_contracts','group_members',
         'app_contracts','content_events','population','cohorts')
 
 
-def generation(directory,spec,floor_receipts):
+def generation(directory,spec,floor_receipts, *, skip_floor_gates=False):
     directory=Path(directory)
     marker=directory/'manifest.json'
     if not marker.exists():
@@ -18,6 +18,9 @@ def generation(directory,spec,floor_receipts):
             raise ValueError('partial generation has no completion witness; preserve it, do not overwrite')
         return None
     manifest=json.loads(marker.read_bytes())
+    skipped=manifest.get('floor_admission',{}).get('mode')=='operator-skipped'
+    if skipped!=skip_floor_gates or (skip_floor_gates and floor_receipts):
+        raise ValueError('floor admission mode differs; explicit skip required for waived preparation')
     if (manifest.get('format')!=FORMAT or manifest.get('dataset_id')!=identity(manifest)
             or manifest.get('contract')!=spec or manifest.get('recipe')!=spec['recipe']
             or manifest.get('generator_sha256')!=sha(HERE/'realism_dataset.py')

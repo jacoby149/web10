@@ -109,6 +109,15 @@ class ResumeTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 resume.validation(path,self.directory,self.manifest)
 
+    def test_waived_preparation_requires_explicit_skip_again_on_resume(self):
+        self.floors=[]
+        self.manifest['floor_receipts']=[]
+        self.manifest['floor_admission']={'mode':'operator-skipped','final_validation_required':True}
+        self.write_manifest()
+        with self.assertRaisesRegex(ValueError,'admission mode'):
+            self.generation()
+        self.assertEqual(resume.generation(self.directory,self.spec,[],skip_floor_gates=True),self.manifest)
+
 
 if __name__=='__main__':
     unittest.main()

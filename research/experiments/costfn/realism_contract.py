@@ -105,7 +105,7 @@ def contract(accounts, seed=42, readers=None, follow=20, locality="dispersed"):
                           "that these facts alone exercise private/revoked access.",
         },
         "admission": {"paid_provisioning": False, "uploads": False,
-                      "million_build_requires": "passing independent 10k AND 100k receipts",
+                       "million_build_requires": "passing independent 10k AND 100k receipts by default; explicit operator --skip-floor-gates records a prerequisite waiver, never final validation",
                       "pilot_requires": "generated statistics review, budget, SKU eligibility, cleanup watchdog"},
     }
 

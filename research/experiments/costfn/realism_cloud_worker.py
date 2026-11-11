@@ -17,7 +17,7 @@ import time
 from realism_contract import contract, sha
 
 
-def run(repo, floor_receipts=None, refresh_floors=None, reference_floor_prefix=None, resume=False):
+def run(repo, floor_receipts=None, refresh_floors=None, reference_floor_prefix=None, resume=False, skip_floor_gates=False):
     repo=Path(repo).resolve()
     if refresh_floors is not None and not re.fullmatch(r'[a-z0-9-]{1,40}',refresh_floors):
         raise ValueError('fresh floor attempt needs a bounded path-safe identifier')
@@ -25,12 +25,15 @@ def run(repo, floor_receipts=None, refresh_floors=None, reference_floor_prefix=N
         raise ValueError('reference floor prefix needs a bounded path-safe identifier')
     if resume and refresh_floors:
         raise ValueError('resume uses existing verified floor receipts; do not regenerate floors')
+    if skip_floor_gates and (refresh_floors or reference_floor_prefix or floor_receipts):
+        raise ValueError('direct floor skip cannot refresh or claim prerequisite floor receipts/references')
     output=repo/".context/realism-1m-prep"
     status_path=repo/".context/cloud-status.json"
     result_path=repo/".context/cloud-validation.json"
     status={"phase":"starting","pid":os.getpid(),"started_epoch":time.time(),
             "accounts":1000000,"readers":20000,"validation_complete":False,
-            "minio_staged":False,"spaces_staged":False,"scope":"Private synthetic dataset preparation; no study/capacity/production claim",
+            "minio_staged":False,"spaces_staged":False,"floor_gates_skipped":skip_floor_gates,
+            "scope":"Private synthetic dataset preparation; no study/capacity/production claim",
             "runtime":{"python":platform.python_version(),"architecture":platform.machine(),"cpus":os.cpu_count()}}
     lock=threading.RLock()
     stopped=threading.Event()
@@ -58,7 +61,9 @@ def run(repo, floor_receipts=None, refresh_floors=None, reference_floor_prefix=N
         here=Path(__file__).resolve().parent
         with lock:
             status["sources"]={name:sha(here/name) for name in ("realism_contract.py","realism_dataset.py","realism_validate.py","realism_cloud_worker.py")}
-        floors=list(floor_receipts) if floor_receipts else [here/"evidence/realism-10k-20261111-v4.json",here/"evidence/realism-100k-20261111-v4.json"]
+        floors=[] if skip_floor_gates else (list(floor_receipts) if floor_receipts else [here/"evidence/realism-10k-20261111-v4.json",here/"evidence/realism-100k-20261111-v4.json"])
+        if skip_floor_gates:
+            print('[cloud-prep] OPERATOR SKIP: no repeated floor/parity prerequisites; direct 1M generation, final validation retained',flush=True)
         if refresh_floors:
             floors=[]
             for n,label,old in ((10000,'10k','realism-10k-r7'),(100000,'100k','realism-100k-r1')):
@@ -95,10 +100,11 @@ def run(repo, floor_receipts=None, refresh_floors=None, reference_floor_prefix=N
                 status['phase']='reverifying-completed-generation'
             save()
             print('[cloud-prep] resume reverify floors and completed generation',flush=True)
-            verify_floor_receipts(floors,spec)
-            manifest=generation(output,spec,floors)
+            if not skip_floor_gates:
+                verify_floor_receipts(floors,spec)
+            manifest=generation(output,spec,floors,skip_floor_gates=True) if skip_floor_gates else generation(output,spec,floors)
         if manifest is None:
-            manifest=build(output,spec,floors)
+            manifest=build(output,spec,floors,skip_floor_gates=True) if skip_floor_gates else build(output,spec,floors)
         else:
             with lock:
                 status['reused_verified_generation']=True
@@ -146,5 +152,6 @@ if __name__=="__main__":
     parser.add_argument('--refresh-floors',help='Fresh source-bound floors with preserved-reference byte parity, before 1M')
     parser.add_argument('--reference-floor-prefix',help='Preserved same-runtime reference folders under repo/.context')
     parser.add_argument('--resume',action='store_true',help='Reverify/reuse completed stages; preserve and refuse partial/stale data')
+    parser.add_argument('--skip-floor-gates',action='store_true',help='Operator opt-in: direct 1M without prerequisite floors/parity; records waiver, keeps final validation/resource controls')
     args=parser.parse_args()
-    raise SystemExit(run(args.repo,args.floor_receipt,args.refresh_floors,args.reference_floor_prefix,args.resume))
+    raise SystemExit(run(args.repo,args.floor_receipt,args.refresh_floors,args.reference_floor_prefix,args.resume,args.skip_floor_gates))

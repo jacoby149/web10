@@ -1408,6 +1408,32 @@ intact. The measured rerun is all DigitalOcean, but generator/validator floors
 are local and **no droplets, uploads or spend** are allowed until validation
 passes and the operator has seen the generated statistics receipt.
 
+**Latest operator override [✓ 5.25.0 tooling/direct start; 1M completion OPEN]:** explicit `--skip-floor-gates` stops the
+repeat graph/floor pipeline and admits a direct repaired 1M attempt. Defaults
+still require current floors; waived inputs/status explicitly record the skip
+and resume requires opt-in again. Preserve 2 GB/disk/cleanup/deadline/$5 controls,
+final independent 1M validation, both private verified copies and review. This
+supersedes fresh-floor admission below for that opted-in preparation only.
+
+**RD3-PROGRESS [✓ 5.25.1 logging/restart; 1M completion OPEN]:** operator authorizes a restart for real stage/work
+logging, not another 100k gate cycle. Named allocation/model counters and SQL/
+export start/end timings are tested with throttling and exact result controls;
+all nine offline suites pass. Same-runtime old/logged 10k model CSV bytes match;
+the previous empty output is retained and the direct 1M logging restart is
+active. Preserve prior work and retain explicit floor
+skip, final validation and the same memory/disk/cleanup deadline/$5 ceiling.
+
+**Earlier RD3 repair:** [✓ 5.24.2 local/remote controls; full graph/floor proof interrupted by operator]
+**RD3-GRAPH: bound complete-request candidate expansion at 2 GB** — the first
+repaired-generator 1M attempt OOMed in the global graph window before exporting
+Parquet. Empty output/failure/source evidence retained. Candidate-count batches
+keep full `(cell, reader_id)` windows, original target arithmetic/self exclusion/
+truncation and every requested edge. Three new exact/boundary controls and all
+nine offline Python suites pass; isolated same-host tools run full 100k graph
+equivalence then fresh source-bound floors before any 1M retry. No raised
+memory/new host/distribution waiver; approved cleanup/$5 ceiling and separate
+1M validation/two-copy persistence/statistics review/connected pilot gates stay.
+
 - [✓ 5.20.2 local docs only] **RD0: preserve derived-realism decisions** — archive the operator attachment verbatim and conversation approvals; amend the rerun plan, source precedence and both queues. Sole authorship source van Mierlo: 85% original-post nonposting, post shares 74.7% / 24.0% / 1.3% (top 1% / next 9% / bottom 90%); top-10% 98.7% is derived. Pew's authorship target is withdrawn. Keep all V2 files/receipts untouched. This closes decision capture, not generator, floors, statistics or execution.
 - [✓ 5.21.0 local contract] **RD1: joint feasibility and executable contract** — `realism_contract.py` explicitly declares one source per quantity, joint coupling/cohort/viral controls, tolerances, local disk admission and the §7 adjustment: 4 original posts/account × 400 impressions/post = 1.6B impressions / 320 days at 1M accounts. Governing distributions stay fixed; these are model parameters/arithmetic, not measured traffic or cache-size proof. Read `research/experiments/costfn/REALISM-DATASET.md`. No automatic paid fallback or generation on a failed contract.
 - [~ 5.21.0 local tools; integration OPEN] **RD2: new joint generator, independent oracle and runner** — separately identified seeded Parquet generator, independent finished-record validator/oracle and explicit 28/22 GiB overlay/admission implemented; V2 files/receipts untouched. New-format core-feed preparation/results refuse V2 one-post fallback. Eighteen new offline regressions and all ten Python research harness suites pass; rendered Compose selects the normal envelope without starting containers. Still needs source-matched Parquet-to-node/selected-cohort restore and connected independently receipted exact live-delivery deltas/full runner integration; no pilot-readiness claim. Owns new costfn tools, exact research runner/Compose hunks, tests and serialized KB; no API/UI/SDK/production edits.

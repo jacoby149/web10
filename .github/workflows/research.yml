@@ -36,6 +36,7 @@ jobs:
         working-directory: research/experiments/costfn
         run: |
           python realism.test.py
+          python realism_graph.test.py
           python realism_scratch.test.py
           python realism_cloud_lease.test.py
           python realism_cloud_worker.test.py

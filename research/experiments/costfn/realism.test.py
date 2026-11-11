@@ -3,6 +3,8 @@ import json
 import csv
 import statistics
 import random
+from contextlib import redirect_stdout
+import io
 from pathlib import Path
 import tempfile
 import unittest
@@ -18,6 +20,30 @@ import realism_validate as validator
 
 
 class ContractTests(unittest.TestCase):
+    def test_work_progress_is_throttled_but_start_and_finish_always_log(self):
+        with redirect_stdout(io.StringIO()) as output,patch.object(generator.time,'monotonic',side_effect=[0,1,6,7]):
+            progress=generator._Progress('test-stage',total=100)
+            progress.update(completed=1)
+            progress.update(completed=50)
+            progress.finish(completed=100)
+        rows=[json.loads(line.split(' ',1)[1]) for line in output.getvalue().splitlines()]
+        self.assertEqual([row['event'] for row in rows],['start','progress','complete'])
+        self.assertEqual([row['elapsed_s'] for row in rows],[0,6,7])
+        self.assertEqual(rows[1]['completed'],50)
+
+    def test_logged_allocator_reports_work_without_changing_exact_results(self):
+        weights=[1]+[.1]*9990
+        expected=generator.allocate(1900,weights)
+        with redirect_stdout(io.StringIO()) as output:
+            actual=generator.allocate(1900,weights,label='diagnostic-test')
+        self.assertEqual(actual,expected)
+        records=[json.loads(line.split(' ',1)[1]) for line in output.getvalue().splitlines()]
+        self.assertEqual(records[0]['stage'],'allocate:diagnostic-test')
+        self.assertEqual(records[0]['event'],'start')
+        self.assertEqual(records[-1]['remaining'],0)
+        self.assertEqual(records[-1]['allocated'],1900)
+        self.assertGreater(records[-1]['equivalent_rounds'],records[-1]['sweeps'])
+
     def test_total_and_horizon_adjust_not_the_sourced_shapes(self):
         for n in (10000,100000,1000000):
             spec=c.contract(n)
@@ -95,6 +121,19 @@ class ContractTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 generator.build(out,c.contract(1000000))
             self.assertFalse(out.exists())
+
+    def test_explicit_floor_skip_retains_disk_admission_before_output(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out=Path(tmp)/'direct-million'
+            with patch.object(generator.shutil,'disk_usage') as disk,patch.object(validator,'verify_floor_receipts') as floors:
+                disk.return_value.free=0
+                with self.assertRaisesRegex(ValueError,'disk admission'):
+                    generator.build(out,c.contract(1000000),skip_floor_gates=True)
+                floors.assert_not_called()
+            self.assertFalse(out.exists())
+            for spec,receipts in ((c.contract(10000),[]),(c.contract(1000000),['claimed-proof'])):
+                with self.assertRaisesRegex(ValueError,'direct 1M'):
+                    generator.build(out,spec,receipts,skip_floor_gates=True)
 
     def test_receipt_booleans_alone_cannot_open_million_gate(self):
         with tempfile.TemporaryDirectory() as tmp:
