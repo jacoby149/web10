@@ -160,7 +160,7 @@ The adapter must also prove per-service group/attachment semantics and full
 projected-row/count parity on cross-author engagement, not assume that an old
 V2 author-set treatment transfers because its original fixture/IDs passed.
 
-**Scratch audit complete (5.19.0):**
+**Scratch audit complete (5.22.0):**
 [measured assessment](REALISM-SCRATCH-20261111.md) records a fresh byte-matched
 100k generation and all 50 independent checks passing. Sampled allocated
 dataset+scratch peaks were 8.71 GB / 7.37 GB for the sequential generation /

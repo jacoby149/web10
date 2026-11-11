@@ -28,6 +28,12 @@ weaken the guard; the larger preparation disk is separately approved. Generated
 reports are indexed in [evidence/REALISM-ARTIFACTS.md](evidence/REALISM-ARTIFACTS.md),
 not committed as piles of JSON/TAR. Provisioning is not 1M validation or fleet readiness.
 
+**Current source capture after dev integration:** `core-feed-wire-v6.json` plus
+cursor `core-feed-next-page-v4.json`. v6 refreshes only the merged profile type
+source pin; the four request payloads are exactly unchanged from v5. Historical
+fixtures/receipts remain intact. This required test fixture is not disposable
+generated-report clutter; no network or benchmark execution occurs in capture CI.
+
 > **09.11.2026: the K=20-first plan is ratified.** [PLAN.md](PLAN.md) is the
 > directive (per-request cost first, local-only, K≈20 headline, four arms,
 > 37k-DAU demonstration last); [PROTOCOL.md](PROTOCOL.md) is the frozen

@@ -22,7 +22,7 @@ class CoreRequestFailure(RuntimeError):
 
 
 def wire():
-    value = json.loads((HERE / "evidence/core-feed-wire-v5.json").read_bytes())
+    value = json.loads((HERE / "evidence/core-feed-wire-v6.json").read_bytes())
     errors = study_plan.wire_errors(value)
     if errors:
         raise ValueError("stale core-feed source capture: " + "; ".join(errors))

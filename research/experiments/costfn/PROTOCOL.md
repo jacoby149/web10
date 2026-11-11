@@ -14,6 +14,9 @@
 > runner; current passing floors, preparation status and remaining gates are
 > recorded in [REALISM-DATASET.md](REALISM-DATASET.md) and
 > [REALISM-CLOUD-PREP.md](REALISM-CLOUD-PREP.md).
+> Current branch source selection after merging dev is wire v6 / cursor v4;
+> only the type-source hash changes, all four request payloads equal v5. The
+> dated frozen-input records below retain their original capture identities.
 
 > **Status: FROZEN 09.11.2026** (input identities complete below; dataset files
 > local-only). This file is the single frozen unit of **claim, workload,
