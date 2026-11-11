@@ -110,6 +110,29 @@ class WorkerTests(unittest.TestCase):
             generation.assert_not_called()
             build.assert_not_called()
 
+    def test_explicit_skip_runs_direct_1m_but_never_skips_final_validation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo=Path(tmp)
+            (repo/'.context').mkdir()
+            with patch('realism_validate.verify_floor_receipts') as floors, \
+                    patch('realism_dataset.build',return_value={'dataset_id':'direct','files':{}}) as build, \
+                    patch('realism_validate.validate',return_value={'complete':False,'checks':{'facts':False}}) as validate:
+                self.assertEqual(worker.run(repo,skip_floor_gates=True),1)
+            floors.assert_not_called()
+            self.assertEqual(build.call_args.args[2],[])
+            self.assertEqual(build.call_args.kwargs,{'skip_floor_gates':True})
+            validate.assert_called_once()
+            state=json.loads((repo/'.context/cloud-status.json').read_bytes())
+            self.assertTrue(state['floor_gates_skipped'])
+            self.assertEqual(state['phase'],'validation-failed')
+            self.assertFalse(state['validation_complete'])
+
+    def test_skip_cannot_also_refresh_or_claim_floor_proofs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for options in ({'refresh_floors':'new'},{'floor_receipts':['old']},{'reference_floor_prefix':'old'}):
+                with self.assertRaises(ValueError):
+                    worker.run(Path(tmp),skip_floor_gates=True,**options)
+
 
 if __name__=='__main__':
     unittest.main()
