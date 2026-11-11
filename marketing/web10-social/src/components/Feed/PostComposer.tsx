@@ -26,7 +26,7 @@ import {
   validateVideoDuration,
 } from '@/lib/mediaProcessing';
 import type { ProcessingError as MediaProcessingError } from '@/lib/mediaProcessing';
-import { Image, X, Send, Loader2, AlertTriangle, GripVertical, Globe, Lock, Megaphone, Scissors, Repeat2, Bold, Italic, Strikethrough, Heading2, List, Code, Link as LinkIcon, Film, Music } from 'lucide-react';
+import { Image, Paperclip, X, Send, Loader2, AlertTriangle, GripVertical, Globe, Lock, Megaphone, Scissors, Repeat2, Bold, Italic, Strikethrough, Heading2, List, Code, Link as LinkIcon, Film, Music } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AdPicker } from './AdPicker';
 import { VideoEditorSheet } from './VideoEditorSheet';
@@ -189,7 +189,29 @@ function MediaTrayItem({
             )}
           </div>
           {onAlbumArtChange && (
-            <label className="relative z-10 mt-1 cursor-pointer">
+            // The album-art control is a full attach target, not click-only:
+            // pick (the input), drag a cover ONTO it (onDrop), or paste it
+            // while it's focused (onPaste — tabIndex makes the chip focusable,
+            // the same pixels-on-the-clipboard path as the root's paste).
+            <label
+              className="relative z-10 mt-1 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              tabIndex={0}
+              data-testid="album-art-chip"
+              onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation(); // the chip IS the target — the root handler must not double-route
+                const file = e.dataTransfer.files?.[0];
+                if (file && file.type.startsWith('image/')) onAlbumArtChange(file);
+              }}
+              onPaste={(e) => {
+                const files = clipboardImageFiles(e.clipboardData);
+                if (!files.length) return;
+                e.preventDefault();
+                e.stopPropagation();
+                onAlbumArtChange(files[0]);
+              }}
+            >
               <span className="flex items-center gap-1 text-[0.625rem] font-medium text-foreground bg-background/80 rounded-full px-2 py-0.5 hover:bg-background transition-colors">
                 <Image className="w-3 h-3" />
                 {item.albumArt ? 'Change art' : 'Add art'}
@@ -750,25 +772,46 @@ export default function PostComposer({
     e.target.value = '';
   }
 
+  // The album-art shortcut (the operator's "paste the album cover in, or drag
+  // the album cover on there"): when the tray holds EXACTLY ONE AUDIO item, an
+  // incoming image is that track's COVER — it attaches as the track's
+  // thumbnail (the audio doc's thumbnail_object_key, the shared album-art
+  // precedence's first pick), not as a second media item. Everything else —
+  // videos, audio, images into a mixed/multi-item tray — goes through the
+  // normal tray path (processAndAddFiles: validation + background processing).
+  function routeAttachFiles(files: File[]) {
+    if (!files.length) return;
+    const soloAudio = mediaItems.length === 1 && mediaItems[0].isAudio ? mediaItems[0] : null;
+    const firstImage = files.find(file => file.type.startsWith('image/'));
+    if (soloAudio && firstImage) {
+      handleAlbumArtChange(soloAudio.id, firstImage);
+      const rest = files.filter(file => file !== firstImage);
+      if (rest.length) processAndAddFiles(rest);
+      return;
+    }
+    processAndAddFiles(files);
+  }
+
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
     setDragOver(false);
-    if (e.dataTransfer.files) processAndAddFiles(e.dataTransfer.files);
+    if (e.dataTransfer.files) routeAttachFiles(Array.from(e.dataTransfer.files));
   }
 
   // Cmd/Ctrl+V with pixels on the clipboard attaches the image(s) to the
-  // tray — the same path as the picker button and drag-drop (processAndAddFiles
-  // runs validation + the background processing). Plain-text pastes return no
-  // files: no preventDefault, the editor owns the paste. Edit mode is
-  // remove-only (you can't attach new media to an existing post), so a pasted
-  // image is left to the editor's default handling (the schema has no image
-  // node — it drops, same as before this handler existed).
+  // tray — the same path as the picker button and drag-drop (routeAttachFiles
+  // sends a cover to a solo audio track's album art, everything else to the
+  // tray). Plain-text pastes return no files: no preventDefault, the editor
+  // owns the paste. Edit mode is remove-only (you can't attach new media to
+  // an existing post), so a pasted image is left to the editor's default
+  // handling (the schema has no image node — it drops, same as before this
+  // handler existed).
   function handlePaste(e: React.ClipboardEvent) {
     if (isEditing) return;
     const files = clipboardImageFiles(e.clipboardData);
     if (!files.length) return;
     e.preventDefault();
-    processAndAddFiles(files);
+    routeAttachFiles(files);
   }
 
   function removeMedia(id: number) {
@@ -1326,10 +1369,12 @@ export default function PostComposer({
               )}
 
               {/* The "mark as music" toggle in edit mode (music.md): shown when
-                  the post has video media. Saves separately from post content
-                  (like the Discover audience control) — toggling writes the
-                  `music` tag via updatePost. A video CAN be music. */}
-              {isEditing && editMedia.some((m) => m.mime_type?.startsWith('video/')) && (
+                  the post has video OR audio media — a video CAN be music
+                  (opt-in), and an audio post's auto-set `music` tag can be
+                  REMOVED here (the choice, both directions). Saves separately
+                  from post content (like the Discover audience control) —
+                  toggling writes the tag via updatePost. */}
+              {isEditing && editMedia.some((m) => m.mime_type?.startsWith('video/') || m.mime_type?.startsWith('audio/')) && (
                 <section className="rounded-lg border border-border bg-surface p-3 space-y-2" aria-label="Mark as music" data-testid="edit-mark-as-music">
                   <div className="flex items-center gap-2">
                     <Music className="w-4 h-4 text-muted-foreground" strokeWidth={1.75} />
@@ -1446,9 +1491,10 @@ export default function PostComposer({
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploading || posting}
                   aria-label="Attach media"
+                  title="Add media — photos, videos or MP3"
                   data-testid="attach-media-button"
                 >
-                  <Image className="w-[18px] h-[18px]" strokeWidth={1.75} />
+                  <Paperclip className="w-[18px] h-[18px]" strokeWidth={1.75} />
                 </Button>
               )}
 

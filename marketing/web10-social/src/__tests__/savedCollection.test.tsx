@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import '@testing-library/jest-dom';
 
 // Mock lucide-react icons (Proxy fabricates any icon — never list them by hand)
@@ -61,11 +61,19 @@ import { getWapi } from '@/data/wapi';
 
 const GROUP_ID = 'test.localhost/groups/users/testuser/saved-guitar-riffs';
 
+// A probe for the /music handoff (the "Listen in Music" CTA navigates there —
+// the route captures the search string so the test asserts the exact URL).
+function MusicDestination() {
+  const location = useLocation();
+  return <span data-testid="music-destination">{location.search}</span>;
+}
+
 function renderCollection(entry = `/u/testuser/saved/${encodeURIComponent(GROUP_ID)}`, username = 'testuser') {
   return render(
     <MemoryRouter initialEntries={[entry]}>
       <Routes>
         <Route path="/u/:username/saved/:collectionId" element={<SavedCollectionScreen username={username} provider="test.localhost" />} />
+        <Route path="/music" element={<MusicDestination />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -470,5 +478,101 @@ describe('SavedCollectionScreen — playlist sharing', () => {
     expect(screen.getByTestId('saved-collection-share-url')).toHaveTextContent(
       `/groups/${encodeURIComponent('test.localhost/groups/users/testuser/band')}/saved/${encodeURIComponent(GROUP_ID)}`,
     );
+  });
+});
+
+// ── Music compatibility ───────────────────────────────────────────────────────
+// A collection whose LIVE items are ALL music tracks (the shared music gate —
+// the `music` tag + exactly one playable media) is a PLAYLIST: the screen
+// offers the Music-view handoff ("Listen in Music") and shares the LISTENING
+// permalink, not the management wall. A mixed collection stays D88.
+
+function allMusicCollection(dead = false) {
+  return {
+    face: { name: 'Late Night Loops', visibility: 'public' },
+    posts: [
+      { _id: 's1', postId: 'p1', savedAt: 'x', unavailable: false, post: { _id: 'p1', title: 'Loop one', tags: ['music'], media_refs: [{ doc_id: 'm1', mime_type: 'audio/mpeg', read_url: 'http://media/one.mp3', thumbnail_url: 'http://media/art-one.webp' }], created_at: 'x' } },
+      { _id: 's2', postId: 'p2', savedAt: 'x', unavailable: false, post: { _id: 'p2', title: 'Loop two', tags: ['music'], media_refs: [{ doc_id: 'm2', mime_type: 'audio/mpeg', read_url: 'http://media/two.mp3' }], created_at: 'x' } },
+      ...(dead ? [{ _id: 's3', postId: 'dead', savedAt: 'x', unavailable: true, post: null }] : []),
+    ],
+    mediaMap: {
+      m1: { _id: 'm1', url: 'http://media/one.mp3', mime_type: 'audio/mpeg', thumbnail_url: 'http://media/art-one.webp', created_at: 'x' },
+      m2: { _id: 'm2', url: 'http://media/two.mp3', mime_type: 'audio/mpeg', created_at: 'x' },
+    },
+  };
+}
+
+// A mixed collection: one music track + one non-music post (a text-only post —
+// the "not all music" case without the wall's media effects in jsdom).
+function mixedCollection() {
+  return {
+    face: { name: 'Tour Mix', visibility: 'public' },
+    posts: [
+      { _id: 's1', postId: 'p1', savedAt: 'x', unavailable: false, post: { _id: 'p1', text: 'setlist notes', created_at: 'x' } },
+      { _id: 's2', postId: 'p2', savedAt: 'x', unavailable: false, post: { _id: 'p2', title: 'Loop two', tags: ['music'], media_refs: [{ doc_id: 'm2', mime_type: 'audio/mpeg', read_url: 'http://media/two.mp3' }], created_at: 'x' } },
+    ],
+    mediaMap: {
+      m2: { _id: 'm2', url: 'http://media/two.mp3', mime_type: 'audio/mpeg', created_at: 'x' },
+    },
+  };
+}
+
+describe('SavedCollectionScreen — music compatibility (an all-music collection is a playlist)', () => {
+  it('offers the Music-view handoff on an all-music collection (owner)', async () => {
+    mockReadCollection.mockResolvedValue(allMusicCollection());
+    renderCollection();
+    const cta = await screen.findByTestId('saved-collection-listen-in-music');
+    fireEvent.click(cta);
+    expect(screen.getByTestId('music-destination')).toHaveTextContent(
+      `?view=playlists&collection=${encodeURIComponent(GROUP_ID)}`,
+    );
+  });
+
+  it('a dead item does not disqualify the collection (detection runs on the LIVE items)', async () => {
+    mockReadCollection.mockResolvedValue(allMusicCollection(true));
+    renderCollection();
+    expect(await screen.findByTestId('saved-collection-listen-in-music')).toBeInTheDocument();
+  });
+
+  it('an anonymous visitor of a public all-music collection gets the handoff (no owner controls)', async () => {
+    vi.mocked(getWapi).mockReturnValue({ readToken: () => null } as unknown as ReturnType<typeof getWapi>);
+    mockReadCollection.mockResolvedValue(allMusicCollection());
+    renderCollection();
+    expect(await screen.findByTestId('saved-collection-listen-in-music')).toBeInTheDocument();
+    expect(screen.queryByTestId('saved-collection-visibility')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('saved-collection-menu-button')).not.toBeInTheDocument();
+  });
+
+  it('the all-music collection shares the LISTENING permalink (the music-view url)', async () => {
+    mockReadCollection.mockResolvedValue(allMusicCollection());
+    renderCollection();
+    fireEvent.click(await screen.findByTestId('saved-collection-share'));
+    await screen.findByTestId('saved-collection-share-sheet');
+    expect(screen.getByTestId('saved-collection-share-url')).toHaveTextContent(
+      `/music?view=playlists&collection=${encodeURIComponent(GROUP_ID)}`,
+    );
+  });
+
+  it('a mixed (non-music) collection keeps the D88 permalink and offers no handoff', async () => {
+    mockReadCollection.mockResolvedValue(mixedCollection());
+    renderCollection();
+    await screen.findAllByTestId('saved-post-cell');
+    expect(screen.queryByTestId('saved-collection-listen-in-music')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('saved-collection-share'));
+    await screen.findByTestId('saved-collection-share-sheet');
+    expect(screen.getByTestId('saved-collection-share-url')).toHaveTextContent(
+      `/u/testuser/saved/${encodeURIComponent(GROUP_ID)}`,
+    );
+  });
+
+  it('a collection with no live items (all dead) is not music — no handoff', async () => {
+    mockReadCollection.mockResolvedValue({
+      face: { name: 'Gone', visibility: 'public' },
+      posts: [{ _id: 's1', postId: 'dead', savedAt: 'x', unavailable: true, post: null }],
+      mediaMap: {},
+    });
+    renderCollection();
+    await screen.findByTestId('saved-unavailable');
+    expect(screen.queryByTestId('saved-collection-listen-in-music')).not.toBeInTheDocument();
   });
 });

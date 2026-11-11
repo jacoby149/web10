@@ -6,6 +6,7 @@
 import { MemoryRouter } from 'react-router-dom';
 import { PostLightbox } from '@/components/Bio/PostLightbox';
 import type { PostRecord } from '@/data/types';
+import { MUSIC_TRACKS } from './mock-music';
 
 const POST: PostRecord = {
   _id: 'pd-1',
@@ -31,7 +32,27 @@ const POST: PostRecord = {
   author_provider: 'web10',
 };
 
-export function PostDetailHarness({ group = false }: { group?: boolean }) {
+export function PostDetailHarness({ group = false, audio = false }: { group?: boolean; audio?: boolean }) {
+  // The audio variant: a seeded music post (the `music` tag + one wav) — the
+  // lightbox's music-track slide (the shared AudioPlayer + the album art),
+  // the "profile mp3 posts don't play" capture.
+  if (audio) {
+    const track = MUSIC_TRACKS[0];
+    return (
+      <MemoryRouter>
+        <div className="flex min-h-screen items-center justify-center bg-background" data-testid="post-detail-harness">
+          <PostLightbox
+            post={track.post}
+            mediaMap={{ [track.media._id]: track.media }}
+            onClose={() => {}}
+            postAuthor={track.post.author_username || 'nova'}
+            postService="public_posts"
+            isOwner={true}
+          />
+        </div>
+      </MemoryRouter>
+    );
+  }
   return (
     <MemoryRouter>
       <div className="flex min-h-screen items-center justify-center bg-background" data-testid="post-detail-harness">

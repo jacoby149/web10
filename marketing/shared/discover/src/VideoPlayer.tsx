@@ -43,38 +43,12 @@ const SPEEDS = ['1x', '1.5x', '2x'] as const;
  * gives it — and for the `hls` source no control rack (video only).
  */
 
-export type VideoSource =
-  | { type: 'hls'; manifestUrl: string; poster?: string; width?: number; height?: number }
-  | { type: 'file'; url: string; poster?: string; width?: number; height?: number; durationSeconds?: number }
-  | { type: 'youtube'; id: string };
-
-/**
- * Build a VideoSource from a resolved MediaItem — the common case. A
- * transcoded video (status done + a minted manifest_url) plays through hls.js;
- * anything else (processing/failed/absent, the import path's raw MP4s) plays
- * the direct file.
- */
-export function sourceFromMedia(media: MediaItem): VideoSource {
-  const ts = media.transcoding_settings;
-  if (media.mime_type?.startsWith('video/') && ts?.status === 'done' && ts.manifest_url) {
-    const v0 = ts.variants?.[0];
-    return {
-      type: 'hls',
-      manifestUrl: ts.manifest_url,
-      poster: media.thumbnail_url,
-      width: v0?.width || media.width,
-      height: v0?.height || media.height,
-    };
-  }
-  return {
-    type: 'file',
-    url: media.url,
-    poster: media.thumbnail_url,
-    width: media.width,
-    height: media.height,
-    durationSeconds: media.duration_seconds,
-  };
-}
+// The pure source selector lives in ./videoSource (the /face seam pattern —
+// the data layer and the music transport import that subpath directly so a
+// `vi.mock('@/data')` never drags in the React barrel); re-exported here for
+// the barrel's existing consumers.
+import { sourceFromMedia, type VideoSource } from './videoSource';
+export { sourceFromMedia, type VideoSource };
 
 export interface VideoPlayerProps {
   source: VideoSource;

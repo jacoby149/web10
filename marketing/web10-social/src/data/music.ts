@@ -26,7 +26,7 @@ function sessionCheck(assertCurrent?: () => void) {
   } };
 }
 
-export async function readMusicCollection(groupId: string): Promise<{ tracks: MusicTrack[]; skipped: number; name: string }> {
+export async function readMusicCollection(groupId: string): Promise<{ tracks: MusicTrack[]; skipped: number; name: string; visibility: 'private' | 'public' }> {
   const session = sessionCheck();
   console.log('[music-library] collection read start');
   const contents = await readCollection(groupId);
@@ -39,7 +39,15 @@ export async function readMusicCollection(groupId: string): Promise<{ tracks: Mu
   }
   const skipped = contents.posts.length - tracks.length;
   console.log('[music-library] collection read complete', { tracks: tracks.length, skipped });
-  return { tracks, skipped, name: contents.face.name || '' };
+  return {
+    tracks,
+    skipped,
+    name: contents.face.name || '',
+    // The face's visibility intent (D58's grant enforces it) — the open
+    // collection's D107 replay state: a public playlist the visitor opened is
+    // public content, an unreadable/unknown one stays masked.
+    visibility: contents.face.visibility === 'public' ? 'public' : 'private',
+  };
 }
 
 export async function readMusicTrack(postId: string): Promise<MusicTrack | null> {

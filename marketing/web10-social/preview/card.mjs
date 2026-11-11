@@ -288,6 +288,16 @@ export async function groupPostCard(groupId, postId) {
   return buildPostCard(postId, canonicalUrl)
 }
 
+// The Music app's playlist permalink: /music?view=playlists&collection=<id>
+// (the "Share playlist" link the Music view hands out — the LISTENING
+// permalink, not the D88 management wall). Same card as the /u/…/saved/…
+// shape: the anon face + items read, the cover walk, the I3/D41 floor intact
+// (a private playlist's face read fails → the generic card, no content).
+export async function musicPlaylistCard(collectionId) {
+  const canonicalUrl = `${SOCIAL_ORIGIN}/music?view=playlists&collection=${encodeURIComponent(collectionId)}`
+  return buildSavedCard(collectionId, canonicalUrl)
+}
+
 // Music shares identify the post in the query string, not a path segment.
 export async function musicCard(postId) {
   console.log('[preview] music card start', { hasTrack: Boolean(postId) })

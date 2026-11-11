@@ -223,7 +223,15 @@ the generic-card floor. (05.11.2026 production diagnosis: the card served the
 name + count but the cover fell back to the brand mark, because the pre-fix
 card logic called `media/thumbnail` on the media doc directly — and the
 synthetic preview tests had modeled that call as anon-readable, a corrupted
-measure; the fixtures now model the real node's I3 404.)
+measure; the fixtures now model the real node's I3 404.) The **Music view's
+playlist share link** — `/music?view=playlists&collection=<group_id>` (the
+"Share playlist" permalink the Music app hands out: the LISTENING shape — the
+recipient lands on the playlist, not the D88 management wall) — answers with
+the SAME saved-collection card (the face + count + cover walk, no user
+attribution: the query URL carries no username) under that canonical URL, with
+the same I3 floor (a denied face → the generic card, no content). A bare
+`/music?track=<id>` stays the post card; a `/music` without a collection stays
+the generic music card.
 
 **The profile + group share cards' faces resolve through the same anon
 face-prepare seam** (09.11.2026, the same I3 defect class): `profileCard` /

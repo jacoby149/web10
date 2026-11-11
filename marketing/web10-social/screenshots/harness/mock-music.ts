@@ -1,5 +1,6 @@
 import type { MusicTrack } from '../../src/data/musicTrack';
 import type { CollectionRecord } from '../../src/data/saved';
+import { MOCK_MUSIC_VIDEO_URL } from './mock-music-video';
 
 function artwork(title: string, color: string, index: number) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600"><defs><linearGradient id="g" x2="1" y2="1"><stop stop-color="${color}"/><stop offset="1" stop-color="#09090b"/></linearGradient></defs><rect width="600" height="600" fill="url(#g)"/><circle cx="${200 + index * 30}" cy="240" r="160" fill="none" stroke="#c4b5fd" stroke-width="2"/><circle cx="300" cy="300" r="110" fill="#18181b"/><circle cx="300" cy="300" r="34" fill="${color}"/><path d="M0 450L600 180M0 490L600 220" stroke="#a78bfa" opacity=".4"/><text x="40" y="530" fill="#fafafa" font-family="sans-serif" font-size="30" letter-spacing="4">${title.toUpperCase()}</text><text x="42" y="565" fill="#c4b5fd" font-family="sans-serif" font-size="14" letter-spacing="6">LISTENING ROOM / 0${index + 1}</text></svg>`;
@@ -25,7 +26,8 @@ header.setUint32(40, samples, true);
 wav.fill(128, 44);
 const audio = `data:audio/wav;base64,${btoa(String.fromCharCode(...wav))}`;
 
-export const MUSIC_TRACKS: MusicTrack[] = [
+// The six audio fixtures (the original wall).
+const AUDIO_TRACKS: MusicTrack[] = [
   ['After Hours', 'Synthwave Sessions', 'nova', 'synthwave-sessions', '#4c1d95', 238],
   ['Slow Sunday', 'Lo-fi Study Room', 'kai', 'lofi-study-room', '#134e4a', 184],
   ['Violet Skyline', 'Northstar Studio', 'me', 'studio', '#312e81', 216],
@@ -52,6 +54,29 @@ export const MUSIC_TRACKS: MusicTrack[] = [
     artworkUrl: cover,
   };
 });
+
+// music-7: a MUSIC VIDEO (music.md: a video CAN be a track — marked `music`).
+// A real one-second H.264 file (a data URL) so the panel's video stage can
+// actually decode it. The poster doubles as the track's album art.
+const videoCover = artwork('Studio Session', '#1e1b4b', 6);
+const VIDEO_TRACK: MusicTrack = {
+  post: {
+    _id: 'music-7', title: 'Studio Session',
+    text: 'Studio Session. Filmed live in the studio, one take.',
+    author_username: 'me', author_provider: 'web10',
+    author_key: 'web10/groups/users/me/studio',
+    group_identity: { name: 'Northstar Studio' }, tags: ['music'],
+    created_at: '2026-11-01T19:00:00Z', media_refs: ['music-video-7'],
+  },
+  media: {
+    _id: 'music-video-7', url: MOCK_MUSIC_VIDEO_URL, mime_type: 'video/mp4',
+    created_at: '2026-11-01T19:00:00Z', duration_seconds: 1,
+    thumbnail_url: videoCover, width: 160, height: 90,
+  },
+  artworkUrl: videoCover,
+};
+
+export const MUSIC_TRACKS: MusicTrack[] = [...AUDIO_TRACKS, VIDEO_TRACK];
 
 export const SAVED_COLLECTIONS: CollectionRecord[] = [
   { groupId: 'web10/groups/users/me/saved-guitar-riffs', name: 'Guitar Riffs', visibility: 'private', itemCount: 3, slug: 'guitar-riffs', coverUrl: MUSIC_TRACKS[2].media.thumbnail_url },
@@ -106,7 +131,11 @@ export async function readSavedPostIds(groupId: string) {
 export async function readMusicCollection(groupId: string) {
   const ids = items.get(groupId) ?? [];
   const tracks = ids.flatMap(id => MUSIC_TRACKS.filter(track => track.post._id === id));
-  return { tracks, skipped: ids.length - tracks.length, name: groupId === publicPlaylist ? 'Best Of' : SAVED_COLLECTIONS.find(collection => collection.groupId === groupId)?.name || '' };
+  const collection = SAVED_COLLECTIONS.find(c => c.groupId === groupId);
+  // The face's visibility (D107: the open collection's replay state — a public
+  // playlist reads for anyone, the private ones stay masked).
+  const visibility = groupId === publicPlaylist || collection?.visibility === 'public' ? 'public' : 'private';
+  return { tracks, skipped: ids.length - tracks.length, name: groupId === publicPlaylist ? 'Best Of' : collection?.name || '', visibility };
 }
 export async function savePostToCollection(groupId: string, postId: string) {
   const ids = items.get(groupId) ?? [];

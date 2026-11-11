@@ -67,6 +67,7 @@ import {
   readGroupPublicCollections,
   setCollectionCover,
   reorderCollection,
+  healCollectionCover,
 } from '@/data/saved';
 
 const GROUP_ID = 'api.localhost/groups/users/jacoby149/saved-my-collection';
@@ -460,6 +461,76 @@ describe('readCollection — the owner\'s curated order (position) wins over new
     const { posts } = await readCollection(GROUP_ID);
     expect(posts.map((p) => p.postId)).toEqual(['p1', 'p2']);
     expect(posts.every((p) => p.position === undefined)).toBe(true);
+  });
+});
+
+// ── Stale-cover self-heal ─────────────────────────────────────────────────────
+// A post is deleted by TOMBSTONE; its media docs outlive it. The face's
+// avatar_ref (the cover) then keeps resolving to a displayable URL for a post
+// that no longer exists — the dead post's picture lingers on every card. The
+// cover is only valid through a LIVE item, so `readCollection` reselects it
+// (first live item with media, the auto-cover rule) or clears it.
+
+describe('readCollection — the stale-cover self-heal (a deleted post\'s picture must not linger)', () => {
+  it('reselects the cover from the first live item when the pinned cover\'s post is deleted, and persists the healed face', async () => {
+    mockReadGroupIdentity.mockResolvedValue({ name: 'Mix', kind: 'saved', visibility: 'public', avatar_ref: 'm-dead' });
+    mockRead.mockResolvedValue([
+      { doc_id: 's1', ref_value: 'p1', body: { post_id: 'p1' }, created_at: '2026-09-30T00:00:00Z' },
+      { doc_id: 's2', ref_value: 'dead', body: { post_id: 'dead' }, created_at: '2026-09-29T00:00:00Z' },
+    ]);
+    mockReadPostById.mockImplementation(async (id: string) =>
+      id === 'p1'
+        ? { _id: 'p1', media_refs: [{ doc_id: 'm-live', mime_type: 'audio/mpeg', read_url: 'http://media/live.mp3' }], created_at: 'x' }
+        : null,
+    );
+    const { face, posts } = await readCollection(GROUP_ID);
+    expect(posts[1].unavailable).toBe(true); // the dead ref still degrades (unchanged)
+    expect(face.avatar_ref).toBe('m-live'); // the returned face is healed
+    expect(mockWriteGroupIdentity).toHaveBeenCalledTimes(1);
+    expect(mockWriteGroupIdentity).toHaveBeenCalledWith(GROUP_ID, expect.objectContaining({ name: 'Mix', avatar_ref: 'm-live' }));
+  });
+
+  it('keeps the cover when it still belongs to a live item (no face writes on ordinary reads)', async () => {
+    mockReadGroupIdentity.mockResolvedValue({ name: 'Mix', kind: 'saved', avatar_ref: 'm1' });
+    mockRead.mockResolvedValue([
+      { doc_id: 's1', ref_value: 'p1', body: { post_id: 'p1' }, created_at: '2026-09-30T00:00:00Z' },
+    ]);
+    mockReadPostById.mockResolvedValue({ _id: 'p1', media_refs: [{ doc_id: 'm1', mime_type: 'image/png', read_url: 'http://media/a.png' }], created_at: 'x' });
+    const { face } = await readCollection(GROUP_ID);
+    expect(face.avatar_ref).toBe('m1');
+    expect(mockWriteGroupIdentity).not.toHaveBeenCalled();
+  });
+
+  it('clears the cover when every item is dead (the card falls back to the placeholder)', async () => {
+    mockReadGroupIdentity.mockResolvedValue({ name: 'Gone', kind: 'saved', avatar_ref: 'm-dead' });
+    mockRead.mockResolvedValue([
+      { doc_id: 's1', ref_value: 'gone', body: { post_id: 'gone' }, created_at: '2026-09-30T00:00:00Z' },
+    ]);
+    mockReadPostById.mockResolvedValue(null);
+    const { face } = await readCollection(GROUP_ID);
+    expect(face.avatar_ref).toBeUndefined();
+    expect(mockWriteGroupIdentity).toHaveBeenCalledTimes(1);
+    const written = mockWriteGroupIdentity.mock.calls[0][1] as { avatar_ref?: string; name: string };
+    expect(written.name).toBe('Gone');
+    expect(written.avatar_ref).toBeUndefined();
+  });
+
+  it('a failed self-heal write (a visitor, not the owner) degrades silently — the read still resolves', async () => {
+    mockWriteGroupIdentity.mockRejectedValueOnce(Object.assign(new Error('forbidden'), { status: 403 }));
+    mockReadGroupIdentity.mockResolvedValue({ name: 'Mix', kind: 'saved', avatar_ref: 'm-dead' });
+    mockRead.mockResolvedValue([
+      { doc_id: 's1', ref_value: 'p1', body: { post_id: 'p1' }, created_at: '2026-09-30T00:00:00Z' },
+    ]);
+    mockReadPostById.mockResolvedValue({ _id: 'p1', media_refs: [{ doc_id: 'm-live', mime_type: 'image/png', read_url: 'http://media/a.png' }], created_at: 'x' });
+    await expect(readCollection(GROUP_ID)).resolves.toMatchObject({ posts: [{ unavailable: false }] });
+  });
+
+  it('healCollectionCover is pure: no cover / live cover → null (nothing to heal)', () => {
+    expect(healCollectionCover({ name: 'A' }, [])).toBeNull();
+    expect(healCollectionCover({ name: 'A', avatar_ref: 'm1' }, [
+      { postId: 'p1', savedAt: 'x', unavailable: false, post: { _id: 'p1', media_refs: ['m1'], created_at: 'x' } },
+      { postId: 'p2', savedAt: 'x', unavailable: true, post: null },
+    ])).toBeNull();
   });
 });
 

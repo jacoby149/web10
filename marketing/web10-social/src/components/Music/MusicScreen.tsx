@@ -75,7 +75,7 @@ export default function MusicScreen() {
   const [libraryReady, setLibraryReady] = useState(false);
   const [libraryError, setLibraryError] = useState('');
   const [libraryVersion, setLibraryVersion] = useState(0);
-  const [playlist, setPlaylist] = useState<{ tracks: MusicTrack[]; name: string; skipped: number }>({ tracks: [], name: '', skipped: 0 });
+  const [playlist, setPlaylist] = useState<{ tracks: MusicTrack[]; name: string; skipped: number; visibility: 'private' | 'public' }>({ tracks: [], name: '', skipped: 0, visibility: 'private' });
   const [playlistLoading, setPlaylistLoading] = useState(false);
   const [playlistError, setPlaylistError] = useState('');
   const [linkError, setLinkError] = useState('');
@@ -86,6 +86,14 @@ export default function MusicScreen() {
   const [shareOpen, setShareOpen] = useState(false);
   const savedCollection = findSavedMusicCollection(collections);
   const activeCollection = view === 'saved' ? savedCollection?.groupId || '' : collectionId;
+  // A video track (music.md: a video CAN be a track — a music video marked as
+  // music) rides the session's video transport; the expanded panel lends it
+  // its visible stage (the provider owns the element — borrow/return by
+  // parent; position + hls state survive the move). Audio tracks keep the
+  // artwork stage. The effect (not a ref callback) borrows it: the provider's
+  // mount effect creates the element AFTER this screen's first commit, so the
+  // borrow must re-run once `music.videoElement` lands.
+  const isVideoTrack = (track?: MusicTrack | null) => !!track?.media.mime_type?.startsWith('video/');
   const menuTrack = menuId ? [...tracks, ...playlist.tracks, ...music.queue].find(track => track.post._id === menuId && matchesSource(track) && !track.readOnlySource) || (!sourceOrigin && menuResolved?.post._id === menuId ? menuResolved : null) : null;
 
   useEffect(() => {
@@ -166,14 +174,19 @@ export default function MusicScreen() {
 
   useEffect(() => {
     let cancelled = false;
-    setPlaylist({ tracks: [], name: '', skipped: 0 }); setPlaylistError(''); setPlaylistLoading(false);
-    if ((!signedIn && !externalPlaylists) || !activeCollection) return;
+    setPlaylist({ tracks: [], name: '', skipped: 0, visibility: 'private' }); setPlaylistError(''); setPlaylistLoading(false);
+    // The URL holds which collection is open (the deep-link rule): a signed-in
+    // user opens their own library (Saved Music / their playlists); a VISITOR
+    // opens a shared playlist by URL alone (`view=playlists&collection=…`) —
+    // public ones read through the collection's `anyone` grant, a private one
+    // 403s into the unavailable state. I3 is the access control, not this gate.
+    if (!activeCollection || (!signedIn && view !== 'playlists')) return;
     setPlaylistLoading(true);
     readMusicCollection(activeCollection).then(result => { if (!cancelled) setPlaylist(result); })
-      .catch(() => { if (!cancelled) setPlaylistError('This playlist could not be opened. It may be unavailable.'); })
+      .catch(() => { if (!cancelled) setPlaylistError('This playlist is private or no longer available.'); })
       .finally(() => { if (!cancelled) setPlaylistLoading(false); });
     return () => { cancelled = true; };
-  }, [session, signedIn, activeCollection, libraryVersion, saveOpen, externalPlaylists]);
+  }, [session, signedIn, view, activeCollection, libraryVersion, saveOpen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -249,15 +262,37 @@ export default function MusicScreen() {
   }
 
   const shareCollection = view === 'saved' ? savedCollection : collectionId ? collections.find(c => c.groupId === collectionId) : undefined;
+  // The share link is the LISTENING permalink — the Music view's own URL
+  // (address bar is part of the product): a recipient, logged in or not, lands
+  // on the playlist (public ones open; I3 403s the private ones). The D88
+  // collection screen (`/u/…/saved/…`) stays the MANAGE link (the owner's
+  // "Manage collection & order"), not the sharing shape.
   const shareUrl = shareCollection && token
-    ? new URL(`/u/${encodeURIComponent(token.username)}/saved/${encodeURIComponent(shareCollection.groupId)}`, window.location.origin).href
+    ? new URL(`/music?view=playlists&collection=${encodeURIComponent(shareCollection.groupId)}`, window.location.origin).href
     : '';
+  // The open collection's D107 replay state: the library record when it's the
+  // reader's own, else the face's visibility from the read (unknown stays
+  // masked until the face says public).
+  const collectionVisibility = shareCollection?.visibility ?? playlist.visibility;
   const source = view === 'explore' ? tracks : playlist.tracks;
   const q = query.trim().toLowerCase();
   const filtered = source.filter(track => !q || [title(track), track.post.text, artist(track), track.post.author_username].some(value => value?.toLowerCase().includes(q)));
   const filteredCollections = collections.filter(col => !q || col.name.toLowerCase().includes(q));
   const current = music.current;
   const featured = view === 'explore' && !q && tracks[0];
+
+  // The video stage borrow (music.md): while the panel is open on a video
+  // track, the session's OWN video element plays in this frame (the provider
+  // owns the element — borrow/return by parent; position + hls state survive
+  // the move). Audio tracks keep the artwork stage. An effect (not a ref
+  // callback) does the borrowing: the provider's mount effect creates the
+  // element AFTER this screen's first commit, so the borrow re-runs once
+  // `music.videoElement` lands.
+  const videoStageEl = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const attach = panel === 'player' && !!current && isVideoTrack(current);
+    musicRef.current.attachVideoStage(attach ? videoStageEl.current : null);
+  }, [panel, current, music.videoElement]);
 
   function start(track: MusicTrack) {
     if (music.current && musicTrackKey(music.current) === musicTrackKey(track)) music.toggle(); else music.play(track, filtered);
@@ -294,7 +329,15 @@ export default function MusicScreen() {
     {panel ? <section aria-label="Now playing" className="grid gap-8 lg:grid-cols-2">
       {(panel === 'queue' || panel === 'comments') && <Button variant="ghost" className="h-11 w-fit gap-2 lg:hidden" onClick={() => change({ panel: 'player' })}><ArrowLeft className="h-4 w-4" />Back to player</Button>}
       <div className={panel === 'queue' || panel === 'comments' ? 'hidden lg:block' : ''}><Button variant="ghost" className="mb-4 h-11 gap-2" onClick={() => change({ panel: null })}><ArrowLeft className="h-4 w-4" />Back to browsing</Button>
-        {current ? <><div data-replay-private={current.post.visibility !== 'public' ? '' : undefined}><Artwork track={current} className="mx-auto w-56 sm:w-64" /><div className="mt-4 text-center"><p className="text-xs uppercase tracking-widest text-brand-300">Now playing</p><h2 className="mt-2 font-display text-2xl">{title(current)}</h2><p className="mt-1 text-sm text-muted-foreground">{artist(current)}</p></div></div>
+        {current ? <><div data-replay-private={current.post.visibility !== 'public' ? '' : undefined}>
+          {/* A video track (a music video marked as music, music.md) plays on
+              the session's OWN video element — the provider's hidden transport
+              borrowed into this stage (same element: position + hls state
+              survive the borrow). An audio track keeps the artwork stage. */}
+          {isVideoTrack(current)
+            ? <div data-testid="music-video-stage" ref={videoStageEl} className="mx-auto aspect-video w-full overflow-hidden rounded-lg bg-black sm:max-w-2xl" />
+            : <Artwork track={current} className="mx-auto w-56 sm:w-64" />}
+          <div className="mt-4 text-center"><p className="text-xs uppercase tracking-widest text-brand-300">Now playing</p><h2 className="mt-2 font-display text-2xl">{title(current)}</h2><p className="mt-1 text-sm text-muted-foreground">{artist(current)}</p></div></div>
           <div className="mx-auto mt-6 max-w-sm"><label className="sr-only" htmlFor="full-music-seek">Playback position</label><input id="full-music-seek" type="range" min="0" max={music.duration || 0} value={Math.min(music.currentTime, music.duration)} disabled={!music.duration} onChange={e => music.seek(Number(e.target.value))} className={cn('h-11 w-full accent-brand disabled:opacity-40', focus)} /><div className="flex justify-between text-xs tabular-nums text-muted-foreground"><span>{time(music.currentTime)}</span><span>{time(music.duration || current.media.duration_seconds || 0)}</span></div>
             <div className="my-4 flex items-center justify-center gap-3"><Button variant="ghost" size="icon" aria-label="Shuffle" aria-pressed={music.shuffle} className={cn('h-11 w-11', music.shuffle && 'text-brand-300')} onClick={music.toggleShuffle}><Shuffle className="h-5 w-5" /></Button><Button variant="ghost" size="icon" className="h-11 w-11" aria-label="Previous" onClick={music.previous}><SkipBack className="h-5 w-5" /></Button><Button variant="brand" size="icon" className="h-14 w-14 rounded-full" aria-label={music.isPlaying ? 'Pause track' : 'Play track'} data-testid="music-player-toggle" onClick={music.toggle}>{music.isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}</Button><Button variant="ghost" size="icon" className="h-11 w-11" aria-label="Next" onClick={music.next}><SkipForward className="h-5 w-5" /></Button><Button variant="ghost" size="icon" className={cn('h-11 w-11', music.repeat !== 'off' && 'text-brand-300')} aria-label={`Repeat: ${music.repeat}`} onClick={music.cycleRepeat}>{music.repeat === 'one' ? <Repeat1 className="h-5 w-5" /> : <Repeat className="h-5 w-5" />}</Button></div>
             <div className="flex flex-wrap items-center justify-center gap-1">{!menuTrack && !current.readOnlySource && <MusicReactions track={current} signedIn={signedIn} />}<Button variant="ghost" disabled={current.readOnlySource} title={current.readOnlySource ? 'Source comments are not connected' : undefined} className="h-11 gap-2" onClick={() => change({ panel: 'comments' })}><MessageCircle className="h-4 w-4" />Comments</Button>{actions(current)}</div>{!current.readOnlySource && <Link to={postLink(current)} className={cn('mt-3 flex h-11 items-center justify-center gap-2 rounded text-sm text-muted-foreground hover:text-foreground', focus)}>Open original post<ArrowUpRight className="h-4 w-4" /></Link>}
@@ -306,7 +349,7 @@ export default function MusicScreen() {
       </div>}
     </section> : <>
       {view === 'playlists' && <MusicPlaylistBrowser tracks={tracks.filter(track => !track.readOnlySource)} session={session} signedIn={signedIn} change={change} />}
-      {view !== 'explore' && !signedIn && !externalPlaylists ? <div className="rounded-lg border border-border bg-surface p-8"><h2 className="font-display text-2xl">A library of your own</h2><p className="mt-3 text-muted-foreground">Sign in to save music and build playlists with your web10 collections. You can explore and listen without an account.</p></div> : <>
+      {view !== 'explore' && !signedIn && !(view === 'playlists' && collectionId) ? <div className="rounded-lg border border-border bg-surface p-8"><h2 className="font-display text-2xl">A library of your own</h2><p className="mt-3 text-muted-foreground">Sign in to save music and build playlists with your web10 collections. You can explore and listen without an account.</p></div> : <>
         {view !== 'explore' && libraryError && <div role="alert" className="mb-4 text-sm text-danger">{libraryError}<Button variant="ghost" onClick={() => setLibraryVersion(v => v + 1)}>Retry library</Button></div>}
         {externalPlaylists && !collectionId ? null : view === 'playlists' && !collectionId ? <section>
           <div className="mb-6 flex flex-wrap items-end justify-between gap-4"><div><h2 className="font-display text-2xl">Your playlists</h2><p className="mt-2 text-sm text-muted-foreground">Your web10 collections, ready to listen.</p></div><form onSubmit={newPlaylist} className="flex w-full items-end gap-2 sm:w-auto"><div className="min-w-0 flex-1"><label htmlFor="playlist-name" className="mb-2 block text-xs text-muted-foreground">New private playlist</label><input id="playlist-name" value={newName} onChange={e => setNewName(e.target.value)} maxLength={100} placeholder="Give it a name" className={cn('h-11 w-full rounded border border-border bg-surface px-3 text-sm', focus)} /></div><Button type="submit" variant="brand_subtle" className="h-11" disabled={!newName.trim() || !!busy}><Plus className="mr-2 h-4 w-4" />Create</Button></form></div>
@@ -317,8 +360,8 @@ export default function MusicScreen() {
             <div className="min-w-0"><p className="mb-2 text-xs font-medium uppercase tracking-widest text-brand-300">New in the mix</p><h2 className="font-display text-2xl sm:text-3xl">Set the tone.</h2><p className="mt-2 hidden text-sm text-muted-foreground sm:block">A few new tracks for your next listening session.</p><Button variant="brand" className="mt-4 h-11 gap-2" onClick={() => { music.play(tracks[0], tracks); change({ track: tracks[0].post._id || null, panel: 'player' }); }}><Play className="h-4 w-4" />Start listening</Button></div>
             <button className={cn('relative w-28 shrink-0 overflow-hidden rounded transition-transform hover:scale-105 motion-reduce:transform-none sm:w-40', focus)} aria-label={`Listen to ${title(featured)}`} onClick={() => start(featured)}><Artwork track={featured} /></button>
           </section>}
-          <section aria-label="Music tracks" data-replay-private={view !== 'explore' && shareCollection?.visibility !== 'public' ? '' : undefined}><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-display text-2xl">{view === 'saved' ? 'Saved Music' : view === 'playlists' ? playlist.name || 'Playlist' : q ? 'Search results' : 'Fresh in your headphones'}</h2><p className="mt-1 text-xs text-muted-foreground">{query ? <>Results for <span className="text-foreground">{query}</span>. </> : null}{view === 'explore' ? 'Search covers loaded tracks, titles and artists. Load more to explore further.' : 'Playable music from your web10 collection.'}</p></div><div className="flex flex-wrap items-center gap-2">{view !== 'explore' && shareCollection && token && <Button variant="outline" className="h-11 gap-2" data-testid="music-share-playlist" onClick={() => setShareOpen(true)}><Share2 className="h-4 w-4" />Share playlist</Button>}{filtered.length > 0 && <Button variant="brand_subtle" className="h-11 gap-2" onClick={() => { music.play(filtered[0], filtered); change({ track: filtered[0].post._id || null, panel: 'player' }); }}><Play className="h-4 w-4" />Play all</Button>}</div></div>
-            {view === 'playlists' && !externalPlaylists && collectionId && token && <Link className={cn('mb-4 inline-flex h-11 items-center gap-2 rounded text-sm text-brand-300', focus)} to={`/u/${encodeURIComponent(token.username)}/saved/${encodeURIComponent(collectionId)}`}>Manage collection &amp; order<ArrowUpRight className="h-4 w-4" /></Link>}
+          <section aria-label="Music tracks" data-replay-private={view !== 'explore' && collectionVisibility !== 'public' ? '' : undefined}><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-display text-2xl">{view === 'saved' ? 'Saved Music' : view === 'playlists' ? playlist.name || 'Playlist' : q ? 'Search results' : 'Fresh in your headphones'}</h2><p className="mt-1 text-xs text-muted-foreground">{query ? <>Results for <span className="text-foreground">{query}</span>. </> : null}{view === 'explore' ? 'Search covers loaded tracks, titles and artists. Load more to explore further.' : 'Playable music from this web10 collection.'}</p></div><div className="flex flex-wrap items-center gap-2">{view !== 'explore' && shareCollection && token && <Button variant="outline" className="h-11 gap-2" data-testid="music-share-playlist" onClick={() => setShareOpen(true)}><Share2 className="h-4 w-4" />Share playlist</Button>}{filtered.length > 0 && <Button variant="brand_subtle" className="h-11 gap-2" onClick={() => { music.play(filtered[0], filtered); change({ track: filtered[0].post._id || null, panel: 'player' }); }}><Play className="h-4 w-4" />Play all</Button>}</div></div>
+            {view === 'playlists' && !externalPlaylists && shareCollection && token && <Link className={cn('mb-4 inline-flex h-11 items-center gap-2 rounded text-sm text-brand-300', focus)} to={`/u/${encodeURIComponent(token.username)}/saved/${encodeURIComponent(shareCollection.groupId)}`}>Manage collection &amp; order<ArrowUpRight className="h-4 w-4" /></Link>}
             {playlist.skipped > 0 && view !== 'explore' && <p className="mb-4 text-xs text-muted-foreground">{playlist.skipped} unavailable or nonmusic items aren't shown. Your collection is unchanged.</p>}
             {(view === 'explore' ? error : playlistError) && <div role="alert" className="mb-4 rounded border border-danger/30 p-4 text-sm text-danger">{view === 'explore' ? error : playlistError}<Button variant="ghost" onClick={() => view === 'explore' ? setRefresh(v => v + 1) : setLibraryVersion(v => v + 1)}>Retry</Button></div>}
             {(view === 'explore' ? loading && !tracks.length : playlistLoading || !libraryReady) ? <div className="space-y-3" aria-label="Loading music">{[0, 1, 2, 3].map(n => <div key={n} className="h-20 animate-pulse rounded bg-elevated" />)}</div> : <div className="divide-y divide-border">{filtered.map((track, index) => <article key={musicTrackKey(track)} data-replay-private={track.post.visibility !== 'public' ? '' : undefined} className={cn('flex flex-wrap items-center gap-x-3 gap-y-1 rounded px-2 py-3 sm:flex-nowrap sm:px-3', current && musicTrackKey(current) === musicTrackKey(track) ? 'bg-brand-muted/40' : 'hover:bg-surface')}>

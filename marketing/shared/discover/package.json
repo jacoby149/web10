@@ -18,7 +18,8 @@
     "./source-controls": "./src/sourceControls.ts",
     "./source-models": "./src/sourceModels.ts",
     "./mixed-feed": "./src/mixedFeed.ts",
-    "./feed-query": "./src/feedQuery.ts"
+    "./feed-query": "./src/feedQuery.ts",
+    "./video-source": "./src/videoSource.ts"
   },
   "peerDependencies": {
     "react": "^19.0.0",

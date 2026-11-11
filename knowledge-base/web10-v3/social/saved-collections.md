@@ -163,6 +163,22 @@ about the list**, not the list — it carries no content the membership did not
 already grant (the media is the saved post's own media, readable by the post's
 own gate).
 
+**A stale cover self-heals on read (the "the post is lingering" fix).**
+Deleting a post tombstones the `posts` doc, but its **media docs outlive it** —
+so a cover pinned (or auto-set) from that post keeps resolving to a
+displayable URL for a post that no longer exists: the dead post's picture
+lingers on every card forever, because a media-doc read cannot tell "the post
+is gone" from "the cover is live". The cover is only valid **through a live
+item**, so `readCollection` checks it after resolving the posts: when the
+face's `avatar_ref` references no live item's media, it reselects the cover
+from the first live item with media (the auto-cover rule) or clears it (no
+live media → the placeholder), and persists the healed face **best-effort**
+(the owner's write; a visitor's attempt 403s and is ignored — the in-session
+read still carries the healed face, the grid converges on the owner's next
+open). A live cover never triggers a write: ordinary reads stay write-free.
+(Dead items themselves still render the "no longer available" tile — the
+degradation, not the cover, is the item's state.)
+
 ### Playlist order (the owner's curated sequence)
 
 A collection is a **playlist** — the owner can order its items, not just
@@ -234,7 +250,11 @@ New module `src/data/saved.ts` (sibling to `groups.ts`):
   (the profile wall's resolve path), return `{ face, posts }`. A non-owner
   reading a *private* collection 403s (I3); reading a *public* collection
   returns the face + the posts the reader can read (a public post from a
-  private collection is still resolvable; a dead ref degrades).
+  private collection is still resolvable; a dead ref degrades). Before
+  returning it runs the **stale-cover self-heal** (above): a face whose
+  `avatar_ref` no longer belongs to a live item is reselected from the first
+  live item with media (or cleared) and persisted best-effort (the owner's
+  write; a visitor's 403 is ignored, the in-session face is healed either way).
 - `savePostToCollection(groupId, postId, note?)` — check the collection's
   `saved` docs for an existing `ref_value === postId` (no-op if present), else
   `create('saved', { post_id, note }, { groups: [groupId], ref_value: postId })`.
@@ -308,6 +328,23 @@ sees a read-only wall. The owner also gets **playlist controls**: a
 the per-tile up/down arrows, then **Save order** / **Cancel** — the order is
 persisted by `reorderCollection`), and a per-tile **Set as cover** affordance
 (media tiles only) that pins that item's media as the collection's thumbnail.
+
+**The music handoff (music.md compatibility).** A collection whose LIVE items
+are ALL music tracks — the shared music gate (`musicTrackFromPost`: the
+`music` tag + exactly one playable media, the same gate the Music app's
+collection read uses; dead/unavailable items are excluded from the detection,
+and a collection with no live items is not music) — is a PLAYLIST, not a
+generic wall: the header offers a **Listen in Music** affordance (owner,
+visitors and anon alike) that navigates to the Music view's listening
+permalink (`/music?view=playlists&collection=<group_id>`) — the persistent
+player, the queue, play-all, the album-art rows. The collection's **share
+link follows the same shape**: an all-music collection shares the listening
+permalink (a public playlist opens for anyone — logged in or out — because the
+collection's `anyone` grant is the access control, not the session; a private
+one 403s into the "private or no longer available" state), a mixed collection
+keeps the D88 permalink (`/u/:username/saved/:collectionId` or the `/groups/`
+variant). The D88 screen stays the MANAGE shape (the owner's visibility /
+reorder / cover controls); the listening shape is the shared shape.
 
 ### The save affordance (where "Save" lives)
 

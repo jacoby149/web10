@@ -14,7 +14,7 @@
 //   PREVIEW_PORT  — the port to listen on (default 3001).
 
 import http from 'node:http'
-import { postCard, profileCard, groupCard, groupPostCard, watchCard, shortsCard, musicCard, savedCard, groupSavedCard } from './card.mjs'
+import { postCard, profileCard, groupCard, groupPostCard, watchCard, shortsCard, musicCard, musicPlaylistCard, savedCard, groupSavedCard } from './card.mjs'
 import { unfurlService } from './unfurl.mjs'
 
 const PORT = Number(process.env.PREVIEW_PORT || 3001)
@@ -183,7 +183,17 @@ const server = http.createServer(async (req, res) => {
     } else if (shortsMatch) {
       html = await shortsCard(decodeURIComponent(shortsMatch[1]))
     } else if (path === '/music') {
-      html = await musicCard(url.searchParams.get('track'))
+      // /music carries two share shapes: the track deep-link (?track=…) and
+      // the playlist permalink (?view=playlists&collection=…). The playlist
+      // shape answers with the saved-collection card (name + cover + count,
+      // I3 floor intact); a bare /music (or an unknown query) falls back to
+      // the track card / the generic music card.
+      const collection = url.searchParams.get('collection')
+      if (url.searchParams.get('view') === 'playlists' && collection) {
+        html = await musicPlaylistCard(collection)
+      } else {
+        html = await musicCard(url.searchParams.get('track'))
+      }
     }
 
     if (!html) {

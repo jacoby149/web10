@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 // Mock lucide-react icons as simple span elements (any icon, no manual list)
@@ -57,11 +57,18 @@ const processImageMock = vi.fn().mockResolvedValue({
   height: 600,
   mimeType: 'image/webp',
 });
+// The duration probes are mocked too (jsdom's <audio>/<video> never fire
+// loadedmetadata) — the album-art controls drive the tray through the real
+// attach path with audio/video items.
+const getAudioInfoMock = vi.fn().mockResolvedValue({ duration: 120 });
+const getVideoInfoMock = vi.fn().mockResolvedValue({ width: 1280, height: 720, duration: 30 });
 vi.mock('@/lib/mediaProcessing', async (importOriginal) => {
   const original = await importOriginal() as Record<string, unknown>;
   return {
     ...original,
     processImage: (...args: unknown[]) => processImageMock(...args),
+    getAudioInfo: (...args: unknown[]) => getAudioInfoMock(...args),
+    getVideoInfo: (...args: unknown[]) => getVideoInfoMock(...args),
   };
 });
 
@@ -79,6 +86,8 @@ let objectUrlCounter = 0;
 beforeEach(() => {
   processImageMock.mockClear();
   uploadMediaMock.mockClear();
+  getAudioInfoMock.mockClear().mockResolvedValue({ duration: 120 });
+  getVideoInfoMock.mockClear().mockResolvedValue({ width: 1280, height: 720, duration: 30 });
   URL.createObjectURL = vi.fn(() => `blob:mock-${++objectUrlCounter}`);
   URL.revokeObjectURL = vi.fn();
 });
@@ -215,5 +224,99 @@ describe('composer paste-to-attach (the third attach path)', () => {
     expect(event.defaultPrevented).toBe(false);
     expect(screen.queryByTestId('media-tray')).not.toBeInTheDocument();
     expect(processImageMock).not.toHaveBeenCalled();
+  });
+});
+
+// ── The album-cover attach paths (the operator's 10.11.2026 follow-up) ──────
+// "with pasting we should be able to paste the album cover in, OR drag the
+// album cover on there" — a pasted/dropped cover while the tray holds EXACTLY
+// ONE audio item becomes that track's album art (its thumbnail), not a second
+// media item; the Add-art chip itself is also a drop + paste target.
+
+// jsdom has no DataTransfer — the handlers only read `dataTransfer.files`,
+// so a plain object with the file list stands in for it.
+function fireDrop(target: HTMLElement, files: File[]) {
+  const event = new Event('drop', { bubbles: true, cancelable: true });
+  Object.defineProperty(event, 'dataTransfer', { value: { files, dropEffect: '' } });
+  target.dispatchEvent(event);
+}
+
+function attachViaPicker(file: File) {
+  const input = document.querySelector('input[type="file"][multiple]') as HTMLInputElement;
+  fireEvent.change(input, { target: { files: [file] } });
+}
+
+const coverFile = () => new File(['cover-bytes'], 'cover.png', { type: 'image/png' });
+const mp3File = () => new File(['mp3-bytes'], 'track.mp3', { type: 'audio/mpeg' });
+const mp4File = () => new File(['mp4-bytes'], 'clip.mp4', { type: 'video/mp4' });
+
+describe('composer album cover — paste/drag onto a solo audio track', () => {
+  it('the attach button is the general-media affordance (paperclip — photos, videos, MP3), not the photo icon', async () => {
+    await renderComposer();
+    const button = screen.getByTestId('attach-media-button');
+    expect(within(button).getByTestId('icon-paperclip')).toBeInTheDocument();
+    expect(button).toHaveAttribute('title', 'Add media — photos, videos or MP3');
+  });
+
+  it('pasting a cover while the tray holds one audio item makes it the track\'s album art (not a second media item)', async () => {
+    await renderComposer();
+    attachViaPicker(mp3File());
+    const chip = await screen.findByTestId('album-art-chip');
+    expect(chip).toHaveTextContent('Add art');
+
+    const event = firePaste(screen.getByTestId('post-composer'), [
+      { kind: 'file', type: 'image/png', file: coverFile() },
+    ]);
+    expect(event.defaultPrevented).toBe(true); // the composer claimed the paste
+
+    await waitFor(() => expect(screen.getByTestId('album-art-chip')).toHaveTextContent('Change art'));
+    // The tray still holds exactly ONE item (the track) — the cover attached
+    // to it, it did not join the tray as a second media.
+    const tray = screen.getByTestId('media-tray');
+    expect(Array.from(tray.children)).toHaveLength(1);
+    // Album art skips the image pipeline (generateThumbnail runs at post
+    // time, on the picked/pasted/dropped file as-is).
+    expect(processImageMock).not.toHaveBeenCalled();
+  });
+
+  it('dropping a cover onto the composer while the tray holds one audio item makes it the track\'s album art', async () => {
+    await renderComposer();
+    attachViaPicker(mp3File());
+    await screen.findByTestId('album-art-chip');
+    fireDrop(screen.getByTestId('post-composer'), [coverFile()]);
+    await waitFor(() => expect(screen.getByTestId('album-art-chip')).toHaveTextContent('Change art'));
+    expect(Array.from(screen.getByTestId('media-tray').children)).toHaveLength(1);
+    expect(processImageMock).not.toHaveBeenCalled();
+  });
+
+  it('dropping a cover directly onto the Add-art chip targets the chip (the root handler does not double-route)', async () => {
+    await renderComposer();
+    attachViaPicker(mp3File());
+    const chip = await screen.findByTestId('album-art-chip');
+    fireDrop(chip, [coverFile()]);
+    await waitFor(() => expect(screen.getByTestId('album-art-chip')).toHaveTextContent('Change art'));
+    expect(Array.from(screen.getByTestId('media-tray').children)).toHaveLength(1);
+  });
+
+  it('a non-image dropped on the Add-art chip is ignored (the chip is an image target)', async () => {
+    await renderComposer();
+    attachViaPicker(mp3File());
+    const chip = await screen.findByTestId('album-art-chip');
+    fireDrop(chip, [mp4File()]);
+    await waitFor(() => expect(chip).toHaveTextContent('Add art')); // unchanged
+  });
+
+  it('pasting an image into a MIXED tray (audio + video) goes to the tray, not the album art', async () => {
+    await renderComposer();
+    attachViaPicker(mp3File());
+    await screen.findByTestId('album-art-chip');
+    attachViaPicker(mp4File());
+    firePaste(screen.getByTestId('post-composer'), [
+      { kind: 'file', type: 'image/png', file: coverFile() },
+    ]);
+    const tray = await screen.findByTestId('media-tray');
+    await waitFor(() => expect(Array.from(tray.children)).toHaveLength(3));
+    expect(screen.getByTestId('album-art-chip')).toHaveTextContent('Add art'); // untouched
+    expect(processImageMock).toHaveBeenCalledTimes(1); // the tray-image pipeline ran
   });
 });
