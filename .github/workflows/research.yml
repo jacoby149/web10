@@ -39,6 +39,8 @@ jobs:
           python realism_scratch.test.py
           python realism_cloud_lease.test.py
           python realism_cloud_worker.test.py
+          python realism_parity.test.py
+          python realism_resume.test.py
           python study_v2.test.py
           python dataset.test.py
       - name: Verify offline source captures

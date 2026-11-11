@@ -31,8 +31,16 @@ def validate(lease):
     expected="web10-realism-prep-"+lease["run_id"]
     if lease["name"]!=expected or lease["tag"]!=expected or lease["size"]!="s-8vcpu-32gb-amd":
         raise ValueError("exact run ownership and approved SKU required")
-    if not 0 < lease["deadline"]-lease["created_epoch"] <= 4*3600:
-        raise ValueError("four-hour maximum lease required")
+    maximum=4*3600
+    extension=lease.get('operator_extension')
+    if extension:
+        original=lease['created_epoch']+4*3600
+        if (extension.get('hours')!=2 or extension.get('original_deadline')!=original
+                or not lease['created_epoch']<=extension.get('approved_epoch',0)<=original):
+            raise ValueError('invalid explicit two-hour operator extension')
+        maximum=6*3600
+    if not 0 < lease["deadline"]-lease["created_epoch"] <= maximum:
+        raise ValueError("lease exceeds its explicitly approved lifetime")
     if lease["max_usd"]!=5:
         raise ValueError("approved budget target required")
     if not lease.get("account_uuid"):
