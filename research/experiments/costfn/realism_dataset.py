@@ -30,8 +30,31 @@ PASSWORD = "costfn-bench-password"
 PASSWORD_HASH = "$2b$12$4qSIbZm5Inl2Gp4V1npoXeCmBPhfKbOSnITTaR0ZO757uNY6yGrgG"
 
 
+def _repeat_rounds(left, used, positive, weights, denominator, result, caps):
+    """Batch only rounds whose exact integer deltas and active set stay fixed.
+
+    Floating thresholds are a conservative guess, then checked with the SAME
+    multiply/divide order as the original loop. No tolerance or allocation rule
+    changes: zero deltas stay zero as left decreases; caps can change the active
+    set only after the last batched round.
+    """
+    if not used or not positive:
+        return 1
+    threshold=max(delta * denominator / weights[i] for i,delta in positive)
+    if not math.isfinite(threshold):
+        return 1
+    floor_left=math.ceil(threshold)+1
+    repeats=max(1,min(left//used, (left-floor_left)//used+1,
+                      min((caps[i]-result[i])//delta for i,delta in positive)))
+    if repeats>1:
+        last_left=left-(repeats-1)*used
+        if not all(int(last_left*weights[i]/denominator)==delta for i,delta in positive):
+            return 1
+    return repeats
+
+
 def allocate(total, weights, caps=None, minimum=0):
-    """Integer, capped, deterministic largest-remainder allocation."""
+    """Integer, capped, deterministic allocation; batch identical rounds only."""
     caps = caps if caps is not None else [total] * len(weights)
     if len(caps) != len(weights) or any(c < minimum for c in caps):
         raise ValueError("inconsistent allocation capacities")
@@ -46,11 +69,16 @@ def allocate(total, weights, caps=None, minimum=0):
             raise ValueError("no remaining allocation capacity")
         shares = [(i, left * weights[i] / denominator) for i in indices]
         used = 0
+        positive=[]
         for i, share in shares:
             delta = min(caps[i] - result[i], int(share))
-            result[i] += delta
             used += delta
-        left -= used
+            if delta:
+                positive.append((i,delta))
+        repeats=_repeat_rounds(left,used,positive,weights,denominator,result,caps)
+        for i,delta in positive:
+            result[i] += delta*repeats
+        left -= used*repeats
         if left and not used:
             for i, _ in sorted(shares, key=lambda x: (-x[1], x[0])):
                 result[i] += 1
