@@ -2,7 +2,7 @@ import React from 'react';
 import web10AuthAdapterInit from './authAdapter'
 import { config } from '../config';
 import { rememberAccount, getRememberedAccounts } from '../lib/rememberedAccounts';
-import { vaultToken, getVaultedToken, vaultedAccountsFor } from '../lib/tokenVault';
+import { vaultToken, getVaultedToken, vaultedAccountsFor, removeVaultedToken } from '../lib/tokenVault';
 import { acquisitionTicket, identifyAnalytics, resetAnalytics } from '../lib/analytics';
 import { contactHandoff, recoveryDestination } from '../lib/contactHandoff';
 
@@ -531,7 +531,31 @@ function useInterface() {
                     I.setVerified(!!profile?.phone_verified);
                     console.log('[auth-ui] profile read applied');
                 })
-                .catch(() => { if (owns()) console.warn('[auth-ui] profile read failed'); });
+                .catch((e: any) => {
+                    if (!owns()) return;
+                    // A 401 from the node is DECISIVE: this cookie's session is
+                    // dead server-side (revoked, re-minted signing key, deleted
+                    // account) even though it restored fine locally. A restored
+                    // session the node rejects must not keep posing as
+                    // "signed in" — every consent approve under it 401s
+                    // ("Some requests failed. Start a new request from the
+                    // app.") and the popup's only escape is the manual
+                    // log-out link (the death loop). Scrub the dead session and
+                    // route to the login screen; re-login mints a token the
+                    // node accepts. Non-auth failures (network, 5xx) are
+                    // transient — stay put.
+                    if (e?.status === 401) {
+                        const dead = current.v3.readToken?.() || {};
+                        console.warn('[auth-ui] profile read 401 — session dead server-side; scrubbing + routing to login:', e?.message || e);
+                        current.v3.signOut?.();
+                        if (dead.username && dead.provider) removeVaultedToken(dead.username, dead.provider);
+                        current.setAuth(false);
+                        current.setUserConfirmed(false);
+                        current.setMode("login");
+                        return;
+                    }
+                    console.warn('[auth-ui] profile read failed:', e?.message || e);
+                });
         }, 50);
     }
 
@@ -1345,7 +1369,15 @@ function applyACR(cr: any) {
                 I.v3GroupsLoad?.();
                 I.v3GroupsManagesLoad?.();
                 if (results.some(result => result.status === 'rejected')) {
-                    I.setStatus("Some requests failed. Start a new request from the app.");
+                    // The real reason (the API's `detail`, e.g. "incorrect
+                    // token") goes in the on-screen status, not just the
+                    // console — the death-loop report's screen showed only
+                    // this generic line, which names no cause to fix.
+                    const failed = results.find(
+                        (result): result is { status: 'rejected'; reason: any } => result.status === 'rejected',
+                    );
+                    const detail = failed?.reason?.message || (failed?.reason ? String(failed.reason) : '');
+                    I.setStatus("Some requests failed" + (detail ? `: ${detail}` : "") + ". Start a new request from the app.");
                     return;
                 }
                 if (I.pendingContracts.some((c: any) => c._consent && !c._consent.settled)) return;

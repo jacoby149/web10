@@ -129,6 +129,11 @@ export async function saveProfile(profile: Partial<ProfileRecord>): Promise<Prof
     bio: profile.bio,
     website: profile.website,
     location: profile.location,
+    // The pin list (profile-pins.md) rides the face doc. Written only when the
+    // caller supplied it: a partial save that doesn't know the current pins
+    // must not null them out. Callers that edit other face fields carry the
+    // loaded profile (draft state), so the pins round-trip untouched.
+    ...(profile.pinned_post_ids !== undefined ? { pinned_post_ids: profile.pinned_post_ids } : {}),
   };
 
   // The profile doc is only readable while attached to a group the user is

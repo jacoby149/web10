@@ -6,6 +6,7 @@
       "workers": 2,
       "specs": [
         "authenticator-torture.spec.ts",
+        "authenticator-dead-session.spec.ts",
         "auth-popup-roundtrip.spec.ts",
         "cookie-torture.spec.ts",
         "recovery.spec.ts",

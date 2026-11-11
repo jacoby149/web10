@@ -62,6 +62,15 @@ On reselect, verify the file's full checksum and reconcile native parts before
 Uppy resumes. Existing account/session/attempt invalidation rules still apply.
 `confirm` materializes one canonical media ID only after verified completion;
 `retry-transcode` reuses its owned original. Neither revives a deleted media ID.
+The composer's video-thumbnail pick (video-experience.md "Cover frame pick")
+is NOT queue-eligible yet: the multipart `confirm` does not carry a chosen
+`thumbnail_object_key`, so a draft whose single video carries an explicit
+thumbnail pick is declined by the client queue guard and takes the standard
+(synchronous) upload path instead — the pick is honored, never silently
+dropped. Follow-up: extend `confirm` to carry a pre-uploaded,
+owner-namespace-verified `thumbnail_object_key` (the thumbnail itself goes
+through the existing presigned upload + confirm authority path), re-run this
+gauntlet, and let picked drafts queue.
 The generic [deferred-create operation](deferred-creates.md) owns publication after
 browser close. Notification here means an in-app result on return, not OS push.
 

@@ -10,6 +10,7 @@ The phone is the camera. Vertical is the default, not the edge case — and the 
 - **Preserve the source ratio.** A 1080x1920 (9:16) upload plans to 360x640 / 720x1280 / 1080x1920. A 1920x1080 (16:9) upload plans to 640x360 / 1280x720 / 1920x1080. A 1080x1350 (4:5) upload plans to 288x360 / 576x720 / 1080x1350. Forcing a fixed width (`scale=1280:720`) squashes a phone video into 16:9 — that is the bug this policy exists to forbid.
 - **Never upscale.** A rendition taller than the source is dropped (upscaling is pure waste — a 720p source gets 360p + 720p, not a fake 1080p). A source smaller than every target gets **one rendition at its own resolution**.
 - **Even dimensions.** H.264 needs even width/height; derived widths are rounded to even.
+- **Phone rotation is part of the source ratio.** Probe named JSON stream fields plus display-matrix rotation, never a fixed-width CSV row: FFprobe can append side-data columns to rotated phone recordings. Swap width/height for quarter turns before planning renditions and thumbnails, matching FFmpeg's default autorotation before scaling. Otherwise the worker either fails before encoding or stretches a portrait recording into its encoded landscape dimensions. Regression: `api/tests/test_transcode_probe.py` includes a real rotated HEVC → H.264/AAC HLS worker replay (requires FFmpeg/FFprobe with libx265).
 - **Thumbnails fit, they don't squash.** The thumbnail is a ratio-preserving fit in a 640x360 box (a 9:16 video gets a ~202x360 thumb, not a squashed 640x360). Upscaling is allowed here — thumbnails are small, and soft beats cropped.
 
 The node is **ratio-agnostic**: whatever ratio arrives (9:16, 4:5, 1:1, 16:9) gets correct renditions automatically. The ratio decision is made client-side, before upload (below) — the node just does the math right.
@@ -58,7 +59,26 @@ The document records which style was used (`body.style`) so the feed can lay the
 
 `transcoding_settings` is **user-owned data on the creator's node** — same shape as "your algorithm is your prompt." The killer move is letting the creator edit it:
 
-- **Cover frame pick** — the creator chooses which frame is the thumbnail, not the auto-extracted one.
+- **Cover frame pick — shipped in the social composer (5.20.0).** The creator
+  chooses the poster instead of the auto-extracted one, at upload time: the
+  tray's "Thumbnail" chip opens the picker sheet, which captures a few
+  candidate frames client-side (the quarter frame capped at 5s — the
+  auto-poster's exact seek, so "keep the default" is candidate 0 — the half,
+  the three-quarter; `thumbnailCandidateTimes`) or takes the creator's own
+  image (downscaled through the album-art idiom). The pick rides the
+  existing `thumbnail_object_key` seam (`uploadMedia`'s `thumbnailFile`) —
+  the media doc stays the source of truth and the transcode worker's
+  auto-thumbnails only fill the key when it is absent, so every read
+  surface (feed cards, the watch page, hover previews, share cards) shows
+  the pick through the normal presigned thumbnail read. Zero node surface
+  (D60). A trim/crop edit drops a frame pick (the re-encode moved the
+  frames — the tray falls back to the auto capture of the finished file);
+  the creator's own image survives the edit. A draft whose video carries a
+  pick is NOT eligible for the resumable-queue transport (the multipart
+  `confirm` does not carry the pick yet — follow-up: extend `confirm` to
+  carry a pre-uploaded `thumbnail_object_key`, then the queue honors it);
+  such drafts take the standard upload path instead, so the pick is never
+  silently dropped.
 - **Encoding settings as an owned record** — default quality, max resolution, "don't upscale my 4K." The settings live in the document; the node honors them on (re)transcode.
 
 This is the feature that turns the architecture into a product claim: the delivery proof (real view + watch-time numbers, "reached 100% of your followers — here's the ledger") and the owned settings both read from data the creator already owns.

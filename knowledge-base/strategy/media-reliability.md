@@ -42,6 +42,32 @@ Read-only production probes on 05.11.2026:
 - Local Python CA-store errors are not production TLS evidence: system curl
   verifies the same endpoints without bypassing certificate checks.
 
+## Frozen homepage phone-video incident (11.11.2026)
+
+Read-only Chromium replay of the reported “Ramblin” card on the social homepage
+reproduces an advancing clock with zero decoded video frames and zero intrinsic
+video dimensions. The public carrier reports a failed transcode with
+`too many values to unpack (expected 3)`; FFprobe identifies HEVC video plus AAC
+audio and reproduces `1920,1080,120/1,` from the old CSV probe. The browser plays
+the supported audio track over the poster; an advancing clock is not video proof.
+
+The local worker repair reads named JSON fields and plans against display-matrix
+rotation, matching FFmpeg autorotation. A generated three-second rotated HEVC
+fixture reproduces the exact CSV failure before repair, then completes the real
+probe/encode/thumbnail pipeline with fake document/storage I/O. Desktop/375px
+Chromium decodes increasing HLS frame counts (6 → 15), retains portrait shape and
+passes pause/resume; the same raw fixture advances audio with zero video frames.
+Receipts/captures: `.context/rotation-playback-receipt.json` and
+`.context/rotation-playback-{1440,375}.png`. All 2,241 API tests plus eight subtests
+pass (one existing opt-in skip). No player/access/TTL change or production write.
+
+Deployment and retry of the existing failed upload remain OPEN. A worker code fix
+does not requeue historical `failed` records. After reviewed deployment and
+operator approval, retry only the exact affected media through the existing
+owner-authorized transcode route; wait for `done`, re-read the original carrier
+and verify actual decoded frames on the reported homepage card. Do not re-upload
+the post, grant broader access, or silently run a global backfill.
+
 ## Shared policy
 
 1. **Diagnostics:** content-free surface/kind/phase, attempt count, duration,

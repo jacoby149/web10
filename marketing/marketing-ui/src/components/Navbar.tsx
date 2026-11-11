@@ -86,7 +86,7 @@ function Navbar() {
           <BrandLogo className="h-7" />
         </Link>
 
-        <div className="hidden items-center gap-1 md:flex">
+        <div className="hidden items-center gap-1 lg:flex">
           {navItems.map(item => (
             <Link
               key={item.path}
@@ -142,7 +142,7 @@ function Navbar() {
           </div>
         </div>
 
-        <div className="hidden items-center gap-2 md:flex">
+        <div className="hidden items-center gap-2 lg:flex">
           <Link
             to="/trending?focus=search"
             className="group flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 ease-out hover:bg-elevated hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -151,7 +151,7 @@ function Navbar() {
             <Search className="h-4 w-4" strokeWidth={1.75} />
           </Link>
           <Button variant="brand" size="sm" onClick={() => { trackFunnel('sign_in_click'); window.location.href = SOCIAL_ORIGIN }}>
-            Sign In
+            Open web10 social
           </Button>
           <Link to="/links">
             <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground hover:text-foreground">
@@ -162,7 +162,7 @@ function Navbar() {
         </div>
 
         <button
-          className="flex h-11 w-11 items-center justify-center rounded-md text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden"
+          className="flex h-11 w-11 items-center justify-center rounded-md text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
           aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
           aria-expanded={mobileOpen}
           onClick={() => setMobileOpen(v => !v)}
@@ -172,7 +172,7 @@ function Navbar() {
       </div>
 
       {mobileOpen && (
-        <div className="flex flex-col gap-1 border-t border-border px-4 pb-4 pt-2 md:hidden">
+        <div className="flex flex-col gap-1 border-t border-border px-4 pb-4 pt-2 lg:hidden">
           {navItems.map(item => (
             <Link
               key={item.path}
@@ -208,7 +208,7 @@ function Navbar() {
           </div>
           <div className="mt-2 flex flex-col gap-2">
             <Button variant="brand" size="sm" className="w-full justify-center" onClick={() => { setMobileOpen(false); trackFunnel('sign_in_click'); window.location.href = SOCIAL_ORIGIN }}>
-              Sign In
+              Open web10 social
             </Button>
             <Link to="/links" onClick={() => setMobileOpen(false)}>
               <Button variant="ghost" size="sm" className="w-full justify-center">

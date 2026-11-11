@@ -19,7 +19,7 @@ def sources():
             "research_compose_sha256": hashlib.sha256(b"".join((here / n).read_bytes() for n in ("compose.yml", "research.compose.yml", "distributed.compose.yml"))).hexdigest(),
             "harness_python_sha256": tree_hash(here),
             "pagination_capture_sha256": hashlib.sha256((here / "evidence/core-feed-next-page-v4.json").read_bytes()).hexdigest(),
-            "wire_sha256": hashlib.sha256((here / "evidence/core-feed-wire-v5.json").read_bytes()).hexdigest()}
+            "wire_sha256": hashlib.sha256((here / "evidence/core-feed-wire-v6.json").read_bytes()).hexdigest()}
 
 
 def runtime(compose, db_compose, env):

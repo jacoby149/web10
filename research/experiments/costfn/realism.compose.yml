@@ -1,0 +1,10 @@
+# Explicit derived-rerun envelope. Stack AFTER compose.yml + research.compose.yml.
+# The historical 5/4 GiB overlay and V2 receipts stay unchanged. Do not boot this
+# on the 8 GiB shared development VM; use config validation there, not a trial.
+services:
+  clickhouse:
+    mem_limit: 28g
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - ../../../clickhouse-init:/docker-entrypoint-initdb.d:ro
+      - ./clickhouse-config/realism-memory.xml:/etc/clickhouse-server/config.d/costfn-memory.xml:ro
