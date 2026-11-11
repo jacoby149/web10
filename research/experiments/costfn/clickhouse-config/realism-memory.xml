@@ -1,0 +1,4 @@
+<clickhouse>
+    <!-- Derived rerun: server 22 GiB inside a 28 GiB container, same for all arms. -->
+    <max_server_memory_usage>23622320128</max_server_memory_usage>
+</clickhouse>

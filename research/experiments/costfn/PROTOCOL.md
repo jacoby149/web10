@@ -1,5 +1,20 @@
 # PROTOCOL — K=20-first experiment, frozen unit
 
+> **Derived-rerun amendment, 11 November 2026:**
+> [REALISM-DATASET-DECISIONS.md](REALISM-DATASET-DECISIONS.md) and the amended
+> [REALISM-RERUN-PLAN.md](REALISM-RERUN-PLAN.md) govern the new input and
+> pre-pilot gates. The V2 identities, one-post-per-creator shapes and local
+> results below remain unchanged historical records, not the derived dataset
+> or its oracle. New joint model, sole-source authorship, explicit total/horizon
+> feasibility, independent finished-record oracle and local 10k/100k floors
+> precede the 1M build/statistics review. No droplets, uploads or spend before
+> passing validation and operator receipt review. Measured rerun envelope:
+> 28 GiB container / 22 GiB ClickHouse on uniform DO nodes; exact 5 GiB
+> sensitivity cell separate. Frozen V2 details below do not prove the new
+> runner; current passing floors, preparation status and remaining gates are
+> recorded in [REALISM-DATASET.md](REALISM-DATASET.md) and
+> [REALISM-CLOUD-PREP.md](REALISM-CLOUD-PREP.md).
+
 > **Status: FROZEN 09.11.2026** (input identities complete below; dataset files
 > local-only). This file is the single frozen unit of **claim, workload,
 > inputs, arms and targets** for [PLAN.md](PLAN.md) (the ratified directive of

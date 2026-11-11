@@ -101,8 +101,13 @@ async def feed(client, capture, token, groups, records, phase, reader):
     return rows, results
 
 
-def check_result(manifest, reader_index, rows, followups):
+def check_result(manifest, reader_index, rows, followups, derived_oracle=None, live_delivery_delta=None):
     """Independent expected semantics, not a replay of fixture.rows()."""
+    if manifest.get("format") == "web10-social-realism-derived-v1":
+        if derived_oracle is None:
+            raise ValueError("derived dataset requires its independent finished-record oracle, never the V2 one-post oracle")
+        return derived_oracle.check(manifest["readers"][reader_index], rows, followups,
+                                    live_delivery_delta=live_delivery_delta)
     recipe = manifest["recipe"]
     start = 0 if recipe["locality"] == "hot" else reader_index * recipe["follow"] % recipe["creators"]
     indices = sorted(((start + j) % recipe["creators"] for j in range(recipe["follow"])), reverse=True)[:21]
@@ -127,11 +132,14 @@ def check_result(manifest, reader_index, rows, followups):
             "likes": True, "comments": True, "views": True, "exact_order": True}
 
 
-async def prepare(client, manifest, count, indices=None):
+async def prepare(client, manifest, count, indices=None, derived_oracle=None):
     """Prepare distinct reader sessions. By default readers 0..count-1; with
     `indices` (Phase-1 randomized-reader cells) exactly those fixture reader
     indices — the oracle (check_result) is index-arithmetic, so any index is
     exact. The returned sessions are ordered by index."""
+    derived = manifest.get("format") == "web10-social-realism-derived-v1"
+    if derived and derived_oracle is None:
+        raise ValueError("derived dataset session preparation requires its finished-record membership oracle")
     wanted = sorted(set(indices)) if indices is not None else list(range(count))
     if not wanted or max(wanted) >= len(manifest["readers"]) or len(wanted) != len(set(wanted)):
         raise ValueError("distinct session indices exceed the fixture")
@@ -150,7 +158,8 @@ async def prepare(client, manifest, count, indices=None):
         # Same predicate as real getFeedGroups. No manufactured group list.
         groups = [g["group_id"] for g in response.json() if g["group_id"].endswith("/followers")]
         recipe = manifest["recipe"]
-        expected = {fixture.followers(fixture.creator(recipe, i)) for i in fixture.followed_indices(recipe, index)}
+        expected = set(derived_oracle.groups(reader)) if derived else {
+            fixture.followers(fixture.creator(recipe, i)) for i in fixture.followed_indices(recipe, index)}
         if set(groups) != expected:
             raise ValueError("real group discovery differs from fixture follow graph")
         sessions[index] = (token, groups)
