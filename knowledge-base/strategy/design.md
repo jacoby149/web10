@@ -446,6 +446,17 @@ highlight into extra gray arcs. Paint its outline/shadow above the optical
 layers, not into their backdrop input. Keep the approved lens strength and
 inset; on a uniform backdrop, displacement must add no lines.
 
+**Authenticator console (11.11.2026):** the same material extends to the
+auth.web10.app console navbar — the AppShell top bar, the sidebar and its
+hairlines, the account menu, and on mobile the FLOATING PILL DOCK: the
+`chrome-mobile-dock` pill with the 5.17.1 `::after` ring correction and the
+`DockGlass`/`glassLens` refraction rim, ported verbatim (Chromium-only
+displacement, CSS-only frost elsewhere, opaque under reduced transparency /
+forced colors). `ui/src/index.css` carries the identical `--chrome-*` block,
+dark-only (the console has no theme switch). Content, forms and cards keep
+their opaque reading surfaces; scrolling content reserves the dock's bed
+through `chrome-content-clearance`.
+
 ## 11. Accessibility (part of pretty, not opposed to it)
 
 - Contrast per §4. Focus-visible per §8. Reduced motion per §7.

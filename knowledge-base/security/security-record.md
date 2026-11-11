@@ -15,6 +15,36 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Console navbar frosted-glass chrome (11.11.2026) — visual-only, no security surface change, shipped 5.24.0
+
+`ui/src/` sits on the trust-boundary list, so the gate wants a record row even
+for visual work; the row is this: **there is no security change.** The
+authenticator console's navigation chrome (the AppShell TopBar header, the
+SideBar + its brand/settings/footer hairlines, the mobile PILL DOCK, the
+account menu — `ui/src/components/shared/{TopBar,SideBar,MobileNav,DockGlass,glassLens}.tsx`
+plus the material block in `ui/src/index.css`) adopts the social shell's frosted
+`--chrome-*` material from the 5.17.0/5.17.1 trial: palette-derived CSS custom
+properties, the dock pill's optical layers (the `DockGlass`/`glassLens` ports —
+decorative spans + a generated lens-normal map that never reads page pixels;
+Chromium-only displacement, CSS-only frost elsewhere), the
+`@supports (backdrop-filter)` / `prefers-reduced-transparency` / `forced-colors`
+fallbacks, and `chrome-content-clearance` reserving the dock's bed. No
+auth/session/consent/token logic changed, no fetch surface changed, no consent-
+UI behavior changed (the dock buttons are the same `<button>`s with the same
+`aria-current` state; only the surface classes were replaced, and the nav's
+`data-testid`/destination semantics are intact). The material is opaque by
+default and degrades to opaque Canvas surfaces under reduced transparency /
+forced colors — readability is never the blur's dependency. Evidence:
+`ui/src/__tests__/navChrome.test.tsx` (9 controls: the four surfaces carry the
+material with the superseded utilities gone; the dock's pill geometry, bed
+span, engine-gated rim and selected pills; the signed-out bars; the CSS
+fallbacks/ring-correction/clearance pinned) + `ui/src/components/shared/
+glassLens.test.ts` (12 — the social shell's lens pin: neutral center, opposite
+rim normals, corner symmetry, the Chromium-family engine gate), all 319 UI
+tests + `tsc --noEmit` + production build, real-Chromium mock-console captures
+at 1280/375px. No L-scan owed by this change; `ui/` remains open under
+L1-009 as before.
+
 ## Consent-popup dead-session self-scrub + the recovery's reauth honesty (11.11.2026) — L1/L2 bounded, Qwen 3.8 27B single-model, shipped 5.23.4
 
 The consent popup's "Signed in as …" is local cookie state, and every on-mount
