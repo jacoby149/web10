@@ -90,8 +90,11 @@ try {
     await waitTheme(page, 'light');
     await verifyLogo(page, 'light');
     await capture(page, `home-light-${label}`);
-    if (width < 768) await page.getByRole('button', { name: 'Open menu', exact: true }).click();
-    else await page.getByRole('button', { name: 'Learn', exact: true }).hover();
+    if (width < 1024) await page.getByRole('button', { name: 'Open menu', exact: true }).click();
+    const socialEntry = page.getByRole('button', { name: 'Open web10 social', exact: true }).filter({ visible: true });
+    assert.equal(await socialEntry.count(), 1);
+    await capture(page, `navigation-light-${label}`);
+    if (width >= 1024) await page.getByRole('button', { name: 'Learn', exact: true }).hover();
     await page.getByRole('link', { name: 'Appearance', exact: true }).click();
     await page.getByTestId('appearance-screen').waitFor();
     assert.equal(new URL(page.url()).pathname, '/appearance');
@@ -133,8 +136,9 @@ try {
         );
         if (mode === 'light' && name === 'appearance') await verifyLightContrast(page);
         if (name === 'home' || name === 'freedom-cta') {
-          const cta = page.getByRole('link', { name: 'Go to web10 social', exact: true });
+          const cta = page.getByRole('link', { name: 'Explore web10', exact: true });
           await cta.waitFor();
+          assert.equal(await cta.getAttribute('href'), process.env.VITE_SOCIAL_URL || 'https://social.web10.app');
           if (name === 'freedom-cta') await cta.scrollIntoViewIfNeeded();
         }
         if (width < 768 && name === 'docs') await page.getByRole('heading', { level: 1 }).first().scrollIntoViewIfNeeded();
@@ -153,6 +157,13 @@ try {
       await page.goto(`${origin}${route}`, { waitUntil: 'networkidle' });
       await page.getByRole('heading', { level: 1 }).first().waitFor();
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, `${route} at ${width}`);
+      if (route === '/' && width === 768) {
+        await page.getByRole('button', { name: 'Open menu', exact: true }).click();
+        assert.equal(await page.getByRole('button', { name: 'Open web10 social', exact: true }).filter({ visible: true }).count(), 1);
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, 'open tablet menu fits');
+        await capture(page, 'navigation-light-768');
+        await page.getByRole('button', { name: 'Close menu', exact: true }).click();
+      }
     }
     receipts.push({ width, responsive: true });
     await context.close();

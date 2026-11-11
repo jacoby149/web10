@@ -1511,7 +1511,10 @@ export async function readUserProfile(): Promise<unknown> {
   // A real avatar_ref so the watch page's author row resolves a face (the
   // avatar is resolved from the profile's avatar_ref via resolveMediaRefs —
   // the D83 fix for the overlay's broken mediaMap lookup).
-  return { display_name: 'Nova', username: 'nova', provider: 'web10', avatar_ref: 'face-avatar', bio: 'Synthwave producer' };
+  // Profile pins (profile-pins.md): nova holds dp-1 up — it is on the visitor's
+  // main read, so the visitor captures show the held-up post first (badge in
+  // the grid, the "Pinned" overline in the feed) with no owner menu.
+  return { display_name: 'Nova', username: 'nova', provider: 'web10', avatar_ref: 'face-avatar', bio: 'Synthwave producer', pinned_post_ids: ['dp-1'] };
 }
 // The watch page's author read (the overlay's "recent posts" strip) — the
 // author's public posts (a couple of the seeded discover posts by them).
@@ -1587,6 +1590,10 @@ export async function readProfile(): Promise<unknown> {
   // page with a face + bio so the banner/avatar/stats render in the capture.
   // The face refs + the posts' media refs (PROFILE_POSTS) also feed the face
   // lightbox's pick-from-your-posts grid (dev 3.88.0) — one seed, both features.
+  // Profile pins (profile-pins.md): two held-up posts — the text-only quote
+  // card (pp-3) on top, then a media tile (pp-1) — so the captures show the
+  // pin badge on both a text and a media tile. Both ids are on the loaded
+  // page, so the gap read stays empty (readPinnedPosts below).
   return {
     display_name: 'Nova',
     username: 'me',
@@ -1596,6 +1603,7 @@ export async function readProfile(): Promise<unknown> {
     bio: 'Synthwave producer — new series drops Friday. No algorithm between you and the post.',
     location: 'Berlin',
     website: 'nova.example.com',
+    pinned_post_ids: ['pp-3', 'pp-1'],
   };
 }
 export async function fetchSuggestedUsers(): Promise<unknown[]> {
@@ -1803,3 +1811,14 @@ const PROFILE_POSTS = [
     tags: ['studio'],
   },
 ];
+
+// Profile pins (profile-pins.md) — the pure helpers are REAL (stateless; the
+// harness's ordering / slot-limit behavior must match the app's). The two
+// async seams are stubs: the seed's pins (pp-3 + pp-1, on readProfile above)
+// are all on the loaded page, so the gap read returns nothing; the owner
+// menu's write is a stateless echo (the capture is static, not a flow).
+export { MAX_PROFILE_PINS, orderPinnedPosts, togglePinnedPostIds, movePinnedPostId, normalizePinnedPostIds } from '@/data/profilePins';
+export async function readPinnedPosts(): Promise<never[]> { return []; }
+export async function savePinnedPostIds(profile: Record<string, unknown>, ids: string[]): Promise<Record<string, unknown>> {
+  return { ...profile, pinned_post_ids: ids };
+}
