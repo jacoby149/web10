@@ -1,5 +1,23 @@
 # Monitored DigitalOcean preparation — operator approval
 
+**Latest operator amendment:** “lets run it, skip those gates entirely! make a
+way in the script like an arg to skip those” and “we are running this 100k thing
+over and over”. Stop the repeated pre-1M graph/floor pipeline and use explicit
+`--skip-floor-gates` for the direct repaired 1M attempt on the same host. This
+supersedes the fresh-floor prerequisite for that opted-in preparation only;
+default runs still require current floor proofs. Manifest `floor_admission`
+records `operator-skipped`, worker status records `floor_gates_skipped`, and no
+floor receipts are claimed. Disk admission, 2 GB memory, scoped cleanup/deadline,
+independent final 1M validation, storage digest checks and review remain. Resume
+of a waived preparation requires the flag again. This is not a passing gate or
+an experiment/public-release approval.
+
+```sh
+python research/experiments/costfn/realism_cloud_worker.py --repo /path/to/repo --skip-floor-gates
+# After a completed generation, if interrupted before validation finishes:
+python research/experiments/costfn/realism_cloud_worker.py --repo /path/to/repo --skip-floor-gates --resume
+```
+
 **11 November 2026:** the operator approved moving preparation off the
 space-constrained Mac: “we have alot of credit, lets do it in a way we can
 monitor it, so i ask how is it progressing you can tell me.” This revises the
@@ -34,6 +52,18 @@ review and uses MinIO only. Earlier MinIO-only/prefix wording below is history.
   Permission is not a claim that credentials/upload are already available.
 
 ## Status and monitoring
+
+The operator requested real progress logging and explicitly allowed a restart
+because a heartbeat plus silent allocator was insufficient. Named
+`[realism-progress]` records now bracket every model allocation, author-vector
+construction, quality ranking, CSV-plan write, SQL input load, graph request
+creation, document materialization and table export. Allocations log actual
+remaining/allocated units, active items, vector sweeps and equivalent batched
+rounds at most once per five seconds, plus unconditional start/end timings.
+Model row loops report work counters; these are stage-local work, not an overall
+percentage, ETA or a second heartbeat. Graph batch logs remain. No per-record
+payloads or credentials enter these records. The direct restarted attempt keeps
+`--skip-floor-gates`; logging does not reinstate 100k prerequisites.
 
 The active local controller writes `.context/REALISM-CLOUD-STATUS.md` and
 `.context/realism-cloud-status.json`: phase, last update, transfer counts,
@@ -96,6 +126,15 @@ claimed complete. Required floor receipts are restored at their original
 relative paths on the preparation host from the verified recovery bundle.
 
 ## Remaining gates
+
+**Latest 1M failure:** the repaired floors passed, but the subsequent 1M
+attempt exhausted the unchanged 2 GB DuckDB allowance in `CREATE TABLE edges`
+at generator line 202, before any Parquet export. Preserve the empty attempt,
+traceback and source/floor proofs. The proposed repair bounds candidate/window
+work by complete `(cell, reader_id)` requests, never splitting a window key or
+altering target arithmetic. Exact old/new graph-row equivalence and fresh
+source-bound floors must pass before a new 1M attempt; no memory-limit increase
+or completion claim.
 
 The first 1M preparation attempt was profiled while still before table export:
 the active stack was `allocate` at `realism_dataset.py:50`, called by the
