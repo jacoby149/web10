@@ -162,12 +162,23 @@ if QUERY_EVAL_READABLE_MODE not in ("", "per-group", "batched"):
 # (dev/e2e volume mounts shadow the baked file — the service then reports
 # "unknown" honestly). Consumed by app/services/update_check.py.
 WEB10_VERSION = os.getenv("WEB10_VERSION", "")
+# The GitHub repo + ref this node's releases come from (GitOps deploys track
+# the repo — the upstream changelog's top line on the ref is what a redeploy
+# would bring). Forked self-hosters: point at your fork; the dev stack can
+# track dev (UPSTREAM_REF=dev). Per-worker cache TTLs + the read bound keep
+# the endpoint from becoming a live GitHub proxy (1 h / 5 min / 5 s).
+UPSTREAM_REPO = os.getenv("UPSTREAM_REPO", "jacoby149/web10")
+UPSTREAM_REF = os.getenv("UPSTREAM_REF", "main")
+UPDATE_CHECK_TTL_SECONDS = int(os.getenv("UPDATE_CHECK_TTL_SECONDS", "3600"))
+UPDATE_CHECK_FAIL_TTL_SECONDS = int(os.getenv("UPDATE_CHECK_FAIL_TTL_SECONDS", "300"))
+UPDATE_CHECK_TIMEOUT_SECONDS = int(os.getenv("UPDATE_CHECK_TIMEOUT_SECONDS", "5"))
 
 # Load environment variables into settings params.
 for v in list(globals()):
     # Evaluation values above already parse their environment types. In
-    # particular, the string "0" must not enable a policy-bypass flag.
-    if v == "READABLE_RESOLUTION_MODE" or v.startswith(("QUERY_EVAL_", "MEDIA_DELIVERY_", "RESUMABLE_")):
+    # particular, the string "0" must not enable a policy-bypass flag. The
+    # UPDATE_* ints parse their env in place for the same reason.
+    if v == "READABLE_RESOLUTION_MODE" or v.startswith(("QUERY_EVAL_", "MEDIA_DELIVERY_", "RESUMABLE_", "UPDATE_")):
         continue
     env_val = os.getenv(v)
     if env_val is not None:

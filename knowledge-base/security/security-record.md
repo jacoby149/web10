@@ -15,6 +15,44 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Update-check endpoint (10.11.2026) — L2 call-graph, PASS (local)
+
+`POST /admin/update_status` (admin-gated via `check_admin`) adds the node's
+first version-comparison surface: a pinned outbound read of the upstream
+changelog's top line (`raw.githubusercontent.com`, `UPSTREAM_REPO`/
+`UPSTREAM_REF` — settings-validated `owner/repo` + ref regex, never
+request-supplied). L2 scan of the service + endpoint call graph:
+- **SSRF/pinning** — host pinned to `raw.githubusercontent.com`; TLS
+  required with `server_hostname`/`assert_hostname`; no redirects; DNS
+  answers must be public (loopback/private/multicast/teredo/mapped denied →
+  `dns-unavailable` and no connection); bounded first-line-only transfer
+  (4 KiB cap); 5 s connect+read. Controls: the pinned-URL test asserts the
+  exact path + `redirect=False` incl. a fork/ref override; the private-DNS
+  test asserts the pool is never constructed.
+- **Auth** — `check_admin` before any upstream work (valid token for a
+  non-admin → 403; missing token → 403); the response carries no secrets
+  (the version + public repo URL only — the version is already public data,
+  the status pill ships it).
+- **No credentials outbound** — unauthenticated raw read; there is no
+  GitHub token setting by design (nothing to leak, no new secret surface).
+- **Abuse/rate posture** — per-worker cache (1 h success / 5 min failure)
+  bounds GitHub traffic even under repeated admin panel opens; `?force=true`
+  is admin-only by construction; a GitHub outage returns `unavailable` +
+  failure class, never a 500 and never blocks the admin surface.
+- **Content trust** — the upstream first line must parse as a leading
+  `X.Y.Z` or the check reports `bad-upstream-changelog`; the value is
+  compared as a semver tuple only (no execution, no HTML — the UI renders
+  it as text, U3).
+Fifteen endpoint controls pass (transport boundary driven, house
+`mock_certify_post` pattern): pinned URL/fork-ref, private-DNS denial,
+parametrized comparison outcomes (behind / at / ahead), cache-hit +
+force-refetch, parametrized 404 / timeout / bad-changelog classes, the
+short failure cache, unknown-version, and the admin gate. Residual
+OPEN: connected acceptance on the deployed dev stack (U3's card flipping to
+up-to-date after a real redeploy) — the live in-container read of `main`
+(5.13.4 at write time) is the local transport proof, not a deployment proof.
+Contract: `web10-v3/setup/update-check.md`.
+
 ## Node version baking (10.11.2026) — L1 file-scan, PASS (local)
 
 The image now ships `/web10/VERSION`, baked at build time from the repo's
