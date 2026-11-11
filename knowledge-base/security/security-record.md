@@ -15,6 +15,58 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Consent-popup dead-session self-scrub + the recovery's reauth honesty (11.11.2026) — L1/L2 bounded, Qwen 3.8 27B single-model, shipped 5.23.4
+
+The consent popup's "Signed in as …" is local cookie state, and every on-mount
+read swallows 401s (profile / contracts / groups / `/am_admin` — the last one
+never errors by design). A cookie the node rejects (a revoked session, a
+re-minted signing key, a deleted account) could therefore pose as a live
+session indefinitely: every consent approve under it 401s ("Some requests
+failed. Start a new request from the app.") with the manual log-out link as the
+only escape — the operator's phone sat in exactly that loop on 11.11.2026.
+Compounding on the app side: the recovery's `invalid`-verdict branch executed
+the reauth gesture-less on mount (iOS blocks a gesture-less `window.open`),
+claimed "recovered", and armed the 5-minute cooldown against a no-op.
+
+Fix (NO node change — the consent write path was probe-verified healthy on
+prod first: disposable account `w10dbg25143` ran signup / login /
+`app-contracts/list` / `app-contracts/add` (all 12 social services) /
+`access/verify` = all 200, `contract: "granted"`; the origin-trust gate passes
+`auth.web10.app` and 403s an untrusted origin): (1) `ui/src/interfaces/
+Interface.tsx` — the on-mount profile read scrubs the session on a 401 (cookie
++ client state, the account's dead vault entry removed, the confirmation flag
+cleared, routed to the login screen); non-auth failures (network, 5xx) keep
+the session; the account-generation guard is unchanged. (2)
+`marketing/web10-social/src/data/access.ts` — the `invalid` branch honors
+`allowReauth` (mount defers to the manual banner, no armed cooldown; the
+terminal signout still runs on mount); a blocked popup reports
+`action_failed:reauth` instead of a fake recovery. (3)
+`marketing/web10-social/src/interfaces/auth.ts` — `login()` reports whether
+the popup opened.
+
+Security properties: NO access widening. The scrub is a *narrowing* of
+client-claimed state (the popup stops asserting what the node rejects); every
+server gate is untouched (the I1 signature check, the authenticator-origin
+contract gate, the I3 read gates). The 401 signal is honored only from the
+SDK's typed error against the node (`e.status === 401`) — a network failure or
+a 5xx deliberately does NOT scrub (a flaky connection is not a dead session).
+Evidence (L1 the changed files + L2 bounded to the consent/recovery call
+graph): `ui/src/__tests__/deadSessionScrub.test.tsx` (5: the 401 scrub → login
++ vault drop; the network/500/healthy keep-session controls; the
+stale-401-after-account-transition control), the social app's
+`access.test.ts` +3 (mount deferral with no armed cooldown, the blocked
+popup's honest failure, the mount-time signout) + `authContract.test.ts` +3
+(`login()`'s boolean truth), a live Chromium receipt (the real auth UI against
+a stub node that rejects the cookie — the report's exact screen scrubbing to
+the login screen, desktop + 375px), full ui (298) + social (2,516) suites and
+both production builds; the e2e `authenticator-dead-session.spec.ts` gauntlet (the real auth UI + real node: the scrub, the live-token anti-test, the 401/200 API floor — `auth` shard). Physical-phone/Safari acceptance is OPEN. Shipped as
+5.23.4.
+
+Model attribution: this row is Qwen 3.8 27B single-model work (the gate's
+per-PR method, L1/L2 bounded). It is NOT a model-diverse sign-off: the
+operator's 6.1 passes over it post-merge, so the diverse-review gate stays
+OPEN until that review lands.
+
 ## Single-doc read tombstone safety (11.11.2026) — bounded local fix, broader raw-filter catalog OPEN
 
 `read_document_by_id` (`api/app/v3/services/clickhouse.py`) filtered `documents`

@@ -27,7 +27,7 @@ import StorefrontScreen from '@/components/Monetization/StorefrontScreen';
 import NodeSettingsScreen from '@/components/NodeSettings/NodeSettingsScreen';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { ReportBug } from '@/components/shared/ReportBug';
-import { Toaster } from '@/components/shared/Toast';
+import { Toaster, toast } from '@/components/shared/Toast';
 import { InstallPrompt } from '@/components/shared/InstallPrompt';
 import { getWapi, getV3Client, verifyAndRecover, Web10Error, ensureProfile } from '@/data';
 import { resolveMediaRefs, resolvePostAuthors } from '@/data/posts';
@@ -438,7 +438,15 @@ function App() {
   }, [signedIn, applyP2P]);
 
   function handleLogin() {
-    getSocialAuth().login();
+    // The CTA / the signed-out "Log in" are user gestures — a popup blocked
+    // DESPITE one means popups are disabled for this site. The toast is the
+    // only signal left (the gesture can't open the wheel it needs).
+    const opened = getSocialAuth().login();
+    if (!opened) {
+      toast.error(
+        'Couldn\'t open the login window. Allow pop-ups for this site, then try again.',
+      );
+    }
   }
 
   function handleLogout() {

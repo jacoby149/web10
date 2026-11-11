@@ -94,6 +94,26 @@ does not fence every mutation or change server authorization.
 
 The popup hands the token back on every "return to app," and the app also restores the session from the cookie on page load — so `authListen` can receive a token for a user the app is already acting as. The SDK treats that repeat as a no-op for the callback: it always stores the delivered token in the cookie (a same-user token may carry a newer expiry), but fires the signed-in callback only on a real transition — a first login, when the cookie holds no token yet. A delivery for the user the app is already acting as re-stores the cookie and stops there; a delivery for a *different* user is rejected before that (the D42 identity check), so a stale popup can't hijack the app. Apps should read the callback as "the signed-in user appeared or changed," not "a token arrived."
 
+### A restored session must prove itself to the node (the death-loop breaker)
+
+The "Signed in as …" footer is local cookie state — it does not prove the node
+still accepts the token. A cookie can be dead server-side while it restores
+fine locally (revoked, re-minted signing key, deleted account), and a dead
+cookie is a **definite NO**, not a transient: every consent approve under it
+401s ("Some requests failed. Start a new request from the app."), and with the
+manual log-out link as the only escape, the user is stuck in a loop (the
+operator's phone, 11.11.2026 — 5.23.1). The rule: on mount, the popup's
+decisive account read (the profile read in `servicesLoad`) that is rejected
+with a **401** scrubs the session — cookie + client state, the account's dead
+vault entry removed (the one-tap picker must not re-offer it), the
+confirmation flag cleared, routed to the login screen. Re-login mints a token
+the node accepts, and the pending consent card approves in the same cycle.
+Non-auth failures (network, 5xx) are NOT a dead session — they keep the
+session. The account-generation guard applies as usual: a stale 401 from an
+old account's read cannot scrub a newer session. Gauntlet:
+`e2e/tests/authenticator-dead-session.spec.ts` (the real popup + real node:
+the scrub, the live-token anti-test, the 401/200 API floor).
+
 ### SDK Methods
 
 ```ts
