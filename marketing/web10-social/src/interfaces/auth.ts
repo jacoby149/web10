@@ -32,8 +32,16 @@ const LOG = (...args: unknown[]) => console.log('[social]', ...args);
 const LOG_ERR = (...args: unknown[]) => console.error('[social]', ...args);
 
 export interface SocialAuth {
-  /** Open the consent popup + request the app contract (the one tap). */
-  login: () => void;
+  /** Open the consent popup + request the app contract (the one tap).
+   *  Returns true when the popup opened and the contract request was
+   *  dispatched; false when it could not (the SDK is missing, or the
+   *  browser blocked the popup — e.g. no user gesture on iOS). A false
+   *  result means the re-auth DID NOT happen — callers that depend on it
+   *  (the access recovery) must treat it as a failed action, never a
+   *  success (a silent "recovered" with no popup is the death-loop shape:
+   *  zombie session + an armed 5-minute cooldown against an attempt that
+   *  never happened). */
+  login: () => boolean;
   /** Cookie-first: true when a `token=` cookie is present. */
   isSignedIn: () => boolean;
   /** Scrub the token cookie (the session is cookie-backed). */
@@ -89,17 +97,17 @@ function createSocialAuth(): SocialAuth {
   // already exists (no popup at all).
   const client: V3Client | null = web10 ? web10.createV3Client({ apiOrigin }) : null;
 
-  function login(): void {
+  function login(): boolean {
     if (!web10 || !client) {
       LOG_ERR('login tapped but the SDK is not loaded — nothing to do');
-      return;
+      return false;
     }
     LOG('login tapped — opening auth portal at', authOrigin);
     prepareAnalyticsHandoff();
     const popup = web10.openAuthPortal(authOrigin);
     if (!popup) {
       LOG_ERR('auth popup blocked or failed to open — login aborted');
-      return;
+      return false;
     }
     const contract = socialAppContract();
     LOG('sending app contract:', JSON.stringify(contract));
@@ -112,6 +120,7 @@ function createSocialAuth(): SocialAuth {
         LOG_ERR('app contract not approved:', resp.status, resp.errors ?? 'unknown');
       }
     });
+    return true;
   }
 
   function isSignedIn(): boolean {

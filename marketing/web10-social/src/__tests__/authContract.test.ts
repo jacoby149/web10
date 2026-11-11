@@ -56,6 +56,31 @@ describe('the social app contract covers every CRUD service the data layer touch
     }
   });
 
+  it('login reports the popup it opened (the recovery depends on the truth)', async () => {
+    // access.ts's reauth action must be able to tell "the consent popup is
+    // open and the contract request is in flight" from "the browser blocked
+    // the popup" — a silent success on a no-op is the death-loop shape.
+    const mock = installWeb10Mock();
+    const { getSocialAuth } = await import('@/interfaces/auth');
+    expect(getSocialAuth().login()).toBe(true);
+    expect(mock.openAuthPortal).toHaveBeenCalledTimes(1);
+    expect(mock.client.contractRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it('login reports false when the popup is blocked (no contract request, no crash)', async () => {
+    const mock = installWeb10Mock();
+    mock.openAuthPortal.mockReturnValue(null);
+    const { getSocialAuth } = await import('@/interfaces/auth');
+    expect(getSocialAuth().login()).toBe(false);
+    expect(mock.client.contractRequest).not.toHaveBeenCalled();
+  });
+
+  it('login reports false when the SDK is missing', async () => {
+    delete (window as { web10?: unknown }).web10;
+    const { getSocialAuth } = await import('@/interfaces/auth');
+    expect(getSocialAuth().login()).toBe(false);
+  });
+
   it('the session-health oracle verifies the same service set as the login contract', async () => {
     const mockVerifyAccess = vi.fn().mockResolvedValue({
       status: 'ok',
