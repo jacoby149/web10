@@ -106,7 +106,7 @@ function KnobRack({ state, activePreset, onChange, onPreset, expanded: controlle
         }`}
       >
         <div className={children ? 'overflow-hidden rounded-xl border border-border bg-surface' : 'overflow-hidden'} aria-hidden={!expanded} inert={!expanded}>
-          <div className="knob-row flex items-start justify-start gap-6 overflow-x-auto rounded-2xl bg-surface/50 px-4 py-6 sm:justify-center sm:gap-10 sm:overflow-visible">
+          <div className="knob-row flex items-start justify-center gap-6 overflow-x-auto rounded-2xl bg-surface/50 px-4 py-6 sm:gap-10 sm:overflow-visible">
         <RotaryKnob
           label="Recency"
           value={state.recency}
