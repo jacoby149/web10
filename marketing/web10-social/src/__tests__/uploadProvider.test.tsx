@@ -80,6 +80,17 @@ describe('real queue orchestration with IndexedDB and HTTP adapter (byte engine 
     expect(fake.nudge).toHaveBeenCalledExactlyOnceWith({ username: 'bob', provider: 'node' }, { type: 'post_mention', from: 'team', ref_doc_id: 'post-id' });
   });
 
+  it('a vertical video marked as music publishes the ADDITIVE intent [short, music] (music.md: views, not exclusive buckets)', async () => {
+    const view = mount();
+    await waitFor(() => expect(queue.enabled).toBe(true));
+    const input = { ...draft(), markAsMusic: true, media: [{ ...draft().media[0], width: 720, height: 1280 }] };
+    await act(async () => { await queue.queue(input); });
+    await waitFor(() => expect(queue.tasks[0]?.phase).toBe('processing'));
+    const create = requests.find(item => item.path.endsWith('/deferred/create'))!;
+    expect(create.body.intent).toMatchObject({ body: { tags: ['short', 'music'] } });
+    view.unmount();
+  });
+
   it('saves the frozen draft and admits HLS-waiting publication, then observes its result after remount without a file', async () => {
     const view = mount();
     await waitFor(() => expect(queue.enabled).toBe(true));

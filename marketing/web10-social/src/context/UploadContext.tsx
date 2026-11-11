@@ -28,7 +28,14 @@ const terminal = (row: SavedUpload) => row.phase === 'published' || row.phase ==
 
 function createIntent(row: SavedUpload): DeferredIntent {
   const draft = row.draft;
-  const tags = draft.width < draft.height ? ['short'] : draft.markAsMusic ? ['music'] : undefined;
+  // Tags are ADDITIVE views, not exclusive buckets (music.md): a vertical
+  // video explicitly marked as music is BOTH a short and a track. (The
+  // pre-fix ternary let the short tag swallow the music mark — the vertical
+  // music video would have vanished from the Music tab on publication.)
+  const postTags: string[] = [];
+  if (draft.width < draft.height) postTags.push('short');
+  if (draft.markAsMusic) postTags.push('music');
+  const tags = postTags.length ? postTags : undefined;
   return { service: 'posts', groups: [...draft.groups], author_as: draft.authorAs,
     body: { title: draft.title || undefined, text: draft.text, mention_usernames: mentionedUsernames(draft.text), visibility: draft.visibility,
       media_refs: row.media_doc_id ? [row.media_doc_id] : [], tags },
