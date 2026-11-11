@@ -47,7 +47,7 @@ function AccountMenu({ I, username }: { I: Record<string, any>; username: string
       {open && (
         <div
           role="menu"
-          className="absolute right-0 z-50 mt-2 w-48 rounded-lg border border-border bg-popover p-1 shadow-[0_8px_30px_rgb(0_0_0/0.35)]"
+          className="chrome-glass chrome-floating absolute right-0 z-50 mt-2 w-48 rounded-lg border p-1"
         >
           <div className="border-b border-border px-2.5 py-2">
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70">Signed in as</p>
@@ -128,7 +128,9 @@ function TopBar({ I }: TopBarProps) {
   const showSearch = authed && SEARCHABLE.has(I.mode);
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-4 border-b border-border bg-surface px-4">
+    // chrome-glass (design.md §10): the console navbar wears the social
+    // shell's frosted navigation material — the same --chrome-* tokens.
+    <header className="chrome-glass flex h-14 shrink-0 items-center gap-4 border-b px-4">
       {/* LEFT — brand on mobile, page title on desktop */}
       <div className="flex shrink-0 items-center">
         <div className="md:hidden">

@@ -95,12 +95,14 @@ function SideBar({ I }: SideBarProps) {
   const navItems = NAV_ITEMS.filter((item) => !item.adminOnly || I.isAdmin);
 
   return (
+    // chrome-glass (design.md §10): the console sidebar wears the social
+    // shell's frosted navigation material — the same --chrome-* tokens.
     <aside
-      className="hidden w-64 shrink-0 flex-col border-r border-border bg-surface md:flex"
+      className="chrome-glass hidden w-64 shrink-0 flex-col border-r md:flex"
       data-testid="sidebar"
     >
       {/* h-14 matches the TopBar height so their bottom borders line up */}
-      <div className="flex h-14 items-center border-b border-border px-6">
+      <div className="chrome-glass flex h-14 items-center border-b px-6">
         <button
           type="button"
           onClick={() => I.setMode(authed ? 'contracts' : 'login')}
@@ -159,7 +161,7 @@ function SideBar({ I }: SideBarProps) {
       </nav>
 
       {authed && (
-        <div className="space-y-1 border-t border-border px-3 py-3">
+        <div className="chrome-glass space-y-1 border-t px-3 py-3">
           <NavItem
             active={I.mode === 'settings'}
             label="Settings"
@@ -177,7 +179,7 @@ function SideBar({ I }: SideBarProps) {
         </div>
       )}
 
-      <div className="border-t border-border px-6 py-3">
+      <div className="chrome-glass border-t px-6 py-3">
         <p className="font-mono text-xs leading-relaxed text-muted-foreground">
           Invented by{' '}
           <a

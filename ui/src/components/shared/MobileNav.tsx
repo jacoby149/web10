@@ -26,8 +26,11 @@ function MobileNav({ I }: MobileNavProps) {
   const items = ITEMS.filter((item) => !('adminOnly' in item && item.adminOnly) || I.isAdmin);
 
   return (
+    // chrome-glass (design.md §10): the mobile bottom bar wears the social
+    // shell's frosted navigation material — content scrolls behind it
+    // (main's pb-16), so the frost is real here.
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 flex items-center border-t border-border bg-surface md:hidden"
+      className="chrome-glass fixed inset-x-0 bottom-0 z-40 flex items-center border-t md:hidden"
       data-testid="mobile-nav"
     >
       {items.map(({ mode, label, icon: ItemIcon }) => {

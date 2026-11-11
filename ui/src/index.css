@@ -26,6 +26,64 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* ── Navigation chrome material (design.md §10 — the social navigation-glass
+   trial extended to the console navbar, 11.11.2026) ──
+   One frosted material for the navigation chrome (top bar, sidebar, mobile
+   bottom bar, floating menus), derived from the active palette. Content,
+   forms and cards keep their existing opaque reading surfaces. Opaque first;
+   blur is a progressive enhancement, never a readability dependency. The
+   console is dark-only (no theme switch in the UI), so the dark material is
+   the default — the same values as the social shell's. */
+:root {
+  --chrome-tint: color-mix(in srgb, var(--color-surface) 86%, transparent);
+  --chrome-edge: color-mix(in srgb, var(--color-foreground) 14%, transparent);
+  --chrome-highlight: color-mix(in srgb, var(--color-foreground) 9%, transparent);
+  --chrome-shadow: color-mix(in srgb, var(--color-background) 40%, transparent);
+}
+
+.chrome-glass {
+  background-color: var(--color-surface);
+  border-color: var(--chrome-edge);
+  box-shadow: inset 0 1px 0 var(--chrome-highlight);
+}
+
+/* Floating chrome (menus) — the material plus a lifted shadow. */
+.chrome-floating {
+  box-shadow: inset 0 1px 0 var(--chrome-highlight), 0 8px 32px var(--chrome-shadow);
+}
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .chrome-glass {
+    background-color: var(--chrome-tint);
+    -webkit-backdrop-filter: blur(24px) saturate(140%);
+    backdrop-filter: blur(24px) saturate(140%);
+  }
+}
+
+/* The frosted material must never cost readability: without a blur engine,
+   with reduced transparency, or in forced colors, fall back to opaque
+   surfaces. */
+@media (prefers-reduced-transparency: reduce) {
+  .chrome-glass {
+    background: var(--color-surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .chrome-glass {
+    background: Canvas;
+    border-color: CanvasText;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .chrome-floating {
+    box-shadow: none;
+  }
+}
+
 /* ── Reduced motion (design.md §7) ── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
