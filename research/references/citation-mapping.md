@@ -36,8 +36,12 @@ Keep the paper's one claim front and centre (see research/brief.md):
    user-owned data + fine-grained, revocable, group/role-scoped contracts,
    enforced at the query layer. A reference that does not serve that claim
    does not belong in the paper, however interesting it is.
-web10 Inc. is the sole affiliation. Do not add any other affiliation
-   or employer. Domain conflicts for the submission are web10.app only.
+The author submits personally: "Independent" is the sole affiliation
+   (byline: Jacob Hoffman / Independent / Baltimore, USA; email
+   jacob@web10.app). No employer may be listed — web10 Inc. is out
+   (bad standing) and Bluefoot must never appear for this work. Do not
+   add any other affiliation. Domain conflicts for the submission are
+   web10.app only.
 The paper's sections (current draft)
 Abstract (no section label) — ActivityPub/ATProto as running
   non-cryptographic protocols; web10's no-social-primitives node; 267

@@ -1,6 +1,6 @@
 # web10 - Research Paper Strategy
 
-**Author:** Jacob Hoffman, web10 Inc.
+**Author:** Jacob Hoffman (Independent — personal submission, no employer affiliation)
 
 **Target:** SIGMOD 2027 industry track
 

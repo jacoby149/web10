@@ -180,7 +180,8 @@ The title history (for the record):
 - [ ] If the cross-node IAM demo (`cross-node-iam-demo.md`) lands before
   submission, add it as a §6 subsection ("Cross-Node IAM") and tighten the
   Future Work accordingly.
-- [ ] Authorship: single author (Jacob Hoffman, web10 Inc.). The industry
+- [ ] Authorship: single author (Jacob Hoffman, Independent — personal
+  submission; web10 Inc. and any employer are off the paper). The industry
   track accepts a single founder for a deployed system, but consider whether a
   second author (collaborator / academic advisor) strengthens the credibility
   stack. See `f3-best-paper-notes.md` §3.6.

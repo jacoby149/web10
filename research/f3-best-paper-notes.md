@@ -171,7 +171,7 @@ Tsinghua (3), CMU (3), Posit PBC (1 — Wes McKinney, the pandas/Arrow creator).
 
 | | F3 | web10 |
 |---|---|---|
-| Authors | 7, 3 institutions, industry + academic | 1 (planned), 1 institution (web10 Inc.) |
+| Authors | 7, 3 institutions, industry + academic | 1 (planned), Independent (no employer affiliation) |
 | "It's real" signal | Wes McKinney (pandas/Arrow) as co-author; open-source repo; comparisons against production formats | "Deployed and running" (the README's "unfair advantage"); 267→1 feed number |
 | Open source | Yes (github.com/future-file-format) | Yes (the repo) |
 
