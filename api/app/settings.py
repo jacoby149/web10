@@ -153,6 +153,16 @@ QUERY_EVAL_READABLE_MODE = os.getenv("QUERY_EVAL_READABLE_MODE", "").strip().low
 if QUERY_EVAL_READABLE_MODE not in ("", "per-group", "batched"):
     raise ValueError("QUERY_EVAL_READABLE_MODE must be empty, batched or per-group")
 
+# ── Node version identification (the update-check foundation) ────────────
+# The node's OWN version. Baked into the image at build time: api/Dockerfile
+# (repo-root context) writes /web10/VERSION from the top line of the
+# CHANGELOG — the project's release version, the same number cd.yml/
+# deploy.yml bake into the status pill — so a Portainer GitOps rebuild with
+# no env vars still ships the right one. An explicit WEB10_VERSION env wins
+# (dev/e2e volume mounts shadow the baked file — the service then reports
+# "unknown" honestly). Consumed by app/services/update_check.py.
+WEB10_VERSION = os.getenv("WEB10_VERSION", "")
+
 # Load environment variables into settings params.
 for v in list(globals()):
     # Evaluation values above already parse their environment types. In

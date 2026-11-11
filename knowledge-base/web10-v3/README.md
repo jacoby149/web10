@@ -29,6 +29,7 @@ web10-v3/
 │   └── clickhouse.md      ← complete schema: tables, indexes, patterns
 ├── setup/                 ← node setup & operator config
 │   ├── node-config.md     ← the node_config table, admins model, setup flow, /am_admin gate
+│   ├── update-check.md    ← the node's version (baked at build) vs the upstream changelog, /admin/update_status, the Node Config card
 │   └── custom-domain.md   ← claiming your web10 identity on your own domain via a DNS TXT record (Njalla recommended, the DKIM pattern for user identity)
 ├── app-store/             ← the node's public storefront
 │   ├── overview.md        ← registration (a path is an app), visits, PWA manifests, store UI

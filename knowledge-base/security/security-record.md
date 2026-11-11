@@ -15,6 +15,25 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Node version baking (10.11.2026) — L1 file-scan, PASS (local)
+
+The image now ships `/web10/VERSION`, baked at build time from the repo's
+own changelog top line (`api/Dockerfile`, repo-root context);
+`settings.WEB10_VERSION` is an operator-explicit env override, and
+`update_check.node_version()` resolves env → baked file → `"unknown"`.
+L1 scan of the touched surface: the baked value is build-time data from the
+same changelog the status pill already publishes (the version is public,
+never a secret); the env override is operator-supplied (whoever can set
+image env controls the version string — no new privilege); the service
+reads a fixed image-internal path (no user input, no filesystem traversal);
+dev/e2e volume mounts shadowing the file report `unknown`, which is the
+designed floor. No runtime network, no trust-boundary decision change.
+Five foundation controls pass (`test_update_status.py::TestNodeVersion`):
+baked file, env override, blank-env fall-through, missing-file floor,
+changelog-line parse. The upstream-comparison endpoint lands in the next
+stacked PR with its own record row (L2 — it adds the outbound fetch).
+Contract: `web10-v3/setup/update-check.md`.
+
 ## D107 visible-by-default replay (09.11.2026) — bounded review, OPEN
 
 Operator-approved public/UI text and readable image pixels replace blanket

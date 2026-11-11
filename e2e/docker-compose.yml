@@ -30,7 +30,12 @@ services:
       - e2e-net
 
   api:
-    build: ../api
+    build:
+      # Repo-root context so the Dockerfile bakes /web10/VERSION from the
+      # changelog (the update check). The ../api volume below still shadows
+      # it — the e2e node honestly reports "unknown" (KB: setup/update-check.md).
+      context: ..
+      dockerfile: api/Dockerfile
     depends_on:
       - minio
       - clickhouse

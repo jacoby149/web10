@@ -70,6 +70,48 @@ says what can happen **at the same time**.
 - [ ] **Contact delivery release acceptance** — implementation is merged in #1435; do not rebuild/split already-merged code. Obtain model-diverse sign-off and normal green checks for bounded follow-ups; provision private conditional storage/key and matching HTTPS API/authenticator, suppress callback query logs, register/approve Google OAuth and verify SendGrid sender. With explicit operator approval/access, test real Gmail and SendGrid reset emails, wrong/expired/replayed links, actual account password login, reconnect/revocation/quota/outage and optional SMS. Gates: independent review, bounded PRs/all checks green, explicit provider/storage/send/deployment approval. Acceptance: actual inbox/reset/new-password login receipts for both email providers, no credential leakage or provider-failure auth bypass, correct sender/connection/error UI at desktop/375px. No live sends, purchases or deployment without approval.
   - [✓ 5.4.1 local] **Read-only contact-delivery preflight** — `scripts/contact-delivery-preflight{,.test}.mjs`: default manifest is network-free even with credentials; explicit preflight reads only admin status, forbids redirects/cookies, bounds deadline/response and reports only known booleans/provider plus configuration blockers. Seven offline tests pass. No sender address/credential/error-body output, live request, provider setup, messages or account changes. This bite owns these scripts and aligned KB only.
 
+### Lane: node-update-check (stacked, 3 PRs)
+
+**Owns:** the update-check surface end to end, in the gate-compliant stack
+(the security gate's 500-line budget splits the feature): PR 1 the version
+identity (`api/Dockerfile` + `/web10/VERSION` bake, the build-site context
+moves, `.dockerignore`, `settings.WEB10_VERSION`,
+`api/app/services/update_check.py` foundation + tests, KB record), PR 2 the
+upstream check (`update_check.py` fetch/cache/status,
+`POST /admin/update_status` in `api/app/endpoints/system.py`, the
+`UPSTREAM_*`/`UPDATE_*` settings + tests), PR 3 the card
+(`ui/src/components/Config/UpdateStatus.tsx` + its focused tests + the
+ConfigPage `isMock` branch). No auth-flow, data model or other-endpoint
+changes; the Node Config page itself stays owned by node-config-usability
+(PR 3 adds ONE card + the mock branch to it). Merge order: 1 → 2 → 3 (3
+degrades gracefully on an endpoint-less node).
+- [~ 5.16.0] **U1: the node learns its own version (baking)** — repo-root
+  `api/Dockerfile` bakes the changelog top line into `/web10/VERSION`
+  (GitOps-poll self-sufficiency, the marketing-ui precedent); all seven api
+  build sites move; `WEB10_VERSION` env override; dev/e2e shadow → `unknown`.
+  Five foundation controls; built image verified live. Security-record row
+  (L1) updated. Gates: all PR checks green; connected proof is the bake in a
+  real stack build (the e2e/api images pick it up automatically — no
+  separate evidence owed).
+- [ ] **U2: the upstream check + `POST /admin/update_status`** — pinned TLS
+  read of the upstream changelog's top line on `UPSTREAM_REPO`/`UPSTREAM_REF`
+  (default `jacoby149/web10`/`main`; GitHub *releases* are NOT the source —
+  they stopped at v2.0.0 while the project is on 5.x, and GitOps tracks the
+  ref): public-DNS-only, hostname-asserted, no redirects, first-line-only
+  (4 KiB cap), no credentials, 5 s bound, per-worker cache (1 h / 5 min),
+  `?force=true`, admin-gated, GitHub outages → `unavailable` never 500.
+  Gates: the endpoint/transport/cache/failure-class controls, security-record
+  L2 row, stacked-on-U1 merge order.
+- [ ] **U3: the Node Config "Version & Updates" card** — the card leads
+  Node Configuration: update-available / up-to-date / version-unknown /
+  unavailable + force-bypassing "Check now" + the honest redeploy hint
+  (detection, NOT auto-update — no docker socket by design); endpoint-less
+  old builds 404 into a muted note. Gates: the seven state controls, desktop/
+  375px captures, security-record UI row, stacked-on-U2 merge order.
+  OPEN: connected acceptance on the deployed dev stack (a redeploy flips the
+  card to up-to-date at the new version), and `UPSTREAM_REF=dev` for the
+  web10-dev env example if the dev node should track dev instead of main.
+
 ### Lane: marketing-legal-pages
 
 - [✓ 4.12.14 local] **Name the DMCA designated agent** - add Jacob Hoffman beside the unchanged Terms email; preserve all other Terms text and the Post-It Note process, align the focused regression. No deployment or Copyright Office registration; production publication verification remains OPEN.
