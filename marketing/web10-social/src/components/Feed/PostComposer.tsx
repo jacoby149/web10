@@ -1131,6 +1131,14 @@ export default function PostComposer({
       // automatic. The same `music` tag puts the post in the Music tab.
       const hasVideo = mediaItems.some((m) => m.isVideo);
       const isMarkedMusic = markAsMusic && hasVideo;
+      // Tags are ADDITIVE views, not exclusive buckets (music.md): a 9:16
+      // video explicitly marked as music is BOTH a short and a track — it
+      // belongs to the Shorts wall AND the Music tab. (The pre-fix ternary
+      // let isShort swallow the music mark — a vertical music video silently
+      // vanished from the Music tab.)
+      const postTags: string[] = [];
+      if (isShort) postTags.push('short');
+      if (isMusic || isMarkedMusic) postTags.push('music');
       // Keep explicit destinations; otherwise use the group's memberships.
       let targetGroups: string[] | undefined = groups;
       if (authorAs) {
@@ -1155,7 +1163,7 @@ export default function PostComposer({
           media_refs: mediaRecords.map((m) => m._id!).filter(Boolean),
           visibility,
           created_at: new Date().toISOString(),
-          tags: isShort ? ['short'] : isMusic ? ['music'] : isMarkedMusic ? ['music'] : undefined,
+          tags: postTags.length ? postTags : undefined,
         },
         targetGroups,
         pinnedAd ? { mode: 'pinned', target: pinnedAd._id } : undefined,

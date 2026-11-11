@@ -39,13 +39,23 @@ a new column:
 
 - **Create:** when the tray has video media, the composer shows a "Mark as
   music" checkbox (opt-in, never automatic — audio keeps its auto-tag).
-  Checked → `tags: ['music']` on the create.
+  Checked → `music` in the create's `tags`.
 - **Edit:** when the post's media is video OR audio, the composer's edit
   mode shows the same choice as a separate-save control (`MusicTagToggle`,
   the Discover-audience pattern — it writes the tag via `updatePost`
   without touching title/text/media): "Mark as music" / "Remove music
   tag". Audio posts get the REMOVAL path (the auto-tag can be undone);
   video posts get the addition. Image-only posts get no control.
+
+**Tags are additive views, never exclusive buckets (10.11.2026 surface
+audit).** Surfaces select by tag/media over the SAME discover-group post —
+nothing removes a post from a surface when it gains another tag. A marked
+9:16 video posts `['short', 'music']`: it is on the Shorts wall AND the
+Music tab AND the ordinary Video/Posts surfaces. The pre-fix ternaries let
+the short auto-tag SWALLOW the explicit music mark on a vertical video (the
+post would have vanished from the Music tab on publication) — both write
+paths (the composer create + the upload-queue `createIntent`) now build the
+tag list additively.
 
 ## The read + the render-time gate
 

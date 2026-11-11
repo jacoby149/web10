@@ -8,6 +8,7 @@ vi.mock('lucide-react', () => lucideMock);
 
 // Mock data layer (same shape as videoEditor.test.tsx)
 const uploadMediaMock = vi.fn().mockResolvedValue({ _id: 'media-1', url: 'http://test.com/photo.webp' });
+const createPostMock = vi.fn().mockResolvedValue({ _id: 'post-1' });
 vi.mock('@/data', async (importOriginal) => {
   const original = await importOriginal() as Record<string, unknown>;
   return {
@@ -17,7 +18,7 @@ vi.mock('@/data', async (importOriginal) => {
     readProfile: vi.fn().mockResolvedValue(null),
     resolveMediaRefs: vi.fn().mockResolvedValue([]),
     uploadMedia: (...args: unknown[]) => uploadMediaMock(...args),
-    createPost: vi.fn().mockResolvedValue({ _id: 'post-1' }),
+    createPost: (...args: unknown[]) => createPostMock(...args),
     readMyAds: vi.fn().mockResolvedValue({ ads: [], albums: [] }),
     fanOutToFollowers: vi.fn().mockResolvedValue(undefined),
   };
@@ -62,6 +63,7 @@ const processImageMock = vi.fn().mockResolvedValue({
 // attach path with audio/video items.
 const getAudioInfoMock = vi.fn().mockResolvedValue({ duration: 120 });
 const getVideoInfoMock = vi.fn().mockResolvedValue({ width: 1280, height: 720, duration: 30 });
+const captureVideoPosterMock = vi.fn().mockResolvedValue({ blob: new Blob(['poster']), mimeType: 'image/webp' });
 vi.mock('@/lib/mediaProcessing', async (importOriginal) => {
   const original = await importOriginal() as Record<string, unknown>;
   return {
@@ -69,6 +71,7 @@ vi.mock('@/lib/mediaProcessing', async (importOriginal) => {
     processImage: (...args: unknown[]) => processImageMock(...args),
     getAudioInfo: (...args: unknown[]) => getAudioInfoMock(...args),
     getVideoInfo: (...args: unknown[]) => getVideoInfoMock(...args),
+    captureVideoPoster: (...args: unknown[]) => captureVideoPosterMock(...args),
   };
 });
 
@@ -86,8 +89,10 @@ let objectUrlCounter = 0;
 beforeEach(() => {
   processImageMock.mockClear();
   uploadMediaMock.mockClear();
+  createPostMock.mockClear();
   getAudioInfoMock.mockClear().mockResolvedValue({ duration: 120 });
   getVideoInfoMock.mockClear().mockResolvedValue({ width: 1280, height: 720, duration: 30 });
+  captureVideoPosterMock.mockClear().mockResolvedValue({ blob: new Blob(['poster']), mimeType: 'image/webp' });
   URL.createObjectURL = vi.fn(() => `blob:mock-${++objectUrlCounter}`);
   URL.revokeObjectURL = vi.fn();
 });
@@ -318,5 +323,46 @@ describe('composer album cover — paste/drag onto a solo audio track', () => {
     await waitFor(() => expect(Array.from(tray.children)).toHaveLength(3));
     expect(screen.getByTestId('album-art-chip')).toHaveTextContent('Add art'); // untouched
     expect(processImageMock).toHaveBeenCalledTimes(1); // the tray-image pipeline ran
+  });
+});
+
+// ── The tag is an additive view (music.md): a vertical music video is BOTH a
+//    short and a track ──────────────────────────────────────────────────────
+
+function attachVideo(width: number, height: number) {
+  getVideoInfoMock.mockResolvedValueOnce({ width, height, duration: 30 });
+  attachViaPicker(new File(['mp4-bytes'], 'clip.mp4', { type: 'video/mp4' }));
+}
+
+async function submitAndReadTags() {
+  await waitFor(() => expect(createPostMock).toHaveBeenCalled());
+  return (createPostMock.mock.calls[0][0] as { tags?: string[] }).tags;
+}
+
+describe('the composer posts additive tags (a 9:16 video marked as music is BOTH a short and a track)', () => {
+  it('a vertical video with "Mark as music" checked posts [short, music]', async () => {
+    await renderComposer();
+    attachVideo(720, 1280);
+    const toggle = await screen.findByTestId('mark-as-music-toggle');
+    fireEvent.click(within(toggle).getByRole('checkbox', { name: 'Mark as music' }));
+    fireEvent.click(screen.getByTestId('post-submit'));
+    expect(await submitAndReadTags()).toEqual(['short', 'music']);
+  });
+
+  it('a vertical video WITHOUT the mark posts [short] only', async () => {
+    await renderComposer();
+    attachVideo(720, 1280);
+    await screen.findByTestId('mark-as-music-toggle');
+    fireEvent.click(screen.getByTestId('post-submit'));
+    expect(await submitAndReadTags()).toEqual(['short']);
+  });
+
+  it('a landscape video with the mark posts [music] only (the pre-fix behavior, kept)', async () => {
+    await renderComposer();
+    attachVideo(1280, 720);
+    const toggle = await screen.findByTestId('mark-as-music-toggle');
+    fireEvent.click(within(toggle).getByRole('checkbox', { name: 'Mark as music' }));
+    fireEvent.click(screen.getByTestId('post-submit'));
+    expect(await submitAndReadTags()).toEqual(['music']);
   });
 });
