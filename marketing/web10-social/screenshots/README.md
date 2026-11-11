@@ -216,6 +216,10 @@ node screenshots/capture.mjs --name music --route /music --ready '[data-testid="
 node screenshots/capture.mjs --name music-saved --route /music-saved --ready '[data-testid="music-track-card"]'
 node screenshots/capture.mjs --name music-playlists --route /music-playlists --ready '#playlist-name'
 node screenshots/capture.mjs --name music-player --route /music-player --ready '[data-testid="music-player"]'
+# The panel's designed loading state (5.16.1): a deep-linked track whose home
+# read never settles — the skeleton + "Loading your track…" stays on screen
+# instead of the empty "choose a track" session. Opt-in fixture flag only.
+node screenshots/capture.mjs --name music-track-pending --route /music-track-pending --ready '[aria-label="Loading track"]'
 node screenshots/capture.mjs --name music-queue --route /music-queue --ready '[data-testid="music-player"]'
 node screenshots/capture.mjs --name music-playlist --route /music-playlist --ready '[data-testid="music-track-card"]'
 # The music-video track (music.md: a video CAN be a track) on the panel's

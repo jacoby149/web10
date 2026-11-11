@@ -15,6 +15,40 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Single-doc read tombstone safety (11.11.2026) — bounded local fix, broader raw-filter catalog OPEN
+
+`read_document_by_id` (`api/app/v3/services/clickhouse.py`) filtered `documents`
+with a raw `WHERE p.deleted = 0`: between a delete's tombstone insert and the
+ReplacingMergeTree background merge, the live row kept serving — a deleted post
+lingered on every single-doc read (collection items, post detail, permalinks)
+while the deduped board/group reads hid it instantly. Discovered by the Music
+social-library connected acceptance (journey g, real node: a media post deleted,
+still readable via the single-doc path until a merge happened to run; the
+cover self-heal only fired once the merge settled). Fix: the house
+dedup-then-filter — latest version per `(doc_id, author_key)`, the deletion
+winning timestamp ties (`row_number() … ORDER BY updated_at DESC, deleted DESC`,
+`rn = 1`), then `deleted = 0` — identical shape to `read_documents` /
+`_board_base_sql` / `list_media`.
+
+Security properties: NO access widening. The fix is a narrowing only — a reader
+can see LESS (a deleted doc, sooner), never more: the group-membership
+LEFT SEMI JOIN, the user_blacklist LEFT ANTI JOIN and the app-contract gate
+(`_check_app_permission` at the endpoint, above this function) are untouched.
+L1 (the changed SQL + its two call paths, the `/v3/read` doc-id branch) scanned;
+L2 bounded: the remaining raw-filter readers
+(`get_document`, `get_document_any_author`, `get_document_version`,
+`content_event_creator_rows`) are gate/control-plane helpers (delete
+pre-checks, thumbnail access probes, durable-create reconciliation —
+`get_document_version` deliberately includes tombstones), not user-content
+reads; `can_read_carrier_post` / `resolve_pinned_ads` / `get_active_node_ads`
+were verified already-deduped. L3/L4 of the documents-read surface is not
+claimed. Evidence: `api/tests/test_tombstone.py` re-pinned (the legacy pin
+asserted the old `ORDER BY … LIMIT 1` shape; now asserts the dedup + a
+tombstoned-doc-reads-absent control), full API suite green (2,229), ruff
+check + format clean, and the connected gauntlet's journey g on the real node
+(the visitor's self-heal write 403s + the owner's persist, both reading the
+immediately-tombstoned post). Shipped as 5.16.2.
+
 ## D107 visible-by-default replay (09.11.2026) — bounded review, OPEN
 
 Operator-approved public/UI text and readable image pixels replace blanket
