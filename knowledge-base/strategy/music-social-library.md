@@ -161,3 +161,63 @@ previewServer playlist shape) + the full social suite + typecheck/build +
 desktop/375px captures remain this branch's receipt. Connected acceptance
 (actual node, actual accounts, the real share round-trip into a receiving
 app) stays with the existing Music connected-acceptance lanes.
+
+## Connected acceptance (11.11.2026) — the a–g gauntlet on an isolated real stack
+
+`e2e/tests/gauntlets/music-social-library.spec.ts` (on-demand, not in the CI
+shard rotation — like its gauntlet siblings): seven journeys drive the real
+node (FastAPI + ClickHouse + MinIO + the app) with real accounts and real
+media. Receipts (JSON + desktop/375px screenshots) land in
+`.context/music-social-library-gauntlet/`, never the repo:
+
+- **a** — an EXISTING user (a legacy app contract missing the bookmark
+  service) re-consents through the real auth popup: the consent row requests
+  `web10-social-playlist-bookmarks`, approving lands a real grant (the
+  service read flips 403 → 200 for the app origin), denying leaves the app
+  unbroken and the grant absent.
+- **b** — first/return bookmark save + removal through the Music UI (Browse →
+  Save playlist → reload → Saved playlists → Remove); the node truth is a
+  live pointer doc in the READER's own followers group — `{ collection_id }`
+  only, zero copied content.
+- **c** — two-account denial: B's token cannot read or write A's pointer
+  store (I3 403s), and the app contract is origin-bound (a foreign Origin
+  403s too).
+- **d** — a logged-out recipient opens the shared permalink while public
+  (tracks render), the target post is deleted for real (the dead item is
+  excluded live), the curator flips private (the honest
+  "This playlist is private or no longer available."), and the bookmarking
+  fan's entry degrades to "Unavailable playlist" (removable, zero cached
+  content).
+- **e** — a real video posted with the composer's additive `['short','music']`
+  tags (5.16.1) transcodes to real HLS on the node, plays on the panel's
+  video stage (the session's `<video>` borrowed in), and the position
+  survives panel close/reopen.
+- **f** — a pasted and a dragged album cover land on the track's media doc
+  (`thumbnail_object_key`), not a second media item; the object is readable
+  through a fresh presigned GET.
+- **g** — deleting a post self-heals the collection cover: the visitor's
+  read heals in-session while its write 403s (the node face stays stale),
+  the owner's read persists (the face's `avatar_ref` converges to the next
+  live item's media), and every card converges on the next read.
+
+The gauntlet found and closed two real seams a mock cannot fake:
+
+1. **The anon no-access asymmetry (`readMusicCollection`, 5.16.2).** The D42
+   read gate 403s an AUTHENTICATED reader who has no access, but a LOGGED-OUT
+   reader reading a private/unknown collection gets an EMPTY result (anon is
+   exempt — "an empty board is a valid result"). A public collection always
+   carries a NAMED face (the app writes it on creation), so an empty face +
+   zero items for an anon reader means NO ACCESS, not an empty playlist:
+   `readMusicCollection` now throws into MusicScreen's honest unavailable
+   state instead of rendering "No playable music in this collection yet"
+   (which also offered a logged-out recipient an "Add a track from Explore"
+   affordance they cannot use). Signed-in visitors are unchanged (their 403s
+   come from the saved read).
+2. **The lingering single-doc read (`read_document_by_id`, 5.16.2, node).**
+   A deleted post kept serving through the single-doc read path (collection
+   items, post detail) until a ReplacingMergeTree background merge compacted
+   the tombstone — the "the post is lingering" root on the node's half. The
+   read now carries the house dedup-then-filter (latest version per
+   `(doc_id, author_key)`, the deletion winning timestamp ties, then
+   `deleted = 0`), like every other `documents` read. Contract:
+   `web10-v3/db/clickhouse.md` (the tombstone rule).
