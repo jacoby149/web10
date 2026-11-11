@@ -113,6 +113,142 @@
   --color-accent-foreground: #18181b;
 }
 
+/* design.md §10: one navigation material, derived from the active palette.
+   Opaque first; blur is a progressive enhancement, never a readability dependency. */
+:root {
+  --chrome-tint: color-mix(in srgb, var(--color-surface) 86%, transparent);
+  --chrome-edge: color-mix(in srgb, var(--color-foreground) 14%, transparent);
+  --chrome-highlight: color-mix(in srgb, var(--color-foreground) 9%, transparent);
+  --chrome-shadow: color-mix(in srgb, var(--color-background) 40%, transparent);
+  --chrome-selected: color-mix(in srgb, var(--color-brand-muted) 88%, var(--color-surface));
+  --chrome-radius: var(--radius-full);
+  --chrome-dock-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+  --chrome-dock-clearance: calc(4.5rem + var(--chrome-dock-bottom));
+}
+
+:root[data-theme="light"] {
+  --chrome-tint: color-mix(in srgb, var(--color-surface) 88%, transparent);
+  --chrome-edge: color-mix(in srgb, var(--color-foreground) 12%, transparent);
+  --chrome-highlight: color-mix(in srgb, var(--color-surface) 85%, transparent);
+  --chrome-shadow: color-mix(in srgb, var(--color-foreground) 12%, transparent);
+}
+
+.social-shell {
+  background: var(--color-background);
+}
+
+.chrome-glass {
+  background-color: var(--color-surface);
+  border-color: var(--chrome-edge);
+  box-shadow: inset 0 1px 0 var(--chrome-highlight);
+}
+
+.chrome-floating {
+  box-shadow: inset 0 1px 0 var(--chrome-highlight), 0 8px 32px var(--chrome-shadow);
+}
+
+.chrome-nav-item {
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  transition: background-color 150ms ease-out, color 150ms ease-out;
+}
+
+.chrome-nav-item:hover {
+  background-color: var(--color-elevated);
+  color: var(--color-foreground);
+}
+
+.chrome-nav-item[aria-current="page"], .chrome-nav-item[aria-expanded="true"] {
+  color: var(--color-brand-300);
+  background: linear-gradient(135deg, var(--chrome-highlight), transparent), var(--chrome-selected);
+  border-color: var(--chrome-edge);
+  box-shadow: inset 0 1px 0 var(--chrome-highlight);
+}
+
+.chrome-mobile-dock {
+  --chrome-tint: color-mix(in srgb, var(--color-surface) 76%, transparent);
+  bottom: var(--chrome-dock-bottom);
+  border-radius: var(--chrome-radius);
+}
+
+/* No backdrop-filter on the dock itself: that would create a backdrop root
+   and prevent the rim from sampling the live page. Optical layers sit BELOW
+   the real controls. No broad gradient pretends to be frost. */
+.chrome-mobile-dock.chrome-glass {
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.chrome-dock-bed, .chrome-dock-rim {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.chrome-dock-bed { z-index: 1; background: var(--color-surface); }
+.chrome-mobile-dock > button { z-index: 2; }
+.chrome-dock-rim {
+  z-index: 0;
+  padding: 8px;
+  background: color-mix(in srgb, var(--color-surface) 24%, transparent);
+  mask: linear-gradient(var(--color-foreground) 0 0) content-box, linear-gradient(var(--color-foreground) 0 0);
+  mask-composite: exclude;
+  box-shadow: inset 0 1px 0 var(--chrome-edge), inset 0 -1px 0 var(--chrome-highlight);
+}
+.chrome-mobile-dock:has(.chrome-dock-rim) .chrome-dock-bed {
+  clip-path: inset(8px round var(--radius-full));
+}
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .chrome-glass {
+    background-color: var(--chrome-tint);
+    -webkit-backdrop-filter: blur(24px) saturate(140%);
+    backdrop-filter: blur(24px) saturate(140%);
+  }
+  .chrome-mobile-dock.chrome-glass {
+    background: transparent;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .chrome-dock-bed {
+    background: var(--chrome-tint);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
+    backdrop-filter: blur(12px) saturate(140%);
+  }
+}
+
+@media (max-width: 767px) {
+  .chrome-content-clearance { padding-bottom: calc(var(--chrome-dock-clearance) + 1rem); }
+  .chrome-compose-position { bottom: calc(var(--chrome-dock-clearance) + 1rem); }
+  .chrome-player-position { bottom: var(--chrome-dock-clearance); }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .chrome-glass {
+    background: var(--color-surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .chrome-dock-rim { display: none; }
+  .chrome-dock-bed, .chrome-mobile-dock:has(.chrome-dock-rim) .chrome-dock-bed {
+    clip-path: none;
+    background: var(--color-surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .chrome-glass { background: Canvas; border-color: CanvasText; box-shadow: none; backdrop-filter: none; }
+  .chrome-nav-item[aria-current="page"], .chrome-nav-item[aria-expanded="true"] {
+    color: HighlightText; background: Highlight; border-color: Highlight; box-shadow: none;
+  }
+  .chrome-dock-rim { display: none; }
+  .chrome-dock-bed, .chrome-mobile-dock:has(.chrome-dock-rim) .chrome-dock-bed {
+    clip-path: none; background: Canvas; -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
+}
+
 /* Local dark islands: film controls/immersive captions must not turn into
    dark text on a black scrim. Scope here so other consuming apps are unchanged. */
 :where(.media-theme, [data-testid="hls-video-player"], [data-testid="player-controls"]) {

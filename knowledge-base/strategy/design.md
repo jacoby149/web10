@@ -413,6 +413,34 @@ for this app. See §4 glow section and §7 social motion. The bar is
 Kick-grade: vibrant, alive, never muted.
 
 
+### Social navigation glass — first pass (11.11.2026)
+
+The social shell may use Apple-inspired frosted chrome: a floating mobile dock,
+smoked dark / milky light headers, sidebar and navigation menus. Content, forms
+and media keep their existing reading surfaces. This is a bounded visual trial,
+not a platform-wide redesign or an optical-refraction claim. Use shared
+`--chrome-*` material tokens derived from the current palette: surface tint,
+foreground edge highlights, violet ambient light and a floating shadow. Blur is
+static, never animated; controls keep their focus rings and 44px touch targets.
+Without backdrop-filter, with reduced transparency or forced colors, use opaque
+surfaces. Reserve the floating dock plus device safe area in scrolling content,
+compose and music-player positioning. No navigation or appearance behavior changes.
+
+**Operator correction, same day:** retain the pill dock but remove the broad
+painted gradient, particularly in dark mode. Trial a real SVG displacement
+filter on the dock's narrow rim only, with undistorted controls above it.
+Generate only a rounded-lens normal map, never a screenshot or copy of page
+content. Enable the experimental backdrop URL path only on tested Chromium
+engines; other engines retain ordinary frosted glass. Prove displacement with
+an actual rendered-pixel on/off comparison, not CSS parsing alone. Reduced
+transparency/forced colors remain opaque. This is a local experiment, not an
+Apple-equivalent rendering, Safari support or phone-performance claim.
+
+**Visual approval:** the operator recognizes the apparent edge circles/streaks
+as content behind the glass and explicitly requests the original refraction,
+not the briefly tried softened variant. Retain the original 18-unit displacement,
+unblurred rim input and 8px inner bed inset in both themes. No scratch texture.
+
 ## 11. Accessibility (part of pretty, not opposed to it)
 
 - Contrast per §4. Focus-visible per §8. Reduced motion per §7.
