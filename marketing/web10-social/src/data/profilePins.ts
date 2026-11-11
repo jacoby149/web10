@@ -62,6 +62,24 @@ export function togglePinnedPostIds(current: string[], postId: string, wantPin: 
 }
 
 /**
+ * Move one pin to its slot above (dir -1) or below (dir +1) — the
+ * "Pinned posts" manage screen's up/down arrows. A no-op at either end (there
+ * is nothing to swap with) and for ids not on the list. The move is the whole
+ * ordering model for pins: pin-order IS display order (index 0 = the top
+ * slot), so swapping with the neighbor is a reorder.
+ */
+export function movePinnedPostId(ids: string[], id: string, dir: -1 | 1): string[] {
+  const list = normalizePinnedPostIds(ids);
+  const i = list.indexOf(id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= list.length) return list;
+  const next = [...list];
+  next[i] = list[j];
+  next[j] = list[i];
+  return next;
+}
+
+/**
  * The display order: pinned posts first (in pin order, only those the reader
  * actually has — a dead / unreadable pinned id drops out, it renders
  * nowhere), then the rest in the given order. Dedupes by _id.

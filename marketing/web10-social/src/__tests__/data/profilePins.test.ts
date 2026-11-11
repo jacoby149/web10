@@ -5,6 +5,7 @@ import {
   MAX_PROFILE_PINS,
   normalizePinnedPostIds,
   togglePinnedPostIds,
+  movePinnedPostId,
   orderPinnedPosts,
   readPinnedPosts,
   savePinnedPostIds,
@@ -86,6 +87,24 @@ describe('profile pins (profile-pins.md) — the pure core', () => {
 
     it('a fourth pin throws (the UI hides the item; this is the backstop)', () => {
       expect(() => togglePinnedPostIds(['a', 'b', 'c'], 'd', true)).toThrow(/full/);
+    });
+  });
+
+  describe('movePinnedPostId (the manage screen up/down arrows)', () => {
+    it('swaps with the neighbor in the given direction', () => {
+      expect(movePinnedPostId(['a', 'b', 'c'], 'b', -1)).toEqual(['b', 'a', 'c']);
+      expect(movePinnedPostId(['a', 'b', 'c'], 'b', 1)).toEqual(['a', 'c', 'b']);
+    });
+
+    it('is a no-op at either end (nothing to swap with) and for unknown ids', () => {
+      expect(movePinnedPostId(['a', 'b'], 'a', -1)).toEqual(['a', 'b']);
+      expect(movePinnedPostId(['a', 'b'], 'b', 1)).toEqual(['a', 'b']);
+      expect(movePinnedPostId(['a', 'b'], 'ghost', 1)).toEqual(['a', 'b']);
+    });
+
+    it('normalizes the input first (dedupe + the slot cap apply before the move)', () => {
+      // Normalized: ['a', 'b', 'x'] ('a' duped out, 'y' past the cap).
+      expect(movePinnedPostId(['a', 'a', 'b', 'x', 'y'], 'a', 1)).toEqual(['b', 'a', 'x']);
     });
   });
 

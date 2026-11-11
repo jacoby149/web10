@@ -14,11 +14,15 @@ three things you want every visitor to see before the chronological wall.
 You open one of your posts, ⋯ → "Pin to profile". It moves to the top of
 your profile's Posts tab and stays there (in the grid it wears a pin badge;
 in the feed view a "Pinned" overline sits above the card) until you unpin it.
-A visitor opening your profile sees the pinned posts first, in your order —
-without any new read authority: a pinned post they cannot read (private,
-close-friends-only) simply does not appear for them. The pin list is
-presentation, not ranking: the feed, Discover, Shorts and the Media tab are
-untouched, and pins never change how anyone else's content is ordered.
+And when the launch post lands AFTER the statement, you do not have to
+unpin-and-repin to fix the order: the Posts tab's "Pinned · N / Manage" chip
+opens your pin list, where up/down arrows reorder the slots and the add
+section holds the rest of your posts one tap away. A visitor opening your
+profile sees the pinned posts first, in your order — without any new read
+authority: a pinned post they cannot read (private, close-friends-only)
+simply does not appear for them. The pin list is presentation, not ranking:
+the feed, Discover, Shorts and the Media tab are untouched, and pins never
+change how anyone else's content is ordered.
 
 ## The storage: the face doc, not a new service
 
@@ -43,10 +47,14 @@ Rules:
 
 - **At most 3 pins** (Instagram parity, `MAX_PROFILE_PINS`). The data layer
   throws on a fourth; the UI hides the pin item when the slots are full.
-- **Order is display order.** The array's index 0 is the top slot. A new pin
-  APPENDS (the owner's first pin is the top slot; re-pinning after unpinning
-  moves it to the bottom of the pinned block). No separate sort key —
-  pin/unpin is the whole editing model.
+- **Order is display order, and the owner can reorder it.** The array's
+  index 0 is the top slot. A new pin APPENDS (the owner's first pin is the
+  top slot). Reordering lives on the dedicated manage screen (below):
+  up/down arrows swap a pin with its neighbor (`movePinnedPostId` — the D88
+  collection-order chevron idiom), each move persists on its own (three
+  slots, not a twenty-item playlist — per-action optimistic writes with
+  rollback, the pin toggle's model, not the collection's batch save). No
+  separate sort key, no drag for now: the arrows are the ordering model.
 - **Personal content only.** Group-authored posts (`author_key` with
   `/groups/`) cannot be pinned — the pin menu item is not offered for them
   (a group's curation belongs to the group's surface, not the person's).
@@ -113,6 +121,8 @@ who cannot read that post. No access widened, nothing bypassed.
 | Surface | Behavior |
 |---|---|
 | Profile Posts tab — grid | Pinned posts first, in pin order, each tile with the pin badge (top-left; the multi-media count stacks under it). The rest follow in the loaded order. |
+| Profile Posts tab — chip | Above the wall, owner-with-pins only: "Pinned · N" + **Manage** → the manage screen (the D88 "Manage collection & order" idiom — the URL holds the screen). |
+| **Pinned posts manage screen** (`/u/:username/pins`) | The owner's pin list: the current pins in order (up/down arrows to reorder, the pin glyph to unpin), then the ADD section (the owner's unpinned posts, one tap each; the 3-slot cap turns the section into copy, not dead buttons). Previews are the wall's own idiom (media thumbnail first, the deterministic quote-card color + the music note for audio). Owner-only: a visitor hitting the URL is bounced back to the profile (pin management is the owner's surface — the doc is public, the editor is not). |
 | Profile Posts tab — feed | Same order; a "Pinned" overline (micro step, brand-tinted pin icon) above each pinned card. |
 | Post ⋯ menu on the profile feed | "Pin to profile" / "Unpin from profile" for the owner's personal posts only. The pin item hides at 3 pinned (the slots are full). |
 | Profile lightbox (grid tile → post detail) | The same two items in the shared post-detail owner menu (`PostIdentityRow`), for the owner's personal posts. |
@@ -128,16 +138,20 @@ round-trips it and never clobbers it), and rolls back + toasts on failure.
 ## The code
 
 - `marketing/web10-social/src/data/profilePins.ts` — `MAX_PROFILE_PINS`,
-  `normalizePinnedPostIds`, `togglePinnedPostIds`, `orderPinnedPosts` (the
-  pure, tested core), `readPinnedPosts` (the bounded exact-id D73 read),
-  `savePinnedPostIds` (the face-doc write).
+  `normalizePinnedPostIds`, `togglePinnedPostIds`, `movePinnedPostId`,
+  `orderPinnedPosts` (the pure, tested core), `readPinnedPosts` (the bounded
+  exact-id D73 read), `savePinnedPostIds` (the face-doc write).
 - `src/data/types.ts` — `ProfileRecord.pinned_post_ids` + the `fromV3DocToProfile`
   parse (string-only, deduped, capped — the wire is not trusted to be tidy).
 - `src/data/profile.ts` — `saveProfile` writes `pinned_post_ids` only when the
   caller supplied it (absent = preserved, never nulled by a partial save).
 - `src/components/Bio/UserProfileScreen.tsx` — load (pinned read + merge +
   owner self-heal), the ordered wall, the optimistic `handleTogglePin`, the
-  lightbox wiring.
+  "Pinned · N / Manage" chip (owner-with-pins only), the lightbox wiring.
+- `src/components/Bio/ProfilePinsScreen.tsx` (new) + the `/u/:username/pins`
+  route in `App.tsx` — the manage screen: the ordered pin list (up/down /
+  unpin), the add section, the owner-only guard, every write optimistic +
+  rollback through `savePinnedPostIds`.
 - `src/components/Bio/UserProfileScreen.tsx` (`WallTile`) — the pin badge.
 - `src/components/Bio/ProfileFeed.tsx` — the "Pinned" overline + the card
   menu wiring.
@@ -145,11 +159,15 @@ round-trips it and never clobbers it), and rolls back + toasts on failure.
   (owner, personal posts, slot-full hidden).
 - `src/components/Feed/PostDetail.tsx` + `src/components/Bio/PostLightbox.tsx`
   — the pin items in the shared post-detail menu (profile lightbox only).
-- Tests: `src/__tests__/data/profilePins.test.ts` (pure core + the read's
-  SQL/shape + the write), `src/__tests__/profilePinsScreen.test.tsx` (grid
-  order + badge, feed overline + menu pin/unpin + rollback, the slot-full
-  hiding, visitor private-pin exclusion, the lightbox menu, owner
-  self-heal, the 50-post-boundary fetch).
+- Tests: `src/__tests__/data/profilePins.test.ts` (pure core incl.
+  `movePinnedPostId` + the read's SQL/shape + the write),
+  `src/__tests__/profilePinsScreen.test.tsx` (grid order + badge, feed
+  overline + menu pin/unpin + rollback, the slot-full hiding, visitor
+  private-pin exclusion, the lightbox menu, owner self-heal, the
+  50-post-boundary fetch), `src/__tests__/profilePinsManage.test.tsx` (the
+  profile chip's owner/visitor/none gates + the deep link, the manage
+  screen's order / move-up / move-down / rollback / unpin / add /
+  slots-full / empty / gap-read / visitor-bounce controls).
 - Screenshot harness: `screenshots/harness/mock-data.ts` seeds
   `pinned_post_ids` on the owner face; captures in `.context/profile-pins/`.
 
@@ -159,6 +177,6 @@ round-trips it and never clobbers it), and rolls back + toasts on failure.
   pinning there would need the face read; queued, not built).
 - Group-profile pins (a different face doc, a different curation — own lane
   when someone asks).
-- Reordering pins without unpin/re-pin (drag) — the pin/unpin order model is
-  the whole feature until it is not.
+- Drag-to-reorder on the manage screen (the up/down arrows are the ordering
+  model for three slots; drag earns its keep when the slots grow).
 - Deployment + connected acceptance (the usual gates).

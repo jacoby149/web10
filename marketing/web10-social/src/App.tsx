@@ -8,6 +8,7 @@ import PostsScreen from '@/components/Feed/PostsScreen';
 import ProfileScreen from '@/components/Bio/ProfileScreen';
 import UserProfileScreen from '@/components/Bio/UserProfileScreen';
 import SavedCollectionScreen from '@/components/Bio/SavedCollectionScreen';
+import ProfilePinsScreen from '@/components/Bio/ProfilePinsScreen';
 import UserFollowListScreen from '@/components/Bio/UserFollowListScreen';
 import DiscoverScreen from '@/components/Discover/DiscoverScreen';
 import WatchScreen from '@/components/Watch/WatchScreen';
@@ -114,6 +115,15 @@ function SavedCollectionRoute() {
       onBack={() => navigate(-1)}
     />
   );
+}
+
+// Profile pins (profile-pins.md): the owner's pin-list manage screen —
+// /u/:username/pins. The URL holds the screen (refresh-safe, back/forward
+// work); the screen itself guards owner-only (a visitor is bounced back to
+// the profile — pin management is the owner's surface, not a read view).
+function ProfilePinsRoute() {
+  const { username } = useParams();
+  return <ProfilePinsScreen key={username} />;
 }
 
 // D80: the profile's clickable Following / Followers counts → dedicated list
@@ -512,6 +522,7 @@ function App() {
           <Route path="/u/:username" element={<UserProfileRoute />} />
           <Route path="/u/:username/store" element={<StorefrontScreen />} />
           <Route path="/u/:username/saved/:collectionId" element={<SavedCollectionRoute />} />
+          <Route path="/u/:username/pins" element={<ProfilePinsRoute />} />
           <Route path="/u/:username/followers" element={isAnon ? <Navigate to="/video" replace /> : <UserFollowersRoute />} />
           <Route path="/u/:username/following" element={isAnon ? <Navigate to="/video" replace /> : <UserFollowingRoute />} />
           <Route path="/u/:username/p/:postId" element={<UserProfilePostLinkRoute />} />

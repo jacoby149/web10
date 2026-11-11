@@ -28,6 +28,7 @@ import MusicScreen from '@/components/Music/MusicScreen';
 import MusicPlayer from '@/components/Music/MusicPlayer';
 import { MusicProvider } from '@/context/MusicContext';
 import UserProfileScreen from '@/components/Bio/UserProfileScreen';
+import ProfilePinsScreen from '@/components/Bio/ProfilePinsScreen';
 import SavedCollectionScreen from '@/components/Bio/SavedCollectionScreen';
 import UserFollowListScreen from '@/components/Bio/UserFollowListScreen';
 import PostComposer from '@/components/Feed/PostComposer';
@@ -199,6 +200,7 @@ if (screen === 'post-detail' || screen === 'group-post-detail') {
        : screen === 'profile' ? '/u/nova'
        : screen === 'profile-me' ? '/u/me'
       : screen === 'profile-me-feed' ? '/u/me?view=feed'
+      : screen === 'profile-pins' ? '/u/me/pins'
       : screen === 'profile-followers' ? '/u/nova/followers'
       : screen === 'profile-following' ? '/u/nova/following'
       : screen === 'profile-feed' ? '/u/nova?view=feed'
@@ -250,6 +252,7 @@ if (screen === 'post-detail' || screen === 'group-post-detail') {
           <Route path="/u/:username" element={<UserProfileRoute />} />
           <Route path="/u/:username/store" element={<StorefrontScreen />} />
           <Route path="/u/:username/saved/:collectionId" element={<SavedCollectionRoute />} />
+          <Route path="/u/:username/pins" element={<ProfilePinsScreen />} />
           <Route path="/u/:username/followers" element={<UserFollowersRoute />} />
           <Route path="/u/:username/following" element={<UserFollowingRoute />} />
           <Route path="/monetize" element={<MonetizationScreen />} />

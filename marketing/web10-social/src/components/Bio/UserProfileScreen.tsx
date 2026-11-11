@@ -1274,6 +1274,27 @@ export default function UserProfileScreen({ username, provider: requestedProvide
               invisible") — the app-level New Post sheet (the Layout's
               floating "+" button) is the single compose surface, reachable
               from the profile too. */}
+          {/* The pinned block's entry (profile-pins.md): the owner's held-up
+              posts are visible to everyone; managing them (reorder / add /
+              remove) is the owner's surface — a deep-linkable screen
+              (/u/:username/pins), the D88 collection-detail idiom. Visitors
+              and pin-less owners see nothing here. */}
+          {isOwnProfile && pinnedIds.length > 0 && (
+            <div className="flex items-center justify-between py-2" data-testid="profile-pins-chip">
+              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Pin className="h-3.5 w-3.5 text-brand-300" strokeWidth={2} aria-hidden="true" />
+                Pinned · {pinnedIds.length}
+              </span>
+              <button
+                type="button"
+                onClick={() => navigate(`/u/${username}/pins`)}
+                className="rounded px-2 py-1 text-xs font-medium text-brand-300 transition-colors duration-150 hover:text-brand-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                data-testid="profile-pins-manage"
+              >
+                Manage
+              </button>
+            </div>
+          )}
           {posts.length ? (
             viewMode === 'feed' ? (
               <ProfileFeed

@@ -1817,7 +1817,7 @@ const PROFILE_POSTS = [
 // async seams are stubs: the seed's pins (pp-3 + pp-1, on readProfile above)
 // are all on the loaded page, so the gap read returns nothing; the owner
 // menu's write is a stateless echo (the capture is static, not a flow).
-export { MAX_PROFILE_PINS, orderPinnedPosts, togglePinnedPostIds, normalizePinnedPostIds } from '@/data/profilePins';
+export { MAX_PROFILE_PINS, orderPinnedPosts, togglePinnedPostIds, movePinnedPostId, normalizePinnedPostIds } from '@/data/profilePins';
 export async function readPinnedPosts(): Promise<never[]> { return []; }
 export async function savePinnedPostIds(profile: Record<string, unknown>, ids: string[]): Promise<Record<string, unknown>> {
   return { ...profile, pinned_post_ids: ids };
