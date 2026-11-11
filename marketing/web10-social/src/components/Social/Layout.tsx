@@ -437,7 +437,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0 min-h-0" data-replay-private={/^\/(?:messages|settings|node-settings|monetize|notifications|uploads)(?:\/|$)/.test(pathname) ? '' : undefined}>
-        <header data-testid="topbar-mobile" className="md:hidden flex items-center justify-between px-4 h-14 border-b border-border glass-bar bg-glass sticky top-0 z-20 gap-2">
+        <header data-testid="topbar-mobile" className="md:hidden flex items-center justify-between px-4 h-14 border-b border-glass-edge glass-bar bg-glass sticky top-0 z-20 gap-2">
           <Wordmark className="shrink-0 [&_.wordmark-label]:hidden" />
           {!isAnon && <ActingIdentitySwitcher personalName={displayName || username} personalAvatar={avatarUrl} />}
           <div className="flex items-center gap-1">
@@ -488,7 +488,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
           <header
             data-testid="topbar-desktop"
             className={cn(
-              'hidden md:flex relative items-center justify-between gap-4 border-b border-border glass-bar z-20 px-4 h-14',
+              'hidden md:flex relative items-center justify-between gap-4 border-b border-glass-edge glass-bar z-20 px-4 h-14',
               /* Open state (glass-bar :has covers the search dropdown): content
                  scrolling under an open menu is noise. */
               notificationsOpen || userMenuOpen ? 'bg-glass-open' : 'bg-glass',
@@ -688,7 +688,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
         <nav
           aria-label="Primary mobile"
           className={cn(
-            'md:hidden fixed bottom-0 inset-x-0 z-20 flex items-stretch border-t border-border glass-bar bg-glass',
+            'md:hidden fixed bottom-0 inset-x-0 z-20 flex items-stretch border-t border-glass-edge glass-bar bg-glass',
             isShorts && 'hidden',
           )}
         >

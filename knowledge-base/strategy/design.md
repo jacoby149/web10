@@ -210,10 +210,13 @@ white-label overrides stay token-driven.
 
 | Token | Dark | Light | Role |
 |---|---|---|---|
-| `--color-glass` | `rgba(17, 17, 19, 0.45)` | `rgba(255, 255, 255, 0.55)` | Resting bar fill — light enough that scrolling media visibly bleeds through (operator correction, 10.11.2026: at 0.65 the resting bars read near-solid, not glassy) |
-| `--color-glass-open` | `rgba(17, 17, 19, 0.92)` | `rgba(255, 255, 255, 0.92)` | Fill when a popover hangs off the bar (search results, user menu, notifications) — content scrolling under an open menu is noise |
-| `--color-glass-edge` | `rgba(255, 255, 255, 0.22)` | `rgba(255, 255, 255, 0.8)` | 1px rim highlight |
+| `--color-glass` | `rgba(255, 255, 255, 0.18)` | `rgba(255, 255, 255, 0.55)` | Resting bar fill. **Dark is a light frosted overlay, not a dark tint** — Dock-style: dark-on-dark over the `#09090b` background never reads as glass, while a light frost reads as a band at rest AND bleeds content color through when media scrolls under it (operator correction, 10.11.2026, against a macOS Dock reference) |
+| `--color-glass-open` | `rgba(255, 255, 255, 0.34)` | `rgba(255, 255, 255, 0.92)` | Fill when a popover hangs off the bar (search results, user menu, notifications) — content scrolling under an open menu is noise |
+| `--color-glass-edge` | `rgba(255, 255, 255, 0.22)` | `rgba(255, 255, 255, 0.8)` | 1px rim highlight — top `::before` AND the bar's bottom hairline (`border-glass-edge`, not `border-border`), so the material is enclosed by light edges like the Dock |
 | `--shadow-glass` | none | `0 1px 2px rgb(0 0 0 / 0.06)` | Light-mode float (§6) |
+
+Dark reduced-transparency fallback is `#353535` — 0.18 white composited over
+`#09090b`, so the solid bar matches the frosted one's at-rest look.
 
 Usage discipline:
 - **Chrome only.** Bars that float over content. Feed cards, modals and
@@ -559,9 +562,10 @@ the missing steps.
   --color-glow-intense: rgba(139, 92, 246, 0.35);
   --color-glow-danger: rgba(239, 68, 68, 0.25);
 
-  /* glass chrome — the app bars float over content (§4 "Glass chrome", §6) */
-  --color-glass: rgba(17, 17, 19, 0.45);
-  --color-glass-open: rgba(17, 17, 19, 0.92);
+  /* glass chrome — the app bars float over content (§4 "Glass chrome", §6).
+     Dark is a light frosted overlay (Dock-style), not a dark tint. */
+  --color-glass: rgba(255, 255, 255, 0.18);
+  --color-glass-open: rgba(255, 255, 255, 0.34);
   --color-glass-edge: rgba(255, 255, 255, 0.22);
   --shadow-glass: 0 1px 2px rgb(0 0 0 / 0);
 

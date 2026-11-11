@@ -872,7 +872,7 @@ export default function GroupDetailScreen({ groupId }: { groupId: string }) {
     <div className="flex flex-col min-h-full bg-background">
       <div className="w-full md:max-w-3xl md:mx-auto flex-1 flex flex-col">
         {/* Sticky top bar — back + (managers) the kebab entry point (G3) */}
-        <div className="sticky top-0 z-20 flex items-center justify-between border-b border-border glass-bar bg-glass px-2 py-2 md:static md:border-0 md:bg-transparent md:px-0 md:py-1" data-testid="group-detail-topbar">
+        <div className="sticky top-0 z-20 flex items-center justify-between border-b border-glass-edge glass-bar bg-glass px-2 py-2 md:static md:border-0 md:bg-transparent md:px-0 md:py-1" data-testid="group-detail-topbar">
           <Button
             variant="ghost"
             size="icon"

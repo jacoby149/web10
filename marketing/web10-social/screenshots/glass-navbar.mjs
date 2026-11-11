@@ -34,8 +34,9 @@ const DESKTOP = { width: 1440, height: 900 };
 const MOBILE = { width: 375, height: 812 };
 
 // Expected computed background-color per palette (index.css glass tokens).
+// Dark = light frosted overlay (Dock-style); Light = white-based glass.
 const FILL = {
-  dark: { glass: 'rgba(17, 17, 19, 0.45)', open: 'rgba(17, 17, 19, 0.92)', solid: 'rgb(17, 17, 19)' },
+  dark: { glass: 'rgba(255, 255, 255, 0.18)', open: 'rgba(255, 255, 255, 0.34)', solid: 'rgb(53, 53, 53)' },
   light: { glass: 'rgba(255, 255, 255, 0.55)', open: 'rgba(255, 255, 255, 0.92)', solid: 'rgb(255, 255, 255)' },
 };
 

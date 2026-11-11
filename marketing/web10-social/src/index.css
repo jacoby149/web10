@@ -48,9 +48,11 @@
   --color-glow-danger: rgba(239, 68, 68, 0.25);
 
   /* glass chrome — the app bars float over content (§4 "Glass chrome", §6).
-     Dark defaults; light overrides below. */
-  --color-glass: rgba(17, 17, 19, 0.45);
-  --color-glass-open: rgba(17, 17, 19, 0.92);
+     Dark defaults; light overrides below. The dark fill is a LIGHT frosted
+     overlay (Dock-style), not a dark tint: dark-on-dark over the #09090b
+     background never reads as glass. */
+  --color-glass: rgba(255, 255, 255, 0.18);
+  --color-glass-open: rgba(255, 255, 255, 0.34);
   --color-glass-edge: rgba(255, 255, 255, 0.22);
   --shadow-glass: 0 1px 2px rgb(0 0 0 / 0);
 
@@ -158,8 +160,8 @@
   --color-danger: #ef4444;
   --color-destructive: #ef4444;
   --color-danger-muted: #450a0a;
-  --color-glass: rgba(17, 17, 19, 0.45);
-  --color-glass-open: rgba(17, 17, 19, 0.92);
+  --color-glass: rgba(255, 255, 255, 0.18);
+  --color-glass-open: rgba(255, 255, 255, 0.34);
   --color-glass-edge: rgba(255, 255, 255, 0.22);
   --shadow-glass: 0 1px 2px rgb(0 0 0 / 0);
 }
@@ -587,8 +589,8 @@
    that block's specificity for the light theme. */
 @media (prefers-reduced-transparency: reduce) {
   :root {
-    --color-glass: #111113;
-    --color-glass-open: #111113;
+    --color-glass: #353535;
+    --color-glass-open: #353535;
     --color-glass-edge: transparent;
   }
 
