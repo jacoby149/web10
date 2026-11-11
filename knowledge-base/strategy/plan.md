@@ -37,6 +37,8 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
+- [✓ 5.17.2 local] **Invite exploration from marketing** — “Explore web10” on Home/Freedom and “Open web10 social” in desktop/mobile header navigation. Destinations, handlers and analytics unchanged; compact navigation below 1024px avoids reproduced tablet overflow. Exact-label/destination tests, all 378 marketing tests, build/typecheck and desktop/375px light/dark browser captures pass; 768/1280 responsive checks and inspected tablet-menu capture pass. Synthetic network data; no deployment.
+
 - [✓ 5.17.1 local] **Remove persistent gray glass rings** — dock outline/shadow now paint above the optical layers, not into their backdrop input; approved lens/inset unchanged. Flat-backdrop repro fails with 476 changed pixels before the fix and zero in both themes after; striped refraction/undistorted-center controls, all 2,444 tests/build/typecheck, two-theme four-width shell/fallback gates and inspected desktop/375px captures pass. Phone/Safari and rollout remain OPEN; no deployment.
 
 - [ ] **Glass phone/Safari acceptance** — verify the approved dock on real iOS Safari and Android Chrome, including scrolling, keyboard/safe-area clearance, light/dark, reduced transparency and readable fallback; record device/browser evidence and any frame-rate issues. Owns social shell/CSS, DockGlass/lens helper and focused browser fixtures. Requires operator-provided device access; no production changes or deployment without approval.

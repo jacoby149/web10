@@ -62,6 +62,8 @@ says what can happen **at the same time**.
 
 ### Lane: social-appearance
 
+- [✓ 5.17.2 local] **Invite exploration from marketing** — operator-approved follow-up to 5.13.1: “Explore web10” on Home/Freedom and “Open web10 social” in desktop/mobile header navigation. Destinations/handlers/analytics unchanged; compact navigation below 1024px avoids tablet overflow. Owns those marketing labels, focused tests and browser captures. All 378 tests/build/typecheck and desktop/375px light/dark browser gate pass, with 768/1280 responsive checks and inspected tablet menu. Synthetic data; no deployment.
+
 - [✓ 5.17.1 local] **Remove persistent gray glass rings** — dock outline/shadow now paint above the optical layers, not into their backdrop input; approved lens/inset unchanged. Flat-backdrop repro fails with 476 changed pixels before the fix and zero in both themes after; striped refraction/undistorted-center controls, all 2,444 tests/build/typecheck, two-theme four-width shell/fallback gates and inspected desktop/375px captures pass. Owns social dock/CSS and focused browser fixtures; phone/Safari and rollout remain OPEN, no deployment.
 
 - [ ] **Glass phone/Safari acceptance** — verify the approved dock on real iOS Safari and Android Chrome, including scrolling, keyboard/safe-area clearance, light/dark, reduced transparency and readable fallback; record device/browser evidence and any frame-rate issues. Owns social shell/CSS, DockGlass/lens helper and focused browser fixtures. Requires operator-provided device access; no production changes or deployment without approval.
