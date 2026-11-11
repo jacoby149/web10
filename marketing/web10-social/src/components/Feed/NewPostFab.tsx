@@ -30,7 +30,7 @@ export function NewPostFab({ hidden = false }: { hidden?: boolean }) {
         openComposer();
       }}
       className={
-        'fixed right-4 bottom-20 md:right-6 md:bottom-6 z-30 ' +
+        'chrome-compose-position fixed right-4 md:right-6 md:bottom-6 z-30 ' +
         'flex h-16 w-16 items-center justify-center rounded-full ' +
         'bg-gradient-to-br from-brand to-brand-600 text-brand-foreground ' +
         'ring-2 ring-brand-300/40 ' +

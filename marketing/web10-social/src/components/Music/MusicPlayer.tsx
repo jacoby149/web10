@@ -17,7 +17,7 @@ export default function MusicPlayer() {
   const link = `/music?track=${encodeURIComponent(track.post._id || '')}&panel=`;
   const focus = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface';
   return (
-    <section aria-label="Music player" data-testid="music-player" className="fixed bottom-16 inset-x-0 z-30 border-t border-border bg-surface md:bottom-0 md:left-64">
+    <section aria-label="Music player" data-testid="music-player" className="chrome-player-position fixed inset-x-0 z-30 border-t border-border bg-surface md:bottom-0 md:left-64">
       {music.error && <div role="alert" className="flex items-center justify-between gap-2 border-b border-border px-4 py-2 text-xs text-danger">
         <span>{music.error}</span>
         <Button size="sm" variant="outline" onClick={() => void music.retry()}>Retry playback</Button>

@@ -27,6 +27,22 @@ store, not account state. White artwork on dark, derived zinc artwork on
 light, no black badge. This supersedes the social-only scope and fixed logo
 backing above; authenticator remains unchanged.
 
+**Navigation material trial, 11.11.2026:** operator approves trying Apple-inspired
+glass on the social navigation/header in both themes. Bound the first pass to
+the shell, floating mobile dock and navigation menus; content remains opaque.
+Palette-derived material tokens, legible controls and opaque accessibility
+fallbacks take precedence over translucency. This authorizes a local visual
+trial, not platform-wide adoption or deployment; visual approval remains open.
+
+**Trial refinement:** the operator likes the pill but rejects the dark treatment
+as "just a gradient" and requests refraction. Remove broad gradient sheen;
+try actual Chromium SVG backdrop displacement on the mobile dock rim with
+normal-map-only generation, no page snapshot, undistorted controls and ordinary
+frost elsewhere. Pixel comparison is the rendering gate, not CSS URL parsing.
+The operator subsequently approves the original refraction and withdraws the
+apparent-crack complaint (content behind the glass); do not retain the briefly
+tried softer variant. Safari/physical-phone performance remains a separate gate.
+
 ### D107 — Replay is visible by default; mask sensitive regions [decided; rollout OPEN]
 
 Operator, 09.11.2026: "posthog is still masking way more thanit should, on the

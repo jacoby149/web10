@@ -17,6 +17,7 @@ import { NewPostFab } from '@/components/Feed/NewPostFab';
 import ActingIdentitySwitcher from './ActingIdentitySwitcher';
 import { useActingAuthor } from '@/data/actingIdentity';
 import { ThemeMark } from '@/components/shared/ThemeMark';
+import DockGlass from './DockGlass';
 
 interface LayoutProps {
   onLogout: () => void;
@@ -285,10 +286,9 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="social-shell flex h-dvh overflow-hidden">
       <aside className={cn(
-        'hidden md:flex flex-col w-64 border-r border-border relative',
-        'bg-gradient-to-b from-surface to-background',
+        'chrome-glass hidden md:flex flex-col w-64 shrink-0 border-r relative',
       )}>
         {/* The decorative glow is clipped by its OWN container (the
             overflow-hidden wrapper), so the aside itself carries no
@@ -315,16 +315,11 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
             <button
               key={path}
               data-testid={testId}
-              aria-current={path === '/profile' ? isActive('/profile') : active ? 'page' : undefined}
+              aria-current={active ? 'page' : undefined}
               onClick={() => navigate(target)}
               className={cn(
-                'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
-                active
-                  ? cn(
-                      'bg-gradient-to-r from-brand-muted to-brand/15 text-brand-300',
-                      'border border-brand/20 glow-active',
-                    )
-                  : 'text-muted-foreground hover:text-foreground hover:bg-elevated/80 hover:border hover:border-border/50',
+                'chrome-nav-item w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium',
+                active ? 'text-brand-300' : 'text-muted-foreground',
               )}
             >
               {path === '/profile' ? (
@@ -389,7 +384,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
               <div
                 role="menu"
                 data-testid="more-menu"
-                className="absolute left-0 right-0 bottom-full mb-1 z-30 rounded-lg border border-border bg-popover p-1 shadow-[0_8px_30px_rgb(0,0,0/0.35)] max-h-[min(70vh,420px)] overflow-y-auto"
+                className="chrome-glass chrome-floating absolute left-0 right-0 bottom-full mb-1 z-30 rounded-lg border p-1 max-h-[min(70vh,420px)] overflow-y-auto"
               >
                 <button type="button" role="menuitem" data-testid="nav-appearance-desktop"
                   onClick={() => { setMoreMenuOpen(false); navigate('/appearance'); }}
@@ -437,7 +432,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0 min-h-0" data-replay-private={/^\/(?:messages|settings|node-settings|monetize|notifications|uploads)(?:\/|$)/.test(pathname) ? '' : undefined}>
-        <header className="md:hidden flex items-center justify-between px-4 h-14 border-b border-border bg-surface/95 backdrop-blur-md sticky top-0 z-20 gap-2">
+        <header data-testid="topbar-mobile" className="chrome-glass md:hidden flex shrink-0 items-center justify-between px-4 h-14 border-b sticky top-0 z-20 gap-2">
           <Wordmark className="shrink-0 [&_.wordmark-label]:hidden" />
           {!isAnon && <ActingIdentitySwitcher personalName={displayName || username} personalAvatar={avatarUrl} />}
           <div className="flex items-center gap-1">
@@ -487,7 +482,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
         {!isShorts && (
           <header
             data-testid="topbar-desktop"
-            className="hidden md:flex items-center justify-between gap-4 border-b border-border bg-surface/95 backdrop-blur-md z-20 px-4 h-14"
+            className="chrome-glass hidden md:flex shrink-0 items-center justify-between gap-4 border-b z-20 px-4 h-14"
           >
             {/* The desktop search: a fixed-width field on the left (the
                 YouTube/Instagram top-bar shape). The results dropdown
@@ -577,7 +572,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                 <div
                   role="menu"
                   data-testid="user-menu"
-                  className="absolute right-0 top-full mt-2 w-64 rounded-lg border border-border bg-popover p-1 shadow-[0_8px_30px_rgb(0,0,0/0.35)] z-30"
+                  className="chrome-glass chrome-floating absolute right-0 top-full mt-2 w-64 rounded-lg border p-1 z-30"
                 >
                   <div className="border-b border-border px-3 py-2">
                     <p className="text-[0.625rem] uppercase tracking-wide text-muted-foreground/70">Signed in as</p>
@@ -675,7 +670,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
           </div>
         )}
 
-        <div className={cn('flex-1 min-h-0 overflow-y-auto md:pb-0 [body:has([data-testid=music-player])_&]:pb-48 md:[body:has([data-testid=music-player])_&]:pb-36', isShorts ? '' : 'pb-16')}>
+        <div data-testid="shell-content" className={cn('flex-1 min-h-0 overflow-y-auto md:pb-0 [body:has([data-testid=music-player])_&]:pb-48 md:[body:has([data-testid=music-player])_&]:pb-36', isShorts ? '' : 'chrome-content-clearance')}>
           {actingIdentity && /^\/(messages|monetize|settings|node-settings)(\/|$)/.test(pathname) && <p className="border-b border-border bg-surface px-4 py-2 text-xs text-muted-foreground" data-testid="personal-authority-notice">This screen uses your personal account: {username}.</p>}
           {children || <Outlet />}
         </div>
@@ -683,10 +678,11 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
         <nav
           aria-label="Primary mobile"
           className={cn(
-            'md:hidden fixed bottom-0 inset-x-0 z-20 flex items-stretch border-t border-border bg-surface/95 backdrop-blur-md',
+            'chrome-glass chrome-floating chrome-mobile-dock md:hidden fixed inset-x-3 z-20 flex items-stretch gap-1 border p-1.5',
             isShorts && 'hidden',
           )}
         >
+          <DockGlass />
           {bottomNavItems.map(({ path, icon: Icon, label, testId }) => {
             return (
             <button
@@ -696,16 +692,10 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
               aria-label={label}
               onClick={() => go(path)}
               className={cn(
-                'flex-1 flex flex-col items-center justify-center gap-0.5 min-h-11 py-2.5 transition-all duration-150 relative',
-                isActive(path) ? 'text-brand' : 'text-muted-foreground',
+                'chrome-nav-item min-w-0 flex-1 flex flex-col items-center justify-center gap-1 min-h-12 py-2 relative',
+                isActive(path) ? 'text-brand-300' : 'text-foreground',
               )}
             >
-              {isActive(path) && (
-                <div
-                  className="absolute top-0 inset-x-0 h-0.5 bg-gradient-to-r from-brand to-brand-600 rounded-b-full mx-8"
-                  aria-hidden="true"
-                />
-              )}
               <span className="relative">
                 <Icon className="w-5 h-5" strokeWidth={isActive(path) ? 2 : 1.75} />
                 {path === '/messages' && messagesUnread > 0 && (
@@ -718,7 +708,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                   </span>
                 )}
               </span>
-              <span className="text-[0.625rem] font-medium uppercase tracking-wide">{label}</span>
+              <span className="text-[0.625rem] font-medium">{label}</span>
             </button>
             );
           })}
@@ -734,10 +724,10 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
             aria-label="More"
             aria-expanded={moreOpen}
             onClick={() => setMoreOpen(true)}
-            className="flex-1 flex flex-col items-center justify-center gap-0.5 min-h-11 py-2.5 text-muted-foreground transition-colors duration-150"
+            className="chrome-nav-item relative min-w-0 flex-1 flex flex-col items-center justify-center gap-1 min-h-12 py-2 text-foreground"
           >
             <MoreHorizontal className="w-5 h-5" strokeWidth={1.75} />
-            <span className="text-[0.625rem] font-medium uppercase tracking-wide">More</span>
+            <span className="text-[0.625rem] font-medium">More</span>
           </button>
           )}
         </nav>
@@ -748,14 +738,14 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
         {moreOpen && (
           <div className="md:hidden fixed inset-0 z-50 flex items-end justify-center" role="dialog" aria-modal="true" aria-label="More">
             <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setMoreOpen(false)} aria-hidden="true" />
-            <div className="relative w-full max-w-lg rounded-t-lg border-t border-border bg-card p-4 shadow-[0_-8px_30px_rgb(0,0,0,0.35)]" data-testid="more-sheet">
+            <div className="chrome-glass chrome-floating relative w-full max-w-lg max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-t-lg border p-4 pb-[max(1rem,env(safe-area-inset-bottom))]" data-testid="more-sheet">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-display text-base font-medium text-foreground">More</h3>
                 <button
                   type="button"
                   onClick={() => setMoreOpen(false)}
                   aria-label="Close"
-                  className="p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-elevated transition-colors"
+                  className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-elevated transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
