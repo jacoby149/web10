@@ -28,6 +28,7 @@ function CredentialPage({ I }: { I: Record<string, any> }) {
       <div className="flex w-full flex-1 items-center justify-center px-4 py-10">
         <CredentialForm I={I} />
       </div>
+      <a href="/?mode=appearance" className="mb-6 inline-flex min-h-11 items-center rounded px-3 text-sm text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">Appearance</a>
     </div>
   );
 }

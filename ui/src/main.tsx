@@ -9,6 +9,10 @@ import '@fontsource-variable/inter'
 import '@fontsource-variable/space-grotesk'
 import '@fontsource-variable/jetbrains-mono'
 import './index.css'
+import { getThemeStore } from './lib/theme'
+
+// Startup script sets first paint; the shared store owns live OS/tab updates.
+getThemeStore()
 
 // Runtime config is authoritative. PostHog receives only a route template,
 // never the authenticator's credential-bearing query string.

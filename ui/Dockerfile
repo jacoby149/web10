@@ -7,6 +7,7 @@ COPY ui/package.json ui/bun.lock ./
 COPY sdk/package.json /sdk/package.json
 COPY sdk/dist/ /sdk/dist/
 COPY marketing/shared/telemetry/ /marketing/shared/telemetry/
+COPY marketing/shared/appearance/ /marketing/shared/appearance/
 RUN bun install --frozen-lockfile
 
 COPY ui/index.html ui/tsconfig.json ui/vite.config.js ./
