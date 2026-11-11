@@ -16,10 +16,13 @@ review and uses MinIO only. Earlier MinIO-only/prefix wording below is history.
 
 - SKU `s-8vcpu-32gb-amd`: **8 vCPU / 32 GiB / 400 GB**, catalogue price
   **$0.25/hour**, actual provisioned shape verified in NYC3.
-- Retain the proposed **four-hour deadline / $5 budget target**. The deadline
-  is **22:01:22 UTC on 11 November 2026**, retained across a setup replacement;
-  it was not reset to hide the first attempt. This is operational cleanup,
-  **not a provider-enforced billing guarantee**.
+- Original **four-hour deadline / $5 budget target**: **22:01:22 UTC on
+  11 November 2026**, retained across the setup replacement. The operator then
+  selected **“Yes, extend this host”** for two additional hours on this same
+  host: cleanup is now **00:01:22 UTC on 12 November**, six hours total, still
+  $5 maximum preparation compute and no fleet/public uploads. The recorded
+  original clock and explicit approval gate the extension; cancellation cannot
+  be reopened. This is **not a provider-enforced billing guarantee**.
 - Generate/independently validate the 1M synthetic store on the larger disk;
   preserve original generator/validator/contract sources and source/byte-bound
   floor prerequisites. The DuckDB preparation budget remains 2 GB. The future
@@ -45,6 +48,11 @@ distinguishes generation, validation failure and validated-but-not-staged.
 The controller collects snapshots about every twenty seconds, plus final
 status/manifest/validation metadata. The preparation service has its own
 runtime limit, leaving time for collection before the lease deadline.
+The original transient service rejected live `set-property` changes. An exact
+unit drop-in plus daemon reload now loads the extended runtime (3h45m22s from
+this service's start, not from host creation); the PID/start timestamp stayed
+unchanged. It stops ten minutes before the extended cleanup deadline. The
+private `service-lease-extension.json` records before/after loaded properties.
 
 `realism_cloud_lease.py` is copied to an owner-only stable local state directory
 and run by a user launch agent every minute, independently of the coding
@@ -98,6 +106,34 @@ This is a preparation CPU bottleneck, not a ClickHouse performance result.
 The repair batches only provably identical integer-update rounds; targets,
 caps, tie ordering, row counts and distributions are not relaxed. Fresh
 source-bound floors and preserved-reference data-byte parity gate a restart.
+
+On Linux, eight repaired 100k tables are byte-identical to the old allocator's
+same-runtime reference. Both event files have 160M rows but different Parquet
+bytes. `realism_parity.py` compares all seven event fields with duplicate
+multiplicity, not just counts/min/max or a deduplicated set. Exact logical
+parity may admit a generator implementation change; it does **not** relax
+exact file SHA-256 requirements for frozen Spaces/MinIO copies. The active old
+comparison is left running, followed by independent 100k validation and gated
+1M generation; unstructured logs are not adopted as checkpoint witnesses.
+
+`realism_cloud_worker.py --resume` rechecks both floor receipts, manifest/source/
+contract identity, exact floor-proof hashes and every completed table's size/
+SHA before skipping generation. Current passing validation may be reused;
+stale-source receipts are archived before revalidation. An unchanged failed
+validation or unwitnessed partial generation is preserved and refused, not
+silently overwritten. This is **completed-stage** recovery, not mid-table or
+mid-validator recovery. Use explicit `--floor-receipt` paths for the current
+source-bound 10k/100k proofs; it never bypasses admission.
+
+Future comparisons accept `--checkpoint <private-path>`: atomic flushed bucket
+witnesses bind exact input hashes, comparator/partition sources, runtime, schema
+and expected buckets. Repartitioning is repeated on recovery, but completed
+comparisons are skipped only after those bindings verify. Signed counts grouped
+by every column replace two expensive `EXCEPT ALL` passes with the same exact
+multiset result; duplicate/NULL and interruption regressions cover it. No
+sampling, numeric tolerance or reduced memory gate. Recovery tools were staged
+and tested separately at `.context/resume-tools-v1/` on the host (8 resume,
+5 parity, 8 worker controls); active source files were not replaced.
 
 1M generation/validation, artifact persistence and human statistics review are
 not closed by successful provisioning. The full Parquet-to-node/selected-cohort

@@ -81,6 +81,35 @@ class WorkerTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'path-safe'):
                 worker.run(Path(tmp),refresh_floors='new',reference_floor_prefix='../outside')
 
+    def test_resume_rechecks_floors_and_skips_completed_generation_and_validation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo=Path(tmp)
+            (repo/'.context').mkdir()
+            manifest={'dataset_id':'verified','files':{}}
+            proof={'complete':True,'checks':{'facts':True}}
+            with patch('realism_validate.verify_floor_receipts') as floors, \
+                    patch('realism_resume.generation',return_value=manifest) as generation, \
+                    patch('realism_resume.validation',return_value=proof), \
+                    patch('realism_dataset.build') as build,patch('realism_validate.validate') as validate:
+                self.assertEqual(worker.run(repo,floor_receipts=['a','b'],resume=True),0)
+            floors.assert_called_once()
+            self.assertEqual(generation.call_args.args[2],['a','b'])
+            build.assert_not_called()
+            validate.assert_not_called()
+            result=json.loads((repo/'.context/cloud-status.json').read_bytes())
+            self.assertTrue(result['reused_verified_generation'] and result['reused_verified_validation'])
+
+    def test_resume_never_reuses_completed_generation_with_failed_floor_gate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo=Path(tmp)
+            (repo/'.context').mkdir()
+            with patch('realism_validate.verify_floor_receipts',side_effect=ValueError('floor changed')), \
+                    patch('realism_resume.generation') as generation,patch('realism_dataset.build') as build:
+                with self.assertRaisesRegex(ValueError,'floor changed'):
+                    worker.run(repo,resume=True)
+            generation.assert_not_called()
+            build.assert_not_called()
+
 
 if __name__=='__main__':
     unittest.main()
