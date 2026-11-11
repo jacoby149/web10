@@ -94,6 +94,7 @@ a wrong logo is worse than no logo.
 | **Full lockup** | `marketing/marketing-ui/public/brand/logo-lockup.png` (1200×400, moved from `layouts/images/logo_white.png` by D13) | Keys-on-keyring mark + lowercase thin-outline "web10" wordmark, white on transparent | Navbars, footers, hero, og-image. Dark backgrounds ONLY (it is white). Min height 24px; keep clear space ≥ the height of the "w" on all sides. |
 | **Square mark** | `.context/brand-assets/keys-mark-source-transparent.png` (369×389, white on transparent, corrected by D13 — see below) | The keys mark alone, cropped from the full lockup | Avatars, favicons, PWA icons, app-store tiles, anywhere square. Dark backgrounds only. Also the default profile picture in web10-social. |
 | **Dark counterparts (D108)** | `marketing/marketing-ui/public/brand/logo-lockup-dark.png`, `marketing/web10-social/public/keys-mark-dark.png` | Zinc-900 copies with exactly the original dimensions/alpha | Light-mode lockup and square mark; never put a dark backing behind them. White originals remain unchanged. |
+| **Share-card images (D109)** | `marketing/web10-social/public/og-image.png` (1200×1200, keys mark on `#09090b` + subtle violet glow), `marketing/marketing-ui/public/brand/og-image.png` (1200×630, lockup on `#09090b` + subtle glow; the shared copy is `.context/brand-assets/og-image.png`) | Opaque `og:image` assets for link previews | Share surfaces only (the app-root static tags + the social crawler card's brand fallback). Opaque ON PURPOSE: the receiving app composites `og:image` onto its own (white) card frame, so the image bakes in its own dark background — a transparent white mark is invisible there. Never use them in-app (in chrome, the transparent marks + the page's background are correct). |
 
 **Correction (D13, 19.07.2026):** this table used to point the square mark
 at `marketing/web10-social/public/alternative.png` (842×854). That file
@@ -147,6 +148,12 @@ existing files (do not invent a new mark):
    all from the square mark on `#09090b`, replacing every squatter above.
 4. **One shared og-image** (1200×630): full lockup on `#09090b` with
    the violet glow treatment (§4), used by all three apps.
+   *Paid (D109, 10.11.2026):* the marketing share surface is that asset —
+   the lockup on `#09090b`, glow cut so the background reads black; the
+   social share surface got its own square `public/og-image.png` (keys mark
+   on `#09090b`) because its card crops near-square. Both are opaque (a
+   share image must own its background — D109). The authenticator has no
+   share surface; its debt is the §3 icon set, not an og-image.
 
 
 ## 4. Color

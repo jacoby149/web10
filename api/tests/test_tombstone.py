@@ -95,7 +95,12 @@ class TestDocumentTombstone:
             assert "row_number()" in call_args
 
     def test_read_document_by_id_returns_latest(self):
-        """read_document_by_id must return the latest version."""
+        """read_document_by_id must dedup to the latest version (tombstones
+        included, deletion winning timestamp ties) BEFORE the deleted=0
+        filter — the house pattern. A raw `deleted = 0` filter would keep
+        serving the live row alongside its tombstone until a background
+        ReplacingMergeTree merge (a deleted post lingering on its detail /
+        collection items)."""
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
                 [
@@ -105,7 +110,20 @@ class TestDocumentTombstone:
             result = ch.read_document_by_id("doc-1", "alice", "posts")
             assert result["body"]["text"] == "new"
             call_args = mock_client.query.call_args[0][0]
-            assert "ORDER BY p.updated_at DESC LIMIT 1" in call_args
+            assert (
+                "row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC, deleted DESC)"
+                in call_args
+            )
+            assert "WHERE p.rn = 1" in call_args
+            assert "p.deleted = 0" in call_args
+
+    def test_read_document_by_id_tombstoned_is_gone(self):
+        """A doc whose latest version is a tombstone reads as absent — the
+        mock returns no rows (rn=1 is the tombstone, deleted=0 filters it),
+        exactly as ClickHouse does between the delete and the merge."""
+        with _patch_client() as mock_client:
+            mock_client.query.return_value = _mock_result_rows([])
+            assert ch.read_document_by_id("doc-1", "alice", "posts") is None
 
 
 # ---------------------------------------------------------------------------

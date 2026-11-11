@@ -31,6 +31,18 @@ export async function readMusicCollection(groupId: string): Promise<{ tracks: Mu
   console.log('[music-library] collection read start');
   const contents = await readCollection(groupId);
   session.check();
+  // The anon access asymmetry (the D42 read gate): for a logged-out reader a
+  // private/unknown collection reads as EMPTY instead of a 403 (anon is
+  // exempt from the authenticated access-failure branch — "an empty board is
+  // a valid result"). A public collection always carries a NAMED face (the
+  // app writes it on creation), so an empty face + zero items for an anon
+  // reader means NO ACCESS, not an empty playlist: throw into MusicScreen's
+  // honest "private or no longer available" state. (Signed-in visitors 403 on
+  // the saved read instead — that path is unchanged.)
+  if (!session.key && !contents.face?.name && contents.posts.length === 0) {
+    console.log('[music-library] collection read — anon no-access state (empty face + zero items)');
+    throw new Error('This playlist is private or no longer available.');
+  }
   const tracks: MusicTrack[] = [];
   for (const item of contents.posts) {
     if (item.unavailable || !item.post) continue;
