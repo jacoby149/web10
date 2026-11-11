@@ -16,6 +16,7 @@ import {
   type MediaRecord,
   type PostRecord,
 } from '@/data/types';
+import { Pin } from 'lucide-react';
 import { PostCard } from '@/components/Feed/FeedScreen';
 import { useRepost } from '@/context/RepostContext';
 import { useComposer } from '@/context/ComposerContext';
@@ -35,6 +36,13 @@ interface ProfileFeedProps {
   /** The author-click handler (in-app profile navigation) — a comment's author
    *  is a tappable profile link. */
   onAuthorClick?: (username: string, provider?: string) => void;
+  // Profile pins (profile-pins.md): the owner's held-up post ids, in pin
+  // order. Present → the cards' ⋯ menus offer pin/unpin and each pinned card
+  // wears the "Pinned" overline (the posts themselves arrive pre-ordered —
+  // pinned first — via the `posts` prop).
+  pinnedIds?: string[];
+  /** The owner's pin toggle (absent on a visitor's view — no owner menu). */
+  onTogglePin?: (postId: string, wantPin: boolean) => void;
 }
 
 // The profile's facebook-shaped feed view (the "view lenses" idea — rendering
@@ -56,7 +64,11 @@ export function ProfileFeed({
   isOwnProfile = false,
   onPostUpdated,
   onAuthorClick,
+  pinnedIds,
+  onTogglePin,
 }: ProfileFeedProps) {
+  // The pin ids as a Set (the card menu + the overline both test membership).
+  const pinnedSet = new Set(pinnedIds || []);
   const [likeMap, setLikeMap] = useState<Record<string, number>>({});
   const [dislikeCountMap, setDislikeCountMap] = useState<Record<string, number>>({});
   const [repostCountMap, setRepostCountMap] = useState<Record<string, number>>({});
@@ -225,35 +237,57 @@ export function ProfileFeed({
     <div className="md:px-4 md:py-4" data-testid="profile-feed">
       {posts.map((post) => {
         const id = post._id || '';
+        const isPinned = pinnedSet.has(id);
         return (
-          <PostCard
-            key={id || post.created_at}
-            post={post}
-            authorName={authorName}
-            authorUsername={authorUsername}
-            authorProvider={authorProvider}
-            authorAvatar={authorAvatar}
-            mediaItems={mediaItemsFor(post)}
-            reactionCount={likeMap[id] || 0}
-            dislikeCount={dislikeCountMap[id] || 0}
-            repostCount={repostCountMap[id] || 0}
-            commentCount={commentMap[id] || 0}
-            impressions={viewsMap[id]?.impressions || 0}
-            reach={viewsMap[id]?.reach || 0}
-            liked={!!likedMap[id]}
-            disliked={!!dislikedMap[id]}
-            reposted={!!repostedMap[id]}
-            timestamp={post.created_at}
-            onToggleReaction={(kind) => handleToggleReaction(id, kind)}
-            onToggleRepost={() => handleRepost(post)}
-            onCommentCountChange={(n) => setCommentMap((prev) => ({ ...prev, [id]: n }))}
-            onAuthorClick={onAuthorClick}
-            postAuthor={authorUsername}
-            postService="public_posts"
-            isOwnPost={isOwnProfile}
-            onPostUpdated={onPostUpdated}
-            surface="profile"
-          />
+          <div key={id || post.created_at}>
+            {/* The "Pinned" overline (profile-pins.md): the micro step —
+                uppercase, brand-tinted pin, muted copy — above the pinned
+                card. The card itself is unchanged (the wall's order carries
+                the curation; the label names it). */}
+            {isPinned && (
+              <div
+                className="flex items-center gap-1.5 px-4 pt-3 pb-1"
+                data-testid="profile-feed-pinned-label"
+              >
+                <Pin className="h-3.5 w-3.5 text-brand-300" strokeWidth={2} aria-hidden="true" />
+                <span className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Pinned</span>
+              </div>
+            )}
+            <PostCard
+              post={post}
+              authorName={authorName}
+              authorUsername={authorUsername}
+              authorProvider={authorProvider}
+              authorAvatar={authorAvatar}
+              mediaItems={mediaItemsFor(post)}
+              reactionCount={likeMap[id] || 0}
+              dislikeCount={dislikeCountMap[id] || 0}
+              repostCount={repostCountMap[id] || 0}
+              commentCount={commentMap[id] || 0}
+              impressions={viewsMap[id]?.impressions || 0}
+              reach={viewsMap[id]?.reach || 0}
+              liked={!!likedMap[id]}
+              disliked={!!dislikedMap[id]}
+              reposted={!!repostedMap[id]}
+              timestamp={post.created_at}
+              onToggleReaction={(kind) => handleToggleReaction(id, kind)}
+              onToggleRepost={() => handleRepost(post)}
+              onCommentCountChange={(n) => setCommentMap((prev) => ({ ...prev, [id]: n }))}
+              onAuthorClick={onAuthorClick}
+              postAuthor={authorUsername}
+              postService="public_posts"
+              isOwnPost={isOwnProfile}
+              onPostUpdated={onPostUpdated}
+              surface="profile"
+              pinned={isPinned}
+              pinCount={pinnedIds?.length ?? 0}
+              onTogglePin={
+                isOwnProfile && onTogglePin && !post.author_key?.includes('/groups/')
+                  ? (wantPin) => onTogglePin(id, wantPin)
+                  : undefined
+              }
+            />
+          </div>
         );
       })}
       {/* engagementReady is consumed by tests; the cards render immediately
