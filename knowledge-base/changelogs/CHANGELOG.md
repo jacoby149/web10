@@ -1,3 +1,8 @@
+5.27.3 || 11.11.2026
+docs(marketing): plan reusable node-wide appearance controls to match TorahAnytime's actual colors and typography, beyond logo swaps or an accent preset. Add THEME0–THEME2 for a sourced brand/font/licensing audit, exact hex light/dark semantic palettes, approved self-hosted fonts, token-based propagation, preview/save/cancel/reset and contrast/persistence/font/fallback/browser acceptance split by owner. Preserve completed System/Light/Dark behavior, default web10 branding and first-demo scope. Partner values remain unverified; planning capture complete only, no audit, runtime implementation or live change. Brief and plan/lane aligned.
+
+Architecture follow-up, same planning entry: propose public versioned `GET /theme` from existing generic node config, with social consuming structured brand/palette/font/preset data through semantic tokens; admin writes remain separate. Design fixed/themeable/editable boundaries before the editor, coordinated defaults with advanced overrides, configured-node ownership independent of mixer sources, cache/version/failure recovery and startup behavior. No executable CSS/remote font loaders, app-specific API concepts or endpoint implementation claim.
+
 5.27.2 || 11.11.2026
 docs(marketing): correct TorahAnytime's previously discussed read-only tier to listeners who can read/watch and like, per operator clarification—not an additional tier or speaker/publisher authority. Preserve liking as positive participation without inferring commenting, other reactions, uploading or publishing grants. Brief and completed plan/lane capture aligned; partner-policy confirmation and later permission implementation remain open, first demo unchanged. No runtime or deployment change.
 

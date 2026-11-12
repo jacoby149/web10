@@ -221,6 +221,109 @@ branding must not obscure the actual operator, issuer or consent destination.
 Use the shared product, not an unmaintainable partner fork. Read `design.md`
 before future UI implementation; require desktop and 375px captures.
 
+### Serious appearance controls — exact partner colors and typography
+
+Operator follow-up, 11.11.2026:
+
+> also, we need to match torah anytimes themes, if they have fonts, so we will have to plan doing a more hardcore theme with choosingg hex colors, like serious color theme appearance control on web10!
+
+Plan a reusable **node-wide Appearance editor**, not just a logo swap, an
+accent-color preset or a TorahAnytime-only stylesheet. TorahAnytime is the first
+brand-matching target; other web10 operators should use the same controls.
+Existing System / Light / Dark switching is completed work and stays intact.
+Existing CSS-variable overrides in `design.md` are the seam, not evidence that
+an editable, persisted white-label theme already exists.
+
+**Architecture clarification (operator follow-up):** the web10 API should expose
+a `/theme` endpoint and the social app should consume it. Plan **`GET /theme`**
+as a public, read-only, versioned presentation contract for the configured node:
+brand assets, light/dark semantic palette, approved font identifiers and any
+supported visual-preset identifier. The final route prefix/schema belongs to
+THEME1; this is a proposed endpoint, not an existing capability. Keep it generic
+(D60): notes, music and shop clients can use the same node-brand description;
+no TorahAnytime or social-only concepts in the API. Reuse existing node config
+as the source of truth rather than maintain a second independently editable
+theme store. Admin-only writes remain separate from public theme reads; never
+expose general configuration or credentials through this response.
+
+The API describes the brand; each client maps supported fields into its own
+semantic tokens/components. Do not return executable CSS, arbitrary selectors
+or remote font-loader instructions. Separate flexible brand/theme data from
+fixed product structure: navigation, layout and interaction behavior stay in
+shared product code. Start operator controls with brand colors/fonts and a
+coherent visual preset; derive coordinated states with optional validated
+advanced overrides, rather than require every token to be edited manually.
+THEME1 must settle the fixed/themeable/editable boundary before building the
+editor; a representative TorahAnytime feed/profile/login exploration validates
+whether colors/fonts alone suffice or a quieter visual treatment is needed.
+
+The social deployment consumes its explicitly configured branding node, not a
+node selected from feed content or a server-mixer response. Define cache/version
+invalidation, bounded loading and last-known-good/default behavior for offline,
+failed, malformed or unsupported-version responses. Preserve visitor mode choice
+and prevent a late response from another configuration replacing the current
+theme. Coordinate cached/preloaded theme data with first paint; a runtime fetch
+alone cannot promise no flash. Other clients may adopt the generic contract in
+separately owned bites; no automatic cross-origin preference synchronization.
+
+**THEME0 — verify the partner's actual brand.** Inspect their current public
+site/styles and request an approved brand kit if available. Record dated source
+URLs/reference captures, exact colors by role, font families/weights and actual
+font sources. Distinguish verified values from guesses; no palette or font has
+been verified by this planning update. Check Hebrew/English glyph coverage,
+fallbacks and RTL presentation on representative shiur titles. Confirm rights to
+redistribute/self-host any custom font; otherwise use an approved licensed
+alternative. If no dark palette exists, propose one for approval rather than
+claiming it matches an existing TorahAnytime dark theme.
+
+**THEME1 — appearance contract and editor design.** Inventory existing node
+configuration and all theme consumers before choosing storage/schema. Specify
+separate light/dark semantic palettes with color pickers **and editable exact
+hex inputs** for brand/accent, page background, cards/surfaces, elevated chrome,
+primary/secondary text, borders, links and focus rings. Cover button foreground,
+hover/pressed/selected/disabled states, semantic status colors and derived
+glow/glass materials; changing violet alone is not sufficient. Map validated
+values to the existing tokens/aliases, never hardcode partner colors in
+components. Define normalization and invalid-value behavior, contrast checks
+(body ≥4.5:1; large text/UI ≥3:1), and explicit corrections before publishing an
+unreadable palette. Semantic colors must retain their meaning.
+
+Typography controls select approved, self-hosted font families and supported
+weights for body/UI and headings, with dependable fallbacks; retain legible mono
+for technical values. No arbitrary CSS, scripts, remote font-loader URLs or
+Google CDN dependency. Design a URL-reachable operator Appearance screen with
+live representative preview, unsaved/error/loading states, explicit Save/Cancel
+and reset to web10 defaults. A preview must not change the published node theme
+before save. Define persisted save/reload, defaults/migration and recovery from
+missing or broken fonts/configuration. Public clients receive presentation data
+only; normal administrator authorization still controls edits.
+
+Keep **node brand configuration** distinct from a visitor's browser-local
+System / Light / Dark preference. Define pre-paint/fallback behavior and
+propagation to social, authenticator/consent, native/browser chrome and enabled
+install/share/recovery surfaces; inventory static/build-time limitations rather
+than promise runtime coverage everywhere. Preserve explicit operator/issuer
+identity and dark readable media-control islands. The public web10 node keeps
+its current default palette/fonts; no global rebrand or per-account theme sync.
+
+**THEME2 — separately owned implementation and acceptance.** After THEME0's
+reference/approved fallback and THEME1's contract, split generic configuration/
+validation, node-settings editor, social rendering and authenticator rendering
+into bounded owner-assigned changes. Follow the security method for future
+configuration write-boundary changes. Require exact hex round trips, font and
+configuration failure recovery, reset/cancel/save, node isolation, no theme flash
+with available saved configuration, and unchanged System/Light/Dark behavior.
+Inspect desktop/375px captures in both modes, keyboard/focus and actual computed
+color/contrast/font checks across representative feed/profile/login/consent
+surfaces. Normal tests/builds/all CI checks and partner visual approval precede
+rollout; screenshots alone do not prove persistence or font loading.
+
+This extends the larger white-label roadmap beyond DEMO1's light/dark logos;
+it does not silently make a full theme editor a prerequisite for the first
+existing-policy demo. Any requirement to show the exact partner palette in that
+first showcase needs an explicit scope/order decision. THEME0–THEME2 remain open;
+no brand audit, editor implementation or live theme change is claimed here.
+
 ### Restricted permissions and additional role presets
 
 **Later proposal hypothesis, not demo policy — approve the speaker, then trust the publisher.** The operator
