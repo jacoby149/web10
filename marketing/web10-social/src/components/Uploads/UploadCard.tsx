@@ -4,6 +4,8 @@ import { AlertTriangle, ArrowUpRight, Check, CheckCircle2, Clapperboard, Clock3,
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { fileHint, formatBytes, remainingTime, transferPhases, uploadPercent, type UploadAction, type UploadTask } from './uploadState';
+import { AccessRecovery } from '@/components/shared/AccessRecovery';
+import { friendlyAccessMessage, needsAppApproval } from '@/lib/accessLanguage';
 
 const phaseLabels = {
   preparing: 'Preparing upload', verifying: 'Verifying upload',
@@ -33,6 +35,8 @@ export function UploadCard({ task, onCommand, onSelectFile }: { task: UploadTask
   const steps = ['Upload', 'Prepare', 'Publish'];
   const currentStep = transfer || task.phase === 'preparing' || task.phase === 'verifying' ? 0 : task.phase === 'processing' || task.phase === 'processing-failed' ? 1 : 2;
   const eta = task.phase === 'uploading' ? remainingTime(task.remainingSeconds) : undefined;
+  const accessBlocked = !!task.error && (needsAppApproval(task.error) || friendlyAccessMessage(task.error) !== task.error
+    || task.error.startsWith('You no longer have permission to publish'));
 
   return (
     <article className="overflow-hidden rounded-xl border border-border bg-card" data-testid="upload-card" aria-label={task.title || task.file.name}>
@@ -86,7 +90,14 @@ export function UploadCard({ task, onCommand, onSelectFile }: { task: UploadTask
           {task.phase === 'published' && <p>Your post is ready to watch.</p>}
           {task.phase === 'cancelled' && <p>This pending post was cancelled. It won’t be published.</p>}
         </div>
-        {task.error && <p role="alert" className="mt-3 break-words rounded-lg border border-danger/30 bg-danger-muted/40 p-3 text-sm text-danger">{task.error}</p>}
+        {task.error && accessBlocked ? <AccessRecovery error={task.error}
+          preservation="Your pending post and saved upload progress are still here."
+          onRetry={() => {
+            if (task.phase === 'needs-file') selectFile.current?.click();
+            else if (task.phase === 'publish-failed') send({ type: 'retry-publish' });
+            else if (task.phase === 'processing-failed') send({ type: 'retry-processing' });
+            else send({ type: 'resume' });
+          }} /> : task.error && <p role="alert" className="mt-3 break-words rounded-lg border border-danger/30 bg-danger-muted/40 p-3 text-sm text-danger">{task.error}</p>}
 
         {task.phase !== 'cancelled' && <ol aria-label="Publication progress" className="mt-6 grid grid-cols-3 gap-2 border-t border-border pt-4">
           {steps.map((step, index) => {
