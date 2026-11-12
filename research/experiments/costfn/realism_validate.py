@@ -4,7 +4,7 @@ All semantic checks query actual Parquet rows, including zero-activity users,
 distinct exposure audiences and each study cohort. No generator imports.
 """
 import argparse
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 import json
 import os
 from pathlib import Path
@@ -32,7 +32,7 @@ def partition_count(rows, max_rows=2500000):
 
 
 @contextmanager
-def partitions(db, table, keys, parent=None, *, max_rows=2500000):
+def partitions(db, table, keys, parent=None, *, max_rows=2500000, keep_work=False):
     """Admit an exact complete-key histogram, then write each row only once.
 
     Bucket count scales with actual rows, not account count. Bound open files
@@ -60,7 +60,9 @@ def partitions(db, table, keys, parent=None, *, max_rows=2500000):
         count*=2
     if parent is None:
         parent = Path(__file__).resolve().parents[3] / ".context"
-    with tempfile.TemporaryDirectory(prefix="realism-partitions-", dir=parent) as tmp:
+    workspace=(nullcontext(tempfile.mkdtemp(prefix='realism-partitions-',dir=parent)) if keep_work
+               else tempfile.TemporaryDirectory(prefix='realism-partitions-',dir=parent))
+    with workspace as tmp:
         target = str(Path(tmp)/"facts").replace("'", "''")
         names=('partitioned_write_max_open_files','partitioned_write_flush_threshold')
         previous={name:db.execute('SELECT current_setting(?)',[name]).fetchone()[0] for name in names}
@@ -118,7 +120,7 @@ def verify_floor_receipts(paths, spec=None):
                 raise ValueError("floor input bytes changed after validation")
 
 
-def attach(db, directory, manifest):
+def attach(db, directory, manifest, *, keep_work=False):
     if manifest.get("format") != FORMAT or manifest.get("dataset_id") != identity(manifest):
         raise ValueError("derived manifest format/identity mismatch")
     spec = manifest["contract"]
@@ -144,7 +146,7 @@ def attach(db, directory, manifest):
     # optimization or a changed input. All history/tombstone rules remain.
     print("[realism-validator] materialize canonical documents once", flush=True)
     db.execute("CREATE TABLE current_docs AS SELECT * FROM documents LIMIT 0")
-    with partitions(db,"documents",("doc_id","author_key"),directory.parent) as parts:
+    with partitions(db,"documents",("doc_id","author_key"),directory.parent,keep_work=keep_work) as parts:
         for index,relation in enumerate(parts):
             print(f"[realism-validator] canonical partition {index+1}/{len(parts)}",flush=True)
             db.execute("INSERT INTO current_docs SELECT * EXCLUDE(rn,bucket) FROM "
@@ -162,7 +164,7 @@ def summary(db, query):
                                "sum(CASE WHEN rank<=ceil(n*.01) THEN v ELSE 0 END)/nullif(sum(v),0) FROM ordered").fetchone()))
 
 
-def inspect(db, manifest, progress=None, *, scratch_parent=None):
+def inspect(db, manifest, progress=None, *, scratch_parent=None, keep_work=False):
     spec, checks = manifest["contract"], {}
     n, targets = spec["recipe"]["accounts"], spec["targets"]
     progress = progress if progress is not None else {}
@@ -204,7 +206,7 @@ def inspect(db, manifest, progress=None, *, scratch_parent=None):
     db.execute("CREATE TABLE exposures AS SELECT doc_id,reader_key,min(seen_at) first_seen "
                "FROM content_events WHERE false GROUP BY doc_id,reader_key")
     checks["delivery_window"] = True
-    with partitions(db,"content_events",("doc_id","reader_key"),scratch_parent) as parts:
+    with partitions(db,"content_events",("doc_id","reader_key"),scratch_parent,keep_work=keep_work) as parts:
         for index,relation in enumerate(parts):
             stage(f"exposure_partition_{index+1}_of_{len(parts)}")
             ok=db.execute("SELECT count(*)=0 FROM (SELECT seen_at-lag(seen_at) OVER "
@@ -323,7 +325,7 @@ def inspect(db, manifest, progress=None, *, scratch_parent=None):
             "arithmetic":spec["arithmetic"],"scope":"Finished synthetic records, not node/browser performance or private/lifecycle acceptance"}
 
 
-def validate(directory, out):
+def validate(directory, out, *, keep_work=False):
     directory, out = Path(directory).resolve(), Path(out)
     if out.exists():
         raise FileExistsError("refusing to overwrite validation receipt")
@@ -332,15 +334,19 @@ def validate(directory, out):
     if validator_pin != VALIDATOR_SOURCE_AT_IMPORT:
         raise ValueError("validator source changed since module import; restart in a fresh process")
     progress = {"stage":"integrity"}
-    with tempfile.TemporaryDirectory(prefix="realism-validate-", dir=directory.parent) as tmp:
+    workspace=(nullcontext(tempfile.mkdtemp(prefix='realism-validate-',dir=directory.parent)) if keep_work
+               else tempfile.TemporaryDirectory(prefix='realism-validate-',dir=directory.parent))
+    with workspace as tmp:
+        if keep_work:
+            print(f'[realism-validator] retaining work directory={Path(tmp).name}; not a completion/resume witness',flush=True)
         db = duckdb.connect(str(Path(tmp)/"validation.duckdb"))
         db.execute("SET memory_limit='2GB'; SET threads=1; SET preserve_insertion_order=false")
         db.execute("SET temp_directory=?", [str(Path(tmp)/"spill")])
         try:
             print("[realism-validator] integrity start", flush=True)
-            attach(db, directory, manifest)
+            attach(db, directory, manifest,keep_work=keep_work)
             print("[realism-validator] finished-record semantic checks start", flush=True)
-            result = inspect(db, manifest, progress, scratch_parent=Path(tmp))
+            result = inspect(db, manifest, progress, scratch_parent=Path(tmp),keep_work=keep_work)
         except Exception as error:
             result = {"complete":False,"accounts":manifest.get("recipe",{}).get("accounts"),
                       "checks":{"validator_execution":False},"error_type":type(error).__name__,

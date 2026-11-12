@@ -1,52 +1,67 @@
-# Recover completed work, not guesses — workflow recovery contract
+# A persistent disk for the preparation droplet
 
-The operator requests recovery across the whole preparation/experiment flow:
-generation, validation, transfer, import, trials and final receipts. A crash
-must not erase completed long work. A checkpoint grants no execution authority,
-never changes the dataset, and never promotes an interrupted operation to done.
+**Latest operator scope:** persistence is for the one dataset-creation/validation
+droplet. Experiments keep their normal output logs/results; do not build an
+experiment checkpoint framework, distributed validator or custom workbench.
 
-**Keep the pipeline straightforward:** generate → private recovery archive →
-validate → freeze → experiments. Use one validator process and sensible
-partitions. Completed stages/buckets are verified and reused on restart; redo
-only unfinished work. No distributed shard fleet, scheduler or distributed
-merge framework is part of this scope. Once an immutable dataset has passed
-full validation, transfers verify its hashes and trials retain their own import/
-correctness controls; do not repeat full statistical validation for every trial.
-This document captures the contract; implementation remains OPEN.
+## Where the preparation files live
 
-## Completion boundaries
+Use one already-mounted DigitalOcean Volume, separate from the disposable
+Droplet's root disk. `realism_volume.py` checks the exact mountpoint and expected
+filesystem UUID before creating any work directory. It refuses an absent disk,
+wrong UUID, parent/root filesystem or symlink; it never creates, formats or mounts
+a disk. The worker CLI requires the mountpoint and UUID explicitly.
 
-| Stage | Durable unit | Resume requirement |
-|---|---|---|
-| Model/generation | completed model plans, graph batches, table exports, delivery chunks | exact source/recipe/runtime and file hashes; database effects and checkpoint commit together |
-| Validation | canonicalization, admitted partition pass, individual SQL checks/exposure buckets | unchanged manifest/input bytes/source/runtime; committed database effects and cached exact results; partition inventories rehashed |
-| Transfers | each complete verified object/file | exact size/digest readback; partial files never become final files |
-| Import | each verified table on the same owned live target | live target identity and content proof; no blind INSERT replay after uncertain writes |
-| Experiments | each completed trial and its raw artifacts, including completed failures | exact input/config/seed/source/envelope; interruption is a separate failed attempt, never splice partial measurement windows |
-| Retention | complete snapshot of checkpoint state and referenced artifacts | independently stored, digest-readback verified private quarantine; final acceptance remains separate |
+```text
+/mnt/costfn-work/costfn-prep/
+  realism-1m-prep/           # final dataset files and manifest
+  realism-work-*/           # retained failed generation work
+  realism-validate-*/       # retained validation database/work
+  realism-partitions-*/     # retained canonical-document partitions
+  cloud-status.json         # latest state, atomically replaced and synced
+  cloud-validation.json     # final validation receipt, not implied by file presence
+  run.log                   # ordinary appended stdout/stderr and failure tracebacks
+```
 
-The new derived-input node-import/study integration is not yet executable.
-Do not silently route it through historical V2 runners or invent acceptance.
-Shared recovery primitives do not establish missing connected integrations.
+The worker holds one file lock, appends a start line for each attempt, measures
+free space on the work disk, and retains validation scratch on this path.
+No event bus, scheduler, state-machine framework or custom logging class.
 
-## State rules
+```sh
+python research/experiments/costfn/realism_cloud_worker.py \
+  --repo /opt/web10-prep/repo \
+  --work-volume /mnt/costfn-work \
+  --filesystem-uuid <approved-filesystem-uuid> \
+  --skip-floor-gates
+# On replacement compute with the same volume mounted at the same path:
+# add --resume to reverify and reuse completed generation/validation.
+```
 
-1. Bind every workspace to its input identity, recipe/config, source fingerprints
-   and runtime. Stale workspaces are refused and retained, never silently reset.
-2. Hold an exclusive process lock. A database operation and its completion row
-   belong in the same transaction. Crash before commit means redo that unit;
-   crash after commit means verify and reuse it.
-3. Files need intent, an atomic completion marker and exact artifact inventories.
-   Preserve uncommitted partial output separately. Missing/corrupt completed
-   files are refused, not overwritten or waved through as passed checks.
-4. Log work-start, commit, replay and refusal with stage/unit identifiers and
-   safe metadata. No saved tokens, private HTTP content or credentials.
-5. Failed semantic checks remain failed when replayed. A recoverable execution
-   interruption is different from a completed negative validation result.
-6. Same-disk recovery is not host-loss recovery. The checkpoint database/WAL,
-   immutable input and referenced artifacts must all survive together. A
-   coherent closed/snapshotted copy is required before archival—not a racing
-   copy of a live database. Connected independent archival remains a restart gate.
+The UUID above is the filesystem UUID, not the provider's volume resource ID.
+The old controller command without these new arguments deliberately refuses to
+start. Direct Python callers without volume arguments retain the existing local
+test/offline behavior; cloud use goes through the explicit-volume CLI.
 
-No new paid run, storage write, experiment, public posting or resource lifetime
-extension is authorized by this implementation task.
+## What recovery means here
+
+Deleting compute must preserve the volume. The creation guard pins the real
+provider volume's ID/name/size/region/account and refuses an unrelated attached
+droplet. Existing scoped compute cleanup never deletes volumes. The previous
+metadata-only archive-drill gate is removed in favor of this concrete disk check.
+Volume creation, size/price/retention approval and actual attach/replacement
+verification remain operational gates—not claims made by mocked tests.
+
+Attach the retained disk to replacement compute in the same datacenter, install
+the pinned source/runtime, inspect state/logs and use existing `--resume` checks.
+Completed output is reused only after source/identity/all-file hash verification.
+Partial files and retained databases are **not** passing validation or automatic
+mid-table/bucket resume witnesses. The unfinished operation may still need
+repeating; do not overwrite or silently adopt partial work.
+
+The volume is the work disk, not a backup against corruption or explicit volume
+deletion. Separate deletion/retention approval is required and storage continues
+to bill while detached. After validation, Spaces distributes the frozen input
+and MinIO remains the long-term canonical archive, with exact readback checks.
+Measured ClickHouse storage and existing experiment logs/results are unchanged.
+No new host/volume, formatting, mount, object write or experiment is performed
+by this code change.

@@ -9,17 +9,17 @@ droplet snapshot was found. Treat the only recorded full input as lost; retain
 the generator, manifest, small floors and failure records. Never treat the older
 “active” checkpoints below as current state.
 
-**Restart admission now fails closed:** `realism_cloud_lease.admits_creation`
-requires a recent (<=300 seconds), exact-run-bound
-`workflow_readiness_receipt` validated by `realism_readiness.py`. It must record
-a real independent-controller/status and private recovery drill, session and
-workstation loss, final-receipt recovery, exact probe size/SHA readback after host
-loss, archive-before-validation/cleanup, failure refusal and hard cleanup. The
-schema checks evidence metadata; it does not perform or prove the connected
-drill. No receipt is fabricated by this change, and the gate remains CLOSED
-until the real drill exists. Cleanup remains unconditional at the budget boundary;
-missing archive evidence must not cause unbounded compute retention. The old
-lease is irreversibly closed. New paid preparation needs explicit approval.
+**Latest operator simplification:** one persistent Volume for the dataset prep
+droplet, ordinary files/state/logs, and normal output logs/results for experiments.
+No whole-workflow checkpoint or custom workbench framework. The metadata-only
+readiness gate is replaced by checking an actual approved provider volume
+(`prep_volume_id`, `prep_volume_name`, `prep_volume_size_gib`, `region`), plus an
+exact filesystem mount/UUID check in the preparation worker. The worker's CLI
+requires `--work-volume` and `--filesystem-uuid`; output/state/logs and retained
+validation work go there. Compute cleanup leaves volumes alone. No disk is
+provisioned/formatted/mounted by these helpers. Actual attachment/replacement
+verification, storage price/retention and new compute approval remain OPEN;
+the old lease cannot reopen. Details: [REALISM-RECOVERY.md](REALISM-RECOVERY.md).
 
 **Latest operator amendment:** “lets run it, skip those gates entirely! make a
 way in the script like an arg to skip those” and “we are running this 100k thing

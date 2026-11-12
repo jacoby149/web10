@@ -39,7 +39,7 @@ jobs:
           python realism_graph.test.py
           python realism_deliveries.test.py
           python realism_partitions.test.py
-          python realism_readiness.test.py
+          python realism_volume.test.py
           python realism_scratch.test.py
           python realism_cloud_lease.test.py
           python realism_cloud_worker.test.py

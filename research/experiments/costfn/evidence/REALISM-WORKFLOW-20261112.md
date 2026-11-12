@@ -1,5 +1,12 @@
 # Preparation workflow repair — 12 November 2026
 
+**Subsequent operator amendment:** the persistent-disk design in
+`../REALISM-RECOVERY.md` supersedes this entry's metadata-only readiness gate and
+whole-workflow recovery proposal. Persistence is preparation-only; experiments
+retain normal output logs/results. The measurements below remain historical
+evidence for the partitioning change, not evidence of mounted-volume throughput
+or a working archive/checkpoint framework.
+
 ## Stop treating a session as the controller
 
 The earlier preparation host was deleted. The last collected live snapshot is

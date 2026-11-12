@@ -12,6 +12,7 @@ from pathlib import Path
 import re
 import subprocess
 import time
+import uuid
 
 DOCTL = "/opt/homebrew/bin/doctl"
 
@@ -87,8 +88,20 @@ def admits_creation(lease,now=None):
     now=time.time() if now is None else now
     if lease.get("cancelled") or lease.get("cleanup_verified") or now>=lease["deadline"]:
         raise ValueError("lease irreversibly closed to creation")
-    from realism_readiness import require_readiness
-    require_readiness(lease,now)
+    volume_id=lease.get('prep_volume_id')
+    if (not volume_id or not lease.get('prep_volume_name') or not lease.get('region')
+            or type(lease.get('prep_volume_size_gib')) is not int or lease['prep_volume_size_gib']<1):
+        raise ValueError('approved persistent preparation volume identity/size/region required')
+    volume_id=str(uuid.UUID(volume_id))
+    assert_account(lease)
+    rows=api('compute','volume','get',volume_id)
+    volume=rows[0] if isinstance(rows,list) and len(rows)==1 else rows
+    if (not isinstance(volume,dict) or volume.get('id')!=volume_id
+            or volume.get('name')!=lease['prep_volume_name']
+            or volume.get('region',{}).get('slug')!=lease['region']
+            or volume.get('size_gigabytes')!=lease['prep_volume_size_gib']
+            or any(item!=lease.get('droplet_id') for item in volume.get('droplet_ids',[]))):
+        raise ValueError('preparation volume differs or is attached to another droplet')
 
 
 def owned_droplet(row,lease):

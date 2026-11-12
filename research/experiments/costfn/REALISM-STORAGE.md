@@ -18,15 +18,15 @@ object was published there by this preparation run.
 
 ## Two private copies, one frozen identity
 
-**Recovery design after the 12 November loss:** before another paid preparation,
-prove an independent private **unvalidated quarantine** destination and bounded
-automatic preservation/readback before validation and destructive cleanup.
-Quarantine is separate from the canonical accepted dataset prefix below, never
-public, never a passed validation receipt or a completed rerun input. Its
-retention, access, cleanup and cost must be explicitly bounded in the connected
-drill. This design/readiness gate is not an implemented uploader or permission
-to publish unvalidated inputs under accepted/canonical IDs. Actual connected
-controller/archive recovery remains OPEN; no object writes occur in this change.
+**Latest preparation recovery design:** an explicitly approved persistent
+DigitalOcean Volume is the work disk for the one dataset-preparation droplet.
+Keep generation/validation files, state and ordinary logs on that disk; preserve
+it when deleting compute. Do not add a whole-workflow archive/checkpoint framework
+or experiment volumes. Actual volume creation/attachment/replacement and bounded
+retention costs require separate operational verification/approval. A work disk
+does not make unvalidated bytes accepted inputs, and is not a corruption/deletion
+backup. After validation, the two verified object-store copies below remain the
+distribution/archive contract. `REALISM-RECOVERY.md` governs the simple prep path.
 
 1. **Spaces:** private rerun distribution copy in the actual droplet region
    (current preparation host: **NYC3**). The Space/bucket and scoped object-store
