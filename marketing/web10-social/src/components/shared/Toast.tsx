@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Info, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { errorMessage } from '@/lib/errorMessage';
+import { friendlyAccessMessage, needsAppApproval, needsSignIn } from '@/lib/accessLanguage';
+import { getSocialAuth } from '@/interfaces/auth';
+import { Button } from '@/components/ui/button';
+import { AccessPermissionMessage } from './AccessPermissionMessage';
 
 export { errorMessage };
 
@@ -61,11 +65,15 @@ const AUTO_DISMISS_MS = 4000;
 function ToastCard({ item, onDismiss }: { item: ToastItem; onDismiss: (id: number) => void }) {
   // Auto-dismiss; a hover pauses it (the user is reading).
   const [paused, setPaused] = useState(false);
+  const [accessStatus, setAccessStatus] = useState<string | null>(null);
+  const approvalNeeded = item.kind === 'error' && needsAppApproval(item.message);
+  const signInNeeded = item.kind === 'error' && needsSignIn(item.message);
+  const recoverable = approvalNeeded || signInNeeded;
   useEffect(() => {
-    if (paused) return;
+    if (paused || recoverable) return;
     const t = setTimeout(() => onDismiss(item.id), AUTO_DISMISS_MS);
     return () => clearTimeout(t);
-  }, [paused, item.id, onDismiss]);
+  }, [paused, recoverable, item.id, onDismiss]);
 
   const Icon = ICONS[item.kind];
   return (
@@ -82,7 +90,20 @@ function ToastCard({ item, onDismiss }: { item: ToastItem; onDismiss: (id: numbe
       onMouseLeave={() => setPaused(false)}
     >
       <Icon className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2} />
-      <span className="min-w-0 flex-1 break-words text-sm leading-snug">{item.message}</span>
+      <div className="min-w-0 flex-1 break-words text-sm leading-snug">
+        <p>{item.kind === 'error' ? <AccessPermissionMessage message={item.message} /> : item.message}</p>
+        {recoverable && <>
+          <Button type="button" variant="brand" className="mt-2 min-h-11" onClick={() => {
+            try {
+              setAccessStatus(getSocialAuth().login()
+                ? `${signInNeeded ? 'Finish signing in' : 'Allow access'} in the window that opened, then return and try again.`
+                : `Allow pop-ups for this site, then tap ${signInNeeded ? 'Sign in again' : 'Allow access'} to try again.`);
+            } catch { setAccessStatus('The sign-in window could not open. Please try again.'); }
+          }}>{signInNeeded ? 'Sign in again' : 'Allow access'}</Button>
+          {accessStatus && <p role="status" className="mt-2">{accessStatus}</p>}
+        </>}
+        {friendlyAccessMessage(item.message) !== item.message && <details className="mt-2 text-xs"><summary className="cursor-pointer">Error details</summary><p>{item.message}</p></details>}
+      </div>
       <button
         type="button"
         aria-label="Dismiss"

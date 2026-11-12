@@ -1,6 +1,7 @@
 import { User } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { usernameHelp } from '@/lib/usernameHelp';
 
 function Username({ I }: { I: Record<string, any> }) {
   return (
@@ -19,10 +20,14 @@ function Username({ I }: { I: Record<string, any> }) {
             className="pl-9"
             placeholder="yourname"
             autoComplete="username"
+            autoCapitalize="none"
+            spellCheck={false}
+            aria-describedby="username-help"
             data-testid="username-input"
             onChange={(e) => I.setLoginUsername?.(e.target.value)}
           />
       </div>
+      <p id="username-help" className="mt-1 text-xs text-muted-foreground">{usernameHelp}</p>
     </div>
   );
 }

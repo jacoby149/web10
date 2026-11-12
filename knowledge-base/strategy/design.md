@@ -317,6 +317,21 @@ Motion confirms causality; it never performs.
 
 ## 8. Components
 
+### Social action recovery (operator, 12.11.2026)
+
+Upload/post failures offer approval and retry beside the draft, preserving text
+and selected files in the open composer. Describe the needed action with its
+exact service in inline code, e.g. “create `posts`”; keep the API reason in
+details. Open sign-in only from a direct tap. Blocked windows, skipped approval
+and repeated denials retain a usable next step; opening a window is not proof
+of approval and never automatically publishes the draft. Reuse a completed
+upload only for the same account, service, file and metadata.
+
+This recovery change includes simple username hints explaining the existing
+1–30 character letters/numbers/hyphens rule, no spaces/underscores or leading/
+trailing hyphen. It does not change validation, sign-in or approval policy.
+The broader authenticator language/layout redesign is separate work.
+
 - **shadcn/ui conventions** (D22): primitives live in
   `src/components/ui/` (Button, Card, Input, Dialog, DropdownMenu,
   Avatar, Badge, Skeleton, Tabs, Tooltip…), built on Radix, variants

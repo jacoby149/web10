@@ -114,6 +114,30 @@ old account's read cannot scrub a newer session. Gauntlet:
 `e2e/tests/authenticator-dead-session.spec.ts` (the real popup + real node:
 the scrub, the live-token anti-test, the 401/200 API floor).
 
+### Social action recovery (12 November 2026)
+
+Caught upload, post, edit and repost 401/403 failures must offer a sign-in/
+approval action beside the retained composer, not depend on uncaught-error
+listeners or a banner behind a sheet. Known missing-app-approval and dead-token
+errors in social's shared toast also retain a manual recovery action rather
+than disappearing after four seconds. These are affordances, not authorization
+verdicts: the app never grants access or assumes approval from an HTTP status.
+Display the actual service in code when the API names it, e.g. create `posts`.
+
+The tap opens the existing authenticator flow synchronously; a blocked window
+gets an inline explanation. Opening/closing/skipping approval never clears the
+draft or automatically retries a write. The creator explicitly retries, using
+the same text/files; completed media may be reused only for the exact same
+account, configured node, service, file, alt text, thumbnail and album art.
+Current API write checks still apply. Queued uploads retain their existing
+owner/progress/reselection/retry rules and default-off deployment policy.
+
+Scope: social recovery plus hints for existing username rules only. The
+authenticator's consent UI, scope presentation, login behavior and username
+validation are unchanged. The original report does not establish why first
+consent was skipped; real-node/physical-phone acceptance remains separate from
+the isolated browser/data/auth-transport fixtures.
+
 ### SDK Methods
 
 ```ts
