@@ -3,6 +3,24 @@
 Newest at top. Format per AGENT-OPS.md §8. Read the top entries
 BEFORE doing ops work — someone may already be mid-fix.
 
+## 12.11.2026 01:40 UTC — OpenCode (missoula / jacoby149/videos-stop-freezing-merge) — healing preflight
+did:
+  - Operator requests production deployment and actual automatic video recovery.
+    Initial SSH paths fail while VPN is off; restored VPN verifies all-spark.
+  - Read-only production runtime confirms the JSON/rotation probe is installed,
+    healing code is absent and the exact reported post's media remains failed
+    but canonically eligible. Executed the committed candidate query against
+    actual production ClickHouse under its five-second/256-MiB limits; succeeds.
+  - Ensured the dev-only private state bucket through the existing policy/ACL
+    helper; wrote one synthetic preflight marker with If-None-Match, proved
+    duplicate denial and anonymous HTTP 403, then deleted only that marker.
+    No media job, post/grant update, deployment, secret export or service restart.
+state: preflight passes; healing remains disabled and is not installed in prod.
+  Dev state bucket retained for intended maintenance claims. No live clip recovery.
+next: finish conflict-free/all-green PR #1517, reviewed promotion, production
+  state-bucket preflight and explicit activation, then decoded-frame/pause/seek
+  verification of the original post. Full model-diverse assurance remains open.
+
 ## 08.11.2026 20:50 UTC — OpenCode (montreal-v1 / jacoby149/experiment-7th-draft-readiness) — public frozen synthetic experiment inputs
 did:
   - Operator explicitly requests public experimental data. LAN SSH timed out;
