@@ -94,6 +94,15 @@ next: finish conflict-free/all-green PR #1517, reviewed promotion, production
   state-bucket preflight and explicit activation, then decoded-frame/pause/seek
   verification of the original post. Full model-diverse assurance remains open.
 
+## 11.11.2026 22:08 UTC — OpenCode (yerevan / jacoby149/experiment-proceed-v4) — research storage access preflight, read-only
+did:
+  - Read the deployment runbook, agent field manual and current ledger before access checks.
+  - Checked the documented public SSH path, then the documented LAN SSH path with batch authentication and strict known-host checking; both timed out before authentication. Current API/MinIO DNS still matches the documented public target.
+  - Stopped deployment access attempts after the two failed routes per the field manual. No credential values were printed, fetched or copied; no key/password rotation, policy change, container action, deployment or object write occurred.
+  - Local standard object-store credential profiles, MinIO aliases and research/deployment env files are not configured in this workspace. This does not prove the server's existing credentials are missing; the ledger records their previous use inside the approved production storage context.
+state: research preparation continues separately on the approved DigitalOcean host. Authenticated MinIO access from this controller is not yet established because SSH connectivity failed, not because authentication was rejected.
+next: restore/confirm the existing deployment access path before authenticated private realism staging. Do not guess new ports, bypass host verification or reset shared credentials; preserve current private-only/digest-verification scope.
+
 ## 08.11.2026 20:50 UTC — OpenCode (montreal-v1 / jacoby149/experiment-7th-draft-readiness) — public frozen synthetic experiment inputs
 did:
   - Operator explicitly requests public experimental data. LAN SSH timed out;

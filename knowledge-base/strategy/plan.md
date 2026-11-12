@@ -1456,6 +1456,47 @@ the previous empty output is retained and the direct 1M logging restart is
 active. Preserve prior work and retain explicit floor
 skip, final validation and the same memory/disk/cleanup deadline/$5 ceiling.
 
+**RD3-FOLLOWTHROUGH [~ 5.28.2 observation active]:** five-minute operator-requested
+read-only workflow loop is armed with durable work/resource summaries and
+failure/milestone/pre-cleanup handoffs; six controls pass. Fast safety monitor
+and independent watchdog stay active. Both documented deployment SSH routes
+time out before authentication, so MinIO access is not yet established; no
+credentials are declared missing or rotated. Preserve the approved lifetime/
+$5 ceiling, final 1M validation, two private verified copies, statistics review,
+connected restore/delta/full-row parity and bounded pilot gates.
+
+**RD3-DELIVERIES [✓ 5.28.3 repair/probe; 1M completion OPEN]:** all 790 graph
+batches and six exports passed before the global delivery export OOMed at 2 GB.
+Whole-post event-budget chunks now log and verify physical counts before
+single-file consolidation. Three new controls, eight realism suites and a
+same-host 11M-event/1M-person probe pass. Failed output/hashes are preserved;
+new exception scratch is retained, never a partial-stage success witness.
+Direct 1M restarts without repeated floors; final validation and existing
+lease/$5/storage/review controls remain. Session performs foreground 300-second
+wait/check/repair cycles rather than ending after arming an observer.
+At 23:35 UTC the operator explicitly approves eight more hours on the same
+host to 08:01:22 UTC Nov 12, same $5 total compute ceiling and no fleet.
+Both approval/deadline records are retained; ten lease controls pass, stable
+watchdog updated and loaded worker runtime extended without PID/start change.
+**00:01 UTC Nov 12:** all nine files and manifest generated (19,914,772,845
+Parquet bytes; 1.6B physical deliveries); independent validation is running.
+Dataset and exact file receipts: `research/experiments/costfn/evidence/REALISM-1M-20261112.md`.
+Generation is complete, RD3 validation/persistence/review is not.
+**RD3-VALIDATOR-PATH [✓ 5.28.4 repair/regression; 1M validation OPEN]:** isolated
+source location inferred a missing event-partition scratch parent; preserve
+the FileNotFoundError receipt. Pass owned validation scratch explicitly, with
+a relocated-module regression passing locally/remotely. Resume verifies the
+same completed generation's source/identity/all hashes and revalidates with
+the new validator source. No dataset rebuild or repeated floors.
+**RD3-EXPOSURE-SCALE [✓ 5.28.5 repair/regressions; 1M validation OPEN]:** full
+event partition pass completes, but its first ~25M-row window OOMs. Refine
+oversized buckets independently to <=2.5M complete-key rows with <=64 writers;
+conserve every row and refuse indivisible skew. Two local/remote controls and
+eleven offline suites pass. Reverify/reuse the same finished input; no rebuild,
+floor rerun, memory-limit increase or validation/storage/experiment completion.
+
+- [ ] **RD3-VALIDATOR-THROUGHPUT:** operator-requested first-pass volume-aware complete-key sizing, bounded writer/worker concurrency and source/input-bound recovery checkpoints. Preserve every row/check and the approved aggregate resource envelope; prove exact parity, interruption/stale refusal and measured same-host throughput before adoption. Do not discard the advancing run. The current two-pass refinement repairs memory safety only; execution-strategy optimization remains OPEN in the lane queue.
+
 **Earlier RD3 repair:** [✓ 5.24.2 local/remote controls; full graph/floor proof interrupted by operator]
 **RD3-GRAPH: bound complete-request candidate expansion at 2 GB** — the first
 repaired-generator 1M attempt OOMed in the global graph window before exporting
