@@ -40,6 +40,18 @@ manual review, not an automatic retry loop. Serialize against manual transcodes;
 ClickHouse check/write is not transactional. Live repair/playback and model-diverse
 assurance remain separate from script tests. See the ops scripts README for commands.
 
+**Production receipt, 12 November 2026 (5.28.1):** the explicitly approved plan's
+five matching uploads complete sequentially with exit 0 and three HLS variants each.
+Original object sizes/ETags, non-transcode body/columns, existing thumbnails and the
+reported post/group hashes are unchanged; all attempt claims remain. Each first HLS
+segment decodes real H.264 portrait frames, and zero exact-known-error failures remain.
+The original public post and Shorts now show advancing decoded frames and passing
+pause/seek/resume in actual Chromium at 1440/375px. The serving API container was not
+restarted; no app deployment or environment switch was needed. Safe receipts and
+screenshots are in .context/healing-live/ and durable private outcome records are in
+the server run directory recorded in `ubuntu-deployment/OPS-LOG.md`. This closes the
+bounded production recovery receipt, not physical-phone or full-duration acceptance.
+
 ## Upload Styles (the client)
 
 The killer apps keep aspect ratio to **a few fixed presets, not arbitrary** — the feed layout demands consistency. The presets:
