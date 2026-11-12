@@ -15,6 +15,14 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## One-time phone-probe recovery (11–12.11.2026) — bounded ops review, OPEN
+
+The operator replaces PR #1517's unmerged periodic design with `ubuntu-deployment/scripts/heal-phone-videos.py`. API runtime/settings/Compose have no net diff against dev; no endpoint, startup hook or environment switch remains. Private exclusive dry-run plans bind provider/storage/source; explicit apply processes only their bounded entries sequentially, with canonical account/ownership/deletion/status checks and private conditional claims. Scoped adapters affect only the separate script process and restore on exit; no user token is stored.
+
+The prototype's fresh-review P2 metadata loss remains regression-pinned: update_document defaults clear non-body fields unless explicitly forwarded. The script's actual-insert tests preserve canonical reference/tags/ad/audit values through processing and terminal writes. All 2,264 API tests/eight subtests pass (one opt-in skip), including 23 script controls; 35 focused script/probe controls and changed-file lint/format pass. Fresh one-model redesign review finds no actionable P1/P2 and no D41/D60 conflict, independently verifies adapter restoration/real-call-path compatibility, and does not claim model-diverse sign-off.
+
+Connected redesign acceptance: execute the final one-time dry-run/plan/apply against session-only dev users/documents, actual MinIO and installed FFmpeg; 24 H.264 portrait frames decode, original and metadata survive, repeated apply adds no version. Remove only owned synthetic objects/claim and temporary tables; zero persistent document writes. Earlier production read-only candidate and dev/prod private-state/conditional-denial/anonymous-403 checks remain bounded evidence. Live production script execution, repaired-clip desktop/physical-phone verification, concurrent-manual/check-write atomicity and model-diverse assurance remain OPEN; no L1–L4 security PASS is claimed.
+
 ## Consent-popup dead-session self-scrub + the recovery's reauth honesty (11.11.2026) — L1/L2 bounded, Qwen 3.8 27B single-model, shipped 5.23.4
 
 The consent popup's "Signed in as …" is local cookie state, and every on-mount

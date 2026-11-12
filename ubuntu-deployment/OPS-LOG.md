@@ -3,6 +3,57 @@
 Newest at top. Format per AGENT-OPS.md §8. Read the top entries
 BEFORE doing ops work — someone may already be mid-fix.
 
+## 12.11.2026 02:13 UTC — OpenCode (missoula / jacoby149/videos-stop-freezing-merge) — one-time script redesign acceptance
+did:
+  - Operator rejects periodic healing in favor of one-time ops tooling. Remove
+    unmerged API-worker/settings/Compose wiring; place the helper under
+    ubuntu-deployment/scripts/heal-phone-videos.py with private dry-run plan
+    and explicit sequential apply. No production script run or app deployment.
+  - Execute only an isolated dev acceptance: final script dry-run and plan/apply
+    against session-only synthetic users/documents, real MinIO and installed
+    FFmpeg. Failed→processing→done yields 24 decoded H.264 portrait frames;
+    original and all canonical metadata survive; repeat apply adds no version.
+  - Remove only own synthetic source/derivatives/claim and session-only tables.
+    No persistent users/documents, serving-worker hotpatch, environment edits,
+    restart, secret export, post/grant or production media changes.
+state: local suite 2,264 tests/eight subtests passes (one opt-in skip), full API
+  and ops lint/format clean; fresh bounded review has no P1/P2. Script is not
+  an endpoint/daemon and needs no application rollout; PR CI remains a gate.
+next: review/approve the exact private production plan, run explicit --apply,
+  and compare original-post/source/metadata hashes plus actual video frames.
+
+## 12.11.2026 01:40 UTC — OpenCode (missoula / jacoby149/videos-stop-freezing-merge) — healing preflight
+did:
+  - Operator requests production deployment and actual automatic video recovery.
+    Initial SSH paths fail while VPN is off; restored VPN verifies all-spark.
+  - Read-only production runtime confirms the JSON/rotation probe is installed,
+    healing code is absent and the exact reported post's media remains failed
+    but canonically eligible. Executed the committed candidate query against
+    actual production ClickHouse under its five-second/256-MiB limits; succeeds.
+  - Ensured the dev-only private state bucket through the existing policy/ACL
+    helper; wrote one synthetic preflight marker with If-None-Match, proved
+    duplicate denial and anonymous HTTP 403, then deleted only that marker.
+    No media job, post/grant update, deployment, secret export or service restart.
+  - Eight session-only synthetic history cases on real dev ClickHouse pass
+    latest-before-filter/deletion-tie/keyset/reset; temporary table removed,
+    zero persistent document writes. Actual public-post desktop Chromium
+    baseline advances audio time 2.02→4.04s with zero decoded video frames.
+  - In an isolated dev subprocess, execute committed recovery/worker source
+    against session-only synthetic users/documents, actual MinIO and FFmpeg:
+    failed→processing→done, 24 decoded H.264 portrait frames, original and all
+    canonical metadata preserved, repeat scan adds no version. Remove only
+    own synthetic source/derivatives/claim and temporary tables. No live-worker
+    hotpatch or persistent user/document writes.
+  - Production state-bucket policy/ACL preflight, conditional duplicate denial
+    and anonymous 403 pass too; its own synthetic marker is removed. No media
+    queued. Exact-post preservation hashes and desktop/375px post/Shorts
+    zero-frame baseline saved privately under .context/healing-live/.
+state: preflight passes; healing remains disabled and is not installed in prod.
+  Dev state bucket retained for intended maintenance claims. No live clip recovery.
+next: finish conflict-free/all-green PR #1517, reviewed promotion, production
+  state-bucket preflight and explicit activation, then decoded-frame/pause/seek
+  verification of the original post. Full model-diverse assurance remains open.
+
 ## 08.11.2026 20:50 UTC — OpenCode (montreal-v1 / jacoby149/experiment-7th-draft-readiness) — public frozen synthetic experiment inputs
 did:
   - Operator explicitly requests public experimental data. LAN SSH timed out;

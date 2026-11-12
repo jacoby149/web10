@@ -35,6 +35,10 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-11: Healing is node maintenance, not reader authority
+
+Historical transcode recovery belongs in one-time ops tooling, not a public read hook, endpoint or perpetual sweep. The private dry-run plan binds expected node/storage and exact media/source; explicit apply revalidates canonical local ownership/deletion/status, runs sequentially and consumes private conditional claims. Scope canonical-read/status-save adapters to the separate script process and restore them on exit. Preserve non-body columns too: update_document defaults erase ref_value/tags/ad settings unless forwarded. Fresh prototype review catches this; actual-insert regressions retain the repair in `api/tests/test_heal_phone_videos.py`. Lost claims/crashes require manual review; concurrent manual transcodes and ClickHouse check/write are not atomic. Synthetic real ClickHouse/MinIO/FFmpeg plan/apply passes; actual production repair/playback and model-diverse assurance remain OPEN.
+
 ### 2026-11-09: Visible-by-default replay needs explicit sensitive boundaries
 
 D107 rejects the initial label/public-caption allowlist: normal UI and public
