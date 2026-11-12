@@ -354,6 +354,14 @@ read-only, never home-node follow/join or invented foreign app links. Personal
 graph/My Groups authority remains home-scoped. Contract and acceptance limits:
 `knowledge-base/web10-v3/social/directory-mixer.md`.
 
+Social's caught upload/post permission failures offer approval and explicit retry
+beside the retained draft; missing-approval/dead-token toasts keep a manual action.
+Opening the existing auth window is not approval. Completed media reuse is scoped
+to the same account/node/service/file/metadata; the API still authorizes the retry.
+Only existing-rule username hints accompany this repair; authenticator consent,
+login behavior and validation remain unchanged. Local/connected limits:
+`knowledge-base/web10-v3/auth/auth.md` “Social action recovery”.
+
 Music's live playlist bookmarks use personal `web10-social-playlist-bookmarks`
 documents in the human's own followers group, never acting-group authority or a
 target membership grant. Login consent and access recovery both request this
