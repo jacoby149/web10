@@ -68,7 +68,7 @@ self-possession. The brand is confident and quiet; it never begs.
   assets are white-on-transparent, with derived dark counterparts; creator/streaming
   culture (Kick, Twitch, OBS, Discord) lives in dark mode; and dark
   is where the violet accent reads as electric instead of corporate.
-   The console remains dark by default. Social and marketing follow the
+   The console, social and marketing follow the
    device by default, with remembered System / Light / Dark choices (D108).
    Both palettes are built from tokens; media stages retain dark controls.
 - **Voice.** Declarative, restrained, no gush. The fan-facing voice
@@ -446,6 +446,26 @@ highlight into extra gray arcs. Paint its outline/shadow above the optical
 layers, not into their backdrop input. Keep the approved lens strength and
 inset; on a uniform backdrop, displacement must add no lines.
 
+### Authenticator mobile navigation glass (11.11.2026)
+
+Operator-approved extension of the social dock to `ui/`'s authenticated mobile
+navigation only: floating capsule, frosted bed, narrow refractive rim and a
+violet selected pill. Preserve all six admin destinations and four non-admin
+destinations, their accessible names and existing navigation handlers. Compact
+visible Apps/Groups labels keep six 44px targets readable at 375px. Desktop,
+credentials and consent stay unchanged. Reserve dock height plus safe-area and
+scroll clearance; use dynamic viewport height for the console shell.
+
+Copy the social lens/material locally (separate apps, §8), retaining the
+18-unit displacement, 8px bed inset and outline above the optics. The console
+bed uses 90% surface tint so its compact labels stay AA over bright content.
+Generate capsule normals only, never page pixels. Chromium gets the tested experimental
+refraction; other engines get frost. No-filter, reduced-transparency and
+forced-color modes stay opaque/readable. Check actual navigation, keyboard
+focus, admin/non-admin and signed-out states, 375/768/1280/1440 layout, safe-area
+clearance and rendered rim on/off pixels. Browser fixtures are not live auth,
+physical-phone/Safari performance or deployment acceptance.
+
 ## 11. Accessibility (part of pretty, not opposed to it)
 
 - Contrast per §4. Focus-visible per §8. Reduced motion per §7.
@@ -482,15 +502,19 @@ the doc is wrong, fix the doc, then the code.
 
 ## 13. Canonical tokens (copy verbatim)
 
-### Social and marketing appearance (D108)
+### Social, marketing and authenticator appearance (D108)
 
-Social and marketing default to System (`prefers-color-scheme`), follow live device
+Social, marketing and the authenticator default to System (`prefers-color-scheme`), follow live device
 changes, and offers explicit Light / Dark overrides in Settings and the
 public `/appearance` screen (More → Appearance; signed-out phones use the
 header's Appearance button). Marketing exposes the same choices at
-`/appearance` through Learn → Appearance. Each preference belongs to
+`/appearance` through Learn → Appearance. The authenticator exposes the same
+choices in Settings and on public `?mode=appearance`, linked from login; popup
+consent follows this origin's choice without navigating away from its request.
+Each preference belongs to
 this browser/origin, not an account or acting identity. Store only
-`system`, `light` or `dark` under `web10-social:theme` or `web10-marketing:theme`;
+`system`, `light` or `dark` under `web10-social:theme`, `web10-marketing:theme`
+or `web10-auth:theme`;
 synchronize tabs within each site, not across different origins,
 and treat missing/invalid/removed preferences as System. Storage denial
 must not break switching: keep the choice in memory and say it cannot be
@@ -509,12 +533,16 @@ follow foreground; primary is `#18181b` on `#fafafa`. Light brand text
 `#6d28d9`, muted `#ede9fe`; brand foreground stays `#fafafa`.
 Light success/warning/danger are `#166534` / `#854d0e` / `#b91c1c`,
 danger-muted `#fee2e2`. These keep body text ≥4.5:1 on neutral surfaces.
-Both apps consume the same framework-free store in `marketing/shared/appearance/`,
+All three apps consume the same framework-free store in `marketing/shared/appearance/`,
 with app-local React hooks and startup initializers. Existing text-tile colors
 stay dark with tile foreground. Dark media
 controls use a locally scoped copy of the original dark tokens, not
 inverted images/video. Theme-aware artwork swaps white/dark transparent assets;
-there is no black logo tile in light mode. The authenticator is unchanged.
+there is no black logo tile in light mode. Authenticator white-label brand
+artwork uses its configured dark/light logo pair (defaults: canonical
+`ui/public/keys-mark{,-dark}.png`, matching social's alpha/dimensions); no credential/account data
+belongs in appearance storage. Its glass dock gets palette-derived light edge,
+highlight and shadow tokens, retaining the 90% readable center tint.
 
 Tailwind v4 `@theme` block — the single source of truth. Each app
 carries a copy in `src/styles/tokens.css` (or its `index.css @theme`

@@ -20,6 +20,36 @@ i.e. they must run ON the box (or through an SSH tunnel).
 | `sync-npm.py` | one Cloudflare DNS-01 cert covering every vhost + all proxy hosts (forwarding by stack-prefixed alias) | yes |
 | `smoke.sh` | HTTP + money-path (signup→token) checks for both envs | yes |
 | `public-research-datasets.py` | separately authorized, dry-run-first anonymous GET policy for only fourteen frozen synthetic V2 input objects; verify trusted publication receipts/bytes, require private exclusive rollback backup, retain existing policy | yes, with a fresh backup path |
+| `heal-phone-videos.py` | one-time recovery of the exact fixed phone-probe error; private dry-run plan, explicit sequential apply, canonical source/status/metadata checks and conditional attempt claims | yes; consumed failed/crashed attempts require manual review |
+
+### One-time phone-video recovery
+
+The JSON/rotation probe fix must already be installed. Run the script in a separate
+API-container process using its existing node credentials; do not deploy the app,
+edit environment files, install a daemon or expose a retry endpoint. From a trusted
+checkout on the box (or prefix the Docker command with the approved SSH connection
+and stream this local script), create and review the private plan first:
+
+```bash
+docker exec -i web10-prod-api-1 uv run python - --provider api.web10.app --plan /tmp/phone-videos-plan.json < ubuntu-deployment/scripts/heal-phone-videos.py
+# After reviewing/approving the plan, apply those exact entries only:
+docker exec -i web10-prod-api-1 uv run python - --provider api.web10.app --plan /tmp/phone-videos-plan.json --apply < ubuntu-deployment/scripts/heal-phone-videos.py
+```
+
+Dry-run does not touch S3 or database records; it exclusively writes the plan with
+mode 0600. It refuses to overwrite an existing plan, a wrong provider or more than
+10 candidates by default (`--limit` can explicitly increase this to at most 100).
+Plans contain media IDs, owners and source/configuration fingerprints, not tokens,
+source keys or signed URLs; keep them private. Apply does not rediscover candidates.
+It checks the original still exists and the state bucket is separate/private,
+consumes a conditional claim, revalidates canonical state at processing/status
+writes, preserves body and non-body metadata, and runs one conversion at a time.
+It stops with a nonzero exit after a failed or already-claimed eligible item.
+Deleted/replaced/completed/ineligible media is left alone. Retain claim markers;
+crash/uncertain outcomes require manual review, not marker deletion or blind retries.
+Serialize against other manual transcodes; no ClickHouse check/write transaction
+or global encoding lock is promised. Verify actual frames/pause/seek on the original
+public post/Shorts afterward; backend `done` is not a playback receipt.
 
 The research-policy helper runs inside the configured API runtime, not as an app
 deployment. Supply both trusted `research/experiments/costfn/evidence/v2-*-publication.json`

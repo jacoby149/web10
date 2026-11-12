@@ -59,6 +59,15 @@ store, not account state. White artwork on dark, derived zinc artwork on
 light, no black badge. This supersedes the social-only scope and fixed logo
 backing above; authenticator remains unchanged.
 
+**Authenticator extension, 11.11.2026:** operator requests "also the same light
+dark theme detection as the social app please! + appearance setting" after
+approving the console glass dock. Extend the same store, System default and
+browser-local override to `ui/` under `web10-auth:theme`, including live OS/tab
+updates, pre-paint initialization and browser/native chrome. Settings and public
+`?mode=appearance` expose the choice; login links to it, while consent stays on
+its pending request. Configured white-label artwork follows the resolved theme.
+No account/API preference, cross-origin synchronization or auth-policy change.
+
 **Navigation material trial, 11.11.2026:** operator approves trying Apple-inspired
 glass on the social navigation/header in both themes. Bound the first pass to
 the shell, floating mobile dock and navigation menus; content remains opaque.

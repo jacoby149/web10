@@ -36,6 +36,95 @@ body {
   }
 }
 
+/* design.md §10: floating console dock. Keep optics below controls and paint
+   the edge AFTER them, so it cannot refract its own border into gray rings. */
+.auth-mobile-dock {
+  bottom: var(--auth-dock-bottom);
+  height: var(--auth-dock-height);
+  max-width: 36rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+}
+.auth-mobile-dock::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  z-index: 1;
+  border: 1px solid var(--auth-dock-edge);
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset 0 1px 0 var(--auth-dock-highlight), 0 8px 32px var(--auth-dock-shadow);
+}
+.auth-dock-bed, .auth-dock-rim {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.auth-dock-bed { z-index: 1; background: var(--color-surface); }
+.auth-dock-rim {
+  z-index: 0;
+  padding: 8px;
+  background: color-mix(in srgb, var(--color-surface) 24%, transparent);
+  mask: linear-gradient(var(--color-foreground) 0 0) content-box, linear-gradient(var(--color-foreground) 0 0);
+  mask-composite: exclude;
+}
+.auth-mobile-dock:has(.auth-dock-rim) .auth-dock-bed {
+  clip-path: inset(8px round var(--radius-full));
+}
+.auth-dock-item {
+  z-index: 2;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  color: var(--color-muted-foreground);
+  transition: background-color 150ms ease-out, color 150ms ease-out;
+}
+.auth-dock-item:hover { background: var(--color-elevated); color: var(--color-foreground); }
+.auth-dock-item[aria-current="page"] {
+  color: var(--color-brand-300);
+  background: linear-gradient(135deg, var(--auth-dock-highlight), transparent), var(--auth-dock-selected);
+  border-color: var(--auth-dock-edge);
+  box-shadow: inset 0 1px 0 var(--auth-dock-highlight);
+}
+.auth-dock-item:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+}
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .auth-dock-bed {
+    background: var(--auth-dock-tint);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
+    backdrop-filter: blur(12px) saturate(140%);
+  }
+}
+@media (max-width: 767px) {
+  .auth-dock-clearance { padding-bottom: var(--auth-dock-clearance); }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .auth-dock-rim { display: none; }
+  .auth-dock-bed, .auth-mobile-dock:has(.auth-dock-rim) .auth-dock-bed {
+    clip-path: none;
+    background: var(--color-surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+@media (forced-colors: active) {
+  .auth-mobile-dock { border-color: CanvasText; }
+  .auth-mobile-dock::after, .auth-dock-rim { display: none; }
+  .auth-dock-bed, .auth-mobile-dock:has(.auth-dock-rim) .auth-dock-bed {
+    clip-path: none;
+    background: Canvas;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .auth-dock-item { color: ButtonText; }
+  .auth-dock-item[aria-current="page"] {
+    color: HighlightText; background: Highlight; border-color: Highlight; box-shadow: none;
+  }
+  .auth-dock-item:focus-visible { outline-color: Highlight; }
+}
+
 /* ── Ellipsis loader (preserved from index.css) ── */
 .lds-ellipsis {
   display: inline-block;

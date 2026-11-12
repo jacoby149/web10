@@ -58,3 +58,53 @@
   --radius-lg: 1rem;
   --radius-full: 9999px;
 }
+
+/* design.md §10: social's glass material, derived from the console palette. */
+:root {
+  /* Dense console labels stay AA over even a white scrolling backdrop. */
+  --auth-dock-tint: color-mix(in srgb, var(--color-surface) 90%, transparent);
+  --auth-dock-edge: color-mix(in srgb, var(--color-foreground) 14%, transparent);
+  --auth-dock-highlight: color-mix(in srgb, var(--color-foreground) 9%, transparent);
+  --auth-dock-shadow: color-mix(in srgb, var(--color-background) 40%, transparent);
+  --auth-dock-selected: color-mix(in srgb, var(--color-brand-muted) 88%, var(--color-surface));
+  --auth-dock-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+  --auth-dock-height: 4.5rem;
+  --auth-dock-clearance: calc(var(--auth-dock-height) + var(--auth-dock-bottom) + 1rem);
+}
+
+/* design.md §13 / D108 — same light palette as social and marketing. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --color-background: #fafafa;
+  --color-foreground: #18181b;
+  --color-surface: #ffffff;
+  --color-elevated: #f4f4f5;
+  --color-border: #d4d4d8;
+  --color-input: #d4d4d8;
+  --color-ring: #7c3aed;
+  --color-muted: #f4f4f5;
+  --color-muted-foreground: #52525b;
+  --color-brand-300: #6d28d9;
+  --color-brand-400: #5b21b6;
+  --color-brand: #7c3aed;
+  --color-brand-600: #6d28d9;
+  --color-brand-muted: #ede9fe;
+  --color-success: #166534;
+  --color-warning: #854d0e;
+  --color-danger: #b91c1c;
+  --color-danger-muted: #fee2e2;
+  --color-destructive: #b91c1c;
+  --color-card: #ffffff;
+  --color-card-foreground: #18181b;
+  --color-popover: #ffffff;
+  --color-popover-foreground: #18181b;
+  --color-primary: #18181b;
+  --color-primary-foreground: #fafafa;
+  --color-secondary: #f4f4f5;
+  --color-secondary-foreground: #18181b;
+  --color-accent: #f4f4f5;
+  --color-accent-foreground: #18181b;
+  --auth-dock-edge: color-mix(in srgb, var(--color-foreground) 12%, transparent);
+  --auth-dock-highlight: color-mix(in srgb, var(--color-surface) 85%, transparent);
+  --auth-dock-shadow: color-mix(in srgb, var(--color-foreground) 12%, transparent);
+}

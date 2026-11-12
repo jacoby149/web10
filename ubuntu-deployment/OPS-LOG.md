@@ -3,6 +3,97 @@
 Newest at top. Format per AGENT-OPS.md §8. Read the top entries
 BEFORE doing ops work — someone may already be mid-fix.
 
+## 12.11.2026 03:01–03:12 UTC — OpenCode (missoula / jacoby149/videos-stop-freezing-merge-v2) — production one-time phone-video recovery
+did:
+  - Operator explicitly approves execution after PR #1517 merges as 5caaa113d.
+    Verify all-spark, intended production container and exact merged script
+    SHA-256 57e36ce02e1768406193a285544ce1c913679673107927489f6f474994cb6d3c.
+  - Create and validate the exclusive private production plan: five exact-known-
+    error uploads, all canonical owners/sources/originals valid, no prior claims;
+    includes the reported samhanks post. Original bytes total 579,008,144.
+  - Retain source, reviewed plan, preservation hashes and flushed apply log in
+    private server run directory ~/web10-ops/phone-video-recovery/
+    20261112T030158Z-57e36ce0/ (0700 directory / 0600 files).
+  - Launch one finite detached runner of the merged script's explicit --apply
+    in a separate production-container process, serial over that exact plan.
+    No app deployment/restart, environment edit, user token export or post/grant
+    change. Durable exit.json records its outcome; do not relaunch blindly.
+  - During encoding, sampled API container CPU 537% / memory 1.139 GiB on a
+    31.33-GiB host; public /docs remains HTTP 200 in a 233ms point check.
+  - Apply runs 03:05:24–03:10:34 UTC and exits 0: all five entries transition
+    processing→done, with three HLS variants each. All five original object
+    sizes/ETags, canonical non-transcode body/columns and existing thumbnails
+    match before-state hashes; all five attempt claims are retained.
+  - Independently decode each first HLS segment on the server: H.264 portrait
+    output with 750/250/115/750/250 actual video frames. Temporary verification
+    downloads are removed. Read-only latest-history query finds zero remaining
+    exact-known-error failures. Original reported post and group hashes match.
+  - Actual public post and Shorts in Chromium at 1440/375px now decode advancing
+    frames, retain portrait shape and pass pause/seek/resume. Desktop post:
+    257→437 frames; desktop Shorts: 243→423; 375px post: 243→423; Shorts: 245→427.
+    Screenshot captures inspected desktop then mobile under .context/healing-live/.
+  - Retain private verified-outcome.json with safe hashes, phase/exit records and
+    browser/decoded-frame metrics in the same server run directory. API container
+    ID/start time is unchanged; no deployment/restart or environment edit occurred.
+state: all five targeted legacy failures are recovered; exact reported post and
+  Shorts playback is verified on desktop/375px Chromium. Original posts, source
+  objects, thumbnails, non-transcode metadata and access links remain unchanged.
+  One-time runner has exited; no daemon/periodic sweep is left running.
+next: actual iOS Safari/Android Chrome physical-phone acceptance remains open;
+  Chromium viewport evidence is not device proof, and first-segment decoding is
+  not full-duration viewing assurance. Do not delete claims or rerun the old plan.
+
+## 12.11.2026 02:13 UTC — OpenCode (missoula / jacoby149/videos-stop-freezing-merge) — one-time script redesign acceptance
+did:
+  - Operator rejects periodic healing in favor of one-time ops tooling. Remove
+    unmerged API-worker/settings/Compose wiring; place the helper under
+    ubuntu-deployment/scripts/heal-phone-videos.py with private dry-run plan
+    and explicit sequential apply. No production script run or app deployment.
+  - Execute only an isolated dev acceptance: final script dry-run and plan/apply
+    against session-only synthetic users/documents, real MinIO and installed
+    FFmpeg. Failed→processing→done yields 24 decoded H.264 portrait frames;
+    original and all canonical metadata survive; repeat apply adds no version.
+  - Remove only own synthetic source/derivatives/claim and session-only tables.
+    No persistent users/documents, serving-worker hotpatch, environment edits,
+    restart, secret export, post/grant or production media changes.
+state: local suite 2,264 tests/eight subtests passes (one opt-in skip), full API
+  and ops lint/format clean; fresh bounded review has no P1/P2. Script is not
+  an endpoint/daemon and needs no application rollout; PR CI remains a gate.
+next: review/approve the exact private production plan, run explicit --apply,
+  and compare original-post/source/metadata hashes plus actual video frames.
+
+## 12.11.2026 01:40 UTC — OpenCode (missoula / jacoby149/videos-stop-freezing-merge) — healing preflight
+did:
+  - Operator requests production deployment and actual automatic video recovery.
+    Initial SSH paths fail while VPN is off; restored VPN verifies all-spark.
+  - Read-only production runtime confirms the JSON/rotation probe is installed,
+    healing code is absent and the exact reported post's media remains failed
+    but canonically eligible. Executed the committed candidate query against
+    actual production ClickHouse under its five-second/256-MiB limits; succeeds.
+  - Ensured the dev-only private state bucket through the existing policy/ACL
+    helper; wrote one synthetic preflight marker with If-None-Match, proved
+    duplicate denial and anonymous HTTP 403, then deleted only that marker.
+    No media job, post/grant update, deployment, secret export or service restart.
+  - Eight session-only synthetic history cases on real dev ClickHouse pass
+    latest-before-filter/deletion-tie/keyset/reset; temporary table removed,
+    zero persistent document writes. Actual public-post desktop Chromium
+    baseline advances audio time 2.02→4.04s with zero decoded video frames.
+  - In an isolated dev subprocess, execute committed recovery/worker source
+    against session-only synthetic users/documents, actual MinIO and FFmpeg:
+    failed→processing→done, 24 decoded H.264 portrait frames, original and all
+    canonical metadata preserved, repeat scan adds no version. Remove only
+    own synthetic source/derivatives/claim and temporary tables. No live-worker
+    hotpatch or persistent user/document writes.
+  - Production state-bucket policy/ACL preflight, conditional duplicate denial
+    and anonymous 403 pass too; its own synthetic marker is removed. No media
+    queued. Exact-post preservation hashes and desktop/375px post/Shorts
+    zero-frame baseline saved privately under .context/healing-live/.
+state: preflight passes; healing remains disabled and is not installed in prod.
+  Dev state bucket retained for intended maintenance claims. No live clip recovery.
+next: finish conflict-free/all-green PR #1517, reviewed promotion, production
+  state-bucket preflight and explicit activation, then decoded-frame/pause/seek
+  verification of the original post. Full model-diverse assurance remains open.
+
 ## 11.11.2026 22:08 UTC — OpenCode (yerevan / jacoby149/experiment-proceed-v4) — research storage access preflight, read-only
 did:
   - Read the deployment runbook, agent field manual and current ledger before access checks.

@@ -7,6 +7,7 @@ import DevPay from './DevPay';
 import Changelog from './Changelog';
 import RecoveryContact from './RecoveryContact';
 import ClaimDomain from './ClaimDomain';
+import { Appearance } from './Appearance';
 import { cn } from '@/lib/utils';
 
 type Tab = 'settings' | 'changes';
@@ -54,6 +55,7 @@ function Settings({ I }: { I: Record<string, any> }) {
       </div>
       {tab === 'settings' ? (
         <div className="space-y-4">
+          <Appearance />
           <ClaimDomain I={I} />
           <RecoveryContact I={I} />
           {I.isVerified() ? <ChangePhone I={I} /> : <VerifyPhone I={I} />}

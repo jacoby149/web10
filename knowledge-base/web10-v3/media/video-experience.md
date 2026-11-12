@@ -15,6 +15,43 @@ The phone is the camera. Vertical is the default, not the edge case — and the 
 
 The node is **ratio-agnostic**: whatever ratio arrives (9:16, 4:5, 1:1, 16:9) gets correct renditions automatically. The ratio decision is made client-side, before upload (below) — the node just does the math right.
 
+## Recovery of the phone-probe failure
+
+A fixed encoder does not repair yesterday's failed uploads. Recovery is a **one-time
+operator script**, `ubuntu-deployment/scripts/heal-phone-videos.py`, executed in a
+separate process inside the configured API container. No new endpoint, startup hook,
+periodic sweep, environment switch, app deployment or restart is required. The
+installed converter must already contain the JSON/rotation probe repair.
+
+Default execution is a read-only dry-run that exclusively writes a private local
+plan file, pinned to the expected provider and storage configuration. The bounded
+latest-before-filter query selects only the exact old parser error. Candidates must
+be live local-human media documents with matching original references in their own
+namespace. `--apply` reads that exact plan (never a fresh sweep), revalidates each
+source and runs one conversion at a time, then exits. It never saves a user token.
+
+Private conditional per-source claims in `RESUMABLE_STATE_BUCKET` prevent duplicate
+attempts across invocations; state policy/ACL checks occur only on apply. The script
+uses the installed converter with scoped canonical-read/status-write adapters in its
+own process, preserving body and non-body metadata at each phase. Serving workers,
+posts, groups, permissions and TTLs are untouched. Deleted/replaced/completed media
+is skipped. Claims are consumed before work: crashes or uncertain outcomes require
+manual review, not an automatic retry loop. Serialize against manual transcodes;
+ClickHouse check/write is not transactional. Live repair/playback and model-diverse
+assurance remain separate from script tests. See the ops scripts README for commands.
+
+**Production receipt, 12 November 2026 (5.28.1):** the explicitly approved plan's
+five matching uploads complete sequentially with exit 0 and three HLS variants each.
+Original object sizes/ETags, non-transcode body/columns, existing thumbnails and the
+reported post/group hashes are unchanged; all attempt claims remain. Each first HLS
+segment decodes real H.264 portrait frames, and zero exact-known-error failures remain.
+The original public post and Shorts now show advancing decoded frames and passing
+pause/seek/resume in actual Chromium at 1440/375px. The serving API container was not
+restarted; no app deployment or environment switch was needed. Safe receipts and
+screenshots are in .context/healing-live/ and durable private outcome records are in
+the server run directory recorded in `ubuntu-deployment/OPS-LOG.md`. This closes the
+bounded production recovery receipt, not physical-phone or full-duration acceptance.
+
 ## Upload Styles (the client)
 
 The killer apps keep aspect ratio to **a few fixed presets, not arbitrary** — the feed layout demands consistency. The presets:

@@ -12,8 +12,8 @@ describe('config', () => {
   })
 
   it('has logo paths', () => {
-    expect(config.REACT_APP_LOGO_DARK).toBe('/YourOrgsLogo/key_white.png')
-    expect(config.REACT_APP_LOGO_LIGHT).toBe('/YourOrgsLogo/key_black.png')
+    expect(config.REACT_APP_LOGO_DARK).toBe('/keys-mark.png')
+    expect(config.REACT_APP_LOGO_LIGHT).toBe('/keys-mark-dark.png')
   })
 
   it('is a plain object with expected keys', () => {

@@ -7,6 +7,7 @@ on:
       - media-delivery/**
       - ubuntu-deployment/docker-compose.ecosystem.yml
       - ubuntu-deployment/env.*.example
+      - ubuntu-deployment/scripts/heal-phone-videos.py
       - marketing/marketing-ui/Dockerfile
       - marketing/web10-social/Dockerfile
       - .github/workflows/api.yml
@@ -37,10 +38,10 @@ jobs:
         run: uv sync --frozen --extra test
 
       - name: ruff check
-        run: uv run ruff check .
+        run: uv run ruff check . ../ubuntu-deployment/scripts/heal-phone-videos.py
 
       - name: ruff format
-        run: uv run ruff format --check .
+        run: uv run ruff format --check . ../ubuntu-deployment/scripts/heal-phone-videos.py
 
       - name: pytest
         run: uv run pytest
