@@ -65,6 +65,13 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
+- [✓ 5.30.1 local] **Match the other pages' Advanced mixer disclosure** — replace People/Groups' separate Servers CTA with the same left-aligned Advanced / Hide controls treatment, icons/chevron and tucked animated/inert chassis in both apps. Sort by stays visible; URL state, weights and sorting are preserved. All 102 social/106 marketing focused controls and both builds pass; both-theme 1440/375/768/1280 browser checks plus inspected desktop/375px collapsed/expanded captures pass. No ranking, API, approval or deployment change.
+
+- [✓ 5.30.0 local; connected/review OPEN] **People/Groups server mixer and simple sort** — shared source rack in both directories; independent URL-owned Newest/Most followers and Newest/Most members, canonical creation and source ordering before pagination. No power mean. Real smooth quotas, mute/retry/separate offsets, approved dispatch, source-qualified read-only foreign cards and preserved home graph/actions. All 2,528 social/379 marketing/319 SDK/2,268 API tests plus eight subtests pass (one opt-in skip), both builds and changed-file lint/format pass. Actual-app synthetic browser checks both themes at 1440/375/768/1280; desktop/375px captures inspected. Faceless marketing retry loop and consecutive-fader stale-weight regression repaired. Contract/receipts: `web10-v3/social/directory-mixer.md`. Independent HTTPS-node/real-DB lifecycle, review/CI, foreign actions and rollout remain separate.
+- [ ] **Directory mixer connected acceptance** — use isolated independently keyed HTTPS nodes to verify actual sorted account/group creation, current audience history, Origin/app-grant approval and denial, per-source pagination/mute/retry, colliding names, removal/regrant/account-switch fencing and serving-node faces. Requires local 5.30.0, source approval and disposable-node access; retain public no-token and denied-token no-anonymous-fallback controls. No production writes, deployment or implied foreign action/navigation implementation.
+
+- [✓ 5.29.2 local] **Recover social upload/post permission failures without losing the draft** — inline approval/retry for caught composer/upload 401/403 failures, persistent actionable missing-approval/dead-token toasts, exact service names in code and same-account/file/metadata reuse of completed uploads. Preserve explicit retry, blocked-popup and skipped-approval truth; no automatic approval/publication or API/SDK change. Include only existing-rule username hints in the authenticator; broader consent/login/permission-screen redesign is explicitly excluded. Focused/full tests, both builds and isolated desktop/375px browser evidence are local gates; original skipped-consent cause, real-node/phone and deployment acceptance remain separate.
+
 - [✓ 5.28.0 merged #1517; recovery receipt 5.28.1] **One-time recovery for historical phone-probe failures** — operator replaces the periodic design with the ops script, private planning and explicit node/source-bound sequential apply, canonical checks, private claims and scoped metadata preservation around the installed converter. No API runtime/settings/Compose changes, endpoint, recurring scan or app deployment/restart. All 2,264 tests/eight subtests (one opt-in skip), 23 script controls, lint/format, real dev ClickHouse/MinIO/FFmpeg and PR checks pass; fresh bounded review has no P1/P2. Production five-video recovery and desktop/375px public playback receipt is recorded in 5.28.1; physical-phone/full-duration/model-diverse assurance remains separate.
 
 - [✓ 5.27.0 local] **Authenticator system/light/dark appearance** — D108 shared store under `web10-auth:theme`, blocking startup, complete light palette, native/browser chrome and theme-aware canonical/configurable artwork. System/Light/Dark in Settings plus public `?mode=appearance` linked from login; pending consent takes routing precedence and auth authority stays unchanged. All 327 UI tests (14 new theme controls), production build/typecheck, desktop/375px actual-app appearance/keyboard/OS/override/reload/tab/storage-denial checks and both-theme 375/768/1280/1440 glass gates pass. Default “black” fixture was byte-identical to white: canonical transparent pair now uses fresh URLs with exact alpha/dimensions and zinc-900 pixel controls. Settings/public Appearance/login/view-only consent captures inspected in both themes. No deployment or live-auth/physical-phone/Safari proof; acceptance remains separate.
@@ -1449,7 +1456,17 @@ docs before code, per the rule at the top.
 
 ### Current directive — derived realism dataset (11 November 2026)
 
-**12 November disposition:** the paid prep host is deleted; last retained
+**New run, 12 November 12:53 UTC:** new approved 14-hour preparation lease
+`3ef3634d8983`, droplet `618505005`, 400-GiB persistent work Volume. Pinned SSH,
+source hashes, exact mount/UUID and synced-file unmount/remount readback pass;
+the actual 1M generator is active with `persistent_work=true`. Compute deadline
+02:50:22 UTC Nov 13, $5 compute ceiling; retained Volume $40/month prorated,
+review after seven days. No repeated 100k prerequisites or experiment fleet.
+Status `.context/REALISM-CLOUD-STATUS.md`; launch evidence
+`research/experiments/costfn/evidence/REALISM-VOLUME-PREP-20261112.md`.
+[✓ 5.29.1 initial approval/launch; generation/validation/storage/review OPEN].
+
+**Previous-run disposition:** the paid prep host is deleted; last retained
 snapshot is 03:57 UTC at exposure partition 68/1024, deletion verified at
 10:02:47 UTC. Final validation is unknown and no verified archive/snapshot was
 recovered. Treat the full input as lost. Older “running” checkpoints are history;

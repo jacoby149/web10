@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import CredentialStatus from "./CredentialStatus";
 import { contactHandoff } from '@/lib/contactHandoff';
+import { usernameHelp } from '@/lib/usernameHelp';
 
 // Contact-anchored auth (D61): contact (phone OR email) → 6-digit code → pick
 // an account on that contact (or create a new username) → sign in.
@@ -239,8 +240,12 @@ function ForgotForm({ I, embedded = false }: { I: Record<string, any>; embedded?
             value={newUsername}
             onChange={(e) => setNewUsername(e.target.value.toLowerCase())}
             placeholder="lowercase, digits, or hyphens"
+            autoCapitalize="none"
+            spellCheck={false}
+            aria-describedby="recovery-username-help"
             className="h-9 w-full rounded-sm border border-input bg-transparent px-3 text-sm shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
+          <p id="recovery-username-help" className="mt-1 text-xs text-muted-foreground">{usernameHelp}</p>
         </div>
       )}
       <div className="mt-4">

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Check, Plus } from 'lucide-react';
 import { ServerMixer } from './ServerMixer';
@@ -13,13 +13,21 @@ export interface SourceEditorControl {
 }
 
 const button = 'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-sm px-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:bg-elevated hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40';
-export function FeedSourcesEditor({ control, allocations, errors = {}, onRetry }: {
+export function FeedSourcesEditor({ control, allocations, errors = {}, onRetry, itemLabel, pageSize = 20 }: {
   control: SourceEditorControl;
   allocations?: ServerAllocation[];
   errors?: Record<string, string>;
   onRetry: () => void;
+  itemLabel?: string;
+  pageSize?: number;
 }) {
   const [params, setParams] = useSearchParams();
+  // Native range events can arrive before the router commits new props. Merge
+  // consecutive fader edits, rather than rebuilding from the previous render.
+  const latest = useRef({ scope: control.scope, observed: control.sources, sources: control.sources });
+  if (latest.current.scope !== control.scope || latest.current.observed !== control.sources) {
+    latest.current = { scope: control.scope, observed: control.sources, sources: control.sources };
+  }
   const editing = params.get('editServers') === '1';
   const [input, setInput] = useState(''), [trusted, setTrusted] = useState(false), [validation, setValidation] = useState('');
   useEffect(() => { setInput(''); setTrusted(false); setValidation(''); }, [editing, control.scope]);
@@ -33,7 +41,7 @@ export function FeedSourcesEditor({ control, allocations, errors = {}, onRetry }
   });
   const active = control.sources.map(row => ({ ...row, weight: control.approved.has(row.origin) ? row.weight : 0 }));
   const counts = allocations ?? allocateServerFetches(active.map((row, index) => `https://source-${index}.invalid`),
-    Object.fromEntries(active.map((row, index) => [`https://source-${index}.invalid`, row.weight]))).map((row, index) => ({ ...row, origin: active[index].origin }));
+    Object.fromEntries(active.map((row, index) => [`https://source-${index}.invalid`, row.weight])), pageSize).map((row, index) => ({ ...row, origin: active[index].origin }));
   const servers = control.sources.map(row => ({ ...row, count: counts.find(item => item.origin === row.origin)?.count ?? 0 }));
   const pending = new Set(control.sources.filter(row => !control.approved.has(row.origin)).map(row => row.origin));
   const confirmRemove = control.sources.find(row => row.origin === params.get('removeServer'));
@@ -44,9 +52,11 @@ export function FeedSourcesEditor({ control, allocations, errors = {}, onRetry }
     if (control.requiresApproval && (params.has('mixCursor') || params.has('after'))) setParams(previous => {
       const next = new URLSearchParams(previous); next.delete('mixCursor'); next.delete('after'); return next;
     }, { replace: true });
-    control.save(control.sources.map(row => row.origin === origin ? { ...row, weight } : row), undefined, true);
+    const next = latest.current.sources.map(row => row.origin === origin ? { ...row, weight } : row);
+    latest.current.sources = next;
+    control.save(next, undefined, true);
   };
-  return <ServerMixer embedded servers={servers} onChange={change} editing={editing}
+  return <ServerMixer embedded servers={servers} onChange={change} editing={editing} itemLabel={itemLabel}
     disabledOrigins={!control.ready ? new Set(servers.map(row => row.origin)) : pending} messages={messages}
     onRemove={origin => route(true, 'removeServer', origin)}
     headerControl={<button type="button" className={button} aria-expanded={editing} onClick={() => route(!editing)}>{editing ? <Check className="h-3 w-3" /> : null}{editing ? 'Done' : 'Edit servers'}</button>}>

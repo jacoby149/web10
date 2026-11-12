@@ -83,10 +83,10 @@ export function UploadProvider({ children, sessionKey }: { children: ReactNode; 
       : job.phase === 'cancelled' ? 'cancelled' : job.phase === 'blocked' ? 'publish-failed'
         : job.phase === 'failed' ? (job.error === 'media_preparation_failed' ? 'processing-failed' : 'publish-failed') : 'processing';
     const messages: Record<string, string> = {
-      publication_authority_changed: 'The original account or acting identity no longer has publication permission. Restore access, then retry.',
-      existing_result_requires_review: 'A document already exists but its audience needs review. Creation will not be replayed.',
+      publication_authority_changed: 'You no longer have permission to publish as the selected account or group. Check app approval and group permissions, then try again.',
+      existing_result_requires_review: 'This post already exists, but its audience needs checking. We won’t create a duplicate.',
       media_preparation_failed: 'Video preparation failed. Your original is uploaded; retrying processing will not upload it again.',
-      operation_expired: 'This pending publication expired. Review it before starting another post.',
+      operation_expired: 'This pending post has expired. Check its status before starting another post.',
     };
     const patch: Partial<SavedUpload> = { phase, deferred_admitted: job.admitted,
       media_doc_id: row.media_doc_id || job.media_dependencies[0], doc_id: job.doc_id || undefined,
@@ -375,7 +375,7 @@ export function useUploads() { return useContext(UploadContext); }
 export function UploadsScreen() {
   const queue = useUploads();
   if (!queue || queue.loading) return <div className="p-6 text-sm text-muted-foreground">Restoring uploads…</div>;
-  if (!queue.enabled) return <div className="p-6 text-sm text-muted-foreground">Resumable uploads are not enabled on this node. Existing posting is unchanged.</div>;
+  if (!queue.enabled) return <div className="p-6 text-sm text-muted-foreground">Background uploads aren’t available on this server yet. You can still upload and post from the composer.</div>;
   return <>{queue.error && <p role="alert" className="m-4 rounded-lg border border-danger/30 bg-danger-muted p-4 text-sm text-danger">{queue.error}</p>}<UploadCenter tasks={queue.tasks} onCommand={queue.command} onSelectFile={queue.selectFile} composePath="/feed?compose=1" /></>;
 }
 export function UploadDock() {

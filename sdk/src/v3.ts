@@ -622,12 +622,14 @@ export interface V3LoginResponse {
 // membership primitive).
 export interface V3DirectoryUser {
   username: string
+  created_at?: string
   follower_count: number
   profile: Record<string, unknown>
 }
 
 export interface V3PeoplePage {
   users: V3DirectoryUser[]
+  sort?: 'popular' | 'newest'
   limit: number
   offset: number
 }
@@ -1308,10 +1310,11 @@ export function createV3Client(options: V3ClientOptions = {}): V3Client {
      * but a missing token reads as the node's anon member (the public subset).
      * A signed-in reader sees more (their follows + the public subset).
      */
-    async listPeopleDirectory(opts?: { limit?: number; offset?: number }): Promise<V3PeoplePage> {
+    async listPeopleDirectory(opts?: { limit?: number; offset?: number; sort?: 'popular' | 'newest' }): Promise<V3PeoplePage> {
       const payload: Record<string, unknown> = {}
       if (opts?.limit != null) payload.limit = opts.limit
       if (opts?.offset != null) payload.offset = opts.offset
+      if (opts?.sort != null) payload.sort = opts.sort
       const token = state.token ?? readTokenCookie()
       if (token) payload.token = token
       return authPost<V3PeoplePage>(`${apiOrigin}/v3/users/directory`, payload)
@@ -1892,7 +1895,7 @@ export interface V3Client {
   contentViews(opts: { service: string; docIds: string[]; groups: string[] }): Promise<Record<string, { impressions: number; reach: number }>>
   readById(docId: string, collection: string, opts?: { surface?: string }): Promise<V3Document>
   query(sql: string, opts?: { groups?: string[]; prepare?: V3Prepare; withGroupMeta?: boolean; surface?: string; contentService?: string }): Promise<V3QueryResult>
-  listPeopleDirectory(opts?: { limit?: number; offset?: number }): Promise<V3PeoplePage>
+  listPeopleDirectory(opts?: { limit?: number; offset?: number; sort?: 'popular' | 'newest' }): Promise<V3PeoplePage>
   update(docId: string, body: Record<string, unknown>, opts?: { groups?: string[]; ad_preference?: V3AdPreference; author_as?: string }): Promise<V3Document>
   delete(docId: string, opts?: { author_as?: string }): Promise<{ doc_id: string; status: string }>
 

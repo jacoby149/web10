@@ -35,6 +35,25 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-12: Directory mixing separates public GETs from approved token dispatch
+
+The existing group directory is public GET metadata, even in an authenticated
+server rack: build its URL from only validated limit/offset/sort scalars, never
+the transport's credential-bearing POST envelope. Profile directories retain
+explicit public or current-approved-token mode and the existing readable-face
+gate. Response sort acknowledgement prevents older nodes silently masquerading
+as creation-sorted sources. Source-qualified read-only foreign cards avoid
+namesake home follow/join and fabricated app-host links. Bounded SDK/reader tests
+cover injection denial, no public token, denied-token no-fallback, stale scopes,
+independent offsets and colliding names. This is feature-level regression
+coverage, not an independent L1–L4/model-diverse or connected HTTPS-node PASS.
+
+The real browser also reproduces two rapid fader events rebuilding from stale
+catalog props: muting the second server restores the first to 100. Merge only
+the latest local preference weights until catalog props commit, reset that
+working set on scope/catalog replacement, and retain the existing save/approval
+generation checks. This repairs source selection, not credential authority.
+
 ### 2026-11-11: Healing is node maintenance, not reader authority
 
 Historical transcode recovery belongs in one-time ops tooling, not a public read hook, endpoint or perpetual sweep. The private dry-run plan binds expected node/storage and exact media/source; explicit apply revalidates canonical local ownership/deletion/status, runs sequentially and consumes private conditional claims. Scope canonical-read/status-save adapters to the separate script process and restore them on exit. Preserve non-body columns too: update_document defaults erase ref_value/tags/ad settings unless forwarded. Fresh prototype review catches this; actual-insert regressions retain the repair in `api/tests/test_heal_phone_videos.py`. Lost claims/crashes require manual review; concurrent manual transcodes and ClickHouse check/write are not atomic. Synthetic real ClickHouse/MinIO/FFmpeg plan/apply passes. The approved 5.28.1 production receipt then recovers all five exact-error media with preserved originals/metadata/claims and actual public post/Shorts advancing frames at desktop/375px, without API restart/deployment. Physical-phone/full-duration acceptance and model-diverse assurance remain OPEN; bounded operational success is not whole-security proof.

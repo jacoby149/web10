@@ -3,6 +3,7 @@
 // every data-layer function the messages view imports, so Chat renders with
 // realistic content and no backend. See screenshots/README.md.
 import type { DmRecord, ContactRecord } from '@/data/types';
+import { Web10Error } from 'web10-npm';
 import { MUSIC_TRACKS, SAVED_COLLECTIONS, readMusicReactions, toggleMusicReaction } from './mock-music';
 export { readMusicPage, readMusicTrack, readMusicCollection, findSavedMusicCollection, toggleSavedMusic, readSavedPostIds, savePostToCollection, removePostFromCollection, createCollection } from './mock-music';
 export type { MusicTrack } from '../../src/data/musicTrack';
@@ -200,7 +201,12 @@ function mentionWrite(value: Record<string, unknown>) {
   const target = window as typeof window & { __mentionWrites?: Record<string, unknown>[] };
   (target.__mentionWrites ??= []).push(value);
 }
-export async function createPost(post: Record<string, unknown>): Promise<unknown> { mentionWrite({ kind: 'post', ...post }); return { _id: 'fixture-post', ...post }; }
+export async function createPost(post: Record<string, unknown>): Promise<unknown> {
+  if (new URLSearchParams(location.search).get('approval') === 'required' && sessionStorage.getItem('fixture:approved') !== 'yes') {
+    throw new Web10Error('No app contract for https://social.example to create on posts', 403);
+  }
+  mentionWrite({ kind: 'post', ...post }); return { _id: 'fixture-post', ...post };
+}
 export async function createRepost(): Promise<unknown> { return {}; }
 // Repost-unify (#1003) surface reads — the harness has no repost data, so they
 // degrade to empty (no tallies, no "I reposted this" fill).
