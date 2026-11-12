@@ -1,6 +1,28 @@
 # Monitored DigitalOcean preparation — operator approval
 
-**CURRENT STATE — 12 November 2026:** the preparation host is deleted, not
+**New run started — 12 November 12:53:23 UTC:** run `3ef3634d8983`, droplet
+`618505005`, 400-GiB Volume `d01c584d-de97-11f1-8944-c234aeb68f7e`. Pinned SSH,
+source hashes, exact filesystem UUID and a synced-file unmount/remount readback
+pass. Actual worker state is generating 1M accounts with `persistent_work=true`
+at `/mnt/costfn-work/costfn-prep`; logs/state/source/setup receipts live on the
+Volume. No repeated 100k prerequisites; final validation remains required.
+Compute deadline **02:50:22 UTC Nov 13**, Volume retained, review after seven
+days. Live summary `.context/REALISM-CLOUD-STATUS.md`; launch and limits:
+[REALISM-VOLUME-PREP-20261112.md](evidence/REALISM-VOLUME-PREP-20261112.md).
+
+**New run approval — 12 November, ~12:45 UTC:** operator selected “Approve and
+start” for one NYC3 8-vCPU/32-GiB preparation droplet at $0.25/hour, up to
+fourteen hours under a $5 compute ceiling, plus one 400-GiB persistent Volume
+at $40/month prorated hourly. Preserve the volume when compute is cleaned up;
+review retention after seven days and require separate approval before deleting
+the only dataset copy. This authorizes generation/independent validation only,
+not the study fleet. New lease, new exact IDs and mount verification are required;
+the old closed lease below is not reopened. Initial fourteen-hour approval is
+recorded directly, not fabricated as the old host's extension history. As before,
+local/network/provider failure can delay cloud deletion; no provider billing-cap
+guarantee is claimed. Live state will be in `.context/REALISM-CLOUD-STATUS.md`.
+
+**Previous run — deleted on 12 November 2026:** that preparation host is deleted, not
 running. The last retained live snapshot is 03:57 UTC at exposure partition
 68/1024. No final validation outcome or verified private archive was collected.
 Cleanup was verified at 10:02:47 UTC, later than the approved 08:01:22 deadline;
