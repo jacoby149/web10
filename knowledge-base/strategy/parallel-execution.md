@@ -1656,6 +1656,47 @@ attempt. Direct 1M restart is active with work logs; keep
 the explicit floor skip and final validation/resource/lease controls. No claim
 that a heartbeat, allocated-unit fraction or stage timing is overall completion.
 
+**RD3-FOLLOWTHROUGH [~ 5.25.2 observation active]:** operator requests 300-second
+sleep/check/repair follow-through through storage and experiments. A locked
+read-only observer journals work/resource/output metadata and hands off on
+failure, phase/validation milestones or thirty minutes before cleanup; six
+handoff controls pass. Existing fast safety monitor/watchdog stay active. Two
+documented deployment SSH paths time out before authentication; stop retries
+and record the access blocker, not “missing credentials”. No silent extension,
+public upload or study fan-out. Final 1M validation, both verified private copies,
+operator statistics review, connected restore/delta/full-row parity and bounded
+approved pilot remain OPEN.
+
+**RD3-DELIVERIES [✓ 5.25.3 repair/probe; 1M completion OPEN]:** all 790 graph
+batches and six exports completed before delivery expansion OOMed at 2 GB.
+Bound whole-post event batches, log/check each physical count, then consolidate
+to one digest-bound file. Three controls, eight realism suites and a same-host
+11M-delivery/1M-person probe pass. Failed output/hashes retained; preserve new
+exception scratch, no automatic partial-stage success. Retry direct 1M with
+floor skip, final validation and unchanged lease/$5 controls. Foreground
+300-second session waits/checks replace the detached-observer-only handoff.
+Storage/review/connected acceptance/pilot/full experiments remain OPEN.
+Operator explicitly approves +8h on this same host to 08:01:22 UTC Nov 12,
+retaining $5 total compute/no fleet. Both approvals/exact preceding deadlines
+are retained; ten lease controls pass, stable watchdog and loaded service
+runtime updated without restarting the active export.
+**00:01 UTC Nov 12:** all nine files/manifest generated, 19,914,772,845 Parquet
+bytes and 1.6B physical deliveries. Independent validation now running; RD3
+remains open. Exact identity/file receipts in `evidence/REALISM-1M-20261112.md`
+under the costfn research directory. Storage/review/experiment gates unchanged.
+**RD3-VALIDATOR-PATH [✓ 5.25.4 repair/regression; 1M validation OPEN]:** preserve
+the isolated validator's missing-scratch-parent failure. Pass owned validation
+scratch explicitly; relocated-module regression passes locally/remotely and
+24 local contract/oracle tests pass. Resume verifies all completed generation
+hashes/source/identity, archives stale validator receipt and revalidates the
+same dataset, without model/floor regeneration or semantic/resource waivers.
+**RD3-EXPOSURE-SCALE [✓ 5.25.5 repair/regressions; 1M validation OPEN]:** first
+~25M-row exposure window OOMs after the full event partition pass. Refine to
+<=2.5M complete-key rows per partition with <=64 writers, exact row conservation
+and skew refusal. Two local/remote controls and eleven offline suites pass.
+Same generated input is hash/source/identity-reverified and reused; no model/
+floor rerun, raised engine limit or 1M validation/storage/experiment claim.
+
 **Earlier RD3 repair:** [✓ 5.24.2 local/remote controls; full graph/floor proof interrupted by operator]
 **RD3-GRAPH: bound complete-request candidate expansion at 2 GB** — actual 1M
 generation reached the global `CREATE TABLE edges` window and OOMed before any

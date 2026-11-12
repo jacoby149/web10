@@ -89,6 +89,24 @@ class LeaseTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             lease.validate(row)
 
+    def test_followthrough_requires_both_bounded_approvals_and_cannot_reopen(self):
+        row=example()
+        row['operator_extension']={'hours':2,'original_deadline':row['deadline'],'approved_epoch':200}
+        row['deadline']+=7200
+        row['operator_followthrough_extension']={'hours':8,'previous_deadline':row['deadline'],'approved_epoch':300}
+        row['deadline']+=8*3600
+        lease.validate(row)
+        for change in ({'hours':9},{'previous_deadline':14500},{'approved_epoch':199},{'approved_epoch':21701}):
+            with self.subTest(change=change),self.assertRaises(ValueError):
+                lease.validate({**row,'operator_followthrough_extension':{**row['operator_followthrough_extension'],**change}})
+        with self.assertRaises(ValueError):
+            lease.validate({**row,'deadline':row['deadline']+1})
+        with self.assertRaises(ValueError):
+            lease.validate({**row,'operator_extension':None})
+        for flag in ('cancelled','cleanup_verified'):
+            with self.assertRaises(ValueError):
+                lease.admits_creation({**row,flag:True},now=400)
+
 
 if __name__=="__main__":
     unittest.main()
