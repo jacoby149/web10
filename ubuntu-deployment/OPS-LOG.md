@@ -15,6 +15,10 @@ did:
     helper; wrote one synthetic preflight marker with If-None-Match, proved
     duplicate denial and anonymous HTTP 403, then deleted only that marker.
     No media job, post/grant update, deployment, secret export or service restart.
+  - Eight session-only synthetic history cases on real dev ClickHouse pass
+    latest-before-filter/deletion-tie/keyset/reset; temporary table removed,
+    zero persistent document writes. Actual public-post desktop Chromium
+    baseline advances audio time 2.02→4.04s with zero decoded video frames.
 state: preflight passes; healing remains disabled and is not installed in prod.
   Dev state bucket retained for intended maintenance claims. No live clip recovery.
 next: finish conflict-free/all-green PR #1517, reviewed promotion, production
