@@ -15,6 +15,10 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Historical phone-probe healing (11.11.2026) — changed-path review, OPEN
+
+GPT-6.1 Sol reviewed the recovery helper, idle-worker integration and direct canonical-read/private-claim/status-write seams; no complete L1–L4 or model-diverse sign-off claimed. Feature is default-off node maintenance, not public-read-triggered authority. `api/tests/test_transcode_recovery.py` denies foreign sources/principals, deleted/replaced/completed media, existing claims, running jobs, unsafe bucket preflight and uncertain claim writes; retries merge current metadata. `test_transcode_probe.py` exercises recovery through real rotated HEVC → H.264/AAC FFmpeg with fake DB/storage. New feature's pre-implementation test collection fails on missing recovery module; not a demonstrated pre-existing confidentiality exploit. Actual ClickHouse/S3, concurrent manual encodes/check-write races, fresh independent review, activation and live desktop/phone acceptance remain OPEN. Docker daemon is unavailable locally; do not relabel offline fakes as connected proof.
+
 ## Consent-popup dead-session self-scrub + the recovery's reauth honesty (11.11.2026) — L1/L2 bounded, Qwen 3.8 27B single-model, shipped 5.23.4
 
 The consent popup's "Signed in as …" is local cookie state, and every on-mount

@@ -121,6 +121,8 @@ HLS_SIG_TTL = int(os.getenv("HLS_SIG_TTL", "600"))
 # worker (a transcode must not starve request handling — D43's pool is
 # separate, but ffmpeg is CPU-heavy either way).
 HLS_WORKER_CONCURRENCY = int(os.getenv("HLS_WORKER_CONCURRENCY", "1"))
+# Opt-in historical phone-probe repair; private claims use RESUMABLE_STATE_BUCKET.
+HLS_RECOVERY_ENABLED = os.getenv("HLS_RECOVERY_ENABLED", "false").strip().lower() in ("true", "1", "yes")
 # Absolute per-command wall-clock ceiling. Renditions use a duration-aware
 # budget within it; short clips/thumbnails keep a ten-minute maximum.
 HLS_FFMPEG_TIMEOUT = int(os.getenv("HLS_FFMPEG_TIMEOUT", "21600"))
@@ -157,7 +159,9 @@ if QUERY_EVAL_READABLE_MODE not in ("", "per-group", "batched"):
 for v in list(globals()):
     # Evaluation values above already parse their environment types. In
     # particular, the string "0" must not enable a policy-bypass flag.
-    if v == "READABLE_RESOLUTION_MODE" or v.startswith(("QUERY_EVAL_", "MEDIA_DELIVERY_", "RESUMABLE_")):
+    if v == "READABLE_RESOLUTION_MODE" or v.startswith(
+        ("QUERY_EVAL_", "MEDIA_DELIVERY_", "RESUMABLE_", "HLS_RECOVERY_")
+    ):
         continue
     env_val = os.getenv(v)
     if env_val is not None:

@@ -35,6 +35,10 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-11: Healing is node maintenance, not reader authority
+
+Historical transcode failures may be repaired from canonical local media only, with exact owned-source binding and deletion-aware rereads at processing/status writes. Private conditional one-attempt claims fence automatic retries across processes/restarts; a public page view grants no conversion authority. Lost claims/crashes require manual recovery; ClickHouse check/write and manual transcodes are not made atomic. `test_transcode_recovery.py` exercises foreign-source/deletion/replacement/duplicate/uncertain-claim denials; storage/ClickHouse integration and independent review remain OPEN.
+
 ### 2026-11-09: Visible-by-default replay needs explicit sensitive boundaries
 
 D107 rejects the initial label/public-caption allowlist: normal UI and public

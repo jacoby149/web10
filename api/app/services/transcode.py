@@ -72,7 +72,16 @@ def _ensure_started() -> None:
 
 def _worker_loop() -> None:
     while True:
-        doc_id, author_key = _job_queue.get()
+        try:
+            doc_id, author_key = _job_queue.get(timeout=60 if settings.HLS_RECOVERY_ENABLED else None)
+        except queue.Empty:
+            try:
+                from app.services.transcode_recovery import recover_one
+
+                recover_one()
+            except Exception as error:
+                logger.error("[transcode-recovery] maintenance unavailable: %s", type(error).__name__)
+            continue
         started = time.time()
         try:
             _process_job(doc_id, author_key)
@@ -99,13 +108,31 @@ def _find_video_ref(body: dict) -> dict:
     raise RuntimeError(f"document has no video minio ref (body.video={video!r})")
 
 
-def _set_transcoding_settings(doc_id: str, author_key: str, base_body: dict, ts: dict, service: str) -> None:
+class RecoveryObsolete(Exception):
+    """Maintenance must not recreate or overwrite replaced/completed media."""
+
+
+def _recovery_document(doc_id, author_key, source, *, allow_processing=False):
+    from app.services.transcode_recovery import eligible_source
+
+    doc = ch.get_document_version(doc_id, author_key)
+    if eligible_source(doc, author_key, allow_processing=allow_processing) != source:
+        raise RecoveryObsolete()
+    return doc
+
+
+def _set_transcoding_settings(
+    doc_id: str, author_key: str, base_body: dict, ts: dict, service: str, *, recovery_source: str | None = None
+) -> None:
     """Merge transcoding_settings into the document body (new version).
 
     `service` is the document's OWN collection — the update must preserve it
     (a media_metadata doc updated into `media` would split the doc across
     collections: readers of the original collection never see the settings).
     """
+    if recovery_source is not None:
+        live = _recovery_document(doc_id, author_key, recovery_source, allow_processing=True)
+        base_body, service = live["body"], live["service"]
     merged = {**base_body, "transcoding_settings": ts}
     if ts.get("status") == "done" and not merged.get("thumbnail_object_key") and ts.get("thumbnails"):
         merged["thumbnail_object_key"] = ts["thumbnails"][0]["url"]["value"]
@@ -113,9 +140,13 @@ def _set_transcoding_settings(doc_id: str, author_key: str, base_body: dict, ts:
     logger.info("[transcode] document updated — doc_id=%s status=%s", doc_id, ts.get("status"))
 
 
-def _mark_failed(doc_id: str, author_key: str, error: str) -> None:
+def _mark_failed(doc_id: str, author_key: str, error: str, *, recovery_source: str | None = None) -> None:
     try:
-        doc = ch.get_document(doc_id, author_key)
+        doc = (
+            ch.get_document(doc_id, author_key)
+            if recovery_source is None
+            else _recovery_document(doc_id, author_key, recovery_source, allow_processing=True)
+        )
         if doc:
             _set_transcoding_settings(
                 doc_id,
@@ -123,7 +154,10 @@ def _mark_failed(doc_id: str, author_key: str, error: str) -> None:
                 doc["body"],
                 {"enabled": False, "status": "failed", "error": error},
                 doc.get("service") or "media",
+                recovery_source=recovery_source,
             )
+    except RecoveryObsolete:
+        logger.info("[transcode-recovery] failure status skipped; canonical media changed")
     except Exception:
         logger.exception("[transcode] could not mark doc failed — doc_id=%s", doc_id)
 
@@ -273,8 +307,12 @@ def _probe_dimensions(path: Path) -> tuple[int, int, float]:
     return width, height, fps
 
 
-def _process_job(doc_id: str, author_key: str) -> None:
-    doc = ch.get_document(doc_id, author_key)
+def _process_job(doc_id: str, author_key: str, *, recovery_source: str | None = None) -> None:
+    doc = (
+        ch.get_document(doc_id, author_key)
+        if recovery_source is None
+        else _recovery_document(doc_id, author_key, recovery_source)
+    )
     if not doc:
         raise RuntimeError(f"document {doc_id} not found")
     body = doc["body"]
@@ -289,6 +327,7 @@ def _process_job(doc_id: str, author_key: str) -> None:
         body,
         {"enabled": False, "status": "processing"},
         doc.get("service") or "media",
+        recovery_source=recovery_source,
     )
 
     s3 = media_svc.get_s3_client()
@@ -405,6 +444,7 @@ def _process_job(doc_id: str, author_key: str) -> None:
             body,
             {"enabled": True, "status": "done", "variants": variants, "thumbnails": thumbnails},
             doc.get("service") or "media",
+            recovery_source=recovery_source,
         )
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

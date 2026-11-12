@@ -15,6 +15,28 @@ The phone is the camera. Vertical is the default, not the edge case — and the 
 
 The node is **ratio-agnostic**: whatever ratio arrives (9:16, 4:5, 1:1, 16:9) gets correct renditions automatically. The ratio decision is made client-side, before upload (below) — the node just does the math right.
 
+## Recovery of the phone-probe failure
+
+A fixed encoder does not repair yesterday's failed uploads. Opt-in node maintenance
+(`HLS_RECOVERY_ENABLED=true`, default off) checks one candidate after 60 idle seconds,
+using the existing HLS worker concurrency and FFmpeg budgets. Queued uploads take
+priority. Keyset scans rank latest history before deletion/service/status filtering;
+only `too many values to unpack (expected 3)` qualifies, not arbitrary failures.
+
+Candidates must be live local-human `media_metadata`/`public_media` documents, with
+matching `object_key`/MinIO `video.value` in the author's namespace. Canonical state
+is rechecked before processing and each status write; merge current metadata and
+decline deleted/replaced/completed media. No posts, group links, grants or TTL changes;
+no read hook, saved user token or new public retry authority.
+
+One conditional claim per node/author/media/source lives under
+`transcode-recovery/phone-probe-v1/` in private `RESUMABLE_STATE_BUCKET`; policy/ACL
+preflight fails closed. Claims are consumed before work, fencing processes/restarts
+and repeated failures. A crash/lost claim response needs operator-reviewed manual
+recovery, not an automatic loop. This is not a transactional durable queue or CAS
+for concurrent manual transcodes/ClickHouse edits. Review, activation, actual storage/
+ClickHouse and original-clip desktop/phone playback remain separate OPEN gates.
+
 ## Upload Styles (the client)
 
 The killer apps keep aspect ratio to **a few fixed presets, not arbitrary** — the feed layout demands consistency. The presets:

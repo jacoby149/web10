@@ -445,6 +445,8 @@ OAuth authorization certifies its source token before code minting: local provid
 
 ## Security invariants
 
+Historical phone-probe healing is opt-in (`HLS_RECOVERY_ENABLED`, default off): idle HLS workers retry the exact fixed parser failure once per canonical local media/source, with private conditional claims in `RESUMABLE_STATE_BUCKET`. No public-read trigger, post/grant changes or saved user credential. Crash/manual-concurrency/rollout limits: `knowledge-base/web10-v3/media/video-experience.md`.
+
 Resumable uploads remain default-off (`RESUMABLE_UPLOADS_ENABLED`). New multipart
 routes verify current human/app/service authority before private conditional S3
 state and native storage operations; completion verifies stored bytes by SHA-256.
