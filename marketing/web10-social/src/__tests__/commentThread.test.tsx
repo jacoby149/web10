@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { lucideMock } from './helpers/lucideMock';
 vi.mock('lucide-react', () => lucideMock);
 
@@ -47,6 +48,18 @@ const C1_REPLIES_PAGE1 = [reply('r1', 1), reply('r2', 2), reply('r3', 3), reply(
 const C1_REPLIES_PAGE2 = [reply('r6', 6), reply('r7', 7)];
 
 describe('CommentThread — paged threaded replies (comments.md, the Facebook model)', () => {
+  it('links hashtags in root comments and nested replies through the social router', async () => {
+    const { CommentThread } = await import('@/components/Feed/CommentThread');
+    const { readThreadComments, readThreadReplies } = await import('@/data');
+    vi.mocked(readThreadComments).mockResolvedValue({ comments: [{ ...C1, text: '#Walking' }], nextCursor: null, replyCounts: { c1: 1 } });
+    vi.mocked(readThreadReplies).mockResolvedValue({ comments: [{ ...reply('r1', 1), text: '#Night' }], nextCursor: null });
+    function Location() { return <output>{useLocation().pathname}</output>; }
+    render(<MemoryRouter><CommentThread postId="p1" isOpen count={0} onCountChange={() => {}} /><Location /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole('link', { name: '#Walking' }));
+    expect(screen.getByRole('status')).toHaveTextContent('/tag/walking');
+    fireEvent.click(await screen.findByRole('link', { name: '#Night' }));
+    expect(screen.getByRole('status')).toHaveTextContent('/tag/night');
+  });
   beforeEach(() => {
     vi.clearAllMocks();
   });

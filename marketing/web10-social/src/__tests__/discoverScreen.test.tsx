@@ -68,6 +68,24 @@ beforeAll(async () => {
 });
 
 describe('DiscoverScreen', () => {
+  it('unions body hashtags with machine tags and restores topic/search URL filters', async () => {
+    const posts = [
+      { _id: 'topic-one', text: 'A trail story', hashtags: ['walking'], tags: ['photo'], author_username: 'bob', created_at: '2026-11-12' },
+      { _id: 'topic-two', text: 'An unrelated story', hashtags: ['music'], author_username: 'alice', created_at: '2026-11-12' },
+    ];
+    vi.mocked(data.readDiscoverFeed).mockResolvedValue(posts);
+    onTestFinished(() => { vi.mocked(data.readDiscoverFeed).mockResolvedValue([]); });
+    const view = render(<MemoryRouter initialEntries={['/hot-gossip?tag=walking']}><DiscoverScreen /></MemoryRouter>);
+    expect(within(await screen.findByTestId('discover-grid')).getByText('A trail story')).toBeInTheDocument();
+    expect(screen.queryByText('An unrelated story')).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: '#walking' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: '#photo' })).toBeInTheDocument();
+    view.unmount();
+    render(<MemoryRouter initialEntries={['/hot-gossip?q=%23walking']}><DiscoverScreen /></MemoryRouter>);
+    expect(within(await screen.findByTestId('discover-grid')).getByText('A trail story')).toBeInTheDocument();
+    expect(screen.queryByText('An unrelated story')).not.toBeInTheDocument();
+    vi.mocked(data.readDiscoverFeed).mockResolvedValue([]);
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(data.resolveDiscoverProfiles).mockImplementation(async (posts) => posts);

@@ -46,6 +46,20 @@ describe('posts v3 data layer', () => {
   });
 
   describe('createPost (v3: create in posts collection)', () => {
+    it('derives body hashtags on create and edit without reclassifying document tags', async () => {
+      mock.create.mockResolvedValue({ doc_id: 'p', author_key: 'alice', body: {}, created_at: '2026-11-12T00:00:00Z' });
+      mock.update.mockResolvedValue({ doc_id: 'p', author_key: 'alice', body: {}, created_at: '2026-11-12T00:00:00Z' });
+      await createPost({ text: '#Walking #ad #short #video', created_at: '2026-11-12T00:00:00Z' });
+      expect(mock.create.mock.calls[0][1]).toMatchObject({ hashtags: ['walking', 'ad', 'short', 'video'] });
+      expect(mock.create.mock.calls[0][1].tags || []).toEqual([]);
+      await updatePost('p', { text: '#Night_walk' });
+      expect(mock.update).toHaveBeenLastCalledWith('p', expect.objectContaining({ hashtags: ['night_walk'] }), undefined);
+      expect(mock.update.mock.calls[0][1]).not.toHaveProperty('tags');
+      await updatePost('p', { text: 'No more topics' });
+      expect(mock.update).toHaveBeenLastCalledWith('p', expect.objectContaining({ hashtags: [] }), undefined);
+      await updatePost('p', { title: 'Title-only edit' });
+      expect(mock.update.mock.calls[2][1]).not.toHaveProperty('hashtags');
+    });
     it('creates a post document', async () => {
       const doc = { doc_id: 'p1', body: { text: 'Hello world' }, created_at: '2026-07-18T00:00:00Z' };
       mock.create.mockResolvedValue(doc);

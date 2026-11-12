@@ -1064,20 +1064,21 @@ function DiscoverBoard({ mode }: { mode: Exclude<DiscoverMode, 'people'> }) {
   }, [posts, knobState, activeKey, sourceControl.home]);
 
   const topics = useMemo(
-    () => ['All', ...buildTopics(scoredPosts.flatMap(p => p.tags ?? []))],
+    () => ['All', ...buildTopics(scoredPosts.flatMap(p => [...(p.tags ?? []), ...(p.hashtags ?? [])]))],
     [scoredPosts],
   );
 
   const visiblePosts = useMemo(() => {
     let filtered = scoredPosts;
     if (activeTag && activeTag !== 'All') {
-      filtered = filtered.filter(p => p.tags?.includes(activeTag) ?? false);
+      filtered = filtered.filter(p => p.tags?.includes(activeTag) || p.hashtags?.includes(activeTag));
     }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       filtered = filtered.filter(p =>
         (p.text ?? '').toLowerCase().includes(q) ||
         (p.tags ?? []).some(t => t.toLowerCase().includes(q)) ||
+        (p.hashtags ?? []).some(t => t.toLowerCase().includes(q.replace(/^#/, ''))) ||
         (p.author ?? '').toLowerCase().includes(q),
       );
     }
@@ -1340,7 +1341,7 @@ function DiscoverBoard({ mode }: { mode: Exclude<DiscoverMode, 'people'> }) {
                   <HotGossipSidebar
                     entries={scoredPosts
                       .filter(p => !isForeignPost(p))
-                      .filter(p => activeTag === 'All' || (p.tags?.includes(activeTag) ?? false))
+                      .filter(p => activeTag === 'All' || p.tags?.includes(activeTag) || p.hashtags?.includes(activeTag))
                       .slice(0, 10)
                       .map((p, i) => ({ post: p, rank: i + 1, score: (p.likes || 0) + (p.comments || 0) + (p.reposts || 0) }))}
                     onSelect={jumpToPost}
