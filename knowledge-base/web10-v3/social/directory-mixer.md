@@ -51,14 +51,14 @@ discovery, not a claim of cross-node graph enumeration.
 
 ## Verification and remaining gates
 
-5.29.1 visual follow-up: the server rack now uses the boards' Advanced / Hide
+5.30.1 visual follow-up: the server rack now uses the boards' Advanced / Hide
 controls disclosure rather than a separate Servers CTA. All 102 social/106
 marketing focused controls and both builds pass; actual-app show/hide, sort
 preservation, reload, source editing/mixing and mute checks pass in both themes
 at all four widths. Collapsed/expanded desktop/375px captures inspected under
 `.context/directory-advanced/`; authority/ranking and connected gates unchanged.
 
-Local 5.29.0 receipt (12 November): all 2,528 social, 379 marketing, 319 SDK and
+Local 5.30.0 receipt (12 November): all 2,528 social, 379 marketing, 319 SDK and
 2,268 API tests plus eight API subtests pass (one opt-in skip). Both production
 builds/typechecks and changed-file Ruff lint/format pass. The final social suite
 passes standalone in 242 seconds after an earlier six-minute concurrent run
