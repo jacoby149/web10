@@ -1432,7 +1432,17 @@ docs before code, per the rule at the top.
 
 ### Current directive — derived realism dataset (11 November 2026)
 
-**12 November disposition:** the paid prep host is deleted; last retained
+**New run, 12 November 12:53 UTC:** new approved 14-hour preparation lease
+`3ef3634d8983`, droplet `618505005`, 400-GiB persistent work Volume. Pinned SSH,
+source hashes, exact mount/UUID and synced-file unmount/remount readback pass;
+the actual 1M generator is active with `persistent_work=true`. Compute deadline
+02:50:22 UTC Nov 13, $5 compute ceiling; retained Volume $40/month prorated,
+review after seven days. No repeated 100k prerequisites or experiment fleet.
+Status `.context/REALISM-CLOUD-STATUS.md`; launch evidence
+`research/experiments/costfn/evidence/REALISM-VOLUME-PREP-20261112.md`.
+[✓ 5.29.1 initial approval/launch; generation/validation/storage/review OPEN].
+
+**Previous-run disposition:** the paid prep host is deleted; last retained
 snapshot is 03:57 UTC at exposure partition 68/1024, deletion verified at
 10:02:47 UTC. Final validation is unknown and no verified archive/snapshot was
 recovered. Treat the full input as lost. Older “running” checkpoints are history;

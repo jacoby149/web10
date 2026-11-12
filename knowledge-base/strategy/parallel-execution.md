@@ -1656,7 +1656,18 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
-**Current run disposition (12 November):** the prep host is deleted, last
+**Current run (12 November 12:53 UTC):** approved new 14-hour NYC3 prep lease
+`3ef3634d8983`; droplet `618505005` is generating the actual 1M input on a
+400-GiB persistent Volume, not root disk. Exact mount/UUID, source hashes and
+same-host unmount/remount readback pass. `persistent_work=true`; durable status/
+logs/source/setup receipts live on the disk. Deadline 02:50:22 UTC Nov 13;
+$5 compute ceiling and $40/month prorated Volume, retained after cleanup and
+reviewed after seven days. No repeated 100k prerequisites, no experiment fleet;
+independent validation/storage/review/connected gates stay open. Live summary:
+`.context/REALISM-CLOUD-STATUS.md`; launch receipt `evidence/REALISM-VOLUME-PREP-20261112.md`
+under costfn research. [✓ 5.29.1 initial approval/launch; 1M completion OPEN].
+
+**Previous run disposition (12 November):** the prep host is deleted, last
 retained snapshot 03:57 UTC at exposure partition 68/1024; deletion verified
 10:02:47 UTC. No final validation receipt/verified archive/snapshot was recovered.
 Treat the full input as lost, not running or validated. Older active-run entries
