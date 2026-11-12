@@ -134,6 +134,9 @@ S3 signature alone is not proof that the password gate protects those bytes.
 - [ ] DEMO1 logo feature is implemented and reviewed; both configured assets
   survive save/reload and appear on actual demo screens in matching themes.
 - [ ] Gate passes denial controls before any sample is uploaded.
+- [ ] Retain existing web10-social account/post/comment/moderation behavior
+  inside the gate. No demo-specific speaker levels, account approval or
+  TorahAnytime login/sync implementation; no weakened authorization either.
 - [ ] Stock only the agreed sample using [CONTENT.md](CONTENT.md).
 - [ ] In a fresh browser: unlock, complete actual demo auth/consent, browse
   feed/speaker pages, follow, save/share a shiur and play/pause/seek media.
@@ -144,6 +147,12 @@ S3 signature alone is not proof that the password gate protects those bytes.
 - [ ] Record revision, exact hostnames/routes, DNS/TLS/gate receipts, content
   count/bytes and known limits in OPS-LOG.md. Normal CI/review must be green
   before claiming ready. No local test substitutes for deployed acceptance.
+
+Show the experience before the policy/integration workshop. After the demo,
+collect their current and desired signup, speaker, comment, abuse/moderation
+and sync/login policies; use those answers to write the partner proposal.
+That discovery is not a prerequisite for generic demo behavior. It does not
+waive permission to rehost the sample, private deployment or gate requirements.
 
 ## 6. Rollback
 

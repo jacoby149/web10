@@ -122,7 +122,26 @@ cost and responsibilities transparently and size the pilot accordingly; do not
 imply unlimited petabyte hosting is included or funded. No surprise fees,
 forced migration or requirement to understand web10 infrastructure to benefit.
 
-## Immediate demo — three small bites, not the full rollout
+## Immediate demo — web10-social policy first, then partner feedback
+
+**Current operator decision:** build the first demo with the same account,
+posting, commenting and moderation policy as web10-social. Brand it as
+TorahAnytime Social, stock the agreed Torah sample and show the actual
+experience. Do not implement the previously discussed anon/read-only/speaker
+account levels, speaker approval or “Log in with TorahAnytime” for this first
+demo. Those are possible proposal topics, not settled implementation tasks.
+Existing authorization and the isolated demo password gate remain in force;
+do not interpret unchanged social policy as permission to expose production.
+
+**Order:** demonstrate → understand their policies and integration needs →
+write a tailored proposal. Ask who can register, upload, comment/reply or
+publish profile/clip/link content; how speakers are approved; whether early
+uploads/comments/edits are reviewed; and how reports, inappropriate content,
+suspensions/removal and appeals are handled. Learn both current practice and
+desired changes. Discuss account/speaker/catalog syncing, login capability,
+source of truth, access and revocation before proposing an integration. No
+existing SSO/API capability is assumed. Separate verified answers, our
+recommendations and unresolved questions in the proposal.
 
 Operator-selected demo URLs: **https://torah.web10.app** (social) and
 **https://api.torah.web10.app** (API). The operating kit lives in
@@ -169,8 +188,9 @@ download button alone does not settle redistribution rights.
   showing it; do not leave it as placeholders or publicly publish the sample.
 
 Demo acceptance is simple: unlock the demo, see TorahAnytime branding in either
-theme, browse a populated Torah feed/speaker pages and play the selected shiurim.
-Use existing capabilities and controlled demo content. Expanded role presets,
+theme, browse a populated Torah feed/speaker pages and play the selected shiurim
+using existing web10-social participation/moderation behavior. Use existing
+capabilities and controlled demo content. Expanded role presets,
 production Torah-only enforcement, full catalog sync and scale-up remain later
 TA0–TA4 work, not prerequisites to building this isolated demo. The demo is not
 proof of those production capabilities. No implementation, download or deployment
@@ -191,12 +211,12 @@ before future UI implementation; require desktop and 375px captures.
 
 ### Restricted permissions and additional role presets
 
-**Working model — approve the speaker, then trust the publisher.** The operator
-wants speaker-level approval as the planning baseline: TorahAnytime approves
+**Later proposal hypothesis, not demo policy — approve the speaker, then trust the publisher.** The operator
+previously suggested speaker-level approval as a possible partner model: TorahAnytime approves
 who may publish; a listener account alone never grants upload/post authority.
 They may vet a prospective speaker's first few videos before approval, then
 allow the approved publisher to post without manually auditing every video.
-This describes our current assumption about their workflow, **not a verified
+This remains a discovery hypothesis about their workflow, **not a verified
 statement of TorahAnytime's existing process**. The roughly 1,200-speaker figure
 discussed by the operator does not establish how approval or review works.
 
@@ -261,7 +281,16 @@ reconciliation, then price storage, transcoding, egress/CDN, backups and ongoing
 operations. No full-catalog copy, paid provisioning or production publication
 without explicit scope, budget and approval.
 
-## Sequence and acceptance gates
+## Post-demo proposal and rollout gates
+
+DEMO1–DEMO3/DNS use the current web10-social policy and do not depend on a
+partner-specific permission redesign or SSO. After showing the demo, TA0
+collects their current/desired policy and integration answers. Produce the
+**TA-PROPOSAL** before implementing custom policy/sync: verified workflow,
+recommended permission matrix, moderation responsibilities, account/login and
+catalog-sync options, technical dependencies, phased acceptance and cost/scope.
+Partner agreement gates the subsequent TA1–TA4 implementation, not the first
+showcase. Operational preflight and sample rights still precede demo execution.
 
 1. **TA0 — partner discovery and pilot agreement.** Document counterpart,
    verified inventory/access/rights, audience baseline, desired branding,

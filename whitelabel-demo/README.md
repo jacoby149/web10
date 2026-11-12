@@ -40,9 +40,23 @@ Execution queue: [plan](../knowledge-base/strategy/plan.md) and
    with permission, attribution and working media—not placeholder cards.
 
 Use the existing applications; this folder is their operating kit, not a
-forked social app. Full synchronization and expanded role presets stay in the
-later partner rollout. No claim of production Torah-only enforcement follows
-from a curated private demo.
+forked social app. **Use the same participation, account, posting, commenting
+and moderation policy as web10-social for the first demo.** Keep existing
+authorization intact; do not introduce speaker-only posting, new account
+levels, an approval queue or “Log in with TorahAnytime” for this showcase.
+Normal demo accounts are separate from real TorahAnytime identities. The outer
+password gate limits access to the showcase; it is not speaker approval.
+
+The sequence is **show → learn their policies → propose the integration**:
+first let them experience TorahAnytime Social with their branding/content;
+then ask how accounts, speakers, comments, inappropriate content and moderation
+work today and what they want to change. Discuss account/catalog syncing and
+login options at that point, without promising an existing integration.
+Write a tailored proposal from their answers, identifying confirmed facts,
+open questions, permission changes, integration requirements and bounded scope.
+
+Full synchronization and custom role presets remain later work. No claim of
+production Torah-only enforcement follows from a curated private demo.
 
 ## Start here
 

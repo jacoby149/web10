@@ -48,11 +48,14 @@ than proposing a new server purchase; exact resources/access remain unknown.
 “Value-adds” here means
 features, not advertising.
 
-The enabling work is its own branded Torah-only experience, with controlled
-publishing and an authorized ongoing catalog sync. White-label node/social
-configuration, restricted roles and all-surface content governance are launch
-prerequisites, not features we can claim are ready. Next: partner discovery,
-rights/access, approved content/role policy and a bounded pilot proposal.
+**First show the demo using web10-social's existing policy**, under their brand
+with a curated Torah sample and private password gate. Do not add new account
+levels, speaker approval or TorahAnytime login/sync before that first showcase.
+Then learn their current/desired signup, speaker, commenting and moderation
+rules, including inappropriate content, plus sync/login capabilities. Use their
+answers to make a tailored proposal, not a speculative permission redesign.
+Custom publishing policy, all-surface governance and authorized synchronization
+are later rollout work, not features we can claim are ready or demo blockers.
 
 This partner-specific sync plan is an explicit exception to the generic
 fresh-start/no-catalog offer above (D95), not a change to every creator pitch
