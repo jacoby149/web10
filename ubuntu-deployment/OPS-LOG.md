@@ -19,6 +19,16 @@ did:
     latest-before-filter/deletion-tie/keyset/reset; temporary table removed,
     zero persistent document writes. Actual public-post desktop Chromium
     baseline advances audio time 2.02→4.04s with zero decoded video frames.
+  - In an isolated dev subprocess, execute committed recovery/worker source
+    against session-only synthetic users/documents, actual MinIO and FFmpeg:
+    failed→processing→done, 24 decoded H.264 portrait frames, original and all
+    canonical metadata preserved, repeat scan adds no version. Remove only
+    own synthetic source/derivatives/claim and temporary tables. No live-worker
+    hotpatch or persistent user/document writes.
+  - Production state-bucket policy/ACL preflight, conditional duplicate denial
+    and anonymous 403 pass too; its own synthetic marker is removed. No media
+    queued. Exact-post preservation hashes and desktop/375px post/Shorts
+    zero-frame baseline saved privately under .context/healing-live/.
 state: preflight passes; healing remains disabled and is not installed in prod.
   Dev state bucket retained for intended maintenance claims. No live clip recovery.
 next: finish conflict-free/all-green PR #1517, reviewed promotion, production
