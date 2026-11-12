@@ -6,6 +6,7 @@ does not call this model or its allocation functions.
 """
 import argparse
 from array import array
+from contextlib import contextmanager
 import csv
 import json
 import math
@@ -248,6 +249,68 @@ def _build_edges(db,n,candidate_budget=250000):
     db.execute('DROP TABLE edge_requests')
 
 
+@contextmanager
+def _retained_work(parent):
+    work=Path(tempfile.mkdtemp(prefix='realism-work-',dir=parent))
+    try:
+        yield work
+    except BaseException:
+        print(f'[realism] failed scratch preserved: {work.name}; not a completed-stage witness',flush=True)
+        raise
+    else:
+        shutil.rmtree(work)
+
+
+def _delivery_query(n, posts):
+    return ("SELECT p.doc_id, 'posts' AS service, u.username AS reader_key, "
+            "'feed' AS surface, 'delivery' AS event_type, '{}' AS payload, "
+            "p.created_at + to_milliseconds(((j+1)::DOUBLE/(p.impressions+1)*p.age_ms)::BIGINT) AS seen_at "
+            f"FROM {posts} p, LATERAL range(p.impressions) x(j) "
+            f"JOIN people u ON u.id=(p.author_id+1+(j%p.reach))%{n}")
+
+
+def _export_deliveries(db, n, path, work, event_budget=4000000):
+    """Bound lateral expansion/join state, then stream the completed parts.
+
+    A post stays whole; a batch is bounded by budget plus the largest post.
+    Parts are scratch, never an alternative to the final single-file digest.
+    """
+    if type(event_budget) is not int or event_budget<1:
+        raise ValueError('positive delivery batch budget required')
+    stage=_Progress('delivery-batch-planning',event_budget=event_budget)
+    db.execute('CREATE TABLE delivery_posts AS SELECT *, '
+               'floor((sum(impressions) OVER (ORDER BY ordinal ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)-1)/'
+               f'{event_budget})::BIGINT AS batch_id FROM post_facts WHERE impressions>0')
+    batches=db.execute('SELECT batch_id,sum(impressions) FROM delivery_posts GROUP BY batch_id ORDER BY batch_id').fetchall()
+    stage.finish(batches=len(batches),expected_rows=sum(rows for _,rows in batches))
+    parts=Path(work)/'delivery-parts'
+    parts.mkdir(exist_ok=False)
+    completed=0
+    for index,(batch_id,expected) in enumerate(batches):
+        stage=_Progress('delivery-batch',batch=index+1,batches=len(batches),expected_rows=expected)
+        part=parts/f'{index:06d}.parquet'
+        relation=f'(SELECT * FROM delivery_posts WHERE batch_id={int(batch_id)})'
+        quoted=part.as_posix().replace("'","''")
+        db.execute(f"COPY ({_delivery_query(n,relation)}) TO '{quoted}' (FORMAT PARQUET, COMPRESSION ZSTD, ROW_GROUP_SIZE 122880)")
+        actual=db.execute('SELECT count(*) FROM read_parquet(?)',[str(part)]).fetchone()[0]
+        if actual!=expected:
+            raise ValueError('delivery batch row conservation failed')
+        completed+=actual
+        stage.finish(rows=actual,completed_rows=completed,bytes=part.stat().st_size)
+    stage=_Progress('delivery-parts-consolidation',expected_rows=completed)
+    quoted=Path(path).as_posix().replace("'","''")
+    if batches:
+        db.execute(f"COPY (SELECT * FROM read_parquet(?)) TO '{quoted}' (FORMAT PARQUET, COMPRESSION ZSTD, ROW_GROUP_SIZE 122880)",
+                   [str(parts/'*.parquet')])
+    else:
+        db.execute(f"COPY ({_delivery_query(n,'(SELECT * FROM post_facts WHERE false)')}) TO '{quoted}' (FORMAT PARQUET, COMPRESSION ZSTD)")
+    actual=db.execute('SELECT count(*) FROM read_parquet(?)',[str(path)]).fetchone()[0]
+    if actual!=completed:
+        raise ValueError('consolidated delivery row conservation failed')
+    stage.finish(rows=actual,bytes=Path(path).stat().st_size)
+    db.execute('DROP TABLE delivery_posts')
+
+
 def build(directory, spec, floor_receipts=(), *, skip_floor_gates=False):
     directory = Path(directory).resolve()
     n = spec["recipe"]["accounts"]
@@ -269,8 +332,7 @@ def build(directory, spec, floor_receipts=(), *, skip_floor_gates=False):
         raise ValueError(f"local disk admission failed: need estimate+reserve {estimated * 1.2 + 2 * 1024**3:.0f} bytes; free {free}")
     directory.mkdir(exist_ok=False)
     started = time.monotonic()
-    with tempfile.TemporaryDirectory(prefix="realism-work-", dir=directory.parent) as tmp:
-        work = Path(tmp)
+    with _retained_work(directory.parent) as work:
         model(spec, work)
         stage=_Progress('load-model-inputs',expected_accounts=n,expected_posts=spec['targets']['posts'])
         db = duckdb.connect(str(work / "stage.duckdb"))
@@ -361,18 +423,16 @@ def build(directory, spec, floor_receipts=(), *, skip_floor_gates=False):
                    f"WHERE collection_name IN ('posts','reactions','comments') UNION ALL SELECT doc_id, "
                    f"'{PROVIDER}/groups/users/' || author_key || '/followers', created_at,updated_at,deleted "
                    "FROM documents WHERE collection_name IN ('posts','profile')")
-        db.execute(f"CREATE VIEW content_events AS SELECT p.doc_id, 'posts' AS service, u.username AS reader_key, "
-                   "'feed' AS surface, 'delivery' AS event_type, '{}' AS payload, "
-                   "p.created_at + to_milliseconds(((j+1)::DOUBLE/(p.impressions+1)*p.age_ms)::BIGINT) AS seen_at "
-                   "FROM post_facts p, LATERAL range(p.impressions) x(j) "
-                   f"JOIN people u ON u.id=(p.author_id+1+(j%p.reach))%{n}")
         files = {}
         for table in TABLES:
             print(f"[realism] export start {table}", flush=True)
             stage=_Progress('export:'+table)
             path = directory / f"{table}.parquet"
             quoted_path = path.as_posix().replace("'", "''")
-            db.execute(f"COPY (SELECT * FROM {table}) TO '{quoted_path}' (FORMAT PARQUET, COMPRESSION ZSTD, ROW_GROUP_SIZE 122880)")
+            if table=='content_events':
+                _export_deliveries(db,n,path,work)
+            else:
+                db.execute(f"COPY (SELECT * FROM {table}) TO '{quoted_path}' (FORMAT PARQUET, COMPRESSION ZSTD, ROW_GROUP_SIZE 122880)")
             count = db.execute("SELECT count(*) FROM read_parquet(?)", [str(path)]).fetchone()[0]
             files[table] = {"name": path.name, "rows": count, "bytes": path.stat().st_size, "sha256": sha(path)}
             stage.finish(rows=count,bytes=files[table]['bytes'])

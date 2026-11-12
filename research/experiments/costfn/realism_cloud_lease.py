@@ -12,6 +12,7 @@ from pathlib import Path
 import re
 import subprocess
 import time
+import uuid
 
 DOCTL = "/opt/homebrew/bin/doctl"
 
@@ -39,6 +40,21 @@ def validate(lease):
                 or not lease['created_epoch']<=extension.get('approved_epoch',0)<=original):
             raise ValueError('invalid explicit two-hour operator extension')
         maximum=6*3600
+    followthrough=lease.get('operator_followthrough_extension')
+    if followthrough:
+        previous=lease['created_epoch']+6*3600
+        if (not extension or followthrough.get('hours')!=8
+                or followthrough.get('previous_deadline')!=previous
+                or not extension['approved_epoch']<=followthrough.get('approved_epoch',0)<=previous):
+            raise ValueError('invalid explicit eight-hour follow-through extension')
+        maximum=14*3600
+    initial=lease.get('operator_preparation_approval')
+    if initial:
+        approved=initial.get('approved_epoch')
+        if (extension or followthrough or initial.get('hours')!=14 or type(approved) not in (int,float)
+                or not approved<=lease['created_epoch']<=approved+3600):
+            raise ValueError('invalid explicit initial fourteen-hour preparation approval')
+        maximum=14*3600
     if not 0 < lease["deadline"]-lease["created_epoch"] <= maximum:
         raise ValueError("lease exceeds its explicitly approved lifetime")
     if lease["max_usd"]!=5:
@@ -79,6 +95,20 @@ def admits_creation(lease,now=None):
     now=time.time() if now is None else now
     if lease.get("cancelled") or lease.get("cleanup_verified") or now>=lease["deadline"]:
         raise ValueError("lease irreversibly closed to creation")
+    volume_id=lease.get('prep_volume_id')
+    if (not volume_id or not lease.get('prep_volume_name') or not lease.get('region')
+            or type(lease.get('prep_volume_size_gib')) is not int or lease['prep_volume_size_gib']<1):
+        raise ValueError('approved persistent preparation volume identity/size/region required')
+    volume_id=str(uuid.UUID(volume_id))
+    assert_account(lease)
+    rows=api('compute','volume','get',volume_id)
+    volume=rows[0] if isinstance(rows,list) and len(rows)==1 else rows
+    if (not isinstance(volume,dict) or volume.get('id')!=volume_id
+            or volume.get('name')!=lease['prep_volume_name']
+            or volume.get('region',{}).get('slug')!=lease['region']
+            or volume.get('size_gigabytes')!=lease['prep_volume_size_gib']
+            or any(item!=lease.get('droplet_id') for item in volume.get('droplet_ids',[]))):
+        raise ValueError('preparation volume differs or is attached to another droplet')
 
 
 def owned_droplet(row,lease):

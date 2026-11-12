@@ -5,6 +5,7 @@ import statistics
 import random
 from contextlib import redirect_stdout
 import io
+import importlib.util
 from pathlib import Path
 import tempfile
 import unittest
@@ -274,6 +275,41 @@ class IndependentOracleTests(unittest.TestCase):
 
 
 class FinishedRecordGateTests(unittest.TestCase):
+    def test_isolated_validator_uses_owned_scratch_not_source_checkout_root(self):
+        db=self.database()
+        db.execute('CREATE TABLE app_contracts(user_key VARCHAR)')
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            directory=root/'dataset'
+            directory.mkdir()
+            spec=c.contract(10000,readers=2)
+            manifest={'format':c.FORMAT,'contract':spec,'recipe':spec['recipe'],
+                      'readers':['reader','reader2'],'files':{}}
+            for table in validator.TABLES:
+                path=directory/f'{table}.parquet'
+                db.execute(f"COPY {table} TO '{path.as_posix()}' (FORMAT PARQUET)")
+                manifest['files'][table]={'name':path.name,'rows':db.execute(f'SELECT count(*) FROM {table}').fetchone()[0],
+                                          'bytes':path.stat().st_size,'sha256':c.sha(path)}
+            manifest['dataset_id']=c.identity(manifest)
+            (directory/'manifest.json').write_bytes(c.encoded(manifest))
+            source=root/'isolated'/'tools'/'v1'/'realism_validate.py'
+            source.parent.mkdir(parents=True)
+            source.write_bytes(Path(validator.__file__).read_bytes())
+            module_spec=importlib.util.spec_from_file_location('isolated_validator',source)
+            isolated=importlib.util.module_from_spec(module_spec)
+            module_spec.loader.exec_module(isolated)
+            with redirect_stdout(io.StringIO()):
+                result=isolated.validate(directory,root/'receipt.json',keep_work=True)
+            self.assertNotIn('validator_execution',result['checks'])
+            self.assertIn('authorship_nonposting',result['checks'])
+            self.assertTrue(result['checks']['delivery_window'])
+            self.assertFalse(result['complete'])  # tiny synthetic population is still denied
+            self.assertFalse((source.parents[3]/'.context').exists())
+            retained=list(root.glob('realism-validate-*/validation.duckdb'))
+            self.assertEqual(len(retained),1)
+            self.assertGreater(retained[0].stat().st_size,0)
+            self.assertTrue(list(root.glob('realism-validate-*/realism-partitions-*/facts/bucket=*')))
+
     def database(self):
         db=duckdb.connect()
         self.addCleanup(db.close)

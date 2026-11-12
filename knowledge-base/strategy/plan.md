@@ -1437,6 +1437,22 @@ docs before code, per the rule at the top.
 
 ### Current directive — derived realism dataset (11 November 2026)
 
+**New run, 12 November 12:53 UTC:** new approved 14-hour preparation lease
+`3ef3634d8983`, droplet `618505005`, 400-GiB persistent work Volume. Pinned SSH,
+source hashes, exact mount/UUID and synced-file unmount/remount readback pass;
+the actual 1M generator is active with `persistent_work=true`. Compute deadline
+02:50:22 UTC Nov 13, $5 compute ceiling; retained Volume $40/month prorated,
+review after seven days. No repeated 100k prerequisites or experiment fleet.
+Status `.context/REALISM-CLOUD-STATUS.md`; launch evidence
+`research/experiments/costfn/evidence/REALISM-VOLUME-PREP-20261112.md`.
+[✓ 5.29.1 initial approval/launch; generation/validation/storage/review OPEN].
+
+**Previous-run disposition:** the paid prep host is deleted; last retained
+snapshot is 03:57 UTC at exposure partition 68/1024, deletion verified at
+10:02:47 UTC. Final validation is unknown and no verified archive/snapshot was
+recovered. Treat the full input as lost. Older “running” checkpoints are history;
+the prior lease is closed and no new paid run is authorized.
+
 Read [`REALISM-DATASET-DECISIONS.md`](../../research/experiments/costfn/REALISM-DATASET-DECISIONS.md)
 first (operator's full directive and conversation approvals), then
 [`REALISM-RERUN-PLAN.md`](../../research/experiments/costfn/REALISM-RERUN-PLAN.md).
@@ -1460,6 +1476,51 @@ all nine offline suites pass. Same-runtime old/logged 10k model CSV bytes match;
 the previous empty output is retained and the direct 1M logging restart is
 active. Preserve prior work and retain explicit floor
 skip, final validation and the same memory/disk/cleanup deadline/$5 ceiling.
+
+**RD3-FOLLOWTHROUGH [~ 5.28.2 observation active]:** five-minute operator-requested
+read-only workflow loop is armed with durable work/resource summaries and
+failure/milestone/pre-cleanup handoffs; six controls pass. Fast safety monitor
+and independent watchdog stay active. Both documented deployment SSH routes
+time out before authentication, so MinIO access is not yet established; no
+credentials are declared missing or rotated. Preserve the approved lifetime/
+$5 ceiling, final 1M validation, two private verified copies, statistics review,
+connected restore/delta/full-row parity and bounded pilot gates.
+
+**RD3-DELIVERIES [✓ 5.28.3 repair/probe; 1M completion OPEN]:** all 790 graph
+batches and six exports passed before the global delivery export OOMed at 2 GB.
+Whole-post event-budget chunks now log and verify physical counts before
+single-file consolidation. Three new controls, eight realism suites and a
+same-host 11M-event/1M-person probe pass. Failed output/hashes are preserved;
+new exception scratch is retained, never a partial-stage success witness.
+Direct 1M restarts without repeated floors; final validation and existing
+lease/$5/storage/review controls remain. Session performs foreground 300-second
+wait/check/repair cycles rather than ending after arming an observer.
+At 23:35 UTC the operator explicitly approves eight more hours on the same
+host to 08:01:22 UTC Nov 12, same $5 total compute ceiling and no fleet.
+Both approval/deadline records are retained; ten lease controls pass, stable
+watchdog updated and loaded worker runtime extended without PID/start change.
+**00:01 UTC Nov 12:** all nine files and manifest generated (19,914,772,845
+Parquet bytes; 1.6B physical deliveries); independent validation is running.
+Dataset and exact file receipts: `research/experiments/costfn/evidence/REALISM-1M-20261112.md`.
+Generation is complete, RD3 validation/persistence/review is not.
+**RD3-VALIDATOR-PATH [✓ 5.28.4 repair/regression; 1M validation OPEN]:** isolated
+source location inferred a missing event-partition scratch parent; preserve
+the FileNotFoundError receipt. Pass owned validation scratch explicitly, with
+a relocated-module regression passing locally/remotely. Resume verifies the
+same completed generation's source/identity/all hashes and revalidates with
+the new validator source. No dataset rebuild or repeated floors.
+**RD3-EXPOSURE-SCALE [✓ 5.28.5 repair/regressions; 1M validation OPEN]:** full
+event partition pass completes, but its first ~25M-row window OOMs. Refine
+oversized buckets independently to <=2.5M complete-key rows with <=64 writers;
+conserve every row and refuse indivisible skew. Two local/remote controls and
+eleven offline suites pass. Reverify/reuse the same finished input; no rebuild,
+floor rerun, memory-limit increase or validation/storage/experiment completion.
+
+- [~] **RD3-VALIDATOR-THROUGHPUT:** operator-requested first-pass volume-aware complete-key sizing, bounded writer/worker concurrency and source/input-bound recovery checkpoints. Preserve every row/check and the approved aggregate resource envelope; prove exact parity, interruption/stale refusal and measured same-host throughput before adoption. The earlier run is now deleted, not advancing: last retained snapshot 03:57 UTC, deletion verified 10:02:47 UTC Nov 12. First bite: histogram-admit correctly sized complete-key buckets before writing, bound open files/flush buffers and prove exact parity plus local resource measurements. Parallel validation/checkpoint orchestration remains separate, not inferred from this repair.
+  - [✓ 5.28.6 local only] **Volume-aware first pass:** exact histogram before writing, grouped destinations and bounded open files/flush buffers remove the oversized-bucket rewrite without tiny-file explosion. Three paired 2M-row local medians 3.50→1.91s, temporary Parquet 81.55→51.63MB; exact controls and a fresh 10k/16M-delivery full validation (50/50) pass. Cloud/1M scratch/throughput, parallelism and restart checkpoints remain open; not full RD3 acceptance.
+- [ ] **RD3-RESTART-SAFETY:** latest operator direction is one persistent prep Volume, normal files/state/logs and scoped compute cleanup—not a whole-workflow checkpoint/archive framework. Verify exact volume/mount identity and retained-file/log readback after compute replacement, with separately approved storage retention/cost and new bounded compute approval. The old lease stays closed; disk survival is not dataset validation or final object-store archival acceptance.
+  - [~] **RD3-RECOVERY:** latest operator correction narrows persistence to the one data-preparation droplet; experiments retain normal output logs/results, not a checkpoint framework. [✓ 5.29.0 local code] Pin the actual provider Volume, require exact mount/filesystem UUID in the worker CLI, and keep dataset/state/appended logs plus validation scratch on it; compute cleanup preserves the disk. Partial work is not automatic resume proof. Supersedes the 5.28.7 whole-workflow proposal. `REALISM-RECOVERY.md` covers the small implementation; actual attach/replacement/file-readback, storage cost/retention and new paid-run approval remain OPEN. No provisioning/mount/experiment change.
+  - [✓ 5.28.6 historical; superseded 5.29.0] Remove the metadata-only readiness gate; actual provider-volume lookup plus exact mount/UUID verification replaces it. No offline receipt was actual connected durability evidence. Experiment checkpointing/controller orchestration is out of scope; their normal output logs/results remain.
 
 **Earlier RD3 repair:** [✓ 5.24.2 local/remote controls; full graph/floor proof interrupted by operator]
 **RD3-GRAPH: bound complete-request candidate expansion at 2 GB** — the first

@@ -1,5 +1,48 @@
 # Monitored DigitalOcean preparation — operator approval
 
+**New run started — 12 November 12:53:23 UTC:** run `3ef3634d8983`, droplet
+`618505005`, 400-GiB Volume `d01c584d-de97-11f1-8944-c234aeb68f7e`. Pinned SSH,
+source hashes, exact filesystem UUID and a synced-file unmount/remount readback
+pass. Actual worker state is generating 1M accounts with `persistent_work=true`
+at `/mnt/costfn-work/costfn-prep`; logs/state/source/setup receipts live on the
+Volume. No repeated 100k prerequisites; final validation remains required.
+Compute deadline **02:50:22 UTC Nov 13**, Volume retained, review after seven
+days. Live summary `.context/REALISM-CLOUD-STATUS.md`; launch and limits:
+[REALISM-VOLUME-PREP-20261112.md](evidence/REALISM-VOLUME-PREP-20261112.md).
+
+**New run approval — 12 November, ~12:45 UTC:** operator selected “Approve and
+start” for one NYC3 8-vCPU/32-GiB preparation droplet at $0.25/hour, up to
+fourteen hours under a $5 compute ceiling, plus one 400-GiB persistent Volume
+at $40/month prorated hourly. Preserve the volume when compute is cleaned up;
+review retention after seven days and require separate approval before deleting
+the only dataset copy. This authorizes generation/independent validation only,
+not the study fleet. New lease, new exact IDs and mount verification are required;
+the old closed lease below is not reopened. Initial fourteen-hour approval is
+recorded directly, not fabricated as the old host's extension history. As before,
+local/network/provider failure can delay cloud deletion; no provider billing-cap
+guarantee is claimed. Live state will be in `.context/REALISM-CLOUD-STATUS.md`.
+
+**Previous run — deleted on 12 November 2026:** that preparation host is deleted, not
+running. The last retained live snapshot is 03:57 UTC at exposure partition
+68/1024. No final validation outcome or verified private archive was collected.
+Cleanup was verified at 10:02:47 UTC, later than the approved 08:01:22 deadline;
+the local-Mac watchdog was not a provider-enforced lifetime guarantee. No matching
+droplet snapshot was found. Treat the only recorded full input as lost; retain
+the generator, manifest, small floors and failure records. Never treat the older
+“active” checkpoints below as current state.
+
+**Latest operator simplification:** one persistent Volume for the dataset prep
+droplet, ordinary files/state/logs, and normal output logs/results for experiments.
+No whole-workflow checkpoint or custom workbench framework. The metadata-only
+readiness gate is replaced by checking an actual approved provider volume
+(`prep_volume_id`, `prep_volume_name`, `prep_volume_size_gib`, `region`), plus an
+exact filesystem mount/UUID check in the preparation worker. The worker's CLI
+requires `--work-volume` and `--filesystem-uuid`; output/state/logs and retained
+validation work go there. Compute cleanup leaves volumes alone. No disk is
+provisioned/formatted/mounted by these helpers. Actual attachment/replacement
+verification, storage price/retention and new compute approval remain OPEN;
+the old lease cannot reopen. Details: [REALISM-RECOVERY.md](REALISM-RECOVERY.md).
+
 **Latest operator amendment:** “lets run it, skip those gates entirely! make a
 way in the script like an arg to skip those” and “we are running this 100k thing
 over and over”. Stop the repeated pre-1M graph/floor pipeline and use explicit
@@ -25,6 +68,17 @@ earlier local-only preparation restriction for **one preparation host**, not
 the measured study fleet, production deployment or submission.
 
 ## Approved scope
+
+**23:35 UTC extension:** with 1.016B deliveries already count-checked, the
+operator selected “Extend same host (Recommended)” for eight additional hours:
+**08:01:22 UTC on 12 November**, fourteen hours total, retaining the **$5 total
+preparation-compute ceiling**. Scope is generation, independent validation and
+approved private storage only, not the study fleet. The lease preserves both
+approval records and exact preceding deadlines; ten lease controls pass.
+The stable independent watchdog uses the updated validator. The worker's loaded
+runtime was extended without changing PID/start time, stopping ten minutes
+before cleanup. This is explicit approval, not an automatic overnight extension.
+The earlier deadlines below remain history; the live lease is authoritative.
 
 **Latest storage amendment:** [REALISM-STORAGE.md](REALISM-STORAGE.md) governs:
 after validation, private region-matched Spaces for rerun delivery **and** the
@@ -52,6 +106,67 @@ review and uses MinIO only. Earlier MinIO-only/prefix wording below is history.
   Permission is not a claim that credentials/upload are already available.
 
 ## Status and monitoring
+
+**01:36 UTC Nov 12 exposure scale repair:** the full 1.6B partition pass
+completes, but its first ~25M-row exposure window OOMs at the unchanged 2 GB
+engine limit. Preserve the failure. Refine oversized buckets independently to
+at most 2.5M complete-key rows, with at most 64 writers and exact pass/subpass
+conservation. Tests deny indivisible skew instead of splitting keys; exact
+multiset/schema/key controls pass locally/remotely and eleven offline Python
+suites pass. Resume/reverify the same completed input, no dataset/floor rebuild.
+Engine limit is not an RSS guarantee (previous max RSS ~8.18 GB). Current
+08:01:22 UTC deadline/$5 ceiling and final-validation/storage/review gates remain.
+
+**00:29 UTC Nov 12 validator repair:** generation of dataset `b0bdbaa3…` is
+complete (19.91 GB Parquet, 1.6B deliveries). The first independent run failed
+on a source-location-derived nonexistent scratch directory at distinct
+exposure materialization. Retain that failure; explicitly pass validation's
+owned work directory to event partitioning. The relocated-module regression
+passes locally/remotely and still rejects an undersized population. Resume
+reverifies all completed-generation bytes/source/identity and archives the
+stale validator receipt before revalidation. No dataset/floor rebuild or
+semantic/memory waiver. Current receipt: [REALISM-1M-20261112.md](evidence/REALISM-1M-20261112.md).
+
+**22:47 UTC follow-through repair:** all 790 graph batches completed, followed
+by six table exports. The global `content_events` export then exhausted the
+unchanged 2 GB DuckDB allowance before writing event bytes. The failed output
+is retained as `.context/realism-1m-attempt-delivery-oom` on the host; its
+file hashes and old status are in `delivery-oom-restart-receipt.json`. The old
+temporary-directory handler removed that attempt's work database on exception;
+the partial Parquet files are not a completed-generation witness.
+
+The repair exports whole-post batches with a four-million-event target (at most
+the target plus the largest post), checks every chunk's physical count, then
+streams the parts into the final single Parquet file. Logs expose planning,
+batch start/completion, expected/actual/cumulative rows and consolidation.
+All seven original fields, duplicates, actor selection and timestamp arithmetic
+stay unchanged. Three regression controls and an 11M-event/1M-person same-host
+probe pass at 2 GB. New failed scratch is retained, not silently admitted as
+resumable. The direct 1M retry keeps `--skip-floor-gates` and final validation.
+No lease extension, memory increase or new host. The coding session now waits
+300 seconds in foreground between actual checks and inspects failures itself;
+the read-only observer below does not replace that follow-through.
+
+The operator requests a five-minute, start-to-finish follow-through loop. The
+local operational helper `.context/realism_night_watch.py` sleeps 300 seconds
+between read-only observations and keeps `.context/realism-night-watch.jsonl`
+plus a latest JSON summary. It records actual work-log tails, heartbeat age,
+service state, CPU seconds, resident memory and current output-file sizes. An
+exclusive lock prevents duplicate observers. Failure, stale heartbeat, a major
+phase transition, completed validation or the thirty-minute pre-cleanup warning
+ends the observer with an explicit handoff for inspection/repair/rearming; it
+never blindly retries generation or changes resource lifetimes. Six offline
+handoff cases pass. The existing twenty-second reserve monitor and independent
+lease watchdog remain active; Mac/network loss remains a limitation.
+
+This loop is not an unattended study authorization. Reuse existing configured
+access before asking for secrets; the 11 November deployment preflight found
+both documented SSH routes timed out before authentication, recorded in
+`ubuntu-deployment/OPS-LOG.md`. No server credential or policy was changed.
+Final independent statistics, both private verified storage copies, operator
+review, connected acceptance and a bounded approved pilot remain distinct
+milestones. The current cleanup deadline/$5 ceiling are not extended by a
+request to keep working overnight.
 
 The operator requested real progress logging and explicitly allowed a restart
 because a heartbeat plus silent allocator was insufficient. Named
