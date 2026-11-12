@@ -1,6 +1,7 @@
 """Bounded maintenance, not reader-supplied conversion authority."""
 
 import copy
+import json
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -175,21 +176,33 @@ def test_status_write_rechecks_live_media_and_never_resurrects_or_replaces_it(en
     update.assert_not_called()
 
 
-def test_recovery_status_merges_current_metadata_not_old_snapshot(env, monkeypatch):
+@pytest.mark.parametrize("status", ["processing", "done", "failed"])
+def test_recovery_status_merges_current_metadata_not_old_snapshot(env, monkeypatch, status):
     env.doc["body"]["alt_text"] = "newer caption"
     env.doc["body"]["thumbnail_object_key"] = "alice/picked-cover"
-    update = Mock()
-    monkeypatch.setattr(transcode.ch, "update_document", update)
+    env.doc.update(
+        ref_value="keep-ref",
+        tags=["keep-tag"],
+        ad_mode="creator",
+        ad_target="keep-target",
+        created_at="2026-11-11T00:00:00+00:00",
+        posted_by="alice",
+    )
+    monkeypatch.setattr(transcode.ch, "get_document", lambda *_: env.doc)
+    insert = Mock()
+    monkeypatch.setattr(transcode.ch.client, "insert", insert)
     transcode._set_transcoding_settings(
         "media-1",
         "alice",
         {"alt_text": "stale"},
-        {"status": "processing"},
+        {"status": status},
         "media_metadata",
         recovery_source="alice/upload/source",
     )
-    assert update.call_args.kwargs["body"]["alt_text"] == "newer caption"
-    assert update.call_args.kwargs["body"]["thumbnail_object_key"] == "alice/picked-cover"
+    row = insert.call_args.args[1][0]
+    assert (row[4], row[5], row[9], row[10], row[11]) == ("keep-ref", ["keep-tag"], "creator", "keep-target", "alice")
+    assert json.loads(row[3])["alt_text"] == "newer caption"
+    assert json.loads(row[3])["thumbnail_object_key"] == "alice/picked-cover"
 
 
 def test_media_deleted_after_claim_never_downloads_or_gets_failure_write(env, monkeypatch):

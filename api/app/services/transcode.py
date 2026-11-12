@@ -130,13 +130,15 @@ def _set_transcoding_settings(
     (a media_metadata doc updated into `media` would split the doc across
     collections: readers of the original collection never see the settings).
     """
+    metadata = {}
     if recovery_source is not None:
         live = _recovery_document(doc_id, author_key, recovery_source, allow_processing=True)
         base_body, service = live["body"], live["service"]
+        metadata = {field: live.get(field) for field in ("ref_value", "tags", "ad_mode", "ad_target", "posted_by")}
     merged = {**base_body, "transcoding_settings": ts}
     if ts.get("status") == "done" and not merged.get("thumbnail_object_key") and ts.get("thumbnails"):
         merged["thumbnail_object_key"] = ts["thumbnails"][0]["url"]["value"]
-    ch.update_document(doc_id=doc_id, author_key=author_key, service=service, body=merged)
+    ch.update_document(doc_id=doc_id, author_key=author_key, service=service, body=merged, **metadata)
     logger.info("[transcode] document updated — doc_id=%s status=%s", doc_id, ts.get("status"))
 
 
