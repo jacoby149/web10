@@ -1,3 +1,6 @@
+5.27.2 || 11.11.2026
+docs(marketing): correct TorahAnytime's previously discussed read-only tier to listeners who can read/watch and like, per operator clarification—not an additional tier or speaker/publisher authority. Preserve liking as positive participation without inferring commenting, other reactions, uploading or publishing grants. Brief and completed plan/lane capture aligned; partner-policy confirmation and later permission implementation remain open, first demo unchanged. No runtime or deployment change.
+
 5.27.1 || 11.11.2026
 docs(marketing): record the operator-reported Torah Anytime opportunity as a warm anchor library/community partnership, with petabyte-scale holdings explicitly unverified. Add a partner brief, outreach entry and TA0–TA4 plan/lane queue for discovery/rights, reusable node/social white-labeling, restricted generic role presets, Torah-only governance across all content surfaces and bounded resumable catalog sync/cost validation before expansion. Preserve D95's general onboarding direction and D60's generic API; existing roles/artwork/Instagram sync are not a completed partner solution. Planning capture complete only; no signed deal, acquired users, runtime change, outbound send, copy, spend or deployment approval.
 
