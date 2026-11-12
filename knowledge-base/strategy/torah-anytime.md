@@ -240,12 +240,25 @@ that confirmation. Keep moderation/removal and reports available after approval;
 trust does not mean irrevocable publishing authority. Listener signup/access
 approval is a separate unresolved policy, not implied by speaker approval.
 
+**Listener-tier clarification (operator, 11.11.2026):**
+
+> those read users are actually like users that can like
+
+The previously discussed “read-only” users are **listeners who can read/watch
+and like**, not a separate extra tier or strictly read-only accounts. The
+operator describes liking as harmless positive participation; it does not
+require speaker/publisher approval. This is operator-reported partner behavior
+to carry into TA0 and the later proposal, not an independently verified policy
+or an implemented permission preset. Like permission does not imply comments,
+replies, dislikes, reposts, uploads, posts or moderation authority; confirm those
+separately. The first demo keeps existing web10-social policy unchanged.
+
 Ordinary signup must not automatically grant public publishing, upload,
 community creation, role management or moderation authority on the partner's
-surfaces. Propose a least-privilege matrix for **viewer/student**, **approved
+surfaces. Propose a least-privilege matrix for **listener/student (read/watch + like)**, **approved
 teacher/publisher**, **editor/curator**, **moderator** and **administrator**;
 Torah Anytime must approve the actual names and capabilities. Comments,
-reactions, DMs, links and user profiles require explicit policy decisions,
+other reactions, DMs, links and user profiles require explicit policy decisions,
 not an assumption that every social feature stays open.
 
 Reuse the generic per-service group roles and app contracts in
