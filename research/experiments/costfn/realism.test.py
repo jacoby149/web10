@@ -299,12 +299,16 @@ class FinishedRecordGateTests(unittest.TestCase):
             isolated=importlib.util.module_from_spec(module_spec)
             module_spec.loader.exec_module(isolated)
             with redirect_stdout(io.StringIO()):
-                result=isolated.validate(directory,root/'receipt.json')
+                result=isolated.validate(directory,root/'receipt.json',keep_work=True)
             self.assertNotIn('validator_execution',result['checks'])
             self.assertIn('authorship_nonposting',result['checks'])
             self.assertTrue(result['checks']['delivery_window'])
             self.assertFalse(result['complete'])  # tiny synthetic population is still denied
             self.assertFalse((source.parents[3]/'.context').exists())
+            retained=list(root.glob('realism-validate-*/validation.duckdb'))
+            self.assertEqual(len(retained),1)
+            self.assertGreater(retained[0].stat().st_size,0)
+            self.assertTrue(list(root.glob('realism-validate-*/realism-partitions-*/facts/bucket=*')))
 
     def database(self):
         db=duckdb.connect()

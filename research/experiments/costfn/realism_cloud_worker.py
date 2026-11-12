@@ -4,6 +4,8 @@ No DO/MinIO credentials, publication, API server or production access. A separat
 controller collects status and stages validated artifacts under operator approval.
 """
 import argparse
+from contextlib import redirect_stdout, redirect_stderr
+import fcntl
 import json
 import os
 from pathlib import Path
@@ -13,11 +15,39 @@ import re
 import shutil
 import threading
 import time
+import traceback
 
 from realism_contract import contract, sha
 
 
-def run(repo, floor_receipts=None, refresh_floors=None, reference_floor_prefix=None, resume=False, skip_floor_gates=False):
+def run(repo, floor_receipts=None, refresh_floors=None, reference_floor_prefix=None, resume=False, skip_floor_gates=False,
+        *, work_volume=None, filesystem_uuid=None):
+    args=(repo,floor_receipts,refresh_floors,reference_floor_prefix,resume,skip_floor_gates)
+    if work_volume is None and filesystem_uuid is None:
+        return _run(*args)  # Existing local/offline callers; cloud CLI requires the volume.
+    if work_volume is None or filesystem_uuid is None:
+        raise ValueError('work volume and expected filesystem UUID are required together')
+    from realism_volume import preparation_directory
+    root=preparation_directory(work_volume,filesystem_uuid)
+    if (root/'.worker.lock').is_symlink() or (root/'run.log').is_symlink():
+        raise ValueError('preparation lock/log paths must not be symlinks')
+    with (root/'.worker.lock').open('a') as guard:
+        fcntl.flock(guard,fcntl.LOCK_EX|fcntl.LOCK_NB)
+        with (root/'run.log').open('a',buffering=1) as log,redirect_stdout(log),redirect_stderr(log):
+            os.chmod(root/'run.log',0o600)
+            print(f'[cloud-prep] attempt start epoch={time.time()} persistent_volume=true',flush=True)
+            try:
+                return _run(*args,work_root=root)
+            except BaseException:
+                traceback.print_exc()
+                raise
+            finally:
+                log.flush()
+                os.fsync(log.fileno())
+
+
+def _run(repo, floor_receipts=None, refresh_floors=None, reference_floor_prefix=None, resume=False, skip_floor_gates=False,
+         *, work_root=None):
     repo=Path(repo).resolve()
     if refresh_floors is not None and not re.fullmatch(r'[a-z0-9-]{1,40}',refresh_floors):
         raise ValueError('fresh floor attempt needs a bounded path-safe identifier')
@@ -27,12 +57,17 @@ def run(repo, floor_receipts=None, refresh_floors=None, reference_floor_prefix=N
         raise ValueError('resume uses existing verified floor receipts; do not regenerate floors')
     if skip_floor_gates and (refresh_floors or reference_floor_prefix or floor_receipts):
         raise ValueError('direct floor skip cannot refresh or claim prerequisite floor receipts/references')
-    output=repo/".context/realism-1m-prep"
-    status_path=repo/".context/cloud-status.json"
-    result_path=repo/".context/cloud-validation.json"
+    work=Path(work_root) if work_root is not None else repo/'.context'
+    output=work/'realism-1m-prep'
+    status_path=work/'cloud-status.json'
+    result_path=work/'cloud-validation.json'
+    for path in (output,status_path,result_path,work/'run.log'):
+        if path.is_symlink():
+            raise ValueError('preparation output/state paths must not be symlinks')
     status={"phase":"starting","pid":os.getpid(),"started_epoch":time.time(),
             "accounts":1000000,"readers":20000,"validation_complete":False,
-            "minio_staged":False,"spaces_staged":False,"floor_gates_skipped":skip_floor_gates,
+             "minio_staged":False,"spaces_staged":False,"floor_gates_skipped":skip_floor_gates,
+             "work_directory":str(work),"persistent_work":work_root is not None,
             "scope":"Private synthetic dataset preparation; no study/capacity/production claim",
             "runtime":{"python":platform.python_version(),"architecture":platform.machine(),"cpus":os.cpu_count()}}
     lock=threading.RLock()
@@ -40,13 +75,24 @@ def run(repo, floor_receipts=None, refresh_floors=None, reference_floor_prefix=N
 
     def save():
         with lock:
-            disk=shutil.disk_usage(repo)
+            disk=shutil.disk_usage(work)
             status.update({"updated_epoch":time.time(),"free_bytes":disk.free,
                            "process_maxrss_bytes":resource.getrusage(resource.RUSAGE_SELF).ru_maxrss*1024,
                            "load":os.getloadavg()})
             tmp=status_path.with_suffix(".tmp")
-            tmp.write_text(json.dumps(status,indent=2)+"\n")
+            if tmp.is_symlink():
+                raise ValueError('preparation state temporary file must not be a symlink')
+            with tmp.open('w') as stream:
+                json.dump(status,stream,indent=2)
+                stream.write('\n')
+                stream.flush()
+                os.fsync(stream.fileno())
             tmp.replace(status_path)
+            directory_fd=os.open(work,os.O_RDONLY)
+            try:
+                os.fsync(directory_fd)
+            finally:
+                os.close(directory_fd)
 
     def heartbeat():
         while not stopped.wait(10):
@@ -70,11 +116,11 @@ def run(repo, floor_receipts=None, refresh_floors=None, reference_floor_prefix=N
                 with lock:
                     status['phase']='generating-'+label+'-source-refresh'
                 save()
-                path=repo/'.context'/f'{refresh_floors}-{label}'
-                checked=repo/'.context'/f'{refresh_floors}-{label}-validation.json'
+                path=work/f'{refresh_floors}-{label}'
+                checked=work/f'{refresh_floors}-{label}-validation.json'
                 fresh=build(path,contract(n))
                 old_folder=f'{reference_floor_prefix}-{label}' if reference_floor_prefix else old
-                reference=json.loads((repo/'.context'/old_folder/'manifest.json').read_bytes())
+                reference=json.loads((work/old_folder/'manifest.json').read_bytes())
                 if fresh['files']!=reference['files']:
                     raise ValueError('fresh floor data bytes differ from preserved reference; stop before 1M')
                 with lock:
@@ -119,7 +165,7 @@ def run(repo, floor_receipts=None, refresh_floors=None, reference_floor_prefix=N
             from realism_resume import validation
             result=validation(result_path,output,manifest)
         if result is None:
-            result=validate(output,result_path)
+            result=validate(output,result_path,keep_work=True) if work_root is not None else validate(output,result_path)
         else:
             with lock:
                 status['reused_verified_validation']=True
@@ -153,5 +199,8 @@ if __name__=="__main__":
     parser.add_argument('--reference-floor-prefix',help='Preserved same-runtime reference folders under repo/.context')
     parser.add_argument('--resume',action='store_true',help='Reverify/reuse completed stages; preserve and refuse partial/stale data')
     parser.add_argument('--skip-floor-gates',action='store_true',help='Operator opt-in: direct 1M without prerequisite floors/parity; records waiver, keeps final validation/resource controls')
+    parser.add_argument('--work-volume',type=Path,required=True,help='Already-mounted persistent preparation volume; no disk is created/formatted')
+    parser.add_argument('--filesystem-uuid',required=True,help='Expected filesystem UUID, not the DigitalOcean volume resource ID')
     args=parser.parse_args()
-    raise SystemExit(run(args.repo,args.floor_receipt,args.refresh_floors,args.reference_floor_prefix,args.resume,args.skip_floor_gates))
+    raise SystemExit(run(args.repo,args.floor_receipt,args.refresh_floors,args.reference_floor_prefix,args.resume,args.skip_floor_gates,
+                         work_volume=args.work_volume,filesystem_uuid=args.filesystem_uuid))

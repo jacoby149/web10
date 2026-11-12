@@ -1659,6 +1659,23 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+**Current run (12 November 12:53 UTC):** approved new 14-hour NYC3 prep lease
+`3ef3634d8983`; droplet `618505005` is generating the actual 1M input on a
+400-GiB persistent Volume, not root disk. Exact mount/UUID, source hashes and
+same-host unmount/remount readback pass. `persistent_work=true`; durable status/
+logs/source/setup receipts live on the disk. Deadline 02:50:22 UTC Nov 13;
+$5 compute ceiling and $40/month prorated Volume, retained after cleanup and
+reviewed after seven days. No repeated 100k prerequisites, no experiment fleet;
+independent validation/storage/review/connected gates stay open. Live summary:
+`.context/REALISM-CLOUD-STATUS.md`; launch receipt `evidence/REALISM-VOLUME-PREP-20261112.md`
+under costfn research. [✓ 5.29.1 initial approval/launch; 1M completion OPEN].
+
+**Previous run disposition (12 November):** the prep host is deleted, last
+retained snapshot 03:57 UTC at exposure partition 68/1024; deletion verified
+10:02:47 UTC. No final validation receipt/verified archive/snapshot was recovered.
+Treat the full input as lost, not running or validated. Older active-run entries
+are history. Restart safety, new approval and verified recovery precede paid work.
+
 **Current directive (11 November):**
 [`REALISM-DATASET-DECISIONS.md`](../../research/experiments/costfn/REALISM-DATASET-DECISIONS.md)
 preserves the operator's full attachment and implementation approvals;
@@ -1746,7 +1763,11 @@ and skew refusal. Two local/remote controls and eleven offline suites pass.
 Same generated input is hash/source/identity-reverified and reused; no model/
 floor rerun, raised engine limit or 1M validation/storage/experiment claim.
 
-- [ ] **RD3-VALIDATOR-THROUGHPUT: avoid oversized first-pass validation partitions** — operator requests the execution-strategy fix after reviewing the extra rewrite. Owns `research/experiments/costfn/` validator/tests and serialized KB records. Size complete-key partitions from observed row volume upfront, bound writer/worker concurrency within the approved memory envelope, and add source/input-bound recovery checkpoints. Gates: exact all-column/multiplicity and complete-key parity, explicit aggregate resource bounds, interruption/stale-checkpoint refusal, measured same-host throughput; do not replace or discard the advancing run merely to deploy this. Acceptance: remove avoidable full-data rewrites/repeated completed stages with measured evidence, not an untested speed claim. OPEN; this PR's two-level refinement is the memory-safety repair, not this optimization.
+- [~] **RD3-VALIDATOR-THROUGHPUT: avoid oversized first-pass validation partitions** — operator requests the execution-strategy fix after reviewing the extra rewrite. Owns `research/experiments/costfn/` validator/tests and serialized KB records. Size complete-key partitions from observed row volume upfront, bound writer/worker concurrency within the approved memory envelope, and add source/input-bound recovery checkpoints. Gates: exact all-column/multiplicity and complete-key parity, explicit aggregate resource bounds, interruption/stale-checkpoint refusal and measured same-host throughput. The earlier run is deleted (last retained snapshot 03:57 UTC; deletion verified 10:02:47 UTC Nov 12), not advancing. First bite is histogram-admitted one-pass sizing with bounded open writers/flush buffers and exact parity/local measurements. Parallel validation/checkpoints remain open; no unmeasured speed or 1M-validation claim.
+  - [✓ 5.28.6 local only] **First-pass sizing and grouped writes:** volume-aware bucket planning and exact prewrite histogram admission; bounded 16-open-file/8192-row-flush destination-grouped write avoids the second Parquet rewrite and small-file churn. Exact multiset/key/schema/bound/refusal and setting-restoration controls pass. Three paired 2M-row local probes: median 3.50→1.91s, temporary Parquet 81.55→51.63MB; separate 128MB-engine probe passes (not RSS bound). Fresh current-contract 10k/16M-delivery validation passes all 50 checks. Larger-scale sorting scratch, cloud throughput, parallelism and verified recovery checkpoints remain OPEN.
+- [ ] **RD3-RESTART-SAFETY: preparation disk survives compute loss** — latest operator direction is a real persistent Volume for one prep droplet, not a controller/archive/checkpoint framework. Owns research preparation/lease/volume tests and KB. Verify exact volume/mount identity, retained files/state/logs across compute replacement, separately approved storage retention/cost and scoped compute-only cleanup before another paid preparation. Keep hard compute spend controls and validation/archive acceptance gates. The old lease cannot reopen; new spend still needs approval. Actual attachment/replacement evidence remains OPEN.
+  - [~] **RD3-RECOVERY: preparation-only persistent disk** — supersedes the 5.28.7 whole-workflow checkpoint proposal on explicit operator correction: “this is just for the data creation, this one droplet”; experiments retain normal output logs/results only. [✓ 5.29.0 local code] Actual provider-volume identity/size/region/account check before creation; worker CLI requires an exact mounted filesystem UUID and writes dataset/state/appended logs plus retained validation work there. Compute cleanup never deletes volumes. No custom workbench/checkpoint framework or experiment-runner changes; partial files are not automatic resume witnesses. Owns research prep worker/volume/lease/tests/KB only. Remaining gate: explicitly approved volume size/cost/retention, actual attach→compute replacement→file/log readback, then new bounded paid-run approval. No volume/host was provisioned or mounted by this change.
+  - [✓ 5.28.6 historical; superseded 5.29.0] The previous metadata-only readiness gate is removed in favor of a real provider-volume lookup plus an exact mount/UUID check. Its offline receipts were never connected evidence. No framework remains to implement for experiment trials; retain their normal logs/results.
 
 **Earlier RD3 repair:** [✓ 5.24.2 local/remote controls; full graph/floor proof interrupted by operator]
 **RD3-GRAPH: bound complete-request candidate expansion at 2 GB** — actual 1M

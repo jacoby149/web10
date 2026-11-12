@@ -14,6 +14,21 @@ def empty_account(*args):
 
 
 class LeaseTests(unittest.TestCase):
+    def test_new_fourteen_hour_approval_is_not_a_fabricated_extension(self):
+        row=example()
+        row['operator_preparation_approval']={'hours':14,'approved_epoch':99}
+        row['deadline']=row['created_epoch']+14*3600
+        lease.validate(row)
+        for change in ({'hours':15,'approved_epoch':99},{'hours':14,'approved_epoch':101},
+                       {'hours':14,'approved_epoch':-4000},
+                       {'hours':14},{'hours':14,'approved_epoch':True}):
+            with self.assertRaises(ValueError):
+                lease.validate({**row,'operator_preparation_approval':change})
+        with self.assertRaises(ValueError):
+            lease.validate({**row,'deadline':row['deadline']+1})
+        with self.assertRaises(ValueError):
+            lease.validate({**row,'operator_extension':{'hours':2,'original_deadline':14500,'approved_epoch':100}})
+
     def test_expired_cancelled_and_verified_cannot_create(self):
         for change in ({"cancelled":True},{"cleanup_verified":True},{}):
             row={**example(),**change}
