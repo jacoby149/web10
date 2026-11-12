@@ -1,6 +1,6 @@
 import type { PostRecord } from '../src/data/types';
-export { readFeedReactions } from './harness/mock-data';
-const photo = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600"><rect width="1200" height="600" fill="#164e63"/><path d="M0 600L300 130L520 440L780 100L1200 600" fill="#0f766e"/><path d="M0 600L520 260L900 600" fill="#134e4a"/><path d="M570 600Q480 400 620 320" fill="none" stroke="#d6d3d1" stroke-width="45"/></svg>')}`;
+export { readFeedReactions, readFeedPage } from './harness/mock-data';
+export const photo = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600"><rect width="1200" height="600" fill="#164e63"/><path d="M0 600L300 130L520 440L780 100L1200 600" fill="#0f766e"/><path d="M0 600L520 260L900 600" fill="#134e4a"/><path d="M570 600Q480 400 620 320" fill="none" stroke="#d6d3d1" stroke-width="45"/></svg>')}`;
 const posts: PostRecord[] = [
   { _id: 'walking-one', author_key: 'nova', author_username: 'nova', profile: { display_name: 'Nova Lane' }, visibility: 'public', created_at: '2026-11-12T07:00:00Z',
     text: 'No notifications. No rush. Just the long way home.\n\n#Walking #Outside', hashtags: ['walking', 'outside'], likes: 24, comments: 3, reposts: 2,

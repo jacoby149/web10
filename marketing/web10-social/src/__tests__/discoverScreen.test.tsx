@@ -68,6 +68,19 @@ beforeAll(async () => {
 });
 
 describe('DiscoverScreen', () => {
+  it('searches and selects topics beyond the old first-12 cutoff on the real board', async () => {
+    vi.mocked(data.readDiscoverFeed).mockResolvedValueOnce([
+      { _id: 'many-topics', text: 'Far-end topic post', hashtags: Array.from({ length: 1000 }, (_, i) => `topic_${String(i).padStart(4, '0')}`), author_username: 'bob', created_at: '2026-11-12' },
+      { _id: 'unrelated', text: 'Other post', hashtags: ['other'], author_username: 'alice', created_at: '2026-11-12' },
+    ]);
+    render(<MemoryRouter initialEntries={['/hot-gossip']}><DiscoverScreen /></MemoryRouter>);
+    fireEvent.click(await screen.findByTestId('browse-topics'));
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Find a topic' }), { target: { value: 'topic_0999' } });
+    fireEvent.click(screen.getByRole('button', { name: '#topic_0999' }));
+    expect(screen.getByRole('tab', { name: '#topic_0999' })).toHaveAttribute('aria-selected', 'true');
+    expect(within(screen.getByTestId('discover-grid')).getByText('Far-end topic post')).toBeInTheDocument();
+    expect(within(screen.getByTestId('discover-grid')).queryByText('Other post')).not.toBeInTheDocument();
+  });
   it('unions body hashtags with machine tags and restores topic/search URL filters', async () => {
     const posts = [
       { _id: 'topic-one', text: 'A trail story', hashtags: ['walking'], tags: ['photo'], author_username: 'bob', created_at: '2026-11-12' },

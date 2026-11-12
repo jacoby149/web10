@@ -5,6 +5,7 @@ import '@fontsource-variable/space-grotesk';
 import '../src/index.css';
 import Layout from '@/components/Social/Layout';
 import HashtagScreen from '@/components/Discover/HashtagScreen';
+import DiscoverScreen from '@/components/Discover/DiscoverScreen';
 import { PostBody, PostBodyInline } from '@/components/Feed/PostBody';
 import { MarkdownText } from '../../shared/discover/src/MarkdownText';
 import { defaultHashtagHref } from '../../shared/discover/src/hashtags';
@@ -29,6 +30,7 @@ function Sources() {
 createRoot(document.getElementById('root')!).render(<BrowserRouter><RepostProvider><ComposerProvider><SaveProvider>
   <Routes><Route element={<Layout onLogout={() => {}} onLogin={() => {}} isAnon={new URLSearchParams(location.search).has('anon')} />}>
     <Route path="/tag/:hashtag" element={<HashtagScreen />} />
+    <Route path="/hashtag-fixture/topics" element={<DiscoverScreen mode="hot-gossip" />} />
     <Route path="*" element={<Sources />} />
   </Route></Routes><NewPostSheet />
 </SaveProvider></ComposerProvider></RepostProvider></BrowserRouter>);

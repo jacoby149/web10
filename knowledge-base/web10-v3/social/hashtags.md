@@ -166,8 +166,33 @@ prose hashtag). v1 unions the two: chips are built from `tags ∪ hashtags` of
 the loaded board, and the `?tag=` filter matches either (the client-side pool
 filter, same as today — the chip is a filter on the loaded board; the GLOBAL
 destination for a topic is the `/tag/` board the prose links to). The `?q=`
-board search matches hashtags too. No new URL params (the deep links survive
-verbatim).
+board search matches hashtags too. Existing `tag` / `q` deep links survive
+verbatim; the scalable picker below adds its own URL state.
+
+### Large topic sets: keep the rail, not a thousand chips
+
+Operator follow-up (12 November, screenshot of All / #music / #short): keep
+topics above the feed, but make the control usable with 1,000 topics. The old
+alphabetical first-12 cutoff hides the rest; rendering every topic as a chip
+would merely trade that defect for an endless strip.
+
+The rail keeps All, at most six quick topics and the current selection (pinned
+immediately after All), with a permanently reachable Browse topics control.
+That control expands a bounded inline picker, not a new full-screen destination:
+search the complete deduplicated loaded-feed topic pool, render at most 40
+results per page, and keep long labels truncated rather than widening the page.
+Small sets retain the familiar chips without extra chrome. The picker labels
+its scope as this feed; this is not a global hashtag index or an extra network
+read, and it does not change the feed's existing filter semantics.
+
+The URL owns `topics=1`, `topicQuery` and `topicPage`; `tag` remains the selected
+filter. Choosing a result closes/clears the picker without losing unrelated
+ranking/search/tab parameters. Refresh/history restore selection and picker
+state. Keyboard opening focuses the search field, Escape/Close return focus to
+Browse topics, and quick filters support arrow/Home/End navigation. Empty search
+results are explicit. Tests and desktop/375px captures must use a real 1,000-item
+fixture and prove the rail/result DOM stays bounded, far-end search/selection,
+history/refresh, keyboard focus and no horizontal page overflow in both themes.
 
 ## What it rejects
 
