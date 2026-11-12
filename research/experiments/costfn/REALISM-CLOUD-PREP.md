@@ -1,5 +1,26 @@
 # Monitored DigitalOcean preparation — operator approval
 
+**CURRENT STATE — 12 November 2026:** the preparation host is deleted, not
+running. The last retained live snapshot is 03:57 UTC at exposure partition
+68/1024. No final validation outcome or verified private archive was collected.
+Cleanup was verified at 10:02:47 UTC, later than the approved 08:01:22 deadline;
+the local-Mac watchdog was not a provider-enforced lifetime guarantee. No matching
+droplet snapshot was found. Treat the only recorded full input as lost; retain
+the generator, manifest, small floors and failure records. Never treat the older
+“active” checkpoints below as current state.
+
+**Latest operator simplification:** one persistent Volume for the dataset prep
+droplet, ordinary files/state/logs, and normal output logs/results for experiments.
+No whole-workflow checkpoint or custom workbench framework. The metadata-only
+readiness gate is replaced by checking an actual approved provider volume
+(`prep_volume_id`, `prep_volume_name`, `prep_volume_size_gib`, `region`), plus an
+exact filesystem mount/UUID check in the preparation worker. The worker's CLI
+requires `--work-volume` and `--filesystem-uuid`; output/state/logs and retained
+validation work go there. Compute cleanup leaves volumes alone. No disk is
+provisioned/formatted/mounted by these helpers. Actual attachment/replacement
+verification, storage price/retention and new compute approval remain OPEN;
+the old lease cannot reopen. Details: [REALISM-RECOVERY.md](REALISM-RECOVERY.md).
+
 **Latest operator amendment:** “lets run it, skip those gates entirely! make a
 way in the script like an arg to skip those” and “we are running this 100k thing
 over and over”. Stop the repeated pre-1M graph/floor pipeline and use explicit
