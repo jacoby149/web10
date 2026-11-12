@@ -61,12 +61,20 @@ Receipts/captures: `.context/rotation-playback-receipt.json` and
 `.context/rotation-playback-{1440,375}.png`. All 2,241 API tests plus eight subtests
 pass (one existing opt-in skip). No player/access/TTL change or production write.
 
-Deployment and retry of the existing failed upload remain OPEN. A worker code fix
-does not requeue historical `failed` records. After reviewed deployment and
-operator approval, retry only the exact affected media through the existing
-owner-authorized transcode route; wait for `done`, re-read the original carrier
-and verify actual decoded frames on the reported homepage card. Do not re-upload
-the post, grant broader access, or silently run a global backfill.
+**Bounded production recovery completed, 12.11.2026 (5.28.1).** The fixed JSON probe
+is already installed; operator approves the merged one-time ops script and its
+private five-item exact-known-error plan. All five convert sequentially to done
+with three HLS variants each, exit 0; zero matching failures remain. Source object
+sizes/ETags, canonical non-transcode metadata/thumbnails and original reported
+post/group hashes match before-state. Each first HLS segment decodes H.264 frames.
+The actual reported public post and Shorts now decode advancing frames at 1440/
+375px Chromium, with passing pause/seek/resume (desktop post 257→437 frames,
+Shorts 243→423; 375px post 243→423, Shorts 245→427). Captures inspected; receipts
+under `.context/healing-live/` and the private server run directory in OPS-LOG.
+No app deployment/restart, environment edit, re-upload or access/TTL change;
+all attempt claims retained and the one-time process exited. This closes the
+reported frozen-video recovery, not physical-phone/full-duration acceptance,
+broader media-reliability coverage or model-diverse security assurance.
 
 ## Shared policy
 

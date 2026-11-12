@@ -3,6 +3,46 @@
 Newest at top. Format per AGENT-OPS.md §8. Read the top entries
 BEFORE doing ops work — someone may already be mid-fix.
 
+## 12.11.2026 03:01–03:12 UTC — OpenCode (missoula / jacoby149/videos-stop-freezing-merge-v2) — production one-time phone-video recovery
+did:
+  - Operator explicitly approves execution after PR #1517 merges as 5caaa113d.
+    Verify all-spark, intended production container and exact merged script
+    SHA-256 57e36ce02e1768406193a285544ce1c913679673107927489f6f474994cb6d3c.
+  - Create and validate the exclusive private production plan: five exact-known-
+    error uploads, all canonical owners/sources/originals valid, no prior claims;
+    includes the reported samhanks post. Original bytes total 579,008,144.
+  - Retain source, reviewed plan, preservation hashes and flushed apply log in
+    private server run directory ~/web10-ops/phone-video-recovery/
+    20261112T030158Z-57e36ce0/ (0700 directory / 0600 files).
+  - Launch one finite detached runner of the merged script's explicit --apply
+    in a separate production-container process, serial over that exact plan.
+    No app deployment/restart, environment edit, user token export or post/grant
+    change. Durable exit.json records its outcome; do not relaunch blindly.
+  - During encoding, sampled API container CPU 537% / memory 1.139 GiB on a
+    31.33-GiB host; public /docs remains HTTP 200 in a 233ms point check.
+  - Apply runs 03:05:24–03:10:34 UTC and exits 0: all five entries transition
+    processing→done, with three HLS variants each. All five original object
+    sizes/ETags, canonical non-transcode body/columns and existing thumbnails
+    match before-state hashes; all five attempt claims are retained.
+  - Independently decode each first HLS segment on the server: H.264 portrait
+    output with 750/250/115/750/250 actual video frames. Temporary verification
+    downloads are removed. Read-only latest-history query finds zero remaining
+    exact-known-error failures. Original reported post and group hashes match.
+  - Actual public post and Shorts in Chromium at 1440/375px now decode advancing
+    frames, retain portrait shape and pass pause/seek/resume. Desktop post:
+    257→437 frames; desktop Shorts: 243→423; 375px post: 243→423; Shorts: 245→427.
+    Screenshot captures inspected desktop then mobile under .context/healing-live/.
+  - Retain private verified-outcome.json with safe hashes, phase/exit records and
+    browser/decoded-frame metrics in the same server run directory. API container
+    ID/start time is unchanged; no deployment/restart or environment edit occurred.
+state: all five targeted legacy failures are recovered; exact reported post and
+  Shorts playback is verified on desktop/375px Chromium. Original posts, source
+  objects, thumbnails, non-transcode metadata and access links remain unchanged.
+  One-time runner has exited; no daemon/periodic sweep is left running.
+next: actual iOS Safari/Android Chrome physical-phone acceptance remains open;
+  Chromium viewport evidence is not device proof, and first-segment decoding is
+  not full-duration viewing assurance. Do not delete claims or rerun the old plan.
+
 ## 12.11.2026 02:13 UTC — OpenCode (missoula / jacoby149/videos-stop-freezing-merge) — one-time script redesign acceptance
 did:
   - Operator rejects periodic healing in favor of one-time ops tooling. Remove
