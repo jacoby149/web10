@@ -23,5 +23,5 @@ def list_people_directory(data: ListPeopleDirectory):
     authenticated = reader != "anon"
     if authenticated:
         reader = principal(data)
-    users = ch.list_public_users(reader, authenticated, data.limit, data.offset)
-    return {"users": users, "limit": data.limit, "offset": data.offset}
+    users = ch.list_public_users(reader, authenticated, data.limit, data.offset, sort=data.sort)
+    return {"users": users, "limit": data.limit, "offset": data.offset, "sort": data.sort}

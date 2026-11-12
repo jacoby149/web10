@@ -3,11 +3,12 @@ import { SlidersHorizontal, X } from 'lucide-react';
 import type { ServerAllocation } from './sourceAllocation';
 
 /** A native horizontal control under a hardware face, like the rotary rack. */
-function ChannelFader({ server, onChange, descriptionId, disabled }: {
+function ChannelFader({ server, onChange, descriptionId, disabled, itemLabel }: {
   server: ServerAllocation;
   onChange: (origin: string, weight: number) => void;
   descriptionId: string;
   disabled?: boolean;
+  itemLabel: string;
 }) {
   const x = 10 + server.weight * 2.6;
   return <div className="group/fader relative h-11 min-w-0 rounded-sm focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-surface">
@@ -32,14 +33,14 @@ function ChannelFader({ server, onChange, descriptionId, disabled }: {
     <input type="range" min="0" max="100" step="1" value={server.weight} disabled={disabled}
       aria-label={`Fetch weight for ${new URL(server.origin).host}`}
       aria-describedby={descriptionId}
-      aria-valuetext={`${server.weight} relative weight; ${server.count} posts per page`}
+      aria-valuetext={`${server.weight} relative weight; ${server.count} ${itemLabel} per page`}
       onChange={event => onChange(server.origin, Number(event.currentTarget.value))}
       className="absolute inset-0 m-0 h-11 w-full cursor-ew-resize appearance-none opacity-0" />
   </div>;
 }
 
 /** Controlled chassis only: the owner binds subscriptions, URL and actual reads. */
-export function ServerMixer({ servers, onChange, headerControl, editing, onRemove, messages = {}, disabledOrigins, children, embedded }: {
+export function ServerMixer({ servers, onChange, headerControl, editing, onRemove, messages = {}, disabledOrigins, children, embedded, itemLabel = 'posts' }: {
   servers: readonly ServerAllocation[];
   onChange: (origin: string, weight: number) => void;
   headerControl?: ReactNode;
@@ -49,6 +50,7 @@ export function ServerMixer({ servers, onChange, headerControl, editing, onRemov
   disabledOrigins?: ReadonlySet<string>;
   children?: ReactNode;
   embedded?: boolean;
+  itemLabel?: string;
 }) {
   const descriptionId = useId();
   return <section aria-label="Web10 server mixer" data-testid="server-mixer" className={`overflow-hidden border-border bg-surface ${embedded ? 'border-t' : 'rounded-lg border'}`}>
@@ -67,10 +69,10 @@ export function ServerMixer({ servers, onChange, headerControl, editing, onRemov
           <span aria-hidden="true" className={`h-1 w-1 shrink-0 rounded-full ${server.weight ? 'bg-brand-400' : 'bg-muted-foreground/40'}`} />
           <span className="truncate font-mono text-[11px] font-medium text-foreground" title={server.origin}>{new URL(server.origin).host}</span>
         </div>
-        <span className="block pl-2.5 font-mono text-[10px] tabular-nums text-muted-foreground">{messages[server.origin] || (server.weight === 0 ? 'Paused' : `${server.count} posts / page`)}</span>
+          <span className="block pl-2.5 font-mono text-[10px] tabular-nums text-muted-foreground">{messages[server.origin] || (server.weight === 0 ? 'Paused' : `${server.count} ${itemLabel} / page`)}</span>
       </div>
       <div className="col-start-2 row-start-2 min-w-0 sm:col-start-3 sm:row-start-1">
-        <ChannelFader server={server} onChange={onChange} descriptionId={descriptionId} disabled={disabledOrigins?.has(server.origin)} />
+        <ChannelFader server={server} onChange={onChange} descriptionId={descriptionId} disabled={disabledOrigins?.has(server.origin)} itemLabel={itemLabel} />
       </div>
       <div className="col-start-3 row-span-2 row-start-1 sm:col-start-4 sm:row-span-1">
         <span aria-hidden="true" className={`block rounded-sm border border-border bg-background px-1 py-1.5 text-center font-mono text-sm tabular-nums leading-none ${server.weight ? 'text-brand-300' : 'text-muted-foreground'}`}>{String(server.weight).padStart(3, '0')}</span>

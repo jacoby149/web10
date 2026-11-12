@@ -460,7 +460,7 @@ def get_groups_manages(data: TokenOnly):
 
 
 @router.get("/directory")
-def list_directory(limit: int = 50, offset: int = 0):
+def list_directory(limit: int = 50, offset: int = 0, sort: str = "name"):
     """The public group directory: the minimal list of discoverable groups.
 
     Anon (no token needed). Returns id, name (the slug), owner, join policy,
@@ -469,7 +469,9 @@ def list_directory(limit: int = 50, offset: int = 0):
     in an app-named identity service (D60); a surface fetches it separately and
     composes it with this list. A view over group_contracts ⋈ group_members.
     """
-    groups = ch.list_discoverable_groups(limit=limit, offset=offset)
+    if sort not in {"name", "popular", "newest"} or not 1 <= limit <= 100 or offset < 0:
+        raise HTTPException(status_code=400, detail="Invalid directory page or sort")
+    groups = ch.list_discoverable_groups(limit=limit, offset=offset, sort=sort)
     group_ids = [g["group_id"] for g in groups]
     counts = ch._get_group_member_counts(group_ids)
     out = []
@@ -484,10 +486,11 @@ def list_directory(limit: int = 50, offset: int = 0):
                 "slug": slug,
                 "join_policy": g["join_policy"],
                 "member_count": counts.get(gid, 0),
+                "created_at": g.get("created_at"),
                 "permission_summary": _permission_summary(g["roles"]),
             }
         )
-    return {"groups": out, "limit": limit, "offset": offset}
+    return {"groups": out, "limit": limit, "offset": offset, "sort": sort}
 
 
 @router.get("/by-user")

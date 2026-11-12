@@ -1788,8 +1788,13 @@ class TestListDiscoverableGroups:
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows(
                 [
-                    ("web10.app/groups/alice/jazz", "open", '[{"name": "member", "permissions": ["readAll"]}]'),
-                    ("web10.app/groups/bob/chess", "request", "[]"),
+                    (
+                        "web10.app/groups/alice/jazz",
+                        "open",
+                        '[{"name": "member", "permissions": ["readAll"]}]',
+                        datetime(2026, 1, 1),
+                    ),
+                    ("web10.app/groups/bob/chess", "request", "[]", datetime(2026, 1, 2)),
                 ]
             )
             result = ch.list_discoverable_groups()
@@ -1806,6 +1811,23 @@ class TestListDiscoverableGroups:
         with _patch_client() as mock_client:
             mock_client.query.return_value = _mock_result_rows([])
             assert ch.list_discoverable_groups() == []
+
+    def test_sorts_canonical_creation_or_current_membership_before_limit(self):
+        for sort, order in [
+            ("newest", "gc.created_at DESC, gc.group_id"),
+            ("popular", "coalesce(mc.cnt, 0) DESC, gc.group_id"),
+        ]:
+            with _patch_client() as mock_client:
+                mock_client.query.return_value = _mock_result_rows([])
+                ch.list_discoverable_groups(limit=2, offset=3, sort=sort)
+                sql, params = mock_client.query.call_args.args
+                assert f"ORDER BY {order} LIMIT" in sql
+                assert "WHERE rn = 1 AND deleted = 0 AND discoverable = 1" in sql
+                assert "ORDER BY updated_at DESC, deleted DESC" in sql
+                assert params == {"limit": 2, "offset": 3}
+                if sort == "popular":
+                    assert "PARTITION BY group_id, member_key" in sql
+                    assert ") WHERE deleted = 0 GROUP BY group_id" in sql
 
 
 class TestMigrateDiscoverableDefaultFlip:

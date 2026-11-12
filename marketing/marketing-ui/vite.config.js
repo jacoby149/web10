@@ -34,6 +34,9 @@ export default defineConfig({
       // pre-bundled) — the file: dep in package.json keeps its deps resolvable.
       '@web10/discover/media-recovery': path.resolve(__dirname, '../shared/discover/src/mediaRecovery.ts'),
       '@web10/discover/source-controls': path.resolve(__dirname, '../shared/discover/src/sourceControls.ts'),
+      '@web10/discover/directory-controls': path.resolve(__dirname, '../shared/discover/src/DirectoryControls.tsx'),
+      '@web10/discover/directory-mixer': path.resolve(__dirname, '../shared/discover/src/directoryMixer.ts'),
+      '@web10/discover/use-directory-mixer': path.resolve(__dirname, '../shared/discover/src/useDirectoryMixer.ts'),
       '@web10/discover/source-models': path.resolve(__dirname, '../shared/discover/src/sourceModels.ts'),
       '@web10/discover/mixed-feed': path.resolve(__dirname, '../shared/discover/src/mixedFeed.ts'),
       '@web10/discover/feed-query': path.resolve(__dirname, '../shared/discover/src/feedQuery.ts'),
