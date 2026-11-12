@@ -191,6 +191,23 @@ before future UI implementation; require desktop and 375px captures.
 
 ### Restricted permissions and additional role presets
 
+**Working model — approve the speaker, then trust the publisher.** The operator
+wants speaker-level approval as the planning baseline: TorahAnytime approves
+who may publish; a listener account alone never grants upload/post authority.
+They may vet a prospective speaker's first few videos before approval, then
+allow the approved publisher to post without manually auditing every video.
+This describes our current assumption about their workflow, **not a verified
+statement of TorahAnytime's existing process**. The roughly 1,200-speaker figure
+discussed by the operator does not establish how approval or review works.
+
+TA0 must confirm this with Shimon: who approves a speaker/uploader, whether
+initial submissions are reviewed (and how many), when direct publishing starts,
+and how approval is suspended/revoked or a publisher returned to review. Do not
+invent an initial-video count or make per-post preapproval the default without
+that confirmation. Keep moderation/removal and reports available after approval;
+trust does not mean irrevocable publishing authority. Listener signup/access
+approval is a separate unresolved policy, not implied by speaker approval.
+
 Ordinary signup must not automatically grant public publishing, upload,
 community creation, role management or moderation authority on the partner's
 surfaces. Propose a least-privilege matrix for **viewer/student**, **approved
@@ -212,8 +229,9 @@ API generic (D60), never hardcode Torah concepts in `api/`.
 
 Torah Anytime defines what counts as Torah content, appoints reviewers and owns
 approval, removal and appeal policy. Begin pilot scoping with approved-source
-catalog content and approved publishers; decide whether new submissions and
-edits require review before exposure. A keyword blocklist or AI classifier is
+catalog content and approved publishers. Use the speaker-approval working model
+above; confirm any initial-vetting and exceptional submission/edit review before
+implementation rather than assuming every video is pre-reviewed. A keyword blocklist or AI classifier is
 not a guarantee of Torah-only content. Existing D59 board hiding alone is
 insufficient: hidden content can still be accessible elsewhere.
 
