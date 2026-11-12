@@ -4,7 +4,6 @@ import json
 import shutil
 import subprocess
 from pathlib import Path
-from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
@@ -152,38 +151,3 @@ def test_rotated_hevc_completes_real_worker_pipeline(tmp_path, monkeypatch):
     variant = update.call_args.kwargs["body"]["transcoding_settings"]["variants"][0]
     assert (variant["width"], variant["height"], variant["codec"]) == (100, 180, "h264")
     assert transcode._probe_dimensions(stored / "synthetic/hls/180p/index.m3u8") == (100, 180, 12)
-
-    # The same real encoder must heal a historical failure without a reader,
-    # owner credential, new upload, post mutation or a second automatic attempt.
-    from app.services import transcode_recovery as recovery
-
-    body.update(
-        object_key="synthetic/phone.mp4",
-        mime_type="video/mp4",
-        transcoding_settings={"status": "failed", "error": recovery.PROBE_ERROR},
-    )
-    doc = {
-        "doc_id": "synthetic-phone",
-        "author_key": "synthetic",
-        "body": body,
-        "service": "media_metadata",
-        "deleted": False,
-    }
-    monkeypatch.setattr(transcode.ch, "get_document_version", lambda *_: doc)
-    monkeypatch.setattr(transcode.ch, "get_user", lambda _: {"username": "synthetic"})
-    monkeypatch.setattr(
-        transcode.ch.client, "query", Mock(return_value=SimpleNamespace(result_rows=[("synthetic", "synthetic-phone")]))
-    )
-    monkeypatch.setattr(recovery.settings, "HLS_RECOVERY_ENABLED", True)
-    monkeypatch.setattr(recovery, "ensure_private_state_bucket", Mock())
-    monkeypatch.setattr(recovery, "_cursor", ("", ""))
-    monkeypatch.setattr(transcode, "_pending", set())
-    update.reset_mock()
-    update.side_effect = lambda **kw: doc.update(body=kw["body"])
-    recovery.recover_one()
-    assert [c.kwargs["body"]["transcoding_settings"]["status"] for c in update.call_args_list] == ["processing", "done"]
-    assert doc["body"]["object_key"] == "synthetic/phone.mp4"
-    assert transcode._probe_dimensions(stored / "synthetic/hls/180p/index.m3u8") == (100, 180, 12)
-    recovery.recover_one()
-    assert update.call_count == 2
-    s3.put_object.assert_called_once()

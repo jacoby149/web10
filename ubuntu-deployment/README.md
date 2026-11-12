@@ -224,16 +224,6 @@ after deployment. Do not run broad prune or DNS deletion commands as cleanup.
 
 ## Promotion flow (dev → prod)
 
-Historical phone-probe healing is API-only and defaults off. After reviewed
-recovery acceptance, set `HLS_RECOVERY_ENABLED=true` in the intended private
-`env.dev`/`env.prod` and its `~/web10-ops/` backup, not shared `.env` (exported
-values override per-stack files). `RESUMABLE_STATE_BUCKET` must be a separate
-private bucket; maintenance validates policy/ACL before claiming work. Recreate
-the intended API with the normal Compose procedure; a plain restart cannot load
-new environment values. Roll back with `HLS_RECOVERY_ENABLED=false` and recreate
-only that API. Retain private claim objects; deleting them resets retry limits.
-See [recovery contract](../knowledge-base/web10-v3/media/video-experience.md#recovery-of-the-phone-probe-failure).
-
 The API defaults `READABLE_RESOLUTION_MODE` to `batched`; the canonical Compose
 forwards it to API only. A per-stack `READABLE_RESOLUTION_MODE=per-group` is an
 authorization-preserving rollback, applied through the normal approved API

@@ -3,6 +3,25 @@
 Newest at top. Format per AGENT-OPS.md §8. Read the top entries
 BEFORE doing ops work — someone may already be mid-fix.
 
+## 12.11.2026 02:13 UTC — OpenCode (missoula / jacoby149/videos-stop-freezing-merge) — one-time script redesign acceptance
+did:
+  - Operator rejects periodic healing in favor of one-time ops tooling. Remove
+    unmerged API-worker/settings/Compose wiring; place the helper under
+    ubuntu-deployment/scripts/heal-phone-videos.py with private dry-run plan
+    and explicit sequential apply. No production script run or app deployment.
+  - Execute only an isolated dev acceptance: final script dry-run and plan/apply
+    against session-only synthetic users/documents, real MinIO and installed
+    FFmpeg. Failed→processing→done yields 24 decoded H.264 portrait frames;
+    original and all canonical metadata survive; repeat apply adds no version.
+  - Remove only own synthetic source/derivatives/claim and session-only tables.
+    No persistent users/documents, serving-worker hotpatch, environment edits,
+    restart, secret export, post/grant or production media changes.
+state: local suite 2,264 tests/eight subtests passes (one opt-in skip), full API
+  and ops lint/format clean; fresh bounded review has no P1/P2. Script is not
+  an endpoint/daemon and needs no application rollout; PR CI remains a gate.
+next: review/approve the exact private production plan, run explicit --apply,
+  and compare original-post/source/metadata hashes plus actual video frames.
+
 ## 12.11.2026 01:40 UTC — OpenCode (missoula / jacoby149/videos-stop-freezing-merge) — healing preflight
 did:
   - Operator requests production deployment and actual automatic video recovery.

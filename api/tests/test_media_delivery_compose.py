@@ -120,21 +120,6 @@ def test_readable_resolver_default_and_rollback_are_api_only(tmp_path, example, 
 
 
 @pytest.mark.parametrize("example", ["env.dev.example", "env.prod.example"])
-@pytest.mark.parametrize("enabled", [None, "true", "false"])
-def test_hls_healing_can_be_enabled_and_rolled_back_on_api_only(tmp_path, example, enabled):
-    overrides = (
-        {"HLS_RECOVERY_ENABLED": enabled, "RESUMABLE_STATE_BUCKET": "synthetic-private-state"} if enabled else {}
-    )
-    config = render(tmp_path, example, overrides)
-    api = config["services"]["api"]["environment"]
-    assert api["HLS_RECOVERY_ENABLED"] == (enabled or "false")
-    assert api["RESUMABLE_STATE_BUCKET"] == ("synthetic-private-state" if enabled else "web10-upload-state")
-    other_services = json.dumps({k: v for k, v in config["services"].items() if k != "api"})
-    assert "HLS_RECOVERY_ENABLED" not in other_services
-    assert "RESUMABLE_STATE_BUCKET" not in other_services
-
-
-@pytest.mark.parametrize("example", ["env.dev.example", "env.prod.example"])
 @pytest.mark.parametrize("omitted", [True, False], ids=["old-env-file", "documented-defaults"])
 def test_disabled_defaults_keep_existing_delivery(tmp_path, example, omitted):
     environment = render(tmp_path, example, omitted=omitted)["services"]["api"]["environment"]

@@ -445,7 +445,7 @@ OAuth authorization certifies its source token before code minting: local provid
 
 ## Security invariants
 
-Historical phone-probe healing is opt-in (`HLS_RECOVERY_ENABLED`, default off): idle HLS workers retry the exact fixed parser failure once per canonical local media/source, with private conditional claims in `RESUMABLE_STATE_BUCKET`. No public-read trigger, post/grant changes or saved user credential. Crash/manual-concurrency/rollout limits: `knowledge-base/web10-v3/media/video-experience.md`.
+Historical phone-probe recovery is a one-time ops script, `ubuntu-deployment/scripts/heal-phone-videos.py`: dry-run writes an exclusive private plan; explicit `--apply` processes only that node/source-bound plan sequentially, then exits. It uses the installed fixed converter with scoped read/status adapters in its separate process and private conditional claims in the existing state bucket. No endpoint, periodic worker, environment switch, app deployment/restart, post/grant change or saved user credential. Limits: `knowledge-base/web10-v3/media/video-experience.md`.
 
 Resumable uploads remain default-off (`RESUMABLE_UPLOADS_ENABLED`). New multipart
 routes verify current human/app/service authority before private conditional S3
