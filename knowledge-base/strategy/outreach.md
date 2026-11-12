@@ -56,6 +56,11 @@ rules, including inappropriate content, plus sync/login capabilities. Use their
 answers to make a tailored proposal, not a speculative permission redesign.
 Custom publishing policy, all-surface governance and authorized synchronization
 are later rollout work, not features we can claim are ready or demo blockers.
+After policy discovery and agreement on a bounded proposal, offer **Demo Part
+2 with their confirmed policies mirrored**, so their team can test the actual
+participation/moderation workflows and refine the proposal. Do not imply that
+this includes working TorahAnytime login or account/catalog sync unless those
+integrations are separately agreed and verified. The first showcase stays lean.
 
 This partner-specific sync plan is an explicit exception to the generic
 fresh-start/no-catalog offer above (D95), not a change to every creator pitch

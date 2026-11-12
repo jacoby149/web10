@@ -55,8 +55,18 @@ login options at that point, without promising an existing integration.
 Write a tailored proposal from their answers, identifying confirmed facts,
 open questions, permission changes, integration requirements and bounded scope.
 
-Full synchronization and custom role presets remain later work. No claim of
-production Torah-only enforcement follows from a curated private demo.
+**Demo Part 2 — mirror their confirmed policies.** After they agree the bounded
+policy scope, demonstrate those account/publishing/comment/moderation workflows
+on the isolated demo and let their team validate them. Use their answers, not
+our speaker-approval hypothesis. Exercise real allowed/denied operations and
+moderator actions, not just different buttons. Record mismatches and refine
+the proposal before rollout. This is a second showcase, not a new requirement
+for Part 1; `DEMO2` in the task queue still means the password-gate bite.
+
+Login/account/catalog synchronization is separate: include it in Part 2 only
+if explicitly agreed and technically available. Mirrored policies do not imply
+working TorahAnytime SSO or a full sync. No production-policy claim follows
+from a curated private demo alone.
 
 ## Start here
 

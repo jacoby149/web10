@@ -143,6 +143,18 @@ source of truth, access and revocation before proposing an integration. No
 existing SSO/API capability is assumed. Separate verified answers, our
 recommendations and unresolved questions in the proposal.
 
+**Demo Part 2:** after discovery and agreement on a bounded policy proposal,
+mirror their confirmed participation/moderation rules in the isolated demo.
+Let TorahAnytime test actual account/publishing/comment/review/report/removal
+and suspension/revocation workflows, where applicable to their answers. Show
+both allowed and denied operations, including direct API denial, and capture
+partner feedback/mismatches before refining the rollout proposal. Do not
+substitute our assumptions, cosmetic role labels or mocked permissions for
+their policy. Part 2 follows Part 1; it does not delay the existing-policy
+showcase. Login/account/catalog sync is not automatically included: it needs
+its own agreed scope, access and proven integration. Queue ID: DEMO-PART2
+(distinct from DEMO2, which is the password-gate task).
+
 Operator-selected demo URLs: **https://torah.web10.app** (social) and
 **https://api.torah.web10.app** (API). The operating kit lives in
 [`whitelabel-demo/`](../../whitelabel-demo/README.md): DNS/TLS, isolation,
@@ -290,7 +302,11 @@ collects their current/desired policy and integration answers. Produce the
 recommended permission matrix, moderation responsibilities, account/login and
 catalog-sync options, technical dependencies, phased acceptance and cost/scope.
 Partner agreement gates the subsequent TA1–TA4 implementation, not the first
-showcase. Operational preflight and sample rights still precede demo execution.
+showcase. DEMO-PART2 is the bounded policy-validation showcase after that
+agreement and relevant TA2 implementation: mirror confirmed rules, collect
+feedback and refine the proposal before rollout. It is not full TA4 production
+acceptance or automatic sync/SSO scope. Operational preflight and sample rights
+still precede demo execution.
 
 1. **TA0 — partner discovery and pilot agreement.** Document counterpart,
    verified inventory/access/rights, audience baseline, desired branding,
