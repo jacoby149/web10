@@ -33,12 +33,12 @@ def partition_count(rows, max_rows=2500000):
 
 @contextmanager
 def partitions(db, table, keys, parent=None, *, max_rows=2500000, keep_work=False):
-    """Admit an exact complete-key histogram, then write each row only once.
+    """Admit complete keys, then materialize with at most 32 radix writers.
 
     Bucket count scales with actual rows, not account count. Bound open files
-    and flush buffers independently of bucket count; do not open 1024 writers
-    with the default 524288-row per-thread flush threshold. No checks removed,
-    sampling, artifact SQL, or higher engine memory/thread budget.
+    and flush buffers independently of bucket count. Small hash-digit passes
+    avoid both a full-relation external sort and writer eviction/tiny-file
+    churn. No sampling, artifact SQL, or higher memory/thread budget.
     """
     allowed = {"documents": ("doc_id", "author_key"),
                "content_events": ("doc_id", "reader_key")}
@@ -63,20 +63,53 @@ def partitions(db, table, keys, parent=None, *, max_rows=2500000, keep_work=Fals
     workspace=(nullcontext(tempfile.mkdtemp(prefix='realism-partitions-',dir=parent)) if keep_work
                else tempfile.TemporaryDirectory(prefix='realism-partitions-',dir=parent))
     with workspace as tmp:
-        target = str(Path(tmp)/"facts").replace("'", "''")
+        root=Path(tmp)
+        facts=root/'facts'
+        facts.mkdir()
+        key_sql=','.join(keys)
         names=('partitioned_write_max_open_files','partitioned_write_flush_threshold')
         previous={name:db.execute('SELECT current_setting(?)',[name]).fetchone()[0] for name in names}
-        print(f'[realism-validator] partition pass start table={table} buckets={count} open_files=16 flush_rows=8192 max_rows={max_rows}',flush=True)
+        print(f'[realism-validator] partition pass start table={table} buckets={count} open_files=32 flush_rows=8192 max_rows={max_rows} strategy=radix',flush=True)
+
+        def write(source,prefix=0,stride=1):
+            fanout=min(32,count//stride)
+            destination=root/f'radix-{stride}-{prefix}'
+            target=str(destination).replace("'", "''")
+            print(f'[realism-validator] radix start table={table} prefix={prefix} stride={stride} fanout={fanout}',flush=True)
+            db.execute(f"COPY (SELECT *, (hash({key_sql})//{stride})%{fanout} AS bucket FROM {source}) "
+                       f"TO '{target}' (FORMAT PARQUET, COMPRESSION ZSTD, PARTITION_BY(bucket), ROW_GROUP_SIZE 2048)")
+            next_stride=stride*fanout
+            found=0
+            for directory in sorted(destination.glob('bucket=*')):
+                digit=int(directory.name.split('=',1)[1])
+                bucket=prefix+digit*stride
+                quoted=str(directory/'*.parquet').replace("'", "''")
+                relation=f"read_parquet('{quoted}', hive_partitioning=false)"
+                size=db.execute(f'SELECT count(*) FROM {relation}').fetchone()[0]
+                expected=sum(n for b,n in histogram.items() if b%next_stride==bucket)
+                if size!=expected:
+                    raise ValueError('radix partition differs from admitted histogram')
+                found+=size
+                if next_stride==count:
+                    directory.rename(facts/f'bucket={bucket}')
+                else:
+                    write(relation,bucket,next_stride)
+                    # Only this invocation's verified intermediate files;
+                    # never dataset files or an earlier attempt's scratch.
+                    for path in directory.glob('*.parquet'):
+                        path.unlink()
+                    directory.rmdir()
+            expected=sum(n for b,n in histogram.items() if b%stride==prefix)
+            if found!=expected:
+                raise ValueError('radix pass lost or duplicated records')
+            destination.rmdir()
+            print(f'[realism-validator] radix complete table={table} prefix={prefix} stride={stride} rows={found}',flush=True)
+
         try:
-            db.execute('SET partitioned_write_max_open_files=16')
+            db.execute('SET partitioned_write_max_open_files=32')
             db.execute('SET partitioned_write_flush_threshold=8192')
-            # Group destinations before bounded writers see them. Randomly
-            # interleaving 1024 buckets with 16 open files creates hundreds of
-            # thousands of tiny files. DuckDB's engine-bounded external sort
-            # can spill; no extra Parquet rewrite or unbounded writer fan-out.
-            db.execute(f"COPY (SELECT *, hash({','.join(keys)})%{count} AS bucket FROM {table} ORDER BY bucket) "
-                       f"TO '{target}' (FORMAT PARQUET, COMPRESSION ZSTD, PARTITION_BY(bucket), "
-                       "ROW_GROUP_SIZE 2048)")
+            if rows:
+                write(table)
         finally:
             for name,value in previous.items():
                 db.execute(f'SET {name}=?',[value])
@@ -342,7 +375,9 @@ def validate(directory, out, *, keep_work=False):
         db = duckdb.connect(str(Path(tmp)/"validation.duckdb"))
         db.execute("SET memory_limit='2GB'; SET threads=1; SET preserve_insertion_order=false")
         db.execute("SET temp_directory=?", [str(Path(tmp)/"spill")])
+        db.execute("SET max_temp_directory_size='100GB'")
         try:
+            print("[realism-validator] resources memory=2GB threads=1 max_spill=100GB",flush=True)
             print("[realism-validator] integrity start", flush=True)
             attach(db, directory, manifest,keep_work=keep_work)
             print("[realism-validator] finished-record semantic checks start", flush=True)
