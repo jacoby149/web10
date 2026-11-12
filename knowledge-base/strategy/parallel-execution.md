@@ -1656,6 +1656,12 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+**Current run disposition (12 November):** the prep host is deleted, last
+retained snapshot 03:57 UTC at exposure partition 68/1024; deletion verified
+10:02:47 UTC. No final validation receipt/verified archive/snapshot was recovered.
+Treat the full input as lost, not running or validated. Older active-run entries
+are history. Restart safety, new approval and verified recovery precede paid work.
+
 **Current directive (11 November):**
 [`REALISM-DATASET-DECISIONS.md`](../../research/experiments/costfn/REALISM-DATASET-DECISIONS.md)
 preserves the operator's full attachment and implementation approvals;
@@ -1743,7 +1749,10 @@ and skew refusal. Two local/remote controls and eleven offline suites pass.
 Same generated input is hash/source/identity-reverified and reused; no model/
 floor rerun, raised engine limit or 1M validation/storage/experiment claim.
 
-- [ ] **RD3-VALIDATOR-THROUGHPUT: avoid oversized first-pass validation partitions** — operator requests the execution-strategy fix after reviewing the extra rewrite. Owns `research/experiments/costfn/` validator/tests and serialized KB records. Size complete-key partitions from observed row volume upfront, bound writer/worker concurrency within the approved memory envelope, and add source/input-bound recovery checkpoints. Gates: exact all-column/multiplicity and complete-key parity, explicit aggregate resource bounds, interruption/stale-checkpoint refusal, measured same-host throughput; do not replace or discard the advancing run merely to deploy this. Acceptance: remove avoidable full-data rewrites/repeated completed stages with measured evidence, not an untested speed claim. OPEN; this PR's two-level refinement is the memory-safety repair, not this optimization.
+- [~] **RD3-VALIDATOR-THROUGHPUT: avoid oversized first-pass validation partitions** — operator requests the execution-strategy fix after reviewing the extra rewrite. Owns `research/experiments/costfn/` validator/tests and serialized KB records. Size complete-key partitions from observed row volume upfront, bound writer/worker concurrency within the approved memory envelope, and add source/input-bound recovery checkpoints. Gates: exact all-column/multiplicity and complete-key parity, explicit aggregate resource bounds, interruption/stale-checkpoint refusal and measured same-host throughput. The earlier run is deleted (last retained snapshot 03:57 UTC; deletion verified 10:02:47 UTC Nov 12), not advancing. First bite is histogram-admitted one-pass sizing with bounded open writers/flush buffers and exact parity/local measurements. Parallel validation/checkpoints remain open; no unmeasured speed or 1M-validation claim.
+  - [✓ 5.28.6 local only] **First-pass sizing and grouped writes:** volume-aware bucket planning and exact prewrite histogram admission; bounded 16-open-file/8192-row-flush destination-grouped write avoids the second Parquet rewrite and small-file churn. Exact multiset/key/schema/bound/refusal and setting-restoration controls pass. Three paired 2M-row local probes: median 3.50→1.91s, temporary Parquet 81.55→51.63MB; separate 128MB-engine probe passes (not RSS bound). Fresh current-contract 10k/16M-delivery validation passes all 50 checks. Larger-scale sorting scratch, cloud throughput, parallelism and verified recovery checkpoints remain OPEN.
+- [ ] **RD3-RESTART-SAFETY: prevent another session-dependent loss** — owns research worker/controller/lease tests and serialized KB. Require durable independent status collection and private unvalidated recovery storage with verified readback plus a bounded preservation/cleanup drill before new paid preparation. Exercise session/network loss, failed archive and cleanup deadlines; keep hard spend controls and never relabel quarantine as validated input. The closed prior lease cannot reopen; no new spend without explicit approval. This gate remains open until actual connected recovery evidence exists, not just configuration flags.
+  - [✓ 5.28.6 local metadata gate only] `admits_creation` refuses missing/stale/wrong-account/run/incomplete readiness receipts, requires private exact probe readback metadata and preserves cleanup/closed-lease behavior. Offline fixtures are not connected drill evidence; no real readiness receipt has been issued. Actual independent controller, archive transfer, recovery and bounded cleanup drill remain OPEN.
 
 **Earlier RD3 repair:** [✓ 5.24.2 local/remote controls; full graph/floor proof interrupted by operator]
 **RD3-GRAPH: bound complete-request candidate expansion at 2 GB** — actual 1M

@@ -87,6 +87,8 @@ def admits_creation(lease,now=None):
     now=time.time() if now is None else now
     if lease.get("cancelled") or lease.get("cleanup_verified") or now>=lease["deadline"]:
         raise ValueError("lease irreversibly closed to creation")
+    from realism_readiness import require_readiness
+    require_readiness(lease,now)
 
 
 def owned_droplet(row,lease):

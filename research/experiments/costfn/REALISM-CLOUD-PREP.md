@@ -1,5 +1,26 @@
 # Monitored DigitalOcean preparation — operator approval
 
+**CURRENT STATE — 12 November 2026:** the preparation host is deleted, not
+running. The last retained live snapshot is 03:57 UTC at exposure partition
+68/1024. No final validation outcome or verified private archive was collected.
+Cleanup was verified at 10:02:47 UTC, later than the approved 08:01:22 deadline;
+the local-Mac watchdog was not a provider-enforced lifetime guarantee. No matching
+droplet snapshot was found. Treat the only recorded full input as lost; retain
+the generator, manifest, small floors and failure records. Never treat the older
+“active” checkpoints below as current state.
+
+**Restart admission now fails closed:** `realism_cloud_lease.admits_creation`
+requires a recent (<=300 seconds), exact-run-bound
+`workflow_readiness_receipt` validated by `realism_readiness.py`. It must record
+a real independent-controller/status and private recovery drill, session and
+workstation loss, final-receipt recovery, exact probe size/SHA readback after host
+loss, archive-before-validation/cleanup, failure refusal and hard cleanup. The
+schema checks evidence metadata; it does not perform or prove the connected
+drill. No receipt is fabricated by this change, and the gate remains CLOSED
+until the real drill exists. Cleanup remains unconditional at the budget boundary;
+missing archive evidence must not cause unbounded compute retention. The old
+lease is irreversibly closed. New paid preparation needs explicit approval.
+
 **Latest operator amendment:** “lets run it, skip those gates entirely! make a
 way in the script like an arg to skip those” and “we are running this 100k thing
 over and over”. Stop the repeated pre-1M graph/floor pipeline and use explicit

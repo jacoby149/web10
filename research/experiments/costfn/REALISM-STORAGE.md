@@ -18,6 +18,16 @@ object was published there by this preparation run.
 
 ## Two private copies, one frozen identity
 
+**Recovery design after the 12 November loss:** before another paid preparation,
+prove an independent private **unvalidated quarantine** destination and bounded
+automatic preservation/readback before validation and destructive cleanup.
+Quarantine is separate from the canonical accepted dataset prefix below, never
+public, never a passed validation receipt or a completed rerun input. Its
+retention, access, cleanup and cost must be explicitly bounded in the connected
+drill. This design/readiness gate is not an implemented uploader or permission
+to publish unvalidated inputs under accepted/canonical IDs. Actual connected
+controller/archive recovery remains OPEN; no object writes occur in this change.
+
 1. **Spaces:** private rerun distribution copy in the actual droplet region
    (current preparation host: **NYC3**). The Space/bucket and scoped object-store
    credentials must be configured before staging. Droplets import the verified

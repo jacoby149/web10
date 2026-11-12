@@ -1432,6 +1432,12 @@ docs before code, per the rule at the top.
 
 ### Current directive — derived realism dataset (11 November 2026)
 
+**12 November disposition:** the paid prep host is deleted; last retained
+snapshot is 03:57 UTC at exposure partition 68/1024, deletion verified at
+10:02:47 UTC. Final validation is unknown and no verified archive/snapshot was
+recovered. Treat the full input as lost. Older “running” checkpoints are history;
+the prior lease is closed and no new paid run is authorized.
+
 Read [`REALISM-DATASET-DECISIONS.md`](../../research/experiments/costfn/REALISM-DATASET-DECISIONS.md)
 first (operator's full directive and conversation approvals), then
 [`REALISM-RERUN-PLAN.md`](../../research/experiments/costfn/REALISM-RERUN-PLAN.md).
@@ -1495,7 +1501,10 @@ conserve every row and refuse indivisible skew. Two local/remote controls and
 eleven offline suites pass. Reverify/reuse the same finished input; no rebuild,
 floor rerun, memory-limit increase or validation/storage/experiment completion.
 
-- [ ] **RD3-VALIDATOR-THROUGHPUT:** operator-requested first-pass volume-aware complete-key sizing, bounded writer/worker concurrency and source/input-bound recovery checkpoints. Preserve every row/check and the approved aggregate resource envelope; prove exact parity, interruption/stale refusal and measured same-host throughput before adoption. Do not discard the advancing run. The current two-pass refinement repairs memory safety only; execution-strategy optimization remains OPEN in the lane queue.
+- [~] **RD3-VALIDATOR-THROUGHPUT:** operator-requested first-pass volume-aware complete-key sizing, bounded writer/worker concurrency and source/input-bound recovery checkpoints. Preserve every row/check and the approved aggregate resource envelope; prove exact parity, interruption/stale refusal and measured same-host throughput before adoption. The earlier run is now deleted, not advancing: last retained snapshot 03:57 UTC, deletion verified 10:02:47 UTC Nov 12. First bite: histogram-admit correctly sized complete-key buckets before writing, bound open files/flush buffers and prove exact parity plus local resource measurements. Parallel validation/checkpoint orchestration remains separate, not inferred from this repair.
+  - [✓ 5.28.6 local only] **Volume-aware first pass:** exact histogram before writing, grouped destinations and bounded open files/flush buffers remove the oversized-bucket rewrite without tiny-file explosion. Three paired 2M-row local medians 3.50→1.91s, temporary Parquet 81.55→51.63MB; exact controls and a fresh 10k/16M-delivery full validation (50/50) pass. Cloud/1M scratch/throughput, parallelism and restart checkpoints remain open; not full RD3 acceptance.
+- [ ] **RD3-RESTART-SAFETY:** no new paid preparation until independent durable status collection, private quarantine/recovery persistence before destructive cleanup, verified recovery readback and a bounded preservation/cleanup drill pass with session/network-loss controls. Recovery artifacts are unvalidated and never pass dataset/publication gates. Keep a hard cleanup budget; do not solve data loss by leaving compute running indefinitely. The closed prior lease cannot reopen; new spend requires explicit approval.
+  - [✓ 5.28.6 local gate only] Paid creation admission requires recent account/run-bound drill metadata and refuses missing/stale/incomplete/private-readback failures. Tests do not establish actual external durability; connected controller/archive/recovery and cleanup drill remain OPEN, with no issued real readiness receipt.
 
 **Earlier RD3 repair:** [✓ 5.24.2 local/remote controls; full graph/floor proof interrupted by operator]
 **RD3-GRAPH: bound complete-request candidate expansion at 2 GB** — the first
