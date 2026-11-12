@@ -4,7 +4,7 @@ All semantic checks query actual Parquet rows, including zero-activity users,
 distinct exposure audiences and each study cohort. No generator imports.
 """
 import argparse
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 import json
 import os
 from pathlib import Path
@@ -19,65 +19,79 @@ TABLES = ("users", "documents", "doc_groups", "group_contracts", "group_members"
 VALIDATOR_SOURCE_AT_IMPORT = sha(__file__)
 
 
-@contextmanager
-def partitions(db, table, keys, parent=None, *, max_rows=2500000):
-    """One streamed disk partitioning pass; equal keys never cross buckets.
+def partition_count(rows, max_rows=2500000):
+    """Plan 25% average-row headroom; the exact histogram still admits it."""
+    if type(rows) is not int or rows<0 or type(max_rows) is not int or max_rows<1:
+        raise ValueError('nonnegative row count and positive partition row budget required')
+    count=64
+    while rows*4>count*max_rows*3:
+        count*=2
+    if count>4096:
+        raise ValueError('partition plan exceeds supported 4096 buckets')
+    return count
 
-    Start with 64 writers, then refine oversized buckets independently. A
-    fixed 64-way pass fits the 160M floor but not the 1.6B headline. Never
-    open thousands of Parquet writers at once. No sampling or raised budget.
-    Only internal fixed table/key identifiers are accepted, never artifact SQL.
+
+@contextmanager
+def partitions(db, table, keys, parent=None, *, max_rows=2500000, keep_work=False):
+    """Admit an exact complete-key histogram, then write each row only once.
+
+    Bucket count scales with actual rows, not account count. Bound open files
+    and flush buffers independently of bucket count; do not open 1024 writers
+    with the default 524288-row per-thread flush threshold. No checks removed,
+    sampling, artifact SQL, or higher engine memory/thread budget.
     """
     allowed = {"documents": ("doc_id", "author_key"),
                "content_events": ("doc_id", "reader_key")}
     if table not in allowed or tuple(keys) != allowed[table]:
         raise ValueError("undeclared validator partition")
-    if type(max_rows) is not int or max_rows<1:
-        raise ValueError('positive partition row budget required')
+    rows=db.execute(f'SELECT count(*) FROM {table}').fetchone()[0]
+    count=partition_count(rows,max_rows)
+    while True:
+        print(f'[realism-validator] partition admission start table={table} rows={rows} buckets={count}',flush=True)
+        histogram=dict(db.execute(f'SELECT hash({",".join(keys)})%{count} bucket,count(*) n FROM {table} GROUP BY bucket').fetchall())
+        if sum(histogram.values())!=rows:
+            raise ValueError('partition histogram lost or duplicated records')
+        largest=max(histogram.values(),default=0)
+        print(f'[realism-validator] partition admission complete table={table} buckets={count} largest_rows={largest}',flush=True)
+        if largest<=max_rows:
+            break
+        if count>=4096:
+            raise ValueError('complete-key partition exceeds row budget; no files written')
+        count*=2
     if parent is None:
         parent = Path(__file__).resolve().parents[3] / ".context"
-    with tempfile.TemporaryDirectory(prefix="realism-partitions-", dir=parent) as tmp:
+    workspace=(nullcontext(tempfile.mkdtemp(prefix='realism-partitions-',dir=parent)) if keep_work
+               else tempfile.TemporaryDirectory(prefix='realism-partitions-',dir=parent))
+    with workspace as tmp:
         target = str(Path(tmp)/"facts").replace("'", "''")
-        print(f'[realism-validator] partition pass start table={table} writers=64 max_rows={max_rows}',flush=True)
-        db.execute(f"COPY (SELECT *, hash({','.join(keys)})%64 AS bucket FROM {table}) "
-                   f"TO '{target}' (FORMAT PARQUET, COMPRESSION ZSTD, PARTITION_BY(bucket), "
-                   "ROW_GROUP_SIZE 2048)")
+        names=('partitioned_write_max_open_files','partitioned_write_flush_threshold')
+        previous={name:db.execute('SELECT current_setting(?)',[name]).fetchone()[0] for name in names}
+        print(f'[realism-validator] partition pass start table={table} buckets={count} open_files=16 flush_rows=8192 max_rows={max_rows}',flush=True)
+        try:
+            db.execute('SET partitioned_write_max_open_files=16')
+            db.execute('SET partitioned_write_flush_threshold=8192')
+            # Group destinations before bounded writers see them. Randomly
+            # interleaving 1024 buckets with 16 open files creates hundreds of
+            # thousands of tiny files. DuckDB's engine-bounded external sort
+            # can spill; no extra Parquet rewrite or unbounded writer fan-out.
+            db.execute(f"COPY (SELECT *, hash({','.join(keys)})%{count} AS bucket FROM {table} ORDER BY bucket) "
+                       f"TO '{target}' (FORMAT PARQUET, COMPRESSION ZSTD, PARTITION_BY(bucket), "
+                       "ROW_GROUP_SIZE 2048)")
+        finally:
+            for name,value in previous.items():
+                db.execute(f'SET {name}=?',[value])
         parts=[]
-        rows=0
+        written=0
         for directory in sorted((Path(tmp)/"facts").glob("bucket=*")):
             quoted=str(directory/"*.parquet").replace("'", "''")
             relation=f"read_parquet('{quoted}', hive_partitioning=true)"
             size=db.execute(f"SELECT count(*) FROM {relation}").fetchone()[0]
-            rows += size
-            if size<=max_rows:
-                parts.append(relation)
-                continue
-            # Aim below the hard cap to tolerate hash imbalance. Complete keys
-            # stay together under an independently salted hash. A skewed single
-            # key cannot be split without invalidating its window; refuse it.
-            shards=2
-            while shards<size/(max_rows*.75):
-                shards*=2
-            if shards>64:
-                raise ValueError('partition refinement needs more than 64 writers; preserve/refuse rather than exceed budget')
-            refined=Path(tmp)/('refined-'+directory.name.split('=',1)[1])
-            quoted=str(refined).replace("'","''")
-            print(f'[realism-validator] refine start table={table} bucket={directory.name} rows={size} writers={shards}',flush=True)
-            db.execute(f"COPY (SELECT * EXCLUDE(bucket), hash({','.join(keys)},'refinement-v1')%{shards} AS bucket FROM {relation}) "
-                       f"TO '{quoted}' (FORMAT PARQUET, COMPRESSION ZSTD, PARTITION_BY(bucket), ROW_GROUP_SIZE 2048)")
-            refined_rows=0
-            for sub in sorted(refined.glob('bucket=*')):
-                subpath=str(sub/'*.parquet').replace("'","''")
-                subrelation=f"read_parquet('{subpath}', hive_partitioning=true)"
-                subrows=db.execute(f'SELECT count(*) FROM {subrelation}').fetchone()[0]
-                if subrows>max_rows:
-                    raise ValueError('complete-key partition exceeds row budget after refinement')
-                refined_rows+=subrows
-                parts.append(subrelation)
-            if refined_rows!=size:
-                raise ValueError('validator refinement lost or duplicated records')
-            print(f'[realism-validator] refine complete table={table} bucket={directory.name} rows={refined_rows}',flush=True)
-        if rows != db.execute(f"SELECT count(*) FROM {table}").fetchone()[0]:
+            bucket=int(directory.name.split('=',1)[1])
+            if size!=histogram.get(bucket) or size>max_rows:
+                raise ValueError('written partition differs from admitted histogram')
+            written+=size
+            parts.append(relation)
+        if written!=rows:
             raise ValueError("validator partition pass lost or duplicated records")
         print(f'[realism-validator] partition pass complete table={table} rows={rows} parts={len(parts)}',flush=True)
         yield parts
@@ -106,7 +120,7 @@ def verify_floor_receipts(paths, spec=None):
                 raise ValueError("floor input bytes changed after validation")
 
 
-def attach(db, directory, manifest):
+def attach(db, directory, manifest, *, keep_work=False):
     if manifest.get("format") != FORMAT or manifest.get("dataset_id") != identity(manifest):
         raise ValueError("derived manifest format/identity mismatch")
     spec = manifest["contract"]
@@ -132,7 +146,7 @@ def attach(db, directory, manifest):
     # optimization or a changed input. All history/tombstone rules remain.
     print("[realism-validator] materialize canonical documents once", flush=True)
     db.execute("CREATE TABLE current_docs AS SELECT * FROM documents LIMIT 0")
-    with partitions(db,"documents",("doc_id","author_key"),directory.parent) as parts:
+    with partitions(db,"documents",("doc_id","author_key"),directory.parent,keep_work=keep_work) as parts:
         for index,relation in enumerate(parts):
             print(f"[realism-validator] canonical partition {index+1}/{len(parts)}",flush=True)
             db.execute("INSERT INTO current_docs SELECT * EXCLUDE(rn,bucket) FROM "
@@ -150,7 +164,7 @@ def summary(db, query):
                                "sum(CASE WHEN rank<=ceil(n*.01) THEN v ELSE 0 END)/nullif(sum(v),0) FROM ordered").fetchone()))
 
 
-def inspect(db, manifest, progress=None, *, scratch_parent=None):
+def inspect(db, manifest, progress=None, *, scratch_parent=None, keep_work=False):
     spec, checks = manifest["contract"], {}
     n, targets = spec["recipe"]["accounts"], spec["targets"]
     progress = progress if progress is not None else {}
@@ -192,7 +206,7 @@ def inspect(db, manifest, progress=None, *, scratch_parent=None):
     db.execute("CREATE TABLE exposures AS SELECT doc_id,reader_key,min(seen_at) first_seen "
                "FROM content_events WHERE false GROUP BY doc_id,reader_key")
     checks["delivery_window"] = True
-    with partitions(db,"content_events",("doc_id","reader_key"),scratch_parent) as parts:
+    with partitions(db,"content_events",("doc_id","reader_key"),scratch_parent,keep_work=keep_work) as parts:
         for index,relation in enumerate(parts):
             stage(f"exposure_partition_{index+1}_of_{len(parts)}")
             ok=db.execute("SELECT count(*)=0 FROM (SELECT seen_at-lag(seen_at) OVER "
@@ -311,7 +325,7 @@ def inspect(db, manifest, progress=None, *, scratch_parent=None):
             "arithmetic":spec["arithmetic"],"scope":"Finished synthetic records, not node/browser performance or private/lifecycle acceptance"}
 
 
-def validate(directory, out):
+def validate(directory, out, *, keep_work=False):
     directory, out = Path(directory).resolve(), Path(out)
     if out.exists():
         raise FileExistsError("refusing to overwrite validation receipt")
@@ -320,15 +334,19 @@ def validate(directory, out):
     if validator_pin != VALIDATOR_SOURCE_AT_IMPORT:
         raise ValueError("validator source changed since module import; restart in a fresh process")
     progress = {"stage":"integrity"}
-    with tempfile.TemporaryDirectory(prefix="realism-validate-", dir=directory.parent) as tmp:
+    workspace=(nullcontext(tempfile.mkdtemp(prefix='realism-validate-',dir=directory.parent)) if keep_work
+               else tempfile.TemporaryDirectory(prefix='realism-validate-',dir=directory.parent))
+    with workspace as tmp:
+        if keep_work:
+            print(f'[realism-validator] retaining work directory={Path(tmp).name}; not a completion/resume witness',flush=True)
         db = duckdb.connect(str(Path(tmp)/"validation.duckdb"))
         db.execute("SET memory_limit='2GB'; SET threads=1; SET preserve_insertion_order=false")
         db.execute("SET temp_directory=?", [str(Path(tmp)/"spill")])
         try:
             print("[realism-validator] integrity start", flush=True)
-            attach(db, directory, manifest)
+            attach(db, directory, manifest,keep_work=keep_work)
             print("[realism-validator] finished-record semantic checks start", flush=True)
-            result = inspect(db, manifest, progress, scratch_parent=Path(tmp))
+            result = inspect(db, manifest, progress, scratch_parent=Path(tmp),keep_work=keep_work)
         except Exception as error:
             result = {"complete":False,"accounts":manifest.get("recipe",{}).get("accounts"),
                       "checks":{"validator_execution":False},"error_type":type(error).__name__,
