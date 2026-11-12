@@ -345,6 +345,15 @@ does not merge.
 
 ## Auth model
 
+People/Groups discovery reuses the server-source mixer with independent simple
+Newest/audience sorts, not post power-mean ranking. Canonical account/group
+creation and current member counts order each source before pagination. Social
+retains the private catalog and current-credential destination approvals;
+marketing is credential-free. Source-qualified foreign directory cards are
+read-only, never home-node follow/join or invented foreign app links. Personal
+graph/My Groups authority remains home-scoped. Contract and acceptance limits:
+`knowledge-base/web10-v3/social/directory-mixer.md`.
+
 Social's caught upload/post permission failures offer approval and explicit retry
 beside the retained draft; missing-approval/dead-token toasts keep a manual action.
 Opening the existing auth window is not approval. Completed media reuse is scoped

@@ -5,6 +5,10 @@ import { User, Hash, Search, X, Loader2, AlertTriangle, RefreshCw } from 'lucide
 import { PersonCard, PersonCardSkeleton, GroupCard, GroupCardSkeleton, type DiscoverPerson, type DiscoverGroup, type DiscoverGroupFace, resolveFaceMedia, peopleFaceSql, GROUP_FACE_SQL, type FaceQueryTransport } from '@web10/discover';
 import { API_ORIGIN, API_HOST, SOCIAL_ORIGIN } from '@/lib/origins';
 import { trackFunnel } from '@/lib/analytics';
+import { usePublicSources } from '@/lib/publicSources';
+import { DirectoryControls, directorySort } from '@web10/discover/directory-controls';
+import { useDirectoryMixer } from '@web10/discover/use-directory-mixer';
+import type { DirectorySort, DirectoryRead } from '@web10/discover/directory-mixer';
 
 // ── The Profiles browser (discover-ia-consistency C3) ────────────────────────
 // The marketing Discover "Profiles" tab — the SAME Profiles | Groups tab row
@@ -35,18 +39,21 @@ interface PeopleFace {
 
 interface PeopleEntry {
   username: string;
+  created_at?: string;
   follower_count: number;
   profile: PeopleFace;
 }
 
-async function fetchPeoplePage(limit: number, offset: number): Promise<{ users: PeopleEntry[]; hasMore: boolean }> {
+async function fetchPeoplePage(limit: number, offset: number, sort: DirectorySort): Promise<{ users: PeopleEntry[]; hasMore: boolean }> {
   const resp = await fetch(`${API_ORIGIN}/v3/users/directory`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ limit, offset }),
+    credentials: 'omit', redirect: 'error', referrerPolicy: 'no-referrer',
+    body: JSON.stringify({ limit, offset, sort }),
   });
-  if (!resp.ok) return { users: [], hasMore: false };
+  if (!resp.ok) throw Error('People directory unavailable');
   const data = await resp.json();
+  if (data.sort !== sort) throw Error('Unsupported directory sort');
   const users: PeopleEntry[] = data.users || [];
   return { users, hasMore: users.length >= limit };
 }
@@ -94,16 +101,20 @@ async function resolvePeopleFaces(users: PeopleEntry[]): Promise<Map<string, { a
 
 interface GroupEntry {
   group_id: string;
+  source_origin?: string;
+  source_key?: string;
+  created_at?: string;
   name: string;
   owner: string;
   join_policy: string;
   member_count: number;
 }
 
-async function fetchGroupsPage(limit: number, offset: number): Promise<{ groups: GroupEntry[]; hasMore: boolean }> {
-  const resp = await fetch(`${API_ORIGIN}/v3/groups/directory?limit=${limit}&offset=${offset}`);
-  if (!resp.ok) return { groups: [], hasMore: false };
+async function fetchGroupsPage(limit: number, offset: number, sort: DirectorySort): Promise<{ groups: GroupEntry[]; hasMore: boolean }> {
+  const resp = await fetch(`${API_ORIGIN}/v3/groups/directory?limit=${limit}&offset=${offset}&sort=${sort}`, { credentials: 'omit', redirect: 'error', referrerPolicy: 'no-referrer' });
+  if (!resp.ok) throw Error('Group directory unavailable');
   const data = await resp.json();
+  if (data.sort !== sort) throw Error('Unsupported directory sort');
   const groups: GroupEntry[] = data.groups || [];
   return { groups, hasMore: groups.length >= limit };
 }
@@ -158,8 +169,26 @@ export function ProfilesBrowser({ query }: { query: string }) {
     setSearchParams(params);
   }, [searchParams, setSearchParams]);
 
+  const sourceControl = usePublicSources();
+  const peopleSort = directorySort(searchParams, 'profiles'), groupSort = directorySort(searchParams, 'groups');
+  const mixing = sourceControl.sources.length !== 1 || sourceControl.sources[0]?.origin !== sourceControl.home || sourceControl.sources[0]?.weight === 0;
+  const homeRead: DirectoryRead = async (kind, sort, limit, offset) => {
+    if (kind === 'profiles') {
+      const { users } = await fetchPeoplePage(limit, offset, sort);
+      const faces = await resolvePeopleFaces(users);
+      return { people: users.map(user => ({ username: user.username, provider: API_HOST, created_at: user.created_at, followers_count: user.follower_count,
+        display_name: user.profile?.display_name, ...faces.get(user.username) })), groups: [] };
+    }
+    const { groups } = await fetchGroupsPage(limit, offset, sort);
+    const faces = await resolveGroupFaces(groups);
+    return { people: [], groups: groups.map(group => ({ ...group, face: faces.get(group.group_id) })) };
+  };
+  const mixed = useDirectoryMixer({ enabled: mixing, sources: sourceControl.sources, home: sourceControl.home, credential: null,
+    scope: sourceControl.scope, kind: section, sort: section === 'profiles' ? peopleSort : groupSort, homeRead, isCurrent: () => true, pageSize: PAGE_SIZE });
+  const peopleGeneration = useRef(0), groupsGeneration = useRef(0);
+
   // ── People ─────────────────────────────────────────────────────────────────
-  const [people, setPeople] = useState<DiscoverPerson[]>([]);
+  const [people, setPeople] = useState<(DiscoverPerson & { source_origin?: string; source_key?: string })[]>([]);
   const [peopleLoading, setPeopleLoading] = useState(true);
   const [peopleLoadingMore, setPeopleLoadingMore] = useState(false);
   const [peopleError, setPeopleError] = useState(false);
@@ -167,15 +196,19 @@ export function ProfilesBrowser({ query }: { query: string }) {
   const peopleNextOffset = useRef(0);
 
   const loadPeoplePage = useCallback(async (offset: number, append: boolean) => {
+    if (mixing) return;
+    const generation = append ? peopleGeneration.current : ++peopleGeneration.current;
     if (append) setPeopleLoadingMore(true);
     else {
       setPeopleLoading(true);
       setPeopleError(false);
     }
     try {
-      const { users, hasMore } = await fetchPeoplePage(PAGE_SIZE, offset);
+      const { users, hasMore } = await fetchPeoplePage(PAGE_SIZE, offset, peopleSort);
+      if (generation !== peopleGeneration.current) return;
       peopleNextOffset.current = offset + users.length;
       const faces = await resolvePeopleFaces(users);
+      if (generation !== peopleGeneration.current) return;
       const cards: DiscoverPerson[] = users.map((u) => ({
         username: u.username,
         display_name: u.profile?.display_name || u.username,
@@ -186,26 +219,27 @@ export function ProfilesBrowser({ query }: { query: string }) {
       setPeople((prev) => (append ? [...prev, ...cards] : cards));
       setPeopleHasMore(hasMore);
     } catch {
-      if (!append) setPeopleError(true);
+      if (generation === peopleGeneration.current && !append) setPeopleError(true);
     } finally {
-      setPeopleLoading(false);
-      setPeopleLoadingMore(false);
+      if (generation === peopleGeneration.current) { setPeopleLoading(false); setPeopleLoadingMore(false); }
     }
-  }, []);
+  }, [mixing, peopleSort]);
 
   useEffect(() => {
     loadPeoplePage(0, false);
     trackFunnel('trending_people_view');
+    return () => { peopleGeneration.current += 1; };
   }, [loadPeoplePage]);
 
   const filteredPeople = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return people;
-    return people.filter(
+    const rows = mixing ? mixed.people : people;
+    if (!q) return rows;
+    return rows.filter(
       (p) =>
         p.display_name?.toLowerCase().includes(q) || p.username.toLowerCase().includes(q),
     );
-  }, [people, query]);
+  }, [people, mixed.people, mixing, query]);
 
   const peopleNoResults = query.trim() !== '' && filteredPeople.length === 0;
 
@@ -219,27 +253,30 @@ export function ProfilesBrowser({ query }: { query: string }) {
   const groupsNextOffset = useRef(0);
 
   const loadGroupsPage = useCallback(async (offset: number, append: boolean) => {
+    if (mixing) return;
+    const generation = append ? groupsGeneration.current : ++groupsGeneration.current;
     if (append) setGroupsLoadingMore(true);
     else {
       setGroupsLoading(true);
       setGroupsError(false);
     }
     try {
-      const { groups: page, hasMore } = await fetchGroupsPage(PAGE_SIZE, offset);
+      const { groups: page, hasMore } = await fetchGroupsPage(PAGE_SIZE, offset, groupSort);
+      if (generation !== groupsGeneration.current) return;
       groupsNextOffset.current = offset + page.length;
       setGroups((prev) => (append ? [...prev, ...page] : page));
       setGroupsHasMore(hasMore);
     } catch {
-      if (!append) setGroupsError(true);
+      if (generation === groupsGeneration.current && !append) setGroupsError(true);
     } finally {
-      setGroupsLoading(false);
-      setGroupsLoadingMore(false);
+      if (generation === groupsGeneration.current) { setGroupsLoading(false); setGroupsLoadingMore(false); }
     }
-  }, []);
+  }, [mixing, groupSort]);
 
   useEffect(() => {
     loadGroupsPage(0, false);
     trackFunnel('trending_groups_view');
+    return () => { groupsGeneration.current += 1; };
   }, [loadGroupsPage]);
 
   // Resolve each group's face (banner + avatar + rich name) in one batched
@@ -253,19 +290,21 @@ export function ProfilesBrowser({ query }: { query: string }) {
       if (missing.length === 0) return;
       const faces = await resolveGroupFaces(missing);
       if (cancelled) return;
-      setGroupFaces((prev) => ({ ...prev, ...Object.fromEntries(faces) }));
+      // A missing/denied face is a settled fallback too, not an endless retry.
+      setGroupFaces((prev) => ({ ...prev, ...Object.fromEntries(missing.map(group => [group.group_id, faces.get(group.group_id) ?? {}])) }));
     })();
     return () => { cancelled = true; };
   }, [groups, groupFaces]);
 
   const filteredGroups = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return groups;
-    return groups.filter(
+    const rows = mixing ? mixed.groups : groups;
+    if (!q) return rows;
+    return rows.filter(
       (g) =>
         g.name.toLowerCase().includes(q) || g.owner.toLowerCase().includes(q),
     );
-  }, [groups, query]);
+  }, [groups, mixed.groups, mixing, query]);
 
   const groupsNoResults = query.trim() !== '' && groups.length > 0 && filteredGroups.length === 0;
 
@@ -316,6 +355,9 @@ export function ProfilesBrowser({ query }: { query: string }) {
         </div>
       </div>
 
+      <DirectoryControls kind={section} control={sourceControl} errors={mixed.errors} allocations={mixed.allocations} onRetry={mixed.retry} pageSize={PAGE_SIZE} />
+      {mixing && sourceControl.sources.every(row => row.weight === 0) && <p role="status" className="pb-3 text-sm text-muted-foreground">Directory paused. Turn up a server to discover people and groups.</p>}
+
       {/* The active ?q= filter — a chip that shows the query + clears it.
           Rendered on both tabs so the search can be X'd from either. */}
       {query.trim() !== '' && (
@@ -342,7 +384,7 @@ export function ProfilesBrowser({ query }: { query: string }) {
       {section === 'profiles' ? (
         /* Profiles — the people browser (the paged D0 directory). */
         <section data-testid="discover-profiles-people-section" className="pt-3">
-          {peopleError ? (
+          {!mixing && peopleError ? (
             <div data-testid="discover-profiles-people-error" className="flex flex-col items-center justify-center py-10 px-8 text-center">
               <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-danger-muted">
                 <AlertTriangle className="h-6 w-6 text-danger" strokeWidth={1.5} />
@@ -358,7 +400,7 @@ export function ProfilesBrowser({ query }: { query: string }) {
                 Retry
               </button>
             </div>
-          ) : peopleLoading ? (
+          ) : (mixing ? mixed.loading && mixed.people.length === 0 : peopleLoading) ? (
             <div className="space-y-3" data-testid="discover-profiles-people-skeleton">
               {Array.from({ length: 4 }).map((_, i) => (
                 <PersonCardSkeleton key={i} testId="discover-profiles-person-skeleton" />
@@ -376,20 +418,22 @@ export function ProfilesBrowser({ query }: { query: string }) {
             <>
               <div className="space-y-3" data-testid="discover-profiles-people-list">
                 {filteredPeople.map((p) => (
+                  <div key={p.source_key ?? p.username} className="space-y-1">
+                  {p.source_origin && <p className="break-all text-xs text-muted-foreground">{new URL(p.source_origin).host}{p.source_origin !== sourceControl.home ? ' · read-only' : ''}</p>}
                   <PersonCard
-                    key={p.username}
                     person={p}
-                    profileHref={`${SOCIAL_ORIGIN}/u/${p.username}`}
+                    profileHref={!p.source_origin || p.source_origin === sourceControl.home ? `${SOCIAL_ORIGIN}/u/${p.username}` : undefined}
                     testId="trending-person-card"
                   />
+                  </div>
                 ))}
               </div>
-              {peopleHasMore && (
+              {(mixing ? mixed.hasMore : peopleHasMore) && (
                 <div className="mt-4 flex justify-center">
                   <button
                     type="button"
-                    onClick={() => loadPeoplePage(peopleNextOffset.current, true)}
-                    disabled={peopleLoadingMore}
+                    onClick={() => mixing ? mixed.loadMore() : loadPeoplePage(peopleNextOffset.current, true)}
+                    disabled={mixing ? mixed.loading : peopleLoadingMore}
                     data-testid="discover-profiles-people-view-more"
                     className="inline-flex items-center gap-2 rounded-full border border-brand bg-brand-muted px-5 py-2 text-sm font-medium text-brand-300 transition-colors hover:bg-brand hover:text-brand-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                   >
@@ -404,7 +448,7 @@ export function ProfilesBrowser({ query }: { query: string }) {
       ) : (
         /* Groups — the groups browser (the paged D53 directory). */
         <section data-testid="discover-profiles-groups-section" className="pt-3">
-          {groupsError ? (
+          {!mixing && groupsError ? (
             <div data-testid="discover-profiles-groups-error" className="flex flex-col items-center justify-center py-10 px-8 text-center">
               <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-danger-muted">
                 <AlertTriangle className="h-6 w-6 text-danger" strokeWidth={1.5} />
@@ -420,7 +464,7 @@ export function ProfilesBrowser({ query }: { query: string }) {
                 Retry
               </button>
             </div>
-          ) : groupsLoading ? (
+          ) : (mixing ? mixed.loading && mixed.groups.length === 0 : groupsLoading) ? (
             <div className="space-y-3" data-testid="discover-profiles-groups-skeleton">
               {Array.from({ length: 4 }).map((_, i) => (
                 <GroupCardSkeleton key={i} testId="discover-profiles-group-skeleton" />
@@ -438,21 +482,23 @@ export function ProfilesBrowser({ query }: { query: string }) {
             <>
               <div className="space-y-3" data-testid="discover-profiles-groups-list">
                 {filteredGroups.map((g) => (
+                  <div key={g.source_key ?? g.group_id} className="space-y-1">
+                  {g.source_origin && <p className="break-all text-xs text-muted-foreground">{new URL(g.source_origin).host}{g.source_origin !== sourceControl.home ? ' · read-only' : ''}</p>}
                   <GroupCard
-                    key={g.group_id}
                     entry={g}
-                    face={groupFaces[g.group_id]}
-                    groupHref={`${SOCIAL_ORIGIN}/groups/${encodeURIComponent(g.group_id)}`}
+                    face={mixing ? mixed.groups.find(row => row.source_key === g.source_key)?.face : groupFaces[g.group_id]}
+                    groupHref={!g.source_origin || g.source_origin === sourceControl.home ? `${SOCIAL_ORIGIN}/groups/${encodeURIComponent(g.group_id)}` : undefined}
                     testId="trending-group-card"
                   />
+                  </div>
                 ))}
               </div>
-              {groupsHasMore && (
+              {(mixing ? mixed.hasMore : groupsHasMore) && (
                 <div className="mt-4 flex justify-center">
                   <button
                     type="button"
-                    onClick={() => loadGroupsPage(groupsNextOffset.current, true)}
-                    disabled={groupsLoadingMore}
+                    onClick={() => mixing ? mixed.loadMore() : loadGroupsPage(groupsNextOffset.current, true)}
+                    disabled={mixing ? mixed.loading : groupsLoadingMore}
                     data-testid="discover-profiles-groups-view-more"
                     className="inline-flex items-center gap-2 rounded-full border border-brand bg-brand-muted px-5 py-2 text-sm font-medium text-brand-300 transition-colors hover:bg-brand hover:text-brand-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                   >

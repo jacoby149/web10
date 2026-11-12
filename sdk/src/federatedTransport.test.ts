@@ -12,6 +12,23 @@ function setup(credential: string | null = 'explicit-home-token', fetcher = vi.f
 }
 
 describe('explicit federation transport', () => {
+  it.each([null, 'explicit-home-token'])('directory dispatch preserves credential mode %s and keeps secrets out of GET URLs', async credential => {
+    const { transport, fetcher } = setup(credential)
+    fetcher.mockResolvedValue(Response.json({ users: [], sort: 'newest' }))
+    await transport.post('users/directory', { limit: 10, offset: 2, sort: 'newest' })
+    const payload = JSON.parse(fetcher.mock.calls[0][1]!.body as string)
+    expect(payload.token).toBe(credential ?? undefined)
+    fetcher.mockResolvedValue(Response.json({ groups: [], sort: 'popular' }))
+    await transport.post('groups/directory', { limit: 10, offset: 2, sort: 'popular' })
+    expect(fetcher.mock.calls[1][0]).toBe('https://node.example/v3/groups/directory?limit=10&offset=2&sort=popular')
+    expect(fetcher.mock.calls[1][1]).toMatchObject({ method: 'GET', body: undefined, credentials: 'omit', redirect: 'error' })
+    expect(String(fetcher.mock.calls[1][0])).not.toContain('explicit-home-token')
+    for (const body of [{ limit: 10, offset: 0, sort: 'https://evil.example' }, { limit: 10, offset: 0, sort: 'newest', token: 'override' }, { limit: 10, offset: 0, sort: 'newest', redirect: 'evil' }]) {
+      await expect(transport.post('groups/directory', body)).rejects.toThrow()
+    }
+    expect(fetcher).toHaveBeenCalledTimes(2)
+    transport.dispose()
+  })
   it.each(['http://node.example', 'https://u:p@node.example', 'https://node.example/path',
     'https://node.example?x', 'https://node.example#x', 'https://node.example.', 'https://localhost'])('rejects invalid origin %s', value => {
     expect(() => nodeOrigin(value)).toThrow()

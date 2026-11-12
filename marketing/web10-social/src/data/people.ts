@@ -74,6 +74,9 @@ async function resolveFaces(
 /** One row in the People list. */
 export interface PersonCard {
   username: string;
+  created_at?: string;
+  source_origin?: string;
+  source_key?: string;
   provider: string;
   display_name?: string;
   bio?: string;
@@ -94,7 +97,7 @@ export interface PersonCard {
   mutuals_pending?: boolean;
 }
 
-export type PeopleSort = 'popular' | 'az';
+export type PeopleSort = 'popular' | 'newest' | 'az';
 
 /** The default sort (the server's follower ranking). */
 export const DEFAULT_PEOPLE_SORT: PeopleSort = 'popular';
@@ -119,6 +122,9 @@ export const DEFAULT_PEOPLE_FILTER: PeopleFilter = 'all';
 export function sortPeople(people: PersonCard[], sort: PeopleSort): PersonCard[] {
   const arr = [...people];
   switch (sort) {
+    case 'newest':
+      arr.sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? '') || a.username.localeCompare(b.username));
+      break;
     case 'az':
       arr.sort((a, b) => a.username.localeCompare(b.username));
       break;
@@ -166,6 +172,7 @@ export interface PeoplePage {
 export async function fetchPeoplePage(opts: {
   limit: number;
   offset: number;
+  sort?: 'popular' | 'newest';
   /** Immutable base/enrichment snapshots; the returned promise remains fully settled. */
   onProgress?: (page: PeoplePage) => void;
 }): Promise<PeoplePage> {
@@ -178,7 +185,9 @@ export async function fetchPeoplePage(opts: {
   const page = await w.listPeopleDirectory({
     limit: opts.limit,
     offset: opts.offset,
+    ...(opts.sort ? { sort: opts.sort } : {}),
   });
+  if (opts.sort && page.sort !== opts.sort) throw new Error('This server does not support the selected directory sort.');
   LOG('fetchPeoplePage — got', page.users.length, 'user(s)');
 
   // Base cards need only the directory. Follow state remains explicitly pending
@@ -187,6 +196,7 @@ export async function fetchPeoplePage(opts: {
     const profile = (u.profile || {}) as Record<string, unknown>;
     return {
       username: u.username,
+      created_at: u.created_at,
       provider,
       display_name: (profile.display_name as string) || u.username,
       bio: (profile.bio as string) || undefined,

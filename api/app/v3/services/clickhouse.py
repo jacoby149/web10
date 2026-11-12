@@ -1877,20 +1877,38 @@ def _get_group_member_counts(group_ids: list[str]) -> dict[str, int]:
     return {row[0]: row[1] for row in result.result_rows}
 
 
-def list_discoverable_groups(limit: int = 50, offset: int = 0) -> list[dict]:
+def list_discoverable_groups(limit: int = 50, offset: int = 0, sort: str = "name") -> list[dict]:
     """List the discoverable groups (the directory). Minimal: id, join_policy,
     roles. The endpoint layers on member count + identity (name, tags)."""
+    order = {
+        "name": "gc.group_id",
+        "newest": "gc.created_at DESC, gc.group_id",
+        "popular": "coalesce(mc.cnt, 0) DESC, gc.group_id",
+    }[sort]
+    counts_join = (
+        (
+            " LEFT JOIN (SELECT group_id, count() AS cnt FROM ("
+            "SELECT group_id, member_key, deleted FROM group_members "
+            "QUALIFY row_number() OVER (PARTITION BY group_id, member_key "
+            "ORDER BY updated_at DESC, deleted DESC) = 1) WHERE deleted = 0 GROUP BY group_id) mc "
+            "ON gc.group_id = mc.group_id "
+        )
+        if sort == "popular"
+        else " "
+    )
     result = client.query(
-        "SELECT group_id, join_policy, roles "
-        "FROM (SELECT group_id, join_policy, roles, discoverable, deleted, "
+        "SELECT gc.group_id, gc.join_policy, gc.roles, gc.created_at "
+        "FROM (SELECT group_id, join_policy, roles, discoverable, deleted, created_at, "
         "row_number() OVER (PARTITION BY group_id ORDER BY updated_at DESC, deleted DESC) as rn "
-        "FROM group_contracts) "
-        "WHERE rn = 1 AND deleted = 0 AND discoverable = 1 "
-        "ORDER BY group_id "
+        "FROM group_contracts) gc " + counts_join + "WHERE rn = 1 AND deleted = 0 AND discoverable = 1 "
+        f"ORDER BY {order} "
         "LIMIT %(limit)s OFFSET %(offset)s",
         {"limit": limit, "offset": offset},
     )
-    return [{"group_id": row[0], "join_policy": row[1], "roles": _parse_json(row[2])} for row in result.result_rows]
+    return [
+        {"group_id": row[0], "join_policy": row[1], "roles": _parse_json(row[2]), "created_at": _iso_utc(row[3])}
+        for row in result.result_rows
+    ]
 
 
 def get_user_groups(member_key: str, tags: list[str] | None = None) -> list[dict]:
@@ -4138,17 +4156,22 @@ def migrate_user(
     return {"username": username, "created": created, "enrolled": enrolled}
 
 
-def list_users() -> list[dict]:
+def list_users(include_created_at: bool = False) -> list[dict]:
     """All active users (deduplicated to the latest row per username)."""
     result = client.query(
-        "SELECT username FROM (SELECT username, deleted, "
+        f"SELECT username{', created_at' if include_created_at else ''} FROM (SELECT username, created_at, deleted, "
         "row_number() OVER (PARTITION BY username ORDER BY updated_at DESC, deleted DESC) as rn "
         "FROM users) WHERE rn = 1 AND deleted = 0",
     )
-    return [{"username": row[0]} for row in result.result_rows]
+    return [
+        {"username": row[0], **({"created_at": _iso_utc(row[1])} if include_created_at else {})}
+        for row in result.result_rows
+    ]
 
 
-def list_public_users(reader: str, authenticated: bool, limit: int = 20, offset: int = 0) -> list[dict]:
+def list_public_users(
+    reader: str, authenticated: bool, limit: int = 20, offset: int = 0, sort: str = "popular"
+) -> list[dict]:
     """The public people directory (D0, discover-reorg): one server-side
     composition returning a page of user cards ranked by follower count.
 
@@ -4176,7 +4199,7 @@ def list_public_users(reader: str, authenticated: bool, limit: int = 20, offset:
     primitive (a user's followers = the member list of their followers
     group), so the node never learns an app's concepts.
     """
-    users = list_users()
+    users = list_users(include_created_at=True)
     if not users:
         return []
 
@@ -4218,6 +4241,7 @@ def list_public_users(reader: str, authenticated: bool, limit: int = 20, offset:
     # The unspoofable follower count: count(group_members) per followers group.
     counts = _get_group_member_counts(readable)
 
+    created = {u["username"]: u.get("created_at") for u in users}
     rows = []
     for username, gid in user_to_group.items():
         if gid not in readable_set:
@@ -4233,11 +4257,16 @@ def list_public_users(reader: str, authenticated: bool, limit: int = 20, offset:
                 "username": username,
                 "follower_count": counts.get(gid, 0),
                 "profile": face,
+                "created_at": created[username],
             }
         )
 
     # Rank by follower count desc; stable tie-break by username.
     rows.sort(key=lambda r: (-r["follower_count"], r["username"]))
+    if sort == "newest":
+        # Stable username ties; the canonical account date never changes on a face edit.
+        rows.sort(key=lambda r: r["username"])
+        rows.sort(key=lambda r: r["created_at"] or "", reverse=True)
     return rows[offset : offset + limit]
 
 

@@ -169,14 +169,14 @@ export function GroupCard({
                       ? 'Request'
                       : 'Join'}
           </button>
-        ) : (
+        ) : groupHref ? (
           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-transform duration-150 group-hover:translate-x-0.5" />
-        )}
+        ) : null}
       </div>
     </div>
   );
 
-  if (interactive) {
+  if (interactive || !groupHref) {
     return card;
   }
 

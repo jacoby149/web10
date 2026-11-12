@@ -22,9 +22,9 @@ type Options = {
 const AUTH_ACTIONS = new Set([
   'query', 'read', 'contentViews', 'groups/list', 'groups/get', 'groups/join',
   'groups/leave', 'groups/accept-invite', 'groups/decline-invite',
-  'app-contracts/list', 'app-contracts/add', 'app-contracts/revoke',
+  'app-contracts/list', 'app-contracts/add', 'app-contracts/revoke', 'users/directory', 'groups/directory',
 ])
-const PUBLIC_ACTIONS = new Set(['query', 'read'])
+const PUBLIC_ACTIONS = new Set(['query', 'read', 'users/directory', 'groups/directory'])
 const MAX_BYTES = 1024 * 1024
 const MAX_REQUEST_BYTES = 256 * 1024
 const MAX_ACTIVE = 4
@@ -99,6 +99,13 @@ export function createFederatedTransport(options: Options) {
       if (Object.hasOwn(envelope, 'toJSON')) throw new DispatchError('Unsupported federated request')
       delete envelope.token
       if (credential !== null) envelope.token = credential
+      // The existing group directory is a public GET. Only paging scalars may
+      // enter its query string, never the credential from the POST envelope.
+      const directory = action === 'groups/directory'
+      if (directory && (!Number.isInteger(body.limit) || Number(body.limit) < 1 || Number(body.limit) > 100
+        || !Number.isSafeInteger(body.offset) || Number(body.offset) < 0 || !['popular', 'newest'].includes(String(body.sort))
+        || Object.keys(body).some(key => !['limit', 'offset', 'sort'].includes(key)))) throw new DispatchError('Invalid directory request')
+      const query = directory ? `?limit=${body.limit}&offset=${body.offset}&sort=${body.sort}` : ''
       const payload = JSON.stringify(envelope)
       if (new TextEncoder().encode(payload).byteLength > MAX_REQUEST_BYTES) throw new DispatchError('Oversized node request')
       if (active.size >= MAX_ACTIVE && queue.length >= MAX_QUEUED) throw new DispatchError('Federated request queue full')
@@ -112,10 +119,10 @@ export function createFederatedTransport(options: Options) {
           void (async () => {
             let response: Response | undefined
             try {
-              response = await fetcher(`${origin}/v3/${action}`, {
-                method: 'POST', mode: 'cors', credentials: 'omit', redirect: 'error',
+              response = await fetcher(`${origin}/v3/${action}${query}`, {
+                method: directory ? 'GET' : 'POST', mode: 'cors', credentials: 'omit', redirect: 'error',
                 referrerPolicy: 'no-referrer', cache: 'no-store', signal: controller.signal,
-                headers: { 'Content-Type': 'application/json' }, body: payload,
+                headers: { 'Content-Type': 'application/json' }, body: directory ? undefined : payload,
               })
               current()
               if (controller.signal.aborted) throw cancelled()
