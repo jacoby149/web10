@@ -2,6 +2,54 @@
 
 Web10-social is an app that runs on the web10 platform. It uses groups the same way any app does — groups are generic policy containers. Web10-social just happens to define specific roles for social use cases.
 
+## Public join entry
+
+Visitors need a reason to join before an authentication window opens. The social
+app serves its own shareable marketing-style page at `/join`. The homepage `/`
+always opens `/feed`, signed in or not, so browsing never requires the join pitch.
+Signed-in visitors to `/join` also go to `/feed`. Public content deep links and
+anonymous browsing remain available; “Explore first” opens `/feed` without login.
+
+“Join web10 social” and “Sign in” invoke App's existing user-gesture login handler:
+the configured authenticator handles signup/login and explicit app consent, then
+the existing auth listener updates the session. The join route then replaces itself
+with `/feed`; opening a popup alone never counts as successful authentication.
+Blocked windows retain the existing retryable toast. No new credentials, grants,
+redirect parameters, SDK behavior or API endpoints. Copy describes the shipped
+Posts/Video/Shorts/Music and personal-profile surfaces, not unshipped portability
+or privacy promises. The page uses shared theme tokens and canonical artwork.
+
+Connected acceptance: `screenshots/join-connected.mjs` boots the actual social
+and authenticator apps, SDK, FastAPI and its own disposable ClickHouse. It drives
+signup/approval, remembered-account return and password login at desktop/375px,
+reads back the live social grant and checks automatic popup close, settled feed,
+enabled signed-in controls and session persistence on reload. No browser token or
+app grant is seeded. Cancellation/retry stays on Join. Browser-origin traffic is
+forwarded to loopback ports without replacing responses; vendor traffic is denied.
+The local node disables contact verification and media/background workers; this
+is not production signup, live verification delivery or physical-phone assurance.
+
+### Signed-out invitations inside the app
+
+Browsing stays open at `/feed`. Signed-out visitors get the existing header
+Sign in action, a desktop sidebar explanation (like, comment and follow), and
+a compact non-blocking feed invitation. Each Sign in action calls App's same
+user-gesture auth handler and sends the existing social contract; it does not
+grant access or open auth automatically. Learn-more links open `/join`.
+
+Following is selectable when signed out: `/feed?tab=following` shows why signing
+in is useful and an explicit Sign in button, never reads the personal feed.
+Discover returns to public browsing without login. The URL retains the selected
+tab and unrelated filters through refresh/history and sign-in; a successful
+session then shows the requested personal feed in place. Signed-in visitors see
+none of these invitations. No new credentials, grants, endpoints or auth policy.
+
+The mobile Discover invitation (below 768px) is a compact violet card with a
+visible people icon, “Make yourself at home”, the concrete like/comment/follow
+benefits and a side-by-side Sign in / learn-more row. Public posts remain below
+it; it is neither a full-screen gate nor another Following empty state. Desktop
+keeps the wide “Your people. All in one place.” treatment. Following stays unchanged.
+
 ## How Social Maps to Groups
 
 ```mermaid

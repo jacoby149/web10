@@ -17,8 +17,9 @@ function avatar(label: string, from: string, to: string): string {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
-export function getV3Client() {
-  return {
+// Match the real client's stable identity: ownership effects key on this object.
+// A fresh object on every read creates an endless effect/reset loop in previews.
+const client = {
     readToken: () => getWapi().readToken(),
     listPeopleDirectory: async () => ({ users: [
       { username: 'nova', profile: { display_name: 'Nova Lane' } },
@@ -34,5 +35,8 @@ export function getV3Client() {
       { author_key: 'kai', avatar_url: avatar('K', '#8b5cf6', '#2e1065') },
     ] : [{ group_id: groupId, avatar_url: avatar('NS', '#8b5cf6', '#2e1065') }], count: 1 }),
     documentAttachment: async (_docId: string, _groupId: string, opts?: { attached?: boolean }) => ({ attached: opts?.attached ?? true }),
-  };
+};
+
+export function getV3Client() {
+  return client;
 }
