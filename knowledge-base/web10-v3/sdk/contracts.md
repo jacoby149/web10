@@ -23,6 +23,14 @@ v4: 3 apps + infinite services with schema versions = still 3 contracts
 
 Services are free. Apps are the gate. Schemas are the shape.
 
+**Service-name casing:** today service strings and permission-map keys match
+case-sensitively: `posts` and `Posts` are not interchangeable. The operator's
+intended contract is canonical lowercase, accepting case variants and restricting
+ordinary names to ASCII letters/digits/`-`/`_`, starting with a letter. Enforcement
+and compatibility work are still OPEN; do not normalize only a displayed label
+or one endpoint. Current behavior, the read-only production inventory and proposed
+limits/gates: [`../db/service-names.md`](../db/service-names.md).
+
 ## App Contracts
 
 App Trust (Infrastructure). One contract per app (origin). The contract declares every service the app needs and what it can do on each. No user-level whitelist/blacklist — that's what groups are for.

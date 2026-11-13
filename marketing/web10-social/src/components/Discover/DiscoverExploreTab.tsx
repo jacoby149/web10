@@ -51,6 +51,7 @@ import { DirectoryControls, directorySort } from '@web10/discover/directory-cont
 import { useDirectoryMixer } from '@web10/discover/use-directory-mixer';
 import { PersonCard as SharedPersonCard, GroupCard as SharedGroupCard } from '@web10/discover';
 import type { DirectoryRead } from '@web10/discover/directory-mixer';
+import { personCardKey, uniquePeople } from '@/data/people';
 
 const LOG = (...args: unknown[]) => console.log('[social:explore-tab]', ...args);
 
@@ -210,16 +211,24 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
       if (!painted) {
         if (!append) peopleFirstPageCountRef.current = page.length;
         peopleNextOffsetRef.current = offset + page.length;
-        setPeople((prev) => append ? [...prev, ...page] : page);
+        setPeople((prev) => {
+          if (!append) return uniquePeople(page);
+          const existing = new Map(prev.map(person => [personCardKey(person), person]));
+          const incoming = page.map(person => {
+            const previous = existing.get(personCardKey(person));
+            return previous?.follow_pending === false ? { ...person, is_following: previous.is_following } : person;
+          });
+          return uniquePeople([...prev, ...incoming]);
+        });
         setPeopleHasMore(hasMore);
         setPeopleLoading(false);
         setPeopleLoadingMore(false);
         painted = true;
         LOG('loadPeoplePage — base painted, offset:', offset);
       } else {
-        const updates = new Map(page.map((p) => [p.username, p]));
+        const updates = new Map(page.map((p) => [personCardKey(p), p]));
         setPeople((prev) => prev.map((p) => {
-          const update = updates.get(p.username);
+          const update = updates.get(personCardKey(p));
           if (!update) return p;
           // Once follow state is known, only a user action changes it. Late face
           // or mutual snapshots must not undo a follow/unfollow performed here.
@@ -263,9 +272,12 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
 
   useEffect(() => {
     if (!profilesActivated) return;
-    if (personFilter !== 'following' && personFilter !== 'followers') return;
-    if (personFilter === 'following' && myFollowing) return;
-    if (personFilter === 'followers' && myFollowers) return;
+    if ((personFilter !== 'following' && personFilter !== 'followers') ||
+      (personFilter === 'following' && myFollowing) ||
+      (personFilter === 'followers' && myFollowers)) {
+      setGraphLoading(false);
+      return;
+    }
     let cancelled = false;
     setGraphLoading(true);
     LOG('load graph —', personFilter);
@@ -273,10 +285,10 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
       try {
         if (personFilter === 'following') {
           const cards = await fetchMyFollowingCards();
-          if (!cancelled) setMyFollowing(cards);
+          if (!cancelled) setMyFollowing(uniquePeople(cards));
         } else {
           const cards = await fetchMyFollowersCards();
-          if (!cancelled) setMyFollowers(cards);
+          if (!cancelled) setMyFollowers(uniquePeople(cards));
         }
       } catch (e) {
         LOG('load graph — failed:', e);
@@ -691,7 +703,7 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
                       <SharedPersonCard person={p} testId="source-person-card" />
                     </div> :
                     <PersonCardRow
-                      key={p.source_key ?? p.username}
+                      key={personCardKey(p)}
                       person={p}
                       followLoading={!!peopleFollowLoading[p.username] || !!p.follow_pending}
                       onFollow={() => handlePeopleFollow(p)}

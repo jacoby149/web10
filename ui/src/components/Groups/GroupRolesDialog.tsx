@@ -8,11 +8,11 @@ import { groupDisplayName, isRoleMap } from '@/lib/group-utils';
 let _roleIdCounter = 0;
 
 const KNOWN_PERMISSIONS = [
-  { key: 'readAll', label: 'Read all' },
-  { key: 'create', label: 'Create' },
-  { key: 'updateOwn', label: 'Update own' },
-  { key: 'deleteOwn', label: 'Delete own' },
-  { key: 'hideAll', label: 'Hide all (mod)' },
+  { key: 'readAll', label: 'Read accessible data' },
+  { key: 'create', label: 'Create data' },
+  { key: 'updateOwn', label: 'Edit data they created' },
+  { key: 'deleteOwn', label: 'Delete data they created' },
+  { key: 'hideAll', label: 'Hide content (moderation)' },
   { key: 'manageRoles', label: 'Manage roles' },
   { key: 'assignRoles', label: 'Assign roles' },
   { key: 'revokeRoles', label: 'Revoke roles' },

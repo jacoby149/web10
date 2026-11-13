@@ -23,7 +23,7 @@ VALIDATOR_SOURCE_AT_IMPORT = sha(__file__)
 
 def validator_dependencies():
     return {name:sha(Path(__file__).with_name(name)) for name in
-            ('realism_clickhouse.py','realism_contract.py')}
+            ('realism_clickhouse.py','realism_contract.py','realism_checkpoints.py')}
 
 
 def current_receipt(proof):
@@ -447,11 +447,13 @@ def clickhouse_workspace(directory,key,keep_work):
         yield str(work)
 
 
-def validate(directory,out,*,keep_work=False):
+def validate(directory,out,*,keep_work=False,resume=False):
     """Validate finished records in ClickHouse, with no automatic fallback."""
     directory,out=Path(directory).resolve(),Path(out)
     if out.exists():
         raise FileExistsError('refusing to overwrite validation receipt')
+    if resume and not keep_work:
+        raise ValueError('check resume requires retained work')
     manifest=json.loads((directory/'manifest.json').read_bytes())
     pin=sha(__file__)
     if pin!=VALIDATOR_SOURCE_AT_IMPORT:
@@ -469,12 +471,16 @@ def validate(directory,out,*,keep_work=False):
             print(f'[clickhouse-validator] integrity start; work={tmp}',flush=True)
             verify_inputs(directory,manifest)
             db=clickhouse.ClickHouse(tmp,directory)
-            result=clickhouse.inspect(db,manifest,progress)
+            result=clickhouse.inspect(db,manifest,progress,resume=resume)
             result['import_lineage']=db.context
         except Exception as error:
+            from realism_checkpoints import CheckFailed
             result={'complete':False,'accounts':manifest.get('recipe',{}).get('accounts'),
-                    'checks':{'validator_execution':False},'error_type':type(error).__name__,
+                    'checks':error.checks if isinstance(error,CheckFailed) else {'validator_execution':False},'error_type':type(error).__name__,
                     'stage':progress['stage'],'diagnostic':str(error)[:1200]}
+            import subprocess
+            if isinstance(error,subprocess.TimeoutExpired) or str(error).startswith('ClickHouse exit 159:'):
+                result['interrupted']=True
         finally:
             if db is not None:
                 try:
@@ -556,5 +562,6 @@ if __name__ == "__main__":
     parser.add_argument("directory",type=Path)
     parser.add_argument("--out",type=Path,required=True)
     parser.add_argument('--keep-work',action='store_true',help='Retain isolated ClickHouse data and query logs; not an automatic resume witness')
+    parser.add_argument('--resume',action='store_true',help='Reverify retained check/derived records; never skip a failed verdict')
     args=parser.parse_args()
-    raise SystemExit(0 if validate(args.directory,args.out,keep_work=args.keep_work)["complete"] else 1)
+    raise SystemExit(0 if validate(args.directory,args.out,keep_work=args.keep_work,resume=args.resume)["complete"] else 1)

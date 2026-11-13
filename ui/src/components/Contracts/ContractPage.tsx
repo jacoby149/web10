@@ -1,4 +1,6 @@
-import { Bot, FileText, Globe, Shield, ShieldX, Trash2 } from 'lucide-react';
+import { Bot, FileText, Globe, ShieldX, Trash2 } from 'lucide-react';
+import PermissionSummary from '../Consent/PermissionSummary';
+import { dataTypeLabel } from '@/lib/consentLanguage';
 import AppShell from '../shared/AppShell';
 import RecoveryNudgeBanner from '../shared/RecoveryNudgeBanner';
 import { Button } from '@/components/ui/button';
@@ -24,7 +26,7 @@ function AppContractCard({ I, contract }: { I: Record<string, any>; contract: { 
     if (!origin) return '(no origin)';
     try {
       const url = origin.startsWith('http') ? new URL(origin) : new URL(`https://${origin}`)
-      if (url.hostname && url.hostname !== '') return url.hostname;
+      if (url.host && url.host !== '') return url.host;
     } catch { /* fall through to raw origin */ }
     return origin;
   })();
@@ -68,7 +70,7 @@ function AppContractCard({ I, contract }: { I: Record<string, any>; contract: { 
             )}
           </div>
           <div className="mt-0.5 text-xs text-muted-foreground">
-            {services.length} {services.length === 1 ? 'service' : 'services'} · {totalOps} {totalOps === 1 ? 'permission' : 'permissions'}
+            {services.length} {services.length === 1 ? 'data type' : 'data types'} · {totalOps} {totalOps === 1 ? 'permission' : 'permissions'}
           </div>
         </div>
         <span className="shrink-0 text-muted-foreground">
@@ -80,23 +82,12 @@ function AppContractCard({ I, contract }: { I: Record<string, any>; contract: { 
         <>
           <div className="border-b border-border" />
           <div className="px-4 py-3">
-            {/* Permissions breakdown — service → operations */}
-            {services.map((service) => (
-              <div key={service} className="mb-2 last:mb-0">
-                <div className="text-xs font-medium text-muted-foreground">{service}</div>
-                <div className="mt-1 flex flex-wrap gap-1.5">
-                  {(perms[service] || []).map((op) => (
-                    <span
-                      key={op}
-                      className="inline-flex items-center gap-1 rounded-full bg-brand-muted px-2 py-0.5 text-[11px] font-medium text-brand-300"
-                    >
-                      <Shield className="h-3 w-3" strokeWidth={2} />
-                      {op}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))}
+            <PermissionSummary permissions={perms} />
+            <details className="mt-4 text-sm text-muted-foreground">
+              <summary className="min-h-11 cursor-pointer rounded py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Technical details</summary>
+              <p className="break-all font-mono text-xs">{isOAuth ? contract.client_id : origin}</p>
+              <pre className="mt-2 whitespace-pre-wrap break-all text-xs">{JSON.stringify(perms, null, 2)}</pre>
+            </details>
           </div>
 
           <div className="flex flex-wrap gap-2 border-t border-border px-4 py-2.5">
@@ -108,7 +99,7 @@ function AppContractCard({ I, contract }: { I: Record<string, any>; contract: { 
               data-testid="contract-revoke-toggle"
             >
               <ShieldX className="mr-1.5 h-4 w-4" strokeWidth={1.5} />
-              Revoke contract
+              Remove app permissions
             </Button>
           </div>
         </>
@@ -172,11 +163,10 @@ function EmptyContracts() {
       <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand-muted">
         <FileText className="h-6 w-6 text-brand-300" strokeWidth={1.5} />
       </div>
-      <h2 className="font-display text-lg font-semibold text-foreground">No app contracts yet</h2>
+      <h2 className="font-display text-lg font-semibold text-foreground">No app permissions yet</h2>
       <p className="mt-1.5 max-w-sm text-sm text-muted-foreground">
-        An app contract appears here when a website or app asks to access your data.
-        You approve each one — and can revoke it any time. Nothing touches your node
-        until you say so.
+        When you allow an app to access your data, its permissions appear here.
+        You can review or remove that access at any time.
       </p>
     </div>
   );
@@ -192,7 +182,7 @@ function AppContracts({ I }: { I: Record<string, any> }) {
     ? contracts.filter((c: any) =>
         String(c?.allowed_origin ?? '').toLowerCase().includes(query) ||
         String(c?.client_id ?? '').toLowerCase().includes(query) ||
-        Object.keys(c?.permissions ?? {}).some((s) => s.toLowerCase().includes(query)),
+        Object.keys(c?.permissions ?? {}).some((s) => s.toLowerCase().includes(query) || dataTypeLabel(s).toLowerCase().includes(query)),
       )
     : contracts;
 
@@ -206,10 +196,10 @@ function AppContracts({ I }: { I: Record<string, any> }) {
   }).length;
 
   const handleCleanup = () => {
-    if (!confirm(`Remove ${staleCount} stale contract(s) with invalid origins?`)) return;
+    if (!confirm(`Remove permissions for ${staleCount} apps with invalid site addresses?`)) return;
     setCleaning(true);
     I.cleanupV3Contracts?.().then(() => {
-      I.setStatus?.(`Cleaned ${staleCount} stale contract(s)`);
+      I.setStatus?.(`Removed permissions for ${staleCount} apps with invalid site addresses`);
     }).catch((e: any) => {
       I.setStatus?.('Cleanup failed: ' + (e?.message || String(e)));
     }).finally(() => setCleaning(false));
@@ -218,16 +208,16 @@ function AppContracts({ I }: { I: Record<string, any> }) {
   return (
     <>
       <div className="mb-8 text-center">
-        <h1 className="font-display text-2xl font-bold text-foreground">App Contracts</h1>
+        <h1 className="font-display text-2xl font-bold text-foreground">App permissions</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Manage which apps can access your data — one contract per app, with per-service permissions.
+          Choose which apps can access your data and what each app can do.
         </p>
       </div>
       {contracts.length === 0 ? (
         <EmptyContracts />
       ) : filtered.length === 0 ? (
         <p className="mt-8 text-center text-sm text-muted-foreground" data-testid="contracts-no-match">
-          No app contracts match "{I.search}".
+          No app permissions match "{I.search}".
         </p>
       ) : (
         <>
@@ -235,7 +225,7 @@ function AppContracts({ I }: { I: Record<string, any> }) {
             <div className="mb-4 rounded border border-danger/30 bg-danger/5 px-4 py-3">
               <p className="text-sm text-danger">
                 <Trash2 className="mr-1.5 inline h-4 w-4" strokeWidth={1.5} />
-                {staleCount} stale contract{staleCount > 1 ? 's' : ''} detected with invalid origins.
+                {staleCount} apps have permissions linked to invalid site addresses.
               </p>
               <div className="mt-2">
                 <Button
@@ -245,7 +235,7 @@ function AppContracts({ I }: { I: Record<string, any> }) {
                   disabled={cleaning}
                   data-testid="contract-cleanup"
                 >
-                  {cleaning ? 'Cleaning...' : `Remove ${staleCount} stale contract${staleCount > 1 ? 's' : ''}`}
+                  {cleaning ? 'Removing...' : 'Remove outdated permissions'}
                 </Button>
               </div>
             </div>

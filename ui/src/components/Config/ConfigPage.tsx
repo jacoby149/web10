@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SecretInput } from '@/components/ui/secret-input';
 import ContactDelivery from './ContactDelivery';
+import ProviderSetupLink, { TwilioCredentialHelp } from './ProviderSetupLink';
 import { Lock, UserPlus, X, Check, Store, ChevronDown } from 'lucide-react';
 
 function ToggleRow({ label, description, checked, onChange, testId }: {
@@ -474,6 +475,8 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
               <ToggleRow label="Masked replay and heatmaps" description="Optional. Normal UI and public content/images are visible by default (D107). Masks inputs, drafts, DMs, private records/admin and credentials. Signed URLs and audio/video streams are excluded." checked={config?.posthog_replay_enabled === true} onChange={() => updateField("posthog_replay_enabled", config?.posthog_replay_enabled !== true)} testId="config-posthog-replay" />
               <Field label="PostHog project ingest key" description="Starts with phc_. Public identifier; blank or invalid configuration disables collection.">
                 <Input value={config?.posthog_project_key || ""} onChange={e => updateField("posthog_project_key", e.target.value)} placeholder="phc_…" data-testid="config-posthog-key" />
+                <ProviderSetupLink href={config?.posthog_host === 'https://eu.i.posthog.com' ? 'https://eu.posthog.com/project/settings' : 'https://us.posthog.com/project/settings'} testId="config-posthog-key-link">Get your PostHog project ingest key</ProviderSetupLink>
+                <p className="text-xs leading-relaxed text-muted-foreground">Choose your project, copy its public project token and paste it above. Do not create or paste a personal API key; the link follows your selected region.</p>
               </Field>
               <Field label="PostHog region" description="Must match the project region. Custom ingestion hosts are not supported yet.">
                 <select className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground" value={config?.posthog_host || "https://us.i.posthog.com"} onChange={e => updateField("posthog_host", e.target.value)} data-testid="config-posthog-host" aria-label="PostHog region">
@@ -587,6 +590,7 @@ function ConfigPage({ I }: { I: Record<string, any> }) {
             <summary className="min-h-11 cursor-pointer text-sm text-brand-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Advanced · Existing Twilio settings</summary>
             <div className="mt-3 space-y-4">
               <p className="text-xs text-muted-foreground">Compatibility configuration for the existing Twilio Verify flow. New Gmail and SendGrid setup is above.</p>
+              <TwilioCredentialHelp />
               <Field label="Service SID">
                 <Input value={config?.twilio_service || ""} onChange={e => updateField("twilio_service", e.target.value)} data-testid="config-twilio-service" />
               </Field>

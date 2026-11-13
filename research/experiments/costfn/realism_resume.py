@@ -57,7 +57,8 @@ def validation(receipt,directory,manifest):
         return proof
     # Preserve deterministic failure evidence and require a repair/operator
     # decision, not a blind unchanged retry that might hide the failed gate.
-    if current_receipt(proof) and proof.get('dataset_id')==dataset_id:
+    interruption=(proof.get('interrupted') is True and proof.get('checks')=={'validator_execution':False})
+    if current_receipt(proof) and proof.get('dataset_id')==dataset_id and not interruption:
         raise ValueError('same-source validation previously failed; retain it and repair the stage before retry')
     archived=receipt.with_name(receipt.name+'.stale-'+uuid.uuid4().hex[:12])
     receipt.rename(archived)

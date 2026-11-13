@@ -14,6 +14,60 @@ def empty_account(*args):
 
 
 class LeaseTests(unittest.TestCase):
+    def budget_approval(self):
+        row=example()
+        row['operator_preparation_approval']={'hours':14,'approved_epoch':99}
+        previous=row['created_epoch']+14*3600
+        row['operator_validation_extension']={'hours':4,'previous_deadline':previous,'approved_epoch':200}
+        row['operator_validation_budget_approval']={'approved_epoch':300,
+            'previous_deadline':row['created_epoch']+18*3600,
+            'max_compute_usd':40,'hourly_usd':.25}
+        row['max_usd']=40
+        row['deadline']=row['created_epoch']+42*3600
+        return row
+
+    def test_forty_dollar_approval_requires_exact_budget_history_rate_and_clock(self):
+        row=self.budget_approval()
+        lease.validate(row)
+        approval=row['operator_validation_budget_approval']
+        for change in ({'max_compute_usd':41},{'hourly_usd':.1},
+                {'previous_deadline':approval['previous_deadline']-1},
+                {'approved_epoch':approval['previous_deadline']+1},
+                {'approved_epoch':99},{'approved_epoch':True},{'approved_epoch':None}):
+            with self.subTest(change=change),self.assertRaises(ValueError):
+                lease.validate({**row,'operator_validation_budget_approval':{**approval,**change}})
+        for change in ({'max_usd':5},{'max_usd':41},
+                {'operator_validation_extension':None},
+                {'operator_validation_budget_approval':None}):
+            with self.subTest(change=change),self.assertRaises(ValueError):
+                lease.validate({**row,**change})
+
+    def test_forty_dollar_budget_bounds_total_lifetime_not_just_added_time(self):
+        row=self.budget_approval()
+        row['deadline']=row['created_epoch']+160*3600
+        lease.validate(row)
+        with self.assertRaises(ValueError):
+            lease.validate({**row,'deadline':row['deadline']+1})
+        with self.assertRaises(ValueError):
+            lease.validate({**example(),'max_usd':40})
+
+    def test_budget_approval_never_reopens_expired_or_closed_lease(self):
+        row=self.budget_approval()
+        for flag in ('cancelled','cleanup_verified'):
+            with self.subTest(flag=flag),self.assertRaises(ValueError):
+                lease.admits_creation({**row,flag:True},now=400)
+        with self.assertRaises(ValueError):
+            lease.admits_creation(row,now=row['deadline'])
+
+    def test_budget_cleanup_preserves_persistent_volume(self):
+        row={**self.budget_approval(),'creation_complete':True,
+            'prep_volume_id':'d01c584d-de97-11f1-8944-c234aeb68f7e'}
+        with patch.object(lease,'api',side_effect=empty_account) as api:
+            lease.cleanup(row)
+        self.assertTrue(row['cleanup_verified'])
+        self.assertEqual(row['prep_volume_id'],'d01c584d-de97-11f1-8944-c234aeb68f7e')
+        self.assertFalse(any('volume' in call.args for call in api.call_args_list))
+
     def test_validation_extension_requires_initial_approval_exact_bound_and_clock(self):
         row=example()
         row['operator_preparation_approval']={'hours':14,'approved_epoch':99}

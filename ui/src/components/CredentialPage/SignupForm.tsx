@@ -16,13 +16,13 @@ function SignupForm({ I, embedded = false }: { I: Record<string, any>; embedded?
     <>
       {!embedded && (
         <>
-          <h1 className="font-display text-xl font-semibold text-foreground">Create your node</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Own your data from the first record.</p>
+          <h1 className="font-display text-2xl font-medium tracking-tight text-foreground">Create your account.</h1>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">One web10 account. Your data, on your terms.</p>
         </>
       )}
 
       <form
-        className={embedded ? "space-y-1" : "mt-6 space-y-1"}
+        className={embedded ? "space-y-5" : "mt-6 space-y-5"}
         onSubmit={(e) => {
           // A real submit: the form element is what password managers key off
           // to detect a registration and offer fills. preventDefault keeps the
@@ -40,20 +40,20 @@ function SignupForm({ I, embedded = false }: { I: Record<string, any>; embedded?
           I.signup(provider, username, password, retype, betacode, contact);
         }}
       >
-        <Provider I={I} />
         <Username I={I} />
         <Password I={I} />
         <ReTypePass I={I} />
         <Contact I={I} />
         <BetaCode I={I} />
+        <Provider I={I} />
 
         <Button
           variant="brand"
           type="submit"
-          className="mt-2 w-full"
+          className="h-12 w-full"
           data-testid="signup-submit"
         >
-          Sign up
+          Create account
         </Button>
       </form>
 
@@ -63,7 +63,7 @@ function SignupForm({ I, embedded = false }: { I: Record<string, any>; embedded?
         <button
           type="button"
           onClick={() => I.setMode("login")}
-          className="rounded text-sm text-brand-300 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex min-h-11 items-center rounded px-2 text-sm text-brand-300 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           data-testid="signup-login-link"
         >
           Already have an account?
@@ -76,7 +76,7 @@ function SignupForm({ I, embedded = false }: { I: Record<string, any>; embedded?
 
   return (
     <div className="w-full max-w-sm">
-      <div className="rounded border border-border bg-card p-6 sm:p-8">{form}</div>
+      <div className="rounded-lg border border-border bg-card p-6 sm:p-8">{form}</div>
     </div>
   );
 }
