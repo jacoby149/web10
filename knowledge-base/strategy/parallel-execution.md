@@ -1696,7 +1696,7 @@ starting.
   doc_groups imports. Verify compatible importer/source/UUID/count before
   reusing completed work across a resource-policy change; no forged markers,
   new host, resize, statistical tolerance waiver or experiment authorization.
-  - [✓ 5.31.8 controls/restart; full validation OPEN] Explicit
+  - [✓ 5.32.2 controls/restart; full validation OPEN] Explicit
     performance profile sets 22-GiB ClickHouse/28-GiB process and deadline-clamped
     four-hour queries. Only the reviewed predecessor's exact lineage and
     unchanged parsed importer semantics may cross source changes; all-file
