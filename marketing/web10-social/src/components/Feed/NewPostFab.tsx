@@ -6,8 +6,8 @@ import { trackEvent } from '@/lib/analytics';
  * The floating "New Post" control — a quiet neutral pill, with a compact
  * plus on phones and an explicit desktop label (operator, 13.11.2026).
  * It replaces the always-visible composer
- * boxes that used to sit inline on every surface: the button is the only
- * resting chrome, the full composer pops up on tap (the NewPostSheet).
+ * editors that used to sit inline on every surface. It complements the
+ * input-shaped Posts invitation; both open the same NewPostSheet on tap.
  *
  * Rendered once in the Layout (above the mobile bottom bar, bottom-right —
  * the Instagram/TikTok FAB position). Hidden on the Shorts lens (the

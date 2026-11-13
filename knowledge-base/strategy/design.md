@@ -476,8 +476,29 @@ bubbles in DMs, presence pulses, a living login screen. The tokens
 for this app. See §4 glow section and §7 social motion. The bar is
 Kick-grade: vibrant, alive, never muted.
 
+**Posts invitation (operator, 13.11.2026):** the first slot in the signed-in
+Discover/Following post column is a personal-photo, input-shaped invitation:
+“Share something! :)” (operator-selected copy). It is a real button opening the existing composer
+modal, never an inline input/editor or separate draft. Place it after feed
+controls where the first post would start; it scrolls away normally, never
+sticky/fixed. Hide it for signed-out readers and outside Posts. Keep the quiet
+floating New post shortcut as the complementary scrolled-down entry.
+
 
 ### Social navigation glass — first pass (11.11.2026)
+
+Signed-in phone navigation (operator, 13.11.2026): Posts, Video, Shorts, Music,
+More. Messages moves into More, retaining its unread count both on the More
+entry and its Messages row, direct routes and active destination indication.
+Desktop and signed-out navigation retain their existing destinations.
+More begins with a distinct personal profile card: resolved profile photo (or
+initial fallback), name, username and View profile, before Appearance or utility
+rows. The header avatar opens a profile-first menu; Change posting identity is
+secondary and reveals the existing confirmed chooser only when requested.
+Keep the header's Acting as label, current name/avatar and visible expand arrow
+on phones and desktop. The first menu action is View profile; Change identity
+is the visible second action and needs another tap to open the existing picker.
+Profile navigation never changes the selected posting identity or grants authority.
 
 The social shell may use Apple-inspired frosted chrome: a floating mobile dock,
 smoked dark / milky light headers, sidebar and navigation menus. Content, forms
@@ -498,10 +519,22 @@ backdrops. Operator follow-up (13.11.2026): remove the player's refractive borde
 two simultaneous refractive widgets are too much. Keep the navigation dock's
 approved refraction unchanged, and preserve opaque accessibility fallbacks.
 Use a designed seek track; compact secondary
-controls must not squeeze the title or fall outside the card. Previous remains
-available in the expanded player; play/pause, next, close and queue stay in the
-phone mini-player. Desktop retains its bottom transport bar; lift New post above
+controls must not squeeze the title or fall outside the card. Previous,
+play/pause, next and close stay in the phone mini-player; full-player/queue
+navigation belongs inside Music. Desktop retains its bottom transport bar; lift New post above
 the measured player height there too, so playback never covers the posting entry.
+Playing an ordinary audible video stops and dismisses the music player; a
+music-tagged video stays in Music's own transport. Muted previews do not dismiss
+it. X means stop and dismiss, not hide music that continues playing invisibly.
+Outside Music, the mini-player is only a remote control: no title/artwork or
+queue link can pull the reader off their current page. Full player navigation
+is available only after explicitly entering Music through app navigation; Queue
+is a labelled action in that full player, not a tiny target on the bar.
+Both Previous and Next stay visible on phones too. Disable a skip when the
+actual queue/traversal cannot perform it; Previous may restart after three
+seconds. A newly selected feed song uses the eligible music already loaded on
+that board as its ordered queue; never fetch recommendations or additional pages
+to manufacture a next track.
 
 **New post control (operator, 13.11.2026):** replace the oversized violet
 gradient orb with a quiet 48px neutral frosted control. Mobile keeps a compact

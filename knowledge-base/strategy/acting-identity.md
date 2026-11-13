@@ -8,7 +8,13 @@ authorized for this work.
 
 Replace the composer-only choice with one navigation-avatar switcher. Personal
 identity is always first. Eligible groups are searchable, pinnable and recent;
-desktop uses a popover and phones a sheet. Always say `Acting as`. A confirmed
+desktop uses a popover and phones a sheet. Operator correction (13.11.2026):
+the navigation avatar is profile-first, with View profile as its primary menu
+action and Change posting identity secondary. Keep Acting as, the current name
+and the expand arrow on phones and desktop, so delegated posting stays visible. More leads
+with a distinct personal profile/photo card. Merely opening the profile menu
+does not load eligible groups or change identity; the existing confirmed picker
+and authority model below are unchanged. A confirmed
 identifier is remembered per provider/account across browser reopen, with a
 per-tab snapshot so another tab cannot switch this tab. Store no credentials or
 grants; the selection is never authority. Existing

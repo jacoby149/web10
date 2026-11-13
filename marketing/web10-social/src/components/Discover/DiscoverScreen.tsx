@@ -45,6 +45,9 @@ import DiscoverExploreTab from './DiscoverExploreTab';
 // Discover board renders the SAME card as the Following tab, so the two
 // tabs look exactly the same (the operator, 30.09.2026).
 import { PostCard, ForeignFeedCard } from '@/components/Feed/FeedScreen';
+import { FeedMusicQueue } from '@/context/FeedMusicContext';
+import { musicQueueFromPosts } from '@/data/musicTrack';
+import PostEntryPrompt from '@/components/Feed/PostEntryPrompt';
 // The server mixer (server-mixer-component.md): the same Advanced chassis as
 // Following / Shorts / Music — one owner-private source catalog, separate
 // current-credential approval, real per-node quotas.
@@ -1085,6 +1088,11 @@ function DiscoverBoard({ mode }: { mode: Exclude<DiscoverMode, 'people'> }) {
     }
     return filtered;
   }, [scoredPosts, activeTag, searchQuery]);
+  const musicQueue = musicQueueFromPosts(visiblePosts,
+    post => isForeignPost(post)
+      ? (post.media_refs || []).filter((ref): ref is ResolvedMediaRef => typeof ref !== 'string').map(fromResolvedMediaRef)
+      : mediaMap[post._id || ''] || [],
+    isForeignPost);
 
   // Video wall: landscape videos only (the YouTube shape). Portrait videos are
   // shorts — they live in the Shorts destination (the TikTok shape), not here.
@@ -1228,7 +1236,8 @@ function DiscoverBoard({ mode }: { mode: Exclude<DiscoverMode, 'people'> }) {
               <div className="mx-auto flex w-full max-w-5xl gap-8">
                 <div className="min-w-0 flex-1">
                   <div className="mx-auto w-full max-w-2xl" data-testid="discover-grid">
-                    {visiblePosts.flatMap((post) => {
+                    <PostEntryPrompt />
+                    <FeedMusicQueue.Provider value={musicQueue}>{visiblePosts.flatMap((post) => {
                       if (isForeignPost(post)) return [<ForeignFeedCard key={boardKey(post)} post={post} />];
                       const profile = post.profile;
                       const mediaItems = mediaMap[post._id || ''] || [];
@@ -1294,7 +1303,7 @@ function DiscoverBoard({ mode }: { mode: Exclude<DiscoverMode, 'people'> }) {
                           />
                         )),
                       ];
-                    })}
+                    })}</FeedMusicQueue.Provider>
                   </div>
                 </div>
 
@@ -1314,7 +1323,7 @@ function DiscoverBoard({ mode }: { mode: Exclude<DiscoverMode, 'people'> }) {
                 )}
               </div>
             ) : (
-              <DiscoverEmptyState />
+              <><div className="mx-auto w-full max-w-2xl"><PostEntryPrompt /></div><DiscoverEmptyState /></>
             )}
           </div>
 

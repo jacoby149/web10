@@ -22,6 +22,8 @@ interface Playback {
   error: string | null;
 }
 export interface MusicContextValue extends Playback {
+  canNext: boolean;
+  canPrevious: boolean;
   play(track: MusicTrack, queue?: MusicTrack[]): void;
   playQueue(index: number): void;
   retry(): Promise<void>;
@@ -312,6 +314,8 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
 
   const value: MusicContextValue = {
     ...state, play, playQueue, retry, select, clear, seek, attachVideoStage,
+    canNext: !!state.current && (state.shuffle ? remaining.current.length > 0 || state.repeat === 'all' : state.currentIndex < state.queue.length - 1 || state.repeat === 'all'),
+    canPrevious: !!state.current && (state.currentTime > 3 || (state.shuffle ? history.current.length > 0 : state.currentIndex > 0 || state.repeat === 'all')),
     videoElement: video.current,
     toggle() { if (requested.current || snapshot.current.isPlaying) pause(); else if (snapshot.current.error) void retry(); else start(); },
     next() { advance(); }, previous() { advance(true); },
@@ -416,7 +420,10 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
         }
         update({ duration });
       };
-      const onEnd = () => { log('ended'); advance(false, true); };
+      const onEnd = () => {
+        if (el !== activeElement() || !requested.current) { log('ignored retired transport end'); return; }
+        log('ended'); advance(false, true);
+      };
       const onError = () => {
         if (!snapshot.current.current) return;
         // Re-read through the existing authorized post path, never the owner-only
@@ -438,7 +445,11 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
       const target = event.target;
       // The session's OWN two transports never count as "other media".
       if (target instanceof HTMLMediaElement && target !== element && target !== videoElement && !target.muted && target.volume > 0 && (event.type === 'play' || !target.paused)) {
-        pause(); log('paused for other media');
+        if (target instanceof HTMLVideoElement) {
+          clear(); log('dismissed for ordinary video');
+        } else {
+          pause(); log('paused for other audio');
+        }
         feedSession.activate(target);
       }
     };

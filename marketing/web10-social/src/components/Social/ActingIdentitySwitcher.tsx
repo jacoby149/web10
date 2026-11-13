@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronDown, Pin, X } from 'lucide-react';
+import { Check, ChevronDown, Pin, Users, X } from 'lucide-react';
 import { getV3Client } from '@/data/v3';
 import { readGroupIdentity } from '@/data/groups';
 import { selectActingAuthor, useActingAuthor } from '@/data/actingIdentity';
@@ -10,11 +10,12 @@ import { resolveFaceMedia, GROUP_FACE_SQL, type FaceUrls } from '@web10/discover
 
 type Identity = { id: string; name: string };
 
-export default function ActingIdentitySwitcher({ personalName, personalAvatar }: { personalName?: string; personalAvatar?: string }) {
+export default function ActingIdentitySwitcher({ personalName, personalAvatar, onViewProfile }: { personalName?: string; personalAvatar?: string; onViewProfile?: () => void }) {
   const selected = useActingAuthor();
   const token = getV3Client().readToken();
   const account = token ? `${token.provider}:${token.username}` : '';
   const [open, setOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [pending, setPending] = useState<string>();
   const [identities, setIdentities] = useState<Identity[]>([]);
   const [query, setQuery] = useState('');
@@ -56,12 +57,35 @@ export default function ActingIdentitySwitcher({ personalName, personalAvatar }:
   useEffect(() => {
     setIdentities([]);
     setOpen(false);
+    setProfileOpen(false);
     try {
       const saved = JSON.parse(sessionStorage.getItem(preferenceKey) || '{}');
       setPins(Array.isArray(saved.pins) ? saved.pins : []);
       setRecent(Array.isArray(saved.recent) ? saved.recent : []);
     } catch { setPins([]); setRecent([]); }
   }, [preferenceKey]);
+
+  useEffect(() => {
+    if (!profileOpen) return;
+    panel.current?.querySelector<HTMLButtonElement>('[data-testid="profile-menu-view"]')?.focus();
+    function dismiss(event: MouseEvent | KeyboardEvent) {
+      if (event instanceof KeyboardEvent && event.key === 'Tab' && mobile) {
+        const controls = panel.current?.querySelectorAll<HTMLButtonElement>('button');
+        if (controls?.length) {
+          const first = controls[0], last = controls[controls.length - 1];
+          if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+          else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+        }
+      }
+      if (event instanceof KeyboardEvent ? event.key === 'Escape' : !root.current?.contains(event.target as Node) && !panel.current?.contains(event.target as Node)) {
+        setProfileOpen(false);
+        trigger.current?.focus();
+      }
+    }
+    document.addEventListener('mousedown', dismiss);
+    document.addEventListener('keydown', dismiss);
+    return () => { document.removeEventListener('mousedown', dismiss); document.removeEventListener('keydown', dismiss); };
+  }, [profileOpen, mobile]);
 
   useEffect(() => {
     if (!open) return;
@@ -144,12 +168,25 @@ export default function ActingIdentitySwitcher({ personalName, personalAvatar }:
     trigger.current?.focus();
   }
   return <div ref={root} className="relative min-w-0 shrink-0" data-testid="acting-identity">
-    <button ref={trigger} type="button" aria-haspopup="dialog" aria-expanded={open} onClick={() => { if (!open) { setPending(selected); setQuery(''); } console.log('[social-identity] picker toggled', { open: !open }); setOpen(!open); }}
+    <button ref={trigger} type="button" aria-haspopup="dialog" aria-expanded={open || profileOpen} onClick={() => {
+      if (onViewProfile) { setOpen(false); setProfileOpen(!profileOpen); console.log('[social-profile] profile menu toggled', { open: !profileOpen }); return; }
+      if (!open) { setPending(selected); setQuery(''); }
+      console.log('[social-identity] picker toggled', { open: !open }); setOpen(!open);
+    }}
       className="flex h-11 items-center gap-2 rounded-lg border border-border bg-surface px-2 py-0 text-left hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-auto md:min-h-11 md:px-3 md:py-2" data-testid="acting-identity-trigger">
       <Avatar className="h-8 w-8">{selected ? selectedFace?.id === selected && selectedFace.avatarUrl && <AvatarImage src={selectedFace.avatarUrl} alt="" /> : personalAvatar && <AvatarImage src={personalAvatar} alt="" />}<AvatarFallback className="bg-brand-muted text-brand-300">{name?.charAt(0).toUpperCase()}</AvatarFallback></Avatar>
       <span className="min-w-0"><span className="block whitespace-nowrap text-xs text-muted-foreground">Acting as</span><span className="block max-w-24 truncate text-sm font-medium md:max-w-32">{name}</span></span>
-      <ChevronDown className="hidden h-4 w-4 text-muted-foreground md:block" />
+      <ChevronDown className="h-4 w-4 text-muted-foreground" />
     </button>
+    {profileOpen && mountPanel(<section ref={panel} role="dialog" aria-modal={mobile} aria-label="Profile" data-replay-private data-testid="profile-entry-menu" className="fixed inset-x-0 bottom-0 z-50 rounded-t-lg border border-border bg-popover p-4 md:absolute md:inset-x-auto md:bottom-auto md:top-full md:mt-2 md:w-80 md:rounded-lg">
+      <div className="mb-3 flex items-center justify-between"><h2 className="text-base font-semibold">Your profile</h2><Button type="button" variant="ghost" size="icon" aria-label="Close profile menu" onClick={() => { setProfileOpen(false); trigger.current?.focus(); }}><X className="h-4 w-4" /></Button></div>
+      <button type="button" data-testid="profile-menu-view" aria-label="View profile" onClick={() => { setProfileOpen(false); console.log('[social-profile] view personal profile'); onViewProfile?.(); }} className="flex min-h-16 w-full items-center gap-3 rounded-lg border border-border bg-elevated p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <Avatar className="h-11 w-11">{personalAvatar && <AvatarImage src={personalAvatar} alt="" />}<AvatarFallback className="bg-brand-muted text-brand-300">{(personalName || token.username).charAt(0).toUpperCase()}</AvatarFallback></Avatar>
+        <span className="min-w-0"><span className="block truncate text-sm font-semibold">{personalName || token.username}</span><span className="block text-xs text-muted-foreground">View profile</span></span>
+      </button>
+      <button type="button" onClick={() => { setProfileOpen(false); setPending(selected); setQuery(''); setOpen(true); console.log('[social-identity] explicit change requested'); }} className="mt-3 flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-muted-foreground hover:bg-elevated hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><Users className="h-5 w-5" />Change posting identity</button>
+      {selected && <p className="mt-2 px-3 text-xs text-muted-foreground">Posting as {name}. Viewing your profile does not change this.</p>}
+    </section>)}
     {open && mountPanel(<section ref={panel} role="dialog" aria-modal={mobile} aria-label="Choose acting identity" className="fixed inset-x-0 bottom-0 z-50 max-h-[80dvh] overflow-y-auto rounded-t-lg border border-border bg-popover p-4 shadow-lg [&_button]:min-h-11 [&_button]:min-w-11 md:absolute md:inset-x-auto md:bottom-auto md:top-full md:mt-2 md:w-80 md:rounded-lg" data-testid="acting-identity-panel">
       <div className="mb-3 flex items-center justify-between"><h2 className="text-base font-semibold">Acting identity</h2><Button type="button" variant="ghost" size="icon" aria-label="Close identities" onClick={() => { console.log('[social-identity] picker closed without applying'); setOpen(false); trigger.current?.focus(); }}><X className="h-4 w-4" /></Button></div>
       <button type="button" aria-pressed={!pending} onClick={() => { setPending(undefined); console.log('[social-identity] personal choice previewed'); }} className="mb-3 flex min-h-11 w-full items-center justify-between rounded-lg px-3 py-2 text-left hover:bg-elevated focus-visible:ring-2 focus-visible:ring-ring"><span className="flex min-w-0 flex-1 items-center gap-2"><Avatar className="h-8 w-8" aria-hidden="true">{personalAvatar && <AvatarImage src={personalAvatar} alt="" />}<AvatarFallback className="bg-brand-muted text-brand-300">{(personalName || token.username)?.charAt(0).toUpperCase()}</AvatarFallback></Avatar><span className="min-w-0"><span className="block truncate text-sm">{token.username}</span><span className="block text-xs text-muted-foreground">Personal identity</span></span></span>{!pending && <Check className="h-4 w-4 text-brand-300" />}</button>

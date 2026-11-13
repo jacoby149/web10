@@ -55,6 +55,9 @@ import { VideoPlayer, sourceFromMedia } from './VideoPlayer';
 import { MediaCarousel } from './MediaCarousel';
 import { AudioPlayer, audioArtwork } from '@web10/discover';
 import MusicFeedMedia from '@/components/Music/MusicFeedMedia';
+import { FeedMusicQueue } from '@/context/FeedMusicContext';
+import { musicQueueFromPosts } from '@/data/musicTrack';
+import PostEntryPrompt from './PostEntryPrompt';
 import { toast, errorMessage } from '@/components/shared/Toast';
 
 const LOG = (...args: unknown[]) => console.log('[social:feed]', ...args);
@@ -1245,6 +1248,9 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
 
   const visiblePosts = (postOwner === viewOwner ? posts : []).filter(post => !sourceControl.credential ||
     (sourceControl.ready && sourceControl.sources.some(row => row.origin === (post.source_origin || sourceControl.home) && row.weight > 0 && sourceControl.approved.has(row.origin))));
+  const musicQueue = musicQueueFromPosts(visiblePosts,
+    post => (post.media_refs || []).filter((ref): ref is ResolvedMediaRef => typeof ref !== 'string').map(fromResolvedMediaRef),
+    post => !!post.source_origin && post.source_origin !== sourceControl.home);
 
   return (
     <div className="md:max-w-2xl md:mx-auto">
@@ -1274,6 +1280,7 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
       {Object.entries(sourceErrors).filter(([origin]) => sourceControl.ready && sourceControl.sources.some(row => row.origin === origin)).map(([origin, message]) => <div key={origin} role="alert" className="px-4 py-2 text-xs text-muted-foreground">{new URL(origin).host}: {message}<Button variant="ghost" onClick={() => retrySources(n => n + 1)}>Retry source reads</Button></div>)}
 
       <div className="md:px-0">
+        <PostEntryPrompt />
         {loading && !visiblePosts.length ? <FeedSkeleton /> : loadFailed ? (
           <div role="alert" data-testid="feed-load-error" className="px-4 py-16 text-center">
             <p className="text-foreground">Could not load your Following feed.</p>
@@ -1287,7 +1294,7 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
             : <FeedEmptyState />
         ) : (
           <>
-            {visiblePosts.flatMap((post) => {
+            <FeedMusicQueue.Provider value={musicQueue}>{visiblePosts.flatMap((post) => {
               if (post.source_origin && post.source_origin !== sourceControl.home) return [<ForeignFeedCard key={post.source_key} post={post} />];
               // The feed carries everything per post (D69) — media (resolved +
               // HLS), the author's profile + avatar, and the counts. No maps,
@@ -1350,7 +1357,7 @@ export default function FeedScreen({ onAuthorClick, onRepost }: { onAuthorClick?
                   />
                 )),
               ];
-            })}
+            })}</FeedMusicQueue.Provider>
             {/* The infinite-scroll sentinel (triggers loadMore when it scrolls in) */}
             <div ref={sentinelRef} className="h-12 flex items-center justify-center">
               {loadingMore ? (

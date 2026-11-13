@@ -28,6 +28,41 @@ beforeEach(() => { MockAudio.instances = []; vi.stubGlobal('Audio', MockAudio); 
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe('persistent music playback', () => {
+  it('ignores a delayed ended event after another audible element has taken playback', async () => {
+    render(tree());
+    await act(async () => music.play(tracks[0], tracks));
+    const original = audio();
+    const clip = document.createElement('audio');
+    document.body.append(clip);
+    act(() => clip.dispatchEvent(new Event('play')));
+    expect(music.isPlaying).toBe(false);
+    act(() => original.dispatchEvent(new Event('ended')));
+    expect(music.current).toBe(tracks[0]);
+    expect(music.isPlaying).toBe(false);
+    clip.remove();
+  });
+
+  it('disables unavailable skips and enables Previous to restart after three seconds', async () => {
+    render(tree());
+    await act(async () => music.play(tracks[0]));
+    expect(screen.getByRole('button', { name: 'Next track' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Previous track' })).toBeDisabled();
+    act(() => { audio().dispatchEvent(new Event('loadedmetadata')); music.seek(8); });
+    expect(screen.getByRole('button', { name: 'Previous track' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Previous track' }));
+    expect(music.currentTime).toBe(0);
+    expect(screen.getByRole('button', { name: 'Previous track' })).toBeDisabled();
+    act(() => music.select(tracks[0], tracks));
+    expect(screen.getByRole('button', { name: 'Next track' })).toBeEnabled();
+    await act(async () => music.next());
+    expect(music.current).toBe(tracks[1]);
+    expect(screen.getByRole('button', { name: 'Previous track' })).toBeEnabled();
+    await act(async () => music.next());
+    expect(screen.getByRole('button', { name: 'Next track' })).toBeDisabled();
+    act(() => music.cycleRepeat());
+    expect(screen.getByRole('button', { name: 'Next track' })).toBeEnabled();
+  });
+
   it('uses caption titles consistently in the mini-player and Media Session', () => {
     const session = { setActionHandler: vi.fn(), playbackState: 'none', metadata: null as MediaMetadata | null };
     Object.defineProperty(navigator, 'mediaSession', { configurable: true, value: session });
@@ -132,6 +167,8 @@ describe('persistent music playback', () => {
     act(() => audio().dispatchEvent(new Event('ended')));
     expect(music.isPlaying).toBe(false);
     act(() => music.cycleRepeat());
+    // Changing repeat after the queue stopped is not a playback gesture.
+    await act(async () => music.toggle());
     await act(async () => audio().dispatchEvent(new Event('ended')));
     expect(music.current).toBe(tracks[0]);
     act(() => music.cycleRepeat());
@@ -165,12 +202,13 @@ describe('persistent music playback', () => {
     render(tree());
     await act(async () => music.play(tracks[0], tracks));
     const original = audio();
+    expect(screen.getByLabelText('Open player: Track a')).toHaveAttribute('href', '/music?track=a&panel=player');
     fireEvent.click(screen.getByText('Browse elsewhere'));
     expect(screen.getByTestId('music-player')).toBeInTheDocument();
     expect(audio()).toBe(original);
     expect(music.isPlaying).toBe(true);
-    expect(screen.getByLabelText('Open player: Track a')).toHaveAttribute('href', '/music?track=a&panel=player');
-    expect(screen.getByText('Queue')).toHaveAttribute('href', '/music?track=a&panel=queue');
+    expect(screen.getByTestId('music-player').querySelector('a')).toBeNull();
+    expect(screen.queryByText('Queue')).not.toBeInTheDocument();
   });
 
   it('shows retryable errors and ignores stale play rejection after another selection', async () => {
@@ -209,7 +247,7 @@ describe('persistent music playback', () => {
     expect(latest.src).toBe('');
   });
 
-  it('ignores muted previews, pauses for audible video, and pauses video on deliberate music play', async () => {
+  it('ignores muted previews, dismisses for audible video, and pauses video on deliberate music play', async () => {
     render(tree());
     const video = document.createElement('video');
     const pause = vi.spyOn(video, 'pause').mockImplementation(() => {});
@@ -223,6 +261,8 @@ describe('persistent music playback', () => {
     video.muted = false;
     act(() => video.dispatchEvent(new Event('play')));
     expect(music.isPlaying).toBe(false);
+    expect(music.current).toBeNull();
+    expect(screen.queryByTestId('music-player')).not.toBeInTheDocument();
     video.remove();
   });
 

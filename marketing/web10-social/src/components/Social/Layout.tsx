@@ -16,6 +16,7 @@ import GlobalSearch from '@/components/Search/GlobalSearch';
 import { NewPostFab } from '@/components/Feed/NewPostFab';
 import ActingIdentitySwitcher from './ActingIdentitySwitcher';
 import { useActingAuthor } from '@/data/actingIdentity';
+import { PersonalProfileContext } from '@/context/PersonalProfileContext';
 import { ThemeMark } from '@/components/shared/ThemeMark';
 import DockGlass from './DockGlass';
 import { SignInPrompt } from '@/components/shared/SignInPrompt';
@@ -127,9 +128,8 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
   // Shorts, Music), then Messages + Monetization. More holds the rest
   // (Settings, Node Monetization, Node Settings, coming-soon).
   const sidebarNavItems = isAnon ? anonSidebarNavItems : [profileItem, peopleItem, feedItem, videoItem, shortsItem, musicItem, messagesItem, monetizationItem];
-  // Mobile: the four pyramid destinations (People, Posts, Video, Shorts) +
-  // More (all the other icons: Profile, Messages, Monetization, Settings, ...).
-  const bottomNavItems = isAnon ? anonBottomNavItems : [feedItem, videoItem, shortsItem, messagesItem];
+  // Signed-in mobile prioritizes consumption; Messages remains in More.
+  const bottomNavItems = isAnon ? anonBottomNavItems : [feedItem, videoItem, shortsItem, musicItem];
   const [moreOpen, setMoreOpen] = useState(false);
   const { unread } = useNotifications();
   // The Messages unread badge (the purple count on the Messages icon) — DMs
@@ -301,7 +301,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
           <Wordmark />
         </div>
         <nav className="relative flex-1 px-2 space-y-1" aria-label="Primary">
-          {!isAnon && <div className="mb-3"><ActingIdentitySwitcher personalName={displayName || username} personalAvatar={avatarUrl} /></div>}
+          {!isAnon && <div className="mb-3"><ActingIdentitySwitcher personalName={displayName || username} personalAvatar={avatarUrl} onViewProfile={() => go(profileItem.path)} /></div>}
           {sidebarNavItems.map(({ path, icon: Icon, label, testId }) => {
             const target = path === '/profile' ? profilePath : path;
             // The profile item shows the user's own name (the operator's call:
@@ -436,7 +436,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
       <main className="flex-1 flex flex-col min-w-0 min-h-0" data-replay-private={/^\/(?:messages|settings|node-settings|monetize|notifications|uploads)(?:\/|$)/.test(pathname) ? '' : undefined}>
         <header data-testid="topbar-mobile" className="chrome-glass md:hidden flex shrink-0 items-center justify-between px-4 h-14 border-b sticky top-0 z-20 gap-2">
           <Wordmark className="shrink-0 [&_.wordmark-label]:hidden" />
-          {!isAnon && <ActingIdentitySwitcher personalName={displayName || username} personalAvatar={avatarUrl} />}
+          {!isAnon && <ActingIdentitySwitcher personalName={displayName || username} personalAvatar={avatarUrl} onViewProfile={() => go(profileItem.path)} />}
           <div className="flex items-center gap-1">
             {isAnon && <button type="button" aria-label="Appearance" data-testid="nav-appearance-anon"
               onClick={() => navigate('/appearance')} className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-elevated hover:text-foreground">
@@ -674,7 +674,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
 
         <div data-testid="shell-content" className={cn('flex-1 min-h-0 overflow-y-auto md:pb-0 md:[body:has([data-testid=music-player])_&]:pb-36', isShorts ? '' : 'chrome-content-clearance')}>
           {actingIdentity && /^\/(messages|monetize|settings|node-settings)(\/|$)/.test(pathname) && <p className="border-b border-border bg-surface px-4 py-2 text-xs text-muted-foreground" data-testid="personal-authority-notice">This screen uses your personal account: {username}.</p>}
-          {children || <Outlet />}
+          <PersonalProfileContext.Provider value={isAnon ? null : { name: displayName || username, avatarUrl }}>{children || <Outlet />}</PersonalProfileContext.Provider>
         </div>
 
         <nav
@@ -700,15 +700,6 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
             >
               <span className="relative">
                 <Icon className="w-5 h-5" strokeWidth={isActive(path) ? 2 : 1.75} />
-                {path === '/messages' && messagesUnread > 0 && (
-                  <span
-                    data-testid="nav-messages-badge-mobile"
-                    aria-hidden="true"
-                    className="absolute -top-1.5 -right-2 min-w-4 h-4 px-1 rounded-full bg-brand text-background text-[0.5625rem] font-bold flex items-center justify-center"
-                  >
-                    {messagesUnread > 99 ? '99+' : messagesUnread}
-                  </span>
-                )}
               </span>
               <span className="text-[0.625rem] font-medium">{label}</span>
             </button>
@@ -723,12 +714,15 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
           {!isAnon && (
           <button
             data-testid="nav-more-mobile"
-            aria-label="More"
+            aria-label={messagesUnread > 0 ? `More, ${messagesUnread > 99 ? '99+' : messagesUnread} unread messages` : 'More'}
+            aria-current={isActive(messagesItem.path) ? 'page' : undefined}
             aria-expanded={moreOpen}
             onClick={() => setMoreOpen(true)}
             className="chrome-nav-item relative min-w-0 flex-1 flex flex-col items-center justify-center gap-1 min-h-12 py-2 text-foreground"
           >
-            <MoreHorizontal className="w-5 h-5" strokeWidth={1.75} />
+            <span className="relative"><MoreHorizontal className="w-5 h-5" strokeWidth={1.75} />
+              {messagesUnread > 0 && <span data-testid="nav-more-messages-badge" aria-hidden="true" className="absolute -top-1.5 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[0.5625rem] font-bold text-background">{messagesUnread > 99 ? '99+' : messagesUnread}</span>}
+            </span>
             <span className="text-[0.625rem] font-medium">More</span>
           </button>
           )}
@@ -754,25 +748,15 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
               </div>
 
               <div className="space-y-1">
+                <button type="button" data-testid="nav-profile-mobile" aria-label="View your profile" data-replay-private onClick={() => go(profileItem.path)} className="mb-4 flex min-h-20 w-full items-center gap-3 rounded-lg border border-border bg-elevated p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  <Avatar className="h-12 w-12 shrink-0">{avatarUrl && <AvatarImage src={avatarUrl} alt="" />}<AvatarFallback className="bg-brand-muted text-brand-300">{(displayName || username || '?').charAt(0).toUpperCase()}</AvatarFallback></Avatar>
+                  <span className="min-w-0 flex-1"><span className="block truncate text-base font-semibold text-foreground">{displayName || username || 'Your profile'}</span><span className="mt-1 block truncate text-xs text-muted-foreground">@{username}</span><span className="mt-1 block text-sm font-medium text-brand-300">View profile</span></span>
+                </button>
                 <button type="button" data-testid="nav-appearance-mobile" onClick={() => go('/appearance')}
                   className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground hover:bg-elevated">
                   <Palette className="h-5 w-5" strokeWidth={1.75} />Appearance
                 </button>
-                {/* Profile — demoted from the bottom bar (the bar is full with
-                    Feed, Video, Shorts, Messages + More); it lives here now. */}
-                <button
-                  data-testid="nav-profile-mobile"
-                  onClick={() => go(profileItem.path)}
-                  className={cn(
-                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150',
-                    isActive(profileItem.path) ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
-                  )}
-                >
-                  <User className="w-5 h-5" strokeWidth={1.75} />
-                  {displayName || username || 'Profile'}
-                </button>
-                {/* People — the discovery/browse surface (moved from the bottom
-                    bar to the More tab; Messages holds the bar instead). */}
+                {/* People — the discovery/browse surface, kept in More. */}
                 <button
                   data-testid="nav-people-mobile"
                   onClick={() => go(peopleItem.path)}
@@ -784,18 +768,18 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                   <Users className="w-5 h-5" strokeWidth={1.75} />
                   {peopleItem.label}
                 </button>
-                {/* Music — the audio track wall (music.md). A real destination,
-                    not coming-soon: a `posts` doc with a single `audio/*` media. */}
+                {/* Messages keeps its route/unread indicator, outside the primary dock. */}
                 <button
-                  data-testid="nav-music-mobile"
-                  onClick={() => go(musicItem.path)}
+                  data-testid="nav-messages-mobile"
+                  onClick={() => go(messagesItem.path)}
                   className={cn(
                     'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150',
-                    isActive(musicItem.path) ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
+                    isActive(messagesItem.path) ? 'bg-brand-muted text-brand-300' : 'text-foreground hover:bg-elevated',
                   )}
                 >
-                  <Music className="w-5 h-5" strokeWidth={1.75} />
-                  {musicItem.label}
+                  <MessageSquare className="w-5 h-5" strokeWidth={1.75} />
+                  {messagesItem.label}
+                  {messagesUnread > 0 && <span data-testid="nav-messages-badge-mobile" className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1.5 text-xs font-semibold text-background">{messagesUnread > 99 ? '99+' : messagesUnread}</span>}
                 </button>
                 <button
                   data-testid="nav-settings-mobile"
