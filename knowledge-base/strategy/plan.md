@@ -1477,6 +1477,30 @@ docs before code, per the rule at the top.
 
 ### Current directive — derived realism dataset (11 November 2026)
 
+**13 November performance-envelope approval [~ RD3-VALIDATION-ENVELOPE]:**
+operator directs validation to use the planned node's 22-GiB ClickHouse / 28-GiB
+process envelope on the existing 32-GiB host, with correctness unchanged and
+lenient execution time. Explicit choice “Approve 4h (Recommended)” authorizes
+only this host through 06:50:22 UTC, still under the existing $5 total compute
+ceiling (18h at $0.25/h ≈ $4.50). No new host, volume resize or experiments.
+The 1.6B events and doc_groups import are complete; the documents import exits
+241. Preserve its failure, recover the full error, and reuse only verified
+source-compatible completed imports when changing resource policy. Do not
+silently reset checkpoints or claim the larger envelope guarantees success.
+  - [✓ 5.31.6 lease controls/applied; memory/restart OPEN] **Bounded validation
+    extension:** exact +4h after initial 14h, previous-clock/approval checks and
+    closed-lease refusal; twelve controls pass. Local watchdog source and lease
+    are updated; new 06:50:22 UTC host-stop timer is active and old 02:50 timer
+    stopped after replacement verification. Same $5 ceiling/400-GiB Volume;
+    no host creation, resize or validation restart. Memory remains 2-GB query/
+    12-GiB service until the separate profile/reuse repair is verified.
+
+**Current checkpoint:** validation remains stopped on documents exit 241 after
+completed 1.6B-event/doc_groups imports. The four-hour extension is applied;
+06:50:22 UTC is the compute cleanup deadline, not a claim that the larger memory
+profile or a retry is running. Evidence:
+`research/experiments/costfn/evidence/REALISM-VALIDATION-EXTENSION-20261113.md`.
+
 **13 November timeout repair [✓ 5.31.4 controls/retry; 1M OPEN]:** the ClickHouse import stops
 at its 1800-second query limit with 450,020,966/1.6B rows, not an OOM/disk failure.
 Operator asks to fix and retry. Use four bounded CPU threads on the existing

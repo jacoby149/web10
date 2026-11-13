@@ -1686,6 +1686,22 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+- [~] **RD3-VALIDATION-ENVELOPE: use planned node resources and bounded extra time** —
+  operator approves 22-GiB ClickHouse / 28-GiB process on the existing 32-GiB
+  host and explicitly selects up to four more hours, 06:50:22 UTC cleanup,
+  same $5 total compute ceiling and unchanged 400-GiB Volume. Keep all exact
+  checks; preserve the documents exit-241 failure and completed 1.6B-event/
+  doc_groups imports. Verify compatible importer/source/UUID/count before
+  reusing completed work across a resource-policy change; no forged markers,
+  new host, resize, statistical tolerance waiver or experiment authorization.
+  - [✓ 5.31.6 lease controls/applied; profile/restart OPEN] Exact +4h requires
+    the real initial 14h approval and correct pre-expiry clock; twelve controls
+    pass. Scoped local watchdog source/lease and verified host-stop timer now
+    target 06:50:22 UTC, with the old timer stopped only after replacement.
+    Same $5 ceiling/400-GiB Volume; no new host or resize. The documents-failed
+    worker stays stopped at its old memory limits; 22/28-GiB configuration,
+    compatible checkpoint reuse and restart remain the next task.
+
 - [✓ 5.31.4 controls/retry; full 1M OPEN] **RD3-IMPORT-RETRY: repair the import execution budget and retry** — owns
   ClickHouse validator/tests, preparation lifecycle hunks and serialized KB.
   Confirmed failure: 1800-second timeout at 450,020,966 imported events, with
