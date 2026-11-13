@@ -75,6 +75,16 @@ says what can happen **at the same time**.
 
 ## Lanes
 
+### Lane: social-join-entry
+
+**Owns:** social `Join/JoinScreen.tsx`, App's public root/join routes, focused app/landing tests and browser fixture; serialized social overview/plan/lane/changelog records. Reuses auth handler read-only; no SDK, authenticator, API or deployment changes.
+
+- [✓ 5.30.0 local] **Social join landing** — public `/join` and signed-out `/` marketing entry, existing auth handler and confirmed-session transition to `/feed`, signed-in skip and Explore first. Focused route/CTA/blocked-popup/auth-transition controls and build pass. Actual-app Chromium passes both themes at 375/768/1280/1440: root/reload, artwork, bounds, targets/focus, appearance/back, blocked-popup keyboard retry, real popup opening/cancellation and explore/back. Desktop/375px captures inspected in `.context/social-join/`. External traffic denied and auth destination is a fixture; real completed signup/consent handoff is the separate next gate, not claimed. Public content links stay direct; no deployment.
+- [✓ 5.30.0 local connected] **Social join connected acceptance** — six real browser journeys pass: signup/consent, remembered-account return and password login at desktop/375px. Join opens the real auth app with the social contract; approval hands a real token to the app, auth closes automatically and `/feed` settles with enabled Following/composer; reload preserves the session. Cancellation/retry retains the join page. Real apps/SDK/FastAPI/disposable ClickHouse, loopback forwarding without fixture response bytes, no seeded browser token/pre-granted social contract; grant readback and inspected feed/consent captures in `.context/social-join-connected/`. Earlier eight-case browser gate covers blocked-popup recovery. Runtime auth behavior unchanged, no production writes/deployment; live verification/contact delivery/phone acceptance remain separate.
+- [ ] **Social join production acceptance** — after normal reviewed/green release and explicitly approved deployment, verify the hosted Join → configured auth → contract approval → signed-in `/feed` journey for new and returning accounts at desktop and on a physical phone. Owns acceptance evidence only; application/SDK/API behavior unchanged. Gates: rollout approval, approved test accounts and any contact-verification/send permissions. Acceptance: actual HTTPS/origin/session handoff, persisted grants, usable feed/reload and cancellation/retry without a second entry page; record browser/device and retained failures. No live signup, message delivery or deployment by implication.
+
+Local verification for 5.30.0: all 2,523 social tests (169 files), media-renderer ownership guard and production build/typecheck pass. Six real-account local connected journeys also pass; hosted/physical-phone acceptance remains open.
+
 ### Lane: torah-anytime-partnership
 
 **Owns now:** `whitelabel-demo/` operating docs/private-state conventions, `knowledge-base/strategy/torah-anytime.md`, its partner entry in `outreach.md` and serialized plan/lane/changelog records. No existing application/deployment runtime directory ownership. DEMO/TA1–TA3 implementation bites must coordinate existing social, authenticator, generic API/security, importing and deployment owners before code changes. Contract: `torah-anytime.md`.

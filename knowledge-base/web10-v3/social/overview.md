@@ -2,6 +2,32 @@
 
 Web10-social is an app that runs on the web10 platform. It uses groups the same way any app does — groups are generic policy containers. Web10-social just happens to define specific roles for social use cases.
 
+## Public join entry
+
+Visitors need a reason to join before an authentication window opens. The social
+app serves its own marketing-style page at `/join` and at `/` when signed out.
+Signed-in visitors to either entry go to `/feed`. Public content deep links and
+anonymous browsing remain available; “Explore first” opens `/feed` without login.
+
+“Join web10 social” and “Sign in” invoke App's existing user-gesture login handler:
+the configured authenticator handles signup/login and explicit app consent, then
+the existing auth listener updates the session. The join route then replaces itself
+with `/feed`; opening a popup alone never counts as successful authentication.
+Blocked windows retain the existing retryable toast. No new credentials, grants,
+redirect parameters, SDK behavior or API endpoints. Copy describes the shipped
+Posts/Video/Shorts/Music and personal-profile surfaces, not unshipped portability
+or privacy promises. The page uses shared theme tokens and canonical artwork.
+
+Connected acceptance: `screenshots/join-connected.mjs` boots the actual social
+and authenticator apps, SDK, FastAPI and its own disposable ClickHouse. It drives
+signup/approval, remembered-account return and password login at desktop/375px,
+reads back the live social grant and checks automatic popup close, settled feed,
+enabled signed-in controls and session persistence on reload. No browser token or
+app grant is seeded. Cancellation/retry stays on Join. Browser-origin traffic is
+forwarded to loopback ports without replacing responses; vendor traffic is denied.
+The local node disables contact verification and media/background workers; this
+is not production signup, live verification delivery or physical-phone assurance.
+
 ## How Social Maps to Groups
 
 ```mermaid

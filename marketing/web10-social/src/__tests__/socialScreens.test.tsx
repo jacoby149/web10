@@ -1479,7 +1479,7 @@ describe('Anon shell (signed-out visitor)', () => {
   it('renders the Sign in affordance, not the login wall', async () => {
     const { default: App } = await import('@/App');
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/feed']}>
         <App />
       </MemoryRouter>
     );
@@ -1495,7 +1495,7 @@ describe('Anon shell (signed-out visitor)', () => {
   it('renders branding', async () => {
     const { default: App } = await import('@/App');
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/feed']}>
         <App />
       </MemoryRouter>
     );

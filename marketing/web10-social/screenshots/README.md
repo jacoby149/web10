@@ -2,6 +2,22 @@
 
 ## System / Light / Dark appearance
 
+Social join entry: `node screenshots/join.mjs` checks the actual app at both
+themes and 375/768/1280/1440px. Captures/receipt go to `.context/social-join/`.
+The auth destination is a fixture: this checks popup opening, not login.
+
+Connected join: `node screenshots/join-connected.mjs` boots the real social,
+authenticator and FastAPI apps plus its own disposable ClickHouse 24.8 container.
+Requires Docker, uv and installed frozen dependencies in `api/`, `ui/` and
+`marketing/web10-social/`; loopback ports 4592–4594 must be free. It forwards
+three browser origins to these unprivileged ports without replacing response
+bytes, denies external traffic and drives real signup, consent, remembered-account
+return and password login from Join into `/feed` at desktop/375px. No injected
+browser token or pre-granted app contract. Local verification/contact policy is
+disabled; this is not live phone/email delivery or production acceptance. The
+runner stops its own servers/removes its own container, with captures and safe
+receipts under `.context/social-join-connected/`.
+
 Navigation glass trial: `SCREENSHOT_OUTPUT_DIR="$PWD/../../.context/navigation-glass" node screenshots/navigation-glass.mjs`
 boots/stops its own server and captures light/dark desktop/375px shell and menus.
 Checks 768/1280 bounds, navigation from Appearance, focus, 44px dock targets,

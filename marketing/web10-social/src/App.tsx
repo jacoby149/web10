@@ -4,6 +4,7 @@ import Peer from 'peerjs';
 import { Button } from '@/components/ui/button';
 import { getSocialAuth } from '@/interfaces/auth';
 import Layout from '@/components/Social/Layout';
+import JoinScreen from '@/components/Join/JoinScreen';
 import PostsScreen from '@/components/Feed/PostsScreen';
 import ProfileScreen from '@/components/Bio/ProfileScreen';
 import UserProfileScreen from '@/components/Bio/UserProfileScreen';
@@ -505,6 +506,10 @@ function App() {
       <MusicProvider sessionKey={musicSession}>
       <UploadProvider sessionKey={musicSession}>
       <Routes>
+        {/* Only entry URLs get the pitch. Public deep links stay in the app.
+            Confirmed auth changes isAnon; opening the popup alone does not. */}
+        <Route path="/" element={<Navigate to={isAnon ? '/join' : '/feed'} replace />} />
+        <Route path="/join" element={isAnon ? <JoinScreen onLogin={handleLogin} /> : <Navigate to="/feed" replace />} />
         <Route element={<Layout onLogout={handleLogout} onLogin={handleLogin} isAnon={isAnon} onReportBug={() => handleReportBug('button')} />}>
           <Route path="/feed" element={<PostsScreen onAuthorClick={handleAuthorClick} />} />
           {/* The Discover split (watch-page.md): the old single /discover

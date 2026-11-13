@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, waitFor, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { act, fireEvent, render, waitFor, screen } from '@testing-library/react';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import '@testing-library/jest-dom';
 
 // App renders without crashing. The D42 auth seam (src/interfaces/auth)
@@ -10,6 +10,9 @@ import '@testing-library/jest-dom';
 
 import { lucideMock } from './helpers/lucideMock';
 import { installWeb10Mock } from './helpers/web10Mock';
+function CurrentPath() {
+  return <output data-testid="current-path">{useLocation().pathname}</output>;
+}
 vi.mock('lucide-react', () => lucideMock);
 
 vi.mock('@/data', async (importOriginal) => {
@@ -63,10 +66,10 @@ describe('App renders', () => {
     installWeb10Mock();
   });
 
-  it('renders the anon shell (not the login wall) when signed-out', async () => {
+  it('keeps direct anonymous browsing at /feed instead of forcing the join page', async () => {
     const { default: App } = await import('@/App');
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/feed']}>
         <App />
       </MemoryRouter>
     );
@@ -77,6 +80,67 @@ describe('App renders', () => {
       expect(screen.getAllByTestId(/sign-in-button/).length).toBeGreaterThan(0),
     );
     expect(screen.queryByText('Log in or create your account')).not.toBeInTheDocument();
+  });
+
+  it.each(['/', '/join'])('shows the public join pitch at %s without opening auth automatically', async (path) => {
+    const sdk = installWeb10Mock();
+    const { default: App } = await import('@/App');
+    render(<MemoryRouter initialEntries={[path]}><App /></MemoryRouter>);
+    expect(await screen.findByTestId('join-screen')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Join web10 social' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Explore first/ })).toHaveAttribute('href', '/feed');
+    expect(sdk.openAuthPortal).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('bottom-nav')).not.toBeInTheDocument();
+  });
+
+  it.each(['Join web10 social', 'Sign in'])('%s opens the existing popup/contract seam and only confirmed auth enters the app', async (label) => {
+    const sdk = installWeb10Mock();
+    const { default: App } = await import('@/App');
+    render(<MemoryRouter initialEntries={['/join']}><App /><CurrentPath /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole('button', { name: label }));
+    expect(sdk.openAuthPortal).toHaveBeenCalledTimes(1);
+    expect(sdk.client.contractRequest).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('current-path')).toHaveTextContent('/join');
+    expect(screen.getByTestId('join-screen')).toBeInTheDocument();
+    // App-session transition only: the SDK handoff itself is mocked here.
+    sdk.readTokenCookie.mockReturnValue('signed-in-token');
+    sdk.decodeJwt.mockReturnValue({ username: 'testuser', provider: 'test.localhost' });
+    act(() => sdk.authListen.mock.calls[0][0]());
+    await waitFor(() => expect(screen.getByTestId('current-path')).toHaveTextContent('/feed'));
+    expect(screen.queryByTestId('join-screen')).not.toBeInTheDocument();
+  });
+
+  it('keeps the join page retryable when the browser blocks the popup', async () => {
+    const sdk = installWeb10Mock();
+    sdk.openAuthPortal.mockReturnValue(null);
+    const { default: App } = await import('@/App');
+    render(<MemoryRouter initialEntries={['/join']}><App /></MemoryRouter>);
+    const join = await screen.findByRole('button', { name: 'Join web10 social' });
+    fireEvent.click(join);
+    expect(await screen.findByText(/Allow pop-ups for this site/)).toBeInTheDocument();
+    expect(sdk.client.contractRequest).not.toHaveBeenCalled();
+    expect(join).toBeEnabled();
+    sdk.openAuthPortal.mockReturnValue(window);
+    fireEvent.click(join);
+    expect(sdk.client.contractRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets a visitor explore without an account', async () => {
+    const sdk = installWeb10Mock();
+    const { default: App } = await import('@/App');
+    render(<MemoryRouter initialEntries={['/join']}><App /><CurrentPath /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole('link', { name: /Explore first/ }));
+    await waitFor(() => expect(screen.getByTestId('current-path')).toHaveTextContent('/feed'));
+    expect(screen.queryByTestId('join-screen')).not.toBeInTheDocument();
+    expect(sdk.openAuthPortal).not.toHaveBeenCalled();
+  });
+
+  it('skips /join for an existing signed-in session', async () => {
+    installWeb10Mock({ token: 'signed-in-token', payload: { username: 'testuser', provider: 'test.localhost', site: 'web10' } });
+    const { default: App } = await import('@/App');
+    render(<MemoryRouter initialEntries={['/join']}><App /><CurrentPath /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByTestId('current-path')).toHaveTextContent('/feed'));
+    expect(screen.queryByTestId('join-screen')).not.toBeInTheDocument();
   });
 
   it('renders without crashing when signed-in', async () => {
