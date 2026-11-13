@@ -14,6 +14,25 @@ def empty_account(*args):
 
 
 class LeaseTests(unittest.TestCase):
+    def test_validation_extension_requires_initial_approval_exact_bound_and_clock(self):
+        row=example()
+        row['operator_preparation_approval']={'hours':14,'approved_epoch':99}
+        previous=row['created_epoch']+14*3600
+        row['deadline']=previous+4*3600
+        with self.assertRaises(ValueError):
+            lease.validate(row)
+        row['operator_validation_extension']={'hours':4,'previous_deadline':previous,'approved_epoch':200}
+        lease.validate(row)
+        for change in ({'hours':5},{'previous_deadline':previous-1},{'approved_epoch':previous+1},
+                       {'approved_epoch':True},{'approved_epoch':99}):
+            with self.subTest(change=change),self.assertRaises(ValueError):
+                lease.validate({**row,'operator_validation_extension':{**row['operator_validation_extension'],**change}})
+        with self.assertRaises(ValueError):
+            lease.validate({**row,'deadline':row['deadline']+1})
+        for flag in ('cancelled','cleanup_verified'):
+            with self.assertRaises(ValueError):
+                lease.admits_creation({**row,flag:True},now=300)
+
     def test_new_fourteen_hour_approval_is_not_a_fabricated_extension(self):
         row=example()
         row['operator_preparation_approval']={'hours':14,'approved_epoch':99}
