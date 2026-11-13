@@ -1,5 +1,14 @@
 # Shorts — the vertical short-form feed
 
+**Sound policy correction (operator, 13.11.2026):** the historical muted-default
+and Shorts-only session flag described below are superseded. Video starts with
+sound on; mute/unmute is one in-memory choice shared with Posts/Video/native/HLS
+and hover previews, independent of Music and never saved to storage. Reload
+starts sound-on again. Browser autoplay denial requires a play gesture, never
+a silent muted fallback. Only the active visible slide owns playback; a sound
+change does not resume a paused clip. The still tile play badge hides whenever
+preview controls are visible, including touch-dwell, so it cannot overlap mute.
+
 The `video-player.md` doc settled *how* a video renders (one `<VideoPlayer>`, two axes). This doc settles the *surface* it deferred: the full-screen, vertical, swipe-between-posts feed — the TikTok / Reels / YouTube-Shorts shape. It also settles the two questions that decide whether the feature is bulletproof: **how does a post become a short, and can someone fake it?**
 
 ## The use case

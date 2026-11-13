@@ -487,6 +487,13 @@ floating New post shortcut as the complementary scrolled-down entry.
 
 ### Social navigation glass — first pass (11.11.2026)
 
+Video sound (operator, 13.11.2026): sound-on by default, one in-memory video
+mute choice across Posts/Video/Shorts and shared video renderers. Never persist
+it or couple it to Music; reload starts sound-on. Browser-blocked audible
+autoplay needs a play action, not a silent fallback to muted. Changing mute
+never resumes paused media. Shorts tiles hide the still play badge whenever
+the real preview controls are shown, including touch-dwell—not CSS hover alone.
+
 Signed-in phone navigation (operator, 13.11.2026): Posts, Video, Shorts, Music,
 More. Messages moves into More, retaining its unread count both on the More
 entry and its Messages row, direct routes and active destination indication.

@@ -1,5 +1,13 @@
 # Parallel Execution
 
+### Lane: video-sound-and-short-marker
+Final local verification: 2,660 social/379 marketing tests, both builds and
+eight sound/twenty existing browser journeys pass; combined PR/device/rollout
+checks are separate gates.
+**Owns:** shared discover video renderers/sound store/playback lease cleanup, social Shorts sound/preview affordance, focused tests and native screenshot fixtures; serialized KB updates. No Music mute coupling, storage, auth, API, SDK, third-party iframe control or silent editor/probe change.
+- [✓ 6.4.0 local] **One app-wide video mute choice, default on** — default sound-on with in-memory-only carry across Posts/Video/Shorts and first-party video renderers, reset on reload; Music remains independent. Blocked audible autoplay offers play without auto-muting, state changes do not resume paused media, and retired leases do not block future previews. Hide the still Shorts badge when actual preview controls are visible, including touch dwell. All 113 focused video/379 marketing tests, both builds, eight sound and twenty existing native-browser journeys pass; inspected desktop/375px captures. Full social/combined PR/physical-phone/deployment gates remain.
+- [ ] **Connected sound and Shorts preview acceptance** — after reviewed deployment, verify audible default-on play or a functional browser-required play gesture on physical Android Chrome and iOS Safari/PWA. Mute on Posts, navigate Video→Shorts, unmute, revisit, reload to sound-on, and confirm Music's separate sound state. Exercise direct-file/HLS, touch-dwell single controls, pause and one-player ownership without stale resume. Gates: 6.4.0, device/account/media access and normal rollout; no autoplay-bypass, saved preference or production writes implied. Acceptance: dated device/browser receipts, actual audible output, no duplicate marker and explicit browser limits.
+
 ### Lane: release-6.2-promotion
 **Owns:** release-ancestry reconciliation and focused changelog/plan records; no runtime security-policy or production-setting changes.
 - [✓ 6.2.1 local; promotion OPEN] **Reconcile main ancestry into dev** — preserve current-dev contents through nine old-doc/preview conflicts, remove one identical duplicate preview method, and run all reconciliation/promotion checks before a merge-commit release. The explicit operator request authorizes dev→main deployment, not rewriting legacy data or activating optional features.

@@ -10,7 +10,8 @@ const MAX_BINDINGS = 4096;
 const pageScope = () => typeof window === 'undefined' ? '' : window.location.pathname;
 let playingMedia: HTMLMediaElement | undefined;
 
-export function mayStartPreview() { return !playingMedia || playingMedia.paused || playingMedia.muted; }
+export function mayStartPreview(element?: HTMLMediaElement) { return !playingMedia || playingMedia === element || playingMedia.paused || playingMedia.muted; }
+export function releaseMediaPlayback(element: HTMLMediaElement | null) { if (playingMedia === element) playingMedia = undefined; }
 export function claimMediaPlayback(element: HTMLMediaElement) {
   if (playingMedia && playingMedia !== element && !playingMedia.paused) {
     if (element.muted && !playingMedia.muted) return false;
