@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.services.multipart_uploads import error_code
 from app.services.upload_sessions import CONFLICT_CODES, SessionConflict, SessionCorrupt, SessionMissing, UploadOwner
 from app.v3.models.documents import AdPreference
+from app.v3.service_names import ServiceName
 
 MAX_JOB_BYTES = 128 * 1024
 log = logging.getLogger("web10-deferred")
@@ -19,7 +20,7 @@ log = logging.getLogger("web10-deferred")
 
 class CreateIntent(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
-    service: str = Field(min_length=1, max_length=128)
+    service: ServiceName
     body: dict
     groups: list[str] = Field(min_length=1, max_length=32)
     author_as: str | None = None

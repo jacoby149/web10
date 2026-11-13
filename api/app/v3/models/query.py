@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field
 
+from app.v3.service_names import ServiceName
+
 
 class PrepareFace(BaseModel):
     """The author's face resolution (D73): presign a media field from a
@@ -90,4 +92,4 @@ class QueryRequest(BaseModel):
     # it (it knows what content it's showing); the node logs a delivery per
     # returned `doc_id` for this service. Absent = no delivery logged (the
     # query is not a content view — e.g. an aggregate / analytics query).
-    content_service: str | None = None
+    content_service: ServiceName | None = None
