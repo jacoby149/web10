@@ -493,13 +493,21 @@ compose and music-player positioning. No navigation or appearance behavior chang
 **Music-player correction (13.11.2026):** keep the glass navigation capsule, but
 replace the phone player's edge-to-edge square strip with an inset rounded
 surface, matching the dock's 12px side clearance and leaving 12px above it.
-Use the dock's actual frosted bed and refractive rim as a second glass widget,
-with a lens map matching the player's rounded rectangle and a 90% center tint
-to keep secondary text AA over extreme backdrops, never distorted controls
-or captured page pixels. Keep opaque/unverified-engine fallbacks. Use a designed seek track; compact secondary
+Use a quiet frosted bed with a 90% tint to keep secondary text AA over extreme
+backdrops. Operator follow-up (13.11.2026): remove the player's refractive border;
+two simultaneous refractive widgets are too much. Keep the navigation dock's
+approved refraction unchanged, and preserve opaque accessibility fallbacks.
+Use a designed seek track; compact secondary
 controls must not squeeze the title or fall outside the card. Previous remains
 available in the expanded player; play/pause, next, close and queue stay in the
-phone mini-player. Desktop retains its bottom transport bar.
+phone mini-player. Desktop retains its bottom transport bar; lift New post above
+the measured player height there too, so playback never covers the posting entry.
+
+**New post control (operator, 13.11.2026):** replace the oversized violet
+gradient orb with a quiet 48px neutral frosted control. Mobile keeps a compact
+plus; desktop adds a readable New post label in a pill. No saturated fill,
+persistent glow ring, bounce or refraction. Retain keyboard focus, hover/pressed
+feedback, theme/accessibility fallbacks and clearance above the music player.
 
 **Operator correction, same day:** retain the pill dock but remove the broad
 painted gradient, particularly in dark mode. Trial a real SVG displacement

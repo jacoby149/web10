@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { useMusic } from '@/context/MusicContext';
 import { musicTitle, musicArtist } from '@/data/musicTrack';
 import MusicArtwork from './MusicArtwork';
-import DockGlass from '@/components/Social/DockGlass';
 
 function time(seconds: number) {
   const value = Math.max(0, Math.floor(seconds));
@@ -32,7 +31,7 @@ export default function MusicPlayer() {
   const focus = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface';
   return (
     <section ref={player} aria-label="Music player" data-testid="music-player" className="chrome-player-position chrome-player-glass chrome-glass chrome-floating fixed inset-x-3 z-30 rounded-lg border border-border bg-surface md:inset-x-0 md:bottom-0 md:left-64 md:rounded-none md:border-x-0 md:border-b-0">
-      <DockGlass player />
+      <span aria-hidden="true" className="chrome-dock-bed" />
       <div className="relative z-2">
       {music.error && <div role="alert" className="flex items-center justify-between gap-2 border-b border-border px-4 py-2 text-xs text-danger">
         <span>{music.error}</span>
