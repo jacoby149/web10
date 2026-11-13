@@ -1,5 +1,11 @@
 # Realism artifact index
 
+**13 November 2026:** the operator explicitly requests the compact final 1M
+validation JSON be saved in Git. [Results and original receipt](../dataset-validation/2026-11-13-1m/README.md)
+record 50/50 passing checks; this does not restore the historical archive below
+or commit bulk data, logs or checkpoint tar files. Private dataset-copy and
+statistics-review gates remain separate.
+
 Operator-requested cleanup, 11 November 2026: **14 new generated JSON/TAR files
 were removed from the repo after an exact backup/readback verification**.
 Generator/tests/plans, existing test fixtures, dataset manifests and active

@@ -13,11 +13,18 @@
 > below do not authorize running V2 as the new study. Queue: RD1–RD4 in the
 > plan and sigmod-paper lane.
 
+**Full 1M validation:** [results and receipt](dataset-validation/2026-11-13-1m/README.md)
+record all 50 finished-record checks passing on DO on 13 November 2026, with
+1M accounts and 1.6B delivery events. This is dataset validation, not a benchmark;
+operator statistics review, two verified private copies and connected pilot gates
+remain open.
+
 **Implementation/local evidence:** [REALISM-DATASET.md](REALISM-DATASET.md)
 maps the executable contract, new Parquet generator, independent validator and
 oracle, separate 28/22 GiB overlay, pinned environment and floor commands.
 The declared default adjusts the old attention total to 1.6B impressions / 320
-days at 1M accounts. This is not a completed 1M build or pilot. Node restore,
+days at 1M accounts. The 1M build and finished-record validation are complete;
+this is not a completed pilot. Node restore,
 connected live-delivery delta checks and full runner integration remain gates;
 new-format inputs cannot silently fall through to the V2 one-post oracle.
 
@@ -26,7 +33,9 @@ records the one-host DO revision, monitoring/cleanup limits and private staging
 approval for existing web10 MinIO. Local scratch refusal is not a request to
 weaken the guard; the larger preparation disk is separately approved. Generated
 reports are indexed in [evidence/REALISM-ARTIFACTS.md](evidence/REALISM-ARTIFACTS.md),
-not committed as piles of JSON/TAR. Provisioning is not 1M validation or fleet readiness.
+not committed as piles of JSON/TAR. The operator explicitly requested the compact
+final 1M JSON receipt above be retained in Git; bulk data and recovery archives
+stay out. Provisioning alone is not validation or fleet readiness.
 
 **Latest storage rule:** [REALISM-STORAGE.md](REALISM-STORAGE.md): validated
 private Spaces in the droplet region plus a canonical MinIO copy alongside V2,

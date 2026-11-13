@@ -1509,6 +1509,8 @@ docs before code, per the rule at the top.
 
 ### Current directive — derived realism dataset (11 November 2026)
 
+- [✓ 5.33.6 DO validation/results saved] **RD3 full 1M finished-record validation** — all 50 checks pass for 1M accounts/1.6B events; final check completes around 06:02:39 UTC on 13 November, supervisor success observed at 06:07:24 UTC with exit zero and original import markers unchanged. Original JSON, source/input/engine pins and statistics summary: `research/experiments/costfn/dataset-validation/2026-11-13-1m/`. No repair/restart in this successful attempt; bulk data/logs/checkpoints remain on the retained volume. Operator statistics review, two digest-verified private copies and connected pilot/full-study gates remain OPEN; no public release or compute cleanup.
+
 - [~] **RD3-CHECKPOINTS — durable check/derived recovery** — implement the
   - [✓ 5.33.3 controls/restart; full validation OPEN] DO engine controls 21/21, checkpoint controls 6/6, lease controls 16/16, 50-check floor/report parity and native SIGKILL/resume identical receipts pass. Ordered exposures aggregation and admission/report-cache repairs deployed in immutable staged code. Volume-resident 300-second supervisor starts full validation at 05:02:39 UTC with retained imports and 28-GiB MemoryMax/four CPUs; eight durable passes and no failed verdicts at 05:09:32 UTC. Operator requests monitor/repair iterations until validation passes within the approved lease; no false-verdict skip or weakened checks.
   operator's exact checkpoint-layer directive while leaving the staged live
