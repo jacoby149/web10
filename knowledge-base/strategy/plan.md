@@ -1477,7 +1477,7 @@ The 1.6B events and doc_groups import are complete; the documents import exits
 241. Preserve its failure, recover the full error, and reuse only verified
 source-compatible completed imports when changing resource policy. Do not
 silently reset checkpoints or claim the larger envelope guarantees success.
-  - [✓ 5.31.7 controls/restart; full validation OPEN] **Apply the
+  - [✓ 5.31.8 controls/restart; full validation OPEN] **Apply the
     approved validation envelope:** explicit 22-GiB query/aggregate ClickHouse
     profile, 28-GiB process/Docker bound and four-hour query ceiling clamped to
     the unchanged lease. Explicit sibling-workspace reuse admits only the
