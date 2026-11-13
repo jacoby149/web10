@@ -1,11 +1,13 @@
 import React from 'react';
-import { Globe, Check, X, ChevronDown, ChevronRight, ArrowRight, Plus, Minus, Users } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Plus, Minus, Users, Globe } from 'lucide-react';
 import Branding from '../shared/Branding';
 import LoginForm from '../CredentialPage/LoginForm';
 import SignupForm from '../CredentialPage/SignupForm';
 import ForgotForm from '../CredentialPage/ForgotForm';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import PermissionSummary from './PermissionSummary';
+import { groupActionDescription } from '@/lib/consentLanguage';
 import { useCredentialEntry } from '@/lib/useCredentialEntry';
 
 // diff two string lists → {added, removed, same}
@@ -22,7 +24,7 @@ function diffStrings(current: string[], next: string[]) {
 function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="mt-2 first:mt-0">
-      <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground/70">{label}</div>
+      <div className="break-all text-[11px] font-medium uppercase tracking-wide text-muted-foreground/70">{label}</div>
       <div className="mt-1 flex flex-wrap gap-1.5">{children}</div>
     </div>
   );
@@ -32,7 +34,7 @@ function Chip({ tone = 'default', children }: { tone?: 'default' | 'add' | 'remo
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs',
+        'inline-flex max-w-full items-center gap-1 break-all rounded-full px-2 py-0.5 text-xs',
         tone === 'add'
           ? 'bg-success/15 text-success'
           : tone === 'remove'
@@ -49,37 +51,11 @@ function Chip({ tone = 'default', children }: { tone?: 'default' | 'add' | 'remo
 
 // Derive a readable origin label — handle both "dev.web10.app" and "https://dev.web10.app"
 function originLabel(origin: string): string {
+  if (!origin) return 'Unknown app';
   try {
     const url = origin.startsWith('http') ? new URL(origin) : new URL(`https://${origin}`)
-    return url.hostname
+    return url.host
   } catch { return origin }
-}
-
-// Build a one-line summary of what an ACR grants.
-function summarizeACR(acr: any): string {
-  const perms = acr.permissions || {};
-  const services = Object.keys(perms);
-  const actions = new Set<string>();
-  Object.values(perms).forEach((ops: string[]) => ops.forEach((a) => actions.add(a)));
-  const verbs = actions.size ? Array.from(actions).join('/') : 'access';
-  return `${verbs} on ${services.join(', ')}`;
-}
-
-// Build a one-line summary of what a group CR requests.
-function summarizeGCR(gcr: any): string {
-  const action = gcr.action || 'group operation';
-  // Support both new typed fields and old params bag
-  const params = gcr.params || {};
-  const name = gcr.name || params.name || '';
-  const groupId = gcr.group_id || params.group_id || '';
-  if (action === 'create_group') {
-    return `create group "${name}"`;
-  }
-  if (action === 'update_group') {
-    const changes = Object.keys(params).filter(k => k !== 'group_id').join(', ');
-    return `update group "${groupId}" — ${changes || 'settings'}`;
-  }
-  return `${action}${name ? ` "${name}"` : ''}`;
 }
 
 function RequestRow({
@@ -102,7 +78,7 @@ function RequestRow({
   const perms = isACR ? (contract.permissions || {}) : {};
   const services = Object.keys(perms);
   const action = isGCR ? (contract.action || '') : '';
-  const params = isGCR ? (contract.params || {}) : {};
+  const params = isGCR ? { ...contract.params, ...Object.fromEntries(Object.entries(contract).filter(([, value]) => value !== undefined)) } : {};
 
   // Diff permissions against existing contract for each service (ACR only)
   const permDiffs: Record<string, { added: string[]; removed: string[]; same: string[] }> = {};
@@ -116,52 +92,59 @@ function RequestRow({
   }
 
   return (
-    <div className="rounded-lg border border-border bg-elevated" data-testid={`consent-req-${idx}`}>
-      <div className="flex items-center gap-3 p-3.5">
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          aria-expanded={open}
-          className="flex min-w-0 flex-1 items-center gap-2.5 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          data-testid={`consent-details-${idx}`}
-        >
-          <span className="shrink-0 text-muted-foreground">
-            {open ? <ChevronDown className="h-4 w-4" strokeWidth={1.5} /> : <ChevronRight className="h-4 w-4" strokeWidth={1.5} />}
-          </span>
-          <span className="min-w-0">
-            <span className="flex items-center gap-2">
-              <span className="truncate font-medium text-foreground">{originLabel(origin)}</span>
-              <span className="shrink-0 rounded-full bg-brand-muted px-2 py-0.5 text-[11px] font-medium text-brand-300">
-                {isACR ? 'access request' : 'group request'}
-              </span>
+    <div className="rounded border border-border bg-card" data-testid={`consent-req-${idx}`}>
+      <div className="space-y-4 p-4">
+        <div>
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-brand-muted text-brand-300">
+              {isACR ? <Globe aria-hidden="true" className="h-5 w-5" /> : <Users aria-hidden="true" className="h-5 w-5" />}
             </span>
-            <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-              {isACR ? summarizeACR(contract) : summarizeGCR(contract)}
-            </span>
-          </span>
-        </button>
-        <div className="flex shrink-0 items-center gap-1.5">
-          <Button variant="brand" size="sm" onClick={onApprove} data-testid={`consent-approve-${idx}`}>
-            <Check className="mr-1 h-4 w-4" strokeWidth={2} />
-            Allow
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onDeny}
-            aria-label={`Deny ${originLabel(origin)}`}
-            data-testid={`consent-deny-${idx}`}
-            className="text-muted-foreground hover:text-danger"
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-muted-foreground">{isACR ? 'App permissions' : 'Group permissions'}</p>
+              <p className="mt-1 break-all font-semibold text-foreground">{originLabel(origin)}</p>
+            </div>
+          </div>
+          <p className="mt-4 text-sm text-muted-foreground">This app would like to:</p>
+        </div>
+        {isACR ? <PermissionSummary permissions={perms} /> : (
+          <p className="break-words text-sm text-foreground">{groupActionDescription(contract)}</p>
+        )}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+            className="flex min-h-11 items-center gap-2 rounded text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            data-testid={`consent-details-${idx}`}
           >
-            <X className="h-4 w-4" strokeWidth={2} />
-          </Button>
+            <span className="shrink-0 text-muted-foreground">
+              {open ? <ChevronDown className="h-4 w-4" strokeWidth={1.5} /> : <ChevronRight className="h-4 w-4" strokeWidth={1.5} />}
+            </span>
+            Technical details
+          </button>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <Button variant="brand" size="sm" className="min-h-11" onClick={onApprove} data-testid={`consent-approve-${idx}`}>
+              <Check className="mr-1 h-4 w-4" strokeWidth={2} />
+              Allow
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onDeny}
+              aria-label={`Deny ${originLabel(origin)}`}
+              data-testid={`consent-deny-${idx}`}
+              className="min-h-11 min-w-11 text-muted-foreground hover:text-danger"
+            >
+              Deny
+            </Button>
+          </div>
         </div>
       </div>
 
           {open && (
             <div className="border-t border-border px-3.5 py-3 text-sm">
               <DetailRow label="Site">
-                <Chip><Globe className="h-3 w-3 text-muted-foreground" strokeWidth={1.5} />{originLabel(origin)}</Chip>
+                <span className="break-all font-mono text-xs">{origin}</span>
               </DetailRow>
 
           {isACR && services.map((svc) => (
@@ -204,6 +187,7 @@ function RequestRow({
                   <Chip>{params.join_policy}</Chip>
                 </DetailRow>
               )}
+              <pre className="mt-3 whitespace-pre-wrap break-all text-xs text-muted-foreground">{JSON.stringify({ group_id: params.group_id, name: params.name, join_policy: params.join_policy, roles: params.roles, members: params.members }, null, 2)}</pre>
             </>
           )}
         </div>
@@ -305,16 +289,16 @@ function ConsentView({ I }: { I: Record<string, any> }) {
   }, [allSettled, pendingContracts]);
 
   return (
-    <div className={showLoginForm ? 'relative flex min-h-dvh flex-col items-center justify-center bg-background px-5 py-8 text-foreground sm:py-12' : 'relative flex h-dvh flex-col items-center justify-center overflow-hidden bg-background px-4 py-8 text-foreground'}>
+    <div className={showLoginForm ? 'relative flex min-h-dvh flex-col items-center justify-center bg-background px-5 py-8 text-foreground sm:py-12' : 'relative flex h-dvh flex-col items-center justify-center overflow-hidden bg-background px-4 py-6 text-foreground'}>
       {/* the one permitted decorative flourish (design.md §4): a soft brand glow */}
       <div
         aria-hidden
         className="pointer-events-none absolute left-1/2 top-0 h-72 w-72 -translate-x-1/2 rounded-full bg-brand/20 blur-[120px]"
       />
 
-      <div className={`relative flex w-full max-w-md flex-col ${showLoginForm ? '' : 'max-h-[calc(100dvh-4rem)]'}`}>
-        <div className="mb-8 flex shrink-0 justify-center">
-          <Branding I={I} size="sm" tagline={false} />
+      <div className={`relative flex w-full max-w-md flex-col ${showLoginForm ? '' : 'max-h-[calc(100dvh-3rem)]'}`}>
+        <div className={`flex shrink-0 justify-center ${showLoginForm ? 'mb-8' : 'mb-6'}`}>
+          <Branding I={I} size={showLoginForm ? 'sm' : 'lg'} tagline={false} />
         </div>
 
         <div className={`flex min-h-0 flex-col ${showLoginForm ? 'sm:rounded-lg sm:border sm:border-border sm:bg-card' : 'rounded-lg border border-border bg-card'}`}>
@@ -375,17 +359,17 @@ function ConsentView({ I }: { I: Record<string, any> }) {
                 </div>
               )}
               {/* header — fixed */}
-              <div className="shrink-0 border-b border-border p-5 text-center">
+              <div className="shrink-0 p-6 pb-2 text-center">
                 <h1 className="font-display text-xl font-semibold text-foreground">
-                  Connect <span className="text-brand-300">{host}</span>
+                  Allow this app access?
                 </h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Requesting {displayContracts.length} access {displayContracts.length === 1 ? 'request' : 'requests'}. Tap any to see details.
+                  Review what the app would like to do. Only allow apps you trust.
                 </p>
               </div>
 
               {/* request list — scrolls internally so the actions stay visible */}
-              <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto p-4">
+              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
                 {displayContracts.map((contract: any, idx: number) => (
                   <RequestRow
                     key={(contract.app_origin || contract.allowed_origin) + '-' + idx}
@@ -403,12 +387,12 @@ function ConsentView({ I }: { I: Record<string, any> }) {
                 {I.status && (
                   <p className="text-center text-sm text-muted-foreground" role="status">{I.status}</p>
                 )}
-                <Button variant="brand" className="w-full" onClick={() => I.approveAll()} data-testid="consent-approve-all">
-                  Approve all & continue
+                <Button variant="brand" className="min-h-11 w-full" onClick={() => I.approveAll()} data-testid="consent-approve-all">
+                  Allow all & continue
                 </Button>
                 <Button
                   variant="ghost"
-                  className="w-full text-muted-foreground hover:text-foreground"
+                  className="min-h-11 w-full text-muted-foreground hover:text-foreground"
                   onClick={() => I.skipConsent ? I.skipConsent() : I.goToApp()}
                   data-testid="consent-skip"
                 >

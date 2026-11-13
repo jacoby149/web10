@@ -70,7 +70,7 @@ export default function ContractHealth({ I, groups }: { I: Record<string, any>; 
           <div className="flex items-center gap-2">
             <ShieldCheck className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
             <p className="text-sm text-muted-foreground">
-              Check your group contracts for grants that reference a role the group doesn't define.
+              Check that everyone in your groups has a role with defined permissions.
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={check} data-testid="contract-health-check">
@@ -83,13 +83,13 @@ export default function ContractHealth({ I, groups }: { I: Record<string, any>; 
       {state.status === 'checking' && (
         <div className="flex items-center gap-2 rounded border border-border bg-card px-4 py-3">
           <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" strokeWidth={1.5} />
-          <p className="text-sm text-muted-foreground">Checking {groups.length} group contract{groups.length === 1 ? '' : 's'}…</p>
+          <p className="text-sm text-muted-foreground">Checking permissions in {groups.length} group{groups.length === 1 ? '' : 's'}…</p>
         </div>
       )}
 
       {state.status === 'error' && (
         <div className="rounded border border-danger/30 bg-danger/5 px-4 py-3">
-          <p className="text-sm text-danger">Contract health check failed: {state.message}</p>
+          <p className="text-sm text-danger">Permission check failed: {state.message}</p>
         </div>
       )}
 
@@ -97,7 +97,7 @@ export default function ContractHealth({ I, groups }: { I: Record<string, any>; 
         <div className="flex items-center gap-2 rounded border border-border bg-card px-4 py-3">
           <ShieldCheck className="h-4 w-4 text-brand-300" strokeWidth={1.5} />
           <p className="text-sm text-muted-foreground">
-            All {state.checked} group contract{state.checked === 1 ? ' is' : 's are'} healthy — every grant references a defined role.
+            All {state.checked} groups have defined roles for their members.
           </p>
         </div>
       )}

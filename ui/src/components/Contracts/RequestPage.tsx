@@ -3,12 +3,13 @@ import React from 'react';
 import { CircleCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import PermissionSummary from '../Consent/PermissionSummary';
 
 // Derive a readable origin label from the ACR's allowed_origin.
 function originLabel(origin: string): string {
   try {
     const url = origin.startsWith('http') ? new URL(origin) : new URL(`https://${origin}`)
-    return url.hostname
+    return url.host
   } catch { return origin }
 }
 
@@ -40,14 +41,13 @@ function Requests({ I }: { I: Record<string, any> }) {
         pendingACRs.map((acr: any, idx: number) => {
           const origin = acr.allowed_origin;
           const perms = acr.permissions || {};
-          const services = Object.keys(perms);
 
           return (
             <div key={idx} className="mx-auto mb-4 max-w-[800px]">
               <div className="overflow-hidden rounded border border-border bg-card">
                 <div className="flex items-center gap-2 border-b border-border px-4 py-3">
                   <Badge variant="brand">
-                    access request
+                    App permissions
                   </Badge>
                   <span className="font-medium text-foreground">{originLabel(origin)}</span>
                 </div>
@@ -58,16 +58,13 @@ function Requests({ I }: { I: Record<string, any> }) {
                       <Badge variant="default">{originLabel(origin)}</Badge>
                     </div>
                   </div>
-                  {services.map((svc: string) => (
-                    <div key={svc} className="mt-2">
-                      <span className="text-sm font-medium text-muted-foreground">Permissions ({svc}):</span>
-                      <div className="mt-1 flex flex-wrap gap-1.5">
-                        {(perms[svc] || []).map((p: string, i: number) => (
-                          <Badge key={i} variant="success">{p}</Badge>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+                  <p className="mb-4 text-sm text-muted-foreground">This app would like to:</p>
+                  <PermissionSummary permissions={perms} />
+                  <details className="mt-4 text-sm text-muted-foreground">
+                    <summary className="cursor-pointer py-3">Technical details</summary>
+                    <p className="break-all font-mono text-xs">{origin}</p>
+                    <pre className="mt-2 whitespace-pre-wrap break-all text-xs">{JSON.stringify(perms, null, 2)}</pre>
+                  </details>
                 </div>
                 <div className="flex gap-2 border-t border-border px-4 py-3">
                   <Button

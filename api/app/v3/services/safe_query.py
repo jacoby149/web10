@@ -388,6 +388,8 @@ def _validate(
             raise UnsafeQueryError("table functions are not allowed")
         if name.lower() in RAW_TABLES:
             raise UnsafeQueryError(f"query references raw table '{name}'")
+        if table.db or table.catalog:
+            raise UnsafeQueryError("database-qualified tables are not service references")
         if name == GROUP_META:
             if not group_meta:
                 raise UnsafeQueryError(f"query references unknown table '{name}'")

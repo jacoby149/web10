@@ -184,3 +184,9 @@ def test_query_scope_collision_and_reserved_set_parity():
         sq.query_services("SELECT * FROM posts", {"Posts"})  # legacy grants are not silently migrated
     compiled = sq.build_safe_query('SELECT * FROM "SELECT"', {"select": []})
     assert "collection_name = 'select'" in compiled
+
+
+def test_database_qualified_tables_are_not_service_references():
+    for sql in ["SELECT * FROM system.settings", "SELECT * FROM other.posts", "SELECT * FROM catalog.db.posts"]:
+        with pytest.raises(sq.UnsafeQueryError):
+            sq.build_safe_query(sql, {"posts": ["allowed"], "settings": ["allowed"]})

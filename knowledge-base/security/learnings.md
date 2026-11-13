@@ -53,6 +53,37 @@ That observation simplifies this node's compatibility but is not a migration for
 other nodes or pending durable upload/deferred state. This is bounded naming
 hardening with denied malformed/colliding requests, not a whole-security PASS.
 
+Also reject database/catalog-qualified table references at the compiler boundary:
+validating only `Table.name` leaves `other.posts` qualified and does not bind it to
+the generated local `posts` CTE. Column qualifiers and ordinary aliases remain
+valid; qualified physical-table reads are not service names. A failing-before
+compiler control pins this binding defect without querying production contents.
+
+### 2026-11-13: Case normalization must agree with grant identity
+
+At the initial inventory, service storage and app/group permission keys matched case-sensitively.
+Lowercasing only a request or display label does not normalize the collection
+and can disagree with authority. The operator-authorized production metadata
+inventory finds only lowercase names across retained documents and grants, with
+no case collisions; other nodes and future writes are not covered. The intended
+ASCII/lowercase rule needs shared ingress/grant/compiler enforcement and explicit
+collision/legacy handling, never silent union of case-colliding grants. A restricted
+alphabet makes names predictable but does not replace parameterization, AST
+validation or I3. This read-only inventory and offline source-body check are not
+implemented hardening or a security PASS; contract: `web10-v3/db/service-names.md`.
+
+### 2026-11-13: Readable permission summaries must preserve the service-operation pairs
+
+The OAuth-style browser-app review groups data types only when their complete
+operation sets match. Combining all verbs with all services would falsely make
+read-only contacts look writable. Display own versus all explicitly; wildcard
+services mean all data types, and unknown names remain visible. Exact origins,
+ports, keys/codes and differences remain inspectable. “App permissions” and
+“Group permissions” are display names, not new wire types. Local helper/view
+controls and synthetic browser callbacks cover this presentation change;
+authorization handlers and payloads are unchanged. This is not a new security
+finding, exploit closure, connected-grant proof or L1–L4/model-diverse PASS.
+
 ### 2026-11-12: Directory mixing separates public GETs from approved token dispatch
 
 The existing group directory is public GET metadata, even in an authenticated

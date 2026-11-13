@@ -335,6 +335,7 @@ test.describe('Query engine — the membrane (unsafe queries are 403)', () => {
     for (const sql of [
       'SELECT * FROM documents',
       'SELECT * FROM doc_groups',
+      'SELECT * FROM other.posts',
       'SELECT * FROM file(\'/etc/passwd\')',
       'SELECT doc_id FROM posts; DROP TABLE documents',
       'INSERT INTO posts VALUES (1)',

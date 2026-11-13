@@ -13,6 +13,10 @@ are rejected, never merged. Query spelling/aliases remain intact while the
 boundary CTE filters the canonical lowercase collection. SQL literals, column
 names, body fields, role names, group IDs and permission operation codes are not
 lowercased. Existing auth checks, parameterization and AST restrictions remain.
+Database/catalog-qualified table references are rejected: `other.posts` must
+never bypass the local service CTE. Column qualifiers such as `Posts.doc_id`
+and caller aliases remain valid. SQL-keyword service names are safely quoted
+in generated CTE definitions, not rejected just for being SQL words.
 
 The preceding implementation was case-sensitive throughout CRUD/storage/grants.
 Operator-authorized read-only production metadata checks across all retained
@@ -53,3 +57,12 @@ and group roles have zero malformed-JSON rows. Each SELECT used read-only mode,
 five-second/256-MiB/two-thread/10,000-row bounds. No production rows, grants,
 schema, files, containers or environment were changed. This dated inventory is
 not permission to deploy, nor a promise about future writes or other nodes.
+
+## Client and rollout gates
+
+The server is the normalization/authorization authority. SDK/consent metadata
+may still retain caller casing for local comparison/display; client-side parity
+needs separate verification to avoid repeated approval prompts for mixed-case
+declarations. No claim that SDK/UI normalization is complete. Keep the API
+enforcement separate from presentation, and review legacy pending durable state
+before activating on a node that has ever used noncanonical names.

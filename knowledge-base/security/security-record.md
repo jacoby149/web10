@@ -35,6 +35,20 @@ cover storage/grant helpers, invalid non-string inputs and denied compiler scope
 collisions. A real-node/ClickHouse E2E is added for mixed-case create/query plus
 case-colliding grant denial; its execution remains a separate gate.
 
+An additional failing-before compiler control reproduces acceptance of qualified
+tables such as `system.settings`/`other.posts`: checking only `Table.name` can
+inject an unused local CTE while the qualified reference still names another
+database. The compiler now rejects any database/catalog qualifier before service
+resolution, retaining column qualifiers and caller aliases. The same control is
+denied after repair, and the real-node unsafe-query matrix adds `other.posts`.
+This demonstrates the compiler binding defect and denial, not a production
+exfiltration replay; independent/connected verification remains OPEN.
+
+Final local verification: 36 focused service controls, all 2,304 API tests/eight
+subtests (one opt-in skip), changed-file Ruff lint/format and Playwright discovery
+of the new real-node scenario pass after merging current dev. This is mocked
+storage/API/compiler evidence, not actual-engine or independent-review sign-off.
+
 Operator-authorized production metadata inventory checks all retained service
 identifiers and grant-key history, then schema-enumerated content-event, log and
 legacy service-contract columns. Every ordinary name is already lowercase and

@@ -20,6 +20,23 @@ state: distinct counts 10/18/11/3/1/0/1 respectively; all ordinary identifiers
 next: finish isolated API safety tests/review/CI; production enforcement is not
   deployed. Other nodes and future rollouts need fresh inventory/compatibility.
 
+## 13.11.2026 — OpenCode (lansing / jacoby149/contracts-ui-less-intimidating) — read-only service-name inventory
+did:
+  - Operator authorizes SSH inspection of production service names before stricter
+    naming/case rules. Verify all-spark and exact web10-prod API/ClickHouse containers.
+  - Run metadata-only SELECTs through the existing production API database client
+    with read-only mode, five-second/256-MiB/two-thread/10,000-row bounds.
+    Inspect distinct collection names, app-permission keys, group-map keys and
+    legacy role service lists across all retained history; aggregate malformed-JSON
+    checks return zero. No bodies, principals, credentials or grant records exported.
+state: 10 document / 18 app-map / 11 group-map / 3 legacy-list keys; every name
+  lowercase, zero case collisions or names outside ASCII letter-first letters/
+  digits/hyphen/underscore (apart from reserved wildcard metadata), longest 31.
+  No remote file, data/grant, environment, container or deployment change.
+next: canonical lowercase/strict validation is separate protocol work; review
+  length/reserved-name/legacy policy and re-inventory before rollout, preserving
+  existing authority and refusing ambiguous case-colliding grants.
+
 ## 12.11.2026 03:01–03:12 UTC — OpenCode (missoula / jacoby149/videos-stop-freezing-merge-v2) — production one-time phone-video recovery
 did:
   - Operator explicitly approves execution after PR #1517 merges as 5caaa113d.
