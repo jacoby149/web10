@@ -1,5 +1,10 @@
 # Parallel Execution
 
+### Lane: release-6.2-promotion
+**Owns:** release-ancestry reconciliation and focused changelog/plan records; no runtime security-policy or production-setting changes.
+- [✓ 6.2.1 local; promotion OPEN] **Reconcile main ancestry into dev** — preserve current-dev contents through nine old-doc/preview conflicts, remove one identical duplicate preview method, and run all reconciliation/promotion checks before a merge-commit release. The explicit operator request authorizes dev→main deployment, not rewriting legacy data or activating optional features.
+- [ ] **Verify release 6.2 production** — after reconciliation and promotion checks pass, merge dev→main with a merge commit, watch deploy/CD, verify public API/auth/social/www/apex and served status version/commit, and inspect the changed public UI. Device/background and independent security acceptance remain separate.
+
 ### Lane: music-feed-player-repair
 **Owns:** social Music components/context, Feed media handoff, local glass-lens reuse and shell clearance, the shared InlineVideo native-event/control-state synchronization, focused social tests and screenshot fixtures; serialized KB updates. No marketing-specific screen, API, SDK, auth or deployment changes.
 
