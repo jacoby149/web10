@@ -1045,6 +1045,10 @@ describe('Layout', () => {
     expect(within(sheet).getByTestId('nav-messages-mobile')).toBeInTheDocument();
     expect(within(sheet).queryByTestId('nav-music-mobile')).not.toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-settings-mobile')).toBeInTheDocument();
+    const expectedMoreOrder = [
+      'nav-profile-mobile', 'nav-people-mobile', 'nav-messages-mobile', 'nav-appearance-mobile', 'nav-settings-mobile', 'nav-monetization-mobile',
+    ].concat(screen.queryByTestId('nav-node-settings-mobile') ? ['nav-node-settings-mobile'] : []);
+    expect(Array.from(sheet.querySelectorAll('button[data-testid]')).map(button => button.getAttribute('data-testid')).slice(0, expectedMoreOrder.length)).toEqual(expectedMoreOrder);
     expect(within(sheet).queryByTestId('nav-groups-mobile')).not.toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-stories-mobile')).toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-livestream-mobile')).toBeInTheDocument();

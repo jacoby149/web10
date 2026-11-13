@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import '@testing-library/jest-dom';
+import { setVideoMuted } from '../../../shared/discover/src/videoSound';
 
 // Mock lucide-react icons as simple span elements (any icon, no manual list)
 import { lucideMock } from './helpers/lucideMock';
@@ -50,6 +51,7 @@ function uninstallHls() {
 }
 
 beforeEach(() => {
+  setVideoMuted(false);
   FakeHls.instances = [];
   vi.clearAllMocks();
 });
@@ -230,9 +232,9 @@ describe('HlsVideoPlayer', () => {
     expect(hls.loadSource).toHaveBeenCalledWith(expect.stringContaining('/v3/media/hls/manifest?doc_id=m1&sig=abc'));
     expect(hls.attachMedia).toHaveBeenCalled();
 
-    // The video is muted + autoplay + loop (the feed behavior, video-experience.md).
+    // Sound starts on; autoplay remains a browser-controlled request.
     const video = screen.getByTestId('hls-video') as HTMLVideoElement;
-    expect(video.muted).toBe(true);
+    expect(video.muted).toBe(false);
     expect(video.hasAttribute('autoplay')).toBe(true);
     expect(video.hasAttribute('loop')).toBe(true);
 
@@ -293,11 +295,10 @@ describe('HlsVideoPlayer', () => {
     const scrubber = screen.getByTestId('scrubber') as HTMLInputElement;
     expect(scrubber.type).toBe('range');
 
-    // The video is muted by default (the feed's ambient autoplay), so the
-    // mute icon is the muted variant and the volume slider reads 0.
+    // The loaded-app video sound choice defaults to on.
     const video = screen.getByTestId('hls-video') as HTMLVideoElement;
-    expect(video.muted).toBe(true);
-    expect(screen.getByTestId('volume-slider')).toHaveValue('0');
+    expect(video.muted).toBe(false);
+    expect(screen.getByTestId('volume-slider')).toHaveValue('1');
   });
 
   it('the play/pause button drives the video and swaps its icon', async () => {
@@ -357,11 +358,11 @@ describe('HlsVideoPlayer', () => {
     render(<HlsVideoPlayer manifestUrl="/v3/media/hls/manifest?doc_id=m1&sig=abc" />);
 
     const video = screen.getByTestId('hls-video') as HTMLVideoElement;
-    expect(video.muted).toBe(true);
-    fireEvent.click(screen.getByTestId('volume-toggle'));
-    await waitFor(() => expect(video.muted).toBe(false));
+    expect(video.muted).toBe(false);
     fireEvent.click(screen.getByTestId('volume-toggle'));
     await waitFor(() => expect(video.muted).toBe(true));
+    fireEvent.click(screen.getByTestId('volume-toggle'));
+    await waitFor(() => expect(video.muted).toBe(false));
   });
 
   it('hides the controls while playing + idle, keeps them while paused', async () => {

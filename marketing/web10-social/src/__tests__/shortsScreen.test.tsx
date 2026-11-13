@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import '@testing-library/jest-dom';
+import { setVideoMuted } from '../../../shared/discover/src/videoSound';
 import * as data from '@/data';
 
 // Mock lucide-react icons as simple span elements (any icon, no manual list)
@@ -146,6 +147,7 @@ function seedEngagement(
 
 describe('ShortsScreen — the vertical short-form feed (shorts.md)', () => {
   beforeEach(() => {
+    setVideoMuted(false);
     vi.clearAllMocks();
     FakeHls.instances = [];
     window.Hls = FakeHls as unknown as typeof window.Hls;
@@ -263,7 +265,7 @@ describe('ShortsScreen — the vertical short-form feed (shorts.md)', () => {
     expect(video.className).toMatch(/object-cover/);
   });
 
-  it('the active slide autoplays muted by default; the off-screen slide does not (the ambient loop)', async () => {
+  it('the active slide requests sound-on playback; the off-screen slide stays paused', async () => {
     (data.readShortsFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
       shortPost({ id: 's1', author: 'luna' }),
       shortPost({ id: 's2', author: 'kai' }),
@@ -275,16 +277,16 @@ describe('ShortsScreen — the vertical short-form feed (shorts.md)', () => {
     });
 
     // The first slide is the active one (activeIndex starts at 0) → its video
-    // plays; Shorts autoplays MUTED (the browser's autoplay policy — the
-    // speaker icon is the escape hatch, the next test). The second slide's
+    // requests sound-on playback. The second slide's
     // video is paused (off-screen).
     const v0 = screen.getByTestId('short-video-0').querySelector('video')!;
     const v1 = screen.getByTestId('short-video-1').querySelector('video')!;
-    expect(v0.muted).toBe(true);
-    expect(v1.muted).toBe(true);
+    expect(v0.muted).toBe(false);
+    expect(v1.muted).toBe(false);
   });
 
   it('the speaker icon un-mutes the lens (the TikTok escape hatch) and re-mutes', async () => {
+    setVideoMuted(true);
     (data.readShortsFeed as ReturnType<typeof vi.fn>).mockResolvedValue([
       shortPost({ id: 's1', author: 'luna' }),
       shortPost({ id: 's2', author: 'kai' }),
@@ -335,11 +337,10 @@ describe('ShortsScreen — the vertical short-form feed (shorts.md)', () => {
 
     const v0 = screen.getByTestId('short-video-0').querySelector('video')!;
     const v1 = screen.getByTestId('short-video-1').querySelector('video')!;
-    // Both start muted (the autoplay policy — the speaker icon is the
-    // escape hatch); the ambient loop's play/pause handover is observed via
+    // Both inherit sound-on; the play/pause handover is observed via
     // the elements' play/pause calls, not the mute flag.
-    expect(v0.muted).toBe(true);
-    expect(v1.muted).toBe(true);
+    expect(v0.muted).toBe(false);
+    expect(v1.muted).toBe(false);
 
     const play0 = vi.spyOn(v0, 'play').mockResolvedValue(undefined);
     const pause0 = vi.spyOn(v0, 'pause').mockImplementation(() => {});
@@ -636,6 +637,7 @@ describe('ShortsScreen — the vertical short-form feed (shorts.md)', () => {
 
 describe('ShortsScreen — the explore wall (/shorts, the "before you pick a short" surface)', () => {
   beforeEach(() => {
+    setVideoMuted(false);
     vi.clearAllMocks();
     FakeHls.instances = [];
     window.Hls = FakeHls as unknown as typeof window.Hls;
@@ -681,7 +683,7 @@ describe('ShortsScreen — the explore wall (/shorts, the "before you pick a sho
     expect(screen.getByText('first')).toBeInTheDocument();
   });
 
-  it('each tile is the hover preview — poster at rest, the clip plays muted on hover (the Video wall pattern)', async () => {
+  it('each tile is the hover preview with the app video sound choice', async () => {
     (data.readShortsPage as ReturnType<typeof vi.fn>).mockResolvedValue({
       shorts: [hlsShort({ id: 's1', author: 'luna' })],
       hasMore: false,
@@ -707,7 +709,7 @@ describe('ShortsScreen — the explore wall (/shorts, the "before you pick a sho
       expect(FakeHls.instances.length).toBeGreaterThan(0);
       expect(play).toHaveBeenCalled();
     });
-    expect(video.muted).toBe(true);
+    expect(video.muted).toBe(false);
     // The raw source file is NOT used (the greyed-out-tile rule).
     expect(video.getAttribute('src')).toBeNull();
   });

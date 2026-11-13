@@ -1,5 +1,6 @@
 import { ReliableImage } from './ReliableImage';
-import { hasMediaRecovery, recoverMediaUrl } from './mediaRecovery';
+import { hasMediaRecovery, mayStartPreview, recoverMediaUrl } from './mediaRecovery';
+import { useVideoSound } from './videoSound';
 import { useMediaPlaybackBudget, useMediaVisibility } from './mediaVisibility';
 import { createContext, useContext, useCallback, useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { Maximize2, TriangleAlert, Play, Pause, Volume2, VolumeX, Gauge, MonitorPlay } from 'lucide-react';
@@ -197,7 +198,7 @@ export function HlsVideoPlayer({ manifestUrl, refreshManifest, poster, width, he
   const [current, setCurrent] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
-  const [muted, setMuted] = useState(true);
+  const [muted, setMuted] = useVideoSound();
   // Controls are visible on mount (the poster moment) and whenever the pointer
   // moves or the video is paused; they fade out after ~2.5s of playing + idle.
   const [controlsVisible, setControlsVisible] = useState(true);
@@ -599,8 +600,8 @@ export function HlsVideoPlayer({ manifestUrl, refreshManifest, poster, width, he
             'absolute inset-0 w-full h-full object-contain transition-opacity duration-200',
             revealed ? 'opacity-100' : 'opacity-0',
           )}
-          muted
-          autoPlay={!fill && eligible && autoplayAllowed}
+          muted={muted}
+          autoPlay={!fill && eligible && autoplayAllowed && mayStartPreview(videoRef.current ?? undefined)}
           loop={loop}
           playsInline
           preload="none"

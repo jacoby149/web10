@@ -10,7 +10,7 @@ import { CommentThread } from '@/components/Feed/CommentThread';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { requestInstallPrompt, isMobile } from '@/lib/pwa';
-import { formatCount } from '@web10/discover';
+import { formatCount, useVideoSound } from '@web10/discover';
 import ShortsWall from './ShortsWall';
 import { postAuthor } from '@/lib/postAuthor';
 import { markdownToPlainText } from '@/lib/markdownHtml';
@@ -19,13 +19,8 @@ import { useTunedSurface, tunedShort, surfaceKey } from '@/components/Feed/useTu
 
 const LOG = (...args: unknown[]) => console.log('[shorts]', ...args);
 
-// The sound choice is a SESSION choice (the TikTok model): muted by default
-// (the browser's autoplay policy requires it), and once the user un-mutes in
-// the lens, every short — now and after leaving + returning to Shorts —
-// plays with sound until they re-mute. A module-level flag survives the
-// screen unmount within the session (no storage: a page reload is a fresh
-// lens, back to muted).
-let sessionMuted = true;
+// Video sound is one loaded-app choice, default on, shared with the other
+// video surfaces. Reload resets it; Music is independent.
 
 /**
  * The Shorts route (shorts.md) — two surfaces, one route family:
@@ -89,11 +84,9 @@ function ShortsLensContent({ postId, tuned }: { postId: string; tuned: ReturnTyp
   // comments, the TikTok "tap comments → overlay" behavior).
   const [commentsOpenFor, setCommentsOpenFor] = useState<string | null>(null);
   const [copiedFor, setCopiedFor] = useState<string | null>(null);
-  // The screen-level sound state (shorts.md): one toggle for the whole lens,
-  // seeded from the session flag so the choice survives leaving + returning.
-  // Muted by default — the browser's autoplay policy requires it for the
-  // ambient loop; the speaker icon is the escape hatch (the TikTok model).
-  const [muted, setMuted] = useState<boolean>(sessionMuted);
+  // The same volatile video choice as Posts, Video and hover previews.
+  // Sound starts on; a browser denial leaves a play action, never auto-mutes.
+  const [muted, setMuted] = useVideoSound();
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Deep link: the search query from ?q= (the global search's Shorts category
@@ -160,7 +153,6 @@ function ShortsLensContent({ postId, tuned }: { postId: string; tuned: ReturnTyp
   function handleToggleMute() {
     setMuted((cur) => {
       const next = !cur;
-      sessionMuted = next;
       LOG('sound →', next ? 'muted' : 'unmuted');
       return next;
     });

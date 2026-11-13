@@ -1,16 +1,17 @@
 import { useEffect, useState, type RefObject } from 'react';
-import { claimMediaPlayback } from './mediaRecovery';
+import { claimMediaPlayback, releaseMediaPlayback } from './mediaRecovery';
 
 export function useMediaPlaybackBudget(ref: RefObject<HTMLMediaElement | null>) {
   useEffect(() => {
+    let element = ref.current;
     const onPlay = (event: Event) => {
       const target = event.target;
       if (!(target instanceof HTMLMediaElement)) return;
-      if (target === ref.current) { if (!claimMediaPlayback(target)) target.pause(); }
+      if (target === ref.current) { element = target; if (!claimMediaPlayback(target)) target.pause(); }
       else if (!target.muted && target.volume > 0) claimMediaPlayback(target);
     };
     document.addEventListener('play', onPlay, true);
-    return () => document.removeEventListener('play', onPlay, true);
+    return () => { document.removeEventListener('play', onPlay, true); releaseMediaPlayback(element); };
   }, [ref]);
 }
 

@@ -1476,6 +1476,12 @@ export async function resolveDiscoverProfiles(posts: unknown[]): Promise<unknown
 // a post whose single media is a REAL 9:16 video, re-derived from the resolved
 // media (the render-time gate), not the client-asserted `short` tag.
 export async function readShortsFeed(): Promise<{ post: unknown; media: unknown }[]> {
+  if (new URLSearchParams(window.location.search).has('video-sound')) {
+    return ['dp-2', 'dp-4'].map((id, index) => ({
+      post: { ...DISCOVER_POSTS[index], _id: id, visibility: 'public', tags: [], media_refs: [`sound-video-${index}`] },
+      media: { ...MUSIC_TRACKS[6].media, _id: `sound-video-${index}`, width: 90, height: 160, thumbnail_url: MUSIC_TRACKS[index].artworkUrl },
+    }));
+  }
   const shorts: { post: unknown; media: unknown }[] = [];
   for (const p of DISCOVER_POSTS) {
     if (!p.media_refs?.length) continue;
