@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Pause, Play } from 'lucide-react';
 import { useOptionalMusic } from '@/context/MusicContext';
 import { musicArtist, musicTitle, musicTrackFromPost, musicTrackKey } from '@/data/musicTrack';
@@ -12,19 +11,15 @@ export default function MusicFeedMedia({ post, media, readOnlySource = false, ch
   post: PostRecord; media: MediaRecord[]; readOnlySource?: boolean; children: ReactNode;
 }) {
   const music = useOptionalMusic();
-  const navigate = useNavigate();
   const resolved = musicTrackFromPost(post, media);
   if (!music || !resolved) return children;
   const track = { ...resolved, readOnlySource };
   const selected = !!music.current && musicTrackKey(music.current) === musicTrackKey(track);
   const playing = selected && music.isPlaying;
   const open = () => {
-    console.log('[music-feed] persistent player handoff', { selected, readOnlySource, kind: track.media.mime_type?.split('/')[0] });
+    console.log('[music-feed] persistent player handoff in place', { selected, readOnlySource, kind: track.media.mime_type?.split('/')[0] });
     if (!selected) music.play(track);
     else if (!music.isPlaying) music.toggle();
-    const params = new URLSearchParams({ track: post._id || '', panel: 'player' });
-    if (post.source_origin) params.set('source', post.source_origin);
-    navigate(`/music?${params}`);
   };
   return <div className="p-4" data-testid="music-feed-media">
     <div className="flex items-center gap-3 rounded-lg border border-border bg-elevated p-4">
