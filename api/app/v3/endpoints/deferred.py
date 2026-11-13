@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.services.deferred_store import CreateIntent, DeferredStore, fingerprint
 from app.services.deferred_worker import actor_context
 from app.v3.endpoints.multipart import _run
+from app.v3.service_names import ServiceName
 from app.v3.services import clickhouse as ch
 
 router = APIRouter(tags=["documents"])
@@ -17,7 +18,7 @@ class OperationRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     token: str
     operation_id: UUID
-    service: str = Field(min_length=1, max_length=128)
+    service: ServiceName
 
 
 class SubmitRequest(OperationRequest):

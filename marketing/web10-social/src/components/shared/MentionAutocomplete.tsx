@@ -20,11 +20,17 @@ export function mentionToken(text: string, caret: number): MentionToken | null {
 }
 
 export function useMentionAutocomplete(token: MentionToken | null, scope: string, choose: (person: MentionPerson, token: MentionToken) => void) {
+  return useTokenAutocomplete(token, scope, choose, searchMentionPeople);
+}
+
+/** Shared lifetime/keyboard controller for the @ and # adapters. */
+export function useTokenAutocomplete<T>(token: MentionToken | null, scope: string, choose: (item: T, token: MentionToken) => void,
+  search: (query: string, signal: AbortSignal, update: (items: T[]) => void) => Promise<T[]>) {
   const id = useId();
   const [dismissed, setDismissed] = useState('');
   const key = token ? `${scope}:${token.from}:${token.to}:${token.query}` : '';
   const open = !!token && key !== dismissed;
-  const [state, setState] = useState<{ key: string; people: MentionPerson[]; status: 'loading' | 'ready' | 'error' }>({ key: '', people: [], status: 'loading' });
+  const [state, setState] = useState<{ key: string; people: T[]; status: 'loading' | 'ready' | 'error' }>({ key: '', people: [], status: 'loading' });
   const [selected, setSelected] = useState(0);
   const [retry, setRetry] = useState(0);
   const close = useCallback(() => setDismissed(key), [key]);
@@ -36,16 +42,16 @@ export function useMentionAutocomplete(token: MentionToken | null, scope: string
     const controller = new AbortController();
     setState({ key, people: [], status: 'loading' }); setSelected(0);
     const timer = window.setTimeout(() => {
-      const update = (people: MentionPerson[]) => { if (!controller.signal.aborted) setState({ key, people, status: 'ready' }); };
-      void searchMentionPeople(token.query, controller.signal, update).then(update).catch(() => {
+      const update = (people: T[]) => { if (!controller.signal.aborted) setState({ key, people, status: 'ready' }); };
+      void search(token.query, controller.signal, update).then(update).catch(() => {
         if (!controller.signal.aborted) setState({ key, people: [], status: 'error' });
       });
     }, 250);
     return () => { clearTimeout(timer); controller.abort(); };
-  }, [key, open, retry]);
+  }, [key, open, retry, search]);
   const people = state.key === key ? state.people : [];
   const status = state.key === key ? state.status : 'loading';
-  const pick = (person: MentionPerson) => { if (!token) return; choose(person, token); close(); };
+  const pick = (person: T) => { if (!token) return; choose(person, token); close(); };
   const keyDown = (event: Pick<KeyboardEvent, 'key' | 'preventDefault' | 'stopPropagation' | 'nativeEvent'>) => {
     if (!open || event.nativeEvent?.isComposing) return false;
     if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); return true; }
@@ -68,6 +74,17 @@ export function useMentionAutocomplete(token: MentionToken | null, scope: string
 export type MentionController = ReturnType<typeof useMentionAutocomplete>;
 
 export function MentionSuggestions({ controller: c, anchor, getRect }: { controller: MentionController; anchor: HTMLElement | null; getRect?: () => { top: number; bottom: number; left: number } }) {
+  return <TokenSuggestions controller={c} anchor={anchor} getRect={getRect} copy={{ title: 'Tag a person', label: 'People to tag', loading: 'Finding people', error: "Couldn't find people. Your draft is safe.", empty: 'No matching people. Try another name or handle.', footer: '↑↓ to choose · Enter to tag · Esc to close', testId: 'mention-suggestions' }} itemKey={person => person.username} renderItem={person => <><MentionFace person={person} /><span className="min-w-0"><span className="block truncate text-sm font-medium text-foreground">{person.displayName}</span><span className="block truncate text-xs text-muted-foreground">@{person.username}</span></span></>} />;
+}
+
+export function TokenSuggestions<T>({ controller: c, anchor, getRect, copy, itemKey, renderItem }: {
+  controller: ReturnType<typeof useTokenAutocomplete<T>>;
+  anchor: HTMLElement | null;
+  getRect?: () => { top: number; bottom: number; left: number };
+  copy: { title: string; label: string; loading: string; error: string; empty: string; footer: string; testId: string };
+  itemKey: (item: T) => string;
+  renderItem: (item: T) => import('react').ReactNode;
+}) {
   const panel = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ top: 0, left: 0, width: 320, maxHeight: 240 });
   useLayoutEffect(() => {
@@ -99,17 +116,17 @@ export function MentionSuggestions({ controller: c, anchor, getRect }: { control
   }, [c.open, anchor, c.people.length, c.status, c.close, getRect]);
   useEffect(() => { panel.current?.querySelector('[aria-selected="true"]')?.scrollIntoView?.({ block: 'nearest' }); }, [c.selected]);
   if (!c.open || !anchor) return null;
-  return createPortal(<div ref={panel} style={position} data-mention-menu data-testid="mention-suggestions" className="fixed z-[200] overflow-y-auto overscroll-contain rounded-lg border border-border bg-surface shadow-xl" onPointerDown={event => event.stopPropagation()}>
-    <div className="border-b border-border px-3 py-2 text-xs font-medium text-muted-foreground">Tag a person</div>
-    <div id={c.id} role="listbox" aria-label="People to tag" aria-busy={c.status === 'loading'}>
-      {c.status === 'loading' ? <div role="status" className="space-y-2 p-3"><span className="sr-only">Finding people</span>{[0, 1].map(n => <div key={n} className="h-10 animate-pulse rounded bg-elevated" />)}</div>
-        : c.status === 'error' ? <div className="p-3 text-sm"><p role="status" className="text-muted-foreground">Couldn't find people. Your draft is safe.</p><button type="button" onMouseDown={e => e.preventDefault()} onClick={c.retry} className="mt-2 min-h-11 rounded px-3 text-brand-300 hover:bg-elevated focus-visible:ring-2 focus-visible:ring-ring">Try again</button></div>
-          : !c.people.length ? <p role="status" className="p-3 text-sm text-muted-foreground">No matching people. Try another name or handle.</p>
-            : c.people.map((person, i) => <button type="button" role="option" id={`${c.id}-${i}`} aria-selected={i === c.selected} key={person.username} onPointerDown={event => event.preventDefault()} onMouseDown={event => event.preventDefault()} onClick={() => c.pick(person)} className={cn('flex min-h-14 w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring', i === c.selected && 'bg-brand-muted/50')}>
-              <MentionFace person={person} /><span className="min-w-0"><span className="block truncate text-sm font-medium text-foreground">{person.displayName}</span><span className="block truncate text-xs text-muted-foreground">@{person.username}</span></span>
+  return createPortal(<div ref={panel} style={position} data-mention-menu data-testid={copy.testId} className="fixed z-[200] overflow-y-auto overscroll-contain rounded-lg border border-border bg-surface shadow-xl" onPointerDown={event => event.stopPropagation()}>
+    <div className="border-b border-border px-3 py-2 text-xs font-medium text-muted-foreground">{copy.title}</div>
+    <div id={c.id} role="listbox" aria-label={copy.label} aria-busy={c.status === 'loading'}>
+      {c.status === 'loading' ? <div role="status" className="space-y-2 p-3"><span className="sr-only">{copy.loading}</span>{[0, 1].map(n => <div key={n} className="h-10 animate-pulse rounded bg-elevated" />)}</div>
+        : c.status === 'error' ? <div className="p-3 text-sm"><p role="status" className="text-muted-foreground">{copy.error}</p><button type="button" onMouseDown={e => e.preventDefault()} onClick={c.retry} className="mt-2 min-h-11 rounded px-3 text-brand-300 hover:bg-elevated focus-visible:ring-2 focus-visible:ring-ring">Try again</button></div>
+          : !c.people.length ? <p role="status" className="p-3 text-sm text-muted-foreground">{copy.empty}</p>
+            : c.people.map((person, i) => <button type="button" role="option" id={`${c.id}-${i}`} aria-selected={i === c.selected} key={itemKey(person)} onPointerDown={event => event.preventDefault()} onMouseDown={event => event.preventDefault()} onClick={() => c.pick(person)} className={cn('flex min-h-14 w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring', i === c.selected && 'bg-brand-muted/50')}>
+              {renderItem(person)}
             </button>)}
     </div>
-    <p className="border-t border-border px-3 py-2 text-xs text-muted-foreground">↑↓ to choose · Enter to tag · Esc to close</p>
+    <p className="border-t border-border px-3 py-2 text-xs text-muted-foreground">{copy.footer}</p>
   </div>, document.body);
 }
 

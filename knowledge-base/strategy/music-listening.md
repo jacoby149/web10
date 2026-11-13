@@ -81,7 +81,7 @@ deferred; saving a playlist keeps its live original, not copied tracks.
 
 ### Feed handoff and mobile player repair (13.11.2026)
 
-5.35.0 implements this locally: all 2,621 social tests/build/typecheck and sixteen
+6.2.0 implements this locally: all 2,621 social tests/build/typecheck and sixteen
 two-theme/four-width Chromium cases pass on Discover and Following. Real native
 media and registered Media Session callbacks pass, not an Android OS-widget test.
 The second glass widget has actual rim-only pixel evidence and opaque fallbacks;

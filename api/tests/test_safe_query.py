@@ -275,7 +275,7 @@ def test_unknown_table_rejected():
 
 
 def test_system_table_rejected():
-    with pytest.raises(UnsafeQueryError, match="unknown table 'tables'"):
+    with pytest.raises(UnsafeQueryError, match="database-qualified tables"):
         build_safe_query("SELECT * FROM system.tables", {"posts": [DISCOVER]})
 
 

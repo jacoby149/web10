@@ -1,85 +1,68 @@
-# Service names: current behavior and the lowercase target
+# Canonical service names
 
-An app should not accidentally create a second collection by spelling `posts`
-as `Posts`. The operator's direction on 13.11.2026 is one case-insensitive
-service identity, stored and authorized under a canonical lowercase name.
+Operator direction, 13.11.2026: `Posts` and `posts` identify the same service.
+Normalize ASCII uppercase to lowercase; ordinary names start with a letter and
+contain only ASCII letters, digits, hyphens and underscores, 1–64 characters.
+Reject whitespace, dots, slashes, quotes, controls and Unicode rather than
+stripping or repairing them. Reserve infrastructure/query names and the `group`
+management key. Only group permission metadata may use `*` or `group`.
 
-## What works today
+Local implementation: one shared validator for API service fields,
+permission keys and query service references. Case-colliding permission keys
+are rejected, never merged. Query spelling/aliases remain intact while the
+boundary CTE filters the canonical lowercase collection. SQL literals, column
+names, body fields, role names, group IDs and permission operation codes are not
+lowercased. Existing auth checks, parameterization and AST restrictions remain.
+Database/catalog-qualified table references are rejected: `other.posts` must
+never bypass the local service CTE. Column qualifiers such as `Posts.doc_id`
+and caller aliases remain valid. SQL-keyword service names are safely quoted
+in generated CTE definitions, not rejected just for being SQL words.
 
-**The current implementation is case-sensitive.** Document request models accept
-an ordinary string. The document endpoint passes it unchanged to app/group
-authorization and storage. `insert_document` stores it unchanged in
-`documents.collection_name`; reads compare that column with the supplied string.
-App permissions use `perms.get(service_name)`, and group permissions use the
-exact service key before their existing wildcard fallback. The query compiler
-also checks referenced service names against exact allowed names and emits an
-exact collection-name filter.
+The preceding implementation was case-sensitive throughout CRUD/storage/grants.
+Operator-authorized read-only production metadata checks across all retained
+history found 10 document service names, 18 app-map keys, 11 group-map keys and
+3 legacy role-service keys, all lowercase, no collisions or out-of-alphabet
+ordinary names, maximum length 31; app/group JSON malformed counts were zero.
+Queries used readonly mode, five-second/256-MiB/two-thread bounds and returned no
+bodies, principals or credentials. The original inventory is documented in the
+separate permissions UI PR #1541; this is runtime protocol work on its own branch.
 
-Consequently, a `posts` app grant does not grant `Posts`, and storing under
-`Posts` does not make that data part of `posts`. This is unlike usernames,
-which already normalize to lowercase. The UI's readable labels do not change
-service identity.
+No automatic database rewrite or production activation. Existing mixed-case,
+out-of-policy or colliding data/grants on other nodes require an explicit
+inventory/compatibility decision before rollout. Tests and independent security
+review must establish normalization and denial across all ingress paths; source
+and mocked storage results are not a connected-storage or whole-security PASS.
+The query compiler rejects noncanonical stored authorization/readability scopes;
+it does not silently fold an old differently cased grant onto another collection.
 
-Source: `api/app/v3/models/documents.py`, `endpoints/documents.py`,
-`services/clickhouse.py` (`insert_document`, `read_documents`, `has_permission`,
-`_effective_allows`) and `services/safe_query.py` (relative to `api/app/v3/`).
-An offline check executes those storage/grant function bodies with inert storage:
-case is preserved, the exact grant succeeds, and its case variant is denied.
-That is not an HTTP or real-database normalization test.
+## Full production sweep
 
-## Intended naming contract — enforcement still OPEN
+A second operator-requested read-only sweep enumerated service-bearing columns
+from `system.columns`, then checked all retained history against the complete
+`[a-z][a-z0-9_-]{0,63}` convention. Results:
 
-- Use ASCII letters, digits, hyphens and underscores, starting with a letter.
-- Accept ASCII uppercase input and normalize to lowercase; `Posts` means `posts`.
-- Reject spaces, dots, slashes, quotes, control characters, Unicode lookalikes
-  and other symbols, rather than trimming or silently removing them.
-- Proposed length bound: **1–64 characters**. After normalization the proposed
-  ordinary-name grammar is `^[a-z][a-z0-9_-]{0,63}$`.
-- Keep `*` and `group` context-specific permission metadata, not ordinary document
-  collection names. Retain query-engine reserved-name protections independently
-  of this grammar; matching the pattern is not SQL or authorization approval.
-- Reject a request containing case-colliding permission keys such as both
-  `posts` and `Posts`; never silently union grants under a normalized key.
+| Surface | Distinct names | Uppercase / malformed / collisions | Max length |
+|---|---:|---|---:|
+| `documents.collection_name` | 10 | 0 / 0 / 0 | 27 |
+| App permission keys | 18 | 0 / 0 / 0 | 31 |
+| Group permission keys | 11 | 0 / 0 / 0 | 27 ordinary |
+| Legacy group service lists | 3 | 0 / 0 / 0 | 8 ordinary |
+| `content_events.service` | 1 | 0 / 0 / 0 | 5 |
+| Legacy `service_contracts.service_name` | 0 | 0 / 0 / 0 | — |
+| `logs.service` | 1 | 0 / 0 / 0 | 3 |
 
-The alphabet/lowercase direction is operator-approved. The 64-character bound,
-complete reserved-name policy and compatibility details need protocol-owner
-review before implementation. Do not describe this section as deployed validation.
+Group `*`/`group` keys are expected permission metadata, not ordinary collections;
+log `service` is a diagnostic label, not collection authority. App permissions
+and group roles have zero malformed-JSON rows. Each SELECT used read-only mode,
+five-second/256-MiB/two-thread/10,000-row bounds. No production rows, grants,
+schema, files, containers or environment were changed. This dated inventory is
+not permission to deploy, nor a promise about future writes or other nodes.
 
-## Production inventory — 13.11.2026, read-only
+## Client and rollout gates
 
-Operator-authorized SSH verified the intended host and exact production API
-container, then used its existing database client without exporting credentials.
-SELECTs were limited to five seconds, 256 MiB, two threads and 10,000 result rows,
-with read-only mode and overflow errors. Only service identifiers and aggregate
-validation counts were returned; no bodies, principals, tokens or grant records.
-
-Across **all retained history**, not just undeleted rows:
-
-| Surface | Distinct service keys |
-|---|---:|
-| Documents (`collection_name`) | 10 |
-| App-permission map keys | 18 |
-| Group-permission map keys | 11 |
-| Legacy group role service lists | 3 |
-
-All discovered keys are lowercase, with **zero case collisions**. Excluding
-reserved `*`/`group`, all match the proposed alphabet and letter-first rule.
-The longest observed key is 31 characters. No malformed JSON was found in the
-app-permission or group-role columns. This supports compatibility on this node
-at this observation time, not on every self-hosted node or after future writes.
-No data/grant mutation, deployment, environment change or service restart occurred.
-
-## Implementation boundaries
-
-Canonicalization must agree across document create/read/update/delete, media and
-deferred writes, app grants, group role maps, delegated service scopes, query
-references/boundary filters and SDK/UI declarations. Do not add `.lower()` only
-to one endpoint and strand differently cased rows or permissions elsewhere.
-
-Before rollout, inventory the target node again and refuse unresolved historical
-case collisions or out-of-policy names. Preserve the original data and authority;
-legacy compatibility or migration is a separate reviewed decision, never automatic
-grant merging. Tests must cover mixed-case CRUD/grant/query equivalence, invalid
-names, reserved/wildcard handling, collision denial and unchanged I3 boundaries.
-Keep parameterization, query AST validation and live authorization checks intact.
-Implement in small protocol/security-owned PRs, separate from the permission UI.
+The server is the normalization/authorization authority. SDK/consent metadata
+may still retain caller casing for local comparison/display; client-side parity
+needs separate verification to avoid repeated approval prompts for mixed-case
+declarations. No claim that SDK/UI normalization is complete. Keep the API
+enforcement separate from presentation, and review legacy pending durable state
+before activating on a node that has ever used noncanonical names.

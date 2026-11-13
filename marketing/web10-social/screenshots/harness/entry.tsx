@@ -236,7 +236,7 @@ if (screen === 'post-detail' || screen === 'group-post-detail') {
           <Route path="/feed" element={<PostsScreen onLogin={onHarnessLogin} />} />
           <Route path="/uploads" element={<UploadPreviewCenter />} />
           <Route path="/upload-compose" element={<UploadPreviewComposer />} />
-          <Route path="/composer" element={<PostComposer editingPost={params.get('edit') ? { _id: 'audience-example', author_key: 'web10/groups/users/me/studio', posted_by: 'another-operator', title: 'The next chapter', text: 'A new film night, with the same people who made it possible.', created_at: '2026-11-02' } : undefined} />} />
+          <Route path="/composer" element={<PostComposer editingPost={params.get('edit') ? { _id: 'audience-example', author_key: 'web10/groups/users/me/studio', posted_by: 'another-operator', title: 'The next chapter', text: 'A new film night, with the same people who made it possible.', created_at: '2026-11-02' } : undefined} repostingTo={params.get('repost') ? { _id: 'original-example', author_username: 'nova', text: 'An original public post.', created_at: '2026-11-02', visibility: 'public' } : undefined} />} />
           <Route path="/notifications" element={<NotificationsScreen />} />
           <Route path="/discover" element={<DiscoverScreen />} />
           <Route path="/video" element={<DiscoverScreen />} />

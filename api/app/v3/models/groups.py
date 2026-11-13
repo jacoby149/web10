@@ -1,11 +1,13 @@
 from pydantic import BaseModel
 
+from app.v3.service_names import GroupRoles, GroupService
+
 
 class CreateGroup(BaseModel):
     token: str
     name: str
     join_policy: str = "open"
-    roles: list[dict]
+    roles: GroupRoles
     members: list[dict]
     # D53 (amended): list the group in the public directory. Defaults to False
     # (NOT discoverable by default — listing is an opt-in). None = use the
@@ -28,7 +30,7 @@ class GetGroup(BaseModel):
 class UpdateGroup(BaseModel):
     token: str
     group_id: str
-    roles: list[dict] | None = None
+    roles: GroupRoles | None = None
     join_policy: str | None = None
     # D53: None = leave unchanged; True/False = set.
     discoverable: bool | None = None
@@ -42,7 +44,7 @@ class ListMyGroups(BaseModel):
     token: str
     # Delegated membership metadata, gated by a current create grant on service.
     author_as: str | None = None
-    service: str = "*"
+    service: GroupService = "*"
     # D78: optional server-side tag filter — only groups carrying EVERY given
     # tag are returned (My Groups = `["web10-social-group"]`). None = all.
     tags: list[str] | None = None
