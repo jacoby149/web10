@@ -3,6 +3,8 @@ import { ChevronDown, ChevronRight, Users, Shield, Lock, LockOpen, MessageSquare
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { groupDisplayName, hasRoleOp, isRoleMap } from '@/lib/group-utils';
+import { permissionDescription } from '@/lib/consentLanguage';
+import PermissionSummary from '../Consent/PermissionSummary';
 import GroupMembersDialog from './GroupMembersDialog';
 import GroupRolesDialog from './GroupRolesDialog';
 import GroupSettingsDialog from './GroupSettingsDialog';
@@ -155,26 +157,26 @@ function GroupCard({ I, group, isManaged }: { I: Record<string, any>; group: any
                     <span className="text-sm font-medium text-muted-foreground">Roles:</span>
                     <div className="mt-1.5 space-y-1.5">
                       {group.roles.map((role: any, i: number) => (
-                        <div key={i} className="flex items-center gap-2">
+                        <div key={i} className="space-y-3 rounded border border-border p-3">
                           <Badge variant="brand" className="shrink-0">
                             {role.name || role}
                           </Badge>
-                          <div className="flex flex-wrap gap-1">
+                          <div>
                             {isRoleMap(role.permissions)
-                              ? Object.entries(role.permissions).map(([service, ops]: [string, string[]], k: number) => (
-                                <span key={k} className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground bg-elevated">
-                                  {service}: {Array.isArray(ops) ? ops.join(', ') : ''}
-                                </span>
-                              ))
+                              ? <PermissionSummary permissions={role.permissions} actor="they" />
                               : (role.permissions || []).map((perm: string, j: number) => (
-                                <span key={j} className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground bg-elevated">
-                                  {perm}
-                                </span>
+                                <p key={j} className="text-sm text-muted-foreground">
+                                  {permissionDescription(perm, 'data', 'they')}
+                                </p>
                               ))}
                           </div>
                         </div>
-                      ))}
-                    </div>
+                       ))}
+                     </div>
+                     <details className="mt-3 text-sm text-muted-foreground">
+                       <summary className="min-h-11 cursor-pointer rounded py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Technical details</summary>
+                       <pre className="whitespace-pre-wrap break-all text-xs">{JSON.stringify(group.roles, null, 2)}</pre>
+                     </details>
                   </div>
                 )}
                 <div>

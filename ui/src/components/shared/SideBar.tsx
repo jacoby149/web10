@@ -24,8 +24,8 @@ interface SideBarProps {
 // The authenticated console destinations. MobileNav mirrors this list —
 // keep the two in sync (design.md §9: desktop sidebar, mobile bottom tabs).
 export const NAV_ITEMS: { mode: string; label: string; icon: LucideIcon; adminOnly?: boolean }[] = [
-  { mode: 'contracts', label: 'App Contracts', icon: FileText },
-  { mode: 'groups', label: 'Group Contracts', icon: Users },
+  { mode: 'contracts', label: 'App permissions', icon: FileText },
+  { mode: 'groups', label: 'Group permissions', icon: Users },
   { mode: 'requests', label: 'Requests', icon: Inbox },
   { mode: 'config', label: 'Node Config', icon: SlidersHorizontal, adminOnly: true },
   { mode: 'analytics', label: 'Analytics', icon: Activity, adminOnly: true },

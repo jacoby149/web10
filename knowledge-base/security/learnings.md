@@ -35,6 +35,18 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-13: Readable permission summaries must preserve the service-operation pairs
+
+The OAuth-style browser-app review groups data types only when their complete
+operation sets match. Combining all verbs with all services would falsely make
+read-only contacts look writable. Display own versus all explicitly; wildcard
+services mean all data types, and unknown names remain visible. Exact origins,
+ports, keys/codes and differences remain inspectable. “App permissions” and
+“Group permissions” are display names, not new wire types. Local helper/view
+controls and synthetic browser callbacks cover this presentation change;
+authorization handlers and payloads are unchanged. This is not a new security
+finding, exploit closure, connected-grant proof or L1–L4/model-diverse PASS.
+
 ### 2026-11-12: Directory mixing separates public GETs from approved token dispatch
 
 The existing group directory is public GET metadata, even in an authenticated

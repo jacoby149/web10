@@ -317,6 +317,23 @@ Motion confirms causality; it never performs.
 
 ## 8. Components
 
+### Permission approval (operator, 13.11.2026)
+
+Use **App permissions** and **Group permissions** in visible authenticator
+navigation, headings and messages, not “contracts”. The app-request moment is
+a calm OAuth-style review: identifiable site, “would like to”, readable scopes,
+generous spacing and clear Allow/Deny choices. Match both themes. Group identical
+operation sets only, keeping every data type visible; own/all and wildcard access
+must remain explicit. Technical details hold exact origins, names/codes and grant
+differences. The request list scrolls, while continue/skip actions stay available
+in a short phone viewport. Do not change approval, identity or token behavior.
+
+Keep the primary permission review in ordinary English with quiet neutral
+data-type chips. The operator rejected the colored literal-service code badges
+after seeing them: they made the screen feel like a developer tool. Exact keys
+and codes belong in Technical details, not repeated violet badges in sentences.
+Unknown names remain visible, and wildcard scope still means “All data types”.
+
 ### Social action recovery (operator, 12.11.2026)
 
 Upload/post failures offer approval and retry beside the draft, preserving text
@@ -405,7 +422,7 @@ inline-style habit; delete the dead vendored Bulma in
 `style={{…}}` string is concatenated into `className`; adopt the
 `components/ui` primitive kit and the mobile bottom-nav shell. Auth +
 consent screens are the narrative surface ("this is your node; these
-are your contracts") — one column, generous space, zero clutter.
+are your permissions") — one column, generous space, zero clutter.
 
 ### `marketing/web10-social/` — the flagship (lane D)
 The job: the screenshot that goes in the deck next to Kick and Twitch.
