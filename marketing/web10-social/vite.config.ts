@@ -49,6 +49,7 @@ export default defineConfig({
       // transport import it directly, no React barrel — the same pattern).
       '@web10/discover/video-source': path.resolve(__dirname, '../shared/discover/src/videoSource.ts'),
       '@web10/discover/mentions': path.resolve(__dirname, '../shared/discover/src/mentions.ts'),
+      '@web10/discover/hashtags': path.resolve(__dirname, '../shared/discover/src/hashtags.ts'),
       '@web10/discover': path.resolve(__dirname, '../shared/discover/src/index.ts'),
     },
   },

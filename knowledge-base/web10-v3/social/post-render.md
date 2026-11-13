@@ -63,7 +63,7 @@ This kills the "showing it in multiple ways" question: it is not multiple
 | Density | What it is | The surfaces | The body |
 |---|---|---|---|
 | **Teaser** | the at-a-glance tile / thumbnail. 1–2 lines. | the grid tile, the home card (video wall), the shorts tile, the repost embed, the share preview | the title (or first line) only — no markdown, no body |
-| **Summary** | the in-the-stream card. A few lines. | the feed card, the discover card, the profile feed | the title + **light markdown** (inline bold/italic/code/links/mentions), `line-clamp`'d |
+| **Summary** | the in-the-stream card. A few lines. | the feed card, the discover card, the profile feed, the hashtag board | the title + **light markdown** (inline bold/italic/code/links/mentions/hashtags), `line-clamp`'d |
 | **Full** | the read-it surface. The whole post. | the post lightbox, the watch page, the post permalink, the expanded Shorts description | the title + **full markdown** (headings, lists, code blocks, blockquotes, the `@` mentions) at a reading measure |
 
 The **shorts lens** is **video-first**: the 9:16 video is the hero, with a
@@ -89,6 +89,7 @@ ad is a card, an inline ad is the title line); it is not a separate row.
 | **Watch page** (`/watch/:postId`) | **full** | *(a watch page is a video — no text-only case)* | *(n/a)* | the player + the title + the body (full markdown, the description) + the author row + the comments + the "What's next" queue | *(portrait → the shorts lens, not the watch page)* | the player + the title + the body + the embedded original |
 | **Post permalink** (`/u/:u/p/:id`) | **full** | the post-detail system (the standalone page) | the post-detail system + the media | the post-detail system + the video | the post-detail system + the 9:16 video | the post-detail system + the embedded original |
 | **Profile feed** (the Facebook-shaped view) | summary→full | the full `PostCard` (the profile's posts as a vertical stream) | the full `PostCard` + the media | the full `PostCard` + the video | the full `PostCard` + the 9:16 video | the full `PostCard` + the embedded original |
+| **Hashtag board** (`/tag/:hashtag`, D110) | summary | the full `PostCard` (the public posts carrying the hashtag, newest first, anon-readable) | same + the media | same + the video | same + the 9:16 video | same + the embedded original |
 | **Repost embed** (inside a repost card) | teaser | the original's title + first line (compact) | the original's title + a thumbnail (compact) | the original's title + a thumbnail + a play badge | the original's title + a 9:16 thumbnail | *(n/a — no nested reposts)* |
 | **Share preview** (the OG card, node-rendered) | teaser | the title + the first line as `og:description` (plain text, D85's strip) | the title + the first line + the first image as `og:image` | the title + the first line + the poster as `og:image` | the title + the first line + the poster | the title + the first line + the original's image |
 
@@ -131,9 +132,9 @@ summary density:
 
 - **The author row** (avatar + name + `@handle` + timestamp) anchors the top.
 - **The title** (the display font, the anchor) leads the body.
-- **The body** is **light markdown** — inline bold/italic/code/links/mentions
-  only (no headings, no code blocks, no blockquotes in a card) — and is
-  `line-clamp`'d (the card is a teaser of the body, not the body). A card that
+- **The body** is **light markdown** — inline bold/italic/code/links/mentions/
+  hashtags only (no headings, no code blocks, no blockquotes in a card) — and
+  is `line-clamp`'d (the card is a teaser of the body, not the body). A card that
   renders a code block or a heading is a card that blew up in height; the
   summary density is *inline* markdown, clamped.
 - **The media** renders below (the grid for images, the inline player for

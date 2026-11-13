@@ -9,6 +9,51 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D110 — Hashtags are a body-derived token with a public board, never a doc tag [decided]
+
+**11.11.2026 — operator:** "how do # hashtags work? can i add them to a post?"
++ "yeah, we need to build this, hashtagging." The post body's second social
+token (the @mention, D85, is the first): type `#walking` in the caption and it
+renders highlighted + tappable on every read surface, landing on the public
+board of posts that carry the hashtag.
+
+**The decision: hashtags live in a derived `body.hashtags` field, NOT the doc
+`tags` column.** The `tags` column is the machine's vocabulary (`short`,
+`video`, `music`, `ad`, `product`, `album:<id>` — the render-time gates and
+the ad-inventory split key off it); user prose written there could reclassify
+a post (`#short` in a caption would Short a text post, `#ad` would make it ad
+inventory). The reserved-tag guard polices only the ad trio because only that
+trio was user-reachable — a growing blacklist is a foot-gun. The hashtag is
+app-derived from the markdown body at write time (the `mention_usernames`
+precedent, D85): `createPost`/`updatePost` parse the body, store
+lowercase-deduped `body.hashtags`, and the read side maps it to
+`PostRecord.hashtags`. The node stays opaque (D60); no column, endpoint or
+contract for hashtags.
+
+**The board:** `/tag/:hashtag` is a public, newest-first board read through
+the D73 safe-query engine (the app's own SELECT over `posts`,
+`has(JSONExtract(body,'hashtags','Array(String)'), '<tag>')`, scoped to the
+discover group — anon-capable per D41/D58, I3-walled by the boundary CTE's
+block/sharing/hidden anti-joins). The card is the feed's `PostCard` (one
+renderer everywhere, post-render.md). The Discover topic chips (`?tag=`) union
+doc tags + body hashtags of the loaded board; chips stay a pool filter — the
+global destination is the board.
+
+**The pattern:** `#` + 1–30 of `[a-zA-Z0-9_]` (no hyphens, no unicode in v1),
+mention-boundary discipline (start/whitespace/`(` before, a boundary after),
+never in code/headings/link labels/URLs; one shared regex (`@web10/discover/hashtags`)
+feeds the write derivation and the read render so they cannot drift. The
+composer is untouched (typed prose — the toolbar is the only *formatting*
+surface; a hashtag is a destination, not a format); the `#`-suggestion picker
+is a separate bite (it needs a distinct-hashtags aggregation read).
+
+**Rejected:** hashtags in doc `tags` (the machine-semantics hijack); a node
+hashtag surface (D60); a toolbar button (D85's composer rule); case-variant
+boards (one board per lowercase tag); comment-hashtag indexing in v1 (comments
+render + link the token; the board reads `posts` only).
+
+**Contract:** `knowledge-base/web10-v3/social/hashtags.md`.
+
 ### D109 — Share cards bake in their own dark background [decided]
 
 **10.11.2026 — operator** (Instagram story screenshot of a shared

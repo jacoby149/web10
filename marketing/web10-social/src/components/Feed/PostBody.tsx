@@ -7,6 +7,7 @@ import { isEmbeddable, parseEmbed } from '@/lib/linkEmbeds';
 import { isUnfurlCandidate } from '@/lib/unfurl';
 import { cn } from '@/lib/utils';
 import { remarkMentions } from '@web10/discover/mentions';
+import { remarkHashtags } from '@web10/discover/hashtags';
 import { Link, useInRouterContext } from 'react-router-dom';
 
 /**
@@ -88,6 +89,23 @@ function ProfileMentionLink({ username, children }: { username: string; children
   return routed ? <Link to={href} {...props}>{children}</Link> : <a href={href} {...props}>{children}</a>;
 }
 
+/**
+ * The hashtag link (D110, social/hashtags.md): `#tag` prose → the public
+ * board route `/tag/:tag`. The mention's treatment (the body's social tokens
+ * share one voice: brand-tinted, medium, hover-underlined) — an internal
+ * route, never unfurled (the unfurl is for external http(s) only).
+ */
+function HashtagLink({ tag, children }: { tag: string; children: React.ReactNode }) {
+  const routed = useInRouterContext();
+  const props = {
+    className: 'text-brand-300 font-medium hover:underline rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+    'data-testid': 'post-body-hashtag',
+    onClick: (event: React.MouseEvent) => event.stopPropagation(),
+  };
+  const href = `/tag/${encodeURIComponent(tag)}`;
+  return routed ? <Link to={href} {...props}>{children}</Link> : <a href={href} {...props}>{children}</a>;
+}
+
 function BodyLink({ href, children, density = 'full' }: { href?: string; children?: React.ReactNode; density?: Density }) {
   if (!href) return <>{children}</>;
   // A web10 mention: @[username](web10:username) → a tappable handle.
@@ -97,6 +115,9 @@ function BodyLink({ href, children, density = 'full' }: { href?: string; childre
   }
   const person = /^\/u\/([a-zA-Z0-9_-]+)$/.exec(href);
   if (person) return <ProfileMentionLink username={person[1]}>{children}</ProfileMentionLink>;
+  // A hashtag (D110): the body's `#tag` → the public board route.
+  const topic = /^\/tag\/([a-zA-Z0-9_]{1,30})$/.exec(href);
+  if (topic) return <HashtagLink tag={topic[1]}>{children}</HashtagLink>;
   const embed = parseEmbed(href);
   if (embed && isEmbeddable(embed)) {
     return (
@@ -224,7 +245,7 @@ export function PostBody({ text, density = 'full', className }: PostBodyProps) {
       data-testid="post-body"
     >
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkBreaks, remarkMentions]}
+        remarkPlugins={[remarkGfm, remarkBreaks, remarkMentions, remarkHashtags((tag) => `/tag/${encodeURIComponent(tag)}`)]}
         rehypePlugins={[[rehypeSanitize, sanitizeSchema]]}
         urlTransform={postUrlTransform}
         components={light ? lightComponents : fullComponents}
@@ -276,7 +297,7 @@ export function PostBodyInline({ text, className }: PostBodyInlineProps) {
   return (
     <span className={cn('post-body text-foreground break-words', className)} data-testid="post-body-inline">
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkBreaks, remarkMentions]}
+        remarkPlugins={[remarkGfm, remarkBreaks, remarkMentions, remarkHashtags((tag) => `/tag/${encodeURIComponent(tag)}`)]}
         rehypePlugins={[[rehypeSanitize, sanitizeSchema]]}
         urlTransform={postUrlTransform}
         components={inlineComponents}

@@ -429,6 +429,7 @@ export default function PostComposer({
   onRepostCancel,
   groups,
   editingPost,
+  draftText,
   compact = false,
   chromeless = false,
   onQueueMediaPost,
@@ -461,6 +462,7 @@ export default function PostComposer({
    * fires `post-created`, the screens reload and pick up the edit).
    */
   editingPost?: PostRecord;
+  draftText?: string;
   /**
    * Compact (collapsed) mode: the composer rests as a single-line "What's on
    * your mind?" bar and expands to the full form on focus. The Discover
@@ -481,7 +483,7 @@ export default function PostComposer({
   // Whether the caption has content — a cheap boolean, NOT the markdown. The
   // markdown is computed on demand at submit (a full turndown walk on every
   // keystroke is what made typing laggy). The editor owns the document.
-  const [hasText, setHasText] = useState(!!editingPost?.text);
+  const [hasText, setHasText] = useState(!!(editingPost?.text || draftText));
   // The post's two bodies of text (D82): `title` (the optional headline) +
   // `text` (the caption). The title leads a card / watch header / short
   // overlay; the caption is the longer body. Optional — a post with no title
@@ -588,7 +590,7 @@ export default function PostComposer({
     // Edit mode: the stored `text` is markdown, but Tiptap seeds from HTML —
     // convert it (the inverse of the turndown write) or the editor would show
     // the raw `**bold**` syntax instead of **bold** (D85, the write side).
-    content: markdownToHtml(editingPost?.text || ''),
+    content: markdownToHtml(editingPost?.text ?? draftText ?? ''),
     onFocus: () => setFocused(true),
     onBlur: () => setFocused(false),
     // The markdown is NOT computed here — a full turndown walk of the document

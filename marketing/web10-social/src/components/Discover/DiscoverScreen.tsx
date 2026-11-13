@@ -37,6 +37,7 @@ import {
 import { cn } from '@/lib/utils';
 import { PRESETS, getPreset, knobStateToSort, scorePost, FIXED_CHARACTER_DETEENT, type PresetId, type KnobState, type PowerMeanSortConfig, defaultKnobState } from '@/lib/powerMean';
 import { KnobRack } from './KnobRack';
+import { TopicFilter } from './TopicFilter';
 import { HotGossipSidebar } from './HotGossipSidebar';
 import DiscoverExploreTab from './DiscoverExploreTab';
 // The feed's PostCard is the reference post renderer (the X-style card —
@@ -127,7 +128,7 @@ function navigateToUserProfile(username: string, provider: string) {
 
 function buildTopics(tags: string[]): string[] {
   const unique = Array.from(new Set(tags)).sort();
-  return unique.slice(0, 12);
+  return unique;
 }
 
 // ── Discover board card ──────────────────────────────────────────────────────
@@ -1064,20 +1065,21 @@ function DiscoverBoard({ mode }: { mode: Exclude<DiscoverMode, 'people'> }) {
   }, [posts, knobState, activeKey, sourceControl.home]);
 
   const topics = useMemo(
-    () => ['All', ...buildTopics(scoredPosts.flatMap(p => p.tags ?? []))],
+    () => buildTopics(scoredPosts.flatMap(p => [...(p.tags ?? []), ...(p.hashtags ?? [])])),
     [scoredPosts],
   );
 
   const visiblePosts = useMemo(() => {
     let filtered = scoredPosts;
     if (activeTag && activeTag !== 'All') {
-      filtered = filtered.filter(p => p.tags?.includes(activeTag) ?? false);
+      filtered = filtered.filter(p => p.tags?.includes(activeTag) || p.hashtags?.includes(activeTag));
     }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       filtered = filtered.filter(p =>
         (p.text ?? '').toLowerCase().includes(q) ||
         (p.tags ?? []).some(t => t.toLowerCase().includes(q)) ||
+        (p.hashtags ?? []).some(t => t.toLowerCase().includes(q.replace(/^#/, ''))) ||
         (p.author ?? '').toLowerCase().includes(q),
       );
     }
@@ -1157,45 +1159,9 @@ function DiscoverBoard({ mode }: { mode: Exclude<DiscoverMode, 'people'> }) {
           </div>
 
           {/* Topic filter chips */}
-          {topics.length > 1 && (
+          {(topics.length > 0 || activeTag !== 'All' || searchParams.get('topics') === '1') && (
             <div className="px-4 py-3 md:px-4 lg:px-6">
-              <div
-                className="flex gap-2 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-                role="tablist"
-                aria-label="Filter by topic"
-              >
-                {topics.map(t => {
-                  const active = t === activeTag;
-                  return (
-                    <button
-                      key={t}
-                      type="button"
-                      role="tab"
-                      aria-selected={active}
-                      data-testid="discover-topic"
-                      onClick={() => {
-                        setActiveTag(t);
-                        const params = new URLSearchParams(searchParams);
-                        if (t === 'All') {
-                          params.delete('tag');
-                        } else {
-                          params.set('tag', t);
-                        }
-                        setSearchParams(params);
-                      }}
-                      className={cn(
-                        'shrink-0 rounded-full border px-3 py-1.5 text-sm transition-colors',
-                        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                        active
-                          ? 'border-brand bg-brand-muted text-brand-300'
-                          : 'border-border bg-surface text-muted-foreground hover:text-foreground',
-                      )}
-                    >
-                      {t === 'All' ? 'All' : `#${t}`}
-                    </button>
-                  );
-                })}
-              </div>
+              <TopicFilter topics={topics} activeTag={activeTag} />
             </div>
           )}
 
@@ -1340,7 +1306,7 @@ function DiscoverBoard({ mode }: { mode: Exclude<DiscoverMode, 'people'> }) {
                   <HotGossipSidebar
                     entries={scoredPosts
                       .filter(p => !isForeignPost(p))
-                      .filter(p => activeTag === 'All' || (p.tags?.includes(activeTag) ?? false))
+                      .filter(p => activeTag === 'All' || p.tags?.includes(activeTag) || p.hashtags?.includes(activeTag))
                       .slice(0, 10)
                       .map((p, i) => ({ post: p, rank: i + 1, score: (p.likes || 0) + (p.comments || 0) + (p.reposts || 0) }))}
                     onSelect={jumpToPost}
