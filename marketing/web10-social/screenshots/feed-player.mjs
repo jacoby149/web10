@@ -138,10 +138,12 @@ try {
     assert.equal(fabBox.height, 48, 'compact 48px compose control, not the old 64px orb');
     assert.ok(mobile ? fabBox.width === 48 : fabBox.width > 48 && fabBox.width <= 160, 'icon on mobile, labelled desktop pill');
     assert.equal(await fab.evaluate(el => getComputedStyle(el).backgroundImage), 'none', 'no purple gradient fill');
+    assert.equal(await fab.evaluate(el => getComputedStyle(el).boxShadow), 'none', 'no dark shadow halo or inset ring');
     assert.equal(await fab.locator('span').isVisible(), !mobile, 'desktop New post label');
     await page.keyboard.press('Tab');
     await fab.focus();
     assert.equal(await fab.evaluate(el => el.matches(':focus-visible')), true);
+    assert.equal(await fab.evaluate(el => getComputedStyle(el).outlineStyle), 'solid', 'keyboard focus keeps a real outline without a shadow');
     await page.keyboard.press('Enter');
     await page.getByRole('dialog', { name: 'New post', exact: true }).waitFor();
     assert.equal(await page.evaluate(() => window.musicElements.at(-1).paused), false, 'opening composer retains playback');

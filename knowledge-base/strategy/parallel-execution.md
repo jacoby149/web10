@@ -8,6 +8,8 @@
 ### Lane: music-feed-player-repair
 **Owns:** social Music components/context, Feed media handoff, local glass-lens reuse and shell clearance, the shared InlineVideo native-event/control-state synchronization, focused social tests and screenshot fixtures; serialized KB updates. No marketing-specific screen, API, SDK, auth or deployment changes.
 
+- [✓ 6.2.4 local] **Remove the New post shadow halo** — reproduce its inset plus floating shadow, remove both only for this control and retain the thin border/frost/player clearance. Explicit keyboard-focus outline remains visible. Sixteen both-theme/four-width browser cases, 42 focused tests/build/typecheck and inspected desktop/375px captures pass. No deployment; include through dev before production promotion.
+
 - [✓ 6.2.3 local] **Quieten the New post control** — replace the rejected 64px purple orb with a 48px neutral frosted control, mobile plus and desktop label; retain action/visibility/focus and measured player clearance. Old-sizing browser repro, 42 focused tests/build/typecheck and sixteen both-theme/four-width browser cases pass. Keyboard activation opens the composer without stopping music; desktop/375px idle/playing captures inspected. No publication or deployment.
 
 - [✓ 6.2.2 local] **Keep desktop posting reachable during music** — reproduced player-covered New post action; measured desktop clearance now complements mobile clearance. Sixteen final browser cases verify geometry and click into the real composer while music continues; production build/typecheck passes, desktop/375px captures inspected. No post submission or deployment.

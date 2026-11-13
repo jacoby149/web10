@@ -30,10 +30,9 @@ export function NewPostFab({ hidden = false }: { hidden?: boolean }) {
         openComposer();
       }}
       className={
-        'chrome-compose-position chrome-compose-control chrome-glass chrome-floating fixed right-4 md:right-6 md:bottom-6 z-30 ' +
+        'chrome-compose-position chrome-compose-control chrome-glass fixed right-4 md:right-6 md:bottom-6 z-30 ' +
         'flex h-12 w-12 items-center justify-center gap-2 rounded-full border border-border md:w-auto md:px-4 ' +
-        'text-sm font-medium text-foreground transition-colors duration-150 motion-reduce:transition-none ' +
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background'
+        'text-sm font-medium text-foreground transition-colors duration-150 motion-reduce:transition-none'
       }
     >
       <Plus className="h-5 w-5 text-brand-300" strokeWidth={1.75} aria-hidden="true" />

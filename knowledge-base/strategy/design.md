@@ -508,6 +508,9 @@ gradient orb with a quiet 48px neutral frosted control. Mobile keeps a compact
 plus; desktop adds a readable New post label in a pill. No saturated fill,
 persistent glow ring, bounce or refraction. Retain keyboard focus, hover/pressed
 feedback, theme/accessibility fallbacks and clearance above the music player.
+Remove the broad floating shadow and inset highlight from this control: they
+leave an unwanted dark halo. Keep only the thin border at rest and an explicit
+2px outline during keyboard focus; other glass surfaces retain their shadows.
 
 **Operator correction, same day:** retain the pill dock but remove the broad
 painted gradient, particularly in dark mode. Trial a real SVG displacement
