@@ -33,9 +33,10 @@ private Spaces in the droplet region plus a canonical MinIO copy alongside V2,
 both manifest/digest verified. No public posting before freeze and operator
 review of the 1M statistics; any approved public release comes from MinIO.
 
-**Current source capture after dev integration:** `core-feed-wire-v6.json` plus
-cursor `core-feed-next-page-v4.json`. v6 refreshes only the merged profile type
-source pin; the four request payloads are exactly unchanged from v5. Historical
+**Current source capture after dev integration:** `core-feed-wire-v7.json` plus
+cursor `core-feed-next-page-v5.json`. The merged hashtag/directory changes alter
+feed/SDK/posts/types source pins; all four request payloads and cursor SQL are
+exactly unchanged from wire v6 / cursor v4. Historical
 fixtures/receipts remain intact. This required test fixture is not disposable
 generated-report clutter; no network or benchmark execution occurs in capture CI.
 
