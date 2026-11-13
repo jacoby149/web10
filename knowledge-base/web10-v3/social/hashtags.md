@@ -123,7 +123,7 @@ keystroke or persist tokens/counts. Stale query/account/scope replies cannot
 repopulate a new picker. Loading, empty (keep typing to create a new hashtag)
 and retryable failure states retain the draft. No node endpoint/schema change.
 
-**5.35.0 local receipt:** 2,630 social/379 marketing tests, both production
+**6.1.0 local receipt:** 2,630 social/379 marketing tests, both production
 builds/typechecks, 51 responsive Chromium cases and the existing 18 `@`-picker
 journeys pass. Inspect desktop/375px light/dark and async-state captures under
 `.context/hashtag-autocomplete/`. `screenshots/hashtag-query.py` runs the actual
