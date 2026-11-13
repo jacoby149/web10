@@ -63,6 +63,23 @@ SQL differences are deliberate, not approximate substitutions:
 - `lagInFrame` compares adjacent deliveries for the same post/reader/surface.
   First rows have a nullable predecessor; they are not compared with epoch zero.
 
+## Execution choices without semantic change (13 November)
+
+The 50 checks keep their exact meanings; only execution choices move. Admitted
+join checks project narrow build sides and use an in-memory hash build only
+while the exact measured build payload fits the check's fraction of the
+approved query memory (3/4 for pure streaming count joins, 1/2 where the query
+also carries a large set or aggregate); everything else retains the
+disk-capable grace_hash. Check 13 runs its exact total-good equivalent,
+building the engagement side instead of the exposure side. The exposures
+derivation carries the per-reader impression counts, so post_metrics no longer
+rescans content_events (five full-scale passes become four). A refused
+memory-limit failure under a hash build persists a per-check denial so resumes
+keep the disk-capable algorithm; the admission decision binds into each
+verdict's recorded settings. A host-measured calibration receipt may lower the
+conservative per-row overhead constant, never raise it. Full rule, proof and
+gates: `REALISM-CHECKPOINTS.md`.
+
 No generator functions or generator-provided reach summaries enter the checks.
 For cohort candidate counts, compute exact posts per author first, then join
 that single row to each cohort membership and sum. This preserves duplicate

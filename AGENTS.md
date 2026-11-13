@@ -872,10 +872,20 @@ knowledge-base/strategy/plan.md, CI workflows). If you're unsure, target `dev`.
 Research dataset generation remains DuckDB-based, but finished-record validation
 now defaults to isolated ClickHouse 24.8.14.39, not the measured node or a shared
 server. Preserve raw multiplicities and exact checks; receipts pin engine and
-validator dependencies, with no DuckDB fallback. Explicit bounded references/
-connected-feed oracle helpers remain separate. Native query limits are not a
-whole-process/disk guarantee; retain approved prep volume/reserve/compute gates.
-Contract: `research/experiments/costfn/REALISM-CLICKHOUSE.md`.
+validator dependencies, with no DuckDB fallback. The check phase is durable:
+per-check verdicts, derived-table markers and bound summary results are fsynced
+sidecars, and only an explicit `--resume` re-verifies and skips completed work,
+never a recorded false verdict. Join execution is an exact measured build
+payload against the approved query memory (in-memory hash only when
+measured-small, otherwise the disk-capable grace_hash; a refused hash build
+persists a per-check memory denial), and check 13 runs its exact total-good
+equivalent building the engagement side. All engine execution for this lane
+happens on the approved Digital Ocean host — no local ClickHouse/Docker runs.
+Explicit bounded references/connected-feed oracle helpers remain separate.
+Native query limits are not a whole-process/disk guarantee; retain approved prep
+volume/reserve/compute gates. Contract:
+`research/experiments/costfn/REALISM-CLICKHOUSE.md` +
+`research/experiments/costfn/REALISM-CHECKPOINTS.md`.
 
 `docker-compose.yml` brings the stack up locally (`*.localhost` vhosts).
 The target one-container experience (`docker run … web10/node`) is plan

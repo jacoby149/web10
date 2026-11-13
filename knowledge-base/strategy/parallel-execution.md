@@ -1688,6 +1688,30 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+- [~] **RD3-CHECKPOINTS — resume at the first unfinished check** — operator
+  directive: durable source/input/engine/profile-bound per-check verdicts and
+  derived UUID/count/query markers, fail-stop false verdicts, elapsed/internal
+  progress, and parity-proven small-build join choices. Follow-up directive
+  (13 November): address check 13 and the other checks through 50 that might
+  fail the lease — generalized exact-payload join admission for every join
+  check (narrow projected build sides; grace_hash whenever not measured-small;
+  memory-denial persistence so a refused hash build never loops on resume),
+  check 13's exact total-good flip building the engagement side, and the
+  merged exposures/impressions scan (five full-scale content_events passes
+  become four). Host-measured calibration receipt may lower the conservative
+  per-row overhead, never raise it. Owns research costfn
+  validator/checkpoint/calibration helpers/tests and exact worker-resume/CI
+  hunks plus KB. Gates: 50/50 floor/report parity, genuine kill/resume
+  identical-receipt drill, tamper/dataset/source/derived/FAIL controls, the
+  late-exposure mutation control, admission-gate/calibration-binding controls,
+  all existing suites, and verified predecessor import survival without
+  lineage relabeling. All engine execution is Digital Ocean host only — no
+  local Docker or native ClickHouse; floor re-pin, drill and calibration run
+  there. Build while the live staged run is untouched; restart only after
+  gates and measured projection beyond ~06:00 UTC. Old in-memory verdicts
+  never carry over; no lease extension, new host or upload.
+  Contract: `research/experiments/costfn/REALISM-CHECKPOINTS.md`.
+
 - [~] **RD3-VALIDATION-ENVELOPE: use planned node resources and bounded extra time** —
   operator approves 22-GiB ClickHouse / 28-GiB process on the existing 32-GiB
   host and explicitly selects up to four more hours, 06:50:22 UTC cleanup,

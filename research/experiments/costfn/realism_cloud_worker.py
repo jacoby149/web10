@@ -165,7 +165,7 @@ def _run(repo, floor_receipts=None, refresh_floors=None, reference_floor_prefix=
             from realism_resume import validation
             result=validation(result_path,output,manifest)
         if result is None:
-            result=validate(output,result_path,keep_work=True) if work_root is not None else validate(output,result_path)
+            result=validate(output,result_path,keep_work=True,resume=resume) if work_root is not None else validate(output,result_path)
         else:
             with lock:
                 status['reused_verified_validation']=True
