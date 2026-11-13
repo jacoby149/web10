@@ -53,6 +53,19 @@ try {
       await page.goto(`${base}?screen=posts&anon=1&signin-prompts=1`);
       await page.getByTestId('discover-grid').waitFor();
       await page.getByTestId('sign-in-prompt-feed').waitFor();
+      if (width < 768) {
+        const invitation = page.getByTestId('sign-in-prompt-feed');
+        assert.equal(await invitation.locator('h2').innerText(), 'Make yourself at home');
+        assert.ok((await invitation.locator('p').innerText()).includes('like posts, comment'));
+        assert.equal(await invitation.locator('svg').first().isVisible(), true);
+        const card = await invitation.boundingBox();
+        const action = await page.getByTestId('sign-in-button-feed').boundingBox();
+        const learn = await page.getByTestId('sign-in-learn-feed').boundingBox();
+        assert.ok(card.height <= 190, `mobile invitation is ${card.height}px tall`);
+        assert.ok(action.width < 200 && Math.abs(action.y - learn.y) <= 4, 'compact shared action row');
+      } else {
+        assert.equal(await page.getByTestId('sign-in-prompt-feed').locator('h2').innerText(), 'Your people. All in one place.');
+      }
       await page.evaluate(() => document.fonts.ready);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
       assert.equal(await page.evaluate(() => window.__signInClicks), 0);

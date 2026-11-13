@@ -44,6 +44,12 @@ tab and unrelated filters through refresh/history and sign-in; a successful
 session then shows the requested personal feed in place. Signed-in visitors see
 none of these invitations. No new credentials, grants, endpoints or auth policy.
 
+The mobile Discover invitation (below 768px) is a compact violet card with a
+visible people icon, “Make yourself at home”, the concrete like/comment/follow
+benefits and a side-by-side Sign in / learn-more row. Public posts remain below
+it; it is neither a full-screen gate nor another Following empty state. Desktop
+keeps the wide “Your people. All in one place.” treatment. Following stays unchanged.
+
 ## How Social Maps to Groups
 
 ```mermaid
