@@ -1772,6 +1772,10 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+- [✓ 6.6.0 tooling; live diagnostic OPEN] **RD4-SMOKE-TOOLS — isolated restore and serial diagnostic harness** — PR #1556, owns research restore/smoke/tests/CI/KB only. Sixteen network-free suites, five source-capture tests, focused Ruff and the initial head's two research CI checks pass; no conflicts. Twelve new controls pin digest/project refusal, bootstrap readiness and exact projected/count/view semantics. Live RD4-SMOKE, full pilot and publication/submission remain separate; this tick is tooling delivery only.
+
+- [~] **RD4-SMOKE — first connected derived-data diagnostic** — owns `research/experiments/costfn/` restore/smoke tools, tests and serialized KB/evidence only. Operator requests agency on retained host 618505005: one ordinary K=20 reader, excluded warm-up, three strictly sequential feed sequences. Fresh isolated node, unchanged policy/ten-second query limit/28–22 GiB envelope, independent outputs/live-delivery deltas and native receipts; preserve validated input/database. Two-hour/$0.50 incremental ceiling and existing 14 November 04:38:02 UTC host cleanup, no new machines/fleet/regeneration/publication/submission. Diagnostic receipt, including retained failures, is acceptance; full pilot, Spaces/statistics review and broader correctness/lifecycle gates remain separate.
+
 - [✓ 5.33.6 DO validation/results saved] **RD3 full 1M finished-record validation** — 50/50 exact checks pass on DO for 1M accounts/1.6B events; final check completes around 06:02:39 UTC on 13 November, supervisor success observed at 06:07:24 UTC with exit zero and original import markers unchanged. Original JSON and statistics summary: `research/experiments/costfn/dataset-validation/2026-11-13-1m/`. No repair/restart in this successful attempt. Bulk data/logs/checkpoints remain on the retained volume; operator statistics review, both verified private copies and connected pilot/full-study/public-release gates remain OPEN. No compute cleanup or new experiment.
 
 - [~] **RD3-CHECKPOINTS — resume at the first unfinished check** — operator
