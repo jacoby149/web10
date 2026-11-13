@@ -65,9 +65,20 @@ def validate(lease):
                 or not lease['created_epoch']<=approved<=previous):
             raise ValueError('invalid explicit four-hour validation extension')
         maximum=18*3600
+    budget_extension=lease.get('operator_validation_budget_approval')
+    if budget_extension:
+        approved=budget_extension.get('approved_epoch')
+        if (not validation_extension or budget_extension.get('max_compute_usd')!=40
+                or budget_extension.get('hourly_usd')!=.25
+                or budget_extension.get('previous_deadline')!=lease['created_epoch']+18*3600
+                or type(approved) not in (int,float)
+                or not lease['created_epoch']<=approved<=budget_extension['previous_deadline']
+                or lease['max_usd']!=40):
+            raise ValueError('invalid explicit validation budget approval')
+        maximum=40/.25*3600
     if not 0 < lease["deadline"]-lease["created_epoch"] <= maximum:
         raise ValueError("lease exceeds its explicitly approved lifetime")
-    if lease["max_usd"]!=5:
+    if lease["max_usd"]!=(40 if budget_extension else 5):
         raise ValueError("approved budget target required")
     if not lease.get("account_uuid"):
         raise ValueError("cloud account identity must be pinned")

@@ -1713,6 +1713,9 @@ starting.
   Contract: `research/experiments/costfn/REALISM-CHECKPOINTS.md`.
 
 - [~] **RD3-VALIDATION-ENVELOPE: use planned node resources and bounded extra time** —
+  - [✓ 5.33.1 applied/DO controls; restart OPEN] Operator raises total validation compute ceiling to $40 on the same host, superseding the earlier $5 limit below. Applied 24-hour window through 14 November 04:38:02 UTC; exact prior approval/clock/rate checks and 160h total lifetime ceiling. Watchdog and replacement host timer verified; existing 400-GiB volume retained and separately billed. Sixteen tests pass on DO; predecessor fails the new approval controls. Reconcile worker/query deadlines before restart; no new host, resize, upload or experiment. Evidence: `research/experiments/costfn/evidence/REALISM-BUDGET-20261113.md`.
+
+  Historical approval:
   operator approves 22-GiB ClickHouse / 28-GiB process on the existing 32-GiB
   host and explicitly selects up to four more hours, 06:50:22 UTC cleanup,
   same $5 total compute ceiling and unchanged 400-GiB Volume. Keep all exact

@@ -1508,6 +1508,9 @@ docs before code, per the rule at the top.
   host or upload is implicit.
 
 **13 November performance-envelope approval [~ RD3-VALIDATION-ENVELOPE]:**
+  - [✓ 5.33.1 applied/DO controls; validation restart OPEN] **Raise the validation compute ceiling to $40:** operator explicitly supersedes the $5 ceiling for this same host. Applied a 24-hour recovery window through 14 November 04:38:02 UTC; exact prior approvals and pre-expiry clock required, total lifetime bounded to 160h at $0.25/h. Independent watchdog updated; replacement host timer verified before old timer stopped. Existing 400-GiB volume retained and billed separately; sixteen lease tests pass on DO, including predecessor-failing approval controls and no volume-deletion cleanup. Worker/query deadlines must be reconciled before restart; no new host, resize or experiment. `research/experiments/costfn/evidence/REALISM-BUDGET-20261113.md`.
+
+Historical approval (superseded by the $40 directive above):
 operator directs validation to use the planned node's 22-GiB ClickHouse / 28-GiB
 process envelope on the existing 32-GiB host, with correctness unchanged and
 lenient execution time. Explicit choice “Approve 4h (Recommended)” authorizes
