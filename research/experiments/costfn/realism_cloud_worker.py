@@ -106,7 +106,7 @@ def _run(repo, floor_receipts=None, refresh_floors=None, reference_floor_prefix=
         from realism_validate import validate,verify_floor_receipts
         here=Path(__file__).resolve().parent
         with lock:
-            status["sources"]={name:sha(here/name) for name in ("realism_contract.py","realism_dataset.py","realism_validate.py","realism_cloud_worker.py")}
+            status["sources"]={name:sha(here/name) for name in ("realism_contract.py","realism_dataset.py","realism_validate.py","realism_clickhouse.py","realism_cloud_worker.py")}
         floors=[] if skip_floor_gates else (list(floor_receipts) if floor_receipts else [here/"evidence/realism-10k-20261111-v4.json",here/"evidence/realism-100k-20261111-v4.json"])
         if skip_floor_gates:
             print('[cloud-prep] OPERATOR SKIP: no repeated floor/parity prerequisites; direct 1M generation, final validation retained',flush=True)

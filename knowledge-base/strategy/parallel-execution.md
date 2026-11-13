@@ -75,6 +75,26 @@ says what can happen **at the same time**.
 
 ## Lanes
 
+### Lane: social-join-entry
+
+- [✓ 5.32.1 local; CI pending] **Compact mobile Discover invitation** — operator likes the desktop violet card and Following state; mobile Discover now has a visible people icon, “Make yourself at home”, concrete benefits and a compact Sign in / learn-more row above public posts. Owns only shared SignInPrompt, focused browser assertions and this lane's records. Desktop/Following and existing auth actions unchanged. Retained failing-before mobile-heading receipt; eight both-theme 375/768/1280/1440 geometry/keyboard/44px/public-content/signed-in parity cases, all 2,602 tests and build pass. Desktop/375px captures inspected in `.context/sign-in-prompts/`. All PR checks remain the merge gate; no auth or rollout change.
+
+- [✓ 5.32.0 local; CI pending] **Signed-out feed sign-in invitations** — header/sidebar/feed entry points explain why to sign in; selectable Following is an explicit URL-owned invitation, never a private read before login. Owns social Layout/PostsScreen/shared SignInPrompt, focused tests and fixtures. All 2,602 social tests plus the singleton-fixture control and production build pass after current-dev integration. Eight seeded theme/375/768/1280/1440 cases verify 3 desktop/2 phone actions, callbacks, keyboard/44px targets, public content and signed-in parity; screenshots inspected. Eight separate actual-app cases verify popup opening and Following history/reload; eight real local signup/return/password/Following journeys verify contracts, token handoff, selected-tab return and reload. Existing handler/contracts only, no auto popup/browsing wall/auth policy change. Captures: `.context/sign-in-prompts/`; all PR checks and hosted/phone acceptance remain separate.
+
+  Fixture scope: preserve stable `mock-v3.ts` client identity (a fresh object triggers infinite ownership-effect resets); the executable `screenshots/client-identity.test.mjs` check is wired into existing package test/check commands without new dependencies. Harness callbacks/Join route and the signed-out capture script remain fixture-only; no credential or SDK implementation change.
+
+- [✓ 5.32.0 local; CI pending] **Repair the stale groups-directory E2E page size** — explicitly approved PR #1530 unblock, owning only that `e2e/tests/groups-demo.spec.ts` scenario. At most five 100-result pages preserve the former 500-result scope and every listed/hidden/metadata assertion. Identical prior failure in #1530 job 131626497068 and merged #1524 job 131596477205. The actual repaired Playwright test passes on real FastAPI/ClickHouse with 105 earlier listed groups forcing its target onto page two; captured offsets are exactly 0/100 at limit 100. Local transport proxy only, no fixture responses; disposable node removed. No API limit/policy change; all PR checks remain the merge gate.
+
+- [✓ 5.32.0 local] **Keep the homepage browse-first; share `/join` to promote signup** — operator follow-up: homepage `/` always opens `/feed`, signed in or not. The marketing pitch stays at explicit `/join` only. Signed-out root/no-popup regression fails before the correction; eight browser cases verify root/feed/reload and direct join. Existing join auth and public content links unchanged.
+
+**Owns:** social `Join/JoinScreen.tsx`, App's public root/join routes, focused app/landing tests and browser fixture; serialized social overview/plan/lane/changelog records. Reuses auth handler read-only; no SDK, authenticator, API or deployment changes.
+
+- [✓ 5.32.0 local] **Social join landing** — public shareable `/join` marketing entry; homepage `/` always opens `/feed` for signed-in and anonymous visitors. Existing auth handler and confirmed-session transition to `/feed`, signed-in join skip and Explore first retained. Focused route/CTA/blocked-popup/auth-transition controls and build pass. Actual-app Chromium passes both themes at 375/768/1280/1440: root/feed/reload, direct join, artwork, bounds, targets/focus, appearance/back, blocked-popup keyboard retry, popup cancellation and explore/back. Desktop/375px captures inspected in `.context/social-join/`. Visual-fixture auth destination is isolated; completed real-node handoff is recorded below. Public content links stay direct; no deployment.
+- [✓ 5.32.0 local connected] **Social join connected acceptance** — six real browser journeys pass: signup/consent, remembered-account return and password login at desktop/375px. Join opens the real auth app with the social contract; approval hands a real token to the app, auth closes automatically and `/feed` settles with enabled Following/composer; reload preserves the session. Cancellation/retry retains the join page. Real apps/SDK/FastAPI/disposable ClickHouse, loopback forwarding without fixture response bytes, no seeded browser token/pre-granted social contract; grant readback and inspected feed/consent captures in `.context/social-join-connected/`. Earlier eight-case browser gate covers blocked-popup recovery. Runtime auth behavior unchanged, no production writes/deployment; live verification/contact delivery/phone acceptance remain separate.
+- [ ] **Social join production acceptance** — after normal reviewed/green release and explicitly approved deployment, verify the hosted Join → configured auth → contract approval → signed-in `/feed` journey for new and returning accounts at desktop and on a physical phone. Owns acceptance evidence only; application/SDK/API behavior unchanged. Gates: rollout approval, approved test accounts and any contact-verification/send permissions. Acceptance: actual HTTPS/origin/session handoff, persisted grants, usable feed/reload and cancellation/retry without a second entry page; record browser/device and retained failures. No live signup, message delivery or deployment by implication.
+
+Local verification for 5.32.0 after dev integration: all 2,590 social tests (177 files), media-renderer ownership guard and production build/typecheck pass. All eight browser layout cases and six real-account local connected journeys also pass again on the integrated source; hosted/physical-phone acceptance remains open.
+
 ### Lane: torah-anytime-partnership
 
 **Owns now:** `whitelabel-demo/` operating docs/private-state conventions, `knowledge-base/strategy/torah-anytime.md`, its partner entry in `outreach.md` and serialized plan/lane/changelog records. No existing application/deployment runtime directory ownership. DEMO/TA1–TA3 implementation bites must coordinate existing social, authenticator, generic API/security, importing and deployment owners before code changes. Contract: `torah-anytime.md`.
@@ -244,6 +264,10 @@ from independent UI changes when publishing; no all-scope security PR.
 - [ ] **Connected acceptance and unresolved reports** - isolated synthetic publish/read to self+Discover, human audit and revoked/bystander denial; coordinated compiler/social deployment, original follower-zero and paste-freeze reproduction. Gates: local repairs above, isolated stack, no production credentials or settings changes. Acceptance: real attachments/audit/rendering proven and original failures reproduced or explicitly left open, not mocked-away. Owns lane paths above and focused e2e tests.
 
 ### Lane: people-community-discovery (this workspace)
+
+- [✓ 5.31.7 local] **People filter row clearance** — 12px `pb-3` below the All/Following/Mutuals/Followers chips in social `DiscoverExploreTab.tsx` (they touched the first card; the groups row already had both paddings). New unit control in `discoverScreen.test.tsx` (repro-gated) + self-booting `screenshots/people-spacing.mjs` gate: all four filters via `?personFilter=` fresh loads, both themes, 1440/375/768/1280, chip-to-content clearance 0px→12px and balanced row padding asserted; harness `entry.tsx` forwards the param. No ranking/API/auth/deployment change.
+
+- [✓ 5.31.5 local] **People/Groups compact sort chips** — shared DirectoryControls/selector, focused social/marketing tests/browser fixture and directory records. Two preset chips replace the dropdown; rejected dial/box removed. Profiles say Most followers / Newest; Groups say Most members / Newest. URL/history, Advanced and sources preserved. All 2,585 social/379 marketing tests, both builds/typechecks and both-theme four-width browser gates pass; desktop/375px captures inspected in `.context/sort-chips/`. No ranking/API/auth/deployment change.
 
 - [✓ 5.30.1 local] **Match the other pages' Advanced mixer disclosure** — shared DirectoryControls, focused tests/browser fixtures and KB records only. Same left-aligned Advanced / Hide controls, sliders/chevron and tucked animated/inert chassis in both apps; keep Sort by visible and preserve source weights/sorts. All 102 social/106 marketing focused controls, both builds and both-theme four-width actual-app browser controls pass; desktop/375px collapsed/expanded captures inspected. No ranking, API, approval or deployment change.
 
@@ -1664,7 +1688,98 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
-**Current run (12 November 12:53 UTC):** approved new 14-hour NYC3 prep lease
+- [~] **RD3-VALIDATION-ENVELOPE: use planned node resources and bounded extra time** —
+  operator approves 22-GiB ClickHouse / 28-GiB process on the existing 32-GiB
+  host and explicitly selects up to four more hours, 06:50:22 UTC cleanup,
+  same $5 total compute ceiling and unchanged 400-GiB Volume. Keep all exact
+  checks; preserve the documents exit-241 failure and completed 1.6B-event/
+  doc_groups imports. Verify compatible importer/source/UUID/count before
+  reusing completed work across a resource-policy change; no forged markers,
+  new host, resize, statistical tolerance waiver or experiment authorization.
+  - [✓ 5.32.2 controls/restart; full validation OPEN] Explicit
+    performance profile sets 22-GiB ClickHouse/28-GiB process and deadline-clamped
+    four-hour queries. Only the reviewed predecessor's exact lineage and
+    unchanged parsed importer semantics may cross source changes; all-file
+    hashes/UUID/count still verify, old context/markers remain unchanged and
+    derived checks rerun. Thirteen offline suites/eight actual-engine controls,
+    five Bun tests/Ruff and current-contract 10k/16M floor (50/50, exact report
+    parity) pass. Same-host restart 02:52:02 UTC after native smoke; readback
+    verifies 28-GiB MemoryMax/four CPUs. At 02:53:40 UTC all files are reverified,
+    old imports are UUID/count-verified/reused and documents reads exceed
+    22.49M/88.2M; unmarked prior documents preserved. Unchanged
+    06:40 worker/06:50 cleanup; full 1M outcome OPEN. Owns validator/entrypoint/tests,
+    exact preparation lifecycle hunks and serialized KB; no API/UI/SDK edits.
+  - [✓ 5.31.6 lease controls/applied; profile/restart OPEN] Exact +4h requires
+    the real initial 14h approval and correct pre-expiry clock; twelve controls
+    pass. Scoped local watchdog source/lease and verified host-stop timer now
+    target 06:50:22 UTC, with the old timer stopped only after replacement.
+    Same $5 ceiling/400-GiB Volume; no new host or resize. The documents-failed
+    worker stays stopped at its old memory limits; 22/28-GiB configuration,
+    compatible checkpoint reuse and restart remain the next task.
+
+- [✓ 5.31.4 controls/retry; full 1M OPEN] **RD3-IMPORT-RETRY: repair the import execution budget and retry** — owns
+  ClickHouse validator/tests, preparation lifecycle hunks and serialized KB.
+  Confirmed failure: 1800-second timeout at 450,020,966 imported events, with
+  no observed OOM and ~315 GiB free. Four bounded CPU threads, unchanged query/
+  service memory/disk guards, longer query budget bounded by the same lease,
+  useful read progress and input/source/engine-bound whole-import completion
+  markers. Gate exact parity, interruption/unmarked-partial refusal and stale
+  marker denial before retrying the existing bytes. No unsafe prefix offset,
+  new resources, resize, lease extension or claimed 1M pass.
+  Thirteen real-engine controls/fourteen offline suites/five Bun/lint pass;
+  existing 10k/16M input passes 50/50 with exact reference report parity. Retry
+  starts 01:31:34 UTC on host 618505005 with four CPUs, unchanged 12-GiB service/
+  2-GB query memory and mounted reserve, runtime shortened to the same deadline.
+  Retain old partial/negative result; full validation still open. Evidence:
+  `evidence/REALISM-IMPORT-RETRY-20261113.md` under costfn.
+
+**Latest operator direction, 12 November:** switch the finished-dataset
+validator to ClickHouse, not another DuckDB partition repair. Do not deploy or
+restart the stopped paid worker until translated checks pass real-engine
+controls. Keep generated bytes and all failures; no new paid resources,
+approximate counts, automatic DuckDB fallback or lease extension.
+- [✓ 5.31.3 code/local/native smoke; full 1M OPEN] **RD3-CLICKHOUSE: switch finished-record validation to ClickHouse** —
+  owns `research/experiments/costfn/` validator/worker/admission tests and
+  serialized KB. Gates: all 50 named verdicts and exact statistical summaries
+  agree with the bounded reference; mutated references, timings, duplicates,
+  null-join and deletion-tie fixtures deny as before. Pin actual engine plus
+  validator dependencies in receipts; preserve raw multiplicities and bounded
+  disk/memory/time behavior. Acceptance: default worker/CLI uses ClickHouse,
+  real-engine passing/broken-input evidence, no regeneration or claimed 1M pass.
+  Eleven real-engine controls, thirteen offline suites/five Bun/lint and the
+  existing 10k/16M input's 50/50 checks pass; exact statistical reports agree
+  with the bounded reference. Observed scratch is not 1M admission proof. Native
+  pinned package/source and 1M-event prefix smoke pass on the existing host.
+  Operator-proceeded resume starts 00:19:48 UTC Nov 13, reusing generated bytes;
+  400-GiB Volume, 02:50:22 cleanup/reserve/retention stay unchanged, with a
+  12-GiB/one-CPU aggregate service bound. Full 1M validation and storage/review/
+  connected/experiment gates remain OPEN; no new host/resize/lease extension.
+
+**Current run (13 November 01:31 UTC):** repaired native ClickHouse retry is
+active and reverifying the completed input, four CPUs with unchanged memory/
+volume/reserve/retention and 02:50 cleanup. The preceding run timed out on event
+import, not a statistical rejection; no full 1M pass or experiments.
+01:33 UTC: hashes reverified, app-contract/cohort completion markers written,
+event import active (45.97M rows read, not import completion), 336.67 GB free.
+
+**Prior run (13 November 00:20 UTC):** native ClickHouse resume starts on
+host 618505005 with the same completed input and 400-GiB Volume. Reverification
+precedes SQL checks; full 1M validation is not passed. Existing 02:50:22 cleanup,
+reserve and retention controls remain; no new resource or deadline extension.
+Source/setup/local gates: `evidence/REALISM-CLICKHOUSE-20261112.md` under costfn.
+00:22 UTC: generation reverification finishes; ClickHouse imports app contracts/
+cohorts and is actively importing events, 346.83 GB free, no reported error.
+Old DuckDB partition-directory counts do not describe this new validator.
+
+**Prior incident checkpoint (12 November 21:30 UTC):** generation complete for
+`2d6bbc4d89df`, all nine final size/SHA/source/identity checks pass. Global event
+sorting exhausted volume scratch and the reserve guard stopped validation at
+19:19 UTC. Clear only inventoried disposable spill (327.48 GB), preserve final
+input/old DB/partitions/logs. Radix repair controls and local 10k/16M validation
+pass; same-host probes/restart/full 1M validation remain open. Evidence:
+`research/experiments/costfn/evidence/REALISM-RADIX-20261112.md`.
+
+**Launch history (12 November 12:53 UTC):** approved new 14-hour NYC3 prep lease
 `3ef3634d8983`; droplet `618505005` is generating the actual 1M input on a
 400-GiB persistent Volume, not root disk. Exact mount/UUID, source hashes and
 same-host unmount/remount readback pass. `persistent_work=true`; durable status/
@@ -1770,6 +1885,7 @@ floor rerun, raised engine limit or 1M validation/storage/experiment claim.
 
 - [~] **RD3-VALIDATOR-THROUGHPUT: avoid oversized first-pass validation partitions** — operator requests the execution-strategy fix after reviewing the extra rewrite. Owns `research/experiments/costfn/` validator/tests and serialized KB records. Size complete-key partitions from observed row volume upfront, bound writer/worker concurrency within the approved memory envelope, and add source/input-bound recovery checkpoints. Gates: exact all-column/multiplicity and complete-key parity, explicit aggregate resource bounds, interruption/stale-checkpoint refusal and measured same-host throughput. The earlier run is deleted (last retained snapshot 03:57 UTC; deletion verified 10:02:47 UTC Nov 12), not advancing. First bite is histogram-admitted one-pass sizing with bounded open writers/flush buffers and exact parity/local measurements. Parallel validation/checkpoints remain open; no unmeasured speed or 1M-validation claim.
   - [✓ 5.28.6 local only] **First-pass sizing and grouped writes:** volume-aware bucket planning and exact prewrite histogram admission; bounded 16-open-file/8192-row-flush destination-grouped write avoids the second Parquet rewrite and small-file churn. Exact multiset/key/schema/bound/refusal and setting-restoration controls pass. Three paired 2M-row local probes: median 3.50→1.91s, temporary Parquet 81.55→51.63MB; separate 128MB-engine probe passes (not RSS bound). Fresh current-contract 10k/16M-delivery validation passes all 50 checks. Larger-scale sorting scratch, cloud throughput, parallelism and verified recovery checkpoints remain OPEN.
+  - [✓ 5.31.2 local repair; cloud/1M OPEN] **Bound partition scratch without a global sort:** owns validator/tests and serialized KB records. At most 32 hash-digit destinations/writers per COPY; exact intermediate/final histogram counts, complete-key/all-column multiplicity parity, verified intermediate cleanup and failure retention. Keep 2 GB/one thread, add 100 GB spill cap. Seven controls, ten realism suites and local 10k/16M validation (50/50) pass. Same completed 1M bytes are hash-verified and retained; only inventoried failed-query spill is removed. Cloud probes/restart/full validation remain open; no new host/storage, regeneration, lease extension or experiment claim.
 - [ ] **RD3-RESTART-SAFETY: preparation disk survives compute loss** — latest operator direction is a real persistent Volume for one prep droplet, not a controller/archive/checkpoint framework. Owns research preparation/lease/volume tests and KB. Verify exact volume/mount identity, retained files/state/logs across compute replacement, separately approved storage retention/cost and scoped compute-only cleanup before another paid preparation. Keep hard compute spend controls and validation/archive acceptance gates. The old lease cannot reopen; new spend still needs approval. Actual attachment/replacement evidence remains OPEN.
   - [~] **RD3-RECOVERY: preparation-only persistent disk** — supersedes the 5.28.7 whole-workflow checkpoint proposal on explicit operator correction: “this is just for the data creation, this one droplet”; experiments retain normal output logs/results only. [✓ 5.29.0 local code] Actual provider-volume identity/size/region/account check before creation; worker CLI requires an exact mounted filesystem UUID and writes dataset/state/appended logs plus retained validation work there. Compute cleanup never deletes volumes. No custom workbench/checkpoint framework or experiment-runner changes; partial files are not automatic resume witnesses. Owns research prep worker/volume/lease/tests/KB only. Remaining gate: explicitly approved volume size/cost/retention, actual attach→compute replacement→file/log readback, then new bounded paid-run approval. No volume/host was provisioned or mounted by this change.
   - [✓ 5.28.6 historical; superseded 5.29.0] The previous metadata-only readiness gate is removed in favor of a real provider-volume lookup plus an exact mount/UUID check. Its offline receipts were never connected evidence. No framework remains to implement for experiment trials; retain their normal logs/results.

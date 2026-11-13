@@ -13,6 +13,7 @@ import '@fontsource-variable/inter/standard.css';
 import '@fontsource-variable/space-grotesk';
 import '../../src/index.css';
 import Layout from '@/components/Social/Layout';
+import JoinScreen from '@/components/Join/JoinScreen';
 import DmsScreen from '@/components/Chat/DmsScreen';
 import SettingsScreen from '@/components/Settings/SettingsScreen';
 import AppearanceScreen from '@/components/Settings/Appearance';
@@ -125,6 +126,7 @@ const screen = params.get('screen');
 // Anon mode (?anon=1): a signed-out visitor. The chrome is the anon shell
 // (Sign in affordance + public-only nav) and the default surface is Discover.
 const anon = params.get('anon') === '1';
+const onHarnessLogin = () => window.dispatchEvent(new Event('harness:login'));
 // The Discover board's URL-owned tuner state (?tune=1 expands the knob rack;
 // ?knobs=r,l,c,hl,ch deep-links the knob detents) — forwarded into the
 // router URL so captures can show the rack in a specific state.
@@ -195,7 +197,7 @@ if (screen === 'post-detail' || screen === 'group-post-detail') {
      : screen === 'groups-create' ? '/groups/web10%2Fgroups%2Fusers%2Fme%2Fnew-group?edit=1'
      : screen === 'chat-group-thread'
        ? '/messages/group/web10%2Fgroups%2Fusers%2Fnova%2Fchat-the-crew'
-       : screen === 'people' ? '/people'
+       : screen === 'people' ? `/people${params.get('personFilter') ? `?personFilter=${params.get('personFilter')}` : ''}`
        : screen === 'people-groups' ? '/people?section=groups'
        : screen === 'profile' ? '/u/nova'
        : screen === 'profile-me' ? '/u/me'
@@ -229,8 +231,9 @@ if (screen === 'post-detail' || screen === 'group-post-detail') {
       <MusicProvider sessionKey={anon ? 'anonymous' : 'web10/me'}>
       <UploadPreviewProvider owner={params.get('signed-out') === '1' ? null : previewOwner} scenario={screen?.startsWith('upload') ? previewScenario(params.get('scenario')) : 'empty'}>
       <Routes>
-        <Route element={<Layout onLogout={() => {}} onLogin={() => {}} isAnon={anon} onReportBug={() => {}} />}>
-          <Route path="/feed" element={<PostsScreen />} />
+        <Route path="/join" element={<JoinScreen onLogin={onHarnessLogin} />} />
+        <Route element={<Layout onLogout={() => {}} onLogin={onHarnessLogin} isAnon={anon} onReportBug={() => {}} />}>
+          <Route path="/feed" element={<PostsScreen onLogin={onHarnessLogin} />} />
           <Route path="/uploads" element={<UploadPreviewCenter />} />
           <Route path="/upload-compose" element={<UploadPreviewComposer />} />
           <Route path="/composer" element={<PostComposer editingPost={params.get('edit') ? { _id: 'audience-example', author_key: 'web10/groups/users/me/studio', posted_by: 'another-operator', title: 'The next chapter', text: 'A new film night, with the same people who made it possible.', created_at: '2026-11-02' } : undefined} />} />
@@ -260,7 +263,7 @@ if (screen === 'post-detail' || screen === 'group-post-detail') {
         </Route>
       </Routes>
       <MusicPlayer />
-      <UploadPreviewDock />
+       {params.get('signin-prompts') !== '1' && <UploadPreviewDock />}
       {/* D72: the install surface — forced open by ?pwa-prompt=1 for the capture. */}
       <InstallPrompt />
       {/* The app-level New Post sheet (the FAB in the Layout opens it). */}

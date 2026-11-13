@@ -9,8 +9,34 @@ budgets, read-only foreign cards and all-muted reload. Both themes at
 1440/375/768/1280; captures and receipt stay under the requested `.context/`.
 This is synthetic public-browser evidence, not independent HTTPS nodes or
 authenticated foreign app grants.
+The compact sort chips are exercised through native radio arrow keys and visible
+label taps, with focus/44px-target/history checks.
 
 ## System / Light / Dark appearance
+
+Signed-out invitations: `node screenshots/sign-in-prompts.mjs` captures the real
+shell/feed with seeded public content in both themes at desktop/375px, checks
+768/1280 bounds, all visible Sign in callbacks/keyboard targets, Following's
+invitation and signed-in parity. Captures/receipt: `.context/sign-in-prompts/`.
+These callbacks are fixtures; `join.mjs` separately checks actual-app routes,
+popup opening and Following history/reload, while `join-connected.mjs` drives
+the real-node Following sign-in return without dropping its selected tab.
+
+Social join entry: `node screenshots/join.mjs` checks the actual app at both
+themes and 375/768/1280/1440px. Captures/receipt go to `.context/social-join/`.
+The auth destination is a fixture: this checks popup opening, not login.
+
+Connected join: `node screenshots/join-connected.mjs` boots the real social,
+authenticator and FastAPI apps plus its own disposable ClickHouse 24.8 container.
+Requires Docker, uv and installed frozen dependencies in `api/`, `ui/` and
+`marketing/web10-social/`; loopback ports 4592–4594 must be free. It forwards
+three browser origins to these unprivileged ports without replacing response
+bytes, denies external traffic and drives real signup, consent, remembered-account
+return and password login from Join into `/feed` at desktop/375px. No injected
+browser token or pre-granted app contract. Local verification/contact policy is
+disabled; this is not live phone/email delivery or production acceptance. The
+runner stops its own servers/removes its own container, with captures and safe
+receipts under `.context/social-join-connected/`.
 
 Navigation glass trial: `SCREENSHOT_OUTPUT_DIR="$PWD/../../.context/navigation-glass" node screenshots/navigation-glass.mjs`
 boots/stops its own server and captures light/dark desktop/375px shell and menus.

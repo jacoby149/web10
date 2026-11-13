@@ -14,19 +14,21 @@ Original V2 generators, input files and receipts are not rewritten.
   generated original posts, a closed biased follower graph, eight K/locality
   cohorts, exposed liking/commenting actors, physical delivery events and ads.
   The Parquet files contain actual rows, not multiplicities counted as events.
-- `realism_validate.py`: independent finished-record SQL validation, canonical
+- `realism_validate.py` + `realism_clickhouse.py`: independent ClickHouse
+  finished-record SQL validation, canonical
   document version selection, distribution summaries, causal/reference checks,
   conservation, joint correlations, and per-reader candidate distributions.
   It does **not** import or replay the generator. Failed validation receipts
   are retained; validators/source changes cannot silently reuse floor passes.
-  Validation uses a 2 GB local working budget, one thread and spillable
-  unordered intermediates, distinct from the ClickHouse study allocation.
+  Validation uses ClickHouse 24.8.14.39 with a 2 GB query budget, one thread,
+  spill thresholds/cap and ordinary sorted MergeTree scratch, distinct from
+  the measured node's ClickHouse study allocation. See `REALISM-CLICKHOUSE.md`.
   Named stages identify preparation failures; loaded source must still match
   the file being stamped into a receipt.
-  Canonical histories are hash-partitioned on their complete version key;
-  delivery windows/distinct audiences are partitioned on post/reader. Row-count
-  reconciliation precedes per-bucket validation: no samples or discarded rows.
-  This bounds validator working state without altering the study envelope.
+  Raw imports retain duplicates; canonical version ranking and exact audience/
+  window queries run in ClickHouse, with input/import row-count reconciliation.
+  No default DuckDB repartitioning, sampling or silent fallback. Source/engine
+  pins are required on receipts; bounded DuckDB references cannot admit a run.
 - `Oracle` in that validator: expected feed IDs/order/profiles and counts from
   finished records. `core_feed.py` routes the new format to this oracle and
   refuses it before network work when none is provided. The V2 one-post checker

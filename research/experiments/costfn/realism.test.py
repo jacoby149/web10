@@ -299,7 +299,7 @@ class FinishedRecordGateTests(unittest.TestCase):
             isolated=importlib.util.module_from_spec(module_spec)
             module_spec.loader.exec_module(isolated)
             with redirect_stdout(io.StringIO()):
-                result=isolated.validate(directory,root/'receipt.json',keep_work=True)
+                result=isolated.validate_duckdb_reference(directory,root/'receipt.json',keep_work=True)
             self.assertNotIn('validator_execution',result['checks'])
             self.assertIn('authorship_nonposting',result['checks'])
             self.assertTrue(result['checks']['delivery_window'])

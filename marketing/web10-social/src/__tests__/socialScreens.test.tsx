@@ -1473,13 +1473,31 @@ describe('Layout', () => {
     expect(topbar).toHaveClass('h-14');
     expect(screen.getByTestId('sign-in-button-desktop')).toBeInTheDocument();
   });
+
+  it('anon sidebar explains why to sign in and uses the existing login handler', async () => {
+    const { default: Layout } = await import('@/components/Social/Layout');
+    const onLogin = vi.fn();
+    render(<MemoryRouter initialEntries={['/feed']}><Layout isAnon onLogin={onLogin} onLogout={() => {}} onReportBug={() => {}}><div>Public posts</div></Layout></MemoryRouter>);
+    expect(screen.getByTestId('sign-in-prompt-sidebar')).toHaveTextContent('like posts');
+    expect(screen.getByTestId('sign-in-learn-sidebar')).toHaveAttribute('href', '/join');
+    expect(screen.getByText('Public posts')).toBeInTheDocument();
+    expect(onLogin).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId('sign-in-button-sidebar'));
+    expect(onLogin).toHaveBeenCalledTimes(1);
+  });
+
+  it('signed-in sidebar does not render the sign-in pitch', async () => {
+    const { default: Layout } = await import('@/components/Social/Layout');
+    render(<MemoryRouter><Layout isAnon={false} onLogin={() => {}} onLogout={() => {}} onReportBug={() => {}}><div>Content</div></Layout></MemoryRouter>);
+    expect(screen.queryByTestId('sign-in-prompt-sidebar')).not.toBeInTheDocument();
+  });
 });
 
 describe('Anon shell (signed-out visitor)', () => {
   it('renders the Sign in affordance, not the login wall', async () => {
     const { default: App } = await import('@/App');
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/feed']}>
         <App />
       </MemoryRouter>
     );
@@ -1495,7 +1513,7 @@ describe('Anon shell (signed-out visitor)', () => {
   it('renders branding', async () => {
     const { default: App } = await import('@/App');
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/feed']}>
         <App />
       </MemoryRouter>
     );

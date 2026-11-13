@@ -65,6 +65,22 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
+- [✓ 5.32.1 local; CI pending] **Compact mobile Discover invitation** — visible people icon, “Make yourself at home”, like/comment/follow benefits and compact Sign in / learn-more actions in the violet card above public content. Desktop and Following unchanged. Retained mobile red→green browser receipt, both-theme four-width geometry/targets/keyboard/public-content/signed-in parity checks, all 2,602 tests and build pass; desktop/375px captures inspected. All CI remains the merge gate; existing auth only, no deployment.
+
+- [✓ 5.32.0 local; CI pending] **Signed-out feed sign-in invitations** — YouTube-style header/sidebar/feed reasons and actions without a browsing wall. Following's URL-backed explanation never mounts private feed data before login and retains the tab through real auth/reload. Existing popup/contracts and signed-in surface unchanged. All 2,602 social tests, fixture singleton control and build pass; seeded and actual-app both-theme four-width browser gates plus eight real local signup/return/password/Following journeys pass, with desktop/375px captures inspected. Initial concurrent full runs hit five-second test timeouts; the final single-worker run retains all assertions/timeouts. All PR checks and hosted/physical-phone acceptance stay separate.
+
+- [✓ 5.32.0 local; CI pending] **Repair the stale groups-directory E2E page size** — operator-approved PR #1530 unblock: at most five 100-row reads preserve the former 500-result scope and all listed/hidden/metadata assertions. Actual repaired Playwright scenario passes on a disposable real FastAPI/ClickHouse node with 105 earlier groups forcing the target onto page two; exact limit-100 offsets 0/100 verified. Same prior failure is independently recorded on merged #1524. No API limit/visibility change; repaired E2E shard/all checks remain the gate.
+
+- [✓ 5.32.0 local] **Keep the homepage browse-first; share `/join` to promote signup** — operator follow-up supersedes the earlier signed-out root pitch: `/` always opens `/feed`, whether signed in or not. `/join` remains the dedicated shareable promotion/signup page; its existing auth/contract handoff still enters `/feed`. Root/no-popup regression and browser root/reload/direct-join checks retain anonymous browsing.
+
+- [✓ 5.32.0 local connected] **Social join connected acceptance** — real local signup/consent/token handoff, remembered-account return and password login from `/join` into a settled `/feed` at desktop/375px pass. No seeded browser token or pre-granted social contract; cancellation/retry retains the join page. Automatic auth close, live persisted social grant, enabled Following/composer and reload persistence verified; feed/consent captures inspected. Self-booting real apps/SDK/FastAPI/disposable ClickHouse fixture, loopback transport forwarding only. Production verification/contact delivery and deployment stay separate; no application/auth-policy change.
+
+- [✓ 5.32.0 local] **Social join landing** — public shareable `/join` pitch inside web10-social; homepage `/` goes directly to `/feed` for everyone. Existing signup/login/consent callback enters `/feed`, signed-in join entry skips the pitch. Anonymous content deep links and Explore first retained. Route/CTA/blocked-popup/auth-transition controls and build pass; actual-app Chromium passes both themes at 375/768/1280/1440, with inspected desktop/375px captures. The visual fixture tests popup opening/cancellation/retry; completed real-node handoff is recorded separately above. No SDK/auth-policy/API/deployment change.
+
+- [✓ 5.31.7 local] **People filter pills clear the cards below them** — operator (12.11.2026, screenshot: "padding here messed up..."): the All/Following/Mutuals/Followers row had `pt-3` and no bottom padding, so the active pill touched the first card. Add `pb-3` (the groups row already carried both paddings); no card/list layout change. Unit control (repro-gated) + self-booting `screenshots/people-spacing.mjs` geometry gate across four filters × both themes × four widths (0px → 12px). No API/auth/deployment change.
+
+- [✓ 5.31.5 local] **People/Groups compact sort chips** — two preset chips matching the other boards; no dial or boxed panel after operator correction. Profiles say Most followers / Newest; Groups say Most members / Newest. Native radio keyboard navigation, independent URL sorts, search/history, Advanced and sources preserved. All 2,585 social/379 marketing tests, both builds/typechecks and both-theme 1440/375/768/1280 browser gates pass; desktop/375px captures inspected in `.context/sort-chips/`. No ranking/API/auth/deployment change.
+
 - [✓ 5.30.1 local] **Match the other pages' Advanced mixer disclosure** — replace People/Groups' separate Servers CTA with the same left-aligned Advanced / Hide controls treatment, icons/chevron and tucked animated/inert chassis in both apps. Sort by stays visible; URL state, weights and sorting are preserved. All 102 social/106 marketing focused controls and both builds pass; both-theme 1440/375/768/1280 browser checks plus inspected desktop/375px collapsed/expanded captures pass. No ranking, API, approval or deployment change.
 
 - [✓ 5.30.0 local; connected/review OPEN] **People/Groups server mixer and simple sort** — shared source rack in both directories; independent URL-owned Newest/Most followers and Newest/Most members, canonical creation and source ordering before pagination. No power mean. Real smooth quotas, mute/retry/separate offsets, approved dispatch, source-qualified read-only foreign cards and preserved home graph/actions. All 2,528 social/379 marketing/319 SDK/2,268 API tests plus eight subtests pass (one opt-in skip), both builds and changed-file lint/format pass. Actual-app synthetic browser checks both themes at 1440/375/768/1280; desktop/375px captures inspected. Faceless marketing retry loop and consecutive-fader stale-weight regression repaired. Contract/receipts: `web10-v3/social/directory-mixer.md`. Independent HTTPS-node/real-DB lifecycle, review/CI, foreign actions and rollout remain separate.
@@ -1463,7 +1479,114 @@ docs before code, per the rule at the top.
 
 ### Current directive — derived realism dataset (11 November 2026)
 
-**New run, 12 November 12:53 UTC:** new approved 14-hour preparation lease
+**13 November performance-envelope approval [~ RD3-VALIDATION-ENVELOPE]:**
+operator directs validation to use the planned node's 22-GiB ClickHouse / 28-GiB
+process envelope on the existing 32-GiB host, with correctness unchanged and
+lenient execution time. Explicit choice “Approve 4h (Recommended)” authorizes
+only this host through 06:50:22 UTC, still under the existing $5 total compute
+ceiling (18h at $0.25/h ≈ $4.50). No new host, volume resize or experiments.
+The 1.6B events and doc_groups import are complete; the documents import exits
+241. Preserve its failure, recover the full error, and reuse only verified
+source-compatible completed imports when changing resource policy. Do not
+silently reset checkpoints or claim the larger envelope guarantees success.
+  - [✓ 5.32.2 controls/restart; full validation OPEN] **Apply the
+    approved validation envelope:** explicit 22-GiB query/aggregate ClickHouse
+    profile, 28-GiB process/Docker bound and four-hour query ceiling clamped to
+    the unchanged lease. Explicit sibling-workspace reuse admits only the
+    reviewed predecessor's exact source/entrypoint with unchanged parsed import
+    semantics, engine/input inventory and original marker UUID/count; original
+    lineage stays immutable and current receipts pin new sources/resources.
+    Preserve unmarked partial imports and recompute derived checks. Local
+    offline suites, eight actual-engine controls, five Bun tests and Ruff pass;
+    current-contract 10k/16M floor passes 50/50 with exact report parity. Restart
+    02:52:02 UTC on the same host after native smoke, with verified 28-GiB
+    MemoryMax/four CPUs and unchanged 06:40 worker/06:50 cleanup deadlines.
+    At 02:53:40 UTC, all-file reverification completes and the four old imports
+    are actually UUID/count-verified and reused; documents reads exceed 22.49M
+    of 88.2M, with its unmarked prior table preserved. Full 1M outcome remains OPEN.
+  - [✓ 5.31.6 lease controls/applied; memory/restart OPEN] **Bounded validation
+    extension:** exact +4h after initial 14h, previous-clock/approval checks and
+    closed-lease refusal; twelve controls pass. Local watchdog source and lease
+    are updated; new 06:50:22 UTC host-stop timer is active and old 02:50 timer
+    stopped after replacement verification. Same $5 ceiling/400-GiB Volume;
+    no host creation, resize or validation restart. Memory remains 2-GB query/
+    12-GiB service until the separate profile/reuse repair is verified.
+
+**Current checkpoint:** approved profile/reuse repair restarts at 02:52:02 UTC;
+readback verifies 28-GiB process/four CPUs. At 02:53:40 UTC all files are
+reverified, the four completed imports are reused and documents reads exceed
+22.49M/88.2M; no completed documents/statistical-validation claim.
+Preserve the prior documents exit-241 receipt and completed 1.6B-event/doc_groups
+imports; original lineage is unchanged. The applied four-hour extension retains
+06:50:22 UTC cleanup and 06:40 worker stop, not a completed full validation gate.
+Evidence: `research/experiments/costfn/evidence/REALISM-VALIDATION-ENVELOPE-20261113.md`.
+
+**13 November timeout repair [✓ 5.31.4 controls/retry; 1M OPEN]:** the ClickHouse import stops
+at its 1800-second query limit with 450,020,966/1.6B rows, not an OOM/disk failure.
+Operator asks to fix and retry. Use four bounded CPU threads on the existing
+8-core host, retain the 2-GB query/12-GiB service memory and disk guards, and
+replace the undersized per-query timeout without extending the compute lease.
+Add visible read progress and input/source/engine-bound atomic whole-import
+markers; only verified completed imports may be reused. Preserve/refuse the
+unmarked 450M partial table. No guessed offsets, regeneration, new resources,
+storage resize or automatic spending extension; final 1M validation stays open.
+Thirteen real-engine controls/fourteen offline suites/five Bun/lint pass; the
+unchanged 10k/16M input passes all 50 checks with exact report parity. Retry
+starts 01:31:34 UTC on host 618505005, four CPUs/12-GiB aggregate service cap,
+4131-second runtime and query deadline shortened before the same 02:40 worker
+stop/02:50 cleanup. Old partial work/negative receipt remain. Evidence:
+`research/experiments/costfn/evidence/REALISM-IMPORT-RETRY-20261113.md`.
+
+**Operator amendment, 12 November:** switch finished-dataset validation from
+DuckDB to ClickHouse: “we should switch the duckdb to clickhouse for validation,
+i have more confidence + it matches the rest of our stuff”. Generation and
+frozen input bytes stay unchanged. No automatic DuckDB fallback, approximate
+counts, new paid resources or relaxed validation/lease gates. Translate and
+prove all 50 checks on passing and deliberately broken inputs before retrying
+the stopped 1M validation; retain the DuckDB implementation only as a bounded
+comparison/reference and for existing separate feed-oracle callers.
+- [✓ 5.31.3 code/local/native smoke; full 1M OPEN] **RD3-CLICKHOUSE: switch finished-record validation to ClickHouse** —
+  owns research validator/worker/admission tests and serialized KB records.
+  Preserve exact medians/quantiles, duplicate-sensitive raw imports, null-join
+  semantics, deletion-winning canonical documents, all 50 verdicts, source/engine
+  receipt binding and failed-result retention. Prove real-engine parity and
+  mutation denial, keep memory/spill/time limits and isolated persistent work.
+  Actual 1M throughput, storage/review/connected/experiment gates remain open.
+  Eleven actual-engine controls and thirteen offline suites/five Bun tests/lint
+  pass. Source-stable 10k/16M validation is 50/50, exact reports match the
+  bounded reference; sampled dataset+scratch peak 1.106 GB, not full-scale proof.
+  Native package/source checks and 1M-event prefix smoke pass on host 618505005.
+  At 00:19:48 UTC Nov 13, resume the same generated 1M input with ClickHouse;
+  no generator/floor rerun, resize, new host or deadline extension. Keep 400 GiB,
+  02:50:22 UTC cleanup, mounted reserve and retained volume; 12-GiB/one-CPU
+  service cap complements 2 GB/one-thread queries. Full validation remains open.
+
+**Current run, 13 November 01:31 UTC:** repaired ClickHouse resume is active,
+first reverifying the completed generation; four CPUs, unchanged memory/disk/
+retention/lease limits. Full validation remains open. The preceding run below
+timed out during event import; it did not reject the statistical dataset.
+01:33 UTC: hashes reverified; app-contract/cohort imports count-verified and
+marked complete; event import active with 45.97M rows read (not committed/import
+completion). About 336.67 GB free and no reported error.
+
+**Prior run, 13 November 00:20 UTC:** ClickHouse-backed resume starts on
+the same host/400-GiB Volume, reverifying the completed input before SQL checks.
+Source pins/native smoke/local 50-check gates are retained in
+`research/experiments/costfn/evidence/REALISM-CLICKHOUSE-20261112.md`. No new
+resource or extension; 02:50:22 UTC cleanup and final 1M validation gate remain.
+At 00:22 UTC, all generation hashes reverify and actual ClickHouse validation
+is importing events after app contracts/cohorts; 346.83 GB free, no reported
+error. This is not a passing 1M receipt or an overall completion estimate.
+
+**Prior incident checkpoint, 12 November 21:30 UTC:** all nine final files and the
+manifest exist for `2d6bbc4d89df`; exact source/identity/size/SHA reverification
+passes. Validation stopped at 19:19 UTC after the global event sort filled
+scratch with 327.48 GB of spill. Only inventoried disposable spill was cleared;
+dataset, old database/partitions/logs remain. Bounded radix repair controls and
+local 10k/16M validation (50/50) pass; cloud probes/restart and full 1M validation
+remain open. Evidence: `research/experiments/costfn/evidence/REALISM-RADIX-20261112.md`.
+
+**Launch history, 12 November 12:53 UTC:** new approved 14-hour preparation lease
 `3ef3634d8983`, droplet `618505005`, 400-GiB persistent work Volume. Pinned SSH,
 source hashes, exact mount/UUID and synced-file unmount/remount readback pass;
 the actual 1M generator is active with `persistent_work=true`. Compute deadline
@@ -1544,6 +1667,7 @@ floor rerun, memory-limit increase or validation/storage/experiment completion.
 
 - [~] **RD3-VALIDATOR-THROUGHPUT:** operator-requested first-pass volume-aware complete-key sizing, bounded writer/worker concurrency and source/input-bound recovery checkpoints. Preserve every row/check and the approved aggregate resource envelope; prove exact parity, interruption/stale refusal and measured same-host throughput before adoption. The earlier run is now deleted, not advancing: last retained snapshot 03:57 UTC, deletion verified 10:02:47 UTC Nov 12. First bite: histogram-admit correctly sized complete-key buckets before writing, bound open files/flush buffers and prove exact parity plus local resource measurements. Parallel validation/checkpoint orchestration remains separate, not inferred from this repair.
   - [✓ 5.28.6 local only] **Volume-aware first pass:** exact histogram before writing, grouped destinations and bounded open files/flush buffers remove the oversized-bucket rewrite without tiny-file explosion. Three paired 2M-row local medians 3.50→1.91s, temporary Parquet 81.55→51.63MB; exact controls and a fresh 10k/16M-delivery full validation (50/50) pass. Cloud/1M scratch/throughput, parallelism and restart checkpoints remain open; not full RD3 acceptance.
+  - [✓ 5.31.2 local repair; cloud/1M OPEN] **Bound partition scratch without a global sort:** replace grouped all-row sorting with at most 32 hash-digit writers per COPY, exact intermediate/final histogram conservation and verified intermediate cleanup. Preserve all columns/multiplicities/complete keys and 2 GB/one-thread settings; cap DuckDB spill at 100 GB. Seven controls, ten realism suites and local 10k/16M validation pass. Existing completed 1M input is hash-verified and preserved; no regeneration, extra host/storage or lease extension. Same-host probe/restart and full 1M validation remain separate gates; `REALISM-RADIX-20261112.md` records the incident.
 - [ ] **RD3-RESTART-SAFETY:** latest operator direction is one persistent prep Volume, normal files/state/logs and scoped compute cleanup—not a whole-workflow checkpoint/archive framework. Verify exact volume/mount identity and retained-file/log readback after compute replacement, with separately approved storage retention/cost and new bounded compute approval. The old lease stays closed; disk survival is not dataset validation or final object-store archival acceptance.
   - [~] **RD3-RECOVERY:** latest operator correction narrows persistence to the one data-preparation droplet; experiments retain normal output logs/results, not a checkpoint framework. [✓ 5.29.0 local code] Pin the actual provider Volume, require exact mount/filesystem UUID in the worker CLI, and keep dataset/state/appended logs plus validation scratch on it; compute cleanup preserves the disk. Partial work is not automatic resume proof. Supersedes the 5.28.7 whole-workflow proposal. `REALISM-RECOVERY.md` covers the small implementation; actual attach/replacement/file-readback, storage cost/retention and new paid-run approval remain OPEN. No provisioning/mount/experiment change.
   - [✓ 5.28.6 historical; superseded 5.29.0] Remove the metadata-only readiness gate; actual provider-volume lookup plus exact mount/UUID verification replaces it. No offline receipt was actual connected durability evidence. Experiment checkpointing/controller orchestration is out of scope; their normal output logs/results remain.

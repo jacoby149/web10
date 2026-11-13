@@ -417,15 +417,24 @@ test.describe('Groups directory + detail — API floor (D53)', () => {
     const listedId = await createGroupDiscoverable(request, a.token, a.username, `listed-${a.username}`, 'open', true);
     const hiddenId = await createGroupDiscoverable(request, a.token, a.username, `hidden-${a.username}`, 'open', false);
 
-    const dir = await v3Get(request, 'groups/directory', { limit: '500' });
-    expect(dir.ok, `directory failed: ${JSON.stringify(dir.body)}`).toBeTruthy();
-    const ids = (dir.body.groups as any[]).map((g) => g.group_id);
+    // Respect the directory's 100-row page cap without reducing the old
+    // 500-result scope or stopping early when the listed group is found:
+    // every fetched page still participates in the hidden-group assertion.
+    const groups: any[] = [];
+    for (let offset = 0; offset < 500; offset += 100) {
+      const dir = await v3Get(request, 'groups/directory', { limit: '100', offset: String(offset) });
+      expect(dir.ok, `directory page ${offset} failed: ${JSON.stringify(dir.body)}`).toBeTruthy();
+      const pageGroups = dir.body.groups as any[];
+      groups.push(...pageGroups);
+      if (pageGroups.length < 100) break;
+    }
+    const ids = groups.map((g) => g.group_id);
     expect(ids).toContain(listedId);
     expect(ids).not.toContain(hiddenId);
 
     // the listed group carries the minimal fields (name = the slug, D60 — the
     // face is app data, not in the generic directory)
-    const listed = (dir.body.groups as any[]).find((g) => g.group_id === listedId);
+    const listed = groups.find((g) => g.group_id === listedId);
     expect(listed.owner).toBe(a.username);
     expect(listed.name).toBeTruthy();
     expect(listed.join_policy).toBe('open');

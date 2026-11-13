@@ -39,6 +39,7 @@ jobs:
           python realism_graph.test.py
           python realism_deliveries.test.py
           python realism_partitions.test.py
+          python realism_clickhouse.test.py
           python realism_volume.test.py
           python realism_scratch.test.py
           python realism_cloud_lease.test.py
@@ -50,3 +51,21 @@ jobs:
       - name: Verify offline source captures
         working-directory: research/experiments/costfn
         run: bun test capture-feed.test.ts capture-pagination.test.ts
+
+  clickhouse-validator:
+    name: research (real ClickHouse validator parity)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      REALISM_CLICKHOUSE_DOCKER: '1'
+      REALISM_CLICKHOUSE_TESTS: '1'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install pinned fixture dependencies
+        run: python -m pip install -r research/experiments/costfn/realism-requirements.txt bcrypt==5.0.0
+      - name: Translate all checks against the actual pinned engine
+        working-directory: research/experiments/costfn
+        run: python realism_clickhouse.test.py

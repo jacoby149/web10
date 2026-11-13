@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 import re
 
-from realism_contract import FORMAT, identity, sha
+from realism_contract import FORMAT, identity
 
 HERE = Path(__file__).resolve().parent
 
@@ -31,12 +31,13 @@ def compose(project, port=6095, sensitivity=False):
 
 
 def admission(directory, receipt):
+    from realism_validate import current_receipt
     manifest = json.loads((Path(directory)/"manifest.json").read_bytes())
     checked = json.loads(Path(receipt).read_bytes())
     checks = checked.get("checks", {})
     if (manifest.get("format") != FORMAT or manifest.get("dataset_id") != identity(manifest)
             or checked.get("dataset_id") != manifest["dataset_id"] or checked.get("complete") is not True
-            or checked.get("validator_sha256") != sha(HERE/"realism_validate.py")
+            or not current_receipt(checked)
             or not checks or not all(v is True for v in checks.values())):
         raise ValueError("matching current independent passing derived validation receipt required; V2 is not this study")
     return {"dataset_id":manifest["dataset_id"],"file_validation_complete":True,

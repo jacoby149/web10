@@ -6,6 +6,7 @@ import { getWapi } from '@/data/wapi';
 import FeedScreen from '@/components/Feed/FeedScreen';
 import DiscoverScreen from '@/components/Discover/DiscoverScreen';
 import { useRepost } from '@/context/RepostContext';
+import { SignInPrompt } from '@/components/shared/SignInPrompt';
 
 // The Posts screen — the merged Feed + Hot Gossip surface (the X/Threads model:
 // one destination, a "Discover | Following" tab row inside). The operator's
@@ -15,9 +16,8 @@ import { useRepost } from '@/context/RepostContext';
 // bare /feed = Discover (the default, the ranked board), ?tab=following = the
 // personal feed (composer + the posts from people you follow).
 //
-// Anon (signed-out): no Following tab (no session → no feed). The screen is
-// just the Discover board (the public ledger) — the same read-only board the
-// old /hot-gossip showed.
+// Signed out: Discover remains public. Following explains why to sign in and
+// never mounts the personal feed until the session exists.
 
 type PostsTab = 'discover' | 'following';
 
@@ -31,37 +31,29 @@ function TabButton({
   testId,
   icon: Icon,
   label,
-  disabled = false,
 }: {
   active: boolean;
   onClick: () => void;
   testId: string;
   icon: typeof Flame;
   label: string;
-  /** Greyed out + inert (the Following tab for an anon visitor — no session,
-      no personal feed). The operator (29.09.2026): "if on anon the following
-      tab should be greyed out". */
-  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       role="tab"
       aria-selected={active}
-      aria-disabled={disabled || undefined}
       data-testid={testId}
-      onClick={disabled ? undefined : onClick}
+      onClick={onClick}
       className={cn(
         'relative flex flex-1 items-center justify-center gap-2 py-3.5 text-[0.9375rem] transition-colors duration-150',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
-        disabled
-          ? 'cursor-not-allowed text-muted-foreground/40'
-          : active ? 'font-semibold text-foreground' : 'font-medium text-muted-foreground hover:text-foreground',
+        active ? 'font-semibold text-foreground' : 'font-medium text-muted-foreground hover:text-foreground',
       )}
     >
-      <Icon className={cn('h-[18px] w-[18px]', active && !disabled && 'text-brand')} strokeWidth={active && !disabled ? 2.25 : 1.75} />
+      <Icon className={cn('h-[18px] w-[18px]', active && 'text-brand')} strokeWidth={active ? 2.25 : 1.75} />
       <span>{label}</span>
-      {active && !disabled && (
+      {active && (
         <span
           aria-hidden="true"
           className="absolute -bottom-px left-1/2 h-[3px] w-14 -translate-x-1/2 rounded-full bg-brand"
@@ -71,7 +63,7 @@ function TabButton({
   );
 }
 
-export default function PostsScreen({ onAuthorClick }: { onAuthorClick?: (username: string, provider: string) => void }) {
+export default function PostsScreen({ onAuthorClick, onLogin }: { onAuthorClick?: (username: string, provider: string) => void; onLogin?: () => void }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const isAnon = !getWapi().readToken();
   const { setRepostingTo } = useRepost();
@@ -87,13 +79,12 @@ export default function PostsScreen({ onAuthorClick }: { onAuthorClick?: (userna
     return () => window.removeEventListener('post-created', onPostCreated);
   }, []);
 
-  // Anon: the Following tab (the personal feed) is greyed out — no session →
-  // no feed. The screen is the Discover board (the public ledger) with the
-  // Following tab disabled; the tab is forced to Discover for anon.
-  const tab: PostsTab = isAnon ? 'discover' : tabFromParam(searchParams.get('tab'));
+  // The requested tab survives login, refresh and browser history. An anon
+  // Following route is an invitation, not permission to read a personal feed.
+  const tab: PostsTab = tabFromParam(searchParams.get('tab'));
 
   const setTab = (next: PostsTab) => {
-    if (isAnon && next === 'following') return; // Following is disabled for anon
+    console.log('[posts] selecting tab:', next, 'signed-in:', !isAnon);
     const params = new URLSearchParams(searchParams);
     if (next === 'discover') params.delete('tab');
     else params.set('tab', 'following');
@@ -127,12 +118,12 @@ export default function PostsScreen({ onAuthorClick }: { onAuthorClick?: (userna
             testId="posts-tab-following"
             icon={Home}
             label="Following"
-            disabled={isAnon}
           />
         </div>
       </div>
 
-      {tab === 'following' ? (
+      {isAnon && tab === 'discover' && <div className="mx-auto w-full max-w-5xl px-4 pt-4"><SignInPrompt placement="feed" onLogin={onLogin} /></div>}
+      {tab === 'following' && isAnon ? <SignInPrompt placement="following" onLogin={onLogin} /> : tab === 'following' ? (
         /* The personal feed. The composer is NOT inline (the operator: "it
            should be invisible") — the app-level New Post sheet (the Layout's
            floating "+" button) is the single compose surface. A repost from

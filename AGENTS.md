@@ -869,6 +869,14 @@ knowledge-base/strategy/plan.md, CI workflows). If you're unsure, target `dev`.
 
 ## Running it
 
+Research dataset generation remains DuckDB-based, but finished-record validation
+now defaults to isolated ClickHouse 24.8.14.39, not the measured node or a shared
+server. Preserve raw multiplicities and exact checks; receipts pin engine and
+validator dependencies, with no DuckDB fallback. Explicit bounded references/
+connected-feed oracle helpers remain separate. Native query limits are not a
+whole-process/disk guarantee; retain approved prep volume/reserve/compute gates.
+Contract: `research/experiments/costfn/REALISM-CLICKHOUSE.md`.
+
 `docker-compose.yml` brings the stack up locally (`*.localhost` vhosts).
 The target one-container experience (`docker run … web10/node`) is plan
 phase 3 — not built yet.
