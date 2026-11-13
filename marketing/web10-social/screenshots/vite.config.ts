@@ -51,5 +51,5 @@ export default defineConfig({
   server: { port: Number(process.env.SCREENSHOT_PORT || 4500), host: true, strictPort: true },
   // Only scan the harness entry — otherwise Vite crawls the app's own
   // index.html and errors on the many `@/data` exports the mock omits.
-  optimizeDeps: { entries: ['screenshots/harness/index.html'] },
+  optimizeDeps: { entries: ['screenshots/harness/index.html'], include: ['@radix-ui/react-dropdown-menu'] },
 })

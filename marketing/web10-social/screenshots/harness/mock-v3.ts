@@ -27,7 +27,7 @@ const client = {
       { username: 'noah', profile: { display_name: 'Noah Reed' } },
       { username: 'kai', profile: { display_name: 'Kai Moreno' } },
     ] }),
-    getMyGroups: async () => new URLSearchParams(location.search).has('realFollowing') ? [
+    getMyGroups: async () => new URLSearchParams(location.search).has('identity-empty') ? [] : new URLSearchParams(location.search).has('realFollowing') ? [
       ...['luna', 'vera', 'luna', 'nova'].map(username => ({ group_id: `web10/groups/users/${username}/followers`, my_role: 'member' })),
       { group_id: groupId, my_role: 'publisher' },
     ] : [{ group_id: groupId, my_role: 'publisher' }],

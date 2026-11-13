@@ -494,6 +494,13 @@ floating New post shortcut as the complementary scrolled-down entry.
 
 ### Social navigation glass — first pass (11.11.2026)
 
+Video sound (operator, 13.11.2026): sound-on by default, one in-memory video
+mute choice across Posts/Video/Shorts and shared video renderers. Never persist
+it or couple it to Music; reload starts sound-on. Browser-blocked audible
+autoplay needs a play action, not a silent fallback to muted. Changing mute
+never resumes paused media. Shorts tiles hide the still play badge whenever
+the real preview controls are shown, including touch-dwell—not CSS hover alone.
+
 Signed-in phone navigation (operator, 13.11.2026): Posts, Video, Shorts, Music,
 More. Messages moves into More, retaining its unread count both on the More
 entry and its Messages row, direct routes and active destination indication.
@@ -506,6 +513,13 @@ Keep the header's Acting as label, current name/avatar and visible expand arrow
 on phones and desktop. The first menu action is View profile; Change identity
 is the visible second action and needs another tap to open the existing picker.
 Profile navigation never changes the selected posting identity or grants authority.
+The small profile menu is a compact, collision-aware popover anchored beneath
+the header trigger on phones as well as desktop, not a bottom sheet. Use two
+tight 44px-or-larger action rows without a repeated heading/close/card stack.
+Only the full identity chooser uses the phone bottom sheet after the second tap.
+Below the profile card, More's action order is People, Messages, Appearance,
+Settings, Monetization, then admin-only Node Settings. Keep the card premier;
+People is the first ordinary navigation row.
 
 The social shell may use Apple-inspired frosted chrome: a floating mobile dock,
 smoked dark / milky light headers, sidebar and navigation menus. Content, forms

@@ -2,6 +2,7 @@ import { ReliableImage } from './ReliableImage';
 import { ReliableVideo } from './ReliableVideo';
 import { hasMediaRecovery, recoverMediaUrl } from './mediaRecovery';
 import { useMediaPlaybackBudget, useMediaVisibility } from './mediaVisibility';
+import { useVideoSound } from './videoSound';
 import { useContext, useEffect, useRef, useState, type CSSProperties, type ChangeEvent } from 'react';
 import { Play, Pause, TriangleAlert, Volume2, VolumeX, Maximize2, Gauge } from 'lucide-react';
 import { cn } from './utils';
@@ -75,13 +76,12 @@ export interface VideoPlayerProps {
   immersive?: boolean;
   /**
    * The ambient-autoplay seam (with `immersive`): the surface tells the player
-   * when this is the active slide. Active → play muted; inactive → pause.
+   * when this is the active slide. Active → request play; inactive → pause.
    */
   active?: boolean;
   /**
-   * The immersive sound seam (default `true` — muted autoplay, the browser's
-   * autoplay policy). A surface that owns the sound choice (Shorts' speaker
-   * toggle) passes `false` so the user can hear the video.
+   * The immersive sound override (otherwise the loaded-app video choice).
+   * Shorts passes the same app choice through its speaker-control seam.
    */
   muted?: boolean;
   /** testid for the outer container — surfaces keep their existing testids. */
@@ -107,7 +107,7 @@ export interface VideoPlayerProps {
   refreshManifest?: ManifestRefresh;
 }
 
-export function VideoPlayer({ source, mode = 'inline', fit = 'contain', ratio, maxHeight, maxWidth, showDuration = true, fill = false, immersive = false, active = false, muted = true, testId, className, initialTime, onTimeUpdate, loop = true, refreshManifest }: VideoPlayerProps) {
+export function VideoPlayer({ source, mode = 'inline', fit = 'contain', ratio, maxHeight, maxWidth, showDuration = true, fill = false, immersive = false, active = false, muted, testId, className, initialTime, onTimeUpdate, loop = true, refreshManifest }: VideoPlayerProps) {
   LOG('video player — source:', source.type, 'mode:', mode, 'fit:', fit, 'ratio:', ratio ?? 'natural', 'immersive:', immersive, 'active:', active, 'muted:', muted, 'initialTime:', initialTime ?? 0, 'loop:', loop);
 
   if (source.type === 'hls') {
@@ -197,6 +197,7 @@ function VideoError({ className, onRetry }: { className?: string; onRetry?: () =
 
 function NativeVideo({ url, poster, testId, className, initialTime, onTimeUpdate, loop = true }: { url: string; poster?: string; testId?: string; className?: string; initialTime?: number; onTimeUpdate?: (t: number) => void; loop?: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [muted, setMuted] = useVideoSound();
   const [failed, setFailed] = useState(false);
 
   // Seek to the initial time once metadata is ready (the watch page's ?t=).
@@ -228,6 +229,8 @@ function NativeVideo({ url, poster, testId, className, initialTime, onTimeUpdate
       src={url}
       poster={poster}
       controls
+      muted={muted}
+      onVolumeChange={event => setMuted(event.currentTarget.muted)}
       playsInline
       loop={loop}
       onError={() => {
@@ -246,13 +249,13 @@ function formatDuration(seconds: number): string {
   return m > 0 ? `${m}:${String(s).padStart(2, '0')}` : `${s}s`;
 }
 
-export function ImmersiveHls({ manifestUrl, poster, width, height, active = false, muted = true, testId, className, onTimeUpdate }: {
+export function ImmersiveHls({ manifestUrl, poster, width, height, active = false, muted: mutedOverride, testId, className, onTimeUpdate }: {
   manifestUrl: string;
   poster?: string;
   width?: number;
   height?: number;
   active?: boolean;
-  /** The sound seam (default `true` — muted autoplay). The surface's speaker
+  /** Optional sound override; otherwise inherit the sound-on app video choice.
      *  toggle passes `false` so the user can hear the video (shorts.md). */
   muted?: boolean;
   testId?: string;
@@ -266,6 +269,8 @@ export function ImmersiveHls({ manifestUrl, poster, width, height, active = fals
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   useMediaPlaybackBudget(videoRef);
+  const [videoMuted, setVideoMuted] = useVideoSound();
+  const muted = mutedOverride ?? videoMuted;
   const hlsRef = useRef<HlsInstance | null>(null);
   const [failed, setFailed] = useState(false);
   const [tapped, setTapped] = useState(false);
@@ -391,16 +396,18 @@ export function ImmersiveHls({ manifestUrl, poster, width, height, active = fals
   useEffect(() => {
     const el = videoRef.current;
     if (!el) return;
+    let live = true;
     if (playing && visible) {
       hlsRef.current?.startLoad?.();
       el.muted = muted;
       const p = el.play();
-      if (p && typeof p.catch === 'function') p.catch(() => {});
+      if (p && typeof p.catch === 'function') p.catch(() => { if (live) { setTapped(true); LOG('audible autoplay not started; waiting for play'); } });
     } else {
       el.pause();
       hlsRef.current?.stopLoad?.();
     }
-  }, [playing, muted, visible]);
+    return () => { live = false; };
+  }, [playing, visible]);
 
   // The sound toggle can flip while the slide is paused (the user taps the
   // speaker on a paused short) — apply it to the element either way so the
@@ -452,6 +459,7 @@ export function ImmersiveHls({ manifestUrl, poster, width, height, active = fals
           revealed ? 'opacity-100' : 'opacity-0',
         )}
         muted={muted}
+        onVolumeChange={event => setVideoMuted(event.currentTarget.muted)}
         autoPlay={playing && visible}
         loop
         playsInline
@@ -492,15 +500,14 @@ interface InlineVideoProps {
   fill?: boolean;
   immersive?: boolean;
   active?: boolean;
-  /** The immersive sound seam (default `true` — muted autoplay). Immersive
-    *  only: the surface's speaker toggle passes `false` (shorts.md). The
-    *  non-immersive feed path keeps its own muted-while-paused behavior. */
+   /** Optional immersive override; normal video shares the app choice and
+    * never resets mute just because playback paused. */
   muted?: boolean;
   testId?: string;
   className?: string;
 }
 
-export function InlineVideo({ url, poster, width, height, durationSeconds, fit = 'contain', ratio, maxHeight, maxWidth, showDuration = true, fill = false, immersive = false, active = false, muted: immersiveMuted = true, testId, className }: InlineVideoProps) {
+export function InlineVideo({ url, poster, width, height, durationSeconds, fit = 'contain', ratio, maxHeight, maxWidth, showDuration = true, fill = false, immersive = false, active = false, muted: immersiveMutedOverride, testId, className }: InlineVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [tapped, setTapped] = useState(false);
   const playing = immersive ? active && !tapped : tapped;
@@ -519,22 +526,24 @@ export function InlineVideo({ url, poster, width, height, durationSeconds, fit =
   const [current, setCurrent] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
-  const [muted, setMuted] = useState(true);
+  const [muted, setMuted] = useVideoSound();
+  const immersiveMuted = immersiveMutedOverride ?? muted;
   const [speed, setSpeed] = useState(0);
 
   useEffect(() => {
     if (!playing || !videoRef.current) return;
-    const p = videoRef.current.play();
-    if (p && typeof p.catch === 'function') p.catch(() => {});
+    const el = videoRef.current;
+    let live = true;
+    const p = el.play();
+    if (p && typeof p.catch === 'function') p.catch(() => { if (live) { setTapped(immersive); LOG('audible playback not started; waiting for play'); } });
     return () => {
-      videoRef.current?.pause();
+      live = false;
+      el.pause();
     };
   }, [playing]);
 
-  // The immersive sound seam: the surface's speaker toggle flips `muted`
-  // (shorts.md). Apply it to the element on mount + on every flip, so a
-  // toggle while paused takes effect on the next play. The non-immersive
-  // path is untouched (its mute follows play state, as before).
+  // Sound changes update the element without restarting paused playback.
+  // Non-immersive video uses the same loaded-app choice directly.
   useEffect(() => {
     if (immersive && videoRef.current) videoRef.current.muted = immersiveMuted;
   }, [immersive, immersiveMuted]);
@@ -681,7 +690,7 @@ export function InlineVideo({ url, poster, width, height, durationSeconds, fit =
         )}
         preload="none"
         playsInline
-        muted={immersive ? immersiveMuted : !playing}
+        muted={immersive ? immersiveMuted : muted}
         loop
       />
       {!playing && (

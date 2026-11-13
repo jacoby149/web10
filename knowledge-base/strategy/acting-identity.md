@@ -14,7 +14,15 @@ action and Change posting identity secondary. Keep Acting as, the current name
 and the expand arrow on phones and desktop, so delegated posting stays visible. More leads
 with a distinct personal profile/photo card. Merely opening the profile menu
 does not load eligible groups or change identity; the existing confirmed picker
-and authority model below are unchanged. A confirmed
+and authority model below are unchanged.
+The small profile menu stays anchored to the header on every viewport; only the
+full identity chooser uses a mobile sheet. It contains two compact actions,
+not a duplicated profile heading and nested card.
+An actually empty eligible list explains group identities and links to My Groups,
+where the existing New group action starts creation. Merely opening the picker
+never creates a group; failed reads and no-match searches are separate states.
+Copy: “Create a new identity!” / “Create a group in My Groups to post as it.”
+A confirmed
 identifier is remembered per provider/account across browser reopen, with a
 per-tab snapshot so another tab cannot switch this tab. Store no credentials or
 grants; the selection is never authority. Existing

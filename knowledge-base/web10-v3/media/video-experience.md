@@ -87,7 +87,9 @@ The document records which style was used (`body.style`) so the feed can lay the
 
 - **ABR by default.** hls.js watches bandwidth and switches quality on its own (the `LEVEL_SWITCHED` event is the log seam). That's what YouTube does by default.
 - **Manual quality selection.** The YouTube gear menu: Auto / 1080p / 720p / 360p. hls.js exposes `hls.levels` (the rendition list) and `hls.currentLevel` (set it to switch; `-1` = auto). ~30 lines of player UI on top of ABR.
-- **Muted autoplay in the feed.** Scroll and it plays — that's the whole social-video loop. Tap-to-play feels like a video library, not a social app. Unmute is a tap.
+- **One video sound state (operator, 13.11.2026).** Default sound-on from the first visit, shared across inline/native/HLS video, hover previews and Shorts. Mute/unmute follows navigation within this loaded app only; no local/session storage, account preference or cross-tab sync, and reload starts sound-on again. Music has independent audio settings. Autoplay may be denied by the browser: show a real play action, never silently switch to muted playback to bypass the gate. Muting must not restart paused media or reattach transport; existing one-player/visibility budgets remain.
+  This governs the app's own video renderers, not cross-origin provider iframes
+  or intentionally silent editor/thumbnail probes. Those retain their own controls.
 - **Fullscreen immersive.** Vertical fullscreen, tap to reveal controls, swipe between posts (the social app's job, not the player's).
 - **Speed control.** 1x / 1.5x / 2x — `video.playbackRate`, trivial.
 - **hls.js first, native fallback.** Chromium on macOS reports `canPlayType('...mpegurl')` as supported (via AVFoundation) but headless Chromium can't actually play it — hls.js is the deterministic path everywhere; native HLS is the fallback for older Safari only.

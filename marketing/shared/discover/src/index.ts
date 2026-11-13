@@ -33,6 +33,7 @@ export { PersonCard, PersonCardSkeleton, type PersonCardProps, type DiscoverPers
 export { GroupCard, GroupCardSkeleton, JoinPolicyBadge, type GroupCardProps, type DiscoverGroup, type DiscoverGroupFace, type GroupJoinState } from './GroupCard';
 export { VideoPlayer, sourceFromMedia, ImmersiveHls, InlineVideo, type VideoSource, type VideoPlayerProps } from './VideoPlayer';
 export { HlsVideoPlayer, HlsRenewalContext } from './HlsVideoPlayer';
+export { useVideoSound, getVideoMuted, setVideoMuted } from './videoSound';
 export { MediaCarousel, type MediaCarouselProps } from './MediaCarousel';
 export { PostActions, type PostActionsProps, type PostActionMode, type ReactionKind } from './PostActions';
 export { Top10Sidebar, type Top10SidebarProps, type Top10SidebarEntry } from './Top10Sidebar';
