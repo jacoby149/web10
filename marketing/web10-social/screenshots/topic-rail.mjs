@@ -13,6 +13,7 @@ await fs.mkdir(output, { recursive: true });
 const server = spawn('bunx', ['vite', '--config', 'screenshots/hashtags.vite.config.ts'], { cwd: root, env: { ...process.env, SCREENSHOT_PORT: String(port) }, stdio: 'pipe' });
 let logs = ''; server.stdout.on('data', data => { logs += data; }); server.stderr.on('data', data => { logs += data; });
 let browser;
+let activePage;
 const receipt = [];
 try {
   const deadline = Date.now() + 30_000;
@@ -25,14 +26,16 @@ try {
   for (const theme of ['dark', 'light']) for (const width of [1440, 375, 768, 1280]) {
     const context = await browser.newContext({ viewport: { width, height: 900 }, colorScheme: theme });
     const page = await context.newPage(); const errors = [];
-    page.on('pageerror', error => errors.push(error.message));
-    page.on('console', message => { if (message.type() === 'error') logs += `\n${message.text()}`; });
+    activePage = page;
+    page.on('pageerror', error => { errors.push(error.message); logs += `\n[pageerror] ${error.stack || error.message}`; });
+    page.on('console', message => { logs = `${logs}\n[${message.type()}] ${message.text()}`.slice(-60000); });
     const shot = async name => {
       assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `Overflow in ${name}/${theme}/${width}`);
       if ([1440, 375].includes(width)) await page.screenshot({ path: path.join(output, `${name}-${theme}-${width}.png`), animations: 'disabled' });
     };
     await page.goto(`${base}/hashtag-fixture/topics?discover-prepared-faces=1`);
     await page.getByTestId('browse-topics').waitFor();
+    await page.waitForLoadState('networkidle');
     assert.equal(await page.getByTestId('discover-topic').count(), 7);
     assert.equal(await page.getByTestId('topic-result').count(), 0);
     await shot('rail');
@@ -79,5 +82,12 @@ try {
   }
   await fs.writeFile(path.join(output, 'receipt.json'), JSON.stringify({ kind: 'isolated-1000-topic-browser-ui', cases: receipt }, null, 2));
   console.log(`Topic rail browser gates passed: ${receipt.length} cases. ${output}`);
-} catch (error) { console.error(logs); throw error; }
+} catch (error) {
+  if (activePage && !activePage.isClosed()) {
+    await activePage.screenshot({ path: path.join(output, 'failure.png'), animations: 'disabled' }).catch(() => {});
+    await fs.writeFile(path.join(output, 'failure.html'), await activePage.content());
+    logs += `\nFailure URL: ${activePage.url()}`;
+  }
+  console.error(logs); throw error;
+}
 finally { await browser?.close(); server.kill('SIGTERM'); }
