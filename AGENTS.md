@@ -296,6 +296,14 @@ do not privacy-wash D56 or put content/credentials into events or recordings.
 
 ## How the data model works
 
+Service-name safety: API service fields and new grant/role keys canonicalize
+ASCII case to lowercase. Ordinary names are 1–64 letters/digits/`-`/`_`, start
+with a letter and exclude infrastructure/query-reserved names; `*`/`group` are
+group-permission metadata only. Case-colliding grant keys are rejected, never
+unioned. Query references keep their spelling/aliases but filter the canonical
+collection. No automatic legacy-data migration or rollout; compatibility and
+production inventory: `knowledge-base/web10-v3/db/service-names.md`.
+
 Single ClickHouse `documents` table, primary key `(author_key, doc_id)`. `doc_groups` maps documents to groups. `group_contracts` + `group_members` define access. Two contract types: app contracts (infrastructure trust, CORS-enforced) and group contracts (social access, role-enforced). Full model: `knowledge-base/web10-v3/db/clickhouse.md`.
 
 The generic readable-group helper defaults to byte-bounded batched resolution;

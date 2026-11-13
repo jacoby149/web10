@@ -14,6 +14,7 @@ from uuid6 import uuid7
 import app.settings as settings
 from app.services.media import get_s3_client, get_s3_signing_client
 from app.services.media_delivery import get_url
+from app.v3.service_names import canonical_map, canonical_roles, canonical_service
 
 log = logging.getLogger(__name__)
 
@@ -896,6 +897,7 @@ def insert_document(
     post it is the JWT username while author_key is the group_id. Server-set
     only — the caller must always provide it.
     """
+    service = canonical_service(service)
     now = version_time or _now()
     if not doc_id:
         doc_id = _gen_doc_id()
@@ -1305,6 +1307,7 @@ def create_group(
     reads (by-user, members/list, the memberships query CTE); ``'hidden'`` →
     they don't. Defaults to ``'hidden'`` (the conservative default).
     """
+    roles = canonical_roles(roles)
     if discoverable is None:
         discoverable = False
     if tags is None:
@@ -1397,7 +1400,7 @@ def update_group(group_id: str, **kwargs):
     existing = get_group(group_id)
     if not existing:
         return None
-    roles = kwargs.get("roles", existing["roles"])
+    roles = canonical_roles(kwargs["roles"]) if "roles" in kwargs else existing["roles"]
     join_policy = kwargs.get("join_policy", existing["join_policy"])
     discoverable = kwargs.get("discoverable", existing["discoverable"])
     # tags (D78): None = leave unchanged; a list = replace.
@@ -1648,6 +1651,10 @@ def effective_role_perms(group_id: str, principal: str, authenticated: bool = Fa
 def _effective_allows(perms: dict, service: str, op: str) -> bool:
     """Does the effective per-service map grant ``op`` on ``service``? The
     ``'*'`` wildcard key covers every document service."""
+    try:
+        service = canonical_service(service, metadata=True)
+    except ValueError:
+        return False
     if op in perms.get(service, []):
         return True
     return op in perms.get("*", [])
@@ -2299,6 +2306,7 @@ def add_app_contract(user_key: str, allowed_origin: str, permissions: dict) -> d
     """Add a browser-origin app contract (one row per app, permissions is JSON).
     Upserts if exists. client_id = '' (the browser-origin key; the OAuth
     delegation key is grant_delegated_contract, D92)."""
+    permissions = canonical_map(permissions)
     now = _now()
     client.insert(
         "app_contracts",
@@ -2376,6 +2384,10 @@ def has_permission(
 ) -> bool:
     """Check if an app (by origin or by OAuth client_id) has permission for a
     specific service+operation. Default-deny: no contract → False."""
+    try:
+        service_name = canonical_service(service_name)
+    except ValueError:
+        return False
     perms = get_app_permissions(user_key, allowed_origin, client_id=client_id)
     if not perms:
         return False
@@ -2387,6 +2399,7 @@ def grant_delegated_contract(user_key: str, client_id: str, permissions: dict) -
     """Grant a delegated (OAuth) app contract (D92). One row per (user,
     client_id): keyed on client_id with allowed_origin = '' (mutually
     exclusive with the browser-origin key). Upserts if it exists."""
+    permissions = canonical_map(permissions)
     now = _now()
     client.insert(
         "app_contracts",

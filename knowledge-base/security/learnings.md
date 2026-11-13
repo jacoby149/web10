@@ -35,9 +35,33 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-13: Canonical identifiers are a shared boundary, not a lowercase display label
+
+New service names use one server-side ASCII validator across request fields,
+permission-map keys, explicit storage/grant writers and query service references.
+Normalize uppercase before storage/authorization, reject case-colliding keys,
+and preserve context-only group wildcard/management semantics. Quoted SQL table
+identifiers still need validation: quoting the CTE name does not alone make a
+service safe to embed as a collection-name value. Keep original query spelling
+for table/column bindings while filtering the canonical collection; never
+lowercase body text, SQL literals, aliases or operation codes. Existing SQL AST,
+parameterization and live-grant boundaries remain necessary.
+
+Production's complete schema-enumerated service inventory is already lowercase
+and alphabet-compliant, including retained grant history, with no collisions.
+That observation simplifies this node's compatibility but is not a migration for
+other nodes or pending durable upload/deferred state. This is bounded naming
+hardening with denied malformed/colliding requests, not a whole-security PASS.
+
+Also reject database/catalog-qualified table references at the compiler boundary:
+validating only `Table.name` leaves `other.posts` qualified and does not bind it to
+the generated local `posts` CTE. Column qualifiers and ordinary aliases remain
+valid; qualified physical-table reads are not service names. A failing-before
+compiler control pins this binding defect without querying production contents.
+
 ### 2026-11-13: Case normalization must agree with grant identity
 
-Current service storage and app/group permission keys match case-sensitively.
+At the initial inventory, service storage and app/group permission keys matched case-sensitively.
 Lowercasing only a request or display label does not normalize the collection
 and can disagree with authority. The operator-authorized production metadata
 inventory finds only lowercase names across retained documents and grants, with
