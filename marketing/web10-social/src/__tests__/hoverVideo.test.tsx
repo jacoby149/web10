@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { setVideoMuted } from '../../../shared/discover/src/videoSound';
 import { lucideMock } from './helpers/lucideMock';
 vi.mock('lucide-react', () => lucideMock);
 import type { MediaItem } from '@web10/discover';
@@ -41,6 +42,7 @@ const hlsMedia: MediaItem = {
 };
 
 beforeEach(() => {
+  setVideoMuted(false);
   FakeHls.instances = [];
   vi.clearAllMocks();
   window.Hls = FakeHls as unknown as typeof window.Hls;
@@ -167,7 +169,7 @@ describe('HoverVideo — the YouTube-style hover preview (video-player.md)', () 
     expect(screen.queryByTestId('hv-mute')).toBeNull();
   });
 
-  it('hover: the file source attaches + the video plays muted', async () => {
+  it('hover: the file source attaches and requests sound-on playback', async () => {
     const { HoverVideo } = await import('@web10/discover');
     render(<HoverVideo media={videoMedia} poster={videoMedia.thumbnail_url} testId="hv" />);
     const frame = screen.getByTestId('hv');
@@ -181,8 +183,7 @@ describe('HoverVideo — the YouTube-style hover preview (video-player.md)', () 
     });
     // The direct file is attached (the non-transcoded path)…
     expect(video.getAttribute('src')).toBe('https://cdn.example/video.mp4?sig=x');
-    // …and the preview starts muted (the autoplay policy).
-    expect(video.muted).toBe(true);
+    expect(video.muted).toBe(false);
 
     // The pointer leaves → playback stops (the poster returns).
     fireEvent.mouseLeave(frame);
@@ -210,6 +211,7 @@ describe('HoverVideo — the YouTube-style hover preview (video-player.md)', () 
   });
 
   it('the speaker toggle (top-right) unmutes the live preview + flips the icon', async () => {
+    setVideoMuted(true);
     const { HoverVideo } = await import('@web10/discover');
     render(<HoverVideo media={videoMedia} poster={videoMedia.thumbnail_url} testId="hv" />);
     const frame = screen.getByTestId('hv');
@@ -225,7 +227,7 @@ describe('HoverVideo — the YouTube-style hover preview (video-player.md)', () 
     // A tap on the speaker unmutes (the user's explicit gesture)…
     fireEvent.click(mute);
     expect(video.muted).toBe(false);
-    expect(screen.getByTestId('hv-mute')).toHaveAttribute('aria-label', 'Mute preview');
+    await waitFor(() => expect(screen.getByTestId('hv-mute')).toHaveAttribute('aria-label', 'Mute preview'));
 
     // …and tapping again re-mutes.
     fireEvent.click(screen.getByTestId('hv-mute'));
@@ -345,6 +347,7 @@ describe('HoverVideo — the YouTube-style hover preview (video-player.md)', () 
   });
 
   it('unmuting is audible (the volume is raised if it was at zero)', async () => {
+    setVideoMuted(true);
     const { HoverVideo } = await import('@web10/discover');
     render(<HoverVideo media={videoMedia} poster={videoMedia.thumbnail_url} testId="hv" />);
     const frame = screen.getByTestId('hv');
@@ -510,7 +513,7 @@ describe('HoverVideo — the touch-dwell preview (the mobile analog of hover)', 
     vi.useRealTimers();
   });
 
-  it('a scroll dwell (in view + finger stopped) starts the muted preview', async () => {
+  it('a scroll dwell requests the preview with the app video sound choice', async () => {
     const { HoverVideo } = await import('@web10/discover');
     mockTouchDevice();
     vi.useFakeTimers();
@@ -531,7 +534,7 @@ describe('HoverVideo — the touch-dwell preview (the mobile analog of hover)', 
     await vi.advanceTimersByTimeAsync(300);
     await vi.advanceTimersByTimeAsync(50); // let the effect chain flush
     expect(play).toHaveBeenCalled();
-    expect(video.muted).toBe(true);
+    expect(video.muted).toBe(false);
     expect(video.getAttribute('src')).toBe('https://cdn.example/video.mp4?sig=x');
 
     // The user scrolls away → the preview stops (the poster returns).

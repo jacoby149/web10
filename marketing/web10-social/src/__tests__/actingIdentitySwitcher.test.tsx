@@ -32,11 +32,11 @@ describe('ActingIdentitySwitcher partial loading', () => {
   it('opens a profile-first menu without loading groups or changing posting identity', () => {
     const onViewProfile = vi.fn();
     render(<ActingIdentitySwitcher personalName="Alice" onViewProfile={onViewProfile} />);
-    fireEvent.click(screen.getByTestId('acting-identity-trigger'));
-    expect(screen.getByRole('dialog', { name: 'Profile' })).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByTestId('acting-identity-trigger'), { key: 'ArrowDown' });
+    expect(screen.getByRole('menu', { name: 'Profile' })).toBeInTheDocument();
     expect(mocks.getMyGroups).not.toHaveBeenCalled();
     expect(mocks.select).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'View profile' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'View profile' }));
     expect(onViewProfile).toHaveBeenCalledOnce();
     expect(mocks.select).not.toHaveBeenCalled();
   });
@@ -46,8 +46,8 @@ describe('ActingIdentitySwitcher partial loading', () => {
     const onViewProfile = vi.fn();
     render(<ActingIdentitySwitcher personalName="Alice" onViewProfile={onViewProfile} />);
     expect(screen.getByText('Acting as')).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('acting-identity-trigger'));
-    fireEvent.click(screen.getByRole('button', { name: 'View profile' }));
+    fireEvent.keyDown(screen.getByTestId('acting-identity-trigger'), { key: 'ArrowDown' });
+    fireEvent.click(screen.getByRole('menuitem', { name: 'View profile' }));
     expect(onViewProfile).toHaveBeenCalledOnce();
     expect(mocks.select).not.toHaveBeenCalled();
     expect(mocks.selected).toBe('good');
@@ -55,8 +55,8 @@ describe('ActingIdentitySwitcher partial loading', () => {
 
   it('keeps the confirmed identity picker behind an explicit secondary action', async () => {
     render(<ActingIdentitySwitcher personalName="Alice" onViewProfile={vi.fn()} />);
-    fireEvent.click(screen.getByTestId('acting-identity-trigger'));
-    fireEvent.click(screen.getByRole('button', { name: 'Change posting identity' }));
+    fireEvent.keyDown(screen.getByTestId('acting-identity-trigger'), { key: 'ArrowDown' });
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Change identity' }));
     await screen.findByRole('button', { name: /^Group good\s*Group$/ });
     fireEvent.click(screen.getByRole('button', { name: /^Group good\s*Group$/ }));
     expect(mocks.select).not.toHaveBeenCalled();
@@ -89,6 +89,28 @@ describe('ActingIdentitySwitcher partial loading', () => {
     expect(screen.getByRole('button', { name: /alice\s*Personal identity/ })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Use identity' })).toBeDisabled();
     expect(mocks.select).not.toHaveBeenCalled();
+  });
+
+  it('guides an empty identity list to group creation without changing identity', async () => {
+    mocks.getMyGroups.mockResolvedValue([]);
+    const onCreateGroup = vi.fn();
+    render(<ActingIdentitySwitcher onCreateGroup={onCreateGroup} />);
+    fireEvent.click(screen.getByTestId('acting-identity-trigger'));
+    expect(await screen.findByText('Create a new identity!')).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: 'Create a group' }));
+    expect(onCreateGroup).toHaveBeenCalledOnce();
+    expect(mocks.select).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('does not confuse a search with no matches with having no group identities', async () => {
+    mocks.getMyGroups.mockResolvedValue([{ group_id: 'good', my_role: 'writer' }]);
+    render(<ActingIdentitySwitcher onCreateGroup={vi.fn()} />);
+    fireEvent.click(screen.getByTestId('acting-identity-trigger'));
+    await screen.findByRole('button', { name: /^Group good\s*Group$/ });
+    fireEvent.change(screen.getByLabelText('Search eligible groups'), { target: { value: 'missing' } });
+    expect(screen.getByText(/No eligible groups match/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Create a group' })).not.toBeInTheDocument();
   });
 
   it('shows the personal avatar and each group face in the menu', async () => {

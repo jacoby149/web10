@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { setVideoMuted } from '../../../shared/discover/src/videoSound';
 import { lucideMock } from './helpers/lucideMock';
 vi.mock('lucide-react', () => lucideMock);
 
@@ -21,6 +22,7 @@ class FakeHls {
 }
 
 beforeEach(() => {
+  setVideoMuted(false);
   FakeHls.instances = [];
   vi.clearAllMocks();
   window.Hls = FakeHls as unknown as typeof window.Hls;
@@ -217,7 +219,7 @@ describe('VideoPlayer — the shared video surface (video-player.md)', () => {
     expect(frame.textContent).not.toContain('42s');
   });
 
-  it('immersive + active autoplays (muted by default); inactive pauses (the ambient loop)', async () => {
+  it('immersive + active requests sound-on playback; inactive pauses', async () => {
     const { VideoPlayer } = await import('@/components/Feed/VideoPlayer');
     const { rerender } = render(
       <VideoPlayer
@@ -230,9 +232,7 @@ describe('VideoPlayer — the shared video surface (video-player.md)', () => {
       />,
     );
     const video = screen.getByTestId('vp-imm-loop').querySelector('video')!;
-    // Immersive is muted by default (the browser's autoplay policy — the
-    // surface's speaker toggle is the escape hatch, the `muted` seam).
-    expect(video.muted).toBe(true);
+    expect(video.muted).toBe(false);
 
     // The slide scrolls off-screen (active → false) → paused.
     const pause = vi.spyOn(video, 'pause').mockImplementation(() => {});
@@ -249,7 +249,7 @@ describe('VideoPlayer — the shared video surface (video-player.md)', () => {
     await waitFor(() => {
       expect(pause).toHaveBeenCalled();
     });
-    expect(video.muted).toBe(true);
+    expect(video.muted).toBe(false);
   });
 
   it('immersive: a tap toggles play/pause in place and never escapes the slide', async () => {
@@ -269,10 +269,10 @@ describe('VideoPlayer — the shared video surface (video-player.md)', () => {
     );
     const frame = screen.getByTestId('vp-imm-tap');
     const video = frame.querySelector('video')!;
-    // Muted by default (autoplay policy) — the tap toggles PLAY, observed via
+    // Sound-on by default — the tap toggles PLAY, observed via
     // the element's pause/play calls. The spies install after the initial
     // autoplay, so they count only the tap-driven calls.
-    expect(video.muted).toBe(true);
+    expect(video.muted).toBe(false);
     const pause = vi.spyOn(video, 'pause').mockImplementation(() => {});
     const play = vi.spyOn(video, 'play').mockResolvedValue(undefined);
     fireEvent.click(frame);
@@ -287,6 +287,7 @@ describe('VideoPlayer — the shared video surface (video-player.md)', () => {
   });
 
   it('immersive: the muted seam un-mutes (the surface speaker toggle)', async () => {
+    setVideoMuted(true);
     const { VideoPlayer } = await import('@/components/Feed/VideoPlayer');
     const { rerender } = render(
       <VideoPlayer

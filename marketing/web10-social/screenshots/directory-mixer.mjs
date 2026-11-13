@@ -11,14 +11,15 @@ if (!output) throw Error('Set SCREENSHOT_OUTPUT_DIR to the workspace .context di
 await mkdir(output, { recursive: true });
 const servers = [], receipts = [];
 let browser;
-const home = 'https://home.example', foreign = 'https://foreign.example';
+const home = 'https://home.example';
 const datasets = Array.from({ length: 48 }, (_, i) => ({ username: `creator-${i}`, follower_count: 500 - i * 10,
   created_at: new Date(Date.UTC(2026, 0, i + 1)).toISOString(), profile: { display_name: i === 0 ? 'Avery Stone' : i === 47 ? 'Jordan Vale' : `Creator ${i}` } }));
 try {
   browser = await chromium.launch();
-  for (const app of ['social', 'marketing'].filter(app => !process.env.DIRECTORY_APP || process.env.DIRECTORY_APP === app)) {
-    const port = Number(process.env.DIRECTORY_PORT || 4591) + (app === 'social' ? 0 : 1), origin = `http://127.0.0.1:${port}`;
-    const cwd = app === 'social' ? root : path.resolve(root, '../marketing-ui');
+  // D111 retires marketing's directory replica; this gate now owns social only.
+  for (const app of ['social']) {
+    const port = Number(process.env.DIRECTORY_PORT || 4591), origin = `http://127.0.0.1:${port}`;
+    const cwd = root;
     const server = spawn('bunx', ['vite', '--host', '127.0.0.1', '--port', String(port), '--strictPort'], {
       cwd, stdio: 'inherit', env: { ...process.env, VITE_API_ORIGIN: home, VITE_API_URL: home,
         VITE_AUTH_ORIGIN: 'https://auth.example', VITE_AUTH_URL: 'https://auth.example' },
@@ -60,7 +61,7 @@ try {
       });
       const page = await context.newPage();
       page.on('pageerror', error => { errors.push(error.message); console.error('[directory-browser]', error.message); });
-      const route = app === 'social' ? '/people' : '/trending/people';
+      const route = '/people';
       await page.goto(`${origin}${route}`, { waitUntil: 'networkidle' });
       await page.getByLabel('Sort profiles', { exact: true }).waitFor();
       await page.getByText('Avery Stone', { exact: true }).waitFor();
@@ -97,7 +98,7 @@ try {
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
       if (width === 1440 || width === 375) await page.screenshot({ path: path.join(output, `${app}-profiles-${theme}-${width}.png`), animations: 'disabled' });
       await page.getByRole('tab', { name: 'Groups', exact: true }).click();
-      if (app === 'social') await page.getByRole('tab', { name: 'Discover', exact: true }).click();
+      await page.getByRole('tab', { name: 'Discover', exact: true }).click();
       await page.getByLabel('Sort groups', { exact: true }).waitFor();
       assert.equal(await page.getByRole('radio', { name: 'Most members', exact: true }).isChecked(), true);
       if (width === 375) await page.getByText('Newest', { exact: true }).tap();
@@ -114,33 +115,6 @@ try {
       assert.equal(await page.getByRole('radio', { name: 'Newest', exact: true }).isChecked(), true);
       assert.equal(new URL(page.url()).searchParams.has('tune'), false);
       await page.getByRole('button', { name: 'Advanced', exact: true }).click();
-      if (app === 'marketing' && [1440, 375].includes(width) && theme === 'dark') {
-        await page.getByRole('button', { name: 'Edit servers', exact: true }).click();
-        await page.getByLabel('Server API URL').fill(foreign);
-        await page.getByRole('button', { name: 'Add public server' }).click();
-        await page.getByLabel('Fetch weight for foreign.example').waitFor();
-        await page.getByRole('button', { name: 'Done', exact: true }).click();
-        await page.getByLabel('Server API URL').waitFor({ state: 'hidden' });
-        await page.getByText('foreign.example · read-only', { exact: true }).first().waitFor();
-        assert.ok(reads.some(row => row.origin === foreign && row.kind === 'groups' && row.sort === 'newest' && row.limit === 12));
-        const foreignCard = page.getByText('foreign.example · read-only', { exact: true }).first().locator('..');
-        assert.equal(await foreignCard.locator('a,button').count(), 0, 'no invented foreign action or href');
-        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
-        await page.screenshot({ path: path.join(output, `marketing-mixed-groups-${width}.png`), animations: 'disabled' });
-        await page.getByLabel('Fetch weight for home.example').press('Home');
-        await page.waitForURL(url => JSON.parse(url.searchParams.get('servers') ?? '[]').find(row => row.origin === home)?.weight === 0);
-        await page.getByLabel('Fetch weight for foreign.example').press('Home');
-        await page.waitForURL(url => JSON.parse(url.searchParams.get('servers') ?? '[]').every(row => row.weight === 0), { timeout: 3000 }).catch(async error => {
-          console.error('[directory-browser] mute state', page.url(), await page.getByRole('slider').evaluateAll(nodes => nodes.map(node => ({ label: node.getAttribute('aria-label'), value: node.value }))));
-          await page.screenshot({ path: path.join(output, 'mute-failure.png') });
-          throw error;
-        });
-        await page.getByText('Directory paused.', { exact: false }).waitFor();
-        assert.equal(await page.getByTestId('trending-group-card').count(), 0);
-        const before = reads.length;
-        await page.reload({ waitUntil: 'networkidle' });
-        assert.equal(reads.length, before, 'all-muted reload makes no directory requests');
-      }
       assert.equal(errors.length, 0, errors.join('\n'));
       assert.ok(reads.filter(row => row.kind === 'profiles').some(row => row.sort === 'newest'));
       assert.ok(reads.every(row => !row.token), 'public browser never supplies a token');
@@ -149,7 +123,7 @@ try {
     }
   }
   await writeFile(path.join(output, 'receipt.json'), JSON.stringify(receipts, null, 2));
-  console.log('[directory-browser] both apps, both sorts, both themes and all widths pass');
+  console.log('[directory-browser] social, both sorts, both themes and all widths pass');
 } finally {
   await browser?.close();
   for (const server of servers) server.kill('SIGTERM');

@@ -138,7 +138,7 @@
 }
 
 /* The frosted sidebar is a stacking context; its open menus must clear content. */
-.social-shell > aside:has([data-testid="acting-identity-panel"], [data-testid="profile-entry-menu"]) {
+.social-shell > aside:has([data-testid="acting-identity-panel"]) {
   z-index: 50;
 }
 

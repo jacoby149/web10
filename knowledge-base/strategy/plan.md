@@ -8,6 +8,12 @@
 > `archive/plan-17.08.2026.md`. This is a fresh plan. Fill it in as work
 > is scoped — one phase at a time, docs before code.
 
+## Marketing discovery handoff
+
+- [✓ 6.4.1 local; final browser/CI OPEN] **MARKETING-GROUP-RETIRE — remove orphaned group browsing** — delete GroupDetail, unrouted GroupDirectory/GroupCard and obsolete tests; remove `/groups/:id` outright with no compatibility redirect on explicit operator correction. Remove unused Markdown/media aliases and narrow shared CSS scanning to ReliableImage. Route-removal regression fails before deletion; all 181 remaining marketing tests/build/typecheck and renderer guard pass. Extended eight-case browser rerun is in progress after tool interruptions; fresh PR #1555 CI remains required. Social/shared runtime and App Store images unchanged; no deployment/auth/API change.
+
+- [✓ 6.4.0 local] **MARKETING-HANDOFF — retire the Trending replica** — Trending is an ordinary same-tab link to the configured social `/feed` (production `https://social.web10.app/feed`); legacy Trending URLs replace-navigate to supported social destinations/filters. Removed marketing-only feed/directory/mixer/ranking/media code, obsolete tests/fixtures and vendored HLS; social/shared consumers and unrelated pages remain. Two old-link regressions reproduce before repair; all 197 remaining marketing tests/build/typecheck and renderer inventory pass. Eight both-theme four-width Chromium cases verify mouse/keyboard/mobile/footer, same-tab/Back, ten legacy shapes and zero discovery reads; desktop/375px captures inspected in `.context/marketing-handoff/`. Browser evidence uses an isolated social destination, not live social acceptance. Updated connected handoff/moderation E2E discovers eight tests; actual stack/CI/review/rollout remain OPEN. No API/auth/deployment change; marketing no longer owes discovery parity.
+
 ## Hierarchy of Reliance
 
 Every layer depends on the one above it. An LLM implementing any layer
@@ -58,6 +64,14 @@ open; this visual PR does not claim live delivery enabled.
 
 - [✓ 5.33.4 local] **Polish authenticator credential entry** — compact brand/form layout, one solid primary action, URL-owned progressive password/signup/contact entry and secondary account-server identity. Operator follow-ups give Use another account a bordered plus-icon row and signup a full-width violet-tinted button. All 338 UI tests/build/typecheck, eight both-theme four-width browser cases, appearance regression and eight real-local signup/return/password/Following handoffs pass. Desktop/375px captures inspected under `.context/auth-credential-style/`. Auth/consent/vault policy unchanged; no deployment or physical-phone claim.
 ## Feed music playback correction
+
+Pre-integration 6.5.0 verification: all 2,660 social/379 marketing tests and both
+production builds pass, plus eight sound and twenty existing browser journeys.
+Combined PR checks and physical-phone/deployment acceptance remain separate.
+
+- [✓ 6.5.0 local] **Shared default-on video sound and clean Shorts preview controls** — operator's final choice is video-only state, sound-on on first load/reload, carried across Posts/Video/Shorts during the loaded app, no persistence or Music coupling. Native/inline/HLS/hover renderers share the choice; blocked autoplay stays sound-on and offers play, mute does not resume paused media. Actual preview-control state suppresses the still badge on touch/pointer playback. All 113 focused/379 pre-integration marketing tests, both builds and eight new plus twenty existing native-browser journeys pass; desktop/375px captures inspected. Full social/combined PR/phone/deployment gates remain; external embeds and silent editing probes are separate.
+
+- [✓ 6.4.2 local] **Anchor and tighten profile entry; order More; guide empty identities** — small profile menu stays below Acting as on phones/desktop, using two Radix action rows and preserving the full confirmed chooser behind Change identity. More order after the profile card: People/Messages/Appearance/Settings/Monetization/admin Node Settings. Empty eligible lists link to the existing group creation entry without creating anything; search/error states remain distinct. Bottom-sheet regression reproduced; twenty browser cases, focused tests/build/typecheck and inspected desktop/375px captures pass. Full social/PR/deployment gates remain.
 
 - [✓ 6.3.0 local] **Loaded-feed music queue and playback-only mini-player** — operator chooses already-loaded visible eligible songs/videos in display order as the session queue, no recommendations or load-more. Source-aware snapshot, meaningful skip availability, Previous on phones, inert metadata off Music and Queue only in the full player. Ordinary video dismisses Music; own music videos remain, muted previews do not interrupt, X stops/dismisses, retired ended events cannot restart playback. Focused controls/build and sixteen native-browser cases pass; full social/PR gates remain.
 - [✓ 6.3.0 local] **Phone consumption dock and personal-first More** — Posts/Video/Shorts/Music/More; Messages route/unread badge stays in More, desktop/anonymous nav unchanged. More's first destination is a distinct photo/name/View profile card. Header keeps Acting as plus expand, profile-first menu then an explicit secondary identity action; existing authority and confirmed chooser unchanged. Actual UI browser paths and inspected desktop/375px captures pass; no deployment.

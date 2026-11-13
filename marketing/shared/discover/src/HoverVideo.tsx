@@ -1,6 +1,7 @@
 import { ReliableImage } from './ReliableImage';
 import { hasMediaRecovery, mayStartPreview, recoverMediaUrl } from './mediaRecovery';
 import { useMediaPlaybackBudget } from './mediaVisibility';
+import { getVideoMuted, useVideoSound } from './videoSound';
 import { useEffect, useRef, useState } from 'react';
 import { Volume2, VolumeX } from 'lucide-react';
 import { cn } from './utils';
@@ -195,10 +196,10 @@ function useIsTouchDevice(): boolean {
  * that nice audio icon in the top right to toggle volume").
  *
  * The HomeCard's 16:9 thumbnail is a poster at rest. When the pointer enters
- * (a hover-capable device) the video starts playing **muted** (the browser's
- * autoplay policy), `object-cover` in the same 16:9 frame. A speaker icon
- * (top-right, the YouTube position) toggles the sound — the user's explicit
- * gesture, so un-muted playback is allowed. A thin **progress bar** tracks
+ * (a hover-capable device) the video requests playback using the app's video
+ * sound choice, initially on, `object-cover` in the same 16:9 frame. Browsers
+ * can deny audible autoplay; there is no silent mute fallback. The top-right
+ * speaker changes the shared choice. A thin **progress bar** tracks
  * the preview's position along the bottom (the YouTube home behavior). When
  * the pointer leaves, playback stops and the poster returns.
  *
@@ -207,7 +208,7 @@ function useIsTouchDevice(): boolean {
  * Instead the preview plays on a **scroll dwell**: the tile is ≥60% in the
  * viewport (an IntersectionObserver) AND the finger has stopped moving
  * (a 300ms quiet window over the global scroll/touchmove/resize signal) →
- * the preview starts, **muted**, and keeps playing (looping) while the tile
+ * the preview requests playback with that same choice, looping while the tile
  * stays in view + the finger is idle. The moment the user scrolls again the
  * preview stops (the poster returns), and it re-arms on the next dwell — the
  * "it detects again a little later" behavior. At most **one** tile plays at
@@ -279,7 +280,7 @@ export function HoverVideo({ media, poster, testId, className, onTime, onPlaying
   // The pointer's hover (a hover-capable device). The touch-dwell path
   // (below) is OR'd into the `hovered` value at render time.
   const [pointerHover, setPointerHover] = useState(false);
-  const [muted, setMuted] = useState(true);
+  const [muted, setMuted] = useVideoSound();
   // The video is only revealed once it is actually PLAYING (frames on
   // screen) — `canplay` fires before the first frame renders (notably for
   // HLS), so keying the crossfade to it left a gray/black tile.
@@ -547,12 +548,13 @@ export function HoverVideo({ media, poster, testId, className, onTime, onPlaying
     e.stopPropagation();
     e.preventDefault();
     const el = videoRef.current;
+    const next = !getVideoMuted();
+    setMuted(next);
     if (el) {
-      el.muted = !el.muted;
+      el.muted = next;
       if (!el.muted && el.volume === 0) el.volume = 0.8;
     }
-    setMuted((m) => !m);
-    LOG('mute toggled →', !muted);
+    LOG('mute toggled →', next);
   };
 
   // The scrubber: a click anywhere on the track seeks to that position (the
@@ -600,6 +602,7 @@ export function HoverVideo({ media, poster, testId, className, onTime, onPlaying
     <div
       ref={frameRef}
       data-testid={testId}
+      data-preview-active={hovered ? 'true' : 'false'}
       className={cn('group/hover-video absolute inset-0', className)}
       onMouseEnter={() => {
         LOG('pointer enter');
@@ -627,7 +630,7 @@ export function HoverVideo({ media, poster, testId, className, onTime, onPlaying
         />
       )}
 
-      {/* The preview — muted autoplay, cover-cropped into the 16:9 frame.
+      {/* The preview — app video sound choice, cover-cropped into the frame.
           Overlays the poster (absolute inset-0); revealed only while playing
           (frames on screen). */}
       <video
@@ -638,7 +641,8 @@ export function HoverVideo({ media, poster, testId, className, onTime, onPlaying
           'absolute inset-0 h-full w-full object-cover transition-opacity duration-200',
           playing ? 'opacity-100' : 'opacity-0',
         )}
-        muted
+        muted={muted}
+        onVolumeChange={event => setMuted(event.currentTarget.muted)}
         loop
         playsInline
         preload="none"

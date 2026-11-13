@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Key, Wallet, Send, ArrowUpRight } from 'lucide-react';
 import { trackFunnel } from '@/lib/analytics';
-import { AUTH_ORIGIN, SOCIAL_ORIGIN } from '@/lib/origins';
+import { AUTH_ORIGIN, SOCIAL_ORIGIN, SOCIAL_FEED_URL } from '@/lib/origins';
 
 const steps = [
   {
@@ -355,7 +355,7 @@ function Join() {
           <span>&copy; {new Date().getFullYear()} web10</span>
           <div className="flex flex-wrap justify-center gap-x-6 gap-y-4">
             <a href="/" className="hover:text-foreground">Home</a>
-            <a href="/trending" className="hover:text-foreground">Trending</a>
+            <a href={SOCIAL_FEED_URL} className="hover:text-foreground">Trending</a>
             <a href="/docs" className="hover:text-foreground">Docs</a>
             <a href="/docs/terms" className="hover:text-foreground">Terms</a>
             <a href="/docs/privacy" className="hover:text-foreground">Privacy</a>

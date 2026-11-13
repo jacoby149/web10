@@ -206,6 +206,9 @@ try {
       assert.equal(await page.getByRole('navigation', { name: 'Primary mobile', exact: true }).getByTestId('nav-messages-mobile').count(), 0);
       await page.getByTestId('nav-more-mobile').click();
       await page.getByTestId('nav-messages-badge-mobile').waitFor();
+      assert.deepEqual(await page.getByTestId('more-sheet').locator('button[data-testid]').evaluateAll(buttons => buttons.slice(0, 7).map(button => button.dataset.testid)), [
+        'nav-profile-mobile', 'nav-people-mobile', 'nav-messages-mobile', 'nav-appearance-mobile', 'nav-settings-mobile', 'nav-monetization-mobile', 'nav-node-settings-mobile',
+      ], 'More keeps the profile card first and the requested utility order');
       const profileCard = page.getByTestId('nav-profile-mobile');
       assert.equal(await profileCard.locator('img').count(), 1, 'premier profile card uses the resolved personal photo');
       const beforeAppearance = await profileCard.evaluate(el => !!(el.compareDocumentPosition(document.querySelector('[data-testid="nav-appearance-mobile"]')) & Node.DOCUMENT_POSITION_FOLLOWING));
@@ -215,15 +218,34 @@ try {
       await page.getByTestId('profile-name').waitFor();
     }
     await page.locator('[data-testid="acting-identity-trigger"]:visible').click();
-    await page.getByRole('dialog', { name: 'Profile', exact: true }).waitFor();
+    await page.getByRole('menu', { name: 'Profile', exact: true }).waitFor();
+    {
+      const triggerBox = await page.locator('[data-testid="acting-identity-trigger"]:visible').boundingBox();
+      const menuBox = await page.getByTestId('profile-entry-menu').boundingBox();
+      assert.ok(menuBox.y >= triggerBox.y + triggerBox.height && menuBox.y <= triggerBox.y + triggerBox.height + 12, 'profile menu stays beside the header trigger, not at the bottom');
+      assert.ok(menuBox.height <= 160 && menuBox.width <= 300, 'two compact action rows');
+      assert.ok(menuBox.x >= 12 && menuBox.x + menuBox.width <= width - 12, 'menu stays within the phone viewport');
+    }
     assert.equal(identityReads, 0, 'ordinary profile menu never loads the power-user identity picker');
     if ([1440, 375].includes(width) && board === 'posts') await page.screenshot({ path: path.join(output, `profile-menu-${theme}-${width}.png`) });
-    await page.getByRole('button', { name: 'View profile', exact: true }).click();
+    await page.keyboard.press('Escape');
+    await page.getByTestId('profile-entry-menu').waitFor({ state: 'hidden' });
+    await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="acting-identity-trigger"]')].some(el => el.getClientRects().length && document.activeElement === el));
+    assert.equal(await page.locator('[data-testid="acting-identity-trigger"]:visible').evaluate(el => document.activeElement === el), true, 'Escape restores header focus');
+    await page.locator('[data-testid="acting-identity-trigger"]:visible').click();
+    await page.getByTestId('profile-entry-menu').waitFor();
+    await page.getByTestId(mobile ? 'topbar-mobile' : 'topbar-desktop').click({ position: { x: 5, y: 5 } });
+    await page.getByTestId('profile-entry-menu').waitFor({ state: 'hidden' });
+    await page.locator('[data-testid="acting-identity-trigger"]:visible').focus();
+    await page.keyboard.press('ArrowDown');
+    await page.getByTestId('profile-entry-menu').waitFor();
+    await page.getByRole('menuitem', { name: 'View profile', exact: true }).click();
     await page.getByTestId('profile-name').waitFor();
     assert.equal(identityReads, 0);
     await page.locator('[data-testid="acting-identity-trigger"]:visible').click();
-    await page.getByRole('button', { name: 'Change posting identity', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Change identity', exact: true }).click();
     await page.getByRole('dialog', { name: 'Choose acting identity', exact: true }).waitFor();
+    await page.waitForFunction(() => document.activeElement === document.querySelector('[data-testid="acting-identity-panel"] input'));
     assert.ok(identityReads > 0, 'the secondary action loads the unchanged confirmed picker');
     await page.getByRole('button', { name: 'Close identities', exact: true }).click();
     if (mobile) await page.getByTestId('nav-more-mobile').click();
@@ -232,6 +254,18 @@ try {
     await page.waitForFunction(() => navigator.mediaSession.playbackState === 'none');
     assert.deepEqual(errors, []);
     receipt.push({ width, theme, board, music: 'persistent', inlineAudio: 'system pause/play', video: 'system pause/play', unmount: 'cleared', geometry: 'pass', optics });
+    await page.close();
+  }
+  for (const width of [1440, 375]) for (const theme of ['dark', 'light']) {
+    const page = await browser.newPage({ viewport: { width, height: 900 }, colorScheme: theme });
+    await page.goto(`${base}?screen=posts&signin-prompts=1&identity-empty=1`, { waitUntil: 'networkidle' });
+    await page.locator('[data-testid="acting-identity-trigger"]:visible').click();
+    await page.getByRole('menuitem', { name: 'Change identity', exact: true }).click();
+    await page.getByRole('button', { name: 'Create a group', exact: true }).waitFor();
+    await page.screenshot({ path: path.join(output, `identity-empty-${theme}-${width}.png`) });
+    await page.getByRole('button', { name: 'Create a group', exact: true }).click();
+    await page.getByRole('button', { name: 'New group', exact: true }).waitFor();
+    receipt.push({ width, theme, emptyIdentity: 'existing group creation entry, no automatic create' });
     await page.close();
   }
   await writeFile(path.join(output, 'receipt.json'), JSON.stringify(receipt, null, 2));

@@ -3,7 +3,9 @@
 The reader should be able to turn a server down without deleting their follows.
 The approved component supplies horizontal faders and page-budget arithmetic.
 The current integration adds real source reads across Feed, Shorts, Music and
-marketing boards; connected-node acceptance remains separate, not implied.
+social People; connected-node acceptance remains separate, not implied.
+D111 (13.11.2026) retires marketing boards and their mixer integration; historical
+marketing acceptance below is not a requirement to rebuild that replica.
 
 ## Source-editor implementation contract (08.11.2026)
 

@@ -252,7 +252,7 @@ function ShortsWallContent({ tuned }: { tuned: ReturnType<typeof useTunedSurface
           >
             {/* The hover preview (the Video wall's "best of both worlds",
                 applied to the 9:16 wall): the poster at rest, the clip playing
-                MUTED on hover (desktop) / on a scroll-dwell (touch) with a
+                with the app's video sound choice on hover / touch dwell, with a
                 top-right speaker toggle + a bottom scrubber. The frame is inert
                 — the <button> owns the click (hover plays, click navigates to
                 the lens). The source follows the same transcoded-HLS rule as
@@ -267,9 +267,9 @@ function ShortsWallContent({ tuned }: { tuned: ReturnType<typeof useTunedSurface
               className="absolute inset-0"
             />
             {/* The play badge (the video affordance, top-right). It recedes
-                while the hover preview plays (the still's affordance — the
-                preview replaces it), the Video wall's pattern. */}
-            <div className="absolute top-2 right-2 flex items-center justify-center w-6 h-6 rounded-md bg-black/50 backdrop-blur-sm transition-opacity duration-150 group-hover:opacity-0 pointer-events-none" aria-hidden="true">
+                whenever preview controls are shown, including touch dwell,
+                so the play marker and speaker can never overlap. */}
+            <div data-testid={`short-wall-play-${short.post._id}`} className="absolute top-2 right-2 flex items-center justify-center w-6 h-6 rounded-md bg-black/50 backdrop-blur-sm transition-opacity duration-150 group-has-[[data-preview-active=true]]:opacity-0 pointer-events-none" aria-hidden="true">
               <Play className="w-3.5 h-3.5 text-white ml-px" fill="currentColor" strokeWidth={0} />
             </div>
             {/* The author + caption overlay (the TikTok/Instagram position). */}
