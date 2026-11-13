@@ -65,7 +65,7 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
-- [✓ 5.31.6 local] **People filter pills clear the cards below them** — operator (12.11.2026, screenshot: "padding here messed up..."): the All/Following/Mutuals/Followers row had `pt-3` and no bottom padding, so the active pill touched the first card. Add `pb-3` (the groups row already carried both paddings); no card/list layout change. Unit control (repro-gated) + self-booting `screenshots/people-spacing.mjs` geometry gate across four filters × both themes × four widths (0px → 12px). No API/auth/deployment change.
+- [✓ 5.31.7 local] **People filter pills clear the cards below them** — operator (12.11.2026, screenshot: "padding here messed up..."): the All/Following/Mutuals/Followers row had `pt-3` and no bottom padding, so the active pill touched the first card. Add `pb-3` (the groups row already carried both paddings); no card/list layout change. Unit control (repro-gated) + self-booting `screenshots/people-spacing.mjs` geometry gate across four filters × both themes × four widths (0px → 12px). No API/auth/deployment change.
 
 - [✓ 5.31.5 local] **People/Groups compact sort chips** — two preset chips matching the other boards; no dial or boxed panel after operator correction. Profiles say Most followers / Newest; Groups say Most members / Newest. Native radio keyboard navigation, independent URL sorts, search/history, Advanced and sources preserved. All 2,585 social/379 marketing tests, both builds/typechecks and both-theme 1440/375/768/1280 browser gates pass; desktop/375px captures inspected in `.context/sort-chips/`. No ranking/API/auth/deployment change.
 
