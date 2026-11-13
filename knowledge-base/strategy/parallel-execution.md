@@ -1693,7 +1693,7 @@ starting.
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
 - [~] **RD3-CHECKPOINTS — resume at the first unfinished check** — operator
-  - [~ 5.33.2 restart repair] Ordered exposures aggregation and admission/report-binding fixes are under DO engine verification. Operator requests 300-second monitor/repair iterations until validation succeeds within the approved lease. Preserve all data/imports/failures, no false-verdict skipping or memory-limit increase; restart is not yet a pass.
+  - [✓ 5.33.3 controls/restart; full validation OPEN] DO engine 21/21, checkpoint 6/6 and lease 16/16 controls, 50-check floor/report parity and native SIGKILL/resume identical receipts pass. Full validation starts 05:02:39 UTC under a volume-resident 300-second supervisor, retained imports, 28-GiB MemoryMax/four CPUs and revised lease-clamped deadline; eight durable passes, none failed at 05:09:32 UTC. Operator requests monitor/repair iterations until validation succeeds within the approved lease. Preserve all data/imports/failures, no false-verdict skipping or memory-limit increase.
   directive: durable source/input/engine/profile-bound per-check verdicts and
   derived UUID/count/query markers, fail-stop false verdicts, elapsed/internal
   progress, and parity-proven small-build join choices. Follow-up directive
@@ -1718,7 +1718,7 @@ starting.
   Contract: `research/experiments/costfn/REALISM-CHECKPOINTS.md`.
 
 - [~] **RD3-VALIDATION-ENVELOPE: use planned node resources and bounded extra time** —
-  - [✓ 5.33.1 applied/DO controls; restart OPEN] Operator raises total validation compute ceiling to $40 on the same host, superseding the earlier $5 limit below. Applied 24-hour window through 14 November 04:38:02 UTC; exact prior approval/clock/rate checks and 160h total lifetime ceiling. Watchdog and replacement host timer verified; existing 400-GiB volume retained and separately billed. Sixteen tests pass on DO; predecessor fails the new approval controls. Reconcile worker/query deadlines before restart; no new host, resize, upload or experiment. Evidence: `research/experiments/costfn/evidence/REALISM-BUDGET-20261113.md`.
+  - [✓ 5.33.2 applied/DO controls; restart recorded above] Operator raises total validation compute ceiling to $40 on the same host, superseding the earlier $5 limit below. Applied 24-hour window through 14 November 04:38:02 UTC; exact prior approval/clock/rate checks and 160h total lifetime ceiling. Watchdog and replacement host timer verified; existing 400-GiB volume retained and separately billed. Sixteen tests pass on DO; predecessor fails the new approval controls. No new host, resize, upload or experiment. Evidence: `research/experiments/costfn/evidence/REALISM-BUDGET-20261113.md`.
 
   Historical approval:
   operator approves 22-GiB ClickHouse / 28-GiB process on the existing 32-GiB

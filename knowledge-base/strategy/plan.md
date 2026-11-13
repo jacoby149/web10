@@ -1484,7 +1484,7 @@ docs before code, per the rule at the top.
 ### Current directive — derived realism dataset (11 November 2026)
 
 - [~] **RD3-CHECKPOINTS — durable check/derived recovery** — implement the
-  - [~ 5.33.2 restart repair] DO restart preparation recovers exposures query-memory failure; enable ordered aggregation on the existing sort-key prefix, fix admission SELECT duplication and full-binding report cache keys. DO parity controls in progress; preserve imports and dataset, no higher memory allowance. Operator requests 300-second monitor/repair iterations until validation passes within the approved lease; no false-verdict skip or weakened checks.
+  - [✓ 5.33.3 controls/restart; full validation OPEN] DO engine controls 21/21, checkpoint controls 6/6, lease controls 16/16, 50-check floor/report parity and native SIGKILL/resume identical receipts pass. Ordered exposures aggregation and admission/report-cache repairs deployed in immutable staged code. Volume-resident 300-second supervisor starts full validation at 05:02:39 UTC with retained imports and 28-GiB MemoryMax/four CPUs; eight durable passes and no failed verdicts at 05:09:32 UTC. Operator requests monitor/repair iterations until validation passes within the approved lease; no false-verdict skip or weakened checks.
   operator's exact checkpoint-layer directive while leaving the staged live
   run untouched. Atomic synced per-check verdict/elapsed records, full
   source/input/engine/profile binding, verify-or-rebuild derived markers,
@@ -1513,7 +1513,7 @@ docs before code, per the rule at the top.
   host or upload is implicit.
 
 **13 November performance-envelope approval [~ RD3-VALIDATION-ENVELOPE]:**
-  - [✓ 5.33.1 applied/DO controls; validation restart OPEN] **Raise the validation compute ceiling to $40:** operator explicitly supersedes the $5 ceiling for this same host. Applied a 24-hour recovery window through 14 November 04:38:02 UTC; exact prior approvals and pre-expiry clock required, total lifetime bounded to 160h at $0.25/h. Independent watchdog updated; replacement host timer verified before old timer stopped. Existing 400-GiB volume retained and billed separately; sixteen lease tests pass on DO, including predecessor-failing approval controls and no volume-deletion cleanup. Worker/query deadlines must be reconciled before restart; no new host, resize or experiment. `research/experiments/costfn/evidence/REALISM-BUDGET-20261113.md`.
+  - [✓ 5.33.2 applied/DO controls; restart recorded above] **Raise the validation compute ceiling to $40:** operator explicitly supersedes the $5 ceiling for this same host. Applied a 24-hour recovery window through 14 November 04:38:02 UTC; exact prior approvals and pre-expiry clock required, total lifetime bounded to 160h at $0.25/h. Independent watchdog updated; replacement host timer verified before old timer stopped. Existing 400-GiB volume retained and billed separately; sixteen lease tests pass on DO, including predecessor-failing approval controls and no volume-deletion cleanup. No new host, resize or experiment. `research/experiments/costfn/evidence/REALISM-BUDGET-20261113.md`.
 
 Historical approval (superseded by the $40 directive above):
 operator directs validation to use the planned node's 22-GiB ClickHouse / 28-GiB
