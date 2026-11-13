@@ -1,5 +1,4 @@
-// VERBATIM COPY from marketing/marketing-ui/src/components/KnobRack.tsx
-// Keep in sync with marketing-ui; see design.md §D22 (separate package, no premature sharing).
+// Social ranking controls; the former marketing copy retired in D111.
 
 import { useMemo, useState, type ReactNode } from 'react';
 import { ChevronDown, SlidersHorizontal } from 'lucide-react';

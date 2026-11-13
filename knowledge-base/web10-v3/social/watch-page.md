@@ -1,5 +1,11 @@
 # The Watch Page — the YouTube-shaped video destination
 
+**D111, 13.11.2026:** the marketing replica described below is retired. Trending
+is a same-tab link to the configured social `/feed`; old Trending URLs hand off
+to social's public destinations. Marketing no longer renders cards, directories,
+ranking controls or playback. The historical marketing split/parity sections
+below are superseded; social's watch/Shorts/feed behavior remains in force.
+
 `discover-card.md` settled the **card** (the Home wall's 16:9 tile, the hover preview, the attribution). `shorts.md` settled the **vertical lens** (the full-screen swipe feed). This doc settles the destination they both point at but that did not exist: **you click a video in the Home wall, and you land somewhere that keeps you on the content train.**
 
 Today that destination is the wrong one. Clicking a Home tile fires `navigateToPost` → `/u/:username/p/:postId` → the **profile screen** with a `PostLightbox` modal on top. You clicked a video; you got a profile page with a modal. The feed context — the ranking, the position, the "what's next" — is gone. This is the off-the-train yank.

@@ -35,7 +35,7 @@ function getLinks(): LinkItem[] {
     },
     {
       name: 'Home',
-      description: 'The live social experience (People · Posts · Video · Shorts)',
+      description: 'Why web10 — own your audience and your data',
       href: '/',
       icon: TrendingUp,
     },

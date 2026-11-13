@@ -9,6 +9,25 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D111 — Marketing sends readers to social; it does not replicate discovery [decided]
+
+**13.11.2026 — operator:** Trending should be just a link to
+`https://social.web10.app/feed`, not another social browsing implementation.
+Marketing explains the product; social delivers public discovery without a
+forced sign-in. Use the configured social origin for dev/self-hosted builds and
+ordinary same-tab links. Legacy Trending URLs replace-navigate to social, keeping
+supported public destinations/filters; do not transfer credentials or marketing
+server preferences. Remove the marketing-only replica and its parity tests, not
+shared code still used by social or unrelated marketing pages. This supersedes
+the marketing feed/directory parity requirement, not social's discovery contracts.
+
+**Operator follow-up, same day:** the marketing `/groups/:id` detail page has
+no current navigation entry. Retire it and the unrouted GroupDirectory/GroupCard
+with their tests rather than preserve another social replica. Delete the
+group-detail route outright: the operator explicitly rejects compatibility
+redirects for this unsurfaced page. App Store reliable images and social/shared
+runtime remain intact.
+
 ### D110 — Hashtags are a body-derived token with a public board, never a doc tag [decided]
 
 **11.11.2026 — operator:** "how do # hashtags work? can i add them to a post?"

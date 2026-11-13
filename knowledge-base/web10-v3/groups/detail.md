@@ -1,5 +1,9 @@
 # The Group Detail: A Flexible Read by ID
 
+**D111, 13.11.2026:** the orphaned marketing GroupDetail page, its route,
+unrouted directory and cards are retired without a group-detail redirect.
+The generic API contract and social group screen described below are unchanged.
+
 The group **detail** is the read of a *specific* group by its ID — "open this group." It is deliberately **not** a constrained "directory detail page." It is a flexible, principal-based read that **any app can use for any group**, the way an app reads any document it has a principal for. This is the groups analog of the app store's detail (D52), but looser on purpose: the app store's detail 404s for unapproved apps (approval is the gate); a group's detail has no such gate, because a group's content is already governed by the reader's effective role.
 
 The model is an **unlisted YouTube video**: a group that is not in the directory is still fully reachable if you have its ID. Being *listed* and being *reachable* are different things.

@@ -15,8 +15,8 @@ import { API_BASE, v3Post, v3Login, v3Signup } from '../v3-helpers';
  *   - I3 anti-test: anon cannot read a non-member group; a non-member user
  *     gets 403.
  *
- * Browser gauntlet: the marketing trending page
- * (marketing-ui/src/pages/Trending.tsx) renders the board. A seeded post
+ * Browser gauntlet: legacy marketing Trending hands off to social's
+ * public Discover feed. A seeded post
  * appears, a hidden post disappears, an unhidden post reappears.
  *
  * The discover board is a SHARED node default, so the board assertions are
@@ -231,11 +231,11 @@ test.describe('Discover board — API floor (anon read + moderation)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Browser gauntlet — the marketing trending page renders the board;
+// Browser gauntlet — marketing hands off to social's public board;
 // a hidden post disappears, an unhidden post reappears.
 // ---------------------------------------------------------------------------
 
-test.describe('Discover board gauntlet — marketing trending page + moderation', () => {
+test.describe('Discover board gauntlet — marketing handoff + social moderation', () => {
   test('seeded post appears; hidden post disappears; unhidden post reappears', async ({ page, context, request }) => {
     test.setTimeout(90_000);
     const pageErrors: string[] = [];
@@ -251,24 +251,22 @@ test.describe('Discover board gauntlet — marketing trending page + moderation'
     // so the browser's read sees the row.
     await page.waitForTimeout(3000);
 
-    // --- Load the marketing Hot Gossip destination (anon — no auth needed) ---
-    // The pre-split layout (3.173.0) moved the four flat destinations under
-    // /trending: /trending/hot-gossip is the ranked post board. This test
-    // exercises that board.
+    // Old links land in social's actual public feed, not a marketing replica.
     await page.goto(`${MARKETING_BASE}/trending/hot-gossip`);
     await page.waitForLoadState('networkidle');
-    await expect(page.locator('[data-testid="trending-grid"]')).toBeVisible({ timeout: 30_000 });
+    await expect(page).toHaveURL(`http://social.localhost${p}/feed`);
+    await expect(page.getByTestId('discover-grid')).toBeVisible({ timeout: 30_000 });
 
     // The seeded post renders (contains — the board is shared). Retry with
     // reloads in case of ClickHouse visibility lag.
     let visible = false;
     for (let attempt = 0; attempt < 3 && !visible; attempt++) {
-      const cards = page.locator('[data-testid="trending-card"]');
+      const cards = page.getByTestId('discover-card');
       visible = (await cards.filter({ hasText: postText }).count()) > 0;
       if (!visible && attempt < 2) {
         await page.reload();
         await page.waitForLoadState('networkidle');
-        await expect(page.locator('[data-testid="trending-grid"]')).toBeVisible({ timeout: 30_000 });
+        await expect(page.getByTestId('discover-grid')).toBeVisible({ timeout: 30_000 });
       }
     }
     expect(visible, `post "${postText}" not on the trending board after 3 attempts`).toBeTruthy();
@@ -280,9 +278,9 @@ test.describe('Discover board gauntlet — marketing trending page + moderation'
     // Reload — the post is gone.
     await page.reload();
     await page.waitForLoadState('networkidle');
-    await expect(page.locator('[data-testid="trending-grid"]')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('discover-grid')).toBeVisible({ timeout: 30_000 });
     {
-      const cards = page.locator('[data-testid="trending-card"]');
+      const cards = page.getByTestId('discover-card');
       const found = await cards.filter({ hasText: postText }).count();
       expect(found, `hidden post "${postText}" should be absent from the board`).toBe(0);
     }
@@ -296,8 +294,8 @@ test.describe('Discover board gauntlet — marketing trending page + moderation'
     for (let attempt = 0; attempt < 3 && !reappeared; attempt++) {
       await page.reload();
       await page.waitForLoadState('networkidle');
-      await expect(page.locator('[data-testid="trending-grid"]')).toBeVisible({ timeout: 30_000 });
-      const cards = page.locator('[data-testid="trending-card"]');
+      await expect(page.getByTestId('discover-grid')).toBeVisible({ timeout: 30_000 });
+      const cards = page.getByTestId('discover-card');
       reappeared = (await cards.filter({ hasText: postText }).count()) > 0;
     }
     expect(reappeared, `unhidden post "${postText}" should reappear on the board`).toBeTruthy();

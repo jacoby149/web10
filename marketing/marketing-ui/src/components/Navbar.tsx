@@ -4,25 +4,17 @@ import { Menu, X, Search, Link as LinkIcon, ChevronDown } from 'lucide-react'
 import { Button } from './ui/button'
 import GitHubStarButton from './GitHubStarButton'
 import { trackFunnel } from '../lib/analytics'
-import { SOCIAL_ORIGIN } from '../lib/origins'
+import { SOCIAL_ORIGIN, SOCIAL_FEED_URL } from '../lib/origins'
 import BrandLogo from './BrandLogo'
 
-// The nav leads with the pitch (the SELL): the landing page is the front door
-// (Home, `/`), and the social experience is Trending (`/trending`) — the
-// content pyramid (People · Posts · Video · Shorts). The experience's
-// sub-destinations keep Trending lit while the visitor is anywhere in the
-// experience.
+// Trending is a normal same-tab handoff, not another marketing screen.
 const navItems = [
   { path: '/', label: 'Home' },
-  { path: '/trending', label: 'Trending' },
+  { path: SOCIAL_FEED_URL, label: 'Trending' },
   { path: '/app-store', label: 'App Store' },
 
   { path: '/join', label: 'Join' },
 ]
-
-// The experience's sub-destinations (the pyramid): Trending stays lit while
-// the visitor is anywhere in the experience (People, Posts, Video, Shorts).
-const EXPERIENCE_PATHS = ['/trending/shorts', '/trending/posts', '/trending/video', '/trending/people']
 
 const learnItems = [
   { path: '/freedom', label: 'Freedom' },
@@ -51,10 +43,6 @@ function Navbar() {
     if (path === '/') {
       // Home = the pitch: the bare `/` (the landing page).
       return location.pathname === '/'
-    }
-    if (path === '/trending') {
-      // Trending = the experience: `/trending` + its sub-destinations.
-      return location.pathname === '/trending' || EXPERIENCE_PATHS.some(p => location.pathname.startsWith(p))
     }
     return location.pathname === path || location.pathname.startsWith(path)
   }
@@ -91,6 +79,7 @@ function Navbar() {
             <Link
               key={item.path}
               to={item.path}
+              reloadDocument={item.path === SOCIAL_FEED_URL}
               className={`rounded-md px-3 py-2 text-sm font-medium transition-colors duration-150 ease-out ${
                 isActive(item.path)
                   ? 'bg-brand-muted text-brand-300'
@@ -143,13 +132,13 @@ function Navbar() {
         </div>
 
         <div className="hidden items-center gap-2 lg:flex">
-          <Link
-            to="/trending?focus=search"
+          <a
+            href={`${SOCIAL_ORIGIN.replace(/\/$/, '')}/search`}
             className="group flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 ease-out hover:bg-elevated hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="Search"
           >
             <Search className="h-4 w-4" strokeWidth={1.75} />
-          </Link>
+          </a>
           <Button variant="brand" size="sm" onClick={() => { trackFunnel('sign_in_click'); window.location.href = SOCIAL_ORIGIN }}>
             Open web10 social
           </Button>
@@ -177,6 +166,7 @@ function Navbar() {
             <Link
               key={item.path}
               to={item.path}
+              reloadDocument={item.path === SOCIAL_FEED_URL}
               onClick={() => setMobileOpen(false)}
               className={`rounded-md px-3 py-3 text-sm font-medium ${
                 isActive(item.path)
