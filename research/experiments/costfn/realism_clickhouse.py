@@ -402,7 +402,7 @@ def inspect(db,manifest,progress,*,resume=False):
             return {}
         templates,num,den=entry
         budget=int(db.settings['max_memory_usage'])*num//den
-        payloads=[read(f'SELECT {template.format(x=overhead)}')[0][0] for template in templates]
+        payloads=[read(template.format(x=overhead))[0][0] for template in templates]
         decision=join_admission(payloads,budget)
         print(f'[clickhouse-validator] admission check={name} payloads={payloads} budget={budget} '
             f'algorithm={decision.get("join_algorithm","grace_hash")}',flush=True)
@@ -465,7 +465,8 @@ def inspect(db,manifest,progress,*,resume=False):
     # One 1.6B pass serves both grains: the (doc,reader) first exposure and
     # the per-reader impression multiplicity that post_metrics used to rescan.
     db.derived('exposures','SELECT doc_id,reader_key,min(seen_at) AS first_seen,count() AS impressions '
-             'FROM content_events GROUP BY doc_id,reader_key','doc_id,reader_key')
+             'FROM content_events GROUP BY doc_id,reader_key SETTINGS optimize_aggregation_in_order=1',
+             'doc_id,reader_key')
     ENGAGED="current_docs WHERE collection_name IN ('reactions','comments')"
     total_sql=f'SELECT count() FROM {ENGAGED}'
     good_sql=('SELECT count() FROM (SELECT doc_id,reader_key,first_seen FROM exposures) e '

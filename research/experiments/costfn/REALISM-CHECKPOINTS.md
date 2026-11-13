@@ -9,6 +9,14 @@ volume remain unchanged.
 
 ## Durable check phase
 
+Restart repair (13 November): report-cache filenames include the entire
+query/settings/table binding so queries repeated after a new derived table
+appears get a separate record, not a collision with an earlier binding.
+Exposures aggregation enables `optimize_aggregation_in_order` on the existing
+`(doc_id,reader_key,...)` storage-key prefix after the predecessor exceeded
+its 22-GiB query allowance. The allowance and all verdicts remain unchanged;
+DO verification and full-scale completion are separate gates.
+
 After each verdict, write one atomic fsynced JSON record containing its name,
 boolean verdict and elapsed seconds. The record also binds its definition,
 verified table dependencies and a context digest. Context binds the dataset ID,

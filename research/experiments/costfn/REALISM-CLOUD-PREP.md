@@ -1,5 +1,15 @@
 # Monitored DigitalOcean preparation — operator approval
 
+**13 November budget supersession:** the operator explicitly raises total
+validation compute to **$40** on droplet `618505005`, at the existing $0.25/hour
+rate. The applied recovery window ends **14 November 04:38:02 UTC**, not at
+the old 06:50:22 deadline. The watchdog and replacement host timer are updated;
+worker/query deadlines must be reconciled before restarting validation. Keep
+Volume `d01c584d-de97-11f1-8944-c234aeb68f7e` and its data when compute is
+removed; storage remains separately billed at $40/month prorated. No new host,
+resize or experiment. This supersedes earlier compute ceilings/deadlines below,
+not dataset-retention requirements. Evidence: [budget receipt](evidence/REALISM-BUDGET-20261113.md).
+
 **New run started — 12 November 12:53:23 UTC:** run `3ef3634d8983`, droplet
 `618505005`, 400-GiB Volume `d01c584d-de97-11f1-8944-c234aeb68f7e`. Pinned SSH,
 source hashes, exact filesystem UUID and a synced-file unmount/remount readback
