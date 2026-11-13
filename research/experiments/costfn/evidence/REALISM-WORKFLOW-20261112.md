@@ -1,5 +1,11 @@
 # Preparation workflow repair — 12 November 2026
 
+**Scale correction, later the same day:** the grouped-COPY event sort fills
+the preparation volume with 327.48 GB of spill and is stopped by the reserve
+guard. `REALISM-RADIX-20261112.md` records exact dataset reverification, scoped
+spill cleanup and the bounded hash-digit replacement. The small local timings
+below are historical, not admission evidence for the 1.6B-row sort.
+
 **Subsequent operator amendment:** the persistent-disk design in
 `../REALISM-RECOVERY.md` supersedes this entry's metadata-only readiness gate and
 whole-workflow recovery proposal. Persistence is preparation-only; experiments

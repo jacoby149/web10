@@ -1463,7 +1463,48 @@ docs before code, per the rule at the top.
 
 ### Current directive — derived realism dataset (11 November 2026)
 
-**New run, 12 November 12:53 UTC:** new approved 14-hour preparation lease
+**Operator amendment, 12 November:** switch finished-dataset validation from
+DuckDB to ClickHouse: “we should switch the duckdb to clickhouse for validation,
+i have more confidence + it matches the rest of our stuff”. Generation and
+frozen input bytes stay unchanged. No automatic DuckDB fallback, approximate
+counts, new paid resources or relaxed validation/lease gates. Translate and
+prove all 50 checks on passing and deliberately broken inputs before retrying
+the stopped 1M validation; retain the DuckDB implementation only as a bounded
+comparison/reference and for existing separate feed-oracle callers.
+- [✓ 5.31.3 code/local/native smoke; full 1M OPEN] **RD3-CLICKHOUSE: switch finished-record validation to ClickHouse** —
+  owns research validator/worker/admission tests and serialized KB records.
+  Preserve exact medians/quantiles, duplicate-sensitive raw imports, null-join
+  semantics, deletion-winning canonical documents, all 50 verdicts, source/engine
+  receipt binding and failed-result retention. Prove real-engine parity and
+  mutation denial, keep memory/spill/time limits and isolated persistent work.
+  Actual 1M throughput, storage/review/connected/experiment gates remain open.
+  Eleven actual-engine controls and thirteen offline suites/five Bun tests/lint
+  pass. Source-stable 10k/16M validation is 50/50, exact reports match the
+  bounded reference; sampled dataset+scratch peak 1.106 GB, not full-scale proof.
+  Native package/source checks and 1M-event prefix smoke pass on host 618505005.
+  At 00:19:48 UTC Nov 13, resume the same generated 1M input with ClickHouse;
+  no generator/floor rerun, resize, new host or deadline extension. Keep 400 GiB,
+  02:50:22 UTC cleanup, mounted reserve and retained volume; 12-GiB/one-CPU
+  service cap complements 2 GB/one-thread queries. Full validation remains open.
+
+**Current run, 13 November 00:20 UTC:** ClickHouse-backed resume is active on
+the same host/400-GiB Volume, reverifying the completed input before SQL checks.
+Source pins/native smoke/local 50-check gates are retained in
+`research/experiments/costfn/evidence/REALISM-CLICKHOUSE-20261112.md`. No new
+resource or extension; 02:50:22 UTC cleanup and final 1M validation gate remain.
+At 00:22 UTC, all generation hashes reverify and actual ClickHouse validation
+is importing events after app contracts/cohorts; 346.83 GB free, no reported
+error. This is not a passing 1M receipt or an overall completion estimate.
+
+**Prior incident checkpoint, 12 November 21:30 UTC:** all nine final files and the
+manifest exist for `2d6bbc4d89df`; exact source/identity/size/SHA reverification
+passes. Validation stopped at 19:19 UTC after the global event sort filled
+scratch with 327.48 GB of spill. Only inventoried disposable spill was cleared;
+dataset, old database/partitions/logs remain. Bounded radix repair controls and
+local 10k/16M validation (50/50) pass; cloud probes/restart and full 1M validation
+remain open. Evidence: `research/experiments/costfn/evidence/REALISM-RADIX-20261112.md`.
+
+**Launch history, 12 November 12:53 UTC:** new approved 14-hour preparation lease
 `3ef3634d8983`, droplet `618505005`, 400-GiB persistent work Volume. Pinned SSH,
 source hashes, exact mount/UUID and synced-file unmount/remount readback pass;
 the actual 1M generator is active with `persistent_work=true`. Compute deadline
@@ -1544,6 +1585,7 @@ floor rerun, memory-limit increase or validation/storage/experiment completion.
 
 - [~] **RD3-VALIDATOR-THROUGHPUT:** operator-requested first-pass volume-aware complete-key sizing, bounded writer/worker concurrency and source/input-bound recovery checkpoints. Preserve every row/check and the approved aggregate resource envelope; prove exact parity, interruption/stale refusal and measured same-host throughput before adoption. The earlier run is now deleted, not advancing: last retained snapshot 03:57 UTC, deletion verified 10:02:47 UTC Nov 12. First bite: histogram-admit correctly sized complete-key buckets before writing, bound open files/flush buffers and prove exact parity plus local resource measurements. Parallel validation/checkpoint orchestration remains separate, not inferred from this repair.
   - [✓ 5.28.6 local only] **Volume-aware first pass:** exact histogram before writing, grouped destinations and bounded open files/flush buffers remove the oversized-bucket rewrite without tiny-file explosion. Three paired 2M-row local medians 3.50→1.91s, temporary Parquet 81.55→51.63MB; exact controls and a fresh 10k/16M-delivery full validation (50/50) pass. Cloud/1M scratch/throughput, parallelism and restart checkpoints remain open; not full RD3 acceptance.
+  - [✓ 5.31.2 local repair; cloud/1M OPEN] **Bound partition scratch without a global sort:** replace grouped all-row sorting with at most 32 hash-digit writers per COPY, exact intermediate/final histogram conservation and verified intermediate cleanup. Preserve all columns/multiplicities/complete keys and 2 GB/one-thread settings; cap DuckDB spill at 100 GB. Seven controls, ten realism suites and local 10k/16M validation pass. Existing completed 1M input is hash-verified and preserved; no regeneration, extra host/storage or lease extension. Same-host probe/restart and full 1M validation remain separate gates; `REALISM-RADIX-20261112.md` records the incident.
 - [ ] **RD3-RESTART-SAFETY:** latest operator direction is one persistent prep Volume, normal files/state/logs and scoped compute cleanup—not a whole-workflow checkpoint/archive framework. Verify exact volume/mount identity and retained-file/log readback after compute replacement, with separately approved storage retention/cost and new bounded compute approval. The old lease stays closed; disk survival is not dataset validation or final object-store archival acceptance.
   - [~] **RD3-RECOVERY:** latest operator correction narrows persistence to the one data-preparation droplet; experiments retain normal output logs/results, not a checkpoint framework. [✓ 5.29.0 local code] Pin the actual provider Volume, require exact mount/filesystem UUID in the worker CLI, and keep dataset/state/appended logs plus validation scratch on it; compute cleanup preserves the disk. Partial work is not automatic resume proof. Supersedes the 5.28.7 whole-workflow proposal. `REALISM-RECOVERY.md` covers the small implementation; actual attach/replacement/file-readback, storage cost/retention and new paid-run approval remain OPEN. No provisioning/mount/experiment change.
   - [✓ 5.28.6 historical; superseded 5.29.0] Remove the metadata-only readiness gate; actual provider-volume lookup plus exact mount/UUID verification replaces it. No offline receipt was actual connected durability evidence. Experiment checkpointing/controller orchestration is out of scope; their normal output logs/results remain.

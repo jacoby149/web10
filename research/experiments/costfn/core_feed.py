@@ -22,7 +22,7 @@ class CoreRequestFailure(RuntimeError):
 
 
 def wire():
-    value = json.loads((HERE / "evidence/core-feed-wire-v6.json").read_bytes())
+    value = json.loads((HERE / "evidence/core-feed-wire-v7.json").read_bytes())
     errors = study_plan.wire_errors(value)
     if errors:
         raise ValueError("stale core-feed source capture: " + "; ".join(errors))
@@ -30,7 +30,7 @@ def wire():
 
 
 def next_page_payload(capture, token, groups, cursor):
-    page = json.loads((HERE / "evidence/core-feed-next-page-v4.json").read_bytes())
+    page = json.loads((HERE / "evidence/core-feed-next-page-v5.json").read_bytes())
     if page["feed_sha256"] != study_plan.sha(study_plan.ROOT / study_plan.SOURCES["feed"]) or page["capture_sha256"] != study_plan.sha(HERE / "capture-pagination.ts"):
         raise ValueError("stale cursor builder capture")
     if not isinstance(cursor, str) or not re.fullmatch(r"[0-9T:+.Z -]{19,40}", cursor):
