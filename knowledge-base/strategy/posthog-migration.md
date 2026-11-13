@@ -2,6 +2,15 @@
 
 ## The goal and the operator's decision
 
+**Future setup experience (operator, 13.11.2026):** INTEGRATIONS-01 in plan/lane
+queues specifies Connect PostHog instead of requiring a pasted personal API key.
+PostHog's official [OAuth integration](https://posthog.com/docs/api/oauth) supports
+third-party scoped access and CIMD clients; this is provider documentation, not an
+implemented web10 connection or live authorization receipt. Preserve project/region
+binding, encrypted node-side management tokens and explicit collection/replay
+enablement. Public ingestion tokens are not private management credentials and
+still have their existing role. No runtime or vendor change in visual PR #1540.
+
 Jacob needs to compare acquisition channels by confirmed accounts, activation and
 return, and give investors inspectable third-party reports. Five Instagram
 creators at $200/month are the first campaign, not a bespoke analytics system.
