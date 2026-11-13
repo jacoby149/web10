@@ -31,7 +31,7 @@ try {
       await new Promise(resolve => setTimeout(resolve, 200));
     }
     for (const theme of ['dark', 'light']) for (const width of [1440, 375, 768, 1280].filter(width => !process.env.DIRECTORY_WIDTH || Number(process.env.DIRECTORY_WIDTH) === width)) {
-      const context = await browser.newContext({ viewport: { width, height: 900 }, colorScheme: theme, reducedMotion: 'reduce' });
+      const context = await browser.newContext({ viewport: { width, height: 900 }, hasTouch: width === 375, colorScheme: theme, reducedMotion: 'reduce' });
       const reads = [], errors = [];
       await context.route('**/*', async route => {
         const request = route.request(), url = new URL(request.url());
@@ -64,14 +64,31 @@ try {
       await page.goto(`${origin}${route}`, { waitUntil: 'networkidle' });
       await page.getByLabel('Sort profiles', { exact: true }).waitFor();
       await page.getByText('Avery Stone', { exact: true }).waitFor();
-      await page.getByLabel('Sort profiles', { exact: true }).selectOption('newest');
+      await page.getByRole('radio', { name: 'Most followers', exact: true }).focus();
+      assert.equal(await page.getByRole('radio', { name: 'Most followers', exact: true }).evaluate(node => {
+        const style = getComputedStyle(node.nextElementSibling);
+        return style.boxShadow !== 'none';
+      }), true, 'radio label has a visible keyboard focus ring');
+      await page.keyboard.press('ArrowRight');
       await page.getByText('Jordan Vale', { exact: true }).waitFor();
       assert.equal(new URL(page.url()).searchParams.get('peopleSort'), 'newest');
       await page.reload({ waitUntil: 'networkidle' });
-      assert.equal(await page.getByLabel('Sort profiles').inputValue(), 'newest');
+      assert.equal(await page.getByRole('radio', { name: 'Newest', exact: true }).isChecked(), true);
+      await page.getByText('Most followers', { exact: true }).click();
+      await page.getByText('Avery Stone', { exact: true }).waitFor();
+      await page.goBack({ waitUntil: 'networkidle' });
+      assert.equal(await page.getByRole('radio', { name: 'Newest', exact: true }).isChecked(), true);
       await page.getByText('Jordan Vale', { exact: true }).waitFor();
+      const selector = page.getByTestId('directory-sort-selector');
+      for (const target of await selector.locator('label > span, button').all()) {
+        const bounds = await target.boundingBox();
+        assert.ok(bounds.width >= 44 && bounds.height >= 44, 'all selector targets are touch-sized');
+      }
       assert.equal(await page.getByTestId('directory-advanced-panel').getAttribute('aria-hidden'), 'true');
-      if (width === 1440 || width === 375) await page.screenshot({ path: path.join(output, `${app}-profiles-collapsed-${theme}-${width}.png`), animations: 'disabled' });
+      if (width === 1440 || width === 375) {
+        await page.screenshot({ path: path.join(output, `${app}-profiles-collapsed-${theme}-${width}.png`), animations: 'disabled' });
+        await selector.screenshot({ path: path.join(output, `${app}-selector-${theme}-${width}.png`), animations: 'disabled' });
+      }
       await page.getByRole('button', { name: 'Advanced', exact: true }).click();
       assert.equal(await page.getByRole('button', { name: 'Hide controls', exact: true }).getAttribute('aria-expanded'), 'true');
       await page.getByTestId('server-mixer').waitFor();
@@ -82,8 +99,9 @@ try {
       await page.getByRole('tab', { name: 'Groups', exact: true }).click();
       if (app === 'social') await page.getByRole('tab', { name: 'Discover', exact: true }).click();
       await page.getByLabel('Sort groups', { exact: true }).waitFor();
-      assert.equal(await page.getByLabel('Sort groups').inputValue(), 'popular');
-      await page.getByLabel('Sort groups').selectOption('newest');
+      assert.equal(await page.getByRole('radio', { name: 'Most members', exact: true }).isChecked(), true);
+      if (width === 375) await page.getByText('Newest', { exact: true }).tap();
+      else await page.getByText('Newest', { exact: true }).click();
       await page.getByText('New Music Collective', { exact: true }).waitFor();
       assert.equal(new URL(page.url()).searchParams.get('peopleSort'), 'newest');
       assert.equal(new URL(page.url()).searchParams.get('groupSort'), 'newest');
@@ -93,7 +111,7 @@ try {
       await page.getByRole('button', { name: 'Hide controls', exact: true }).click();
       await page.getByRole('button', { name: 'Advanced', exact: true }).waitFor();
       assert.equal(await page.getByTestId('directory-advanced-panel').getAttribute('aria-hidden'), 'true');
-      assert.equal(await page.getByLabel('Sort groups').inputValue(), 'newest');
+      assert.equal(await page.getByRole('radio', { name: 'Newest', exact: true }).isChecked(), true);
       assert.equal(new URL(page.url()).searchParams.has('tune'), false);
       await page.getByRole('button', { name: 'Advanced', exact: true }).click();
       if (app === 'marketing' && [1440, 375].includes(width) && theme === 'dark') {
