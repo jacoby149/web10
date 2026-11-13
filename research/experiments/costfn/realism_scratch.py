@@ -137,7 +137,7 @@ def measure(mode, directory, reference, audit, interval=1.0, reserve=8 * 1024**3
                     event = json.loads(line[len(PREFIX):])
                     if event["kind"] in ("created","before_cleanup"):
                         path = owned_path(event["path"])
-                        if not path.name.startswith(("realism-work-","realism-validate-","realism-partitions-")):
+                        if not path.name.startswith(("realism-work-","realism-validate-","realism-partitions-","realism-clickhouse-")):
                             raise ValueError("child announced an unexpected scratch directory")
                         with lock:
                             roots.add(path)
@@ -195,7 +195,7 @@ def run(reference, audit):
         raise ValueError("this audit is the existing 100k floor only, never a 1M admission bypass")
     if shutil.disk_usage(CONTEXT).free < 16 * 1024**3:
         raise ValueError("at least 16 GiB free required to begin the bounded 100k audit")
-    pins = {p:sha(HERE/p) for p in ("realism_scratch.py","realism_dataset.py","realism_validate.py","realism_contract.py")}
+    pins = {p:sha(HERE/p) for p in ("realism_scratch.py","realism_dataset.py","realism_validate.py","realism_clickhouse.py","realism_contract.py")}
     audit.mkdir(exist_ok=False)
     record = {"kind":"REALISM_LOCAL_SCRATCH_AUDIT","recipe":manifest["recipe"],"reference_id":manifest["dataset_id"],
               "source_pins":pins,"phases":[],"paid_provisioning":False,"uploads":False,"million_admitted":False,

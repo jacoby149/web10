@@ -19,6 +19,18 @@ TABLES = ("users", "documents", "doc_groups", "group_contracts", "group_members"
 VALIDATOR_SOURCE_AT_IMPORT = sha(__file__)
 
 
+def validator_dependencies():
+    return {name:sha(Path(__file__).with_name(name)) for name in
+            ('realism_clickhouse.py','realism_contract.py')}
+
+
+def current_receipt(proof):
+    from realism_clickhouse import VERSION
+    return (proof.get('validator_sha256')==sha(__file__)
+            and proof.get('validator_dependencies')==validator_dependencies()
+            and proof.get('validator_engine')=={'name':'ClickHouse','version':VERSION})
+
+
 def partition_count(rows, max_rows=2500000):
     """Plan 25% average-row headroom; the exact histogram still admits it."""
     if type(rows) is not int or rows<0 or type(max_rows) is not int or max_rows<1:
@@ -135,7 +147,7 @@ def verify_floor_receipts(paths, spec=None):
         raise ValueError("exactly two independently validated floor receipts required")
     receipts = [json.loads(Path(p).read_bytes()) for p in paths]
     if {r.get("accounts") for r in receipts if r.get("complete") is True
-        and r.get("validator_sha256") == sha(__file__) and r.get("format") == FORMAT} != {10000, 100000}:
+        and current_receipt(r) and r.get("format") == FORMAT} != {10000, 100000}:
         raise ValueError("1M build requires current independent passing 10k AND 100k floor receipts")
     if any(not r.get("checks") or not all(r["checks"].values()) for r in receipts):
         raise ValueError("floor receipts include missing or failed checks")
@@ -153,7 +165,7 @@ def verify_floor_receipts(paths, spec=None):
                 raise ValueError("floor input bytes changed after validation")
 
 
-def attach(db, directory, manifest, *, keep_work=False):
+def verify_inputs(directory,manifest):
     if manifest.get("format") != FORMAT or manifest.get("dataset_id") != identity(manifest):
         raise ValueError("derived manifest format/identity mismatch")
     spec = manifest["contract"]
@@ -168,6 +180,14 @@ def attach(db, directory, manifest, *, keep_work=False):
         info = manifest["files"][table]
         if path.is_symlink() or info["name"] != path.name or path.stat().st_size != info["bytes"] or sha(path) != info["sha256"]:
             raise ValueError(f"file integrity mismatch: {table}")
+
+
+def attach(db, directory, manifest, *, keep_work=False):
+    """Bounded DuckDB reference/connected-feed oracle; not default validation."""
+    verify_inputs(directory,manifest)
+    for table in TABLES:
+        path=directory/f'{table}.parquet'
+        info=manifest['files'][table]
         # Only fixed local filenames/table names enter SQL; no artifact SQL.
         quoted = str(path).replace("'", "''")
         db.execute(f"CREATE VIEW {table} AS SELECT * FROM read_parquet('{quoted}')")
@@ -358,7 +378,8 @@ def inspect(db, manifest, progress=None, *, scratch_parent=None, keep_work=False
             "arithmetic":spec["arithmetic"],"scope":"Finished synthetic records, not node/browser performance or private/lifecycle acceptance"}
 
 
-def validate(directory, out, *, keep_work=False):
+def validate_duckdb_reference(directory, out, *, keep_work=False):
+    """Explicit comparison only; its receipt cannot admit the ClickHouse worker."""
     directory, out = Path(directory).resolve(), Path(out)
     if out.exists():
         raise FileExistsError("refusing to overwrite validation receipt")
@@ -392,10 +413,59 @@ def validate(directory, out, *, keep_work=False):
         result["complete"] = False
         result["checks"]["unchanged_validator_during_run"] = False
     result.update({"format":FORMAT,"dataset_id":manifest["dataset_id"],"validator_sha256":validator_pin,
+                   "validator_engine":{"name":"DuckDB-reference","version":duckdb.__version__},
                    "dataset_directory":os.path.relpath(directory,out.resolve().parent)})
     with out.open("xb") as stream:
         stream.write(encoded(result))
     print(f"[realism-validator] complete={result['complete']}; failed={[k for k,v in result['checks'].items() if not v]}", flush=True)
+    return result
+
+
+def validate(directory,out,*,keep_work=False):
+    """Validate finished records in ClickHouse, with no automatic fallback."""
+    directory,out=Path(directory).resolve(),Path(out)
+    if out.exists():
+        raise FileExistsError('refusing to overwrite validation receipt')
+    manifest=json.loads((directory/'manifest.json').read_bytes())
+    pin=sha(__file__)
+    if pin!=VALIDATOR_SOURCE_AT_IMPORT:
+        raise ValueError('validator source changed since module import; restart in a fresh process')
+    import realism_clickhouse as clickhouse
+    dependencies=validator_dependencies()
+    if dependencies['realism_clickhouse.py']!=clickhouse.SOURCE_AT_IMPORT:
+        raise ValueError('ClickHouse validator source changed since import; restart in a fresh process')
+    progress={'stage':'integrity'}
+    workspace=(nullcontext(tempfile.mkdtemp(prefix='realism-clickhouse-',dir=directory.parent)) if keep_work
+               else tempfile.TemporaryDirectory(prefix='realism-clickhouse-',dir=directory.parent))
+    with workspace as tmp:
+        db=None
+        try:
+            print(f'[clickhouse-validator] integrity start; work={tmp}',flush=True)
+            verify_inputs(directory,manifest)
+            db=clickhouse.ClickHouse(tmp,directory)
+            result=clickhouse.inspect(db,manifest,progress)
+        except Exception as error:
+            result={'complete':False,'accounts':manifest.get('recipe',{}).get('accounts'),
+                    'checks':{'validator_execution':False},'error_type':type(error).__name__,
+                    'stage':progress['stage'],'diagnostic':str(error)[:1200]}
+        finally:
+            if db is not None:
+                try:
+                    db.close()
+                except Exception as error:
+                    result['complete']=False
+                    result['checks']['clickhouse_cleanup']=False
+                    result['cleanup_error']=str(error)[:500]
+    if pin!=sha(__file__) or dependencies!=validator_dependencies():
+        result['complete']=False
+        result['checks']['unchanged_validator_during_run']=False
+    result.update({'format':FORMAT,'dataset_id':manifest['dataset_id'],
+        'validator_sha256':pin,'validator_dependencies':dependencies,
+        'validator_engine':{'name':'ClickHouse','version':clickhouse.VERSION},
+        'dataset_directory':os.path.relpath(directory,out.resolve().parent)})
+    with out.open('xb') as stream:
+        stream.write(encoded(result))
+    print(f'[clickhouse-validator] complete={result["complete"]}; failed={[k for k,v in result["checks"].items() if not v]}',flush=True)
     return result
 
 
@@ -457,5 +527,6 @@ if __name__ == "__main__":
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument("directory",type=Path)
     parser.add_argument("--out",type=Path,required=True)
+    parser.add_argument('--keep-work',action='store_true',help='Retain isolated ClickHouse data and query logs; not an automatic resume witness')
     args=parser.parse_args()
-    raise SystemExit(0 if validate(args.directory,args.out)["complete"] else 1)
+    raise SystemExit(0 if validate(args.directory,args.out,keep_work=args.keep_work)["complete"] else 1)

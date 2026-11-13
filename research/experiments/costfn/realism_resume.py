@@ -42,6 +42,7 @@ def generation(directory,spec,floor_receipts, *, skip_floor_gates=False):
 
 
 def validation(receipt,directory,manifest):
+    from realism_validate import current_receipt
     receipt=Path(receipt)
     if not receipt.exists():
         return None
@@ -51,12 +52,12 @@ def validation(receipt,directory,manifest):
     if (proof.get('complete') is True and proof.get('dataset_id')==dataset_id
             and proof.get('format')==FORMAT and proof.get('accounts')==manifest['recipe']['accounts']
             and (receipt.resolve().parent/proof.get('dataset_directory','')).resolve()==Path(directory).resolve()
-            and proof.get('validator_sha256')==sha(HERE/'realism_validate.py')
+            and current_receipt(proof)
             and checks and all(v is True for v in checks.values())):
         return proof
     # Preserve deterministic failure evidence and require a repair/operator
     # decision, not a blind unchanged retry that might hide the failed gate.
-    if proof.get('validator_sha256')==sha(HERE/'realism_validate.py') and proof.get('dataset_id')==dataset_id:
+    if current_receipt(proof) and proof.get('dataset_id')==dataset_id:
         raise ValueError('same-source validation previously failed; retain it and repair the stage before retry')
     archived=receipt.with_name(receipt.name+'.stale-'+uuid.uuid4().hex[:12])
     receipt.rename(archived)

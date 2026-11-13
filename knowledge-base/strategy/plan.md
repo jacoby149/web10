@@ -1434,7 +1434,40 @@ docs before code, per the rule at the top.
 
 ### Current directive — derived realism dataset (11 November 2026)
 
-**Current checkpoint, 12 November 21:30 UTC:** all nine final files and the
+**Operator amendment, 12 November:** switch finished-dataset validation from
+DuckDB to ClickHouse: “we should switch the duckdb to clickhouse for validation,
+i have more confidence + it matches the rest of our stuff”. Generation and
+frozen input bytes stay unchanged. No automatic DuckDB fallback, approximate
+counts, new paid resources or relaxed validation/lease gates. Translate and
+prove all 50 checks on passing and deliberately broken inputs before retrying
+the stopped 1M validation; retain the DuckDB implementation only as a bounded
+comparison/reference and for existing separate feed-oracle callers.
+- [✓ 5.29.4 code/local/native smoke; full 1M OPEN] **RD3-CLICKHOUSE: switch finished-record validation to ClickHouse** —
+  owns research validator/worker/admission tests and serialized KB records.
+  Preserve exact medians/quantiles, duplicate-sensitive raw imports, null-join
+  semantics, deletion-winning canonical documents, all 50 verdicts, source/engine
+  receipt binding and failed-result retention. Prove real-engine parity and
+  mutation denial, keep memory/spill/time limits and isolated persistent work.
+  Actual 1M throughput, storage/review/connected/experiment gates remain open.
+  Eleven actual-engine controls and thirteen offline suites/five Bun tests/lint
+  pass. Source-stable 10k/16M validation is 50/50, exact reports match the
+  bounded reference; sampled dataset+scratch peak 1.106 GB, not full-scale proof.
+  Native package/source checks and 1M-event prefix smoke pass on host 618505005.
+  At 00:19:48 UTC Nov 13, resume the same generated 1M input with ClickHouse;
+  no generator/floor rerun, resize, new host or deadline extension. Keep 400 GiB,
+  02:50:22 UTC cleanup, mounted reserve and retained volume; 12-GiB/one-CPU
+  service cap complements 2 GB/one-thread queries. Full validation remains open.
+
+**Current run, 13 November 00:20 UTC:** ClickHouse-backed resume is active on
+the same host/400-GiB Volume, reverifying the completed input before SQL checks.
+Source pins/native smoke/local 50-check gates are retained in
+`research/experiments/costfn/evidence/REALISM-CLICKHOUSE-20261112.md`. No new
+resource or extension; 02:50:22 UTC cleanup and final 1M validation gate remain.
+At 00:22 UTC, all generation hashes reverify and actual ClickHouse validation
+is importing events after app contracts/cohorts; 346.83 GB free, no reported
+error. This is not a passing 1M receipt or an overall completion estimate.
+
+**Prior incident checkpoint, 12 November 21:30 UTC:** all nine final files and the
 manifest exist for `2d6bbc4d89df`; exact source/identity/size/SHA reverification
 passes. Validation stopped at 19:19 UTC after the global event sort filled
 scratch with 327.48 GB of spill. Only inventoried disposable spill was cleared;
