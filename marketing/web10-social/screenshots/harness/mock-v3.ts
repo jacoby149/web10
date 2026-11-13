@@ -21,6 +21,7 @@ function avatar(label: string, from: string, to: string): string {
 // A fresh object on every read creates an endless effect/reset loop in previews.
 const client = {
     readToken: () => getWapi().readToken(),
+    trackContentEvent: async () => ({ recorded: true }),
     listPeopleDirectory: async () => ({ users: [
       { username: 'nova', profile: { display_name: 'Nova Lane' } },
       { username: 'noah', profile: { display_name: 'Noah Reed' } },
@@ -47,11 +48,28 @@ const client = {
     },
     getGroup: async () => ({ group_id: groupId, roles: [{ name: 'publisher', permissions: { '*': ['readAll', 'create', 'updateOwn', 'deleteOwn'] } }] }),
     read: async () => [{ doc_id: 'studio-face', author_key: 'me', body: { name: 'Northstar Studio' } }],
-    query: async (sql: string) => ({ rows: sql.includes('FROM profile') ? [
+    query: async (sql: string) => {
+      if (sql.includes('AS post_count') && sql.includes("'hashtags'")) {
+        const params = new URLSearchParams(location.search);
+        const state = params.get('hashtagState');
+        if (state === 'loading') await new Promise(resolve => setTimeout(resolve, 1500));
+        if (state === 'error') throw new Error('Synthetic hashtag transport failure');
+        const q = /position\(hashtag, '([^']*)'\)/.exec(sql)?.[1] || '';
+        const rank = (tag: string) => !q || tag === q ? 0 : tag.startsWith(q) ? 1 : 2;
+        const rows = [
+          { hashtag: 'music', post_count: 100000 }, { hashtag: 'musician', post_count: 220000 },
+          { hashtag: 'livemusic', post_count: 500000 }, { hashtag: 'musicvideo', post_count: 7200 },
+          { hashtag: 'music_production', post_count: 1400 }, { hashtag: 'music_lovers', post_count: 1 },
+        ].filter(row => row.hashtag.includes(q) && state !== 'empty')
+          .sort((a, b) => rank(a.hashtag) - rank(b.hashtag) || b.post_count - a.post_count || a.hashtag.localeCompare(b.hashtag));
+        return { rows, count: rows.length };
+      }
+      return { rows: sql.includes('FROM profile') ? [
       { author_key: 'nova', avatar_url: avatar('N', '#8b5cf6', '#2e1065') },
       { author_key: 'noah', avatar_url: avatar('NR', '#3b82f6', '#172554') },
       { author_key: 'kai', avatar_url: avatar('K', '#8b5cf6', '#2e1065') },
-    ] : [{ group_id: groupId, avatar_url: avatar('NS', '#8b5cf6', '#2e1065') }], count: 1 }),
+    ] : [{ group_id: groupId, avatar_url: avatar('NS', '#8b5cf6', '#2e1065') }], count: 1 };
+    },
     documentAttachment: async (_docId: string, _groupId: string, opts?: { attached?: boolean }) => ({ attached: opts?.attached ?? true }),
 };
 

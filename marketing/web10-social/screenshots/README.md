@@ -142,6 +142,23 @@ screenshots at 1440×900 and 375×812.
   `capture.mjs`.
 - Want different seed content → edit `PEERS` in `harness/mock-data.ts`.
 
+## Hashtag autocomplete
+
+`node screenshots/hashtags-autocomplete.mjs` exercises the real shared caption
+and comment pickers with synthetic query/write transport. It checks exact-match
+precedence, compact/exact counts, caret/focus, keyboard/touch, menu bounds and
+loading/empty/retry states in both themes at desktop/375px, plus caption bounds
+at 768/1280. Captures and receipt go to `.context/hashtag-autocomplete/`.
+`HASHTAG_SURFACE=caption` narrows iteration to the caption adapter.
+
+From `api/`, run
+`uv run --frozen python ../marketing/web10-social/screenshots/hashtag-query.py`
+for the separate actual-query receipt: app-generated SQL, the real safe-query
+compiler and disposable ClickHouse 24.8.14.39. Synthetic public/private,
+ad/product, deleted, blocked and hidden rows verify exact-first ranking,
+distinct-post counts and literal underscores. Only the runner's named container
+is removed. This is not production load, live-node or cross-node acceptance.
+
 ## People-tag autocomplete matrix
 
 The self-booting real-UI matrix covers Posts/Following, Discover, Video/watch,
