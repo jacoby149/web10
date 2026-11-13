@@ -147,6 +147,10 @@
   box-shadow: inset 0 1px 0 var(--chrome-highlight), 0 8px 32px var(--chrome-shadow);
 }
 
+.chrome-compose-control:hover, .chrome-compose-control:active {
+  background-color: var(--color-elevated);
+}
+
 .chrome-nav-item {
   border: 1px solid transparent;
   border-radius: var(--radius-full);

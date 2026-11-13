@@ -69,6 +69,9 @@ try {
     await page.goto(`${base}?screen=${board}&feed-player-repair=1&signin-prompts=1`, { waitUntil: 'networkidle' });
     const feed = page.getByTestId('music-feed-media');
     await feed.waitFor();
+    if ([1440, 375].includes(width) && board === 'posts') {
+      await page.screenshot({ path: path.join(output, `compose-idle-${theme}-${width}.png`) });
+    }
     assert.equal(await feed.locator('audio,video').count(), 0, 'no second music transport');
     const feedNode = await feed.elementHandle();
     const play = feed.getByRole('button', { name: 'Play music', exact: true });
@@ -132,7 +135,14 @@ try {
     const fabBox = await fab.boundingBox();
     const playerBox = await player.boundingBox();
     assert.ok(fabBox.y + fabBox.height <= playerBox.y - 8, 'compose also clears the player on desktop and phone');
-    await fab.click();
+    assert.equal(fabBox.height, 48, 'compact 48px compose control, not the old 64px orb');
+    assert.ok(mobile ? fabBox.width === 48 : fabBox.width > 48 && fabBox.width <= 160, 'icon on mobile, labelled desktop pill');
+    assert.equal(await fab.evaluate(el => getComputedStyle(el).backgroundImage), 'none', 'no purple gradient fill');
+    assert.equal(await fab.locator('span').isVisible(), !mobile, 'desktop New post label');
+    await page.keyboard.press('Tab');
+    await fab.focus();
+    assert.equal(await fab.evaluate(el => el.matches(':focus-visible')), true);
+    await page.keyboard.press('Enter');
     await page.getByRole('dialog', { name: 'New post', exact: true }).waitFor();
     assert.equal(await page.evaluate(() => window.musicElements.at(-1).paused), false, 'opening composer retains playback');
     await page.getByTestId('new-post-sheet-close').click();

@@ -3,9 +3,9 @@ import { useComposer } from '@/context/ComposerContext';
 import { trackEvent } from '@/lib/analytics';
 
 /**
- * The floating "New Post" button — the bubbly "+" the operator asked for
- * (29.09.2026: "with a + New Post on the screen you hit that, then the full
- * thing pops up for you to post"). It replaces the always-visible composer
+ * The floating "New Post" control — a quiet neutral pill, with a compact
+ * plus on phones and an explicit desktop label (operator, 13.11.2026).
+ * It replaces the always-visible composer
  * boxes that used to sit inline on every surface: the button is the only
  * resting chrome, the full composer pops up on tap (the NewPostSheet).
  *
@@ -30,16 +30,14 @@ export function NewPostFab({ hidden = false }: { hidden?: boolean }) {
         openComposer();
       }}
       className={
-        'chrome-compose-position fixed right-4 md:right-6 md:bottom-6 z-30 ' +
-        'flex h-16 w-16 items-center justify-center rounded-full ' +
-        'bg-gradient-to-br from-brand to-brand-600 text-brand-foreground ' +
-        'ring-2 ring-brand-300/40 ' +
-        'shadow-[0_8px_30px_rgb(0,0,0/0.45)] ' +
-        'transition-transform duration-150 ease-out hover:scale-105 active:scale-95 ' +
+        'chrome-compose-position chrome-compose-control chrome-glass chrome-floating fixed right-4 md:right-6 md:bottom-6 z-30 ' +
+        'flex h-12 w-12 items-center justify-center gap-2 rounded-full border border-border md:w-auto md:px-4 ' +
+        'text-sm font-medium text-foreground transition-colors duration-150 motion-reduce:transition-none ' +
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background'
       }
     >
-      <Plus className="w-8 h-8" strokeWidth={2.25} />
+      <Plus className="h-5 w-5 text-brand-300" strokeWidth={1.75} aria-hidden="true" />
+      <span className="hidden md:inline">New post</span>
     </button>
   );
 }

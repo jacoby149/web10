@@ -503,6 +503,12 @@ available in the expanded player; play/pause, next, close and queue stay in the
 phone mini-player. Desktop retains its bottom transport bar; lift New post above
 the measured player height there too, so playback never covers the posting entry.
 
+**New post control (operator, 13.11.2026):** replace the oversized violet
+gradient orb with a quiet 48px neutral frosted control. Mobile keeps a compact
+plus; desktop adds a readable New post label in a pill. No saturated fill,
+persistent glow ring, bounce or refraction. Retain keyboard focus, hover/pressed
+feedback, theme/accessibility fallbacks and clearance above the music player.
+
 **Operator correction, same day:** retain the pill dock but remove the broad
 painted gradient, particularly in dark mode. Trial a real SVG displacement
 filter on the dock's narrow rim only, with undistorted controls above it.
