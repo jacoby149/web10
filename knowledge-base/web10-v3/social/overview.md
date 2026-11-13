@@ -29,6 +29,21 @@ forwarded to loopback ports without replacing responses; vendor traffic is denie
 The local node disables contact verification and media/background workers; this
 is not production signup, live verification delivery or physical-phone assurance.
 
+### Signed-out invitations inside the app
+
+Browsing stays open at `/feed`. Signed-out visitors get the existing header
+Sign in action, a desktop sidebar explanation (like, comment and follow), and
+a compact non-blocking feed invitation. Each Sign in action calls App's same
+user-gesture auth handler and sends the existing social contract; it does not
+grant access or open auth automatically. Learn-more links open `/join`.
+
+Following is selectable when signed out: `/feed?tab=following` shows why signing
+in is useful and an explicit Sign in button, never reads the personal feed.
+Discover returns to public browsing without login. The URL retains the selected
+tab and unrelated filters through refresh/history and sign-in; a successful
+session then shows the requested personal feed in place. Signed-in visitors see
+none of these invitations. No new credentials, grants, endpoints or auth policy.
+
 ## How Social Maps to Groups
 
 ```mermaid

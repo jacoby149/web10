@@ -512,7 +512,7 @@ function App() {
         <Route path="/" element={<Navigate to="/feed" replace />} />
         <Route path="/join" element={isAnon ? <JoinScreen onLogin={handleLogin} /> : <Navigate to="/feed" replace />} />
         <Route element={<Layout onLogout={handleLogout} onLogin={handleLogin} isAnon={isAnon} onReportBug={() => handleReportBug('button')} />}>
-          <Route path="/feed" element={<PostsScreen onAuthorClick={handleAuthorClick} />} />
+          <Route path="/feed" element={<PostsScreen onAuthorClick={handleAuthorClick} onLogin={handleLogin} />} />
           {/* The Discover split (watch-page.md): the old single /discover
               (Trending|People tabs + Home|Hot Gossip toggle) is four flat
               destinations. /discover (bare) → Video (the default);

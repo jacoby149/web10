@@ -50,8 +50,9 @@ async function openJoin(page) {
   assert.equal(new URL(popup.url()).origin, 'http://auth.localhost');
   return popup;
 }
-async function assertEntered(page, popup, username, label) {
-  await page.waitForURL('**/feed', { timeout: 30000 });
+async function assertEntered(page, popup, username, label, following = false) {
+  await page.waitForURL(url => url.pathname === '/feed' && url.search === (following ? '?tab=following' : ''), { timeout: 30000 });
+  await page.waitForFunction(() => window.web10.readTokenCookie() !== null);
   await page.getByTestId('posts-tab-row').waitFor();
   await popup.waitForEvent('close', { timeout: 10000 }).catch(error => { if (!popup.isClosed()) throw error; });
   // Session + live node authorization, not just a redirected address bar.
@@ -74,7 +75,7 @@ async function assertEntered(page, popup, username, label) {
   }
   await page.reload();
   await page.getByTestId('posts-tab-row').waitFor();
-  await page.getByTestId('discover-empty').waitFor({ timeout: 30000 });
+  await page.getByTestId(following ? 'feed-empty' : 'discover-empty').waitFor({ timeout: 30000 });
   assert.equal(await page.getByTestId('posts-tab-following').isEnabled(), true);
   assert.equal(await page.getByTestId('new-post-fab').isEnabled(), true);
   assert.equal(new URL(page.url()).pathname, '/feed');
@@ -150,13 +151,25 @@ try {
     await popup.getByTestId('password-input').fill(password);
     await popup.getByTestId('login-submit').click();
     await assertEntered(page, popup, username, `login-${width}`);
+
+    // The new contextual invitation must return to the requested Following
+    // tab, not discard it or load personal data while still signed out.
+    await context.clearCookies({ domain: 'social.localhost' });
+    await page.goto('http://social.localhost/feed?tab=following');
+    await page.getByTestId('sign-in-prompt-following').waitFor();
+    const followingPopup = page.waitForEvent('popup');
+    await page.getByTestId('sign-in-button-following').click();
+    popup = await followingPopup;
+    await popup.setViewportSize({ width: Math.min(width, 480), height: 900 });
+    await popup.getByTestId('consent-continue-as').click();
+    await assertEntered(page, popup, username, `following-${width}`, true);
     assert.deepEqual(forwardingErrors, []);
     await context.unrouteAll({ behavior: 'ignoreErrors' });
     await context.close();
   }
   await writeFile(path.join(output, 'receipt.json'), JSON.stringify({ receipts,
     scope: 'real local browser, authenticator, SDK, FastAPI and disposable ClickHouse; no phone/email vendor or production claim' }, null, 2));
-  console.log('[join-connected] signup + return through real contracts/token/feed passed at desktop and 375px');
+  console.log('[join-connected] signup + return + contextual Following through real contracts/token/feed passed at desktop and 375px');
 } finally {
   await browser?.close();
   const exits = processes.map(child => child.exitCode !== null || child.signalCode !== null

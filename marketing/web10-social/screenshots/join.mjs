@@ -45,6 +45,28 @@ try {
       await page.reload();
       await page.getByTestId('posts-tab-row').waitFor();
       assert.equal(new URL(page.url()).pathname, '/feed');
+      await page.getByTestId('sign-in-prompt-feed').waitFor();
+      const invitations = ['feed', ...(width >= 768 ? ['sidebar'] : [])];
+      for (const placement of invitations) {
+        const opened = page.waitForEvent('popup');
+        await page.getByTestId(`sign-in-button-${placement}`).click();
+        const auth = await opened;
+        await auth.waitForLoadState('domcontentloaded');
+        assert.equal(new URL(auth.url()).origin, 'http://auth.localhost');
+        await auth.close();
+        assert.equal(new URL(page.url()).pathname, '/feed');
+      }
+      await page.getByTestId('posts-tab-following').click();
+      await page.waitForURL('**/feed?tab=following');
+      await page.getByTestId('sign-in-prompt-following').waitFor();
+      await page.reload();
+      await page.getByTestId('sign-in-prompt-following').waitFor();
+      await page.goBack();
+      await page.getByTestId('sign-in-prompt-feed').waitFor();
+      await page.goForward();
+      await page.getByTestId('sign-in-prompt-following').waitFor();
+      await page.getByTestId('posts-tab-discover').click();
+      await page.waitForURL('**/feed');
       await page.goto(`${origin}/join`);
       await page.getByTestId('join-screen').waitFor();
       assert.equal(new URL(page.url()).pathname, '/join');

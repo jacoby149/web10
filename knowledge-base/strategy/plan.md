@@ -65,6 +65,8 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
+- [ ] **Signed-out feed sign-in invitations** — YouTube-style header/sidebar/feed entry points with clear reasons to sign in, without blocking public browsing. Following becomes a URL-backed sign-in explanation at `/feed?tab=following`; it never loads private feed data before login and keeps the selected destination after auth. Existing popup/contracts only, signed-in surface unchanged. Gates: action wiring, private-read denial, URL/history/session tests, suite/build and both-theme desktop/375px captures with tablet bounds; normal PR checks.
+
 - [✓ 5.32.0 local; CI pending] **Repair the stale groups-directory E2E page size** — operator-approved PR #1530 unblock: at most five 100-row reads preserve the former 500-result scope and all listed/hidden/metadata assertions. Actual repaired Playwright scenario passes on a disposable real FastAPI/ClickHouse node with 105 earlier groups forcing the target onto page two; exact limit-100 offsets 0/100 verified. Same prior failure is independently recorded on merged #1524. No API limit/visibility change; repaired E2E shard/all checks remain the gate.
 
 - [✓ 5.32.0 local] **Keep the homepage browse-first; share `/join` to promote signup** — operator follow-up supersedes the earlier signed-out root pitch: `/` always opens `/feed`, whether signed in or not. `/join` remains the dedicated shareable promotion/signup page; its existing auth/contract handoff still enters `/feed`. Root/no-popup regression and browser root/reload/direct-join checks retain anonymous browsing.

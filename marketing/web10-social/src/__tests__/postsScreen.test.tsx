@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import '@testing-library/jest-dom';
 import * as data from '@/data';
+import { getWapi } from '@/data/wapi';
 
 // Mock lucide-react icons as simple span elements (any icon, no manual list)
 import { lucideMock } from './helpers/lucideMock';
@@ -67,14 +68,14 @@ const SEED_DISCOVER_POST = {
   score: 250,
 };
 
-async function renderPosts(path = '/feed') {
+async function renderPosts(path = '/feed', onLogin = vi.fn()) {
   const { default: PostsScreen } = await import('@/components/Feed/PostsScreen');
   lastPath = '';
   lastSearch = '';
   return render(
     <MemoryRouter initialEntries={[path]}>
       <LocationProbe />
-      <PostsScreen />
+      <PostsScreen onLogin={onLogin} />
     </MemoryRouter>,
   );
 }
@@ -82,6 +83,7 @@ async function renderPosts(path = '/feed') {
 describe('PostsScreen (the merged Feed + Hot Gossip surface)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getWapi).mockReturnValue({ readToken: () => ({ provider: 'test.localhost', username: 'testuser' }) } as ReturnType<typeof getWapi>);
     (data.getV3Client as ReturnType<typeof vi.fn>).mockReturnValue({
       read: vi.fn().mockResolvedValue([]),
       readToken: vi.fn().mockReturnValue({ provider: 'test.localhost', username: 'testuser' }),
@@ -151,25 +153,72 @@ describe('PostsScreen (the merged Feed + Hot Gossip surface)', () => {
     await screen.findByTestId('feed-empty');
   });
 
-  it('anon /feed renders the board with the Following tab greyed out', async () => {
-    // Anon: no session → no personal feed → the Following tab is greyed out
-    // (the operator, 29.09.2026: "if on anon the following tab should be
-    // greyed out"). The screen is the Discover board (the public ledger) with
-    // the tab row, Following disabled.
-    const { getWapi } = await import('@/data/wapi');
+  it('anon /feed keeps public content with a benefits invitation and a working sign-in action', async () => {
     (getWapi as ReturnType<typeof vi.fn>).mockReturnValue({
       readToken: vi.fn().mockReturnValue(null),
     });
-    await renderPosts('/feed');
+    const onLogin = vi.fn();
+    await renderPosts('/feed', onLogin);
     // The tab row is present (a tabbed surface, not a single board).
     expect(screen.getByTestId('posts-tab-row')).toBeInTheDocument();
-    // The Following tab is greyed out (aria-disabled) for anon.
-    expect(screen.getByTestId('posts-tab-following')).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByTestId('posts-tab-following')).not.toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByTestId('sign-in-prompt-feed')).toHaveTextContent('Follow creators');
+    expect(screen.getByTestId('sign-in-learn-feed')).toHaveAttribute('href', '/join');
+    expect(onLogin).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId('sign-in-button-feed'));
+    expect(onLogin).toHaveBeenCalledTimes(1);
     // The Discover tab is active (the default).
     expect(screen.getByTestId('posts-tab-discover')).toHaveAttribute('aria-selected', 'true');
     // No composer (anon can't post).
     expect(screen.queryByTestId('post-composer')).not.toBeInTheDocument();
     // The board renders (the public ledger).
     await screen.findByTestId('discover-grid');
+  });
+
+  it('anon Following is URL-owned, explains sign-in, preserves filters and never reads the personal feed', async () => {
+    vi.mocked(getWapi).mockReturnValue({ readToken: () => null } as ReturnType<typeof getWapi>);
+    const onLogin = vi.fn();
+    await renderPosts('/feed?q=music', onLogin);
+    fireEvent.click(screen.getByTestId('posts-tab-following'));
+    await screen.findByTestId('sign-in-prompt-following');
+    expect(lastSearch).toBe('?q=music&tab=following');
+    expect(screen.getByTestId('posts-tab-following')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByTestId('sign-in-prompt-feed')).not.toBeInTheDocument();
+    expect(screen.getByText('Keep up with your people')).toBeInTheDocument();
+    expect(data.readFeedPage).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId('sign-in-button-following'));
+    expect(onLogin).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByTestId('posts-tab-discover'));
+    expect(lastSearch).toBe('?q=music');
+    expect(screen.queryByTestId('sign-in-prompt-following')).not.toBeInTheDocument();
+  });
+
+  it('a signed-out Following deep link restores its invitation, not a private feed or forced Discover', async () => {
+    vi.mocked(getWapi).mockReturnValue({ readToken: () => null } as ReturnType<typeof getWapi>);
+    await renderPosts('/feed?tab=following');
+    expect(await screen.findByTestId('sign-in-prompt-following')).toBeInTheDocument();
+    expect(data.readFeedPage).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('discover-grid')).not.toBeInTheDocument();
+  });
+
+  it('signed-in visitors see no sign-in invitation on either tab', async () => {
+    await renderPosts('/feed');
+    expect(screen.queryByTestId('sign-in-prompt-feed')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('posts-tab-following'));
+    await screen.findByTestId('feed-empty');
+    expect(screen.queryByTestId('sign-in-prompt-following')).not.toBeInTheDocument();
+  });
+
+  it('a new session replaces the Following invitation in place without dropping its URL', async () => {
+    vi.mocked(getWapi).mockReturnValue({ readToken: () => null } as ReturnType<typeof getWapi>);
+    const view = await renderPosts('/feed?tab=following');
+    expect(await screen.findByTestId('sign-in-prompt-following')).toBeInTheDocument();
+    expect(data.readFeedPage).not.toHaveBeenCalled();
+    vi.mocked(getWapi).mockReturnValue({ readToken: () => ({ provider: 'test.localhost', username: 'testuser' }) } as ReturnType<typeof getWapi>);
+    const { default: PostsScreen } = await import('@/components/Feed/PostsScreen');
+    view.rerender(<MemoryRouter initialEntries={['/feed?tab=following']}><LocationProbe /><PostsScreen onLogin={() => {}} /></MemoryRouter>);
+    await screen.findByTestId('feed-empty');
+    expect(lastSearch).toBe('?tab=following');
+    expect(screen.queryByTestId('sign-in-prompt-following')).not.toBeInTheDocument();
   });
 });

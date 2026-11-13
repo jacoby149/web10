@@ -135,6 +135,39 @@ describe('App renders', () => {
     expect(sdk.client.contractRequest).toHaveBeenCalledTimes(1);
   });
 
+  it.each(['sidebar', 'feed', 'following'])('the %s invitation opens the existing auth and complete social-contract request', async (placement) => {
+    const sdk = installWeb10Mock();
+    const { getWapi } = await import('@/data/wapi');
+    const tokenRead = vi.spyOn(getWapi(), 'readToken').mockReturnValue(null);
+    try {
+      const { default: App } = await import('@/App');
+      render(<MemoryRouter initialEntries={[placement === 'following' ? '/feed?tab=following' : '/feed']}><App /></MemoryRouter>);
+      expect(sdk.openAuthPortal).not.toHaveBeenCalled();
+      fireEvent.click(await screen.findByTestId(`sign-in-button-${placement}`));
+      expect(sdk.openAuthPortal).toHaveBeenCalledTimes(1);
+      expect(sdk.client.contractRequest).toHaveBeenCalledTimes(1);
+      const { SOCIAL_SERVICES, SOCIAL_OPERATIONS } = await import('@/lib/socialContract');
+      expect(sdk.client.contractRequest.mock.calls[0][0]).toEqual([{ kind: 'app', app_origin: window.location.origin,
+        permissions: Object.fromEntries(SOCIAL_SERVICES.map(service => [service, [...SOCIAL_OPERATIONS]])) }]);
+    } finally { tokenRead.mockRestore(); }
+  });
+
+  it('blocked Following sign-in keeps the selected URL and a retryable action', async () => {
+    const sdk = installWeb10Mock();
+    sdk.openAuthPortal.mockReturnValue(null);
+    const { getWapi } = await import('@/data/wapi');
+    const tokenRead = vi.spyOn(getWapi(), 'readToken').mockReturnValue(null);
+    try {
+      const { default: App } = await import('@/App');
+      render(<MemoryRouter initialEntries={['/feed?tab=following']}><App /></MemoryRouter>);
+      fireEvent.click(await screen.findByTestId('sign-in-button-following'));
+      expect(await screen.findByText(/Allow pop-ups for this site/)).toBeInTheDocument();
+      expect(screen.getByTestId('posts-tab-following')).toHaveAttribute('aria-selected', 'true');
+      expect(screen.getByTestId('sign-in-button-following')).toBeEnabled();
+      expect(sdk.client.contractRequest).not.toHaveBeenCalled();
+    } finally { tokenRead.mockRestore(); }
+  });
+
   it('lets a visitor explore without an account', async () => {
     const sdk = installWeb10Mock();
     const { default: App } = await import('@/App');

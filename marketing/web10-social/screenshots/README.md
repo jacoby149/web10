@@ -12,6 +12,14 @@ authenticated foreign app grants.
 
 ## System / Light / Dark appearance
 
+Signed-out invitations: `node screenshots/sign-in-prompts.mjs` captures the real
+shell/feed with seeded public content in both themes at desktop/375px, checks
+768/1280 bounds, all visible Sign in callbacks/keyboard targets, Following's
+invitation and signed-in parity. Captures/receipt: `.context/sign-in-prompts/`.
+These callbacks are fixtures; `join.mjs` separately checks actual-app routes,
+popup opening and Following history/reload, while `join-connected.mjs` drives
+the real-node Following sign-in return without dropping its selected tab.
+
 Social join entry: `node screenshots/join.mjs` checks the actual app at both
 themes and 375/768/1280/1440px. Captures/receipt go to `.context/social-join/`.
 The auth destination is a fixture: this checks popup opening, not login.
