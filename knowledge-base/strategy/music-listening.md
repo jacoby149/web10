@@ -79,6 +79,37 @@ deferred; saving a playlist keeps its live original, not copied tracks.
 
 ## Implemented Scope
 
+### Feed handoff and mobile player repair (13.11.2026)
+
+5.35.0 implements this locally: all 2,621 social tests/build/typecheck and sixteen
+two-theme/four-width Chromium cases pass on Discover and Following. Real native
+media and registered Media Session callbacks pass, not an Android OS-widget test.
+The second glass widget has actual rim-only pixel evidence and opaque fallbacks;
+desktop/375px captures are inspected in `.context/feed-player/`. Physical phone,
+Safari and deployment acceptance remain separate.
+
+Native/system video events also synchronize the shared non-immersive player's
+in-page controls; a paused clip must not keep showing Pause or require two taps
+to restart. A reproduced pre-repair failure pins this seam; all 379 marketing
+tests/build pass for the shared component's other consumer.
+
+Music-tagged feed posts use the same app-level transport as Music, not a second
+inline audio element. A tap starts the readable, resolved track and opens its
+URL-owned player; returning to the feed keeps playback and Media Session controls.
+Ordinary nonmusic audio retains inline playback. Source-qualified tracks keep
+their source and read-only recovery restriction. On phones the mini-player is
+an inset rounded surface with a visible gap above the glass dock; all controls,
+the seek track and the last page content remain reachable. Real Android
+notification/background acceptance requires a physical device, not a mocked API.
+
+Discover and Following share this renderer. Audible ordinary feed audio/video
+acquires Media Session ownership while mounted, including a playing clip unmuted
+after a muted start. Play/pause and bounded seeking target that actual element,
+never a previously paused Music queue. Muted previews do not acquire ownership;
+leaving the feed clears its metadata and stale actions cannot resume old Music.
+This is system-control integration, not persistent/background video playback:
+the existing visibility, resource-release and browser suspension rules still apply.
+
 1. A listening-first Music destination with Explore, Saved Music and Playlists.
    Explore has artwork-led picks plus compact track rows, explicit load-more
    rather than an endless scrolling wall, and an always-visible search field.

@@ -54,6 +54,7 @@ import { useSave } from '@/context/SaveContext';
 import { VideoPlayer, sourceFromMedia } from './VideoPlayer';
 import { MediaCarousel } from './MediaCarousel';
 import { AudioPlayer, audioArtwork } from '@web10/discover';
+import MusicFeedMedia from '@/components/Music/MusicFeedMedia';
 import { toast, errorMessage } from '@/components/shared/Toast';
 
 const LOG = (...args: unknown[]) => console.log('[social:feed]', ...args);
@@ -187,7 +188,7 @@ function MediaItem({ media, audioTitle, audioArtist }: { media: MediaRecord; aud
   return frame;
 }
 
-function MediaGrid({ mediaItems, audioTitle, audioArtist }: { mediaItems: MediaRecord[]; audioTitle?: string; audioArtist?: string }) {
+function MediaGrid({ mediaItems, audioTitle, audioArtist, post, readOnlySource }: { mediaItems: MediaRecord[]; audioTitle?: string; audioArtist?: string; post?: PostRecord; readOnlySource?: boolean }) {
   if (!mediaItems.length) return null;
   const count = mediaItems.length;
   const first = mediaItems[0];
@@ -198,10 +199,12 @@ function MediaGrid({ mediaItems, audioTitle, audioArtist }: { mediaItems: MediaR
   // fit="cover": the frame is the first item's natural ratio and every photo
   // FILLS it (crops to one consistent frame) instead of letterboxing — the
   // feed's no-shift guarantee is the reserved frame, not the object-fit.
-  if (count === 1) {
-    return <MediaItem media={first} audioTitle={audioTitle} audioArtist={audioArtist} />;
-  }
-  return <MediaCarousel items={mediaItems} fit="cover" maxHeight="60vh" testId="media-carousel" audioTitle={audioTitle} audioArtist={audioArtist} />;
+  const inline = count === 1
+    ? <MediaItem media={first} audioTitle={audioTitle} audioArtist={audioArtist} />
+    : <MediaCarousel items={mediaItems} fit="cover" maxHeight="60vh" testId="media-carousel" audioTitle={audioTitle} audioArtist={audioArtist} />;
+  return post ? <div data-media-session-title={post.title || post.text?.slice(0, 60) || 'Feed media'} data-media-session-artist={audioArtist}>
+    <MusicFeedMedia post={post} media={mediaItems} readOnlySource={readOnlySource}>{inline}</MusicFeedMedia>
+  </div> : inline;
 }
 
 /**
@@ -313,7 +316,7 @@ function RepostedEmbed({
         </div>
       ) : null}
       <div className="pb-2">
-        <PostMediaRenewal postId={original._id}><MediaGrid mediaItems={mediaItems} audioTitle={original.title} audioArtist={authorName} /></PostMediaRenewal>
+        <PostMediaRenewal postId={original._id}><MediaGrid post={original} mediaItems={mediaItems} audioTitle={original.title} audioArtist={authorName} /></PostMediaRenewal>
       </div>
       {/* The original's creator-pinned ad (D55) renders inside the embed — the
           repost resurfaces the original's content AND its monetization, so the
@@ -710,7 +713,7 @@ export function PostCard({
       {/* Media. Editing (title / body / media remove) happens in the app-level
           composer sheet (openComposer({ editingPost }) — the ONE edit path),
           not inline here, so the card stays the read surface. */}
-      <PostMediaRenewal postId={post._id}><MediaGrid mediaItems={mediaItems} audioTitle={post.title} audioArtist={authorName} /></PostMediaRenewal>
+      <PostMediaRenewal postId={post._id}><MediaGrid post={post} mediaItems={mediaItems} audioTitle={post.title} audioArtist={authorName} /></PostMediaRenewal>
 
       {post.text && !post.repost_of ? (
         <div className="px-4 pt-3">
@@ -845,7 +848,7 @@ export function ForeignFeedCard({ post }: { post: PostRecord }) {
     {post.title && <h3 className="px-4 pt-2 font-semibold text-foreground">{post.title}</h3>}
     {post.text && <p className="whitespace-pre-wrap break-words px-4 py-3 text-sm text-foreground">{post.text}</p>}
     {post.repost_of && <p className="px-4 pb-2 text-xs text-muted-foreground">Original repost stays on its source server.</p>}
-    <MediaGrid mediaItems={media} audioTitle={post.title} audioArtist={post.profile?.display_name} />
+    <MediaGrid post={post} readOnlySource mediaItems={media} audioTitle={post.title} audioArtist={post.profile?.display_name} />
     <footer className="flex flex-wrap gap-x-3 gap-y-1 px-4 py-3 text-xs text-muted-foreground">
       <span>{post.likes || 0} likes</span><span>{post.comments || 0} comments</span><span>{formatTimeAgo(post.created_at)}</span>
       <span className="basis-full text-[10px]">Source-owned read · interactions are not routed through your home server</span>

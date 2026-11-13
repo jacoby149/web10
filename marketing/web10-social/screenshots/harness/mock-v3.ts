@@ -20,6 +20,7 @@ function avatar(label: string, from: string, to: string): string {
 // Match the real client's stable identity: ownership effects key on this object.
 // A fresh object on every read creates an endless effect/reset loop in previews.
 const client = {
+    trackContentEvent: async () => ({ recorded: true }),
     readToken: () => getWapi().readToken(),
     listPeopleDirectory: async () => ({ users: [
       { username: 'nova', profile: { display_name: 'Nova Lane' } },

@@ -1,5 +1,16 @@
 # Messages screenshots — how to capture them (read this before you try)
 
+## Feed playback and glass music widget
+
+`node screenshots/feed-player.mjs` boots/stops its own harness and checks both
+Discover and Following in both themes at 375/768/1280/1440. It drives persistent
+music handoff and actual native audio/video through the registered Media Session
+callbacks, checks clip teardown, source-independent UI geometry and measured
+player/dock/Compose clearance, and compares actual refractive-rim pixels against
+zero displacement on flat/striped backdrops. Screenshots and receipts go to
+`.context/feed-player/`. Data is seeded; this is not a physical Android
+notification/background, real-node authorization or Safari receipt.
+
 ## People/Groups directory mixer
 
 `node screenshots/followers-counts.mjs` runs the real Followers/Following loaders,

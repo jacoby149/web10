@@ -1,9 +1,9 @@
 /** A capsule's surface normals, not captured page pixels. Neutral RG means
  * zero displacement; only the inner rim bends the live backdrop. SVG filters
  * must use sRGB so byte 128 is the neutral point. */
-export function glassLensMap(width: number, height: number, rim = 10): Uint8ClampedArray {
+export function glassLensMap(width: number, height: number, rim = 10, cornerRadius = Math.min(width, height) / 2): Uint8ClampedArray {
   const pixels = new Uint8ClampedArray(width * height * 4);
-  const radius = Math.min(width, height) / 2;
+  const radius = Math.max(0, Math.min(cornerRadius, Math.min(width, height) / 2));
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const dx = x + 0.5 - width / 2;

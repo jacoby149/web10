@@ -25,6 +25,16 @@ describe('capsule lens map', () => {
     expect(at(339, 59)[0] + corner[0]).toBe(256);
     expect(at(339, 59)[1] + corner[1]).toBe(256);
   });
+  it('matches a rounded player rectangle without changing the capsule default', () => {
+    const player = glassLensMap(width, 98, 10, 16);
+    const read = (x: number, y: number) => [...player.slice((y * width + x) * 4, (y * width + x) * 4 + 4)];
+    expect(read(175, 49)).toEqual([128, 128, 128, 255]);
+    expect(read(0, 49)[0]).toBeGreaterThan(245);
+    expect(read(175, 0)[1]).toBeGreaterThan(245);
+    expect(read(4, 4)[0]).toBeGreaterThan(128);
+    expect(read(4, 4)[1]).toBeGreaterThan(128);
+    expect(glassLensMap(width, height, 10, 9999)).toEqual(pixels);
+  });
 });
 
 describe('experimental refraction engine gate', () => {

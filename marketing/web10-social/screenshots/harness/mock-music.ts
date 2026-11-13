@@ -8,7 +8,7 @@ function artwork(title: string, color: string, index: number) {
 }
 
 // One second of unsigned 8-bit PCM silence. No remote media or autoplay shim.
-const samples = 8000;
+const samples = new URLSearchParams(window.location.search).has('feed-player-repair') ? 160000 : 8000;
 const wav = new Uint8Array(44 + samples);
 const header = new DataView(wav.buffer);
 for (const [offset, text] of [[0, 'RIFF'], [8, 'WAVE'], [12, 'fmt '], [36, 'data']] as const) {
@@ -24,7 +24,7 @@ header.setUint16(32, 1, true);
 header.setUint16(34, 8, true);
 header.setUint32(40, samples, true);
 wav.fill(128, 44);
-const audio = `data:audio/wav;base64,${btoa(String.fromCharCode(...wav))}`;
+const audio = `data:audio/wav;base64,${btoa(Array.from({ length: Math.ceil(wav.length / 8192) }, (_, i) => String.fromCharCode(...wav.subarray(i * 8192, (i + 1) * 8192))).join(''))}`;
 
 // The six audio fixtures (the original wall).
 const AUDIO_TRACKS: MusicTrack[] = [
