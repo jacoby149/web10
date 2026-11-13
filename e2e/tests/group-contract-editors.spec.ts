@@ -239,8 +239,8 @@ test.describe('Browser — roles editor (real UI)', () => {
     const roleInputs = page.getByRole('textbox', { name: 'Role name' });
     await expect(roleInputs).toHaveCount(3, { timeout: 5000 }); // owner, member, + new
     await roleInputs.nth(2).fill('mod');
-    // Grant the new role the "Hide all (mod)" permission.
-    await page.getByRole('button', { name: 'Hide all (mod)' }).last().click();
+    // Grant the new role the moderation permission using its readable label.
+    await page.getByRole('button', { name: 'Hide content (moderation)' }).last().click();
     await page.getByRole('button', { name: 'Save roles' }).click();
 
     // Persisted through the API (the oracle).

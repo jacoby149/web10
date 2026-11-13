@@ -6,6 +6,8 @@ fix(auth-ui): restore the previous plain-English permission review on operator d
 
 PR #1541 preflight aligns the existing D58 group-editor E2E scenario with the new Group permissions heading and readable scopes, while parsing Technical details to retain exact owner/group and member/posts permission-array assertions. No fixture authorization, server behavior or assertion scope is relaxed; real E2E execution and all PR checks remain the gate.
 
+CI shard 3 then reaches the separate role-creation journey and times out at its old Hide all (mod) button locator. Align that existing interaction with Hide content (moderation), retaining real editor save and API persistence assertions; no timeout/retry or runtime change. Re-run every check before readiness.
+
 Merge current dev after #1540/#1542 advance it: preserve the new credential-entry hook, URL-owned login/signup/password flow and provider-key links, while retaining this branch's consent-review layout. Both planning records and complete changelog entries survive; no release-number collision. All 350 integrated UI tests/build/typecheck, the permission browser matrix and credential-style browser regression pass. Every PR check must run again on the reconciled head.
 
 5.34.1 || 13.11.2026
