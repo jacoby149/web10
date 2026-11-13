@@ -1,0 +1,149 @@
+{
+  "format": "web10-realism-serial-baseline-receipt-v1",
+  "outcome": "RESTORE_COMPLETE_BASELINE_TIMEOUT",
+  "scope": "One ordinary reader, excluded warm-up and three strictly sequential baseline attempts; not a completed feed, formal pilot, p95 or capacity result",
+  "dataset_id": "2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd",
+  "original_validation_sha256_before_and_after": "5d7dabb6e4e322d5a76bed630d053b2340d34e5e5016682ad8bdb175c6afdd94",
+  "host": {
+    "droplet_id": 618505005,
+    "sku": "s-8vcpu-32gb-amd",
+    "hourly_usd": 0.25,
+    "new_machine": false,
+    "diagnostic_window_utc": ["2026-11-13T20:27:26Z", "2026-11-13T22:27:26Z"],
+    "unchanged_compute_cleanup_utc": "2026-11-14T04:38:02Z"
+  },
+  "configuration": {
+    "project": "web10-costfn-frozen-rd-smoke5",
+    "engine_version": "24.8.14.39",
+    "engine_image_id": "sha256:1ffa82edee000a42c09313bd9f1293d94c570aee74babc1b3ca9983a35fa597b",
+    "api_image_id": "sha256:f12aa208d6050655955c13410088ff3f868b81f71dd0369b8c3d8754da9c31ab",
+    "clickhouse_container_bytes": 30064771072,
+    "clickhouse_server_bytes": 23622320128,
+    "api_container_bytes": 2147483648,
+    "minio_container_bytes": 536870912,
+    "query_timeout_seconds": 10,
+    "resolver": "batched",
+    "arm_d": false,
+    "satellite": false,
+    "views_treatment": false,
+    "policy_bypass": false,
+    "stub_output": false,
+    "reader_index": 1,
+    "follows": 20,
+    "feed_groups_including_self": 21
+  },
+  "restore": {
+    "complete": true,
+    "preparation_seconds": 1287.174,
+    "users": 1000000,
+    "group_contracts_including_one_boot_row": 1000001,
+    "group_members_including_one_boot_row": 152340270,
+    "app_contracts": 20000,
+    "documents": 88200300,
+    "doc_groups": 92200600,
+    "content_events": 1600000000,
+    "content_events_import_seconds": 962.18,
+    "all_counts_reconciled": true,
+    "source_input_read_only": true,
+    "validation_database_mounted": false
+  },
+  "preparation_checks": {
+    "independent_canonical_expectations_computed": true,
+    "real_group_discovery_matches_canonical_memberships": true,
+    "wrong_origin_denied": true,
+    "all_four_http_requests_correlated": true
+  },
+  "server_observer_sha256": "7a3c4b27067174ba8512fff85b1f822a25b2b21462d01b339b824cceb1b0c184",
+  "shared_main_query_failure": {
+    "http_status": 400,
+    "native_exception_code": 159,
+    "native_exception": "TIMEOUT_EXCEEDED",
+    "query_sha256": "a9319fcfbe2591a4d427b7adc01489970e3df59714352058fbf8f3dd2d2d07f4",
+    "read_rows_per_measured_attempt": 360801800,
+    "read_bytes_per_measured_attempt": 24319446938,
+    "sequence_window_total_read_rows_per_measured_attempt": 362776086,
+    "sequence_window_total_read_bytes_per_measured_attempt": 24387087628,
+    "native_attribution": "Exclusive sequential HTTP-sequence wall-clock windows, not individual SQL-to-ASGI tracing",
+    "memory_scope": "Largest individual native query peak, not whole-node peak RSS"
+  },
+  "attempts": [
+    {
+      "phase": "excluded_warmup",
+      "index": 0,
+      "request_id": "2651c54353a54fcbbd5b4c9d47e996ac",
+      "started_utc": "2026-11-13T20:59:59.953504Z",
+      "ended_utc": "2026-11-13T21:00:11.214011Z",
+      "success": false,
+      "client_failure_ms": 11260.476714989636,
+      "largest_query_peak_bytes": 5176618987
+    },
+    {
+      "phase": "measured",
+      "index": 1,
+      "request_id": "adeb712d5033492d9fba47d0aea14b75",
+      "started_utc": "2026-11-13T21:00:11.610062Z",
+      "ended_utc": "2026-11-13T21:00:22.871944Z",
+      "success": false,
+      "client_failure_ms": 11261.853621996124,
+      "native_query_id": "ad8f2768-701e-491a-b8ba-bd8394dd59b3",
+      "native_failure_ms": 10389,
+      "largest_query_peak_bytes": 5172654955
+    },
+    {
+      "phase": "measured",
+      "index": 2,
+      "request_id": "f1c6964b357b471d824c701b5b784631",
+      "started_utc": "2026-11-13T21:00:23.209163Z",
+      "ended_utc": "2026-11-13T21:00:34.417028Z",
+      "success": false,
+      "client_failure_ms": 11207.841215000371,
+      "native_query_id": "bd11bfb0-7751-4ca9-b431-c3ae5a3c5db4",
+      "native_failure_ms": 10496,
+      "largest_query_peak_bytes": 5176418668
+    },
+    {
+      "phase": "measured",
+      "index": 3,
+      "request_id": "22df5984e61c4965997b66db1054ccc9",
+      "started_utc": "2026-11-13T21:00:34.807902Z",
+      "ended_utc": "2026-11-13T21:00:46.063608Z",
+      "success": false,
+      "client_failure_ms": 11255.676741013303,
+      "native_query_id": "4af96660-0c4f-46b0-88bc-c262ccf5cf05",
+      "native_failure_ms": 10463,
+      "largest_query_peak_bytes": 5159763936
+    }
+  ],
+  "sources": {
+    "api_python_sha256": "28a990b1acdfbc4c81a61a99119a6a5681656c6052c520d473d2aa02c1910058",
+    "api_lock_sha256": "ecaa9988e333b039c47ba7e7ef0284c6af5ad03259b766eb122d30783ed38ea8",
+    "research_compose_sha256": "6cc1c347614af76dd3c08f03a8da2ae223eb3c7b9e4d8cbd66ffa9b308883b96",
+    "harness_python_sha256": "640c542b4e1d4724c3d8be2698f445f08813dc5b5f398193494090b0672591cd",
+    "wire_sha256": "2c9b198f8b290d7f1287f1e1fc6179bbf81050ca4b7a75af8a34579214347bdd",
+    "pagination_capture_sha256": "7f3d33be819bae9ac1b6edf372897c06e1df473615e87d03eb726d2c3bd77a42"
+  },
+  "original_artifacts_root": "/mnt/costfn-work/smoke-20261113/",
+  "original_artifact_sha256": {
+    "restore5.json": "863fbc513248219872528940db86f32fcdb0b9189658b8958433c64b392bac53",
+    "samples5/summary.json": "cf3b79ab2541fe4ae1dfd6882bf446a262b3560fad8d45ae88479a75a35c5974",
+    "samples5/feeds-with-native.json": "df946055afc1e1ba207c68c370decdf7fd6772aa99834ce1337c5cc66a98698b",
+    "samples5/requests.json": "b204d33c5d181ae41f15b0a0a3c86ff29a5f90876b27f068091bb1dcdcb84943"
+  },
+  "cleanup": {
+    "api_stopped_utc": "2026-11-13T21:00:47.697256616Z",
+    "clickhouse_stopped_utc": "2026-11-13T21:00:51.69951757Z",
+    "minio_stopped_utc": "2026-11-13T21:00:47.500926115Z",
+    "oom_killed": false,
+    "provider_host_deleted": false,
+    "validation_receipt_hash_unchanged": true,
+    "retained_volume_deleted": false
+  },
+  "remaining_gates": [
+    "Exact returned main projection and follow-up engagement were not exercised: main timed out",
+    "Independent live-delivery delta comparison was not exercised: main timed out",
+    "No completed-feed latency, p95, formal pilot or treated-arm result",
+    "Post-restore merge/cache steady state was not established; do not infer root cause from timeout alone",
+    "Frozen baseline cost diagnosis and a separately bounded next-arm plan",
+    "Existing statistics-review, private Spaces, lifecycle, full-runner and rollout gates"
+  ]
+}
