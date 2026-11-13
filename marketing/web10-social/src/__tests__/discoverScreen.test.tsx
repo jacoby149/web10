@@ -2067,6 +2067,19 @@ describe('DiscoverScreen — the four destinations (the Discover split)', () => 
     expect(screen.getByTestId('explore-people-filter-followers')).toHaveAttribute('aria-selected', 'false');
   });
 
+  it('the People filter row clears the cards below it by 12px', async () => {
+    seedExploreData();
+    await renderDiscoverAt('/people');
+    await waitFor(() => {
+      expect(screen.getByTestId('explore-people-filter')).toBeInTheDocument();
+    });
+    // 12px above (pt-3) AND 12px below (pb-3) — the active chip must not
+    // touch the first card. The groups row already had both paddings.
+    const row = screen.getByTestId('explore-people-filter');
+    expect(row.className).toContain('pt-3');
+    expect(row.className).toContain('pb-3');
+  });
+
   it('renders the Groups filter chips with All active by default', async () => {
     seedExploreData();
     await renderDiscoverAt('/people?section=groups');
