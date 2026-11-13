@@ -274,17 +274,16 @@ first time they are viewed after deploy.
   parameterized) + `src/UnfurlLink.tsx` (the renderers, the shared `ReliableImage`)
   + `src/linkEmbeds.ts` (the deterministic YouTube / Vimeo id parse), wired
   into `src/MarkdownText.tsx` (`unfurlEndpoint` prop) and `src/DiscoverCard.tsx`
-  (`unfurlEndpoint` prop — the rich caption + the title link-out); the wiring
-  in `marketing/marketing-ui/src/pages/GroupDetail.tsx` (the group's posts).
-  D111 retires the marketing feed and its unfurl wiring, not this group consumer.
+  (`unfurlEndpoint` prop — the rich caption + the title link-out).
+  D111 and its operator follow-up retire both marketing feed and group-page
+  consumers; the shared/social implementations remain unchanged.
 - Tests: `src/__tests__/previewUnfurl.test.ts` (the module — the guard
   replayed, the provider matrix, the cache), `src/__tests__/previewServerUnfurl.test.ts`
   (the real process over the wire — the exploit urls denied before any fetch;
   the CORS verdicts + the preflight), `src/__tests__/lib/unfurl.test.ts` (the
-  client seam), `postBody.test.tsx` (the render states); the marketing side:
-  `marketing-ui/src/components/GroupUnfurl.test.tsx` (the retained group-page
-  provider player and configured social endpoint). Board-only marketing tests
-  retired with D111; shared/social rendering coverage remains in its own suites.
+  client seam), `postBody.test.tsx` (the render states). Marketing board/group
+  unfurl tests retired with their pages under D111; shared/social rendering
+  coverage remains in its own suites.
 - The SSRF scan record: `security/scans/2026-11/link-unfurl-ssrf.md`.
 - The harness: `screenshots/harness/mock-unfurl.ts` (the canned cards) + the
   two link-only seed posts in `mock-data.ts` (`fp-unfurl-spotify`,

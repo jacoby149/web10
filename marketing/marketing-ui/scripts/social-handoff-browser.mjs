@@ -30,7 +30,7 @@ try {
     const feedReads = [], errors = [];
     await context.route('**/*', async route => {
       const url = new URL(route.request().url());
-      if (/\/v3\/(query|read|users\/directory|groups\/directory)/.test(url.pathname)) feedReads.push(url.pathname);
+      if (/\/v3\/(query|read|users\/directory|groups\/(directory|detail))/.test(url.pathname)) feedReads.push(url.pathname);
       if (url.origin === origin) return route.continue();
       if (url.origin === social) return route.fulfill({ contentType: 'text/html', body: '<title>Social destination fixture</title><h1>Social destination fixture</h1>' });
       const body = url.pathname === '/v3/stats' ? { users: 0, app_count: 0, storage: 0, active_users: {} }
@@ -70,6 +70,12 @@ try {
     await page.goBack({ waitUntil: 'networkidle' });
     assert.equal(new URL(page.url()).pathname, '/join');
 
+    const retiredGroupPath = `/groups/${encodeURIComponent('api.example/groups/users/alice/jazz')}`;
+    await page.goto(`${origin}${retiredGroupPath}`, { waitUntil: 'networkidle' });
+    assert.equal(page.url(), `${origin}${retiredGroupPath}`, 'retired group-detail URLs do not redirect');
+    assert.equal(await page.getByTestId('group-detail-posts').count(), 0);
+    assert.equal(await page.getByRole('link', { name: 'Continue to web10 social', exact: true }).count(), 0);
+
     for (const [legacy, expected] of [
       ['/trending', '/feed'], ['/trending/', '/feed'], ['/trending/posts', '/feed'],
       ['/trending/hot-gossip', '/feed'], ['/trending/video?tag=music', '/video?tag=music'],
@@ -85,7 +91,7 @@ try {
     }
     assert.deepEqual(feedReads, [], 'marketing never fetches a replica feed or directory');
     assert.deepEqual(errors, []);
-    receipts.push({ theme, width, sameTab: true, keyboard: true, back: true, legacyRoutes: 10, feedReads, errors });
+    receipts.push({ theme, width, sameTab: true, keyboard: true, back: true, legacyRoutes: 10, retiredGroupRoute: true, feedReads, errors });
     await context.close();
   }
   await writeFile(path.join(output, 'receipt.json'), JSON.stringify(receipts, null, 2));

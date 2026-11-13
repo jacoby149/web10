@@ -8,7 +8,6 @@ import Join from './pages/Join'
 import Docs from './pages/Docs'
 import AppStore from './pages/AppStore'
 import AppDetail from './pages/AppDetail'
-import GroupDetail from './pages/GroupDetail'
 import Freedom from './pages/Freedom'
 
 import Links from './pages/Links'
@@ -30,7 +29,6 @@ function App() {
         <Route path="/links" element={<Links />} />
         <Route path="/everything" element={<Everything />} />
         <Route path="/groups" element={<SocialRedirect />} />
-        <Route path="/groups/:id" element={<GroupDetail />} />
         <Route path="/join" element={<Join />} />
         <Route path="/freedom" element={<Freedom />} />
         <Route path="/docs" element={<Docs />} />

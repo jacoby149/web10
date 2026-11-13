@@ -10,6 +10,8 @@
 
 ## Marketing discovery handoff
 
+- [✓ 6.4.1 local; final browser/CI OPEN] **MARKETING-GROUP-RETIRE — remove orphaned group browsing** — delete GroupDetail, unrouted GroupDirectory/GroupCard and obsolete tests; remove `/groups/:id` outright with no compatibility redirect on explicit operator correction. Remove unused Markdown/media aliases and narrow shared CSS scanning to ReliableImage. Route-removal regression fails before deletion; all 181 remaining marketing tests/build/typecheck and renderer guard pass. Extended eight-case browser rerun is in progress after tool interruptions; fresh PR #1555 CI remains required. Social/shared runtime and App Store images unchanged; no deployment/auth/API change.
+
 - [✓ 6.4.0 local] **MARKETING-HANDOFF — retire the Trending replica** — Trending is an ordinary same-tab link to the configured social `/feed` (production `https://social.web10.app/feed`); legacy Trending URLs replace-navigate to supported social destinations/filters. Removed marketing-only feed/directory/mixer/ranking/media code, obsolete tests/fixtures and vendored HLS; social/shared consumers and unrelated pages remain. Two old-link regressions reproduce before repair; all 197 remaining marketing tests/build/typecheck and renderer inventory pass. Eight both-theme four-width Chromium cases verify mouse/keyboard/mobile/footer, same-tab/Back, ten legacy shapes and zero discovery reads; desktop/375px captures inspected in `.context/marketing-handoff/`. Browser evidence uses an isolated social destination, not live social acceptance. Updated connected handoff/moderation E2E discovers eight tests; actual stack/CI/review/rollout remain OPEN. No API/auth/deployment change; marketing no longer owes discovery parity.
 
 ## Hierarchy of Reliance

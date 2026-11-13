@@ -291,8 +291,10 @@ do not privacy-wash D56 or put content/credentials into events or recordings.
     product pitch. Vite + React 19 + TS + Bun + react-router.
     Trending links directly to the configured social `/feed` (D111); legacy
     `/trending/*` routes hand off to social. No marketing discovery replica or
-    feed/mixer/player parity obligation. Shared Markdown/image primitives still
-    support unrelated group/App Store pages; social/shared consumers stay intact.
+    feed/mixer/player parity obligation. The orphaned marketing group-detail
+    route/directory/cards are deleted, with no group-detail compatibility redirect.
+    Shared reliable images still support App Store pages; social/shared consumers
+    stay intact.
   - Marketing and social call the node API directly for reporting and
     analytics. The unused `marketing-api/` service was removed (D91).
   - `web10-social/` — the killer app: all-in-one social lens (instagram-

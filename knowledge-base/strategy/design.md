@@ -403,7 +403,9 @@ Creators will open this on a phone in the middle of a pitch.
 **Discovery handoff (D111, 13.11.2026):** Trending is an ordinary same-tab link
 to social's public `/feed`, not an embedded/replicated social experience.
 Legacy Trending routes hand off to social; marketing has no feed, mixer or
-player parity obligation. Preserve the pitch, docs, App Store and other pages.
+player parity obligation. Orphaned marketing group browsing is removed too,
+including `/groups/:id`, without a compatibility redirect. Preserve the pitch,
+docs and App Store.
 
 The job: a creator's manager lands here and in 30 seconds believes
 this is a company, not a weekend project. **Bulma comes out entirely**

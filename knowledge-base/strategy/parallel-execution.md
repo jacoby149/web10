@@ -149,7 +149,9 @@ Local verification for 5.32.0 after dev integration: all 2,590 social tests (177
 
 ### Lane: marketing-discovery-handoff
 
-**Owns:** marketing-ui Trending routes/navigation, marketing-only discovery components/adapters/tests/fixtures, affected E2E/browser gates and serialized KB records. Preserve shared components consumed by social and unrelated group/App Store pages; no API/SDK/auth/deployment ownership.
+**Owns:** marketing-ui Trending routes/navigation, marketing-only discovery/group components/adapters/tests/fixtures, affected E2E/browser gates and serialized KB records. Preserve shared components consumed by social and App Store pages; no API/SDK/auth/deployment ownership.
+
+- [✓ 6.4.1 local; final browser/CI OPEN] **MARKETING-GROUP-RETIRE — remove orphaned group browsing** — GroupDetail/GroupDirectory/GroupCard and their tests removed; `/groups/:id` deleted outright with no compatibility redirect. Unused Markdown/media aliases removed, shared CSS scan narrowed to ReliableImage. Route-removal red→green control and all 181 marketing tests/build/typecheck/renderer guard pass; extended eight-case browser rerun is in progress after tool interruptions. Fresh PR #1555 CI remains required. App Store images and social/shared runtime unchanged; no deployment/auth/API change.
 
 - [✓ 6.4.0 local] **MARKETING-HANDOFF — retire the Trending replica** — direct same-tab social `/feed` links, supported legacy replacement handoff and removal of marketing-only discovery/mixer/ranking/media adapters, obsolete tests/fixtures and vendored HLS. All 197 remaining marketing tests/build/typecheck and renderer guard pass; eight both-theme four-width actual-marketing Chromium cases verify mouse/keyboard/mobile/footer/Back, ten legacy shapes and no discovery reads. Inspected desktop/375px captures in `.context/marketing-handoff/`. StrictMode replay no longer dispatches duplicate replacement navigation. Social destination is isolated fixture evidence; actual stack E2E/review/CI/rollout remain OPEN. Social/shared and unrelated group/App Store pages preserved; no deployment.
 

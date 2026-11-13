@@ -29,11 +29,8 @@ export default defineConfig({
       // explicitly (specific subpath first).
       '@web10/telemetry/runtime': path.resolve(__dirname, '../shared/telemetry/src/runtime.ts'),
       '@web10/telemetry': path.resolve(__dirname, '../shared/telemetry/src/index.ts'),
-      // Remaining group/App Store pages use Markdown and reliable images,
-      // not the retired marketing feed/mixer/player (D111).
-      '@web10/discover/media-recovery': path.resolve(__dirname, '../shared/discover/src/mediaRecovery.ts'),
+      // Only the reliable-image primitive remains; no marketing social pages (D111).
       '@web10/discover/image': path.resolve(__dirname, '../shared/discover/src/ReliableImage.tsx'),
-      '@web10/discover': path.resolve(__dirname, '../shared/discover/src/index.ts'),
     },
   },
   optimizeDeps: {

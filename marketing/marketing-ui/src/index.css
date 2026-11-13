@@ -1,8 +1,7 @@
 @import "tailwindcss";
 
-/* Remaining shared Markdown/image primitives live outside this app's
-   automatic content scan. Marketing no longer renders discovery (D111). */
-@source "../../shared/discover/src";
+/* Only shared image states remain; do not scan the social feed/player UI. */
+@source "../../shared/discover/src/ReliableImage.tsx";
 
 /* self-hosted type — never a font CDN (design.md §5) */
 @import "@fontsource-variable/inter";

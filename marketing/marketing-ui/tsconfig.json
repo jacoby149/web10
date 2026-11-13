@@ -24,7 +24,6 @@
       "@web10/telemetry/runtime": ["../shared/telemetry/src/runtime.ts"],
       "@web10/telemetry": ["../shared/telemetry/src/index.ts"],
       "@web10/discover/image": ["../shared/discover/src/ReliableImage.tsx"],
-      "@web10/discover/media-recovery": ["../shared/discover/src/mediaRecovery.ts"],
       // D73: the shared @web10/discover package has no node_modules of its own;
       // its bare imports resolve to this app's deps (single react instance).
       // Listed before the `*` catch-all so they win.

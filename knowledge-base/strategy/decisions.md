@@ -21,6 +21,13 @@ server preferences. Remove the marketing-only replica and its parity tests, not
 shared code still used by social or unrelated marketing pages. This supersedes
 the marketing feed/directory parity requirement, not social's discovery contracts.
 
+**Operator follow-up, same day:** the marketing `/groups/:id` detail page has
+no current navigation entry. Retire it and the unrouted GroupDirectory/GroupCard
+with their tests rather than preserve another social replica. Delete the
+group-detail route outright: the operator explicitly rejects compatibility
+redirects for this unsurfaced page. App Store reliable images and social/shared
+runtime remain intact.
+
 ### D110 — Hashtags are a body-derived token with a public board, never a doc tag [decided]
 
 **11.11.2026 — operator:** "how do # hashtags work? can i add them to a post?"
