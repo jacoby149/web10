@@ -22,10 +22,10 @@ describe('People directory sorting and server controls', () => {
     vi.stubGlobal('fetch', fetcher);
     render(<MemoryRouter initialEntries={['/trending/people?q=film']}><ProfilesBrowser query="" /></MemoryRouter>);
     await screen.findByText('@popular-account');
-    fireEvent.change(screen.getByLabelText('Sort profiles'), { target: { value: 'newest' } });
+    fireEvent.click(screen.getByRole('radio', { name: 'Newest' }));
     await screen.findByText('@new-account');
     fireEvent.click(screen.getByRole('tab', { name: 'Groups', exact: true }));
-    fireEvent.change(screen.getByLabelText('Sort groups'), { target: { value: 'newest' } });
+    fireEvent.click(screen.getByRole('radio', { name: 'Newest' }));
     await screen.findByText('Film Club');
     await waitFor(() => expect(fetcher.mock.calls.some(([url]) => String(url).includes('sort=newest'))).toBe(true));
     // One avatar + banner attempt is enough even when neither returns a face.

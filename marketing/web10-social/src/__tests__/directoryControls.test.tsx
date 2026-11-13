@@ -22,17 +22,40 @@ describe('directory controls', () => {
   });
   it('independent URL-owned sorts preserve search and restore with history; there are no ranking knobs', () => {
     render(<MemoryRouter initialEntries={['/people?q=hello']}><Harness /></MemoryRouter>);
-    expect(screen.getByLabelText('Sort profiles')).toHaveValue('popular');
-    fireEvent.change(screen.getByLabelText('Sort profiles'), { target: { value: 'newest' } });
+    expect(screen.getByRole('group', { name: 'Sort profiles' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Most followers' })).toBeChecked();
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('radio', { name: 'Newest' }));
     expect(screen.getByRole('status')).toHaveTextContent('q=hello&peopleSort=newest');
     fireEvent.click(screen.getByText('Groups'));
-    expect(screen.getByLabelText('Sort groups')).toHaveValue('popular');
-    expect(screen.getByRole('option', { name: 'Most members' })).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Sort groups'), { target: { value: 'newest' } });
+    expect(screen.getByRole('group', { name: 'Sort groups' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Most members' })).toBeChecked();
+    fireEvent.click(screen.getByRole('radio', { name: 'Newest' }));
     expect(screen.getByRole('status')).toHaveTextContent('peopleSort=newest');
     fireEvent.click(screen.getByText('Back'));
-    expect(screen.getByLabelText('Sort groups')).toHaveValue('popular');
+    expect(screen.getByRole('radio', { name: 'Most members' })).toBeChecked();
     expect(screen.queryByTestId('knob-rack')).not.toBeInTheDocument();
+  });
+
+  it('selects popularity directly and removes only its own default sort parameter', () => {
+    render(<MemoryRouter initialEntries={['/people?q=hello&peopleSort=newest&groupSort=newest&tune=1']}><Harness /></MemoryRouter>);
+    expect(screen.getByRole('radio', { name: 'Newest' })).toBeChecked();
+    fireEvent.click(screen.getByRole('radio', { name: 'Most followers' }));
+    expect(screen.getByRole('radio', { name: 'Most followers' })).toBeChecked();
+    expect(screen.getByRole('status')).toHaveTextContent('q=hello&groupSort=newest&tune=1');
+    expect(screen.getByRole('status')).not.toHaveTextContent('peopleSort');
+  });
+
+  it('uses only two compact sort choices, without a dial or dropdown', () => {
+    render(<MemoryRouter initialEntries={['/people?q=hello']}><Harness /></MemoryRouter>);
+    expect(screen.getAllByRole('radio')).toHaveLength(2);
+    expect(screen.getByTestId('directory-sort-selector').querySelector('svg, select, button')).toBeNull();
+    fireEvent.click(screen.getByRole('radio', { name: 'Newest' }));
+    expect(screen.getByRole('radio', { name: 'Newest' })).toBeChecked();
+    fireEvent.click(screen.getByRole('radio', { name: 'Most followers' }));
+    expect(screen.getByRole('radio', { name: 'Most followers' })).toBeChecked();
+    expect(screen.getByRole('status')).toHaveTextContent('?q=hello');
+    expect(screen.getByRole('status')).not.toHaveTextContent('peopleSort');
   });
 
   it('uses the existing URL-owned server editor and actual fader save callback', () => {

@@ -11,6 +11,10 @@ order. Likes, comments, a Balanced preset and power-mean ranking do not belong h
 - Profiles: **Sort by → Most followers / Newest**. Groups: **Sort by → Most
   members / Newest**. Popularity remains the default. Newest means account/group
   creation, never a profile edit, face-document date or recent posting activity.
+- Present that choice as two compact preset chips matching the other boards,
+  not a dropdown, dial or separate boxed panel. Profiles say Most followers;
+  Groups say Most members. Both options stay visible, touch-sized and
+  keyboard-operable; this is a discrete sort, not a blended ranking weight.
 - Keep independent `peopleSort` and `groupSort` URL parameters. `section`, search,
   graph filters and URL-owned server editing survive sort changes and history.
 - Keep Sort by visible, then the same left-aligned **Advanced / Hide controls**
@@ -50,6 +54,17 @@ Groups retain their existing home-account authority; the rack governs directory
 discovery, not a claim of cross-node graph enumeration.
 
 ## Verification and remaining gates
+
+5.31.5 visual follow-up: two compact radio chips replace the native dropdown in
+both apps. The operator rejected the first dial-and-box design as overkill;
+that design is removed, not an additional mode. Preserve native arrow selection,
+focus, mobile taps, independent sorts, back/reload and existing server behavior.
+Final verification is recorded in the changelog; synthetic browser data is not
+connected-node or physical-phone acceptance.
+The final chip browser matrix passes in both themes at 1440/375/768/1280,
+including keyboard focus/arrows, mobile taps, 44px targets, back/reload and
+existing source/mute controls. Inspected desktop/375px captures and receipt:
+`.context/sort-chips/`. Both production builds/typechecks pass.
 
 5.30.1 visual follow-up: the server rack now uses the boards' Advanced / Hide
 controls disclosure rather than a separate Servers CTA. All 102 social/106

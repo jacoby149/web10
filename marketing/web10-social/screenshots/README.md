@@ -9,6 +9,8 @@ budgets, read-only foreign cards and all-muted reload. Both themes at
 1440/375/768/1280; captures and receipt stay under the requested `.context/`.
 This is synthetic public-browser evidence, not independent HTTPS nodes or
 authenticated foreign app grants.
+The compact sort chips are exercised through native radio arrow keys and visible
+label taps, with focus/44px-target/history checks.
 
 ## System / Light / Dark appearance
 
