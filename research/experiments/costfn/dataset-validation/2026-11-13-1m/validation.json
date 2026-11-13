@@ -1,0 +1,483 @@
+{
+  "accounts": 1000000,
+  "arithmetic": {
+    "adjusted_impressions": 1600000000,
+    "attention_horizon_days": 320,
+    "necessary_minimum_impressions_at_chosen_posts": 1322857143,
+    "necessary_minimum_posts": 3846154,
+    "old_attention_budget": 150000000,
+    "reason": "Preserve van Mierlo authorship and McGrady impression shape; adjust total and horizon under operator directive section 7.",
+    "sufficient_joint_validation": false
+  },
+  "authorship": {
+    "nonposting": 0.85,
+    "shares_top1_next9_bottom90": [
+      0.747,
+      0.24,
+      0.013
+    ],
+    "top10_derived": 0.987
+  },
+  "cells": {
+    "10-dispersed": {
+      "active_authors": {
+        "max": 9,
+        "mean": 8.00005,
+        "median": 8,
+        "p99": 8,
+        "top_1pct_share": 0.010006187461328366,
+        "total": 160001
+      },
+      "candidate_posts": {
+        "max": 40000,
+        "mean": 9581.01995,
+        "median": 1168,
+        "p99": 40000,
+        "top_1pct_share": 0.04174920854851158,
+        "total": 191620399
+      },
+      "nonempty_readers": 20000,
+      "ordinary_readers": {
+        "active_authors_min": 8,
+        "candidate_posts_min": 8,
+        "count": 19999,
+        "nonempty": 19999
+      },
+      "readers": 20000,
+      "viral_probe_reader": "rd42-u0980000"
+    },
+    "10-hot": {
+      "active_authors": {
+        "max": 9,
+        "mean": 8.00005,
+        "median": 8,
+        "p99": 8,
+        "top_1pct_share": 0.010006187461328366,
+        "total": 160001
+      },
+      "candidate_posts": {
+        "max": 45000,
+        "mean": 40000.25,
+        "median": 40000,
+        "p99": 40000,
+        "top_1pct_share": 0.010006187461328366,
+        "total": 800005000
+      },
+      "nonempty_readers": 20000,
+      "ordinary_readers": {
+        "active_authors_min": 8,
+        "candidate_posts_min": 40000,
+        "count": 19999,
+        "nonempty": 19999
+      },
+      "readers": 20000,
+      "viral_probe_reader": "rd42-u0980000"
+    },
+    "100-dispersed": {
+      "active_authors": {
+        "max": 81,
+        "mean": 80.00005,
+        "median": 80,
+        "p99": 80,
+        "top_1pct_share": 0.010000618749613282,
+        "total": 1600001
+      },
+      "candidate_posts": {
+        "max": 352431,
+        "mean": 81376.4782,
+        "median": 11637.5,
+        "p99": 352431,
+        "top_1pct_share": 0.043308706372598954,
+        "total": 1627529564
+      },
+      "nonempty_readers": 20000,
+      "ordinary_readers": {
+        "active_authors_min": 80,
+        "candidate_posts_min": 80,
+        "count": 19999,
+        "nonempty": 19999
+      },
+      "readers": 20000,
+      "viral_probe_reader": "rd42-u0980000"
+    },
+    "100-hot": {
+      "active_authors": {
+        "max": 81,
+        "mean": 80.00005,
+        "median": 80,
+        "p99": 80,
+        "top_1pct_share": 0.010000618749613282,
+        "total": 1600001
+      },
+      "candidate_posts": {
+        "max": 298947,
+        "mean": 293947.25,
+        "median": 293947,
+        "p99": 293947,
+        "top_1pct_share": 0.010000841987805636,
+        "total": 5878945000
+      },
+      "nonempty_readers": 20000,
+      "ordinary_readers": {
+        "active_authors_min": 80,
+        "candidate_posts_min": 293947,
+        "count": 19999,
+        "nonempty": 19999
+      },
+      "readers": 20000,
+      "viral_probe_reader": "rd42-u0980000"
+    },
+    "1000-dispersed": {
+      "active_authors": {
+        "max": 801,
+        "mean": 800.00005,
+        "median": 800,
+        "p99": 800,
+        "top_1pct_share": 0.010000061874996132,
+        "total": 16000001
+      },
+      "candidate_posts": {
+        "max": 1159689,
+        "mean": 338415.81305,
+        "median": 112735,
+        "p99": 1159689,
+        "top_1pct_share": 0.03426816819072988,
+        "total": 6768316261
+      },
+      "nonempty_readers": 20000,
+      "ordinary_readers": {
+        "active_authors_min": 800,
+        "candidate_posts_min": 800,
+        "count": 19999,
+        "nonempty": 19999
+      },
+      "readers": 20000,
+      "viral_probe_reader": "rd42-u0980000"
+    },
+    "1000-hot": {
+      "active_authors": {
+        "max": 801,
+        "mean": 800.00005,
+        "median": 800,
+        "p99": 800,
+        "top_1pct_share": 0.010000061874996132,
+        "total": 16000001
+      },
+      "candidate_posts": {
+        "max": 1050261,
+        "mean": 1045261.25,
+        "median": 1045261,
+        "p99": 1045261,
+        "top_1pct_share": 0.010000236782909535,
+        "total": 20905225000
+      },
+      "nonempty_readers": 20000,
+      "ordinary_readers": {
+        "active_authors_min": 800,
+        "candidate_posts_min": 1045261,
+        "count": 19999,
+        "nonempty": 19999
+      },
+      "readers": 20000,
+      "viral_probe_reader": "rd42-u0980000"
+    },
+    "20-dispersed": {
+      "active_authors": {
+        "max": 17,
+        "mean": 16.00005,
+        "median": 16,
+        "p99": 16,
+        "top_1pct_share": 0.01000309374033206,
+        "total": 320001
+      },
+      "candidate_posts": {
+        "max": 80000,
+        "mean": 19005.6975,
+        "median": 2336,
+        "p99": 80000,
+        "top_1pct_share": 0.042092640904128883,
+        "total": 380113950
+      },
+      "nonempty_readers": 20000,
+      "ordinary_readers": {
+        "active_authors_min": 16,
+        "candidate_posts_min": 16,
+        "count": 19999,
+        "nonempty": 19999
+      },
+      "readers": 20000,
+      "viral_probe_reader": "rd42-u0980000"
+    },
+    "20-hot": {
+      "active_authors": {
+        "max": 17,
+        "mean": 16.00005,
+        "median": 16,
+        "p99": 16,
+        "top_1pct_share": 0.01000309374033206,
+        "total": 320001
+      },
+      "candidate_posts": {
+        "max": 84738,
+        "mean": 79738.25,
+        "median": 79738,
+        "p99": 79738,
+        "top_1pct_share": 0.010003103905591107,
+        "total": 1594765000
+      },
+      "nonempty_readers": 20000,
+      "ordinary_readers": {
+        "active_authors_min": 16,
+        "candidate_posts_min": 79738,
+        "count": 19999,
+        "nonempty": 19999
+      },
+      "readers": 20000,
+      "viral_probe_reader": "rd42-u0980000"
+    }
+  },
+  "checks": {
+    "authorship_nonposting": true,
+    "authorship_shares": true,
+    "closed_simple_graph": true,
+    "cohort_10-dispersed": true,
+    "cohort_10-hot": true,
+    "cohort_100-dispersed": true,
+    "cohort_100-hot": true,
+    "cohort_1000-dispersed": true,
+    "cohort_1000-hot": true,
+    "cohort_20-dispersed": true,
+    "cohort_20-hot": true,
+    "cohort_references": true,
+    "comment_conservation": true,
+    "comment_like_causality": true,
+    "comment_ratio": true,
+    "deliveries_resolve": true,
+    "delivery_window": true,
+    "document_actors_exist": true,
+    "document_identity": true,
+    "document_times": true,
+    "eligible_reach": true,
+    "engagement_exposure_causality": true,
+    "engagement_targets": true,
+    "followers_median": true,
+    "following_mean": true,
+    "following_median": true,
+    "graph_conservation": true,
+    "impression_conservation": true,
+    "impression_median": true,
+    "impressions_concentration": true,
+    "joint_correlations": true,
+    "latent_population": true,
+    "like_conservation": true,
+    "like_marginals": true,
+    "like_zero_fraction": true,
+    "likes_concentration": true,
+    "link_groups_resolve": true,
+    "link_times": true,
+    "links_resolve": true,
+    "no_dormant_viral_author": true,
+    "node_ads": true,
+    "post_total": true,
+    "profiles_not_originals": true,
+    "prolific_time_span": true,
+    "public_original_links": true,
+    "registered_population": true,
+    "selected_cohort_matches_graph": true,
+    "unique_likes": true,
+    "viral_head": true,
+    "viral_probe_in_selected_feed": true
+  },
+  "complete": true,
+  "concentration": {
+    "impressions": 0.93003136625,
+    "likes": 0.5
+  },
+  "correlations": {
+    "activity_likes_given": 0.6964597601155031,
+    "activity_posts": 0.8672474797401062,
+    "followers_impressions": 0.40899905292319627,
+    "popularity_followers": 0.7603857233518294
+  },
+  "dataset_directory": "realism-1m-prep",
+  "dataset_id": "2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd",
+  "format": "web10-social-realism-derived-v1",
+  "import_lineage": {
+    "dataset_id": "2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd",
+    "engine": "24.8.14.39",
+    "entrypoint": "67d4491624fbb7be5d1e7a465747f72fea584420b297fcf673c6ef15c58cc84f",
+    "files": {
+      "app_contracts": {
+        "bytes": 9494,
+        "name": "app_contracts.parquet",
+        "rows": 20000,
+        "sha256": "a97ce914b440612b4911333d80f44db4cad4f2eb86d4b5311630ad7a9e2a925c"
+      },
+      "cohorts": {
+        "bytes": 17127363,
+        "name": "cohorts.parquet",
+        "rows": 45200000,
+        "sha256": "2dcaf3bc5281cb70ea67956ebc4abd9f078b6cf7507ef146cb2acb8cf726b747"
+      },
+      "content_events": {
+        "bytes": 13322576432,
+        "name": "content_events.parquet",
+        "rows": 1600000000,
+        "sha256": "827b56540639e06f8eb2957b2e5793ebfe4fdcee154bde8e3c56c3cf445e39ae"
+      },
+      "doc_groups": {
+        "bytes": 3135296446,
+        "name": "doc_groups.parquet",
+        "rows": 92200600,
+        "sha256": "ced10aa85c44cdaac98bf8ed7d7878c0a7a357dad364a2aadd913c0aeed09d7b"
+      },
+      "documents": {
+        "bytes": 3275249183,
+        "name": "documents.parquet",
+        "rows": 88200300,
+        "sha256": "4098058f754de58e028f828f6536d285f02ff3539a444a94ec40c82070279cfc"
+      },
+      "group_contracts": {
+        "bytes": 729549,
+        "name": "group_contracts.parquet",
+        "rows": 1000000,
+        "sha256": "9d51611e5f927984d4da5968d38110eb1e35bb2c94ba9d18012574d11a1e147b"
+      },
+      "group_members": {
+        "bytes": 150292477,
+        "name": "group_members.parquet",
+        "rows": 152340269,
+        "sha256": "2800d092e2cf91afc9670da792ff2184e8ced4c3463003547d1b1dad621e0cfe"
+      },
+      "population": {
+        "bytes": 15492423,
+        "name": "population.parquet",
+        "rows": 1000000,
+        "sha256": "2959557d761f3afedeb523155ffd8cf444d207a0b1396e17ab4339591ac1a972"
+      },
+      "users": {
+        "bytes": 336224,
+        "name": "users.parquet",
+        "rows": 1000000,
+        "sha256": "134d93828bab4b857ab7a74c3bfc081b8ff2ea73d4b648ab220113be3fea8e18"
+      }
+    },
+    "source": "b37cc2c2a5c18f486bf050e142c3d13087819766b6b7546118fea881fc42e7a6"
+  },
+  "per_account": {
+    "followers": {
+      "max": 126572,
+      "mean": 150.340269,
+      "median": 37,
+      "p99": 1517,
+      "top_1pct_share": 0.43908553203400214,
+      "total": 150340269
+    },
+    "following": {
+      "max": 10000,
+      "mean": 150.340269,
+      "median": 75.5,
+      "p99": 1088,
+      "top_1pct_share": 0.1805353760541695,
+      "total": 150340269
+    },
+    "impressions": {
+      "max": 126514258,
+      "mean": 1600,
+      "median": 0,
+      "p99": 175,
+      "top_1pct_share": 0.999587194375,
+      "total": 1600000000
+    },
+    "likes_given": {
+      "max": 185772,
+      "mean": 64,
+      "median": 0,
+      "p99": 81,
+      "top_1pct_share": 0.99700175,
+      "total": 64000000
+    },
+    "posts": {
+      "max": 5000,
+      "mean": 4,
+      "median": 0,
+      "p99": 11,
+      "top_1pct_share": 0.747,
+      "total": 4000000
+    }
+  },
+  "per_post": {
+    "comments": {
+      "max": 8080,
+      "mean": 4.8,
+      "median": 0,
+      "p99": 54,
+      "top_1pct_share": 0.8492851041666667,
+      "total": 19200000
+    },
+    "impressions": {
+      "max": 1000000,
+      "mean": 400,
+      "median": 50,
+      "p99": 10182,
+      "top_1pct_share": 0.4223603825,
+      "total": 1600000000
+    },
+    "likes": {
+      "max": 23514,
+      "mean": 16,
+      "median": 0,
+      "p99": 181,
+      "top_1pct_share": 0.839448546875,
+      "total": 64000000
+    },
+    "reach": {
+      "max": 800000,
+      "mean": 319.81902925,
+      "median": 40,
+      "p99": 8145,
+      "top_1pct_share": 0.4225868792640018,
+      "total": 1279276117
+    }
+  },
+  "scope": "Finished synthetic records, not node/browser performance or private/lifecycle acceptance",
+  "tables": {
+    "app_contracts": 20000,
+    "cohorts": 45200000,
+    "content_events": 1600000000,
+    "doc_groups": 92200600,
+    "documents": 88200300,
+    "group_contracts": 1000000,
+    "group_members": 152340269,
+    "population": 1000000,
+    "users": 1000000
+  },
+  "validator_dependencies": {
+    "realism_checkpoints.py": "48ffa5342e154a97f7cd5ff5095a106d3c4545afc1eff5c8bcd90d367749e195",
+    "realism_clickhouse.py": "3a3285b28f09aed1b91fa8778064c3142ede4e99ebc388bef05bb224eb57433f",
+    "realism_contract.py": "2b36579868d52e06ca5021893cc07aa960ba7de498c3ce07490830c7241275d4"
+  },
+  "validator_engine": {
+    "name": "ClickHouse",
+    "version": "24.8.14.39"
+  },
+  "validator_resources": {
+    "profile": "performance",
+    "settings": {
+      "count_distinct_implementation": "uniqExact",
+      "grace_hash_join_initial_buckets": "16",
+      "join_algorithm": "grace_hash",
+      "join_default_strictness": "ALL",
+      "join_use_nulls": "1",
+      "max_bytes_before_external_group_by": "268435456",
+      "max_bytes_before_external_sort": "268435456",
+      "max_execution_time": "14400",
+      "max_insert_threads": "4",
+      "max_memory_usage": "23622320128",
+      "max_temporary_data_on_disk_size_for_query": "100000000000",
+      "max_threads": "4",
+      "output_format_json_quote_64bit_integers": "0"
+    }
+  },
+  "validator_sha256": "256d934294a2ea4ca5632fb50f296d93086fb184036554790e081882959ec2c3"
+}

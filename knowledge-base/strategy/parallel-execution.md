@@ -1720,6 +1720,8 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+- [✓ 5.33.6 DO validation/results saved] **RD3 full 1M finished-record validation** — 50/50 exact checks pass on DO for 1M accounts/1.6B events; final check completes around 06:02:39 UTC on 13 November, supervisor success observed at 06:07:24 UTC with exit zero and original import markers unchanged. Original JSON and statistics summary: `research/experiments/costfn/dataset-validation/2026-11-13-1m/`. No repair/restart in this successful attempt. Bulk data/logs/checkpoints remain on the retained volume; operator statistics review, both verified private copies and connected pilot/full-study/public-release gates remain OPEN. No compute cleanup or new experiment.
+
 - [~] **RD3-CHECKPOINTS — resume at the first unfinished check** — operator
   - [✓ 5.33.3 controls/restart; full validation OPEN] DO engine 21/21, checkpoint 6/6 and lease 16/16 controls, 50-check floor/report parity and native SIGKILL/resume identical receipts pass. Full validation starts 05:02:39 UTC under a volume-resident 300-second supervisor, retained imports, 28-GiB MemoryMax/four CPUs and revised lease-clamped deadline; eight durable passes, none failed at 05:09:32 UTC. Operator requests monitor/repair iterations until validation succeeds within the approved lease. Preserve all data/imports/failures, no false-verdict skipping or memory-limit increase.
   directive: durable source/input/engine/profile-bound per-check verdicts and
