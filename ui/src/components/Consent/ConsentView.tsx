@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import PermissionSummary from './PermissionSummary';
 import { groupActionDescription } from '@/lib/consentLanguage';
+import { useCredentialEntry } from '@/lib/useCredentialEntry';
 
 // diff two string lists → {added, removed, same}
 function diffStrings(current: string[], next: string[]) {
@@ -196,6 +197,7 @@ function RequestRow({
 }
 
 function ConsentView({ I }: { I: Record<string, any> }) {
+  const entry = useCredentialEntry(I);
   const host = React.useMemo(() => {
     try {
       return I._referrerHost || (document.referrer ? new URL(document.referrer).hostname : 'this app');
@@ -287,59 +289,54 @@ function ConsentView({ I }: { I: Record<string, any> }) {
   }, [allSettled, pendingContracts]);
 
   return (
-    <div className="relative flex h-dvh flex-col items-center justify-center overflow-hidden bg-background px-4 py-6 text-foreground">
+    <div className={showLoginForm ? 'relative flex min-h-dvh flex-col items-center justify-center bg-background px-5 py-8 text-foreground sm:py-12' : 'relative flex h-dvh flex-col items-center justify-center overflow-hidden bg-background px-4 py-6 text-foreground'}>
       {/* the one permitted decorative flourish (design.md §4): a soft brand glow */}
       <div
         aria-hidden
         className="pointer-events-none absolute left-1/2 top-0 h-72 w-72 -translate-x-1/2 rounded-full bg-brand/20 blur-[120px]"
       />
 
-      <div className="relative flex max-h-[calc(100dvh-3rem)] w-full max-w-md flex-col">
-        <div className="mb-6 flex shrink-0 justify-center">
-          <Branding I={I} size="lg" tagline={false} />
+      <div className={`relative flex w-full max-w-md flex-col ${showLoginForm ? '' : 'max-h-[calc(100dvh-3rem)]'}`}>
+        <div className={`flex shrink-0 justify-center ${showLoginForm ? 'mb-8' : 'mb-6'}`}>
+          <Branding I={I} size={showLoginForm ? 'sm' : 'lg'} tagline={false} />
         </div>
 
-        <div className="flex min-h-0 flex-col rounded-lg border border-border bg-card shadow-[0_8px_30px_rgb(0_0_0/0.35)]">
+        <div className={`flex min-h-0 flex-col ${showLoginForm ? 'sm:rounded-lg sm:border sm:border-border sm:bg-card' : 'rounded-lg border border-border bg-card'}`}>
         {showLoginForm ? (
-          <div className="min-h-0 flex-1 overflow-y-auto p-6 sm:p-8">
-            <div className="mb-6 text-center">
-              <h1 className="font-display text-xl font-semibold text-foreground">
-                {I.mode === 'signup' ? (
-                  <>Create your node to connect <span className="text-brand-300">{host}</span></>
-                ) : I.mode === 'forgot' ? (
-                  <>Recover your account</>
+          <div className="py-2 sm:p-8" data-testid="consent-credential-entry">
+            <div className="mb-7 text-center">
+              <p className="mb-3 break-all text-xs font-medium text-muted-foreground">Continue to <span className="text-foreground">{host}</span></p>
+              <h1 className="font-display text-2xl font-medium tracking-tight text-foreground">
+                {entry.mode === 'signup' ? (
+                  <>Create your account.</>
+                ) : entry.mode === 'forgot' ? (
+                  <>Find your account.</>
                 ) : (
-                  <>Log in to connect <span className="text-brand-300">{host}</span></>
+                  <>{I.rememberedAccounts?.length ? 'Welcome back.' : 'Welcome to web10.'}</>
                 )}
               </h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {I.mode === 'signup'
-                  ? 'Own your data from the first record — then choose what to share.'
-                  : I.mode === 'forgot'
-                    ? 'Enter your web10 provider and mobile number to recover your account.'
-                    : 'Sign in to your node, then choose what to share.'}
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                {entry.mode === 'signup'
+                  ? 'One web10 account. Your data, on your terms.'
+                  : entry.mode === 'forgot'
+                    ? 'Sign in with a code sent to your phone or email.'
+                    : 'Sign in or create your account to continue.'}
               </p>
             </div>
             {/* The opener is signed out and this popup holds a live session —
                 offer the no-password fast path to continue as the current
                 account. Picking a different account (the picker) or "Use
                 another account" still asks for the password. */}
-            {canContinueAsCurrent && (
-              <Button
-                variant="brand"
-                className="mb-4 w-full"
-                onClick={() => I.setUserConfirmed(true)}
-                data-testid="consent-continue-as"
-              >
-                Continue as {username}
-              </Button>
-            )}
-            {I.mode === 'signup' ? (
-              <SignupForm I={I} embedded />
-            ) : I.mode === 'forgot' ? (
-              <ForgotForm I={I} embedded />
+            {entry.mode === 'signup' ? (
+              <SignupForm I={entry} embedded />
+            ) : entry.mode === 'forgot' ? (
+              <ForgotForm I={entry} embedded />
             ) : (
-              <LoginForm I={I} embedded />
+              <LoginForm I={entry} embedded continueAction={canContinueAsCurrent ? (
+                <Button variant="brand" className="h-12 w-full" onClick={() => I.setUserConfirmed(true)} data-testid="consent-continue-as">
+                  Continue as {username}
+                </Button>
+              ) : undefined} />
             )}
           </div>
         ) : allSettled ? (
@@ -413,7 +410,7 @@ function ConsentView({ I }: { I: Record<string, any> }) {
             <button
               type="button"
               onClick={() => I.logout()}
-              className="rounded underline-offset-2 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="inline-flex min-h-11 items-center rounded px-2 underline-offset-2 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               data-testid="consent-logout"
             >
               Not you? Log out

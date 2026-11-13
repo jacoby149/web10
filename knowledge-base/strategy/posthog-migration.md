@@ -2,6 +2,14 @@
 
 ## The goal and the operator's decision
 
+**Setup correction (operator, 13.11.2026):** INTEGRATIONS-01 OAuth-first work is
+superseded by INTEGRATIONS-KEYS: consistent paste-credentials setup with direct
+official console links. The portal takes a public `phc_` project ingest token,
+not a personal management API key, and links to project settings in the selected
+US/EU region. Keep explicit collection/replay enablement and existing validation.
+PostHog's [OAuth support](https://posthog.com/docs/api/oauth) remains a verified
+provider capability, but implementing it is no longer queued or authorized here.
+
 Jacob needs to compare acquisition channels by confirmed accounts, activation and
 return, and give investors inspectable third-party reports. Five Instagram
 creators at $200/month are the first campaign, not a bespoke analytics system.

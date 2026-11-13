@@ -2,6 +2,7 @@ import Branding from '../shared/Branding';
 import LoginForm from './LoginForm';
 import ForgotForm from './ForgotForm';
 import SignupForm from './SignupForm';
+import { useCredentialEntry } from '@/lib/useCredentialEntry';
 
 // Auth screens are the narrative surface ("this is your node") — design.md
 // direction for ui/: one column, generous space, zero clutter. No
@@ -17,16 +18,17 @@ function CredentialForm({ I }: { I: Record<string, any> }) {
 }
 
 function CredentialPage({ I }: { I: Record<string, any> }) {
+  const entry = useCredentialEntry(I);
   return (
     <div
-      className="flex min-h-screen flex-col items-center bg-background text-foreground"
+      className="flex min-h-dvh flex-col items-center bg-background text-foreground"
       data-testid="credential-page"
     >
-      <div className="flex justify-center px-6 pt-12">
-        <Branding I={I} />
+      <div className="flex justify-center px-6 pt-8 sm:pt-12">
+        <Branding I={I} size="sm" tagline={false} />
       </div>
-      <div className="flex w-full flex-1 items-center justify-center px-4 py-10">
-        <CredentialForm I={I} />
+      <div className="flex w-full flex-1 items-center justify-center px-5 py-8 sm:py-10">
+        <CredentialForm I={entry} />
       </div>
       <a href="/?mode=appearance" className="mb-6 inline-flex min-h-11 items-center rounded px-3 text-sm text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">Appearance</a>
     </div>
