@@ -568,6 +568,11 @@ Format per lane:
 - [✓] Full E2E test with popup + log sequence verification
 
 ### Lane: auth-consent-forks (Phase 1)
+Final Coming soon revision: 339 UI tests/build/typecheck, both-theme four-width
+presentation/appearance checks and eight real-local auth journeys pass; final
+desktop/375px saved/add-account captures inspected. Provider activation is deferred
+to HOSTED-CONTACT below; every PR check remains the merge gate.
+
 **Pre-merge operator correction:** signup goes directly below the heading, before saved accounts/password fields; remove the reported-unavailable phone/email sign-in shortcut. Existing explicit recovery/contact handlers remain unchanged. Also owns the corresponding recovery E2E entry step. Re-run local and all PR gates on the final head; no delivery repair claim.
 
 - [✓ 5.33.4 local] **Polish authenticator credential entry** — compact mobile/desktop login/signup, one solid primary action, URL-owned password/signup/contact entry and secondary server identity. Operator follow-ups make Use another account a bordered plus-icon row and signup a full-width violet-tinted CTA. Owns credential components, App's entry-URL cleanup, ConsentView login presentation, focused UI/browser controls and progressive-entry steps in existing auth E2E/connected harnesses only. All 338 UI tests/build/typecheck, both-theme 375/768/1280/1440 browser cases, appearance regression and eight real-local signup/return/password/Following handoffs pass; desktop/375px captures inspected. Existing auth/consent/vault handlers unchanged; no API/SDK/policy/deployment changes.

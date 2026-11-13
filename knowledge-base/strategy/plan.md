@@ -37,6 +37,9 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 **Final scope:** contact methods are disabled Coming soon choices inside Use
 another account only. This PR does not connect providers or activate contact auth.
+Final local gates: 339 UI tests, production build/typecheck, both-theme four-width
+presentation/appearance checks and eight real-local auth journeys pass; final
+desktop/375px saved/add-account screenshots inspected. All PR checks still apply.
 
 **Pre-merge operator correction:** signup goes directly below the heading and
 before saved accounts/password fields. Remove the phone/email sign-in shortcut
