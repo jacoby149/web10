@@ -60,12 +60,25 @@ publishing the new data. No public release is performed by current tooling.
 
 ## Readiness and current limits
 
-Permission is not a completed transfer: neither new copy exists/has been
-verified at this checkpoint. A DO management token is not a Spaces S3 key;
-configured scoped Spaces and MinIO object-store access is still required.
-Never paste or record secret keys in chat/status/logs. Configure a secure local
-credential profile or other approved secret channel; no provider management
-credential is copied to the preparation host.
+**MinIO copy: done and digest-verified (13 November 2026).** All 11 objects
+(nine Parquet tables plus `validation.json` and `manifest.json`,
+19,917,449,209 bytes) exist under
+`web10-media/research/costfn/datasets/2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd/`.
+Verification was two passes: per-object size/SHA-256 readback with anonymous-403
+denials during the transfer, then an independent re-verification — fresh signed
+read URLs, full readback of every object from the approved DigitalOcean host
+against the on-volume manifest hashes and the original 50/50 receipt hash, all
+passing. Bulk bytes moved DO→MinIO under short-lived signed upload URLs
+generated inside the existing production API container; storage credentials
+never left the box and no credential was copied to the preparation host. The
+destination prefix was verified empty before the first write, and completes were
+conditional, so no existing object could be overwritten.
+
+**Spaces copy: still pending.** A DO management token is not a Spaces S3 key;
+configured scoped Spaces access is still required. Never paste or record secret
+keys in chat/status/logs. Configure a secure local credential profile or other
+approved secret channel; no provider management credential is copied to the
+preparation host.
 
 Complete preparation and the independent 1M checks first. Keep the connected
 Parquet-to-node import, live-view delta checks, full attachment/projected-row
