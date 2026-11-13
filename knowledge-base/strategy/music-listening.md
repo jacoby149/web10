@@ -102,8 +102,20 @@ tests/build pass for the shared component's other consumer.
 Music-tagged feed posts use the same app-level transport as Music, not a second
 inline audio element. Operator correction (13.11.2026): a feed tap starts the
 readable, resolved track and reveals the persistent mini-player in place, without
-changing the Posts tab, filters, scroll position or browser history. Opening the
-expanded Music player or queue remains an explicit mini-player link action.
+changing the Posts tab, filters, scroll position or browser history. Outside
+Music the mini-player is playback-only: artwork/title are inert and there are
+no player/queue navigation links. Enter Music through the app navigation first;
+expanded-player navigation is available there, with source identity retained;
+Queue is a labelled action within the full player, never on the mini-player bar.
+Operator chooses loaded feed songs as the session queue: a new song selection
+snapshots the current board's loaded, visible eligible music in display order,
+including music videos, with duplicate/source identities and foreign read-only
+restrictions preserved. No recommendation read, load-more or catalog fetch is
+triggered; later board changes do not silently rewrite the playing session.
+Previous/Next reflect that actual queue, repeat and shuffle traversal. Both are
+visible on phones; unavailable skips are disabled, and Previous can restart the
+current track after three seconds. The queue action belongs in the full Music
+player, never the mini-player bar, even while browsing Music.
 Ordinary nonmusic audio retains inline playback. Source-qualified tracks keep
 their source and read-only recovery restriction. On phones the mini-player is
 an inset rounded surface with a visible gap above the glass dock; all controls,
@@ -115,6 +127,13 @@ acquires Media Session ownership while mounted, including a playing clip unmuted
 after a muted start. Play/pause and bounded seeking target that actual element,
 never a previously paused Music queue. Muted previews do not acquire ownership;
 leaving the feed clears its metadata and stale actions cannot resume old Music.
+Operator correction (13.11.2026): an audible ordinary video dismisses and clears
+the Music transport/queue, rather than leaving its paused mini-player visible.
+Music-tagged videos use Music's own transport and retain the player. X explicitly
+stops and dismisses Music; it is not a hide-while-playing toggle. Ordinary audio
+keeps its existing pause/handoff behavior; muted previews never dismiss Music.
+Delayed ended events from a paused/replaced transport cannot advance or restart
+Music after another element has taken playback.
 This is system-control integration, not persistent/background video playback:
 the existing visibility, resource-release and browser suspension rules still apply.
 

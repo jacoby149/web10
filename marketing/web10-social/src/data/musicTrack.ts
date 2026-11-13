@@ -34,3 +34,14 @@ export function musicTrackFromPost(post: PostRecord, media: MediaRecord[]): Musi
   track.artworkUrl = audioArtwork(track.media, resolved);
   return track;
 }
+
+/** Preserve the loaded board's order and source boundaries; no extra reads. */
+export function musicQueueFromPosts(posts: PostRecord[], mediaForPost: (post: PostRecord) => MediaRecord[], isForeign: (post: PostRecord) => boolean): MusicTrack[] {
+  const seen = new Set<string | undefined>();
+  return posts.flatMap(post => {
+    const track = musicTrackFromPost(post, mediaForPost(post));
+    if (!track || !musicTrackKey(track) || seen.has(musicTrackKey(track))) return [];
+    seen.add(musicTrackKey(track));
+    return [{ ...track, readOnlySource: isForeign(post) }];
+  });
+}

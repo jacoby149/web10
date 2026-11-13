@@ -5,6 +5,8 @@ import '@testing-library/jest-dom';
 import { MusicProvider, useMusic, type MusicContextValue } from '@/context/MusicContext';
 import MusicPlayer from '@/components/Music/MusicPlayer';
 import MusicFeedMedia from '@/components/Music/MusicFeedMedia';
+import { FeedMusicQueue } from '@/context/FeedMusicContext';
+import type { MusicTrack } from '@/data/musicTrack';
 import type { PostRecord, MediaRecord } from '@/data/types';
 
 vi.mock('@/data/music', () => ({ readMusicTrack: vi.fn() }));
@@ -17,13 +19,13 @@ function Probe() {
   music = useMusic();
   const location = useLocation();
   const navigate = useNavigate();
-  return <><output data-testid="route">{location.pathname}{location.search}</output><button onClick={() => navigate(-1)}>Back to feed</button></>;
+  return <><output data-testid="route">{location.pathname}{location.search}</output><button onClick={() => navigate(-1)}>Back to feed</button><button onClick={() => navigate('/music')}>Visit Music</button></>;
 }
-function tree(source = false, tags = ['music'], route = '/feed?tab=following&q=night') {
-  return <MemoryRouter initialEntries={['/feed?tab=discover', route]} initialIndex={1}><MusicProvider sessionKey="listener"><Probe /><Routes>
-    <Route path="/feed" element={<MusicFeedMedia post={{ ...post, tags, ...(source ? { source_origin: 'https://foreign.example', source_key: 'foreign/song' } : {}) }} media={media} readOnlySource={source}><span>Ordinary inline audio</span></MusicFeedMedia>} />
+function tree(source = false, tags = ['music'], route = '/feed?tab=following&q=night', mime = 'audio/mpeg', queue?: MusicTrack[]) {
+  return <MemoryRouter initialEntries={['/feed?tab=discover', route]} initialIndex={1}><MusicProvider sessionKey="listener"><Probe /><FeedMusicQueue.Provider value={queue}><Routes>
+    <Route path="/feed" element={<MusicFeedMedia post={{ ...post, tags, ...(source ? { source_origin: 'https://foreign.example', source_key: 'foreign/song' } : {}) }} media={media.map(item => ({ ...item, mime_type: mime }))} readOnlySource={source}><span>Ordinary inline audio</span></MusicFeedMedia>} />
     <Route path="/music" element={<h1>Expanded player route</h1>} />
-  </Routes><MusicPlayer /></MusicProvider></MemoryRouter>;
+  </Routes></FeedMusicQueue.Provider><MusicPlayer /></MusicProvider></MemoryRouter>;
 }
 beforeEach(() => {
   handlers.clear();
@@ -44,6 +46,24 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); Reflec
 const action = (name: MediaSessionAction, extra = {}) => act(async () => handlers.get(name)?.({ action: name, ...extra }));
 
 describe('feed media and the one browser Media Session', () => {
+  it('snapshots the loaded board queue and skips in place without rewriting it on board updates', async () => {
+    const first = { post, media: media[0] };
+    const second = { post: { ...post, _id: 'song-2', title: 'Second song' }, media: { ...media[0], url: 'https://media.example/second.mp3' } };
+    const view = render(tree(false, ['music'], '/feed', 'audio/mpeg', [first, second]));
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Play music' })));
+    expect(music.queue).toHaveLength(2);
+    expect(screen.getByRole('button', { name: 'Next track' })).toBeEnabled();
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Next track' })));
+    expect(music.current?.post._id).toBe('song-2');
+    expect(screen.getByRole('button', { name: 'Next track' })).toBeDisabled();
+    expect(screen.getByTestId('route')).toHaveTextContent('/feed');
+    view.rerender(tree(false, ['music'], '/feed', 'audio/mpeg', [second]));
+    expect(music.queue).toHaveLength(2);
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Previous track' })));
+    expect(music.current?.post._id).toBe('song');
+    expect(screen.getByTestId('route')).toHaveTextContent('/feed');
+  });
+
   it.each(['Play music', 'Open player: Night drive'])('hands %s to persistent playback in place and system pause/resume', async label => {
     render(tree());
     await act(async () => fireEvent.click(screen.getByRole('button', { name: label })));
@@ -74,13 +94,15 @@ describe('feed media and the one browser Media Session', () => {
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Play music' })));
     expect(music.current?.readOnlySource).toBe(true);
     expect(screen.getByTestId('route')).toHaveTextContent('/feed?tab=following&q=night');
+    expect(screen.getByTestId('music-player').querySelector('a')).toBeNull();
+    fireEvent.click(screen.getByText('Visit Music'));
     expect(screen.getByRole('link', { name: 'Open player: Night drive' })).toHaveAttribute('href', '/music?track=song&panel=player&source=https%3A%2F%2Fforeign.example');
     await act(async () => music.retry());
     const { readMusicTrack } = await import('@/data/music');
     expect(readMusicTrack).not.toHaveBeenCalled();
   });
 
-  it('pauses and resumes from the feed without restarting, and expands only through the mini-player link', async () => {
+  it('pauses and resumes without restarting and cannot navigate from mini-player metadata or queue', async () => {
     render(tree(false, ['music'], '/feed?tab=discover&q=night'));
     const feed = within(screen.getByTestId('music-feed-media'));
     await act(async () => fireEvent.click(feed.getByRole('button', { name: 'Play music' })));
@@ -91,6 +113,12 @@ describe('feed media and the one browser Media Session', () => {
     expect(music.isPlaying).toBe(true);
     expect(HTMLMediaElement.prototype.load).toHaveBeenCalledTimes(loads);
     expect(screen.getByTestId('route')).toHaveTextContent('/feed?tab=discover&q=night');
+    const player = within(screen.getByTestId('music-player'));
+    fireEvent.click(player.getByText('Night drive'));
+    fireEvent.click(screen.getByTestId('music-player-details'));
+    expect(player.queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.getByTestId('route')).toHaveTextContent('/feed?tab=discover&q=night');
+    fireEvent.click(screen.getByText('Visit Music'));
     fireEvent.click(screen.getByRole('link', { name: 'Open player: Night drive' }));
     expect(screen.getByTestId('route')).toHaveTextContent('/music?track=song&panel=player');
     expect(music.isPlaying).toBe(true);
@@ -112,6 +140,13 @@ describe('feed media and the one browser Media Session', () => {
     card.append(clip); document.body.append(card);
     await act(async () => clip.play());
     expect(music.isPlaying).toBe(false);
+    if (kind === 'video') {
+      expect(music.current).toBeNull();
+      expect(music.queue).toHaveLength(0);
+      expect(screen.queryByTestId('music-player')).not.toBeInTheDocument();
+    } else {
+      expect(screen.getByTestId('music-player')).toBeInTheDocument();
+    }
     expect(session.metadata?.title).toBe('Feed clip');
     expect(session.playbackState).toBe('playing');
     await action('pause'); expect(clip.paused).toBe(true);
@@ -119,23 +154,53 @@ describe('feed media and the one browser Media Session', () => {
     expect(music.isPlaying).toBe(false);
     await action('seekto', { seekTime: 35 }); expect(clip.currentTime).toBe(35);
     await action('seekforward', { seekOffset: 200 }); expect(clip.currentTime).toBe(120);
-    await action('nexttrack'); expect(music.current?.post._id).toBe('song');
+    await action('nexttrack'); expect(music.current?.post._id).toBe(kind === 'video' ? undefined : 'song');
     await act(async () => card.remove());
     expect(session.playbackState).toBe('none'); expect(session.metadata).toBeNull();
     await action('play');
     expect(music.isPlaying).toBe(false);
   });
 
+  it('keeps a music-tagged video in the persistent music transport, including its attached stage', async () => {
+    render(tree(false, ['music'], '/feed', 'video/mp4'));
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Play music' })));
+    expect(music.current?.media.mime_type).toBe('video/mp4');
+    expect(music.isPlaying).toBe(true);
+    const stage = document.createElement('div'); document.body.append(stage);
+    await act(async () => music.attachVideoStage(stage));
+    await act(async () => music.videoElement!.dispatchEvent(new Event('play')));
+    expect(music.current?.post._id).toBe('song');
+    expect(music.queue).toHaveLength(1);
+    expect(screen.getByTestId('music-player')).toBeInTheDocument();
+  });
+
+  it('X stops and dismisses music rather than hiding ongoing playback', async () => {
+    render(tree());
+    await act(async () => music.play({ post, media: media[0] }));
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Close music player' })));
+    expect(music.current).toBeNull();
+    expect(music.queue).toHaveLength(0);
+    expect(music.isPlaying).toBe(false);
+    expect(session.playbackState).toBe('none');
+    expect(screen.queryByTestId('music-player')).not.toBeInTheDocument();
+    await action('play');
+    expect(music.isPlaying).toBe(false);
+  });
+
   it('muted previews never acquire the system controls and music can reclaim them', async () => {
     render(tree());
+    await act(async () => music.play({ post, media: media[0] }));
     const card = document.createElement('div'); card.dataset.mediaSessionTitle = 'Preview';
     const clip = document.createElement('video'); clip.muted = true;
     card.append(clip); document.body.append(card);
     await act(async () => clip.play());
-    expect(session.metadata).toBeNull();
+    expect(session.metadata?.title).toBe('Night drive');
+    expect(music.current?.post._id).toBe('song');
+    expect(music.isPlaying).toBe(true);
     clip.muted = false;
     await act(async () => clip.dispatchEvent(new Event('volumechange')));
     expect(session.metadata?.title).toBe('Preview');
+    expect(music.current).toBeNull();
     await act(async () => music.play({ post, media: media[0] }));
     expect(session.metadata?.title).toBe('Night drive');
     await action('pause'); expect(music.isPlaying).toBe(false);

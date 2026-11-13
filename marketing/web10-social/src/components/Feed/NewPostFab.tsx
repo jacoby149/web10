@@ -6,8 +6,8 @@ import { trackEvent } from '@/lib/analytics';
  * The floating "New Post" control — a quiet neutral pill, with a compact
  * plus on phones and an explicit desktop label (operator, 13.11.2026).
  * It replaces the always-visible composer
- * boxes that used to sit inline on every surface: the button is the only
- * resting chrome, the full composer pops up on tap (the NewPostSheet).
+ * editors that used to sit inline on every surface. It complements the
+ * input-shaped Posts invitation; both open the same NewPostSheet on tap.
  *
  * Rendered once in the Layout (above the mobile bottom bar, bottom-right —
  * the Instagram/TikTok FAB position). Hidden on the Shorts lens (the
@@ -30,10 +30,9 @@ export function NewPostFab({ hidden = false }: { hidden?: boolean }) {
         openComposer();
       }}
       className={
-        'chrome-compose-position chrome-compose-control chrome-glass chrome-floating fixed right-4 md:right-6 md:bottom-6 z-30 ' +
+        'chrome-compose-position chrome-compose-control chrome-glass fixed right-4 md:right-6 md:bottom-6 z-30 ' +
         'flex h-12 w-12 items-center justify-center gap-2 rounded-full border border-border md:w-auto md:px-4 ' +
-        'text-sm font-medium text-foreground transition-colors duration-150 motion-reduce:transition-none ' +
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background'
+        'text-sm font-medium text-foreground transition-colors duration-150 motion-reduce:transition-none'
       }
     >
       <Plus className="h-5 w-5 text-brand-300" strokeWidth={1.75} aria-hidden="true" />

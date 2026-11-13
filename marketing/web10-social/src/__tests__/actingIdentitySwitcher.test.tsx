@@ -3,18 +3,19 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import ActingIdentitySwitcher from '@/components/Social/ActingIdentitySwitcher';
 
 const mocks = vi.hoisted(() => ({
-  getMyGroups: vi.fn(), getGroup: vi.fn(), readGroupIdentity: vi.fn(), select: vi.fn(), query: vi.fn(),
+  getMyGroups: vi.fn(), getGroup: vi.fn(), readGroupIdentity: vi.fn(), select: vi.fn(), query: vi.fn(), selected: undefined as string | undefined,
 }));
 vi.mock('@/data/v3', () => ({ getV3Client: () => ({
   readToken: () => ({ provider: 'test', username: 'alice' }),
   getMyGroups: mocks.getMyGroups, getGroup: mocks.getGroup, query: mocks.query,
 }) }));
 vi.mock('@/data/groups', () => ({ readGroupIdentity: mocks.readGroupIdentity }));
-vi.mock('@/data/actingIdentity', () => ({ useActingAuthor: () => undefined, selectActingAuthor: mocks.select }));
+vi.mock('@/data/actingIdentity', () => ({ useActingAuthor: () => mocks.selected, selectActingAuthor: mocks.select }));
 
 describe('ActingIdentitySwitcher partial loading', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    mocks.selected = undefined;
     sessionStorage.clear();
     mocks.getMyGroups.mockResolvedValue(['good', 'detail-fails', 'face-fails', 'ineligible'].map((group_id) => ({ group_id, my_role: 'writer' })));
     mocks.getGroup.mockImplementation(async (id: string) => {
@@ -26,6 +27,41 @@ describe('ActingIdentitySwitcher partial loading', () => {
       return { name: `Group ${id}` };
     });
     mocks.query.mockResolvedValue({ rows: [] });
+  });
+
+  it('opens a profile-first menu without loading groups or changing posting identity', () => {
+    const onViewProfile = vi.fn();
+    render(<ActingIdentitySwitcher personalName="Alice" onViewProfile={onViewProfile} />);
+    fireEvent.click(screen.getByTestId('acting-identity-trigger'));
+    expect(screen.getByRole('dialog', { name: 'Profile' })).toBeInTheDocument();
+    expect(mocks.getMyGroups).not.toHaveBeenCalled();
+    expect(mocks.select).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'View profile' }));
+    expect(onViewProfile).toHaveBeenCalledOnce();
+    expect(mocks.select).not.toHaveBeenCalled();
+  });
+
+  it('keeps active group posting visible while profile navigation stays personal', () => {
+    mocks.selected = 'good';
+    const onViewProfile = vi.fn();
+    render(<ActingIdentitySwitcher personalName="Alice" onViewProfile={onViewProfile} />);
+    expect(screen.getByText('Acting as')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('acting-identity-trigger'));
+    fireEvent.click(screen.getByRole('button', { name: 'View profile' }));
+    expect(onViewProfile).toHaveBeenCalledOnce();
+    expect(mocks.select).not.toHaveBeenCalled();
+    expect(mocks.selected).toBe('good');
+  });
+
+  it('keeps the confirmed identity picker behind an explicit secondary action', async () => {
+    render(<ActingIdentitySwitcher personalName="Alice" onViewProfile={vi.fn()} />);
+    fireEvent.click(screen.getByTestId('acting-identity-trigger'));
+    fireEvent.click(screen.getByRole('button', { name: 'Change posting identity' }));
+    await screen.findByRole('button', { name: /^Group good\s*Group$/ });
+    fireEvent.click(screen.getByRole('button', { name: /^Group good\s*Group$/ }));
+    expect(mocks.select).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Use identity' }));
+    expect(mocks.select).toHaveBeenCalledWith('good');
   });
 
   it('retains valid choices on detail and face failures and retries missing choices', async () => {

@@ -56,8 +56,10 @@ try {
   for (const width of [1440, 375, 768, 1280]) for (const theme of ['dark', 'light']) for (const board of ['posts', 'posts-following']) {
     const page = await browser.newPage({ viewport: { width, height: 900 }, colorScheme: theme });
     const errors = [];
+    let identityReads = 0;
     page.on('pageerror', error => errors.push(error.message));
     page.on('console', message => { if (message.text().includes('Maximum update depth')) errors.push(message.text()); });
+    page.on('console', message => { if (message.text().includes('[social-identity] loading eligible identities')) identityReads++; });
     page.on('console', message => { if (message.text().startsWith('[music') || message.text().startsWith('[feed-media-session]')) console.log(message.text()); });
     await page.addInitScript(() => {
       window.sessionHandlers = new Map();
@@ -67,8 +69,18 @@ try {
       window.Audio = new Proxy(window.Audio, { construct(target, args) { const element = Reflect.construct(target, args); window.musicElements.push(element); return element; } });
     });
     await page.goto(`${base}?screen=${board}&feed-player-repair=1&signin-prompts=1`, { waitUntil: 'networkidle' });
-    const feed = page.getByTestId('music-feed-media');
+    const feed = page.getByTestId('music-feed-media').first();
     await feed.waitFor();
+    const invitation = page.getByTestId('post-entry-prompt');
+    await invitation.locator('img').waitFor();
+    assert.equal(await invitation.locator('input,textarea,[contenteditable]').count(), 0, 'invitation is not an inline editor');
+    await invitation.getByRole('button', { name: 'Create a post', exact: true }).click();
+    await page.getByRole('dialog', { name: 'New post', exact: true }).waitFor();
+    await page.getByTestId('new-post-sheet-close').click();
+    const scroll = page.getByTestId('shell-content');
+    await scroll.evaluate(el => { el.scrollTop = 700; });
+    await page.waitForFunction(() => document.querySelector('[data-testid="post-entry-prompt"]').getBoundingClientRect().bottom < document.querySelector('[data-testid="shell-content"]').getBoundingClientRect().top);
+    await scroll.evaluate(el => { el.scrollTop = 0; });
     if ([1440, 375].includes(width) && board === 'posts') {
       await page.screenshot({ path: path.join(output, `compose-idle-${theme}-${width}.png`) });
     }
@@ -99,6 +111,16 @@ try {
     await page.waitForFunction(() => !window.musicElements.at(-1)?.paused);
     const player = page.getByTestId('music-player');
     const mobile = width < 768;
+    assert.equal(await player.locator('a').count(), 0, 'the mini-player cannot navigate away from Posts');
+    await player.getByTestId('music-player-details').click();
+    assert.equal(await feedNode.evaluate(el => el.isConnected), true);
+    assert.equal(await player.getByRole('button', { name: 'Previous track' }).isVisible(), true);
+    assert.equal(await player.getByRole('button', { name: 'Next track' }).isEnabled(), true, 'loaded feed music is a real queue');
+    await player.getByRole('button', { name: 'Next track' }).click();
+    await page.waitForFunction(() => navigator.mediaSession.metadata?.title === 'Slow Sunday');
+    await page.evaluate(() => window.sessionHandlers.get('seekto')({ action: 'seekto', seekTime: 0 }));
+    await player.getByRole('button', { name: 'Previous track' }).click();
+    await page.waitForFunction(() => navigator.mediaSession.metadata?.title === 'After Hours');
     const geometry = await player.boundingBox();
     if (mobile) {
       const dock = page.getByRole('navigation', { name: 'Primary mobile', exact: true });
@@ -120,9 +142,12 @@ try {
     if ([1440, 375].includes(width) && board === 'posts') {
       await page.screenshot({ path: path.join(output, `player-${theme}-${width}.png`) });
     }
-    // Explicit expansion remains available, and returning retains the Audio.
+    // Only explicit app navigation enters Music; the bar has no Queue target.
+    await page.getByTestId(mobile ? 'nav-music-mobile' : 'nav-music').click();
     await player.getByRole('link', { name: 'Open player: After Hours' }).click();
     await page.getByRole('region', { name: 'Now playing', exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Queue', exact: true }).click();
+    await page.getByRole('heading', { name: 'Your queue', exact: true }).waitFor();
     await page.getByTestId(mobile ? 'nav-feed-mobile' : 'nav-feed').click();
     await feed.waitFor();
     await page.waitForFunction(() => !window.musicElements.at(-1)?.paused);
@@ -138,10 +163,12 @@ try {
     assert.equal(fabBox.height, 48, 'compact 48px compose control, not the old 64px orb');
     assert.ok(mobile ? fabBox.width === 48 : fabBox.width > 48 && fabBox.width <= 160, 'icon on mobile, labelled desktop pill');
     assert.equal(await fab.evaluate(el => getComputedStyle(el).backgroundImage), 'none', 'no purple gradient fill');
+    assert.equal(await fab.evaluate(el => getComputedStyle(el).boxShadow), 'none', 'no dark shadow halo or inset ring');
     assert.equal(await fab.locator('span').isVisible(), !mobile, 'desktop New post label');
     await page.keyboard.press('Tab');
     await fab.focus();
     assert.equal(await fab.evaluate(el => el.matches(':focus-visible')), true);
+    assert.equal(await fab.evaluate(el => getComputedStyle(el).outlineStyle), 'solid', 'keyboard focus keeps a real outline without a shadow');
     await page.keyboard.press('Enter');
     await page.getByRole('dialog', { name: 'New post', exact: true }).waitFor();
     assert.equal(await page.evaluate(() => window.musicElements.at(-1).paused), false, 'opening composer retains playback');
@@ -161,16 +188,47 @@ try {
     assert.equal(await note.locator('audio').evaluate(el => el.paused), true);
     await page.evaluate(() => window.sessionHandlers.get('play')({ action: 'play' }));
     await page.waitForFunction(() => !document.querySelector('[data-media-session-title="A studio voice note"] audio').paused);
+    const musicVideo = page.getByTestId('music-feed-media').filter({ has: page.getByRole('button', { name: 'Open player: Studio Session' }) });
+    await musicVideo.getByRole('button', { name: 'Play music', exact: true }).click();
+    await page.waitForFunction(() => navigator.mediaSession.metadata?.title === 'Studio Session');
+    assert.equal(await player.count(), 1, 'a music video keeps the music transport');
     const clip = page.locator('[data-media-session-title="A studio video"]');
     await clip.getByRole('button', { name: 'Play video', exact: true }).first().click();
     await page.waitForFunction(() => navigator.mediaSession.metadata?.title === 'A studio video');
+    assert.equal(await player.count(), 0, 'ordinary video dismisses the music transport');
     await page.evaluate(() => window.sessionHandlers.get('pause')({ action: 'pause' }));
     assert.equal(await clip.locator('video').evaluate(el => el.paused), true);
     await clip.getByRole('button', { name: 'Play video', exact: true }).first().waitFor();
     await page.evaluate(() => window.sessionHandlers.get('play')({ action: 'play' }));
     await page.waitForFunction(() => !document.querySelector('[data-media-session-title="A studio video"] video').paused);
     await clip.getByRole('button', { name: 'Pause video', exact: true }).first().waitFor();
+    if (mobile) {
+      assert.equal(await page.getByRole('navigation', { name: 'Primary mobile', exact: true }).getByTestId('nav-messages-mobile').count(), 0);
+      await page.getByTestId('nav-more-mobile').click();
+      await page.getByTestId('nav-messages-badge-mobile').waitFor();
+      const profileCard = page.getByTestId('nav-profile-mobile');
+      assert.equal(await profileCard.locator('img').count(), 1, 'premier profile card uses the resolved personal photo');
+      const beforeAppearance = await profileCard.evaluate(el => !!(el.compareDocumentPosition(document.querySelector('[data-testid="nav-appearance-mobile"]')) & Node.DOCUMENT_POSITION_FOLLOWING));
+      assert.equal(beforeAppearance, true, 'personal profile is first in More');
+      if ([375].includes(width) && board === 'posts') await page.screenshot({ path: path.join(output, `more-${theme}-${width}.png`) });
+      await profileCard.click();
+      await page.getByTestId('profile-name').waitFor();
+    }
+    await page.locator('[data-testid="acting-identity-trigger"]:visible').click();
+    await page.getByRole('dialog', { name: 'Profile', exact: true }).waitFor();
+    assert.equal(identityReads, 0, 'ordinary profile menu never loads the power-user identity picker');
+    if ([1440, 375].includes(width) && board === 'posts') await page.screenshot({ path: path.join(output, `profile-menu-${theme}-${width}.png`) });
+    await page.getByRole('button', { name: 'View profile', exact: true }).click();
+    await page.getByTestId('profile-name').waitFor();
+    assert.equal(identityReads, 0);
+    await page.locator('[data-testid="acting-identity-trigger"]:visible').click();
+    await page.getByRole('button', { name: 'Change posting identity', exact: true }).click();
+    await page.getByRole('dialog', { name: 'Choose acting identity', exact: true }).waitFor();
+    assert.ok(identityReads > 0, 'the secondary action loads the unchanged confirmed picker');
+    await page.getByRole('button', { name: 'Close identities', exact: true }).click();
+    if (mobile) await page.getByTestId('nav-more-mobile').click();
     await page.getByTestId(mobile ? 'nav-messages-mobile' : 'nav-messages').click();
+    if (mobile) await page.locator('[data-testid="nav-more-mobile"][aria-current="page"]').waitFor();
     await page.waitForFunction(() => navigator.mediaSession.playbackState === 'none');
     assert.deepEqual(errors, []);
     receipt.push({ width, theme, board, music: 'persistent', inlineAudio: 'system pause/play', video: 'system pause/play', unmount: 'cleared', geometry: 'pass', optics });

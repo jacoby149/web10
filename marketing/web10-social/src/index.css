@@ -137,6 +137,11 @@
   background: var(--color-background);
 }
 
+/* The frosted sidebar is a stacking context; its open menus must clear content. */
+.social-shell > aside:has([data-testid="acting-identity-panel"], [data-testid="profile-entry-menu"]) {
+  z-index: 50;
+}
+
 .chrome-glass {
   background-color: var(--color-surface);
   border-color: var(--chrome-edge);
@@ -145,6 +150,13 @@
 
 .chrome-floating {
   box-shadow: inset 0 1px 0 var(--chrome-highlight), 0 8px 32px var(--chrome-shadow);
+}
+
+.chrome-compose-control { box-shadow: none; }
+
+.chrome-compose-control:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
 }
 
 .chrome-compose-control:hover, .chrome-compose-control:active {

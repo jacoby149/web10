@@ -929,9 +929,10 @@ describe('Layout', () => {
         </Layout>
       </MemoryRouter>,
     );
-    // The badge renders on both the desktop sidebar + the mobile bottom bar
-    // (both exist in the DOM in jsdom).
+    // Desktop retains Messages; mobile surfaces unread DMs through More.
     expect(screen.getByTestId('nav-messages-badge-desktop')).toHaveTextContent('3');
+    expect(screen.getByTestId('nav-more-messages-badge')).toHaveTextContent('3');
+    fireEvent.click(screen.getByTestId('nav-more-mobile'));
     expect(screen.getByTestId('nav-messages-badge-mobile')).toHaveTextContent('3');
     messagesUnreadState.unread = 0;
   });
@@ -948,6 +949,7 @@ describe('Layout', () => {
     );
     expect(screen.queryByTestId('nav-messages-badge-desktop')).not.toBeInTheDocument();
     expect(screen.queryByTestId('nav-messages-badge-mobile')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('nav-more-messages-badge')).not.toBeInTheDocument();
   });
 
   it('sidebar profile row shows the profile pic (not the generic icon)', async () => {
@@ -973,6 +975,12 @@ describe('Layout', () => {
     const img = profileRow.querySelector('img');
     expect(img).not.toBeNull();
     expect(img).toHaveAttribute('src', 'http://test.com/avatar.png');
+    fireEvent.click(screen.getByTestId('nav-more-mobile'));
+    const profileCard = screen.getByTestId('nav-profile-mobile');
+    expect(profileCard.querySelector('img')).toHaveAttribute('src', 'http://test.com/avatar.png');
+    expect(within(profileCard).getByText('View profile')).toBeInTheDocument();
+    const appearance = screen.getByTestId('nav-appearance-mobile');
+    expect(profileCard.compareDocumentPosition(appearance) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('mobile bottom nav holds 4 core tabs + a More tab; coming-soon live in the More sheet, not the bar', async () => {
@@ -1001,14 +1009,13 @@ describe('Layout', () => {
     expect(screen.getByTestId('nav-games')).toBeInTheDocument();
     expect(screen.getByTestId('nav-marketplace')).toBeInTheDocument();
 
-    // The mobile bottom bar is the four destinations (Posts, Video, Shorts,
-    // Messages) + the More tab. Messages holds the bar (the DM surface + its
-    // unread badge); People (the discovery surface) lives in the More tab.
+    // Mobile prioritizes consumption: Posts, Video, Shorts, Music and More.
     const mobileNav = screen.getByLabelText('Primary mobile');
     expect(within(mobileNav).getByTestId('nav-feed-mobile')).toBeInTheDocument();
     expect(within(mobileNav).getByTestId('nav-video-mobile')).toBeInTheDocument();
     expect(within(mobileNav).getByTestId('nav-shorts-mobile')).toBeInTheDocument();
-    expect(within(mobileNav).getByTestId('nav-messages-mobile')).toBeInTheDocument();
+    expect(within(mobileNav).getByTestId('nav-music-mobile')).toBeInTheDocument();
+    expect(within(mobileNav).queryByTestId('nav-messages-mobile')).not.toBeInTheDocument();
     expect(within(mobileNav).getByTestId('nav-more-mobile')).toBeInTheDocument();
     // People is NOT in the bar (it lives in the More sheet); Hot Gossip is
     // gone (a tab inside Posts); Settings is not in the bar either.
@@ -1028,14 +1035,15 @@ describe('Layout', () => {
     // Tapping More opens the sheet: Profile (demoted from the bar) + People
     // (the discovery surface, moved from the bar) + Settings (real destination)
     // + the coming-soon list (Stories, Livestream, Games, Marketplace).
-    // Messages is NOT in the sheet — it's in the bottom bar.
+    // Messages is now in the sheet; Music is not duplicated there.
     fireEvent.click(screen.getByTestId('nav-more-mobile'));
     const sheet = screen.getByTestId('more-sheet');
     expect(sheet).toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-profile-mobile')).toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-people-mobile')).toBeInTheDocument();
     expect(within(sheet).queryByTestId('nav-hot-gossip-mobile')).not.toBeInTheDocument();
-    expect(within(sheet).queryByTestId('nav-messages-mobile')).not.toBeInTheDocument();
+    expect(within(sheet).getByTestId('nav-messages-mobile')).toBeInTheDocument();
+    expect(within(sheet).queryByTestId('nav-music-mobile')).not.toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-settings-mobile')).toBeInTheDocument();
     expect(within(sheet).queryByTestId('nav-groups-mobile')).not.toBeInTheDocument();
     expect(within(sheet).getByTestId('nav-stories-mobile')).toBeInTheDocument();

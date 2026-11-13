@@ -1426,7 +1426,7 @@ const DISCOVER_POSTS: SeedDiscoverPost[] = [
 export async function readDiscoverFeed(): Promise<unknown[]> {
   if (new URLSearchParams(window.location.search).has('feed-player-repair')) {
     const track = MUSIC_TRACKS[0];
-    return [{ ...track.post, visibility: 'public', media_refs: [{ doc_id: track.media._id, read_url: track.media.url, mime_type: track.media.mime_type, thumbnail_url: track.artworkUrl }] },
+    return [...[MUSIC_TRACKS[0], MUSIC_TRACKS[1], MUSIC_TRACKS[6]].map(item => ({ ...item.post, visibility: 'public', media_refs: [{ doc_id: item.media._id, read_url: item.media.url, mime_type: item.media.mime_type, thumbnail_url: item.artworkUrl }] })),
       { ...DISCOVER_POSTS[0], _id: 'ordinary-audio', title: 'A studio voice note', tags: [], ad: undefined, media_refs: [{ doc_id: 'note', read_url: track.media.url, mime_type: 'audio/wav' }] },
       { ...DISCOVER_POSTS[0], _id: 'ordinary-video', title: 'A studio video', tags: [], ad: undefined, media_refs: [{ doc_id: 'video', read_url: MUSIC_TRACKS[6].media.url, mime_type: 'video/mp4', width: 160, height: 90 }] }];
   }

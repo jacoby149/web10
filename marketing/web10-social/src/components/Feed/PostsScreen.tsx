@@ -124,9 +124,8 @@ export default function PostsScreen({ onAuthorClick, onLogin }: { onAuthorClick?
 
       {isAnon && tab === 'discover' && <div className="mx-auto w-full max-w-5xl px-4 pt-4"><SignInPrompt placement="feed" onLogin={onLogin} /></div>}
       {tab === 'following' && isAnon ? <SignInPrompt placement="following" onLogin={onLogin} /> : tab === 'following' ? (
-        /* The personal feed. The composer is NOT inline (the operator: "it
-           should be invisible") — the app-level New Post sheet (the Layout's
-           floating "+" button) is the single compose surface. A repost from
+         /* The personal feed. The editor is NOT inline: the stream invitation
+            and floating New post control both open the same app-level sheet. A repost from
            any surface opens that sheet in repost mode (reposts.md). */
         <FeedScreen key={version} onAuthorClick={onAuthorClick} onRepost={setRepostingTo} />
       ) : (
