@@ -1678,6 +1678,22 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+- [✓ 5.31.4 controls/retry; full 1M OPEN] **RD3-IMPORT-RETRY: repair the import execution budget and retry** — owns
+  ClickHouse validator/tests, preparation lifecycle hunks and serialized KB.
+  Confirmed failure: 1800-second timeout at 450,020,966 imported events, with
+  no observed OOM and ~315 GiB free. Four bounded CPU threads, unchanged query/
+  service memory/disk guards, longer query budget bounded by the same lease,
+  useful read progress and input/source/engine-bound whole-import completion
+  markers. Gate exact parity, interruption/unmarked-partial refusal and stale
+  marker denial before retrying the existing bytes. No unsafe prefix offset,
+  new resources, resize, lease extension or claimed 1M pass.
+  Thirteen real-engine controls/fourteen offline suites/five Bun/lint pass;
+  existing 10k/16M input passes 50/50 with exact reference report parity. Retry
+  starts 01:31:34 UTC on host 618505005 with four CPUs, unchanged 12-GiB service/
+  2-GB query memory and mounted reserve, runtime shortened to the same deadline.
+  Retain old partial/negative result; full validation still open. Evidence:
+  `evidence/REALISM-IMPORT-RETRY-20261113.md` under costfn.
+
 **Latest operator direction, 12 November:** switch the finished-dataset
 validator to ClickHouse, not another DuckDB partition repair. Do not deploy or
 restart the stopped paid worker until translated checks pass real-engine
@@ -1700,7 +1716,14 @@ approximate counts, automatic DuckDB fallback or lease extension.
   12-GiB/one-CPU aggregate service bound. Full 1M validation and storage/review/
   connected/experiment gates remain OPEN; no new host/resize/lease extension.
 
-**Current run (13 November 00:20 UTC):** native ClickHouse resume is active on
+**Current run (13 November 01:31 UTC):** repaired native ClickHouse retry is
+active and reverifying the completed input, four CPUs with unchanged memory/
+volume/reserve/retention and 02:50 cleanup. The preceding run timed out on event
+import, not a statistical rejection; no full 1M pass or experiments.
+01:33 UTC: hashes reverified, app-contract/cohort completion markers written,
+event import active (45.97M rows read, not import completion), 336.67 GB free.
+
+**Prior run (13 November 00:20 UTC):** native ClickHouse resume starts on
 host 618505005 with the same completed input and 400-GiB Volume. Reverification
 precedes SQL checks; full 1M validation is not passed. Existing 02:50:22 cleanup,
 reserve and retention controls remain; no new resource or deadline extension.

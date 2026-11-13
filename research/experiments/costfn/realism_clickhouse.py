@@ -3,6 +3,8 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import re
+import threading
 import time
 
 from realism_contract import sha
@@ -11,15 +13,37 @@ SOURCE_AT_IMPORT=sha(__file__)
 VERSION='24.8.14.39'
 IMAGE='clickhouse/clickhouse-server:24.8.14.39@sha256:1ffa82edee000a42c09313bd9f1293d94c570aee74babc1b3ca9983a35fa597b'
 SETTINGS={
-    'max_memory_usage':'2000000000','max_threads':'1',
+    'max_memory_usage':'2000000000','max_threads':'4','max_insert_threads':'4',
     'max_bytes_before_external_group_by':'268435456',
     'max_bytes_before_external_sort':'268435456',
     'max_temporary_data_on_disk_size_for_query':'100000000000',
-    'max_execution_time':'1800','join_algorithm':'grace_hash',
+    'max_execution_time':'5400','join_algorithm':'grace_hash',
     'grace_hash_join_initial_buckets':'16','join_use_nulls':'1',
     'join_default_strictness':'ALL','count_distinct_implementation':'uniqExact',
     'output_format_json_quote_64bit_integers':'0',
 }
+IMPORT_ORDERS={'documents':'doc_id,author_key,updated_at,deleted',
+    'content_events':'doc_id,reader_key,surface,seen_at','doc_groups':'doc_id,group_id',
+    'group_members':'group_id,member_key','cohorts':'cell,reader_key,target_key',
+    'app_contracts':'tuple()','group_contracts':'tuple()','population':'tuple()','users':'tuple()'}
+
+
+def atomic_json(path,value):
+    temp=path.with_suffix('.tmp')
+    if temp.is_symlink():
+        raise ValueError('checkpoint temporary file must not be a symlink')
+    if temp.exists():
+        temp.rename(temp.with_name(temp.name+f'.interrupted-{time.time_ns()}'))
+    with temp.open('x') as stream:
+        json.dump(value,stream,sort_keys=True)
+        stream.flush()
+        os.fsync(stream.fileno())
+    temp.replace(path)
+    fd=os.open(path.parent,os.O_RDONLY)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
 CANONICAL_DOCUMENTS_SQL=('SELECT * EXCEPT rn FROM (SELECT *,row_number() OVER '
     '(PARTITION BY doc_id,author_key ORDER BY updated_at DESC,deleted DESC) AS rn '
     'FROM documents) WHERE rn=1 AND deleted=0')
@@ -50,7 +74,7 @@ class ClickHouse:
             self.docker=['docker']
             if os.environ.get('REALISM_DOCKER_CONTEXT'):
                 self.docker+=['--context',os.environ['REALISM_DOCKER_CONTEXT']]
-            command=self.docker+['run','--detach','--network','none','--memory','3g','--cpus','1',
+            command=self.docker+['run','--detach','--network','none','--memory','3g','--cpus','4',
                 '--user',f'{os.getuid()}:{os.getgid()}','--workdir','/work','--env','HOME=/work',
                 '--mount',f'type=bind,source={self.work},target=/work',
                 '--mount',f'type=bind,source={self.dataset},target=/input,readonly',
@@ -63,26 +87,77 @@ class ClickHouse:
             actual=self.query('SELECT version()',initialize=True)[0][0]
             if actual!=VERSION:
                 raise ValueError(f'ClickHouse {VERSION} required, found {actual}')
-            self.query('CREATE DATABASE validation',initialize=True)
+            self.query('CREATE DATABASE IF NOT EXISTS validation',initialize=True)
         except BaseException:
             self.close()
             raise
 
     def query(self,sql,*,initialize=False):
         command=self.prefix+['--path',self.path,'--multiquery','--format','JSONCompact',
-                             '--query',('' if initialize else 'USE validation; ')+sql]
-        for name,value in SETTINGS.items():
+                             '--progress','err','--query',('' if initialize else 'USE validation; ')+sql]
+        settings=dict(SETTINGS)
+        if os.environ.get('REALISM_PREP_DEADLINE'):
+            available=int(float(os.environ['REALISM_PREP_DEADLINE'])-time.time())-60
+            if available<1:
+                raise RuntimeError('approved preparation deadline has no query time remaining')
+            settings['max_execution_time']=str(min(int(settings['max_execution_time']),available))
+        for name,value in settings.items():
             command+=['--'+name,value]
         start=time.monotonic()
         # Append errors and query statistics, not row content or dataset credentials.
         with (self.work/'clickhouse.log').open('a') as log:
             log.write(f'[clickhouse-validator] query start operation={sql.split()[0]}\n')
             log.flush()
-            result=subprocess.run(command,capture_output=True,text=True,timeout=1815)
-            if result.returncode:
-                log.write(result.stderr+'\n')
-                raise RuntimeError(f'ClickHouse exit {result.returncode}: {result.stderr[-1200:]}')
-            payload=json.loads(result.stdout) if result.stdout.strip() else {}
+            # Drain progress immediately, not only after subprocess.run returns.
+            # Temporary stdout contains small query results, never streamed logs.
+            import tempfile
+            with tempfile.TemporaryFile(mode='w+',dir=self.work) as output:
+                process=subprocess.Popen(command,stdout=output,stderr=subprocess.PIPE,text=True)
+                errors=[]
+                def drain():
+                    line=''
+                    last=0
+                    while char:=process.stderr.read(1):
+                        if char not in '\r\n':
+                            line=(line+char)[-4096:]
+                            continue
+                        clean=re.sub(r'\x1b\[[0-9;]*[A-Za-z]','',line).strip()
+                        line=''
+                        if not clean:
+                            continue
+                        if 'Progress:' in clean:
+                            if time.monotonic()-last>=15:
+                                label=sql.split()[2] if sql.startswith('CREATE TABLE ') else sql.split()[0]
+                                message=f'[clickhouse-validator] read operation={label} '+clean
+                                print(message,flush=True)
+                                log.write(message+'\n')
+                                log.flush()
+                                last=time.monotonic()
+                        else:
+                            errors.append(clean)
+                            del errors[:-32]
+                            log.write(clean+'\n')
+                            log.flush()
+                    if line.strip():
+                        errors.append(line[-4096:])
+                reader=threading.Thread(target=drain,daemon=True)
+                reader.start()
+                try:
+                    process.wait(timeout=int(settings['max_execution_time'])+15)
+                except BaseException:
+                    process.kill()
+                    process.wait(timeout=10)
+                    raise
+                finally:
+                    reader.join(timeout=10)
+                    if reader.is_alive():
+                        raise RuntimeError('ClickHouse stderr did not drain after process exit')
+                    process.stderr.close()
+                if process.returncode:
+                    raise RuntimeError(f'ClickHouse exit {process.returncode}: '+('\n'.join(errors))[-1200:])
+                output.seek(0)
+                text=output.read()
+            payload=json.loads(text) if text.strip() else {}
             log.write(json.dumps({'seconds':round(time.monotonic()-start,3),
                                   'statistics':payload.get('statistics',{})})+'\n')
         return payload.get('data',[])
@@ -94,11 +169,59 @@ class ClickHouse:
         self.query(f'CREATE TABLE {name} ENGINE=MergeTree ORDER BY ({order}) '
                    f'SETTINGS allow_nullable_key=1 AS {query}')
 
+    def bind_imports(self,manifest):
+        expected={'dataset_id':manifest['dataset_id'],'files':manifest['files'],
+            'engine':VERSION,'source':SOURCE_AT_IMPORT,
+            'entrypoint':sha(Path(__file__).with_name('realism_validate.py'))}
+        path=self.work/'import-context.json'
+        if path.is_symlink():
+            raise ValueError('import context must not be a symlink')
+        if path.exists():
+            if json.loads(path.read_text())!=expected:
+                raise ValueError('stale input/source/engine import context; refuse reuse')
+        else:
+            if self.scalar("SELECT count() FROM system.tables WHERE database='validation'"):
+                raise ValueError('unbound existing tables; preserve, do not adopt')
+            atomic_json(path,expected)
+        self.context=expected
+        imports=self.work/'imports'
+        if imports.is_symlink():
+            raise ValueError('import marker directory must not be a symlink')
+        imports.mkdir(exist_ok=True)
+
+    def import_table(self,name,info):
+        if name not in IMPORT_ORDERS or info!=self.context['files'].get(name):
+            raise ValueError('undeclared import')
+        marker=self.work/'imports'/f'{name}.json'
+        if marker.is_symlink():
+            raise ValueError('import marker must not be a symlink')
+        uuid_sql=f"SELECT toString(uuid) FROM system.tables WHERE database='validation' AND name={literal(name)}"
+        if marker.exists():
+            proof=json.loads(marker.read_text())
+            uuids=self.query(uuid_sql)
+            if (proof.get('file')!=info or not uuids or proof.get('uuid')!=uuids[0][0]
+                    or self.scalar(f'SELECT count() FROM {name}')!=info['rows']):
+                raise ValueError('completed import no longer matches its marker: '+name)
+            print(f'[clickhouse-validator] reuse import={name} rows={info["rows"]}',flush=True)
+            return
+        if self.query(uuid_sql):
+            # An unmarked result might be partial even if its row count looks
+            # plausible. Preserve it and retry the whole table, never OFFSET.
+            interrupted=f'interrupted_{name}_{time.time_ns()}'
+            self.query(f'RENAME TABLE {name} TO {interrupted}')
+            print(f'[clickhouse-validator] preserved unmarked import={name} as={interrupted}',flush=True)
+        self.table(name,f'SELECT * FROM file({literal(self.input/info["name"])},Parquet)',IMPORT_ORDERS[name])
+        actual=self.scalar(f'SELECT count() FROM {name}')
+        if actual!=info['rows']:
+            raise ValueError('ClickHouse import row count mismatch: '+name)
+        atomic_json(marker,{'file':info,'uuid':self.query(uuid_sql)[0][0]})
+        print(f'[clickhouse-validator] import complete table={name} rows={actual}',flush=True)
+
     def close(self):
         if self.container:
             peak=subprocess.run(self.docker+['exec',self.container,'cat','/sys/fs/cgroup/memory.peak'],
                                 capture_output=True,text=True,timeout=10)
-            if peak.returncode==0 and peak.stdout.strip().isdigit():
+            if peak.returncode==0 and peak.stdout.strip().isdigit() and self.work.is_dir():
                 with (self.work/'clickhouse.log').open('a') as log:
                     log.write(json.dumps({'container_peak_memory_bytes':int(peak.stdout)})+'\n')
             subprocess.run(self.docker+['rm','--force',self.container],check=True,
@@ -132,15 +255,12 @@ def inspect(db,manifest,progress):
         stage(name)
         checks[name]=bool(db.scalar(sql))
 
+    db.bind_imports(manifest)
     for table,info in manifest['files'].items():
         stage('import_'+table)
-        order={'documents':'doc_id,author_key,updated_at,deleted',
-               'content_events':'doc_id,reader_key,surface,seen_at',
-               'doc_groups':'doc_id,group_id','group_members':'group_id,member_key',
-               'cohorts':'cell,reader_key,target_key'}.get(table,'tuple()')
-        db.table(table,f'SELECT * FROM file({literal(db.input/info["name"])},Parquet)',order)
-        if db.scalar(f'SELECT count() FROM {table}')!=info['rows']:
-            raise ValueError('ClickHouse import row count mismatch: '+table)
+        db.import_table(table,info)
+    for derived in ('current_docs','originals','exposures','post_metrics','graph','account_metrics','candidate_metrics'):
+        db.query(f'DROP TABLE IF EXISTS {derived}')
     stage('canonical_documents')
     db.table('current_docs',CANONICAL_DOCUMENTS_SQL,'doc_id,author_key')
     db.table('originals',"SELECT * FROM current_docs WHERE collection_name='posts' "

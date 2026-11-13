@@ -5,6 +5,8 @@ distinct exposure audiences and each study cohort. No generator imports.
 """
 import argparse
 from contextlib import contextmanager, nullcontext
+import fcntl
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -421,6 +423,24 @@ def validate_duckdb_reference(directory, out, *, keep_work=False):
     return result
 
 
+@contextmanager
+def clickhouse_workspace(directory,key,keep_work):
+    if not keep_work:
+        with tempfile.TemporaryDirectory(prefix='realism-clickhouse-',dir=directory.parent) as tmp:
+            yield tmp
+        return
+    work=directory.parent/('realism-clickhouse-'+hashlib.sha256(encoded(key)).hexdigest()[:32])
+    if work.is_symlink():
+        raise ValueError('validation work directory must not be a symlink')
+    work.mkdir(exist_ok=True)
+    guard=work/'validation.lock'
+    if guard.is_symlink():
+        raise ValueError('validation lock must not be a symlink')
+    with guard.open('a') as stream:
+        fcntl.flock(stream,fcntl.LOCK_EX|fcntl.LOCK_NB)
+        yield str(work)
+
+
 def validate(directory,out,*,keep_work=False):
     """Validate finished records in ClickHouse, with no automatic fallback."""
     directory,out=Path(directory).resolve(),Path(out)
@@ -435,8 +455,8 @@ def validate(directory,out,*,keep_work=False):
     if dependencies['realism_clickhouse.py']!=clickhouse.SOURCE_AT_IMPORT:
         raise ValueError('ClickHouse validator source changed since import; restart in a fresh process')
     progress={'stage':'integrity'}
-    workspace=(nullcontext(tempfile.mkdtemp(prefix='realism-clickhouse-',dir=directory.parent)) if keep_work
-               else tempfile.TemporaryDirectory(prefix='realism-clickhouse-',dir=directory.parent))
+    key={'dataset_id':manifest['dataset_id'],'validator':pin,'dependencies':dependencies}
+    workspace=clickhouse_workspace(directory,key,keep_work)
     with workspace as tmp:
         db=None
         try:
