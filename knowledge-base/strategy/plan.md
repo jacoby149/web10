@@ -1479,6 +1479,17 @@ docs before code, per the rule at the top.
 
 ### Current directive — derived realism dataset (11 November 2026)
 
+- [~] **RD3-CHECKPOINTS — durable check/derived recovery** — implement the
+  operator's exact checkpoint-layer directive while leaving the staged live
+  run untouched. Atomic synced per-check verdict/elapsed records, full
+  source/input/engine/profile binding, verify-or-rebuild derived markers,
+  fail-stop false verdicts, identical final passing receipt shape, throttled
+  internal progress and exact small-build join optimizations. Require 50/50
+  floor/report parity, actual kill/resume and all negative/existing controls;
+  prove import lineage/UUID/count survival before any live restart and restart
+  only if observed pace projects beyond ~06:00 UTC. Old verdicts cannot carry
+  over; same lease/volume/$5 limits. `research/experiments/costfn/REALISM-CHECKPOINTS.md`.
+
 **13 November performance-envelope approval [~ RD3-VALIDATION-ENVELOPE]:**
 operator directs validation to use the planned node's 22-GiB ClickHouse / 28-GiB
 process envelope on the existing 32-GiB host, with correctness unchanged and

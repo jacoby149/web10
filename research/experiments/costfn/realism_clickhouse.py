@@ -34,6 +34,9 @@ IMPORT_ORDERS={'documents':'doc_id,author_key,updated_at,deleted',
 PREVIOUS_IMPORT_SOURCE='b37cc2c2a5c18f486bf050e142c3d13087819766b6b7546118fea881fc42e7a6'
 PREVIOUS_ENTRYPOINT='67d4491624fbb7be5d1e7a465747f72fea584420b297fcf673c6ef15c58cc84f'
 PREVIOUS_IMPORT_SEMANTICS='65f6249a22d65f23a168e355939cb71da12bdf3eff0c994fc3b8224ac96d27fd'
+COMPATIBLE_IMPORT_PAIRS=((PREVIOUS_IMPORT_SOURCE,PREVIOUS_ENTRYPOINT),
+    ('568ff13b69c76f9ab8fe938520ac341132c822649acf8b0ebdd0cc479c025f58',
+     '64e17e67f26c9874ed656a92ab61921a910c8f622881f90fb9b939edd5a67500'))
 
 
 def import_semantics():
@@ -135,10 +138,12 @@ class ClickHouse:
             self.close()
             raise
 
-    def query(self,sql,*,initialize=False):
+    def query(self,sql,*,initialize=False,settings_override=None):
         command=self.prefix+['--path',self.path,'--multiquery','--format','JSONCompact',
                              '--progress','err','--query',('' if initialize else 'USE validation; ')+sql]
         settings=dict(self.settings)
+        if settings_override:
+            settings.update(settings_override)
         if os.environ.get('REALISM_PREP_DEADLINE'):
             available=int(float(os.environ['REALISM_PREP_DEADLINE'])-time.time())-60
             if available<1:
@@ -160,6 +165,7 @@ class ClickHouse:
                 def drain():
                     line=''
                     last=0
+                    last_internal=0
                     while char:=process.stderr.read(1):
                         if char not in '\r\n':
                             line=(line+char)[-4096:]
@@ -171,7 +177,7 @@ class ClickHouse:
                         if 'Progress:' in clean:
                             if time.monotonic()-last>=15:
                                 label=sql.split()[2] if sql.startswith('CREATE TABLE ') else sql.split()[0]
-                                message=f'[clickhouse-validator] read operation={label} '+clean
+                                message=f'[clickhouse-validator] read operation={label} elapsed_seconds={time.monotonic()-start:.1f} '+clean
                                 print(message,flush=True)
                                 log.write(message+'\n')
                                 log.flush()
@@ -181,6 +187,9 @@ class ClickHouse:
                             del errors[:-32]
                             log.write(clean+'\n')
                             log.flush()
+                            if ('GraceHashJoin:' in clean or 'Aggregat' in clean) and time.monotonic()-last_internal>=15:
+                                print(f'[clickhouse-validator] internal elapsed_seconds={time.monotonic()-start:.1f} '+clean,flush=True)
+                                last_internal=time.monotonic()
                     if line.strip():
                         errors.append(line[-4096:])
                         log.write(line[-4096:]+'\n')
@@ -207,8 +216,16 @@ class ClickHouse:
                                   'statistics':payload.get('statistics',{})})+'\n')
         return payload.get('data',[])
 
-    def scalar(self,sql):
-        return self.query(sql)[0][0]
+    def scalar(self,sql,*,settings_override=None):
+        return self.query(sql,settings_override=settings_override)[0][0]
+
+    def report_query(self,sql):
+        if getattr(self,'checkpoints',None) is not None:
+            return self.checkpoints.read(sql)
+        return self.query(sql)
+
+    def derived(self,name,query,order):
+        return self.checkpoints.derived(name,query,order)
 
     def table(self,name,query,order):
         self.query(f'CREATE TABLE {name} ENGINE=MergeTree ORDER BY ({order}) '
@@ -223,9 +240,10 @@ class ClickHouse:
             raise ValueError('import context must not be a symlink')
         if path.exists():
             recorded=json.loads(path.read_text())
-            compatible={**expected,'source':PREVIOUS_IMPORT_SOURCE,'entrypoint':PREVIOUS_ENTRYPOINT}
+            compatible=[{**expected,'source':source,'entrypoint':entrypoint}
+                for source,entrypoint in COMPATIBLE_IMPORT_PAIRS]
             allowed=(self.profile=='performance' and os.environ.get('REALISM_CLICKHOUSE_REUSE_WORK')
-                and recorded==compatible and import_semantics()==PREVIOUS_IMPORT_SEMANTICS)
+                and recorded in compatible and import_semantics()==PREVIOUS_IMPORT_SEMANTICS)
             if recorded!=expected and not allowed:
                 raise ValueError('stale input/source/engine import context; refuse reuse')
             if allowed:
@@ -284,7 +302,7 @@ class ClickHouse:
 def summary(db,query):
     # DuckDB median averages the middle pair; quantile_disc(.99) selects
     # ceil(.99*n). ClickHouse quantileExact(.99) has different rank semantics.
-    row=db.query('WITH ordered AS (SELECT v,row_number() OVER(ORDER BY v) AS r,'
+    row=db.report_query('WITH ordered AS (SELECT v,row_number() OVER(ORDER BY v) AS r,'
         'count() OVER() AS n FROM ('+query+')) '
         'SELECT count(),sum(v),avg(v),'
         'avgIf(v,r=floor((n+1)/2) OR r=ceil((n+1)/2)),'
@@ -294,28 +312,44 @@ def summary(db,query):
     return dict(zip(names,row[1:] if row[0] else [None]*6))
 
 
-def inspect(db,manifest,progress):
+def inspect(db,manifest,progress,*,resume=False):
+    from realism_checkpoints import Checkpoints
     spec=manifest['contract']
     n,targets=spec['recipe']['accounts'],spec['targets']
-    checks={}
+    started=time.monotonic()
 
     def stage(name):
         progress['stage']=name
-        print('[clickhouse-validator] stage='+name,flush=True)
+        print(f'[clickhouse-validator] stage={name} elapsed_seconds={time.monotonic()-started:.3f}',flush=True)
 
     def check(name,sql):
         stage(name)
-        checks[name]=bool(db.scalar(sql))
+        override={}
+        if name=='deliveries_resolve':
+            # Count exact projected payload and admit only a conservative small
+            # build; large/unknown inputs retain the disk-capable algorithm.
+            payload=scalar('SELECT sum(length(doc_id)+256) FROM originals')+scalar('SELECT sum(length(username)+256) FROM users')
+            if payload<=int(db.settings['max_memory_usage'])//4:
+                override={'join_algorithm':'hash'}
+        return cp.evaluate(name,lambda:db.scalar(sql,settings_override=override),{'sql':sql,'settings':override})
+
+    def record(name,producer):
+        stage(name)
+        return cp.evaluate(name,producer)
+
+    read=db.report_query
+    def scalar(sql):
+        return read(sql)[0][0]
 
     db.bind_imports(manifest)
     for table,info in manifest['files'].items():
         stage('import_'+table)
         db.import_table(table,info)
-    for derived in ('current_docs','originals','exposures','post_metrics','graph','account_metrics','candidate_metrics'):
-        db.query(f'DROP TABLE IF EXISTS {derived}')
+    cp=db.checkpoints=Checkpoints(db,manifest,resume=resume)
+    checks=cp.checks
     stage('canonical_documents')
-    db.table('current_docs',CANONICAL_DOCUMENTS_SQL,'doc_id,author_key')
-    db.table('originals',"SELECT * FROM current_docs WHERE collection_name='posts' "
+    db.derived('current_docs',CANONICAL_DOCUMENTS_SQL,'doc_id,author_key')
+    db.derived('originals',"SELECT * FROM current_docs WHERE collection_name='posts' "
              "AND ad_mode='none' AND NOT has(tags,'ad')",'doc_id')
 
     check('registered_population',f'SELECT count()={n} AND uniqExact(username)={n} FROM users')
@@ -338,13 +372,13 @@ def inspect(db,manifest,progress):
     check('engagement_targets',"SELECT count()=0 FROM current_docs d LEFT JOIN originals p ON d.ref_value=p.doc_id "
           "WHERE d.collection_name IN ('reactions','comments') AND (isNull(p.doc_id) OR d.created_at<p.created_at "
           "OR (d.collection_name='comments' AND JSONExtractString(d.body,'post_id')!=p.doc_id))")
-    check('deliveries_resolve',"SELECT count()=0 FROM content_events e LEFT JOIN originals p ON e.doc_id=p.doc_id "
-          "LEFT JOIN users u ON e.reader_key=u.username WHERE isNull(p.doc_id) OR isNull(u.username) "
+    check('deliveries_resolve',"SELECT count()=0 FROM content_events e LEFT JOIN (SELECT doc_id,created_at FROM originals) p ON e.doc_id=p.doc_id "
+          "LEFT JOIN (SELECT username FROM users) u ON e.reader_key=u.username WHERE isNull(p.doc_id) OR isNull(u.username) "
           "OR e.service!='posts' OR e.event_type!='delivery' OR e.seen_at<p.created_at "
           "OR e.seen_at>toDateTime64('2026-11-10 12:00:00',6,'UTC')")
     check('delivery_window',DELIVERY_WINDOW_SQL)
     stage('distinct_exposures')
-    db.table('exposures','SELECT doc_id,reader_key,min(seen_at) AS first_seen '
+    db.derived('exposures','SELECT doc_id,reader_key,min(seen_at) AS first_seen '
              'FROM content_events GROUP BY doc_id,reader_key','doc_id,reader_key')
     check('engagement_exposure_causality',"SELECT count()=0 FROM current_docs d LEFT JOIN exposures e "
           "ON d.ref_value=e.doc_id AND d.author_key=e.reader_key WHERE d.collection_name IN ('reactions','comments') "
@@ -355,7 +389,7 @@ def inspect(db,manifest,progress):
           "ON c.author_key=l.author_key AND c.ref_value=l.ref_value WHERE c.collection_name='comments' "
           'AND (isNull(l.doc_id) OR c.created_at<l.created_at)')
     stage('post_metrics')
-    db.table('post_metrics',"WITH l AS (SELECT ref_value,count() AS likes FROM current_docs WHERE collection_name='reactions' GROUP BY ref_value), "
+    db.derived('post_metrics',"WITH l AS (SELECT ref_value,count() AS likes FROM current_docs WHERE collection_name='reactions' GROUP BY ref_value), "
         "c AS (SELECT ref_value,count() AS comments FROM current_docs WHERE collection_name='comments' GROUP BY ref_value), "
         'v AS (SELECT doc_id,count() AS impressions FROM content_events GROUP BY doc_id), '
         'r AS (SELECT doc_id,count() AS reach FROM exposures GROUP BY doc_id) '
@@ -364,13 +398,13 @@ def inspect(db,manifest,progress):
         'LEFT JOIN l ON l.ref_value=p.doc_id LEFT JOIN c ON c.ref_value=p.doc_id '
         'LEFT JOIN v ON v.doc_id=p.doc_id LEFT JOIN r ON r.doc_id=p.doc_id','doc_id')
     stage('closed_graph')
-    db.table('graph',"SELECT member_key AS reader_key,extract(group_id,'/users/([^/]+)/followers$') AS target_key "
+    db.derived('graph',"SELECT member_key AS reader_key,extract(group_id,'/users/([^/]+)/followers$') AS target_key "
              "FROM group_members WHERE role='member' AND group_id LIKE '%/followers'",'reader_key,target_key')
     check('closed_simple_graph','SELECT count()=uniqExact(tuple(reader_key,target_key)) '
           'AND countIf(isNull(a.username) OR isNull(b.username) OR reader_key=target_key)=0 '
           'FROM graph LEFT JOIN users a ON a.username=reader_key LEFT JOIN users b ON b.username=target_key')
     stage('account_metrics')
-    db.table('account_metrics',"SELECT p.*,coalesce(o.posts,0) AS posts,coalesce(i.followers,0) AS followers, "
+    db.derived('account_metrics',"SELECT p.*,coalesce(o.posts,0) AS posts,coalesce(i.followers,0) AS followers, "
         'coalesce(f.following,0) AS following,coalesce(v.impressions,0) AS impressions,coalesce(l.given,0) AS likes_given '
         'FROM population p LEFT JOIN (SELECT author_key,count() AS posts FROM originals GROUP BY author_key) o ON o.author_key=p.username '
         'LEFT JOIN (SELECT target_key,count() AS followers FROM graph GROUP BY target_key) i ON i.target_key=p.username '
@@ -378,51 +412,51 @@ def inspect(db,manifest,progress):
         'LEFT JOIN (SELECT author_key,sum(impressions) AS impressions FROM post_metrics GROUP BY author_key) v ON v.author_key=p.username '
         "LEFT JOIN (SELECT author_key,count() AS given FROM current_docs WHERE collection_name='reactions' GROUP BY author_key) l ON l.author_key=p.username",'username')
     stage('statistical_summaries')
-    nonposting=db.scalar('SELECT countIf(posts=0)/count() FROM account_metrics')
-    shares=db.query('SELECT sumIf(posts,r<='+str(n//100)+')/sum(posts),'
+    nonposting=scalar('SELECT countIf(posts=0)/count() FROM account_metrics')
+    shares=read('SELECT sumIf(posts,r<='+str(n//100)+')/sum(posts),'
         f'sumIf(posts,r>{n//100} AND r<={n//10})/sum(posts),sumIf(posts,r>{n//10})/sum(posts) '
         'FROM (SELECT posts,row_number() OVER(ORDER BY posts DESC) AS r FROM account_metrics)')[0]
-    checks['authorship_nonposting']=abs(nonposting-.85)<=spec['tolerances']['nonposting_absolute']
-    checks['authorship_shares']=all(abs(a-b)<=.05 for a,b in zip(shares,[.747,.240,.013]))
+    record('authorship_nonposting',lambda:abs(nonposting-.85)<=spec['tolerances']['nonposting_absolute'])
+    record('authorship_shares',lambda:all(abs(a-b)<=.05 for a,b in zip(shares,[.747,.240,.013])))
     metrics={key:summary(db,f'SELECT {key} AS v FROM account_metrics') for key in ('posts','followers','following','impressions','likes_given')}
     per_post={key:summary(db,f'SELECT {key} AS v FROM post_metrics') for key in ('likes','comments','impressions','reach')}
     totals={table:info['rows'] for table,info in manifest['files'].items()}
-    checks['post_total']=metrics['posts']['total']==targets['posts']
-    checks['like_conservation']=per_post['likes']['total']==metrics['likes_given']['total']==targets['likes']
-    checks['comment_conservation']=per_post['comments']['total']==targets['comments']==db.scalar("SELECT count() FROM current_docs WHERE collection_name='comments'")
-    checks['impression_conservation']=per_post['impressions']['total']==targets['impressions']==totals['content_events']
-    checks['graph_conservation']=metrics['followers']['total']==metrics['following']['total']==db.scalar('SELECT count() FROM graph')
-    checks['following_mean']=abs(metrics['following']['mean']-150)<=150*.15
-    checks['following_median']=70<=metrics['following']['median']<=80
-    checks['followers_median']=10<=metrics['followers']['median']<=100
-    checks['like_marginals']=per_post['likes']['median']==0 and abs(per_post['likes']['mean']-16)<.01
+    record('post_total',lambda:metrics['posts']['total']==targets['posts'])
+    record('like_conservation',lambda:per_post['likes']['total']==metrics['likes_given']['total']==targets['likes'])
+    record('comment_conservation',lambda:per_post['comments']['total']==targets['comments']==scalar("SELECT count() FROM current_docs WHERE collection_name='comments'"))
+    record('impression_conservation',lambda:per_post['impressions']['total']==targets['impressions']==totals['content_events'])
+    record('graph_conservation',lambda:metrics['followers']['total']==metrics['following']['total']==scalar('SELECT count() FROM graph'))
+    record('following_mean',lambda:abs(metrics['following']['mean']-150)<=150*.15)
+    record('following_median',lambda:70<=metrics['following']['median']<=80)
+    record('followers_median',lambda:10<=metrics['followers']['median']<=100)
+    record('like_marginals',lambda:per_post['likes']['median']==0 and abs(per_post['likes']['mean']-16)<.01)
     check('like_zero_fraction','SELECT abs(countIf(likes=0)/count()-.8871)<=.001 FROM post_metrics')
-    checks['comment_ratio']=abs(per_post['comments']['total']/per_post['likes']['total']-.3)<.001
-    checks['impression_median']=per_post['impressions']['median']==50
-    checks['viral_head']=per_post['impressions']['max']==1000000
-    checks['eligible_reach']=db.scalar(f'SELECT count() FROM post_metrics WHERE reach>impressions OR reach>{n-1} OR likes>reach')==0
+    record('comment_ratio',lambda:abs(per_post['comments']['total']/per_post['likes']['total']-.3)<.001)
+    record('impression_median',lambda:per_post['impressions']['median']==50)
+    record('viral_head',lambda:per_post['impressions']['max']==1000000)
+    record('eligible_reach',lambda:scalar(f'SELECT count() FROM post_metrics WHERE reach>impressions OR reach>{n-1} OR likes>reach')==0)
     concentration={}
     for key,fraction,target in [('impressions',.037,.93),('likes',.0016,.5)]:
-        share=db.scalar(f'SELECT sumIf(v,r<=ceil(n*{fraction}))/sum(v) FROM '
+        share=scalar(f'SELECT sumIf(v,r<=ceil(n*{fraction}))/sum(v) FROM '
             f'(SELECT {key} AS v,row_number() OVER(ORDER BY {key} DESC) AS r,count() OVER() AS n FROM post_metrics)')
         concentration[key]=share
-        checks[key+'_concentration']=abs(share-target)<=.05
+        record(key+'_concentration',lambda:abs(share-target)<=.05)
     correlations=dict(zip(('activity_posts','popularity_followers','followers_impressions','activity_likes_given'),
-        db.query('SELECT corr(activity,posts),corr(popularity,followers),corr(followers,impressions),corr(activity,likes_given) FROM account_metrics')[0]))
-    checks['joint_correlations']=all(v is not None and v>0 for v in correlations.values())
-    checks['no_dormant_viral_author']=db.scalar('SELECT count() FROM account_metrics WHERE posts=0 AND impressions>0')==0
-    checks['prolific_time_span']=db.scalar('SELECT count() FROM (SELECT author_key FROM originals GROUP BY author_key '
-        'HAVING count()>=100 AND max(created_at)<min(created_at)+INTERVAL 30 DAY)')==0
-    checks['node_ads']=db.scalar("SELECT count() FROM current_docs d LEFT SEMI JOIN doc_groups g ON d.doc_id=g.doc_id "
+        read('SELECT corr(activity,posts),corr(popularity,followers),corr(followers,impressions),corr(activity,likes_given) FROM account_metrics')[0]))
+    record('joint_correlations',lambda:all(v is not None and v>0 for v in correlations.values()))
+    record('no_dormant_viral_author',lambda:scalar('SELECT count() FROM account_metrics WHERE posts=0 AND impressions>0')==0)
+    record('prolific_time_span',lambda:scalar('SELECT count() FROM (SELECT author_key FROM originals GROUP BY author_key '
+        'HAVING count()>=100 AND max(created_at)<min(created_at)+INTERVAL 30 DAY)')==0)
+    record('node_ads',lambda:scalar("SELECT count() FROM current_docs d LEFT SEMI JOIN doc_groups g ON d.doc_id=g.doc_id "
         "AND g.group_id='api.localhost/groups/web10/discover' WHERE has(d.tags,'ad') AND has(d.tags,'node_ad') "
-        "AND JSONExtractString(d.body,'status')='active'")==300
-    checks['profiles_not_originals']=db.scalar("SELECT count() FROM current_docs WHERE collection_name='profile'")==n
+        "AND JSONExtractString(d.body,'status')='active'")==300)
+    record('profiles_not_originals',lambda:scalar("SELECT count() FROM current_docs WHERE collection_name='profile'")==n)
     check('cohort_references','SELECT count()=0 FROM cohorts c LEFT JOIN users a ON c.reader_key=a.username '
           'LEFT JOIN users b ON c.target_key=b.username WHERE isNull(a.username) OR isNull(b.username) OR c.reader_key=c.target_key')
     stage('cohort_metrics')
     # Preserve duplicate cohort multiplicities but do not expand every reader
     # to every post. One exact per-author count is sufficient for this reduction.
-    db.table('candidate_metrics','SELECT c.cell AS cell,c.reader_key AS reader_key,uniqExact(c.target_key) AS k,'
+    db.derived('candidate_metrics','SELECT c.cell AS cell,c.reader_key AS reader_key,uniqExact(c.target_key) AS k,'
         'uniqExactIf(c.target_key,coalesce(p.posts,0)>0) AS active_authors,sum(coalesce(p.posts,0)) AS candidate_posts '
         'FROM cohorts c LEFT JOIN (SELECT author_key,count() AS posts FROM originals GROUP BY author_key) p '
         'ON p.author_key=c.target_key GROUP BY c.cell,c.reader_key','cell,reader_key')
@@ -430,9 +464,9 @@ def inspect(db,manifest,progress):
     for k in (10,20,100,1000):
         for locality in ('hot','dispersed'):
             cell=f'{k}-{locality}'
-            rows=db.query(f'SELECT k,active_authors,candidate_posts FROM candidate_metrics WHERE cell={literal(cell)}')
-            checks['cohort_'+cell]=len(rows)==spec['recipe']['readers'] and all(r[0]==k and r[2]>0 for r in rows)
-            ordinary=db.query(f'SELECT active_authors,candidate_posts FROM candidate_metrics WHERE cell={literal(cell)} '
+            rows=read(f'SELECT k,active_authors,candidate_posts FROM candidate_metrics WHERE cell={literal(cell)}')
+            record('cohort_'+cell,lambda:len(rows)==spec['recipe']['readers'] and all(r[0]==k and r[2]>0 for r in rows))
+            ordinary=read(f'SELECT active_authors,candidate_posts FROM candidate_metrics WHERE cell={literal(cell)} '
                               f'AND reader_key!={literal(manifest["readers"][0])}')
             cells[cell]={'readers':len(rows),'nonempty_readers':sum(r[2]>0 for r in rows),
                 'active_authors':summary(db,f'SELECT active_authors AS v FROM candidate_metrics WHERE cell={literal(cell)}'),
@@ -447,6 +481,7 @@ def inspect(db,manifest,progress):
         f"(SELECT reader_key,target_key FROM cohorts WHERE cell={literal(selected)} EXCEPT DISTINCT SELECT reader_key,target_key FROM graph))")
     check('viral_probe_in_selected_feed','SELECT count()>0 FROM cohorts c INNER JOIN originals p ON c.target_key=p.author_key '
           f'INNER JOIN post_metrics m ON m.doc_id=p.doc_id WHERE c.cell={literal(selected)} AND m.impressions=1000000')
+    checks=cp.completed()
     return {'checks':checks,'complete':all(checks.values()),'accounts':n,'tables':totals,
         'authorship':{'nonposting':nonposting,'shares_top1_next9_bottom90':shares,'top10_derived':sum(shares[:2])},
         'per_account':metrics,'per_post':per_post,'concentration':concentration,'correlations':correlations,

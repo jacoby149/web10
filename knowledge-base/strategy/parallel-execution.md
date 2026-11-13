@@ -1688,6 +1688,18 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+- [~] **RD3-CHECKPOINTS — resume at the first unfinished check** — operator
+  directive: durable source/input/engine/profile-bound per-check verdicts and
+  derived UUID/count/query markers, fail-stop false verdicts, elapsed/internal
+  progress, and parity-proven small-build join choices. Owns research costfn
+  validator/checkpoint helpers/tests and exact worker-resume/CI hunks plus KB.
+  Gates: 50/50 floor/report parity, genuine kill/resume identical-receipt drill,
+  tamper/dataset/source/derived/FAIL controls, all existing suites, and verified
+  predecessor import survival without lineage relabeling. Build while the live
+  staged run is untouched; restart only after gates and measured projection
+  beyond ~06:00 UTC. Old in-memory verdicts never carry over; no lease extension.
+  Contract: `research/experiments/costfn/REALISM-CHECKPOINTS.md`.
+
 - [~] **RD3-VALIDATION-ENVELOPE: use planned node resources and bounded extra time** —
   operator approves 22-GiB ClickHouse / 28-GiB process on the existing 32-GiB
   host and explicitly selects up to four more hours, 06:50:22 UTC cleanup,
