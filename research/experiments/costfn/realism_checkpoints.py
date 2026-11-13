@@ -120,8 +120,8 @@ class Checkpoints:
 
     def read(self,sql,settings=None):
         settings=settings or {}
-        path=self.root/'reports'/(digest({'query':sql,'settings':settings})+'.json')
         expected={'query':sql,'settings':settings,'tables':self.tables}
+        path=self.root/'reports'/(digest(expected)+'.json')
         if path.exists():
             record=self.load(path)
             if any(record.get(k)!=v for k,v in expected.items()):

@@ -1689,6 +1689,7 @@ starting.
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
 - [~] **RD3-CHECKPOINTS — resume at the first unfinished check** — operator
+  - [~ 5.33.2 restart repair] Ordered exposures aggregation and admission/report-binding fixes are under DO engine verification. Operator requests 300-second monitor/repair iterations until validation succeeds within the approved lease. Preserve all data/imports/failures, no false-verdict skipping or memory-limit increase; restart is not yet a pass.
   directive: durable source/input/engine/profile-bound per-check verdicts and
   derived UUID/count/query markers, fail-stop false verdicts, elapsed/internal
   progress, and parity-proven small-build join choices. Follow-up directive

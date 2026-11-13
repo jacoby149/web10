@@ -32,10 +32,13 @@ class CheckpointTests(unittest.TestCase):
             again.evaluate('one',lambda:self.fail('completed check repeated'))
             again.evaluate('two',lambda:True)
             self.assertEqual(again.checks,{'one':True,'two':True})
-            db.query=lambda sql:[[42]]
+            db.query=lambda sql,**kwargs:[[42]]
             self.assertEqual(again.read('SELECT 42'),[[42]])
-            db.query=lambda sql:self.fail('report repeated')
+            db.query=lambda sql,**kwargs:self.fail('report repeated')
             self.assertEqual(again.read('SELECT 42'),[[42]])
+            again.tables['new_derived']={'uuid':'new','rows':1}
+            db.query=lambda sql,**kwargs:[[43]]
+            self.assertEqual(again.read('SELECT 42'),[[43]])
             proof=json.loads((cp.root/'verdicts/one.json').read_text())['record']
             self.assertGreaterEqual(proof['elapsed_seconds'],0)
 

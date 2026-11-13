@@ -1480,6 +1480,7 @@ docs before code, per the rule at the top.
 ### Current directive — derived realism dataset (11 November 2026)
 
 - [~] **RD3-CHECKPOINTS — durable check/derived recovery** — implement the
+  - [~ 5.33.2 restart repair] DO restart preparation recovers exposures query-memory failure; enable ordered aggregation on the existing sort-key prefix, fix admission SELECT duplication and full-binding report cache keys. DO parity controls in progress; preserve imports and dataset, no higher memory allowance. Operator requests 300-second monitor/repair iterations until validation passes within the approved lease; no false-verdict skip or weakened checks.
   operator's exact checkpoint-layer directive while leaving the staged live
   run untouched. Atomic synced per-check verdict/elapsed records, full
   source/input/engine/profile binding, verify-or-rebuild derived markers,
