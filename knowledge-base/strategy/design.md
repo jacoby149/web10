@@ -395,6 +395,15 @@ the house Card primitive. Education-era imagery and university logos:
 deleted. If it isn't true, it isn't on the site.
 
 ### `ui/` — the node console (lane B)
+**Provider setup correction (operator, 13.11.2026):** PostHog, SendGrid and Twilio
+use the existing paste-credentials setup, not a new OAuth connection. Put direct
+official credential-console links and exact permission/type hints beside the
+fields. PostHog needs the region-matched public project ingest token, not a
+personal API key; SendGrid needs Mail Send permission and a verified sender;
+Twilio's existing adapter needs Account SID, Auth Token and Verify Service SID.
+Open fixed provider destinations in a new tab without opener/referrer access or
+credentials in the URL. Preserve manual Save, masked secrets and existing policy.
+
 **Authenticator entry polish (operator, 13.11.2026):** use a compact brand header,
 one clear primary action and a visible create-account path. Signup appears
 directly under the heading, before saved accounts or password fields; Use another

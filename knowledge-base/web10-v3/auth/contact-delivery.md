@@ -2,6 +2,14 @@
 
 ## Operator experience
 
+**Credential setup correction (operator, 13.11.2026):** the portal defaults to
+SendGrid email + optional Twilio SMS, with official console links beside the
+fields: SendGrid API keys (Mail Send only) and verified sender/domain; Twilio
+Account SID/Auth Token and Verify Service SID. The Twilio adapter does not accept
+an API-key SID/secret in those fields. Links open separately without referrer or
+opener access; saves/storage remain unchanged. Optional Gmail and pending Gmail
+handoffs remain accessible, not a newly required setup path. No live activation.
+
 **Hosted web10 direction (operator, 13.11.2026):** configure SendGrid for email
 and Twilio Verify for SMS as one delivery path. Gmail OAuth adds unwanted setup
 and reconnect complexity for this hosted rollout. Keep the existing optional
