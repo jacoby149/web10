@@ -35,22 +35,75 @@ Stage output includes elapsed time and completion/reuse status. Long-query
 heartbeats surface throttled internal join/aggregation progress as well as input
 read counters; neither is called a completion percentage.
 
-## Join choices without changing verdicts
+## Join choices without changing verdicts (generalized, operator directive of 13 November)
 
-Use hash joins only after exact counts admit a small build side, with narrow
-projected build columns. In particular deliveries_resolve may use hash for
-originals/users, retaining both joins, ALL multiplicity, nullable missing-reference
-checks and every original predicate. Large build sides retain grace_hash. No
-sampling, tolerance changes, removed checks or merged verdict meanings.
+The operator directed check 13 (engagement_exposure_causality) and the other
+checks through 50 that might fail the lease to be addressed, and asked for the
+more efficient way. The one-off deliveries_resolve admission becomes a uniform
+rule for every join check:
+
+- The build side is projected to the exact columns the check uses (narrow
+  sub-selects), which also bounds the grace_hash spill when a build is not
+  admitted. Every original predicate, ALL multiplicity and the nullable
+  missing-reference case are retained.
+- Admission is decided before the join, from the exact projected payload
+  measured on the real rows: the key column length sums plus fixed column
+  sizes plus one conservative per-row sparse-hash metadata constant
+  (`BUILD_ROW_OVERHEAD=208`, a worst-case bound for the pinned engine, not a
+  measurement). A payload at or under the check's budget fraction of the
+  approved query memory admits `join_algorithm=hash`; anything above, unknown
+  or NULL retains the disk-capable grace_hash. Pure streaming count joins use
+  3/4 of the query memory; a join sharing its query with a large set or
+  aggregate (closed_simple_graph) uses 1/2.
+- A host-measured calibration receipt (`realism_calibration.py`, Digital Ocean
+  only, performance profile, worst-shape synthetic table at the full-scale
+  engagement size, cgroup/container memory-peak base-vs-join delta with its
+  own 1.5x margin) may lower the per-row constant; it can never raise it, and
+  an out-of-range, stale, tampered or unreadable measurement writes no
+  receipt, leaving the conservative default in force. The receipt binds
+  engine version, profile and calibration source.
+- The decision binds into the verdict definition (recorded settings), so a
+  resume replays the same algorithm and a changed decision is a binding
+  mismatch, not a silent switch. If a hash build still hits the memory limit,
+  the check name is persisted as memory-denied for this work directory and
+  every later attempt, including resumes, retains grace_hash for it.
+
+Check 13 additionally runs its exact total-good equivalent: exposures is
+unique per (doc_id,reader_key), so an engagement row is bad iff it has no
+exposure or precedes first_seen; the verdict stays
+`total engagements - (matched AND created_at >= first_seen) == 0`, one INNER
+join building the engagement side (83.2M full-scale rows) instead of the
+exposure side (up to ~1.4B). The original LEFT-JOIN count is arithmetically
+the same set.
+
+The exposures derivation now also carries the per-reader impression
+multiplicity (`count() AS impressions`), so post_metrics rolls it up from the
+one 1.6B pass instead of rescanning content_events; full-scale
+content_events passes fall from five to four (import, check 11, check 12,
+exposures). No sampling, tolerance change, removed check or merged verdict
+meaning. Checks 14-50 keep their exact SQL: 14/16 are bounded aggregates, 15
+retains grace_hash whenever its reactions build is not measured-small, and the
+small users/cohort builds are admitted where the exact payload admits them.
 
 ## Gates before any live restart
 
 Require all 50 floor verdicts and summaries to match the current pinned receipt;
 an actual mid-check kill/resume drill proving skipped completed checks, whole
 interrupted-check replay and identical final receipt; tampered-verdict, changed
-dataset/source, failed-verdict and stale-derived controls; existing offline,
-actual-engine and lease suites. Prove import survival with the exact reviewed
-predecessor path, reverified input hashes/UUID/counts and unchanged lineage.
+dataset/source, failed-verdict and stale-derived controls; the new
+late-exposure mutation control (flipped check 13 denies on the actual engine
+while 10/11/12 keep passing), the admission-gate and calibration-binding
+controls; existing offline, actual-engine and lease suites. Prove import
+survival with the exact reviewed predecessor path, reverified input
+hashes/UUID/counts and unchanged lineage.
+
+The operator directed all engine execution for this lane to the approved
+Digital Ocean host only: no local Docker or native ClickHouse runs. The floor
+receipt therefore re-pins on DO with the new source (the changed derived
+definitions and check 13 SQL alter the sidecar bindings, not the verdicts),
+the drill runs there (Docker or pinned native, both supported), and the
+calibration receipt is produced there under the performance profile before any
+full-scale attempt may admit the mid-size hash builds.
 
 Only then consider restarting, and only if observed live pace projects beyond
 approximately 06:00 UTC. If the live run is on track to finish, leave it alone

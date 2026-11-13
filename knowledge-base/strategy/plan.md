@@ -1489,6 +1489,23 @@ docs before code, per the rule at the top.
   prove import lineage/UUID/count survival before any live restart and restart
   only if observed pace projects beyond ~06:00 UTC. Old verdicts cannot carry
   over; same lease/volume/$5 limits. `research/experiments/costfn/REALISM-CHECKPOINTS.md`.
+  Operator follow-up (13 November): address check 13 and the other checks
+  through 50 that might fail the lease via the more efficient way — the
+  one-off deliveries_resolve admission generalizes to every join check (exact
+  measured build payload vs the check's fraction of the approved query memory,
+  narrow projected build sides, grace_hash otherwise), check 13 runs its exact
+  total-good equivalent building the engagement side, and the exposures
+  derivation carries the impression multiplicity so post_metrics stops
+  rescanning content_events. A host-measured calibration receipt (Digital
+  Ocean only, performance profile) may lower the conservative per-row
+  overhead, never raise it; a hash build that still OOMs persists a per-check
+  memory denial so resumes keep the disk-capable algorithm. All engine runs
+  for this lane move to the approved Digital Ocean host: no local Docker or
+  native ClickHouse; the drill supports both adapters there, the floor
+  receipt re-pins on DO with the new source, and the late-exposure mutation
+  control proves the flipped check 13 on the actual engine. No sampling,
+  tolerance or verdict-meaning change; no live restart, paid extension, new
+  host or upload is implicit.
 
 **13 November performance-envelope approval [~ RD3-VALIDATION-ENVELOPE]:**
 operator directs validation to use the planned node's 22-GiB ClickHouse / 28-GiB

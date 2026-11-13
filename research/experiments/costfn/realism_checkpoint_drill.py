@@ -1,4 +1,6 @@
-"""Explicit local floor SIGKILL/resume drill; never connects to the cloud run."""
+"""Explicit floor SIGKILL/resume drill (Docker or pinned native); never
+connects to the cloud run. Engine execution for this lane is Digital Ocean
+only; the drill runs on the approved host against its floor dataset."""
 import argparse
 import json
 import os
@@ -26,9 +28,13 @@ def remove_owned_container(work):
             subprocess.run(docker()+['rm','--force',ident],check=True,capture_output=True,timeout=30)
 
 
+def cleanup(work,docker_mode):
+    if docker_mode:
+        remove_owned_container(work)
+
+
 def run(dataset,root,reference):
-    if os.environ.get('REALISM_CLICKHOUSE_DOCKER')!='1':
-        raise ValueError('this local interruption drill requires the isolated Docker adapter')
+    docker_mode=os.environ.get('REALISM_CLICKHOUSE_DOCKER')=='1'
     if os.environ.get('REALISM_CLICKHOUSE_REUSE_WORK'):
         raise ValueError('drill cannot target an existing import workspace')
     root.mkdir(exist_ok=False)
@@ -55,7 +61,7 @@ def run(dataset,root,reference):
                         os.killpg(child.pid,signal.SIGKILL)
                         child.wait()
                         for work in trial.glob('realism-clickhouse-*'):
-                            remove_owned_container(work)
+                            cleanup(work,docker_mode)
             else:
                 deadline=time.monotonic()+420
                 try:
@@ -79,7 +85,7 @@ def run(dataset,root,reference):
                         os.killpg(child.pid,signal.SIGKILL)
                         child.wait()
                     for work in trial.glob('realism-clickhouse-*'):
-                        remove_owned_container(work)
+                        cleanup(work,docker_mode)
                 records=work/'checkpoints/verdicts'
                 completed={p.name:p.read_bytes().hex() for p in records.glob('*.json')}
                 if len(completed)!=11 or (records/'delivery_window.json').exists():

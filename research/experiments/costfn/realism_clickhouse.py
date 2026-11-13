@@ -38,6 +38,40 @@ COMPATIBLE_IMPORT_PAIRS=((PREVIOUS_IMPORT_SOURCE,PREVIOUS_ENTRYPOINT),
     ('568ff13b69c76f9ab8fe938520ac341132c822649acf8b0ebdd0cc479c025f58',
      '64e17e67f26c9874ed656a92ab61921a910c8f622881f90fb9b939edd5a67500'))
 
+# Conservative worst-case per-row sparse-hash build metadata for the pinned
+# engine (pointer + cell + hash value + allocation padding), on top of the
+# exact projected string bytes and fixed column sizes. A host-measured
+# calibration receipt (realism_calibration.py, Digital Ocean only) may lower
+# it with its own margin; it can never raise it, and any refused measurement
+# leaves this default in force with the disk-capable grace_hash retained.
+BUILD_ROW_OVERHEAD=208
+CALIBRATION_RECEIPT='build-calibration.json'
+KEY_BYTES=64  # 36-char doc-like + 30-char username-like + DateTime64(6)
+
+
+def calibration_overhead(receipt,profile,default=BUILD_ROW_OVERHEAD):
+    """Measured per-row build metadata, or None when the receipt is stale.
+
+    Any problem reading or comparing the receipt refuses it; the conservative
+    default then stays in force.
+    """
+    try:
+        valid=(type(receipt) is dict and receipt.get('engine')==VERSION
+            and receipt.get('profile')==profile
+            and receipt.get('calibration_source')==sha(Path(__file__).with_name('realism_calibration.py'))
+            and type(receipt.get('rows')) is int and receipt['rows']>=10_000_000
+            and type(receipt.get('overhead')) is int and 0<receipt['overhead']<default)
+    except Exception:
+        return None
+    return receipt['overhead'] if valid else None
+
+
+def join_admission(payloads,budget):
+    """Exact build-payload admission; one settings dict or the empty default."""
+    if any(type(p) is not int or p<0 for p in payloads) or sum(payloads)>budget:
+        return {}
+    return {'join_algorithm':'hash'}
+
 
 def import_semantics():
     nodes=[]
@@ -219,10 +253,10 @@ class ClickHouse:
     def scalar(self,sql,*,settings_override=None):
         return self.query(sql,settings_override=settings_override)[0][0]
 
-    def report_query(self,sql):
+    def report_query(self,sql,settings=None):
         if getattr(self,'checkpoints',None) is not None:
-            return self.checkpoints.read(sql)
-        return self.query(sql)
+            return self.checkpoints.read(sql,settings)
+        return self.query(sql,settings_override=settings)
 
     def derived(self,name,query,order):
         return self.checkpoints.derived(name,query,order)
@@ -322,20 +356,66 @@ def inspect(db,manifest,progress,*,resume=False):
         progress['stage']=name
         print(f'[clickhouse-validator] stage={name} elapsed_seconds={time.monotonic()-started:.3f}',flush=True)
 
+    # Exact join-build admission, uniform across checks (the approved policy,
+    # generalized): measure the projected build payload against the real rows
+    # and admit an in-memory hash build only while it fits the check's budget
+    # fraction of the approved query memory; everything else retains the
+    # disk-capable grace_hash. The decision binds into the verdict definition,
+    # so a resume can never silently change algorithm.
+    ADMISSIONS={
+        'latent_population':(['SELECT sum(length(username))+count()*{x} FROM users'],3,4),
+        'document_actors_exist':(['SELECT sum(length(username))+count()*{x} FROM users'],3,4),
+        'document_times':(['SELECT sum(length(username))+count()*(8+{x}) FROM users'],3,4),
+        'link_times':(['SELECT sum(length(doc_id))+count()*(8+{x}) FROM documents'],3,4),
+        'links_resolve':(['SELECT sum(length(doc_id))+count()*{x} FROM documents'],3,4),
+        'engagement_targets':(['SELECT sum(length(doc_id))+count()*(8+{x}) FROM originals'],3,4),
+        'deliveries_resolve':(['SELECT sum(length(doc_id))+count()*(8+{x}) FROM originals',
+            'SELECT sum(length(username))+count()*{x} FROM users'],3,4),
+        'engagement_exposure_causality':(['SELECT sum(length(ref_value)+length(author_key))+count()*(8+{x}) '
+            "FROM current_docs WHERE collection_name IN ('reactions','comments')"],3,4),
+        'comment_like_causality':(['SELECT sum(length(author_key)+length(ref_value)+length(doc_id))+count()*(8+{x}) '
+            "FROM current_docs WHERE collection_name='reactions'"],3,4),
+        'closed_simple_graph':(['SELECT sum(length(username))+count()*{x} FROM users']*2,1,2),
+        'cohort_references':(['SELECT sum(length(username))+count()*{x} FROM users']*2,3,4),
+        'selected_cohort_matches_graph':(['SELECT max(length(reader_key))*uniqExact(reader_key)'
+            '+uniqExact(reader_key)*{x} FROM cohorts'],3,4),
+        'viral_probe_in_selected_feed':(['SELECT sum(length(author_key)+length(doc_id))+count()*{x} FROM originals',
+            'SELECT sum(length(doc_id))+count()*(8+{x}) FROM post_metrics'],3,4),
+    }
+    overhead=BUILD_ROW_OVERHEAD
+    calibration=db.work/CALIBRATION_RECEIPT
+    if calibration.exists() and not calibration.is_symlink():
+        try:
+            measured=calibration_overhead(json.loads(calibration.read_text()),db.profile)
+            if measured:
+                overhead=measured
+        except json.JSONDecodeError as error:
+            print(f'[clickhouse-validator] calibration refused: {error}',flush=True)
+        print(f'[clickhouse-validator] admission overhead_bytes={overhead}',flush=True)
+
+    def admit(name):
+        entry=ADMISSIONS.get(name)
+        if entry is None:
+            return {}
+        if name in cp.denied:
+            print(f'[clickhouse-validator] admission check={name} algorithm=grace_hash reason=memory-denied',flush=True)
+            return {}
+        templates,num,den=entry
+        budget=int(db.settings['max_memory_usage'])*num//den
+        payloads=[read(f'SELECT {template.format(x=overhead)}')[0][0] for template in templates]
+        decision=join_admission(payloads,budget)
+        print(f'[clickhouse-validator] admission check={name} payloads={payloads} budget={budget} '
+            f'algorithm={decision.get("join_algorithm","grace_hash")}',flush=True)
+        return decision
+
     def check(name,sql):
         stage(name)
-        override={}
-        if name=='deliveries_resolve':
-            # Count exact projected payload and admit only a conservative small
-            # build; large/unknown inputs retain the disk-capable algorithm.
-            payload=scalar('SELECT sum(length(doc_id)+256) FROM originals')+scalar('SELECT sum(length(username)+256) FROM users')
-            if payload<=int(db.settings['max_memory_usage'])//4:
-                override={'join_algorithm':'hash'}
+        override=admit(name)
         return cp.evaluate(name,lambda:db.scalar(sql,settings_override=override),{'sql':sql,'settings':override})
 
-    def record(name,producer):
+    def record(name,producer,definition=None):
         stage(name)
-        return cp.evaluate(name,producer)
+        return cp.evaluate(name,producer,definition)
 
     read=db.report_query
     def scalar(sql):
@@ -354,14 +434,18 @@ def inspect(db,manifest,progress,*,resume=False):
 
     check('registered_population',f'SELECT count()={n} AND uniqExact(username)={n} FROM users')
     check('latent_population',f'SELECT count()={n} AND uniqExact(p.username)={n} '
-          'AND countIf(isNull(u.username))=0 FROM population p LEFT JOIN users u ON p.username=u.username')
+          'AND countIf(isNull(u.username))=0 FROM population p LEFT JOIN (SELECT username FROM users) u '
+          'ON p.username=u.username')
     check('document_identity','SELECT count()=uniqExact(doc_id) FROM documents')
-    check('document_actors_exist','SELECT count()=0 FROM documents d LEFT ANTI JOIN users u ON d.author_key=u.username')
-    check('document_times',"SELECT count()=0 FROM documents d INNER JOIN users u ON d.author_key=u.username "
-          "WHERE d.created_at<u.created_at OR d.updated_at<d.created_at OR d.updated_at>toDateTime64('2026-11-10 12:00:00',6,'UTC')")
-    check('links_resolve','SELECT count()=0 FROM doc_groups g LEFT ANTI JOIN documents d ON g.doc_id=d.doc_id')
-    check('link_times','SELECT count()=0 FROM doc_groups g INNER JOIN documents d ON g.doc_id=d.doc_id '
-          'WHERE g.created_at<d.created_at OR g.updated_at<g.created_at')
+    check('document_actors_exist','SELECT count()=0 FROM documents d LEFT ANTI JOIN (SELECT username FROM users) u '
+          'ON d.author_key=u.username')
+    check('document_times',"SELECT count()=0 FROM documents d INNER JOIN (SELECT username,created_at FROM users) u "
+          "ON d.author_key=u.username WHERE d.created_at<u.created_at OR d.updated_at<d.created_at "
+          "OR d.updated_at>toDateTime64('2026-11-10 12:00:00',6,'UTC')")
+    check('links_resolve','SELECT count()=0 FROM doc_groups g LEFT ANTI JOIN (SELECT doc_id FROM documents) d '
+          'ON g.doc_id=d.doc_id')
+    check('link_times','SELECT count()=0 FROM doc_groups g INNER JOIN (SELECT doc_id,created_at FROM documents) d '
+          'ON g.doc_id=d.doc_id WHERE g.created_at<d.created_at OR g.updated_at<g.created_at')
     check('link_groups_resolve',"SELECT count()=0 FROM doc_groups g LEFT ANTI JOIN group_contracts c "
           "ON g.group_id=c.group_id WHERE g.group_id!='api.localhost/groups/web10/discover'")
     check('public_original_links',"SELECT count()=0 FROM originals p LEFT JOIN "
@@ -369,29 +453,44 @@ def inspect(db,manifest,progress,*,resume=False):
           "LEFT JOIN (SELECT DISTINCT doc_id,group_id FROM doc_groups) h ON p.doc_id=h.doc_id "
           "AND h.group_id=concat('api.localhost/groups/users/',p.author_key,'/followers') "
           'WHERE isNull(g.doc_id) OR isNull(h.doc_id)')
-    check('engagement_targets',"SELECT count()=0 FROM current_docs d LEFT JOIN originals p ON d.ref_value=p.doc_id "
-          "WHERE d.collection_name IN ('reactions','comments') AND (isNull(p.doc_id) OR d.created_at<p.created_at "
-          "OR (d.collection_name='comments' AND JSONExtractString(d.body,'post_id')!=p.doc_id))")
+    check('engagement_targets',"SELECT count()=0 FROM current_docs d LEFT JOIN (SELECT doc_id,created_at FROM originals) p "
+          "ON d.ref_value=p.doc_id WHERE d.collection_name IN ('reactions','comments') AND (isNull(p.doc_id) "
+          "OR d.created_at<p.created_at OR (d.collection_name='comments' AND JSONExtractString(d.body,'post_id')!=p.doc_id))")
     check('deliveries_resolve',"SELECT count()=0 FROM content_events e LEFT JOIN (SELECT doc_id,created_at FROM originals) p ON e.doc_id=p.doc_id "
           "LEFT JOIN (SELECT username FROM users) u ON e.reader_key=u.username WHERE isNull(p.doc_id) OR isNull(u.username) "
           "OR e.service!='posts' OR e.event_type!='delivery' OR e.seen_at<p.created_at "
           "OR e.seen_at>toDateTime64('2026-11-10 12:00:00',6,'UTC')")
     check('delivery_window',DELIVERY_WINDOW_SQL)
     stage('distinct_exposures')
-    db.derived('exposures','SELECT doc_id,reader_key,min(seen_at) AS first_seen '
+    # One 1.6B pass serves both grains: the (doc,reader) first exposure and
+    # the per-reader impression multiplicity that post_metrics used to rescan.
+    db.derived('exposures','SELECT doc_id,reader_key,min(seen_at) AS first_seen,count() AS impressions '
              'FROM content_events GROUP BY doc_id,reader_key','doc_id,reader_key')
-    check('engagement_exposure_causality',"SELECT count()=0 FROM current_docs d LEFT JOIN exposures e "
-          "ON d.ref_value=e.doc_id AND d.author_key=e.reader_key WHERE d.collection_name IN ('reactions','comments') "
-          'AND (isNull(e.doc_id) OR d.created_at<e.first_seen)')
+    ENGAGED="current_docs WHERE collection_name IN ('reactions','comments')"
+    total_sql=f'SELECT count() FROM {ENGAGED}'
+    good_sql=('SELECT count() FROM (SELECT doc_id,reader_key,first_seen FROM exposures) e '
+        f'INNER JOIN (SELECT ref_value,author_key,created_at FROM {ENGAGED}) g '
+        'ON e.doc_id=g.ref_value AND e.reader_key=g.author_key WHERE g.created_at>=e.first_seen')
+    flip_override=admit('engagement_exposure_causality')
+    def exposure_causality():
+        # exposures is unique per (doc_id,reader_key), so each engagement row
+        # matches at most one exposure row; the original verdict counts rows
+        # with no match OR created before first_seen, exactly total-good.
+        # This builds the small engagement side instead of the exposure side.
+        total=read(total_sql)[0][0]
+        good=read(good_sql,flip_override or None)[0][0]
+        return total-good==0
+    record('engagement_exposure_causality',exposure_causality,
+        {'total':total_sql,'good':good_sql,'settings':flip_override})
     check('unique_likes',"SELECT count()=uniqExact(tuple(author_key,ref_value)) FROM current_docs WHERE collection_name='reactions'")
     check('comment_like_causality',"SELECT count()=0 FROM current_docs c LEFT JOIN "
-          "(SELECT * FROM current_docs WHERE collection_name='reactions') l "
+          "(SELECT doc_id,author_key,ref_value,created_at FROM current_docs WHERE collection_name='reactions') l "
           "ON c.author_key=l.author_key AND c.ref_value=l.ref_value WHERE c.collection_name='comments' "
           'AND (isNull(l.doc_id) OR c.created_at<l.created_at)')
     stage('post_metrics')
     db.derived('post_metrics',"WITH l AS (SELECT ref_value,count() AS likes FROM current_docs WHERE collection_name='reactions' GROUP BY ref_value), "
         "c AS (SELECT ref_value,count() AS comments FROM current_docs WHERE collection_name='comments' GROUP BY ref_value), "
-        'v AS (SELECT doc_id,count() AS impressions FROM content_events GROUP BY doc_id), '
+        'v AS (SELECT doc_id,sum(impressions) AS impressions FROM exposures GROUP BY doc_id), '
         'r AS (SELECT doc_id,count() AS reach FROM exposures GROUP BY doc_id) '
         'SELECT p.doc_id AS doc_id,p.author_key AS author_key,coalesce(l.likes,0) AS likes,coalesce(c.comments,0) AS comments,'
         'coalesce(v.impressions,0) AS impressions,coalesce(r.reach,0) AS reach FROM originals p '
@@ -402,7 +501,8 @@ def inspect(db,manifest,progress,*,resume=False):
              "FROM group_members WHERE role='member' AND group_id LIKE '%/followers'",'reader_key,target_key')
     check('closed_simple_graph','SELECT count()=uniqExact(tuple(reader_key,target_key)) '
           'AND countIf(isNull(a.username) OR isNull(b.username) OR reader_key=target_key)=0 '
-          'FROM graph LEFT JOIN users a ON a.username=reader_key LEFT JOIN users b ON b.username=target_key')
+          'FROM graph LEFT JOIN (SELECT username FROM users) a ON a.username=reader_key '
+          'LEFT JOIN (SELECT username FROM users) b ON b.username=target_key')
     stage('account_metrics')
     db.derived('account_metrics',"SELECT p.*,coalesce(o.posts,0) AS posts,coalesce(i.followers,0) AS followers, "
         'coalesce(f.following,0) AS following,coalesce(v.impressions,0) AS impressions,coalesce(l.given,0) AS likes_given '
@@ -451,8 +551,10 @@ def inspect(db,manifest,progress,*,resume=False):
         "AND g.group_id='api.localhost/groups/web10/discover' WHERE has(d.tags,'ad') AND has(d.tags,'node_ad') "
         "AND JSONExtractString(d.body,'status')='active'")==300)
     record('profiles_not_originals',lambda:scalar("SELECT count() FROM current_docs WHERE collection_name='profile'")==n)
-    check('cohort_references','SELECT count()=0 FROM cohorts c LEFT JOIN users a ON c.reader_key=a.username '
-          'LEFT JOIN users b ON c.target_key=b.username WHERE isNull(a.username) OR isNull(b.username) OR c.reader_key=c.target_key')
+    check('cohort_references','SELECT count()=0 FROM cohorts c '
+          'LEFT JOIN (SELECT username FROM users) a ON c.reader_key=a.username '
+          'LEFT JOIN (SELECT username FROM users) b ON c.target_key=b.username '
+          'WHERE isNull(a.username) OR isNull(b.username) OR c.reader_key=c.target_key')
     stage('cohort_metrics')
     # Preserve duplicate cohort multiplicities but do not expand every reader
     # to every post. One exact per-author count is sufficient for this reduction.
@@ -479,8 +581,10 @@ def inspect(db,manifest,progress,*,resume=False):
         "(SELECT reader_key,target_key FROM graph WHERE reader_key IN (SELECT reader_key FROM cohorts) "
         f"EXCEPT DISTINCT SELECT reader_key,target_key FROM cohorts WHERE cell={literal(selected)}) UNION ALL "
         f"(SELECT reader_key,target_key FROM cohorts WHERE cell={literal(selected)} EXCEPT DISTINCT SELECT reader_key,target_key FROM graph))")
-    check('viral_probe_in_selected_feed','SELECT count()>0 FROM cohorts c INNER JOIN originals p ON c.target_key=p.author_key '
-          f'INNER JOIN post_metrics m ON m.doc_id=p.doc_id WHERE c.cell={literal(selected)} AND m.impressions=1000000')
+    check('viral_probe_in_selected_feed','SELECT count()>0 FROM cohorts c '
+          'INNER JOIN (SELECT author_key,doc_id FROM originals) p ON c.target_key=p.author_key '
+          'INNER JOIN (SELECT doc_id,impressions FROM post_metrics) m ON m.doc_id=p.doc_id '
+          f'WHERE c.cell={literal(selected)} AND m.impressions=1000000')
     checks=cp.completed()
     return {'checks':checks,'complete':all(checks.values()),'accounts':n,'tables':totals,
         'authorship':{'nonposting':nonposting,'shares_top1_next9_bottom90':shares,'top10_derived':sum(shares[:2])},

@@ -62,6 +62,28 @@ class CheckpointTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'context'):
                 checkpoint.Checkpoints(db,manifest,resume=True)
 
+    def test_memory_denied_hash_stays_denied_on_resume_and_tamper_refuses(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db=FakeDB(Path(tmp))
+            manifest={'dataset_id':'fixture','files':{}}
+            cp=checkpoint.Checkpoints(db,manifest)
+            def oom():
+                raise RuntimeError('ClickHouse exit 241: DB::Exception: Memory limit (total) exceeded')
+            with self.assertRaisesRegex(RuntimeError,'Memory limit'):
+                cp.evaluate('big',oom,{'settings':{'join_algorithm':'hash'}})
+            self.assertNotIn('big',cp.checks)
+            cp.evaluate('plain',lambda:True)
+            self.assertIn('big',cp.denied)
+            self.assertNotIn('plain',cp.denied)
+            again=checkpoint.Checkpoints(db,manifest,resume=True)
+            self.assertIn('big',again.denied)
+            record=cp.root/'admissions.json'
+            value=json.loads(record.read_text())
+            value['denied']=[]
+            record.write_text(json.dumps(value))
+            with self.assertRaisesRegex(ValueError,'tampered admission'):
+                checkpoint.Checkpoints(db,manifest,resume=True)
+
     def test_fail_is_synced_and_never_skippable(self):
         with tempfile.TemporaryDirectory() as tmp:
             db=FakeDB(Path(tmp))

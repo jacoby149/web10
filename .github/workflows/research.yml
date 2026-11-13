@@ -56,7 +56,7 @@ jobs:
   clickhouse-validator:
     name: research (real ClickHouse validator parity)
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     env:
       REALISM_CLICKHOUSE_DOCKER: '1'
       REALISM_CLICKHOUSE_TESTS: '1'

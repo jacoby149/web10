@@ -51,6 +51,7 @@ class Checkpoints:
             if folder.is_symlink():
                 raise ValueError('checkpoint subdirectory must not be a symlink')
             folder.mkdir(exist_ok=True)
+        self.denied=frozenset(self.denied_names())
         # Detect tampering/FAIL before repeating any expensive derived work.
         for path in sorted((self.root/'verdicts').glob('*.json')):
             record=self.load(path)
@@ -58,6 +59,24 @@ class Checkpoints:
                 raise ValueError('invalid verdict record')
             if not record['verdict']:
                 raise CheckFailed(record['name'],{record['name']:False})
+
+    def denied_names(self):
+        path=self.root/'admissions.json'
+        if not path.exists():
+            return []
+        if path.is_symlink():
+            raise ValueError('admission record must not be a symlink')
+        envelope=json.loads(path.read_text())
+        if envelope.get('sha256')!=digest(envelope['denied']):
+            raise ValueError('tampered admission record')
+        return list(envelope['denied'])
+
+    def deny(self,name):
+        # A hash build that still hit the memory limit keeps the disk-capable
+        # algorithm for the remainder of this work directory; the recorded
+        # verdict settings make a resumed run replay the same decision.
+        self.denied=self.denied|{name}
+        self.write(self.root/'admissions.json',{'denied':sorted(self.denied),'sha256':digest(sorted(self.denied))})
 
     def load(self,path):
         if path.is_symlink():
@@ -84,7 +103,12 @@ class Checkpoints:
             elapsed=record['elapsed_seconds']
             action='reuse'
         else:
-            verdict=bool(producer())
+            try:
+                verdict=bool(producer())
+            except RuntimeError as error:
+                if 'Memory limit' in str(error) and (definition or {}).get('settings',{}).get('join_algorithm')=='hash':
+                    self.deny(name)
+                raise
             elapsed=time.monotonic()-start
             self.save(path,{**expected,'verdict':verdict,'elapsed_seconds':elapsed})
             action='complete'
@@ -94,16 +118,17 @@ class Checkpoints:
             raise CheckFailed(name,self.checks)
         return verdict
 
-    def read(self,sql):
-        path=self.root/'reports'/(digest(sql)+'.json')
-        expected={'query':sql,'tables':self.tables}
+    def read(self,sql,settings=None):
+        settings=settings or {}
+        path=self.root/'reports'/(digest({'query':sql,'settings':settings})+'.json')
+        expected={'query':sql,'settings':settings,'tables':self.tables}
         if path.exists():
             record=self.load(path)
             if any(record.get(k)!=v for k,v in expected.items()):
-                raise ValueError('report query/table binding changed')
+                raise ValueError('report query/table/settings binding changed')
             return record['rows']
         start=time.monotonic()
-        rows=self.db.query(sql)
+        rows=self.db.query(sql,settings_override=settings or None)
         self.save(path,{**expected,'rows':rows,'elapsed_seconds':time.monotonic()-start})
         return rows
 
