@@ -255,6 +255,14 @@ Focused unit tests exercise actual create/edit derivation, public-group query
 construction, stable cursor forwarding, nested comment navigation, topic/search
 filters, reaction rollback and stale-topic suppression.
 
+**Topic-control verification:** `screenshots/topic-rail.mjs` drives the actual
+Discover screen with 1,000 synthetic topics, at most eight quick chips including
+All and the pinned selection, and at most 40 picker results. Eight fresh Chromium
+cases pass in both themes at 1440/375/768/1280, including far-end selection,
+paging, search/empty results, focus restoration, history/reload and page bounds.
+Desktop/375px captures are inspected under `.context/topic-rail/`. This is an
+isolated loaded-feed UI receipt, not a live global index or phone acceptance.
+
 **KB:** `social/rich-text.md` (the model the hashtag plugs into — the
 markdown-under-the-hood, the locked render, the write derivation),
 `social/post-render.md` (the render matrix — the board's row),
