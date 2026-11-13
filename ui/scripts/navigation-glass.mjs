@@ -97,15 +97,15 @@ try {
         });
       });
       for (const ratio of contrast) assert.ok(ratio >= 4.5, `label contrast: ${ratio}`);
-      const apps = dock.getByRole('button', { name: 'App Contracts' });
+      const apps = dock.getByRole('button', { name: 'App permissions' });
       await apps.focus();
       assert.equal(await apps.evaluate(el => el.matches(':focus-visible') && getComputedStyle(el).outlineStyle === 'solid'), true);
       await apps.blur();
       await page.mouse.move(0, 0);
       await capture(page, 'auth-mobile');
       // Exercise a real navigation handler, not a substituted test navbar.
-      await dock.getByRole('button', { name: 'Group Contracts' }).click();
-      assert.equal(await dock.getByRole('button', { name: 'Group Contracts' }).getAttribute('aria-current'), 'page');
+      await dock.getByRole('button', { name: 'Group permissions' }).click();
+      assert.equal(await dock.getByRole('button', { name: 'Group permissions' }).getAttribute('aria-current'), 'page');
       await apps.click();
       // Verify last content can scroll ABOVE the floating dock with a 34px inset.
       const safe = await page.addStyleTag({ content: ':root { --auth-dock-bottom: 34px; }' });

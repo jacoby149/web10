@@ -107,6 +107,15 @@ class ResumeTests(unittest.TestCase):
         self.assertEqual(archives[0].read_bytes(),before)
         self.assertFalse(path.exists())
 
+    def test_interrupted_execution_can_resume_but_failed_verdict_cannot(self):
+        path=self.proof(complete=False,checks={'validator_execution':False},interrupted=True)
+        before=path.read_bytes()
+        self.assertIsNone(resume.validation(path,self.directory,self.manifest))
+        self.assertEqual(next(self.root.glob('validation.json.stale-*')).read_bytes(),before)
+        path=self.proof(complete=False,checks={'facts':False},interrupted=True)
+        with self.assertRaisesRegex(ValueError,'previously failed'):
+            resume.validation(path,self.directory,self.manifest)
+
     def test_wrong_format_directory_or_missing_checks_never_reuses_success(self):
         for changes in ({'format':'wrong'},{'dataset_directory':'elsewhere'}, {'accounts':1}, {'checks':{}}):
             path=self.proof(**changes)

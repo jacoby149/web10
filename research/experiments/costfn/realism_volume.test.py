@@ -48,7 +48,7 @@ class VolumeTests(unittest.TestCase):
                 for _ in range(2):
                     self.assertEqual(worker.run(repo,skip_floor_gates=True,work_volume=root.parent,filesystem_uuid=FS_UUID),1)
             self.assertEqual(build.call_args.args[0],root/'realism-1m-prep')
-            self.assertEqual(validate.call_args.kwargs,{'keep_work':True})
+            self.assertEqual(validate.call_args.kwargs,{'keep_work':True,'resume':False})
             self.assertEqual(validate.call_args.args[1],root/'cloud-validation.json')
             self.assertTrue((root/'cloud-status.json').exists())
             self.assertFalse((repo/'.context/cloud-status.json').exists())

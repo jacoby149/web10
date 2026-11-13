@@ -61,7 +61,7 @@ async function readGroup(request: APIRequestContext, token: string, group_id: st
   return (await res.json()) as { join_policy: string; discoverable: boolean; roles: { name: string; permissions: string[] }[] };
 }
 
-/** Sign the browser in to the authenticator and land on the Group Contracts page. */
+/** Sign the browser in to the authenticator and land on the Group permissions page. */
 async function openGroupsPage(page: Page, context: any, token: string): Promise<{ console: string[]; errors: string[] }> {
   const full = { console: [] as string[], errors: [] as string[] };
   page.on('console', (m) => full.console.push(`[${m.type()}] ${m.text()}`));
@@ -239,8 +239,8 @@ test.describe('Browser — roles editor (real UI)', () => {
     const roleInputs = page.getByRole('textbox', { name: 'Role name' });
     await expect(roleInputs).toHaveCount(3, { timeout: 5000 }); // owner, member, + new
     await roleInputs.nth(2).fill('mod');
-    // Grant the new role the "Hide all (mod)" permission.
-    await page.getByRole('button', { name: 'Hide all (mod)' }).last().click();
+    // Grant the new role the moderation permission using its readable label.
+    await page.getByRole('button', { name: 'Hide content (moderation)' }).last().click();
     await page.getByRole('button', { name: 'Save roles' }).click();
 
     // Persisted through the API (the oracle).
@@ -298,14 +298,17 @@ test.describe('Browser — D58 per-service role shape (crash regression)', () =>
 
     // No error boundary, the page headline is up.
     await expect(page.getByText('Something went wrong')).toHaveCount(0);
-    await expect(page.getByTestId('groups-page').getByRole('heading', { name: 'Group Contracts' })).toBeVisible();
+    await expect(page.getByTestId('groups-page').getByRole('heading', { name: 'Group permissions' })).toBeVisible();
 
-    // The managed card renders; expanded, the per-service map shows as chips
-    // and the deleteGroup grant (under the reserved group key) shows the
-    // Delete button.
+    // The managed card renders readable scopes; technical details retain the
+    // exact per-service maps and the reserved group grant shows Delete.
     await expandManagedGroup(page, slug);
-    await expect(page.getByText('group: manageRoles, assignRoles, revokeRoles, deleteGroup')).toBeVisible();
-    await expect(page.getByText('posts: readAll, create, updateOwn, deleteOwn')).toBeVisible();
+    await expect(page.getByText('Create and change group roles and their permissions', { exact: true })).toBeVisible();
+    await expect(page.getByText('Read data they can access', { exact: true })).toHaveCount(2);
+    await page.getByText('Technical details', { exact: true }).click();
+    const roles = JSON.parse(await page.locator('pre').filter({ hasText: '"manageRoles"' }).innerText());
+    expect(roles.find((role: any) => role.name === 'owner').permissions.group).toEqual(['manageRoles', 'assignRoles', 'revokeRoles', 'deleteGroup']);
+    expect(roles.find((role: any) => role.name === 'member').permissions.posts).toEqual(['readAll', 'create', 'updateOwn', 'deleteOwn']);
     await expect(page.getByRole('button', { name: /Delete group/ })).toBeVisible();
 
     expect(full.errors, `pageerror: ${full.errors.join('\n')}\nconsole:\n${full.console.join('\n')}`).toEqual([]);

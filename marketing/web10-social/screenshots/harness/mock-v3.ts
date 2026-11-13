@@ -26,7 +26,25 @@ const client = {
       { username: 'noah', profile: { display_name: 'Noah Reed' } },
       { username: 'kai', profile: { display_name: 'Kai Moreno' } },
     ] }),
-    getMyGroups: async () => [{ group_id: groupId, my_role: 'publisher' }],
+    getMyGroups: async () => new URLSearchParams(location.search).has('realFollowing') ? [
+      ...['luna', 'vera', 'luna', 'nova'].map(username => ({ group_id: `web10/groups/users/${username}/followers`, my_role: 'member' })),
+      { group_id: groupId, my_role: 'publisher' },
+    ] : [{ group_id: groupId, my_role: 'publisher' }],
+    // The real Followers loader/count helper can run against this synthetic
+    // membership seam; unrelated preview modes never request it.
+    getGroupMembers: async (id: string, opts?: { offset?: number }) => {
+      if (opts?.offset) return [];
+      const username = id.split('/').at(-2);
+      if (username === 'me') return Array.from({ length: 13 }, (_, i) => ({
+        member_key: ['luna', 'vera', 'nova'][i] || `fan-${i}`, role: 'member',
+      }));
+      const count = username === 'luna' ? 2 : username === 'vera' ? 7 : 0;
+      return [
+        { member_key: username, role: 'owner' },
+        { member_key: 'anyone', role: 'reader' },
+        ...Array.from({ length: count }, (_, i) => ({ member_key: `audience-${i}`, role: 'member' })),
+      ];
+    },
     getGroup: async () => ({ group_id: groupId, roles: [{ name: 'publisher', permissions: { '*': ['readAll', 'create', 'updateOwn', 'deleteOwn'] } }] }),
     read: async () => [{ doc_id: 'studio-face', author_key: 'me', body: { name: 'Northstar Studio' } }],
     query: async (sql: string) => ({ rows: sql.includes('FROM profile') ? [

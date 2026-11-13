@@ -53,6 +53,21 @@ or route a foreign action through the home node. Personal graph filters and My
 Groups retain their existing home-account authority; the rack governs directory
 discovery, not a claim of cross-node graph enumeration.
 
+The Followers and Following filters show each listed person's own follower count, never the
+viewer's follower total copied onto every card. Use the existing paged follower
+count read for that person's username/provider; owner and reserved-principal
+rows are not followers. A failed count must not borrow the viewer's total or
+prevent the other cards and readable profile faces from loading.
+Bare local member keys use the existing current-node provider fallback, not the
+username as a hostname. Count failures retain the graph cards' existing zero
+fallback; this is not proof that an unreadable audience is actually empty.
+Graph rows are deduplicated before count/profile enrichment. Directory pages
+upsert cards by source-qualified identity (canonical provider/username for home
+rows), never append repeated React keys; pagination offsets count raw server
+rows, not the deduplicated display length. Repeated filter switches must retain
+one card per identity and ignore abandoned completions. Returning to a cached
+graph list clears loading left by the filter being abandoned.
+
 ## Verification and remaining gates
 
 5.31.5 visual follow-up: two compact radio chips replace the native dropdown in

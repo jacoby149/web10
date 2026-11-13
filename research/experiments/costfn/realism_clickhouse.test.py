@@ -149,8 +149,43 @@ class ReceiptTests(unittest.TestCase):
                             self.fail('invalid workspace admitted')
 
 
+class AdmissionTests(unittest.TestCase):
+    def test_exact_payload_admits_only_bounded_builds(self):
+        self.assertEqual(engine.join_admission([100,50],200),{'join_algorithm':'hash'})
+        self.assertEqual(engine.join_admission([201],200),{})
+        self.assertEqual(engine.join_admission([100,None],200),{})
+        self.assertEqual(engine.join_admission([-1],200),{})
+        self.assertEqual(engine.join_admission([True],200),{})
+
+    def test_calibration_receipt_binds_engine_profile_source_and_range(self):
+        source=contract.sha(Path(engine.__file__).with_name('realism_calibration.py'))
+        receipt={'engine':engine.VERSION,'profile':'performance','calibration_source':source,
+            'rows':83_200_000,'overhead':150}
+        self.assertEqual(engine.calibration_overhead(receipt,'performance'),150)
+        for bad in ({**receipt,'engine':'wrong'},{**receipt,'profile':'bounded'},
+                {**receipt,'calibration_source':'wrong'},{**receipt,'rows':9},
+                {**receipt,'overhead':engine.BUILD_ROW_OVERHEAD},{**receipt,'overhead':0},
+                {**receipt,'overhead':'150'},'not-a-receipt'):
+            with self.subTest(bad=bad):
+                self.assertIsNone(engine.calibration_overhead(bad,'performance'))
+
+
 @unittest.skipUnless(os.environ.get('REALISM_CLICKHOUSE_TESTS')=='1','opt in to real ClickHouse binary/container')
 class EngineTests(unittest.TestCase):
+    def diagnostic_validate(self,*args,**kwargs):
+        # These deliberately incomplete fixtures compare every individual SQL
+        # verdict against the reference. Catch FAIL only in this test adapter;
+        # production fail-stop is separately exercised without this adapter.
+        from realism_checkpoints import Checkpoints, CheckFailed
+        evaluate=Checkpoints.evaluate
+        def collect(cp,*values,**options):
+            try:
+                return evaluate(cp,*values,**options)
+            except CheckFailed:
+                return False
+        with patch.object(Checkpoints,'evaluate',collect),patch.object(Checkpoints,'completed',lambda cp:dict(cp.checks)):
+            return validator.validate(*args,**kwargs)
+
     def fixture(self,root,mutation=None):
         # Independent small finished-record fixture; no generator model calls.
         spec=importlib.util.spec_from_file_location('reference_controls',Path(__file__).with_name('realism.test.py'))
@@ -183,7 +218,7 @@ class EngineTests(unittest.TestCase):
             with redirect_stdout(io.StringIO()):
                 reference=validator.validate_duckdb_reference(directory,root/'reference.json')
                 with patch.object(duckdb,'connect',side_effect=AssertionError('default validation must use ClickHouse')):
-                    actual=validator.validate(directory,root/'actual.json',keep_work=True)
+                    actual=self.diagnostic_validate(directory,root/'actual.json',keep_work=True)
             self.assertNotIn('validator_execution',actual['checks'],actual)
             self.assertEqual(len(actual['checks']),50)
             self.assertEqual(actual['checks'],reference['checks'])
@@ -196,7 +231,7 @@ class EngineTests(unittest.TestCase):
             directory,_=self.fixture(root,"INSERT INTO content_events SELECT doc_id,service,'missing',surface,event_type,seen_at FROM content_events; INSERT INTO content_events SELECT * FROM content_events WHERE reader_key='b'")
             with redirect_stdout(io.StringIO()):
                 reference=validator.validate_duckdb_reference(directory,root/'reference.json')
-                actual=validator.validate(directory,root/'actual.json')
+                actual=self.diagnostic_validate(directory,root/'actual.json')
             self.assertNotIn('validator_execution',actual['checks'],actual)
             self.assertEqual(actual['checks'],reference['checks'])
             self.assertFalse(actual['checks']['delivery_window'])
@@ -213,6 +248,23 @@ class EngineTests(unittest.TestCase):
                     expected=validator.summary(reference,f'SELECT range AS v FROM range({n})')
                     self.assertEqual(actual,expected,n)
 
+    def test_late_exposure_denies_only_engagement_exposure_causality(self):
+        # Drives the flipped check 13 (total-good, build side = engagements)
+        # through its fail path on the actual engine.
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            directory,_=self.fixture(root,"UPDATE content_events SET seen_at=TIMESTAMP '2026-01-04 00:00:00' WHERE reader_key='b'")
+            with redirect_stdout(io.StringIO()):
+                reference=validator.validate_duckdb_reference(directory,root/'reference.json')
+                actual=self.diagnostic_validate(directory,root/'actual.json')
+            self.assertNotIn('validator_execution',actual['checks'],actual)
+            self.assertEqual(actual['checks'],reference['checks'])
+            self.assertFalse(actual['checks']['engagement_exposure_causality'])
+            self.assertTrue(actual['checks']['engagement_targets'])
+            self.assertTrue(actual['checks']['deliveries_resolve'])
+            self.assertTrue(actual['checks']['delivery_window'])
+            self.assertEqual(actual['per_post'],reference['per_post'])
+
     def test_time_and_target_mutations_match_reference_denials(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp)
@@ -220,7 +272,7 @@ class EngineTests(unittest.TestCase):
                 "UPDATE documents SET created_at=TIMESTAMP '2025-01-01' WHERE doc_id='like'")
             with redirect_stdout(io.StringIO()):
                 reference=validator.validate_duckdb_reference(directory,root/'reference.json')
-                actual=validator.validate(directory,root/'actual.json')
+                actual=self.diagnostic_validate(directory,root/'actual.json')
             self.assertNotIn('validator_execution',actual['checks'],actual)
             self.assertEqual(actual['checks'],reference['checks'])
             self.assertFalse(actual['checks']['engagement_targets'])
@@ -234,7 +286,7 @@ class EngineTests(unittest.TestCase):
                 "INSERT INTO cohorts SELECT DISTINCT cell,reader_key,'b' FROM cohorts")
             with redirect_stdout(io.StringIO()):
                 reference=validator.validate_duckdb_reference(directory,root/'reference.json')
-                actual=validator.validate(directory,root/'actual.json')
+                actual=self.diagnostic_validate(directory,root/'actual.json')
             self.assertNotIn('validator_execution',actual['checks'],actual)
             self.assertEqual(actual['checks'],reference['checks'])
             self.assertEqual(actual['cells'],reference['cells'])

@@ -6,6 +6,33 @@ This doc is about how consent *feels* and why it's shaped the way it is. It is n
 
 ## The Ideal
 
+### Plain-English approval (operator, 13.11.2026)
+
+The browser-app popup should read like familiar OAuth consent: the exact app
+origin “would like to” perform named actions, not a stack of contract codes.
+The visible names are **App permissions** and **Group permissions** across
+navigation, page headings, pending requests, health checks and approval status.
+Internal component names, mode keys, API routes and protocol payloads retain
+their existing contract terminology; this is not a wire-format migration.
+Show readable data types and actions before approval. The operator tried colored
+literal-service code badges, then rejected their developer-tool appearance:
+keep the primary review plain English with quiet neutral data-type chips;
+exact keys remain in Technical details. Combine data types only
+when their requested operation sets match exactly; never imply that a permission
+on posts also applies to contacts. Preserve the distinction between reading
+accessible data, creating data, editing/deleting one's own creations and
+editing/deleting any accessible data. Wildcards explicitly mean all data types;
+unknown service/operation names remain visible rather than being guessed away.
+Matching scopes share readable data-type chips and an action list, so the social
+app's twelve services do not become forty-eight repeated permission rows.
+
+Keep exact origins (including scheme/port), service keys, operation codes and
+existing-grant differences under Technical details. Group requests say what
+action will happen, not that they grant ordinary app access. Existing single
+Allow/Deny, allow-all, continue-without-sharing, identity mismatch, account
+switching, status and return-run behavior stay intact. This is presentation,
+not a switch to a new OAuth protocol or a change in authorization policy.
+
 The consent popup is a door you walk through once, not a toll booth you pay at every visit.
 
 - **First run** — one clear, quick "yes." The app says what it wants, the user taps Allow, done.

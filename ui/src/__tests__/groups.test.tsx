@@ -271,8 +271,11 @@ describe('GroupCard — D58 per-service role shape', () => {
   it('expanded: renders the per-service permission map, not a crash', () => {
     render(<GroupCard I={cardI} group={d58Group} isManaged={true} />)
     expandCard()
-    expect(screen.getByText('group: manageRoles, assignRoles, revokeRoles, deleteGroup')).toBeInTheDocument()
-    expect(screen.getByText('posts: readAll, create, updateOwn, deleteOwn')).toBeInTheDocument()
+    expect(screen.getByText('Create and change group roles and their permissions')).toBeInTheDocument()
+    expect(screen.getByText('Give group roles to people')).toBeInTheDocument()
+    expect(screen.getAllByText('Read data they can access')).toHaveLength(2)
+    fireEvent.click(screen.getByText('Technical details'))
+    expect(screen.getByText(/"manageRoles"/)).toHaveTextContent('"updateAll"')
   })
 
   it('shows the Delete group button when the role grants deleteGroup under the group key', () => {
@@ -290,7 +293,7 @@ describe('GroupCard — D58 per-service role shape', () => {
   it('still renders a legacy flat-shape group (both shapes coexist)', () => {
     render(<GroupCard I={cardI} group={managedGroup} isManaged={true} />)
     expandCard()
-    expect(screen.getByText('manageRoles')).toBeInTheDocument()
+    expect(screen.getByText('Create and change group roles and their permissions')).toBeInTheDocument()
   })
 
   it('does not crash when a group row has no group_id', () => {

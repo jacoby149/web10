@@ -4,6 +4,11 @@ The data model. Every table, every index, every pattern.
 
 **v3 is ClickHouse-only.** FerretDB and Postgres have been removed from the stack. Every operation — auth, CRUD, groups, contracts, media, accounts — goes through ClickHouse. No MongoDB. No DocumentDB. One database, one query engine, one deployment.
 
+Service identifiers currently preserve case in `collection_name` and match
+permission keys exactly. Canonical lowercase and restricted naming are the
+intended follow-up, not deployed enforcement; see [service-names.md](service-names.md)
+for the production inventory and migration/authorization gates.
+
 ## Schema Architecture
 
 ```mermaid

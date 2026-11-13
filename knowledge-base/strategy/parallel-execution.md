@@ -145,6 +145,17 @@ Local verification for 5.32.0 after dev integration: all 2,590 social tests (177
 
 ### Lane: node-config-usability
 
+- [✓ 5.33.5 superseded] **INTEGRATIONS-01 — OAuth-first node setup** — operator cancels OAuth-first setup and requests consistent paste-credentials fields with direct official provider links instead. No OAuth connection implemented; preserve capability research as history, not an executable queue item.
+- [✓ 5.33.5 local] **INTEGRATIONS-KEYS — guided provider credentials** — ConfigPage/ContactDelivery and shared fixed help links now direct owners to region-matched PostHog project-token settings, SendGrid API-key/sender pages and Twilio Account SID/Auth Token/Verify services. Exact credential/permission hints, SendGrid/Twilio default and preserved optional Gmail/pending handoffs. All 342 UI tests/build/typecheck and eight both-theme 375/768/1280/1440 browser cases pass, with keyboard-opened isolated provider tabs, no opener/referrer or save/send side effects; desktop/375px PostHog/delivery captures inspected. Existing storage, manual save, auth and telemetry/contact activation unchanged; no live-provider proof, all PR checks remain the gate.
+
+- [ ] **HOSTED-CONTACT — enable SendGrid email + Twilio Verify SMS signup/sign-in** — operator defers live delivery from visual PR #1540. Reuse merged #1435 provider/recovery code; Gmail remains optional/dormant. Owns contact-delivery configuration/acceptance and focused follow-up fixes only, coordinated with deployment/authenticator owners. Gates: confirm target node and admin/deployment access; private state bucket/key and matching HTTPS origins; verified SendGrid sender/domain and restricted key; Twilio Verify service/credentials; approved QA inbox/phone, send costs and rollout; independent review/security method for any code touching authority and all CI green. Acceptance: actual email and SMS receipt, wrong/expired/replayed-code denial, verified new-account signup and existing-account login, explicit consent/token handoff, remembered-account return, usable errors/retry and desktop/375px evidence. Only then replace Coming soon in Use another account with working methods. No new service, auth bypass, Gmail removal or deployment/purchases/sends by implication.
+
+**Hosted delivery direction (operator, 13.11.2026):** use SendGrid email plus
+Twilio Verify SMS for hosted web10, not Gmail OAuth. Existing provider code is
+merged; this is configuration/acceptance, not a new implementation lane. Keep
+Gmail available but unused. Target/admin/provider access and approved test
+destinations remain prerequisites; no live connection, spend or sends yet.
+
 **Owns:** `ui/src/components/Config/`, shared secret input and focused tests; operator-approved D105 integration extends this bite to SetupWizard contact/secret fields, App recovery entry, Interface/ForgotForm link exchange, `api/app/{endpoints,services}/contact*`, settings/dependency declaration and recovery/Twilio delivery seams. Coordinate broader contact-auth changes; no production configuration, proxy/Compose ownership, provider accounts or credentials.
 
 - [✓ 5.3.1 merged #1435] **Minimize App Store Approvals by default** — collapsed disclosure with visible pending/loading/error summary, keyboard operation and URL-backed reload/history. Four regressions, 280 UI tests and synthetic desktop/375px browser checks pass; screenshots inspected. Approval actions/access policy unchanged; no deployment.
@@ -264,6 +275,10 @@ from independent UI changes when publishing; no all-scope security PR.
 - [ ] **Connected acceptance and unresolved reports** - isolated synthetic publish/read to self+Discover, human audit and revoked/bystander denial; coordinated compiler/social deployment, original follower-zero and paste-freeze reproduction. Gates: local repairs above, isolated stack, no production credentials or settings changes. Acceptance: real attachments/audit/rendering proven and original failures reproduced or explicitly left open, not mocked-away. Owns lane paths above and focused e2e tests.
 
 ### Lane: people-community-discovery (this workspace)
+
+- [✓ 5.33.1 local] **Following counts and duplicate People cards** — own social People loaders, `DiscoverExploreTab` identity merge/keys and cached graph loading, focused tests and browser fixture. Following resolves real per-person counts; deduplicate graph rows before enrichment and directory cards across overlapping pages without changing raw offsets or collapsing explicit source identities. Four red→green regressions and all 2,612 tests pass. Final overlapping-page follow-action refinement passes 158 focused controls, both-theme 1440/375/768/1280 browser filter cycles/pagination and build/typecheck; desktop/375px captures inspected. Screenshot: `.context/attachments/lcwbyi/image.png`; captures: `.context/followers-counts/`. No API/auth, production writes or deployment; actual-node incident replay remains separate.
+
+- [✓ 5.33.1 local] **Followers cards show each person's own audience** — own social `data/people.ts`, the `listFollowers` provider conversion, focused controls and screenshot fixtures. Replace the viewer's repeated total with the existing paged per-person counter; bare local member keys retain the current-node fallback. Two count regressions reproduce `[13,13,13]` before repair; provider regression also fails before repair. Real loader/helper/UI browser checks with synthetic memberships pass both themes at 1440/375/768/1280; desktop/375px captures inspected in `.context/followers-counts/`. Retain existing independent zero/face fallbacks. No API/auth/permission or deployment change; actual-node production replay is not claimed.
 
 - [✓ 5.31.7 local] **People filter row clearance** — 12px `pb-3` below the All/Following/Mutuals/Followers chips in social `DiscoverExploreTab.tsx` (they touched the first card; the groups row already had both paddings). New unit control in `discoverScreen.test.tsx` (repro-gated) + self-booting `screenshots/people-spacing.mjs` gate: all four filters via `?personFilter=` fresh loads, both themes, 1440/375/768/1280, chip-to-content clearance 0px→12px and balanced row padding asserted; harness `entry.tsx` forwards the param. No ranking/API/auth/deployment change.
 
@@ -555,7 +570,31 @@ Format per lane:
 - [✓] No console errors in any flow
 - [✓] Full E2E test with popup + log sequence verification
 
+### Lane: service-name-normalization (protocol follow-up)
+
+**Owns now:** service-name KB and bounded inventory evidence only; reserve API/SDK/security ownership before runtime edits. Contract: `web10-v3/db/service-names.md`.
+
+- [✓ 5.34.3 docs/inventory only] **Verify service casing and record the naming direction** — current source is case-sensitive; operator chooses canonical lowercase with ASCII letters/digits/`-`/`_`, letter-first. Authorized read-only production all-history service/grant-key inventory: all lowercase, no case collisions or out-of-pattern identifiers, max length 31; no malformed app/group JSON. No runtime, data/grant or deployment change.
+- [ ] **Service naming — canonicalization and bounded validation** — gate on fresh target inventory, reserved-name/length review (proposed 1–64) and legacy compatibility; assign small API/storage/grant/compiler/SDK bites before editing those owners' files. Acceptance: one consistent lowercase identity, mixed-case CRUD/grant/query equivalence, malformed-name/collision rejection, no silent grant union, preserved wildcard/reserved/I3 and parameterization behavior, security method/tests/all CI before approved rollout. No production mutation or release by implication; separate runtime PRs from the UI change.
+
 ### Lane: auth-consent-forks (Phase 1)
+
+- [✓ 5.34.2 local] **Restore the plain-English permission review** — operator reverses the colored literal-service trial. Supersedes 5.34.1: shared summaries return to friendly labels/neutral scope chips and normal English, exact keys remain in details, permissions naming/handlers unchanged. No-code-badge regression plus all 337 UI tests/build/typecheck and light/dark 375/768/1280/1440 browser checks pass; desktop/375px captures inspected. No production or live-grant claim.
+
+- [✓ 5.34.1 local] **Literal colored service names** — shared PermissionSummary/helper and focused tests/browser fixture: exact service keys as violet inline code in scope lists and permission sentences, no friendly-alias substitution/case changes, explicit wildcard explanation. All 337 UI tests/build/typecheck and light/dark 375/768/1280/1440 browser controls pass; exact displayed keys/resolved color/long wrapping covered, desktop/375px captures inspected. No handler/payload or policy change, production or live authorization claim.
+
+- [✓ 5.34.0 local] **Plain-English browser-app consent** — OAuth-style request review and operator-named **App permissions / Group permissions**. Own consent/management/request/group presentation, pure `ui/src/lib/consentLanguage.ts`, focused UI/browser tests and serialized KB; navigation changes are labels only, `Interface.tsx` changes only two status strings. No SDK/auth-control/authority change. Exact-set scope grouping keeps complete readable data types and own/all/wildcard/unknown distinctions; details retain exact origin/port/service/operation/deltas. All 336 UI tests/build/typecheck and light/dark 375/768/1280/1440 real-app synthetic browser checks pass, including callback dispatch, dense social scopes, group roles, keyboard details and sticky actions. Desktop/375px captures inspected in `.context/permissions/`. No connected-node, actual token/grant, physical-phone or deployment claim; review/all CI and connected acceptance stay separate.
+
+Final Coming soon revision: 339 UI tests/build/typecheck, both-theme four-width
+presentation/appearance checks and eight real-local auth journeys pass; final
+desktop/375px saved/add-account captures inspected. Provider activation is deferred
+to HOSTED-CONTACT below; every PR check remains the merge gate.
+
+**Pre-merge operator correction:** signup goes directly below the heading, before saved accounts/password fields; remove the reported-unavailable phone/email sign-in shortcut. Existing explicit recovery/contact handlers remain unchanged. Also owns the corresponding recovery E2E entry step. Re-run local and all PR gates on the final head; no delivery repair claim.
+
+- [✓ 5.33.4 local] **Polish authenticator credential entry** — compact mobile/desktop login/signup, one solid primary action, URL-owned password/signup/contact entry and secondary server identity. Operator follow-ups make Use another account a bordered plus-icon row and signup a full-width violet-tinted CTA. Owns credential components, App's entry-URL cleanup, ConsentView login presentation, focused UI/browser controls and progressive-entry steps in existing auth E2E/connected harnesses only. All 338 UI tests/build/typecheck, both-theme 375/768/1280/1440 browser cases, appearance regression and eight real-local signup/return/password/Following handoffs pass; desktop/375px captures inspected. Existing auth/consent/vault handlers unchanged; no API/SDK/policy/deployment changes.
+- [ ] **Authenticator entry production/phone acceptance** — after reviewed green release and explicit rollout approval, verify hosted signup, remembered-account continuation, Use another account, phone/email entry and cancellation at desktop and physical iOS Safari/Android Chrome. Owns acceptance evidence only; no code/policy/deployment by implication. Gates: approved test accounts, contact-send permissions if exercised and rollout approval. Acceptance: reachable controls with keyboard/device safe-area clearance, successful real-origin handoff and unchanged explicit consent, with browser/device evidence and retained failures.
+
 **Owns:** `ui/src/components/Consent/`, `ui/src/interfaces/`, `e2e/tests/auth-popup-roundtrip.spec.ts`
 
 The authenticator consent screen is the shared seam every demo drives. The
@@ -1688,7 +1727,37 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+- [✓ 5.33.6 DO validation/results saved] **RD3 full 1M finished-record validation** — 50/50 exact checks pass on DO for 1M accounts/1.6B events; final check completes around 06:02:39 UTC on 13 November, supervisor success observed at 06:07:24 UTC with exit zero and original import markers unchanged. Original JSON and statistics summary: `research/experiments/costfn/dataset-validation/2026-11-13-1m/`. No repair/restart in this successful attempt. Bulk data/logs/checkpoints remain on the retained volume; operator statistics review, both verified private copies and connected pilot/full-study/public-release gates remain OPEN. No compute cleanup or new experiment.
+
+- [~] **RD3-CHECKPOINTS — resume at the first unfinished check** — operator
+  - [✓ 5.33.3 controls/restart; full validation OPEN] DO engine 21/21, checkpoint 6/6 and lease 16/16 controls, 50-check floor/report parity and native SIGKILL/resume identical receipts pass. Full validation starts 05:02:39 UTC under a volume-resident 300-second supervisor, retained imports, 28-GiB MemoryMax/four CPUs and revised lease-clamped deadline; eight durable passes, none failed at 05:09:32 UTC. Operator requests monitor/repair iterations until validation succeeds within the approved lease. Preserve all data/imports/failures, no false-verdict skipping or memory-limit increase.
+  directive: durable source/input/engine/profile-bound per-check verdicts and
+  derived UUID/count/query markers, fail-stop false verdicts, elapsed/internal
+  progress, and parity-proven small-build join choices. Follow-up directive
+  (13 November): address check 13 and the other checks through 50 that might
+  fail the lease — generalized exact-payload join admission for every join
+  check (narrow projected build sides; grace_hash whenever not measured-small;
+  memory-denial persistence so a refused hash build never loops on resume),
+  check 13's exact total-good flip building the engagement side, and the
+  merged exposures/impressions scan (five full-scale content_events passes
+  become four). Host-measured calibration receipt may lower the conservative
+  per-row overhead, never raise it. Owns research costfn
+  validator/checkpoint/calibration helpers/tests and exact worker-resume/CI
+  hunks plus KB. Gates: 50/50 floor/report parity, genuine kill/resume
+  identical-receipt drill, tamper/dataset/source/derived/FAIL controls, the
+  late-exposure mutation control, admission-gate/calibration-binding controls,
+  all existing suites, and verified predecessor import survival without
+  lineage relabeling. All engine execution is Digital Ocean host only — no
+  local Docker or native ClickHouse; floor re-pin, drill and calibration run
+  there. Build while the live staged run is untouched; restart only after
+  gates and measured projection beyond ~06:00 UTC. Old in-memory verdicts
+  never carry over; no lease extension, new host or upload.
+  Contract: `research/experiments/costfn/REALISM-CHECKPOINTS.md`.
+
 - [~] **RD3-VALIDATION-ENVELOPE: use planned node resources and bounded extra time** —
+  - [✓ 5.33.2 applied/DO controls; restart recorded above] Operator raises total validation compute ceiling to $40 on the same host, superseding the earlier $5 limit below. Applied 24-hour window through 14 November 04:38:02 UTC; exact prior approval/clock/rate checks and 160h total lifetime ceiling. Watchdog and replacement host timer verified; existing 400-GiB volume retained and separately billed. Sixteen tests pass on DO; predecessor fails the new approval controls. No new host, resize, upload or experiment. Evidence: `research/experiments/costfn/evidence/REALISM-BUDGET-20261113.md`.
+
+  Historical approval:
   operator approves 22-GiB ClickHouse / 28-GiB process on the existing 32-GiB
   host and explicitly selects up to four more hours, 06:50:22 UTC cleanup,
   same $5 total compute ceiling and unchanged 400-GiB Volume. Keep all exact

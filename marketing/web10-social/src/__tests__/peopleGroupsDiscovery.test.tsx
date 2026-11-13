@@ -13,6 +13,8 @@ vi.mock('@/data', async (original) => ({
   getMyCommunityGroups: vi.fn(),
   followUser: vi.fn(),
   unfollowUser: vi.fn(),
+  fetchMyFollowingCards: vi.fn().mockResolvedValue([]),
+  fetchMyFollowersCards: vi.fn().mockResolvedValue([]),
 }));
 vi.mock('@/components/Discover/DiscoverGroupsTab', async (original) => ({
   ...await original<typeof import('@/components/Discover/DiscoverGroupsTab')>(),
@@ -42,6 +44,8 @@ beforeEach(() => {
   vi.mocked(data.fetchPeoplePage).mockResolvedValue({ people: [], hasMore: false });
   vi.mocked(data.readGroupDirectory).mockResolvedValue([]);
   vi.mocked(data.getMyCommunityGroups).mockResolvedValue([]);
+  vi.mocked(data.fetchMyFollowingCards).mockResolvedValue([]);
+  vi.mocked(data.fetchMyFollowersCards).mockResolvedValue([]);
   vi.mocked(resolveGroupFace).mockImplementation(async (id) => ({
     name: id.endsWith('/draft-id') ? 'Century Club Draft' : 'Century Club',
     status: id.endsWith('/draft-id') ? 'draft' : 'published',
@@ -217,7 +221,8 @@ it('paints progressive cards, gates unknown follow state and preserves actions/p
     progress = onProgress!;
     onProgress?.({ people: [base], hasMore: true });
     return new Promise((resolve) => { finish = resolve; });
-  }).mockResolvedValueOnce({ people: [{ ...base, username: 'bob', follow_pending: false }], hasMore: false });
+  }).mockResolvedValueOnce({ people: [{ ...base, is_following: true, follow_pending: false },
+    { ...base, username: 'bob', follow_pending: false }], hasMore: false });
   render(<MemoryRouter initialEntries={['/people']}><Browser /></MemoryRouter>);
   expect(await screen.findByText('@alice')).toBeInTheDocument();
   expect(screen.queryByTestId('explore-people-skeleton')).not.toBeInTheDocument();
@@ -230,6 +235,8 @@ it('paints progressive cards, gates unknown follow state and preserves actions/p
   expect(data.unfollowUser).toHaveBeenCalledWith('alice', 'test.localhost');
   fireEvent.click(screen.getByTestId('explore-people-view-more'));
   await screen.findByText('@bob');
+  expect(screen.getAllByTestId('people-card')).toHaveLength(2);
+  expect(screen.getAllByTestId('people-follow-button')[0]).toHaveAttribute('aria-label', 'Follow alice');
   await act(async () => finish({ people: [{ ...ready, mutuals: 2, mutuals_pending: false }], hasMore: true }));
   expect(screen.getAllByTestId('people-card')).toHaveLength(2);
   expect(screen.getByTestId('people-mutuals')).toHaveTextContent('2 mutuals');
@@ -252,4 +259,41 @@ it('ignores old progressive callbacks after unmount and shows a loading state fo
   await act(async () => progress({ people: [{ username: 'obsolete', provider: 'test', followers_count: 1,
     mutuals: 9, is_following: true }], hasMore: false }));
   expect(screen.queryByText('@obsolete')).not.toBeInTheDocument();
+});
+
+it('keeps overlapping directory pages unique through repeated filter switches', async () => {
+  const alice = { username: 'alice', provider: 'test.localhost', followers_count: 13, mutuals: 1, is_following: false };
+  const bob = { ...alice, username: 'bob', followers_count: 7 };
+  vi.mocked(data.fetchPeoplePage).mockResolvedValueOnce({ people: [alice], hasMore: true })
+    .mockResolvedValueOnce({ people: [alice, bob], hasMore: false })
+    .mockResolvedValue({ people: [bob, alice], hasMore: false });
+  vi.mocked(data.fetchMyFollowersCards).mockResolvedValue([alice]);
+  vi.mocked(data.fetchMyFollowingCards).mockResolvedValue([bob]);
+  render(<MemoryRouter initialEntries={['/people']}><Browser /></MemoryRouter>);
+  await screen.findByText('@alice');
+  fireEvent.click(screen.getByTestId('explore-people-view-more'));
+  await screen.findByText('@bob');
+  expect(screen.getAllByText('@alice')).toHaveLength(1);
+  for (const filter of ['followers', 'following', 'all', 'mutuals', 'all']) {
+    fireEvent.click(screen.getByTestId(`explore-people-filter-${filter}`));
+    await screen.findByTestId('explore-people-list');
+    expect(screen.queryAllByText('@alice').length).toBeLessThanOrEqual(1);
+    expect(screen.queryAllByText('@bob').length).toBeLessThanOrEqual(1);
+  }
+});
+
+it('clears pending graph loading when switching back to an already cached filter', async () => {
+  const alice = { username: 'alice', provider: 'test.localhost', followers_count: 13, mutuals: 0, is_following: false };
+  let finish!: (cards: typeof alice[]) => void;
+  vi.mocked(data.fetchMyFollowersCards).mockResolvedValue([alice]);
+  vi.mocked(data.fetchMyFollowingCards).mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  render(<MemoryRouter initialEntries={['/people?personFilter=followers']}><Browser /></MemoryRouter>);
+  await screen.findByText('@alice');
+  fireEvent.click(screen.getByTestId('explore-people-filter-following'));
+  expect(screen.getByTestId('explore-people-skeleton')).toBeInTheDocument();
+  fireEvent.click(screen.getByTestId('explore-people-filter-followers'));
+  expect(await screen.findByText('@alice')).toBeInTheDocument();
+  await act(async () => finish([{ ...alice, username: 'obsolete' }]));
+  expect(screen.queryByText('@obsolete')).not.toBeInTheDocument();
+  expect(screen.getAllByTestId('people-card')).toHaveLength(1);
 });
