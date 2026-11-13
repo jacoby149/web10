@@ -12,6 +12,7 @@ import { fromV3DocToPost, fromV3DocToMedia, fromResolvedMediaRef, fromV3DocToPro
 import { getActingAuthor, actingPostGroups } from './actingIdentity';
 import { resolveFaceMedia, GROUP_FACE_SQL } from '@web10/discover/face';
 import { mentionedUsernames } from './mentions';
+import { hashtagTexts } from './hashtags';
 import { sendNotification } from './notifications';
 
 /** Resolve group faces under their own readable groups, never as user profiles. */
@@ -116,6 +117,9 @@ export async function createPost(
     location: post.location,
     mentions: post.mentions,
     mention_usernames: mentionedUsernames(post.text),
+    // The hashtag index (D110): derived from the body's `#tag` prose — NOT the
+    // doc `tags` column (the machine's vocabulary: short/video/music/ad/…).
+    hashtags: hashtagTexts(post.text),
     encrypted: post.encrypted,
     // Tags are a first-class column the read side already maps (fromV3DocToPost).
     // The composer sets ['short'] for a 9:16 video post (shorts.md) — the
@@ -534,6 +538,9 @@ export async function updatePost(
   if (updates.title !== undefined) body.title = updates.title;
   if (updates.text !== undefined) body.text = updates.text;
   if (updates.text !== undefined) body.mention_usernames = mentionedUsernames(updates.text);
+  // The hashtag index re-derives with the body (D110): an edit that drops the
+  // `#` drops the tag; one that adds it gains the tag. Absent → preserved.
+  if (updates.text !== undefined) body.hashtags = hashtagTexts(updates.text);
   if (updates.media_refs !== undefined) body.media_refs = updates.media_refs;
   if (updates.visibility !== undefined) body.visibility = updates.visibility;
   if (updates.tags !== undefined) body.tags = updates.tags;

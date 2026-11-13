@@ -144,6 +144,11 @@ export interface CommentThreadProps {
   /** The author-click handler (in-app profile navigation). When present, a
    *  comment's author username is a tappable link to their profile. */
   onAuthorClick?: (username: string, provider?: string) => void;
+  /** The hashtag-tap handler (D110, the `onAuthorClick` seam). When present,
+   *  a `#tag` in a comment's text is a tappable topic link (the shared
+   *  `remarkHashtags` over the `/tag/:tag` route — the app owns the
+   *  destination; absent → `#tag` stays inert text, as in marketing-ui). */
+  onHashtagClick?: (tag: string) => void;
 }
 
 export function CommentThread({
@@ -169,6 +174,7 @@ export function CommentThread({
   remoteHref,
   onError,
   onAuthorClick,
+  onHashtagClick,
 }: CommentThreadProps) {
   const [topLevel, setTopLevel] = useState<CommentNode[]>([]);
   const [topCursor, setTopCursor] = useState<string | null>(null);
@@ -657,6 +663,7 @@ export function CommentThread({
               editingId={editing?._id}
               onViewMoreReplies={readReplies ? handleViewMoreReplies : undefined}
               onAuthorClick={onAuthorClick}
+              onHashtagClick={onHashtagClick}
             />
           ))}
         </ul>
@@ -905,9 +912,10 @@ interface CommentNodeRowProps {
   /** The author-click handler (in-app profile navigation) — the comment's
    *  author is a tappable profile link when wired. */
   onAuthorClick?: (username: string, provider?: string) => void;
+  onHashtagClick?: (tag: string) => void;
 }
 
-function CommentNodeRow({ node, depth, highlightedCommentId, canWrite, setRef, onReply, canLike, onTapLike, canEdit, canDelete, onEdit, onDelete, deleteArmed, onDisarmDelete, onArmDelete, busyId, editingId, onViewMoreReplies, onAuthorClick }: CommentNodeRowProps) {
+function CommentNodeRow({ node, depth, highlightedCommentId, canWrite, setRef, onReply, canLike, onTapLike, canEdit, canDelete, onEdit, onDelete, deleteArmed, onDisarmDelete, onArmDelete, busyId, editingId, onViewMoreReplies, onAuthorClick, onHashtagClick }: CommentNodeRowProps) {
   const id = node._id || '';
   const highlighted = !!id && id === highlightedCommentId;
   const showLike = canLike || node.likeCount !== undefined;
@@ -960,7 +968,7 @@ function CommentNodeRow({ node, depth, highlightedCommentId, canWrite, setRef, o
                 'you'
               )}
             </span>
-            <span className="text-sm leading-relaxed text-foreground break-words"><MarkdownText text={node.text} onMentionClick={onAuthorClick} /></span>
+            <span className="text-sm leading-relaxed text-foreground break-words"><MarkdownText text={node.text} onMentionClick={onAuthorClick} hashtagHref={onHashtagClick ? (tag) => `/tag/${encodeURIComponent(tag)}` : undefined} onHashtagClick={onHashtagClick} /></span>
           </div>
           {node.media && node.media.length > 0 && (
             <CommentMedia media={node.media} id={id} />
@@ -1100,6 +1108,7 @@ function CommentNodeRow({ node, depth, highlightedCommentId, canWrite, setRef, o
               editingId={editingId}
               onViewMoreReplies={onViewMoreReplies}
               onAuthorClick={onAuthorClick}
+              onHashtagClick={onHashtagClick}
             />
           ))}
         </ul>

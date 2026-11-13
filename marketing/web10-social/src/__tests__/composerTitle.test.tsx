@@ -41,6 +41,16 @@ describe('PostComposer — the title treatment (D85, rich-text.md)', () => {
     vi.clearAllMocks();
   });
 
+  it('seeds a hashtag draft into the actual editor, with edit text taking precedence', async () => {
+    const { default: PostComposer } = await import('@/components/Feed/PostComposer');
+    const draft = render(<PostComposer draftText="#walking " />);
+    expect(await screen.findByTestId('composer-textarea')).toHaveTextContent('#walking');
+    draft.unmount();
+    render(<PostComposer draftText="#walking " editingPost={{ _id: 'p', text: 'Existing caption', created_at: '' }} />);
+    expect(await screen.findByTestId('composer-textarea')).toHaveTextContent('Existing caption');
+    expect(screen.getByTestId('composer-textarea')).not.toHaveTextContent('#walking');
+  });
+
   it('the title is a headline, not a form field — display face, no box, violet caret', async () => {
     const { default: PostComposer } = await import('@/components/Feed/PostComposer');
     render(<PostComposer />);

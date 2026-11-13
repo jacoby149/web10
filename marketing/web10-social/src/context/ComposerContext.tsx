@@ -41,8 +41,9 @@ interface ComposerContextValue {
   composerGroups: string[] | undefined;
   /** The post the open composer is editing (undefined = creating a new post). */
   editingPost: PostRecord | undefined;
+  draftText?: string;
   /** Open the sheet, optionally scoped to a group or to editing an existing post. */
-  openComposer: (opts?: { groups?: string[]; editingPost?: PostRecord }) => void;
+  openComposer: (opts?: { groups?: string[]; editingPost?: PostRecord; draftText?: string }) => void;
   /** Close the sheet. */
   closeComposer: () => void;
 }
@@ -53,14 +54,16 @@ export function ComposerProvider({ children }: { children: ReactNode }) {
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerGroups, setComposerGroups] = useState<string[] | undefined>(undefined);
   const [editingPost, setEditingPost] = useState<PostRecord | undefined>(undefined);
+  const [draftText, setDraftText] = useState<string | undefined>();
 
-  const openComposer = useCallback((opts?: { groups?: string[]; editingPost?: PostRecord }) => {
+  const openComposer = useCallback((opts?: { groups?: string[]; editingPost?: PostRecord; draftText?: string }) => {
     console.log('[social-composer] open sheet', {
       groups: opts?.groups,
       editing: opts?.editingPost?._id || null,
     });
     setComposerGroups(opts?.groups);
     setEditingPost(opts?.editingPost);
+    setDraftText(opts?.draftText);
     setComposerOpen(true);
   }, []);
 
@@ -69,11 +72,12 @@ export function ComposerProvider({ children }: { children: ReactNode }) {
     setComposerOpen(false);
     setComposerGroups(undefined);
     setEditingPost(undefined);
+    setDraftText(undefined);
   }, []);
 
   const value = useMemo(
-    () => ({ composerOpen, composerGroups, editingPost, openComposer, closeComposer }),
-    [composerOpen, composerGroups, editingPost, openComposer, closeComposer],
+    () => ({ composerOpen, composerGroups, editingPost, draftText, openComposer, closeComposer }),
+    [composerOpen, composerGroups, editingPost, draftText, openComposer, closeComposer],
   );
 
   return <ComposerContext.Provider value={value}>{children}</ComposerContext.Provider>;

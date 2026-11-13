@@ -446,7 +446,7 @@ export interface FeedPage {
 }
 
 export type FeedCursor = { created_at?: string; score?: number; author_key?: string; doc_id?: string };
-export type FeedQueryOptions = { stable?: boolean; rankingClockMs?: number; tags?: string[] };
+export type FeedQueryOptions = { stable?: boolean; rankingClockMs?: number; tags?: string[]; hashtags?: string[] };
 export type FeedRanking = { recency: number; likes: number; comments: number; half_life_ms: number; character: number };
 
 /** Full keyset anchors are opt-in: legacy callers retain their cursor shape. */
@@ -531,6 +531,15 @@ export function buildFeedQuery(sort: FeedRanking | null, cursor: FeedCursor | nu
   // are inventory too — the storefront is their public face, not a feed tile.
   const conditions = ["not has(p.tags, 'ad')", "not has(p.tags, 'product')"];
   if (options.tags?.length) conditions.push(...options.tags.map(tag => `has(p.tags, ${feedSqlString(tag)})`));
+  // Hashtags (D110): the body-derived index, NOT the doc `tags` column (the
+  // machine's vocabulary). The write layer stores `body.hashtags` (a
+  // lowercase-deduped string array); the board filters on it through JSONExtract
+  // (the D73 app's-own-SELECT — the node walls it to the caller's groups).
+  if (options.hashtags?.length) {
+    conditions.push(
+      ...options.hashtags.map(tag => `has(JSONExtract(p.body, 'hashtags', 'Array(String)'), ${feedSqlString(tag)})`),
+    );
+  }
   if (options.stable && cursor) {
     if (typeof cursor.created_at !== 'string') throw new Error('Invalid feed cursor timestamp');
     const cursorMs = Date.parse(cursor.created_at ?? '');
@@ -724,6 +733,10 @@ export async function readFeedPage(opts: {
   isCurrent?: () => boolean;
   groups?: string[];
   tags?: string[];
+  /** Hashtags (D110) — filter on the body-derived `hashtags` index. */
+  hashtags?: string[];
+  /** The D86 surface label (the feed's is `feed`; the hashtag board is `hashtag`). */
+  surface?: string;
 }): Promise<FeedPage> {
   const current = () => { if (opts.isCurrent && !opts.isCurrent()) throw new Error('Feed scope ended'); };
   current();
@@ -746,7 +759,7 @@ export async function readFeedPage(opts: {
   // (the server-side, un-gameable floor) — the feed-as-query's delivery capture.
   const result = await w.query(sql, {
     groups: feedGroups,
-    surface: 'feed',
+    surface: opts.surface ?? 'feed',
     contentService: 'posts',
     prepare: {
       media: true,

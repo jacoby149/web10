@@ -7,9 +7,7 @@ import {
   filterPeople,
   fetchMyFollowersCards,
   fetchMyFollowingCards,
-  DEFAULT_PEOPLE_SORT,
   type PersonCard,
-  type PeopleSort,
   type PeopleFilter,
 } from '@/data';
 import {
@@ -48,16 +46,16 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useFeedSources } from '@/components/Feed/useFeedSources';
+import { DirectoryControls, directorySort } from '@web10/discover/directory-controls';
+import { useDirectoryMixer } from '@web10/discover/use-directory-mixer';
+import { PersonCard as SharedPersonCard, GroupCard as SharedGroupCard } from '@web10/discover';
+import type { DirectoryRead } from '@web10/discover/directory-mixer';
 
 const LOG = (...args: unknown[]) => console.log('[social:explore-tab]', ...args);
 
 // The page size for the paged reads (the "view more" increment).
 const PAGE_SIZE = 20;
-
-const SORT_OPTIONS: [PeopleSort, string][] = [
-  ['popular', 'Popular'],
-  ['az', 'A–Z'],
-];
 
 // The Profiles tab filters (the "easy filters" the operator asked for — the
 // social graph, not just discovery). `all` is the bare URL (the public
@@ -170,8 +168,28 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
     [searchParams, setSearchParams],
   );
 
+  const sort = directorySort(searchParams, 'profiles');
+  const groupSort = directorySort(searchParams, 'groups');
+  const sourceControl = useFeedSources();
+  const [followOverrides, setFollowOverrides] = useState<Record<string, boolean>>({});
+  useEffect(() => { setFollowOverrides({}); }, [sourceControl.scope]);
+  const approvedSources = sourceControl.ready ? sourceControl.sources.filter(row => sourceControl.approved.has(row.origin)) : [];
+  const mixing = sourceControl.ready && (approvedSources.length !== 1 || approvedSources[0]?.origin !== sourceControl.home || approvedSources[0]?.weight === 0);
+  const directoryView = section === 'profiles' ? personFilter === 'all' || personFilter === 'mutuals' : groupFilter !== 'mine';
+  const homeDirectoryRead: DirectoryRead = async (kind, order, limit, offset) => {
+    if (kind === 'profiles') {
+      const result = await fetchPeoplePage({ limit, offset, sort: order });
+      return { people: result.people, groups: [] };
+    }
+    const entries = await readGroupDirectory(limit, offset, order);
+    const groups = await Promise.all(entries.map(async entry => ({ ...entry, face: await resolveGroupFace(entry.group_id) })));
+    return { people: [], groups };
+  };
+  const mixed = useDirectoryMixer({ enabled: mixing && directoryView, sources: approvedSources, home: sourceControl.home,
+    credential: sourceControl.credential, scope: sourceControl.scope, kind: section, sort: section === 'profiles' ? sort : groupSort,
+    homeRead: homeDirectoryRead, isCurrent: sourceControl.live });
+
   // ── Profiles (the D0 public directory, paged) ──────────────────────────────
-  const [sort, setSort] = useState<PeopleSort>(DEFAULT_PEOPLE_SORT);
   const [people, setPeople] = useState<PersonCard[]>([]);
   const [peopleLoading, setPeopleLoading] = useState(true);
   const [peopleLoadingMore, setPeopleLoadingMore] = useState(false);
@@ -184,6 +202,7 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
   useEffect(() => () => { peopleGenerationRef.current += 1; }, []);
 
   const loadPeoplePage = useCallback(async (offset: number, append: boolean) => {
+    if (mixing) return;
     const generation = append ? peopleGenerationRef.current : ++peopleGenerationRef.current;
     let painted = false;
     const publish = ({ people: page, hasMore }: { people: PersonCard[]; hasMore: boolean }) => {
@@ -215,7 +234,7 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
     }
     LOG('loadPeoplePage — offset:', offset, 'append:', append);
     try {
-      const result = await fetchPeoplePage({ limit: PAGE_SIZE, offset, onProgress: publish });
+      const result = await fetchPeoplePage({ limit: PAGE_SIZE, offset, sort, onProgress: publish });
       publish(result);
     } catch (e) {
       LOG('loadPeoplePage — failed:', e);
@@ -226,11 +245,12 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
         setPeopleLoadingMore(false);
       }
     }
-  }, []);
+  }, [mixing, sort]);
 
   useEffect(() => {
     if (!profilesActivated) return;
     loadPeoplePage(0, false);
+    return () => { peopleGenerationRef.current += 1; };
   }, [loadPeoplePage, profilesActivated]);
 
   // ── Profiles: own-graph filters (Following / Followers) ────────────────────
@@ -276,6 +296,7 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
     setPeopleFollowLoading((prev) => ({ ...prev, [person.username]: true }));
     try {
       await followUser(person.username, person.provider);
+      setFollowOverrides(previous => ({ ...previous, [person.username]: true }));
       const flip = (list: PersonCard[]) =>
         list.map((p) => (p.username === person.username ? { ...p, is_following: true } : p));
       setPeople((prev) => flip(prev));
@@ -292,6 +313,7 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
     setPeopleFollowLoading((prev) => ({ ...prev, [person.username]: true }));
     try {
       await unfollowUser(person.username, person.provider);
+      setFollowOverrides(previous => ({ ...previous, [person.username]: false }));
       const flip = (list: PersonCard[]) =>
         list.map((p) => (p.username === person.username ? { ...p, is_following: false } : p));
       setPeople((prev) => flip(prev));
@@ -317,8 +339,11 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
   const [joinStates, setJoinStates] = useState<Record<string, JoinState>>({});
   const [groupFaces, setGroupFaces] = useState<Record<string, MyGroupFace>>({});
   const groupsNextOffsetRef = useRef(0);
+  const groupGeneration = useRef(0);
 
   const loadGroupsPage = useCallback(async (offset: number, append: boolean) => {
+    if (mixing) return;
+    const generation = append ? groupGeneration.current : ++groupGeneration.current;
     if (append) setGroupsLoadingMore(true);
     else {
       setGroupsLoading(true);
@@ -326,23 +351,24 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
     }
     LOG('loadPage — offset:', offset, 'append:', append);
     try {
-      const page = await readGroupDirectory(PAGE_SIZE, offset);
+      const page = await readGroupDirectory(PAGE_SIZE, offset, groupSort);
+      if (generation !== groupGeneration.current) return;
       LOG('loadPage — got', page.length, 'group(s)');
       groupsNextOffsetRef.current = offset + page.length;
       setGroups((prev) => (append ? [...prev, ...page] : page));
       setGroupsHasMore(page.length === PAGE_SIZE);
     } catch (e) {
       LOG('loadPage — failed:', e);
-      if (!append) setGroupsError(true);
+      if (generation === groupGeneration.current && !append) setGroupsError(true);
     } finally {
-      setGroupsLoading(false);
-      setGroupsLoadingMore(false);
+      if (generation === groupGeneration.current) { setGroupsLoading(false); setGroupsLoadingMore(false); }
     }
-  }, []);
+  }, [mixing, groupSort]);
 
   useEffect(() => {
     if (!groupsActivated) return;
     loadGroupsPage(0, false);
+    return () => { groupGeneration.current += 1; };
   }, [loadGroupsPage, groupsActivated]);
 
   // Resolve each group's face (banner + avatar) so the card matches the
@@ -471,23 +497,27 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
   }, [searchParams, setSearchParams]);
 
   // ── Profiles display (per filter) ──────────────────────────────────────────
-  const sortedPeople = useMemo(() => sortPeople(people, sort), [people, sort]);
+  const displayPeople: PersonCard[] = mixing ? mixed.people.map(person => ({ ...person, mutuals: person.mutuals ?? 0,
+    is_following: person.source_origin === sourceControl.home ? followOverrides[person.username] ?? person.is_following ?? false : false })) : people;
+  const displayGroups: GroupDirectoryEntry[] = mixing ? mixed.groups.map(group => ({ ...group, slug: group.slug ?? group.name, permission_summary: group.permission_summary ?? '' })) : groups;
+  const sortedPeople = sortPeople(displayPeople, sort);
   const filteredPeople = useMemo(() => filterPeople(sortedPeople, query), [sortedPeople, query]);
   // "Mutuals" = the directory filtered to people you have in common.
   const mutualPeople = useMemo(
     () => filteredPeople.filter((p) => p.mutuals > 0),
     [filteredPeople],
   );
-  const sortedFollowing = useMemo(() => sortPeople(myFollowing ?? [], sort), [myFollowing, sort]);
-  const sortedFollowers = useMemo(() => sortPeople(myFollowers ?? [], sort), [myFollowers, sort]);
+  // Personal graph lists are home-account reads, not directory selections.
+  const sortedFollowing = useMemo(() => sortPeople(myFollowing ?? [], 'popular'), [myFollowing]);
+  const sortedFollowers = useMemo(() => sortPeople(myFollowers ?? [], 'popular'), [myFollowers]);
 
   const peopleQuiet = peopleFirstPageCountRef.current !== null && peopleFirstPageCountRef.current < 10;
 
   // ── Groups display (per filter) ────────────────────────────────────────────
   const filteredGroups = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return groups;
-    return groups.filter(
+    if (!q) return displayGroups;
+    return displayGroups.filter(
       (g) =>
         (groupFaces[g.group_id]?.name ?? '').toLowerCase().includes(q) ||
         g.group_id.toLowerCase().includes(q) ||
@@ -495,7 +525,7 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
         g.owner.toLowerCase().includes(q) ||
         (g.tags ?? []).some((t) => t.toLowerCase().includes(q)),
     );
-  }, [groups, query, groupFaces]);
+  }, [displayGroups, query, groupFaces]);
 
   const filteredMyGroups = myGroups.filter((g) => {
     const q = query.trim().toLowerCase();
@@ -504,8 +534,8 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
   });
   const ownGroupIds = new Set(myGroups.map((g) => g.group_id));
   const directoryGroups = [...new Map(filteredGroups
-    .filter((g) => groupFilter !== 'all' || !ownGroupIds.has(g.group_id))
-    .map((g) => [g.group_id, g])).values()];
+    .filter((g) => groupFilter !== 'all' || (g.source_origin && g.source_origin !== sourceControl.home) || !ownGroupIds.has(g.group_id))
+    .map((g) => [g.source_key ?? g.group_id, g])).values()];
 
   const peopleNoResults =
     query.trim() !== '' &&
@@ -526,7 +556,7 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
           : filteredPeople;
   const peopleListLoading =
     personFilter === 'following' || personFilter === 'followers' ? graphLoading :
-      peopleLoading || (personFilter === 'mutuals' && mutualPeople.length === 0 && people.some((p) => p.mutuals_pending));
+      (mixing ? mixed.loading && mixed.people.length === 0 : peopleLoading) || (personFilter === 'mutuals' && mutualPeople.length === 0 && displayPeople.some((p) => p.mutuals_pending));
 
   return (
     <div data-testid="discover-explore-tab" className="flex flex-col">
@@ -574,6 +604,10 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
           })}
         </div>
       </div>
+
+      {directoryView && <div className="px-4 lg:px-6"><DirectoryControls kind={section} control={{ ...sourceControl, canEdit: !!sourceControl.credential, requiresApproval: true }} errors={mixed.errors} allocations={mixed.allocations} onRetry={mixed.retry} />
+        {mixing && approvedSources.every(row => row.weight === 0) && <p role="status" className="pb-3 text-sm text-muted-foreground">Directory paused. Turn up a server to discover people and groups.</p>}
+      </div>}
 
       {/* The active ?q= filter (from the top bar's search) — a chip that shows
           the query + clears it. Rendered on both tabs so the search can be
@@ -627,33 +661,7 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
             ))}
           </div>
 
-          {/* Sort toggle (profiles only — the groups directory is member-ranked
-              server-side, so a client sort would be a lie). */}
-          <div className="px-1 pt-2 pb-2">
-            <div className="flex items-center gap-1" data-testid="explore-sort-toggle" role="tablist" aria-label="Sort people">
-              {SORT_OPTIONS.map(([s, label]) => (
-                <button
-                  key={s}
-                  type="button"
-                  role="tab"
-                  aria-selected={sort === s}
-                  onClick={() => setSort(s)}
-                  data-testid={`explore-sort-${s}`}
-                  className={cn(
-                    'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
-                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                    sort === s
-                      ? 'bg-brand-muted text-brand-300'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-elevated',
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {peopleError ? (
+          {!mixing && peopleError ? (
             <div
               data-testid="explore-people-error"
               className="flex flex-col items-center justify-center py-10 px-8 text-center"
@@ -678,8 +686,12 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
               {peopleList.length > 0 ? (
                 <div className="space-y-3" data-testid="explore-people-list">
                   {peopleList.map((p) => (
+                    p.source_origin && p.source_origin !== sourceControl.home ? <div key={p.source_key} className="space-y-1">
+                      <p className="break-all text-xs text-muted-foreground">{new URL(p.source_origin).host} · read-only</p>
+                      <SharedPersonCard person={p} testId="source-person-card" />
+                    </div> :
                     <PersonCardRow
-                      key={p.username}
+                      key={p.source_key ?? p.username}
                       person={p}
                       followLoading={!!peopleFollowLoading[p.username] || !!p.follow_pending}
                       onFollow={() => handlePeopleFollow(p)}
@@ -709,14 +721,14 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
                   No mutuals yet — follow a few people and the ones you have in common show up here.
                 </p>
               ) : null}
-              {personFilter === 'all' && peopleHasMore && (
+              {personFilter === 'all' && (mixing ? mixed.hasMore : peopleHasMore) && (
                 <div className="mt-4 flex justify-center">
                   <Button
                     variant="outline"
                     size="sm"
                     data-testid="explore-people-view-more"
-                    onClick={() => loadPeoplePage(peopleNextOffsetRef.current, true)}
-                    disabled={peopleLoadingMore}
+                    onClick={() => mixing ? mixed.loadMore() : loadPeoplePage(peopleNextOffsetRef.current, true)}
+                    disabled={mixing ? mixed.loading : peopleLoadingMore}
                     className="gap-2"
                   >
                     {peopleLoadingMore && <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />}
@@ -808,7 +820,7 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
               ) : null}
             </div>
           )}
-          {groupFilter !== 'mine' && (groupsError ? (
+          {groupFilter !== 'mine' && (!mixing && groupsError ? (
             <div
               data-testid="explore-groups-error"
               className="flex flex-col items-center justify-center py-10 px-8 text-center"
@@ -822,7 +834,7 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
                 Retry
               </Button>
             </div>
-          ) : groupsLoading ? (
+          ) : (mixing ? mixed.loading && mixed.groups.length === 0 : groupsLoading) ? (
             <div className="space-y-3" data-testid="explore-groups-skeleton">
               {Array.from({ length: 3 }).map((_, i) => (
                 <DiscoverGroupCardSkeleton key={i} />
@@ -842,10 +854,14 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
             <>
               <div className="space-y-3" data-testid="explore-groups-list">
                 {directoryGroups.map((g) => (
+                  g.source_origin && g.source_origin !== sourceControl.home ? <div key={g.source_key} className="space-y-1">
+                    <p className="break-all text-xs text-muted-foreground">{new URL(g.source_origin).host} · read-only</p>
+                    <SharedGroupCard entry={g} face={mixed.groups.find(row => row.source_key === g.source_key)?.face} testId="source-group-card" />
+                  </div> :
                   <DiscoverGroupCard
-                    key={g.group_id}
+                    key={g.source_key ?? g.group_id}
                     entry={g}
-                    face={groupFaces[g.group_id]}
+                    face={mixing ? mixed.groups.find(row => row.source_key === g.source_key)?.face : groupFaces[g.group_id]}
                     joinState={joinStates[g.group_id] || 'idle'}
                     onJoin={() => handleGroupJoin(g)}
                     onOpen={() => openGroup(g)}
@@ -854,14 +870,14 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
               </div>
             </>
             )}
-              {groupsHasMore && (
+              {(mixing ? mixed.hasMore : groupsHasMore) && (
                 <div className="mt-4 flex justify-center">
                   <Button
                     variant="outline"
                     size="sm"
                     data-testid="explore-groups-view-more"
-                    onClick={() => loadGroupsPage(groupsNextOffsetRef.current, true)}
-                    disabled={groupsLoadingMore}
+                    onClick={() => mixing ? mixed.loadMore() : loadGroupsPage(groupsNextOffsetRef.current, true)}
+                    disabled={mixing ? mixed.loading : groupsLoadingMore}
                     className="gap-2"
                   >
                     {groupsLoadingMore && <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />}

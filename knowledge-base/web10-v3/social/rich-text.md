@@ -252,6 +252,7 @@ GitHub-flavored core, not a document framework:
 | Link | `[text](url)` | the existing link treatment (below) |
 | Line break / paragraph | blank line | `<p>` |
 | Mention | `@username` (legacy: `@[username](web10:username)`) | a highlighted, tappable handle (the social token, below) |
+| Hashtag | `#word` | a highlighted, tappable topic link → the `/tag/:word` board (the second social token, below) |
 
 **What it rejects (the editor does not offer, the renderer does not render):**
 tables, images-in-body (media is the `media_refs` path, not markdown — D82's
@@ -259,7 +260,7 @@ media `caption` is a different thing), nested/complex layouts, and any raw HTML
 (the sanitizer strips it, below). The body is *prose with light structure*, not
 a page builder.
 
-**The mention (the one social-specific token).** Plain `@username` prose and
+**The mention (the people token).** Plain `@username` prose and
 the existing `@[username](web10:username)` link both target the same local
 account. The render pass turns prose tags into ordinary `/u/:username` links;
 the legacy scheme is explicitly allowed through the sanitizer and mapped to
@@ -280,6 +281,18 @@ either side and restores the caret. Email/URL/code/link contexts do not open
 the picker. Menus are viewport-constrained portals so Shorts sheets, lightboxes
 and scrollable composers cannot clip them; transient suggestions do not change
 the URL.
+
+**The hashtag (the second social token, D110).** `#word` in the prose is the
+body's topic token: one shared pattern (`@web10/discover/hashtags` — `#` +
+1–30 of `[a-zA-Z0-9_]`, mention boundary discipline, never in code / headings /
+link labels / URLs) feeds BOTH the write-side derivation (`body.hashtags`,
+lowercase-deduped, the `mention_usernames` seam — NOT the doc `tags` column,
+which is the machine's vocabulary) and the read-side render (a `#tag` →
+`/tag/:tag` link, the mention's treatment, on every `<PostBody>` /
+`PostBodyInline` / shared `MarkdownText` surface that opts in). The composer
+is untouched (typed prose; the `#`-suggestion picker is a follow-up bite) and
+the node is untouched (the board is the app's own D73 SELECT over the discover
+group). Full contract: `social/hashtags.md`.
 
 ## The read side: the renderer + the type scale
 
