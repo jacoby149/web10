@@ -7,18 +7,18 @@ const BASE = `http://marketing.localhost${p}`;
 test.describe('marketing-ui route smoke', () => {
   test('landing page (the pitch) renders without white-screen', async ({ page }) => {
     // The pre-split layout (3.173.0): `/` is the PITCH (the "Your audience."
-    // landing page), not the experience. The experience moved to /trending.
+    // landing page), not a replica of social discovery.
     await page.goto(BASE);
     await expect(page).toHaveTitle(/web10/i);
     await expect(page.locator('text=The web10')).toBeVisible({ timeout: 10000 });
   });
 
-  test('trending page (the experience) renders without white-screen', async ({ page }) => {
-    // The social experience (the Video wall + the four-destination nav) now
-    // lives at /trending.
+  test('legacy Trending hands off to the public social feed', async ({ page }) => {
     await page.goto(`${BASE}/trending`);
+    await expect(page).toHaveURL(`http://social.localhost${p}/feed`);
     await expect(page).toHaveTitle(/web10/i);
-    await expect(page.locator('[data-testid="experience-nav"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId('posts-tab-discover')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId('experience-nav')).toHaveCount(0);
   });
 
   test('docs route loads without white-screen', async ({ page }) => {

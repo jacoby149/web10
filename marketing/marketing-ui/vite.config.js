@@ -29,19 +29,10 @@ export default defineConfig({
       // explicitly (specific subpath first).
       '@web10/telemetry/runtime': path.resolve(__dirname, '../shared/telemetry/src/runtime.ts'),
       '@web10/telemetry': path.resolve(__dirname, '../shared/telemetry/src/index.ts'),
-      // D73: the shared discover card + video player (one source, both apps).
-      // Aliased to the package source so Vite compiles it as app code (not
-      // pre-bundled) — the file: dep in package.json keeps its deps resolvable.
+      // Remaining group/App Store pages use Markdown and reliable images,
+      // not the retired marketing feed/mixer/player (D111).
       '@web10/discover/media-recovery': path.resolve(__dirname, '../shared/discover/src/mediaRecovery.ts'),
-      '@web10/discover/source-controls': path.resolve(__dirname, '../shared/discover/src/sourceControls.ts'),
-      '@web10/discover/directory-controls': path.resolve(__dirname, '../shared/discover/src/DirectoryControls.tsx'),
-      '@web10/discover/directory-mixer': path.resolve(__dirname, '../shared/discover/src/directoryMixer.ts'),
-      '@web10/discover/use-directory-mixer': path.resolve(__dirname, '../shared/discover/src/useDirectoryMixer.ts'),
-      '@web10/discover/source-models': path.resolve(__dirname, '../shared/discover/src/sourceModels.ts'),
-      '@web10/discover/mixed-feed': path.resolve(__dirname, '../shared/discover/src/mixedFeed.ts'),
-      '@web10/discover/feed-query': path.resolve(__dirname, '../shared/discover/src/feedQuery.ts'),
       '@web10/discover/image': path.resolve(__dirname, '../shared/discover/src/ReliableImage.tsx'),
-      '@web10/discover/video': path.resolve(__dirname, '../shared/discover/src/ReliableVideo.tsx'),
       '@web10/discover': path.resolve(__dirname, '../shared/discover/src/index.ts'),
     },
   },

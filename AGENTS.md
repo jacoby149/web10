@@ -288,7 +288,11 @@ do not privacy-wash D56 or put content/credentials into events or recordings.
   channels, e.g. the messages demo).
 - `marketing/` — everything that makes web10 accessible:
   - `marketing-ui/` — web10 Inc.'s site: landing + docs + App Store +
-    creator discovery. Vite + React 19 + TS + Bun + react-router.
+    product pitch. Vite + React 19 + TS + Bun + react-router.
+    Trending links directly to the configured social `/feed` (D111); legacy
+    `/trending/*` routes hand off to social. No marketing discovery replica or
+    feed/mixer/player parity obligation. Shared Markdown/image primitives still
+    support unrelated group/App Store pages; social/shared consumers stay intact.
   - Marketing and social call the node API directly for reporting and
     analytics. The unused `marketing-api/` service was removed (D91).
   - `web10-social/` — the killer app: all-in-one social lens (instagram-

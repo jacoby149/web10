@@ -1,5 +1,10 @@
 # People and Groups: choose the servers, then sort
 
+**D111, 13.11.2026:** marketing's People/mixer replica is retired; old
+`/trending/people` links hand off to social `/people`. The directory contract
+below now applies to social only. Shared reader/control code remains for social;
+there is no marketing directory-parity gate.
+
 The reader may want newly arrived people from one server and established groups
 from another. The server rack chooses the sources; a simple sort chooses the
 order. Likes, comments, a Balanced preset and power-mean ranking do not belong here.

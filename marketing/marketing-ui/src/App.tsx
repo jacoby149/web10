@@ -1,9 +1,8 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import { StarsProvider } from './components/GitHubStarsContext'
 import DeployStatus from './components/DeployStatus'
-import ExperienceShell from './components/ExperienceShell'
-import Trending from './pages/Trending'
+import SocialRedirect from './pages/SocialRedirect'
 import Home from './pages/Home'
 import Join from './pages/Join'
 import Docs from './pages/Docs'
@@ -16,11 +15,7 @@ import Links from './pages/Links'
 import Everything from './pages/Everything'
 import Appearance from './pages/Appearance'
 
-// The pitch is the front door again (the pre-Discover-split layout): `/` is
-// the landing page, and the social experience lives at `/trending` (the tab
-// is labeled Trending). The experience shell owns the four-destination nav
-// (Video · Shorts · Hot Gossip · People); each destination is a flat route
-// under `/trending`.
+// Marketing explains the product. Social owns discovery (D111).
 function App() {
   return (
     <StarsProvider>
@@ -31,23 +26,10 @@ function App() {
             manager believes this is a company in 30 seconds.) Front and center. */}
         <Route path="/" element={<Home />} />
         <Route path="/appearance" element={<Appearance />} />
-        {/* The experience (the SHOW) — the content pyramid: People → Posts →
-            Video → Shorts. Posts is the default (the index) — the content, not
-            the profiles (the operator, 29.09.2026: "the people tab is kind of
-            boring just a bunch of profiles not actual content, so by default
-            have that second tab selected"). */}
-        <Route path="/trending" element={<ExperienceShell />}>
-          <Route index element={<Trending />} />
-          <Route path="people" element={<Trending />} />
-          <Route path="video" element={<Trending />} />
-          <Route path="shorts" element={<Trending />} />
-          {/* Legacy: the old Hot Gossip route (renamed to Posts, 3.185.0). */}
-          <Route path="hot-gossip" element={<Navigate to="/trending" replace />} />
-        </Route>
+        <Route path="/trending/*" element={<SocialRedirect />} />
         <Route path="/links" element={<Links />} />
         <Route path="/everything" element={<Everything />} />
-        {/* Legacy: the old groups redirect (the People destination). */}
-        <Route path="/groups" element={<Navigate to="/trending/people" replace />} />
+        <Route path="/groups" element={<SocialRedirect />} />
         <Route path="/groups/:id" element={<GroupDetail />} />
         <Route path="/join" element={<Join />} />
         <Route path="/freedom" element={<Freedom />} />

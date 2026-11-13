@@ -8,6 +8,10 @@
 > `archive/plan-17.08.2026.md`. This is a fresh plan. Fill it in as work
 > is scoped — one phase at a time, docs before code.
 
+## Marketing discovery handoff
+
+- [✓ 6.4.0 local] **MARKETING-HANDOFF — retire the Trending replica** — Trending is an ordinary same-tab link to the configured social `/feed` (production `https://social.web10.app/feed`); legacy Trending URLs replace-navigate to supported social destinations/filters. Removed marketing-only feed/directory/mixer/ranking/media code, obsolete tests/fixtures and vendored HLS; social/shared consumers and unrelated pages remain. Two old-link regressions reproduce before repair; all 197 remaining marketing tests/build/typecheck and renderer inventory pass. Eight both-theme four-width Chromium cases verify mouse/keyboard/mobile/footer, same-tab/Back, ten legacy shapes and zero discovery reads; desktop/375px captures inspected in `.context/marketing-handoff/`. Browser evidence uses an isolated social destination, not live social acceptance. Updated connected handoff/moderation E2E discovers eight tests; actual stack/CI/review/rollout remain OPEN. No API/auth/deployment change; marketing no longer owes discovery parity.
+
 ## Hierarchy of Reliance
 
 Every layer depends on the one above it. An LLM implementing any layer
