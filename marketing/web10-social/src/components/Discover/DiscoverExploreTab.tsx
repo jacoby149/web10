@@ -639,7 +639,7 @@ export default function DiscoverExploreTab({ query }: DiscoverExploreTabProps) {
            Posts content column. */
         <section data-testid="explore-people-section" className="flex-1 px-4 pb-4 md:px-4 lg:px-6">
           {/* The Profiles filter chips (?personFilter=) — the "easy filters". */}
-          <div className="flex items-center gap-1 pt-3" data-testid="explore-people-filter" role="tablist" aria-label="Filter people">
+          <div className="flex items-center gap-1 pt-3 pb-3" data-testid="explore-people-filter" role="tablist" aria-label="Filter people">
             {PEOPLE_FILTERS.map(([f, label]) => (
               <button
                 key={f}
