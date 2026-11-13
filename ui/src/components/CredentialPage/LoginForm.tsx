@@ -4,7 +4,7 @@ import Username from "./FormInputs/Username";
 import CredentialStatus from "./CredentialStatus";
 import { Button } from '@/components/ui/button';
 import { isTokenExpired } from 'web10-npm';
-import { ArrowRight, ChevronRight, KeyRound, Plus, UserRoundPlus } from 'lucide-react';
+import { ArrowRight, ChevronRight, Mail, Plus, Smartphone, UserRoundPlus } from 'lucide-react';
 import { useSignInView } from '@/lib/useSignInView';
 import { useLayoutEffect, useRef, type ReactNode } from 'react';
 
@@ -56,14 +56,32 @@ function LoginForm({ I, embedded = false, continueAction }: { I: Record<string, 
     I.setLoginUsername?.(a.username);
   }
 
+  const createAccount = (
+    <div className="mb-6 border-b border-border pb-6">
+      <p className="mb-3 text-center text-sm font-medium text-foreground">New to web10?</p>
+      <Button
+        variant="outline"
+        className="h-12 w-full gap-2 border-brand/50 bg-brand-muted/30 text-brand-300 hover:border-brand hover:bg-brand-muted/60 active:bg-brand-muted"
+        onClick={() => I.setMode('signup')}
+        data-testid="login-create-account"
+      >
+        <UserRoundPlus aria-hidden="true" className="h-5 w-5" strokeWidth={1.5} />
+        Create an account
+        <ArrowRight aria-hidden="true" className="ml-auto h-4 w-4" />
+      </Button>
+    </div>
+  );
+
   const form = (
     <>
       {!embedded && (
         <>
-          <h1 className="font-display text-2xl font-medium tracking-tight text-foreground">Welcome back.</h1>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Sign in to your web10 account.</p>
+          <h1 className="font-display text-2xl font-medium tracking-tight text-foreground">{remembered.length ? 'Welcome back.' : 'Welcome to web10.'}</h1>
+          <p className="mb-6 mt-2 text-sm leading-relaxed text-muted-foreground">Sign in or create your account.</p>
         </>
       )}
+
+      {createAccount}
 
       {/* Remembered-accounts picker — the fast path for a returning user.
           Only rendered when there's something to pick. */}
@@ -123,10 +141,24 @@ function LoginForm({ I, embedded = false, continueAction }: { I: Record<string, 
           </button>
       )}
 
-      {/* Both existing sign-in methods remain available; only their hierarchy changes. */}
-
       {showFields && remembered.length > 0 && (
         <Button variant="ghost" className="min-h-11 w-full text-muted-foreground" onClick={() => { I.setLoginUsername?.(''); showPassword(false); }} data-testid="login-back-accounts">Back to your accounts</Button>
+      )}
+
+      {passwordView && (
+        <section aria-label="More ways to sign in" className="my-5 space-y-2">
+          {([
+            ['email', 'Continue with email', Mail],
+            ['phone', 'Continue with phone', Smartphone],
+          ] as const).map(([method, label, Icon]) => (
+            <Button key={method} variant="outline" disabled className="h-12 w-full justify-start gap-3 text-muted-foreground disabled:opacity-100" data-testid={`login-${method}-coming-soon`}>
+              <Icon aria-hidden="true" className="h-4 w-4" strokeWidth={1.5} />
+              {label}
+              <span className="ml-auto rounded-full bg-elevated px-2 py-1 text-xs">Coming soon</span>
+            </Button>
+          ))}
+          <p className="pt-2 text-center text-xs text-muted-foreground">For now, sign in with your username below.</p>
+        </section>
       )}
 
       <div hidden={!showFields}>
@@ -150,16 +182,6 @@ function LoginForm({ I, embedded = false, continueAction }: { I: Record<string, 
       </form>
       </div>
 
-      <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground"><div className="h-px flex-1 bg-border" /><span>or</span><div className="h-px flex-1 bg-border" /></div>
-      <Button
-        variant="outline"
-        className="h-12 w-full gap-2"
-        data-testid="login-contact-cta"
-        onClick={() => I.setMode("forgot")}
-      >
-        <KeyRound aria-hidden="true" className="h-4 w-4" /> Sign in with phone or email
-      </Button>
-
       <CredentialStatus I={I} />
 
       <div className="mt-2 text-center" hidden={!showFields}>
@@ -175,27 +197,10 @@ function LoginForm({ I, embedded = false, continueAction }: { I: Record<string, 
     </>
   );
 
-  const createAccount = (
-    <div className="mt-5 border-t border-border pt-5">
-      <p className="mb-3 text-center text-sm font-medium text-foreground">New to web10?</p>
-      <Button
-        variant="outline"
-        className="h-12 w-full gap-2 border-brand/50 bg-brand-muted/30 text-brand-300 hover:border-brand hover:bg-brand-muted/60 active:bg-brand-muted"
-        onClick={() => I.setMode('signup')}
-        data-testid="login-create-account"
-      >
-        <UserRoundPlus aria-hidden="true" className="h-5 w-5" strokeWidth={1.5} />
-        Create an account
-        <ArrowRight aria-hidden="true" className="ml-auto h-4 w-4" />
-      </Button>
-    </div>
-  );
-
   if (embedded) {
     return (
       <div>
         {form}
-        {createAccount}
       </div>
     );
   }
@@ -203,7 +208,6 @@ function LoginForm({ I, embedded = false, continueAction }: { I: Record<string, 
   return (
     <div className="w-full max-w-sm">
       <div className="rounded-lg border border-border bg-card p-6 sm:p-8">{form}</div>
-      {createAccount}
     </div>
   );
 }

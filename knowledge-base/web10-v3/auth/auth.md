@@ -179,14 +179,19 @@ No `HttpOnly` — the SDK reads the token client-side to include in API requests
 The authenticator's login screen shows a "Your accounts" picker of the
 last few accounts used on that origin.
 
-Credential entry presents remembered accounts before the password form. Use
+Credential entry puts Create an account directly below the heading, before saved
+accounts or password fields. Remembered accounts precede the password form. Use
 another account opens `?signin=password`; a non-vaulted row opens the same view
 and pre-fills its provider/username. Cold visitors see the password form directly.
 `?credential=login|signup|forgot` selects the entry screen; other request/redirect
 parameters remain intact. History/reload restore presentation only, never an
 identity, grant or confirmation. Successful confirmed authentication removes these
-entry-only parameters. Phone/email uses the existing code flow; server identity
+entry-only parameters. The operator-reported unavailable phone/email sign-in
+shortcut is not promoted; the existing explicit recovery link and underlying code
+flow remain unchanged, not repaired or live-vendor verified here. Server identity
 remains visible as Account server. This is presentation, not a new auth protocol.
+Inside Use another account, email/phone are visibly disabled Coming soon options;
+only the separately queued HOSTED-CONTACT delivery acceptance can activate them.
 
 The picker is two-tier:
 

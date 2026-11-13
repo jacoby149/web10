@@ -2,6 +2,14 @@
 
 ## Operator experience
 
+**Hosted web10 direction (operator, 13.11.2026):** configure SendGrid for email
+and Twilio Verify for SMS as one delivery path. Gmail OAuth adds unwanted setup
+and reconnect complexity for this hosted rollout. Keep the existing optional
+Gmail implementation intact for independent nodes; do not rebuild delivery or
+remove it as part of the authenticator visual PR. Actual target/admin access,
+verified sender/domain, private provider credentials and approved inbox/phone
+tests are still required before claiming hosted contact signup/sign-in works.
+
 Small nodes connect a dedicated Gmail/Google Workspace support mailbox using
 send-only Google OAuth. Larger nodes configure SendGrid email and optionally
 Twilio Verify SMS. These are recommendations, not size restrictions. Email

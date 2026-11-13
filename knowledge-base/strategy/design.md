@@ -396,8 +396,9 @@ deleted. If it isn't true, it isn't on the site.
 
 ### `ui/` — the node console (lane B)
 **Authenticator entry polish (operator, 13.11.2026):** use a compact brand header,
-one clear primary action and a visible create-account path. Returning accounts
-lead; Use another account reveals the URL-owned password view. The account server
+one clear primary action and a visible create-account path. Signup appears
+directly under the heading, before saved accounts or password fields; Use another
+account reveals the URL-owned password view. The account server
 stays identifiable but secondary to username/password. Credential entry scrolls
 with the page, not inside a phone card; consent review keeps its bounded list and
 pinned actions. Existing authentication, verification and consent handlers stay
@@ -409,7 +410,13 @@ foreground label and trailing chevron, not a muted text link (operator reference
 
 Create an account gets a full-width violet-tinted bordered button with an account
 icon and arrow under a foreground New to web10? invitation. It must not read as
-muted footer copy; Continue remains the only solid-violet primary action.
+muted footer copy; Continue remains the only solid-violet primary action. The
+operator reports phone/email sign-in is not working yet: do not promote that
+shortcut. Existing explicit password recovery stays available; removing the
+shortcut does not fix or disable the underlying contact/verification handlers.
+Inside Use another account only, show email and phone as visibly disabled
+Coming soon options, with username/password usable below. No provider setup or
+live delivery activation in this visual PR (operator scope correction).
 
 The job: the operator/consent surface reads like Vercel or Linear —
 calm, precise, trustworthy. This surface holds the **Studio** (B4.5),

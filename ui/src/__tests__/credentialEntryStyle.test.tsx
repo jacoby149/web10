@@ -14,12 +14,11 @@ const harness = (overrides = {}) => ({
 describe('credential entry presentation', () => {
   beforeEach(() => window.history.replaceState(null, '', '/?consent=1&redirect=keep'));
 
-  it('starts with accounts, not competing password/contact primary buttons', () => {
+  it('puts signup before accounts and does not promote unavailable phone/email sign-in', () => {
     render(<LoginForm I={harness()} embedded continueAction={<button>Continue as alice</button>} />);
     expect(screen.getByTestId('account-picker')).toBeVisible();
     expect(screen.getByTestId('login-submit')).not.toBeVisible();
-    expect(screen.getByTestId('login-contact-cta')).toBeVisible();
-    expect(screen.getByTestId('login-contact-cta').className).not.toContain('bg-brand ');
+    expect(screen.queryByTestId('login-contact-cta')).toBeNull();
     expect(screen.getByTestId('login-create-account')).toBeVisible();
     const other = screen.getByRole('button', { name: 'Use another account' });
     expect(other.className).toContain('border-border');
@@ -31,6 +30,7 @@ describe('credential entry presentation', () => {
     expect(create.className).toContain('border-brand/50');
     expect(create.className).toContain('bg-brand-muted/30');
     expect(create.querySelector('svg')).toBeTruthy();
+    expect(create.compareDocumentPosition(screen.getByTestId('account-picker')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('reveals the password form, focuses username and preserves consent/redirect URL context', () => {
@@ -45,6 +45,24 @@ describe('credential entry presentation', () => {
     expect(url.searchParams.get('redirect')).toBe('keep');
     expect(url.searchParams.has('consent')).toBe(true);
     expect(I.login).not.toHaveBeenCalled();
+  });
+
+  it('shows contact methods only inside add-account entry, explicitly disabled as coming soon', () => {
+    const I = harness();
+    render(<LoginForm I={I} embedded />);
+    expect(screen.queryByTestId('login-email-coming-soon')).toBeNull();
+    expect(screen.queryByTestId('login-phone-coming-soon')).toBeNull();
+    fireEvent.click(screen.getByTestId('account-picker-other'));
+    for (const method of ['email', 'phone']) {
+      const button = screen.getByTestId(`login-${method}-coming-soon`);
+      expect(button).toBeVisible();
+      expect(button).toBeDisabled();
+      expect(button).toHaveTextContent('Coming soon');
+      fireEvent.click(button);
+    }
+    expect(I.setMode).not.toHaveBeenCalled();
+    expect(I.login).not.toHaveBeenCalled();
+    expect(screen.getByTestId('login-submit')).toBeVisible();
   });
 
   it('non-vaulted selection focuses password and submits the exact existing fields', () => {

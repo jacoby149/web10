@@ -37,14 +37,20 @@ try {
     await page.getByTestId('consent-continue-as').waitFor();
     await page.evaluate(() => document.fonts.ready);
     assert.equal(await page.getByTestId('login-submit').isVisible(), false);
-    for (const id of ['consent-continue-as', 'account-picker-other', 'login-contact-cta', 'login-create-account']) {
+    for (const id of ['consent-continue-as', 'account-picker-other', 'login-create-account']) {
       const box = await page.getByTestId(id).boundingBox();
       assert.ok(box.height >= 44 && box.width >= 44, `${id} touch target`);
     }
+    assert.equal(await page.getByTestId('login-contact-cta').count(), 0, 'do not promote unavailable phone/email sign-in');
+    assert.ok((await page.getByTestId('login-create-account').boundingBox()).y < (await page.getByTestId('account-picker').boundingBox()).y, 'signup precedes account picker');
     assert.equal(await page.getByTestId('consent-credential-entry').evaluate(el => getComputedStyle(el).overflowY), 'visible');
     await bounds(); await capture('accounts');
     await page.getByTestId('account-picker-other').focus();
     await page.keyboard.press('Enter');
+    for (const method of ['email', 'phone']) {
+      assert.equal(await page.getByTestId(`login-${method}-coming-soon`).isDisabled(), true);
+      assert.match(await page.getByTestId(`login-${method}-coming-soon`).innerText(), /Coming soon/);
+    }
     assert.equal(await page.getByTestId('username-input').evaluate(el => document.activeElement === el), true);
     assert.equal(new URL(page.url()).searchParams.get('signin'), 'password');
     assert.equal(new URL(page.url()).searchParams.get('redirect'), 'keep');
@@ -67,11 +73,13 @@ try {
     await page.reload({ waitUntil: 'networkidle' });
     await page.getByTestId('signup-submit').waitFor();
     await page.getByTestId('signup-login-link').click();
-    await page.getByTestId('login-contact-cta').click();
+    await page.getByTestId('account-picker-other').click();
+    await page.getByTestId('login-forgot-link').click();
     await page.getByTestId('recovery-contact-input').waitFor();
     assert.equal(new URL(page.url()).searchParams.get('credential'), 'forgot');
     await page.goto(`${origin}/credential-preview?consent=1&cold=1`, { waitUntil: 'networkidle' });
     await page.getByTestId('login-submit').waitFor();
+    assert.ok((await page.getByTestId('login-create-account').boundingBox()).y < (await page.getByTestId('username-input').boundingBox()).y, 'cold signup precedes password fields');
     await bounds(); await capture('cold-login');
     assert.deepEqual(errors, []);
     receipts.push({ theme, width, accounts: true, password: true, signup: true, coldLogin: true, historyReload: true, keyboardFocus: true, touchTargets: true, error: true });

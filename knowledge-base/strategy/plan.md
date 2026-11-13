@@ -32,9 +32,25 @@ If a lower layer contradicts its source above, the source wins. Always.
 ---
 
 ## Authenticator credential entry
+
+- [ ] **HOSTED-CONTACT — enable SendGrid email + Twilio Verify SMS signup/sign-in** — deferred from visual PR #1540 at the operator's request. Reuse merged delivery/recovery code, leave Gmail optional/dormant, and keep email/phone marked Coming soon under Use another account until real delivery is verified. Owns contact-delivery configuration/acceptance and focused fixes coordinated with deployment/authenticator owners. Gates: approved node/admin/provider access, private state/key/HTTPS origins, verified SendGrid sender/domain and restricted key, Twilio Verify credentials/service, approved inbox/phone/send costs and rollout, security method for authority changes and all CI green. Acceptance: real email/SMS, denied wrong/expired/replayed codes, verified signup/login, explicit consent/token handoff, remembered-account return and desktop/375px errors/retry evidence. No sends, purchases, deployment or auth bypass by implication; full lane task in parallel-execution.md.
+
+**Final scope:** contact methods are disabled Coming soon choices inside Use
+another account only. This PR does not connect providers or activate contact auth.
+
+**Pre-merge operator correction:** signup goes directly below the heading and
+before saved accounts/password fields. Remove the phone/email sign-in shortcut
+because it is reported unavailable; preserve explicit recovery and contact
+handlers without claiming delivery repaired. Re-run all gates on the final head.
+
+**Contact rollout direction:** the operator chooses SendGrid email + Twilio Verify
+SMS rather than Gmail OAuth complexity. Reuse the merged contact-delivery setup;
+keep Gmail optional/dormant, not deleted. Configure and verify actual delivery
+before presenting easy contact methods under Use another account. Target/admin
+access, provider credentials, verified sender and approved inbox/phone tests remain
+open; this visual PR does not claim live delivery enabled.
+
 - [✓ 5.33.4 local] **Polish authenticator credential entry** — compact brand/form layout, one solid primary action, URL-owned progressive password/signup/contact entry and secondary account-server identity. Operator follow-ups give Use another account a bordered plus-icon row and signup a full-width violet-tinted button. All 338 UI tests/build/typecheck, eight both-theme four-width browser cases, appearance regression and eight real-local signup/return/password/Following handoffs pass. Desktop/375px captures inspected under `.context/auth-credential-style/`. Auth/consent/vault policy unchanged; no deployment or physical-phone claim.
-
-
 ## Deferred v4
 
 - [✓ 3.254.8 local docs] **Shadowguard deferred to web10 v4** - preserve the 3.254.7 concept in [shadowguard.md](shadowguard.md) and [later.md](later.md#web10-v4-shadowguard); remove its protocol-decision task from the active queue. Not planned any time soon, no release date, research/implementation assignment or dependency for v3. Explicit operator reactivation during v4 planning is required before any work resumes.

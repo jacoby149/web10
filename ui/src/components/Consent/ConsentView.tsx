@@ -328,7 +328,7 @@ function ConsentView({ I }: { I: Record<string, any> }) {
                 ) : entry.mode === 'forgot' ? (
                   <>Find your account.</>
                 ) : (
-                  <>Welcome back.</>
+                  <>{I.rememberedAccounts?.length ? 'Welcome back.' : 'Welcome to web10.'}</>
                 )}
               </h1>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
@@ -336,7 +336,7 @@ function ConsentView({ I }: { I: Record<string, any> }) {
                   ? 'One web10 account. Your data, on your terms.'
                   : entry.mode === 'forgot'
                     ? 'Sign in with a code sent to your phone or email.'
-                    : I.rememberedAccounts?.length ? 'Choose your account to continue.' : 'Sign in, then review what you share.'}
+                    : 'Sign in or create your account to continue.'}
               </p>
             </div>
             {/* The opener is signed out and this popup holds a live session —

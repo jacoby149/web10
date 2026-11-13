@@ -34,7 +34,7 @@ function PasswordInput({
           id={id}
           name={name}
           type={visible ? "text" : "password"}
-            className="h-12 pl-10 pr-12 text-base"
+          className="h-12 pl-10 pr-12 text-base"
           placeholder="••••••••"
           autoComplete={autoComplete}
           data-testid={testId}
