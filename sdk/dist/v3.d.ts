@@ -388,11 +388,13 @@ export interface V3LoginResponse {
 }
 export interface V3DirectoryUser {
     username: string;
+    created_at?: string;
     follower_count: number;
     profile: Record<string, unknown>;
 }
 export interface V3PeoplePage {
     users: V3DirectoryUser[];
+    sort?: 'popular' | 'newest';
     limit: number;
     offset: number;
 }
@@ -567,6 +569,7 @@ export interface V3Client {
     listPeopleDirectory(opts?: {
         limit?: number;
         offset?: number;
+        sort?: 'popular' | 'newest';
     }): Promise<V3PeoplePage>;
     update(docId: string, body: Record<string, unknown>, opts?: {
         groups?: string[];

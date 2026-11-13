@@ -963,6 +963,15 @@ class TestGroupDirectory:
         assert resp.status_code == 200
         assert resp.json()["groups"] == []
 
+    def test_sort_is_forwarded_and_page_bounds_are_validated(self, client):
+        with patch("app.v3.services.clickhouse.list_discoverable_groups", return_value=[]) as read:
+            response = client.get("/v3/groups/directory?sort=newest&limit=2&offset=3")
+            assert response.status_code == 200
+            assert response.json()["sort"] == "newest"
+            read.assert_called_once_with(limit=2, offset=3, sort="newest")
+            for query in ["sort=updated_at", "limit=0", "limit=101", "offset=-1", "sort=popular%20DESC"]:
+                assert client.get(f"/v3/groups/directory?{query}").status_code == 400
+
 
 class TestGroupByUser:
     """D80: the public "what groups is user X in?" read (anon)."""

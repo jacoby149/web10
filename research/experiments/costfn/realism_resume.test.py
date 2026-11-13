@@ -6,6 +6,8 @@ import unittest
 
 from realism_contract import FORMAT,contract,identity,sha
 import realism_resume as resume
+from realism_validate import validator_dependencies
+from realism_clickhouse import VERSION
 
 
 class ResumeTests(unittest.TestCase):
@@ -38,7 +40,9 @@ class ResumeTests(unittest.TestCase):
     def proof(self,**changes):
         proof={'format':FORMAT,'complete':True,'dataset_id':self.manifest['dataset_id'],
                'accounts':1000000,'dataset_directory':'dataset',
-               'validator_sha256':sha(resume.HERE/'realism_validate.py'),'checks':{'facts':True}}
+               'validator_sha256':sha(resume.HERE/'realism_validate.py'),
+               'validator_dependencies':validator_dependencies(),
+               'validator_engine':{'name':'ClickHouse','version':VERSION},'checks':{'facts':True}}
         proof.update(changes)
         path=self.root/'validation.json'
         path.write_text(json.dumps(proof))

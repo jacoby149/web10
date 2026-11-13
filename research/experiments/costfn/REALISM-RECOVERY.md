@@ -17,6 +17,7 @@ a disk. The worker CLI requires the mountpoint and UUID explicitly.
   realism-1m-prep/           # final dataset files and manifest
   realism-work-*/           # retained failed generation work
   realism-validate-*/       # retained validation database/work
+  realism-clickhouse-*/    # current ClickHouse data and query logs
   realism-partitions-*/     # retained canonical-document partitions
   cloud-status.json         # latest state, atomically replaced and synced
   cloud-validation.json     # final validation receipt, not implied by file presence
@@ -35,6 +36,8 @@ python research/experiments/costfn/realism_cloud_worker.py \
   --skip-floor-gates
 # On replacement compute with the same volume mounted at the same path:
 # add --resume to reverify and reuse completed generation/validation.
+# Current validation also requires native ClickHouse 24.8.14.39 (or the
+# explicit networkless Docker adapter); see REALISM-CLICKHOUSE.md.
 ```
 
 The UUID above is the filesystem UUID, not the provider's volume resource ID.

@@ -12,6 +12,7 @@ import SavedCollectionScreen from '@/components/Bio/SavedCollectionScreen';
 import ProfilePinsScreen from '@/components/Bio/ProfilePinsScreen';
 import UserFollowListScreen from '@/components/Bio/UserFollowListScreen';
 import DiscoverScreen from '@/components/Discover/DiscoverScreen';
+import HashtagScreen from '@/components/Discover/HashtagScreen';
 import WatchScreen from '@/components/Watch/WatchScreen';
 import ShortsScreen from '@/components/Shorts/ShortsScreen';
 import MusicScreen from '@/components/Music/MusicScreen';
@@ -57,7 +58,7 @@ function sessionAlertMessage(reason: string): string {
   }
   // reauth_deferred / cooldown:reauth / action_failed:reauth / not_signed_in —
   // the session needs a re-derive; the user triggers it (or a failure will).
-  return 'Your session needs to be refreshed. Log in again to continue.';
+  return 'To keep going, sign in again and allow this app to use your account.';
 }
 
 function ErrorFallback({ onReport, onReload }: { onReport: () => void; onReload: () => void }) {
@@ -522,6 +523,7 @@ function App() {
           <Route path="/people" element={<DiscoverScreen />} />
           <Route path="/discover" element={<DiscoverRedirect />} />
           <Route path="/watch/:postId" element={<WatchScreen />} />
+          <Route path="/tag/:hashtag" element={<HashtagScreen onLogin={handleLogin} />} />
           <Route path="/shorts" element={<ShortsScreen />} />
           <Route path="/shorts/:postId" element={<ShortsScreen />} />
           <Route path="/music" element={<MusicScreen />} />

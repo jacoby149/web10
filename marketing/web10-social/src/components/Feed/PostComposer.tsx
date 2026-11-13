@@ -39,6 +39,8 @@ import { DiscoverAudience } from './DiscoverAudience';
 import { MusicTagToggle } from './MusicTagToggle';
 import type { MediaPostDraft } from '@/components/Uploads/uploadState';
 import { EditorMentions } from '@/components/shared/EditorMentions';
+import { AccessRecovery } from '@/components/shared/AccessRecovery';
+import { API_ORIGIN } from '@/lib/origins';
 
 let nextMediaId = 0;
 
@@ -427,6 +429,7 @@ export default function PostComposer({
   onRepostCancel,
   groups,
   editingPost,
+  draftText,
   compact = false,
   chromeless = false,
   onQueueMediaPost,
@@ -459,6 +462,7 @@ export default function PostComposer({
    * fires `post-created`, the screens reload and pick up the edit).
    */
   editingPost?: PostRecord;
+  draftText?: string;
   /**
    * Compact (collapsed) mode: the composer rests as a single-line "What's on
    * your mind?" bar and expands to the full form on focus. The Discover
@@ -479,7 +483,7 @@ export default function PostComposer({
   // Whether the caption has content — a cheap boolean, NOT the markdown. The
   // markdown is computed on demand at submit (a full turndown walk on every
   // keystroke is what made typing laggy). The editor owns the document.
-  const [hasText, setHasText] = useState(!!editingPost?.text);
+  const [hasText, setHasText] = useState(!!(editingPost?.text || draftText));
   // The post's two bodies of text (D82): `title` (the optional headline) +
   // `text` (the caption). The title leads a card / watch header / short
   // overlay; the caption is the longer body. Optional — a post with no title
@@ -487,6 +491,17 @@ export default function PostComposer({
   // the post being edited.
   const [title, setTitle] = useState(editingPost?.title || '');
   const [mediaItems, setMediaItems] = useState<AttachedMedia[]>([]);
+  // A rejected post write must not force the same large video to upload twice.
+  // Only completed media, exact file/metadata and the same account/service can
+  // be reused. The retry still passes the node's normal document-write checks.
+  const completedUploads = useRef(new Map<number, {
+    scope: string; file: File; altText: string; albumArt?: File;
+    thumbnail?: VideoThumbnailSelection; record: MediaRecord;
+  }>());
+  useEffect(() => {
+    const retained = new Set(mediaItems.map(item => item.id));
+    for (const id of completedUploads.current.keys()) if (!retained.has(id)) completedUploads.current.delete(id);
+  }, [mediaItems]);
   // Edit mode: the post's current media (remove-only — you can't attach new
   // media to an existing post). Resolved from `editingPost.media_refs` on
   // mount; the surviving items are written back on save.
@@ -497,6 +512,16 @@ export default function PostComposer({
   const [posting, setPosting] = useState(false);
   const [audienceBusy, setAudienceBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [accessBlocked, setAccessBlocked] = useState(false);
+
+  function showSubmitError(failure: unknown) {
+    // Both normal SDK writes and resumable-upload admission carry HTTP status.
+    // This only offers a user-driven review, never assumes approval or retries.
+    const blocked = failure instanceof Error && 'status' in failure && (failure.status === 401 || failure.status === 403);
+    console.log('[social-composer] submission failed; retaining draft', { accessBlocked: blocked });
+    setAccessBlocked(blocked);
+    setError(failure instanceof Error ? failure.message : 'Something went wrong. Try again.');
+  }
   const [dragOver, setDragOver] = useState(false);
   const [focused, setFocused] = useState(false);
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
@@ -565,7 +590,7 @@ export default function PostComposer({
     // Edit mode: the stored `text` is markdown, but Tiptap seeds from HTML —
     // convert it (the inverse of the turndown write) or the editor would show
     // the raw `**bold**` syntax instead of **bold** (D85, the write side).
-    content: markdownToHtml(editingPost?.text || ''),
+    content: markdownToHtml(editingPost?.text ?? draftText ?? ''),
     onFocus: () => setFocused(true),
     onBlur: () => setFocused(false),
     // The markdown is NOT computed here — a full turndown walk of the document
@@ -984,6 +1009,7 @@ export default function PostComposer({
     if (!markdown && !title.trim() && !retainedEditRefs.length) return;
     setError(null);
     setPosting(true);
+    setAccessBlocked(false);
     try {
       const updates: Partial<PostRecord> = {
         title: title.trim() || undefined,
@@ -1004,7 +1030,7 @@ export default function PostComposer({
       onPostCreated?.();
     } catch (e) {
       console.error('[social-composer] edit failed; retaining draft', { errorType: e instanceof Error ? e.name : 'unknown' });
-      setError(e instanceof Error ? e.message : 'Something went wrong. Try again.');
+      showSubmitError(e);
     } finally {
       setPosting(false);
     }
@@ -1014,6 +1040,7 @@ export default function PostComposer({
     const markdown = getMarkdown();
     if (!markdown && !mediaItems.length && !repostingTo) return;
     setError(null);
+    setAccessBlocked(false);
 
     // Repost (reposts.md): a repost is a real post doc referencing the
     // original — no media upload of the user's own (the original's media is
@@ -1037,7 +1064,7 @@ export default function PostComposer({
         onPostCreated?.();
       } catch (e) {
         console.error('Failed to create repost:', e);
-        setError(e instanceof Error ? e.message : 'Something went wrong. Try again.');
+        showSubmitError(e);
       } finally {
         setPosting(false);
       }
@@ -1089,8 +1116,17 @@ export default function PostComposer({
       }
 
       const mediaService = visibility === 'public' ? 'public_media' : 'media';
+      const uploader = getWapi()?.readToken();
+      const uploadScope = uploader ? JSON.stringify([API_ORIGIN, uploader.provider, uploader.username, mediaService]) : null;
 
       for (const item of mediaItems) {
+        const completed = completedUploads.current.get(item.id);
+        if (uploadScope && completed?.scope === uploadScope && completed.file === item.file
+          && completed.altText === item.altText && completed.albumArt === item.albumArt && completed.thumbnail === item.thumbnail) {
+          console.log('[social-composer] retry reuses completed upload');
+          mediaRecords.push(completed.record);
+          continue;
+        }
         let record: MediaRecord;
 
         if (item.isAudio) {
@@ -1201,6 +1237,10 @@ export default function PostComposer({
 
         if (record._id) {
           mediaRecords.push(record);
+          if (uploadScope) completedUploads.current.set(item.id, {
+            scope: uploadScope, file: item.file, altText: item.altText,
+            albumArt: item.albumArt, thumbnail: item.thumbnail, record,
+          });
         }
       }
 
@@ -1271,13 +1311,14 @@ export default function PostComposer({
       setHasText(false);
       setMediaItems([]);
       setPinnedAd(null);
+      completedUploads.current.clear();
       onPostCreated?.();
     } catch (e) {
       console.error('Failed to create post:', e);
       // Drop the in-flight phase so the tray returns to a retryable state
       // (a stuck "Uploading 45%" spinner would read as still working).
       setMediaItems((prev) => prev.map((item) => (item.postPhase ? { ...item, postPhase: undefined, postProgress: undefined } : item)));
-      setError(e instanceof Error ? e.message : 'Something went wrong. Try again.');
+      showSubmitError(e);
     } finally {
       setUploading(false);
       setPosting(false);
@@ -1528,7 +1569,8 @@ export default function PostComposer({
                 </div>
               )}
 
-              {error && (
+              {error && accessBlocked && <AccessRecovery error={error} onRetry={() => { void (isEditing ? handleSaveEdit() : handleSubmit()); }} />}
+              {error && !accessBlocked && (
                 <div className="mt-3 flex items-center gap-2 text-sm text-danger" role="alert" data-testid="composer-error">
                   <AlertTriangle className="w-4 h-4 shrink-0" />
                   {error}

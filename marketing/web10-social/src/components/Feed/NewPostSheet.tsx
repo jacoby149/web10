@@ -27,7 +27,7 @@ import { useUploads } from '@/context/UploadContext';
  */
 export function NewPostSheet() {
   const uploads = useUploads();
-  const { composerOpen, composerGroups, editingPost, closeComposer: closeSheet } = useComposer();
+  const { composerOpen, composerGroups, editingPost, draftText, closeComposer: closeSheet } = useComposer();
   const [params, setParams] = useSearchParams();
   function closeComposer() {
     closeSheet();
@@ -94,6 +94,7 @@ export function NewPostSheet() {
           groups={composerGroups}
           repostingTo={repostingTo}
           editingPost={editingPost}
+          draftText={draftText}
           onRepostCancel={clearReposting}
           onQueueMediaPost={uploads?.enabled && !isEditing && !repostingTo ? uploads.queue : undefined}
           onPostCreated={() => {

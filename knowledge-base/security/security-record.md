@@ -15,6 +15,21 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## People/Groups directory mixer (12.11.2026) — bounded feature coverage, OPEN
+
+GPT-6.1 Sol checks existing directory gates/order and the shared reader's direct
+SDK dispatch path. Directory ordering adds no permission bypass: profile
+readability and group discoverability/latest-before-filter remain unchanged.
+SDK tests deny injected group-directory URL fields/root credentials, retain
+explicit public/current-token modes and omit token/body/cookies from public GET.
+Reader controls cover quotas, mute, tiny weights, per-source failed offsets,
+denied-token no-anonymous-retry, old generations, sort support and colliding IDs.
+Foreign cards have no home mutations or fabricated app href. Existing approval
+controller remains the credential authority, not the catalog or returned rows.
+Independent fresh/model-diverse convergence, real ClickHouse lifecycle/HTTPS-node
+browser grants, foreign navigation/actions, physical-phone and rollout remain
+OPEN. No whole-surface L1–L4/security PASS or production action is claimed.
+
 ## One-time phone-probe recovery (11–12.11.2026) — bounded ops review, OPEN
 
 Production execution receipt, 5.28.1: operator approves the merged script and exact private plan; all five items complete once with exit 0, original object size/ETag and non-transcode metadata hashes retained, plus original post/group hashes unchanged. Five private attempt claims remain; no application deployment/restart, environment change, token export or access mutation. Each first HLS segment decodes H.264 frames, the remaining exact-error count is zero, and actual public post/Shorts Chromium at desktop/375px passes advancing-frame and pause/seek checks. Durable private verification receipt is retained with the run log in `~/web10-ops/phone-video-recovery/20261112T030158Z-57e36ce0/`; decoded segments were temporary and removed. Bounded recovery is observed, not whole-security/model-diverse/physical-phone/full-duration assurance.

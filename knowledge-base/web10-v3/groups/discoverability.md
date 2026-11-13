@@ -6,6 +6,13 @@ A group is **discoverable** when it is listed in the public, anon-browsable grou
 
 This doc is about the **directory** (the list) and the `discoverable` flag. The **detail** (reading a specific group by ID) is a separate, flexible surface — see `detail.md`. The two share the flag only in that the directory *filters on it*; the detail ignores it.
 
+The directory also returns canonical `created_at`. Its optional `sort` is `name`
+(the backwards-compatible API default), `popular` (current deduplicated member
+count, descending) or `newest` (group creation, descending), with group-ID ties
+and ordering before limit/offset. Neither editing the contract nor updating its
+face resets creation. Social/marketing request popular by default and expose
+Newest plus the server-source rack; see `../social/directory-mixer.md`.
+
 ## The Two Controls
 
 ### People > Groups: Membership Is Not Listing

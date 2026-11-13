@@ -4,18 +4,21 @@ import '@testing-library/jest-dom';
 
 import { lucideMock } from './helpers/lucideMock';
 vi.mock('lucide-react', () => lucideMock);
+const login = vi.hoisted(() => vi.fn(() => true));
+vi.mock('@/interfaces/auth', () => ({ getSocialAuth: () => ({ login }) }));
 
 import { Toaster, toast, errorMessage } from '@/components/shared/Toast';
 
 describe('Toast', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    login.mockReset().mockReturnValue(true);
   });
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  it('renders an error toast with the real reason and role=alert', () => {
+  it('explains missing approval, offers recovery, and keeps the exact reason in details', () => {
     render(<Toaster />);
     act(() => {
       toast.error('No app contract for https://social.dev.web10.app to create on web10-social-group-identity');
@@ -23,6 +26,10 @@ describe('Toast', () => {
     const el = screen.getByTestId('toast-error');
     expect(el).toBeInTheDocument();
     expect(el).toHaveAttribute('role', 'alert');
+    expect(el).toHaveTextContent('This app needs your approval');
+    expect(screen.getByRole('button', { name: 'Allow access' })).toBeInTheDocument();
+    act(() => { vi.advanceTimersByTime(10000); });
+    expect(el).toBeInTheDocument(); // an actionable approval request must not vanish
     expect(el).toHaveTextContent('No app contract for https://social.dev.web10.app to create on web10-social-group-identity');
   });
 
@@ -34,6 +41,26 @@ describe('Toast', () => {
     const el = screen.getByTestId('toast-success');
     expect(el).toHaveAttribute('role', 'status');
     expect(el).toHaveTextContent('Post published');
+  });
+
+  it('shows the exact arbitrary service in code and opens approval only on a tap', () => {
+    render(<Toaster />);
+    act(() => { toast.error('No app contract for https://app.example to create on recipes'); });
+    expect(screen.getByText('recipes', { selector: 'code' })).toBeVisible();
+    expect(login).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Allow access' }));
+    expect(login).toHaveBeenCalledTimes(1);
+    expect(screen.getByText(/return and try again/)).toBeVisible();
+  });
+
+  it('offers sign-in recovery for a caught dead-token failure, including a blocked popup', () => {
+    login.mockReturnValue(false);
+    render(<Toaster />);
+    act(() => { toast.error('incorrect token'); });
+    act(() => { vi.advanceTimersByTime(10000); });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in again' }));
+    expect(screen.getByText(/Allow pop-ups/)).toBeVisible();
+    expect(screen.getByTestId('toast-error')).toBeInTheDocument();
   });
 
   it('auto-dismisses after the timeout', () => {

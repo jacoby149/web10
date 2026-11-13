@@ -1358,7 +1358,7 @@ function mockFetch(routes: Record<string, unknown>) {
       if (url.includes(key)) {
         return {
           ok: true,
-          json: () => Promise.resolve(value),
+          json: () => Promise.resolve(url.includes('/directory') ? { sort: 'popular', ...(value as object) } : value),
         } as unknown as Response;
       }
     }
@@ -1454,7 +1454,7 @@ describe('ProfilesBrowser (C3)', () => {
     vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes('/v3/groups/directory')) {
-        return { ok: true, json: () => Promise.resolve({ groups: [], limit: 24, offset: 0 }) } as unknown as Response;
+        return { ok: true, json: () => Promise.resolve({ groups: [], limit: 24, offset: 0, sort: 'popular' }) } as unknown as Response;
       }
       throw new Error('network error');
     });
@@ -1529,10 +1529,10 @@ describe('ProfilesBrowser face media (the author-scoped face-prepare)', () => {
     vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url.includes('/v3/users/directory')) {
-        return { ok: true, json: () => Promise.resolve({ users, limit: 24, offset: 0 }) } as unknown as Response;
+        return { ok: true, json: () => Promise.resolve({ users, limit: 24, offset: 0, sort: 'popular' }) } as unknown as Response;
       }
       if (url.includes('/v3/groups/directory')) {
-        return { ok: true, json: () => Promise.resolve({ groups: [], limit: 24, offset: 0 }) } as unknown as Response;
+        return { ok: true, json: () => Promise.resolve({ groups: [], limit: 24, offset: 0, sort: 'popular' }) } as unknown as Response;
       }
       if (url.includes('/v3/query')) {
         queryCalls.push(JSON.parse(String(init?.body)));
@@ -1569,10 +1569,10 @@ describe('ProfilesBrowser face media (the author-scoped face-prepare)', () => {
     vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes('/v3/users/directory')) {
-        return { ok: true, json: () => Promise.resolve({ users, limit: 24, offset: 0 }) } as unknown as Response;
+        return { ok: true, json: () => Promise.resolve({ users, limit: 24, offset: 0, sort: 'popular' }) } as unknown as Response;
       }
       if (url.includes('/v3/groups/directory')) {
-        return { ok: true, json: () => Promise.resolve({ groups: [], limit: 24, offset: 0 }) } as unknown as Response;
+        return { ok: true, json: () => Promise.resolve({ groups: [], limit: 24, offset: 0, sort: 'popular' }) } as unknown as Response;
       }
       if (url.includes('/v3/query')) {
         queryCalls += 1;
@@ -1611,10 +1611,10 @@ describe('ProfilesBrowser group face media (the author-scoped face-prepare)', ()
     vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url.includes('/v3/users/directory')) {
-        return { ok: true, json: () => Promise.resolve({ users: [], limit: 24, offset: 0 }) } as unknown as Response;
+        return { ok: true, json: () => Promise.resolve({ users: [], limit: 24, offset: 0, sort: 'popular' }) } as unknown as Response;
       }
       if (url.includes('/v3/groups/directory')) {
-        return { ok: true, json: () => Promise.resolve({ groups, limit: 24, offset: 0 }) } as unknown as Response;
+        return { ok: true, json: () => Promise.resolve({ groups, limit: 24, offset: 0, sort: 'popular' }) } as unknown as Response;
       }
       if (url.includes('/v3/query')) {
         queryCalls.push(JSON.parse(String(init?.body)));
@@ -1664,10 +1664,10 @@ describe('ProfilesBrowser group face media (the author-scoped face-prepare)', ()
     vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes('/v3/users/directory')) {
-        return { ok: true, json: () => Promise.resolve({ users: [], limit: 24, offset: 0 }) } as unknown as Response;
+        return { ok: true, json: () => Promise.resolve({ users: [], limit: 24, offset: 0, sort: 'popular' }) } as unknown as Response;
       }
       if (url.includes('/v3/groups/directory')) {
-        return { ok: true, json: () => Promise.resolve({ groups, limit: 24, offset: 0 }) } as unknown as Response;
+        return { ok: true, json: () => Promise.resolve({ groups, limit: 24, offset: 0, sort: 'popular' }) } as unknown as Response;
       }
       if (url.includes('/v3/query')) {
         // No readable identity doc → empty rows → the card keeps the directory

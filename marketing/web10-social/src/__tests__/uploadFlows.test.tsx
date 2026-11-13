@@ -32,6 +32,17 @@ function Flow({ initial = film() }: { initial?: UploadTask }) {
 }
 
 describe('upload publishing UI (view model, no network)', () => {
+  it('offers approval and an explicit retry beside a paused upload without discarding saved progress', () => {
+    const command = vi.fn();
+    render(<MemoryRouter><UploadCard task={{ ...film('paused'), error: 'No app contract to create on public_media' }} onCommand={command} /></MemoryRouter>);
+    expect(screen.getByTestId('composer-access-recovery')).toHaveTextContent('This app needs your approval to create public_media');
+    expect(screen.getByText('public_media', { selector: 'code' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Allow access' })).toBeEnabled();
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '42');
+    expect(command).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(command).toHaveBeenCalledWith('film', { type: 'resume' });
+  });
   it('shows transferred bytes, percentage, estimate, fixed identity and audience', () => {
     render(<MemoryRouter><UploadCard task={film()} onCommand={vi.fn()} /></MemoryRouter>);
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '42');

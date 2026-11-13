@@ -65,9 +65,16 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 ## Phases
 
-- [✓ 5.30.0 local connected] **Social join connected acceptance** — real local signup/consent/token handoff, remembered-account return and password login from `/join` into a settled `/feed` at desktop/375px pass. No seeded browser token or pre-granted social contract; cancellation/retry retains the join page. Automatic auth close, live persisted social grant, enabled Following/composer and reload persistence verified; feed/consent captures inspected. Self-booting real apps/SDK/FastAPI/disposable ClickHouse fixture, loopback transport forwarding only. Production verification/contact delivery and deployment stay separate; no application/auth-policy change.
+- [✓ 5.32.0 local connected] **Social join connected acceptance** — real local signup/consent/token handoff, remembered-account return and password login from `/join` into a settled `/feed` at desktop/375px pass. No seeded browser token or pre-granted social contract; cancellation/retry retains the join page. Automatic auth close, live persisted social grant, enabled Following/composer and reload persistence verified; feed/consent captures inspected. Self-booting real apps/SDK/FastAPI/disposable ClickHouse fixture, loopback transport forwarding only. Production verification/contact delivery and deployment stay separate; no application/auth-policy change.
 
-- [✓ 5.30.0 local] **Social join landing** — public `/join` and signed-out `/` pitch inside web10-social; existing signup/login/consent callback enters `/feed`, signed-in entry skips the pitch. Anonymous content deep links and Explore first retained. Route/CTA/blocked-popup/auth-transition controls and build pass; actual-app Chromium passes both themes at 375/768/1280/1440, with inspected desktop/375px captures. Real popup opening/cancellation/retry exercised against an isolated destination, not a completed account/consent handoff. No SDK/auth-policy/API/deployment change; connected acceptance remains separate.
+- [✓ 5.32.0 local] **Social join landing** — public `/join` and signed-out `/` pitch inside web10-social; existing signup/login/consent callback enters `/feed`, signed-in entry skips the pitch. Anonymous content deep links and Explore first retained. Route/CTA/blocked-popup/auth-transition controls and build pass; actual-app Chromium passes both themes at 375/768/1280/1440, with inspected desktop/375px captures. Real popup opening/cancellation/retry exercised against an isolated destination, not a completed account/consent handoff. No SDK/auth-policy/API/deployment change; connected acceptance remains separate.
+
+- [✓ 5.30.1 local] **Match the other pages' Advanced mixer disclosure** — replace People/Groups' separate Servers CTA with the same left-aligned Advanced / Hide controls treatment, icons/chevron and tucked animated/inert chassis in both apps. Sort by stays visible; URL state, weights and sorting are preserved. All 102 social/106 marketing focused controls and both builds pass; both-theme 1440/375/768/1280 browser checks plus inspected desktop/375px collapsed/expanded captures pass. No ranking, API, approval or deployment change.
+
+- [✓ 5.30.0 local; connected/review OPEN] **People/Groups server mixer and simple sort** — shared source rack in both directories; independent URL-owned Newest/Most followers and Newest/Most members, canonical creation and source ordering before pagination. No power mean. Real smooth quotas, mute/retry/separate offsets, approved dispatch, source-qualified read-only foreign cards and preserved home graph/actions. All 2,528 social/379 marketing/319 SDK/2,268 API tests plus eight subtests pass (one opt-in skip), both builds and changed-file lint/format pass. Actual-app synthetic browser checks both themes at 1440/375/768/1280; desktop/375px captures inspected. Faceless marketing retry loop and consecutive-fader stale-weight regression repaired. Contract/receipts: `web10-v3/social/directory-mixer.md`. Independent HTTPS-node/real-DB lifecycle, review/CI, foreign actions and rollout remain separate.
+- [ ] **Directory mixer connected acceptance** — use isolated independently keyed HTTPS nodes to verify actual sorted account/group creation, current audience history, Origin/app-grant approval and denial, per-source pagination/mute/retry, colliding names, removal/regrant/account-switch fencing and serving-node faces. Requires local 5.30.0, source approval and disposable-node access; retain public no-token and denied-token no-anonymous-fallback controls. No production writes, deployment or implied foreign action/navigation implementation.
+
+- [✓ 5.29.2 local] **Recover social upload/post permission failures without losing the draft** — inline approval/retry for caught composer/upload 401/403 failures, persistent actionable missing-approval/dead-token toasts, exact service names in code and same-account/file/metadata reuse of completed uploads. Preserve explicit retry, blocked-popup and skipped-approval truth; no automatic approval/publication or API/SDK change. Include only existing-rule username hints in the authenticator; broader consent/login/permission-screen redesign is explicitly excluded. Focused/full tests, both builds and isolated desktop/375px browser evidence are local gates; original skipped-consent cause, real-node/phone and deployment acceptance remain separate.
 
 - [✓ 5.28.0 merged #1517; recovery receipt 5.28.1] **One-time recovery for historical phone-probe failures** — operator replaces the periodic design with the ops script, private planning and explicit node/source-bound sequential apply, canonical checks, private claims and scoped metadata preservation around the installed converter. No API runtime/settings/Compose changes, endpoint, recurring scan or app deployment/restart. All 2,264 tests/eight subtests (one opt-in skip), 23 script controls, lint/format, real dev ClickHouse/MinIO/FFmpeg and PR checks pass; fresh bounded review has no P1/P2. Production five-video recovery and desktop/375px public playback receipt is recorded in 5.28.1; physical-phone/full-duration/model-diverse assurance remains separate.
 
@@ -899,6 +906,30 @@ Lane: `engine-group-metadata` in `parallel-execution.md`.
 
 Lane: `global-search` in `parallel-execution.md`.
 
+## Hashtags: the second social token (D110) — web10-social + shared discover
+
+**Operator pass (11.11.2026):** "how do # hashtags work? can i add them to a post? trying to edit post added #walking to the text, not showing as a hashtag" + "yeah, we need to build this, hashtagging." **The full contract: `knowledge-base/web10-v3/social/hashtags.md`.** The one-liner: `#word` in the post body becomes the body's second social token (after the @mention, D85) — typed in plain prose, derived into `body.hashtags` on write (NOT the doc `tags` column, which is the machine's vocabulary), rendered as a tappable topic link on every read surface, landing on the public newest-first `/tag/:hashtag` board (the app's own D73 SELECT over the discover group — anon-capable, I3-walled, zero node surface D60).
+
+- [✓ 5.31.0 local] **H1: the hashtag loop** — the shared pattern + remark plugin (`@web10/discover/hashtags`, the `./mentions` idiom), the write derivation (`data/hashtags.ts` + `createPost`/`updatePost` → `body.hashtags`, `PostRecord.hashtags`), the read render (`PostBody`/`PostBodyInline`/`MarkdownText`/`CommentThread` — the `/tag/` link, mention treatment, opt-in so marketing-ui stays inert), the board (`HashtagScreen` + `/tag/:hashtag` route, the feed's `PostCard` over `readFeedPage`'s new `hashtags` filter, all designed states + the composer `draftText` prefill for the empty CTA), the Discover topic-chip union (`tags ∪ hashtags`, the `?tag=`/`?q=` filters). All 2,547 social/378 marketing tests, both builds/typechecks and eight light/dark responsive browser cases pass; desktop/375px captures inspected. Isolated data, not connected-node/live publishing or deployment acceptance. KB: `social/hashtags.md` + the `rich-text.md` / `post-render.md` touch-ups. D110.
+- [ ] **H2: the composer's `#` picker** — type `#`, the shared people-picker UX over existing hashtags (the distinct-hashtags aggregation read, bounded + cached; the suggestion source is the board's pool, not a global index). Gate: H1.
+- [✓ 5.31.1 local; CI OPEN] **H-RAIL: scalable feed topic controls** — operator keeps the top All / hashtag rail but requires usability with 1,000 topics. Replace the hidden first-12 cutoff with bounded quick chips, a pinned active filter and a searchable, 40-result-paged inline picker over the complete loaded-feed topic pool. URL-owned picker/search/page plus existing `tag`; preserve unrelated URL state, keyboard/focus/empty/long-label behavior. Gate: H1; 1,000-topic tests and both-theme desktop/375px captures, full social suite/build and all PR checks. Eight fresh browser cases pass, desktop/375px captures inspected; PR checks remain a separate gate. No global index or node change; `social/hashtags.md`.
+- [ ] **H3: the board's count + Top 10 rail** — the total-count query + a ranked rail (the Hot Gossip sidebar idiom) so the board reads as a destination, not a list. Gate: H1.
+- [ ] **H4: comment-hashtag aggregation + global-search hashtag section** — the board reads `comments` too (or a hashtag index over them) and the top-bar search carries a `#` section. Gate: H1.
+- [ ] **H5: marketing-ui's `/tag` equivalent** — the `/trending` topic hand-off for the shared app's hashtags (its MarkdownText opts in with its own href factory). Gate: H1.
+
+Local H-RAIL gates pass: 2,583 social/379 marketing tests, both builds/typechecks,
+eight 1,000-topic browser cases and eight core-hashtag browser regressions.
+PR #1524 stays blocked on the directory E2E owner's existing `limit=500` request
+against the API's 100-row cap (`groups-demo.spec.ts:421`). Identical base failure:
+dev `876e672abcde`, run 43314207713/job 131517832352. Preserve the API cap and
+listed/hidden assertions; align the test with bounded pagination, then rerun CI.
+
+Lane: `hashtags` in `parallel-execution.md`.
+
+H1's standard composer/repost/edit loop does not backfill historical content.
+The default-off resumable queue's separate deferred-body writer needs upload-owner
+hashtag derivation before queued-post parity; coordination note in the lane.
+
 ## Discover Reorg: Posts + People + Groups as browsers — web10-social + marketing
 
 **Operator pass (18.09.2026):** "discover can have posts, people and groups subtabs in it" + "a whole other people tab totally unecessary, can all be in discover, it helps the marketing site too!" + "groups and people also need pagination and search." **The full plan (design, current state, open decision, bite sizing, acceptance bar): `knowledge-base/strategy/discover-reorg.md`.** The one-liner: Discover becomes *the* discovery surface — **Posts | People | Groups** subtabs (`?tab=`, posts bare) as **browsers** (paged + sortable). **Search is NOT here** — it's the top-bar everything-search (`global-search.md`); each subtab is reached *with a query* via "see more" (`?q=`). The Groups tab keeps only the groups you're a part of; the People tab is retired (`/people` → `/discover?tab=people`); the marketing `/trending` mirrors the three (the dead `PATCH /discover/users` row is replaced by a real read). Rationale: *"you are discovering people and groups."* **The People browser is the highest-risk, lowest-certainty bite** (its value is contingent on node population).
@@ -1436,7 +1467,48 @@ docs before code, per the rule at the top.
 
 ### Current directive — derived realism dataset (11 November 2026)
 
-**New run, 12 November 12:53 UTC:** new approved 14-hour preparation lease
+**Operator amendment, 12 November:** switch finished-dataset validation from
+DuckDB to ClickHouse: “we should switch the duckdb to clickhouse for validation,
+i have more confidence + it matches the rest of our stuff”. Generation and
+frozen input bytes stay unchanged. No automatic DuckDB fallback, approximate
+counts, new paid resources or relaxed validation/lease gates. Translate and
+prove all 50 checks on passing and deliberately broken inputs before retrying
+the stopped 1M validation; retain the DuckDB implementation only as a bounded
+comparison/reference and for existing separate feed-oracle callers.
+- [✓ 5.31.3 code/local/native smoke; full 1M OPEN] **RD3-CLICKHOUSE: switch finished-record validation to ClickHouse** —
+  owns research validator/worker/admission tests and serialized KB records.
+  Preserve exact medians/quantiles, duplicate-sensitive raw imports, null-join
+  semantics, deletion-winning canonical documents, all 50 verdicts, source/engine
+  receipt binding and failed-result retention. Prove real-engine parity and
+  mutation denial, keep memory/spill/time limits and isolated persistent work.
+  Actual 1M throughput, storage/review/connected/experiment gates remain open.
+  Eleven actual-engine controls and thirteen offline suites/five Bun tests/lint
+  pass. Source-stable 10k/16M validation is 50/50, exact reports match the
+  bounded reference; sampled dataset+scratch peak 1.106 GB, not full-scale proof.
+  Native package/source checks and 1M-event prefix smoke pass on host 618505005.
+  At 00:19:48 UTC Nov 13, resume the same generated 1M input with ClickHouse;
+  no generator/floor rerun, resize, new host or deadline extension. Keep 400 GiB,
+  02:50:22 UTC cleanup, mounted reserve and retained volume; 12-GiB/one-CPU
+  service cap complements 2 GB/one-thread queries. Full validation remains open.
+
+**Current run, 13 November 00:20 UTC:** ClickHouse-backed resume is active on
+the same host/400-GiB Volume, reverifying the completed input before SQL checks.
+Source pins/native smoke/local 50-check gates are retained in
+`research/experiments/costfn/evidence/REALISM-CLICKHOUSE-20261112.md`. No new
+resource or extension; 02:50:22 UTC cleanup and final 1M validation gate remain.
+At 00:22 UTC, all generation hashes reverify and actual ClickHouse validation
+is importing events after app contracts/cohorts; 346.83 GB free, no reported
+error. This is not a passing 1M receipt or an overall completion estimate.
+
+**Prior incident checkpoint, 12 November 21:30 UTC:** all nine final files and the
+manifest exist for `2d6bbc4d89df`; exact source/identity/size/SHA reverification
+passes. Validation stopped at 19:19 UTC after the global event sort filled
+scratch with 327.48 GB of spill. Only inventoried disposable spill was cleared;
+dataset, old database/partitions/logs remain. Bounded radix repair controls and
+local 10k/16M validation (50/50) pass; cloud probes/restart and full 1M validation
+remain open. Evidence: `research/experiments/costfn/evidence/REALISM-RADIX-20261112.md`.
+
+**Launch history, 12 November 12:53 UTC:** new approved 14-hour preparation lease
 `3ef3634d8983`, droplet `618505005`, 400-GiB persistent work Volume. Pinned SSH,
 source hashes, exact mount/UUID and synced-file unmount/remount readback pass;
 the actual 1M generator is active with `persistent_work=true`. Compute deadline
@@ -1517,6 +1589,7 @@ floor rerun, memory-limit increase or validation/storage/experiment completion.
 
 - [~] **RD3-VALIDATOR-THROUGHPUT:** operator-requested first-pass volume-aware complete-key sizing, bounded writer/worker concurrency and source/input-bound recovery checkpoints. Preserve every row/check and the approved aggregate resource envelope; prove exact parity, interruption/stale refusal and measured same-host throughput before adoption. The earlier run is now deleted, not advancing: last retained snapshot 03:57 UTC, deletion verified 10:02:47 UTC Nov 12. First bite: histogram-admit correctly sized complete-key buckets before writing, bound open files/flush buffers and prove exact parity plus local resource measurements. Parallel validation/checkpoint orchestration remains separate, not inferred from this repair.
   - [✓ 5.28.6 local only] **Volume-aware first pass:** exact histogram before writing, grouped destinations and bounded open files/flush buffers remove the oversized-bucket rewrite without tiny-file explosion. Three paired 2M-row local medians 3.50→1.91s, temporary Parquet 81.55→51.63MB; exact controls and a fresh 10k/16M-delivery full validation (50/50) pass. Cloud/1M scratch/throughput, parallelism and restart checkpoints remain open; not full RD3 acceptance.
+  - [✓ 5.31.2 local repair; cloud/1M OPEN] **Bound partition scratch without a global sort:** replace grouped all-row sorting with at most 32 hash-digit writers per COPY, exact intermediate/final histogram conservation and verified intermediate cleanup. Preserve all columns/multiplicities/complete keys and 2 GB/one-thread settings; cap DuckDB spill at 100 GB. Seven controls, ten realism suites and local 10k/16M validation pass. Existing completed 1M input is hash-verified and preserved; no regeneration, extra host/storage or lease extension. Same-host probe/restart and full 1M validation remain separate gates; `REALISM-RADIX-20261112.md` records the incident.
 - [ ] **RD3-RESTART-SAFETY:** latest operator direction is one persistent prep Volume, normal files/state/logs and scoped compute cleanup—not a whole-workflow checkpoint/archive framework. Verify exact volume/mount identity and retained-file/log readback after compute replacement, with separately approved storage retention/cost and new bounded compute approval. The old lease stays closed; disk survival is not dataset validation or final object-store archival acceptance.
   - [~] **RD3-RECOVERY:** latest operator correction narrows persistence to the one data-preparation droplet; experiments retain normal output logs/results, not a checkpoint framework. [✓ 5.29.0 local code] Pin the actual provider Volume, require exact mount/filesystem UUID in the worker CLI, and keep dataset/state/appended logs plus validation scratch on it; compute cleanup preserves the disk. Partial work is not automatic resume proof. Supersedes the 5.28.7 whole-workflow proposal. `REALISM-RECOVERY.md` covers the small implementation; actual attach/replacement/file-readback, storage cost/retention and new paid-run approval remain OPEN. No provisioning/mount/experiment change.
   - [✓ 5.28.6 historical; superseded 5.29.0] Remove the metadata-only readiness gate; actual provider-volume lookup plus exact mount/UUID verification replaces it. No offline receipt was actual connected durability evidence. Experiment checkpointing/controller orchestration is out of scope; their normal output logs/results remain.

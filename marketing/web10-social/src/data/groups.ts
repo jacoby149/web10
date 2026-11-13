@@ -936,6 +936,9 @@ export async function unblockUser(blockedKey: string) {
  *  identity service) — the field is optional for forward-compat. */
 export interface GroupDirectoryEntry {
   group_id: string;
+  created_at?: string;
+  source_origin?: string;
+  source_key?: string;
   name: string;
   owner: string;
   slug: string;
@@ -1017,10 +1020,11 @@ export interface GroupIdentity {
 export async function readGroupDirectory(
   limit = 50,
   offset = 0,
+  sort?: 'popular' | 'newest',
 ): Promise<GroupDirectoryEntry[]> {
   LOG('readGroupDirectory — start', { limit, offset });
   const res = await fetch(
-    `${API_ORIGIN}/v3/groups/directory?limit=${limit}&offset=${offset}`,
+    `${API_ORIGIN}/v3/groups/directory?limit=${limit}&offset=${offset}${sort ? `&sort=${sort}` : ''}`,
     { headers: { 'Content-Type': 'application/json' } },
   );
   if (!res.ok) {
@@ -1028,7 +1032,8 @@ export async function readGroupDirectory(
     LOG('readGroupDirectory — failed', res.status, detail ?? '');
     throw new Error(detail ?? `Group directory read failed: ${res.status}`);
   }
-  const data = (await res.json()) as { groups: GroupDirectoryEntry[] };
+  const data = (await res.json()) as { groups: GroupDirectoryEntry[]; sort?: string };
+  if (sort && data.sort !== sort) throw new Error('This server does not support the selected directory sort.');
   LOG('readGroupDirectory — got', data.groups.length, 'groups');
   return data.groups;
 }

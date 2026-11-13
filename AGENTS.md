@@ -345,6 +345,23 @@ does not merge.
 
 ## Auth model
 
+People/Groups discovery reuses the server-source mixer with independent simple
+Newest/audience sorts, not post power-mean ranking. Canonical account/group
+creation and current member counts order each source before pagination. Social
+retains the private catalog and current-credential destination approvals;
+marketing is credential-free. Source-qualified foreign directory cards are
+read-only, never home-node follow/join or invented foreign app links. Personal
+graph/My Groups authority remains home-scoped. Contract and acceptance limits:
+`knowledge-base/web10-v3/social/directory-mixer.md`.
+
+Social's caught upload/post permission failures offer approval and explicit retry
+beside the retained draft; missing-approval/dead-token toasts keep a manual action.
+Opening the existing auth window is not approval. Completed media reuse is scoped
+to the same account/node/service/file/metadata; the API still authorizes the retry.
+Only existing-rule username hints accompany this repair; authenticator consent,
+login behavior and validation remain unchanged. Local/connected limits:
+`knowledge-base/web10-v3/auth/auth.md` “Social action recovery”.
+
 Music's live playlist bookmarks use personal `web10-social-playlist-bookmarks`
 documents in the human's own followers group, never acting-group authority or a
 target membership grant. Login consent and access recovery both request this
@@ -851,6 +868,14 @@ knowledge-base/strategy/plan.md, CI workflows). If you're unsure, target `dev`.
   gated on unmerged work, say so in the kickoff.
 
 ## Running it
+
+Research dataset generation remains DuckDB-based, but finished-record validation
+now defaults to isolated ClickHouse 24.8.14.39, not the measured node or a shared
+server. Preserve raw multiplicities and exact checks; receipts pin engine and
+validator dependencies, with no DuckDB fallback. Explicit bounded references/
+connected-feed oracle helpers remain separate. Native query limits are not a
+whole-process/disk guarantee; retain approved prep volume/reserve/compute gates.
+Contract: `research/experiments/costfn/REALISM-CLICKHOUSE.md`.
 
 `docker-compose.yml` brings the stack up locally (`*.localhost` vhosts).
 The target one-container experience (`docker run … web10/node`) is plan
