@@ -49,7 +49,9 @@ class ReceiptTests(unittest.TestCase):
 
     def test_resource_and_exactness_settings_are_explicit(self):
         self.assertEqual(engine.SETTINGS['max_memory_usage'],'2000000000')
-        self.assertEqual(engine.SETTINGS['max_threads'],'1')
+        self.assertEqual(engine.SETTINGS['max_threads'],'4')
+        self.assertEqual(engine.SETTINGS['max_insert_threads'],'4')
+        self.assertEqual(engine.SETTINGS['max_execution_time'],'5400')
         self.assertEqual(engine.SETTINGS['count_distinct_implementation'],'uniqExact')
         self.assertEqual(engine.SETTINGS['join_use_nulls'],'1')
         self.assertEqual(engine.SETTINGS['max_temporary_data_on_disk_size_for_query'],'100000000000')
@@ -73,6 +75,15 @@ class ReceiptTests(unittest.TestCase):
                 result=validator.validate(directory,root/'receipt.json')
             self.assertFalse(result['complete'])
             self.assertFalse(result['checks']['unchanged_validator_during_run'])
+
+    def test_lease_deadline_refuses_query_before_process_start(self):
+        db=object.__new__(engine.ClickHouse)
+        db.prefix=[]
+        db.path='unused'
+        with patch.dict(os.environ,{'REALISM_PREP_DEADLINE':'1'}),patch.object(engine.subprocess,'Popen') as process:
+            with self.assertRaisesRegex(RuntimeError,'deadline'):
+                db.query('SELECT 1')
+            process.assert_not_called()
 
 
 @unittest.skipUnless(os.environ.get('REALISM_CLICKHOUSE_TESTS')=='1','opt in to real ClickHouse binary/container')
@@ -184,6 +195,37 @@ class EngineTests(unittest.TestCase):
             self.assertTrue(db.scalar(engine.DELIVERY_WINDOW_SQL))
             db.query("INSERT INTO content_events VALUES ('p','r','feed','2026-01-01 23:59:59.999999')")
             self.assertFalse(db.scalar(engine.DELIVERY_WINDOW_SQL))
+
+    def test_completed_import_reuse_partial_refusal_and_stale_context(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            directory,manifest=self.fixture(root)
+            work=root/'work'
+            work.mkdir()
+            db=engine.ClickHouse(work,directory)
+            self.addCleanup(db.close)
+            db.bind_imports(manifest)
+            info=manifest['files']['documents']
+            with patch.object(engine,'atomic_json',side_effect=RuntimeError('interrupted before completion marker')):
+                with self.assertRaisesRegex(RuntimeError,'interrupted'):
+                    db.import_table('documents',info)
+            self.assertFalse((work/'imports/documents.json').exists())
+            db.import_table('documents',info)
+            self.assertEqual(db.scalar("SELECT count() FROM system.tables WHERE database='validation' AND name LIKE 'interrupted_documents_%'"),1)
+            before=json.loads((work/'imports/documents.json').read_text())
+            db.close()
+            db=engine.ClickHouse(work,directory)
+            self.addCleanup(db.close)
+            db.bind_imports(manifest)
+            with patch.object(db,'table',side_effect=AssertionError('completed import must not rerun')):
+                db.import_table('documents',info)
+            self.assertEqual(json.loads((work/'imports/documents.json').read_text()),before)
+            with self.assertRaisesRegex(ValueError,'stale input/source/engine'):
+                db.bind_imports({**manifest,'dataset_id':'changed'})
+            db.query('INSERT INTO documents SELECT * FROM documents LIMIT 1')
+            with self.assertRaisesRegex(ValueError,'no longer matches'):
+                db.import_table('documents',info)
+            db.close()
 
 
 if __name__=='__main__':

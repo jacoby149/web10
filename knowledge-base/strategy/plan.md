@@ -1463,6 +1463,22 @@ docs before code, per the rule at the top.
 
 ### Current directive — derived realism dataset (11 November 2026)
 
+**13 November timeout repair [✓ 5.31.4 controls/retry; 1M OPEN]:** the ClickHouse import stops
+at its 1800-second query limit with 450,020,966/1.6B rows, not an OOM/disk failure.
+Operator asks to fix and retry. Use four bounded CPU threads on the existing
+8-core host, retain the 2-GB query/12-GiB service memory and disk guards, and
+replace the undersized per-query timeout without extending the compute lease.
+Add visible read progress and input/source/engine-bound atomic whole-import
+markers; only verified completed imports may be reused. Preserve/refuse the
+unmarked 450M partial table. No guessed offsets, regeneration, new resources,
+storage resize or automatic spending extension; final 1M validation stays open.
+Thirteen real-engine controls/fourteen offline suites/five Bun/lint pass; the
+unchanged 10k/16M input passes all 50 checks with exact report parity. Retry
+starts 01:31:34 UTC on host 618505005, four CPUs/12-GiB aggregate service cap,
+4131-second runtime and query deadline shortened before the same 02:40 worker
+stop/02:50 cleanup. Old partial work/negative receipt remain. Evidence:
+`research/experiments/costfn/evidence/REALISM-IMPORT-RETRY-20261113.md`.
+
 **Operator amendment, 12 November:** switch finished-dataset validation from
 DuckDB to ClickHouse: “we should switch the duckdb to clickhouse for validation,
 i have more confidence + it matches the rest of our stuff”. Generation and
@@ -1487,7 +1503,15 @@ comparison/reference and for existing separate feed-oracle callers.
   02:50:22 UTC cleanup, mounted reserve and retained volume; 12-GiB/one-CPU
   service cap complements 2 GB/one-thread queries. Full validation remains open.
 
-**Current run, 13 November 00:20 UTC:** ClickHouse-backed resume is active on
+**Current run, 13 November 01:31 UTC:** repaired ClickHouse resume is active,
+first reverifying the completed generation; four CPUs, unchanged memory/disk/
+retention/lease limits. Full validation remains open. The preceding run below
+timed out during event import; it did not reject the statistical dataset.
+01:33 UTC: hashes reverified; app-contract/cohort imports count-verified and
+marked complete; event import active with 45.97M rows read (not committed/import
+completion). About 336.67 GB free and no reported error.
+
+**Prior run, 13 November 00:20 UTC:** ClickHouse-backed resume starts on
 the same host/400-GiB Volume, reverifying the completed input before SQL checks.
 Source pins/native smoke/local 50-check gates are retained in
 `research/experiments/costfn/evidence/REALISM-CLICKHOUSE-20261112.md`. No new
