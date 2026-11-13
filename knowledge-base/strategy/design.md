@@ -499,6 +499,13 @@ Keep the header's Acting as label, current name/avatar and visible expand arrow
 on phones and desktop. The first menu action is View profile; Change identity
 is the visible second action and needs another tap to open the existing picker.
 Profile navigation never changes the selected posting identity or grants authority.
+The small profile menu is a compact, collision-aware popover anchored beneath
+the header trigger on phones as well as desktop, not a bottom sheet. Use two
+tight 44px-or-larger action rows without a repeated heading/close/card stack.
+Only the full identity chooser uses the phone bottom sheet after the second tap.
+Below the profile card, More's action order is People, Messages, Appearance,
+Settings, Monetization, then admin-only Node Settings. Keep the card premier;
+People is the first ordinary navigation row.
 
 The social shell may use Apple-inspired frosted chrome: a floating mobile dock,
 smoked dark / milky light headers, sidebar and navigation menus. Content, forms

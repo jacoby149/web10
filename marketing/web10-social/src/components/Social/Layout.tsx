@@ -301,7 +301,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
           <Wordmark />
         </div>
         <nav className="relative flex-1 px-2 space-y-1" aria-label="Primary">
-          {!isAnon && <div className="mb-3"><ActingIdentitySwitcher personalName={displayName || username} personalAvatar={avatarUrl} onViewProfile={() => go(profileItem.path)} /></div>}
+          {!isAnon && <div className="mb-3"><ActingIdentitySwitcher personalName={displayName || username} personalAvatar={avatarUrl} onViewProfile={() => go(profileItem.path)} onCreateGroup={() => go('/groups')} /></div>}
           {sidebarNavItems.map(({ path, icon: Icon, label, testId }) => {
             const target = path === '/profile' ? profilePath : path;
             // The profile item shows the user's own name (the operator's call:
@@ -436,7 +436,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
       <main className="flex-1 flex flex-col min-w-0 min-h-0" data-replay-private={/^\/(?:messages|settings|node-settings|monetize|notifications|uploads)(?:\/|$)/.test(pathname) ? '' : undefined}>
         <header data-testid="topbar-mobile" className="chrome-glass md:hidden flex shrink-0 items-center justify-between px-4 h-14 border-b sticky top-0 z-20 gap-2">
           <Wordmark className="shrink-0 [&_.wordmark-label]:hidden" />
-          {!isAnon && <ActingIdentitySwitcher personalName={displayName || username} personalAvatar={avatarUrl} onViewProfile={() => go(profileItem.path)} />}
+          {!isAnon && <ActingIdentitySwitcher personalName={displayName || username} personalAvatar={avatarUrl} onViewProfile={() => go(profileItem.path)} onCreateGroup={() => go('/groups')} />}
           <div className="flex items-center gap-1">
             {isAnon && <button type="button" aria-label="Appearance" data-testid="nav-appearance-anon"
               onClick={() => navigate('/appearance')} className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-elevated hover:text-foreground">
@@ -752,10 +752,6 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                   <Avatar className="h-12 w-12 shrink-0">{avatarUrl && <AvatarImage src={avatarUrl} alt="" />}<AvatarFallback className="bg-brand-muted text-brand-300">{(displayName || username || '?').charAt(0).toUpperCase()}</AvatarFallback></Avatar>
                   <span className="min-w-0 flex-1"><span className="block truncate text-base font-semibold text-foreground">{displayName || username || 'Your profile'}</span><span className="mt-1 block truncate text-xs text-muted-foreground">@{username}</span><span className="mt-1 block text-sm font-medium text-brand-300">View profile</span></span>
                 </button>
-                <button type="button" data-testid="nav-appearance-mobile" onClick={() => go('/appearance')}
-                  className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground hover:bg-elevated">
-                  <Palette className="h-5 w-5" strokeWidth={1.75} />Appearance
-                </button>
                 {/* People — the discovery/browse surface, kept in More. */}
                 <button
                   data-testid="nav-people-mobile"
@@ -780,6 +776,10 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                   <MessageSquare className="w-5 h-5" strokeWidth={1.75} />
                   {messagesItem.label}
                   {messagesUnread > 0 && <span data-testid="nav-messages-badge-mobile" className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1.5 text-xs font-semibold text-background">{messagesUnread > 99 ? '99+' : messagesUnread}</span>}
+                </button>
+                <button type="button" data-testid="nav-appearance-mobile" onClick={() => go('/appearance')}
+                  className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground hover:bg-elevated">
+                  <Palette className="h-5 w-5" strokeWidth={1.75} />Appearance
                 </button>
                 <button
                   data-testid="nav-settings-mobile"
