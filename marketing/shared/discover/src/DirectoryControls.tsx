@@ -4,6 +4,7 @@ import { ChevronDown, SlidersHorizontal } from 'lucide-react';
 import { FeedSourcesEditor, type SourceEditorControl } from './FeedSourcesEditor';
 import type { ServerAllocation } from './sourceAllocation';
 import type { DirectoryKind, DirectorySort } from './directoryMixer';
+import { DirectorySortSelector } from './DirectorySortSelector';
 
 export function directorySort(params: URLSearchParams, kind: DirectoryKind): DirectorySort {
   return params.get(kind === 'profiles' ? 'peopleSort' : 'groupSort') === 'newest' ? 'newest' : 'popular';
@@ -18,18 +19,11 @@ export function DirectoryControls({ kind, control, errors, allocations, onRetry,
   const expanded = params.get('tune') === '1' || params.get('editServers') === '1';
   const button = 'min-h-11 rounded-lg border border-border bg-surface px-3 text-sm text-foreground transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
   return <div data-testid="directory-controls" className="space-y-3 py-3">
-    <div className="flex flex-wrap items-center gap-3">
-      <label className="flex items-center gap-2 text-xs text-muted-foreground">Sort by
-        <select aria-label={kind === 'profiles' ? 'Sort profiles' : 'Sort groups'} className={button} value={directorySort(params, kind)} onChange={event => setParams(previous => {
-          const next = new URLSearchParams(previous), key = kind === 'profiles' ? 'peopleSort' : 'groupSort';
-          if (event.target.value === 'popular') next.delete(key); else next.set(key, event.target.value);
-          return next;
-        })}>
-          <option value="popular">{kind === 'profiles' ? 'Most followers' : 'Most members'}</option>
-          <option value="newest">Newest</option>
-        </select>
-      </label>
-    </div>
+    <DirectorySortSelector kind={kind} value={directorySort(params, kind)} onChange={value => setParams(previous => {
+      const next = new URLSearchParams(previous), key = kind === 'profiles' ? 'peopleSort' : 'groupSort';
+      if (value === 'popular') next.delete(key); else next.set(key, value);
+      return next;
+    })} />
     {/* Match the other boards' Advanced disclosure, not a separate Servers CTA. */}
     <div className="mt-3 flex justify-start">
       <button type="button" data-testid="directory-advanced-toggle" aria-controls={panelId} aria-expanded={expanded}
