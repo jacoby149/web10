@@ -12,13 +12,12 @@ const port = Number(process.env.SCREENSHOT_PORT || 4583);
 const base = `http://localhost:${port}/screenshots/harness/index.html`;
 const server = spawn('bunx', ['vite', '--config', 'screenshots/vite.config.ts'], { cwd: root, stdio: 'inherit', env: { ...process.env, SCREENSHOT_PORT: String(port) } });
 const receipt = [];
-const settle = page => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-async function glassPixels(page, player, theme) {
-  // Freeze real playback before pixel comparison: a moving seek thumb/time
-  // label is not optical displacement and must not pollute the measurement.
+async function frostChecks(page, player) {
   await page.evaluate(() => window.sessionHandlers.get('pause')({ action: 'pause' }));
   await page.waitForFunction(() => navigator.mediaSession.playbackState === 'paused');
-  await player.getByTestId('player-refraction').waitFor();
+  assert.equal(await player.locator('.chrome-dock-rim, filter, feDisplacementMap').count(), 0, 'player has no refraction layers or lens');
+  await page.getByTestId('dock-refraction').waitFor();
+  assert.notEqual(await player.locator('.chrome-dock-bed').evaluate(el => getComputedStyle(el).backdropFilter), 'none', 'player keeps its ordinary frost');
   const contrast = await player.evaluate(el => {
     const canvas = document.createElement('canvas'); canvas.width = canvas.height = 1;
     const ctx = canvas.getContext('2d');
@@ -35,38 +34,6 @@ async function glassPixels(page, player, theme) {
     });
   });
   assert.ok(contrast.every(value => value >= 4.5), `player secondary text AA over extreme backdrops: ${contrast}`);
-  const filter = player.locator('feDisplacementMap');
-  const fixture = await page.addStyleTag({ content: 'body::after { content:""; position:fixed; inset:0; z-index:29; background:var(--color-background); pointer-events:none; }' });
-  const diff = async (on, off) => page.evaluate(async ([a, b]) => {
-    const pixels = async input => {
-      const image = await createImageBitmap(await (await fetch(`data:image/png;base64,${input}`)).blob());
-      const canvas = new OffscreenCanvas(image.width, image.height), ctx = canvas.getContext('2d');
-      ctx.drawImage(image, 0, 0); return ctx.getImageData(0, 0, image.width, image.height);
-    };
-    const [first, second] = await Promise.all([pixels(a), pixels(b)]);
-    let changed = 0, centerChanged = 0;
-    for (let y = 0; y < first.height; y++) for (let x = 0; x < first.width; x++) {
-      const i = (y * first.width + x) * 4;
-      const delta = [0, 1, 2].reduce((n, c) => n + Math.abs(first.data[i + c] - second.data[i + c]), 0);
-      if (delta > 15) { changed++; if (x > 24 && x < first.width - 24 && y > 12 && y < first.height - 12) centerChanged++; }
-    }
-    return { changed, centerChanged };
-  }, [on.toString('base64'), off.toString('base64')]);
-  const compare = async name => {
-    await filter.evaluate(el => el.setAttribute('scale', '18')); await settle(page);
-    const on = await player.screenshot({ path: path.join(output, `${name}-on-${theme}.png`) });
-    await filter.evaluate(el => el.setAttribute('scale', '0')); await settle(page);
-    const off = await player.screenshot({ path: path.join(output, `${name}-zero-${theme}.png`) });
-    return diff(on, off);
-  };
-  const flat = await compare('glass-flat');
-  assert.equal(flat.changed, 0, 'no self-refracted rings on a flat backdrop');
-  const stripes = await page.addStyleTag({ content: 'body::after { background:repeating-linear-gradient(90deg,#f8fafc 0 6px,#23334e 6px 12px,#7c5cf0 12px 18px,#23c4a1 18px 24px); }' });
-  const patterned = await compare('glass-rim');
-  assert.ok(patterned.changed > 150, 'actual player refraction changes rim pixels');
-  assert.equal(patterned.centerChanged, 0, 'player controls are never refracted');
-  await filter.evaluate(el => el.setAttribute('scale', '18'));
-  await stripes.evaluate(el => el.remove()); await fixture.evaluate(el => el.remove());
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-transparency', value: 'reduce' }] });
   assert.equal(await player.locator('.chrome-dock-bed').evaluate(el => getComputedStyle(el).backdropFilter), 'none');
@@ -75,7 +42,7 @@ async function glassPixels(page, player, theme) {
   await page.emulateMedia({ forcedColors: 'active' });
   assert.equal(await player.evaluate(el => getComputedStyle(el, '::after').display), 'none');
   await page.emulateMedia({ forcedColors: 'none' });
-  return { flat, patterned, contrast };
+  return { playerRefraction: false, dockRefraction: true, contrast };
 }
 let browser;
 try {
@@ -103,12 +70,21 @@ try {
     const feed = page.getByTestId('music-feed-media');
     await feed.waitFor();
     assert.equal(await feed.locator('audio,video').count(), 0, 'no second music transport');
-    await feed.getByRole('button', { name: 'Play music', exact: true }).click();
-    await page.getByRole('region', { name: 'Now playing', exact: true }).waitFor().catch(async error => {
+    const feedNode = await feed.elementHandle();
+    const play = feed.getByRole('button', { name: 'Play music', exact: true });
+    await play.scrollIntoViewIfNeeded();
+    const scrollBefore = await page.evaluate(() => scrollY);
+    await play.click();
+    await page.getByTestId('music-player').waitFor().catch(async error => {
       await page.screenshot({ path: path.join(output, 'failure.png') });
       console.error('[feed-player] failure', await page.locator('body').innerText(), errors);
       throw error;
     });
+    assert.equal(await feed.count(), 1, 'playing music keeps the Posts feed mounted');
+    assert.equal(await feedNode.evaluate(el => el.isConnected), true, 'original feed node is retained');
+    assert.equal(await page.evaluate(() => scrollY), scrollBefore, 'playing music retains scroll position');
+    await page.locator(`[data-testid="posts-tab-${board === 'posts-following' ? 'following' : 'discover'}"][aria-selected="true"]`).waitFor();
+    assert.equal(await page.getByRole('region', { name: 'Now playing', exact: true }).count(), 0, 'expanded Music destination is explicit only');
     await page.waitForFunction(() => window.musicElements.at(-1)?.paused === false && navigator.mediaSession.playbackState === 'playing').catch(async error => {
       console.error('[feed-player] transport', await page.evaluate(() => ({ elements: window.musicElements.map(el => ({ paused: el.paused, time: el.currentTime, error: el.error?.code, ready: el.readyState, source: el.src.slice(0, 30) })), state: navigator.mediaSession.playbackState })), errors);
       throw error;
@@ -140,11 +116,10 @@ try {
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     if ([1440, 375].includes(width) && board === 'posts') {
       await page.screenshot({ path: path.join(output, `player-${theme}-${width}.png`) });
-      await page.getByRole('button', { name: 'Back to browsing', exact: true }).click();
-      await page.getByRole('heading', { name: 'Music', exact: true }).waitFor();
-      await page.screenshot({ path: path.join(output, `browse-${theme}-${width}.png`) });
     }
-    // Actual shell navigation returns to the feed without replacing the Audio.
+    // Explicit expansion remains available, and returning retains the Audio.
+    await player.getByRole('link', { name: 'Open player: After Hours' }).click();
+    await page.getByRole('region', { name: 'Now playing', exact: true }).waitFor();
     await page.getByTestId(mobile ? 'nav-feed-mobile' : 'nav-feed').click();
     await feed.waitFor();
     await page.waitForFunction(() => !window.musicElements.at(-1)?.paused);
@@ -153,15 +128,21 @@ try {
       await feed.waitFor();
       await page.locator('[data-testid="posts-tab-following"][aria-selected="true"]').waitFor();
     }
+    const fab = page.getByTestId('new-post-fab');
+    const fabBox = await fab.boundingBox();
+    const playerBox = await player.boundingBox();
+    assert.ok(fabBox.y + fabBox.height <= playerBox.y - 8, 'compose also clears the player on desktop and phone');
+    await fab.click();
+    await page.getByRole('dialog', { name: 'New post', exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => window.musicElements.at(-1).paused), false, 'opening composer retains playback');
+    await page.getByTestId('new-post-sheet-close').click();
+    await fab.waitFor();
     if (mobile) {
-      const fab = await page.getByTestId('new-post-fab').boundingBox();
-      const playerBox = await player.boundingBox();
-      assert.ok(fab.y + fab.height <= playerBox.y - 8, 'compose also clears the player');
       const clearance = await page.getByTestId('shell-content').evaluate(el => parseFloat(getComputedStyle(el).paddingBottom));
       assert.ok(clearance >= 72 + 12 + playerBox.height + 24, 'content reserves dock and measured player height');
     }
     if ([1440, 375].includes(width) && board === 'posts') await page.screenshot({ path: path.join(output, `feed-${theme}-${width}.png`) });
-    const optics = mobile && board === 'posts' ? await glassPixels(page, player, theme) : undefined;
+    const optics = mobile && board === 'posts' ? await frostChecks(page, player) : undefined;
     const note = page.locator('[data-media-session-title="A studio voice note"]');
     await note.getByRole('button', { name: 'Play audio', exact: true }).click();
     await page.waitForFunction(() => navigator.mediaSession.metadata?.title === 'A studio voice note');

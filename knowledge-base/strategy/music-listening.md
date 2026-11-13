@@ -88,14 +88,22 @@ The second glass widget has actual rim-only pixel evidence and opaque fallbacks;
 desktop/375px captures are inspected in `.context/feed-player/`. Physical phone,
 Safari and deployment acceptance remain separate.
 
+Operator visual follow-up (13.11.2026) supersedes the player's refractive rim:
+retain its inset frosted surface, readable tint and spacing, but remove player
+displacement effects. The navigation dock keeps its existing refraction.
+The floating New post action must clear the measured player height on desktop
+as well as mobile, and open the existing composer without stopping music.
+
 Native/system video events also synchronize the shared non-immersive player's
 in-page controls; a paused clip must not keep showing Pause or require two taps
 to restart. A reproduced pre-repair failure pins this seam; all 379 marketing
 tests/build pass for the shared component's other consumer.
 
 Music-tagged feed posts use the same app-level transport as Music, not a second
-inline audio element. A tap starts the readable, resolved track and opens its
-URL-owned player; returning to the feed keeps playback and Media Session controls.
+inline audio element. Operator correction (13.11.2026): a feed tap starts the
+readable, resolved track and reveals the persistent mini-player in place, without
+changing the Posts tab, filters, scroll position or browser history. Opening the
+expanded Music player or queue remains an explicit mini-player link action.
 Ordinary nonmusic audio retains inline playback. Source-qualified tracks keep
 their source and read-only recovery restriction. On phones the mini-player is
 an inset rounded surface with a visible gap above the glass dock; all controls,

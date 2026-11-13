@@ -246,6 +246,12 @@
   }
 }
 
+@media (min-width: 768px) {
+  body:has([data-testid="music-player"]) .chrome-compose-position {
+    bottom: calc(var(--chrome-player-height, 6.25rem) + 1.5rem);
+  }
+}
+
 @media (prefers-reduced-transparency: reduce) {
   .chrome-glass {
     background: var(--color-surface);

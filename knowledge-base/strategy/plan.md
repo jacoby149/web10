@@ -57,6 +57,12 @@ access, provider credentials, verified sender and approved inbox/phone tests rem
 open; this visual PR does not claim live delivery enabled.
 
 - [✓ 5.33.4 local] **Polish authenticator credential entry** — compact brand/form layout, one solid primary action, URL-owned progressive password/signup/contact entry and secondary account-server identity. Operator follow-ups give Use another account a bordered plus-icon row and signup a full-width violet-tinted button. All 338 UI tests/build/typecheck, eight both-theme four-width browser cases, appearance regression and eight real-local signup/return/password/Following handoffs pass. Desktop/375px captures inspected under `.context/auth-credential-style/`. Auth/consent/vault policy unchanged; no deployment or physical-phone claim.
+## Feed music playback correction
+
+- [✓ 6.2.2 local] **Keep desktop posting reachable during music** — reproduce the covered New post FAB with a failing browser geometry assertion; add measured-height desktop clearance. Sixteen final both-theme/four-width Discover/Following cases click the exposed action into the existing composer while music continues. Production build/typecheck passes; desktop/375px captures inspected. No actual post/publication or deployment.
+
+- [✓ 6.2.2 local] **Keep feed music playback in Posts** — operator correction to 6.2.0: song/artwork and play taps reveal the persistent mini-player without navigating to Music or changing feed tabs/filters/history. Expanded player/queue links remain explicit and source-qualified. Visual follow-up removes player refraction but keeps its frost/tint and the navbar's approved refraction. Four predecessor-failing controls reproduced the redirect; all 98 focused music tests/build/typecheck and sixteen both-theme four-width Chromium cases pass, including retained feed node/scroll, absent player lens and retained dock optics. Desktop/375px captures inspected; no deployment or physical-phone claim.
+
 ## Deferred v4
 
 - [✓ 3.254.8 local docs] **Shadowguard deferred to web10 v4** - preserve the 3.254.7 concept in [shadowguard.md](shadowguard.md) and [later.md](later.md#web10-v4-shadowguard); remove its protocol-decision task from the active queue. Not planned any time soon, no release date, research/implementation assignment or dependency for v3. Explicit operator reactivation during v4 planning is required before any work resumes.
