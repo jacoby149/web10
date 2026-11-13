@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Pause, Play } from 'lucide-react';
 import { useOptionalMusic } from '@/context/MusicContext';
+import { useFeedMusicQueue } from '@/context/FeedMusicContext';
 import { musicArtist, musicTitle, musicTrackFromPost, musicTrackKey } from '@/data/musicTrack';
 import type { MediaRecord, PostRecord } from '@/data/types';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,7 @@ export default function MusicFeedMedia({ post, media, readOnlySource = false, ch
   post: PostRecord; media: MediaRecord[]; readOnlySource?: boolean; children: ReactNode;
 }) {
   const music = useOptionalMusic();
+  const queue = useFeedMusicQueue();
   const resolved = musicTrackFromPost(post, media);
   if (!music || !resolved) return children;
   const track = { ...resolved, readOnlySource };
@@ -18,7 +20,7 @@ export default function MusicFeedMedia({ post, media, readOnlySource = false, ch
   const playing = selected && music.isPlaying;
   const open = () => {
     console.log('[music-feed] persistent player handoff in place', { selected, readOnlySource, kind: track.media.mime_type?.split('/')[0] });
-    if (!selected) music.play(track);
+    if (!selected) music.play(track, queue?.some(item => musicTrackKey(item) === musicTrackKey(track)) ? queue : [track]);
     else if (!music.isPlaying) music.toggle();
   };
   return <div className="p-4" data-testid="music-feed-media">

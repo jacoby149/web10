@@ -18,6 +18,8 @@ import type { PostRecord } from '@/data/types';
  * this context:
  *
  * - The floating "+" button (the Layout's NewPostFab) → `openComposer()`.
+ * - The input-shaped invitation at the top of Posts → the same `openComposer()`;
+ *   it scrolls with the feed and never holds an inline draft.
  * - A group feed → `openComposer({ groups: [groupId] })` (the post attaches
  *   to the group, the old group-composer behavior).
  * - A repeat icon (repost mode) → `setRepostingTo(post)` (RepostContext) +
