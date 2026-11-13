@@ -14,6 +14,16 @@ each imported row count. Tables use ordinary `MergeTree`, **not**
 `ReplacingMergeTree`: raw duplicates must survive so the validator can reject
 them, rather than quietly remove the evidence.
 
+**13 November import repair:** retained work now uses a deterministic input/
+validator-source-bound directory and a single nonblocking file lock. A context
+file binds engine, source and exact input inventory; atomic per-table markers
+are written only after import succeeds and its exact count verifies. Reuse
+also checks the table UUID and count. Unmarked tables are preserved under an
+interrupted name, never adopted or resumed with a guessed row offset. Stale
+contexts/markers deny. Derived checks are recomputed; a marker is not a passing
+statistical receipt. This is ordinary files/locks for completed imports, not a
+distributed validator or automatic partial-query recovery framework.
+
 Events are ordered by `(doc_id, reader_key, surface, seen_at)`. Documents are
 ordered by version key/time/deletion. This is ClickHouse's sorted storage and
 sparse index, not a secondary index on every field. It can support ordered
@@ -66,7 +76,7 @@ REALISM_CLICKHOUSE_DOCKER=1 python research/experiments/costfn/realism_validate.
 ```
 
 It creates one owned container with **no network or published ports**, a
-read-only input mount, a private writable work mount, one CPU and a 3-GiB
+read-only input mount, a private writable work mount, four CPUs and a 3-GiB
 container limit. It runs as the caller's UID/GID. No shared node, API,
 credentials or production tables are used. The native path has no container
 RSS cap; both paths enforce the same query settings. Cleanup removes only the
@@ -75,14 +85,19 @@ container this invocation created; retained work is not removed by that step.
 Each `clickhouse-local` invocation uses the same explicit `validation` database
 inside the owned work path. The implicit `_local` database is ephemeral and is
 not used for persistence. Queries are serialized; a failed operation is not
-automatically resumed just because imported tables exist.
+automatically resumed just because imported tables exist. Only bound,
+count/UUID-verified completion markers permit whole-import reuse.
 
-Limits are **2,000,000,000 bytes query memory**, one thread, external sort/group
-thresholds of 256 MiB, 100,000,000,000 bytes query temporary data and 30 minutes
-per query (with a bounded client timeout). These are not a bound on all imported
+Limits are **2,000,000,000 bytes query memory**, four query/insert threads,
+external sort/group thresholds of 256 MiB, 100,000,000,000 bytes query temporary
+data and **90 minutes per query**, with a bounded client timeout. A worker-supplied
+`REALISM_PREP_DEADLINE` shortens the query budget to stop before its approved
+runtime; it never extends the lease. These are not a bound on all imported
 tables/merges or native-process RSS. The existing exact-volume/free-space guard,
 worker runtime and approved compute deadline remain necessary. Query timing,
-read statistics and errors go to `clickhouse.log`; Docker also records cgroup
+read statistics and errors go to `clickhouse.log`; native read progress is
+drained and flushed during the query, not withheld until it exits. Read rows
+are not committed/import-completion percentages. Docker also records cgroup
 peak memory. Worker stdout/stderr and state stay on the persistent volume.
 
 ## What a passing receipt means
