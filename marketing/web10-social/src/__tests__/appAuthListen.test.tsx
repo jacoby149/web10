@@ -82,10 +82,20 @@ describe('App renders', () => {
     expect(screen.queryByText('Log in or create your account')).not.toBeInTheDocument();
   });
 
-  it.each(['/', '/join'])('shows the public join pitch at %s without opening auth automatically', async (path) => {
+  it('sends signed-out homepage visitors straight to /feed without the join pitch or automatic auth', async () => {
     const sdk = installWeb10Mock();
     const { default: App } = await import('@/App');
-    render(<MemoryRouter initialEntries={[path]}><App /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/']}><App /><CurrentPath /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByTestId('current-path')).toHaveTextContent('/feed'));
+    expect(screen.getByTestId('posts-tab-row')).toBeInTheDocument();
+    expect(screen.queryByTestId('join-screen')).not.toBeInTheDocument();
+    expect(sdk.openAuthPortal).not.toHaveBeenCalled();
+  });
+
+  it('shows the shareable public join pitch at /join without opening auth automatically', async () => {
+    const sdk = installWeb10Mock();
+    const { default: App } = await import('@/App');
+    render(<MemoryRouter initialEntries={['/join']}><App /></MemoryRouter>);
     expect(await screen.findByTestId('join-screen')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Join web10 social' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Explore first/ })).toHaveAttribute('href', '/feed');

@@ -507,9 +507,9 @@ function App() {
       <MusicProvider sessionKey={musicSession}>
       <UploadProvider sessionKey={musicSession}>
       <Routes>
-        {/* Only entry URLs get the pitch. Public deep links stay in the app.
+        {/* Browse first at the homepage; /join is the shareable signup pitch.
             Confirmed auth changes isAnon; opening the popup alone does not. */}
-        <Route path="/" element={<Navigate to={isAnon ? '/join' : '/feed'} replace />} />
+        <Route path="/" element={<Navigate to="/feed" replace />} />
         <Route path="/join" element={isAnon ? <JoinScreen onLogin={handleLogin} /> : <Navigate to="/feed" replace />} />
         <Route element={<Layout onLogout={handleLogout} onLogin={handleLogin} isAnon={isAnon} onReportBug={() => handleReportBug('button')} />}>
           <Route path="/feed" element={<PostsScreen onAuthorClick={handleAuthorClick} />} />

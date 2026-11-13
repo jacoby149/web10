@@ -34,7 +34,15 @@ try:
         "nofile=262144:262144",
         "clickhouse/clickhouse-server:24.8.14.39",
     )
-    port = docker("port", NAME, "8123/tcp").rsplit(":", 1)[1]
+    # Docker Desktop can return before the ephemeral host binding is visible.
+    for attempt in range(50):
+        binding = docker("port", NAME, "8123/tcp")
+        if binding:
+            break
+        time.sleep(0.1)
+    else:
+        raise RuntimeError("Disposable ClickHouse port binding did not appear")
+    port = binding.rsplit(":", 1)[1]
     os.environ.update(
         CLICKHOUSE_HOST="127.0.0.1",
         CLICKHOUSE_PORT=port,

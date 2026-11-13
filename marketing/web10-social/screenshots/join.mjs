@@ -39,6 +39,13 @@ try {
       const errors = [];
       page.on('pageerror', error => errors.push(error.message));
       await page.goto(`${origin}/`);
+      await page.waitForURL('**/feed');
+      await page.getByTestId('posts-tab-row').waitFor();
+      await page.getByTestId('join-screen').waitFor({ state: 'detached' });
+      await page.reload();
+      await page.getByTestId('posts-tab-row').waitFor();
+      assert.equal(new URL(page.url()).pathname, '/feed');
+      await page.goto(`${origin}/join`);
       await page.getByTestId('join-screen').waitFor();
       assert.equal(new URL(page.url()).pathname, '/join');
       await page.reload();

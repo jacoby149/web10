@@ -5,8 +5,9 @@ Web10-social is an app that runs on the web10 platform. It uses groups the same 
 ## Public join entry
 
 Visitors need a reason to join before an authentication window opens. The social
-app serves its own marketing-style page at `/join` and at `/` when signed out.
-Signed-in visitors to either entry go to `/feed`. Public content deep links and
+app serves its own shareable marketing-style page at `/join`. The homepage `/`
+always opens `/feed`, signed in or not, so browsing never requires the join pitch.
+Signed-in visitors to `/join` also go to `/feed`. Public content deep links and
 anonymous browsing remain available; “Explore first” opens `/feed` without login.
 
 “Join web10 social” and “Sign in” invoke App's existing user-gesture login handler:
