@@ -9,6 +9,12 @@ margin; an out-of-range or stale result writes no receipt, and the validator
 then keeps the conservative default with the disk-capable grace_hash. This
 tool never touches a dataset file, an import marker, a checkpoint or a
 validation work directory.
+
+Precondition: the memory peaks are cumulative per cgroup, so run this in a
+fresh session scope (a new SSH login, or the isolated Docker adapter whose
+peak is per-container) whose cgroup has not already peaked from earlier
+validation work; a contaminated cgroup makes the base-vs-join delta
+non-positive and the tool refuses to write a receipt.
 """
 import argparse
 import json
