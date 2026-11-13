@@ -5,6 +5,7 @@ import io
 import json
 import os
 from pathlib import Path
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -71,7 +72,8 @@ class ReceiptTests(unittest.TestCase):
             (directory/'manifest.json').write_text(json.dumps({'dataset_id':'synthetic','recipe':{'accounts':10000}}))
             before=validator.validator_dependencies()
             after={**before,'realism_clickhouse.py':'changed-during-run'}
-            with patch.object(validator,'verify_inputs'),patch.object(engine,'ClickHouse'),patch.object(engine,'inspect',return_value={'complete':True,'checks':{'facts':True}}),patch.object(validator,'validator_dependencies',side_effect=[before,after]),redirect_stdout(io.StringIO()):
+            with patch.object(validator,'verify_inputs'),patch.object(engine,'ClickHouse') as client,patch.object(engine,'inspect',return_value={'complete':True,'checks':{'facts':True}}),patch.object(validator,'validator_dependencies',side_effect=[before,after]),redirect_stdout(io.StringIO()):
+                client.return_value.context={}
                 result=validator.validate(directory,root/'receipt.json')
             self.assertFalse(result['complete'])
             self.assertFalse(result['checks']['unchanged_validator_during_run'])
@@ -80,10 +82,71 @@ class ReceiptTests(unittest.TestCase):
         db=object.__new__(engine.ClickHouse)
         db.prefix=[]
         db.path='unused'
+        db.settings=dict(engine.SETTINGS)
         with patch.dict(os.environ,{'REALISM_PREP_DEADLINE':'1'}),patch.object(engine.subprocess,'Popen') as process:
             with self.assertRaisesRegex(RuntimeError,'deadline'):
                 db.query('SELECT 1')
             process.assert_not_called()
+
+    def test_performance_profile_only_changes_memory_and_time(self):
+        with patch.dict(os.environ,{'REALISM_CLICKHOUSE_PROFILE':'performance'}):
+            profile,settings=engine.resource_settings()
+        self.assertEqual(profile,'performance')
+        self.assertEqual(settings,{**engine.SETTINGS,'max_memory_usage':str(22*1024**3),'max_execution_time':'14400'})
+        self.assertEqual(engine.import_semantics(),engine.PREVIOUS_IMPORT_SEMANTICS)
+        with patch.dict(os.environ,{'REALISM_CLICKHOUSE_PROFILE':'typo'}):
+            with self.assertRaises(ValueError):
+                engine.resource_settings()
+
+    def test_unterminated_native_error_is_retained_in_log_and_receipt_diagnostic(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db=object.__new__(engine.ClickHouse)
+            db.work=Path(tmp)
+            db.path=tmp
+            db.settings=dict(engine.SETTINGS)
+            db.prefix=[sys.executable,'-c',
+                "import sys;sys.stderr.write('synthetic allocation failure');sys.exit(241)"]
+            with self.assertRaisesRegex(RuntimeError,'241: synthetic allocation failure'):
+                db.query('SELECT 1')
+            self.assertIn('synthetic allocation failure',(db.work/'clickhouse.log').read_text())
+
+    def test_reviewed_lineage_keeps_context_and_denies_drift(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            db=object.__new__(engine.ClickHouse)
+            db.work=root
+            db.profile='performance'
+            manifest={'dataset_id':'fixture','files':{}}
+            old={'dataset_id':'fixture','files':{},'engine':engine.VERSION,
+                'source':engine.PREVIOUS_IMPORT_SOURCE,'entrypoint':engine.PREVIOUS_ENTRYPOINT}
+            path=root/'import-context.json'
+            path.write_text(json.dumps(old))
+            before=path.read_bytes()
+            with patch.dict(os.environ,{'REALISM_CLICKHOUSE_REUSE_WORK':str(root)}):
+                db.bind_imports(manifest)
+                self.assertEqual(db.context,old)
+                self.assertEqual(path.read_bytes(),before)
+                for key in ('dataset_id','engine','source','entrypoint','files'):
+                    path.write_text(json.dumps({**old,key:'changed'}))
+                    with self.subTest(key=key),self.assertRaisesRegex(ValueError,'stale'):
+                        db.bind_imports(manifest)
+                path.write_bytes(before)
+                with patch.object(engine,'import_semantics',return_value='changed'):
+                    with self.assertRaisesRegex(ValueError,'stale'):
+                        db.bind_imports(manifest)
+            with patch.dict(os.environ,{'REALISM_CLICKHOUSE_REUSE_WORK':''}):
+                with self.assertRaisesRegex(ValueError,'stale'):
+                    db.bind_imports(manifest)
+
+    def test_explicit_workspace_requires_retention_profile_and_existing_sibling(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            for keep,profile in ((False,'performance'),(True,'bounded'),(True,'performance')):
+                with patch.dict(os.environ,{'REALISM_CLICKHOUSE_REUSE_WORK':str(root/'missing'),
+                        'REALISM_CLICKHOUSE_PROFILE':profile}):
+                    with self.subTest(keep=keep,profile=profile),self.assertRaises(ValueError):
+                        with validator.clickhouse_workspace(root/'dataset',{},keep):
+                            self.fail('invalid workspace admitted')
 
 
 @unittest.skipUnless(os.environ.get('REALISM_CLICKHOUSE_TESTS')=='1','opt in to real ClickHouse binary/container')
@@ -226,6 +289,36 @@ class EngineTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'no longer matches'):
                 db.import_table('documents',info)
             db.close()
+
+    def test_performance_profile_reuses_reviewed_import_without_rewriting_lineage(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            directory,manifest=self.fixture(root)
+            work=root/'realism-clickhouse-compatibility'
+            work.mkdir()
+            db=engine.ClickHouse(work,directory)
+            self.addCleanup(db.close)
+            db.bind_imports(manifest)
+            db.import_table('documents',manifest['files']['documents'])
+            old={**db.context,'source':engine.PREVIOUS_IMPORT_SOURCE,'entrypoint':engine.PREVIOUS_ENTRYPOINT}
+            engine.atomic_json(work/'import-context.json',old)
+            marker=(work/'imports/documents.json').read_bytes()
+            db.close()
+            with patch.dict(os.environ,{'REALISM_CLICKHOUSE_PROFILE':'performance',
+                    'REALISM_CLICKHOUSE_REUSE_WORK':str(work)}):
+                db=engine.ClickHouse(work,directory)
+                self.addCleanup(db.close)
+                self.assertEqual(db.scalar('SELECT getSetting(\'max_memory_usage\')'),22*1024**3)
+                db.bind_imports(manifest)
+                with patch.object(db,'table',side_effect=AssertionError('do not reimport')):
+                    db.import_table('documents',manifest['files']['documents'])
+                self.assertEqual(db.context,old)
+                self.assertEqual((work/'imports/documents.json').read_bytes(),marker)
+                self.assertEqual(json.loads((work/'import-context.json').read_text()),old)
+                db.query('INSERT INTO documents SELECT * FROM documents LIMIT 1')
+                with self.assertRaisesRegex(ValueError,'no longer matches'):
+                    db.import_table('documents',manifest['files']['documents'])
+                db.close()
 
 
 if __name__=='__main__':

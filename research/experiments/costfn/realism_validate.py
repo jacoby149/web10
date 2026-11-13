@@ -425,11 +425,17 @@ def validate_duckdb_reference(directory, out, *, keep_work=False):
 
 @contextmanager
 def clickhouse_workspace(directory,key,keep_work):
+    reuse=os.environ.get('REALISM_CLICKHOUSE_REUSE_WORK')
+    if reuse and (not keep_work or os.environ.get('REALISM_CLICKHOUSE_PROFILE')!='performance'):
+        raise ValueError('explicit import reuse requires retained work and performance profile')
     if not keep_work:
         with tempfile.TemporaryDirectory(prefix='realism-clickhouse-',dir=directory.parent) as tmp:
             yield tmp
         return
-    work=directory.parent/('realism-clickhouse-'+hashlib.sha256(encoded(key)).hexdigest()[:32])
+    work=Path(reuse) if reuse else directory.parent/('realism-clickhouse-'+hashlib.sha256(encoded(key)).hexdigest()[:32])
+    if reuse and (work.parent.resolve()!=directory.parent or not work.name.startswith('realism-clickhouse-')
+            or not work.is_dir() or not (work/'import-context.json').is_file()):
+        raise ValueError('reuse requires an existing sibling ClickHouse workspace/context')
     if work.is_symlink():
         raise ValueError('validation work directory must not be a symlink')
     work.mkdir(exist_ok=True)
@@ -464,6 +470,7 @@ def validate(directory,out,*,keep_work=False):
             verify_inputs(directory,manifest)
             db=clickhouse.ClickHouse(tmp,directory)
             result=clickhouse.inspect(db,manifest,progress)
+            result['import_lineage']=db.context
         except Exception as error:
             result={'complete':False,'accounts':manifest.get('recipe',{}).get('accounts'),
                     'checks':{'validator_execution':False},'error_type':type(error).__name__,
@@ -482,6 +489,7 @@ def validate(directory,out,*,keep_work=False):
     result.update({'format':FORMAT,'dataset_id':manifest['dataset_id'],
         'validator_sha256':pin,'validator_dependencies':dependencies,
         'validator_engine':{'name':'ClickHouse','version':clickhouse.VERSION},
+        'validator_resources':dict(zip(('profile','settings'),clickhouse.resource_settings())),
         'dataset_directory':os.path.relpath(directory,out.resolve().parent)})
     with out.open('xb') as stream:
         stream.write(encoded(result))

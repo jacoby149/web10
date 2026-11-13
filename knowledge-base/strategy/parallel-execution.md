@@ -1674,6 +1674,19 @@ starting.
   doc_groups imports. Verify compatible importer/source/UUID/count before
   reusing completed work across a resource-policy change; no forged markers,
   new host, resize, statistical tolerance waiver or experiment authorization.
+  - [✓ 5.31.7 controls/restart; full validation OPEN] Explicit
+    performance profile sets 22-GiB ClickHouse/28-GiB process and deadline-clamped
+    four-hour queries. Only the reviewed predecessor's exact lineage and
+    unchanged parsed importer semantics may cross source changes; all-file
+    hashes/UUID/count still verify, old context/markers remain unchanged and
+    derived checks rerun. Thirteen offline suites/eight actual-engine controls,
+    five Bun tests/Ruff and current-contract 10k/16M floor (50/50, exact report
+    parity) pass. Same-host restart 02:52:02 UTC after native smoke; readback
+    verifies 28-GiB MemoryMax/four CPUs. At 02:53:40 UTC all files are reverified,
+    old imports are UUID/count-verified/reused and documents reads exceed
+    22.49M/88.2M; unmarked prior documents preserved. Unchanged
+    06:40 worker/06:50 cleanup; full 1M outcome OPEN. Owns validator/entrypoint/tests,
+    exact preparation lifecycle hunks and serialized KB; no API/UI/SDK edits.
   - [✓ 5.31.6 lease controls/applied; profile/restart OPEN] Exact +4h requires
     the real initial 14h approval and correct pre-expiry clock; twelve controls
     pass. Scoped local watchdog source/lease and verified host-stop timer now
