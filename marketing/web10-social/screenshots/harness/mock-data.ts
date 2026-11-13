@@ -1087,6 +1087,9 @@ export async function readFeed(): Promise<unknown[]> { return FEED_POSTS; }
 // — the feed filters out bare string refs), so the harness resolves string
 // refs against DISCOVER_MEDIA here, the same way the node's read does.
 export async function readFeedPage(): Promise<unknown> {
+  if (new URLSearchParams(window.location.search).has('feed-player-repair')) {
+    return { posts: await readDiscoverFeed(), has_more: false, next_cursor: null };
+  }
   if (new URLSearchParams(window.location.search).get('discover-inline-audio') === '1') {
     return { posts: await readDiscoverFeed(), has_more: false, next_cursor: null };
   }
@@ -1421,6 +1424,12 @@ const DISCOVER_POSTS: SeedDiscoverPost[] = [
 // does. The watch page builds its queue's media map from these inline refs
 // (no second media round-trip), so the mock must carry them.
 export async function readDiscoverFeed(): Promise<unknown[]> {
+  if (new URLSearchParams(window.location.search).has('feed-player-repair')) {
+    const track = MUSIC_TRACKS[0];
+    return [{ ...track.post, visibility: 'public', media_refs: [{ doc_id: track.media._id, read_url: track.media.url, mime_type: track.media.mime_type, thumbnail_url: track.artworkUrl }] },
+      { ...DISCOVER_POSTS[0], _id: 'ordinary-audio', title: 'A studio voice note', tags: [], ad: undefined, media_refs: [{ doc_id: 'note', read_url: track.media.url, mime_type: 'audio/wav' }] },
+      { ...DISCOVER_POSTS[0], _id: 'ordinary-video', title: 'A studio video', tags: [], ad: undefined, media_refs: [{ doc_id: 'video', read_url: MUSIC_TRACKS[6].media.url, mime_type: 'video/mp4', width: 160, height: 90 }] }];
+  }
   if (new URLSearchParams(window.location.search).get('discover-inline-audio') === '1') {
     return [{ ...DISCOVER_POSTS[0], _id: 'inline-audio-fixture', title: 'Livery Stable Blues — audio renderer fixture',
       text: 'Synthetic one-second silent recording. Real inline audio controls, not a loading placeholder.',

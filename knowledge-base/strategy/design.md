@@ -490,6 +490,17 @@ Without backdrop-filter, with reduced transparency or forced colors, use opaque
 surfaces. Reserve the floating dock plus device safe area in scrolling content,
 compose and music-player positioning. No navigation or appearance behavior changes.
 
+**Music-player correction (13.11.2026):** keep the glass navigation capsule, but
+replace the phone player's edge-to-edge square strip with an inset rounded
+surface, matching the dock's 12px side clearance and leaving 12px above it.
+Use the dock's actual frosted bed and refractive rim as a second glass widget,
+with a lens map matching the player's rounded rectangle and a 90% center tint
+to keep secondary text AA over extreme backdrops, never distorted controls
+or captured page pixels. Keep opaque/unverified-engine fallbacks. Use a designed seek track; compact secondary
+controls must not squeeze the title or fall outside the card. Previous remains
+available in the expanded player; play/pause, next, close and queue stay in the
+phone mini-player. Desktop retains its bottom transport bar.
+
 **Operator correction, same day:** retain the pill dock but remove the broad
 painted gradient, particularly in dark mode. Trial a real SVG displacement
 filter on the dock's narrow rim only, with undistorted controls above it.

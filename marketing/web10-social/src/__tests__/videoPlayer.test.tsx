@@ -27,6 +27,19 @@ beforeEach(() => {
 });
 
 describe('VideoPlayer — the shared video surface (video-player.md)', () => {
+  it('keeps inline controls synchronized with native/system play and pause', async () => {
+    const { VideoPlayer } = await import('@/components/Feed/VideoPlayer');
+    render(<VideoPlayer source={{ type: 'file', url: 'https://media.example/clip.mp4' }} mode="inline" testId="system-video" />);
+    const frame = screen.getByTestId('system-video');
+    const video = frame.querySelector('video')!;
+    fireEvent.play(video);
+    expect(frame).toHaveAttribute('aria-label', 'Pause video');
+    fireEvent.pause(video);
+    expect(frame).toHaveAttribute('aria-label', 'Play video');
+    fireEvent.play(video);
+    expect(frame).toHaveAttribute('aria-label', 'Pause video');
+  });
+
   it('hls source renders the full rack (the existing HlsVideoPlayer)', async () => {
     const { VideoPlayer } = await import('@/components/Feed/VideoPlayer');
     render(<VideoPlayer source={{ type: 'hls', manifestUrl: '/v3/media/hls/manifest?doc_id=m1&sig=abc' }} mode="inline" />);

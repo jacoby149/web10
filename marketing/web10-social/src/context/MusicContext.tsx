@@ -5,6 +5,7 @@ import type { MusicTrack } from '@/data/feed';
 import type { MediaRecord } from '@/data/types';
 import { readMusicTrack } from '@/data/music';
 import { musicTitle, musicArtist, musicTrackKey } from '@/data/musicTrack';
+import { feedMediaSession } from './feedMediaSession';
 
 export type { MusicTrack } from '@/data/feed';
 type Repeat = 'off' | 'all' | 'one';
@@ -71,6 +72,7 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
   const history = useRef<number[]>([]);
   const priority = useRef<number[]>([]);
   const actions = useRef<MusicContextValue | null>(null);
+  const inlineSession = useRef<ReturnType<typeof feedMediaSession> | null>(null);
   // The session has ONE voice: the active transport is the element of the
   // CURRENT track's kind (music.md: a video CAN be a track — a music video
   // marked as music rides the same queue/transport as an mp3).
@@ -369,6 +371,8 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
   actions.current = value;
 
   useEffect(() => {
+    const feedSession = feedMediaSession(navigator.mediaSession);
+    inlineSession.current = feedSession;
     const element = new Audio();
     element.preload = 'none';
     element.volume = initial.volume;
@@ -397,6 +401,7 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
     const bind = (el: HTMLMediaElement) => {
       const onPlay = () => {
         if (!requested.current) { el.pause(); return; }
+        feedSession.release();
         claimMediaPlayback(el);
         update({ isPlaying: true, error: null });
       };
@@ -432,14 +437,16 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
     const onOtherPlay = (event: Event) => {
       const target = event.target;
       // The session's OWN two transports never count as "other media".
-      if (target instanceof HTMLMediaElement && target !== element && target !== videoElement && !target.muted && target.volume > 0) {
+      if (target instanceof HTMLMediaElement && target !== element && target !== videoElement && !target.muted && target.volume > 0 && (event.type === 'play' || !target.paused)) {
         pause(); log('paused for other media');
+        feedSession.activate(target);
       }
     };
     document.addEventListener('play', onOtherPlay, true);
+    document.addEventListener('volumechange', onOtherPlay, true);
     const mediaSession = navigator.mediaSession;
     const handlers: Partial<Record<MediaSessionAction, MediaSessionActionHandler>> = {
-      play: () => start(), pause: () => pause(),
+      play: () => { if (snapshot.current.error) void actions.current?.retry(); else start(); }, pause: () => pause(),
       nexttrack: () => actions.current?.next(), previoustrack: () => actions.current?.previous(),
       seekto: details => { if (details.seekTime !== undefined) actions.current?.seek(details.seekTime); },
       seekbackward: details => actions.current?.seek(snapshot.current.currentTime - (details.seekOffset || 10)),
@@ -447,15 +454,26 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
     };
     const registered: MediaSessionAction[] = [];
     if (mediaSession) Object.entries(handlers).forEach(([name, handler]) => {
-      try { mediaSession.setActionHandler(name as MediaSessionAction, handler!); registered.push(name as MediaSessionAction); } catch { /* Browser does not support this action. */ }
+      try {
+        const action = name as MediaSessionAction;
+        mediaSession.setActionHandler(action, details => {
+          if (feedSession.handle(action, details)) return;
+          log(`system action: ${action}`);
+          handler!(details);
+        });
+        registered.push(action);
+      } catch { /* Browser does not support this action. */ }
     });
     log('audio mounted');
     return () => {
       attempt.current++;
       requested.current = false;
+      feedSession.clear();
+      inlineSession.current = null;
       unbindAudio();
       unbindVideo();
       document.removeEventListener('play', onOtherPlay, true);
+      document.removeEventListener('volumechange', onOtherPlay, true);
       element.pause(); element.removeAttribute('src'); element.load();
       detachVideoSource();
       videoElement.pause(); videoElement.removeAttribute('src'); videoElement.load();
@@ -470,6 +488,7 @@ export function MusicProvider({ children, sessionKey }: { children: ReactNode; s
   useEffect(() => {
     const mediaSession = navigator.mediaSession;
     if (!mediaSession) return;
+    if (inlineSession.current?.owns()) return;
     const track = state.current;
     mediaSession.playbackState = track ? state.isPlaying ? 'playing' : 'paused' : 'none';
     console.log('[music-player] media session metadata', { track: Boolean(track), playing: state.isPlaying, artwork: Boolean(track?.artworkUrl) });
@@ -489,4 +508,9 @@ export function useMusic(): MusicContextValue {
   const context = useContext(MusicContext);
   if (!context) throw new Error('useMusic requires MusicProvider');
   return context;
+}
+
+/** Standalone post renderers can also be mounted outside the app shell. */
+export function useOptionalMusic(): MusicContextValue | null {
+  return useContext(MusicContext);
 }
