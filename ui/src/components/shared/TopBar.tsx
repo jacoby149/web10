@@ -82,8 +82,8 @@ function AccountMenu({ I, username }: { I: Record<string, any>; username: string
 }
 
 const TITLES: Record<string, string> = {
-  contracts: 'App Contracts',
-  groups: 'Group Contracts',
+  contracts: 'App permissions',
+  groups: 'Group permissions',
   requests: 'Requests',
   config: 'Node Config',
   settings: 'Settings',
@@ -151,8 +151,8 @@ function TopBar({ I }: TopBarProps) {
             />
             <Input
               className="h-9 pl-9"
-              placeholder={`Search ${I.mode}…`}
-              aria-label={`Search ${I.mode}`}
+              placeholder={`Search ${I.mode === 'contracts' ? 'app permissions' : 'requests'}…`}
+              aria-label={`Search ${I.mode === 'contracts' ? 'app permissions' : 'requests'}`}
               value={I.search ?? ''}
               onChange={(e) => I.runSearch(e.target.value)}
               data-testid="topbar-search"

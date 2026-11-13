@@ -570,7 +570,21 @@ Format per lane:
 - [✓] No console errors in any flow
 - [✓] Full E2E test with popup + log sequence verification
 
+### Lane: service-name-normalization (protocol follow-up)
+
+**Owns now:** service-name KB and bounded inventory evidence only; reserve API/SDK/security ownership before runtime edits. Contract: `web10-v3/db/service-names.md`.
+
+- [✓ 5.34.3 docs/inventory only] **Verify service casing and record the naming direction** — current source is case-sensitive; operator chooses canonical lowercase with ASCII letters/digits/`-`/`_`, letter-first. Authorized read-only production all-history service/grant-key inventory: all lowercase, no case collisions or out-of-pattern identifiers, max length 31; no malformed app/group JSON. No runtime, data/grant or deployment change.
+- [ ] **Service naming — canonicalization and bounded validation** — gate on fresh target inventory, reserved-name/length review (proposed 1–64) and legacy compatibility; assign small API/storage/grant/compiler/SDK bites before editing those owners' files. Acceptance: one consistent lowercase identity, mixed-case CRUD/grant/query equivalence, malformed-name/collision rejection, no silent grant union, preserved wildcard/reserved/I3 and parameterization behavior, security method/tests/all CI before approved rollout. No production mutation or release by implication; separate runtime PRs from the UI change.
+
 ### Lane: auth-consent-forks (Phase 1)
+
+- [✓ 5.34.2 local] **Restore the plain-English permission review** — operator reverses the colored literal-service trial. Supersedes 5.34.1: shared summaries return to friendly labels/neutral scope chips and normal English, exact keys remain in details, permissions naming/handlers unchanged. No-code-badge regression plus all 337 UI tests/build/typecheck and light/dark 375/768/1280/1440 browser checks pass; desktop/375px captures inspected. No production or live-grant claim.
+
+- [✓ 5.34.1 local] **Literal colored service names** — shared PermissionSummary/helper and focused tests/browser fixture: exact service keys as violet inline code in scope lists and permission sentences, no friendly-alias substitution/case changes, explicit wildcard explanation. All 337 UI tests/build/typecheck and light/dark 375/768/1280/1440 browser controls pass; exact displayed keys/resolved color/long wrapping covered, desktop/375px captures inspected. No handler/payload or policy change, production or live authorization claim.
+
+- [✓ 5.34.0 local] **Plain-English browser-app consent** — OAuth-style request review and operator-named **App permissions / Group permissions**. Own consent/management/request/group presentation, pure `ui/src/lib/consentLanguage.ts`, focused UI/browser tests and serialized KB; navigation changes are labels only, `Interface.tsx` changes only two status strings. No SDK/auth-control/authority change. Exact-set scope grouping keeps complete readable data types and own/all/wildcard/unknown distinctions; details retain exact origin/port/service/operation/deltas. All 336 UI tests/build/typecheck and light/dark 375/768/1280/1440 real-app synthetic browser checks pass, including callback dispatch, dense social scopes, group roles, keyboard details and sticky actions. Desktop/375px captures inspected in `.context/permissions/`. No connected-node, actual token/grant, physical-phone or deployment claim; review/all CI and connected acceptance stay separate.
+
 Final Coming soon revision: 339 UI tests/build/typecheck, both-theme four-width
 presentation/appearance checks and eight real-local auth journeys pass; final
 desktop/375px saved/add-account captures inspected. Provider activation is deferred

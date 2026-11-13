@@ -17,7 +17,7 @@ describe('console mobile dock', () => {
     const nav = screen.getByRole('navigation', { name: 'Console navigation' });
     expect(within(nav).getAllByRole('button')).toHaveLength(6);
     for (const [name, mode] of [
-      ['App Contracts', 'contracts'], ['Group Contracts', 'groups'], ['Requests', 'requests'],
+      ['App permissions', 'contracts'], ['Group permissions', 'groups'], ['Requests', 'requests'],
       ['Config', 'config'], ['Analytics', 'analytics'], ['Settings', 'settings'],
     ]) {
       fireEvent.click(within(nav).getByRole('button', { name }));
@@ -30,7 +30,7 @@ describe('console mobile dock', () => {
   it('exposes exactly the current selection and updates it on rerender', () => {
     const I = makeInterface();
     const { rerender } = render(<MobileNav I={I} />);
-    expect(screen.getByRole('button', { current: 'page' })).toHaveAccessibleName('App Contracts');
+    expect(screen.getByRole('button', { current: 'page' })).toHaveAccessibleName('App permissions');
     rerender(<MobileNav I={{ ...I, mode: 'settings' }} />);
     expect(screen.getByRole('button', { current: 'page' })).toHaveAccessibleName('Settings');
   });

@@ -1293,12 +1293,12 @@ function applyACR(cr: any) {
         const operation = approveOne(contract);
         if (!operation) return;
         console.log('[auth-ui] approveContract — kind:', contract.kind, 'origin:', contract.app_origin)
-        I.setStatus(contract.kind === 'group' ? "Creating group..." : "Approving contract...");
+        I.setStatus(contract.kind === 'group' ? "Creating group..." : "Allowing app permissions...");
         operation
             .then(() => {
                 if (contract._consent && contract._consent.batch !== consentBatch.current) return;
                 console.log('[auth-ui] approveContract — applied successfully')
-                I.setStatus(contract.kind === 'group' ? "Group created!" : "Contract granted!");
+                I.setStatus(contract.kind === 'group' ? "Group created!" : "App permissions allowed!");
                 if (contract.kind === 'app') I.v3ContractsLoad?.();
                 I.removePendingContract(contract);
                 const completedBatch = consentBatch.current;

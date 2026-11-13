@@ -43,7 +43,7 @@ describe('ContractHealth', () => {
     render(<ContractHealth I={I} groups={GROUPS} />)
     fireEvent.click(screen.getByTestId('contract-health-check'))
     await waitFor(() =>
-      expect(screen.getByText(/All 2 group contracts are healthy/)).toBeInTheDocument(),
+      expect(screen.getByText(/All 2 groups have defined roles/)).toBeInTheDocument(),
     )
   })
 
@@ -85,7 +85,7 @@ describe('ContractHealth', () => {
     render(<ContractHealth I={I} groups={GROUPS} />)
     fireEvent.click(screen.getByTestId('contract-health-check'))
     await waitFor(() =>
-      expect(screen.getByText(/group contracts? (is|are) healthy/)).toBeInTheDocument(),
+      expect(screen.getByText(/groups have defined roles/)).toBeInTheDocument(),
     )
   })
 })
