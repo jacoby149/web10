@@ -6,7 +6,7 @@ function Provider({ I }: { I: Record<string, any> }) {
   return (
     <div className="mb-4">
       <Label htmlFor="provider" className="mb-1.5 block text-muted-foreground">
-        web10 provider
+        Account server
       </Label>
       <div className="relative">
         <Globe
@@ -15,7 +15,7 @@ function Provider({ I }: { I: Record<string, any> }) {
         />
         <Input
           id="provider"
-          className="pl-9"
+          className="h-11 bg-elevated/40 pl-9 text-base"
           defaultValue={I.config.REACT_APP_DEFAULT_API}
           placeholder="provider.web10.app"
           data-testid="provider-input"

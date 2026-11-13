@@ -18,7 +18,7 @@ function BetaCode({ I }: { I: Record<string, any> }) {
         <Input
           id="betacode"
           type="password"
-          className="pl-9"
+          className="h-12 pl-10 text-base"
           placeholder="Your invite code"
           data-testid="betacode-input"
         />

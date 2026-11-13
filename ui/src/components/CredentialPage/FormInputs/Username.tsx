@@ -3,7 +3,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { usernameHelp } from '@/lib/usernameHelp';
 
-function Username({ I }: { I: Record<string, any> }) {
+function Username({ I, showHelp = true }: { I: Record<string, any>; showHelp?: boolean }) {
   return (
     <div className="mb-4">
       <Label htmlFor="username" className="mb-1.5 block text-muted-foreground">
@@ -17,17 +17,17 @@ function Username({ I }: { I: Record<string, any> }) {
           <Input
             id="username"
             name="username"
-            className="pl-9"
+            className="h-12 pl-10 text-base"
             placeholder="yourname"
             autoComplete="username"
             autoCapitalize="none"
             spellCheck={false}
-            aria-describedby="username-help"
+            aria-describedby={showHelp ? 'username-help' : undefined}
             data-testid="username-input"
             onChange={(e) => I.setLoginUsername?.(e.target.value)}
           />
       </div>
-      <p id="username-help" className="mt-1 text-xs text-muted-foreground">{usernameHelp}</p>
+      {showHelp && <p id="username-help" className="mt-2 text-xs leading-relaxed text-muted-foreground">{usernameHelp}</p>}
     </div>
   );
 }

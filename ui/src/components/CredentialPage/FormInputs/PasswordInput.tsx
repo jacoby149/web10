@@ -34,7 +34,7 @@ function PasswordInput({
           id={id}
           name={name}
           type={visible ? "text" : "password"}
-          className="pl-9 pr-9"
+            className="h-12 pl-10 pr-12 text-base"
           placeholder="••••••••"
           autoComplete={autoComplete}
           data-testid={testId}
@@ -44,7 +44,7 @@ function PasswordInput({
           aria-label={visible ? "Hide password" : "Show password"}
           aria-pressed={visible}
           data-testid={`${testId}-toggle`}
-          className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           onClick={() => setVisible(v => !v)}
         >
           {visible ? <EyeOff className="h-4 w-4" strokeWidth={1.5} /> : <Eye className="h-4 w-4" strokeWidth={1.5} />}

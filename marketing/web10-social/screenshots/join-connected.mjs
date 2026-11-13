@@ -147,6 +147,7 @@ try {
     // account/grant created through the preceding real UI journey.
     await context.clearCookies();
     popup = await openJoin(page);
+    await popup.getByTestId('account-picker-other').click();
     await popup.getByTestId('username-input').fill(username);
     await popup.getByTestId('password-input').fill(password);
     await popup.getByTestId('login-submit').click();

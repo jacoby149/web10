@@ -395,6 +395,22 @@ the house Card primitive. Education-era imagery and university logos:
 deleted. If it isn't true, it isn't on the site.
 
 ### `ui/` — the node console (lane B)
+**Authenticator entry polish (operator, 13.11.2026):** use a compact brand header,
+one clear primary action and a visible create-account path. Returning accounts
+lead; Use another account reveals the URL-owned password view. The account server
+stays identifiable but secondary to username/password. Credential entry scrolls
+with the page, not inside a phone card; consent review keeps its bounded list and
+pinned actions. Existing authentication, verification and consent handlers stay
+unchanged. No automatic account confirmation or approval.
+
+Use another account is a full-width bordered action row with a violet plus icon,
+foreground label and trailing chevron, not a muted text link (operator references,
+13.11.2026).
+
+Create an account gets a full-width violet-tinted bordered button with an account
+icon and arrow under a foreground New to web10? invitation. It must not read as
+muted footer copy; Continue remains the only solid-violet primary action.
+
 The job: the operator/consent surface reads like Vercel or Linear —
 calm, precise, trustworthy. This surface holds the **Studio** (B4.5),
 the money screen, the highest-stakes UI in the repo: monetization

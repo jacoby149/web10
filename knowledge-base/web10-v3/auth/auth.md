@@ -176,8 +176,19 @@ No `HttpOnly` — the SDK reads the token client-side to include in API requests
 
 ### The Token Vault (multi-account fast switch)
 
-The authenticator's login screen shows a "Choose an account" picker of the
-last few accounts used on that origin. The picker is two-tier:
+The authenticator's login screen shows a "Your accounts" picker of the
+last few accounts used on that origin.
+
+Credential entry presents remembered accounts before the password form. Use
+another account opens `?signin=password`; a non-vaulted row opens the same view
+and pre-fills its provider/username. Cold visitors see the password form directly.
+`?credential=login|signup|forgot` selects the entry screen; other request/redirect
+parameters remain intact. History/reload restore presentation only, never an
+identity, grant or confirmation. Successful confirmed authentication removes these
+entry-only parameters. Phone/email uses the existing code flow; server identity
+remains visible as Account server. This is presentation, not a new auth protocol.
+
+The picker is two-tier:
 
 - **Identifiers only** (`rememberedAccounts`, localStorage) — every account
   ever signed in here. Picking one pre-fills the form; the password is still

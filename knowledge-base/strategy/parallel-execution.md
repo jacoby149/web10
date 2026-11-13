@@ -560,6 +560,9 @@ Format per lane:
 - [✓] Full E2E test with popup + log sequence verification
 
 ### Lane: auth-consent-forks (Phase 1)
+- [✓ 5.33.4 local] **Polish authenticator credential entry** — compact mobile/desktop login/signup, one solid primary action, URL-owned password/signup/contact entry and secondary server identity. Operator follow-ups make Use another account a bordered plus-icon row and signup a full-width violet-tinted CTA. Owns credential components, App's entry-URL cleanup, ConsentView login presentation, focused UI/browser controls and progressive-entry steps in existing auth E2E/connected harnesses only. All 338 UI tests/build/typecheck, both-theme 375/768/1280/1440 browser cases, appearance regression and eight real-local signup/return/password/Following handoffs pass; desktop/375px captures inspected. Existing auth/consent/vault handlers unchanged; no API/SDK/policy/deployment changes.
+- [ ] **Authenticator entry production/phone acceptance** — after reviewed green release and explicit rollout approval, verify hosted signup, remembered-account continuation, Use another account, phone/email entry and cancellation at desktop and physical iOS Safari/Android Chrome. Owns acceptance evidence only; no code/policy/deployment by implication. Gates: approved test accounts, contact-send permissions if exercised and rollout approval. Acceptance: reachable controls with keyboard/device safe-area clearance, successful real-origin handoff and unchanged explicit consent, with browser/device evidence and retained failures.
+
 **Owns:** `ui/src/components/Consent/`, `ui/src/interfaces/`, `e2e/tests/auth-popup-roundtrip.spec.ts`
 
 The authenticator consent screen is the shared seam every demo drives. The
