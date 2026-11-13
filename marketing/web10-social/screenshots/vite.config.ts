@@ -20,6 +20,9 @@ export default defineConfig({
     alias: [
       { find: 'posthog-js', replacement: path.resolve(root, 'node_modules/posthog-js') },
       { find: '@web10/discover/source-controls', replacement: path.resolve(root, '../shared/discover/src/sourceControls.ts') },
+      { find: '@web10/discover/directory-controls', replacement: path.resolve(root, '../shared/discover/src/DirectoryControls.tsx') },
+      { find: '@web10/discover/directory-mixer', replacement: path.resolve(root, '../shared/discover/src/directoryMixer.ts') },
+      { find: '@web10/discover/use-directory-mixer', replacement: path.resolve(root, '../shared/discover/src/useDirectoryMixer.ts') },
       { find: '@web10/discover/source-models', replacement: path.resolve(root, '../shared/discover/src/sourceModels.ts') },
       { find: '@web10/discover/mixed-feed', replacement: path.resolve(root, '../shared/discover/src/mixedFeed.ts') },
       { find: '@web10/discover/feed-query', replacement: path.resolve(root, '../shared/discover/src/feedQuery.ts') },

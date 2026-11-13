@@ -91,7 +91,7 @@ it('matches directory identity names and preserves pagination through zero match
   await screen.findByTestId('explore-groups-no-results');
   fireEvent.click(screen.getByTestId('explore-groups-view-more'));
   await screen.findByText('Century Club');
-  expect(data.readGroupDirectory).toHaveBeenLastCalledWith(20, 20);
+  expect(data.readGroupDirectory).toHaveBeenLastCalledWith(20, 20, 'popular');
   fireEvent.click(screen.getByTestId('groups-discover-card'));
   expect(screen.getByTestId('location')).toHaveTextContent(encodeURIComponent(own('later').group_id));
 });

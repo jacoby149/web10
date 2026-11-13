@@ -345,6 +345,23 @@ does not merge.
 
 ## Auth model
 
+People/Groups discovery reuses the server-source mixer with independent simple
+Newest/audience sorts, not post power-mean ranking. Canonical account/group
+creation and current member counts order each source before pagination. Social
+retains the private catalog and current-credential destination approvals;
+marketing is credential-free. Source-qualified foreign directory cards are
+read-only, never home-node follow/join or invented foreign app links. Personal
+graph/My Groups authority remains home-scoped. Contract and acceptance limits:
+`knowledge-base/web10-v3/social/directory-mixer.md`.
+
+Social's caught upload/post permission failures offer approval and explicit retry
+beside the retained draft; missing-approval/dead-token toasts keep a manual action.
+Opening the existing auth window is not approval. Completed media reuse is scoped
+to the same account/node/service/file/metadata; the API still authorizes the retry.
+Only existing-rule username hints accompany this repair; authenticator consent,
+login behavior and validation remain unchanged. Local/connected limits:
+`knowledge-base/web10-v3/auth/auth.md` “Social action recovery”.
+
 Music's live playlist bookmarks use personal `web10-social-playlist-bookmarks`
 documents in the human's own followers group, never acting-group authority or a
 target membership grant. Login consent and access recovery both request this
@@ -444,6 +461,8 @@ destination trust remains open, not repaired by this default.
 OAuth authorization certifies its source token before code minting: local provider, freshness and active source-client registration are required. Active delegated sources remain permitted; this does not add source-contract narrowing or resolve broader delegation authority.
 
 ## Security invariants
+
+Historical phone-probe recovery is a one-time ops script, `ubuntu-deployment/scripts/heal-phone-videos.py`: dry-run writes an exclusive private plan; explicit `--apply` processes only that node/source-bound plan sequentially, then exits. It uses the installed fixed converter with scoped read/status adapters in its separate process and private conditional claims in the existing state bucket. No endpoint, periodic worker, environment switch, app deployment/restart, post/grant change or saved user credential. Limits: `knowledge-base/web10-v3/media/video-experience.md`.
 
 Resumable uploads remain default-off (`RESUMABLE_UPLOADS_ENABLED`). New multipart
 routes verify current human/app/service authority before private conditional S3

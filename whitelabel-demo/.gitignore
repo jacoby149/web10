@@ -1,0 +1,13 @@
+# Local working files only. Commit sanitized ops receipts, never source media,
+# environment secrets, password files or browser credentials.
+.env
+.env.*
+!.env.example
+state/
+media/
+downloads/
+secrets/
+*.har
+*.htpasswd
+*.pem
+*.key

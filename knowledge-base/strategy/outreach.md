@@ -23,6 +23,53 @@ rules for all copy below:
 
 ---
 
+## Warm partner track — Torah Anytime (11.11.2026)
+
+Operator reports Torah Anytime is open to spreading Torah with web10 and has
+petabytes of Torah content. Treat this as an anchor library/community
+partnership opportunity alongside the creator outreach track, not as a cold
+prospect or a closed deal. Catalog size and audience remain unverified; source
+users are not automatically web10 users.
+
+**Lead with immediate value-adds:** add useful Twitter-like features to Torah
+Anytime, not “move onto the new internet.” The operator has already answered
+their free/chesed question; the actual email to Shimon clarifies **free lifetime
+license and future improvements, with TorahAnytime covering hosting**. Suggested
+offer: “Add teacher follows, a Torah feed and easy shiur sharing to Torah
+Anytime—under your brand, Torah-only, and built to work reliably.” Validate
+which features they want first; these are proposed benefits, not delivered
+integration or proven reliability. Jacob offered personal setup and speaker
+accounts from authorized database access. The quoted 16-core/32GB server is an
+estimate to validate, not capacity proof. No free-trial/upsell framing or surprise
+fees; agree hosting scope/costs transparently. Subsequent operator report:
+TorahAnytime offered use of its existing server. Plan around that approved
+infrastructure, checking available headroom and deployment isolation rather
+than proposing a new server purchase; exact resources/access remain unknown.
+“Value-adds” here means
+features, not advertising.
+
+**First show the demo using web10-social's existing policy**, under their brand
+with a curated Torah sample and private password gate. Do not add new account
+levels, speaker approval or TorahAnytime login/sync before that first showcase.
+Then learn their current/desired signup, speaker, commenting and moderation
+rules, including inappropriate content, plus sync/login capabilities. Use their
+answers to make a tailored proposal, not a speculative permission redesign.
+Custom publishing policy, all-surface governance and authorized synchronization
+are later rollout work, not features we can claim are ready or demo blockers.
+After policy discovery and agreement on a bounded proposal, offer **Demo Part
+2 with their confirmed policies mirrored**, so their team can test the actual
+participation/moderation workflows and refine the proposal. Do not imply that
+this includes working TorahAnytime login or account/catalog sync unless those
+integrations are separately agreed and verified. The first showcase stays lean.
+
+This partner-specific sync plan is an explicit exception to the generic
+fresh-start/no-catalog offer above (D95), not a change to every creator pitch
+or authorization to restore the retired importer. The email to Shimon is
+recorded verbatim in the partner brief; acceptance is not yet recorded. No further outbound message,
+public partner/logo claim, copy, provisioning or spend is authorized here.
+Scope, gates and queue: [torah-anytime.md](torah-anytime.md), `plan.md` and
+the `torah-anytime-partnership` lane in `parallel-execution.md`.
+
 ## 1. build the list (start today — 100 names total, ~35/35/30 by
 segment, worked in BATCHES of 20)
 

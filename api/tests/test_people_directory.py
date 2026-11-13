@@ -118,7 +118,9 @@ def _dispatch(reader: str, authenticated: bool):
         if "FROM group_contracts WHERE group_id IN" in sql:
             return _rows([(g, json.dumps(roles)) for g, roles in role_defs.items()])
         if "FROM users) WHERE rn = 1" in sql:
-            return _rows([("alice",), ("bob",), ("carol",), ("dave",), ("eve",)])
+            return _rows(
+                [(u, datetime(2026, 1, day)) for day, u in enumerate(["alice", "bob", "carol", "dave", "eve"], 1)]
+            )
         raise AssertionError(f"unexpected query: {sql}")
 
     return dispatch
@@ -138,6 +140,14 @@ class TestListPublicUsersComposition:
         # count desc.
         assert [r["username"] for r in result] == ["bob", "alice", "dave"]
         assert [r["follower_count"] for r in result] == [10, 5, 2]
+
+    def test_newest_uses_account_creation_before_paging_and_keeps_i3(self):
+        with patch.object(ch, "client") as mock_client:
+            mock_client.query.side_effect = _dispatch("anon", False)
+            page = ch.list_public_users("anon", False, limit=1, offset=1, sort="newest")
+        # dave (Jan 4, no face), bob (Jan 2), alice (Jan 1); private Jan 5 eve absent.
+        assert [row["username"] for row in page] == ["bob"]
+        assert page[0]["created_at"].startswith("2026-01-02")
 
     def test_anon_excludes_private(self):
         with patch.object(ch, "client") as mock_client:
@@ -235,7 +245,7 @@ class TestListPublicUsersComposition:
             if "FROM group_contracts WHERE group_id IN" in sql:
                 return _rows([(fgid("alice"), json.dumps(PUBLIC_ROLES))])
             if "FROM users) WHERE rn = 1" in sql:
-                return _rows([("alice",)])
+                return _rows([("alice", datetime(2026, 1, 1))])
             raise AssertionError(f"unexpected query: {sql}")
 
         with patch.object(ch, "client") as mock_client:
@@ -253,7 +263,7 @@ class TestListPublicUsersComposition:
             mock_client.query.side_effect = _dispatch("anon", False)
             result = ch.list_public_users("anon", False, limit=20, offset=0)
         for r in result:
-            assert set(r.keys()) == {"username", "follower_count", "profile"}
+            assert set(r.keys()) == {"username", "follower_count", "profile", "created_at"}
 
     def test_limit_and_offset_page(self):
         with patch.object(ch, "client") as mock_client:
@@ -278,7 +288,7 @@ class TestPeopleDirectoryEndpoint:
         assert data["offset"] == 0
         assert data["users"][0]["username"] == "bob"
         # anon principal, not authenticated
-        m.assert_called_once_with("anon", False, 20, 0)
+        m.assert_called_once_with("anon", False, 20, 0, sort="popular")
 
     def test_signed_in_token_reads_as_user(self):
         token = _make_token("carol")
@@ -287,7 +297,7 @@ class TestPeopleDirectoryEndpoint:
                 resp = c.post("/v3/users/directory", json={"token": token, "limit": 5, "offset": 0})
         assert resp.status_code == 200
         assert resp.json()["users"] == []
-        m.assert_called_once_with("carol", True, 5, 0)
+        m.assert_called_once_with("carol", True, 5, 0, sort="popular")
 
     def test_invalid_token_rejected(self):
         with patch.object(ch, "list_public_users", return_value=[]):
@@ -295,3 +305,13 @@ class TestPeopleDirectoryEndpoint:
                 resp = c.post("/v3/users/directory", json={"token": "not-a-real-jwt"})
         # a present-but-invalid token is not silently downgraded to anon
         assert resp.status_code == 401
+
+    def test_newest_is_forwarded_and_invalid_sort_is_rejected(self):
+        with patch.object(ch, "list_public_users", return_value=[]) as read:
+            with TestClient(fastapi_app) as c:
+                response = c.post("/v3/users/directory", json={"sort": "newest", "limit": 1, "offset": 3})
+                assert response.json()["sort"] == "newest"
+                assert c.post("/v3/users/directory", json={"sort": "updated_at"}).status_code == 422
+                assert c.post("/v3/users/directory", json={"limit": 101}).status_code == 422
+                assert c.post("/v3/users/directory", json={"offset": -1}).status_code == 422
+        read.assert_called_once_with("anon", False, 1, 3, sort="newest")

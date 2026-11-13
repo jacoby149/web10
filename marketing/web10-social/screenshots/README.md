@@ -1,5 +1,15 @@
 # Messages screenshots — how to capture them (read this before you try)
 
+## People/Groups directory mixer
+
+`SCREENSHOT_OUTPUT_DIR="$PWD/../../.context/directory-mixer" node screenshots/directory-mixer.mjs`
+boots/stops both actual apps and intercepts all external data. It checks separate
+creation-date sorts and reload, the shared server editor, real two-source page
+budgets, read-only foreign cards and all-muted reload. Both themes at
+1440/375/768/1280; captures and receipt stay under the requested `.context/`.
+This is synthetic public-browser evidence, not independent HTTPS nodes or
+authenticated foreign app grants.
+
 ## System / Light / Dark appearance
 
 Navigation glass trial: `SCREENSHOT_OUTPUT_DIR="$PWD/../../.context/navigation-glass" node screenshots/navigation-glass.mjs`

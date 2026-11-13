@@ -48,6 +48,14 @@ export interface PostRecord {
   visibility?: Visibility;
   location?: PostLocation;
   tags?: string[];
+  /**
+   * Hashtags (D110, social/hashtags.md): the post's `#tag` prose, derived into
+   * a lowercase-deduped index by the write layer (`body.hashtags` — NOT the
+   * doc `tags` column, which is the machine's vocabulary). The read side maps
+   * it back here so the Discover topic union + the `/tag/:hashtag` board can
+   * filter on it. Absent on pre-D110 posts (the empty set of syntax).
+   */
+  hashtags?: string[];
   mentions?: PostMention[];
   encrypted?: boolean;
   /**
@@ -153,6 +161,10 @@ export function fromV3DocToPost(doc: V3Document): PostRecord {
     visibility: (body.visibility as Visibility) || undefined,
     location: (body.location as PostLocation) || undefined,
     tags: doc.tags || (body.tags as string[]) || undefined,
+    // The hashtag index (D110): app-derived body content (the write layer
+    // parsed the markdown), opaque to the node — mapped exactly like the
+    // body-carried fields (never from the doc `tags` column).
+    hashtags: Array.isArray(body.hashtags) ? body.hashtags.filter((tag): tag is string => typeof tag === 'string' && /^[a-z0-9_]{1,30}$/.test(tag)) : undefined,
     mentions: (body.mentions as PostMention[]) || undefined,
     encrypted: body.encrypted as boolean,
     // A repost (reposts.md): the doc_id of the post this one reposts. Absent

@@ -83,7 +83,7 @@ describe('write side (D69) — actions nudge the target over P2P', () => {
     const update = vi.fn(async () => ({ doc_id: 'post', author_key: 'alice', body: {} }));
     vi.spyOn(v3, 'getV3Client').mockReturnValue({ ...client, update } as never);
     await updatePost('post', { text: 'tag removed' });
-    expect(update).toHaveBeenLastCalledWith('post', { text: 'tag removed', mention_usernames: [] }, undefined);
+    expect(update).toHaveBeenLastCalledWith('post', { text: 'tag removed', mention_usernames: [], hashtags: [] }, undefined);
     client.readById.mockResolvedValue({ doc_id: 'comment', author_key: 'alice', body: {} });
     vi.spyOn(mutation, 'readMutationAuthority').mockResolvedValue({ canEdit: true, canDelete: true });
     await updateComment('comment', { text: '@bob' });

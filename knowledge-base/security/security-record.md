@@ -15,6 +15,31 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## People/Groups directory mixer (12.11.2026) — bounded feature coverage, OPEN
+
+GPT-6.1 Sol checks existing directory gates/order and the shared reader's direct
+SDK dispatch path. Directory ordering adds no permission bypass: profile
+readability and group discoverability/latest-before-filter remain unchanged.
+SDK tests deny injected group-directory URL fields/root credentials, retain
+explicit public/current-token modes and omit token/body/cookies from public GET.
+Reader controls cover quotas, mute, tiny weights, per-source failed offsets,
+denied-token no-anonymous-retry, old generations, sort support and colliding IDs.
+Foreign cards have no home mutations or fabricated app href. Existing approval
+controller remains the credential authority, not the catalog or returned rows.
+Independent fresh/model-diverse convergence, real ClickHouse lifecycle/HTTPS-node
+browser grants, foreign navigation/actions, physical-phone and rollout remain
+OPEN. No whole-surface L1–L4/security PASS or production action is claimed.
+
+## One-time phone-probe recovery (11–12.11.2026) — bounded ops review, OPEN
+
+Production execution receipt, 5.28.1: operator approves the merged script and exact private plan; all five items complete once with exit 0, original object size/ETag and non-transcode metadata hashes retained, plus original post/group hashes unchanged. Five private attempt claims remain; no application deployment/restart, environment change, token export or access mutation. Each first HLS segment decodes H.264 frames, the remaining exact-error count is zero, and actual public post/Shorts Chromium at desktop/375px passes advancing-frame and pause/seek checks. Durable private verification receipt is retained with the run log in `~/web10-ops/phone-video-recovery/20261112T030158Z-57e36ce0/`; decoded segments were temporary and removed. Bounded recovery is observed, not whole-security/model-diverse/physical-phone/full-duration assurance.
+
+The operator replaces PR #1517's unmerged periodic design with `ubuntu-deployment/scripts/heal-phone-videos.py`. API runtime/settings/Compose have no net diff against dev; no endpoint, startup hook or environment switch remains. Private exclusive dry-run plans bind provider/storage/source; explicit apply processes only their bounded entries sequentially, with canonical account/ownership/deletion/status checks and private conditional claims. Scoped adapters affect only the separate script process and restore on exit; no user token is stored.
+
+The prototype's fresh-review P2 metadata loss remains regression-pinned: update_document defaults clear non-body fields unless explicitly forwarded. The script's actual-insert tests preserve canonical reference/tags/ad/audit values through processing and terminal writes. All 2,264 API tests/eight subtests pass (one opt-in skip), including 23 script controls; 35 focused script/probe controls and changed-file lint/format pass. Fresh one-model redesign review finds no actionable P1/P2 and no D41/D60 conflict, independently verifies adapter restoration/real-call-path compatibility, and does not claim model-diverse sign-off.
+
+Connected redesign acceptance: execute the final one-time dry-run/plan/apply against session-only dev users/documents, actual MinIO and installed FFmpeg; 24 H.264 portrait frames decode, original and metadata survive, repeated apply adds no version. Remove only owned synthetic objects/claim and temporary tables; zero persistent document writes. Earlier production read-only candidate and dev/prod private-state/conditional-denial/anonymous-403 checks remain bounded evidence. Production execution and public desktop/375px playback are subsequently observed in the 5.28.1 receipt above. Actual physical-phone/full-duration verification, concurrent-manual/check-write atomicity and model-diverse assurance remain OPEN; no L1–L4 security PASS is claimed.
+
 ## Consent-popup dead-session self-scrub + the recovery's reauth honesty (11.11.2026) — L1/L2 bounded, Qwen 3.8 27B single-model, shipped 5.23.4
 
 The consent popup's "Signed in as …" is local cookie state, and every on-mount

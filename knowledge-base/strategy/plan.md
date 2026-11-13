@@ -35,10 +35,55 @@ If a lower layer contradicts its source above, the source wins. Always.
 
 - [✓ 3.254.8 local docs] **Shadowguard deferred to web10 v4** - preserve the 3.254.7 concept in [shadowguard.md](shadowguard.md) and [later.md](later.md#web10-v4-shadowguard); remove its protocol-decision task from the active queue. Not planned any time soon, no release date, research/implementation assignment or dependency for v3. Explicit operator reactivation during v4 planning is required before any work resumes.
 
+## Marketing: Torah Anytime anchor partnership
+
+- [✓ 5.27.3 local docs only] **Plan exact-brand appearance controls** — capture operator request to match TorahAnytime colors/fonts through reusable node-wide controls, beyond logos or one accent picker. THEME0–THEME2 below cover verified references, exact hex light/dark palettes, licensed self-hosted typography, preview/save/reset, token propagation and acceptance. Existing System/Light/Dark is not reimplemented; first demo scope unchanged. No verified partner palette/font or runtime change.
+- [✓ 5.27.3 local docs only] **Record API-to-client theme architecture** — propose public read-only `GET /theme` backed by existing node config, publishing versioned generic brand/palette/font/preset data that social maps to semantic tokens. Admin writes stay separate; fixed product structure is not an editor option. THEME1 settles fixed/themeable/editable boundaries, coordinated defaults/advanced overrides, cache/startup/failure behavior and configured-node ownership, never feed-source branding. Endpoint/editor implementation remains open under THEME2.
+- [ ] **THEME0 — verify TorahAnytime brand references** — record dated public-site/style or approved-kit evidence for exact colors, font families/weights/sources and Hebrew/English/RTL coverage; verify font redistribution rights or obtain approved alternatives. Distinguish verified values from proposed dark-mode adaptations. Docs/reference capture only; no guessed palette or font claim.
+- [ ] **THEME1 — reusable node appearance contract and editor design** — after THEME0, inventory config/consumers and specify persisted light/dark semantic palettes with color pickers plus exact hex fields, approved self-hosted UI/heading fonts, contrast validation, URL-reachable preview/Save/Cancel/reset and failure recovery. Map existing tokens across social/authenticator/browser and enabled branding touchpoints; distinguish node branding from browser System/Light/Dark and preserve web10 defaults. Assign bounded owners before code; see `torah-anytime.md`.
+- [ ] **THEME2 — implement and verify node appearance controls** — after approved THEME0/THEME1 references/contract and owner assignment, split generic config/validation, settings editor, social and authenticator wiring. Require exact hex persistence, real font loading/fallback, preview/cancel/reset, node isolation, first-paint/theme preference parity, contrast/keyboard checks and both-theme desktop/375px captures; normal tests/build/all CI and partner visual approval before rollout. Future write-boundary work follows security method. No partner fork or implicit Part 1 demo blocker.
+- [✓ 5.27.2 local docs only] **Clarify listener tier can like** — operator corrects the earlier “read-only” label: these listeners can read/watch and like; this is not another additional tier or speaker/publisher authority. Carry into TA0/TA-PROPOSAL/TA2; comments, other reactions and publishing remain separate policy decisions. First demo unchanged; no runtime implementation claimed.
+- [✓ 5.27.1 local docs only] **Record Demo Part 2 policy-mirroring stage** — after the existing-policy showcase, discovery and bounded proposal agreement, return with a second isolated demo mirroring their confirmed policies. Partner feedback refines the proposal before rollout; no assumed speaker rules, SSO or sync, and no blocker added to Part 1.
+- [✓ 5.27.1 local docs only] **Demo first, existing web10-social policy** — operator's current direction supersedes custom-account-level/SSO discussion for the first demo. Show branded TorahAnytime Social with existing account/post/comment/moderation behavior, curated content and the outer password gate; no new speaker tiers, approval queue or TorahAnytime login/sync. After showing it, discover their actual/desired participation and abuse policies plus integration capabilities, then write TA-PROPOSAL. No runtime implementation claimed.
+- [✓ 5.27.1 local docs only] **Record speaker-level approval working model** — operator selects approved speakers/publishers as the baseline, possibly vetting their first few videos before trusted direct publishing without routine per-video audit. This is an unverified workflow hypothesis, not a confirmed TorahAnytime policy. TA0 confirms initial review, approval authority, direct-publish transition and revocation; listener signup approval remains separate. TA2 implementation stays open.
+- [✓ 5.27.1 local docs only] **Create white-label demo ops kit** — `whitelabel-demo/` now owns the demo runbook/content workflow/ops ledger. Confirmed social `torah.web10.app` and API `api.torah.web10.app`; scoped DNS/TLS, supporting-route decisions, isolated stack/origin wiring, real password-gate acceptance and rollback recorded. No live changes or deployed demo claim.
+- [ ] **DEMO-DNS — provision the approved demo routes** — after target server/public address and access are confirmed, reconcile only `torah.web10.app` and `api.torah.web10.app` plus separately approved supporting routes. Follow `whitelabel-demo/OPS.md`: snapshot existing records, verified TLS (apex wildcard does not cover nested API), gate-before-content, isolated stack and exact-origin browser checks. Deployment/security owner, no broad dev/prod sync or existing-service disruption.
+- [✓ 5.27.1 local docs only] **Narrow TorahAnytime's immediate demo** — only light/dark logo settings as the white-label feature, a real password gate and a small stocked Torah sample. Operator confirms TorahAnytime supports downloads. Demo queue below precedes the full TA0–TA4 rollout; no bulk sync/new role framework required for the isolated showcase.
+- [ ] **DEMO1 — light/dark logo settings** — expose existing `logo_light`/`logo_dark` in Node Settings and wire saved values to the demo's theme-aware branding. Save/reload, missing/broken assets and theme switching need focused tests plus both-theme desktop/375px captures/build/CI; no larger branding redesign. See `torah-anytime.md`.
+- [ ] **DEMO2 — password-gated demo** — isolated deployment with server/edge protection covering app/deep links and demo-owned API/media/previews, not a frontend password screen. Requires approved host/access and out-of-band secret setup; prove unauthenticated/wrong-password denial and successful entry/session termination, retain normal account auth, no production-policy change.
+- [ ] **DEMO3 — download and stock a small Torah sample** — select rabbis/shiurim and count/byte bounds, use TorahAnytime's supported downloads, preserve attribution and idempotently seed demo pages/posts. Requires rehosting permission and approved gated target; real media/feed/profile/share checks plus desktop/375px captures. No public sample publication, impersonated speaker accounts, bulk import or full sync.
+- [✓ 5.27.1 local docs only] **Record partner-provided hosting direction** — operator reports TorahAnytime offered use of its existing server. Target their approved infrastructure, not an assumed new purchase or catalog duplication; TA0 checks available resources, isolated deployment/access and backup/rollback without disrupting existing services. Hardware/headroom and database authorization remain unverified; prior 16-core/32GB quote is not a required minimum.
+- [✓ 5.27.1 local docs only] **Torah Anytime immediate-value/free-offer framing** — preserve the actual email sent to Shimon: free lifetime license/future improvements, TorahAnytime-funded hosting, personal setup and speaker-account provisioning from authorized database access. The standard $500/year price and 16-core/32GB estimate are recorded as communicated, not a platform-wide pricing decision or capacity proof. Lead with reliable branded social features, not network migration; pilot must validate sizing, full hosting costs, speaker claim/consent and delivery behavior. Brief/outreach aligned; partner acceptance and implementation remain open.
+- [✓ 5.27.1 local docs only] **Record Torah Anytime marketing opportunity** — operator reports openness to spreading Torah with web10 and petabyte-scale holdings. [torah-anytime.md](torah-anytime.md) captures the partner-specific catalog-sync opportunity, white-label node/social requirements, restricted role presets and Torah-only publication policy. Not a signed deal, verified inventory/audience, implemented feature or approved transfer; D95's general onboarding direction remains intact.
+- [ ] **TA0 — partner discovery and pilot agreement** — verify counterpart, catalog/access/rights and audience baseline; agree branding, Torah-only rules, proposed permission matrix and a bounded pilot. No sync, outreach sends, spend or production action without approval.
+- [ ] **TA-PROPOSAL — policy and integration proposal after the demo** — after showing the existing-policy demo and collecting TA0 answers, document current/desired signup, speaker approval, comments/replies, inappropriate-content/report/removal/appeal rules and sync/login capabilities. Separate facts, recommendations and unknowns; propose a permission matrix, moderation ownership, identity/catalog integration options and bounded phases/acceptance/costs. Partner agreement precedes custom-policy/sync implementation; no assumption that TorahAnytime exposes SSO or reviews every video.
+- [ ] **DEMO-PART2 — mirror confirmed TorahAnytime policies** — after Part 1, TA0 discovery, bounded TA-PROPOSAL agreement and relevant TA2 implementation/review, demonstrate the agreed account/publishing/comment/moderation rules on the isolated gated demo. Actual allow/deny/API bypass and applicable review/report/removal/revocation journeys plus partner feedback/mismatch receipts are required; refine the proposal before rollout. Distinct from DEMO2 password gating; sync/SSO only if separately agreed and verified, not automatic scope or Part 1 blockers.
+- [ ] **TA1 — white-label contract** — after TA0, inventory existing configuration versus gaps across social/authenticator/domain/install/share/recovery surfaces; specify reusable configuration and split implementation by owner. No partner fork or issuer-obscuring branding.
+- [ ] **TA2 — role and Torah-only publication contract** — after TA0 and partner approval, scope least-privilege presets, all effective/public grants, publication/edit review, every content surface and outside-source policy. Baseline: speaker approval, possible initial-video vetting, then trusted direct publishing; confirm this hypothesis and review/revocation transitions, never infer listener signup policy. Generic D58/D60 primitives; real API bypass/revocation denial tests required before rollout, not hidden buttons or Discover-only filtering.
+- [ ] **TA3 — bounded catalog-sync design and trial** — after authorized sample/limits and explicit execution approval, design and measure resumable idempotent source mapping, integrity, updates/deletes/takedowns and cost; compare source-backed playback with replication. Publication depends on TA2 enforcement; no petabyte copy or paid infrastructure by implication.
+- [ ] **TA4 — partner pilot and expansion decision** — after implementation/review/green CI, prove white-label desktop/375px journeys, actual role denials, Torah-only surface matrix and real media/search/repeat-sync behavior. Partner sign-off plus observed usage/capacity and approved budget precede expansion; catalog bytes/source users are not adoption metrics.
+
 ## Phases
 
-- [✓ 5.23.3 local; rollout/retry OPEN] **Repair frozen homepage phone video** — the reported “Ramblin” card plays the HEVC original's audio without decoded video because its HLS transcode failed at the fixed-three-column FFprobe CSV parser. Use named JSON fields and display-matrix rotation for display-oriented rendition/thumbnail planning. Twelve regression controls include a generated rotated HEVC file reproducing the exact pre-fix crash and completing the real FFmpeg worker pipeline after repair; all 2,241 API tests plus eight subtests pass (one opt-in skip), Ruff clean, desktop/375px Chromium proves increasing HLS decoded frames and pause/resume on synthetic worker output. No UI/auth/TTL change or production write. Evidence/remaining gate: `media-reliability.md`.
-- [ ] **Phone-video repair rollout and failed-upload recovery** — after reviewed deployment and operator approval, retry only the exact failed media behind the reported “Ramblin” post using existing owner-authorized transcode authority; wait for `done`, re-read its original carrier and verify moving decoded frames plus pause/seek on the live desktop homepage and 375px. Owns HLS worker/focused tests and acceptance evidence; no global backfill, post re-upload or access/TTL change. Local 5.23.3 repair is not deployed recovery.
+- [✓ 5.30.1 local] **Match the other pages' Advanced mixer disclosure** — replace People/Groups' separate Servers CTA with the same left-aligned Advanced / Hide controls treatment, icons/chevron and tucked animated/inert chassis in both apps. Sort by stays visible; URL state, weights and sorting are preserved. All 102 social/106 marketing focused controls and both builds pass; both-theme 1440/375/768/1280 browser checks plus inspected desktop/375px collapsed/expanded captures pass. No ranking, API, approval or deployment change.
+
+- [✓ 5.30.0 local; connected/review OPEN] **People/Groups server mixer and simple sort** — shared source rack in both directories; independent URL-owned Newest/Most followers and Newest/Most members, canonical creation and source ordering before pagination. No power mean. Real smooth quotas, mute/retry/separate offsets, approved dispatch, source-qualified read-only foreign cards and preserved home graph/actions. All 2,528 social/379 marketing/319 SDK/2,268 API tests plus eight subtests pass (one opt-in skip), both builds and changed-file lint/format pass. Actual-app synthetic browser checks both themes at 1440/375/768/1280; desktop/375px captures inspected. Faceless marketing retry loop and consecutive-fader stale-weight regression repaired. Contract/receipts: `web10-v3/social/directory-mixer.md`. Independent HTTPS-node/real-DB lifecycle, review/CI, foreign actions and rollout remain separate.
+- [ ] **Directory mixer connected acceptance** — use isolated independently keyed HTTPS nodes to verify actual sorted account/group creation, current audience history, Origin/app-grant approval and denial, per-source pagination/mute/retry, colliding names, removal/regrant/account-switch fencing and serving-node faces. Requires local 5.30.0, source approval and disposable-node access; retain public no-token and denied-token no-anonymous-fallback controls. No production writes, deployment or implied foreign action/navigation implementation.
+
+- [✓ 5.29.2 local] **Recover social upload/post permission failures without losing the draft** — inline approval/retry for caught composer/upload 401/403 failures, persistent actionable missing-approval/dead-token toasts, exact service names in code and same-account/file/metadata reuse of completed uploads. Preserve explicit retry, blocked-popup and skipped-approval truth; no automatic approval/publication or API/SDK change. Include only existing-rule username hints in the authenticator; broader consent/login/permission-screen redesign is explicitly excluded. Focused/full tests, both builds and isolated desktop/375px browser evidence are local gates; original skipped-consent cause, real-node/phone and deployment acceptance remain separate.
+
+- [✓ 5.28.0 merged #1517; recovery receipt 5.28.1] **One-time recovery for historical phone-probe failures** — operator replaces the periodic design with the ops script, private planning and explicit node/source-bound sequential apply, canonical checks, private claims and scoped metadata preservation around the installed converter. No API runtime/settings/Compose changes, endpoint, recurring scan or app deployment/restart. All 2,264 tests/eight subtests (one opt-in skip), 23 script controls, lint/format, real dev ClickHouse/MinIO/FFmpeg and PR checks pass; fresh bounded review has no P1/P2. Production five-video recovery and desktop/375px public playback receipt is recorded in 5.28.1; physical-phone/full-duration/model-diverse assurance remains separate.
+
+- [✓ 5.27.0 local] **Authenticator system/light/dark appearance** — D108 shared store under `web10-auth:theme`, blocking startup, complete light palette, native/browser chrome and theme-aware canonical/configurable artwork. System/Light/Dark in Settings plus public `?mode=appearance` linked from login; pending consent takes routing precedence and auth authority stays unchanged. All 327 UI tests (14 new theme controls), production build/typecheck, desktop/375px actual-app appearance/keyboard/OS/override/reload/tab/storage-denial checks and both-theme 375/768/1280/1440 glass gates pass. Default “black” fixture was byte-identical to white: canonical transparent pair now uses fresh URLs with exact alpha/dimensions and zinc-900 pixel controls. Settings/public Appearance/login/view-only consent captures inspected in both themes. No deployment or live-auth/physical-phone/Safari proof; acceptance remains separate.
+
+- [✓ 5.26.0 local] **Authenticator mobile glass dock** — the approved social pill/rim now dresses the authenticated console's mobile navigation; six admin/four personal destinations, accessible names and handlers preserved, desktop/login/consent unchanged. Local lens/material and safe-area/dynamic-viewport clearance; 15 focused controls, all 313 UI tests and production build/typecheck pass. Real Chromium at 375/768/1280/1440 verifies navigation, 44px targets, focus, resize, last-content clearance, admin/signed-out and opaque fallbacks. Compact-label contrast initially failed at 3.45:1 over white; 90% bed tint raises the worst control to 5.74:1 without changing rim optics. Synthetic striped backdrop changes 5,918 rim pixels, zero center pixels; flat backdrop adds zero rings. Desktop/mobile captures inspected. Physical-phone/Safari and deployment remain separate.
+- [ ] **Authenticator glass phone acceptance** — verify the floating dock on real iOS Safari and Android Chrome, including all six admin destinations, four personal destinations, scrolling, keyboard/home-indicator clearance and reduced transparency. Requires device access and the mobile glass implementation; no auth-policy changes or deployment without approval. Owns the authenticator navigation shell/material and focused fixtures only; record device/browser evidence and rendering/performance limits.
+
+- [✓ 5.25.2 local] **Center the Recency / Likes / Comments dials on mobile** — center the row at every breakpoint in both social and marketing; keep dial sizing, gaps and ranking unchanged. Chromium pre-fix mobile repro and light/dark 375/768/1280/1440 geometry checks, 165 focused tests and both builds/typechecks pass; desktop/375px captures inspected. No deployment.
+
+- [✓ 5.23.3 merged #1509; production recovery 5.28.1] **Repair frozen homepage phone video** — named JSON fields/display-matrix rotation fix the CSV parser crash behind “Ramblin” audio-only playback. Twelve regression controls and the repair-pin 2,241 API tests/eight subtests (one opt-in skip), Ruff and synthetic desktop/375px decoded-frame/pause-resume checks pass. Fixed probe is released in 5.23.4 and observed in the production runtime; the 5.28.1 one-time receipt below then recovers historical failures and verifies the actual public post/Shorts. No UI/auth/TTL change; physical-phone/full-duration assurance remains separate. Evidence: `media-reliability.md`.
+- [✓ 5.28.1 production; phone/full-duration OPEN] **One-time phone-video recovery execution** — approved merged-script/private-plan execution recovers all five exact-error uploads sequentially, exit 0, three HLS variants each. All original sizes/ETags, existing thumbnails, canonical non-transcode metadata and exact post/group hashes match; all five claims remain. First HLS segments decode H.264 frames; zero matching errors remain. Actual original post/Shorts Chromium at 1440/375px has advancing frames and passing pause/seek; captures inspected. No app deployment/restart, env edit, post rewrite or grant/TTL change. Durable safe receipt in the server run directory, details in OPS-LOG; physical-phone/full-duration/model-diverse assurance remains separate.
+- [ ] **Repaired-video physical-phone acceptance** — on actual iOS Safari and Android Chrome, verify the recovered original post and Shorts play moving video with working sound controls, pause/seek/resume, foreground return and a representative longer interval. Requires device access and the completed one-time recovery; owns acceptance evidence and media/ops/plan records only. No reprocessing, app rollout or permission/TTL change. Acceptance: identified device/browser/version plus real playback evidence and retained failures; 375px Chromium is not a substitute.
 
 - [✓ 5.20.1 local] **Invite exploration from marketing** — “Explore web10” on Home/Freedom and “Open web10 social” in desktop/mobile header navigation. Destinations, handlers and analytics unchanged; compact navigation below 1024px avoids reproduced tablet overflow. Exact-label/destination tests, all 378 marketing tests, build/typecheck and desktop/375px light/dark browser captures pass; 768/1280 responsive checks and inspected tablet-menu capture pass. Synthetic network data; no deployment.
 
@@ -857,6 +902,30 @@ Lane: `engine-group-metadata` in `parallel-execution.md`.
 
 Lane: `global-search` in `parallel-execution.md`.
 
+## Hashtags: the second social token (D110) — web10-social + shared discover
+
+**Operator pass (11.11.2026):** "how do # hashtags work? can i add them to a post? trying to edit post added #walking to the text, not showing as a hashtag" + "yeah, we need to build this, hashtagging." **The full contract: `knowledge-base/web10-v3/social/hashtags.md`.** The one-liner: `#word` in the post body becomes the body's second social token (after the @mention, D85) — typed in plain prose, derived into `body.hashtags` on write (NOT the doc `tags` column, which is the machine's vocabulary), rendered as a tappable topic link on every read surface, landing on the public newest-first `/tag/:hashtag` board (the app's own D73 SELECT over the discover group — anon-capable, I3-walled, zero node surface D60).
+
+- [✓ 5.31.0 local] **H1: the hashtag loop** — the shared pattern + remark plugin (`@web10/discover/hashtags`, the `./mentions` idiom), the write derivation (`data/hashtags.ts` + `createPost`/`updatePost` → `body.hashtags`, `PostRecord.hashtags`), the read render (`PostBody`/`PostBodyInline`/`MarkdownText`/`CommentThread` — the `/tag/` link, mention treatment, opt-in so marketing-ui stays inert), the board (`HashtagScreen` + `/tag/:hashtag` route, the feed's `PostCard` over `readFeedPage`'s new `hashtags` filter, all designed states + the composer `draftText` prefill for the empty CTA), the Discover topic-chip union (`tags ∪ hashtags`, the `?tag=`/`?q=` filters). All 2,547 social/378 marketing tests, both builds/typechecks and eight light/dark responsive browser cases pass; desktop/375px captures inspected. Isolated data, not connected-node/live publishing or deployment acceptance. KB: `social/hashtags.md` + the `rich-text.md` / `post-render.md` touch-ups. D110.
+- [ ] **H2: the composer's `#` picker** — type `#`, the shared people-picker UX over existing hashtags (the distinct-hashtags aggregation read, bounded + cached; the suggestion source is the board's pool, not a global index). Gate: H1.
+- [✓ 5.31.1 local; CI OPEN] **H-RAIL: scalable feed topic controls** — operator keeps the top All / hashtag rail but requires usability with 1,000 topics. Replace the hidden first-12 cutoff with bounded quick chips, a pinned active filter and a searchable, 40-result-paged inline picker over the complete loaded-feed topic pool. URL-owned picker/search/page plus existing `tag`; preserve unrelated URL state, keyboard/focus/empty/long-label behavior. Gate: H1; 1,000-topic tests and both-theme desktop/375px captures, full social suite/build and all PR checks. Eight fresh browser cases pass, desktop/375px captures inspected; PR checks remain a separate gate. No global index or node change; `social/hashtags.md`.
+- [ ] **H3: the board's count + Top 10 rail** — the total-count query + a ranked rail (the Hot Gossip sidebar idiom) so the board reads as a destination, not a list. Gate: H1.
+- [ ] **H4: comment-hashtag aggregation + global-search hashtag section** — the board reads `comments` too (or a hashtag index over them) and the top-bar search carries a `#` section. Gate: H1.
+- [ ] **H5: marketing-ui's `/tag` equivalent** — the `/trending` topic hand-off for the shared app's hashtags (its MarkdownText opts in with its own href factory). Gate: H1.
+
+Local H-RAIL gates pass: 2,583 social/379 marketing tests, both builds/typechecks,
+eight 1,000-topic browser cases and eight core-hashtag browser regressions.
+PR #1524 stays blocked on the directory E2E owner's existing `limit=500` request
+against the API's 100-row cap (`groups-demo.spec.ts:421`). Identical base failure:
+dev `876e672abcde`, run 43314207713/job 131517832352. Preserve the API cap and
+listed/hidden assertions; align the test with bounded pagination, then rerun CI.
+
+Lane: `hashtags` in `parallel-execution.md`.
+
+H1's standard composer/repost/edit loop does not backfill historical content.
+The default-off resumable queue's separate deferred-body writer needs upload-owner
+hashtag derivation before queued-post parity; coordination note in the lane.
+
 ## Discover Reorg: Posts + People + Groups as browsers — web10-social + marketing
 
 **Operator pass (18.09.2026):** "discover can have posts, people and groups subtabs in it" + "a whole other people tab totally unecessary, can all be in discover, it helps the marketing site too!" + "groups and people also need pagination and search." **The full plan (design, current state, open decision, bite sizing, acceptance bar): `knowledge-base/strategy/discover-reorg.md`.** The one-liner: Discover becomes *the* discovery surface — **Posts | People | Groups** subtabs (`?tab=`, posts bare) as **browsers** (paged + sortable). **Search is NOT here** — it's the top-bar everything-search (`global-search.md`); each subtab is reached *with a query* via "see more" (`?q=`). The Groups tab keeps only the groups you're a part of; the People tab is retired (`/people` → `/discover?tab=people`); the marketing `/trending` mirrors the three (the dead `PATCH /discover/users` row is replaced by a real read). Rationale: *"you are discovering people and groups."* **The People browser is the highest-risk, lowest-certainty bite** (its value is contingent on node population).
@@ -1394,6 +1463,22 @@ docs before code, per the rule at the top.
 
 ### Current directive — derived realism dataset (11 November 2026)
 
+**New run, 12 November 12:53 UTC:** new approved 14-hour preparation lease
+`3ef3634d8983`, droplet `618505005`, 400-GiB persistent work Volume. Pinned SSH,
+source hashes, exact mount/UUID and synced-file unmount/remount readback pass;
+the actual 1M generator is active with `persistent_work=true`. Compute deadline
+02:50:22 UTC Nov 13, $5 compute ceiling; retained Volume $40/month prorated,
+review after seven days. No repeated 100k prerequisites or experiment fleet.
+Status `.context/REALISM-CLOUD-STATUS.md`; launch evidence
+`research/experiments/costfn/evidence/REALISM-VOLUME-PREP-20261112.md`.
+[✓ 5.29.1 initial approval/launch; generation/validation/storage/review OPEN].
+
+**Previous-run disposition:** the paid prep host is deleted; last retained
+snapshot is 03:57 UTC at exposure partition 68/1024, deletion verified at
+10:02:47 UTC. Final validation is unknown and no verified archive/snapshot was
+recovered. Treat the full input as lost. Older “running” checkpoints are history;
+the prior lease is closed and no new paid run is authorized.
+
 Read [`REALISM-DATASET-DECISIONS.md`](../../research/experiments/costfn/REALISM-DATASET-DECISIONS.md)
 first (operator's full directive and conversation approvals), then
 [`REALISM-RERUN-PLAN.md`](../../research/experiments/costfn/REALISM-RERUN-PLAN.md).
@@ -1402,6 +1487,77 @@ and sixth-draft execution instructions below; historical entries/receipts stay
 intact. The measured rerun is all DigitalOcean, but generator/validator floors
 are local and **no droplets, uploads or spend** are allowed until validation
 passes and the operator has seen the generated statistics receipt.
+
+**Latest operator override [✓ 5.25.0 tooling/direct start; 1M completion OPEN]:** explicit `--skip-floor-gates` stops the
+repeat graph/floor pipeline and admits a direct repaired 1M attempt. Defaults
+still require current floors; waived inputs/status explicitly record the skip
+and resume requires opt-in again. Preserve 2 GB/disk/cleanup/deadline/$5 controls,
+final independent 1M validation, both private verified copies and review. This
+supersedes fresh-floor admission below for that opted-in preparation only.
+
+**RD3-PROGRESS [✓ 5.25.1 logging/restart; 1M completion OPEN]:** operator authorizes a restart for real stage/work
+logging, not another 100k gate cycle. Named allocation/model counters and SQL/
+export start/end timings are tested with throttling and exact result controls;
+all nine offline suites pass. Same-runtime old/logged 10k model CSV bytes match;
+the previous empty output is retained and the direct 1M logging restart is
+active. Preserve prior work and retain explicit floor
+skip, final validation and the same memory/disk/cleanup deadline/$5 ceiling.
+
+**RD3-FOLLOWTHROUGH [~ 5.28.2 observation active]:** five-minute operator-requested
+read-only workflow loop is armed with durable work/resource summaries and
+failure/milestone/pre-cleanup handoffs; six controls pass. Fast safety monitor
+and independent watchdog stay active. Both documented deployment SSH routes
+time out before authentication, so MinIO access is not yet established; no
+credentials are declared missing or rotated. Preserve the approved lifetime/
+$5 ceiling, final 1M validation, two private verified copies, statistics review,
+connected restore/delta/full-row parity and bounded pilot gates.
+
+**RD3-DELIVERIES [✓ 5.28.3 repair/probe; 1M completion OPEN]:** all 790 graph
+batches and six exports passed before the global delivery export OOMed at 2 GB.
+Whole-post event-budget chunks now log and verify physical counts before
+single-file consolidation. Three new controls, eight realism suites and a
+same-host 11M-event/1M-person probe pass. Failed output/hashes are preserved;
+new exception scratch is retained, never a partial-stage success witness.
+Direct 1M restarts without repeated floors; final validation and existing
+lease/$5/storage/review controls remain. Session performs foreground 300-second
+wait/check/repair cycles rather than ending after arming an observer.
+At 23:35 UTC the operator explicitly approves eight more hours on the same
+host to 08:01:22 UTC Nov 12, same $5 total compute ceiling and no fleet.
+Both approval/deadline records are retained; ten lease controls pass, stable
+watchdog updated and loaded worker runtime extended without PID/start change.
+**00:01 UTC Nov 12:** all nine files and manifest generated (19,914,772,845
+Parquet bytes; 1.6B physical deliveries); independent validation is running.
+Dataset and exact file receipts: `research/experiments/costfn/evidence/REALISM-1M-20261112.md`.
+Generation is complete, RD3 validation/persistence/review is not.
+**RD3-VALIDATOR-PATH [✓ 5.28.4 repair/regression; 1M validation OPEN]:** isolated
+source location inferred a missing event-partition scratch parent; preserve
+the FileNotFoundError receipt. Pass owned validation scratch explicitly, with
+a relocated-module regression passing locally/remotely. Resume verifies the
+same completed generation's source/identity/all hashes and revalidates with
+the new validator source. No dataset rebuild or repeated floors.
+**RD3-EXPOSURE-SCALE [✓ 5.28.5 repair/regressions; 1M validation OPEN]:** full
+event partition pass completes, but its first ~25M-row window OOMs. Refine
+oversized buckets independently to <=2.5M complete-key rows with <=64 writers;
+conserve every row and refuse indivisible skew. Two local/remote controls and
+eleven offline suites pass. Reverify/reuse the same finished input; no rebuild,
+floor rerun, memory-limit increase or validation/storage/experiment completion.
+
+- [~] **RD3-VALIDATOR-THROUGHPUT:** operator-requested first-pass volume-aware complete-key sizing, bounded writer/worker concurrency and source/input-bound recovery checkpoints. Preserve every row/check and the approved aggregate resource envelope; prove exact parity, interruption/stale refusal and measured same-host throughput before adoption. The earlier run is now deleted, not advancing: last retained snapshot 03:57 UTC, deletion verified 10:02:47 UTC Nov 12. First bite: histogram-admit correctly sized complete-key buckets before writing, bound open files/flush buffers and prove exact parity plus local resource measurements. Parallel validation/checkpoint orchestration remains separate, not inferred from this repair.
+  - [✓ 5.28.6 local only] **Volume-aware first pass:** exact histogram before writing, grouped destinations and bounded open files/flush buffers remove the oversized-bucket rewrite without tiny-file explosion. Three paired 2M-row local medians 3.50→1.91s, temporary Parquet 81.55→51.63MB; exact controls and a fresh 10k/16M-delivery full validation (50/50) pass. Cloud/1M scratch/throughput, parallelism and restart checkpoints remain open; not full RD3 acceptance.
+- [ ] **RD3-RESTART-SAFETY:** latest operator direction is one persistent prep Volume, normal files/state/logs and scoped compute cleanup—not a whole-workflow checkpoint/archive framework. Verify exact volume/mount identity and retained-file/log readback after compute replacement, with separately approved storage retention/cost and new bounded compute approval. The old lease stays closed; disk survival is not dataset validation or final object-store archival acceptance.
+  - [~] **RD3-RECOVERY:** latest operator correction narrows persistence to the one data-preparation droplet; experiments retain normal output logs/results, not a checkpoint framework. [✓ 5.29.0 local code] Pin the actual provider Volume, require exact mount/filesystem UUID in the worker CLI, and keep dataset/state/appended logs plus validation scratch on it; compute cleanup preserves the disk. Partial work is not automatic resume proof. Supersedes the 5.28.7 whole-workflow proposal. `REALISM-RECOVERY.md` covers the small implementation; actual attach/replacement/file-readback, storage cost/retention and new paid-run approval remain OPEN. No provisioning/mount/experiment change.
+  - [✓ 5.28.6 historical; superseded 5.29.0] Remove the metadata-only readiness gate; actual provider-volume lookup plus exact mount/UUID verification replaces it. No offline receipt was actual connected durability evidence. Experiment checkpointing/controller orchestration is out of scope; their normal output logs/results remain.
+
+**Earlier RD3 repair:** [✓ 5.24.2 local/remote controls; full graph/floor proof interrupted by operator]
+**RD3-GRAPH: bound complete-request candidate expansion at 2 GB** — the first
+repaired-generator 1M attempt OOMed in the global graph window before exporting
+Parquet. Empty output/failure/source evidence retained. Candidate-count batches
+keep full `(cell, reader_id)` windows, original target arithmetic/self exclusion/
+truncation and every requested edge. Three new exact/boundary controls and all
+nine offline Python suites pass; isolated same-host tools run full 100k graph
+equivalence then fresh source-bound floors before any 1M retry. No raised
+memory/new host/distribution waiver; approved cleanup/$5 ceiling and separate
+1M validation/two-copy persistence/statistics review/connected pilot gates stay.
 
 - [✓ 5.20.2 local docs only] **RD0: preserve derived-realism decisions** — archive the operator attachment verbatim and conversation approvals; amend the rerun plan, source precedence and both queues. Sole authorship source van Mierlo: 85% original-post nonposting, post shares 74.7% / 24.0% / 1.3% (top 1% / next 9% / bottom 90%); top-10% 98.7% is derived. Pew's authorship target is withdrawn. Keep all V2 files/receipts untouched. This closes decision capture, not generator, floors, statistics or execution.
 - [✓ 5.21.0 local contract] **RD1: joint feasibility and executable contract** — `realism_contract.py` explicitly declares one source per quantity, joint coupling/cohort/viral controls, tolerances, local disk admission and the §7 adjustment: 4 original posts/account × 400 impressions/post = 1.6B impressions / 320 days at 1M accounts. Governing distributions stay fixed; these are model parameters/arithmetic, not measured traffic or cache-size proof. Read `research/experiments/costfn/REALISM-DATASET.md`. No automatic paid fallback or generation on a failed contract.

@@ -162,7 +162,9 @@ media paths and HLS capabilities stay on the serving node. Foreign cards and
 media expose only implemented read-only behavior: home comments, mutations,
 profile navigation, analytics and recovery are not substitute destination APIs.
 Marketing text search explicitly covers loaded pages; tags reach source SQL.
-People is a directory, not a post board, and does not run the post mixer.
+People is a directory, not a post board. The November 12 extension reuses the
+server source rack with simple creation-date/audience sorting, not post ranking;
+see `../web10-v3/social/directory-mixer.md`.
 
 Fresh scoped review reproduced two boundary bugs: a retained approval callback
 resurrected removed consent, and URL normalization/percent encoding bypassed the
@@ -199,8 +201,9 @@ catalog. A home-only active set keeps the board's offset read (one server at any
 weight is the same page); an approved active foreign server switches to the
 shared reader with `groupMode: 'discover'`. Foreign rows use the Following tab's
 read-only card and are excluded from enrichment, reactions and the Top 10 rail;
-board identity is source-qualified. People is a directory and does not read the
-board. Profile, group and saved-collection views are single-owner and do not
+board identity is source-qualified. People uses its own directory reader and
+simple sort with the same source rack (see `../web10-v3/social/directory-mixer.md`).
+Profile, group and saved-collection views are single-owner and do not
 take the mixer.
 
 Operator: "mixer knobs are just too shiny." The chrome cap gradient is replaced

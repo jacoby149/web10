@@ -8,6 +8,7 @@ import { CommentThread as SharedCommentThread } from '@web10/discover';
 import { useActingAuthor } from '@/data/actingIdentity';
 import { renderMentionInput } from '@/components/shared/MentionInput';
 import { readCommentAnchor } from '@/data/comments';
+import { useInRouterContext, useNavigate } from 'react-router-dom';
 
 interface CommentThreadProps {
   readOnly?: boolean;
@@ -27,10 +28,21 @@ interface CommentThreadProps {
 }
 
 export function CommentThread(props: CommentThreadProps) {
+  const routed = useInRouterContext();
+  return routed ? <RoutedThread {...props} /> : <Thread {...props} />;
+}
+
+function RoutedThread(props: CommentThreadProps) {
+  const navigate = useNavigate();
+  return <Thread {...props} onHashtagClick={tag => navigate(`/tag/${encodeURIComponent(tag)}`)} />;
+}
+
+function Thread({ onHashtagClick, ...props }: CommentThreadProps & { onHashtagClick?: (tag: string) => void }) {
   const identity = useActingAuthor();
   return (
     <SharedCommentThread
       {...props}
+      onHashtagClick={onHashtagClick}
       renderInput={renderMentionInput}
       readAnchor={readCommentAnchor}
       actionIdentity={identity}

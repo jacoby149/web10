@@ -610,6 +610,8 @@
           payload.limit = opts.limit;
         if (opts?.offset != null)
           payload.offset = opts.offset;
+        if (opts?.sort != null)
+          payload.sort = opts.sort;
         const token = state.token ?? readTokenCookie();
         if (token)
           payload.token = token;
