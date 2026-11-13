@@ -1,0 +1,81 @@
+{
+  "dataset_id": "2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd",
+  "endpoint": "https://minio.web10.app",
+  "bucket": "web10-media",
+  "prefix": "research/costfn/datasets/2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd/",
+  "complete": true,
+  "objects": [
+    {
+      "key": "research/costfn/datasets/2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd/app_contracts.parquet",
+      "bytes": 9494,
+      "sha256": "a97ce914b440612b4911333d80f44db4cad4f2eb86d4b5311630ad7a9e2a925c",
+      "anonymous_read_status": 403
+    },
+    {
+      "key": "research/costfn/datasets/2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd/cohorts.parquet",
+      "bytes": 17127363,
+      "sha256": "2dcaf3bc5281cb70ea67956ebc4abd9f078b6cf7507ef146cb2acb8cf726b747",
+      "anonymous_read_status": 403
+    },
+    {
+      "key": "research/costfn/datasets/2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd/content_events.parquet",
+      "bytes": 13322576432,
+      "sha256": "827b56540639e06f8eb2957b2e5793ebfe4fdcee154bde8e3c56c3cf445e39ae",
+      "anonymous_read_status": 403
+    },
+    {
+      "key": "research/costfn/datasets/2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd/doc_groups.parquet",
+      "bytes": 3135296446,
+      "sha256": "ced10aa85c44cdaac98bf8ed7d7878c0a7a357dad364a2aadd913c0aeed09d7b",
+      "anonymous_read_status": 403
+    },
+    {
+      "key": "research/costfn/datasets/2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd/documents.parquet",
+      "bytes": 3275249183,
+      "sha256": "4098058f754de58e028f828f6536d285f02ff3539a444a94ec40c82070279cfc",
+      "anonymous_read_status": 403
+    },
+    {
+      "key": "research/costfn/datasets/2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd/group_contracts.parquet",
+      "bytes": 729549,
+      "sha256": "9d51611e5f927984d4da5968d38110eb1e35bb2c94ba9d18012574d11a1e147b",
+      "anonymous_read_status": 403
+    },
+    {
+      "key": "research/costfn/datasets/2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd/group_members.parquet",
+      "bytes": 150292477,
+      "sha256": "2800d092e2cf91afc9670da792ff2184e8ced4c3463003547d1b1dad621e0cfe",
+      "anonymous_read_status": 403
+    },
+    {
+      "key": "research/costfn/datasets/2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd/manifest.json",
+      "bytes": 326094,
+      "sha256": "f63bed52234ccc555760d94accf79d7714b63359f951b0c78cc2158333e25a66",
+      "anonymous_read_status": 403
+    },
+    {
+      "key": "research/costfn/datasets/2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd/population.parquet",
+      "bytes": 15492423,
+      "sha256": "2959557d761f3afedeb523155ffd8cf444d207a0b1396e17ab4339591ac1a972",
+      "anonymous_read_status": 403
+    },
+    {
+      "key": "research/costfn/datasets/2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd/users.parquet",
+      "bytes": 336224,
+      "sha256": "134d93828bab4b857ab7a74c3bfc081b8ff2ea73d4b648ab220113be3fea8e18",
+      "anonymous_read_status": 403
+    },
+    {
+      "key": "research/costfn/datasets/2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd/validation.json",
+      "bytes": 13524,
+      "sha256": "5d7dabb6e4e322d5a76bed630d053b2340d34e5e5016682ad8bdb175c6afdd94",
+      "anonymous_read_status": 403
+    }
+  ],
+  "total_bytes": 19917449209,
+  "verification": "Independent full readback from the approved DigitalOcean host over HTTPS: exact sizes and SHA-256 against the dataset manifest plus the original 50/50 validation receipt; anonymous reads denied for every object. Upload-side per-object verification during the transfer passed before this independent pass.",
+  "public_policy_changed_by_this_operation": false,
+  "policy_note": "The bucket carries a pre-existing public s3:GetObject statement limited to the two old frozen V2 dataset IDs; the new dataset ID is not in it. The transfer-side pre/post policy-hash tripwire fired across the transfer window; this operation performed no policy writes and the post-transfer readback confirms the new dataset stays anonymous-denied.",
+  "do_volume_retained": true,
+  "spaces_staged": false
+}

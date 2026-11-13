@@ -44,6 +44,12 @@ The Parquet dataset, detailed logs, per-check timing/recovery sidecars and
 predecessor failure evidence remain on the retained DO volume; they are not
 copied into Git. The remote receipt is
 `/mnt/costfn-work/costfn-prep/checkpoint-restart-20261113-r1/final-receipt.json`.
+The full dataset plus this receipt now also exist as the digest-verified private
+MinIO copy at
+`web10-media/research/costfn/datasets/2d6bbc4d89…/` (11 objects,
+19,917,449,209 bytes; two-pass readback, all anonymous reads denied — see
+[`REALISM-STORAGE.md`](../../REALISM-STORAGE.md)). The regional Spaces copy is
+still pending.
 
 Passing synthetic-record validation does **not** establish node/browser
 performance, private/lifecycle acceptance, a connected pilot or full-study

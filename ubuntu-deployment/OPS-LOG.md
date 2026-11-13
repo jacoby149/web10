@@ -128,6 +128,16 @@ next: finish conflict-free/all-green PR #1517, reviewed promotion, production
   state-bucket preflight and explicit activation, then decoded-frame/pause/seek
   verification of the original post. Full model-diverse assurance remains open.
 
+## 13.11.2026 06:21–06:50 UTC — OpenCode (yerevan / jacoby149/sleep-300-process-continue) — private MinIO archival of the validated 1M realism dataset
+did:
+  - Read the deployment field manual, this ledger and `research/experiments/costfn/REALISM-STORAGE.md` first. LAN SSH to all-spark verified the host and the `web10-prod-*` container set; no box changes — no stack, DNS, NPM, container or credential edits.
+  - Staged the validated dataset to the operator-approved target `https://minio.web10.app`, bucket `web10-media`, exact prefix `research/costfn/datasets/2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd/`: nine Parquet tables (19,917,109,591 bytes) plus `validation.json` (13,524) and `manifest.json` (326,094) — 11 objects, 19,917,449,209 bytes.
+  - Bulk bytes moved DO→MinIO directly under short-lived signed upload URLs generated in the existing `web10-prod-api-1` container; storage credentials never left the box and no credential was copied to the preparation host. Uploads used conditional multipart completes; an empty destination prefix was verified before the first write, so no existing object could be overwritten.
+  - Verification: per-object full readback during transfer (size + SHA-256, anonymous 403 each), then an INDEPENDENT re-verification pass — fresh signed read URLs, full readback of all 11 objects from the DO host against the on-volume manifest hashes and the original 50/50 receipt hash. ALL PASS.
+  - The pre/post bucket-policy-hash tripwire in the transfer script fired across the window; this operation performed zero policy writes. Post-transfer read confirms the bucket's only public-read statement remains the pre-existing `PublicFrozenSyntheticCostfnV2Inputs` limited to the two old V2 dataset IDs; the new dataset ID is not publicly readable (all 11 objects anon-403).
+state: canonical private MinIO archive copy of the 1M dataset exists and is digest-verified. DO 400-GiB volume retained untouched (dataset, imports, logs, checkpoints). Spaces regional copy still pending. No public policy change, no public upload, no production object touched.
+next: configure scoped Spaces access and stage the rerun distribution copy; operator statistics review of `research/experiments/costfn/dataset-validation/2026-11-13-1m/`; then RD4 pilot gates.
+
 ## 11.11.2026 22:08 UTC — OpenCode (yerevan / jacoby149/experiment-proceed-v4) — research storage access preflight, read-only
 did:
   - Read the deployment runbook, agent field manual and current ledger before access checks.
