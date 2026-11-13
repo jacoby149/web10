@@ -195,7 +195,7 @@ if (screen === 'post-detail' || screen === 'group-post-detail') {
      : screen === 'groups-create' ? '/groups/web10%2Fgroups%2Fusers%2Fme%2Fnew-group?edit=1'
      : screen === 'chat-group-thread'
        ? '/messages/group/web10%2Fgroups%2Fusers%2Fnova%2Fchat-the-crew'
-       : screen === 'people' ? '/people'
+       : screen === 'people' ? `/people${params.get('personFilter') ? `?personFilter=${params.get('personFilter')}` : ''}`
        : screen === 'people-groups' ? '/people?section=groups'
        : screen === 'profile' ? '/u/nova'
        : screen === 'profile-me' ? '/u/me'
