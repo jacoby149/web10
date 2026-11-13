@@ -48,6 +48,22 @@ const C1_REPLIES_PAGE1 = [reply('r1', 1), reply('r2', 2), reply('r3', 3), reply(
 const C1_REPLIES_PAGE2 = [reply('r6', 6), reply('r7', 7)];
 
 describe('CommentThread — paged threaded replies (comments.md, the Facebook model)', () => {
+  it('does not re-report an unchanged tree when the parent supplies a fresh count callback', async () => {
+    const { CommentThread } = await import('@/components/Feed/CommentThread');
+    const { readThreadComments } = await import('@/data');
+    vi.mocked(readThreadComments).mockResolvedValue({ comments: [C1], nextCursor: null, replyCounts: {} });
+    const first = vi.fn(); const next = vi.fn();
+    const view = render(<CommentThread postId="p1" isOpen count={0} onCountChange={first} />);
+    await waitFor(() => expect(first).toHaveBeenCalledWith(1));
+    view.rerender(<CommentThread postId="p1" isOpen count={1} onCountChange={next} />);
+    await act(async () => {});
+    expect(next).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByTestId('comment-input'), { target: { value: 'new comment' } });
+    const { createThreadComment } = await import('@/data');
+    vi.mocked(createThreadComment).mockResolvedValue({ ...C2, _id: 'new-comment' });
+    fireEvent.click(screen.getByTestId('comment-send'));
+    await waitFor(() => expect(next).toHaveBeenCalledWith(2));
+  });
   it('links hashtags in root comments and nested replies through the social router', async () => {
     const { CommentThread } = await import('@/components/Feed/CommentThread');
     const { readThreadComments, readThreadReplies } = await import('@/data');

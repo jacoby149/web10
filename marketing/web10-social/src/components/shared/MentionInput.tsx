@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { getV3Client } from '@/data/v3';
 import { MentionSuggestions, mentionToken, useMentionAutocomplete } from './MentionAutocomplete';
+import { HashtagSuggestions, hashtagToken, useHashtagAutocomplete } from './HashtagAutocomplete';
 
 export interface MentionInputProps {
   value: string;
@@ -16,16 +17,22 @@ export function MentionInput({ value, onChange, placeholder, disabled, scope }: 
   const [composing, setComposing] = useState(false);
   const [caret, setCaret] = useState(0);
   const [focused, setFocused] = useState(false);
-  const token = focused && !disabled && !composing ? mentionToken(value, caret) : null;
+  const [collapsed, setCollapsed] = useState(true);
+  const canSuggest = focused && !disabled && !composing && collapsed;
+  const token = canSuggest ? mentionToken(value, caret) : null;
+  const hashToken = canSuggest ? hashtagToken(value, caret) : null;
   const account = getV3Client().readToken();
-  const controller = useMentionAutocomplete(token, `${account?.provider}/${account?.username}:${scope}`, (person, range) => {
-    const handle = `@${person.username}`;
+  const insert = (handle: string, range: { from: number; to: number }) => {
     const after = value.slice(range.to);
     const next = value.slice(0, range.from) + handle + (/^\s/.test(after) ? after : ` ${after}`);
     pendingCaret.current = range.from + handle.length + 1;
     setCaret(pendingCaret.current);
     onChange(next);
-  });
+  };
+  const scopeKey = `${JSON.stringify(account)}:${scope}`;
+  const mentions = useMentionAutocomplete(token, scopeKey, (person, range) => insert(`@${person.username}`, range));
+  const hashtags = useHashtagAutocomplete(hashToken, scopeKey, (item, range) => insert(`#${item.hashtag}`, range));
+  const controller = hashToken ? hashtags : mentions;
   useLayoutEffect(() => {
     if (pendingCaret.current === null) return;
     input.current?.focus();
@@ -36,8 +43,8 @@ export function MentionInput({ value, onChange, placeholder, disabled, scope }: 
     <input ref={input} value={value} data-testid="comment-input" placeholder={placeholder} disabled={disabled}
       role="combobox" aria-label={placeholder} aria-autocomplete="list" aria-expanded={controller.open}
       aria-controls={controller.open ? controller.id : undefined} aria-activedescendant={controller.open && controller.people.length ? `${controller.id}-${controller.selected}` : undefined}
-      onChange={event => { setFocused(true); setCaret(event.target.selectionStart ?? event.target.value.length); onChange(event.target.value); }}
-      onSelect={event => setCaret(event.currentTarget.selectionStart ?? 0)}
+      onChange={event => { setFocused(true); setCollapsed(event.target.selectionStart === event.target.selectionEnd); setCaret(event.target.selectionStart ?? event.target.value.length); onChange(event.target.value); }}
+      onSelect={event => { setCollapsed(event.currentTarget.selectionStart === event.currentTarget.selectionEnd); setCaret(event.currentTarget.selectionStart ?? 0); }}
       onFocus={() => {
         setFocused(true);
         requestAnimationFrame(() => {
@@ -54,7 +61,7 @@ export function MentionInput({ value, onChange, placeholder, disabled, scope }: 
       onCompositionEnd={event => { setComposing(false); setFocused(true); setCaret(event.currentTarget.selectionStart ?? 0); }}
       onKeyDown={event => controller.keyDown(event)}
       className="h-11 min-w-0 flex-1 rounded border border-input bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50" />
-    <MentionSuggestions controller={controller} anchor={input.current} />
+    {hashToken ? <HashtagSuggestions controller={hashtags} anchor={input.current} /> : <MentionSuggestions controller={mentions} anchor={input.current} />}
   </>;
 }
 

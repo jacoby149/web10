@@ -207,12 +207,12 @@ export async function createPost(post: Record<string, unknown>): Promise<unknown
   }
   mentionWrite({ kind: 'post', ...post }); return { _id: 'fixture-post', ...post };
 }
-export async function createRepost(): Promise<unknown> { return {}; }
+export async function createRepost(post: { _id?: string }, text: string): Promise<unknown> { mentionWrite({ kind: 'repost', postId: post._id, text }); return {}; }
 // Repost-unify (#1003) surface reads — the harness has no repost data, so they
 // degrade to empty (no tallies, no "I reposted this" fill).
 export async function readRepostCounts(): Promise<Record<string, number>> { return {}; }
 export async function readMyRepostedIds(): Promise<Set<string>> { return new Set(); }
-export async function updatePost(): Promise<unknown> { return {}; }
+export async function updatePost(id: string, updates: Record<string, unknown>): Promise<unknown> { mentionWrite({ kind: 'post-edit', id, ...updates }); return {}; }
 export async function deletePost(): Promise<void> {}
 export async function movePostVisibility(): Promise<void> {}
 export async function countFollowers(): Promise<number> { return PEERS.length; }

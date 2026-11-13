@@ -363,12 +363,17 @@ export function CommentThread({
   // error, fired on the send path). Gated on the initial read having settled
   // (success path — a FAILED load must not overwrite the parent's decoupled
   // total with the empty tree's 0). Fires on every tree change after the load
-  // settles (send, delete, view-more pages) and is idempotent for the parent
-  // (an unchanged count bails out of its setState).
+  // settles (send, delete, view-more pages).
+  // Callback identity is not a tree change: feed parents may update a map and
+  // pass a fresh callback on every render. Depending on it reports forever.
+  const countSink = useRef(onCountChange);
+  useEffect(() => { countSink.current = onCountChange; }, [onCountChange]);
   useEffect(() => {
     if (loading || !settled.current) return;
-    onCountChange(countTree(topLevel));
-  }, [topLevel, loading, onCountChange, countTree]);
+    const count = countTree(topLevel);
+    console.info('[discover:comments] loaded count reported', { count });
+    countSink.current(count);
+  }, [topLevel, loading, countTree]);
 
   // Scroll to + flash the anchored comment once comments are loaded
   useEffect(() => {

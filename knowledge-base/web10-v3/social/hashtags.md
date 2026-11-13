@@ -96,10 +96,44 @@ default-off resumable upload queue constructs its own deferred body and does not
 yet derive this field. Its owner must wire the same helper before hashtagged
 queued publication can claim parity with the standard composer path.
 
-**Open (the follow-up, not v1):** a `#`-trigger picker in the composer
-(suggesting existing hashtags, the mention picker's UX) — it needs a
-distinct-hashtags read (a full-board aggregation per keystroke is not free),
-so it is a separate bite, not part of the loop.
+### H2: complete a hashtag while writing
+
+Typing `#` opens the same caret-anchored picker as `@`, in new/edit/repost
+captions and the shared comment/reply/edit inputs. Bare `#` offers popular
+hashtags; further typing ranks exact matches first, prefixes second, then
+substring matches. Within a match tier, more public posts wins, then the name.
+Choosing a result inserts plain `#name `, never a machine tag or a mention link.
+Arrow keys, Enter/Tab, Escape and touch preserve the draft and caret; code,
+links, headings, selected text and IME composition do not open suggestions.
+
+Each result shows a compact post count (for example `100K posts`) with its
+exact count available to assistive technology/title. Counts mean distinct
+readable public posts on this node's Discover board, not private drafts,
+comments, global/federated uses or a sample of the loaded feed. Repeated tags
+in a post count once. Normal query boundary visibility and ad/product
+exclusions apply. Historical posts without the derived index stay uncounted.
+
+The app's D73 aggregation returns at most eight matches, after ranking, using
+only the `posts` service and Discover group. Debounce searches by 250ms and
+cache up to 64 normalized queries for 60 seconds, scoped to the current
+client/token/Discover group; coalesce identical in-flight reads. Fresh search
+terms can still aggregate the public pool: bounded results are not an indexed
+lookup or a server scan-cost guarantee. Never paginate the whole board per
+keystroke or persist tokens/counts. Stale query/account/scope replies cannot
+repopulate a new picker. Loading, empty (keep typing to create a new hashtag)
+and retryable failure states retain the draft. No node endpoint/schema change.
+
+**5.35.0 local receipt:** 2,630 social/379 marketing tests, both production
+builds/typechecks, 51 responsive Chromium cases and the existing 18 `@`-picker
+journeys pass. Inspect desktop/375px light/dark and async-state captures under
+`.context/hashtag-autocomplete/`. `screenshots/hashtag-query.py` runs the actual
+app SQL through the safe compiler on disposable ClickHouse 24.8.14.39 with
+synthetic rows: distinct counts, exact-before-popularity, literal underscores
+and private/ad/product/deleted/blocked/hidden exclusions pass. The browser gate
+also found a shared comment-count callback render loop; reporting only for tree
+changes, through the latest callback, fixes it with a failing-before regression.
+These are bounded local receipts, not live-node, production-load, physical-phone
+or deployment acceptance. H3's board total and Top 10 are still separate work.
 
 ## The read side (every surface links)
 
