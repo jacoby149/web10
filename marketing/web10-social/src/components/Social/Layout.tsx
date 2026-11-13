@@ -18,6 +18,7 @@ import ActingIdentitySwitcher from './ActingIdentitySwitcher';
 import { useActingAuthor } from '@/data/actingIdentity';
 import { ThemeMark } from '@/components/shared/ThemeMark';
 import DockGlass from './DockGlass';
+import { SignInPrompt } from '@/components/shared/SignInPrompt';
 
 interface LayoutProps {
   onLogout: () => void;
@@ -356,6 +357,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
             </button>
             );
           })}
+          {isAnon && <div className="px-2 py-4"><SignInPrompt placement="sidebar" onLogin={onLogin} /></div>}
           {/* More — the coming-soon surfaces + Node Settings (admin-only) in a
                 popover. Monetization is a first-class sidebar item (the
                 operator's reorder); the node-ad inventory is its in-page Node
@@ -446,7 +448,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                 variant="brand"
                 size="sm"
                 data-testid="sign-in-button-mobile"
-                className="h-10 px-4 font-semibold"
+                className="h-11 px-4 font-semibold"
                 onClick={() => onLogin?.()}
               >
                 <LogIn className="w-4 h-4 mr-1.5" strokeWidth={2} />
@@ -498,7 +500,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                 variant="brand"
                 size="sm"
                 data-testid="sign-in-button-desktop"
-                className="ml-auto h-9 px-4 font-semibold"
+                className="ml-auto h-11 px-4 font-semibold"
                 onClick={() => onLogin?.()}
               >
                 <LogIn className="w-4 h-4 mr-1.5" strokeWidth={2} />

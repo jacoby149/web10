@@ -4,6 +4,7 @@ import Peer from 'peerjs';
 import { Button } from '@/components/ui/button';
 import { getSocialAuth } from '@/interfaces/auth';
 import Layout from '@/components/Social/Layout';
+import JoinScreen from '@/components/Join/JoinScreen';
 import PostsScreen from '@/components/Feed/PostsScreen';
 import ProfileScreen from '@/components/Bio/ProfileScreen';
 import UserProfileScreen from '@/components/Bio/UserProfileScreen';
@@ -506,8 +507,12 @@ function App() {
       <MusicProvider sessionKey={musicSession}>
       <UploadProvider sessionKey={musicSession}>
       <Routes>
+        {/* Browse first at the homepage; /join is the shareable signup pitch.
+            Confirmed auth changes isAnon; opening the popup alone does not. */}
+        <Route path="/" element={<Navigate to="/feed" replace />} />
+        <Route path="/join" element={isAnon ? <JoinScreen onLogin={handleLogin} /> : <Navigate to="/feed" replace />} />
         <Route element={<Layout onLogout={handleLogout} onLogin={handleLogin} isAnon={isAnon} onReportBug={() => handleReportBug('button')} />}>
-          <Route path="/feed" element={<PostsScreen onAuthorClick={handleAuthorClick} />} />
+          <Route path="/feed" element={<PostsScreen onAuthorClick={handleAuthorClick} onLogin={handleLogin} />} />
           {/* The Discover split (watch-page.md): the old single /discover
               (Trending|People tabs + Home|Hot Gossip toggle) is four flat
               destinations. /discover (bare) → Video (the default);
