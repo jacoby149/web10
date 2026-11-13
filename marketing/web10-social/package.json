@@ -32,7 +32,7 @@
     "@web10/discover": "file:../shared/discover",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "dompurify": "^3.4.14",
+    "dompurify": "^3.4.17",
     "hash-wasm": "4.12.0",
     "lucide-react": "^1.25.0",
     "markdown-it": "14.3.0",
