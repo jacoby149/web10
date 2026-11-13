@@ -1,4 +1,6 @@
 """Isolated ClickHouse finished-record validation; no node or generator calls."""
+import ast
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -26,6 +28,34 @@ IMPORT_ORDERS={'documents':'doc_id,author_key,updated_at,deleted',
     'content_events':'doc_id,reader_key,surface,seen_at','doc_groups':'doc_id,group_id',
     'group_members':'group_id,member_key','cohorts':'cell,reader_key,target_key',
     'app_contracts':'tuple()','group_contracts':'tuple()','population':'tuple()','users':'tuple()'}
+
+# One reviewed predecessor, not a general source-drift waiver. Its original
+# context/markers stay immutable; new receipts still pin the executing source.
+PREVIOUS_IMPORT_SOURCE='b37cc2c2a5c18f486bf050e142c3d13087819766b6b7546118fea881fc42e7a6'
+PREVIOUS_ENTRYPOINT='67d4491624fbb7be5d1e7a465747f72fea584420b297fcf673c6ef15c58cc84f'
+PREVIOUS_IMPORT_SEMANTICS='65f6249a22d65f23a168e355939cb71da12bdf3eff0c994fc3b8224ac96d27fd'
+
+
+def import_semantics():
+    nodes=[]
+    for node in ast.parse(Path(__file__).read_text()).body:
+        if isinstance(node,ast.Assign) and any(isinstance(x,ast.Name) and x.id in ('VERSION','IMPORT_ORDERS') for x in node.targets):
+            nodes.append(node)
+        if isinstance(node,ast.FunctionDef) and node.name=='literal':
+            nodes.append(node)
+        if isinstance(node,ast.ClassDef) and node.name=='ClickHouse':
+            nodes.extend(m for m in node.body if isinstance(m,ast.FunctionDef) and m.name in ('table','import_table'))
+    return hashlib.sha256('\n'.join(ast.dump(n,include_attributes=False) for n in nodes).encode()).hexdigest()
+
+
+def resource_settings():
+    profile=os.environ.get('REALISM_CLICKHOUSE_PROFILE','bounded')
+    if profile not in ('bounded','performance'):
+        raise ValueError('unknown ClickHouse validation resource profile')
+    settings=dict(SETTINGS)
+    if profile=='performance':
+        settings.update(max_memory_usage=str(22*1024**3),max_execution_time='14400')
+    return profile,settings
 
 
 def atomic_json(path,value):
@@ -66,6 +96,7 @@ class ClickHouse:
     def __init__(self,work,dataset):
         self.work=Path(work).resolve()
         self.dataset=Path(dataset).resolve()
+        self.profile,self.settings=resource_settings()
         self.container=None
         self.prefix=[os.environ.get('REALISM_CLICKHOUSE_BINARY','clickhouse'),'local']
         self.path=str(self.work/'clickhouse')
@@ -74,7 +105,8 @@ class ClickHouse:
             self.docker=['docker']
             if os.environ.get('REALISM_DOCKER_CONTEXT'):
                 self.docker+=['--context',os.environ['REALISM_DOCKER_CONTEXT']]
-            command=self.docker+['run','--detach','--network','none','--memory','3g','--cpus','4',
+            command=self.docker+['run','--detach','--network','none','--memory',
+                '28g' if self.profile=='performance' else '3g','--cpus','4',
                 '--user',f'{os.getuid()}:{os.getgid()}','--workdir','/work','--env','HOME=/work',
                 '--mount',f'type=bind,source={self.work},target=/work',
                 '--mount',f'type=bind,source={self.dataset},target=/input,readonly',
@@ -83,6 +115,17 @@ class ClickHouse:
             self.prefix=self.docker+['exec',self.container,'clickhouse','local']
             self.path='/work/clickhouse'
             self.input=Path('/input')
+        if self.profile=='performance':
+            # clickhouse-local's aggregate tracker is separate from its query
+            # setting. Native process RSS is independently bounded by systemd.
+            config=self.work/'performance-config.xml'
+            if config.is_symlink():
+                self.close()
+                raise ValueError('resource config must not be a symlink')
+            config.write_text('<clickhouse><max_server_memory_usage>'+str(22*1024**3)+
+                '</max_server_memory_usage><logger><level>information</level>'+
+                '<console>true</console></logger></clickhouse>')
+            self.prefix+=['--config-file',str(config) if not self.container else '/work/'+config.name]
         try:
             actual=self.query('SELECT version()',initialize=True)[0][0]
             if actual!=VERSION:
@@ -95,7 +138,7 @@ class ClickHouse:
     def query(self,sql,*,initialize=False):
         command=self.prefix+['--path',self.path,'--multiquery','--format','JSONCompact',
                              '--progress','err','--query',('' if initialize else 'USE validation; ')+sql]
-        settings=dict(SETTINGS)
+        settings=dict(self.settings)
         if os.environ.get('REALISM_PREP_DEADLINE'):
             available=int(float(os.environ['REALISM_PREP_DEADLINE'])-time.time())-60
             if available<1:
@@ -140,6 +183,8 @@ class ClickHouse:
                             log.flush()
                     if line.strip():
                         errors.append(line[-4096:])
+                        log.write(line[-4096:]+'\n')
+                        log.flush()
                 reader=threading.Thread(target=drain,daemon=True)
                 reader.start()
                 try:
@@ -177,8 +222,15 @@ class ClickHouse:
         if path.is_symlink():
             raise ValueError('import context must not be a symlink')
         if path.exists():
-            if json.loads(path.read_text())!=expected:
+            recorded=json.loads(path.read_text())
+            compatible={**expected,'source':PREVIOUS_IMPORT_SOURCE,'entrypoint':PREVIOUS_ENTRYPOINT}
+            allowed=(self.profile=='performance' and os.environ.get('REALISM_CLICKHOUSE_REUSE_WORK')
+                and recorded==compatible and import_semantics()==PREVIOUS_IMPORT_SEMANTICS)
+            if recorded!=expected and not allowed:
                 raise ValueError('stale input/source/engine import context; refuse reuse')
+            if allowed:
+                print('[clickhouse-validator] compatible predecessor imports; original lineage retained',flush=True)
+            expected=recorded
         else:
             if self.scalar("SELECT count() FROM system.tables WHERE database='validation'"):
                 raise ValueError('unbound existing tables; preserve, do not adopt')

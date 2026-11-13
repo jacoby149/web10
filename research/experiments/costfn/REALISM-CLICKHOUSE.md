@@ -24,6 +24,20 @@ contexts/markers deny. Derived checks are recomputed; a marker is not a passing
 statistical receipt. This is ordinary files/locks for completed imports, not a
 distributed validator or automatic partial-query recovery framework.
 
+**Approved performance-envelope retry:** explicitly set
+`REALISM_CLICKHOUSE_PROFILE=performance` for a 22-GiB query/aggregate ClickHouse
+budget, 28-GiB Docker bound (native runs require the independent 28-GiB systemd
+cap), four threads and at most four hours per query, still shortened by
+`REALISM_PREP_DEADLINE`. Default bounded development settings remain unchanged.
+To retain the completed large imports, `REALISM_CLICKHOUSE_REUSE_WORK` may name
+an existing sibling workspace with `--keep-work`. Only the exact recorded
+predecessor source/entrypoint, same engine/input inventory and unchanged parsed
+import SQL/order/marker semantics are admitted across source changes. Original
+context and markers are never rewritten; UUID/count checks still run, unmarked
+tables are preserved before retry, and derived checks are recomputed. New
+receipts pin executing sources/resources and retain original import lineage.
+This does not admit arbitrary old validators or waive all-file hash checks.
+
 Events are ordered by `(doc_id, reader_key, surface, seen_at)`. Documents are
 ordered by version key/time/deletion. This is ClickHouse's sorted storage and
 sparse index, not a secondary index on every field. It can support ordered

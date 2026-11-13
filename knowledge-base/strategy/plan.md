@@ -1489,6 +1489,21 @@ The 1.6B events and doc_groups import are complete; the documents import exits
 241. Preserve its failure, recover the full error, and reuse only verified
 source-compatible completed imports when changing resource policy. Do not
 silently reset checkpoints or claim the larger envelope guarantees success.
+  - [✓ 5.32.2 controls/restart; full validation OPEN] **Apply the
+    approved validation envelope:** explicit 22-GiB query/aggregate ClickHouse
+    profile, 28-GiB process/Docker bound and four-hour query ceiling clamped to
+    the unchanged lease. Explicit sibling-workspace reuse admits only the
+    reviewed predecessor's exact source/entrypoint with unchanged parsed import
+    semantics, engine/input inventory and original marker UUID/count; original
+    lineage stays immutable and current receipts pin new sources/resources.
+    Preserve unmarked partial imports and recompute derived checks. Local
+    offline suites, eight actual-engine controls, five Bun tests and Ruff pass;
+    current-contract 10k/16M floor passes 50/50 with exact report parity. Restart
+    02:52:02 UTC on the same host after native smoke, with verified 28-GiB
+    MemoryMax/four CPUs and unchanged 06:40 worker/06:50 cleanup deadlines.
+    At 02:53:40 UTC, all-file reverification completes and the four old imports
+    are actually UUID/count-verified and reused; documents reads exceed 22.49M
+    of 88.2M, with its unmarked prior table preserved. Full 1M outcome remains OPEN.
   - [✓ 5.31.6 lease controls/applied; memory/restart OPEN] **Bounded validation
     extension:** exact +4h after initial 14h, previous-clock/approval checks and
     closed-lease refusal; twelve controls pass. Local watchdog source and lease
@@ -1497,11 +1512,14 @@ silently reset checkpoints or claim the larger envelope guarantees success.
     no host creation, resize or validation restart. Memory remains 2-GB query/
     12-GiB service until the separate profile/reuse repair is verified.
 
-**Current checkpoint:** validation remains stopped on documents exit 241 after
-completed 1.6B-event/doc_groups imports. The four-hour extension is applied;
-06:50:22 UTC is the compute cleanup deadline, not a claim that the larger memory
-profile or a retry is running. Evidence:
-`research/experiments/costfn/evidence/REALISM-VALIDATION-EXTENSION-20261113.md`.
+**Current checkpoint:** approved profile/reuse repair restarts at 02:52:02 UTC;
+readback verifies 28-GiB process/four CPUs. At 02:53:40 UTC all files are
+reverified, the four completed imports are reused and documents reads exceed
+22.49M/88.2M; no completed documents/statistical-validation claim.
+Preserve the prior documents exit-241 receipt and completed 1.6B-event/doc_groups
+imports; original lineage is unchanged. The applied four-hour extension retains
+06:50:22 UTC cleanup and 06:40 worker stop, not a completed full validation gate.
+Evidence: `research/experiments/costfn/evidence/REALISM-VALIDATION-ENVELOPE-20261113.md`.
 
 **13 November timeout repair [✓ 5.31.4 controls/retry; 1M OPEN]:** the ClickHouse import stops
 at its 1800-second query limit with 450,020,966/1.6B rows, not an OOM/disk failure.
