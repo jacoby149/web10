@@ -1627,6 +1627,11 @@ export async function fetchSuggestedUsers(): Promise<unknown[]> {
 // face states: banner+avatar, avatar-only (gradient banner), no-face (initial
 // fallback), and the Following vs Follow button states.
 export async function fetchPeoplePage(_opts: { limit: number; offset: number }): Promise<{ people: unknown[]; hasMore: boolean }> {
+  if (new URLSearchParams(location.search).has('graphCounts')) {
+    const person = (username: string, count: number) => ({ username, provider: 'web10', display_name: username,
+      followers_count: count, mutuals: 1, is_following: false });
+    return { people: _opts.offset ? [person('luna', 2), person('vera', 7)] : [person('luna', 2)], hasMore: !_opts.offset };
+  }
   return {
     hasMore: false,
     people: [
@@ -1708,12 +1713,18 @@ export async function fetchPeoplePage(_opts: { limit: number; offset: number }):
 // The Explore tab's own-graph reads (the Following / Followers filters). Seeded
 // so the filter chips render a list when toggled.
 export async function fetchMyFollowersCards(): Promise<unknown[]> {
+  if (new URLSearchParams(location.search).has('realFollowers')) {
+    return (await import('../../src/data/people')).fetchMyFollowersCards();
+  }
   return [
     { username: 'luna', provider: 'web10', display_name: 'Luna Reyes', followers_count: 12400, mutuals: 5, is_following: true },
     { username: 'vera', provider: 'web10', display_name: 'Vera Costa', followers_count: 240, mutuals: 0, is_following: true },
   ];
 }
 export async function fetchMyFollowingCards(): Promise<unknown[]> {
+  if (new URLSearchParams(location.search).has('realFollowing')) {
+    return (await import('../../src/data/people')).fetchMyFollowingCards();
+  }
   return [
     { username: 'luna', provider: 'web10', display_name: 'Luna Reyes', followers_count: 12400, mutuals: 5, is_following: true },
     { username: 'vera', provider: 'web10', display_name: 'Vera Costa', followers_count: 240, mutuals: 0, is_following: true },

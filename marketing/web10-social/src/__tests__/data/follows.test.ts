@@ -107,6 +107,20 @@ describe('follows v3 data layer', () => {
     });
   });
 
+  it('keeps bare follower keys on the current node when resolving their counts', async () => {
+    mock.getGroupMembers.mockResolvedValueOnce([
+      { member_key: 'bob', role: 'member' },
+      { member_key: 'other.node/users/carol', role: 'member' },
+    ]).mockResolvedValue([]);
+    const people = await follows.listFollowers('alice');
+    expect(people).toEqual([
+      { username: 'bob', provider: 'web10' },
+      { username: 'carol', provider: 'other.node' },
+    ]);
+    await follows.getFollowersCount(people[0].username, people[0].provider);
+    expect(mock.getGroupMembers).toHaveBeenLastCalledWith('web10.app/groups/users/bob/followers', { limit: 100, offset: 0 });
+  });
+
   describe('listUserFollowing (D80: the real following read)', () => {
     it('queries by-user with the provider/username member key + the followers tag, and derives the followed user from each group owner', async () => {
       mock.byUserGroups.mockResolvedValue({

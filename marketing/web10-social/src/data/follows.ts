@@ -1,6 +1,6 @@
 import { getV3Client } from './v3';
 import { followersGroupId, getGroupMembers, blockUser, unblockUser, GROUP_TAG } from './groups';
-import { extractUsername } from './types';
+import { extractProvider, extractUsername } from './types';
 import { sendNotification } from './notifications';
 import { resolveSocialProvider } from '../lib/socialProvider';
 
@@ -98,7 +98,7 @@ export async function listFollowers(username: string): Promise<{ username: strin
   const members = await getGroupMembers(followersGroupId(username));
   return members.map((m) => ({
     username: extractUsername(m.member_key),
-    provider: m.member_key.split('/')[0] || 'web10',
+    provider: extractProvider(m.member_key),
   }));
 }
 
