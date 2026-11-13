@@ -1,11 +1,30 @@
 import { getV3Client } from './v3';
 import { followersGroupId, getGroupMembers } from './groups';
-import { listFollowers } from './follows';
+import { getFollowersCount, listFollowers } from './follows';
 import { extractUsername } from './types';
 import { peopleFaceSql, reduceFaceRows, facePrepare } from '@web10/discover/face';
 import { mapMediaReads, mediaReadLifetime } from '@web10/discover/media-recovery';
 
 const LOG = (...args: unknown[]) => console.log('[social:people]', ...args);
+
+/** A local legacy provider and its canonical provider identify the same person. */
+export function personCardKey(person: { username: string; provider: string; source_key?: string }): string {
+  return person.source_key ?? followersGroupId(person.username, person.provider);
+}
+
+export function uniquePeople<T extends { username: string; provider: string; source_key?: string }>(people: T[]): T[] {
+  return [...new Map(people.map(person => [personCardKey(person), person])).values()];
+}
+
+async function resolveFollowerCount(card: PersonCard): Promise<void> {
+  LOG('person follower count — start');
+  try {
+    card.followers_count = await getFollowersCount(card.username, card.provider);
+    LOG('person follower count — settled');
+  } catch (e) {
+    LOG('person follower count — failed (degrading to 0):', e);
+  }
+}
 
 /**
  * Resolve the presigned face media (avatar + banner) for a set of people via
@@ -274,7 +293,7 @@ export async function fetchPeoplePage(opts: {
  * (the members of the reader's own followers group) enriched with each
  * person's face (display name + presigned avatar/banner). Each read degrades
  * independently — a missing profile just leaves that card faceless (the
- * username renders). Follower count is the reader's own group size (shared).
+ * username renders). Follower counts belong to each listed person, not the reader.
  */
 export async function fetchMyFollowersCards(): Promise<PersonCard[]> {
   const w = getV3Client();
@@ -296,27 +315,18 @@ export async function fetchMyFollowersCards(): Promise<PersonCard[]> {
   }
   LOG('fetchMyFollowersCards — got', followers.length, 'follower(s)');
 
-  // The reader's own follower count (the size of their followers group) — the
-  // same figure every follower card shares (a display figure, not per-person).
-  let ownFollowerCount = followers.length;
-  try {
-    const members = await getGroupMembers(followersGroupId(me, provider));
-    ownFollowerCount = members.length;
-  } catch {
-    // Degrade to the list length.
-  }
-
   const myFollowing = new Set<string>(followers.map((f) => f.username));
 
-  const cards = await mapMediaReads(followers, async (f): Promise<PersonCard> => {
+  const cards = await mapMediaReads(uniquePeople(followers), async (f): Promise<PersonCard> => {
       const card: PersonCard = {
         username: f.username,
         provider: f.provider || provider,
         display_name: f.username,
-        followers_count: ownFollowerCount,
+        followers_count: 0,
         mutuals: 0,
         is_following: myFollowing.has(f.username),
       };
+      await resolveFollowerCount(card);
       // Resolve the face (display name + avatar/banner) — degrades to the
       // username + gradient fallback when the profile is unreadable.
       try {
@@ -384,7 +394,7 @@ export async function fetchMyFollowingCards(): Promise<PersonCard[]> {
   }
   LOG('fetchMyFollowingCards — got', following.length, 'following');
 
-  const cards = await mapMediaReads(following, async (f): Promise<PersonCard> => {
+  const cards = await mapMediaReads(uniquePeople(following), async (f): Promise<PersonCard> => {
       const card: PersonCard = {
         username: f.username,
         provider: f.provider || provider,
@@ -393,6 +403,7 @@ export async function fetchMyFollowingCards(): Promise<PersonCard[]> {
         mutuals: 0,
         is_following: true,
       };
+      await resolveFollowerCount(card);
       try {
         const docs = await w.read('profile', { groups: [followersGroupId(f.username, f.provider)] });
         if (docs.length > 0) {

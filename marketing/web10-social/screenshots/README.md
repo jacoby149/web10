@@ -2,6 +2,13 @@
 
 ## People/Groups directory mixer
 
+`node screenshots/followers-counts.mjs` runs the real Followers/Following loaders,
+count helper and People UI against synthetic memberships: the viewer has 13
+followers, while individual cards have 2, 7 and 0. Three repeated filter cycles
+and overlapping directory pagination verify unique handles and correct counts.
+It checks both themes at 1440/375/768/1280 and writes captures/receipt to `.context/followers-counts/`.
+This is not an actual-node or production membership replay.
+
 `SCREENSHOT_OUTPUT_DIR="$PWD/../../.context/directory-mixer" node screenshots/directory-mixer.mjs`
 boots/stops both actual apps and intercepts all external data. It checks separate
 creation-date sorts and reload, the shared server editor, real two-source page
