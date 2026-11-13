@@ -1,5 +1,4 @@
-// VERBATIM COPY from marketing/marketing-ui/src/components/RotaryKnob.tsx
-// Keep in sync with marketing-ui; see design.md §D22 (separate package, no premature sharing).
+// Social rotary control; the former marketing copy retired in D111.
 
 import { useState, useRef, useCallback, useEffect, useId } from 'react';
 

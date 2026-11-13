@@ -1,5 +1,5 @@
 // lib/powerMean.ts — pure, set-independent ranking math for Discover presets.
-// SOURCE OF TRUTH: marketing/marketing-ui/src/lib/powerMean.ts — sync, don't fork.
+// Social ranking model. The former marketing replica retired in D111.
 
 // ── Normalizers (set-independent, saturating) ──────────────────────────────
 
