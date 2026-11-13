@@ -20,10 +20,13 @@ beforeEach(() => {
 });
 
 describe('Node delivery settings', () => {
-  it('presents small-node Gmail and large-node SendGrid/SMS, with URL-backed selection', async () => {
+  it('defaults to credential setup and retains URL-backed optional Gmail selection', async () => {
     render(<ContactDelivery I={I} />);
+    expect(await screen.findByTestId('delivery-sendgrid-panel')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: /Gmail \(optional\)/ }));
     expect(await screen.findByRole('button', { name: 'Connect Gmail' })).toBeEnabled();
-    fireEvent.click(screen.getByRole('button', { name: /Large nodes/ }));
+    expect(window.location.search).toContain('delivery=gmail');
+    fireEvent.click(screen.getByRole('button', { name: /API credentials/ }));
     expect(screen.getByTestId('delivery-sendgrid-panel')).toBeVisible();
     expect(window.location.search).toContain('delivery=sendgrid');
     expect(screen.getByTestId('delivery-sendgrid_key')).toHaveAttribute('type', 'password');
@@ -38,6 +41,7 @@ describe('Node delivery settings', () => {
   });
 
   it('does not fake a Gmail connection when API prerequisites are missing', async () => {
+    window.history.replaceState(null, '', '/?mode=config&delivery=gmail');
     vi.mocked(axios.post).mockResolvedValue({ data: { ...status, available: false, gmail_available: false } });
     render(<ContactDelivery I={I} />);
     expect(await screen.findByRole('button', { name: 'Connect Gmail' })).toBeDisabled();
@@ -45,6 +49,7 @@ describe('Node delivery settings', () => {
   });
 
   it('supports testing and disconnect, without returning stored secrets', async () => {
+    window.history.replaceState(null, '', '/?mode=config&delivery=gmail');
     vi.mocked(axios.post).mockResolvedValue({ data: { ...status, gmail_connected: true, gmail_sender: 'support@example.com' } });
     render(<ContactDelivery I={I} />);
     const test = await screen.findByRole('button', { name: 'Send test email' });
@@ -62,7 +67,49 @@ describe('Node delivery settings', () => {
     expect(await screen.findByRole('alert')).not.toHaveTextContent('private-provider-secret');
     vi.mocked(axios.post).mockResolvedValue({ data: status });
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
-    expect(await screen.findByRole('button', { name: 'Connect Gmail' })).toBeEnabled();
+    expect(await screen.findByTestId('delivery-sendgrid-panel')).toBeVisible();
+  });
+
+  it('links directly to official credential pages without exposing the portal URL or credentials', async () => {
+    render(<ContactDelivery I={I} />);
+    await screen.findByTestId('delivery-sendgrid-panel');
+    const expected = [
+      ['Create a SendGrid API key', 'https://app.sendgrid.com/settings/api_keys'],
+      ['Verify a SendGrid sender or domain', 'https://app.sendgrid.com/settings/sender_auth'],
+      ['Get Twilio Account SID & Auth Token', 'https://console.twilio.com/'],
+      ['Get Twilio Verify Service SID', 'https://console.twilio.com/us1/develop/verify/services'],
+    ];
+    fireEvent.click(screen.getByText('Optional SMS · Twilio Verify'));
+    for (const [name, href] of expected) {
+      const link = screen.getByRole('link', { name: `${name} (opens in a new tab)` });
+      expect(link).toHaveAttribute('href', href);
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+      expect(link).toHaveAttribute('referrerpolicy', 'no-referrer');
+    }
+    expect(screen.getByText(/These fields do not accept an API key SID/)).toBeVisible();
+    expect(screen.getByTestId('delivery-twilio_token')).toHaveAttribute('type', 'password');
+    expect(vi.mocked(axios.post)).toHaveBeenCalledTimes(1); // status read only
+  });
+
+  it('keeps pending Gmail handoffs reachable despite the credential-first default', async () => {
+    contactHandoff.gmail = 'synthetic-pending-flow';
+    render(<ContactDelivery I={I} />);
+    expect(await screen.findByRole('button', { name: 'Finish connecting Gmail' })).toBeVisible();
+  });
+
+  it('uses the selected PostHog region and asks for the public project token, not an admin key', async () => {
+    vi.mocked(axios.post).mockImplementation(async url => ({ data: String(url).endsWith('/config')
+      ? { admins: ['admin'], posthog_host: 'https://us.i.posthog.com' }
+      : String(url).endsWith('/status') ? status : { apps: [] } }));
+    render(<ConfigPage I={I} />);
+    const link = await screen.findByTestId('config-posthog-key-link');
+    expect(link).toHaveAttribute('href', 'https://us.posthog.com/project/settings');
+    fireEvent.change(screen.getByTestId('config-posthog-host'), { target: { value: 'https://eu.i.posthog.com' } });
+    expect(link).toHaveAttribute('href', 'https://eu.posthog.com/project/settings');
+    expect(link).toHaveAttribute('referrerpolicy', 'no-referrer');
+    expect(screen.getByText(/Do not create or paste a personal API key/)).toBeVisible();
+    expect(vi.mocked(axios.post).mock.calls.some(([url]) => String(url).endsWith('/config/update'))).toBe(false);
   });
 });
 

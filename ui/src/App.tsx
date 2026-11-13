@@ -101,6 +101,17 @@ function App() {
     if (I.isAuthenticated() && (mode === 'config' || mode === 'settings')) I.setMode(mode);
   }, [I.auth]);
 
+  // Completed credential screens must not re-open a stale signup/password view
+  // after a later logout. Keep the opener's request/redirect parameters intact.
+  React.useEffect(() => {
+    if (!I.isAuthenticated() || !I._userConfirmed || ['login', 'signup', 'forgot'].includes(I.mode)) return;
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has('credential') && !url.searchParams.has('signin')) return;
+    url.searchParams.delete('credential');
+    url.searchParams.delete('signin');
+    window.history.replaceState(null, '', url);
+  }, [I.auth, I._userConfirmed, I.mode]);
+
   // Set up the contract postMessage listener immediately if opened as a popup
   // (window.open) — before auth. The demo sends the GCR before the user logs in,
   // so the listener must be ready to receive it. Contracts accumulate in

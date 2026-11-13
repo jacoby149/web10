@@ -205,9 +205,10 @@ test.describe('Recovery gauntlet — the contact-anchored sign-in', () => {
     await page.goto(AUTH_BASE);
     await page.waitForLoadState('networkidle');
 
-    // The login screen's primary CTA opens the contact flow.
-    await expect(page.locator('[data-testid="login-contact-cta"]')).toBeVisible();
-    await page.locator('[data-testid="login-contact-cta"]').click();
+    // Contact recovery remains explicit; unavailable phone/email sign-in is
+    // no longer promoted as a separate login CTA.
+    await expect(page.getByTestId('login-contact-cta')).toHaveCount(0);
+    await page.getByTestId('login-forgot-link').click();
 
     // Contact step: enter the phone, send the code.
     await expect(page.locator('[data-testid="recovery-contact-input"]')).toBeVisible();

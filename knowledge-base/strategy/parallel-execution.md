@@ -145,6 +145,17 @@ Local verification for 5.32.0 after dev integration: all 2,590 social tests (177
 
 ### Lane: node-config-usability
 
+- [✓ 5.33.5 superseded] **INTEGRATIONS-01 — OAuth-first node setup** — operator cancels OAuth-first setup and requests consistent paste-credentials fields with direct official provider links instead. No OAuth connection implemented; preserve capability research as history, not an executable queue item.
+- [✓ 5.33.5 local] **INTEGRATIONS-KEYS — guided provider credentials** — ConfigPage/ContactDelivery and shared fixed help links now direct owners to region-matched PostHog project-token settings, SendGrid API-key/sender pages and Twilio Account SID/Auth Token/Verify services. Exact credential/permission hints, SendGrid/Twilio default and preserved optional Gmail/pending handoffs. All 342 UI tests/build/typecheck and eight both-theme 375/768/1280/1440 browser cases pass, with keyboard-opened isolated provider tabs, no opener/referrer or save/send side effects; desktop/375px PostHog/delivery captures inspected. Existing storage, manual save, auth and telemetry/contact activation unchanged; no live-provider proof, all PR checks remain the gate.
+
+- [ ] **HOSTED-CONTACT — enable SendGrid email + Twilio Verify SMS signup/sign-in** — operator defers live delivery from visual PR #1540. Reuse merged #1435 provider/recovery code; Gmail remains optional/dormant. Owns contact-delivery configuration/acceptance and focused follow-up fixes only, coordinated with deployment/authenticator owners. Gates: confirm target node and admin/deployment access; private state bucket/key and matching HTTPS origins; verified SendGrid sender/domain and restricted key; Twilio Verify service/credentials; approved QA inbox/phone, send costs and rollout; independent review/security method for any code touching authority and all CI green. Acceptance: actual email and SMS receipt, wrong/expired/replayed-code denial, verified new-account signup and existing-account login, explicit consent/token handoff, remembered-account return, usable errors/retry and desktop/375px evidence. Only then replace Coming soon in Use another account with working methods. No new service, auth bypass, Gmail removal or deployment/purchases/sends by implication.
+
+**Hosted delivery direction (operator, 13.11.2026):** use SendGrid email plus
+Twilio Verify SMS for hosted web10, not Gmail OAuth. Existing provider code is
+merged; this is configuration/acceptance, not a new implementation lane. Keep
+Gmail available but unused. Target/admin/provider access and approved test
+destinations remain prerequisites; no live connection, spend or sends yet.
+
 **Owns:** `ui/src/components/Config/`, shared secret input and focused tests; operator-approved D105 integration extends this bite to SetupWizard contact/secret fields, App recovery entry, Interface/ForgotForm link exchange, `api/app/{endpoints,services}/contact*`, settings/dependency declaration and recovery/Twilio delivery seams. Coordinate broader contact-auth changes; no production configuration, proxy/Compose ownership, provider accounts or credentials.
 
 - [✓ 5.3.1 merged #1435] **Minimize App Store Approvals by default** — collapsed disclosure with visible pending/loading/error summary, keyboard operation and URL-backed reload/history. Four regressions, 280 UI tests and synthetic desktop/375px browser checks pass; screenshots inspected. Approval actions/access policy unchanged; no deployment.
@@ -560,6 +571,16 @@ Format per lane:
 - [✓] Full E2E test with popup + log sequence verification
 
 ### Lane: auth-consent-forks (Phase 1)
+Final Coming soon revision: 339 UI tests/build/typecheck, both-theme four-width
+presentation/appearance checks and eight real-local auth journeys pass; final
+desktop/375px saved/add-account captures inspected. Provider activation is deferred
+to HOSTED-CONTACT below; every PR check remains the merge gate.
+
+**Pre-merge operator correction:** signup goes directly below the heading, before saved accounts/password fields; remove the reported-unavailable phone/email sign-in shortcut. Existing explicit recovery/contact handlers remain unchanged. Also owns the corresponding recovery E2E entry step. Re-run local and all PR gates on the final head; no delivery repair claim.
+
+- [✓ 5.33.4 local] **Polish authenticator credential entry** — compact mobile/desktop login/signup, one solid primary action, URL-owned password/signup/contact entry and secondary server identity. Operator follow-ups make Use another account a bordered plus-icon row and signup a full-width violet-tinted CTA. Owns credential components, App's entry-URL cleanup, ConsentView login presentation, focused UI/browser controls and progressive-entry steps in existing auth E2E/connected harnesses only. All 338 UI tests/build/typecheck, both-theme 375/768/1280/1440 browser cases, appearance regression and eight real-local signup/return/password/Following handoffs pass; desktop/375px captures inspected. Existing auth/consent/vault handlers unchanged; no API/SDK/policy/deployment changes.
+- [ ] **Authenticator entry production/phone acceptance** — after reviewed green release and explicit rollout approval, verify hosted signup, remembered-account continuation, Use another account, phone/email entry and cancellation at desktop and physical iOS Safari/Android Chrome. Owns acceptance evidence only; no code/policy/deployment by implication. Gates: approved test accounts, contact-send permissions if exercised and rollout approval. Acceptance: reachable controls with keyboard/device safe-area clearance, successful real-origin handoff and unchanged explicit consent, with browser/device evidence and retained failures.
+
 **Owns:** `ui/src/components/Consent/`, `ui/src/interfaces/`, `e2e/tests/auth-popup-roundtrip.spec.ts`
 
 The authenticator consent screen is the shared seam every demo drives. The

@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { SecretInput } from '@/components/ui/secret-input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { contactHandoff } from '@/lib/contactHandoff';
+import ProviderSetupLink, { TwilioCredentialHelp } from './ProviderSetupLink';
 
 type Status = {
   available: boolean; gmail_available: boolean; email_provider: string;
@@ -22,7 +23,8 @@ export default function ContactDelivery({ I }: { I: Record<string, any> }) {
   const [message, setMessage] = useState('');
   const [form, setForm] = useState({ sender: '', sendgrid_key: '', twilio_sid: '', twilio_token: '', twilio_service: '' });
   const [flow, setFlow] = useState(contactHandoff.gmail);
-  const [view, setView] = useState(() => new URLSearchParams(window.location.search).get('delivery') || 'gmail');
+  const readView = () => new URLSearchParams(window.location.search).get('delivery') || (contactHandoff.gmail ? 'gmail' : 'sendgrid');
+  const [view, setView] = useState(readView);
   const active = useRef(true);
   const sequence = useRef(0);
   const token = I.v3.state.token;
@@ -58,7 +60,7 @@ export default function ContactDelivery({ I }: { I: Record<string, any> }) {
         setStatus(result); setForm(previous => ({ ...previous, sender: result.sendgrid_sender || '' }));
       }
     });
-    const sync = () => setView(new URLSearchParams(window.location.search).get('delivery') || 'gmail');
+    const sync = () => setView(readView());
     window.addEventListener('popstate', sync);
     return () => { active.current = false; ++sequence.current; window.removeEventListener('popstate', sync); };
   }, []);
@@ -111,7 +113,7 @@ export default function ContactDelivery({ I }: { I: Record<string, any> }) {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2" aria-label="Delivery setup options">
-          {([['gmail', 'Small nodes', 'Connect your support Gmail', Mail], ['sendgrid', 'Large nodes', 'Twilio + SendGrid', Server]] as const).map(([value, title, subtitle, Icon]) => (
+          {([['sendgrid', 'API credentials', 'SendGrid email + Twilio SMS', Server], ['gmail', 'Gmail (optional)', 'Existing support-mailbox connection', Mail]] as const).map(([value, title, subtitle, Icon]) => (
             <button key={value} type="button" aria-pressed={view === value} onClick={() => select(value)}
               className={`min-h-24 rounded border p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${view === value ? 'border-brand bg-brand-muted' : 'border-border hover:bg-elevated'}`}>
               <Icon className="mb-2 h-5 w-5 text-brand-300" strokeWidth={1.5} />
@@ -142,11 +144,19 @@ export default function ContactDelivery({ I }: { I: Record<string, any> }) {
           </div> : <div className="space-y-4" data-testid="delivery-sendgrid-panel">
             <p className="text-sm text-muted-foreground">SendGrid sends email codes and password-reset links. Add Twilio Verify if you also want SMS codes. Either option can be used by any node size.</p>
             <p className="text-sm">Email: {status.sendgrid_configured ? 'Configured — test delivery below' : 'Not configured'} · SMS: {status.twilio_configured ? 'Configured' : 'Using existing Twilio setup, if configured'}</p>
+            <div className="rounded border border-border bg-elevated/40 p-4">
+              <p className="text-sm font-medium">Get your SendGrid credentials</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Create a restricted API key with Mail Send permission, then verify the sender address or domain you will use below. Paste the key here and save; opening these links does not connect the provider.</p>
+              <div className="mt-2 flex flex-col items-start">
+                <ProviderSetupLink href="https://app.sendgrid.com/settings/api_keys">Create a SendGrid API key</ProviderSetupLink>
+                <ProviderSetupLink href="https://app.sendgrid.com/settings/sender_auth">Verify a SendGrid sender or domain</ProviderSetupLink>
+              </div>
+            </div>
             {field('sender', 'Verified SendGrid sender email', false, 'support@your-domain.com')}
             {field('sendgrid_key', 'SendGrid API key', true, status.sendgrid_configured ? 'Saved — leave blank to keep' : 'Mail Send permission only')}
             <details className="rounded border border-border p-3">
               <summary className="min-h-11 cursor-pointer text-sm font-medium text-brand-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Optional SMS · Twilio Verify</summary>
-              <div className="mt-3 space-y-3">{field('twilio_sid', 'Twilio Account SID')}{field('twilio_token', 'Twilio Auth Token', true, 'Leave blank to keep saved token')}{field('twilio_service', 'Twilio Verify Service SID')}</div>
+              <div className="mt-3 space-y-3"><TwilioCredentialHelp />{field('twilio_sid', 'Twilio Account SID')}{field('twilio_token', 'Twilio Auth Token', true, 'Leave blank to keep saved token')}{field('twilio_service', 'Twilio Verify Service SID')}</div>
             </details>
             <div className="flex flex-wrap gap-2">
               <Button variant="brand" disabled={busy || !status.available} onClick={() => save('sendgrid')}>Save &amp; use SendGrid</Button>

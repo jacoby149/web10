@@ -430,6 +430,7 @@ test.describe('Browser — login (real LoginForm) + state rule', () => {
     await popup.locator('[data-testid="consent-continue-as"]').waitFor({ state: 'visible', timeout: 15000 });
 
     // Try to log in as B with the WRONG password.
+    await popup.getByTestId('account-picker-other').click();
     await popup.locator('#username').fill(userB.username);
     await popup.locator('#password').fill('WrongPassword1!');
     await popup.locator('[data-testid="login-submit"]').click();
@@ -471,7 +472,7 @@ test.describe('Browser — login (real LoginForm) + state rule', () => {
 
     await page.locator('[data-testid="topbar-account"]').click();
     await page.locator('[data-testid="account-logout"]').click();
-    await expect(page.locator('[data-testid="login-submit"]')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByTestId('account-picker')).toBeVisible({ timeout: 15000 });
 
     const cookie = await page.evaluate(() => document.cookie);
     expect(cookie).not.toContain('token=');
@@ -493,7 +494,7 @@ test.describe('Browser — login (real LoginForm) + state rule', () => {
     // 2. Log out.
     await page.locator('[data-testid="topbar-account"]').click();
     await page.locator('[data-testid="account-logout"]').click();
-    await expect(page.locator('[data-testid="login-submit"]')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByTestId('account-picker')).toBeVisible({ timeout: 15000 });
 
     // 3. The picker shows A with the "instant" badge (a live vaulted token).
     const row = page.locator(`[data-testid="account-picker-${username}"]`);
@@ -523,6 +524,7 @@ test.describe('Browser — login (real LoginForm) + state rule', () => {
     // switch to the node admin (global-setup's admin) — the item appears
     await page.locator('[data-testid="topbar-account"]').click();
     await page.locator('[data-testid="account-logout"]').click();
+    await page.getByTestId('account-picker-other').click();
     await expect(page.locator('[data-testid="login-submit"]')).toBeVisible({ timeout: 15000 });
     await page.locator('#username').fill('admin');
     await page.locator('#password').fill('admin123');

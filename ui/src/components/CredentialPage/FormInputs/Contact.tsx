@@ -21,8 +21,9 @@ function Contact({ I }: { I: Record<string, any> }) {
           <Input
             id="contact"
             type="text"
+            className="h-12 text-base"
             autoComplete="off"
-            placeholder="+1 555 123 4567 or you@example.com"
+            placeholder="you@example.com or +1…"
             onChange={(e) => {
               if (I.setContact) I.setContact(e.target.value);
             }}
@@ -31,7 +32,7 @@ function Contact({ I }: { I: Record<string, any> }) {
         </div>
         <span
           className="inline-flex h-9 w-9 shrink-0 cursor-help items-center justify-center text-muted-foreground"
-          title="web10 uses Twilio to authenticate users"
+          title="Your account server uses this contact for verification and recovery."
         >
           <Info className="h-4 w-4" strokeWidth={1.5} />
         </span>
