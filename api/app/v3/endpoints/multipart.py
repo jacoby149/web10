@@ -25,6 +25,7 @@ from app.services.upload_sessions import (
     UploadSessionStore,
 )
 from app.services.upload_storage import ensure_private_state_bucket
+from app.v3.service_names import ServiceName
 from app.v3.services import clickhouse as ch
 
 router = APIRouter(tags=["media"])
@@ -35,7 +36,7 @@ class SessionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     token: str = Field(min_length=1)
     session_id: UUID
-    service: str = Field(default="media", min_length=1, max_length=128)
+    service: ServiceName = "media"
 
 
 class StartRequest(SessionRequest):

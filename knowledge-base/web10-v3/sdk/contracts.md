@@ -23,6 +23,14 @@ v4: 3 apps + infinite services with schema versions = still 3 contracts
 
 Services are free. Apps are the gate. Schemas are the shape.
 
+Service identity is canonical lowercase at the API boundary: `Posts` means
+`posts`. Ordinary names are 1–64 ASCII letters/digits/`-`/`_`, starting with a
+letter; infrastructure names are reserved. New permission-map keys normalize
+the same way, but maps containing both `posts` and `Posts` are rejected, never
+merged. Group `*`/`group` retain metadata-only meanings. This is a breaking
+validation change, not a data migration or deployment; compatibility and evidence:
+[`../db/service-names.md`](../db/service-names.md).
+
 ## App Contracts
 
 App Trust (Infrastructure). One contract per app (origin). The contract declares every service the app needs and what it can do on each. No user-level whitelist/blacklist — that's what groups are for.

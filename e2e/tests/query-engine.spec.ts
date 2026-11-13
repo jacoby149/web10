@@ -110,6 +110,27 @@ const settle = (ms = 1500) => new Promise((r) => setTimeout(r, ms));
 // ---------------------------------------------------------------------------
 
 test.describe('Query engine — the power (real ClickHouse, member reads own group)', () => {
+  test('mixed-case service identity and colliding-grant denial', async ({ request }) => {
+    const { username, token } = await signupAndLogin(request, 'qecase');
+    await addAppContract(request, token, { PoStS: ['readAll', 'create'] });
+    const groupId = await createGroup(request, token, 'qe-case', [{ member_key: username, role: 'owner' }]);
+    const created = await v3Post(request, `${API_BASE}/v3/create`, {
+      token, service: 'POSTS', body: { text: 'KeepCase' }, groups: [groupId],
+    }, { Origin: ORIGIN });
+    expect(created.ok(), await created.text()).toBeTruthy();
+    const doc = await created.json();
+    expect(doc.service).toBe('posts');
+    const collision = await v3Post(request, `${API_BASE}/v3/app-contracts/add`, {
+      token, allowed_origin: ORIGIN, permissions: { posts: ['readAll'], Posts: ['create'] },
+    });
+    expect(collision.status()).toBe(422);
+    await expect(async () => {
+      const response = await query(request, token, `SELECT Posts.doc_id FROM Posts WHERE JSONExtractString(body, 'text') = 'KeepCase'`, [groupId]);
+      expect(response.ok(), await response.text()).toBeTruthy();
+      expect((await response.json()).rows.map((row: { doc_id: string }) => row.doc_id)).toEqual([doc.doc_id]);
+    }).toPass({ timeout: 15000 });
+  });
+
   test('cross-service self-join + aggregation over the boundary', async ({ request }) => {
     const { username, token } = await signupAndLogin(request, 'qepower');
     await addAppContract(request, token, { posts: ['readAll', 'create'], comments: ['readAll', 'create'] });

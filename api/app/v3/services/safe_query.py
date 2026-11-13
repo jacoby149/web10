@@ -56,6 +56,8 @@ import sqlglot
 from sqlglot import exp
 from sqlglot.dialects.clickhouse import ClickHouse
 
+from app.v3.service_names import canonical_map, canonical_service
+
 DIALECT = "clickhouse"
 
 
@@ -132,13 +134,13 @@ _IDENT_SAFE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 def _quote_ident(name: str) -> str:
     """Quote an identifier for a CTE definition. A plain ``[A-Za-z_][A-Za-z0-9_]*``
-    name is emitted bare; anything else (a hyphenated app-named service like
+    non-keyword name is emitted bare; anything else (a hyphenated app-named service like
     ``web10-social-group-identity``) is backtick-quoted. ClickHouse treats a
     backtick-quoted and a double-quoted identifier as the same, so the CTE def
     (backticks) matches the caller's reference (which sqlglot re-emits
     double-quoted) — and sqlglot's ``Table.name`` returns the unquoted name
     either way, so the table walk is unaffected."""
-    return name if _IDENT_SAFE.match(name) else f"`{name}`"
+    return name if _IDENT_SAFE.match(name) and name.upper() not in ClickHouse.Tokenizer.KEYWORDS else f"`{name}`"
 
 
 def _boundary_cte_sql(
@@ -384,20 +386,24 @@ def _validate(
             # A Table with no name is a table function (file(), numbers(),
             # s3(), ...) — an escape hatch off the node. Reject.
             raise UnsafeQueryError("table functions are not allowed")
-        if name in RAW_TABLES:
+        if name.lower() in RAW_TABLES:
             raise UnsafeQueryError(f"query references raw table '{name}'")
         if name == GROUP_META:
             if not group_meta:
                 raise UnsafeQueryError(f"query references unknown table '{name}'")
             needed.add(name)
             continue
-        if allowed is not None and name in allowed:
-            needed.add(name)
-        elif name in caller_ctes:
+        if name in caller_ctes and (allowed is None or name not in allowed):
             continue  # caller-defined CTE, derived from services
-        elif allowed is not None:
+        try:
+            service = canonical_service(name)
+        except ValueError as error:
+            raise UnsafeQueryError(str(error)) from error
+        if allowed is not None and service not in allowed:
             raise UnsafeQueryError(f"query references unknown table '{name}'")
         else:
+            # Preserve table/column qualifiers and aliases in caller SQL. The
+            # injected CTE uses that spelling but reads the canonical collection.
             needed.add(name)  # unrestricted: any non-raw table is a service
     return needed
 
@@ -443,7 +449,7 @@ def query_services(
             ungranted/unknown table, non-SELECT, stacked statements, or it
             does not parse).
     """
-    allowed = frozenset(allowed_services) if allowed_services is not None else None
+    allowed = frozenset(_service_map(dict.fromkeys(allowed_services))) if allowed_services is not None else None
 
     # 1. Parse into statements. The raw string is never executed.
     try:
@@ -463,7 +469,17 @@ def query_services(
     caller_ctes = _caller_cte_names(tree)
     needed = _validate(tree, allowed, caller_ctes, group_meta)
     needed.discard(GROUP_META)
-    return needed
+    return {canonical_service(service) for service in needed}
+
+
+def _service_map(value):
+    try:
+        canonical = canonical_map(value)
+        if canonical.keys() != value.keys():
+            raise ValueError("non-canonical stored service scopes require migration")
+        return canonical
+    except ValueError as error:
+        raise UnsafeQueryError(str(error)) from error
 
 
 def build_safe_query(
@@ -517,7 +533,13 @@ def build_safe_query(
             ungranted/unknown table, non-SELECT, stacked statements, or it
             does not parse).
     """
-    allowed = frozenset(allowed_services) if allowed_services is not None else frozenset(readable_groups_by_service)
+    readable_groups_by_service = _service_map(readable_groups_by_service)
+    document_ids_by_service = _service_map(document_ids_by_service or {})
+    allowed = (
+        frozenset(_service_map(dict.fromkeys(allowed_services)))
+        if allowed_services is not None
+        else frozenset(readable_groups_by_service)
+    )
 
     # 1. Parse into statements. The raw string is never executed.
     try:
@@ -544,10 +566,13 @@ def build_safe_query(
         # A trailing LIMIT is valid on both a SELECT and a set operation in
         # ClickHouse; the round-trip re-parse below rejects a malformed result.
         caller_sql = f"{caller_sql} LIMIT {int(max_limit)}"
-    cte_defs = [
-        f"{_quote_ident(service)} AS ({_boundary_cte_sql(service, readable_groups_by_service.get(service, []), member_key, (document_ids_by_service or {}).get(service))})"
-        for service in sorted(s for s in needed if s != GROUP_META)
-    ]
+    cte_defs = []
+    for reference in sorted(s for s in needed if s != GROUP_META):
+        service = canonical_service(reference)
+        boundary = _boundary_cte_sql(
+            service, readable_groups_by_service.get(service, []), member_key, document_ids_by_service.get(service)
+        )
+        cte_defs.append(f"{_quote_ident(reference)} AS ({boundary})")
     if GROUP_META in needed and group_meta is not None:
         readable_ids, candidate_ids = group_meta
         cte_defs.append(f"{GROUP_META} AS ({_group_meta_cte_sql(readable_ids, candidate_ids)})")

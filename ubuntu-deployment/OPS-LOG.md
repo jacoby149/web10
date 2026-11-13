@@ -3,6 +3,23 @@
 Newest at top. Format per AGENT-OPS.md §8. Read the top entries
 BEFORE doing ops work — someone may already be mid-fix.
 
+## 13.11.2026 — OpenCode (lansing / fix/service-name-safety) — full read-only service convention sweep
+did:
+  - Operator requests a full production ClickHouse service-name check. Verify
+    the intended host and exact production containers, enumerate service-bearing
+    columns from system.columns, then inspect distinct identifiers and grant keys
+    across all retained history with readonly five-second/256-MiB/two-thread bounds.
+  - Check documents, app/group permission keys, legacy role services,
+    content_events.service, legacy service_contracts.service_name and logs.service;
+    export only counts/lengths/convention verdicts, not bodies/principals/credentials.
+state: distinct counts 10/18/11/3/1/0/1 respectively; all ordinary identifiers
+  match [a-z][a-z0-9_-]{0,63}, maximum 31, zero uppercase/malformed names or case
+  collisions and zero malformed app/group JSON. Group wildcard/management keys
+  are expected metadata. No production data/grant/schema/file/environment/container
+  mutation, restart or deployment.
+next: finish isolated API safety tests/review/CI; production enforcement is not
+  deployed. Other nodes and future rollouts need fresh inventory/compatibility.
+
 ## 12.11.2026 03:01–03:12 UTC — OpenCode (missoula / jacoby149/videos-stop-freezing-merge-v2) — production one-time phone-video recovery
 did:
   - Operator explicitly approves execution after PR #1517 merges as 5caaa113d.

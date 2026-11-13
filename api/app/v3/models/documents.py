@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field
 
+from app.v3.service_names import ServiceName
+
 
 class DocumentAttachment(BaseModel):
     token: str
@@ -26,7 +28,7 @@ class CreateDocument(BaseModel):
     """Create a document in a service. User from JWT. Server generates doc_id."""
 
     token: str
-    service: str
+    service: ServiceName
     body: dict
     groups: list[str] | None = None
     # The ref pattern: a reaction/comment points at its target post via
@@ -85,7 +87,7 @@ class ReadDocuments(BaseModel):
     """
 
     token: str | None = None
-    service: str
+    service: ServiceName
     doc_id: str | None = None
     groups: list[str] | None = None
     limit: int = 50
@@ -158,7 +160,7 @@ class TrackContentEvent(BaseModel):
 
     token: str
     doc_id: str
-    service: str
+    service: ServiceName
     surface: str
     type: str
     payload: str = ""
@@ -177,7 +179,7 @@ class ContentAnalyticsRequest(BaseModel):
     """
 
     token: str
-    service: str
+    service: ServiceName
     window_days: int = 30
 
 
@@ -196,6 +198,6 @@ class ContentViewsRequest(BaseModel):
     """
 
     token: str | None = None
-    service: str
+    service: ServiceName
     doc_ids: list[str]
     groups: list[str]
