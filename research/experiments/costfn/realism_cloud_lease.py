@@ -55,6 +55,16 @@ def validate(lease):
                 or not approved<=lease['created_epoch']<=approved+3600):
             raise ValueError('invalid explicit initial fourteen-hour preparation approval')
         maximum=14*3600
+    validation_extension=lease.get('operator_validation_extension')
+    if validation_extension:
+        previous=lease['created_epoch']+14*3600
+        approved=validation_extension.get('approved_epoch')
+        if (not initial or extension or followthrough or validation_extension.get('hours')!=4
+                or validation_extension.get('previous_deadline')!=previous
+                or type(approved) not in (int,float)
+                or not lease['created_epoch']<=approved<=previous):
+            raise ValueError('invalid explicit four-hour validation extension')
+        maximum=18*3600
     if not 0 < lease["deadline"]-lease["created_epoch"] <= maximum:
         raise ValueError("lease exceeds its explicitly approved lifetime")
     if lease["max_usd"]!=5:
