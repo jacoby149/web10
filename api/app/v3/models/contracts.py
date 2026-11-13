@@ -1,10 +1,12 @@
 from pydantic import BaseModel
 
+from app.v3.service_names import ServicePermissions
+
 
 class AddAppContract(BaseModel):
     token: str
     allowed_origin: str
-    permissions: dict
+    permissions: ServicePermissions
 
 
 class RevokeAppContract(BaseModel):

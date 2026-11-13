@@ -174,7 +174,7 @@
 /* No backdrop-filter on the dock itself: that would create a backdrop root
    and prevent the rim from sampling the live page. Optical layers sit BELOW
    the real controls. No broad gradient pretends to be frost. */
-.chrome-mobile-dock.chrome-glass {
+.chrome-mobile-dock.chrome-glass, .chrome-player-glass.chrome-glass {
   background: transparent;
   border-color: transparent;
   box-shadow: none;
@@ -183,7 +183,7 @@
 }
 /* Paint the outline AFTER the optical layers. A border/inset highlight on
    the dock itself enters the rim's backdrop and refracts into fixed arcs. */
-.chrome-mobile-dock::after {
+.chrome-mobile-dock::after, .chrome-player-glass::after {
   content: '';
   position: absolute;
   inset: -1px;
@@ -211,6 +211,10 @@
 .chrome-mobile-dock:has(.chrome-dock-rim) .chrome-dock-bed {
   clip-path: inset(8px round var(--radius-full));
 }
+.chrome-player-glass { --chrome-tint: color-mix(in srgb, var(--color-surface) 90%, transparent); }
+.chrome-player-glass:has(.chrome-dock-rim) .chrome-dock-bed {
+  clip-path: inset(8px round var(--radius-sm));
+}
 
 @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .chrome-glass {
@@ -218,7 +222,7 @@
     -webkit-backdrop-filter: blur(24px) saturate(140%);
     backdrop-filter: blur(24px) saturate(140%);
   }
-  .chrome-mobile-dock.chrome-glass {
+  .chrome-mobile-dock.chrome-glass, .chrome-player-glass.chrome-glass {
     background: transparent;
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
@@ -233,7 +237,13 @@
 @media (max-width: 767px) {
   .chrome-content-clearance { padding-bottom: calc(var(--chrome-dock-clearance) + 1rem); }
   .chrome-compose-position { bottom: calc(var(--chrome-dock-clearance) + 1rem); }
-  .chrome-player-position { bottom: var(--chrome-dock-clearance); }
+  .chrome-player-position { bottom: calc(var(--chrome-dock-clearance) + 0.75rem); }
+  body:has([data-testid="music-player"]) .chrome-content-clearance {
+    padding-bottom: calc(var(--chrome-dock-clearance) + var(--chrome-player-height, 6.25rem) + 1.5rem);
+  }
+  body:has([data-testid="music-player"]) .chrome-compose-position {
+    bottom: calc(var(--chrome-dock-clearance) + var(--chrome-player-height, 6.25rem) + 1.5rem);
+  }
 }
 
 @media (prefers-reduced-transparency: reduce) {
@@ -243,7 +253,7 @@
     backdrop-filter: none;
   }
   .chrome-dock-rim { display: none; }
-  .chrome-dock-bed, .chrome-mobile-dock:has(.chrome-dock-rim) .chrome-dock-bed {
+  .chrome-dock-bed, .chrome-mobile-dock:has(.chrome-dock-rim) .chrome-dock-bed, .chrome-player-glass:has(.chrome-dock-rim) .chrome-dock-bed {
     clip-path: none;
     background: var(--color-surface);
     -webkit-backdrop-filter: none;
@@ -253,13 +263,13 @@
 
 @media (forced-colors: active) {
   .chrome-glass { background: Canvas; border-color: CanvasText; box-shadow: none; backdrop-filter: none; }
-  .chrome-mobile-dock.chrome-glass { border-color: CanvasText; }
-  .chrome-mobile-dock::after { display: none; }
+  .chrome-mobile-dock.chrome-glass, .chrome-player-glass.chrome-glass { border-color: CanvasText; }
+  .chrome-mobile-dock::after, .chrome-player-glass::after { display: none; }
   .chrome-nav-item[aria-current="page"], .chrome-nav-item[aria-expanded="true"] {
     color: HighlightText; background: Highlight; border-color: Highlight; box-shadow: none;
   }
   .chrome-dock-rim { display: none; }
-  .chrome-dock-bed, .chrome-mobile-dock:has(.chrome-dock-rim) .chrome-dock-bed {
+  .chrome-dock-bed, .chrome-mobile-dock:has(.chrome-dock-rim) .chrome-dock-bed, .chrome-player-glass:has(.chrome-dock-rim) .chrome-dock-bed {
     clip-path: none; background: Canvas; -webkit-backdrop-filter: none; backdrop-filter: none;
   }
 }

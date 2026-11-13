@@ -23,13 +23,13 @@ v4: 3 apps + infinite services with schema versions = still 3 contracts
 
 Services are free. Apps are the gate. Schemas are the shape.
 
-**Service-name casing:** today service strings and permission-map keys match
-case-sensitively: `posts` and `Posts` are not interchangeable. The operator's
-intended contract is canonical lowercase, accepting case variants and restricting
-ordinary names to ASCII letters/digits/`-`/`_`, starting with a letter. Enforcement
-and compatibility work are still OPEN; do not normalize only a displayed label
-or one endpoint. Current behavior, the read-only production inventory and proposed
-limits/gates: [`../db/service-names.md`](../db/service-names.md).
+Service identity is canonical lowercase at the API boundary: `Posts` means
+`posts`. Ordinary names are 1–64 ASCII letters/digits/`-`/`_`, starting with a
+letter; infrastructure names are reserved. New permission-map keys normalize
+the same way, but maps containing both `posts` and `Posts` are rejected, never
+merged. Group `*`/`group` retain metadata-only meanings. This is a breaking
+validation change, not a data migration or deployment; compatibility and evidence:
+[`../db/service-names.md`](../db/service-names.md).
 
 ## App Contracts
 

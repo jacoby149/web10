@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field
 
+from app.v3.service_names import ServiceName
+
 
 class VerifySession(BaseModel):
     """POST /v3/session/verify — the confirmatory session-health check.
@@ -19,7 +21,7 @@ class VerifySession(BaseModel):
     token: str | None = None
     # The services the calling app needs (it declares its own — the signal is
     # platform-level, the policy is per-app). Empty → no contract check.
-    services: list[str] = Field(default_factory=list)
+    services: list[ServiceName] = Field(default_factory=list)
     # The operations each service must grant for it to count as "granted".
     # All listed ops must be permitted. Defaults to the universal read op.
     operations: list[str] = Field(default_factory=lambda: ["readAll"])

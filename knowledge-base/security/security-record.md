@@ -15,6 +15,49 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Canonical service naming (13.11.2026) — bounded L1/L2 change coverage, OPEN
+
+GPT-6.1 Sol orients against I3/I5 and current exact-key authorization, then checks
+the new service validator, API service fields, explicit grant/role writers and
+compiler table-reference/boundary bindings. Scope is changed units and their
+direct consumers, not complete-file coverage of the large storage/compiler
+modules and not a whole L1–L4 scan. New names normalize ASCII case, reject an
+unapproved alphabet/length and infrastructure names, and deny case-colliding
+permission keys without grant union. Group wildcard/management keys retain
+context-specific meanings. Raw-table references remain blocked and SQL literals,
+aliases, role names and operation codes are not rewritten.
+
+Thirty-one initial contract controls fail against the predecessor (malformed
+names were accepted / case equivalence was absent), then pass after enforcement;
+these are policy-change repro controls, not proof of a previously exploitable
+SQL injection or closure of all service-authority risks. Additional controls
+cover storage/grant helpers, invalid non-string inputs and denied compiler scope
+collisions. A real-node/ClickHouse E2E is added for mixed-case create/query plus
+case-colliding grant denial; its execution remains a separate gate.
+
+An additional failing-before compiler control reproduces acceptance of qualified
+tables such as `system.settings`/`other.posts`: checking only `Table.name` can
+inject an unused local CTE while the qualified reference still names another
+database. The compiler now rejects any database/catalog qualifier before service
+resolution, retaining column qualifiers and caller aliases. The same control is
+denied after repair, and the real-node unsafe-query matrix adds `other.posts`.
+This demonstrates the compiler binding defect and denial, not a production
+exfiltration replay; independent/connected verification remains OPEN.
+
+Final local verification: 36 focused service controls, all 2,304 API tests/eight
+subtests (one opt-in skip), changed-file Ruff lint/format and Playwright discovery
+of the new real-node scenario pass after merging current dev. This is mocked
+storage/API/compiler evidence, not actual-engine or independent-review sign-off.
+
+Operator-authorized production metadata inventory checks all retained service
+identifiers and grant-key history, then schema-enumerated content-event, log and
+legacy service-contract columns. Every ordinary name is already lowercase and
+matches the proposed convention, maximum 31; zero case collisions/malformed
+app/group JSON. No production mutation, credentials/body/principal export or
+rollout. Other nodes and durable pending-state compatibility need their own
+preflight. Fresh/model-diverse convergence and design-intent sign-off, actual
+connected new-policy E2E, all CI and rollout remain OPEN; no security PASS.
+
 ## People/Groups directory mixer (12.11.2026) — bounded feature coverage, OPEN
 
 GPT-6.1 Sol checks existing directory gates/order and the shared reader's direct

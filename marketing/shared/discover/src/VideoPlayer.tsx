@@ -550,8 +550,8 @@ export function InlineVideo({ url, poster, width, height, durationSeconds, fit =
         if (playingRef.current && !pointerOverRef.current) setControlsVisible(false);
       }, 2500);
     };
-    const onPlay = () => { playingRef.current = true; show(); };
-    const onPause = () => { playingRef.current = false; setControlsVisible(true); };
+    const onPlay = () => { playingRef.current = true; if (!immersive) setTapped(true); show(); };
+    const onPause = () => { playingRef.current = false; if (!immersive) setTapped(false); setControlsVisible(true); };
     // The poster→video reveal latch: fires only when frames are on screen.
     // Once set it never clears — a paused video keeps its frame.
     const onPlaying = () => setRevealed(true);
