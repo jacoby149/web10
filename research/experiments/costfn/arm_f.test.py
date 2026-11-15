@@ -71,11 +71,8 @@ class FanoutTests(unittest.TestCase):
         def fetch(source, cursor, size):
             return [r for r in sources[source] if cursor is None or f.key(r) > f.key(cursor)][:size]
         def resolve(rows):
-            if rows[0]['doc_id'] == 'dead':
-                return []
-            if rows[0]['author_key'] == 'a':
-                return [r for r in rows if r['group_id'] == 'b']
-            return rows[:1]
+            return [r for r in rows if r['doc_id'] != 'dead'
+                    and (r['author_key'] != 'a' or r['group_id'] == 'b')]
         result = f.merge_page(list(sources), 2, fetch, resolve)
         self.assertEqual([(r['author_key'], r['group_id']) for r in result], [('a', 'b'), ('b', 'a')])
 
@@ -139,6 +136,31 @@ class JournalTests(unittest.TestCase):
 
 
 class CloudAdmissionTests(unittest.TestCase):
+    def test_verified_input_readability_never_changes_private_parent(self):
+        import json
+        import os
+        from arm_f_run import readonly_input
+        publication = json.loads(Path(__file__).with_name('evidence').joinpath(
+            'realism-1m-minio-publication-20261113.json').read_bytes())
+        with tempfile.TemporaryDirectory() as directory:
+            parent = Path(directory)
+            os.chmod(parent, 0o700)
+            inputs = parent / 'input'
+            inputs.mkdir(mode=0o700)
+            secret = parent / 'archive-urls.json'
+            secret.write_text('private capabilities stay private')
+            os.chmod(secret, 0o600)
+            for item in publication['objects']:
+                (inputs / item['key'].rsplit('/', 1)[1]).touch(mode=0o600)
+            try:
+                readonly_input(inputs)
+                self.assertEqual(inputs.stat().st_mode & 0o777, 0o555)
+                self.assertTrue(all((p.stat().st_mode & 0o777) == 0o444 for p in inputs.iterdir()))
+                self.assertEqual(parent.stat().st_mode & 0o777, 0o700)
+                self.assertEqual(secret.stat().st_mode & 0o777, 0o600)
+            finally:
+                os.chmod(inputs, 0o700)
+
     def test_firewall_refuses_silent_port_zero(self):
         import copy
         lease = {'name': 'owned', 'tag': 'owned'}

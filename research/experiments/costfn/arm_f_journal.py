@@ -52,7 +52,8 @@ class Journal:
         self.db.execute("CREATE TABLE IF NOT EXISTS intents (sequence INTEGER PRIMARY KEY AUTOINCREMENT, "
             "operation_id TEXT NOT NULL UNIQUE,request_sha256 TEXT NOT NULL,actor_key TEXT NOT NULL,"
             "operation TEXT NOT NULL,payload_json TEXT NOT NULL,state TEXT NOT NULL "
-            "CHECK(state IN ('pending','reconciling','complete','denied')),result_json TEXT)")
+            "CHECK(state IN ('pending','reconciling','complete','denied')),result_json TEXT,"
+            "created_utc TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f+00:00','now')))")
         self.db.execute("CREATE TABLE IF NOT EXISTS dirty_readers (reader_key TEXT PRIMARY KEY,"
                         "generation INTEGER NOT NULL,trimmed_generation INTEGER NOT NULL DEFAULT 0)")
         fd = os.open(root, os.O_RDONLY)
@@ -119,7 +120,8 @@ class Journal:
             rows = self.db.execute('SELECT reader_key,generation FROM dirty_readers '
                 'WHERE generation>trimmed_generation ORDER BY generation,reader_key LIMIT ?', (limit,)).fetchall()
             for reader, generation in rows:
-                trim(reader)
+                if trim(reader) is False:
+                    continue
                 self.db.execute('UPDATE dirty_readers SET trimmed_generation=? WHERE reader_key=? AND generation=?',
                                 (generation, reader, generation))
             return len(rows)
@@ -127,6 +129,13 @@ class Journal:
     def pending(self):
         with self.lock:
             return self.db.execute("SELECT sequence,operation_id,actor_key,operation FROM intents WHERE state!='complete' ORDER BY sequence").fetchall()
+
+    def timestamp(self, sequence):
+        with self.lock:
+            row = self.db.execute('SELECT created_utc FROM intents WHERE sequence=?', (sequence,)).fetchone()
+            if row is None:
+                raise ValueError('uncommitted intent has no canonical timestamp')
+            return row[0]
 
     def close(self):
         self.db.close()

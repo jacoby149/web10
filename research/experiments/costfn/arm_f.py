@@ -42,7 +42,7 @@ def recipients(query, group):
     return keys
 
 
-def append_publication(query, insert, document, group, version):
+def append_publication(query, insert, document, group, version, dirty=None):
     """Called after real canonical authorization/attachment by the coordinator.
 
     Critically, there is no read or rerank of a reader's existing fanout list.
@@ -56,6 +56,8 @@ def append_publication(query, insert, document, group, version):
             for key in keys] if small else []
     if rows:
         insert('fanout', rows, column_names=COLUMNS)
+        if dirty is not None:
+            dirty(keys, version)
     return {'members': len(keys), 'recipient_pointers': len(rows), 'lane': 'fanout' if small else 'seek'}
 
 
@@ -139,26 +141,31 @@ def merge_page(sources, size, fetch, resolve):
         advance(source)
     output = []
     while heap and len(output) < size:
-        _, _, source, first = heapq.heappop(heap)
-        identity = first['author_key'], first['doc_id']
-        routes = [first]
-        advance(source)
-        # All routes for an identity are contiguous in the complete ordering.
-        while heap and (heap[0][3]['author_key'], heap[0][3]['doc_id']) == identity:
-            _, _, source, row = heapq.heappop(heap)
-            routes.append(row)
+        requested = {}
+        while heap and len(requested) < size - len(output):
+            _, _, source, first = heapq.heappop(heap)
+            identity = first['author_key'], first['doc_id']
+            routes = [first]
             advance(source)
-        if identity in seen:
+            # Gather every route before one bounded canonical batch resolution.
+            while heap and (heap[0][3]['author_key'], heap[0][3]['doc_id']) == identity:
+                _, _, source, row = heapq.heappop(heap)
+                routes.append(row)
+                advance(source)
+            if identity not in seen:
+                requested.setdefault(identity, []).extend(routes)
+        if not requested:
             continue
-        rows = resolve(routes)
-        if len(rows) > 1:
-            raise ValueError('canonical document contract returned duplicate identity')
+        rows = resolve([row for routes in requested.values() for row in routes])
+        returned = set()
         for row in rows:
-            if (row['author_key'], row['doc_id']) != identity or not any(
-                    row['group_id'] == route['group_id'] and row['created_ms'] == route['created_ms'] for route in routes):
+            identity = row['author_key'], row['doc_id']
+            if identity not in requested or identity in returned or not any(
+                    row['group_id'] == route['group_id'] and row['created_ms'] == route['created_ms'] for route in requested[identity]):
                 raise ValueError('canonical result not bound to requested identity/route/time')
+            returned.add(identity)
             seen.add(identity)
-            output.append(row)
+        output.extend(sorted(rows, key=key))
     return output
 
 

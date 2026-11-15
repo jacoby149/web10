@@ -89,8 +89,26 @@ def download(root):
         print('[arm-f] archive verified', name, flush=True)
     # verified_input independently verifies manifest identity and every file again.
     restore.verified_input(target, target / 'validation.json', arm_t.DATASET, arm_t.VALIDATION)
+    readonly_input(target)
     save(root / 'evidence/archive.json', dict(dataset_id=arm_t.DATASET, validation_sha256=arm_t.VALIDATION,
         objects=approved['objects'], all_size_sha256_verified=True, source='canonical MinIO archive'))
+
+
+def readonly_input(directory):
+    """The read-only bind's unprivileged CH uid must be able to traverse it.
+
+    Only already verified synthetic input files, never parent credentials or
+    archive capabilities. Mode changes preserve every frozen byte/digest.
+    """
+    directory = Path(directory).resolve()
+    names = [row['key'].rsplit('/', 1)[1] for row in json.loads((Path(__file__).parent /
+        'evidence/realism-1m-minio-publication-20261113.json').read_bytes())['objects']]
+    for name in names:
+        path = directory / name
+        if path.is_symlink() or not path.is_file():
+            raise ValueError('verified regular archive file required')
+        os.chmod(path, 0o444)
+    os.chmod(directory, 0o555)
 
 
 async def setup_scopes(root, session):
@@ -186,7 +204,7 @@ def build_p_counts(root, session, profile):
     return result
 
 
-def baseline(root):
+def baseline(root, *, verified_input=None, project='web10-costfn-frozen-satellite-fstep0'):
     root = Path(root).resolve()
     admission = operation(root)
     result = dict(kind='CONFIG_F_PROGRAMME_STEP0', outcome='PREPARING', stage='archive',
@@ -194,11 +212,23 @@ def baseline(root):
     save(root / 'result.json', result)
     session = None
     try:
-        download(root)
+        if verified_input is None:
+            download(root)
+        else:
+            verified_input = Path(verified_input).resolve()
+            prior = verified_input.parent / 'evidence/archive.json'
+            receipt = json.loads(prior.read_bytes())
+            if receipt.get('all_size_sha256_verified') is not True or receipt.get('source') != 'canonical MinIO archive':
+                raise ValueError('actual archive receipt required; no retained-volume substitution')
+            restore.verified_input(verified_input, verified_input / 'validation.json', arm_t.DATASET, arm_t.VALIDATION)
+            readonly_input(verified_input)
+            (root / 'input').symlink_to(verified_input, target_is_directory=True)
+            save(root / 'evidence/archive.json', {**receipt, 'reused_verified_archive': True,
+                'original_archive_receipt_sha256': hashlib.sha256(prior.read_bytes()).hexdigest()})
         result['stage'] = 'fresh_restore'
         save(root / 'result.json', result)
         restored = restore.restore(root / 'input', root / 'input/validation.json', arm_t.DATASET, arm_t.VALIDATION,
-            'web10-costfn-frozen-satellite-fstep0', 6098, root / 'restore.json')
+            project, 6098, root / 'restore.json')
         session = runtime.Session(root)
         session.verify_envelope()
         result['stage'] = 'scope_setup'
@@ -210,7 +240,12 @@ def baseline(root):
         metadata.build(root, counts_receipt=root / 'counts-batch-p2/result.json')
         verify.verify(root)
         presence.build(root)
-        result.update(stage='P_reference_and_serving', outcome='P_SETUP_COMPLETE', restore_project=restored['project'])
+        result['stage'] = 'P_reference_and_serving'
+        save(root / 'result.json', result)
+        from arm_f_step0 import run
+        verdict = run(root)
+        result.update(stage='P_stage_report_ready', outcome='P_STEP0_COMPLETE', restore_project=restored['project'],
+                      P_T2=verdict['T2'], P_observations=verdict.get('performance_observations'))
     except Exception as error:
         result.update(outcome='STOP', failure_class=type(error).__name__)
         print('[arm-f] STOP', result['stage'], type(error).__name__, flush=True)
@@ -224,7 +259,7 @@ def baseline(root):
             # A failed restore may have created containers before restore.json.
             # Never leave them working until the provider deadline on that path.
             ids = subprocess.check_output(['docker', 'ps', '-q', '--filter',
-                'label=com.docker.compose.project=web10-costfn-frozen-satellite-fstep0']).decode().split()
+                'label=com.docker.compose.project=' + project]).decode().split()
             if ids:
                 subprocess.run(['docker', 'stop', '-t', '20', *ids], check=True, timeout=120)
     return result
@@ -233,5 +268,7 @@ def baseline(root):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('root', type=Path)
+    parser.add_argument('--verified-input', type=Path, help='Explicit new restore attempt reusing fully verified archive bytes')
+    parser.add_argument('--project', default='web10-costfn-frozen-satellite-fstep0')
     args = parser.parse_args()
-    baseline(args.root)
+    baseline(args.root, verified_input=args.verified_input, project=args.project)

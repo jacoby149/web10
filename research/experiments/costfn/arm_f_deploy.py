@@ -98,5 +98,88 @@ def deploy():
         raise SystemExit(code)
 
 
+def retry_permission_setup():
+    """Explicit fresh setup attempt after the receipted pre-import permission stop.
+
+    Never resumes a partial imported store, repeats a measured cell, replaces a
+    host, changes resource limits or renews the original admission clock.
+    """
+    state = json.loads(Path('.context/fanout-run.json').read_bytes())
+    private = Path(state['root'])
+    lease = json.loads(Path(state['lease']).read_bytes())
+    cloud.validate(lease)
+    cloud.tick(state['lease'])
+    lease = json.loads(Path(state['lease']).read_bytes())
+    if lease.get('cancelled') or time.time() > lease['deadline'] - 1800:
+        raise ValueError('original admission closed/too short')
+    host = json.loads((private / 'host.json').read_bytes())
+    options = ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=12', '-o', 'StrictHostKeyChecking=yes',
+               '-o', 'UserKnownHostsFile=' + str(private / 'known_hosts'), '-i', str(private / 'client-key')]
+    if state.get('ssh_jump'):
+        options += ['-J', state['ssh_jump']]
+    destination = 'root@' + host['ip']
+    def ssh(command, timeout=180):
+        return subprocess.run(['ssh', *options, destination, command], check=True, timeout=timeout,
+                              capture_output=True).stdout
+    previous = json.loads(ssh('cat /opt/fanout/result.json'))
+    if previous.get('outcome') != 'STOP' or previous.get('stage') != 'fresh_restore':
+        raise ValueError('only receipted pre-import setup failure is covered by this repair')
+    if ssh('docker ps -q --filter label=com.docker.compose.project=web10-costfn-frozen-satellite-fstep0').strip():
+        raise ValueError('old owned containers still running')
+    (private / 'initial-restore-result.json').write_text(json.dumps(previous, indent=2))
+    (private / 'initial-restore-journal.log').write_bytes(ssh('journalctl -u fanout-step0 --no-pager'))
+    (private / 'initial-executing-arm_f_run.py').write_bytes(ssh('cat /opt/fanout/repo/research/experiments/costfn/arm_f_run.py'))
+    ssh('install -d -m 700 /opt/fanout/attempt2')
+    if ssh('find /opt/fanout/attempt2 -mindepth 1 -maxdepth 1 -print').strip():
+        raise ValueError('fresh attempt directory required; no automatic retry')
+    files = subprocess.check_output(['git', 'ls-files', '--cached', '--others', '--exclude-standard', '-z']).decode().split('\0')
+    prefixes = ('api/', 'sdk/src/', 'clickhouse-init/', 'research/experiments/costfn/', 'marketing/web10-social/src/data/')
+    files = sorted({name for name in files if name.startswith(prefixes) and Path(name).is_file() and not Path(name).is_symlink()})
+    bundle = private / 'attempt2-source.tar.gz'
+    with tarfile.open(bundle, 'w:gz') as archive:
+        for name in files:
+            archive.add(name, arcname='repo/' + name, recursive=False)
+    hashes = {name: hashlib.sha256(Path(name).read_bytes()).hexdigest() for name in files}
+    cloud.save(private / 'attempt2-source-manifest.json', hashes)
+    for source, name in [(bundle, 'source.tar.gz'), (private / 'attempt2-source-manifest.json', 'source-manifest.json'),
+                         (private / 'admission.json', 'admission.json')]:
+        subprocess.run(['scp', *options, str(source), destination + ':/opt/fanout/attempt2/' + name],
+                       check=True, capture_output=True, timeout=180)
+    ssh('tar -xzf /opt/fanout/attempt2/source.tar.gz -C /opt/fanout/attempt2')
+    verify = "import hashlib,json;from pathlib import Path;root=Path('/opt/fanout/attempt2'); files=json.loads((root/'source-manifest.json').read_bytes()); "
+    verify += "assert all(hashlib.sha256((root/'repo'/p).read_bytes()).hexdigest()==v for p,v in files.items()); print('attempt2 sources verified',len(files))"
+    print(ssh('/opt/fanout/venv/bin/python -c ' + shlex.quote(verify)).decode(), flush=True)
+    project = 'web10-costfn-frozen-satellite-fstep0a2'
+    here = '/opt/fanout/attempt2/repo/research/experiments/costfn/'
+    stop = datetime.fromtimestamp(lease['deadline'] - 240, UTC).strftime('%Y-%m-%d %H:%M:%S UTC')
+    stop_command = ['systemd-run', '--unit=fanout-container-stop2', '--on-calendar=' + stop,
+        '/usr/bin/env', 'API_PORT=6098', 'COSTFN_RESEARCH_DIR=' + here, 'COSTFN_REPO_DIR=/opt/fanout/attempt2/repo',
+        '/usr/bin/docker', 'compose', '-f', here + 'compose.yml', '-f', here + 'research.compose.yml',
+        '-f', here + 'realism.compose.yml', '-p', project, 'stop']
+    ssh(shlex.join(stop_command))
+    ssh('systemctl is-active fanout-container-stop2.timer fanout-hard-stop.timer')
+    remaining = int(lease['deadline'] - time.time()) - 300
+    command = ['systemd-run', '--unit=fanout-step0a2', '--property=RuntimeMaxSec=' + str(remaining),
+        '--property=WorkingDirectory=/opt/fanout/attempt2/repo', '--wait', '--pipe', '/opt/fanout/venv/bin/python',
+        '-u', here + 'arm_f_run.py', '/opt/fanout/attempt2', '--verified-input', '/opt/fanout/input', '--project', project]
+    print('[arm-f] separate fresh restore attempt2, verified archive bytes reused; original deadline unchanged', flush=True)
+    with (private / 'attempt2-stream.log').open('wb') as log:
+        proc = subprocess.Popen(['ssh', *options, destination, shlex.join(command)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        for line in proc.stdout:
+            log.write(line)
+            log.flush()
+            print(line.decode(errors='replace').rstrip(), flush=True)
+        code = proc.wait()
+    print('[arm-f] attempt2 process exited', code, flush=True)
+    if code:
+        raise SystemExit(code)
+
+
 if __name__ == '__main__':
-    deploy()
+    import sys
+    if sys.argv[1:] == ['--retry-permission-setup']:
+        retry_permission_setup()
+    elif sys.argv[1:]:
+        raise SystemExit('only explicit --retry-permission-setup or initial deploy accepted')
+    else:
+        deploy()
