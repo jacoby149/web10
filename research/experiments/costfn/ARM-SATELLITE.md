@@ -19,6 +19,14 @@ publishes/sec and10 follows/sec for ten minutes a mandatory F gate, including
 canonical membership-query cost, write latency, delivery reconciliation and
 separate publish/backfill write accounting. Read-only T6-F success is insufficient;
 P's generation-pinned snapshots are not silently made live by this requirement.
+**Research closure approved:** the operator now grants the fresh four-hour/$2
+isolated run and approves the research model, corrected to one canonical
+membership pass for count+recipients, no membership counter/recipe, append-only
+fanout inserts and read-cap/amortized trim. Exact DDL, hook hashes, labelled-query
+condition, trial schedule and approval are folded into `ARM-F-DESIGN-CLOSURE.md`.
+`counting_numbers` retains engagement-only semantics. Timed disposable-scope
+rebuild/revalidation is approved, guard bypass is not. Settings range is deferred;
+host/deadline/cleanup binding and native gates remain unexecuted, T7 separate.
 
 **Experiment-first clarification,15 November:** Jacob requires the proposed
 hybrid write/read design to pass the experiment before integration into the

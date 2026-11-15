@@ -9,7 +9,7 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
-### D113 — Group delivery is built-in and hybrid; canonical state remains authority [decided intent; pre-build details open]
+### D113 — Group delivery is built-in and hybrid; canonical state remains authority [research design approved; native gates open]
 
 **Operator, 15.11.2026:** "it is just built in, always ready for scale no
 matter the everything app!" Follow-up: tombstoning remains canonical, stale
@@ -78,12 +78,26 @@ p95/follow completion and reconciled pointer/physical writes. Lost/duplicated
 delivery or a stop-rule/parity failure stops. This changes evidence required,
 not architecture or paid admission; the task block records full accounting.
 
-**Open before build:** exact recipients/count semantics, full document identity and
-route provenance, physical DDL, cap/history coverage, durable maintenance/races and
-query multiplicity/ordering. Spec: [db/group-delivery.md](../web10-v3/db/group-delivery.md).
-This records architecture intent, not implementation, Config F performance, a
-production change, an experiment restart or paid-host admission. Historical
-Config P/F receipts and execution gates are not retroactively reclassified.
+**Research approval/correction,15 November:** the operator approves the bounded
+model, replacing the proposed membership counter with one canonical
+`group_members` pass supplying count and recipients. `counting_numbers` stays
+engagement-only. Fanout inserts are append-only; no per-insert reader-list rerank;
+logical200 cap is applied at read plus amortized background trim. The research
+coordinator/intent journal/idempotent reconcile must exercise real authorized
+publish/follow paths. Inspect the captured query without editing its oracle;
+its attachment multiplicity permits the approved separately labelled identical
+P/F document-stream contract. Disposable satellite rebuild/revalidation is
+inside the timer, never a generation-guard bypass. Settings range is deferred
+to integration, not an experiment gate. Exact DDL/hook hashes/approval and trial
+schedule are folded into `ARM-F-DESIGN-CLOSURE.md`, not a fifth planning document.
+
+The operator grants one fresh isolated DO run, four hours/$2 compute, unchanged
+32/28/22GiB/24.8.14.39/10s/>10M-row limits, full archive hash verification and
+layered cleanup with deadline reported. Concurrent DAU R+W is required; T7
+requires separate admission after T2-F/T6-F. Host/deadline binding and all native
+build/performance gates remain unexecuted. Spec:
+[db/group-delivery.md](../web10-v3/db/group-delivery.md). No production change;
+historical receipts are not reclassified and views treatment stays off.
 
 ### D112 — The dominant GTM is org-to-org; the creator/influencer track is archived, not erased [decided]
 

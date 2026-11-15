@@ -2,6 +2,11 @@
 
 Operator direction, 15 November 2026. Retained, structured transcription of the
 corrected task block supplied in this session; not a measurement receipt.
+**Subsequent operator approval/corrections govern:** canonical membership
+single-pass count/recipients (no membership counter); append-only insertion with
+read-time logical cap/amortized background trim; research coordinator approved;
+settings range deferred. Exact artifacts, approval and granted four-hour/$2
+admission live in the linked closure file. No fifth planning document is needed.
 Architecture: [D113](../../../knowledge-base/web10-v3/db/group-delivery.md).
 Approval worksheet: [ARM-F-DESIGN-CLOSURE.md](ARM-F-DESIGN-CLOSURE.md).
 
@@ -34,7 +39,9 @@ structural conclusion and the proposed v7 headline remain hypotheses to test.
   Below the cutoff: one pointer per entitled recipient. At/above it: zero
   recipient pointers; seek through `doc_groups_t`. The 1,999 default bound is
   **per small-group publication**, not across all groups attached to a document.
-- Approximately **200 logical pointers per reader**, trimmed on insert. Cap
+- Approximately **200 logical pointers per reader**, enforced logically at read
+  and by amortized background trim. Foreground inserts are append-only and never
+  re-rank a reader's existing list; per-insert ranking is a build defect. Cap
   changes storage, not eligibility; older/filtered/refill fallback is required.
 - Follow of a small group backfills its recent documents up to the cap in the
   same session. Follow of a large group writes no pointers; time the first seek.
@@ -49,21 +56,21 @@ structural conclusion and the proposed v7 headline remain hypotheses to test.
   permissions; reject deleted/revoked/denied candidates and refill.
 - Rebuild from canonical documents, attachments, grants/policies and actual
   subscription/event sources, never from another satellite as the root of truth.
-- Publish classification reads the current member counter in `counting_numbers`.
-  The R+W addendum below additionally requires a full canonical membership
-  count/recipient query on every measured publish; a cached counter alone is
-  not an accepted substitute. Reconciliation/ordering is a closure artifact.
+- Publish classification and recipients come from **one complete canonical
+  `group_members` pass**, using the returned recipient set's length for the lane.
+  **No membership counter/recipe**: `counting_numbers` stays engagement-only.
   Up-crossing 2,000 stops new fanout; existing pointers age out and seek covers
   reads. Down-crossing reuses bounded follow-backfill. Do not invent a separate
   crossing system; specify durable scheduling and race handling for these paths.
 
 ## Programme and admission
 
-1. Close D113 §9's eight decisions with artifacts **approved by the operator**.
-   No implementation before closure. The settings field is planned, not enabled.
-2. Obtain fresh explicit DigitalOcean host/window/compute-cap admission, in the
-   prior 4-hour / $2 shape, with independent layered cleanup and a stated deadline.
-   This document does not supply that admission. Restore frozen dataset
+1. D113 research design is approved with corrections; exact DDL and source-bound
+   hook manifest are in the closure file. Native build/behavior remain gates.
+   The settings field/range is deferred to integration, not an experiment blocker.
+2. Fresh isolated DigitalOcean admission is **granted** in the4-hour/$2 shape,
+   with independent layered cleanup and a stated deadline. Bind the actual
+   host/start/deadline before execution; no expired lease reuse. Restore dataset
    `2d6bbc4d…` from its MinIO archive using the full manifest identity; never
    regenerate. Keep 32 GiB host / 28 GiB container / 22 GiB ClickHouse and the
    ten-second measured-read deadline unchanged. Cap hit means stop and report.
@@ -135,9 +142,9 @@ that assumed peak, rather than testing at the realistic rate:
 **No direct table inserts or precomputed recipient shortcuts in the workload.**
 The hook's legitimate derived writes occur inside the real path. Include auth,
 membership enumeration, coordinator queueing/retries and derived work in write
-latency/accounting; enqueue acknowledgement alone is not completion. Closure
-must reconcile the counter-based classification with this mandatory canonical
-query without changing the counted-member predicate or excluding its cost.
+latency/accounting; enqueue acknowledgement alone is not completion. The approved
+single canonical pass supplies both count and recipients; do not reintroduce
+counter maintenance or exclude canonical enumeration cost.
 
 ### Required cell and acceptance
 
