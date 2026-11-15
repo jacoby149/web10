@@ -348,8 +348,12 @@ same four-hour/$2 shape. Isolated full-population seed/rebuild source now exists
 in `arm_f_population*.py`: early F gates first, canonical small-group membership,
 newest200 full identities/all routes per human, bounded statements and native
 rehearsal, then populated T6/T5/R+W. Native/full-store proofs remain OPEN; the
-P-stage launcher does not supply missing later F gate drivers.200M identities
-is not a physical-route-row ceiling, and no production-equivalence claim follows.
+original P-stage launcher did not supply later F gate drivers. The6.21.0 research
+source adds `arm_f_programme.py` and real lifecycle/load/fenced-rebuild drivers,
+with132 passing no-engine controls; current-source native rehearsal and actual
+F gates remain OPEN. Future launches use `arm_f_run.py --programme`; the existing
+worker is not updated merely by committing source.200M identities is not a
+physical-route-row ceiling, and no production-equivalence claim follows.
 The new native fixture passes402 logical routes/36 statements before archive
 retrieval; receipts: `evidence/arm-f-population-20261115/native-preflight/` under
 the costfn directory. This is not full-population fit or any F performance gate.

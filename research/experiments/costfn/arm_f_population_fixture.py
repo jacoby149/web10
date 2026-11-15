@@ -11,6 +11,7 @@ import arm_f as f
 import arm_f_population as population
 from arm_f_native import save
 import arm_satellite_metadata as metadata
+import arm_f_views
 
 
 def run(session, root):
@@ -43,13 +44,18 @@ def run(session, root):
             + t + '+number,' + t + ',0 FROM numbers(205)')
         builder.query('collision', "INSERT INTO documents SELECT '0204','b','posts','{}','',[]," + t + '+204,' + t + ',0')
         builder.query('dead_document', "INSERT INTO documents SELECT '0203','a','posts','{}','',[]," + t + '+203,' + t + ',1')
+        builder.query('large_candidate', "INSERT INTO documents SELECT '9999','a','posts','{}','',[]," + t + '+9999,' + t + ',0')
         builder.query('links', "INSERT INTO doc_groups SELECT leftPad(toString(number),4,'0'),'g1'," + t + ',' + t
             + ',0 FROM numbers(205)')
         builder.query('shared_link', "INSERT INTO doc_groups VALUES ('0204','g2'," + t + ',' + t + ',0)')
         builder.query('removed_link', "INSERT INTO doc_groups VALUES ('0202','g1'," + t + ',' + t + ',1)')
+        builder.query('large_link', "INSERT INTO doc_groups VALUES ('9999','large'," + t + ',' + t + ',0)')
         # Index is only an identity hint: leave stale/dead/history keys in it.
         builder.query('index', metadata.TRANSPOSE_BUILD.replace(' FINAL WHERE deleted=0', ''))
         builder.members()
+        membership = builder.query('membership_snapshot', 'SELECT reader_key,group_id FROM f_seed_members ORDER BY reader_key,group_id', rows=True)
+        if {(row['reader_key'], row['group_id']) for row in membership} != {('alice', 'g1'), ('alice', 'g2'), ('bob', 'g1')}:
+            raise ValueError('native canonical lane/member snapshot differs')
         rows = builder.expected(['alice', 'bob'], 1, 'positive')
         # Oracle does not call window_sql, canonical SQL or the builder's ranking.
         wanted = []
@@ -69,10 +75,35 @@ def run(session, root):
         if population.logical(stored) != sorted(wanted):
             raise ValueError('native reseed changed logical windows')
         result['cases'].append('deterministic_idempotent_reseed')
+        independent = population.independent_windows(builder, {'alice': ['g1', 'g2'], 'bob': ['g1']})
+        if independent != sorted(wanted):
+            raise ValueError('native independent canonical author-range oracle differs')
+        result['cases'].append('native_canonical_author_range_oracle')
+        shadow = population.Builder(session, root / 'population-native-shadow', target='fanout_rebuild_7')
+        shadow.query('shadow_ddl', f.DDL)
+        shadow.insert(['alice', 'bob'], 7, 'shadow')
+        builder.query('exchange', 'EXCHANGE TABLES fanout_rebuild_7 AND fanout')
+        swapped = builder.query('swapped', population.stored_sql(['alice', 'bob']), rows=True)
+        if population.logical(swapped) != sorted(wanted):
+            raise ValueError('atomic rebuild exchange changed logical windows')
+        result['cases'].append('shadow_build_atomic_exchange')
         large = builder.expected(['human-0'], 2, 'large')
         if large:
             raise ValueError('large-group reader received seed pointers')
         result['cases'].append('cutoff2000_zero_pointers')
+        builder.query('events_ddl', 'CREATE TABLE content_events (doc_id String,reader_key String,service String,event_type String) '
+            'ENGINE=MergeTree ORDER BY (doc_id,reader_key)')
+        builder.query('events', "INSERT INTO content_events VALUES ('0204','alice','posts','delivery'),"
+            "('0204','bob','posts','delivery'),('0204','bob','posts','delivery'),('0204','alice','posts','click')")
+        sql = "SELECT e.doc_id,count() AS impressions,countDistinct(e.reader_key) AS reach FROM content_events e "
+        sql += "WHERE e.service='posts' AND e.event_type='delivery' AND e.doc_id IN ('0204') AND e.doc_id IN "
+        sql += "(SELECT doc_id FROM doc_groups WHERE group_id IN ('g1') AND deleted=0) GROUP BY e.doc_id"
+        observed = builder.query('same_snapshot_views', arm_f_views.checked_sql(sql), rows=True)
+        checked = arm_f_views.verify([[row[k] for k in ('doc_id', 'impressions', 'reach', 'f_oracle_impressions', 'f_oracle_reach')]
+                                     for row in observed])
+        if checked != [['0204', 3, 2]]:
+            raise ValueError('native exact view snapshot oracle differs')
+        result['cases'].append('native_same_snapshot_differential_views')
         builder.query('duplicate_membership', "INSERT INTO f_seed_members VALUES ('alice','g1')")
         try:
             builder.expected(['alice'], 3, 'duplicate')

@@ -77,6 +77,25 @@ structural conclusion and the proposed v7 headline remain hypotheses to test.
 
 ## Programme and admission
 
+**6.21.0 source update:** `arm_f_programme.py` now supplies the complete explicit
+gate sequence, not merely the P launcher. `--plan` is no-engine; ROOT continues
+only after a real completed Step0, and `--wait-for-step0 ROOT` waits read-only
+within that same admission (original STOP is never retried). Future launchers use
+`arm_f_run.py --programme`; the existing running worker remains on its pinned old
+source until separately updated. All132 no-engine controls/Ruff pass; no native
+performance/full-population/load PASS follows from this source-level completion.
+
+The additional source includes per-trial earlier stop timers, private exact crash
+controls, a shared mutation/exclusive shadow-rebuild fence, atomic pointer-table
+exchange and real lifecycle/retry/concurrent-load workloads. R+W has a declared
+10s lead-in before600 measured seconds; it records actual completions inside the
+window separately from lead-in/drain. Pointer audits/fsync and same-snapshot
+differential view checks stay inside measured request costs. Post-window canonical
+facts plus durable operation order verify recipients/follows without guessed
+millisecond cutoffs; an independent acknowledged-before-read lower snapshot checks
+concurrent page completeness. These drivers require native validation; failures,
+unreached cells and unfinished work remain visible, never manufactured PASS files.
+
 1. D113 research design is approved with corrections; exact DDL and source-bound
    hook manifest are in the closure file. Native build/behavior remain gates.
    The settings field/range is deferred to integration, not an experiment blocker.
