@@ -1,5 +1,7 @@
 # web10 v3 Plan
 
+- [✓ 6.8.3 offline tooling; native run in progress] **RD4-TRANSPOSE-MERGE-FIRST — bounded K20 query revision** — operator continuation; reuse the verified isolated snapshot within the unchanged deadline/budget. Separate group slices/global page from canonical verification of only the page plus tie guard; preserve all gates, original receipts and independent oracle. Forty-six offline controls and 31 related controls/Ruff pass. Record actual merge/part state and all three main stages' native reads, plus unchanged preparation/follow-up costs. Diagnostic running; no formal cell/p95/K1000/production/submission claim.
+
 > **THE RULE:** docs first, then code. If the docs are perfect, the LLM
 > implements perfect. If the docs are vague, the code is vague. No
 > exceptions.
@@ -1553,6 +1555,8 @@ docs before code, per the rule at the top.
 ## SIGMOD 2027 Industry Track — the full paper (research/)
 
 ### Current directive — derived realism dataset (11 November 2026)
+
+- [✓ 6.8.2 diagnostic complete; targets missed] **RD4-TRANSPOSE-DIAGNOSTIC — snapshot and partial-parity result** — full-sorting-merge setup verifies all 92,200,600 links in 873.233s total; both earlier failed variants/receipts retained. All four main pages pass exact IDs/order/checked-projection parity. Core candidate+canonical SQL reads 23.05M rows/1.457GB, with summed native durations 2.47–2.87s; full measured main API responses take 59.5–64.5s due to preparation. Reaction follow-ups return HTTP400/native159 timeouts; comments/views are not reached and full-sequence parity remains NOT_ESTABLISHED. No p95/formal-cell/K1000/Arm-D-realism comparison or submission claim; no further cells. Containers stopped; original 15 November 05:17:51 UTC cleanup deadline unchanged. Evidence: `research/experiments/costfn/evidence/arm-t-20261115/result.json`. Residual-candidate/preparation/count repairs need a separately admitted follow-up; the formal run item stays open.
 
 - [✓ 6.8.1 diagnosis/evidence; build blocked] **RD4-TRANSPOSE-SETUP — confirm diagnosis and preserve setup attempts** — identical native query SHA and 360,801,800-row failures reproduced on the isolated clone; all-granule document/link boundaries confirmed with empty policy tables and no active merge at capture. Add an exact-ID-bounded independent oracle, with five native scopes and full-store reader-scope equality, leaving frozen oracle/API SQL unchanged. Two transpose builds fail at the unchanged 22-GiB setup cap; all 43 offline controls/Ruff pass, failure receipts and first partial variant retained. No Arm T feed/parity request or performance result. Evidence: `research/experiments/costfn/evidence/arm-t-20261115/`; the existing four-hour/$2 diagnostic window and all formal-run gates remain unchanged.
 

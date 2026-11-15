@@ -17,6 +17,27 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 
 ## Additive research transpose (14.11.2026) — bounded change review, OPEN
 
+15 November query revision: GPT-6.1 Sol reviews the merge-first constructor and
+isolated adapter/direct canonical-boundary calls. Slices/global page are now
+separate from literal full-identity document/original-link verification. All
+five live policy gates remain; attachment/time/policy mismatch stops INVALID.
+Offline stale/denied-winner replay and stage-order/bound/gate controls pass.
+Original layout source pins remain checked; revision/adapter hashes are
+separately attributed in each observed request. Native iteration is in progress;
+no L1–L4/fresh/diverse/production assurance or complete-sequence claim follows.
+
+Completed 15 November diagnostic: full-sorting-merge setup reconciles every
+link/metadata row under the unchanged cap, and warm-up plus three measured main
+pages match the independent canonical IDs/order/checked projections. This is
+one frozen synthetic reader/cohort, not shared-group, lifecycle or production
+security assurance. Full-sequence parity stays NOT_ESTABLISHED because reaction
+follow-ups time out; comments/views/live-delivery checks are not reached. The
+ad-inventory read fails with native memory code241, so no empty inventory is
+verified and no permission to substitute an empty cache follows. Canonical
+policy checks remain in place; all broader/fresh/model-diverse coverage gates
+remain OPEN. Exact build/parity/native/HTTP scopes are retained in the additive
+`research/experiments/costfn/evidence/arm-t-20261115/result.json` receipt.
+
 15 November setup follow-through: an additive transport bounds only the
 independent canonical engagement oracle's link set by exact canonical document
 IDs. No authority or expected-count expression changes; frozen oracle/API SQL

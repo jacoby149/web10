@@ -1,9 +1,59 @@
-# Arm T diagnostic — baseline admission evidence
+# Arm T diagnostic — baseline, setup and measured outcome
 
 This is additive evidence under the operator's four-hour/$2 diagnostic exception,
-not a frozen study cell, an Arm T result or a submission-readiness claim.
+not a frozen study cell, a formal repeated result or a submission-readiness claim.
 The preserved [13 November negative receipt](../REALISM-SMOKE-20261113.json)
 is unchanged.
+
+## Completed diagnostic outcome
+
+[`result.json`](result.json) separates three verdicts:
+
+- **Snapshot VERIFIED:** 92,200,600 links; full metadata reconciliation passes.
+  Full-sorting-merge copy takes 326.63s, reconciliation 409.99s, and total setup
+  873.233s. Both earlier failed variants are retained and contain zero rows.
+- **Main-page projection PASS:** the excluded warm-up and all three measured
+  main responses return HTTP 200 and match the independent canonical reference's
+  21 IDs/order and checked projected values. Whole returned-row hashes also match
+  across all four pages. See `main-projection-parity.json`.
+- **Full sequence NOT_ESTABLISHED; targets MISSED:** every reaction follow-up
+  returns HTTP 400 with native code159 timeout. Comments/views and exact live
+  delivery verification are not reached. This is not a wrong-main-page mismatch,
+  a successful full sequence, a p95 estimate or a formal K20 cell.
+
+All three measured observations have the following **core SQL** footprint:
+
+| Component | Rows read | Logical bytes read | Native duration range |
+|---|---:|---:|---:|
+| Candidate selection + canonical point checks | 18,107,119 | 1,129,464,553 | 2,104–2,491 ms |
+| Final canonical main + related metadata | 4,945,374 | 327,503,628 | 363–401 ms |
+| Both statements combined | 23,052,493 | 1,456,968,181 | summed 2,467–2,869 ms |
+
+This is approximately 15.7× fewer core rows / 16.7× fewer core logical bytes
+than the preserved failed main, **not** whole-request savings. It still exceeds
+the 25-MB budget before preparation is counted. The sub-500-ms final SELECT
+alone is not the main read path: candidate selection and Python compilation
+are real work too.
+
+Complete measured main API responses take **59.5–64.5 seconds**. Preparation
+accounts for roughly55–60s, including four additional service-scoped reads of
+86,744,923 rows each and a node-ad inventory query that fails with native memory
+code241 after roughly51–55s. The input contains 300 synthetic node-ad posts;
+no empty-inventory result is verified. Reaction errors are native timeouts,
+not evidence of malformed payloads. Existing sequence treatments are off in
+this isolated main-only arm. Preserve that distinction when comparing Arm D;
+no Arm D realism comparator is available here.
+
+`attempt3-build.json`, `native-core-breakdown.json`, `main-request-observations.json`,
+`request-metadata.json` and `sequence-parity.json` retain exact source/query/request
+bindings. Sequence native totals use exclusive serial HTTP-sequence windows,
+not per-query distributed tracing; logical read bytes are not physical disk I/O,
+and largest-query tracked memory is not whole-host peak RSS. No further cells or
+K1000 run. Diagnostic containers are stopped; the original compute-cleanup
+deadline remains 15 November 05:17:51 UTC, and private operational state is not
+committed. Frozen input/receipts and production runtime are unchanged.
+
+## Admission and prior setup evidence
 
 `diagnosis.json` binds that receipt's source fingerprints and measured query IDs
 to the recovered exact query and native plan. An own-store replay on droplet
@@ -48,8 +98,9 @@ build receipt. This is a setup failure, not a slow or parity-invalid feed result
 
 `attempt2-build.json` records that retry, which also fails at 22.00 GiB during
 JoiningTransform despite explicit join/spill controls. Its builder SHA matches
-the source committed with this evidence. The second partial table is retained;
-its final row count is not asserted here. Both attempts stop the owned
+`dca44aa0d:research/experiments/costfn/arm_t.py`. The second partial table is
+retained under its own failed-build name with zero rows, as recorded by
+`attempt2-archival.json`. Both attempts stop the owned
 containers, neither reaches a transpose feed/parity request, and neither is a
 read-performance result. No snapshot completion or successful memory bound is
 inferred from selecting a disk-capable join algorithm.

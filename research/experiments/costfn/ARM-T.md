@@ -1,5 +1,16 @@
 # Arm T — ask the link table in the other direction
 
+**Diagnostic outcome, 15 November:** the third setup recipe completes and
+reconciles all 92,200,600 links. All four returned main pages (warm-up plus
+three measured observations) match the independent reference IDs/order and
+checked projection values. The core SQL path still reads 23.05M rows/1.457 GB
+and takes 2.47–2.87s in summed native durations; whole main API responses take
+59.5–64.5s, dominated by preparation. Reaction follow-ups time out with HTTP
+400/native159; comments/views are not reached, so complete-sequence parity is
+**NOT_ESTABLISHED** and targets are missed. This is not a K20 formal-cell pass
+or authorization for K1000. Receipts and scope limits:
+[diagnostic evidence](evidence/arm-t-20261115/README.md).
+
 **Explicit live-run exception (operator confirmed 15 November 2026, recorded
 01:17:51 UTC):** run one isolated full-store K20 **diagnostic now**, before the
 Study B pilot, on its own 32-GiB DigitalOcean droplet, up to four hours and $2
@@ -71,8 +82,9 @@ or drop an original table. Existing variant/receipt paths must refuse reuse.
   a page-bounded LIMIT **22** (21 plus one ambiguity guard), after the existing
   author/group policy predicates. No personal-feed date cutoff. Shared groups
   are not converted to owner identities.
-* Merge those slices, resolve candidate identities through canonical document
-  and original link point checks, then take the global page. Keep the captured
+* Merge and rank those slices, take the global page plus one tie guard, then
+  resolve only that bounded set through canonical document and original link
+  point checks. Keep the captured
   Newest ordering; do not silently introduce a different ranking or tie rule.
 * Resolve winning posts by full `(author_key, doc_id)` and use group-first
   metadata to locate the exact related reaction/comment/repost/profile
@@ -122,6 +134,19 @@ Paper submission remains a separate explicit decision after the full gates.
 
 ## Tooling and the next executable step
 
+**Bounded merge-first iteration (15 November, operator continuation):** preserve
+v1 and reuse its reconciled immutable snapshot on the same isolated host, within
+the original deadline/budget. `arm_t_merge_first.py` separates physical slice
+selection/global LIMIT 22 from literal-key canonical verification, preventing
+canonical checks of every group's nominees and repeated slice-subquery expansion.
+Every selected attachment/time must match canonical verification or stop INVALID;
+no refill or weaker authority gate. Record revision source hashes, native query
+IDs/rows/bytes for all three main stages and pre/post merge/part state. Wait for
+natural background merges to settle; do not rewrite original tables or pretend
+idle merges prove a single-part store. Keep ad preparation and follow-ups
+untreated, inside whole-request/sequence totals. No formal cell, p95, K1000,
+production or submission claim follows from this diagnostic.
+
 **Build setup retry (15 November):** the first `INSERT SELECT` fails while
 filling the right join side at 22.01 GiB against the unchanged 22-GiB query cap,
 before any feed/parity request. Retain that build receipt and partial variant
@@ -137,6 +162,12 @@ Both attempts are setup failures; neither reaches a transpose feed/parity
 request. Explicit spill settings are not evidence the whole join fits the
 envelope. Preserve both receipts and obtain a completed reconciled snapshot
 before making any Arm T correctness or read-performance claim.
+
+**Third setup recipe:** use ClickHouse `full_sorting_merge` for the one-time
+bulk join, with the existing 2-GiB external-sort threshold and unchanged
+22-GiB query/28-GiB container caps. Keep a separately identified failed second
+variant and a new build receipt. This is a disk-backed setup-algorithm change,
+not a new feed arm, dataset, deadline or measurement treatment.
 
 **Live setup repair (15 November):** the first own-store restore succeeds, but
 the independent canonical expectation-builder's Discover engagement query

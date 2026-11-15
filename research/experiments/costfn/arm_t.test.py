@@ -21,6 +21,7 @@ from sqlglot import exp
 
 import arm_t
 import arm_t_rewrite as rewrite
+import arm_t_merge_first as merge_first
 
 HERE = Path(__file__).resolve().parent
 GOLDEN = (HERE / "evidence/arm-d-compiled-main-golden-20261109.sql").read_text().strip()
@@ -34,6 +35,29 @@ def compiled(groups=GROUPS, reader="reader"):
 
 
 class SQLTests(unittest.TestCase):
+    def test_merge_first_slices_never_expand_canonical_document_or_link_reads(self):
+        tree = sqlglot.parse_one(merge_first.candidates_sql(compiled(), "reader", GROUPS), read="clickhouse")
+        self.assertEqual(tree.args["limit"].expression.this, "22")
+        self.assertFalse({t.name for t in tree.find_all(exp.Table)} & {"documents", "doc_groups"})
+        slices = [s for s in tree.find_all(exp.Select) if s.args.get("from_")
+                  and s.args["from_"].this.name == "doc_groups_t"]
+        self.assertEqual(len(slices), len(GROUPS))
+        self.assertTrue(all(s.args["limit"].expression.this == "22" for s in slices))
+
+    def test_merge_first_verification_is_literal_bounded_and_preserves_gates(self):
+        sql = merge_first.verification_sql(compiled(), "reader", GROUPS, WINNERS)
+        self.assertNotIn("doc_groups_t", sql)
+        tree = sqlglot.parse_one(sql, read="clickhouse")
+        for table in tree.find_all(exp.Table):
+            if table.name in {"documents", "doc_groups"}:
+                self.assertIn("winner", table.find_ancestor(exp.Select).args["where"].sql())
+        for gate in ("user_blacklist", "group_blacklist", "user_group_sharing", "group_hidden_docs", "banned_users"):
+            self.assertIn(gate, sql)
+        self.assertEqual(merge_first.verified_page(WINNERS, WINNERS), WINNERS)
+        for checked in ([], [{**WINNERS[0], "created_ms": 1}], [{**WINNERS[0], "group_id": GROUPS[1]}]):
+            with self.assertRaises(merge_first.InvalidArm):
+                merge_first.verified_page(WINNERS, checked)
+
     def test_shared_multi_author_groups_do_not_require_owner_mapping(self):
         sql = rewrite.candidates_sql(compiled(), "reader", GROUPS)
         tree = sqlglot.parse_one(sql, read="clickhouse")
@@ -310,7 +334,8 @@ class BuildTests(unittest.TestCase):
         sql = args[args.index("--query") + 1]
         self.assertEqual(args[args.index("--max_memory_usage") + 1], str(22 * 1024**3))
         self.assertEqual(args[args.index("--max_bytes_in_join") + 1], str(1024**3))
-        self.assertEqual(args[args.index("--grace_hash_join_initial_buckets") + 1], "64")
+        self.assertEqual(args[args.index("--join_algorithm") + 1], "full_sorting_merge")
+        self.assertNotIn("--grace_hash_join_initial_buckets", args)
         self.assertEqual(args[args.index("--max_bytes_before_external_sort") + 1], str(2 * 1024**3))
         self.sql.append(sql)
         if sql == "SELECT version()":
@@ -400,6 +425,8 @@ class AdapterTests(unittest.TestCase):
         ch.QueryExecutionError = type("QueryExecutionError", (Exception,), {})
         ch.execute_query = Mock(side_effect=[(["name", "uuid"], [("doc_groups_t", "table-id")]),
             (["author_key", "doc_id", "group_id", "created_ms"],
+             [tuple(r[k] for k in ("author_key", "doc_id", "group_id", "created_ms")) for r in winners]),
+            (["author_key", "doc_id", "group_id", "created_ms"],
              [tuple(r[k] for k in ("author_key", "doc_id", "group_id", "created_ms")) for r in winners])])
         app = types.ModuleType("app")
         v3 = types.ModuleType("app.v3")
@@ -440,6 +467,21 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(ch.execute_query.call_args.kwargs["settings"]["max_execution_time"], 10)
         self.assertTrue(self.observation["arm_t"]["selection_cost_is_main_request_cost"])
         self.assertIs(observer.original_compile, module.compile_main)
+        self.assertEqual(ch.execute_query.call_count, 3)  # startup, slices, verification
+        self.assertIn("merge-first slices", ch.execute_query.call_args_list[1].args[0])
+        self.assertIn("merge-first verification", ch.execute_query.call_args_list[2].args[0])
+        self.assertEqual(self.observation["arm_t"]["selected_rows"], len(WINNERS))
+
+    def test_stale_or_denied_snapshot_winner_never_becomes_canonical_main(self):
+        module, _, ch = self.load()
+        ch.execute_query.side_effect = [
+            (["author_key", "doc_id", "group_id", "created_ms"],
+             [tuple(WINNERS[0][key] for key in ("author_key", "doc_id", "group_id", "created_ms"))]),
+            (["author_key", "doc_id", "group_id", "created_ms"], [])]
+        with self.assertRaises(module.HTTPException):
+            module.compile_main("wire", {s: GROUPS for s in rewrite.SERVICES}, member_key="reader")
+        self.assertIn("differs from canonical", self.observation["arm_t"]["invalid_reason"])
+        self.assertEqual(ch.execute_query.call_count, 3)
 
     def test_other_treatments_and_wrong_store_fail_closed(self):
         for flag in ("COSTFN_ARM_D", "COSTFN_SATELLITE", "COSTFN_VIEWS_TREAT"):

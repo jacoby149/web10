@@ -37,6 +37,23 @@ that matters for orient:
 
 ### 2026-11-14: A layout hint is not authority, and build admission is not a runtime lease
 
+15 November merge-first follow-up: page the immutable metadata before canonical
+checks, but compare every bounded attachment/time against the original live
+document/link/policy result. Missing or changed winners stop INVALID, never
+refill from an unverified snapshot or drop the authority checks. Keep the
+original layout receipt source pins intact; record the query revision/adapter
+hashes separately so reusing a verified layout does not rewrite build history.
+Offline stale/denied-winner replay is refused. This is bounded research-control
+coverage, not a fresh/model-diverse security PASS.
+
+Completed diagnostic lesson: a correct returned main page is not complete-
+sequence correctness. Do not present a fast final SELECT while excluding
+candidate selection, canonical preparation or failed follow-ups. An inventory
+read that hits a memory limit does not prove empty inventory (this fixture has
+300 node-ad posts). HTTP400 can wrap a native timeout, not malformed input;
+classify from the native error before choosing a repair. Keep canonical checks
+when optimizing; no read-performance result authorizes removing authority gates.
+
 15 November setup lesson: selecting a disk-capable join, even with explicit
 join-spill admission, does not prove whole-query memory is bounded. Preserve
 failed setup receipts and keep the global cap; a half-built layout is neither

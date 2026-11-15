@@ -202,7 +202,7 @@ def build(directory, validation, restore_path, gate_path, output):
               "build_sql_sha256": hashlib.sha256(BUILD.encode()).hexdigest(),
               "steps": [], "build_is_setup_not_feed_cost": True, "parity": "NOT_RUN"}
     result["setup_settings"] = {"max_memory_usage": 22 * 1024**3, "max_bytes_in_join": 1024**3,
-                                "grace_hash_join_initial_buckets": 64,
+                                "join_algorithm": "full_sorting_merge",
                                 "max_bytes_before_external_sort": 2 * 1024**3,
                                 "max_temporary_data_on_disk_size_for_query": 100 * 1024**3}
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -231,8 +231,8 @@ def build(directory, validation, restore_path, gate_path, output):
             "--user", "web10", "--password", "web10", "--database", "web10",
             "--query_id", query_id, "--max_execution_time", str(min(1800, remaining)),
             "--max_memory_usage", str(22 * 1024**3), "--max_threads", "4",
-            "--join_algorithm", "grace_hash", "--max_bytes_before_external_group_by", str(2 * 1024**3),
-            "--max_bytes_in_join", str(1024**3), "--grace_hash_join_initial_buckets", "64",
+            "--join_algorithm", "full_sorting_merge", "--max_bytes_before_external_group_by", str(2 * 1024**3),
+            "--max_bytes_in_join", str(1024**3),
             "--max_bytes_before_external_sort", str(2 * 1024**3),
             "--max_temporary_data_on_disk_size_for_query", str(100 * 1024**3),
             "--query", sql, timeout=min(1800, remaining) + 10).decode().strip()

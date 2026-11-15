@@ -9,7 +9,7 @@ import importlib
 import os
 
 import arm_t
-import arm_t_rewrite as treatment
+import arm_t_merge_first as treatment
 from fastapi import HTTPException
 
 if (os.environ.get("COSTFN_ARM_T") != "1"
@@ -49,6 +49,9 @@ def compile_main(*args, **kwargs):
     if current is None:
         raise ValueError("Arm T refuses unobserved candidate work")
     current["arm_t"] = {"additive_directive": "2026-11-14", "groups": len(groups),
+                         "query_revision": "merge-first-v2",
+                         "revision_sha256": arm_t.digest(treatment.__file__),
+                         "adapter_sha256": arm_t.digest(__file__),
                         "selection_state": "started", "snapshot": receipt["receipt_sha256"],
                         "candidate_sql_sha256": hashlib.sha256(sql.encode()).hexdigest(),
                         "selection_cost_is_main_request_cost": True,
@@ -58,7 +61,14 @@ def compile_main(*args, **kwargs):
     try:
         columns, rows = ch.execute_query(sql, settings={"max_execution_time": 10,
                                                        "max_memory_usage": 22 * 1024**3})
-        winners = treatment.canonical_page([dict(zip(columns, row)) for row in rows])
+        selected = [dict(zip(columns, row)) for row in rows]
+        verification = treatment.verification_sql(compiled, reader, groups, selected)
+        current["arm_t"].update(selection_state="verifying", selected_rows=len(selected),
+                               verification_sql_sha256=hashlib.sha256(verification.encode()).hexdigest())
+        print(f"[arm-t] merge-first slices complete rows={len(selected)}; canonical verification start", flush=True)
+        columns, rows = ch.execute_query(verification, settings={"max_execution_time": 10,
+                                                                 "max_memory_usage": 22 * 1024**3})
+        winners = treatment.verified_page(selected, [dict(zip(columns, row)) for row in rows])
     except Exception as error:
         current["arm_t"].update(selection_state="failed", failure_class=type(error).__name__)
         if isinstance(error, treatment.InvalidArm):
