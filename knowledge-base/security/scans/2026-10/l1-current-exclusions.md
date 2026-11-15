@@ -151,7 +151,7 @@ Pinned tracked tree contains **1,512 paths**. Subtract S first, then apply the f
 | Tests/evidence | `(^e2e/|/tests/|/__tests__/|\.test\.|\.spec\.|/screenshots/|playwright[^/]*config|^scripts/test-security-gate\.py$|^sdk/vitest\.config\.ts$)` | 514 |
 | Third-party public minified JS | `/public/.*(?:hls|peerjs)\.min\.js$` | 4 |
 | Wave 2 frontend/shared/scaffolder | `^(ui/|marketing/(marketing-ui|web10-social|shared|web10-cli)/)` | 486 |
-| Wave 2 operator/outreach | `^(night_owl/|persona-orchestration/|knowledge-base/strategy/outreach_sourcer\.py$)` | 17 |
+| Wave 2 operator/outreach | `^(night_owl/|persona-orchestration/|knowledge-base/strategy/archive/creator-influencer-track/outreach_sourcer\.py$)` | 17 |
 | Documentation/presentations | `(^knowledge-base/|^ai-pack/|\.md$|\.txt$|^sdk/presentations/|^sdk/figures/)` | 306 |
 | Explicit residual below | No catch-all executable assumed inert | 14 |
 | **Excluded from S** | **514 + 4 + 486 + 17 + 306 + 14** | **1,341** |
@@ -186,7 +186,7 @@ Frontend locks `ui/bun.lock`, `marketing/marketing-ui/bun.lock`, `marketing/web1
 
 ### Other Executable And Residual Debt
 
-Wave 2 operator set has 17 paths, seven executable-language paths: `knowledge-base/strategy/outreach_sourcer.py`, `night_owl/{install_cron.sh,night_owl.py,texter.py,vision.py}`, `persona-orchestration/{seed_personas.py,seed_personas.sh}`. These are outreach/cron/persona tooling, not required producers/verifiers of the generic protocol deployment reviewed here. Their credentials, authority and mutations are unscanned, not certified. Configs/assets/dependency declarations in those directories stay in the same 17-path debt set.
+Wave 2 operator set has 17 paths, seven executable-language paths: `knowledge-base/strategy/archive/creator-influencer-track/outreach_sourcer.py`, `night_owl/{install_cron.sh,night_owl.py,texter.py,vision.py}`, `persona-orchestration/{seed_personas.py,seed_personas.sh}`. These are outreach/cron/persona tooling, not required producers/verifiers of the generic protocol deployment reviewed here. Their credentials, authority and mutations are unscanned, not certified. Configs/assets/dependency declarations in those directories stay in the same 17-path debt set.
 
 Documentation set includes five **unscanned executable HTML presentations**: `sdk/presentations/{README.html,server.html,ui_dev_pt1.html,ui_dev_pt2.html,user.html}`. They are historical presentation surfaces, not SDK package entrypoints/build producers; their scripts are not assumed safe. Reclassify and inspect if active consumers make them necessary to a protocol claim. Markdown examples and KB/AI tooling instructions are documentation, not executed as part of this scan.
 

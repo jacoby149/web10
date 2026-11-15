@@ -6,8 +6,9 @@ This file is the only root-level doc you need. Read it top to bottom.
 Everything else is a read you choose to make when relevant.
 
 **Browse `knowledge-base/strategy/` before responding.** It is the project's
-brain — the plan, the execution lanes, the design standard, the decisions,
-the manifesto, the timeline. These are root-level docs that define what the
+brain — the plan, the execution lanes, the dominant strategy
+(`org-to-org.md`), the design standard, the decisions, the manifesto, the
+timeline. These are root-level docs that define what the
 project is, where it's going, and how work is organized. The read is NOT
 optional and NOT skippable for greetings — do not greet first and read
 later. Greeting behavior (below) governs how you sound AFTER the read, not
@@ -88,7 +89,8 @@ The tour, in this order:
    - `web10-v3/` — the implementation details (db, auth, security, telemetry,
      groups). We're on v3.
     - `strategy/` — the plan, decisions, design standard, manifesto,
-      timeline, execution lanes.
+      timeline, execution lanes, and the dominant GTM (`org-to-org.md`;
+      the creator track lives in `archive/creator-influencer-track/`).
     - `changelogs/` — what shipped and why, newest first.
     - `security/` — written security (WS): the invariants (I1–I6), the security
       record, the big-picture backlog, and the scan records.
@@ -241,12 +243,23 @@ ban (100% delivery by architecture) — and the protocol exists to make that
 ownership possible. Protocol/feature decisions are judged by whether they
 make the creator platform better. Read THE STORY at the top of
 `knowledge-base/strategy/plan.md` before touching product surfaces; the fan-
-facing voice lives in `knowledge-base/strategy/manifesto.md`, the creator pitch
-in `knowledge-base/strategy/outreach.md`. **Read `knowledge-base/strategy/thesis.md`
+facing voice lives in `knowledge-base/strategy/manifesto.md`, the dominant
+GTM frame in `knowledge-base/strategy/org-to-org.md` (org-to-org, D112), and
+the creator pitch is archived at
+`knowledge-base/strategy/archive/creator-influencer-track/outreach.md`. **Read `knowledge-base/strategy/thesis.md`
 before any product or security call** — web10 is a data-policy platform,
 not a privacy platform (D41): the node is readable by design (discovery /
 search / auditability), there is no default e2e, and the client is a PWA,
 not a native app.
+
+**Dominant GTM since 15.11.2026 (D112): org-to-org.** Organizations run
+nodes — their brand, their community, their content policy — and the network
+grows node by node, old-internet style ("getting the world online"). The
+customer is an organization with something positive to spread and no
+in-house social media capability, not a banned influencer. The creator/
+influencer track is archived, not erased, at
+`knowledge-base/strategy/archive/creator-influencer-track/`. Frame:
+`knowledge-base/strategy/org-to-org.md`.
 
 **D107 replay policy (09.11.2026): visible by default, mask sensitive regions.**
 The operator explicitly rejects mask-everything-then-allowlist. Normal UI and

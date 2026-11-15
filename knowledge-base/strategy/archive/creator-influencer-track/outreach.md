@@ -62,13 +62,31 @@ participation/moderation workflows and refine the proposal. Do not imply that
 this includes working TorahAnytime login or account/catalog sync unless those
 integrations are separately agreed and verified. The first showcase stays lean.
 
+**Different frame from the creator track (operator, 15.11.2026).** This is
+not the banned-influencer story at all: the customer is an organization that
+wants to spread a positive message, has no in-house social media capability,
+and does not want to be mixed up with the ick of current social media. Lead
+with the hygienic-but-connected frame: a clean, on-mission node under their
+brand at the scale they want (operator target: 1M), and interop so adjacent
+communities (operator example: a Reform Jew on their own feed) can follow a
+few speakers and pull a little Torah in — the mixer's per-source weight
+keeps it a slice, not the 100% blast — while the node does not take on
+non-mission content. Do not use banned-creator copy with this customer; it
+is a different story. Full framing and boundaries: `torah-anytime.md`.
+
 This partner-specific sync plan is an explicit exception to the generic
 fresh-start/no-catalog offer above (D95), not a change to every creator pitch
 or authorization to restore the retired importer. The email to Shimon is
 recorded verbatim in the partner brief; acceptance is not yet recorded. No further outbound message,
 public partner/logo claim, copy, provisioning or spend is authorized here.
-Scope, gates and queue: [torah-anytime.md](torah-anytime.md), `plan.md` and
+Scope, gates and queue: [torah-anytime.md](../../torah-anytime.md), `plan.md` and
 the `torah-anytime-partnership` lane in `parallel-execution.md`.
+
+> **Archived, 15.11.2026 (D112):** this file is the creator/influencer track's
+> sales kit, preserved intact after the dominant strategy moved to
+> org-to-org. Read it for history and the track's mechanics; the current
+> dominant frame is [`org-to-org.md`](../../org-to-org.md). The warm partner
+> track above remains live work tracked in `torah-anytime.md`.
 
 ## 1. build the list (start today — 100 names total, ~35/35/30 by
 segment, worked in BATCHES of 20)
