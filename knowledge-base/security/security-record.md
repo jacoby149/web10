@@ -15,6 +15,41 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Additive research transpose (14.11.2026) — bounded change review, OPEN
+
+GPT-6.1 Sol orients against I3 and the distinction between identity hints and
+canonical document/link authority. Review covers the new research-only snapshot
+builder, compiler treatment, separate ASGI adapter and direct original compiler/
+execution callers; production API and frozen research observer remain unchanged.
+The transformed canonical boundaries retain all five original policy predicates,
+document/link version windows and group projections. Metadata identifies reads;
+it does not synthesize group ownership or replace live canonical authorization.
+
+A delegated read-only review finds missing runtime lease/host admission,
+assertion-only diagnosis admission, failure attribution installed after candidate
+execution, and undefined timestamp-tie ordering. Follow-up code binds the actual
+DO host/build/admission/deadline before startup/request SQL; requires retained
+source/query-ID/SQL/scan artifacts; installs observation before native execution
+and raises fixed HTTP-400 responses for expected native selection errors;
+and refuses ambiguous top-page ties with an explicit INVALID disposition. No
+frozen tie-breaker or reference oracle is altered. Offline regression controls
+exercise these refusals and exact AST gate preservation, not an engine exploit
+replay or connected parity proof.
+
+Follow-up review also catches the probe's independent-but-unbound admission and
+delayed INVALID handling. The probe now uses the same build-bound runtime
+admission before direct oracle work, and a content-free INVALID response marker
+converts only that condition to the unchanged smoke's immediate semantic stop.
+Ordinary native timeouts retain their HTTP-failure classification. Tests drive
+both paths and confirm mismatched admission prevents entering the oracle.
+
+All 39 new no-engine controls pass, alongside existing research controls and
+source captures. Fresh independent review, actual ClickHouse execution/parity, complete
+L1–L4 coverage and fresh/model-diverse three-dry sign-off remain separate OPEN
+gates. No production security-fix or whole-surface PASS is claimed. This is a
+bounded experimental treatment, not authorization to run it: baseline diagnosis,
+Study B pilot launch and own DO operational admission remain absent.
+
 ## Canonical service naming (13.11.2026) — bounded L1/L2 change coverage, OPEN
 
 GPT-6.1 Sol orients against I3/I5 and current exact-key authorization, then checks

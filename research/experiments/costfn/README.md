@@ -1,5 +1,10 @@
 # Access-Control Cost Function Experiment
 
+**Additive Arm T (14 November):** [contract and sequencing gates](ARM-T.md).
+Separate group-first link layout on the unchanged validated realism input;
+not a replacement for any frozen cell. Build/execution wait for the baseline
+diagnosis receipt and Study B pilot launch; offline implementation is separate.
+
 > **Current directive, 11 November 2026:** read
 > [REALISM-DATASET-DECISIONS.md](REALISM-DATASET-DECISIONS.md) first, then the
 > amended [REALISM-RERUN-PLAN.md](REALISM-RERUN-PLAN.md). New jointly generated

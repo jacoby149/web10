@@ -1,0 +1,14 @@
+# Additive arm only. Never add this file to a frozen-cell compose command.
+services:
+  api:
+    volumes:
+      - ${COSTFN_ARM_T_BUILD_RECEIPT:?verified Arm T build receipt required}:/arm-t-build.json:ro
+      - ${COSTFN_ARM_T_ADMISSION_DIR:?admission and retained evidence directory required}:/arm-t-admission:ro
+    environment:
+      COSTFN_ARM_T: "1"
+      COSTFN_ARM_T_BUILD_RECEIPT: /arm-t-build.json
+      COSTFN_ARM_T_ADMISSION: /arm-t-admission/admission.json
+      COSTFN_ARM_D: "0"
+      COSTFN_SATELLITE: "0"
+      COSTFN_VIEWS_TREAT: "0"
+    command: ["uv", "run", "uvicorn", "arm_t_api:application", "--host", "0.0.0.0", "--port", "80", "--no-access-log"]

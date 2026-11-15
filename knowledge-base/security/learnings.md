@@ -35,6 +35,23 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-14: A layout hint is not authority, and build admission is not a runtime lease
+
+An experimental transposed link snapshot can nominate full document identities,
+but canonical document/version, original-link and live policy checks must remain
+in the actual read. Never infer an author's group from a name or silently flatten
+cross-author engagement. Page-before-join treatments also need a declared rule
+for the captured query's undefined tie ordering: the additive Arm T prototype
+refuses relevant timestamp ties, rather than inventing a different oracle.
+
+Receipting a permitted build does not authorize an expired or foreign-host API
+run. Bind runtime to actual host/store/source/current admission before SQL, and
+record treatment identity before executing candidate SQL so timeouts remain
+attributable failures. A correctly hashed conclusion is still not a source-bound
+diagnosis: retain exact query, native query IDs, executing fingerprints and scan
+evidence. These are bounded research-tool review lessons and offline controls,
+not connected/native verification or an independent L1–L4/model-diverse PASS.
+
 ### 2026-11-13: Canonical identifiers are a shared boundary, not a lowercase display label
 
 New service names use one server-side ASCII validator across request fields,
