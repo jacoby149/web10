@@ -209,6 +209,10 @@ def baseline(root, *, verified_input=None, project='web10-costfn-frozen-satellit
     admission = operation(root)
     result = dict(kind='CONFIG_F_PROGRAMME_STEP0', outcome='PREPARING', stage='archive',
                   droplet_id=admission['droplet_id'], deadline_utc=admission['deadline_utc'], native_F_gates='NOT_RUN')
+    if admission.get('full_population_backfill_required'):
+        result.update(full_population_backfill='UNREACHED', seeded_population_fraction=0,
+            population_prerequisites=['T4', 'T2-F', 'T6-F', 'T3-F'],
+            later_gates=['T6-F-populated', 'T5-F-full-population', 'R+W-full-population'])
     save(root / 'result.json', result)
     session = None
     try:

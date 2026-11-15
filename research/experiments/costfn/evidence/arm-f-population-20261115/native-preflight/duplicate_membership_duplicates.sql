@@ -1,0 +1,1 @@
+SELECT count() AS n FROM (SELECT reader_key,group_id FROM f_seed_members WHERE reader_key IN (unhex('616c696365')) GROUP BY reader_key,group_id HAVING count()>1)

@@ -25,6 +25,56 @@ reading beyond the retained 200 pointers without missing eligible content.
 
 ## 1. Recipient/member predicate — approved; no membership counter
 
+### Full-population amendment and cancellation
+
+Operator direction in this workspace: cancel DO619612240's active run, add the
+attached full-population backfill, then implement and rerun. Cancellation stopped
+the runner/API/ClickHouse/MinIO at20:14:57UTC; provider cleanup of owned droplet,
+firewall and SSH key verified20:16:19UTC.317 files/1,589,750 uncompressed bytes of
+raw cancellation/source/setup receipts are retained privately; archive SHA256
+`cd40da63fd95f35fc4efbae3ce1244aeb22e46bdffbf450c17965f964a85541f`.
+Archive/frozen inputs and retained Volumes were not changed. Zero F gates ran.
+
+The task block's “full-population fanout state” addendum governs the replacement:
+early gates first, then every local human's canonical-backed logical200 window,
+then populated T6/T5/R+W. Born-batched implementation/native fixture live in
+`arm_f_population{,_fixture}.py`; native proof/full-store fit are distinct.
+Tighter build-statement limits are4GiB/8M rows/2GiB logical reads/1M returned rows,
+not a server-limit increase. The setup membership snapshot is never a publish
+counter or runtime authority. Multiple routes/history mean200M identities is not
+a physical-row ceiling. Population invariance and independent canonical sample
+parity precede any seed claim; rebuild logical totals/digest tolerance is0.
+Do not call this the last production gap or presume a population-independent
+read cost. Existing launch tooling is still staged; unreached later gate drivers
+and uncaptured proofs remain OPEN, not inferred from P setup or builder rehearsal.
+Fresh same-shape operational admission is granted by “implement it and re run it”;
+bind a new host/deadline/cleanup record before native work. No T7/P1/production or
+automatic renewal is authorized.
+
+Replacement binding: DO619625857, NYC3 `s-8vcpu-32gb-amd`, lease starts15 November
+20:33:47UTC and ends16 November00:33:47UTC, at most four hours/$2. Provider
+watchdog is armed before creation, pinned SSH host key and gateway-only ingress
+are bound, and the deployment verifies earlier host/container stops before native
+work. Fresh exact-key six-hour archive GET capabilities are minted inside the
+existing production API container; credentials remain there, no source object,
+grant/config/container change. Both SSH routes timed out while the operator was
+off VPN; LAN access returns after reconnection, before paid creation. Detached
+systemd/file logging keeps later VPN loss from tearing down the worker's pipe.
+The new source is rehearsed natively before full restore; native results and
+full-store fit remain pending. Early gates/populated late gates stay OPEN.
+
+Native update: original checker and new population rehearsal both PASS before
+archive retrieval. Population fixture's36 statements have native exception0 and
+max tracked query memory6,625,720 bytes;402 logical routes reconcile against the
+independent tiny Python fixture oracle, including shared routes/same-ID authors,
+document/link/member removal, reseeding and duplicate refusal. This is bounded
+native syntax/fixture evidence, not full-store memory, canonical sample-oracle
+scaling, full-population state or F performance. Exact SQL, query IDs, raw native
+metrics, executing sources and artifact hashes are retained at
+`evidence/arm-f-population-20261115/native-preflight/`. Current local controls119
+and focused Ruff/whitespace pass. Worker moves to archive retrieval; population
+and later F gates remain explicitly UNREACHED/OPEN.
+
 Use current canonical `group_members` as the subscription relation for this arm:
 rank by `(group_id, member_key)` using `updated_at DESC, deleted DESC` before
 filtering deletion. Count explicitly addressable principal rows, including an
