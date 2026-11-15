@@ -6,6 +6,24 @@ import arm_d_rewrite
 
 
 class Controls(unittest.TestCase):
+    def test_retained_warmup_fails_even_after_native_integer_normalization(self):
+        import json
+        from pathlib import Path
+        root = Path(probe.__file__).parent / "evidence/arm-d-realism-20261115/arm-d-realism-r1"
+        oracle = json.loads((root / "oracle.json").read_bytes())
+        returned = json.loads((root / "warmup-0-rows.json").read_bytes())
+        fields = ("likes", "dislikes", "comments", "reposts", "score")
+        normalized = [{**row, **{key: int(row[key]) for key in fields}} for row in returned]
+        self.assertEqual([row["doc_id"] for row in normalized], [row["doc_id"] for row in oracle["expected"]])
+        self.assertEqual(len(normalized), 21)
+        for row in normalized:
+            self.assertEqual((row["likes"], row["comments"]), (15, 15))
+            self.assertEqual(oracle["counts"].get(row["doc_id"], {}).get("likes", 0), 0)
+            self.assertEqual(oracle["counts"].get(row["doc_id"], {}).get("comments", 0), 0)
+        with self.assertRaisesRegex(ValueError, "wrong main aggregate: likes"):
+            probe.smoke_realism.validate_rows(normalized, oracle["expected"], oracle["profiles"],
+                                             oracle["attachments"], oracle["counts"])
+
     def test_preserved_realism_baseline_has_identical_compiled_shape(self):
         from pathlib import Path
         import re

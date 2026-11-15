@@ -35,6 +35,25 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-15: A singleton author set does not establish document attachments
+
+Arm D's preserved realism warm-up returns the correct21 IDs/order but15 likes
+and15 comments per row where the group-scoped main reference expects0/0.
+An author can own both group-attached posts and engagement attached elsewhere.
+Even proving one attached author per group does not justify deleting the
+document/group join or synthesizing the group from the author. This finding is
+in an opt-in research shortcut, not a demonstrated production gate bypass.
+
+The separate attachment-checked constructor keeps the canonical link history,
+real group IDs and every existing policy predicate, using complete author hints
+only to narrow document candidates. Offline SQL-AST/relational fixtures replay
+the old over-inclusion and deny it with the restored join; positive attached,
+shared-author and tombstone controls remain. Incomplete hints can still underfill
+and must fail independent parity; bind completeness to the actual store and
+account runtime enumeration as main cost. Native repair parity, performance and
+fresh/model-diverse review remain OPEN. Native UInt64 JSON normalization must
+precede API-oriented equality checks; normalization does not erase15-versus0.
+
 ### 2026-11-14: A layout hint is not authority, and build admission is not a runtime lease
 
 15 November merge-first follow-up: page the immutable metadata before canonical

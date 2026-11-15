@@ -1,5 +1,12 @@
 # Arm D on realism — same shortcut, different store
 
+**Outcome, 15 November:** copy and one-part consolidation complete, but warm-up
+aggregate parity fails. All21 IDs/order match; all21 rows return15 likes/15
+comments where the group-scoped main oracle expects0/0, including an offline
+native-integer-normalization replay. Zero measured trials; K1000 gated off.
+Original tables/evidence preserved, containers stopped. No further engine work.
+Build/native/author-set/comparison receipts: [result report](evidence/arm-d-realism-20261115/README.md).
+
 Jacob's 14 November directive pulls forward one additive Phase-0 main-only
 cell. The frozen input, baseline and all Arm T receipts remain untouched.
 Input: `2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd`.
