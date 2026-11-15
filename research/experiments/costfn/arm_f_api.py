@@ -50,6 +50,34 @@ MODE = os.environ.get('FANOUT_SERVING_MODE', 'F_DOCUMENT_STREAM_V1')
 if MODE not in ('F_DOCUMENT_STREAM_V1', 'P_DOCUMENT_STREAM_V1'):
     raise RuntimeError('explicit separately labelled document contract required')
 
+original_command = p.ch.client.command
+original_insert = p.ch.client.insert
+
+
+def command(sql, *args, **kwargs):
+    active()
+    settings = dict(kwargs.get('settings') or {})
+    settings.update(max_execution_time=10, max_memory_usage=22 * 1024**3,
+                    max_rows_to_read=10_000_000, read_overflow_mode='throw')
+    current = p.observer.current.get()
+    settings['log_comment'] = 'F_WRITE:' + (current['request_id'] if current else 'background')
+    kwargs['settings'] = settings
+    return original_command(sql, *args, **kwargs)
+
+
+def insert(*args, **kwargs):
+    active()
+    settings = dict(kwargs.get('settings') or {})
+    current = p.observer.current.get()
+    settings['log_comment'] = 'F_WRITE:' + (current['request_id'] if current else 'background')
+    settings['max_memory_usage'] = 22 * 1024**3
+    kwargs['settings'] = settings
+    return original_insert(*args, **kwargs)
+
+
+p.ch.client.command = command
+p.ch.client.insert = insert
+
 
 def active():
     admitted(admission, p.host)
@@ -271,6 +299,8 @@ stop_trim = threading.Event()
 
 def trim_loop():
     while not stop_trim.wait(60):
+        observation = {'request_id': uuid.uuid4().hex, 'path_kind': 'derived-background-trim'}
+        token = p.observer.current.set(observation)
         try:
             active()
             journal.trim_batch(store.trim)
@@ -279,6 +309,11 @@ def trim_loop():
             (ROOT / 'F.stop').write_text('background_trim_' + type(error).__name__ + '\n')
             log.error('[arm-f] background trim failed class=%s; arm stops', type(error).__name__)
             break
+        finally:
+            p.observer.current.reset(token)
+            folder = ROOT / 'background'
+            folder.mkdir(exist_ok=True, mode=0o700)
+            (folder / (observation['request_id'] + '.json')).write_text(json.dumps(observation))
 
 
 threading.Thread(target=trim_loop, daemon=True).start()

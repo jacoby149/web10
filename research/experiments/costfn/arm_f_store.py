@@ -51,7 +51,8 @@ class Store:
             + ") AS d INNER JOIN (SELECT *,row_number() OVER (PARTITION BY doc_id,group_id ORDER BY updated_at DESC,"
             "deleted DESC) AS rn FROM doc_groups WHERE doc_id=" + q(document['doc_id']) + ' AND group_id=' + q(group)
             + ') AS g ON d.doc_id=g.doc_id WHERE d.rn=1 AND g.rn=1 AND d.deleted=0 AND g.deleted=0')
-        self.client.query(sql)
+        self.client.command(sql, settings={'max_execution_time': 10, 'max_memory_usage': 22 * 1024**3,
+                                          'max_rows_to_read': 10_000_000, 'read_overflow_mode': 'throw'})
 
     def backfill(self, group, member, sequence):
         keys = self.members(group)
