@@ -50,3 +50,4 @@ jobs:
           python research/experiments/costfn/arm_satellite_serve.test.py
           python research/experiments/costfn/arm_satellite_api.test.py
           python research/experiments/costfn/arm_satellite_probe.test.py
+          python research/experiments/costfn/arm_satellite_ad_parity.test.py

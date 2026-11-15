@@ -10,6 +10,26 @@ import arm_satellite_verify as verify
 
 
 class VerifyTests(unittest.TestCase):
+    def test_semantic_ad_pass_preserves_failure_and_does_not_claim_budget_pass(self):
+        base = Path(__file__).parent / "evidence/arm-satellite-20261115"
+        for name in ("prepared-main-parity-stop", "semantic-ad-parity"):
+            root = base / name
+            manifest = json.loads((root / "artifact-manifest.json").read_bytes())
+            for file, digest in manifest["files_sha256"].items():
+                self.assertEqual(hashlib.sha256((root / file).read_bytes()).hexdigest(), digest)
+        failed = json.loads((base / "prepared-main-parity-stop/serve-probe/config-p.json").read_bytes())
+        passed = json.loads((base / "semantic-ad-parity/serve-probe/config-p.json").read_bytes())
+        self.assertEqual(failed["T2"], "FAIL")
+        self.assertEqual(passed["T2"], "PASS")
+        self.assertFalse(passed["diagnostic_targets_met"])
+        self.assertEqual(passed["formal_T6"], "NOT_ESTABLISHED")
+        self.assertEqual(len(passed["semantic_ad_checks"]), 4)
+        self.assertTrue(all(check["core_exact"] for check in passed["semantic_ad_checks"].values()))
+        self.assertTrue(all(not check["creative_identity_equality_required"] for check in passed["semantic_ad_checks"].values()))
+        cleanup = json.loads((base / "semantic-ad-parity/cleanup.json").read_bytes())
+        self.assertTrue(cleanup["cleanup_verified"])
+        self.assertFalse(cleanup["lease_extended"])
+
     def test_retained_native_gates_and_setup_stop_are_bound_without_performance_claim(self):
         base = Path(__file__).parent / "evidence/arm-satellite-20261115"
         for name in ("metadata-complete", "full-api-setup-stop"):

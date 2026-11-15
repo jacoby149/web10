@@ -1,0 +1,16 @@
+{
+  "kind": "CONFIG_P_REPAIRED_T2_ATTEMPT",
+  "started_utc": "2026-11-15T14:47:05.809636+00:00",
+  "previous_attempt_preserved": true,
+  "same_store_not_fresh_trial": true,
+  "canonical_generation": "661ca1829c7895e044b98ca431b4f9e0280cf0e4e09143e9989db4b4e4419c2c",
+  "private_reference_sha256": "f976151dd4d229683d30817d750d6fbeb6ae73e67058d7d4390bc7319c0ad809",
+  "deadline_utc": "2026-11-15T15:38:32+00:00",
+  "envelope": {
+    "container_bytes": 30064771072,
+    "engine": "24.8.14.39",
+    "server_bytes": 23622320128
+  },
+  "repair": "setup timeout restored; marked reads stay10s/22GiB/10M rows",
+  "fanout": false
+}

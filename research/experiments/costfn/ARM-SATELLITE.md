@@ -127,6 +127,20 @@ attributed by the retained main split, and shared surfaces have no new receipt.
 
 ## Gates and next execution
 
+**Ad-parity ruling,15 November:** Jacob explicitly rejects deterministic creative
+identity as a requirement: "the validator just has to check that all ads were
+appropriate / proper, no ones that shouldnt have been attached getting attached".
+Keep the original invalid attempt unchanged. A separate comparator revision
+keeps core rows/counts/order and creator/pinned ads exact, and checks node-ad
+placement plus full canonical identity/author/body/tags/posted_by against an
+independently read current eligible inventory. The eligibility read ranks complete
+document/link histories before filtering and includes timestamp-cutoff ties;
+the serving pool may choose any valid tied20, with no production ordering change.
+Unknown, inactive, removed, mutated or unverified extra ad fields must fail.
+No all-ads omission shortcut is allowed. This dataset has no ad media, and its
+candidate pool is all active; mixed-status placement and signed-media semantics
+need separate gates. The raw previous FAIL is not reclassified as a PASS.
+
 Current native receipts: all nine metadata build steps complete, transpose
 92,200,600/92,200,600 with zero mismatches, five independent signed-multiset
 checks PASS, and reaction-presence native T1 PASS. See

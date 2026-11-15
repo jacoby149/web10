@@ -1,0 +1,24 @@
+{
+  "kind": "READ_ONLY_RECONSTRUCTION_NOT_HTTP_REPLAY",
+  "original_query_id": "61c24c8b-7dd7-438c-b305-452e106fa7f0",
+  "original_sql_sha256": "96caff65e596d4433dd0978e25411848fd758ca7155a0a4dec69a082db9fcc3a",
+  "difference_paths": [
+    "rows[14].node_ad.author_key",
+    "rows[14].node_ad.doc_id",
+    "rows[14].node_ad.posted_by"
+  ],
+  "core_equal_excluding_node_ad": true,
+  "reconstructed_sha256": "c5bd29562d8983fcca4c4dfa6eb173b32a2899367ec5bc60266a9311d3684f5f",
+  "node_ad_pool_size": 20,
+  "node_ad_pool_ids_sha256": "7bfc92c2eeeac2a3fb3daeed22c53ad66d860b234ef754afdae5ae34f8205ded",
+  "inventory_version_groups": [
+    {
+      "version": "2026-11-09 00:00:00.000",
+      "n": 300
+    }
+  ],
+  "limitation": "original HTTP body was not retained; this is a same-source read-only reconstruction, not proof of its exact bytes",
+  "T2": "FAIL_PRESERVED",
+  "new_feed_request": false,
+  "delivery_logging_invoked": false
+}
