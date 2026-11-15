@@ -1,0 +1,1 @@
+ALTER TABLE doc_groups_t DELETE WHERE doc_id='shared' AND author_key='b' AND group_id='g2' SETTINGS mutations_sync=2

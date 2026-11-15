@@ -1,0 +1,1 @@
+SELECT value FROM system.server_settings WHERE name='max_server_memory_usage'

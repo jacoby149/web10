@@ -320,12 +320,28 @@ generic hybrid distribution for every group-published document: under 2,000
 members fan out recipient pointers; at/over 2,000 use group/time seek by default. Canonical
 documents remain the sole content source; canonical attachments/grants/policies
 still decide access. Resolve latest versions/tombstones before serving; stale
-pointers are never authority. Pre-build shape and unresolved DDL/recipients,
-history coverage and recovery gates: `knowledge-base/web10-v3/db/group-delivery.md`.
+pointers are never authority. Operator-approved research shape/DDL/recipient,
+history and recovery contract: `knowledge-base/web10-v3/db/group-delivery.md` and
+`research/experiments/costfn/ARM-F-DESIGN-CLOSURE.md`. Publish classification and
+recipients come from one canonical `group_members` pass; no membership counter
+or recipe (`counting_numbers` stays engagement-only). Fanout inserts are append-only,
+never re-rank the reader; logical200 cap is read-time plus amortized background trim.
 Write-path delivery maintenance is unconditional, independent of read usage;
 the cutoff still bounds recipient expansion. Query-engine/read queries must be
 explicitly written to exploit the layouts; arbitrary queries are not auto-optimized.
 No production/capacity or paid experiment admission follows from this intent.
+Separate research admission is now granted in the closure record: one fresh
+isolated four-hour/$2 DO run, unchanged32/28/22GiB/24.8.14.39/10s/>10M stop,
+mandatory concurrent R+W, layered cleanup; actual host/deadline still must be bound.
+T7 requires separate admission. Settings range is deferred, not a research gate.
+The isolated `arm_f*.py` source prototype is not a platform implementation:
+the15 November run stopped in P transpose reconciliation/native241 at22GiB,
+before serving or any F native gate. Count T1 alone passed; owned resources were
+cleaned up early. Failure/cleanup receipts live in the existing closure file and
+`evidence/arm-f-20261115/P-setup-stop/`; no current paid/native continuation grant.
+Subsequent operator approval permits a new online batched-checker run, not old-
+lease reuse: DO619612240 through15 November23:24:56UTC, same four-hour/$2 caps.
+Tiny native checker controls pass under22GiB; full-store fit/F gates remain open.
 Experiment first: prove hybrid write maintenance and layout-aware reads in isolated
 Config F, passing all required response/performance/write/lifecycle/rebuild and
 separately admitted stress gates before proposing broader platform integration.

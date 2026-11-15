@@ -1,9 +1,18 @@
 # Group delivery: canonical documents, two delivery lanes
 
-**Status: pre-build architecture specification, 15.11.2026 (D113).** The operator
-has chosen the shape; it is not an implemented schema, production migration or
-capacity result. Settled intent is below; §9 lists the decisions still needed
-before implementation. No paid experiment or deployment is authorized here.
+**Status: operator-approved research design, 15.11.2026 (D113); not implemented.**
+The operator approved the bounded research model and a fresh isolated four-hour/$2
+run, with the corrections below. Exact DDL, source-bound hook manifest, trial
+schedule and approval are in the closure file. This is not a native build,
+production migration or capacity result. No production deployment is authorized.
+
+The corrected operator [Config F task block and eight-step programme](../../../research/experiments/costfn/task-block-fanout-arm.md)
+are retained in the repo. The physical table name **`fanout`** is settled; it
+names a generic platform mechanism, not an app concept. The first
+[approved research closure](../../../research/experiments/costfn/ARM-F-DESIGN-CLOSURE.md)
+records canonical membership selection, bounded durable coordination, conditional
+labelled document-stream query and timed satellite revalidation. Settings range
+is deferred to integration; implementation/native acceptance remain unproven.
 
 **Experiment first; broader integration only after the gates pass.** The operator
 clarified: "i want to do in the experiment this before we do it to the actual
@@ -17,8 +26,9 @@ the main SELECT fast is not enough: the complete response must pass §8's parity
 latency/read-byte, write-amplification, follow, lifecycle, rebuild and admitted
 stress gates. Missing or failed evidence blocks broader integration. A passing
 experiment permits a separately reviewed integration proposal, not automatic
-deployment or a claim of unmeasured capacity. Fresh paid-host admission is still
-required before engine work; this clarification does not renew an expired lease.
+deployment or a claim of unmeasured capacity. Fresh paid-host admission is granted
+in the closure record, but must bind an actual host/deadline/cleanup before engine
+work; no expired lease is renewed.
 
 ## 1. The point: one distribution system for every app
 
@@ -110,7 +120,7 @@ through a non-equivalent delivery-stream rewrite.
 |---|---|---|
 | `documents` | Canonical content, author, versions and document tombstones | Necessary, not sufficient |
 | `doc_groups` and canonical group/access/policy state | Current attachments, memberships, contracts, moderation and other access rules | Through the existing read gate |
-| Recipient-pointer table (physical name not settled) | Bounded recent delivery candidates per reader | No |
+| `fanout` | Bounded recent delivery candidates per reader | No |
 | Group/time index (`doc_groups_t` in the experiment) | Seekable group candidates, including large-group coverage | No |
 | Metadata/count satellites | Indexed identities and exact scope-qualified aggregates | No |
 
@@ -120,7 +130,7 @@ in their existing canonical tables. Derived tables are rebuildable from those
 canonical sources, never dependent on another satellite as their root of truth.
 Rebuilding the group/time index does not require reading the fanout table, or vice versa.
 
-### Logical pointer shape, not executable DDL
+### Pointer identity (exact research DDL in the closure record)
 
 The operator's minimal delivery tuple is `(reader_key, created_at, doc_id)`.
 Production document identity is `(author_key, doc_id)`: `doc_id` alone must never
@@ -128,9 +138,10 @@ select a different author's document. The physical design must either carry the
 full identity or prove an exact, unambiguous canonical identity lookup.
 
 Delivery also needs **group-route provenance**: removing group A must not remove
-delivery through group B for the same document. Whether provenance is represented
-on pointer rows or in another generic relation remains open. Do not silently turn
-the three-field sketch into final DDL before resolving these requirements.
+delivery through group B for the same document. The approved research DDL carries
+full author/document identity and group route on each pointer row; the minimal
+three-field sketch alone is not the schema. See the closure file for exact keys,
+versions, tombstone tie behavior and granularity.
 
 No bodies, signed media URLs, credentials or persisted read approvals belong in
 the pointer. Service/type, if indexed, is a generic selector, not an app-specific
@@ -151,15 +162,18 @@ does not mean every app must display it: apps retain service filters and ranking
 | Follow/subscribe to an under-cutoff group | Backfill its recent eligible documents up to the reader window in the same session |
 | Follow/subscribe to an at/over-cutoff group | No pointer backfill; time the first seek-backed read too |
 | Unfollow/unsubscribe | Remove this group's delivery contribution within the reader window; retain other valid routes |
-| Cross upward through 2,000 | Stop new fanout; old pointers age out under the cap; reads classify using the current counter and include seek coverage |
+| Cross upward through 2,000 | Stop new fanout; old pointers age out under the cap; reads classify using current canonical membership and include seek coverage |
 | Cross downward below 2,000 | Reuse bounded follow-backfill for the remaining followers; do not lose coverage while it completes |
 | Edit content | Resolve the latest canonical body; do not create an independent body copy or treat every edit as a new publication |
 | Delete, detach, moderate or revoke access | Canonical resolution excludes the now-ineligible candidate; pointer cleanup is not the gate |
 
-The lane cutoff is **one node-wide setting, default 2,000 members**. The publish
-decision reads the group's member counter from `counting_numbers`; reads use
-the current classification. Exact counter freshness and transition coordination
-must be specified before code, not inferred from a snapshot counter test.
+The lane cutoff is **one node-wide setting, default 2,000 members** (experiment
+receipts pin2,000; settings implementation is deferred). **Operator correction:**
+publish classification and recipient set come from one full canonical
+`group_members` pass, count = length of that result. No membership counter or
+membership recipe; `counting_numbers` keeps its T1-passed engagement scope only.
+Reads retain canonical seek coverage; research coordination/revalidation is
+specified in the approved closure, never inferred from a counter snapshot.
 
 The operator selected this default as the "normie celebrity cutoff", superseding
 the original 1,000-member proposal. Name the design parameter
@@ -200,8 +214,10 @@ before implementation; the social moderation tabs are not a new authority source
   `strategy/design.md`. This is planned scope only: no settings control or runtime
   configuration exists for delivery yet, and experiment-first gates still apply.
 
-The recent window is **approximately 200 logical pointers per reader**, trimmed
-on insertion, with one declared cap parameter. Changing the cap changes storage
+The recent window is **approximately 200 logical pointers per reader**, enforced
+logically at read and by amortized background trim, with one declared cap
+parameter. **Inserts are append-only and never re-rank the reader's list.** A
+per-insert re-rank is a build defect, tested by T4/R+W publish cost. Cap changes storage
 and hit rate, not which documents are eligible. This is a logical retained-window
 bound, not a promise of immediate physical deletion/compaction in ClickHouse.
 
@@ -209,7 +225,7 @@ At the default cutoff, the 1,999-pointer ceiling is **per under-cutoff group pub
 on an exact recipient/member definition. A document attached to several small
 groups can generate more total writes. Down-crossing backfill is bounded per
 reader but can still touch up to 1,999 readers. Retries, trimming, bookkeeping and
-counter maintenance are additional work: report physical writes separately.
+canonical membership queries are additional work: report physical writes separately.
 
 Public `anyone`/`authenticated` grants do not enumerate the internet as recipients.
 Readability and subscription are distinct. The exact subscription/member mapping,
@@ -242,8 +258,9 @@ is unconditional; query-engine adoption and read-query optimization are separate
 
 **A 200-pointer cache cannot be the entire history.** Old pages, selective service
 filters, many deletions and incomplete backfills need canonical-backed continuation
-for under-cutoff groups too. The exact coverage watermark/fallback design is open;
-without it, trimming could silently hide eligible documents. A work-budget stop
+for under-cutoff groups too. The approved first arm seeks whenever coverage is
+unproven, without trusting a persistent watermark. Trimming cannot hide eligible
+history. A work-budget stop
 must not be misreported as end-of-history. The seek lane is the natural candidate
 source, not a license to claim that fallback cost has already passed the budget.
 
@@ -341,6 +358,19 @@ Config F acceptance must retain the supplied task's discipline:
   ordering and page refill. Serving a deleted document fails immediately.
 - **T7:** K=1000 only after T2-F and T6-F pass and execution is separately admitted.
   Any parity/rebuild failure or stop-rule hit stops the arm; views treatment stays off.
+- **Mandatory concurrent R+W:** the operator's load addendum requires ten minutes
+  of the declared37k-DAU reader profile (approximately1,400 sessions/23 complete
+  sequences per second at60s think, or46/sec at30s), concurrently with100 real
+  publishes/sec and10 follows/sec. Every publish includes the full canonical
+  membership count/recipient query and contract/coordinator write path; no cached
+  recipient shortcut or direct workload inserts. Under writer load, read
+  p95<500ms AND<25MB/complete sequence and errors<1% across reads/writes must hold.
+  Report publish p95, follow completion, actual recipient-pointer rates bounded
+  per publication route by cutoff-minus-one, separate backfill/physical writes
+  and backlog; any lost/duplicated logical delivery, parity failure or stop-rule
+  hit stops. This extends T6-F or is separately reported after it, but is required
+  before arm PASS/integration proposal. Quiet T4/read-only T6-F cannot substitute;
+  full accounting/admission requirements are in the linked task block.
 
 Add boundary controls for 1,999↔2,000 transitions, multi-group route removal,
 same-ID/different-author identity, same-timestamp tombstones, cap overflow,
@@ -348,18 +378,22 @@ filtered/older pages, crash/retry recovery and concurrent publish/follow/rebuild
 Future authority-affecting code needs independent review and exploit-replay gates;
 this document is neither a security scan nor a security PASS.
 
-## 9. Before building: close these decisions
+## 9. Research design closure (operator approved; native acceptance remains open)
 
 | Open decision | Required artifact |
 |---|---|
-| Recipient and member-count semantics | Exact canonical predicate: owners, reserved classes, subscriptions vs memberships, per-service compatibility, counter freshness and the 1,999 bound |
+| Recipient and member-count semantics | APPROVED: single canonical membership pass; explicit owner included, reserved classes/pending invites excluded, no public enumeration or membership counter; default1,999 bound |
 | Physical pointer/provenance schema | D60-compliant names, full document identity, group-route retention, stable order/ties, dedup/version/trim keys and index granularity |
 | Cap and history coverage | Logical vs physical cap, cross-service fairness, watermarks and complete older/filtered/refill fallback |
 | Durable maintenance | Publish/attach/update/delete and membership hooks; idempotency, acknowledgement, lag, crashes, transition/backfill races and rebuild boundary |
 | Serving integration | Generic query seam, app ordering, attachment multiplicity vs document dedup, pagination/error/concurrent-read semantics; no new access policy |
 | Read-plan adoption | Which query shapes explicitly use maintained pointers/seeks, their compiler/SQL plans and native bounded-read receipts; correct behavior for unsupported shapes |
-| Node Settings configuration | Admin UI placement and generic persisted field, tested integer bounds, shared effective/pending version, propagation/restart/rollback and bounded reclassification/backfill on change; default 2,000 |
-| Experiment admission | Stage-attributed P baseline, retained source-bound F task/receipts, fresh explicit host/window/budget and independent cleanup; no production action |
+| Node Settings configuration | DEFERRED to integration; no range/UI implementation or experiment blocker; receipts pin2,000 |
+| Experiment admission | GRANTED: fresh isolated four-hour/$2 host,32/28/22GiB,24.8.14.39,10s reads/>10M stop, layered cleanup; actual host/deadline binding still required, T7 separate |
 
-Next step is a **design-closure pass**, not implementation. Settle these artifacts
-with the operator, then build the smallest independently testable research unit.
+The linked closure file records the operator's approvals/corrections, exact DDL,
+source-bound planned hook manifest, schedule and admission. Next: isolated
+executable tooling/no-engine controls, guarded archive restore and attributed P,
+then F build/gates in programme order. No native PASS, installed hook, deployed
+schema or production behavior follows from design closure. Keep approval,
+addendum and subsequent results in the existing stack, not another planning doc.

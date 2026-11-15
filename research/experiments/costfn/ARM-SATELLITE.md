@@ -7,6 +7,33 @@ and derived metadata/counts. There is **no written feed and no fanout**.
 Config F is conditional on a parity-valid Config P cost failure; a correctness
 failure or a stop-rule hit never authorizes it.
 
+**Current next-arm programme:** the corrected operator task is retained at
+[task-block-fanout-arm.md](task-block-fanout-arm.md), with the proposed
+[design-closure ledger](ARM-F-DESIGN-CLOSURE.md). Config P's bounded parity and
+diagnostic cost miss motivate F consideration, not formal T6 completion or
+operational admission. The programme requires approved design closure, fresh
+paid admission and stage-attributed P reproduction **before** F build. Physical
+name `fanout` and default cutoff2,000 are settled; old receipts remain untouched.
+The operator's R+W addendum makes concurrent full-reader load with100 real
+publishes/sec and10 follows/sec for ten minutes a mandatory F gate, including
+canonical membership-query cost, write latency, delivery reconciliation and
+separate publish/backfill write accounting. Read-only T6-F success is insufficient;
+P's generation-pinned snapshots are not silently made live by this requirement.
+**Research closure approved:** the operator now grants the fresh four-hour/$2
+isolated run and approves the research model, corrected to one canonical
+membership pass for count+recipients, no membership counter/recipe, append-only
+fanout inserts and read-cap/amortized trim. Exact DDL, hook hashes, labelled-query
+condition, trial schedule and approval are folded into `ARM-F-DESIGN-CLOSURE.md`.
+`counting_numbers` retains engagement-only semantics. Timed disposable-scope
+rebuild/revalidation is approved, guard bypass is not. Settings range is deferred;
+host/deadline/cleanup binding and native gates remain unexecuted, T7 separate.
+**Execution outcome:** that fresh F-programme admission is now closed: P count
+T1 passed, but its transpose exact reconciliation failed native241 against the
+unchanged22GiB server cap before Step0 serving/F build. No new complete-response
+or F metric was obtained; resources were cleaned up early at18:45UTC. The
+existing F closure and `evidence/arm-f-20261115/P-setup-stop/` retain receipts.
+No retry, source-gate waiver or paid continuation is authorized by the old grant.
+
 **Experiment-first clarification,15 November:** Jacob requires the proposed
 hybrid write/read design to pass the experiment before integration into the
 actual system: "pass all the performance benches then do the fanout to the

@@ -1,0 +1,84 @@
+{
+  "kind": "SATELLITE_CONFIG_P_METADATA_BUILDS",
+  "dataset_id": "2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd",
+  "droplet_id": 619583249,
+  "outcome": "BUILD_FAILED_STOP",
+  "started_utc": "2026-11-15T18:27:08.991005+00:00",
+  "steps": [
+    {
+      "label": "transpose_ddl",
+      "query_id": "satellite-p-6c1cd7d9faef417aa3b38c2355523684",
+      "setup_native": {
+        "query_id": "satellite-p-6c1cd7d9faef417aa3b38c2355523684",
+        "type": "QueryFinish",
+        "query_duration_ms": "12",
+        "read_rows": "0",
+        "read_bytes": "0",
+        "memory_usage": "960",
+        "exception_code": 0
+      }
+    },
+    {
+      "label": "strings_ddl",
+      "query_id": "satellite-p-ca17f3e0d02b4c0eaee3374932d87a5f",
+      "setup_native": {
+        "query_id": "satellite-p-ca17f3e0d02b4c0eaee3374932d87a5f",
+        "type": "QueryFinish",
+        "query_duration_ms": "12",
+        "read_rows": "0",
+        "read_bytes": "0",
+        "memory_usage": "768",
+        "exception_code": 0
+      }
+    },
+    {
+      "label": "timestamps_ddl",
+      "query_id": "satellite-p-3896ff4a16394557bb9bda2ba57f328f",
+      "setup_native": {
+        "query_id": "satellite-p-3896ff4a16394557bb9bda2ba57f328f",
+        "type": "QueryFinish",
+        "query_duration_ms": "9",
+        "read_rows": "0",
+        "read_bytes": "0",
+        "memory_usage": "768",
+        "exception_code": 0
+      }
+    },
+    {
+      "label": "transpose",
+      "query_id": "satellite-p-d58169842ec8480e97469962ccc39d13",
+      "setup_native": {
+        "query_id": "satellite-p-d58169842ec8480e97469962ccc39d13",
+        "type": "QueryFinish",
+        "query_duration_ms": "341440",
+        "read_rows": "186206064",
+        "read_bytes": "26792124618",
+        "memory_usage": "9243624591",
+        "exception_code": 0
+      }
+    }
+  ],
+  "body_copies": false,
+  "fanout": false,
+  "T2": "NOT_RUN",
+  "count_receipt_sha256": "78612f86ceaa3a0f693ab0e8b52aea129f9eb6f3368b7418f1566b049d1080bc",
+  "count_table": "counting_numbers_p2",
+  "canonical_generation": "a85e5b0a88e6179dfda1d51c616069567c04cf4161885fd6e235e2d9c23bb256",
+  "source_sha256": {
+    "arm_satellite_metadata.py": "f13774f78d4e5abc5513a9ecebf2e00e6f052f77c69bf7d31f3ec2531fe90985",
+    "arm_satellite_runtime.py": "a3e0e037fff5c1a993fee93bc5327924057abe533d9817d1d2e9c807ec1abe36",
+    "arm_satellite_sql.py": "914deca7366bd260c18f6d67a98d56b5d1c55efc7b07655546d1b65519ff029a",
+    "arm_satellite_counts.py": "d0a177abee4e2d00be88f68d20bf01f7b3f9e38782f42728a8b11d54a6c02095",
+    "arm_t.py": "20e1bb6b50b09d4dcd96f4ed88177b6bd0873d946398fb704c0b414dd4070a65"
+  },
+  "open_integration_gates": [
+    "independent profile/ref/inventory/view parity",
+    "live view-delivery maintenance",
+    "balanced/Trending cached slices",
+    "Config P API adapter",
+    "all-reader scope/storage/maintenance cost",
+    "T2/T3/T5/T6/T8"
+  ],
+  "failure_class": "CalledProcessError",
+  "completed_utc": "2026-11-15T18:33:52.230291+00:00"
+}

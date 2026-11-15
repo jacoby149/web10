@@ -1,0 +1,1 @@
+SELECT query_id,query_duration_ms,read_rows,read_bytes,memory_usage,exception_code FROM system.query_log WHERE query_id='checker-fixture-6a2820b7bd474b5e9558d41da910046b' AND type='QueryFinish' FORMAT JSON

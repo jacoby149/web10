@@ -145,6 +145,16 @@ views, with discovery and media fetches additional.
 
 ## Venue
 
+**Current operator direction,15 November 2026:** target **CIDR next cycle**, not
+SIGMOD 2027. No submission is authorized. The programme is isolated Config F
+proof → separately authorized protocol integration → additive draft v7, with
+personal **Independent** affiliation, never Web10 Inc or the employer. Preserve
+every earlier draft; use receipt-supported conclusions, not the proposed headline
+as a foregone result. See the [Fanout Arm programme](experiments/costfn/task-block-fanout-arm.md).
+Exact future CIDR deadlines/eligibility have not been verified here.
+
+### Historical SIGMOD logistics (superseded target; retained for provenance)
+
 Verified against the [official industrial-track CFP](https://2027.sigmod.org/calls_industrial_track_papers.shtml)
 on **October 28, 2026**:
 
@@ -156,9 +166,9 @@ on **October 28, 2026**:
 - **CMT is open:** [SIGMODIND2027](https://cmt3.research.microsoft.com/SIGMODIND2027).
 - No simultaneous submission of substantially overlapping work elsewhere.
 
-Internal freeze: **November 20**. The earlier workshop-first/CIDR ladder is
-historical, not the current target. See `conferences.md` for historical notes;
-the official CFP governs current logistics.
+The previous internal freeze was **November 20**. These SIGMOD logistics and the
+earlier workshop ladder are historical; neither overrides the15 November CIDR
+next-cycle direction above. See `conferences.md` for historical notes.
 
 ## Research Map
 

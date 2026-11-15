@@ -1,0 +1,63 @@
+{
+  "kind": "CONFIG_F_PROGRAMME_P_SETUP_STOP",
+  "outcome": "STOP_BEFORE_STEP0_SERVING",
+  "droplet_id": 619583249,
+  "dataset_id": "2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd",
+  "native_exception_code": 241,
+  "failure_stage": "P transpose exact reconciliation",
+  "server_limit_GiB": 22,
+  "server_error_would_use_GiB": 27.29,
+  "query_tracked_peak": "NOT_COLLECTED_WITHOUT_ENGINE_RESTART",
+  "failed_read_rows": "NOT_COLLECTED_WITHOUT_ENGINE_RESTART",
+  "failed_read_bytes": "NOT_COLLECTED_WITHOUT_ENGINE_RESTART",
+  "query_ledger": [
+    {
+      "phase": "start",
+      "label": "transpose_exact_reconciliation",
+      "query_id": "satellite-p-182a7e9ddd2b4300981db7383e1cabb6",
+      "measured": false,
+      "utc": "2026-11-15T18:33:34.021622+00:00",
+      "deadline_seconds": 900,
+      "sql_sha256": "1dd1d76b54f3751308dbee1945f43a7c0b86881e2b09c45c38b7e9277fb7040c"
+    },
+    {
+      "phase": "finish",
+      "query_id": "satellite-p-182a7e9ddd2b4300981db7383e1cabb6",
+      "label": "transpose_exact_reconciliation",
+      "success": false,
+      "error_class": "CalledProcessError",
+      "elapsed_seconds": 18.198932
+    }
+  ],
+  "count_T1": "PASS",
+  "complete_response_samples": 0,
+  "F_native_gates": "NOT_RUN",
+  "sort_order_arm": "PLANNED_NOT_ADMITTED",
+  "deadline_utc": "2026-11-15T21:23:23Z",
+  "no_retry_or_limit_increase": true,
+  "containers": [
+    {
+      "name": "web10-costfn-frozen-satellite-fstep0a2-api-1",
+      "status": "exited",
+      "exit_code": 143,
+      "oom_killed": false,
+      "memory_limit_bytes": 2147483648
+    },
+    {
+      "name": "web10-costfn-frozen-satellite-fstep0a2-clickhouse-1",
+      "status": "exited",
+      "exit_code": 0,
+      "oom_killed": false,
+      "memory_limit_bytes": 30064771072
+    },
+    {
+      "name": "web10-costfn-frozen-satellite-fstep0a2-minio-1",
+      "status": "exited",
+      "exit_code": 0,
+      "oom_killed": false,
+      "memory_limit_bytes": 536870912
+    }
+  ],
+  "native_log_private": false,
+  "no_engine_restart": true
+}

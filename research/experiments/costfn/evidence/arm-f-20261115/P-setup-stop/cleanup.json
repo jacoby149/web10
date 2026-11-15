@@ -1,0 +1,12 @@
+{
+  "kind": "CONFIG_F_OWNED_RESOURCE_CLEANUP",
+  "droplet_id": 619583249,
+  "cleanup_verified": true,
+  "cleanup_utc": "2026-11-15T18:45:01.710822+00:00",
+  "original_deadline_utc": "2026-11-15T21:23:23+00:00",
+  "no_lease_extension": true,
+  "original_MinIO_archive_unchanged": true,
+  "volumes_deleted": false,
+  "estimated_compute_usd": 0.3402,
+  "cost_note": "elapsed-time compute estimate, not provider invoice or enforced billing guarantee"
+}

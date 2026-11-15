@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - research/experiments/costfn/arm_satellite*.py
+      - research/experiments/costfn/arm_f*.py
       - research/experiments/costfn/arm_satellite_profile.compose.yml
       - research/experiments/costfn/arm_satellite_serve.compose.yml
       - research/experiments/costfn/ARM-SATELLITE.md
@@ -34,14 +35,17 @@ jobs:
       - name: Install pinned no-engine dependencies
         run: python -m pip install ruff==0.15.22 sqlglot==30.18.0 pydantic==2.13.4 fastapi==0.139.0 -r research/experiments/costfn/realism-requirements.txt
       - name: Lint the additive preparation
-        run: python -m ruff check research/experiments/costfn/arm_satellite*.py
+        run: python -m ruff check research/experiments/costfn/arm_satellite*.py research/experiments/costfn/arm_f*.py
       - name: Check retained inventory and pull-first gate
         run: |
+          python research/experiments/costfn/arm_f.test.py
+          python research/experiments/costfn/arm_f_api.test.py
           python research/experiments/costfn/arm_satellite.test.py
           python research/experiments/costfn/arm_satellite_sql.test.py
           python research/experiments/costfn/arm_satellite_runtime.test.py
           python research/experiments/costfn/arm_satellite_counts.test.py
           python research/experiments/costfn/arm_satellite_metadata.test.py
+          python research/experiments/costfn/arm_satellite_reconcile.test.py
           python research/experiments/costfn/arm_satellite_pull.test.py
           python research/experiments/costfn/arm_satellite_profile.test.py
           python research/experiments/costfn/arm_satellite_profile_api.test.py

@@ -13,6 +13,7 @@ import arm_satellite_runtime as runtime
 import arm_satellite_sql as typed
 import arm_satellite_counts as counts_builder
 import arm_t
+import arm_satellite_reconcile as reconcile
 
 STRINGS_DDL = """CREATE TABLE strings (
     owner_key String, field_name String, value String,
@@ -111,7 +112,8 @@ def count_receipt(root, host, path=None):
     return counts
 
 
-def build(root, *, explore_view_snapshots=False, counts_receipt=None):
+def build(root, *, explore_view_snapshots=False, counts_receipt=None, reconcile_batches=reconcile.DEFAULT_BATCHES):
+    reconcile.require_batched(reconcile_batches)
     root = Path(root)
     session = runtime.Session(root)
     session.verify_envelope()
@@ -130,7 +132,7 @@ def build(root, *, explore_view_snapshots=False, counts_receipt=None):
     result["canonical_generation"] = current
     result["source_sha256"] = {name: hashlib.sha256((Path(__file__).parent / name).read_bytes()).hexdigest()
                                for name in ("arm_satellite_metadata.py", "arm_satellite_runtime.py", "arm_satellite_sql.py",
-                                            "arm_satellite_counts.py", "arm_t.py")}
+                                             "arm_satellite_counts.py", "arm_t.py", "arm_satellite_reconcile.py")}
     result["open_integration_gates"] = ["independent profile/ref/inventory/view parity",
         "live view-delivery maintenance", "balanced/Trending cached slices", "Config P API adapter",
         "all-reader scope/storage/maintenance cost", "T2/T3/T5/T6/T8"]
@@ -150,11 +152,9 @@ def build(root, *, explore_view_snapshots=False, counts_receipt=None):
         for label, ddl in (("transpose_ddl", transpose_ddl), ("strings_ddl", STRINGS_DDL), ("timestamps_ddl", TIMESTAMPS_DDL)):
             execute(label, ddl)
         execute("transpose", TRANSPOSE_BUILD)
-        expected, _ = session.rows("transpose_expected", "SELECT count() AS n FROM "
-            "(SELECT doc_id FROM doc_groups FINAL WHERE deleted=0) AS g INNER JOIN "
-            "(SELECT doc_id FROM documents FINAL WHERE deleted=0) AS d ON g.doc_id=d.doc_id", setup_seconds=900)
-        check, _ = session.rows("transpose_exact_reconciliation", TRANSPOSE_CHECK, setup_seconds=900)
-        stored, _ = session.rows("transpose_rows", "SELECT count() AS n FROM doc_groups_t")
+        expected, stored, check, reconciliation = reconcile.transpose(session, output / 'transpose-reconciliation',
+                                                                     TRANSPOSE_CHECK, batches=reconcile_batches)
+        result['batched_reconciliation'] = reconciliation
         if int(stored[0]["n"]) != int(expected[0]["n"]) or int(check[0]["matched"]) != int(expected[0]["n"]) or int(check[0]["mismatched"]):
             raise ValueError("transpose exact row/metadata reconciliation failed")
         result["transpose_reconciliation"] = {"expected": expected, "stored": stored, "check": check}
