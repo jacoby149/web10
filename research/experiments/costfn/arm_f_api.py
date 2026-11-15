@@ -7,6 +7,7 @@ import contextvars
 from datetime import UTC, datetime
 from functools import wraps
 import hashlib
+import importlib
 import json
 import logging
 import os
@@ -404,6 +405,10 @@ def guarded_compile(*args, **kwargs):
 
 p.observer.original_compile = guarded_compile
 p.ch.execute_query = execute_query
+if os.environ.get('FANOUT_STAGE_DIR'):
+    # Same fixed-format native stage observation as Step0; does not replace the
+    # F application, compiler, real auth gates or write coordinator.
+    importlib.import_module('arm_f_profile_api')
 stop_trim = threading.Event()
 
 

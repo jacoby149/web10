@@ -36,9 +36,10 @@ def start(root):
     stages = root / 'F-stages'
     stages.mkdir(mode=0o700, exist_ok=False)
     overlay = root / 'F-api.overlay.json'
-    overlay.write_text(json.dumps({'services': {'api': {'volumes': [str(root / 'fanout-state') + ':/fanout-state'],
+    overlay.write_text(json.dumps({'services': {'api': {'volumes': [str(root / 'fanout-state') + ':/fanout-state',
+                                                                str(stages) + ':/fanout-stages'],
         'environment': {'FANOUT_CONFIG_F': '1', 'FANOUT_STATE': '/fanout-state',
-                        'FANOUT_SERVING_MODE': 'F_DOCUMENT_STREAM_V1'},
+                        'FANOUT_SERVING_MODE': 'F_DOCUMENT_STREAM_V1', 'FANOUT_STAGE_DIR': '/fanout-stages'},
         'command': ['uv', 'run', 'uvicorn', 'arm_f_api:application', '--host', '0.0.0.0', '--port', '80', '--no-access-log']}}}))
     env = {**session.env, 'SATELLITE_SERVE_STATE': str(root / 'serve-state')}
     compose = session.compose[:-2] + ['-f', str(here / 'arm_satellite_serve.compose.yml'), '-f', str(overlay), *session.compose[-2:]]
@@ -51,6 +52,35 @@ def start(root):
     if not (root / 'fanout-state/hook-install.json').is_file():
         raise ValueError('real API hook installation receipt absent')
     return session
+
+
+def switch_writer(root, *, control):
+    """Separate original-P control worker, never a request-level F hook bypass.
+
+    One API container at a time under the same memory/server envelope. Controls
+    are new labelled T4 write controls, not a rewrite of Step0 or old receipts.
+    """
+    root = Path(root)
+    session = Session(root)
+    env = {**session.env, 'SATELLITE_SERVE_STATE': str(root / 'serve-state')}
+    here = Path(__file__).parent
+    overlay = root / ('T4-control.overlay.json' if control else 'F-api.overlay.json')
+    if control:
+        stages = root / 'T4-control-stages'
+        stages.mkdir(mode=0o700, exist_ok=True)
+        overlay.write_text(json.dumps({'services': {'api': {'volumes': [str(stages) + ':/fanout-stages'],
+            'environment': {'FANOUT_STAGE_DIR': '/fanout-stages'}, 'command': ['uv', 'run', 'uvicorn',
+                'arm_f_profile_api:application', '--host', '0.0.0.0', '--port', '80', '--no-access-log']}}}))
+    compose = session.compose[:-2] + ['-f', str(here / 'arm_satellite_serve.compose.yml'), '-f', str(overlay), *session.compose[-2:]]
+    restore.command(compose, env, 'up', '-d', '--no-deps', 'api', timeout=180)
+    restore_dataset.wait_for(lambda: urllib.request.urlopen('http://127.0.0.1:6098/docs', timeout=3).status == 200,
+                            'T4 original control' if control else 'T4 real F worker')
+    container = restore.command(session.compose, session.env, 'ps', '-q', 'api').decode().strip()
+    actual = json.loads(restore.command(['docker'], session.env, 'inspect', '--format', '{{json .Config.Cmd}}', container))
+    expected = 'arm_f_profile_api:application' if control else 'arm_f_api:application'
+    if expected not in actual:
+        raise ValueError('T4 actual API worker entry differs')
+    return actual
 
 
 async def run(root):
@@ -94,8 +124,21 @@ async def run(root):
                 group.raise_for_status()
                 group_id = group.json()['group_id']
                 expected = {writer, *(row['username'] for row in users[:size - 1])}
-                info = {'members': size, 'group_id': group_id, 'latencies_ms': [], 'public_class_excluded': True}
+                info = {'members': size, 'group_id': group_id, 'latencies_ms': [], 'control_latencies_ms': [],
+                        'public_class_excluded': True}
                 result['groups'].append(info)
+                info['control_api_command'] = switch_writer(root, control=True)
+                for index in range(20):
+                    begin = time.perf_counter()
+                    response = await client.post('/v3/create', json={'token': token, 'service': 'posts',
+                        'body': {'text': 'F T4 synthetic publication', 'trial': index}, 'groups': [group_id]},
+                        headers={'Origin': ORIGIN, 'X-Research-ID': uuid.uuid4().hex})
+                    elapsed = (time.perf_counter() - begin) * 1000
+                    if response.status_code != 200 or response.headers.get('x-arm-p-stop') == '1':
+                        raise ValueError('original authorized T4 write control failed')
+                    info['control_latencies_ms'].append(elapsed)
+                info['control_publish_p95_ms'] = p95(info['control_latencies_ms'])
+                info['F_api_command'] = switch_writer(root, control=False)
                 for index in range(20):
                     request_id, op = uuid.uuid4().hex, str(uuid.uuid4())
                     lower = datetime.now(UTC).isoformat()
@@ -124,6 +167,10 @@ async def run(root):
                     info['latencies_ms'].append(elapsed)
                     save()
                 info['publish_path_p95_ms'] = p95(info['latencies_ms'])
+                info['p95_quantile_delta_ms'] = info['publish_path_p95_ms'] - info['control_publish_p95_ms']
+                deltas = [treated - control for treated, control in zip(info['latencies_ms'], info['control_latencies_ms'], strict=True)]
+                info['paired_index_added_latency_p95_ms'] = sorted(deltas)[math.ceil(.95 * len(deltas)) - 1]
+                info['control_scope'] = 'twenty serial original-P writes, then twenty F writes; same fixture/member count; index-paired, not randomized causal proof'
                 print('[arm-f T4]', size, 'members p95_ms=', info['publish_path_p95_ms'], flush=True)
             session.query('T4_flush_query_log', 'SYSTEM FLUSH LOGS')
             ids = [row['request_id'] for row in result['requests']]

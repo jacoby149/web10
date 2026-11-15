@@ -58,7 +58,8 @@ def build(root):
         group_members={}, queries=[], rebuild_sources=['documents', 'doc_groups', 'group_members'],
         scope='one predeclared ordinary reader historical backfill; not global-reader capacity',
         source_sha256={name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
-                       for name in ('arm_f.py', 'arm_f_api.py', 'arm_f_journal.py', 'arm_f_store.py', 'arm_f_native.py', 'arm_f_runtime.py')})
+                       for name in ('arm_f.py', 'arm_f_api.py', 'arm_f_journal.py', 'arm_f_store.py',
+                                    'arm_f_native.py', 'arm_f_runtime.py', 'arm_f_profile_api.py')})
     result['adapter_hook_lines'] = [{'symbol': node.name, 'line': node.lineno}
         for node in ast.walk(ast.parse(Path(__file__).with_name('arm_f_api.py').read_text()))
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))

@@ -40,7 +40,7 @@ def classify(sql, callers=()):
         return 'views'
     if preparation:
         return 'preparation'
-    if 'doc_groups_t' in tables:
+    if tables & {'doc_groups_t', 'fanout'}:
         return 'candidates'
     if tables & {'strings', 'timestamps'}:
         return 'metadata_identities'
