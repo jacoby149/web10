@@ -89,7 +89,7 @@ p.ch.client.insert = insert
 
 def active():
     admitted(admission, p.host)
-    if fatal.is_set() or not start <= datetime.now(UTC) < deadline:
+    if fatal.is_set() or (ROOT / 'F.stop').exists() or not start <= datetime.now(UTC) < deadline:
         raise HTTPException(503, 'research admission closed')
 
 
