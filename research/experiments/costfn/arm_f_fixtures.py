@@ -72,7 +72,15 @@ async def parity_fixture(root):
         for index in range(30):
             doc, _ = await publish(http, token, [large], {'text': 'Seek-lane fixture', 'index': index})
             posts.append(doc['doc_id'])
-        marker = uuid.uuid4().hex
+        def above(floor):
+            for _ in range(10000):
+                marker = uuid.uuid4().hex
+                if str(uuid.uuid5(uuid.NAMESPACE_URL, 'F-author-collision:' + marker)) > floor:
+                    return marker
+            raise ValueError('bounded deterministic tie-stratum construction exhausted')
+        large_marker = above(max(posts))
+        large_front, _ = await publish(http, token, [large], {'text': 'Required mixed-lane winner', 'fixture_same_id': large_marker})
+        marker = above(large_front['doc_id'])
         collision = []
         for actor in (token, second):
             doc, _ = await publish(http, actor, [first, second_group], {'text': 'Full-key identity fixture', 'fixture_same_id': marker})
@@ -81,6 +89,7 @@ async def parity_fixture(root):
             raise ValueError('actual same-ID/different-author fixture not established')
         result = dict(reader=reader, writer=writer, groups=[first, second_group, large],
             sizes=[3, 3, 2000], shared_ids=posts[:30] + [collision[0]['doc_id']], collision_id=collision[0]['doc_id'],
+            large_front_id=large_front['doc_id'],
             fixture_clock=json.loads((root / 'fixture-clock.json').read_bytes()), actual_authorized_paths=True)
         save(root / 'fixture.json', result)
         return result
