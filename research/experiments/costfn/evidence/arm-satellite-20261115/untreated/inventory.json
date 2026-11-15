@@ -1,0 +1,557 @@
+{
+  "kind": "SATELLITE_ARM_UNTREATED_STAGE_INVENTORY",
+  "dataset_id": "2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd",
+  "droplet_id": 619510510,
+  "reader": "rd42-u0980001",
+  "groups": [
+    "api.localhost/groups/users/rd42-u0000000/followers",
+    "api.localhost/groups/users/rd42-u0000001/followers",
+    "api.localhost/groups/users/rd42-u0000002/followers",
+    "api.localhost/groups/users/rd42-u0000003/followers",
+    "api.localhost/groups/users/rd42-u0000004/followers",
+    "api.localhost/groups/users/rd42-u0000005/followers",
+    "api.localhost/groups/users/rd42-u0000006/followers",
+    "api.localhost/groups/users/rd42-u0000007/followers",
+    "api.localhost/groups/users/rd42-u0000008/followers",
+    "api.localhost/groups/users/rd42-u0000009/followers",
+    "api.localhost/groups/users/rd42-u0000010/followers",
+    "api.localhost/groups/users/rd42-u0000011/followers",
+    "api.localhost/groups/users/rd42-u0000012/followers",
+    "api.localhost/groups/users/rd42-u0000013/followers",
+    "api.localhost/groups/users/rd42-u0000014/followers",
+    "api.localhost/groups/users/rd42-u0000015/followers",
+    "api.localhost/groups/users/rd42-u0614008/followers",
+    "api.localhost/groups/users/rd42-u0614009/followers",
+    "api.localhost/groups/users/rd42-u0614010/followers",
+    "api.localhost/groups/users/rd42-u0614011/followers",
+    "api.localhost/groups/users/rd42-u0980001/followers"
+  ],
+  "reference_page": [
+    {
+      "doc_id": "73855328-0b10-1606-ef9a-fd16e24f4a4a",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "5ccefb1a-d112-685b-264c-a9fca19337bf",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "67569b90-14ef-0cfe-bf74-73d4606ad8ba",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "8adfb89a-e243-d124-eca7-62e9852af8b8",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "69cba28e-7b0d-c1fc-310a-57a7ea7486bb",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "5001f91f-ec7b-9e16-ae86-aac47ae0d1de",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "79e0c2e1-b349-5ed1-5c86-1173db56110e",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "79aa3c87-d203-ff06-89e5-a8235b7fe52d",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "4691a418-697b-7d3a-d209-dd42bfb6a608",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "9ff41cec-1f2c-fb84-b74b-35f04d4aa01a",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "fe53701f-931d-f7d1-339d-310c7954bd30",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "524e1c0f-c5e6-1392-4a75-b014e4374bde",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "e42e3397-f570-d9eb-4c41-27555540f6b5",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "e3453c62-2d27-a675-d5cf-eb0f1e1cf4b0",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "2c13eeae-1809-f7e0-2bdc-a0102b8148a4",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "acff1f0b-0ac7-9ec5-5244-e0e17032d0b9",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "7cf4a5dd-f3d8-01ef-ab38-d4d5845b14de",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "9f45f71b-b24d-05be-a19d-67ed389e793b",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "056d71ab-ecfd-411c-bf3e-0aa29b993871",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "8e169aff-3cd4-6b0d-13ea-696efec6c106",
+      "author_key": "rd42-u0000000"
+    },
+    {
+      "doc_id": "5cb79eb0-9b63-1177-96e9-e9bee40dbafe",
+      "author_key": "rd42-u0000000"
+    }
+  ],
+  "wrong_origin_denied": true,
+  "stages": [
+    {
+      "kind": "main",
+      "started": "2026-11-15T12:16:50.442167+00:00",
+      "independent_reference_ids_for_followup": false,
+      "http_completed": false,
+      "failure_class": "HTTPStatusError",
+      "ended": "2026-11-15T12:17:01.763318+00:00",
+      "elapsed_ms": 11321.15271299972,
+      "native_queries": [
+        {
+          "query_id": "a56b1ead-09c1-450c-8a3c-0b6012052274",
+          "query_duration_ms": "3",
+          "read_rows": "8192",
+          "read_bytes": "1384457",
+          "memory_usage": "0",
+          "exception_code": 0,
+          "sql_sha256": "79c8283893e8d2fd2c654b6a441b4ca71afce161c00f2f19d05984b6869f7083",
+          "query": "SELECT permissions FROM (SELECT permissions, deleted FROM app_contracts WHERE user_key = 'rd42-u0980001' AND allowed_origin = 'https://costfn.research.invalid' ORDER BY updated_at DESC LIMIT 1) WHERE deleted = 0\n FORMAT Native"
+        },
+        {
+          "query_id": "3706abf1-e632-4e68-be06-9a04b8f1f999",
+          "query_duration_ms": "12",
+          "read_rows": "491520",
+          "read_bytes": "17021353",
+          "memory_usage": "115219",
+          "exception_code": 0,
+          "sql_sha256": "a8571152e9feaf68b4f0d205e1c68a4a1a936d2acd98e15db552f813dac99a95",
+          "query": "SELECT group_id FROM (SELECT group_id, deleted, row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC, deleted DESC) as rn FROM group_members WHERE member_key = 'rd42-u0980001' AND group_id IN ('api.localhost/groups/users/rd42-u0000000/followers', 'api.localhost/groups/users/rd42-u0000001/followers', 'api.localhost/groups/users/rd42-u0000002/followers', 'api.localhost/groups/users/rd42-u0000003/followers', 'api.localhost/groups/users/rd42-u0000004/followers', 'api.localhost/groups/users/rd42-u0000005/followers', 'api.localhost/groups/users/rd42-u0000006/followers', 'api.localhost/groups/users/rd42-u0000007/followers', 'api.localhost/groups/users/rd42-u0000008/followers', 'api.localhost/groups/users/rd42-u0000009/followers', 'api.localhost/groups/users/rd42-u0000010/followers', 'api.localhost/groups/users/rd42-u0000011/followers', 'api.localhost/groups/users/rd42-u0000012/followers', 'api.localhost/groups/users/rd42-u0000013/followers', 'api.localhost/groups/users/rd42-u0000014/followers', 'api.localhost/groups/users/rd42-u0000015/followers', 'api.localhost/groups/users/rd42-u0614008/followers', 'api.localhost/groups/users/rd42-u0614009/followers', 'api.localhost/groups/users/rd42-u0614010/followers', 'api.localhost/groups/users/rd42-u0614011/followers', 'api.localhost/groups/users/rd42-u0980001/followers')) WHERE rn = 1 AND deleted = 0\n FORMAT Native"
+        },
+        {
+          "query_id": "abab3389-9344-4ea5-ab07-5b738941933e",
+          "query_duration_ms": "13",
+          "read_rows": "491520",
+          "read_bytes": "17021353",
+          "memory_usage": "89995",
+          "exception_code": 0,
+          "sql_sha256": "a8571152e9feaf68b4f0d205e1c68a4a1a936d2acd98e15db552f813dac99a95",
+          "query": "SELECT group_id FROM (SELECT group_id, deleted, row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC, deleted DESC) as rn FROM group_members WHERE member_key = 'rd42-u0980001' AND group_id IN ('api.localhost/groups/users/rd42-u0000000/followers', 'api.localhost/groups/users/rd42-u0000001/followers', 'api.localhost/groups/users/rd42-u0000002/followers', 'api.localhost/groups/users/rd42-u0000003/followers', 'api.localhost/groups/users/rd42-u0000004/followers', 'api.localhost/groups/users/rd42-u0000005/followers', 'api.localhost/groups/users/rd42-u0000006/followers', 'api.localhost/groups/users/rd42-u0000007/followers', 'api.localhost/groups/users/rd42-u0000008/followers', 'api.localhost/groups/users/rd42-u0000009/followers', 'api.localhost/groups/users/rd42-u0000010/followers', 'api.localhost/groups/users/rd42-u0000011/followers', 'api.localhost/groups/users/rd42-u0000012/followers', 'api.localhost/groups/users/rd42-u0000013/followers', 'api.localhost/groups/users/rd42-u0000014/followers', 'api.localhost/groups/users/rd42-u0000015/followers', 'api.localhost/groups/users/rd42-u0614008/followers', 'api.localhost/groups/users/rd42-u0614009/followers', 'api.localhost/groups/users/rd42-u0614010/followers', 'api.localhost/groups/users/rd42-u0614011/followers', 'api.localhost/groups/users/rd42-u0980001/followers')) WHERE rn = 1 AND deleted = 0\n FORMAT Native"
+        },
+        {
+          "query_id": "321a445c-fc51-4ee0-869e-3e99d298496b",
+          "query_duration_ms": "12",
+          "read_rows": "491520",
+          "read_bytes": "17021353",
+          "memory_usage": "117602",
+          "exception_code": 0,
+          "sql_sha256": "a8571152e9feaf68b4f0d205e1c68a4a1a936d2acd98e15db552f813dac99a95",
+          "query": "SELECT group_id FROM (SELECT group_id, deleted, row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC, deleted DESC) as rn FROM group_members WHERE member_key = 'rd42-u0980001' AND group_id IN ('api.localhost/groups/users/rd42-u0000000/followers', 'api.localhost/groups/users/rd42-u0000001/followers', 'api.localhost/groups/users/rd42-u0000002/followers', 'api.localhost/groups/users/rd42-u0000003/followers', 'api.localhost/groups/users/rd42-u0000004/followers', 'api.localhost/groups/users/rd42-u0000005/followers', 'api.localhost/groups/users/rd42-u0000006/followers', 'api.localhost/groups/users/rd42-u0000007/followers', 'api.localhost/groups/users/rd42-u0000008/followers', 'api.localhost/groups/users/rd42-u0000009/followers', 'api.localhost/groups/users/rd42-u0000010/followers', 'api.localhost/groups/users/rd42-u0000011/followers', 'api.localhost/groups/users/rd42-u0000012/followers', 'api.localhost/groups/users/rd42-u0000013/followers', 'api.localhost/groups/users/rd42-u0000014/followers', 'api.localhost/groups/users/rd42-u0000015/followers', 'api.localhost/groups/users/rd42-u0614008/followers', 'api.localhost/groups/users/rd42-u0614009/followers', 'api.localhost/groups/users/rd42-u0614010/followers', 'api.localhost/groups/users/rd42-u0614011/followers', 'api.localhost/groups/users/rd42-u0980001/followers')) WHERE rn = 1 AND deleted = 0\n FORMAT Native"
+        },
+        {
+          "query_id": "bfc41374-0ad0-469b-937a-1e471cb6ec9c",
+          "query_duration_ms": "13",
+          "read_rows": "491520",
+          "read_bytes": "17021353",
+          "memory_usage": "784133",
+          "exception_code": 0,
+          "sql_sha256": "a8571152e9feaf68b4f0d205e1c68a4a1a936d2acd98e15db552f813dac99a95",
+          "query": "SELECT group_id FROM (SELECT group_id, deleted, row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC, deleted DESC) as rn FROM group_members WHERE member_key = 'rd42-u0980001' AND group_id IN ('api.localhost/groups/users/rd42-u0000000/followers', 'api.localhost/groups/users/rd42-u0000001/followers', 'api.localhost/groups/users/rd42-u0000002/followers', 'api.localhost/groups/users/rd42-u0000003/followers', 'api.localhost/groups/users/rd42-u0000004/followers', 'api.localhost/groups/users/rd42-u0000005/followers', 'api.localhost/groups/users/rd42-u0000006/followers', 'api.localhost/groups/users/rd42-u0000007/followers', 'api.localhost/groups/users/rd42-u0000008/followers', 'api.localhost/groups/users/rd42-u0000009/followers', 'api.localhost/groups/users/rd42-u0000010/followers', 'api.localhost/groups/users/rd42-u0000011/followers', 'api.localhost/groups/users/rd42-u0000012/followers', 'api.localhost/groups/users/rd42-u0000013/followers', 'api.localhost/groups/users/rd42-u0000014/followers', 'api.localhost/groups/users/rd42-u0000015/followers', 'api.localhost/groups/users/rd42-u0614008/followers', 'api.localhost/groups/users/rd42-u0614009/followers', 'api.localhost/groups/users/rd42-u0614010/followers', 'api.localhost/groups/users/rd42-u0614011/followers', 'api.localhost/groups/users/rd42-u0980001/followers')) WHERE rn = 1 AND deleted = 0\n FORMAT Native"
+        },
+        {
+          "query_id": "2cc05b1d-e672-4c46-b778-52b1ade47665",
+          "query_duration_ms": "10553",
+          "read_rows": "360801800",
+          "read_bytes": "24166683513",
+          "memory_usage": "5279260984",
+          "exception_code": 159,
+          "sql_sha256": "a9319fcfbe2591a4d427b7adc01489970e3df59714352058fbf8f3dd2d2d07f4",
+          "query": "WITH comments AS (SELECT d.doc_id, d.author_key, d.posted_by, d.body, d.ref_value, d.tags, d.created_at, d.updated_at, d.ad_mode, d.ad_target, dg.group_id FROM (SELECT doc_id, author_key, posted_by, body, ref_value, tags, created_at, updated_at, ad_mode, ad_target FROM (SELECT doc_id, author_key, posted_by, body, ref_value, tags, created_at, updated_at, ad_mode, ad_target, deleted, row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn FROM documents WHERE collection_name = 'comments') WHERE rn = 1 AND deleted = 0) d JOIN (SELECT doc_id, group_id FROM (SELECT doc_id, group_id, deleted, row_number() OVER (PARTITION BY doc_id, group_id ORDER BY updated_at DESC) AS rn FROM doc_groups WHERE group_id IN ('api.localhost/groups/users/rd42-u0000000/followers', 'api.localhost/groups/users/rd42-u0000001/followers', 'api.localhost/groups/users/rd42-u0000002/followers', 'api.localhost/groups/users/rd42-u0000003/followers', 'api.localhost/groups/users/rd42-u0000004/followers', 'api.localhost/groups/users/rd42-u0000005/followers', 'api.localhost/groups/users/rd42-u0000006/followers', 'api.localhost/groups/users/rd42-u0000007/followers', 'api.localhost/groups/users/rd42-u0000008/followers', 'api.localhost/groups/users/rd42-u0000009/followers', 'api.localhost/groups/users/rd42-u0000010/followers', 'api.localhost/groups/users/rd42-u0000011/followers', 'api.localhost/groups/users/rd42-u0000012/followers', 'api.localhost/groups/users/rd42-u0000013/followers', 'api.localhost/groups/users/rd42-u0000014/followers', 'api.localhost/groups/users/rd42-u0000015/followers', 'api.localhost/groups/users/rd42-u0614008/followers', 'api.localhost/groups/users/rd42-u0614009/followers', 'api.localhost/groups/users/rd42-u0614010/followers', 'api.localhost/groups/users/rd42-u0614011/followers', 'api.localhost/groups/users/rd42-u0980001/followers')) WHERE rn = 1 AND deleted = 0) dg ON d.doc_id = dg.doc_id WHERE d.author_key NOT IN (SELECT user_key FROM (SELECT user_key, blocked_key, deleted, row_number() OVER (PARTITION BY user_key, blocked_key ORDER BY updated_at DESC, deleted DESC) AS rn FROM user_blacklist) WHERE rn = 1 AND deleted = 0 AND blocked_key = 'rd42-u0980001') AND (d.author_key, dg.group_id) NOT IN (SELECT user_key, group_id FROM (SELECT user_key, group_id, blocked_key, deleted, row_number() OVER (PARTITION BY user_key, group_id, blocked_key ORDER BY updated_at DESC, deleted DESC) AS rn FROM group_blacklist) WHERE rn = 1 AND deleted = 0 AND blocked_key = 'rd42-u0980001') AND NOT (d.author_key != 'rd42-u0980001' AND (d.author_key, dg.group_id) IN (SELECT user_key, group_id FROM (SELECT user_key, group_id, sharing_enabled, deleted, row_number() OVER (PARTITION BY user_key, group_id ORDER BY updated_at DESC) AS rn FROM user_group_sharing) WHERE rn = 1 AND deleted = 0 AND sharing_enabled = 0)) AND (d.doc_id, dg.group_id) NOT IN (SELECT doc_id, group_id FROM (SELECT group_id, doc_id, deleted, row_number() OVER (PARTITION BY group_id, doc_id ORDER BY updated_at DESC, deleted DESC) AS rn FROM group_hidden_docs) WHERE rn = 1 AND deleted = 0) AND d.author_key NOT IN (SELECT username FROM (SELECT username, deleted, row_number() OVER (PARTITION BY username ORDER BY updated_at DESC, deleted DESC) AS rn FROM banned_users) WHERE rn = 1 AND deleted = 0)), posts AS (SELECT d.doc_id, d.author_key, d.posted_by, d.body, d.ref_value, d.tags, d.created_at, d.updated_at, d.ad_mode, d.ad_target, dg.group_id FROM (SELECT doc_id, author_key, posted_by, body, ref_value, tags, created_at, updated_at, ad_mode, ad_target FROM (SELECT doc_id, author_key, posted_by, body, ref_value, tags, created_at, updated_at, ad_mode, ad_target, deleted, row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn FROM documents WHERE collection_name = 'posts') WHERE rn = 1 AND deleted = 0) d JOIN (SELECT doc_id, group_id FROM (SELECT doc_id, group_id, deleted, row_number() OVER (PARTITION BY doc_id, group_id ORDER BY updated_at DESC) AS rn FROM doc_groups WHERE group_id IN ('api.localhost/groups/users/rd42-u0000000/followers', 'api.localhost/groups/users/rd42-u0000001/followers', 'api.localhost/groups/users/rd42-u0000002/followers', 'api.localhost/groups/users/rd42-u0000003/followers', 'api.localhost/groups/users/rd42-u0000004/followers', 'api.localhost/groups/users/rd42-u0000005/followers', 'api.localhost/groups/users/rd42-u0000006/followers', 'api.localhost/groups/users/rd42-u0000007/followers', 'api.localhost/groups/users/rd42-u0000008/followers', 'api.localhost/groups/users/rd42-u0000009/followers', 'api.localhost/groups/users/rd42-u0000010/followers', 'api.localhost/groups/users/rd42-u0000011/followers', 'api.localhost/groups/users/rd42-u0000012/followers', 'api.localhost/groups/users/rd42-u0000013/followers', 'api.localhost/groups/users/rd42-u0000014/followers', 'api.localhost/groups/users/rd42-u0000015/followers', 'api.localhost/groups/users/rd42-u0614008/followers', 'api.localhost/groups/users/rd42-u0614009/followers', 'api.localhost/groups/users/rd42-u0614010/followers', 'api.localhost/groups/users/rd42-u0614011/followers', 'api.localhost/groups/users/rd42-u0980001/followers')) WHERE rn = 1 AND deleted = 0) dg ON d.doc_id = dg.doc_id WHERE d.author_key NOT IN (SELECT user_key FROM (SELECT user_key, blocked_key, deleted, row_number() OVER (PARTITION BY user_key, blocked_key ORDER BY updated_at DESC, deleted DESC) AS rn FROM user_blacklist) WHERE rn = 1 AND deleted = 0 AND blocked_key = 'rd42-u0980001') AND (d.author_key, dg.group_id) NOT IN (SELECT user_key, group_id FROM (SELECT user_key, group_id, blocked_key, deleted, row_number() OVER (PARTITION BY user_key, group_id, blocked_key ORDER BY updated_at DESC, deleted DESC) AS rn FROM group_blacklist) WHERE rn = 1 AND deleted = 0 AND blocked_key = 'rd42-u0980001') AND NOT (d.author_key != 'rd42-u0980001' AND (d.author_key, dg.group_id) IN (SELECT user_key, group_id FROM (SELECT user_key, group_id, sharing_enabled, deleted, row_number() OVER (PARTITION BY user_key, group_id ORDER BY updated_at DESC) AS rn FROM user_group_sharing) WHERE rn = 1 AND deleted = 0 AND sharing_enabled = 0)) AND (d.doc_id, dg.group_id) NOT IN (SELECT doc_id, group_id FROM (SELECT group_id, doc_id, deleted, row_number() OVER (PARTITION BY group_id, doc_id ORDER BY updated_at DESC, deleted DESC) AS rn FROM group_hidden_docs) WHERE rn = 1 AND deleted = 0) AND d.author_key NOT IN (SELECT username FROM (SELECT username, deleted, row_number() OVER (PARTITION BY username ORDER BY updated_at DESC, deleted DESC) AS rn FROM banned_users) WHERE rn = 1 AND deleted = 0)), profile AS (SELECT d.doc_id, d.author_key, d.posted_by, d.body, d.ref_value, d.tags, d.created_at, d.updated_at, d.ad_mode, d.ad_target, dg.group_id FROM (SELECT doc_id, author_key, posted_by, body, ref_value, tags, created_at, updated_at, ad_mode, ad_target FROM (SELECT doc_id, author_key, posted_by, body, ref_value, tags, created_at, updated_at, ad_mode, ad_target, deleted, row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn FROM documents WHERE collection_name = 'profile') WHERE rn = 1 AND deleted = 0) d JOIN (SELECT doc_id, group_id FROM (SELECT doc_id, group_id, deleted, row_number() OVER (PARTITION BY doc_id, group_id ORDER BY updated_at DESC) AS rn FROM doc_groups WHERE group_id IN ('api.localhost/groups/users/rd42-u0000000/followers', 'api.localhost/groups/users/rd42-u0000001/followers', 'api.localhost/groups/users/rd42-u0000002/followers', 'api.localhost/groups/users/rd42-u0000003/followers', 'api.localhost/groups/users/rd42-u0000004/followers', 'api.localhost/groups/users/rd42-u0000005/followers', 'api.localhost/groups/users/rd42-u0000006/followers', 'api.localhost/groups/users/rd42-u0000007/followers', 'api.localhost/groups/users/rd42-u0000008/followers', 'api.localhost/groups/users/rd42-u0000009/followers', 'api.localhost/groups/users/rd42-u0000010/followers', 'api.localhost/groups/users/rd42-u0000011/followers', 'api.localhost/groups/users/rd42-u0000012/followers', 'api.localhost/groups/users/rd42-u0000013/followers', 'api.localhost/groups/users/rd42-u0000014/followers', 'api.localhost/groups/users/rd42-u0000015/followers', 'api.localhost/groups/users/rd42-u0614008/followers', 'api.localhost/groups/users/rd42-u0614009/followers', 'api.localhost/groups/users/rd42-u0614010/followers', 'api.localhost/groups/users/rd42-u0614011/followers', 'api.localhost/groups/users/rd42-u0980001/followers')) WHERE rn = 1 AND deleted = 0) dg ON d.doc_id = dg.doc_id WHERE d.author_key NOT IN (SELECT user_key FROM (SELECT user_key, blocked_key, deleted, row_number() OVER (PARTITION BY user_key, blocked_key ORDER BY updated_at DESC, deleted DESC) AS rn FROM user_blacklist) WHERE rn = 1 AND deleted = 0 AND blocked_key = 'rd42-u0980001') AND (d.author_key, dg.group_id) NOT IN (SELECT user_key, group_id FROM (SELECT user_key, group_id, blocked_key, deleted, row_number() OVER (PARTITION BY user_key, group_id, blocked_key ORDER BY updated_at DESC, deleted DESC) AS rn FROM group_blacklist) WHERE rn = 1 AND deleted = 0 AND blocked_key = 'rd42-u0980001') AND NOT (d.author_key != 'rd42-u0980001' AND (d.author_key, dg.group_id) IN (SELECT user_key, group_id FROM (SELECT user_key, group_id, sharing_enabled, deleted, row_number() OVER (PARTITION BY user_key, group_id ORDER BY updated_at DESC) AS rn FROM user_group_sharing) WHERE rn = 1 AND deleted = 0 AND sharing_enabled = 0)) AND (d.doc_id, dg.group_id) NOT IN (SELECT doc_id, group_id FROM (SELECT group_id, doc_id, deleted, row_number() OVER (PARTITION BY group_id, doc_id ORDER BY updated_at DESC, deleted DESC) AS rn FROM group_hidden_docs) WHERE rn = 1 AND deleted = 0) AND d.author_key NOT IN (SELECT username FROM (SELECT username, deleted, row_number() OVER (PARTITION BY username ORDER BY updated_at DESC, deleted DESC) AS rn FROM banned_users) WHERE rn = 1 AND deleted = 0)), reactions AS (SELECT d.doc_id, d.author_key, d.posted_by, d.body, d.ref_value, d.tags, d.created_at, d.updated_at, d.ad_mode, d.ad_target, dg.group_id FROM (SELECT doc_id, author_key, posted_by, body, ref_value, tags, created_at, updated_at, ad_mode, ad_target FROM (SELECT doc_id, author_key, posted_by, body, ref_value, tags, created_at, updated_at, ad_mode, ad_target, deleted, row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn FROM documents WHERE collection_name = 'reactions') WHERE rn = 1 AND deleted = 0) d JOIN (SELECT doc_id, group_id FROM (SELECT doc_id, group_id, deleted, row_number() OVER (PARTITION BY doc_id, group_id ORDER BY updated_at DESC) AS rn FROM doc_groups WHERE group_id IN ('api.localhost/groups/users/rd42-u0000000/followers', 'api.localhost/groups/users/rd42-u0000001/followers', 'api.localhost/groups/users/rd42-u0000002/followers', 'api.localhost/groups/users/rd42-u0000003/followers', 'api.localhost/groups/users/rd42-u0000004/followers', 'api.localhost/groups/users/rd42-u0000005/followers', 'api.localhost/groups/users/rd42-u0000006/followers', 'api.localhost/groups/users/rd42-u0000007/followers', 'api.localhost/groups/users/rd42-u0000008/followers', 'api.localhost/groups/users/rd42-u0000009/followers', 'api.localhost/groups/users/rd42-u0000010/followers', 'api.localhost/groups/users/rd42-u0000011/followers', 'api.localhost/groups/users/rd42-u0000012/followers', 'api.localhost/groups/users/rd42-u0000013/followers', 'api.localhost/groups/users/rd42-u0000014/followers', 'api.localhost/groups/users/rd42-u0000015/followers', 'api.localhost/groups/users/rd42-u0614008/followers', 'api.localhost/groups/users/rd42-u0614009/followers', 'api.localhost/groups/users/rd42-u0614010/followers', 'api.localhost/groups/users/rd42-u0614011/followers', 'api.localhost/groups/users/rd42-u0980001/followers')) WHERE rn = 1 AND deleted = 0) dg ON d.doc_id = dg.doc_id WHERE d.author_key NOT IN (SELECT user_key FROM (SELECT user_key, blocked_key, deleted, row_number() OVER (PARTITION BY user_key, blocked_key ORDER BY updated_at DESC, deleted DESC) AS rn FROM user_blacklist) WHERE rn = 1 AND deleted = 0 AND blocked_key = 'rd42-u0980001') AND (d.author_key, dg.group_id) NOT IN (SELECT user_key, group_id FROM (SELECT user_key, group_id, blocked_key, deleted, row_number() OVER (PARTITION BY user_key, group_id, blocked_key ORDER BY updated_at DESC, deleted DESC) AS rn FROM group_blacklist) WHERE rn = 1 AND deleted = 0 AND blocked_key = 'rd42-u0980001') AND NOT (d.author_key != 'rd42-u0980001' AND (d.author_key, dg.group_id) IN (SELECT user_key, group_id FROM (SELECT user_key, group_id, sharing_enabled, deleted, row_number() OVER (PARTITION BY user_key, group_id ORDER BY updated_at DESC) AS rn FROM user_group_sharing) WHERE rn = 1 AND deleted = 0 AND sharing_enabled = 0)) AND (d.doc_id, dg.group_id) NOT IN (SELECT doc_id, group_id FROM (SELECT group_id, doc_id, deleted, row_number() OVER (PARTITION BY group_id, doc_id ORDER BY updated_at DESC, deleted DESC) AS rn FROM group_hidden_docs) WHERE rn = 1 AND deleted = 0) AND d.author_key NOT IN (SELECT username FROM (SELECT username, deleted, row_number() OVER (PARTITION BY username ORDER BY updated_at DESC, deleted DESC) AS rn FROM banned_users) WHERE rn = 1 AND deleted = 0)) SELECT p.doc_id AS doc_id, p.author_key AS author_key, p.posted_by AS posted_by, p.group_id AS group_id, p.body AS body, p.tags AS tags, p.created_at AS created_at, p.ref_value AS ref_value, p.ad_mode AS ad_mode, p.ad_target AS ad_target, coalesce(eng.like_count, 0) AS likes, coalesce(eng.dislike_count, 0) AS dislikes, coalesce(rp.repost_count, 0) AS reposts, coalesce(cmt.comment_count, 0) AS comments, (0) AS score, pr.body AS profile_body FROM posts AS p LEFT JOIN (SELECT ref_value, countIf(JSONExtractString(body, 'type') = 'like') AS like_count, countIf(JSONExtractString(body, 'type') = 'dislike') AS dislike_count FROM reactions WHERE ref_value <> '' GROUP BY ref_value) AS eng ON eng.ref_value = p.doc_id LEFT JOIN (SELECT JSONExtractString(body, 'repost_of') AS repost_of, count() AS repost_count FROM posts WHERE JSONExtractString(body, 'repost_of') <> '' GROUP BY repost_of) AS rp ON rp.repost_of = p.doc_id LEFT JOIN (SELECT JSONExtractString(body, 'post_id') AS post_id, count() AS comment_count FROM comments WHERE JSONExtractString(body, 'post_id') <> '' GROUP BY post_id) AS cmt ON cmt.post_id = p.doc_id LEFT JOIN (SELECT author_key, body FROM profile QUALIFY row_number() OVER (PARTITION BY author_key ORDER BY updated_at DESC) = 1) AS pr ON pr.author_key = p.author_key WHERE NOT has(p.tags, 'ad') AND NOT has(p.tags, 'product') ORDER BY toUnixTimestamp64Milli(p.created_at) DESC LIMIT 21\n FORMAT Native"
+        },
+        {
+          "query_id": "2bdddbfd-073e-4d49-b45b-0e3086b9d54a",
+          "query_duration_ms": "0",
+          "read_rows": "13",
+          "read_bytes": "1171",
+          "memory_usage": "0",
+          "exception_code": 0,
+          "sql_sha256": "5fbba09c4cbb39adf3f22458b56e063f6d8dd8893359f8c6960ac3e40be56e1e",
+          "query": "DESCRIBE TABLE `logs`\n FORMAT Native"
+        },
+        {
+          "query_id": "8caf6cb9-a9d4-4bd1-8572-f8607179350d",
+          "query_duration_ms": "4",
+          "read_rows": "1",
+          "read_bytes": "90",
+          "memory_usage": "4606071",
+          "exception_code": 0,
+          "sql_sha256": "01e7c3267e25c83647b879fe7ee6e119ddb72534a42fcbf94ea09ac658d6d49b",
+          "query": "INSERT INTO `logs` (`ts`, `service`, `level`, `method`, `path`, `status`, `latency_ms`, `user_key`, `origin`, `message`, `request_body`, `response_body`, `meta`) FORMAT Native\n"
+        }
+      ],
+      "read_rows": 362776086,
+      "read_bytes": 24236154643
+    },
+    {
+      "kind": "reactions",
+      "started": "2026-11-15T12:17:01.763912+00:00",
+      "independent_reference_ids_for_followup": true,
+      "http_completed": false,
+      "failure_class": "HTTPStatusError",
+      "ended": "2026-11-15T12:17:14.524712+00:00",
+      "elapsed_ms": 12760.804162000113,
+      "native_queries": [
+        {
+          "query_id": "8143ae47-89fd-445f-bf1e-90ffccdc9064",
+          "query_duration_ms": "5",
+          "read_rows": "8192",
+          "read_bytes": "1384457",
+          "memory_usage": "0",
+          "exception_code": 0,
+          "sql_sha256": "79c8283893e8d2fd2c654b6a441b4ca71afce161c00f2f19d05984b6869f7083",
+          "query": "SELECT permissions FROM (SELECT permissions, deleted FROM app_contracts WHERE user_key = 'rd42-u0980001' AND allowed_origin = 'https://costfn.research.invalid' ORDER BY updated_at DESC LIMIT 1) WHERE deleted = 0\n FORMAT Native"
+        },
+        {
+          "query_id": "7d34d563-d4d3-4584-ba5d-287320002566",
+          "query_duration_ms": "15",
+          "read_rows": "507904",
+          "read_bytes": "17807794",
+          "memory_usage": "106740",
+          "exception_code": 0,
+          "sql_sha256": "ea6f8c7db57315407de0bc7c95d49e4d0659213541babf8c4c1f4e6ee19af18e",
+          "query": "SELECT group_id FROM (SELECT group_id, deleted, row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC, deleted DESC) as rn FROM group_members WHERE member_key = 'rd42-u0980001' AND group_id IN ('api.localhost/groups/users/rd42-u0000000/followers', 'api.localhost/groups/users/rd42-u0000001/followers', 'api.localhost/groups/users/rd42-u0000002/followers', 'api.localhost/groups/users/rd42-u0000003/followers', 'api.localhost/groups/users/rd42-u0000004/followers', 'api.localhost/groups/users/rd42-u0000005/followers', 'api.localhost/groups/users/rd42-u0000006/followers', 'api.localhost/groups/users/rd42-u0000007/followers', 'api.localhost/groups/users/rd42-u0000008/followers', 'api.localhost/groups/users/rd42-u0000009/followers', 'api.localhost/groups/users/rd42-u0000010/followers', 'api.localhost/groups/users/rd42-u0000011/followers', 'api.localhost/groups/users/rd42-u0000012/followers', 'api.localhost/groups/users/rd42-u0000013/followers', 'api.localhost/groups/users/rd42-u0000014/followers', 'api.localhost/groups/users/rd42-u0000015/followers', 'api.localhost/groups/users/rd42-u0614008/followers', 'api.localhost/groups/users/rd42-u0614009/followers', 'api.localhost/groups/users/rd42-u0614010/followers', 'api.localhost/groups/users/rd42-u0614011/followers', 'api.localhost/groups/users/rd42-u0980001/followers', 'api.localhost/groups/web10/discover')) WHERE rn = 1 AND deleted = 0\n FORMAT Native"
+        },
+        {
+          "query_id": "d6b3927d-accd-459e-a53e-731fbcb970fa",
+          "query_duration_ms": "12629",
+          "read_rows": "20979712",
+          "read_bytes": "2055365818",
+          "memory_usage": "7053321625",
+          "exception_code": 159,
+          "sql_sha256": "c05eddd3f488cab67af4591e1f99183c0cbe7cf32c4a3117f53a507b41c374e7",
+          "query": "WITH reactions AS (SELECT d.doc_id, d.author_key, d.posted_by, d.body, d.ref_value, d.tags, d.created_at, d.updated_at, d.ad_mode, d.ad_target, dg.group_id FROM (SELECT doc_id, author_key, posted_by, body, ref_value, tags, created_at, updated_at, ad_mode, ad_target FROM (SELECT doc_id, author_key, posted_by, body, ref_value, tags, created_at, updated_at, ad_mode, ad_target, deleted, row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn FROM documents WHERE collection_name = 'reactions') WHERE rn = 1 AND deleted = 0) d JOIN (SELECT doc_id, group_id FROM (SELECT doc_id, group_id, deleted, row_number() OVER (PARTITION BY doc_id, group_id ORDER BY updated_at DESC) AS rn FROM doc_groups WHERE group_id IN ('api.localhost/groups/users/rd42-u0000000/followers', 'api.localhost/groups/users/rd42-u0000001/followers', 'api.localhost/groups/users/rd42-u0000002/followers', 'api.localhost/groups/users/rd42-u0000003/followers', 'api.localhost/groups/users/rd42-u0000004/followers', 'api.localhost/groups/users/rd42-u0000005/followers', 'api.localhost/groups/users/rd42-u0000006/followers', 'api.localhost/groups/users/rd42-u0000007/followers', 'api.localhost/groups/users/rd42-u0000008/followers', 'api.localhost/groups/users/rd42-u0000009/followers', 'api.localhost/groups/users/rd42-u0000010/followers', 'api.localhost/groups/users/rd42-u0000011/followers', 'api.localhost/groups/users/rd42-u0000012/followers', 'api.localhost/groups/users/rd42-u0000013/followers', 'api.localhost/groups/users/rd42-u0000014/followers', 'api.localhost/groups/users/rd42-u0000015/followers', 'api.localhost/groups/users/rd42-u0614008/followers', 'api.localhost/groups/users/rd42-u0614009/followers', 'api.localhost/groups/users/rd42-u0614010/followers', 'api.localhost/groups/users/rd42-u0614011/followers', 'api.localhost/groups/users/rd42-u0980001/followers', 'api.localhost/groups/web10/discover')) WHERE rn = 1 AND deleted = 0) dg ON d.doc_id = dg.doc_id WHERE d.author_key NOT IN (SELECT user_key FROM (SELECT user_key, blocked_key, deleted, row_number() OVER (PARTITION BY user_key, blocked_key ORDER BY updated_at DESC, deleted DESC) AS rn FROM user_blacklist) WHERE rn = 1 AND deleted = 0 AND blocked_key = 'rd42-u0980001') AND (d.author_key, dg.group_id) NOT IN (SELECT user_key, group_id FROM (SELECT user_key, group_id, blocked_key, deleted, row_number() OVER (PARTITION BY user_key, group_id, blocked_key ORDER BY updated_at DESC, deleted DESC) AS rn FROM group_blacklist) WHERE rn = 1 AND deleted = 0 AND blocked_key = 'rd42-u0980001') AND NOT (d.author_key != 'rd42-u0980001' AND (d.author_key, dg.group_id) IN (SELECT user_key, group_id FROM (SELECT user_key, group_id, sharing_enabled, deleted, row_number() OVER (PARTITION BY user_key, group_id ORDER BY updated_at DESC) AS rn FROM user_group_sharing) WHERE rn = 1 AND deleted = 0 AND sharing_enabled = 0)) AND (d.doc_id, dg.group_id) NOT IN (SELECT doc_id, group_id FROM (SELECT group_id, doc_id, deleted, row_number() OVER (PARTITION BY group_id, doc_id ORDER BY updated_at DESC, deleted DESC) AS rn FROM group_hidden_docs) WHERE rn = 1 AND deleted = 0) AND d.author_key NOT IN (SELECT username FROM (SELECT username, deleted, row_number() OVER (PARTITION BY username ORDER BY updated_at DESC, deleted DESC) AS rn FROM banned_users) WHERE rn = 1 AND deleted = 0)) SELECT ref_value, countIf(JSONExtractString(body, 'type') = 'like') AS like_count, countIf(JSONExtractString(body, 'type') = 'dislike') AS dislike_count FROM reactions WHERE ref_value IN ('73855328-0b10-1606-ef9a-fd16e24f4a4a', '5ccefb1a-d112-685b-264c-a9fca19337bf', '67569b90-14ef-0cfe-bf74-73d4606ad8ba', '8adfb89a-e243-d124-eca7-62e9852af8b8', '69cba28e-7b0d-c1fc-310a-57a7ea7486bb', '5001f91f-ec7b-9e16-ae86-aac47ae0d1de', '79e0c2e1-b349-5ed1-5c86-1173db56110e', '79aa3c87-d203-ff06-89e5-a8235b7fe52d', '4691a418-697b-7d3a-d209-dd42bfb6a608', '9ff41cec-1f2c-fb84-b74b-35f04d4aa01a', 'fe53701f-931d-f7d1-339d-310c7954bd30', '524e1c0f-c5e6-1392-4a75-b014e4374bde', 'e42e3397-f570-d9eb-4c41-27555540f6b5', 'e3453c62-2d27-a675-d5cf-eb0f1e1cf4b0', '2c13eeae-1809-f7e0-2bdc-a0102b8148a4', 'acff1f0b-0ac7-9ec5-5244-e0e17032d0b9', '7cf4a5dd-f3d8-01ef-ab38-d4d5845b14de', '9f45f71b-b24d-05be-a19d-67ed389e793b', '056d71ab-ecfd-411c-bf3e-0aa29b993871', '8e169aff-3cd4-6b0d-13ea-696efec6c106', '5cb79eb0-9b63-1177-96e9-e9bee40dbafe') GROUP BY ref_value LIMIT 1000\n FORMAT Native"
+        },
+        {
+          "query_id": "80929fb8-2afb-4544-88e3-a8a001101a0e",
+          "query_duration_ms": "0",
+          "read_rows": "13",
+          "read_bytes": "1171",
+          "memory_usage": "0",
+          "exception_code": 0,
+          "sql_sha256": "5fbba09c4cbb39adf3f22458b56e063f6d8dd8893359f8c6960ac3e40be56e1e",
+          "query": "DESCRIBE TABLE `logs`\n FORMAT Native"
+        },
+        {
+          "query_id": "04c3a1e7-e60a-4b71-a64d-3ff8245ab05d",
+          "query_duration_ms": "3",
+          "read_rows": "1",
+          "read_bytes": "90",
+          "memory_usage": "4634743",
+          "exception_code": 0,
+          "sql_sha256": "01e7c3267e25c83647b879fe7ee6e119ddb72534a42fcbf94ea09ac658d6d49b",
+          "query": "INSERT INTO `logs` (`ts`, `service`, `level`, `method`, `path`, `status`, `latency_ms`, `user_key`, `origin`, `message`, `request_body`, `response_body`, `meta`) FORMAT Native\n"
+        }
+      ],
+      "read_rows": 21495822,
+      "read_bytes": 2074559330
+    },
+    {
+      "kind": "comments",
+      "started": "2026-11-15T12:17:14.525423+00:00",
+      "independent_reference_ids_for_followup": true,
+      "http_completed": false,
+      "failure_class": "HTTPStatusError",
+      "ended": "2026-11-15T12:17:24.644791+00:00",
+      "elapsed_ms": 10119.369400999858,
+      "native_queries": [
+        {
+          "query_id": "25dbd27a-8076-4c5f-9ea6-e26063476b53",
+          "query_duration_ms": "4",
+          "read_rows": "8192",
+          "read_bytes": "1384457",
+          "memory_usage": "0",
+          "exception_code": 0,
+          "sql_sha256": "79c8283893e8d2fd2c654b6a441b4ca71afce161c00f2f19d05984b6869f7083",
+          "query": "SELECT permissions FROM (SELECT permissions, deleted FROM app_contracts WHERE user_key = 'rd42-u0980001' AND allowed_origin = 'https://costfn.research.invalid' ORDER BY updated_at DESC LIMIT 1) WHERE deleted = 0\n FORMAT Native"
+        },
+        {
+          "query_id": "6e75232b-6157-431d-8c8a-2548e007adbb",
+          "query_duration_ms": "17",
+          "read_rows": "507904",
+          "read_bytes": "17807794",
+          "memory_usage": "87116",
+          "exception_code": 0,
+          "sql_sha256": "ea6f8c7db57315407de0bc7c95d49e4d0659213541babf8c4c1f4e6ee19af18e",
+          "query": "SELECT group_id FROM (SELECT group_id, deleted, row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC, deleted DESC) as rn FROM group_members WHERE member_key = 'rd42-u0980001' AND group_id IN ('api.localhost/groups/users/rd42-u0000000/followers', 'api.localhost/groups/users/rd42-u0000001/followers', 'api.localhost/groups/users/rd42-u0000002/followers', 'api.localhost/groups/users/rd42-u0000003/followers', 'api.localhost/groups/users/rd42-u0000004/followers', 'api.localhost/groups/users/rd42-u0000005/followers', 'api.localhost/groups/users/rd42-u0000006/followers', 'api.localhost/groups/users/rd42-u0000007/followers', 'api.localhost/groups/users/rd42-u0000008/followers', 'api.localhost/groups/users/rd42-u0000009/followers', 'api.localhost/groups/users/rd42-u0000010/followers', 'api.localhost/groups/users/rd42-u0000011/followers', 'api.localhost/groups/users/rd42-u0000012/followers', 'api.localhost/groups/users/rd42-u0000013/followers', 'api.localhost/groups/users/rd42-u0000014/followers', 'api.localhost/groups/users/rd42-u0000015/followers', 'api.localhost/groups/users/rd42-u0614008/followers', 'api.localhost/groups/users/rd42-u0614009/followers', 'api.localhost/groups/users/rd42-u0614010/followers', 'api.localhost/groups/users/rd42-u0614011/followers', 'api.localhost/groups/users/rd42-u0980001/followers', 'api.localhost/groups/web10/discover')) WHERE rn = 1 AND deleted = 0\n FORMAT Native"
+        },
+        {
+          "query_id": "a10b2c87-29ef-40ca-a8db-0b4b0f63b2c6",
+          "query_duration_ms": "10010",
+          "read_rows": "24084480",
+          "read_bytes": "2359244895",
+          "memory_usage": "7053870382",
+          "exception_code": 159,
+          "sql_sha256": "073eaa75887d4f4f7dbeb7a8f3c696030e6cec965e47db8a76a7d422d14455ab",
+          "query": "WITH comments AS (SELECT d.doc_id, d.author_key, d.posted_by, d.body, d.ref_value, d.tags, d.created_at, d.updated_at, d.ad_mode, d.ad_target, dg.group_id FROM (SELECT doc_id, author_key, posted_by, body, ref_value, tags, created_at, updated_at, ad_mode, ad_target FROM (SELECT doc_id, author_key, posted_by, body, ref_value, tags, created_at, updated_at, ad_mode, ad_target, deleted, row_number() OVER (PARTITION BY doc_id, author_key ORDER BY updated_at DESC) AS rn FROM documents WHERE collection_name = 'comments') WHERE rn = 1 AND deleted = 0) d JOIN (SELECT doc_id, group_id FROM (SELECT doc_id, group_id, deleted, row_number() OVER (PARTITION BY doc_id, group_id ORDER BY updated_at DESC) AS rn FROM doc_groups WHERE group_id IN ('api.localhost/groups/users/rd42-u0000000/followers', 'api.localhost/groups/users/rd42-u0000001/followers', 'api.localhost/groups/users/rd42-u0000002/followers', 'api.localhost/groups/users/rd42-u0000003/followers', 'api.localhost/groups/users/rd42-u0000004/followers', 'api.localhost/groups/users/rd42-u0000005/followers', 'api.localhost/groups/users/rd42-u0000006/followers', 'api.localhost/groups/users/rd42-u0000007/followers', 'api.localhost/groups/users/rd42-u0000008/followers', 'api.localhost/groups/users/rd42-u0000009/followers', 'api.localhost/groups/users/rd42-u0000010/followers', 'api.localhost/groups/users/rd42-u0000011/followers', 'api.localhost/groups/users/rd42-u0000012/followers', 'api.localhost/groups/users/rd42-u0000013/followers', 'api.localhost/groups/users/rd42-u0000014/followers', 'api.localhost/groups/users/rd42-u0000015/followers', 'api.localhost/groups/users/rd42-u0614008/followers', 'api.localhost/groups/users/rd42-u0614009/followers', 'api.localhost/groups/users/rd42-u0614010/followers', 'api.localhost/groups/users/rd42-u0614011/followers', 'api.localhost/groups/users/rd42-u0980001/followers', 'api.localhost/groups/web10/discover')) WHERE rn = 1 AND deleted = 0) dg ON d.doc_id = dg.doc_id WHERE d.author_key NOT IN (SELECT user_key FROM (SELECT user_key, blocked_key, deleted, row_number() OVER (PARTITION BY user_key, blocked_key ORDER BY updated_at DESC, deleted DESC) AS rn FROM user_blacklist) WHERE rn = 1 AND deleted = 0 AND blocked_key = 'rd42-u0980001') AND (d.author_key, dg.group_id) NOT IN (SELECT user_key, group_id FROM (SELECT user_key, group_id, blocked_key, deleted, row_number() OVER (PARTITION BY user_key, group_id, blocked_key ORDER BY updated_at DESC, deleted DESC) AS rn FROM group_blacklist) WHERE rn = 1 AND deleted = 0 AND blocked_key = 'rd42-u0980001') AND NOT (d.author_key != 'rd42-u0980001' AND (d.author_key, dg.group_id) IN (SELECT user_key, group_id FROM (SELECT user_key, group_id, sharing_enabled, deleted, row_number() OVER (PARTITION BY user_key, group_id ORDER BY updated_at DESC) AS rn FROM user_group_sharing) WHERE rn = 1 AND deleted = 0 AND sharing_enabled = 0)) AND (d.doc_id, dg.group_id) NOT IN (SELECT doc_id, group_id FROM (SELECT group_id, doc_id, deleted, row_number() OVER (PARTITION BY group_id, doc_id ORDER BY updated_at DESC, deleted DESC) AS rn FROM group_hidden_docs) WHERE rn = 1 AND deleted = 0) AND d.author_key NOT IN (SELECT username FROM (SELECT username, deleted, row_number() OVER (PARTITION BY username ORDER BY updated_at DESC, deleted DESC) AS rn FROM banned_users) WHERE rn = 1 AND deleted = 0)) SELECT JSONExtractString(body, 'post_id') AS post_id, count() AS comment_count FROM comments WHERE JSONExtractString(body, 'post_id') IN ('73855328-0b10-1606-ef9a-fd16e24f4a4a', '5ccefb1a-d112-685b-264c-a9fca19337bf', '67569b90-14ef-0cfe-bf74-73d4606ad8ba', '8adfb89a-e243-d124-eca7-62e9852af8b8', '69cba28e-7b0d-c1fc-310a-57a7ea7486bb', '5001f91f-ec7b-9e16-ae86-aac47ae0d1de', '79e0c2e1-b349-5ed1-5c86-1173db56110e', '79aa3c87-d203-ff06-89e5-a8235b7fe52d', '4691a418-697b-7d3a-d209-dd42bfb6a608', '9ff41cec-1f2c-fb84-b74b-35f04d4aa01a', 'fe53701f-931d-f7d1-339d-310c7954bd30', '524e1c0f-c5e6-1392-4a75-b014e4374bde', 'e42e3397-f570-d9eb-4c41-27555540f6b5', 'e3453c62-2d27-a675-d5cf-eb0f1e1cf4b0', '2c13eeae-1809-f7e0-2bdc-a0102b8148a4', 'acff1f0b-0ac7-9ec5-5244-e0e17032d0b9', '7cf4a5dd-f3d8-01ef-ab38-d4d5845b14de', '9f45f71b-b24d-05be-a19d-67ed389e793b', '056d71ab-ecfd-411c-bf3e-0aa29b993871', '8e169aff-3cd4-6b0d-13ea-696efec6c106', '5cb79eb0-9b63-1177-96e9-e9bee40dbafe') GROUP BY post_id LIMIT 1000\n FORMAT Native"
+        },
+        {
+          "query_id": "5546d1d3-9434-488f-8220-f17fe6d23d0e",
+          "query_duration_ms": "0",
+          "read_rows": "13",
+          "read_bytes": "1171",
+          "memory_usage": "0",
+          "exception_code": 0,
+          "sql_sha256": "5fbba09c4cbb39adf3f22458b56e063f6d8dd8893359f8c6960ac3e40be56e1e",
+          "query": "DESCRIBE TABLE `logs`\n FORMAT Native"
+        },
+        {
+          "query_id": "4352a1e3-06ca-4c1c-b58c-130cf3ce4709",
+          "query_duration_ms": "2",
+          "read_rows": "1",
+          "read_bytes": "90",
+          "memory_usage": "4606071",
+          "exception_code": 0,
+          "sql_sha256": "01e7c3267e25c83647b879fe7ee6e119ddb72534a42fcbf94ea09ac658d6d49b",
+          "query": "INSERT INTO `logs` (`ts`, `service`, `level`, `method`, `path`, `status`, `latency_ms`, `user_key`, `origin`, `message`, `request_body`, `response_body`, `meta`) FORMAT Native\n"
+        }
+      ],
+      "read_rows": 24600590,
+      "read_bytes": 2378438407
+    },
+    {
+      "kind": "views",
+      "started": "2026-11-15T12:17:24.645416+00:00",
+      "independent_reference_ids_for_followup": true,
+      "http_completed": true,
+      "ended": "2026-11-15T12:18:35.071704+00:00",
+      "elapsed_ms": 70426.29133899981,
+      "native_queries": [
+        {
+          "query_id": "ab5efd91-bc9a-4854-aeb5-90304092db6e",
+          "query_duration_ms": "3",
+          "read_rows": "8192",
+          "read_bytes": "1384457",
+          "memory_usage": "0",
+          "exception_code": 0,
+          "sql_sha256": "79c8283893e8d2fd2c654b6a441b4ca71afce161c00f2f19d05984b6869f7083",
+          "query": "SELECT permissions FROM (SELECT permissions, deleted FROM app_contracts WHERE user_key = 'rd42-u0980001' AND allowed_origin = 'https://costfn.research.invalid' ORDER BY updated_at DESC LIMIT 1) WHERE deleted = 0\n FORMAT Native"
+        },
+        {
+          "query_id": "a2961a12-711e-4c6c-90a3-2b1da6ea3bb9",
+          "query_duration_ms": "5",
+          "read_rows": "16384",
+          "read_bytes": "786441",
+          "memory_usage": "28503",
+          "exception_code": 0,
+          "sql_sha256": "6c477c379a3e4b798311d7ea84e5d8b88f4f2a5ed7d744dd3128d22de7e83b51",
+          "query": "SELECT group_id FROM (SELECT group_id, deleted, row_number() OVER (PARTITION BY group_id, member_key ORDER BY updated_at DESC, deleted DESC) as rn FROM group_members WHERE member_key = 'rd42-u0980001' AND group_id IN ('api.localhost/groups/web10/discover')) WHERE rn = 1 AND deleted = 0\n FORMAT Native"
+        },
+        {
+          "query_id": "adf41c69-38dd-4c68-aacb-1c7b5fbb3fc4",
+          "query_duration_ms": "70392",
+          "read_rows": "93884206",
+          "read_bytes": "8421189317",
+          "memory_usage": "21475150708",
+          "exception_code": 0,
+          "sql_sha256": "5e65967b9d52c8a4a49b2791449d150a2e86216ab568c7d22dbdd640883dbf67",
+          "query": "SELECT e.doc_id, count() AS impressions, countDistinct(e.reader_key) AS reach FROM content_events e WHERE e.service = 'posts' AND e.event_type = 'delivery' AND e.doc_id IN ('73855328-0b10-1606-ef9a-fd16e24f4a4a', '5ccefb1a-d112-685b-264c-a9fca19337bf', '67569b90-14ef-0cfe-bf74-73d4606ad8ba', '8adfb89a-e243-d124-eca7-62e9852af8b8', '69cba28e-7b0d-c1fc-310a-57a7ea7486bb', '5001f91f-ec7b-9e16-ae86-aac47ae0d1de', '79e0c2e1-b349-5ed1-5c86-1173db56110e', '79aa3c87-d203-ff06-89e5-a8235b7fe52d', '4691a418-697b-7d3a-d209-dd42bfb6a608', '9ff41cec-1f2c-fb84-b74b-35f04d4aa01a', 'fe53701f-931d-f7d1-339d-310c7954bd30', '524e1c0f-c5e6-1392-4a75-b014e4374bde', 'e42e3397-f570-d9eb-4c41-27555540f6b5', 'e3453c62-2d27-a675-d5cf-eb0f1e1cf4b0', '2c13eeae-1809-f7e0-2bdc-a0102b8148a4', 'acff1f0b-0ac7-9ec5-5244-e0e17032d0b9', '7cf4a5dd-f3d8-01ef-ab38-d4d5845b14de', '9f45f71b-b24d-05be-a19d-67ed389e793b', '056d71ab-ecfd-411c-bf3e-0aa29b993871', '8e169aff-3cd4-6b0d-13ea-696efec6c106', '5cb79eb0-9b63-1177-96e9-e9bee40dbafe') AND e.doc_id IN (SELECT doc_id FROM doc_groups WHERE group_id IN ('api.localhost/groups/web10/discover') AND deleted = 0) GROUP BY e.doc_id\n FORMAT Native"
+        },
+        {
+          "query_id": "40284918-a074-477d-87fb-20ada8f001e0",
+          "query_duration_ms": "0",
+          "read_rows": "13",
+          "read_bytes": "1171",
+          "memory_usage": "0",
+          "exception_code": 0,
+          "sql_sha256": "5fbba09c4cbb39adf3f22458b56e063f6d8dd8893359f8c6960ac3e40be56e1e",
+          "query": "DESCRIBE TABLE `logs`\n FORMAT Native"
+        },
+        {
+          "query_id": "9cd84be4-7365-44ac-b4a5-19f526ecd80b",
+          "query_duration_ms": "2",
+          "read_rows": "1",
+          "read_bytes": "97",
+          "memory_usage": "4613239",
+          "exception_code": 0,
+          "sql_sha256": "01e7c3267e25c83647b879fe7ee6e119ddb72534a42fcbf94ea09ac658d6d49b",
+          "query": "INSERT INTO `logs` (`ts`, `service`, `level`, `method`, `path`, `status`, `latency_ms`, `user_key`, `origin`, `message`, `request_body`, `response_body`, `meta`) FORMAT Native\n"
+        }
+      ],
+      "read_rows": 93908796,
+      "read_bytes": 8423361483
+    }
+  ],
+  "complete_sequence_parity": "NOT_ESTABLISHED",
+  "satellite_builds_started": false,
+  "scope": "one untreated call per shape; independently supplied followup IDs, not a completed sequence or cell",
+  "actual_readable_by_kind": {
+    "main": {
+      "posts": [
+        "api.localhost/groups/users/rd42-u0000000/followers",
+        "api.localhost/groups/users/rd42-u0000001/followers",
+        "api.localhost/groups/users/rd42-u0000002/followers",
+        "api.localhost/groups/users/rd42-u0000003/followers",
+        "api.localhost/groups/users/rd42-u0000004/followers",
+        "api.localhost/groups/users/rd42-u0000005/followers",
+        "api.localhost/groups/users/rd42-u0000006/followers",
+        "api.localhost/groups/users/rd42-u0000007/followers",
+        "api.localhost/groups/users/rd42-u0000008/followers",
+        "api.localhost/groups/users/rd42-u0000009/followers",
+        "api.localhost/groups/users/rd42-u0000010/followers",
+        "api.localhost/groups/users/rd42-u0000011/followers",
+        "api.localhost/groups/users/rd42-u0000012/followers",
+        "api.localhost/groups/users/rd42-u0000013/followers",
+        "api.localhost/groups/users/rd42-u0000014/followers",
+        "api.localhost/groups/users/rd42-u0000015/followers",
+        "api.localhost/groups/users/rd42-u0614008/followers",
+        "api.localhost/groups/users/rd42-u0614009/followers",
+        "api.localhost/groups/users/rd42-u0614010/followers",
+        "api.localhost/groups/users/rd42-u0614011/followers",
+        "api.localhost/groups/users/rd42-u0980001/followers"
+      ],
+      "profile": [
+        "api.localhost/groups/users/rd42-u0000000/followers",
+        "api.localhost/groups/users/rd42-u0000001/followers",
+        "api.localhost/groups/users/rd42-u0000002/followers",
+        "api.localhost/groups/users/rd42-u0000003/followers",
+        "api.localhost/groups/users/rd42-u0000004/followers",
+        "api.localhost/groups/users/rd42-u0000005/followers",
+        "api.localhost/groups/users/rd42-u0000006/followers",
+        "api.localhost/groups/users/rd42-u0000007/followers",
+        "api.localhost/groups/users/rd42-u0000008/followers",
+        "api.localhost/groups/users/rd42-u0000009/followers",
+        "api.localhost/groups/users/rd42-u0000010/followers",
+        "api.localhost/groups/users/rd42-u0000011/followers",
+        "api.localhost/groups/users/rd42-u0000012/followers",
+        "api.localhost/groups/users/rd42-u0000013/followers",
+        "api.localhost/groups/users/rd42-u0000014/followers",
+        "api.localhost/groups/users/rd42-u0000015/followers",
+        "api.localhost/groups/users/rd42-u0614008/followers",
+        "api.localhost/groups/users/rd42-u0614009/followers",
+        "api.localhost/groups/users/rd42-u0614010/followers",
+        "api.localhost/groups/users/rd42-u0614011/followers",
+        "api.localhost/groups/users/rd42-u0980001/followers"
+      ],
+      "comments": [
+        "api.localhost/groups/users/rd42-u0000000/followers",
+        "api.localhost/groups/users/rd42-u0000001/followers",
+        "api.localhost/groups/users/rd42-u0000002/followers",
+        "api.localhost/groups/users/rd42-u0000003/followers",
+        "api.localhost/groups/users/rd42-u0000004/followers",
+        "api.localhost/groups/users/rd42-u0000005/followers",
+        "api.localhost/groups/users/rd42-u0000006/followers",
+        "api.localhost/groups/users/rd42-u0000007/followers",
+        "api.localhost/groups/users/rd42-u0000008/followers",
+        "api.localhost/groups/users/rd42-u0000009/followers",
+        "api.localhost/groups/users/rd42-u0000010/followers",
+        "api.localhost/groups/users/rd42-u0000011/followers",
+        "api.localhost/groups/users/rd42-u0000012/followers",
+        "api.localhost/groups/users/rd42-u0000013/followers",
+        "api.localhost/groups/users/rd42-u0000014/followers",
+        "api.localhost/groups/users/rd42-u0000015/followers",
+        "api.localhost/groups/users/rd42-u0614008/followers",
+        "api.localhost/groups/users/rd42-u0614009/followers",
+        "api.localhost/groups/users/rd42-u0614010/followers",
+        "api.localhost/groups/users/rd42-u0614011/followers",
+        "api.localhost/groups/users/rd42-u0980001/followers"
+      ],
+      "reactions": [
+        "api.localhost/groups/users/rd42-u0000000/followers",
+        "api.localhost/groups/users/rd42-u0000001/followers",
+        "api.localhost/groups/users/rd42-u0000002/followers",
+        "api.localhost/groups/users/rd42-u0000003/followers",
+        "api.localhost/groups/users/rd42-u0000004/followers",
+        "api.localhost/groups/users/rd42-u0000005/followers",
+        "api.localhost/groups/users/rd42-u0000006/followers",
+        "api.localhost/groups/users/rd42-u0000007/followers",
+        "api.localhost/groups/users/rd42-u0000008/followers",
+        "api.localhost/groups/users/rd42-u0000009/followers",
+        "api.localhost/groups/users/rd42-u0000010/followers",
+        "api.localhost/groups/users/rd42-u0000011/followers",
+        "api.localhost/groups/users/rd42-u0000012/followers",
+        "api.localhost/groups/users/rd42-u0000013/followers",
+        "api.localhost/groups/users/rd42-u0000014/followers",
+        "api.localhost/groups/users/rd42-u0000015/followers",
+        "api.localhost/groups/users/rd42-u0614008/followers",
+        "api.localhost/groups/users/rd42-u0614009/followers",
+        "api.localhost/groups/users/rd42-u0614010/followers",
+        "api.localhost/groups/users/rd42-u0614011/followers",
+        "api.localhost/groups/users/rd42-u0980001/followers"
+      ]
+    },
+    "reactions": {
+      "reactions": [
+        "api.localhost/groups/users/rd42-u0000000/followers",
+        "api.localhost/groups/users/rd42-u0000001/followers",
+        "api.localhost/groups/users/rd42-u0000002/followers",
+        "api.localhost/groups/users/rd42-u0000003/followers",
+        "api.localhost/groups/users/rd42-u0000004/followers",
+        "api.localhost/groups/users/rd42-u0000005/followers",
+        "api.localhost/groups/users/rd42-u0000006/followers",
+        "api.localhost/groups/users/rd42-u0000007/followers",
+        "api.localhost/groups/users/rd42-u0000008/followers",
+        "api.localhost/groups/users/rd42-u0000009/followers",
+        "api.localhost/groups/users/rd42-u0000010/followers",
+        "api.localhost/groups/users/rd42-u0000011/followers",
+        "api.localhost/groups/users/rd42-u0000012/followers",
+        "api.localhost/groups/users/rd42-u0000013/followers",
+        "api.localhost/groups/users/rd42-u0000014/followers",
+        "api.localhost/groups/users/rd42-u0000015/followers",
+        "api.localhost/groups/users/rd42-u0614008/followers",
+        "api.localhost/groups/users/rd42-u0614009/followers",
+        "api.localhost/groups/users/rd42-u0614010/followers",
+        "api.localhost/groups/users/rd42-u0614011/followers",
+        "api.localhost/groups/users/rd42-u0980001/followers",
+        "api.localhost/groups/web10/discover"
+      ]
+    },
+    "comments": {
+      "comments": [
+        "api.localhost/groups/users/rd42-u0000000/followers",
+        "api.localhost/groups/users/rd42-u0000001/followers",
+        "api.localhost/groups/users/rd42-u0000002/followers",
+        "api.localhost/groups/users/rd42-u0000003/followers",
+        "api.localhost/groups/users/rd42-u0000004/followers",
+        "api.localhost/groups/users/rd42-u0000005/followers",
+        "api.localhost/groups/users/rd42-u0000006/followers",
+        "api.localhost/groups/users/rd42-u0000007/followers",
+        "api.localhost/groups/users/rd42-u0000008/followers",
+        "api.localhost/groups/users/rd42-u0000009/followers",
+        "api.localhost/groups/users/rd42-u0000010/followers",
+        "api.localhost/groups/users/rd42-u0000011/followers",
+        "api.localhost/groups/users/rd42-u0000012/followers",
+        "api.localhost/groups/users/rd42-u0000013/followers",
+        "api.localhost/groups/users/rd42-u0000014/followers",
+        "api.localhost/groups/users/rd42-u0000015/followers",
+        "api.localhost/groups/users/rd42-u0614008/followers",
+        "api.localhost/groups/users/rd42-u0614009/followers",
+        "api.localhost/groups/users/rd42-u0614010/followers",
+        "api.localhost/groups/users/rd42-u0614011/followers",
+        "api.localhost/groups/users/rd42-u0980001/followers",
+        "api.localhost/groups/web10/discover"
+      ]
+    }
+  },
+  "source_sha256": {
+    "arm_satellite_profile.py": "af21851acb8b841a4357730361c5a2508fb46d6d08b6c6cd0e4de53a84fc9259",
+    "arm_satellite_profile_api.py": "70c7702f11aa5cf21c305474edff4b81ac76b8ed298f8b14ff0f565fc0080407",
+    "arm_satellite_profile.compose.yml": "b980024cf47443e54ff9438c0ab325788fa63225e34e74579665790416a223b9",
+    "arm_satellite_runtime.py": "a3e0e037fff5c1a993fee93bc5327924057abe533d9817d1d2e9c807ec1abe36",
+    "core_feed.py": "9cc2fd817dd946e68455a91834f0a67a5987ff1c846e2a8590a9d9a00ee5501a"
+  }
+}

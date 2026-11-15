@@ -127,6 +127,14 @@ attributed by the retained main split, and shared surfaces have no new receipt.
 
 ## Gates and next execution
 
+Live Step0 is retained at `evidence/arm-satellite-20261115/untreated/`.
+Main/reactions/comments fail with native159; the separate views call completes
+in70.426s, but its original direct query has no explicit timeout and is not
+ten-second-compliant budget evidence. These are untreated diagnostic probes,
+not Config P trials. Actual post-gate groups differ between main and follow-ups.
+The inventory was reported before scoped-count setup/T1 started; no satellite
+feed adapter or view-counter treatment was activated by this receipt.
+
 `arm_satellite.py gate <receipt>` evaluates only an explicit three-trial Config P
 receipt. Every trial must contain complete-sequence samples with parity, latency
 and **all** native stages. Missing/malformed evidence holds the gate; a mismatch

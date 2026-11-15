@@ -1,0 +1,49 @@
+[
+  {
+    "request_id": "77373ece00ec42b68af758a54eea4a13",
+    "status": 400,
+    "api_python_sha256": "28a990b1acdfbc4c81a61a99119a6a5681656c6052c520d473d2aa02c1910058",
+    "observer_sha256": "7a3c4b27067174ba8512fff85b1f822a25b2b21462d01b339b824cceb1b0c184",
+    "resolver_mode": "batched",
+    "worker_pid": 10,
+    "compiled_sha256": "ad2339d812f04d40e58522df87c5826f860edb570329a8856046816bd8e205c0",
+    "asgi_ms": 11318.499900000006,
+    "threadpool_tokens": 40,
+    "path_kind": "/query"
+  },
+  {
+    "request_id": "d249e6813608451eb6ca1989c93007ce",
+    "status": 400,
+    "api_python_sha256": "28a990b1acdfbc4c81a61a99119a6a5681656c6052c520d473d2aa02c1910058",
+    "observer_sha256": "7a3c4b27067174ba8512fff85b1f822a25b2b21462d01b339b824cceb1b0c184",
+    "resolver_mode": "batched",
+    "worker_pid": 10,
+    "compiled_sha256": "67298de1262264f75627d8c8915c9c6f61d6b6f2b6fc7f18ab9556be4a0c3c63",
+    "asgi_ms": 12757.256158000018,
+    "threadpool_tokens": 40,
+    "path_kind": "/query"
+  },
+  {
+    "request_id": "055bea81e9f64582995e19512be56403",
+    "status": 400,
+    "api_python_sha256": "28a990b1acdfbc4c81a61a99119a6a5681656c6052c520d473d2aa02c1910058",
+    "observer_sha256": "7a3c4b27067174ba8512fff85b1f822a25b2b21462d01b339b824cceb1b0c184",
+    "resolver_mode": "batched",
+    "worker_pid": 10,
+    "compiled_sha256": "7fcefcd20d7f7166544b977959fe80dfd538288c3fdeb2fe126fcf075a35568c",
+    "asgi_ms": 10116.399488999832,
+    "threadpool_tokens": 40,
+    "path_kind": "/query"
+  },
+  {
+    "request_id": "b615aaacdbb34fd9b61a4377b5f95c5a",
+    "status": 200,
+    "api_python_sha256": "28a990b1acdfbc4c81a61a99119a6a5681656c6052c520d473d2aa02c1910058",
+    "observer_sha256": "7a3c4b27067174ba8512fff85b1f822a25b2b21462d01b339b824cceb1b0c184",
+    "resolver_mode": "batched",
+    "worker_pid": 10,
+    "asgi_ms": 70424.35297400015,
+    "threadpool_tokens": 40,
+    "path_kind": "/contentViews"
+  }
+]

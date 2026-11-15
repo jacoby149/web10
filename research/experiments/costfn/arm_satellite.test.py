@@ -23,6 +23,20 @@ def budget():
 
 
 class InventoryTests(unittest.TestCase):
+    def test_untreated_native_report_retains_failures_and_cannot_pass_config_p_gate(self):
+        root = arm.HERE / "evidence/arm-satellite-20261115/untreated"
+        report = json.loads((root / "report.json").read_bytes())
+        inventory = json.loads((root / "inventory.json").read_bytes())
+        for name, digest in report["artifacts_sha256"].items():
+            self.assertEqual(arm.sha(root / name), digest)
+        for stage in inventory["stages"]:
+            self.assertEqual(stage["read_rows"], sum(int(row["read_rows"]) for row in stage["native_queries"]))
+            self.assertEqual(stage["read_bytes"], sum(int(row["read_bytes"]) for row in stage["native_queries"]))
+        self.assertEqual([stage["http_completed"] for stage in report["stages"]], [False, False, False, True])
+        self.assertEqual(report["complete_sequence_parity"], "NOT_ESTABLISHED")
+        self.assertIn("without an explicit", report["views_read_deadline_caveat"])
+        self.assertEqual(arm.fanout_gate(report)["verdict"], "HOLD")
+
     def test_source_bound_inventory_does_not_claim_live_profile_or_build(self):
         receipt = arm.inventory()
         self.assertFalse(receipt["engine_executed"])

@@ -1,0 +1,50 @@
+{
+  "kind": "SATELLITE_ARM_UNTREATED_STAGE_INVENTORY",
+  "droplet_id": 619510510,
+  "stages": [
+    {
+      "kind": "main",
+      "http_completed": false,
+      "elapsed_ms": 11321.15271299972,
+      "read_rows": 362776086,
+      "read_bytes": 24236154643
+    },
+    {
+      "kind": "reactions",
+      "http_completed": false,
+      "elapsed_ms": 12760.804162000113,
+      "read_rows": 21495822,
+      "read_bytes": 2074559330
+    },
+    {
+      "kind": "comments",
+      "http_completed": false,
+      "elapsed_ms": 10119.369400999858,
+      "read_rows": 24600590,
+      "read_bytes": 2378438407
+    },
+    {
+      "kind": "views",
+      "http_completed": true,
+      "elapsed_ms": 70426.29133899981,
+      "read_rows": 93908796,
+      "read_bytes": 8423361483
+    }
+  ],
+  "actual_scope_services": {
+    "main": {
+      "posts": 21,
+      "profile": 21,
+      "comments": 21,
+      "reactions": 21
+    },
+    "reactions": {
+      "reactions": 22
+    },
+    "comments": {
+      "comments": 22
+    }
+  },
+  "complete_sequence_parity": "NOT_ESTABLISHED",
+  "satellite_builds_started": false
+}
