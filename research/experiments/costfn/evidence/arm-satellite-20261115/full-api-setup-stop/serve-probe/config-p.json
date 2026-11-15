@@ -1,0 +1,18 @@
+{
+  "kind": "SATELLITE_CONFIG_P_FULL_API_DIAGNOSTIC",
+  "T2": "NOT_ESTABLISHED",
+  "scope": "one ordinary reader, one excluded warmup and three serial observations; not formal fresh-restore trials/p95/capacity",
+  "droplet_id": 619510510,
+  "fanout_authorized": false,
+  "formal_T6": "NOT_ESTABLISHED",
+  "source_sha256": {
+    "arm_satellite_api.py": "a57b318cd4bec85ba3d8c9dbb07163edf95234b49021d6e9b1b4f85e406f97f5",
+    "arm_satellite_serve.py": "e64868ceededf5254e1a197c31f509bc92e8c1e9dcc236783394ac81602c4f44",
+    "arm_satellite_probe.py": "866531423562571b963fa74c8518e5e8b47e4ac929c963a1d25c212fa0580512",
+    "arm_satellite_serve.compose.yml": "71055481ca8746ad1ced1dd9ccdf0af2cb69a236d21e7a5a8c20511effa09348",
+    "smoke_realism.py": "d75eb688562d0b0cf0a2e9c10fd15a351bc695a1e9a2096e967968c4882fb6d5",
+    "core_feed.py": "9cc2fd817dd946e68455a91834f0a67a5987ff1c846e2a8590a9d9a00ee5501a"
+  },
+  "outcome": "STOP",
+  "failure_class": "HTTPStatusError"
+}
