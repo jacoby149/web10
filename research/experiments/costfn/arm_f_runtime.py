@@ -35,7 +35,7 @@ class Session(p.Session):
         self.deadline = admitted(self.operation, self.host_id)
         self.ledger = self.root / 'evidence/f-query-ledger.jsonl'
 
-    def query(self, label, sql, *, measured=False, setup_seconds=600):
+    def query(self, label, sql, *, measured=False, setup_seconds=600, settings=None):
         admitted(self.operation, self.host_id)
         if self.stopped or (self.root / 'F.stop').exists() or (self.root / 'fanout-state/F.stop').exists():
             raise ValueError('F arm stopped; no further cell')
@@ -53,6 +53,16 @@ class Session(p.Session):
         if not measured:
             args += ['--max_bytes_before_external_sort=2147483648', '--max_bytes_before_external_group_by=2147483648',
                      '--max_temporary_data_on_disk_size_for_query=107374182400', '--join_algorithm=full_sorting_merge']
+        if settings:
+            ceilings = dict(max_memory_usage=22 * 1024**3, max_rows_to_read=8_000_000,
+                max_bytes_to_read=2 * 1024**3, max_result_rows=1_000_000,
+                max_bytes_before_external_sort=2 * 1024**3, max_bytes_before_external_group_by=2 * 1024**3)
+            if any(key not in ceilings or type(value) is not int or not 0 < value <= ceilings[key]
+                   for key, value in settings.items()):
+                raise ValueError('only tighter bounded setup settings are allowed')
+            args = [arg for arg in args if arg.split('=', 1)[0].removeprefix('--') not in settings]
+            args += ['--' + key + '=' + str(value) for key, value in settings.items()]
+            args += ['--read_overflow_mode=throw', '--result_overflow_mode=throw']
         try:
             raw = restore.command(self.compose, self.env, 'exec', '-T', 'clickhouse', 'clickhouse-client',
                 '--user', 'web10', '--password', 'web10', '--database', 'web10', '--query_id', query_id,

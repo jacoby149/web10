@@ -342,6 +342,17 @@ cleaned up early. Failure/cleanup receipts live in the existing closure file and
 Subsequent operator approval permits a new online batched-checker run, not old-
 lease reuse: DO619612240 through15 November23:24:56UTC, same four-hour/$2 caps.
 Tiny native checker controls pass under22GiB; full-store fit/F gates remain open.
+That retry was operator-cancelled at20:14UTC with owned cleanup verified20:16UTC.
+The replacement DO619625857 is admitted through16 November00:33:47UTC in the
+same four-hour/$2 shape. Isolated full-population seed/rebuild source now exists
+in `arm_f_population*.py`: early F gates first, canonical small-group membership,
+newest200 full identities/all routes per human, bounded statements and native
+rehearsal, then populated T6/T5/R+W. Native/full-store proofs remain OPEN; the
+P-stage launcher does not supply missing later F gate drivers.200M identities
+is not a physical-route-row ceiling, and no production-equivalence claim follows.
+The new native fixture passes402 logical routes/36 statements before archive
+retrieval; receipts: `evidence/arm-f-population-20261115/native-preflight/` under
+the costfn directory. This is not full-population fit or any F performance gate.
 Experiment first: prove hybrid write maintenance and layout-aware reads in isolated
 Config F, passing all required response/performance/write/lifecycle/rebuild and
 separately admitted stress gates before proposing broader platform integration.

@@ -16,7 +16,17 @@ import arm_f_cloud as cloud
 import arm_t
 
 
-def deploy():
+def worker_command(remaining, here, *, detach=False):
+    if type(remaining) is not int or not 300 <= remaining <= 14100:
+        raise ValueError('worker must fit the original four-hour lease and cleanup margin')
+    return ['systemd-run', '--unit=fanout-step0', '--property=RuntimeMaxSec=' + str(remaining),
+        '--property=WorkingDirectory=/opt/fanout/repo',
+        *(['--property=StandardOutput=append:/opt/fanout/step0-service.log',
+           '--property=StandardError=append:/opt/fanout/step0-service.log'] if detach else ['--wait', '--pipe']),
+        '/opt/fanout/venv/bin/python', '-u', here + 'arm_f_run.py', '/opt/fanout']
+
+
+def deploy(*, detach=False):
     state = json.loads(Path('.context/fanout-run.json').read_bytes())
     private = Path(state['root'])
     lease = json.loads(Path(state['lease']).read_bytes())
@@ -53,7 +63,9 @@ def deploy():
         approved_utc=datetime.fromtimestamp(lease['created_epoch'], UTC).isoformat(),
         deadline_utc=datetime.fromtimestamp(lease['deadline'], UTC).isoformat(),
         full_canonical_membership_pass=True, append_only_publication=True, read_cap=200,
-        cutoff=2000, R_plus_W_required=True, T7_admitted=False, sort_order_arm_admitted=False)
+        cutoff=2000, R_plus_W_required=True, T7_admitted=False, sort_order_arm_admitted=False,
+        full_population_backfill_required=True,
+        population_gate_order=['T4', 'T2-F', 'T6-F', 'T3-F', 'population', 'T6-F-populated', 'T5-F', 'R+W'])
     prior_stop = Path(__file__).parent / 'evidence/arm-f-20261115/P-setup-stop/stop.json'
     if prior_stop.is_file():
         admission.update(operator_online_retry=True, reconciliation_batches=8,
@@ -85,10 +97,16 @@ def deploy():
     remaining = int(lease['deadline'] - time.time()) - 300
     if remaining < 1800:
         raise ValueError('insufficient remaining original admission before restore')
-    command = ['systemd-run', '--unit=fanout-step0', '--property=RuntimeMaxSec=' + str(remaining),
-        '--property=WorkingDirectory=/opt/fanout/repo', '--wait', '--pipe',
-        '/opt/fanout/venv/bin/python', '-u', here + 'arm_f_run.py', '/opt/fanout']
+    command = worker_command(remaining, here, detach=detach)
     print('[arm-f] guarded archive restore and P setup starting; deadline=' + admission['deadline_utc'], flush=True)
+    if detach:
+        # A VPN/SSH disconnect must not tear down the worker's stdout pipe.
+        # Its systemd lifetime/container/host/provider guards are unchanged.
+        ssh(shlex.join(command), timeout=30)
+        status = ssh('systemctl show fanout-step0 --property=ActiveState --property=SubState --property=MainPID')
+        (private / 'detached-start.txt').write_bytes(status)
+        print(status.decode(), flush=True)
+        return
     with (private / 'step0-stream.log').open('wb') as log:
         proc = subprocess.Popen(['ssh', *options, destination, shlex.join(command)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         for line in proc.stdout:
@@ -183,7 +201,9 @@ if __name__ == '__main__':
     import sys
     if sys.argv[1:] == ['--retry-permission-setup']:
         retry_permission_setup()
+    elif sys.argv[1:] == ['--detach']:
+        deploy(detach=True)
     elif sys.argv[1:]:
-        raise SystemExit('only explicit --retry-permission-setup or initial deploy accepted')
+        raise SystemExit('only --detach, --retry-permission-setup or initial deploy accepted')
     else:
         deploy()

@@ -40,6 +40,7 @@ jobs:
         run: |
           python research/experiments/costfn/arm_f.test.py
           python research/experiments/costfn/arm_f_api.test.py
+          python research/experiments/costfn/arm_f_population.test.py
           python research/experiments/costfn/arm_satellite.test.py
           python research/experiments/costfn/arm_satellite_sql.test.py
           python research/experiments/costfn/arm_satellite_runtime.test.py

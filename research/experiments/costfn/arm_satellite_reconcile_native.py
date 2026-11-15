@@ -32,7 +32,7 @@ def run(root):
     result = dict(kind='NATIVE_BATCHED_CHECKER_PREFLIGHT', outcome='RUNNING', cases=[], droplet_id=host,
                   scope='tiny native SQL/semantic controls only; not full-store memory/parity or F performance')
     class Session:
-        def query(self, label, sql, *, setup_seconds=10):
+        def query(self, label, sql, *, setup_seconds=10, settings=None):
             arm_f_runtime.admitted(approval, host)
             if (deadline - datetime.now(UTC)).total_seconds() < 300:
                 raise ValueError('original cleanup margin exhausted')
@@ -40,8 +40,10 @@ def run(root):
             (output / (query_id + '.sql')).write_text(sql)
             args = ['docker', 'exec', name, 'clickhouse-client', '--user', 'web10', '--password', 'web10',
                 '--database', 'web10', '--query_id', query_id, '--max_execution_time=10',
-                '--max_memory_usage=23622320128', '--max_rows_to_read=10000000', '--read_overflow_mode=throw',
-                '--max_threads=4', '--query', sql]
+                '--read_overflow_mode=throw', '--result_overflow_mode=throw', '--max_threads=4']
+            limits = {'max_memory_usage': 22 * 1024**3, 'max_rows_to_read': 10_000_000, **(settings or {})}
+            args += ['--' + key + '=' + str(value) for key, value in limits.items()]
+            args += ['--query', sql]
             completed = subprocess.run(args, capture_output=True, timeout=30)
             if completed.returncode:
                 (output / (query_id + '.stderr')).write_bytes(completed.stderr)
@@ -126,6 +128,9 @@ def run(root):
                 result['cases'].append({'case': case, 'outcome': 'DENIED_EXPECTED'})
             else:
                 raise ValueError('native checker admitted deliberate corruption: ' + case)
+        if approval.get('full_population_backfill_required') is True:
+            from arm_f_population_fixture import run as population_fixture
+            result['population_builder_rehearsal'] = population_fixture(session, root)['outcome']
         result.update(outcome='PASS', engine='24.8.14.39', server_bytes=int(limit),
                       checker_source_sha256=hashlib.sha256(Path(reconcile.__file__).read_bytes()).hexdigest())
     except Exception as error:

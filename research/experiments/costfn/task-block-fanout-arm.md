@@ -15,6 +15,13 @@ No retry, F/P1 cell or broader integration is implied by the source prototype.
 Architecture: [D113](../../../knowledge-base/web10-v3/db/group-delivery.md).
 Approval worksheet: [ARM-F-DESIGN-CLOSURE.md](ARM-F-DESIGN-CLOSURE.md).
 
+**Operator amendment,15 November2026:** cancel the active batched-checker run,
+implement the attached full-population fanout backfill and rerun under the same
+four-hour/$2/32-28-22GiB envelope. DO619612240 stopped at20:14:57UTC in P setup;
+owned resource cleanup verified20:16:19UTC. Private raw receipts are preserved;
+this is cancellation, not a native failure or F result. A replacement is a fresh
+guarded lease, never renewal of the cancelled one.
+
 ## Why
 
 Config P's bounded native count/metadata checks and semantic complete-response
@@ -115,6 +122,57 @@ structural conclusion and the proposed v7 headline remain hypotheses to test.
 | 9 | Boundaries | 1,999↔2,000 both ways, multi-route removal, same-ID/different-author, cap overflow, crash/retry and concurrent publish/follow/rebuild |
 | 10 | T7 | K=1000 only after T2-F and T6-F pass; separately admitted under the programme |
 | Required load extension | R+W | Ten minutes of full reader load concurrently with100 real publishes/sec and10 follows/sec; read budget, delivered rates, errors and delivery correctness must hold as specified below |
+
+## Addendum — full-population fanout state
+
+The one-reader seed is an early diagnostic, not the populated node. After
+T4 → T2-F → T6-F → T3-F, seed **every live local human** from current canonical
+memberships: below2,000 members contributes; at/above contributes no pointers.
+Use the group/time index to find candidates, rebind canonical document/link
+winners, and retain each reader's newest200 distinct `(author_key,doc_id)` with
+**all** contributing group routes. No impression replay, invented distribution,
+copied bodies or publish-path membership counter. Unsupported/nonlive explicit
+principals refuse the build rather than disappearing silently.
+
+`arm_f_population.py` supplies the born-batched builder and canonical-only sample
+oracle; `arm_f_population_fixture.py` rehearses it in the admitted pinned-engine
+preflight before full restore. Current tuning:128 groups/64 readers per slice;
+each builder statement is additionally limited to4GiB query memory/8M rows/2GiB
+logical bytes/1M result rows, throwing on overflow within the unchanged22GiB
+server cap. These limits are refusals, not proof of full-store fit. Membership
+snapshot scratch is setup-only and is recreated from canonical on rebuild;
+live publication still performs the original single canonical membership pass.
+No API/coordinator writer may run during seed fencing. Revisions come from the
+existing durable coordinator. Duplicate batch keys refuse; no implicit retries.
+
+Require unchanged logical test-reader window and predeclared independent sample
+parity (test reader, manifest reader2 and final manifest reader; canonical
+author-range oracle, not another satellite). Report reader fraction, exact
+logical route state/digest, serialized bytes, batches, elapsed time and physical
+rows/bytes/parts; preserve partial receipts on stop.200M is at most the retained
+**identity** count at1M readers, not a physical-route/version row ceiling. Larger
+population may change cache, part and merge behavior even for one reader range.
+
+Then rerun T6-F on populated state; T5-F drops only`fanout`, rebuilds with this
+same builder from canonical, and compares exact logical-window digest and
+serialized-byte totals (predeclared logical tolerance0). Physical compression/
+parts are reported separately, never asserted identical through merges. R+W
+and trim/backlog accounting must also use the populated table. A passing seed
+is not a populated T6/T5/R+W or production-equivalence claim.
+
+Early gates win the fixed admission. Missing early proofs, stale index generation,
+native refusal or exhausted time means **UNREACHED/STOP**, with the achieved
+fraction retained, never a one-reader state reported as a full population.
+`arm_f_run.py` is still the P-stage launcher; its receipts now explicitly expose
+unreached population/later gates. Gate execution/continuation must remain explicit;
+these new builder modules do not silently manufacture the remaining F receipts.
+
+Execution update: fresh DO619625857 through16 November00:33:47UTC; checker and
+population native rehearsals PASS before full restore (36 population queries,
+402 logical fixture routes; exact receipts in
+`evidence/arm-f-population-20261115/native-preflight/`). Archive retrieval is
+running. Local119 no-engine controls/Ruff pass; full-population seeding and
+populated T6/T5/R+W remain UNREACHED, not accepted by the tiny fixture.
 
 ## Addendum — the load model is DAU R+W, not readers alone
 
