@@ -64,6 +64,22 @@ def owned(row, lease):
             and (not lease.get('droplet_id') or row['id'] == lease['droplet_id']))
 
 
+def firewall_verified(row, lease):
+    if row.get('name') != lease['name'] or row.get('tags') != [lease['tag']]:
+        raise ValueError('owned firewall identity differs')
+    outbound = {rule['protocol']: rule for rule in row.get('outbound_rules', [])}
+    for protocol in ('tcp', 'udp'):
+        rule = outbound.get(protocol, {})
+        if rule.get('ports') != '1-65535' or rule.get('destinations', {}).get('addresses') != ['0.0.0.0/0']:
+            raise ValueError('firewall port range readback differs; ports:all can silently become port0')
+    rules = row.get('inbound_rules', [])
+    if len(rules) != 1 or rules[0].get('protocol') != 'tcp' or rules[0].get('ports') != '22':
+        raise ValueError('only declared SSH ingress allowed')
+    addresses = rules[0].get('sources', {}).get('addresses', [])
+    if len(addresses) != 1 or not addresses[0].endswith('/32'):
+        raise ValueError('one pinned operator source required')
+
+
 def cleanup(lease):
     lease['cancelled'] = True
     account(lease)
@@ -171,10 +187,12 @@ def create(path):
         api('compute', 'tag', 'create', lease['tag'])
         row = api('compute', 'firewall', 'create', '--name', lease['name'], '--tag-names', lease['tag'],
             '--inbound-rules', 'protocol:tcp,ports:22,address:' + source,
-            '--outbound-rules', 'protocol:tcp,ports:all,address:0.0.0.0/0 protocol:udp,ports:all,address:0.0.0.0/0 protocol:icmp,address:0.0.0.0/0')
+            '--outbound-rules', 'protocol:tcp,ports:1-65535,address:0.0.0.0/0 protocol:udp,ports:1-65535,address:0.0.0.0/0 protocol:icmp,address:0.0.0.0/0')
         row = row[0] if isinstance(row, list) else row
         lease['firewall_id'] = row['id']
         save(path, lease)
+        checked = api('compute', 'firewall', 'get', str(row['id']))
+        firewall_verified(checked[0] if isinstance(checked, list) else checked, lease)
         halt = datetime.fromtimestamp(lease['deadline'] - 120, UTC).strftime('%Y-%m-%d %H:%M:%S UTC')
         cloud = {'ssh_deletekeys': False, 'ssh_genkeytypes': [], 'ssh_pwauth': False, 'disable_root': False,
             'ssh_keys': {'ed25519_private': (root / 'host-key').read_text(),

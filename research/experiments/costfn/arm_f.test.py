@@ -139,6 +139,19 @@ class JournalTests(unittest.TestCase):
 
 
 class CloudAdmissionTests(unittest.TestCase):
+    def test_firewall_refuses_silent_port_zero(self):
+        import copy
+        lease = {'name': 'owned', 'tag': 'owned'}
+        row = {'name': 'owned', 'tags': ['owned'], 'inbound_rules': [
+            {'protocol': 'tcp', 'ports': '22', 'sources': {'addresses': ['192.0.2.1/32']}}],
+            'outbound_rules': [{'protocol': protocol, 'ports': '1-65535',
+                'destinations': {'addresses': ['0.0.0.0/0']}} for protocol in ('tcp', 'udp')]}
+        cloud.firewall_verified(row, lease)
+        broken = copy.deepcopy(row)
+        broken['outbound_rules'][0]['ports'] = '0'
+        with self.assertRaises(ValueError):
+            cloud.firewall_verified(broken, lease)
+
     def test_exact_bounded_admission_only(self):
         lease = dict(name='web10-fanout-f-123456abcdef', tag='web10-fanout-f-123456abcdef',
             configuration='F', region='nyc3', size='s-8vcpu-32gb-amd', max_usd=2,

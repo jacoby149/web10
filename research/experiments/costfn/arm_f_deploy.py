@@ -28,6 +28,8 @@ def deploy():
         raise ValueError('closed or mismatched guarded host')
     options = ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10', '-o', 'StrictHostKeyChecking=yes',
                '-o', 'UserKnownHostsFile=' + str(private / 'known_hosts'), '-i', str(private / 'client-key')]
+    if state.get('ssh_jump'):
+        options += ['-J', state['ssh_jump']]
     destination = 'root@' + host['ip']
 
     def ssh(command, timeout=300):
