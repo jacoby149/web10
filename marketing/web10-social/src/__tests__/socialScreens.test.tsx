@@ -1439,7 +1439,7 @@ describe('Layout', () => {
     expect(screen.queryByTestId('new-post-button-mobile')).not.toBeInTheDocument();
   });
 
-  it('anon chrome: the four pyramid destinations lead the nav (People first)', async () => {
+  it('anon chrome: desktop keeps People first but mobile shares the consumption dock', async () => {
     const { default: Layout } = await import('@/components/Social/Layout');
     render(
       <MemoryRouter initialEntries={['/video']}>
@@ -1458,15 +1458,25 @@ describe('Layout', () => {
     expect(sidebarItems.indexOf('nav-people')).toBeLessThan(sidebarItems.indexOf('nav-feed'));
     expect(sidebarItems.indexOf('nav-feed')).toBeLessThan(sidebarItems.indexOf('nav-video'));
     expect(sidebarItems.indexOf('nav-video')).toBeLessThan(sidebarItems.indexOf('nav-shorts'));
-    // Mobile bottom nav: all four pyramid destinations (anon has no More tab).
+    // Mobile content destinations do not change on sign-in/out.
     const mobileNav = screen.getByLabelText('Primary mobile');
     const mobileItems = Array.from(mobileNav.querySelectorAll('[data-testid]'))
       .map((el) => el.getAttribute('data-testid'))
       .filter((id) => id?.startsWith('nav-'));
-    expect(mobileItems[0]).toBe('nav-people-mobile');
-    expect(mobileItems).toContain('nav-feed-mobile');
-    expect(mobileItems).toContain('nav-video-mobile');
-    expect(mobileItems).toContain('nav-shorts-mobile');
+    expect(mobileItems).toEqual([
+      'nav-feed-mobile', 'nav-video-mobile', 'nav-shorts-mobile', 'nav-music-mobile', 'nav-more-mobile',
+    ]);
+    fireEvent.click(within(mobileNav).getByTestId('nav-music-mobile'));
+    expect(within(mobileNav).getByTestId('nav-music-mobile')).toHaveAttribute('aria-current', 'page');
+    fireEvent.click(within(mobileNav).getByTestId('nav-more-mobile'));
+    const sheet = screen.getByTestId('more-sheet');
+    expect(within(sheet).getByTestId('nav-people-mobile')).toBeInTheDocument();
+    expect(within(sheet).getByTestId('nav-appearance-mobile')).toBeInTheDocument();
+    for (const id of ['nav-profile-mobile', 'nav-messages-mobile', 'nav-settings-mobile', 'nav-monetization-mobile', 'nav-node-settings-mobile']) {
+      expect(within(sheet).queryByTestId(id)).not.toBeInTheDocument();
+    }
+    fireEvent.click(within(sheet).getByTestId('nav-people-mobile'));
+    expect(screen.queryByTestId('more-sheet')).not.toBeInTheDocument();
   });
 
   it('anon chrome: the desktop top bar keeps a fixed height (the Sign in button must not collapse it)', async () => {

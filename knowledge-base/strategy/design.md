@@ -501,10 +501,12 @@ autoplay needs a play action, not a silent fallback to muted. Changing mute
 never resumes paused media. Shorts tiles hide the still play badge whenever
 the real preview controls are shown, including touch-dwell—not CSS hover alone.
 
-Signed-in phone navigation (operator, 13.11.2026): Posts, Video, Shorts, Music,
-More. Messages moves into More, retaining its unread count both on the More
+Phone navigation (operator correction, 14.11.2026): signed-in and signed-out
+readers share Posts, Video, Shorts, Music, More in that order. People and
+Appearance stay reachable in More for everyone; personal/account actions remain
+signed-in-only. Desktop navigation is unchanged.
+Messages moves into More, retaining its unread count both on the More
 entry and its Messages row, direct routes and active destination indication.
-Desktop and signed-out navigation retain their existing destinations.
 More begins with a distinct personal profile card: resolved profile photo (or
 initial fallback), name, username and View profile, before Appearance or utility
 rows. The header avatar opens a profile-first menu; Change posting identity is
