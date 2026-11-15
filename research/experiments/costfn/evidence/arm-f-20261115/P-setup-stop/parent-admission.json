@@ -1,0 +1,17 @@
+{
+  "configuration": "F",
+  "approved_by": "Jacob",
+  "dataset_id": "2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd",
+  "droplet_id": 619583249,
+  "budget_usd": 2,
+  "watchdog_verified": true,
+  "approved_utc": "2026-11-15T17:23:23+00:00",
+  "deadline_utc": "2026-11-15T21:23:23+00:00",
+  "full_canonical_membership_pass": true,
+  "append_only_publication": true,
+  "read_cap": 200,
+  "cutoff": 2000,
+  "R_plus_W_required": true,
+  "T7_admitted": false,
+  "sort_order_arm_admitted": false
+}
