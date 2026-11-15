@@ -1,0 +1,20 @@
+{
+  "kind": "NATIVE_FULL_POPULATION_BUILDER_REHEARSAL",
+  "outcome": "PASS",
+  "cases": [
+    "cap200_shared_routes_same_id_authors_deleted_document_removed_link_removed_member",
+    "deterministic_idempotent_reseed",
+    "native_canonical_author_range_oracle",
+    "shadow_build_atomic_exchange",
+    "cutoff2000_zero_pointers",
+    "native_same_snapshot_differential_views",
+    "duplicate_batch_refused"
+  ],
+  "droplet_id": 619625857,
+  "engine": "24.8.14.39",
+  "builder_sha256": "25c6b55f41b68377df02f09a5edcae5f37d33577ee287fb9e93fb49d75ddc212",
+  "fixture_sha256": "971f80f05d7b7c49d5b95ab5922653c868295bd78546dc4305996bbcdee93f48",
+  "primitives_sha256": "3c257f0b07a9ee8647f5f3656c44d75020999f32b0576376ffdcbfd05693d194",
+  "runtime_sha256": "113d6da614351cca02202542ff3cbec5cab813dc0ea5097e043b636c7f254a8b",
+  "logical_routes": 402
+}

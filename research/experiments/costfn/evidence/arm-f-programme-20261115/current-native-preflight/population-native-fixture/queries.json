@@ -1,0 +1,566 @@
+[
+  {
+    "label": "reset_doc_groups_t",
+    "query_id": "checker-fixture-24216bd1005949cbb039c78c38766aa0",
+    "native": {
+      "query_id": "checker-fixture-24216bd1005949cbb039c78c38766aa0",
+      "query_duration_ms": "3",
+      "read_rows": "0",
+      "read_bytes": "0",
+      "memory_usage": "0",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "freeze_fixture_merges_doc_groups_t",
+    "query_id": "checker-fixture-fc4f6d9adb9f4c2d8c063010ce2478e0",
+    "native": {
+      "query_id": "checker-fixture-fc4f6d9adb9f4c2d8c063010ce2478e0",
+      "query_duration_ms": "0",
+      "read_rows": "0",
+      "read_bytes": "0",
+      "memory_usage": "0",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "reset_doc_groups",
+    "query_id": "checker-fixture-5f1aa26c616e400b8b8fdca296c50314",
+    "native": {
+      "query_id": "checker-fixture-5f1aa26c616e400b8b8fdca296c50314",
+      "query_duration_ms": "1",
+      "read_rows": "0",
+      "read_bytes": "0",
+      "memory_usage": "0",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "freeze_fixture_merges_doc_groups",
+    "query_id": "checker-fixture-be5ac8a8f2ce40b0a84844cec09a09e5",
+    "native": {
+      "query_id": "checker-fixture-be5ac8a8f2ce40b0a84844cec09a09e5",
+      "query_duration_ms": "0",
+      "read_rows": "0",
+      "read_bytes": "0",
+      "memory_usage": "0",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "reset_documents",
+    "query_id": "checker-fixture-0baafba6376f4762b6a0b698566c9086",
+    "native": {
+      "query_id": "checker-fixture-0baafba6376f4762b6a0b698566c9086",
+      "query_duration_ms": "2",
+      "read_rows": "0",
+      "read_bytes": "0",
+      "memory_usage": "0",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "freeze_fixture_merges_documents",
+    "query_id": "checker-fixture-813a83e580a342948a46ddd90a56ac41",
+    "native": {
+      "query_id": "checker-fixture-813a83e580a342948a46ddd90a56ac41",
+      "query_duration_ms": "0",
+      "read_rows": "0",
+      "read_bytes": "0",
+      "memory_usage": "0",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "users_ddl",
+    "query_id": "checker-fixture-70b4b3d85cad4eb5b5770e0c167c1716",
+    "native": {
+      "query_id": "checker-fixture-70b4b3d85cad4eb5b5770e0c167c1716",
+      "query_duration_ms": "6",
+      "read_rows": "0",
+      "read_bytes": "0",
+      "memory_usage": "688",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "members_source_ddl",
+    "query_id": "checker-fixture-bcea85df2f02475591e3e84aad7a90fe",
+    "native": {
+      "query_id": "checker-fixture-bcea85df2f02475591e3e84aad7a90fe",
+      "query_duration_ms": "6",
+      "read_rows": "0",
+      "read_bytes": "0",
+      "memory_usage": "720",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "fanout_ddl",
+    "query_id": "checker-fixture-ac4fa35315784ca2b125a8618e020255",
+    "native": {
+      "query_id": "checker-fixture-ac4fa35315784ca2b125a8618e020255",
+      "query_duration_ms": "7",
+      "read_rows": "0",
+      "read_bytes": "0",
+      "memory_usage": "1168",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "humans",
+    "query_id": "checker-fixture-0fd7d83809f04e3e8b957c04f670434f",
+    "native": {
+      "query_id": "checker-fixture-0fd7d83809f04e3e8b957c04f670434f",
+      "query_duration_ms": "3",
+      "read_rows": "2000",
+      "read_bytes": "16000",
+      "memory_usage": "23065",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "named_humans",
+    "query_id": "checker-fixture-3fb0e5d49e26422dae6c66866121463c",
+    "native": {
+      "query_id": "checker-fixture-3fb0e5d49e26422dae6c66866121463c",
+      "query_duration_ms": "4",
+      "read_rows": "2",
+      "read_bytes": "44",
+      "memory_usage": "0",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "members_large",
+    "query_id": "checker-fixture-9c3b753a990b4023aa9831ccffdd0dd2",
+    "native": {
+      "query_id": "checker-fixture-9c3b753a990b4023aa9831ccffdd0dd2",
+      "query_duration_ms": "3",
+      "read_rows": "2000",
+      "read_bytes": "16000",
+      "memory_usage": "24444",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "members_small",
+    "query_id": "checker-fixture-9890dd25290148649cfe77c6ff8f379a",
+    "native": {
+      "query_id": "checker-fixture-9890dd25290148649cfe77c6ff8f379a",
+      "query_duration_ms": "6",
+      "read_rows": "6",
+      "read_bytes": "199",
+      "memory_usage": "0",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "documents",
+    "query_id": "checker-fixture-1b4740052e00405ba96d8afe0afcb06c",
+    "native": {
+      "query_id": "checker-fixture-1b4740052e00405ba96d8afe0afcb06c",
+      "query_duration_ms": "4",
+      "read_rows": "205",
+      "read_bytes": "1640",
+      "memory_usage": "29484",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "collision",
+    "query_id": "checker-fixture-ebc2904df6854447b527941b4656bbec",
+    "native": {
+      "query_id": "checker-fixture-ebc2904df6854447b527941b4656bbec",
+      "query_duration_ms": "3",
+      "read_rows": "1",
+      "read_bytes": "1",
+      "memory_usage": "29268",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "dead_document",
+    "query_id": "checker-fixture-14b71309844f4aa18a5993949f1bf34e",
+    "native": {
+      "query_id": "checker-fixture-14b71309844f4aa18a5993949f1bf34e",
+      "query_duration_ms": "3",
+      "read_rows": "1",
+      "read_bytes": "1",
+      "memory_usage": "29204",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "large_candidate",
+    "query_id": "checker-fixture-f1c4536a02124b43824f33333506c96c",
+    "native": {
+      "query_id": "checker-fixture-f1c4536a02124b43824f33333506c96c",
+      "query_duration_ms": "4",
+      "read_rows": "1",
+      "read_bytes": "1",
+      "memory_usage": "29268",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "links",
+    "query_id": "checker-fixture-c9d234b6d59c4a1f99810eeb624c4ea3",
+    "native": {
+      "query_id": "checker-fixture-c9d234b6d59c4a1f99810eeb624c4ea3",
+      "query_duration_ms": "3",
+      "read_rows": "205",
+      "read_bytes": "1640",
+      "memory_usage": "25118",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "shared_link",
+    "query_id": "checker-fixture-a6723713cd874c3ebbcc2f0738774910",
+    "native": {
+      "query_id": "checker-fixture-a6723713cd874c3ebbcc2f0738774910",
+      "query_duration_ms": "4",
+      "read_rows": "1",
+      "read_bytes": "41",
+      "memory_usage": "0",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "removed_link",
+    "query_id": "checker-fixture-4177a675f8c349c08cf035f6725de465",
+    "native": {
+      "query_id": "checker-fixture-4177a675f8c349c08cf035f6725de465",
+      "query_duration_ms": "5",
+      "read_rows": "1",
+      "read_bytes": "41",
+      "memory_usage": "0",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "large_link",
+    "query_id": "checker-fixture-f3483300e8df4347a08f55d5567d5562",
+    "native": {
+      "query_id": "checker-fixture-f3483300e8df4347a08f55d5567d5562",
+      "query_duration_ms": "4",
+      "read_rows": "1",
+      "read_bytes": "44",
+      "memory_usage": "0",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "index",
+    "query_id": "checker-fixture-4f1a27b740124b93aa825609d37bfe2c",
+    "native": {
+      "query_id": "checker-fixture-4f1a27b740124b93aa825609d37bfe2c",
+      "query_duration_ms": "9",
+      "read_rows": "416",
+      "read_bytes": "21731",
+      "memory_usage": "8760922",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "members_ddl",
+    "query_id": "checker-fixture-87dad351954a4151856c7444ba3e9eb0",
+    "native": {
+      "query_id": "checker-fixture-87dad351954a4151856c7444ba3e9eb0",
+      "query_duration_ms": "7",
+      "read_rows": "0",
+      "read_bytes": "0",
+      "memory_usage": "688",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "members_reset",
+    "query_id": "checker-fixture-d22779183d9443ef832f5cccbb47339c",
+    "native": {
+      "query_id": "checker-fixture-d22779183d9443ef832f5cccbb47339c",
+      "query_duration_ms": "0",
+      "read_rows": "0",
+      "read_bytes": "0",
+      "memory_usage": "0",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "group_page_0",
+    "query_id": "checker-fixture-b7afed8921b64d498767085b118430bf",
+    "native": {
+      "query_id": "checker-fixture-b7afed8921b64d498767085b118430bf",
+      "query_duration_ms": "3",
+      "read_rows": "2005",
+      "read_bytes": "28055",
+      "memory_usage": "37562",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "member_principals_0",
+    "query_id": "checker-fixture-edc24c541087493099dcadab33be3ec1",
+    "native": {
+      "query_id": "checker-fixture-edc24c541087493099dcadab33be3ec1",
+      "query_duration_ms": "8",
+      "read_rows": "6007",
+      "read_bytes": "186915",
+      "memory_usage": "373097",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "members_0",
+    "query_id": "checker-fixture-9834c6ae080f453aa67f11450e6df497",
+    "native": {
+      "query_id": "checker-fixture-9834c6ae080f453aa67f11450e6df497",
+      "query_duration_ms": "8",
+      "read_rows": "2005",
+      "read_bytes": "81066",
+      "memory_usage": "302265",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "group_page_1",
+    "query_id": "checker-fixture-3fc6cd16fe674826bc81f130fe81a233",
+    "native": {
+      "query_id": "checker-fixture-3fc6cd16fe674826bc81f130fe81a233",
+      "query_duration_ms": "2",
+      "read_rows": "0",
+      "read_bytes": "0",
+      "memory_usage": "68352",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "membership_snapshot",
+    "query_id": "checker-fixture-41ace301978c4cb1aad470ca1f11bc3b",
+    "native": {
+      "query_id": "checker-fixture-41ace301978c4cb1aad470ca1f11bc3b",
+      "query_duration_ms": "1",
+      "read_rows": "3",
+      "read_bytes": "73",
+      "memory_usage": "6343",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "positive_membership_duplicates",
+    "query_id": "checker-fixture-f7b4f0ab52264ff287e3bde6531985c8",
+    "native": {
+      "query_id": "checker-fixture-f7b4f0ab52264ff287e3bde6531985c8",
+      "query_duration_ms": "4",
+      "read_rows": "3",
+      "read_bytes": "73",
+      "memory_usage": "111448",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "positive_expected",
+    "query_id": "checker-fixture-9124400daa2848c3bff6769fdd4c33a8",
+    "native": {
+      "query_id": "checker-fixture-9124400daa2848c3bff6769fdd4c33a8",
+      "query_duration_ms": "21",
+      "read_rows": "845",
+      "read_bytes": "27198",
+      "memory_usage": "6572738",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "initial_insert",
+    "query_id": "checker-fixture-1e7363c324fd48a3bf74470a7a7162db",
+    "native": {
+      "query_id": "checker-fixture-1e7363c324fd48a3bf74470a7a7162db",
+      "query_duration_ms": "25",
+      "read_rows": "845",
+      "read_bytes": "27198",
+      "memory_usage": "6688928",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "retry_remove_obsolete",
+    "query_id": "checker-fixture-cbd8c580726b48f29535a7980cd4419a",
+    "native": {
+      "query_id": "checker-fixture-cbd8c580726b48f29535a7980cd4419a",
+      "query_duration_ms": "25",
+      "read_rows": "1247",
+      "read_bytes": "52535",
+      "memory_usage": "6363307",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "retry_insert",
+    "query_id": "checker-fixture-82bdcee9059f48e6918ee892121fbe8b",
+    "native": {
+      "query_id": "checker-fixture-82bdcee9059f48e6918ee892121fbe8b",
+      "query_duration_ms": "23",
+      "read_rows": "845",
+      "read_bytes": "27198",
+      "memory_usage": "8844611",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "retry_stored",
+    "query_id": "checker-fixture-c696c62a4d0e44e993198d57efca4378",
+    "native": {
+      "query_id": "checker-fixture-c696c62a4d0e44e993198d57efca4378",
+      "query_duration_ms": "7",
+      "read_rows": "804",
+      "read_bytes": "50674",
+      "memory_usage": "196466",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "oracle_authors_0",
+    "query_id": "checker-fixture-a2a560fe99d54e18a063acc2385b66a7",
+    "native": {
+      "query_id": "checker-fixture-a2a560fe99d54e18a063acc2385b66a7",
+      "query_duration_ms": "4",
+      "read_rows": "208",
+      "read_bytes": "2080",
+      "memory_usage": "63490",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "oracle_slice_0",
+    "query_id": "checker-fixture-4353c1e1ad8b49098328d5e843aabf94",
+    "native": {
+      "query_id": "checker-fixture-4353c1e1ad8b49098328d5e843aabf94",
+      "query_duration_ms": "13",
+      "read_rows": "623",
+      "read_bytes": "19567",
+      "memory_usage": "6737896",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "oracle_authors_1",
+    "query_id": "checker-fixture-1a136e2310754d9692fe9ba4baa1c9ee",
+    "native": {
+      "query_id": "checker-fixture-1a136e2310754d9692fe9ba4baa1c9ee",
+      "query_duration_ms": "2",
+      "read_rows": "0",
+      "read_bytes": "0",
+      "memory_usage": "73792",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "exchange",
+    "query_id": "checker-fixture-33b27b0e3cf64411b83894d5bf862035",
+    "native": {
+      "query_id": "checker-fixture-33b27b0e3cf64411b83894d5bf862035",
+      "query_duration_ms": "0",
+      "read_rows": "0",
+      "read_bytes": "0",
+      "memory_usage": "0",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "swapped",
+    "query_id": "checker-fixture-1711ca80ea764c5dae26936794582844",
+    "native": {
+      "query_id": "checker-fixture-1711ca80ea764c5dae26936794582844",
+      "query_duration_ms": "6",
+      "read_rows": "402",
+      "read_bytes": "25337",
+      "memory_usage": "70508",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "large_membership_duplicates",
+    "query_id": "checker-fixture-e797b4617fed4a55897cebbe8a0911a6",
+    "native": {
+      "query_id": "checker-fixture-e797b4617fed4a55897cebbe8a0911a6",
+      "query_duration_ms": "4",
+      "read_rows": "0",
+      "read_bytes": "0",
+      "memory_usage": "106224",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "large_expected",
+    "query_id": "checker-fixture-8518516c87244651ae508bcabd19a5a3",
+    "native": {
+      "query_id": "checker-fixture-8518516c87244651ae508bcabd19a5a3",
+      "query_duration_ms": "15",
+      "read_rows": "0",
+      "read_bytes": "0",
+      "memory_usage": "4551766",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "events_ddl",
+    "query_id": "checker-fixture-c54503fa453d489e8ec8b50be266b22a",
+    "native": {
+      "query_id": "checker-fixture-c54503fa453d489e8ec8b50be266b22a",
+      "query_duration_ms": "8",
+      "read_rows": "0",
+      "read_bytes": "0",
+      "memory_usage": "688",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "events",
+    "query_id": "checker-fixture-68fb20bea9474a32a7b35ce43e393642",
+    "native": {
+      "query_id": "checker-fixture-68fb20bea9474a32a7b35ce43e393642",
+      "query_duration_ms": "3",
+      "read_rows": "4",
+      "read_bytes": "225",
+      "memory_usage": "0",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "same_snapshot_views",
+    "query_id": "checker-fixture-2091fc58ec4b4bd3addcd265a043cfc9",
+    "native": {
+      "query_id": "checker-fixture-2091fc58ec4b4bd3addcd265a043cfc9",
+      "query_duration_ms": "7",
+      "read_rows": "210",
+      "read_bytes": "5166",
+      "memory_usage": "99144",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "duplicate_membership",
+    "query_id": "checker-fixture-5cefb5f0f23b49e083f9fccce652ae10",
+    "native": {
+      "query_id": "checker-fixture-5cefb5f0f23b49e083f9fccce652ae10",
+      "query_duration_ms": "4",
+      "read_rows": "1",
+      "read_bytes": "25",
+      "memory_usage": "0",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "duplicate_membership_duplicates",
+    "query_id": "checker-fixture-aeef050dc21e4842b95e7f0af66c557c",
+    "native": {
+      "query_id": "checker-fixture-aeef050dc21e4842b95e7f0af66c557c",
+      "query_duration_ms": "5",
+      "read_rows": "4",
+      "read_bytes": "98",
+      "memory_usage": "191184",
+      "exception_code": 0
+    }
+  }
+]

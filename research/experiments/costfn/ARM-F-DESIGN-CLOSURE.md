@@ -25,6 +25,37 @@ reading beyond the retained 200 pointers without missing eligible content.
 
 ## 1. Recipient/member predicate — approved; no membership counter
 
+### 22:09UTC continuation on the existing admitted host
+
+Original P Step0 completes at21:56:19UTC with semantic parity PASS. Its three
+diagnostic complete-response observations are3249.885–3360.788ms and
+471,756,082–471,838,450 logical bytes: still misses, not formal T6/p95. Bank
+content-free result/stage receipts at `evidence/arm-f-programme-20261115/completed-P-step0/`;
+the full private metadata/log archive hashes to
+`acc1508f07b7809fa27dab09b34ad15ea1e1fba5bff3390426fd927c3d3966c9`.
+All933 original executing-source hashes verify unchanged; original store and
+frozen archive are retained, never substituted by a new oracle or regenerated.
+
+Stage merged commit`2ca24da5c2c03aee2a253181c13e03ff63de2f9d` in the separate
+`programme-2ca24da5c2c0` tree,996 file hashes verified. Detached
+`fanout-programme.service` starts22:09:16UTC on DO619625857 with its runtime
+ending before the ORIGINAL16 November00:33:47UTC provider deadline. Original
+container/host/provider guards remain; fresh trial copies arm their own earlier
+container stop before engine work. No new resource/window/limit admission.
+
+Current-source native checker and population rehearsal PASS on24.8.14.39:
+402 logical fixture routes,49 population/shadow statements, max query-tracked
+memory8,844,611 bytes, no native exceptions in those statements. Includes canonical
+author-range oracle, a populated over-cutoff lane, actual shadow-table EXCHANGE,
+exact same-snapshot differential view aggregates and duplicate refusal. Raw
+SQL/native metrics/executing-source/hash receipts are retained at
+`evidence/arm-f-programme-20261115/current-native-preflight/`. This is fixture
+coverage, not all API hooks, full-population fit or F performance assurance.
+Build preparation is importing its own trial copy from the same verified frozen
+dataset; T4 and later real gates have not run. Follow the existing order and bank
+results; a failure/cap/time stop leaves the remainder unreached, never extends
+the lease. T7/P1/production/paper scope remains unauthorized.
+
 ### Full-population amendment and cancellation
 
 Operator direction in this workspace: cancel DO619612240's active run, add the

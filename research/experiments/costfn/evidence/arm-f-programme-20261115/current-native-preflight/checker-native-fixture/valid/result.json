@@ -1,0 +1,156 @@
+{
+  "kind": "BATCHED_EXACT_TRANSPOSE_RECONCILIATION",
+  "outcome": "PASS",
+  "batches": 2,
+  "rows": [
+    {
+      "batch": 0,
+      "expected": 4,
+      "stored": 4,
+      "matched": 4,
+      "mismatched": 0,
+      "duplicate_keys": 0
+    },
+    {
+      "batch": 1,
+      "expected": 1,
+      "stored": 1,
+      "matched": 1,
+      "mismatched": 0,
+      "duplicate_keys": 0
+    }
+  ],
+  "source_sha256": "fa0df8ffc81f5d92a1d02dbdfc679697c2774833274b375036c113efd07153c8",
+  "original_failed_query_sha256": "1dd1d76b54f3751308dbee1945f43a7c0b86881e2b09c45c38b7e9277fb7040c",
+  "partition": "cityHash64(doc_id)%batches on all three inputs; never group/body/ref/version",
+  "no_sampling": true,
+  "native_performance_claim": false,
+  "canonical_keys": [
+    {
+      "name": "doc_groups",
+      "engine": "ReplacingMergeTree",
+      "sorting_key": "doc_id, group_id",
+      "partition_key": "",
+      "uuid": "d63bdc85-2282-4c25-9b10-5736e4244dba"
+    },
+    {
+      "name": "doc_groups_t",
+      "engine": "MergeTree",
+      "sorting_key": "group_id, created_at, doc_id",
+      "partition_key": "",
+      "uuid": "59be6613-5d12-4c4c-b81d-e7c138148b9a"
+    },
+    {
+      "name": "documents",
+      "engine": "ReplacingMergeTree",
+      "sorting_key": "author_key, doc_id",
+      "partition_key": "",
+      "uuid": "20035cea-8aae-41eb-bc5c-8f9baf9c5123"
+    }
+  ],
+  "queries": [
+    {
+      "label": "transpose_batch_0_expected",
+      "query_id": "checker-fixture-02e9db38da264c3d9144d17f3d43a20e",
+      "native": {
+        "query_id": "checker-fixture-02e9db38da264c3d9144d17f3d43a20e",
+        "query_duration_ms": "6",
+        "read_rows": "9",
+        "read_bytes": "312",
+        "memory_usage": "65494",
+        "exception_code": 0
+      }
+    },
+    {
+      "label": "transpose_batch_0_stored",
+      "query_id": "checker-fixture-f2ab8e8d3ade4a38bb14b0f77a247c77",
+      "native": {
+        "query_id": "checker-fixture-f2ab8e8d3ade4a38bb14b0f77a247c77",
+        "query_duration_ms": "3",
+        "read_rows": "5",
+        "read_bytes": "130",
+        "memory_usage": "52208",
+        "exception_code": 0
+      }
+    },
+    {
+      "label": "transpose_batch_0_fields",
+      "query_id": "checker-fixture-e829940183334a00978eb3c72f54711b",
+      "native": {
+        "query_id": "checker-fixture-e829940183334a00978eb3c72f54711b",
+        "query_duration_ms": "10",
+        "read_rows": "14",
+        "read_bytes": "1281",
+        "memory_usage": "13623073",
+        "exception_code": 0
+      }
+    },
+    {
+      "label": "transpose_batch_0_duplicates",
+      "query_id": "checker-fixture-9d3080945a6947eaa7e03f51ea8cb3d7",
+      "native": {
+        "query_id": "checker-fixture-9d3080945a6947eaa7e03f51ea8cb3d7",
+        "query_duration_ms": "18",
+        "read_rows": "5",
+        "read_bytes": "180",
+        "memory_usage": "107344",
+        "exception_code": 0
+      }
+    },
+    {
+      "label": "transpose_batch_1_expected",
+      "query_id": "checker-fixture-d4c24b76042647299477de2f0035066a",
+      "native": {
+        "query_id": "checker-fixture-d4c24b76042647299477de2f0035066a",
+        "query_duration_ms": "5",
+        "read_rows": "9",
+        "read_bytes": "312",
+        "memory_usage": "68662",
+        "exception_code": 0
+      }
+    },
+    {
+      "label": "transpose_batch_1_stored",
+      "query_id": "checker-fixture-d2addfa6c2f14a0983b8d001a7fc8698",
+      "native": {
+        "query_id": "checker-fixture-d2addfa6c2f14a0983b8d001a7fc8698",
+        "query_duration_ms": "3",
+        "read_rows": "5",
+        "read_bytes": "130",
+        "memory_usage": "51944",
+        "exception_code": 0
+      }
+    },
+    {
+      "label": "transpose_batch_1_fields",
+      "query_id": "checker-fixture-5ed1576907734c5dbf927d3db7429c0a",
+      "native": {
+        "query_id": "checker-fixture-5ed1576907734c5dbf927d3db7429c0a",
+        "query_duration_ms": "13",
+        "read_rows": "14",
+        "read_bytes": "1281",
+        "memory_usage": "13081276",
+        "exception_code": 0
+      }
+    },
+    {
+      "label": "transpose_batch_1_duplicates",
+      "query_id": "checker-fixture-5a596f0b323d445cbba386cf3c6127b3",
+      "native": {
+        "query_id": "checker-fixture-5a596f0b323d445cbba386cf3c6127b3",
+        "query_duration_ms": "4",
+        "read_rows": "5",
+        "read_bytes": "180",
+        "memory_usage": "107344",
+        "exception_code": 0
+      }
+    }
+  ],
+  "totals": {
+    "expected": 5,
+    "stored": 5,
+    "matched": 5,
+    "mismatched": 0,
+    "duplicate_keys": 0
+  }
+}
