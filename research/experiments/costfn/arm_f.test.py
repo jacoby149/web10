@@ -12,6 +12,26 @@ import arm_f_cloud as cloud
 
 
 class FanoutTests(unittest.TestCase):
+    def test_rebuild_root_is_canonical_not_another_satellite(self):
+        from arm_f_native import recent_canonical
+        tree = sqlglot.parse_one(recent_canonical(['group']), read='clickhouse')
+        self.assertEqual({table.name for table in tree.find_all(exp.Table)}, {'documents', 'doc_groups'})
+        self.assertIn('deleted DESC', recent_canonical(['group']))
+
+    def test_stage_counts_resolution_and_preparation_remain_distinct(self):
+        import ast
+        source = ast.parse(Path(__file__).with_name('arm_f_profile_api.py').read_text())
+        node = next(node for node in source.body if isinstance(node, ast.FunctionDef) and node.name == 'classify')
+        namespace = {'sqlglot': sqlglot, 'exp': exp}
+        exec(compile(ast.Module(body=[node], type_ignores=[]), '<trusted-stage-classifier>', 'exec'), namespace)
+        classify = namespace['classify']
+        self.assertEqual(classify('SELECT value FROM counting_numbers_p2'), 'counts')
+        self.assertEqual(classify('SELECT doc_id FROM documents'), 'canonical_resolution')
+        self.assertEqual(classify('SELECT doc_id FROM documents', ['_prepare_rows']), 'preparation')
+        mixed = 'SELECT doc_id FROM documents JOIN counting_numbers_p2 USING(doc_id)'
+        self.assertEqual(classify(mixed), 'counts_embedded_in_resolution')
+        self.assertEqual(classify(mixed, ['_prepare_rows']), 'counts_embedded_in_preparation')
+
     def test_one_canonical_pass_and_no_reader_rerank(self):
         for count in (0, 10, 500, 999, 1999, 2000, 2001):
             calls, writes = [], []
@@ -84,6 +104,40 @@ class FanoutTests(unittest.TestCase):
 
 
 class JournalTests(unittest.TestCase):
+    def test_disjoint_group_io_does_not_hold_global_journal_lock(self):
+        from concurrent.futures import ThreadPoolExecutor
+        import threading
+        with tempfile.TemporaryDirectory() as directory:
+            j = Journal(directory)
+            barrier = threading.Barrier(2)
+            def run(group):
+                def apply(sequence, saved):
+                    barrier.wait(timeout=3)
+                    return {'group': group}
+                return j.run(group, 'actor', 'publish', {}, lambda: None, apply, lambda *a: None,
+                             scope_keys=['group:' + group])
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                futures = [pool.submit(run, group) for group in ('a', 'b')]
+                self.assertEqual({future.result()['group'] for future in futures}, {'a', 'b'})
+            j.close()
+
+    def test_same_operation_cannot_double_apply_across_concurrent_scopes(self):
+        from concurrent.futures import ThreadPoolExecutor
+        with tempfile.TemporaryDirectory() as directory:
+            j = Journal(directory)
+            calls = []
+            def apply(sequence, saved):
+                calls.append(sequence)
+                return {'stable': True}
+            def run(index):
+                return j.run('same-op', 'actor', 'publish', {}, lambda: None, apply, lambda *a: None,
+                             scope_keys=['group:' + str(index)])
+            with ThreadPoolExecutor(max_workers=4) as pool:
+                results = list(pool.map(run, range(8)))
+            self.assertEqual(calls, [1])
+            self.assertEqual(results, [{'stable': True}] * 8)
+            j.close()
+
     def test_crash_reopen_and_idempotent_ack(self):
         with tempfile.TemporaryDirectory() as directory:
             j = Journal(directory)

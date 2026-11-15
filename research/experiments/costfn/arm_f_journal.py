@@ -3,7 +3,7 @@
 The adapter must provide live authorized apply/reconcile callbacks. This module
 cannot mint credentials, insert canonical documents or bypass an API gate.
 """
-from contextlib import contextmanager
+from contextlib import contextmanager, ExitStack
 import fcntl
 import hashlib
 import json
@@ -45,6 +45,8 @@ class Journal:
             self.guard.close()
             raise
         self.lock = threading.RLock()
+        self.scope_guard = threading.Lock()
+        self.scope_locks = {}
         self.db = sqlite3.connect(root / 'intents.sqlite', isolation_level=None, check_same_thread=False)
         os.chmod(root / 'intents.sqlite', 0o600)
         self.db.execute('PRAGMA journal_mode=WAL')
@@ -72,17 +74,25 @@ class Journal:
             self.db.execute('ROLLBACK')
             raise
 
-    def run(self, operation_id, actor, operation, payload, authorize, apply, reconcile):
+    def run(self, operation_id, actor, operation, payload, authorize, apply, reconcile, *, scope_keys=None):
         if not all(isinstance(value, str) and value for value in (operation_id, actor, operation)):
             raise ValueError('stable operation, actor and kind required')
         raw = encoding(payload)
         digest = hashlib.sha256(encoding([actor, operation, payload]).encode()).hexdigest()
-        with self.lock:
+        keys = list(scope_keys or ['__single_default_scope__'])
+        if any(not isinstance(key, str) or not key for key in keys):
+            raise ValueError('explicit coordinator scope keys required')
+        keys = sorted(set([*keys, 'operation:' + operation_id]))
+        with self.scope_guard:
+            locks = [self.scope_locks.setdefault(key, threading.RLock()) for key in keys]
+        with ExitStack() as stack:
+            for lock in locks:
+                stack.enter_context(lock)
             # Even completed retries require current authority. The journal is no grant.
             log.info('[arm-f] authorization start kind=%s', operation)
             authorize()
             log.info('[arm-f] authorization complete kind=%s', operation)
-            with self.transaction():
+            with self.lock, self.transaction():
                 row = self.db.execute('SELECT sequence,request_sha256,state,result_json FROM intents WHERE operation_id=?',
                                       (operation_id,)).fetchone()
                 if row and row[1] != digest:
@@ -97,13 +107,15 @@ class Journal:
                     sequence = row[0]
             log.info('[arm-f] durable intent committed sequence=%d kind=%s', sequence, operation)
             # No transaction held across canonical writes; crashes stay visibly pending.
-            self.db.execute("UPDATE intents SET state='reconciling' WHERE sequence=?", (sequence,))
+            with self.lock:
+                self.db.execute("UPDATE intents SET state='reconciling' WHERE sequence=?", (sequence,))
             result = apply(sequence, json.loads(raw))
             log.info('[arm-f] canonical apply complete sequence=%d', sequence)
             reconcile(sequence, json.loads(raw), result)
             log.info('[arm-f] reconciliation complete sequence=%d', sequence)
             result_raw = encoding(result)
-            self.db.execute("UPDATE intents SET state='complete',result_json=? WHERE sequence=?", (result_raw, sequence))
+            with self.lock:
+                self.db.execute("UPDATE intents SET state='complete',result_json=? WHERE sequence=?", (result_raw, sequence))
             return result
 
     def dirty(self, readers, sequence):
@@ -119,12 +131,13 @@ class Journal:
         with self.lock:
             rows = self.db.execute('SELECT reader_key,generation FROM dirty_readers '
                 'WHERE generation>trimmed_generation ORDER BY generation,reader_key LIMIT ?', (limit,)).fetchall()
-            for reader, generation in rows:
-                if trim(reader) is False:
-                    continue
+        for reader, generation in rows:
+            if trim(reader) is False:
+                continue
+            with self.lock:
                 self.db.execute('UPDATE dirty_readers SET trimmed_generation=? WHERE reader_key=? AND generation=?',
                                 (generation, reader, generation))
-            return len(rows)
+        return len(rows)
 
     def pending(self):
         with self.lock:

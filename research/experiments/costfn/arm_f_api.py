@@ -62,7 +62,11 @@ def command(sql, *args, **kwargs):
     current = p.observer.current.get()
     settings['log_comment'] = 'F_WRITE:' + (current['request_id'] if current else 'background')
     kwargs['settings'] = settings
-    return original_command(sql, *args, **kwargs)
+    try:
+        return original_command(sql, *args, **kwargs)
+    except Exception as error:
+        fail('native_command_' + type(error).__name__)
+        raise
 
 
 def insert(*args, **kwargs):
@@ -72,7 +76,11 @@ def insert(*args, **kwargs):
     settings['log_comment'] = 'F_WRITE:' + (current['request_id'] if current else 'background')
     settings['max_memory_usage'] = 22 * 1024**3
     kwargs['settings'] = settings
-    return original_insert(*args, **kwargs)
+    try:
+        return original_insert(*args, **kwargs)
+    except Exception as error:
+        fail('native_insert_' + type(error).__name__)
+        raise
 
 
 p.ch.client.command = command
@@ -83,6 +91,14 @@ def active():
     admitted(admission, p.host)
     if fatal.is_set() or not start <= datetime.now(UTC) < deadline:
         raise HTTPException(503, 'research admission closed')
+
+
+def fail(reason):
+    fatal.set()
+    (ROOT / 'F.stop').write_text(reason + '\n')
+    current = p.observer.current.get()
+    if current is not None:
+        current['arm_p_native_failure'] = reason
 
 
 def operation_id(kind):
@@ -133,10 +149,92 @@ def create(request, data, real_author, client_id, **kwargs):
             if current is not None:
                 current.setdefault('fanout_publications', []).append({'group_id': group, **receipt})
         # Canonical-generation mismatch now prevents stale P materialization use.
-    return journal.run(op, real_author, 'publish', payload(data), authorize, apply, reconcile)
+    try:
+        return journal.run(op, real_author, 'publish', payload(data), authorize, apply, reconcile,
+                           scope_keys=['group:' + group for group in data.groups or []] or ['author:' + real_author])
+    except HTTPException:
+        raise
+    except Exception as error:
+        fail('publish_' + type(error).__name__)
+        raise
 
 
 documents.create_as = create
+
+
+def install_document_hook(route, kind):
+    original = route.dependant.call
+    @wraps(original)
+    def mutate(request, data):
+        active()
+        if kind == 'attachment' and data.attached is None:
+            return original(request, data)
+        human = documents._user(data)
+        op = operation_id(route.path)
+        holder = {}
+        with journal.lock:
+            retry = journal.db.execute('SELECT 1 FROM intents WHERE operation_id=?', (op,)).fetchone() is not None
+        def authorize():
+            actor = documents._user(data)
+            if actor != human:
+                raise HTTPException(403, 'actor changed')
+            author = data.author_as or human
+            rows = store.rows('SELECT author_key,collection_name,deleted FROM (SELECT *,row_number() OVER '
+                '(PARTITION BY author_key,doc_id ORDER BY updated_at DESC,deleted DESC) AS rn FROM documents WHERE '
+                'doc_id=' + q(data.doc_id) + ' AND author_key=' + q(author) + ') WHERE rn=1')
+            if not rows:
+                # Existing update-only posted_by compatibility, not journal authority.
+                if kind != 'update' or data.author_as:
+                    raise HTTPException(404, 'document not found')
+                candidates = store.rows('SELECT author_key FROM documents WHERE doc_id=' + q(data.doc_id)
+                    + ' AND posted_by=' + q(human) + ' AND deleted=0 ORDER BY updated_at DESC LIMIT 1')
+                if not candidates:
+                    raise HTTPException(404, 'document not found')
+                author = candidates[0]['author_key']
+                rows = store.rows('SELECT author_key,collection_name,deleted FROM (SELECT *,row_number() OVER '
+                    '(PARTITION BY author_key,doc_id ORDER BY updated_at DESC,deleted DESC) AS rn FROM documents WHERE '
+                    'doc_id=' + q(data.doc_id) + ' AND author_key=' + q(author) + ') WHERE rn=1')
+            if len(rows) != 1:
+                raise HTTPException(404, 'document not found')
+            operation = 'deleteOwn' if kind == 'delete' else 'updateOwn'
+            if author != human:
+                perms = p.ch.effective_role_perms(author, human, authenticated=True)
+                if not p.ch.get_group(author) or not p.ch._effective_allows(perms, rows[0]['collection_name'], operation):
+                    raise HTTPException(403, 'current delegated write authority required')
+            documents._check_app_permission(request, human, rows[0]['collection_name'], operation, documents.client_id_of(data))
+            holder.update(author=author, deleted=bool(rows[0]['deleted']))
+        def apply(sequence, saved):
+            if retry and kind == 'delete' and holder['deleted']:
+                response = {'doc_id': data.doc_id, 'status': 'deleted'}
+                before = []
+            else:
+                before = p.ch.get_doc_groups(data.doc_id)
+                response = original(request, data)
+            return {'response': response, 'before_groups': before}
+        def reconcile(sequence, saved, result):
+            if kind == 'delete' or (kind == 'attachment' and not data.attached):
+                return  # Canonical tombstones/access are the synchronous read gate.
+            rows = store.rows('SELECT author_key,doc_id,created_at,deleted FROM (SELECT *,row_number() OVER '
+                '(PARTITION BY author_key,doc_id ORDER BY updated_at DESC,deleted DESC) AS rn FROM documents WHERE '
+                'doc_id=' + q(data.doc_id) + ' AND author_key=' + q(holder['author']) + ') WHERE rn=1')
+            if len(rows) != 1 or rows[0]['deleted']:
+                raise ValueError('current mutation target disappeared')
+            after = p.ch.get_doc_groups(data.doc_id)
+            for group in after:
+                store.maintain_index(rows[0], group)
+                if group not in result['before_groups']:
+                    store.publish(rows[0], group, sequence)
+        try:
+            result = journal.run(op, human, kind, payload(data), authorize, apply, reconcile,
+                scope_keys=['document:' + data.doc_id, 'group:' + getattr(data, 'group_id', '')]
+                + ['group:' + group for group in getattr(data, 'groups', None) or []])
+            return result['response']
+        except HTTPException:
+            raise
+        except Exception as error:
+            fail(kind + '_' + type(error).__name__)
+            raise
+    route.dependant.call = mutate
 
 
 def install_membership_hook(route):
@@ -169,7 +267,14 @@ def install_membership_hook(route):
             current = p.observer.current.get()
             if current is not None:
                 current['fanout_membership'] = backfill
-        result = journal.run(op, actor, 'membership', payload(data), authorize, apply, reconcile)
+        try:
+            result = journal.run(op, actor, 'membership', payload(data), authorize, apply, reconcile,
+                                 scope_keys=['group:' + group, 'reader:' + target])
+        except HTTPException:
+            raise
+        except Exception as error:
+            fail('membership_' + type(error).__name__)
+            raise
         return result['response']
     route.dependant.call = member
 
@@ -177,12 +282,20 @@ def install_membership_hook(route):
 MEMBERSHIP_PATHS = {'/v3/groups/join', '/v3/groups/leave', '/v3/groups/members/add',
     '/v3/groups/members/remove', '/v3/groups/accept-invite', '/v3/groups/requests/join/approve'}
 installed = []
+document_hooks = {'/v3/update': 'update', '/v3/delete': 'delete', '/v3/attachment': 'attachment'}
 for route in p.observer.app.routes:
     if getattr(route, 'path', None) in MEMBERSHIP_PATHS and 'POST' in (getattr(route, 'methods', None) or set()):
         install_membership_hook(route)
         installed.append(route.path)
+    if getattr(route, 'path', None) in document_hooks and 'POST' in (getattr(route, 'methods', None) or set()):
+        install_document_hook(route, document_hooks[route.path])
 if not {'/v3/groups/join', '/v3/groups/leave'} <= set(installed):
     raise RuntimeError('real membership routes not installed; no synthetic substitute')
+(ROOT / 'hook-install.json').write_text(json.dumps({'authorized_membership_routes': installed,
+    'authorized_document_routes': list(document_hooks),
+    'create_entry': 'documents.create_document -> documents.create_as -> original_create',
+    'adapter_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+    'production_source_modified': False}, indent=2))
 
 
 def generation():
@@ -211,59 +324,56 @@ def compile_query(*args, **kwargs):
     reader = kwargs.get('member_key', args[2] if len(args) > 2 else 'anon')
     tree = sqlglot.parse_one(compiled, read='clickhouse')
     is_main = 'profile_body' in {item.alias_or_name for item in tree.expressions} and bool(tree.args.get('joins'))
-    with journal.lock:
-        fresh = generation() == p.counts['canonical_generation']
-        if reader != p.profile['reader'] or not fresh:
-            # Safe canonical fallback is not a generation-guard bypass: it uses no
-            # uncertified satellites at all, and its full cost/error is measured.
-            current['fanout'] = {'path': 'canonical_fallback', 'reason': 'unbuilt_reader' if fresh else 'uncertified_generation'}
-            return compiled
-        if not is_main:
-            return p.compile_query(*args, **kwargs)
-        if tree.args.get('qualify') is None:
-            # No silent rewrite of ordinary SQL. Only the labelled new contract.
-            return compiled
-        service = tree.args['from_'].this.name
-        scope = p.scope_for('main', reader, readable)
-        size = int(tree.args['limit'].expression.this)
-        selected = readable[service]
-        lanes = build['group_members']
-        if set(selected) - set(lanes):
-            raise ValueError('unbuilt source classification')
-        small = [group for group in selected if lanes[group] < f.CUTOFF]
-        large = [group for group in selected if lanes[group] >= f.CUTOFF]
-        cache = p.run(f.cache_sql(reader, small)) if MODE == 'F_DOCUMENT_STREAM_V1' and small else []
-        sources = (['__small__'] if cache else []) + (large if cache else selected)
-        columns = []
-        def fetch(source, after, limit):
-            if source != '__small__':
-                return p.run(candidate(compiled, source, after, limit))
-            rows = [row for row in cache if after is None or f.key(row) > f.key(after)]
-            if rows:
-                return rows[:limit]
-            # Cache is a window, not history. Continue small sources after its tail.
-            queries = [candidate(compiled, group, after, limit) for group in small]
-            sql = 'SELECT * FROM (' + ' UNION ALL '.join('(' + query + ')' for query in queries) + ') '
-            sql += 'ORDER BY created_ms DESC,doc_id DESC,author_key DESC,group_id LIMIT ' + str(limit)
-            return p.run(sql)
-        def resolve(pointers):
-            nonlocal columns
-            profiles = p.run('SELECT author_key,doc_id FROM strings WHERE owner_key IN ('
-                + p.serve.literals([row['author_key'] for row in pointers]) + ") AND field_name='service:profile'")
-            sql = p.serve.main_sql(compiled, pointers, [(r['author_key'], r['doc_id']) for r in profiles], scope)
-            columns, values = p._execute(sql, settings={'max_execution_time': 10})
-            rows = [dict(zip(columns, row)) for row in values]
-            for row in rows:
-                row['created_ms'] = p.serve.created_ms(row['created_at'])
-            return rows
-        rows = f.merge_page(sources, size, fetch, resolve)
-        if generation() != p.counts['canonical_generation']:
-            raise ValueError('canonical generation changed during bounded read')
-        if not columns:
-            raise ValueError('empty result schema not established')
-        pending.set((current['request_id'], columns, [tuple(row[column] for column in columns) for row in rows]))
-        current['fanout'] = {'path': MODE, 'canonical_body_reads': True, 'small_groups': len(small), 'seek_groups': len(large)}
-        return MARKER
+    # No global journal/reader lock across ClickHouse I/O. Immutable-receipt
+    # generation is checked before/after; uncertified state takes canonical reads.
+    fresh = generation() == p.counts['canonical_generation']
+    if reader != p.profile['reader'] or not fresh:
+        current['fanout'] = {'path': 'canonical_fallback', 'reason': 'unbuilt_reader' if fresh else 'uncertified_generation'}
+        return compiled
+    if not is_main:
+        return p.compile_query(*args, **kwargs)
+    if tree.args.get('qualify') is None:
+        return compiled  # Never silently deduplicate an ordinary caller query.
+    service = tree.args['from_'].this.name
+    scope = p.scope_for('main', reader, readable)
+    size = int(tree.args['limit'].expression.this)
+    selected = readable[service]
+    lanes = build['group_members']
+    if set(selected) - set(lanes):
+        raise ValueError('unbuilt source classification')
+    small = [group for group in selected if lanes[group] < f.CUTOFF]
+    large = [group for group in selected if lanes[group] >= f.CUTOFF]
+    cache = p.run(f.cache_sql(reader, small)) if MODE == 'F_DOCUMENT_STREAM_V1' and small else []
+    sources = (['__small__'] if cache else []) + (large if cache else selected)
+    columns = []
+    def fetch(source, after, limit):
+        if source != '__small__':
+            return p.run(candidate(compiled, source, after, limit))
+        rows = [row for row in cache if after is None or f.key(row) > f.key(after)]
+        if rows:
+            return rows[:limit]
+        queries = [candidate(compiled, group, after, limit) for group in small]
+        sql = 'SELECT * FROM (' + ' UNION ALL '.join('(' + query + ')' for query in queries) + ') '
+        sql += 'ORDER BY created_ms DESC,doc_id DESC,author_key DESC,group_id LIMIT ' + str(limit)
+        return p.run(sql)
+    def resolve(pointers):
+        nonlocal columns
+        profiles = p.run('SELECT author_key,doc_id FROM strings WHERE owner_key IN ('
+            + p.serve.literals([row['author_key'] for row in pointers]) + ") AND field_name='service:profile'")
+        sql = p.serve.main_sql(compiled, pointers, [(r['author_key'], r['doc_id']) for r in profiles], scope)
+        columns, values = p._execute(sql, settings={'max_execution_time': 10})
+        rows = [dict(zip(columns, row)) for row in values]
+        for row in rows:
+            row['created_ms'] = p.serve.created_ms(row['created_at'])
+        return rows
+    rows = f.merge_page(sources, size, fetch, resolve)
+    if generation() != p.counts['canonical_generation']:
+        raise ValueError('canonical generation changed during bounded read')
+    if not columns:
+        raise ValueError('empty result schema not established')
+    pending.set((current['request_id'], columns, [tuple(row[column] for column in columns) for row in rows]))
+    current['fanout'] = {'path': MODE, 'canonical_body_reads': True, 'small_groups': len(small), 'seek_groups': len(large)}
+    return MARKER
 
 
 execute = p.ch.execute_query
@@ -329,8 +439,12 @@ async def application(scope, receive, send):
         raise HTTPException(400, 'invalid research operation id') from None
     token = context.set({'operation_id': identity})
     result_token = pending.set(None)
+    async def marked_send(message):
+        if message['type'] == 'http.response.start' and dict(message.get('headers', [])).get(b'x-arm-p-stop') == b'1':
+            fail('native_or_canonical_resolution_stop')
+        await send(message)
     try:
-        return await p.application(scope, receive, send)
+        return await p.application(scope, receive, marked_send)
     finally:
         pending.reset(result_token)
         context.reset(token)

@@ -15,7 +15,7 @@ def pairs_sql(pointers, group):
     pairs = sorted({(r['author_key'], r['doc_id']) for r in pointers})
     keys = ','.join('(' + q(author) + ',' + q(doc) + ')' for author, doc in pairs) or "('','')"
     ids = ','.join(q(doc) for _, doc in pairs) or "''"
-    return ("SELECT d.author_key,d.doc_id,d.created_at,g.group_id FROM (SELECT author_key,doc_id,created_at,deleted,"
+    return ("SELECT d.author_key AS author_key,d.doc_id AS doc_id,d.created_at AS created_at,g.group_id AS group_id FROM (SELECT author_key,doc_id,created_at,deleted,"
         "row_number() OVER (PARTITION BY author_key,doc_id ORDER BY updated_at DESC,deleted DESC) AS rn "
         "FROM documents WHERE (author_key,doc_id) IN (" + keys + ")) AS d INNER JOIN ("
         "SELECT doc_id,group_id,deleted,row_number() OVER (PARTITION BY doc_id,group_id ORDER BY updated_at DESC,"
@@ -106,7 +106,7 @@ class Store:
             self.client.insert('fanout', values, column_names=f.COLUMNS)
             return {'trimmed_route_rows': len(values)}
         self.journal.run('trim-' + uuid.uuid4().hex, '__derived_trim__', 'trim', {'reader': reader},
-                         lambda: None, apply, lambda *args: None)
+                         lambda: None, apply, lambda *args: None, scope_keys=['reader:' + reader])
         return len(rows) < 1000
 
     def dirty_publication(self, readers, sequence):

@@ -37,7 +37,7 @@ class Session(p.Session):
 
     def query(self, label, sql, *, measured=False, setup_seconds=600):
         admitted(self.operation, self.host_id)
-        if self.stopped or (self.root / 'F.stop').exists():
+        if self.stopped or (self.root / 'F.stop').exists() or (self.root / 'fanout-state/F.stop').exists():
             raise ValueError('F arm stopped; no further cell')
         remaining = int((self.deadline - datetime.now(UTC)).total_seconds()) - 180
         if remaining < 30:
