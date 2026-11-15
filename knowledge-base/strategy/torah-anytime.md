@@ -26,6 +26,41 @@ of D95's general creator-onboarding direction. Do not resurrect the retired
 importer. The current `marketing-importing/` Instagram workflow is a reference
 for resumability/deduplication, not a Torah Anytime connector or petabyte pipeline.
 
+## Business scale we want to support
+
+Operator direction, 15.11.2026: record the supplied TorahAnytime metric banner
+as **the scale of business web10 should aim to support**, not as research-paper
+data or a claim that the present deployment already supports it.
+
+| Metric shown | Figure shown |
+|---|---:|
+| Weekly lectures | 1,200 |
+| Unique speakers | 1.2K |
+| Torah classes | 400K |
+| Monthly visitors | 500K |
+| Hotline calls | 4M |
+| Hours learnt | 18M+ |
+
+Source: operator-provided screenshot received 15.11.2026. These are the banner's
+reported figures, not independently audited measurements; its source URL,
+publication date and metric definitions were not supplied. Preserve the stated
+units and rounded K/M values. The timeframes for hotline calls and hours learnt
+are not shown; do not label them monthly, annual or lifetime totals by inference.
+
+This is an institutional library, an ongoing publishing operation and a large
+audience—not just a small branded demo. Use it to guide later catalog/search,
+speaker-page, publishing, playback and operating-cost planning. Monthly visitors
+are not a supplied MAU, registered-account, concurrent-user or requests/second
+figure. Classes and learning hours do not determine storage bytes or media
+egress without formats, bitrates and usage data. Hotline calls describe another
+delivery channel, not an approved web10 telephony integration.
+
+TA0 should confirm the definitions, reporting windows, catalog/media inventory,
+peak concurrency and playback mix before sizing or promising capacity. The
+first demo stays small and bounded. These business targets do not alter frozen
+research inputs, benchmark workloads, paper claims or the separately approved
+experiment resource limits.
+
 ## Sent email to Shimon — authoritative offer
 
 Operator reports this email was sent (recorded 11.11.2026; send date not separately verified):

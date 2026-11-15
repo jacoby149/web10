@@ -1,0 +1,73 @@
+{
+  "kind": "SATELLITE_COUNT_SETUP_STOP_REPORT",
+  "observed_utc": "2026-11-15T12:40:18.149348+00:00",
+  "dataset_id": "2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd",
+  "droplet_id": 619510510,
+  "outcome": "SETUP_MEMORY_STOP",
+  "T1": "NOT_ESTABLISHED",
+  "T2": "NOT_RUN",
+  "failed_query": {
+    "query_id": "satellite-p-ca04567173624cb28230c04e54322cb6",
+    "type": "ExceptionWhileProcessing",
+    "query_duration_ms": "15547",
+    "read_rows": "125362176",
+    "read_bytes": "16850322290",
+    "memory_usage": "16863490897",
+    "exception_code": 241,
+    "exception": "Code: 241. DB::Exception: Memory limit (total) exceeded: would use 22.26 GiB (attempt to allocate chunk of 4350909 bytes), maximum: 22.00 GiB. OvercommitTracker decision: Query was selected to stop by OvercommitTracker.: While executing MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder). (MEMORY_LIMIT_EXCEEDED) (version 24.8.14.39 (official build))",
+    "sql_sha256": "ea2304ad611eef402ae8f68809320f06f73726266b49099624e7d7490ffacae5",
+    "external_sort_parts": "4",
+    "external_aggregation_parts": "0"
+  },
+  "main_scope_comparisons": "four recipes, 26 targets each, all canonical/stored values zero; not positive parity coverage",
+  "incomplete_work": [
+    "reactions scope build/independent parity",
+    "comments scope build/independent parity",
+    "native fifteen-versus-zero and shared-attachment fixtures",
+    "source-generation closing check",
+    "metadata satellites",
+    "Config P adapter and complete-response/lifecycle/rebuild/budget gates"
+  ],
+  "partial_count_rows": 451600,
+  "partial_rows_are_serveable": false,
+  "clickhouse_oom_killed_before_stop": false,
+  "owned_containers": [
+    {
+      "Service": "api",
+      "State": "exited",
+      "ExitCode": 143
+    },
+    {
+      "Service": "clickhouse",
+      "State": "exited",
+      "ExitCode": 0
+    },
+    {
+      "Service": "minio",
+      "State": "exited",
+      "ExitCode": 0
+    }
+  ],
+  "fanout": false,
+  "retry_started": false,
+  "lease_extended": false,
+  "unchanged_deadline_utc": "2026-11-15T15:38:32+00:00",
+  "source_sha256": {
+    "arm_satellite_counts.py": "d0a177abee4e2d00be88f68d20bf01f7b3f9e38782f42728a8b11d54a6c02095",
+    "arm_satellite_sql.py": "914deca7366bd260c18f6d67a98d56b5d1c55efc7b07655546d1b65519ff029a",
+    "arm_satellite_runtime.py": "a3e0e037fff5c1a993fee93bc5327924057abe533d9817d1d2e9c807ec1abe36"
+  },
+  "artifact_sha256": {
+    "counts-diagnose.py": "55fb60d558310adf9f403927be3759943b52c73c82025b241f3a2298d048b1fa",
+    "counts-driver.py": "071aab5459b467fbba2831d1dff91a75034dd5ec43eec034ff7880f952fbabf4",
+    "failure-diagnosis.json": "bc8265708d5f3fb8c591850e8601c3b94d91b9737b6d4d4fcada59bbd6efbfcf",
+    "main-0.sql": "b7b74b00559ba42b06f7f0d9ec0f845939775d1073c11d9e71d2648ca9b17025",
+    "main-1.sql": "53a22246aeba9afce5cff30ddcaa1a681d93e8391657f5ca0bf62af044465ad0",
+    "main-2.sql": "ccf6c52014fa90c6df3a34dda9aa1d52c426e8c33154b7d32fdae084208d7cc5",
+    "main-3.sql": "4ff7c678e200c6362a87def63653f249510888de48e51567e87444c2ee42ed9a",
+    "query-ledger.jsonl": "4179517ce46a1f8754dca26499c8d99119b9a3a45b135cf81769297d06e64add",
+    "reactions-0.sql": "1c077d54158dcc7c6133641aae2d259e71fb27d1c9ea44a2d2d6aa793edff5c1",
+    "reactions-1.sql": "982f29f3218a4f1662a4af6b7f0aa139d81ae0fb8801338f7f8346896880118c",
+    "result.json": "7343d7aebe0f811b4ea47faab72609ae6ebcc1d9324402e68015a22fa66d867a"
+  }
+}
