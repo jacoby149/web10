@@ -76,6 +76,7 @@ async def probe(directory, restored_path, build_path, admission_path, output):
         raise FileExistsError("keep every Arm T parity iteration; fresh output directory required")
     result = {"kind": "ADDITIVE_ARM_T_PARITY_PROBE", "dataset_id": arm_t.DATASET,
               "build_receipt_sha256": built["receipt_sha256"], "parity": "NOT_ESTABLISHED",
+              "pilot_gate_status": built.get("pilot_gate_status", "launch-evidenced"),
               "scope": "One ordinary-reader serial diagnostic, not formal trials, p95 or capacity",
               "formal_cell_complete": False}
     try:

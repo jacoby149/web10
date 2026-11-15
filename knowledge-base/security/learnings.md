@@ -37,6 +37,12 @@ that matters for orient:
 
 ### 2026-11-14: A layout hint is not authority, and build admission is not a runtime lease
 
+15 November follow-through: an explicit diagnostic sequencing exception is
+`operator-waived-not-passed`, not evidence a pilot ran. Bound its lifetime and
+budget independently. Never retry an unresolved provider creation, and never
+call cleanup verified just because one matching resource disappeared; delayed
+visibility is not proof that no accepted creation can still materialize.
+
 An experimental transposed link snapshot can nominate full document identities,
 but canonical document/version, original-link and live policy checks must remain
 in the actual read. Never infer an author's group from a name or silently flatten

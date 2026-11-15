@@ -199,6 +199,23 @@ class AdmissionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "STOP"):
             arm_t.admission(self.path, 222, self.now)
 
+    def test_operator_diagnostic_exception_is_bounded_and_not_a_pilot_pass(self):
+        self.gate["operator_pilot_first_exception"] = {
+            "kind": "ARM_T_K20_DIAGNOSTIC_ONLY", "approved_by": "Jacob",
+            "approved_utc": "2026-11-14T11:00:00Z", "pilot_gate_status": "operator-waived-not-passed"}
+        self.evidence.pop("pilot")
+        self.write()
+        self.assertEqual(arm_t.admission(self.path, 222, self.now)["operator_pilot_first_exception"]["pilot_gate_status"],
+                         "operator-waived-not-passed")
+        for changes in ({"budget_usd": 3}, {"deadline_utc": "2026-11-14T16:00:00Z"}):
+            saved = copy.deepcopy(self.gate)
+            self.gate.update(changes)
+            self.evidence["cleanup"]["deadline_utc"] = self.gate["deadline_utc"]
+            self.write()
+            with self.assertRaisesRegex(ValueError, "exception"):
+                arm_t.admission(self.path, 222, self.now)
+            self.gate = saved
+
     def test_arithmetic_only_diagnosis_and_missing_plan_refuse(self):
         for key in ("sources", "native_query_ids", "baseline_receipt_sha256", "scan_rows_by_table",
                     "retained_query", "scan_evidence"):

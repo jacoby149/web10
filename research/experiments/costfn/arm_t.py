@@ -88,7 +88,7 @@ def admission(path, droplet_id, now=None):
             raise ValueError("Arm T evidence digest mismatch: " + name)
         return json.loads(source.read_bytes())
 
-    diagnosis, pilot, cleanup = (evidence(k) for k in ("diagnosis", "pilot", "cleanup"))
+    diagnosis, cleanup = (evidence(k) for k in ("diagnosis", "cleanup"))
     if (diagnosis.get("outcome") != "BASELINE_BOUNDARY_SCANS_CONFIRMED"
             or diagnosis.get("dataset_id") != DATASET
             or diagnosis.get("baseline_query_sha256") != BASELINE_QUERY
@@ -112,12 +112,26 @@ def admission(path, droplet_id, now=None):
                 or digest(artifact) != ref.get("sha256")
                 or (name == "retained_query" and ref["sha256"] != BASELINE_QUERY)):
             raise ValueError("retained exact query and native plan/scan evidence required: " + name)
-    if (pilot.get("study") != "B" or pilot.get("dataset_id") != DATASET
-            or pilot.get("accounts") != 1000000 or pilot.get("trials") != 3
-            or not pilot.get("launched_utc") or _utc(pilot["launched_utc"]) > now
-            or type(pilot.get("droplet_id")) is not int):
-        raise ValueError("Study B 1M three-trial pilot launch evidence required; serial smoke is not a pilot")
-    if droplet_id in (618505005, pilot["droplet_id"]):
+    exception = gate.get("operator_pilot_first_exception")
+    pilot_host = None
+    if exception is not None:
+        approved = _utc(exception["approved_utc"])
+        if (exception.get("kind") != "ARM_T_K20_DIAGNOSTIC_ONLY"
+                or exception.get("approved_by") != "Jacob"
+                or exception.get("pilot_gate_status") != "operator-waived-not-passed"
+                or not approved <= now < _utc(gate["deadline_utc"])
+                or not 0 < (_utc(gate["deadline_utc"]) - approved).total_seconds() <= 4 * 3600
+                or gate["budget_usd"] > 2):
+            raise ValueError("invalid explicit four-hour/$2 Arm T diagnostic-only sequencing exception")
+    else:
+        pilot = evidence("pilot")
+        if (pilot.get("study") != "B" or pilot.get("dataset_id") != DATASET
+                or pilot.get("accounts") != 1000000 or pilot.get("trials") != 3
+                or not pilot.get("launched_utc") or _utc(pilot["launched_utc"]) > now
+                or type(pilot.get("droplet_id")) is not int):
+            raise ValueError("Study B 1M three-trial pilot launch evidence required; serial smoke is not a pilot")
+        pilot_host = pilot["droplet_id"]
+    if droplet_id in (618505005, pilot_host):
         raise ValueError("Arm T must use its own droplet/store, not the baseline or pilot")
     if (cleanup.get("droplet_id") != droplet_id or cleanup.get("verified") is not True
             or cleanup.get("deadline_utc") != gate["deadline_utc"]):
@@ -180,6 +194,7 @@ def build(directory, validation, restore_path, gate_path, output):
               "outcome": "ARM_T_BUILD_IN_PROGRESS", "dataset_id": DATASET, "project": project,
               "droplet_id": host, "admission_sha256": digest(gate_path),
               "deadline_utc": gate["deadline_utc"],
+              "pilot_gate_status": "operator-waived-not-passed" if gate.get("operator_pilot_first_exception") else "launch-evidenced",
               "resources_before": resources,
               "restore_sha256": digest(restore_path), "validation_sha256": VALIDATION,
               "rewrite_sha256": digest(HERE / "arm_t_rewrite.py"), "builder_sha256": digest(__file__),

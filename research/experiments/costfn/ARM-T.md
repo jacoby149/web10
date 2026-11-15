@@ -1,5 +1,18 @@
 # Arm T — ask the link table in the other direction
 
+**Explicit live-run exception (operator confirmed 15 November 2026, recorded
+01:17:51 UTC):** run one isolated full-store K20 **diagnostic now**, before the
+Study B pilot, on its own 32-GiB DigitalOcean droplet, up to four hours and $2
+incremental spend. Hard operational deadline is **15 November 05:17:51 UTC**;
+setup/failure retries do not reset it. This waives only this diagnostic's
+pilot-first prerequisite, recorded as **operator-waived-not-passed**. Source-bound
+baseline diagnosis and exact parity remain mandatory; attribution surprise or
+parity failure stops the arm. No frozen-study reprioritization, input changes,
+K1000/formal-cell extension, production action or submission is authorized.
+The retained source Volume may supply read-only copies of the existing input
+and baseline artifacts; no engine opens its databases, no source file is
+rewritten, and the measurement store is on the new droplet's own disk.
+
 **Additive arm: post-freeze-protocol amendment, Jacob's directive, 14 November
 2026.** This arm does not replace, reprioritize or amend any frozen cell,
 input or receipt. `PROTOCOL.md` and the amended `REALISM-RERUN-PLAN.md` still

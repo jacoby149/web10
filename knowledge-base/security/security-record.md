@@ -17,6 +17,18 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 
 ## Additive research transpose (14.11.2026) — bounded change review, OPEN
 
+15 November operator-approved diagnostic exception: the admission guard may
+waive only the Study B launch prerequisite, explicitly labelled
+`operator-waived-not-passed`, within four hours/$2; diagnosis, parity, own-host
+and cleanup checks remain. Forty offline controls pass. Bounded read-only
+review also reproduces a retry-after-uncertain-create gap in the private
+operational controller; creation is now fenced before any provider call and
+cleanup uncertainty is never cleared merely because a tagged resource appears.
+The mocked uncertain-create replay is denied; one real droplet was created
+and the running host uses the separately verified timers/watchdog. This is
+operational review/control evidence, not a connected transpose result or a
+fresh/model-diverse security PASS. The source Volume is detached and retained.
+
 GPT-6.1 Sol orients against I3 and the distinction between identity hints and
 canonical document/link authority. Review covers the new research-only snapshot
 builder, compiler treatment, separate ASGI adapter and direct original compiler/
