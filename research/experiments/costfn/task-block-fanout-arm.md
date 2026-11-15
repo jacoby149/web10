@@ -192,3 +192,63 @@ complete-sequence scopes. Historical comparators are approximately 361M rows /
 and approximately 3.3 seconds / 484 MB for Config P complete sequences. They
 are not interchangeable measurement scopes. Frozen cells/inputs/receipts stay
 untouched; no production change is authorized by programme Steps 1–6.
+
+## Registered follow-on: Sort-Order Arm — PLANNED, NOT ADMITTED
+
+Operator addition,15 November2026, before Fanout implementation resumes. F
+retains its existing admission/code/cells/gates/R+W scope. **No projection build,
+Sort-Order cell, counter retirement or combination cell is admitted in the F run.**
+Do not create another planning document for this registration.
+
+F's Step0 stage table must retain **rows, bytes and time for count/engagement
+reads per complete response**, distinct from candidate selection, canonical
+resolution and preparation. Preserve actual query IDs/SQL and distinguish pure
+count reads from embedded/mixed queries; do not invent component bytes from a
+whole-query total or count a separate diagnostic twice as request cost. Retain
+any additional isolated count probes separately. These measurements confirm
+Sort-Order's target before its cells are finalized. If counts are negligible in
+P, label this lower-priority production-shape simplification, not the owner of
+the484MB miss. Historical approximately3.7M rows/215MB follow-up numbers remain
+source/scope-specific historical comparators, not a fresh P-stage measurement.
+
+**P1 — ref projection.** Proposed replacement for feed engagement counters:
+an engine-maintained projection on canonical `documents`, ordered by
+`(ref_value, collection_name, …)`, with narrow count fields and full identity/
+version/deletion columns needed for latest-wins semantics. Counts are derived
+at read for the page's references, including exact current attachment/group/
+policy scope. The location of that scope in the projection versus canonical
+gate is settled by independent parity fixtures and receipted; a fast unscoped
+count is invalid (Arm D's15/15-versus0/0 regression stands). Verify actual
+ClickHouse24.8 projection selection and FINAL/window/delete/merge behavior;
+engine maintenance alone is not proof of latest-authorized count semantics.
+No projection DDL or runtime activation is authorized by registration.
+
+**P2 — schema audit.** For each hand-built layout (`doc_groups_t`, time layout,
+metadata indexes), state whether it is a pure re-sort of one canonical table
+(projection candidate), or contains joined/derived payload a projection cannot
+produce (name that payload). `fanout` is excluded: documents×membership delivery
+is not a re-sort. `counting_numbers` is an aggregate, not a layout, and remains
+unchanged until P1's separately admitted cells pass. This does not change F.
+
+**Separately admitted cells, one variable each:**
+
+- Exact count parity against the independent canonical T1 fixture set, including
+  same-author/outside-group0/0, scope-qualified/shared/version/tombstone cases;
+  mismatch stops, never change the oracle.
+- Follow-up count cost: standard K20 winner page, versus historical derivation
+  and current counter point reads; rows/bytes/time, viral-tail page separate.
+- Knob cell: rank the declared retained200 candidates using P1 counts and take
+  the page; report actual cost, not arbitrary whole-history ranking.
+- Projection overhead: storage delta and canonical insert/merge cost delta at
+  the100-publish/sec writer rate, with its allowable overhead bound declared
+  **before** launch. No overhead limit is invented by registration.
+- **Combination last:** only after F's required gates and P1's cells pass and
+  separately admitted: Config F+P1, complete response K20, three trials,
+  p95<500ms AND<25MB, same stop rules, with candidates/counts/resolution/
+  preparation stages alongside P and F. Passing one arm cannot substitute for
+  the other or establish the combination result.
+
+Same envelope/engine/stop rules; no production action. Fresh host/window/cap/
+cleanup approval is separate, after F's gates. Failed/unreached cells remain
+results/open gates. Resume F implementation now; this section only registers
+the follow-on and the required Step0 reporting granularity.
