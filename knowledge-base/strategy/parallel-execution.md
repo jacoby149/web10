@@ -1780,6 +1780,8 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+- [✓ 6.12.1 local optimizer controls only] **RD4-SATELLITE-P exact-ID fast-path boundary** — owns research costfn and serialized KB. Positive top-level literal doc_id IN only; other predicates remain original, unbounded/empty counter targets refuse. Two new no-network controls; native T2/performance/review gates remain OPEN, no restart/limit/deadline change.
+
 - [✓ 6.12.0 bounded native metadata/presence gates only] **RD4-SATELLITE-P metadata and zero-group presence** — owns research costfn/additive CI/serialized evidence. Nine build steps,92,200,600 transpose rows/zero mismatches, five independent full-multiset checks and unknown-type reaction presence/canonical checks pass. Raw source/native receipts in `evidence/arm-satellite-20261115/metadata-complete/`; empty reference stratum is not positive lifecycle coverage. No T2/performance/all-reader assurance.
 - [~ 6.12.0 full-API setup STOP; local repair only] **RD4-SATELLITE-P serving integration and T2** — owns research costfn/additive CI/serialized evidence. Same-host/deadline opt-in adapter retains current gates and canonical windows/body reads, request-private single-use results and original preparation/delivery. Independent prepared reference completes; groups/list setup fails500/native159 before warm-up. Preserve separate `full-api-setup-stop/`; local red/green timeout repair leaves setup defaults and marked reads10s/22GiB/10M stop. Repaired native T2, full-response budget/lifecycle/rebuild/stress and fresh/model-diverse review OPEN. Original15:38:32UTC cleanup unchanged; no fanout/production/new host/limit or lease increase.
 

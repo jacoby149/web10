@@ -140,12 +140,16 @@ def scope_for(label, reader, readable):
     return scope["scope_key"]
 
 
-def literal_ids(tree):
+def literal_ids(tree, *, document_only=True):
     where = tree.args.get("where")
-    if where is None:
+    if where is None or not isinstance(where.this, exp.In):
         return []
-    return sorted({value.this for item in where.find_all(exp.In) for value in item.expressions
-                   if isinstance(value, exp.Literal) and value.is_string})
+    predicate = where.this
+    if document_only and not (isinstance(predicate.this, exp.Column) and predicate.this.name == "doc_id"):
+        return []
+    if not predicate.expressions or any(not isinstance(value, exp.Literal) or not value.is_string for value in predicate.expressions):
+        return []
+    return sorted({value.this for value in predicate.expressions})
 
 
 def compile_query(*args, **kwargs):
@@ -188,12 +192,15 @@ def compile_query(*args, **kwargs):
         current["arm_p"] = {"mode": "pull-canonical-materialized-in-request", "stats": stats,
                             "canonical_body_reads": True, "whole_response_cost_required": True}
         return MARKER
-    ids = literal_ids(tree)
     if service in ("reactions", "comments") and any(list(item.find_all(exp.AggFunc)) for item in tree.expressions):
+        ids = literal_ids(tree, document_only=False)
+        if not ids or any(not value for value in ids):
+            stop("explicit_nonempty_counter_targets_required")
         scope = scope_for(service, reader, readable)
         result = serve.counter_query(tree, scope, ids, presence["serving_scope_key"] if service == "reactions" else None)
         current["arm_p_followup"] = service
         return result
+    ids = literal_ids(tree)
     if ids and readable:
         pairs = {name: [(row["author_key"], row["doc_id"]) for row in run(serve.lookup_pairs_sql(name, ids))] for name in readable}
         return serve.scoped_lookup(compiled, pairs)

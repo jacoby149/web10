@@ -12,6 +12,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 from fastapi import HTTPException
+import sqlglot
 import arm_satellite_runtime as runtime
 import arm_t
 
@@ -75,6 +76,27 @@ class AdapterTests(unittest.TestCase):
             self.assertEqual(calls[-1]["settings"]["max_memory_usage"], 22 * 1024**3)
             module.query("SELECT 1", settings={"max_execution_time": 30})
             self.assertEqual(calls[-1]["settings"]["max_execution_time"], 30)
+
+    def test_identity_fast_path_only_accepts_positive_exact_document_id_predicate(self):
+        with tempfile.TemporaryDirectory() as directory:
+            module, _, _, _ = self.load(directory)
+            valid = sqlglot.parse_one("SELECT doc_id FROM posts WHERE doc_id IN ('d')", read="clickhouse")
+            self.assertEqual(module.literal_ids(valid), ["d"])
+            for predicate in ("author_key IN ('author')", "NOT doc_id IN ('d')",
+                              "doc_id IN ('d') OR author_key='author'", "doc_id IN ('d') AND body='filter'"):
+                tree = sqlglot.parse_one("SELECT doc_id FROM posts WHERE " + predicate, read="clickhouse")
+                self.assertEqual(module.literal_ids(tree), [])
+
+    def test_unbounded_or_empty_counter_targets_refuse_before_cache_lookup(self):
+        with tempfile.TemporaryDirectory() as directory:
+            module, _, observer, _ = self.load(directory)
+            module.generation = Mock()
+            for suffix in ("", " WHERE ref_value!=''", " WHERE ref_value IN ('')"):
+                module._compile.return_value = "SELECT ref_value,countIf(JSONExtractString(body,'type')='like') AS like_count FROM reactions" + suffix + " GROUP BY ref_value"
+                observer.current.set({"request_id": "a" * 32})
+                with self.assertRaises(HTTPException):
+                    module.compile_query("source", {"reactions": ["allowed"]}, member_key="alice")
+                self.assertEqual(observer.current.get()["arm_p_stop"], "explicit_nonempty_counter_targets_required")
 
     def test_over_10m_read_sets_stop_and_prevents_another_query(self):
         with tempfile.TemporaryDirectory() as directory:

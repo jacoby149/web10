@@ -1,5 +1,7 @@
 # web10 v3 Plan
 
+- [✓ 6.12.1 local optimizer controls only] **RD4-SATELLITE-P exact-ID fast-path boundary** — only positive top-level literal doc_id IN uses the identity index; other predicates keep the original query, and unbounded/empty counter targets refuse. Two new local controls; no native T2/performance pass or experiment restart implied.
+
 - [✓ 6.12.0 bounded native metadata/presence gates only] **RD4-SATELLITE-P metadata and zero-group presence** — nine build steps,92,200,600 transpose rows/zero mismatches and five independent signed-multiset checks pass; unknown-type reaction0/0 presence and canonical comparisons pass. Preserve exact native/source receipts in `evidence/arm-satellite-20261115/metadata-complete/`. Reference index is an empty source stratum, not positive repost/lifecycle coverage. No whole-feed/performance/all-reader claim.
 - [~ 6.12.0 full-API setup STOP; local repair only] **RD4-SATELLITE-P serving integration and T2** — opt-in same-host/deadline adapter, live canonical pull/refill/private single-use materialization, scope-counts and original auth/prepare/delivery. Independent prepared reference completes; initial group discovery fails500/native159 before warm-up. Retain `full-api-setup-stop/`; local timeout repair keeps setup defaults and marked reads at10s/22GiB/10M stop. Repaired native T2, complete-response performance, T3/T5/T6/T8 and review remain OPEN. No retry result, production/fanout, larger limits/new host or lease extension; original15:38:32UTC cleanup unchanged.
 
