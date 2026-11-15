@@ -1,0 +1,415 @@
+{
+  "kind": "SATELLITE_SCOPE_COUNT_BUILD_T1",
+  "outcome": "STOP",
+  "T1": "NOT_RUN",
+  "configuration": "P",
+  "droplet_id": 619510510,
+  "dataset_id": "2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd",
+  "envelope": {
+    "container_bytes": 30064771072,
+    "engine": "24.8.14.39",
+    "server_bytes": 23622320128
+  },
+  "started_utc": "2026-11-15T12:21:46.181197+00:00",
+  "scopes": [
+    {
+      "label": "main",
+      "scope_key": "fd83ed3c09a255c2568b4091ffc89c2c2898c26dad10fd9d4a6f351ec0191c5e",
+      "groups_by_service": {
+        "comments": [
+          "api.localhost/groups/users/rd42-u0000000/followers",
+          "api.localhost/groups/users/rd42-u0000001/followers",
+          "api.localhost/groups/users/rd42-u0000002/followers",
+          "api.localhost/groups/users/rd42-u0000003/followers",
+          "api.localhost/groups/users/rd42-u0000004/followers",
+          "api.localhost/groups/users/rd42-u0000005/followers",
+          "api.localhost/groups/users/rd42-u0000006/followers",
+          "api.localhost/groups/users/rd42-u0000007/followers",
+          "api.localhost/groups/users/rd42-u0000008/followers",
+          "api.localhost/groups/users/rd42-u0000009/followers",
+          "api.localhost/groups/users/rd42-u0000010/followers",
+          "api.localhost/groups/users/rd42-u0000011/followers",
+          "api.localhost/groups/users/rd42-u0000012/followers",
+          "api.localhost/groups/users/rd42-u0000013/followers",
+          "api.localhost/groups/users/rd42-u0000014/followers",
+          "api.localhost/groups/users/rd42-u0000015/followers",
+          "api.localhost/groups/users/rd42-u0614008/followers",
+          "api.localhost/groups/users/rd42-u0614009/followers",
+          "api.localhost/groups/users/rd42-u0614010/followers",
+          "api.localhost/groups/users/rd42-u0614011/followers",
+          "api.localhost/groups/users/rd42-u0980001/followers"
+        ],
+        "posts": [
+          "api.localhost/groups/users/rd42-u0000000/followers",
+          "api.localhost/groups/users/rd42-u0000001/followers",
+          "api.localhost/groups/users/rd42-u0000002/followers",
+          "api.localhost/groups/users/rd42-u0000003/followers",
+          "api.localhost/groups/users/rd42-u0000004/followers",
+          "api.localhost/groups/users/rd42-u0000005/followers",
+          "api.localhost/groups/users/rd42-u0000006/followers",
+          "api.localhost/groups/users/rd42-u0000007/followers",
+          "api.localhost/groups/users/rd42-u0000008/followers",
+          "api.localhost/groups/users/rd42-u0000009/followers",
+          "api.localhost/groups/users/rd42-u0000010/followers",
+          "api.localhost/groups/users/rd42-u0000011/followers",
+          "api.localhost/groups/users/rd42-u0000012/followers",
+          "api.localhost/groups/users/rd42-u0000013/followers",
+          "api.localhost/groups/users/rd42-u0000014/followers",
+          "api.localhost/groups/users/rd42-u0000015/followers",
+          "api.localhost/groups/users/rd42-u0614008/followers",
+          "api.localhost/groups/users/rd42-u0614009/followers",
+          "api.localhost/groups/users/rd42-u0614010/followers",
+          "api.localhost/groups/users/rd42-u0614011/followers",
+          "api.localhost/groups/users/rd42-u0980001/followers"
+        ],
+        "reactions": [
+          "api.localhost/groups/users/rd42-u0000000/followers",
+          "api.localhost/groups/users/rd42-u0000001/followers",
+          "api.localhost/groups/users/rd42-u0000002/followers",
+          "api.localhost/groups/users/rd42-u0000003/followers",
+          "api.localhost/groups/users/rd42-u0000004/followers",
+          "api.localhost/groups/users/rd42-u0000005/followers",
+          "api.localhost/groups/users/rd42-u0000006/followers",
+          "api.localhost/groups/users/rd42-u0000007/followers",
+          "api.localhost/groups/users/rd42-u0000008/followers",
+          "api.localhost/groups/users/rd42-u0000009/followers",
+          "api.localhost/groups/users/rd42-u0000010/followers",
+          "api.localhost/groups/users/rd42-u0000011/followers",
+          "api.localhost/groups/users/rd42-u0000012/followers",
+          "api.localhost/groups/users/rd42-u0000013/followers",
+          "api.localhost/groups/users/rd42-u0000014/followers",
+          "api.localhost/groups/users/rd42-u0000015/followers",
+          "api.localhost/groups/users/rd42-u0614008/followers",
+          "api.localhost/groups/users/rd42-u0614009/followers",
+          "api.localhost/groups/users/rd42-u0614010/followers",
+          "api.localhost/groups/users/rd42-u0614011/followers",
+          "api.localhost/groups/users/rd42-u0980001/followers"
+        ]
+      },
+      "comparisons": [
+        {
+          "counter": "reactions:like",
+          "targets": 26,
+          "parity": "PASS",
+          "canonical": {},
+          "stored": {}
+        },
+        {
+          "counter": "reactions:dislike",
+          "targets": 26,
+          "parity": "PASS",
+          "canonical": {},
+          "stored": {}
+        },
+        {
+          "counter": "comments",
+          "targets": 26,
+          "parity": "PASS",
+          "canonical": {},
+          "stored": {}
+        },
+        {
+          "counter": "reposts",
+          "targets": 26,
+          "parity": "PASS",
+          "canonical": {},
+          "stored": {}
+        }
+      ],
+      "complete": true
+    },
+    {
+      "label": "reactions",
+      "scope_key": "7065c3c316f1ac036980d8b27ce57d92e734eb9f2bdf65756db3df60879d9a9b",
+      "groups_by_service": {
+        "reactions": [
+          "api.localhost/groups/users/rd42-u0000000/followers",
+          "api.localhost/groups/users/rd42-u0000001/followers",
+          "api.localhost/groups/users/rd42-u0000002/followers",
+          "api.localhost/groups/users/rd42-u0000003/followers",
+          "api.localhost/groups/users/rd42-u0000004/followers",
+          "api.localhost/groups/users/rd42-u0000005/followers",
+          "api.localhost/groups/users/rd42-u0000006/followers",
+          "api.localhost/groups/users/rd42-u0000007/followers",
+          "api.localhost/groups/users/rd42-u0000008/followers",
+          "api.localhost/groups/users/rd42-u0000009/followers",
+          "api.localhost/groups/users/rd42-u0000010/followers",
+          "api.localhost/groups/users/rd42-u0000011/followers",
+          "api.localhost/groups/users/rd42-u0000012/followers",
+          "api.localhost/groups/users/rd42-u0000013/followers",
+          "api.localhost/groups/users/rd42-u0000014/followers",
+          "api.localhost/groups/users/rd42-u0000015/followers",
+          "api.localhost/groups/users/rd42-u0614008/followers",
+          "api.localhost/groups/users/rd42-u0614009/followers",
+          "api.localhost/groups/users/rd42-u0614010/followers",
+          "api.localhost/groups/users/rd42-u0614011/followers",
+          "api.localhost/groups/users/rd42-u0980001/followers",
+          "api.localhost/groups/web10/discover"
+        ]
+      },
+      "comparisons": [],
+      "complete": false
+    }
+  ],
+  "recipes": [
+    {
+      "name": "reactions:like",
+      "service": "reactions",
+      "target_column": "ref_value",
+      "target_body_key": null,
+      "match_body_key": "type",
+      "match_value": "like",
+      "distinct": false
+    },
+    {
+      "name": "reactions:dislike",
+      "service": "reactions",
+      "target_column": "ref_value",
+      "target_body_key": null,
+      "match_body_key": "type",
+      "match_value": "dislike",
+      "distinct": false
+    },
+    {
+      "name": "comments",
+      "service": "comments",
+      "target_column": "ref_value",
+      "target_body_key": "post_id",
+      "match_body_key": null,
+      "match_value": null,
+      "distinct": false
+    },
+    {
+      "name": "reposts",
+      "service": "posts",
+      "target_column": "ref_value",
+      "target_body_key": "repost_of",
+      "match_body_key": null,
+      "match_value": null,
+      "distinct": false
+    }
+  ],
+  "build_queries": [
+    {
+      "query_id": "satellite-p-a0d4516427be406b837a2d8a80e1c5d8",
+      "scope": "fd83ed3c09a255c2568b4091ffc89c2c2898c26dad10fd9d4a6f351ec0191c5e",
+      "recipe": "reactions:like",
+      "setup_native": {
+        "query_id": "satellite-p-a0d4516427be406b837a2d8a80e1c5d8",
+        "type": "QueryFinish",
+        "query_duration_ms": "133094",
+        "read_rows": "220702646",
+        "read_bytes": "29822976614",
+        "memory_usage": "13500444971",
+        "exception_code": 0
+      }
+    },
+    {
+      "query_id": "satellite-p-e4e73903acba4fa9a540ff5cb6f71989",
+      "scope": "fd83ed3c09a255c2568b4091ffc89c2c2898c26dad10fd9d4a6f351ec0191c5e",
+      "recipe": "reactions:dislike",
+      "setup_native": {
+        "query_id": "satellite-p-e4e73903acba4fa9a540ff5cb6f71989",
+        "type": "QueryFinish",
+        "query_duration_ms": "130880",
+        "read_rows": "220681468",
+        "read_bytes": "29819905804",
+        "memory_usage": "13777037691",
+        "exception_code": 0
+      }
+    },
+    {
+      "query_id": "satellite-p-e2eef08f94374f2ea3f0a9f81636d5c9",
+      "scope": "fd83ed3c09a255c2568b4091ffc89c2c2898c26dad10fd9d4a6f351ec0191c5e",
+      "recipe": "comments",
+      "setup_native": {
+        "query_id": "satellite-p-e2eef08f94374f2ea3f0a9f81636d5c9",
+        "type": "QueryFinish",
+        "query_duration_ms": "40419",
+        "read_rows": "180400900",
+        "read_bytes": "20357841436",
+        "memory_usage": "9326073047",
+        "exception_code": 0
+      }
+    },
+    {
+      "query_id": "satellite-p-53b01faa81a64d14b5f65c8fcf49af8f",
+      "scope": "fd83ed3c09a255c2568b4091ffc89c2c2898c26dad10fd9d4a6f351ec0191c5e",
+      "recipe": "reposts",
+      "setup_native": {
+        "query_id": "satellite-p-53b01faa81a64d14b5f65c8fcf49af8f",
+        "type": "QueryFinish",
+        "query_duration_ms": "10686",
+        "read_rows": "180400900",
+        "read_bytes": "20431803983",
+        "memory_usage": "1580261253",
+        "exception_code": 0
+      }
+    },
+    {
+      "query_id": "satellite-p-6bd62be572ec462090957566b1bab20c",
+      "scope": "7065c3c316f1ac036980d8b27ce57d92e734eb9f2bdf65756db3df60879d9a9b",
+      "recipe": "reactions:like",
+      "setup_native": {
+        "query_id": "satellite-p-6bd62be572ec462090957566b1bab20c",
+        "type": "QueryFinish",
+        "query_duration_ms": "160362",
+        "read_rows": "251506483",
+        "read_bytes": "32646440580",
+        "memory_usage": "18464044627",
+        "exception_code": 0
+      }
+    }
+  ],
+  "feed_adapter_activated": false,
+  "fanout": false,
+  "aggregation_semantics": "canonical row multiplicity; explicit DISTINCT fixture also checked",
+  "scope_scaling_limit": "materialized requested reader scopes only; no all-reader build or maintenance claim",
+  "source_sha256": {
+    "arm_satellite_counts.py": "d0a177abee4e2d00be88f68d20bf01f7b3f9e38782f42728a8b11d54a6c02095",
+    "arm_satellite_sql.py": "914deca7366bd260c18f6d67a98d56b5d1c55efc7b07655546d1b65519ff029a",
+    "arm_satellite_runtime.py": "a3e0e037fff5c1a993fee93bc5327924057abe533d9817d1d2e9c807ec1abe36"
+  },
+  "canonical_generation": "661ca1829c7895e044b98ca431b4f9e0280cf0e4e09143e9989db4b4e4419c2c",
+  "canonical_parts": [
+    {
+      "table": "app_contracts",
+      "name": "all_1_1_0",
+      "rows": "20000",
+      "data_version": "1"
+    },
+    {
+      "table": "doc_groups",
+      "name": "all_1_86_3",
+      "rows": "92200600",
+      "data_version": "1"
+    },
+    {
+      "table": "documents",
+      "name": "all_1_82_3",
+      "rows": "88200300",
+      "data_version": "1"
+    },
+    {
+      "table": "group_contracts",
+      "name": "all_1_1_0",
+      "rows": "1",
+      "data_version": "1"
+    },
+    {
+      "table": "group_contracts",
+      "name": "all_2_2_0",
+      "rows": "532294",
+      "data_version": "2"
+    },
+    {
+      "table": "group_contracts",
+      "name": "all_3_3_0",
+      "rows": "467706",
+      "data_version": "3"
+    },
+    {
+      "table": "group_members",
+      "name": "all_106_142_2",
+      "rows": "40059576",
+      "data_version": "106"
+    },
+    {
+      "table": "group_members",
+      "name": "all_1_32_2",
+      "rows": "33467218",
+      "data_version": "1"
+    },
+    {
+      "table": "group_members",
+      "name": "all_33_68_2",
+      "rows": "38799237",
+      "data_version": "33"
+    },
+    {
+      "table": "group_members",
+      "name": "all_69_105_2",
+      "rows": "40014239",
+      "data_version": "69"
+    }
+  ],
+  "stratified_targets": {
+    "ordinary_page": 21,
+    "high_engagement": [
+      {
+        "ref_value": "39281395-e828-ed7f-7811-ec53d873a882",
+        "n": "23514"
+      },
+      {
+        "ref_value": "cd87b45b-2735-217f-c840-4b4fca5e6aae",
+        "n": "20312"
+      },
+      {
+        "ref_value": "116b897b-babf-49b3-04e1-01951081aea2",
+        "n": "18677"
+      },
+      {
+        "ref_value": "2bd4dd25-9f43-9609-7c8a-1c885c5c5734",
+        "n": "17607"
+      },
+      {
+        "ref_value": "231db418-323f-0956-2f93-2232ccdc8c35",
+        "n": "16823"
+      }
+    ],
+    "all_ids": [
+      "056d71ab-ecfd-411c-bf3e-0aa29b993871",
+      "116b897b-babf-49b3-04e1-01951081aea2",
+      "231db418-323f-0956-2f93-2232ccdc8c35",
+      "2bd4dd25-9f43-9609-7c8a-1c885c5c5734",
+      "2c13eeae-1809-f7e0-2bdc-a0102b8148a4",
+      "39281395-e828-ed7f-7811-ec53d873a882",
+      "4691a418-697b-7d3a-d209-dd42bfb6a608",
+      "5001f91f-ec7b-9e16-ae86-aac47ae0d1de",
+      "524e1c0f-c5e6-1392-4a75-b014e4374bde",
+      "5cb79eb0-9b63-1177-96e9-e9bee40dbafe",
+      "5ccefb1a-d112-685b-264c-a9fca19337bf",
+      "67569b90-14ef-0cfe-bf74-73d4606ad8ba",
+      "69cba28e-7b0d-c1fc-310a-57a7ea7486bb",
+      "73855328-0b10-1606-ef9a-fd16e24f4a4a",
+      "79aa3c87-d203-ff06-89e5-a8235b7fe52d",
+      "79e0c2e1-b349-5ed1-5c86-1173db56110e",
+      "7cf4a5dd-f3d8-01ef-ab38-d4d5845b14de",
+      "8adfb89a-e243-d124-eca7-62e9852af8b8",
+      "8e169aff-3cd4-6b0d-13ea-696efec6c106",
+      "9f45f71b-b24d-05be-a19d-67ed389e793b",
+      "9ff41cec-1f2c-fb84-b74b-35f04d4aa01a",
+      "acff1f0b-0ac7-9ec5-5244-e0e17032d0b9",
+      "cd87b45b-2735-217f-c840-4b4fca5e6aae",
+      "e3453c62-2d27-a675-d5cf-eb0f1e1cf4b0",
+      "e42e3397-f570-d9eb-4c41-27555540f6b5",
+      "fe53701f-931d-f7d1-339d-310c7954bd30"
+    ],
+    "canyon_author": [
+      {
+        "author_key": "rd42-u0000000",
+        "n": "5000"
+      }
+    ],
+    "canyon_targets": [
+      {
+        "doc_id": "73855328-0b10-1606-ef9a-fd16e24f4a4a"
+      },
+      {
+        "doc_id": "5ccefb1a-d112-685b-264c-a9fca19337bf"
+      },
+      {
+        "doc_id": "67569b90-14ef-0cfe-bf74-73d4606ad8ba"
+      },
+      {
+        "doc_id": "8adfb89a-e243-d124-eca7-62e9852af8b8"
+      },
+      {
+        "doc_id": "69cba28e-7b0d-c1fc-310a-57a7ea7486bb"
+      }
+    ],
+    "shared_group_stratum": "explicit two-group native fixture below"
+  },
+  "failure_class": "CalledProcessError",
+  "completed_utc": "2026-11-15T12:35:14.727909+00:00"
+}

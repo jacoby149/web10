@@ -23,6 +23,19 @@ def budget():
 
 
 class InventoryTests(unittest.TestCase):
+    def test_native_count_setup_memory_stop_is_not_t1_or_fanout_admission(self):
+        root = arm.HERE / "evidence/arm-satellite-20261115/counts-stopped"
+        report = json.loads((root / "report.json").read_bytes())
+        for name, digest in report["artifact_sha256"].items():
+            self.assertEqual(arm.sha(root / name), digest)
+        self.assertEqual(report["failed_query"]["exception_code"], 241)
+        self.assertEqual(report["T1"], "NOT_ESTABLISHED")
+        self.assertFalse(report["partial_rows_are_serveable"])
+        self.assertFalse(report["clickhouse_oom_killed_before_stop"])
+        self.assertFalse(report["retry_started"])
+        self.assertTrue(all(row["State"] == "exited" for row in report["owned_containers"]))
+        self.assertEqual(arm.fanout_gate(report)["verdict"], "HOLD")
+
     def test_untreated_native_report_retains_failures_and_cannot_pass_config_p_gate(self):
         root = arm.HERE / "evidence/arm-satellite-20261115/untreated"
         report = json.loads((root / "report.json").read_bytes())

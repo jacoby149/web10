@@ -127,6 +127,13 @@ attributed by the retained main split, and shared surfaces have no new receipt.
 
 ## Gates and next execution
 
+Count setup subsequently stopped with native241 at the server-total22GiB cap;
+see `evidence/arm-satellite-20261115/counts-stopped/`. Main-scope comparisons
+were zero-only; broader positive/shared parity and closing generation checks
+were not reached. T1 is NOT_ESTABLISHED. Owned containers are stopped and no
+treated feed, retry or fanout is admitted by this failure. Preserve the partial
+build and require a separate admission/receipt for any repaired setup attempt.
+
 Live Step0 is retained at `evidence/arm-satellite-20261115/untreated/`.
 Main/reactions/comments fail with native159; the separate views call completes
 in70.426s, but its original direct query has no explicit timeout and is not
