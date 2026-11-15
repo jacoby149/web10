@@ -9,6 +9,62 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D113 — Group delivery is built-in and hybrid; canonical state remains authority [decided intent; pre-build details open]
+
+**Operator, 15.11.2026:** "it is just built in, always ready for scale no
+matter the everything app!" Follow-up: tombstoning remains canonical, stale
+fanout pointers are discarded, and "we need to spec this before we build this
+i want to know the shape". The supplied Config F task supplies the original
+1,000-member proposal, approximately 200-pointer reader window and experiment
+gates. The operator subsequently chose **2,000 members** as the default "normie
+celebrity cutoff", superseding the original cutoff, not its historical receipts.
+
+**Decision.** Intended platform architecture has canonical documents plus a
+generic, derived recipient-pointer table from the outset, for every document
+published into a group. Under 2,000 members: fanout through group-contract
+recipient rules. At/over 2,000: indexed group/time seek. Merge candidates and
+resolve current canonical content/attachments/access before serving. A pointer
+is not a body copy or a permission. Latest-version tombstones win before deletion
+filtering; cleanup may lag rejection. D60 remains binding for all apps.
+
+**Write/read separation, operator clarification:** "the write always does the
+fanout!!!! the read queries aka query engione still need to be written well to
+take advantage!" Every group publication automatically maintains delivery state,
+independent of query usage; the existing cutoff bounds recipient expansion.
+Query-engine/read-query work must explicitly exploit pointers and seeks. Neither
+table existence nor write maintenance makes arbitrary existing queries fast.
+
+**Experiment-before-integration, operator clarification:** "pass all the
+performance benches then do the fanout to the broader system". Implement and
+measure the candidate's writes and layout-aware reads in isolated Config F first,
+after design closure and fresh operational admission. All required §8 response,
+write, lifecycle, rebuild and admitted stress gates must pass before broader
+platform integration is proposed. Main-only speed or a fanout microbenchmark is
+insufficient. Failed/missing evidence blocks integration; a PASS is not automatic
+deployment approval. The broader runtime/schema remains unchanged during proof.
+
+**Rejects:** app-specific fanout infrastructure, scale-triggered content migration,
+synchronous all-recipient pointer cleanup as a deletion gate, satellite-as-authority,
+and the claim that documents alone encode attachment/subscription/access history.
+The 1,999-pointer ceiling is per small-group publication, not per multi-group write.
+`fanout_member_cutoff` is distinct from benchmark K (reader-followed group count);
+the default still needs experiment validation, including write cost and the
+1,999↔2,000 boundary. Existing K20/K1000 cells and admission gates are unchanged.
+
+**Node Settings follow-up:** the operator asks to make the cutoff configurable,
+or plan it. `fanout_member_cutoff` is a planned persisted node-wide admin setting,
+default 2,000, shared by write routing and read planning. Bounds, exact UI/API
+placement, propagation and safe reclassification/backfill/rollback remain design
+closure work. Configured recipient bounds scale as cutoff minus one; 1,999 is the
+default-only bound. No settings/runtime implementation precedes experiment proof.
+
+**Open before build:** exact recipients/count semantics, full document identity and
+route provenance, physical DDL, cap/history coverage, durable maintenance/races and
+query multiplicity/ordering. Spec: [db/group-delivery.md](../web10-v3/db/group-delivery.md).
+This records architecture intent, not implementation, Config F performance, a
+production change, an experiment restart or paid-host admission. Historical
+Config P/F receipts and execution gates are not retroactively reclassified.
+
 ### D112 — The dominant GTM is org-to-org; the creator/influencer track is archived, not erased [decided]
 
 **Operator, 15.11.2026:** "now the dominating strategy should be b2b or o2o

@@ -91,6 +91,7 @@ web10-v3/
 - **SDK** — `sdk/api.md` (surface), `sdk/implementation.md` (SQL), `sdk/contracts.md` (contracts)
 - **Auth & Consent** — `auth/auth.md` (token flow), `auth/consent.md` (consent experience, ideal UX)
 - **DB** — `db/clickhouse.md` (tables, indexes, patterns)
+- **Group delivery (pre-build, D113)** — [db/group-delivery.md](db/group-delivery.md): built-in fanout/seek lanes, canonical tombstone resolution, lifecycle, evidence gates and unresolved design decisions; not a deployed schema.
 - **Setup & Config** — `setup/node-config.md` (node_config table, admins, /am_admin)
 - **App Store** — `app-store/overview.md` (registration, visits, PWA manifests), `app-store/endpoints.md` (the endpoint surface: product page, ratings, stats)
 - **Content Analytics** — `analytics/overview.md` (the generic per-content engine, D86: the three primitives, the two-tier impression — delivery server-side + viewport client-gated, what a "surface" is, the `trackContentEvent` SDK surface, the D49-pattern anti-gaming, the "crazy metrics are queries" note)

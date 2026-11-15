@@ -315,6 +315,28 @@ do not privacy-wash D56 or put content/credentials into events or recordings.
 
 ## How the data model works
 
+**Planned group delivery (D113), not implemented:** the operator chose built-in
+generic hybrid distribution for every group-published document: under 2,000
+members fan out recipient pointers; at/over 2,000 use group/time seek by default. Canonical
+documents remain the sole content source; canonical attachments/grants/policies
+still decide access. Resolve latest versions/tombstones before serving; stale
+pointers are never authority. Pre-build shape and unresolved DDL/recipients,
+history coverage and recovery gates: `knowledge-base/web10-v3/db/group-delivery.md`.
+Write-path delivery maintenance is unconditional, independent of read usage;
+the cutoff still bounds recipient expansion. Query-engine/read queries must be
+explicitly written to exploit the layouts; arbitrary queries are not auto-optimized.
+No production/capacity or paid experiment admission follows from this intent.
+Experiment first: prove hybrid write maintenance and layout-aware reads in isolated
+Config F, passing all required response/performance/write/lifecycle/rebuild and
+separately admitted stress gates before proposing broader platform integration.
+Keep ordinary runtime/schema/deployment unchanged during proof; main-only speed
+is insufficient, and experiment success is not automatic deployment approval.
+The default `fanout_member_cutoff=2000` is a design parameter, distinct from
+benchmark K (groups followed per reader); its write cost remains unproven.
+Plan to expose it as a persisted node-wide admin setting in Node Settings, with
+validated bounds and safe lane transitions/backfill; not implemented. At non-default
+values the recipient bound is cutoff minus one, not a fixed 1,999.
+
 Service-name safety: API service fields and new grant/role keys canonicalize
 ASCII case to lowercase. Ordinary names are 1–64 letters/digits/`-`/`_`, start
 with a letter and exclude infrastructure/query-reserved names; `*`/`group` are
