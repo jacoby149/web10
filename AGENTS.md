@@ -315,6 +315,18 @@ do not privacy-wash D56 or put content/credentials into events or recordings.
 
 ## How the data model works
 
+**Planned group delivery (D113), not implemented:** the operator chose built-in
+generic hybrid distribution for every group-published document: under 1,000
+members fan out recipient pointers; at/over 1,000 use group/time seek. Canonical
+documents remain the sole content source; canonical attachments/grants/policies
+still decide access. Resolve latest versions/tombstones before serving; stale
+pointers are never authority. Pre-build shape and unresolved DDL/recipients,
+history coverage and recovery gates: `knowledge-base/web10-v3/db/group-delivery.md`.
+Write-path delivery maintenance is unconditional, independent of read usage;
+the cutoff still bounds recipient expansion. Query-engine/read queries must be
+explicitly written to exploit the layouts; arbitrary queries are not auto-optimized.
+No production/capacity or paid experiment admission follows from this intent.
+
 Service-name safety: API service fields and new grant/role keys canonicalize
 ASCII case to lowercase. Ordinary names are 1–64 letters/digits/`-`/`_`, start
 with a letter and exclude infrastructure/query-reserved names; `*`/`group` are

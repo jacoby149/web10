@@ -9,6 +9,41 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D113 — Group delivery is built-in and hybrid; canonical state remains authority [decided intent; pre-build details open]
+
+**Operator, 15.11.2026:** "it is just built in, always ready for scale no
+matter the everything app!" Follow-up: tombstoning remains canonical, stale
+fanout pointers are discarded, and "we need to spec this before we build this
+i want to know the shape". The supplied Config F task supplies the 1,000-member
+cutoff, approximately 200-pointer reader window and experiment gates.
+
+**Decision.** Intended platform architecture has canonical documents plus a
+generic, derived recipient-pointer table from the outset, for every document
+published into a group. Under 1,000 members: fanout through group-contract
+recipient rules. At/over 1,000: indexed group/time seek. Merge candidates and
+resolve current canonical content/attachments/access before serving. A pointer
+is not a body copy or a permission. Latest-version tombstones win before deletion
+filtering; cleanup may lag rejection. D60 remains binding for all apps.
+
+**Write/read separation, operator clarification:** "the write always does the
+fanout!!!! the read queries aka query engione still need to be written well to
+take advantage!" Every group publication automatically maintains delivery state,
+independent of query usage; the existing cutoff bounds recipient expansion.
+Query-engine/read-query work must explicitly exploit pointers and seeks. Neither
+table existence nor write maintenance makes arbitrary existing queries fast.
+
+**Rejects:** app-specific fanout infrastructure, scale-triggered content migration,
+synchronous all-recipient pointer cleanup as a deletion gate, satellite-as-authority,
+and the claim that documents alone encode attachment/subscription/access history.
+The 999-pointer ceiling is per small-group publication, not per multi-group write.
+
+**Open before build:** exact recipients/count semantics, full document identity and
+route provenance, physical DDL, cap/history coverage, durable maintenance/races and
+query multiplicity/ordering. Spec: [db/group-delivery.md](../web10-v3/db/group-delivery.md).
+This records architecture intent, not implementation, Config F performance, a
+production change, an experiment restart or paid-host admission. Historical
+Config P/F receipts and execution gates are not retroactively reclassified.
+
 ### D112 — The dominant GTM is org-to-org; the creator/influencer track is archived, not erased [decided]
 
 **Operator, 15.11.2026:** "now the dominating strategy should be b2b or o2o

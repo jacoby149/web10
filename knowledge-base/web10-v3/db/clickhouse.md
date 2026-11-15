@@ -12,6 +12,12 @@ for the production inventory and migration/authorization gates.
 
 ## Schema Architecture
 
+**Planned delivery architecture, not current schema:** D113 specifies a generic
+recipient-pointer table alongside canonical documents, with small-group fanout
+and large-group seek. See [group-delivery.md](group-delivery.md) for the pre-build
+shape, tombstone rules and open schema/recovery decisions. No table below is
+replaced, and this note does not claim that fanout is implemented.
+
 ```mermaid
 erDiagram
     documents {
