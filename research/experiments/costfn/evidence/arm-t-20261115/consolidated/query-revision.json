@@ -1,0 +1,13 @@
+{
+  "kind": "ARM_T_MERGE_FIRST_QUERY_REVISION",
+  "parent_build_receipt_sha256": "3fc243ca203ef845aa7ae8367171935f9711161028965d0ef60fdab0279ff90b",
+  "deadline_utc": "2026-11-15T05:17:51Z",
+  "reused_verified_snapshot": true,
+  "source_sha256": {
+    "arm_t.py": "20e1bb6b50b09d4dcd96f4ed88177b6bd0873d946398fb704c0b414dd4070a65",
+    "arm_t_rewrite.py": "df4023c629b3a1aa700d131dd0b605c6be646c6393b90b146ceb5526652bc43c",
+    "arm_t_merge_first.py": "53ac08c657cbf7d7919769d923ef33839d3a61f28a1029756f9b8e5585df337e",
+    "arm_t_api.py": "510db1eb618ea6a6bcd92613fcd8478d5b1854b54c8e9b5aad6ab2a044244863",
+    "arm_t_probe.py": "c0ad25e8ac31a06bcba262827ecd4e5013de74902ce515714f601d7998caee38"
+  }
+}

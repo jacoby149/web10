@@ -7,6 +7,74 @@ is unchanged.
 
 ## Completed diagnostic outcome
 
+### Subsequent single-part consolidation diagnostic
+
+`consolidated/result.json` retains the identical-query experiment after physical
+OPTIMIZE of only this isolated store's documents/original links/transpose. Every
+table reaches one active part in its sole partition; UUID/schema/count and
+order-independent sum/xor row hashes match before/after. Hashes are not exact
+row-equality proof. Setup steps total460.767s; measured sources and all three
+native query hashes match the previous merge-first run.
+
+All four main pages pass exact independent IDs/order/checked-projection parity.
+Native footprints are stable across all four observations:
+
+| Component | Before rows | Single-part rows | Single-part logical bytes | Measured native duration |
+|---|---:|---:|---:|---:|
+| Group slices/global page | 1,204,224 | 172,032 | 17,102,572 | 394–456ms |
+| Bounded canonical verification | 1,477,403 | 188,460 | 18,191,170 | 101–134ms |
+| Final main/related metadata | 4,945,374 | 1,359,872 | 121,169,701 | 379–496ms |
+| Total | 7,627,001 | 1,720,364 | 156,463,443 | summed874–1086ms |
+
+Measured sums are1086/996/874ms; first two stages alone read35.294MB. Part
+consolidation materially reduces physical read amplification, but neither a
+5–10MB combined budget nor tens-of-milliseconds total follows. Both targets
+remain missed. Main HTTP observations are73.364/67.418/63.925s; reactions still
+return HTTP400/native159, inventory/preparation still hits native241, and
+comments/views are not reached. Full sequence remains NOT_ESTABLISHED.
+
+Only filesystem/service progress was inspected during these measurement windows;
+there is no live SQL-inspection contamination in this run. Attribution still
+uses serial wall windows, not per-request distributed tracing. Preserve the
+previous run's caveat rather than pooling sequence or latency observations.
+All owned containers are stopped, service exit0. No further run, satellite/ad
+rewrite, formal cell/p95/K1000/production/submission authorization follows.
+
+### Subsequent merge-first diagnostic
+
+`merge-first/result.json` records the operator-approved query-order revision on
+the same verified snapshot, without changing original build receipts or tables.
+All four returned main pages pass exact independent parity. The three real main
+stages read **7,627,001 rows / 520,454,044 logical bytes** each:
+
+| Component | Rows | Logical bytes | Measured native duration |
+|---|---:|---:|---:|
+| Group slices/global page | 1,204,224 | 101,778,249 | 473–556ms |
+| Bounded canonical verification | 1,477,403 | 91,172,167 | 100–133ms |
+| Final main/related metadata | 4,945,374 | 327,503,628 | 393–455ms |
+
+Measured native sums are999/1116/1057ms. This is about3× fewer core rows than
+v1, not a target pass. Main HTTP observations are64.023/68.544/64.572s; reactions
+still fail HTTP400/native159 and preparation/inventory still hits native241.
+Comments/views are not reached; full-sequence parity stays NOT_ESTABLISHED.
+
+**Instrumentation caveat:** live progress SQL used the measured ClickHouse user
+during sequence windows. A system.query_log inspection contains stage-marker
+strings; the loose classifier incorrectly includes its query ID
+`f0e49276-1e41-41c9-a0d3-9b13ecb30323` as a fourth core stage in the last sample
+(1,223 rows/2,599,957 bytes/19ms). Raw receipts are unchanged. The derived result
+excludes exactly that identified inspection query, leaving matching three-stage
+hashes/read footprints in all four samples. Raw sequence-window totals remain
+nonexclusive, and observed HTTP times are not a clean latency benchmark. This
+iteration does not authorize a clean rerun or further optimization/engine work.
+
+Three pre-run snapshots have no active merges and stable4 document/9 original
+link/7 transpose parts. That establishes observed idle state, not a single-part
+store. Owned containers are stopped, service exit0; provider deadline remains
+05:17:51UTC. No formal trials/p95/K1000/production/submission claim.
+
+### Original v1 diagnostic
+
 [`result.json`](result.json) separates three verdicts:
 
 - **Snapshot VERIFIED:** 92,200,600 links; full metadata reconciliation passes.

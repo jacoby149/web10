@@ -46,6 +46,22 @@ hashes separately so reusing a verified layout does not rewrite build history.
 Offline stale/denied-winner replay is refused. This is bounded research-control
 coverage, not a fresh/model-diverse security PASS.
 
+Use a separate observer identity or exclude observation query IDs explicitly:
+live metadata SQL under the measured user contaminates wall-window totals, and
+substring stage markers can match an inspection query's string literals. Keep
+raw receipts; label any exact-ID correction and do not call the raw sequence
+exclusive or promote instrumented HTTP observations into clean latency claims.
+
+Physical-consolidation diagnostic scope is explicit: only the approved isolated
+measurement copies, never source storage or production. Bind the exact project/
+host/current lease before setup, retain table identities/counts/multiset hashes,
+and deny changed fingerprints before any feed probe. Hash equality is not exact
+row equality or a substitute for independent semantic parity. Mocked changed-
+multiset/output-reuse controls pass. Native consolidation preserves the recorded
+UUID/schema/count/hash checks and four main pages pass independent semantic
+parity; full sequence still fails. That is one synthetic reader, not lifecycle,
+shared-group or broad security assurance.
+
 Completed diagnostic lesson: a correct returned main page is not complete-
 sequence correctness. Do not present a fast final SELECT while excluding
 candidate selection, canonical preparation or failed follow-ups. An inventory

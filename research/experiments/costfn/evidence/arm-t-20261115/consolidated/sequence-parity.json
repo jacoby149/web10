@@ -1,0 +1,61 @@
+{
+  "kind": "ADDITIVE_ARM_T_PARITY_PROBE",
+  "dataset_id": "2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd",
+  "build_receipt_sha256": "3fc243ca203ef845aa7ae8367171935f9711161028965d0ef60fdab0279ff90b",
+  "parity": "NOT_ESTABLISHED",
+  "pilot_gate_status": "operator-waived-not-passed",
+  "scope": "One ordinary-reader serial diagnostic, not formal trials, p95 or capacity",
+  "formal_cell_complete": false,
+  "native_sequence_totals": [
+    {
+      "phase": "warmup",
+      "success": false,
+      "read_rows": 490995334,
+      "read_bytes": 36596172206,
+      "largest_query_peak_bytes": 22809182564,
+      "exception_codes": [
+        159,
+        241
+      ],
+      "attribution": "exclusive sequential HTTP-sequence wall-clock window; not individual SQL-to-ASGI tracing"
+    },
+    {
+      "phase": "measured",
+      "success": false,
+      "read_rows": 494124678,
+      "read_bytes": 36901432102,
+      "largest_query_peak_bytes": 22815977921,
+      "exception_codes": [
+        159,
+        241
+      ],
+      "attribution": "exclusive sequential HTTP-sequence wall-clock window; not individual SQL-to-ASGI tracing"
+    },
+    {
+      "phase": "measured",
+      "success": false,
+      "read_rows": 494714502,
+      "read_bytes": 36960929622,
+      "largest_query_peak_bytes": 22825061450,
+      "exception_codes": [
+        159,
+        241
+      ],
+      "attribution": "exclusive sequential HTTP-sequence wall-clock window; not individual SQL-to-ASGI tracing"
+    },
+    {
+      "phase": "measured",
+      "success": false,
+      "read_rows": 493936262,
+      "read_bytes": 36880886249,
+      "largest_query_peak_bytes": 22809218502,
+      "exception_codes": [
+        159,
+        241
+      ],
+      "attribution": "exclusive sequential HTTP-sequence wall-clock window; not individual SQL-to-ASGI tracing"
+    }
+  ],
+  "cost_scope": "Entire serial sequence, including in-request candidate and verification reads",
+  "next_gate": "Stop on INVALID; otherwise formal fresh-restore three-trial K20 cell remains OPEN"
+}

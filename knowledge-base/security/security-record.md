@@ -17,14 +17,27 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 
 ## Additive research transpose (14.11.2026) — bounded change review, OPEN
 
+15 November consolidation admission: bounded helper allows only three fixed
+tables on the verified isolated Arm T project/DO host/current lease, preserves
+UUID/schema/count/hash evidence and stops before the feed on changed multisets.
+One mocked success/failure scope control passes alongside the existing controls
+(47 total). Physical own-store consolidation reaches one part per table with
+matching UUID/schema/count/hash checks; unchanged native SQL/source hashes and
+four exact independent main-page passes are retained in `consolidated/result.json`
+under the Arm T evidence directory. Full sequence still fails at reactions and
+preparation. No production/broader-security PASS follows from these hash checks
+or one synthetic-reader diagnostic.
+
 15 November query revision: GPT-6.1 Sol reviews the merge-first constructor and
 isolated adapter/direct canonical-boundary calls. Slices/global page are now
 separate from literal full-identity document/original-link verification. All
 five live policy gates remain; attachment/time/policy mismatch stops INVALID.
 Offline stale/denied-winner replay and stage-order/bound/gate controls pass.
 Original layout source pins remain checked; revision/adapter hashes are
-separately attributed in each observed request. Native iteration is in progress;
-no L1–L4/fresh/diverse/production assurance or complete-sequence claim follows.
+separately attributed in each observed request. Native iteration completes with
+four exact main-page passes, not full-sequence parity. Preserve raw live-inspection
+contamination and the identified-query core correction; no L1–L4/fresh/diverse/
+production assurance or clean complete-sequence cost claim follows.
 
 Completed 15 November diagnostic: full-sorting-merge setup reconciles every
 link/metadata row under the unchanged cap, and warm-up plus three measured main

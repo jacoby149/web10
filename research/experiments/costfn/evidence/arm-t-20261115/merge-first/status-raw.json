@@ -1,0 +1,214 @@
+{
+  "utc": "2026-11-15T03:58:14.402329+00:00",
+  "phase": "STOP_NOT_ESTABLISHED",
+  "parity": "NOT_ESTABLISHED",
+  "main_native": [
+    {
+      "index": 0,
+      "phase": "warmup",
+      "sequence_success": false,
+      "main_native_queries": [
+        {
+          "query_id": "e0ce61c5-3385-4a19-aa26-6d35ad0a409f",
+          "query_duration_ms": "582",
+          "read_rows": "1204224",
+          "read_bytes": "101778249",
+          "memory_usage": "256562149",
+          "exception_code": 0,
+          "query_sha256": "8f9abdaa00160f47de60c7d4ab09de0daa1446b6932337ce03e74157737335e9",
+          "component": "bounded_slices_and_global_merge"
+        },
+        {
+          "query_id": "49e1343c-5ec1-47e6-8680-9d232fb45787",
+          "query_duration_ms": "103",
+          "read_rows": "1477403",
+          "read_bytes": "91172167",
+          "memory_usage": "4799366",
+          "exception_code": 0,
+          "query_sha256": "b732c5c4d3d8ee98e44a1ab62fc527233c37619a57327c9a8576b7e8ff7a89aa",
+          "component": "bounded_canonical_verification"
+        },
+        {
+          "query_id": "ad6c2184-4b64-428f-8c09-121be47e4194",
+          "query_duration_ms": "420",
+          "read_rows": "4945374",
+          "read_bytes": "327503628",
+          "memory_usage": "35894426",
+          "exception_code": 0,
+          "query_sha256": "e5905eb948b23025293b7fb4202b5002dae977d73b9c9c131a88cc6fbd8a2262",
+          "component": "canonical_main_and_related_metadata"
+        }
+      ],
+      "main_read_rows": 7627001,
+      "main_read_bytes": 520454044,
+      "sequence_native_totals": {
+        "read_rows": 537524601,
+        "read_bytes": 36969906260,
+        "largest_query_peak_bytes": 22825268465,
+        "exception_codes": [
+          159,
+          241
+        ],
+        "attribution": "exclusive sequential HTTP-sequence wall-clock window; not individual SQL-to-ASGI tracing"
+      }
+    },
+    {
+      "index": 1,
+      "phase": "measured",
+      "sequence_success": false,
+      "main_native_queries": [
+        {
+          "query_id": "1e916c06-d7b0-4812-8b9b-f60d6dc0cb8c",
+          "query_duration_ms": "473",
+          "read_rows": "1204224",
+          "read_bytes": "101778249",
+          "memory_usage": "279581552",
+          "exception_code": 0,
+          "query_sha256": "8f9abdaa00160f47de60c7d4ab09de0daa1446b6932337ce03e74157737335e9",
+          "component": "bounded_slices_and_global_merge"
+        },
+        {
+          "query_id": "f9f713ea-c0cf-4e24-954e-4d7a485f8460",
+          "query_duration_ms": "133",
+          "read_rows": "1477403",
+          "read_bytes": "91172167",
+          "memory_usage": "7783397",
+          "exception_code": 0,
+          "query_sha256": "b732c5c4d3d8ee98e44a1ab62fc527233c37619a57327c9a8576b7e8ff7a89aa",
+          "component": "bounded_canonical_verification"
+        },
+        {
+          "query_id": "29070357-ff7d-485d-96fc-b72bcc932ae8",
+          "query_duration_ms": "393",
+          "read_rows": "4945374",
+          "read_bytes": "327503628",
+          "memory_usage": "31041299",
+          "exception_code": 0,
+          "query_sha256": "e5905eb948b23025293b7fb4202b5002dae977d73b9c9c131a88cc6fbd8a2262",
+          "component": "canonical_main_and_related_metadata"
+        }
+      ],
+      "main_read_rows": 7627001,
+      "main_read_bytes": 520454044,
+      "sequence_native_totals": {
+        "read_rows": 536312183,
+        "read_bytes": 36849030705,
+        "largest_query_peak_bytes": 22808699200,
+        "exception_codes": [
+          159,
+          241
+        ],
+        "attribution": "exclusive sequential HTTP-sequence wall-clock window; not individual SQL-to-ASGI tracing"
+      }
+    },
+    {
+      "index": 2,
+      "phase": "measured",
+      "sequence_success": false,
+      "main_native_queries": [
+        {
+          "query_id": "1cdf0be4-17dc-4c1b-b496-5919f40f981c",
+          "query_duration_ms": "548",
+          "read_rows": "1204224",
+          "read_bytes": "101778249",
+          "memory_usage": "266553419",
+          "exception_code": 0,
+          "query_sha256": "8f9abdaa00160f47de60c7d4ab09de0daa1446b6932337ce03e74157737335e9",
+          "component": "bounded_slices_and_global_merge"
+        },
+        {
+          "query_id": "8e891cbf-fedb-4985-b3c5-dda2783b9387",
+          "query_duration_ms": "113",
+          "read_rows": "1477403",
+          "read_bytes": "91172167",
+          "memory_usage": "6664480",
+          "exception_code": 0,
+          "query_sha256": "b732c5c4d3d8ee98e44a1ab62fc527233c37619a57327c9a8576b7e8ff7a89aa",
+          "component": "bounded_canonical_verification"
+        },
+        {
+          "query_id": "d523cd08-21f9-4f65-98e7-b21bdba0cf36",
+          "query_duration_ms": "455",
+          "read_rows": "4945374",
+          "read_bytes": "327503628",
+          "memory_usage": "34890343",
+          "exception_code": 0,
+          "query_sha256": "e5905eb948b23025293b7fb4202b5002dae977d73b9c9c131a88cc6fbd8a2262",
+          "component": "canonical_main_and_related_metadata"
+        }
+      ],
+      "main_read_rows": 7627001,
+      "main_read_bytes": 520454044,
+      "sequence_native_totals": {
+        "read_rows": 536361335,
+        "read_bytes": 36850358461,
+        "largest_query_peak_bytes": 22801779367,
+        "exception_codes": [
+          159,
+          241
+        ],
+        "attribution": "exclusive sequential HTTP-sequence wall-clock window; not individual SQL-to-ASGI tracing"
+      }
+    },
+    {
+      "index": 3,
+      "phase": "measured",
+      "sequence_success": false,
+      "main_native_queries": [
+        {
+          "query_id": "0657dcbf-85be-4b80-88c4-f726fd4f176d",
+          "query_duration_ms": "556",
+          "read_rows": "1204224",
+          "read_bytes": "101778249",
+          "memory_usage": "262473377",
+          "exception_code": 0,
+          "query_sha256": "8f9abdaa00160f47de60c7d4ab09de0daa1446b6932337ce03e74157737335e9",
+          "component": "bounded_slices_and_global_merge"
+        },
+        {
+          "query_id": "f5ad2ceb-e591-4f27-a6f0-e279c6203e17",
+          "query_duration_ms": "100",
+          "read_rows": "1477403",
+          "read_bytes": "91172167",
+          "memory_usage": "6550477",
+          "exception_code": 0,
+          "query_sha256": "b732c5c4d3d8ee98e44a1ab62fc527233c37619a57327c9a8576b7e8ff7a89aa",
+          "component": "bounded_canonical_verification"
+        },
+        {
+          "query_id": "d0e0dac7-d1a9-4278-8838-0ad4ee190459",
+          "query_duration_ms": "401",
+          "read_rows": "4945374",
+          "read_bytes": "327503628",
+          "memory_usage": "29667127",
+          "exception_code": 0,
+          "query_sha256": "e5905eb948b23025293b7fb4202b5002dae977d73b9c9c131a88cc6fbd8a2262",
+          "component": "canonical_main_and_related_metadata"
+        },
+        {
+          "query_id": "f0e49276-1e41-41c9-a0d3-9b13ecb30323",
+          "query_duration_ms": "19",
+          "read_rows": "1223",
+          "read_bytes": "2599957",
+          "memory_usage": "4585065",
+          "exception_code": 0,
+          "query_sha256": "a6d4de5a79ad238b55c64324067f9b50cea735c63d2bfd18594120550ba2faa1",
+          "component": "bounded_slices_and_global_merge"
+        }
+      ],
+      "main_read_rows": 7628224,
+      "main_read_bytes": 523054001,
+      "sequence_native_totals": {
+        "read_rows": 536256062,
+        "read_bytes": 36836976874,
+        "largest_query_peak_bytes": 22752576166,
+        "exception_codes": [
+          159,
+          241
+        ],
+        "attribution": "exclusive sequential HTTP-sequence wall-clock window; not individual SQL-to-ASGI tracing"
+      }
+    }
+  ],
+  "scope": "one-reader serial diagnostic; not formal trials/p95"
+}

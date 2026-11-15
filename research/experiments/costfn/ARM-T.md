@@ -1,5 +1,27 @@
 # Arm T — ask the link table in the other direction
 
+**Consolidated identical-query outcome, 15 November:** one part each for
+documents/original links/transpose, unchanged UUID/schema/count/multiset hashes
+and measured source/native SQL hashes. All four main pages pass exact independent
+parity. Core reads **1,720,364 rows / 156,463,443 bytes**, with measured native
+sums **1086/996/874ms**. Slice172,032 and verification188,460 rows support the
+part-amplification hypothesis, but together read **35,293,742 bytes**, already
+over the25MB request target before the121,169,701-byte final query. Full-sequence
+parity stays NOT_ESTABLISHED; reactions/preparation remain broken, main HTTP
+observations63.9–73.4s. No live inspection SQL during measurement; containers
+stopped. Both targets remain missed. This is not a formal cell/p95 or permission
+for another run. [Consolidated receipt](evidence/arm-t-20261115/consolidated/result.json).
+
+**Merge-first follow-up, 15 November:** all four main pages again match the
+independent reference. The corrected three-stage core reads **7,627,001 rows /
+520,454,044 bytes**, with measured summed native durations **999/1116/1057ms**.
+The full sequence still fails at reactions, with preparation/inventory unchanged.
+Both targets remain missed. Live inspection SQL ran during sequence windows;
+raw sequence totals are not exclusive API cost and HTTP times are observations,
+not clean latency estimates. Preserve raw receipts and the identified inspection-
+query exclusion from core attribution. Containers are stopped; no further cell.
+Details: [merge-first result](evidence/arm-t-20261115/merge-first/result.json).
+
 **Diagnostic outcome, 15 November:** the third setup recipe completes and
 reconciles all 92,200,600 links. All four returned main pages (warm-up plus
 three measured observations) match the independent reference IDs/order and
@@ -133,6 +155,22 @@ production changes, §8 migration, fanout, public release or CMT submission.
 Paper submission remains a separate explicit decision after the full gates.
 
 ## Tooling and the next executable step
+
+**Consolidation diagnostic authorized 15 November, 04:07 UTC:** operator says
+"okay run it please" after the census → controlled consolidation → identical-
+query comparison proposal. This authorizes physical `OPTIMIZE ... FINAL` only
+on this arm's isolated `documents`, `doc_groups` and `doc_groups_t` copies;
+it supersedes the no-forced-rewrite restriction solely for these disposable
+measurement copies in this new condition. No schema, logical content, source
+Parquet/Volume, old receipt or production change. Preserve pre/post per-partition
+census, row/multiset fingerprints, table UUIDs and setup timings; refuse logical
+invariant changes. A hash fingerprint is a diagnostic check, not exact equality
+proof; unchanged independent main/count oracle remains mandatory. Keep all
+query/adapter hashes identical to merge-first-v2, the same limits and the
+original 05:17:51UTC cleanup deadline. No live measured-user inspection queries
+during HTTP windows. One excluded warmup/three observations, not a formal cell,
+p95 or permission for a satellite, count/ad rewrite or another run. Stop on
+failed setup/invariant/parity; retain the failure rather than broadening scope.
 
 **Bounded merge-first iteration (15 November, operator continuation):** preserve
 v1 and reuse its reconciled immutable snapshot on the same isolated host, within

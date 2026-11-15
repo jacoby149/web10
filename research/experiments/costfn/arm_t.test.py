@@ -12,7 +12,7 @@ import sys
 import tempfile
 import types
 import unittest
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -22,6 +22,7 @@ from sqlglot import exp
 import arm_t
 import arm_t_rewrite as rewrite
 import arm_t_merge_first as merge_first
+import arm_t_settle as settle
 
 HERE = Path(__file__).resolve().parent
 GOLDEN = (HERE / "evidence/arm-d-compiled-main-golden-20261109.sql").read_text().strip()
@@ -158,6 +159,49 @@ class SQLTests(unittest.TestCase):
                 rewrite.canonical_page(tied)
         with self.assertRaises(rewrite.InvalidArm):
             rewrite.canonical_page(rows[::-1])
+
+
+class SettleTests(unittest.TestCase):
+    def test_consolidation_is_scoped_and_changed_multiset_stops(self):
+        for changed in (False, True):
+            with self.subTest(changed=changed), tempfile.TemporaryDirectory() as tmp:
+                optimized = []
+                identities = [{"name": t, "uuid": "id-" + t, "engine": "MergeTree", "sorting_key": "key"}
+                              for t in sorted(settle.TABLES)]
+                built = {"project": "web10-costfn-frozen-armt-test", "receipt_sha256": "layout",
+                         "tables": [{"name": r["name"], "uuid": r["uuid"]} for r in identities]}
+                def command(compose, env, *args, **kwargs):
+                    self.assertEqual(args[args.index("--max_memory_usage") + 1], str(22 * 1024**3))
+                    sql = args[args.index("--query") + 1]
+                    if sql.startswith("OPTIMIZE"):
+                        optimized.append(sql)
+                        return b""
+                    if "system.tables" in sql:
+                        rows = identities
+                    elif "system.parts" in sql:
+                        rows = [{"table": t, "partition_id": "all", "parts": "1" if optimized else "7"}
+                                for t in settle.TABLES]
+                    elif "system.columns" in sql:
+                        rows = [{"name": "doc_id"}]
+                    else:
+                        self.assertIn("groupBitXor(cityHash64(tuple(`doc_id`)))", sql)
+                        rows = [{"rows": "3", "hash_sum": "changed" if changed and optimized else "123", "hash_xor": "1"}]
+                    return json.dumps({"data": rows}).encode()
+                output = Path(tmp) / "settlement.json"
+                with patch.object(arm_t, "digitalocean_id", return_value=222), \
+                     patch.object(arm_t, "read_build", return_value=built), \
+                     patch.object(arm_t, "runtime_admission", return_value={"deadline_utc": (datetime.now(UTC) + timedelta(hours=1)).isoformat()}), \
+                     patch.object(settle.restore, "command", side_effect=command):
+                    if changed:
+                        with self.assertRaisesRegex(ValueError, "multiset fingerprint changed"):
+                            settle.consolidate("build", "admission", [built["project"]], {}, output, Mock())
+                        self.assertEqual(json.loads(output.read_text())["outcome"], "FAILED_STOP")
+                    else:
+                        receipt = settle.consolidate("build", "admission", [built["project"]], {}, output, Mock())
+                        self.assertEqual(receipt["outcome"], "CONSOLIDATION_VERIFIED_BY_COUNTS_AND_HASHES")
+                    self.assertEqual(optimized, ["OPTIMIZE TABLE " + t + " FINAL SETTINGS optimize_skip_merged_partitions=1" for t in settle.TABLES])
+                    with self.assertRaises(FileExistsError):
+                        settle.consolidate("build", "admission", [built["project"]], {}, output, Mock())
 
 
 class AdmissionTests(unittest.TestCase):

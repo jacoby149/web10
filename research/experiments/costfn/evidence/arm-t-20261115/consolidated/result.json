@@ -1,0 +1,59 @@
+{
+  "kind": "ADDITIVE_ARM_T_IDENTICAL_QUERY_CONSOLIDATION_DIAGNOSTIC_RESULT",
+  "dataset_id": "2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd",
+  "completed_utc": "2026-11-15T04:25:35.735427+00:00",
+  "main_projection_parity": "PASS",
+  "full_sequence_parity": "NOT_ESTABLISHED",
+  "performance_targets": "MISSED",
+  "formal_cell_complete": false,
+  "p95_established": false,
+  "scope": "One ordinary K20-plus-self reader; excluded warmup/three serial observations, not independent fresh trials",
+  "measured_sources_unchanged": true,
+  "native_query_hashes_unchanged": true,
+  "physical_condition": "one active part per table; one all partition each for documents/doc_groups/doc_groups_t",
+  "logical_invariant_checks": "UUID/schema/count and order-independent row-hash sum/xor match; hash equality is not exact row equality proof",
+  "setup_elapsed_seconds_sum": 460.767,
+  "main_read_rows_each": 1720364,
+  "main_logical_read_bytes_each": 156463443,
+  "before_main_read_rows_each": 7627001,
+  "before_main_logical_read_bytes_each": 520454044,
+  "native_main_duration_sums_ms": [
+    1017,
+    1086,
+    996,
+    874
+  ],
+  "measured_main_http_ms": [
+    73363.69843100147,
+    67418.20394100068,
+    63925.06603899892
+  ],
+  "measured_reaction_statuses": [
+    400,
+    400,
+    400
+  ],
+  "slice_plus_verification_logical_bytes": 35293742,
+  "largest_remaining_core_component": "canonical_main_and_related_metadata: 1,359,872 rows / 121,169,701 bytes",
+  "untreated_sequence_failures": "reaction HTTP400/native159; preparation/inventory native241; comments/views not reached",
+  "interpretation": "Part multiplication materially explains previous slice/verification rows; settled rows approach the proposed granule class, but logical bytes and total native duration do not establish budget headroom or target success.",
+  "attribution": "No live inspection SQL during this run; native totals use serial HTTP wall windows, not distributed per-request tracing. Before comparison retains its documented live-inspection caveat.",
+  "cleanup": {
+    "containers_stopped": true,
+    "service_exit_status": 0,
+    "no_further_cells_launched": true,
+    "original_deadline_utc": "2026-11-15T05:17:51Z"
+  },
+  "source_artifacts": {
+    "status.json": "88772c460b6e811aa241fe6964897665b9477d9bd438edb7c12ecf446a6c8721",
+    "setup.json": "00caa8493a28125437ef28b1de849482a03b542542b597f77a6090f8feb78296",
+    "query-revision.json": "91fbe8fc74a1a283e22a926bade08bd505c40384301f5f5e1611dcd3443e7b86",
+    "settlement.json": "971793fc8ecf3e065375dad70230cf30b5bfc5f3bb6f5563a0077c00043d1fe8",
+    "post-parts.json": "dfe1f4c164d040edb4c0090cae79899862e6b288aa74a083c8f1d9dedda95ed0",
+    "main-projection-parity.json": "116015ce8584dd32efe76886068ece0f0b184f738be7703c5b2cb4abce77a35e",
+    "native-breakdown.json": "7d0ebc33b551088eb6552ae8b7c9e6de3e5078416fefb247f1e1f37d98b3325e",
+    "main-request-observations.json": "11cf7b7e3466cafc36365e11f9733c904f250b92914ae7eb903ce0d42f2e8fd4",
+    "request-metadata.json": "88bcd2c779f87a0cf555c5051840efecf3d73f57863fc84f69b9be8ee01b245b",
+    "sequence-parity.json": "368a452f724707aba6d5fa59fbd5aef8de441922156a8e75f94a7121894eae80"
+  }
+}
