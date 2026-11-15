@@ -62,6 +62,18 @@ participation/moderation workflows and refine the proposal. Do not imply that
 this includes working TorahAnytime login or account/catalog sync unless those
 integrations are separately agreed and verified. The first showcase stays lean.
 
+**Different frame from the creator track (operator, 15.11.2026).** This is
+not the banned-influencer story at all: the customer is an organization that
+wants to spread a positive message, has no in-house social media capability,
+and does not want to be mixed up with the ick of current social media. Lead
+with the hygienic-but-connected frame: a clean, on-mission node under their
+brand at the scale they want (operator target: 1M), and interop so adjacent
+communities (operator example: a Reform Jew on their own feed) can follow a
+few speakers and pull a little Torah in — the mixer's per-source weight
+keeps it a slice, not the 100% blast — while the node does not take on
+non-mission content. Do not use banned-creator copy with this customer; it
+is a different story. Full framing and boundaries: `torah-anytime.md`.
+
 This partner-specific sync plan is an explicit exception to the generic
 fresh-start/no-catalog offer above (D95), not a change to every creator pitch
 or authorization to restore the retired importer. The email to Shimon is

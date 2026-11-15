@@ -128,6 +128,8 @@ Local verification for 5.32.0 after dev integration: all 2,590 social tests (177
 
 ### Lane: torah-anytime-partnership
 
+- [✓ 6.12.2 docs only] **Record the hygienic-but-connected marketing proposition** — operator direction (15.11.2026, corrected same day): not the banned-influencer story at all; the customer is an organization with something positive to spread, no in-house social media capability, and no wish to mix with the ick of current social media. A clean on-mission node at operator target scale (1M), and interop so a Reform Jew pulls a little Torah via per-source mixer weight (only public readable grants cross), not the 100% blast; banned-creator copy not used with this customer. Frame contrast, target, mechanism and honest boundaries (federation undeployed, first demo/TA2/TA3 unchanged, no new API surface) recorded in `torah-anytime.md` + `outreach.md` partner entry. Feeds TA0 partner conversation; no new execution queue implied.
+
 - [✓ 6.11.6 docs only] **Record TorahAnytime business scale to support** — supplied banner:1,200 weekly lectures,1.2K unique speakers,400K classes,500K monthly visitors,4M hotline calls,18M+ hours learnt. Canonical table/provenance in partnership brief and business-plan link; TA0 confirms definitions/periods/peak workload. No MAU/concurrency, storage-byte, paper-input, existing-capacity or telephony promise; first demo and research experiment remain unchanged.
 
 - [✓ 6.9.4 local docs only] **Record duplicable white-label media tabs** — capture reusable Music + Podcasts, Videos + Kids' Shows and genre-specific instances with independent names/branding/content selections and shared experiences, not copied code/media. Earlier fixed-navigation boundary extended; first demo unchanged; TABS1 remains open.
