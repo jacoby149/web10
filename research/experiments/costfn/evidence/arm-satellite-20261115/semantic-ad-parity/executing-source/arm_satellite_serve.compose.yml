@@ -1,0 +1,12 @@
+# Isolated Config P only. All auth/read gates and ordinary response preparation remain.
+services:
+  api:
+    volumes:
+      - ${SATELLITE_SERVE_STATE:?complete native gate receipts required}:/satellite-state:ro
+    environment:
+      SATELLITE_SERVE_STATE: /satellite-state
+      SATELLITE_CONFIG_P: "1"
+      COSTFN_ARM_D: "0"
+      COSTFN_SATELLITE: "0"
+      COSTFN_VIEWS_TREAT: "0"
+    command: ["uv", "run", "uvicorn", "arm_satellite_api:application", "--host", "0.0.0.0", "--port", "80", "--no-access-log"]

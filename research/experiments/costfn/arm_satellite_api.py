@@ -73,7 +73,7 @@ def query(sql=None, *args, **kwargs):
         token = _inventory.set(False)
         try:
             pointers = run("SELECT author_key,doc_id FROM strings WHERE owner_key=" + serve.typed.literal(params["discover"])
-                + " AND field_name='tag:node_ad' ORDER BY version DESC LIMIT " + str(limit) + " WITH TIES")
+                + " AND field_name='tag:node_ad' ORDER BY version DESC LIMIT " + str(limit))
         finally:
             _inventory.reset(token)
         tree = serve.bounded(tree, [(row["author_key"], row["doc_id"]) for row in pointers])

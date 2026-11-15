@@ -1,0 +1,799 @@
+{
+  "kind": "SATELLITE_CONFIG_P_FULL_API_DIAGNOSTIC",
+  "T2": "FAIL",
+  "scope": "one ordinary reader, one excluded warmup and three serial observations; not formal fresh-restore trials/p95/capacity",
+  "droplet_id": 619510510,
+  "fanout_authorized": false,
+  "formal_T6": "NOT_ESTABLISHED",
+  "source_sha256": {
+    "arm_satellite_api.py": "3cb6395e99adf865f616121959bf58f0573491ebca2fb30cc30c62518a44aa39",
+    "arm_satellite_serve.py": "b51f94c2f54ce84f9cc9bb0755f83956b365f0c793af880d88ec255ffd3a869c",
+    "arm_satellite_probe.py": "866531423562571b963fa74c8518e5e8b47e4ac929c963a1d25c212fa0580512",
+    "arm_satellite_serve.compose.yml": "71055481ca8746ad1ced1dd9ccdf0af2cb69a236d21e7a5a8c20511effa09348",
+    "smoke_realism.py": "d75eb688562d0b0cf0a2e9c10fd15a351bc695a1e9a2096e967968c4882fb6d5",
+    "core_feed.py": "9cc2fd817dd946e68455a91834f0a67a5987ff1c846e2a8590a9d9a00ee5501a"
+  },
+  "observations": [
+    {
+      "request_id": "4022c7ea34e4475784f19fd6be5ec67c",
+      "status": 200,
+      "api_python_sha256": "28a990b1acdfbc4c81a61a99119a6a5681656c6052c520d473d2aa02c1910058",
+      "observer_sha256": "7a3c4b27067174ba8512fff85b1f822a25b2b21462d01b339b824cceb1b0c184",
+      "resolver_mode": "batched",
+      "worker_pid": 10,
+      "arm_p_native": [
+        {
+          "query_id": "8ef0bcec-dbf9-46f1-a2fc-fe1a25d43f59",
+          "read_rows": 8192,
+          "read_bytes": 1384457
+        },
+        {
+          "query_id": "7c54edc9-9303-41e5-bdc0-8a80dc2d7cfb",
+          "read_rows": 491520,
+          "read_bytes": 17021353
+        },
+        {
+          "query_id": "0d76ebdf-c80a-4f10-a112-499d856386e7",
+          "read_rows": 491520,
+          "read_bytes": 17021353
+        },
+        {
+          "query_id": "732642a4-7a80-4d87-a2cf-bbb818ffd788",
+          "read_rows": 491520,
+          "read_bytes": 17021353
+        },
+        {
+          "query_id": "41731673-b0fd-4afd-93a9-95c74808e7d4",
+          "read_rows": 491520,
+          "read_bytes": 17021353
+        },
+        {
+          "query_id": "f523920b-4fc5-47b7-8efa-dff068e6ede7",
+          "read_rows": 10,
+          "read_bytes": 721
+        },
+        {
+          "query_id": "65ed2208-e92b-4b06-acb6-e30918023f41",
+          "read_rows": 3520,
+          "read_bytes": 486923
+        },
+        {
+          "query_id": "fe48a854-115f-4eb9-b8d6-1d1d5dd3e999",
+          "read_rows": 5376,
+          "read_bytes": 752274
+        },
+        {
+          "query_id": "dc0610b0-462d-4155-aa7b-9167805cf880",
+          "read_rows": 5376,
+          "read_bytes": 750930
+        },
+        {
+          "query_id": "a26b4553-10f2-4a13-bb46-833e11beaad3",
+          "read_rows": 5312,
+          "read_bytes": 755470
+        },
+        {
+          "query_id": "a65f043c-4cdc-4ced-9f80-11a8cc294cba",
+          "read_rows": 5504,
+          "read_bytes": 769738
+        },
+        {
+          "query_id": "cb3c44e3-82c3-467c-975b-708d94ff6ef7",
+          "read_rows": 5312,
+          "read_bytes": 745903
+        },
+        {
+          "query_id": "4c85ce47-1949-45bb-906f-863e256b7a00",
+          "read_rows": 5376,
+          "read_bytes": 759162
+        },
+        {
+          "query_id": "3f432c74-b467-4067-a72b-93ad77ee2315",
+          "read_rows": 5312,
+          "read_bytes": 759670
+        },
+        {
+          "query_id": "9b4d2e64-7ff9-4bec-9700-da8ca526e573",
+          "read_rows": 5440,
+          "read_bytes": 769574
+        },
+        {
+          "query_id": "85035f75-a3de-4cae-9080-b20a76f1ae29",
+          "read_rows": 5440,
+          "read_bytes": 763778
+        },
+        {
+          "query_id": "57eccba8-e285-4977-8a94-7489d24f738a",
+          "read_rows": 5312,
+          "read_bytes": 754882
+        },
+        {
+          "query_id": "32be4042-d2a4-453b-91e7-aee4fad642bc",
+          "read_rows": 5440,
+          "read_bytes": 767054
+        },
+        {
+          "query_id": "7c6eee30-15c6-4610-819b-88d197756b68",
+          "read_rows": 5376,
+          "read_bytes": 759582
+        },
+        {
+          "query_id": "fb7aa856-c087-4ee0-b763-79aef1d0d4ec",
+          "read_rows": 5376,
+          "read_bytes": 757230
+        },
+        {
+          "query_id": "a1b0c4e9-b5eb-4008-ac52-0a4c07a69d09",
+          "read_rows": 5376,
+          "read_bytes": 758490
+        },
+        {
+          "query_id": "fcea2c52-e15d-47a5-9f45-6e9a72a7d749",
+          "read_rows": 5376,
+          "read_bytes": 760086
+        },
+        {
+          "query_id": "b4b4f473-5fbd-4e43-be46-a65f7aef02b2",
+          "read_rows": 384,
+          "read_bytes": 22668
+        },
+        {
+          "query_id": "8fad7873-8508-47f8-bcfe-fe261b944db6",
+          "read_rows": 384,
+          "read_bytes": 22680
+        },
+        {
+          "query_id": "31a9234a-6fac-42d2-b3df-686e7028cb94",
+          "read_rows": 384,
+          "read_bytes": 22687
+        },
+        {
+          "query_id": "a6c8eb03-3887-43dd-9743-81ac368ccd96",
+          "read_rows": 384,
+          "read_bytes": 22669
+        },
+        {
+          "query_id": "366da494-3a5b-48ca-b272-f282bae7d017",
+          "read_rows": 384,
+          "read_bytes": 22720
+        },
+        {
+          "query_id": "93c2f47d-e213-49e8-a677-c435d2659c5f",
+          "read_rows": 64,
+          "read_bytes": 1499
+        },
+        {
+          "query_id": "61c24c8b-7dd7-438c-b305-452e106fa7f0",
+          "read_rows": 208728,
+          "read_bytes": 20139089
+        },
+        {
+          "query_id": "1a89c6d3-9088-4b5c-a3ca-a15d30d4eb4c",
+          "read_rows": 10,
+          "read_bytes": 721
+        },
+        {
+          "query_id": "58761aa8-b7ae-4869-8803-615443a322ee",
+          "read_rows": 1249430,
+          "read_bytes": 44979480
+        },
+        {
+          "query_id": "04ce6eff-add8-463d-8c40-34f7078d446a",
+          "read_rows": 6656,
+          "read_bytes": 425327
+        },
+        {
+          "query_id": "19a77565-7187-4f84-b274-5313e6841fa8",
+          "read_rows": 180224,
+          "read_bytes": 17947623
+        },
+        {
+          "query_id": "d417c04c-7d2a-4beb-a5e1-8bcde37bd79e",
+          "read_rows": 6656,
+          "read_bytes": 335279
+        },
+        {
+          "query_id": "99fdce01-a0d3-4bb7-8fa7-98f9fd1c6fc6",
+          "read_rows": 0,
+          "read_bytes": 0
+        },
+        {
+          "query_id": "edcf6d85-85c3-47bc-b725-77679d264779",
+          "read_rows": 6656,
+          "read_bytes": 335279
+        },
+        {
+          "query_id": "e536ce52-7d01-4f88-bf5c-4fa5a3e9aeaa",
+          "read_rows": 0,
+          "read_bytes": 0
+        },
+        {
+          "query_id": "83033e6f-2dc3-4c66-8e7c-bf9643f3ef07",
+          "read_rows": 6656,
+          "read_bytes": 335279
+        },
+        {
+          "query_id": "180f5efc-802c-4373-a8d3-d1d87f31c955",
+          "read_rows": 0,
+          "read_bytes": 0
+        },
+        {
+          "query_id": "3bf4ef86-32b9-44b4-a886-3a2f381c8c68",
+          "read_rows": 0,
+          "read_bytes": 0
+        },
+        {
+          "query_id": "1deccb7b-3612-4e24-b875-1554023ebe48",
+          "read_rows": 0,
+          "read_bytes": 0
+        },
+        {
+          "query_id": "cc15cf51-2830-4ae2-b8d1-3281a5615f05",
+          "read_rows": 620,
+          "read_bytes": 56100
+        },
+        {
+          "query_id": "0676886c-90ae-4bee-be65-a7063b41a40d",
+          "read_rows": 7086080,
+          "read_bytes": 665672702
+        }
+      ],
+      "arm_p_generation_checked": true,
+      "arm_p": {
+        "mode": "pull-canonical-materialized-in-request",
+        "stats": {
+          "slice_reads": 21,
+          "pointer_rows": 352,
+          "resolution_reads": 1,
+          "resolved_pointers": 21,
+          "rejected_pointers": 0
+        },
+        "canonical_body_reads": true,
+        "whole_response_cost_required": true
+      },
+      "compiled_sha256": "05d912b3b06c18d780fc33adecaeb5eec0b5d39f0e11fce04b57cdccd5a0f7ec",
+      "phases_ms": {
+        "auth": 0.5092270002933219,
+        "app_contract": 7.342827000684338,
+        "parse_validate": 6.564133000210859,
+        "candidates": 0.0035869998100679368,
+        "readable": 70.91685500017775,
+        "group_meta": 0.00181299947143998,
+        "compile": 2997.4165210005594,
+        "execute": 0.011692000043694861,
+        "serialize": 0.30559599872503895,
+        "prepare": 1004.9346860014339,
+        "total": 4180.604708999454
+      },
+      "query_id": "b385fde783dc4d9688b3b8de10f9061c",
+      "unattributed_handler_ms": 92.59777199804375,
+      "asgi_ms": 4195.077185999253,
+      "threadpool_tokens": 40,
+      "path_kind": "/query",
+      "outside_handler_ms": 14.472476999799255
+    }
+  ],
+  "full_main_response_sha256": {},
+  "samples": [
+    {
+      "index": 0,
+      "phase": "warmup",
+      "success": false,
+      "started": "2026-11-15T14:49:29.296006+00:00",
+      "completion_ms": 4197.900391000076,
+      "ended": "2026-11-15T14:49:33.493934+00:00",
+      "failure_class": "semantic_failure",
+      "semantic_error": "Config P full prepared main differs from independent canonical reference",
+      "native_queries": [
+        {
+          "query_id": "8ef0bcec-dbf9-46f1-a2fc-fe1a25d43f59",
+          "type": "QueryFinish",
+          "query_duration_ms": "3",
+          "read_rows": "8192",
+          "read_bytes": "1384457",
+          "memory_usage": "0",
+          "exception_code": 0,
+          "query_sha256": "79c8283893e8d2fd2c654b6a441b4ca71afce161c00f2f19d05984b6869f7083"
+        },
+        {
+          "query_id": "7c54edc9-9303-41e5-bdc0-8a80dc2d7cfb",
+          "type": "QueryFinish",
+          "query_duration_ms": "12",
+          "read_rows": "491520",
+          "read_bytes": "17021353",
+          "memory_usage": "814605",
+          "exception_code": 0,
+          "query_sha256": "a8571152e9feaf68b4f0d205e1c68a4a1a936d2acd98e15db552f813dac99a95"
+        },
+        {
+          "query_id": "0d76ebdf-c80a-4f10-a112-499d856386e7",
+          "type": "QueryFinish",
+          "query_duration_ms": "14",
+          "read_rows": "491520",
+          "read_bytes": "17021353",
+          "memory_usage": "90749",
+          "exception_code": 0,
+          "query_sha256": "a8571152e9feaf68b4f0d205e1c68a4a1a936d2acd98e15db552f813dac99a95"
+        },
+        {
+          "query_id": "732642a4-7a80-4d87-a2cf-bbb818ffd788",
+          "type": "QueryFinish",
+          "query_duration_ms": "13",
+          "read_rows": "491520",
+          "read_bytes": "17021353",
+          "memory_usage": "117227",
+          "exception_code": 0,
+          "query_sha256": "a8571152e9feaf68b4f0d205e1c68a4a1a936d2acd98e15db552f813dac99a95"
+        },
+        {
+          "query_id": "41731673-b0fd-4afd-93a9-95c74808e7d4",
+          "type": "QueryFinish",
+          "query_duration_ms": "13",
+          "read_rows": "491520",
+          "read_bytes": "17021353",
+          "memory_usage": "783496",
+          "exception_code": 0,
+          "query_sha256": "a8571152e9feaf68b4f0d205e1c68a4a1a936d2acd98e15db552f813dac99a95"
+        },
+        {
+          "query_id": "f523920b-4fc5-47b7-8efa-dff068e6ede7",
+          "type": "QueryFinish",
+          "query_duration_ms": "2",
+          "read_rows": "10",
+          "read_bytes": "721",
+          "memory_usage": "0",
+          "exception_code": 0,
+          "query_sha256": "ec8c764bfcab0fa41acb17c3b2577fac748d30765dfd8d4b16e66bbea8b31679"
+        },
+        {
+          "query_id": "65ed2208-e92b-4b06-acb6-e30918023f41",
+          "type": "QueryFinish",
+          "query_duration_ms": "586",
+          "read_rows": "3520",
+          "read_bytes": "486923",
+          "memory_usage": "1560728",
+          "exception_code": 0,
+          "query_sha256": "b923f69d721cd36699c6cad3d192defd818d8b43e7cb759aab61a51b7fe937b4"
+        },
+        {
+          "query_id": "fe48a854-115f-4eb9-b8d6-1d1d5dd3e999",
+          "type": "QueryFinish",
+          "query_duration_ms": "12",
+          "read_rows": "5376",
+          "read_bytes": "752274",
+          "memory_usage": "945520",
+          "exception_code": 0,
+          "query_sha256": "7d809ef461e499c546e55da6b0ce6780d5cd2d3afc469285a76184489cb53c6a"
+        },
+        {
+          "query_id": "dc0610b0-462d-4155-aa7b-9167805cf880",
+          "type": "QueryFinish",
+          "query_duration_ms": "10",
+          "read_rows": "5376",
+          "read_bytes": "750930",
+          "memory_usage": "910912",
+          "exception_code": 0,
+          "query_sha256": "70835f99b3768806da684f9a84e3d86efdb49bda9b5c3b22d05efbfd78427e3d"
+        },
+        {
+          "query_id": "a26b4553-10f2-4a13-bb46-833e11beaad3",
+          "type": "QueryFinish",
+          "query_duration_ms": "10",
+          "read_rows": "5312",
+          "read_bytes": "755470",
+          "memory_usage": "811328",
+          "exception_code": 0,
+          "query_sha256": "3438f439776c2341b4377ad94b5017e1b9e9ff091afc1c07591408a25e532dd5"
+        },
+        {
+          "query_id": "a65f043c-4cdc-4ced-9f80-11a8cc294cba",
+          "type": "QueryFinish",
+          "query_duration_ms": "9",
+          "read_rows": "5504",
+          "read_bytes": "769738",
+          "memory_usage": "692672",
+          "exception_code": 0,
+          "query_sha256": "2f592f2a13382b2b34fb894b5831c1e0f7de133290a6f60508ffc6d54bfd352c"
+        },
+        {
+          "query_id": "cb3c44e3-82c3-467c-975b-708d94ff6ef7",
+          "type": "QueryFinish",
+          "query_duration_ms": "9",
+          "read_rows": "5312",
+          "read_bytes": "745903",
+          "memory_usage": "1021552",
+          "exception_code": 0,
+          "query_sha256": "b03e52e4048114ceb565ccbdfb11b32dedd8ba5ca790fe7851e5fcc2e1c4cfd6"
+        },
+        {
+          "query_id": "4c85ce47-1949-45bb-906f-863e256b7a00",
+          "type": "QueryFinish",
+          "query_duration_ms": "8",
+          "read_rows": "5376",
+          "read_bytes": "759162",
+          "memory_usage": "683056",
+          "exception_code": 0,
+          "query_sha256": "05ac26569e1ea5bc7ab6bda56c1d58f8f01b6255876313550a77e2117439b108"
+        },
+        {
+          "query_id": "3f432c74-b467-4067-a72b-93ad77ee2315",
+          "type": "QueryFinish",
+          "query_duration_ms": "9",
+          "read_rows": "5312",
+          "read_bytes": "759670",
+          "memory_usage": "894400",
+          "exception_code": 0,
+          "query_sha256": "1c5242edd9666959341bb3a8d6ebc272cbaeec59c439d05fa630bffac2568556"
+        },
+        {
+          "query_id": "9b4d2e64-7ff9-4bec-9700-da8ca526e573",
+          "type": "QueryFinish",
+          "query_duration_ms": "8",
+          "read_rows": "5440",
+          "read_bytes": "769574",
+          "memory_usage": "871448",
+          "exception_code": 0,
+          "query_sha256": "9a0f5db59e3fce52864f168b29e7f4ed6ec18bd9f890e19c6c4e5329a990bb6d"
+        },
+        {
+          "query_id": "85035f75-a3de-4cae-9080-b20a76f1ae29",
+          "type": "QueryFinish",
+          "query_duration_ms": "9",
+          "read_rows": "5440",
+          "read_bytes": "763778",
+          "memory_usage": "726320",
+          "exception_code": 0,
+          "query_sha256": "bddc485e5baff79cb6bbe4a64d338174f461c6b6ce1fc28b56dba3231a663b9a"
+        },
+        {
+          "query_id": "57eccba8-e285-4977-8a94-7489d24f738a",
+          "type": "QueryFinish",
+          "query_duration_ms": "8",
+          "read_rows": "5312",
+          "read_bytes": "754882",
+          "memory_usage": "941432",
+          "exception_code": 0,
+          "query_sha256": "8ebb0975c04df8031642b4170e9b1a8195f5b1ceceeb0b71b984d512e7ef5c4d"
+        },
+        {
+          "query_id": "32be4042-d2a4-453b-91e7-aee4fad642bc",
+          "type": "QueryFinish",
+          "query_duration_ms": "9",
+          "read_rows": "5440",
+          "read_bytes": "767054",
+          "memory_usage": "1008992",
+          "exception_code": 0,
+          "query_sha256": "86db894064c1ae0439ce370078fef91d0caaca190524c267a1e6bc662083646f"
+        },
+        {
+          "query_id": "7c6eee30-15c6-4610-819b-88d197756b68",
+          "type": "QueryFinish",
+          "query_duration_ms": "9",
+          "read_rows": "5376",
+          "read_bytes": "759582",
+          "memory_usage": "941512",
+          "exception_code": 0,
+          "query_sha256": "8da811471c95dcda0ced720f61bae89a66892b3f7bf36cadeb8f93f06478d772"
+        },
+        {
+          "query_id": "fb7aa856-c087-4ee0-b763-79aef1d0d4ec",
+          "type": "QueryFinish",
+          "query_duration_ms": "10",
+          "read_rows": "5376",
+          "read_bytes": "757230",
+          "memory_usage": "1117680",
+          "exception_code": 0,
+          "query_sha256": "93e9cf954516a32f1d983f2bfbc0dba1b7820508976e772f6d8b225024e5ed9a"
+        },
+        {
+          "query_id": "a1b0c4e9-b5eb-4008-ac52-0a4c07a69d09",
+          "type": "QueryFinish",
+          "query_duration_ms": "8",
+          "read_rows": "5376",
+          "read_bytes": "758490",
+          "memory_usage": "732096",
+          "exception_code": 0,
+          "query_sha256": "00af1d6f210cefe2bf576e204d3ac20ae4eff4a69e096466e07c4a7fd893da17"
+        },
+        {
+          "query_id": "fcea2c52-e15d-47a5-9f45-6e9a72a7d749",
+          "type": "QueryFinish",
+          "query_duration_ms": "9",
+          "read_rows": "5376",
+          "read_bytes": "760086",
+          "memory_usage": "889392",
+          "exception_code": 0,
+          "query_sha256": "3eb70d363df7463672fb8015c93da5e7859e23b1a59530e8ae62c109e831a8fd"
+        },
+        {
+          "query_id": "b4b4f473-5fbd-4e43-be46-a65f7aef02b2",
+          "type": "QueryFinish",
+          "query_duration_ms": "6",
+          "read_rows": "384",
+          "read_bytes": "22668",
+          "memory_usage": "46456",
+          "exception_code": 0,
+          "query_sha256": "f2e8f2755cb817cea27656f2d59d400050e6cf19edacbb877339feb32b8cd593"
+        },
+        {
+          "query_id": "8fad7873-8508-47f8-bcfe-fe261b944db6",
+          "type": "QueryFinish",
+          "query_duration_ms": "5",
+          "read_rows": "384",
+          "read_bytes": "22680",
+          "memory_usage": "41240",
+          "exception_code": 0,
+          "query_sha256": "8f53291b0560c9cffc4474e6d91592039681076643184cca4f4b18dc0e9af269"
+        },
+        {
+          "query_id": "31a9234a-6fac-42d2-b3df-686e7028cb94",
+          "type": "QueryFinish",
+          "query_duration_ms": "6",
+          "read_rows": "384",
+          "read_bytes": "22687",
+          "memory_usage": "41240",
+          "exception_code": 0,
+          "query_sha256": "453aa330c44d6d713298b32d85037a0aa8671175aa9753f941f45698646d8a93"
+        },
+        {
+          "query_id": "a6c8eb03-3887-43dd-9743-81ac368ccd96",
+          "type": "QueryFinish",
+          "query_duration_ms": "6",
+          "read_rows": "384",
+          "read_bytes": "22669",
+          "memory_usage": "40408",
+          "exception_code": 0,
+          "query_sha256": "517dc7e0cb49be72bd00435a3becad88d9a03619b64a274279393123c5acca6b"
+        },
+        {
+          "query_id": "366da494-3a5b-48ca-b272-f282bae7d017",
+          "type": "QueryFinish",
+          "query_duration_ms": "8",
+          "read_rows": "384",
+          "read_bytes": "22720",
+          "memory_usage": "45080",
+          "exception_code": 0,
+          "query_sha256": "e25ce99f85ca224494c015b0a0db2f315c50afad355e8e3e1a082fe977422d84"
+        },
+        {
+          "query_id": "93c2f47d-e213-49e8-a677-c435d2659c5f",
+          "type": "QueryFinish",
+          "query_duration_ms": "531",
+          "read_rows": "64",
+          "read_bytes": "1499",
+          "memory_usage": "89119",
+          "exception_code": 0,
+          "query_sha256": "8c3159c87ee85b1b38ada09dc37d2500b5b9a8e78a0fb438f857d6c7ef6db6d3"
+        },
+        {
+          "query_id": "61c24c8b-7dd7-438c-b305-452e106fa7f0",
+          "type": "QueryFinish",
+          "query_duration_ms": "114",
+          "read_rows": "208728",
+          "read_bytes": "20139089",
+          "memory_usage": "15793441",
+          "exception_code": 0,
+          "query_sha256": "96caff65e596d4433dd0978e25411848fd758ca7155a0a4dec69a082db9fcc3a"
+        },
+        {
+          "query_id": "1a89c6d3-9088-4b5c-a3ca-a15d30d4eb4c",
+          "type": "QueryFinish",
+          "query_duration_ms": "1",
+          "read_rows": "10",
+          "read_bytes": "721",
+          "memory_usage": "0",
+          "exception_code": 0,
+          "query_sha256": "ec8c764bfcab0fa41acb17c3b2577fac748d30765dfd8d4b16e66bbea8b31679"
+        },
+        {
+          "query_id": "58761aa8-b7ae-4869-8803-615443a322ee",
+          "type": "QueryFinish",
+          "query_duration_ms": "57",
+          "read_rows": "1249430",
+          "read_bytes": "44979480",
+          "memory_usage": "1252104",
+          "exception_code": 0,
+          "query_sha256": "7c6e34a0a846892a9bc5e08d4bbe729c1ffde0f4470e14bd486054294a41f1e8"
+        },
+        {
+          "query_id": "b0bb77e6-6395-4fca-b604-236af8b338c1",
+          "type": "QueryFinish",
+          "query_duration_ms": "1",
+          "read_rows": "1",
+          "read_bytes": "1",
+          "memory_usage": "4196639",
+          "exception_code": 0,
+          "query_sha256": "43034b646171e9e89a5d8bb725c821d677442a3854975ea076c30bbd8e1039e3"
+        },
+        {
+          "query_id": "3be2dd67-0732-4946-b741-4a47028dc2bc",
+          "type": "QueryFinish",
+          "query_duration_ms": "2",
+          "read_rows": "1091",
+          "read_bytes": "240352",
+          "memory_usage": "0",
+          "exception_code": 0,
+          "query_sha256": "6303e2144693ce21d837ead97ee3005feef4c1f9befe5c00ea7ffcc61e57b260"
+        },
+        {
+          "query_id": "f4fbf45d-eacd-4a94-b4a7-1680c54b65fe",
+          "type": "QueryFinish",
+          "query_duration_ms": "0",
+          "read_rows": "1",
+          "read_bytes": "1",
+          "memory_usage": "0",
+          "exception_code": 0,
+          "query_sha256": "5f5df0aa3093644afb36fef4888ea49fa4305a19752b3326929c83a3cff76653"
+        },
+        {
+          "query_id": "267e50da-66f7-4e22-a57a-d5d985829a91",
+          "type": "QueryFinish",
+          "query_duration_ms": "0",
+          "read_rows": "7",
+          "read_bytes": "544",
+          "memory_usage": "0",
+          "exception_code": 0,
+          "query_sha256": "30c19cc75490facdb1173bdd7278c93efbeb7e5e86f7ecb55757b5d9d4ff5097"
+        },
+        {
+          "query_id": "6f183aaa-cfed-4654-a144-7ac62859233f",
+          "type": "QueryFinish",
+          "query_duration_ms": "2",
+          "read_rows": "21",
+          "read_bytes": "2688",
+          "memory_usage": "0",
+          "exception_code": 0,
+          "query_sha256": "7f4b2f6bb566099737e2124dadfdb3261986e92ed85070efb0cab1f8b35b8783"
+        },
+        {
+          "query_id": "04ce6eff-add8-463d-8c40-34f7078d446a",
+          "type": "QueryFinish",
+          "query_duration_ms": "180",
+          "read_rows": "6656",
+          "read_bytes": "425327",
+          "memory_usage": "783856",
+          "exception_code": 0,
+          "query_sha256": "153c4b207f83186f7410b45eda3961f6f69ca2e7c731e020b74dcfed4ea4d3e8"
+        },
+        {
+          "query_id": "19a77565-7187-4f84-b274-5313e6841fa8",
+          "type": "QueryFinish",
+          "query_duration_ms": "48",
+          "read_rows": "180224",
+          "read_bytes": "17947623",
+          "memory_usage": "122991",
+          "exception_code": 0,
+          "query_sha256": "1b3a31e9a9088dd953416658ab78fbac3e1ba3b01608c29c523f18fe757d085b"
+        },
+        {
+          "query_id": "d417c04c-7d2a-4beb-a5e1-8bcde37bd79e",
+          "type": "QueryFinish",
+          "query_duration_ms": "14",
+          "read_rows": "6656",
+          "read_bytes": "335279",
+          "memory_usage": "42088",
+          "exception_code": 0,
+          "query_sha256": "a501ac3583cedebefa524b7594b7b78578e82cad114314b1967969bc1cd8ff7d"
+        },
+        {
+          "query_id": "99fdce01-a0d3-4bb7-8fa7-98f9fd1c6fc6",
+          "type": "QueryFinish",
+          "query_duration_ms": "16",
+          "read_rows": "0",
+          "read_bytes": "0",
+          "memory_usage": "44176",
+          "exception_code": 0,
+          "query_sha256": "b145487b3e0dcb01316ba31757fb2d655898ddde78de0e1e18ab2131385dbfac"
+        },
+        {
+          "query_id": "edcf6d85-85c3-47bc-b725-77679d264779",
+          "type": "QueryFinish",
+          "query_duration_ms": "18",
+          "read_rows": "6656",
+          "read_bytes": "335279",
+          "memory_usage": "42088",
+          "exception_code": 0,
+          "query_sha256": "4ca6753c6428d0f0277b74e46d9c861245b9b1cf847d0d8769c7ead98ebeec29"
+        },
+        {
+          "query_id": "e536ce52-7d01-4f88-bf5c-4fa5a3e9aeaa",
+          "type": "QueryFinish",
+          "query_duration_ms": "17",
+          "read_rows": "0",
+          "read_bytes": "0",
+          "memory_usage": "44496",
+          "exception_code": 0,
+          "query_sha256": "1337b31a792f92ad01fe02397df822a5d12696c645a2a5455281a124971c5783"
+        },
+        {
+          "query_id": "83033e6f-2dc3-4c66-8e7c-bf9643f3ef07",
+          "type": "QueryFinish",
+          "query_duration_ms": "14",
+          "read_rows": "6656",
+          "read_bytes": "335279",
+          "memory_usage": "42088",
+          "exception_code": 0,
+          "query_sha256": "2eb72d6775f2db2af0a23ccc5b9111ba4baf829deb7046dbbd6a9b61eee2e892"
+        },
+        {
+          "query_id": "180f5efc-802c-4373-a8d3-d1d87f31c955",
+          "type": "QueryFinish",
+          "query_duration_ms": "16",
+          "read_rows": "0",
+          "read_bytes": "0",
+          "memory_usage": "44496",
+          "exception_code": 0,
+          "query_sha256": "c9f81f7af4c074e23c384618a01cfb7848f30d4e5bde37407b664490ded23c6a"
+        },
+        {
+          "query_id": "3bf4ef86-32b9-44b4-a886-3a2f381c8c68",
+          "type": "QueryFinish",
+          "query_duration_ms": "1",
+          "read_rows": "0",
+          "read_bytes": "0",
+          "memory_usage": "0",
+          "exception_code": 0,
+          "query_sha256": "589b321b3aef498579a24a470221edf7cc38822bb6e8d2c010abad94d73d3a2e"
+        },
+        {
+          "query_id": "1deccb7b-3612-4e24-b875-1554023ebe48",
+          "type": "QueryFinish",
+          "query_duration_ms": "1",
+          "read_rows": "0",
+          "read_bytes": "0",
+          "memory_usage": "0",
+          "exception_code": 0,
+          "query_sha256": "589b321b3aef498579a24a470221edf7cc38822bb6e8d2c010abad94d73d3a2e"
+        },
+        {
+          "query_id": "cc15cf51-2830-4ae2-b8d1-3281a5615f05",
+          "type": "QueryFinish",
+          "query_duration_ms": "6",
+          "read_rows": "620",
+          "read_bytes": "56100",
+          "memory_usage": "45912",
+          "exception_code": 0,
+          "query_sha256": "e5b6e16b91b235fcaf0ce4867f7c2a79a55190ad47968e5fb8043f1009e07029"
+        },
+        {
+          "query_id": "0676886c-90ae-4bee-be65-a7063b41a40d",
+          "type": "QueryFinish",
+          "query_duration_ms": "297",
+          "read_rows": "7086080",
+          "read_bytes": "665672702",
+          "memory_usage": "44181291",
+          "exception_code": 0,
+          "query_sha256": "c09238c3ac8e8a665151e714dd6e5634b0729b4fd5cb8acd67a4e248952b4ce8"
+        },
+        {
+          "query_id": "95e32f58-5528-49af-ba63-0381e5839384",
+          "type": "QueryFinish",
+          "query_duration_ms": "0",
+          "read_rows": "13",
+          "read_bytes": "1171",
+          "memory_usage": "0",
+          "exception_code": 0,
+          "query_sha256": "5fbba09c4cbb39adf3f22458b56e063f6d8dd8893359f8c6960ac3e40be56e1e"
+        },
+        {
+          "query_id": "1d4b669c-327d-491a-8a99-5ad923298c89",
+          "type": "QueryFinish",
+          "query_duration_ms": "3",
+          "read_rows": "1",
+          "read_bytes": "90",
+          "memory_usage": "4606071",
+          "exception_code": 0,
+          "query_sha256": "01e7c3267e25c83647b879fe7ee6e119ddb72534a42fcbf94ea09ac658d6d49b"
+        }
+      ],
+      "native_totals": {
+        "read_rows": 10813341,
+        "read_bytes": 831927985,
+        "largest_query_peak_bytes": 44181291,
+        "exception_codes": [],
+        "attribution": "exclusive sequential HTTP-sequence wall-clock window; not individual SQL-to-ASGI tracing"
+      }
+    }
+  ],
+  "outcome": "INVALID_STOP"
+}

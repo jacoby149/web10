@@ -1,0 +1,13 @@
+{
+  "kind": "SATELLITE_PROVIDER_CLEANUP_RECEIPT",
+  "droplet_id": 619510510,
+  "cleanup_verified": true,
+  "deadline_utc": "2026-11-15T15:38:32+00:00",
+  "cleanup_verified_utc": "2026-11-15T15:40:02.963780+00:00",
+  "verification_delay_seconds": 90.964,
+  "scheduled_container_stop_utc": "2026-11-15T15:35:32+00:00",
+  "scheduled_host_poweroff_utc": "2026-11-15T15:36:32+00:00",
+  "lease_extended": false,
+  "original_retained_source_volume_deleted": false,
+  "scope": "provider watchdog confirmed owned-resource cleanup; poweroff is not a provider-enforced billing cap; no invoice claim"
+}

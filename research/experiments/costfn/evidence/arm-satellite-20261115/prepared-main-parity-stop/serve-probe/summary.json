@@ -1,0 +1,29 @@
+{
+  "scope": "One-reader serial baseline diagnostic; not pilot, p95 or capacity evidence",
+  "dataset_id": "2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd",
+  "reader_index": 1,
+  "follow_count": 20,
+  "feed_groups_including_self": 21,
+  "wrong_origin_denied": true,
+  "sources": {
+    "api_python_sha256": "28a990b1acdfbc4c81a61a99119a6a5681656c6052c520d473d2aa02c1910058",
+    "api_lock_sha256": "ecaa9988e333b039c47ba7e7ef0284c6af5ad03259b766eb122d30783ed38ea8",
+    "research_compose_sha256": "6cc1c347614af76dd3c08f03a8da2ae223eb3c7b9e4d8cbd66ffa9b308883b96",
+    "harness_python_sha256": "e033f0fdef7757c820e2a2f12fa7ef866a63706ea2f31920c248de535af295e2",
+    "pagination_capture_sha256": "7f3d33be819bae9ac1b6edf372897c06e1df473615e87d03eb726d2c3bd77a42",
+    "wire_sha256": "2c9b198f8b290d7f1287f1e1fc6179bbf81050ca4b7a75af8a34579214347bdd"
+  },
+  "oracle_query_sha256": [
+    "e304331850feae72fbd89c9e2e8ad7f7714b40b248ef9b9f23dd19b4b7b9a0a3",
+    "63c941148699a9e7cfe923d79c83b9a54890c39c7c4b0831411c6a81c6e74a45",
+    "0d89f0a4114b43e1ecf307be51c0bbb71df027e8e4b65a08428b923ce7eaeb07",
+    "a6b09423704ab642175ca5dfeb799f73a2fe04c2d1e4a4f7d1343c29a41660de",
+    "148839ec7257a76568702ff97b898bd062a801c6f0085208b67b762d0fccb1f7",
+    "ed30c9d1f786a28e2de54ed0ea8b500dbd0a1592851f3c5bc48c6430a2ab6a4a",
+    "2a5502d77db3a5fa05ba9a117393e8e3f6d4f800cadb220f41eb2dacb5d693e5",
+    "25325e70a6d9638f73d8fb7631d40ff4ff4cc7a4289620b5e52300804eac9f37"
+  ],
+  "all_http_requests_correlated": true,
+  "measured_sequences": [],
+  "pilot_ready": false
+}

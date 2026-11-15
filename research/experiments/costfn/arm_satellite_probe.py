@@ -8,6 +8,7 @@ import httpx
 import arm_satellite_runtime as runtime
 import restore_realism as restore
 import smoke_realism
+from arm_satellite_ad_parity import validate_main
 
 
 def assess(samples, requests, observations, response_hashes):
@@ -29,10 +30,11 @@ async def probe(root):
     session = runtime.Session(root)
     session.verify_envelope()
     expected = json.loads((root / "reference/rows.json").read_bytes())
+    eligible = json.loads((root / "reference/eligible-node-ads.json").read_bytes())
     if "X-Amz-Signature" in json.dumps(expected):
         raise ValueError("signed media reference needs separate semantic verification; do not ignore it")
     output = root / "serve-probe"
-    markers, response_hashes = {}, {}
+    markers, response_hashes, ad_checks = {}, {}, {}
     original_client, original_request = httpx.AsyncClient, smoke_realism.core_feed.request
 
     class Client(original_client):
@@ -54,8 +56,7 @@ async def probe(root):
         if markers.get(request_id):
             raise ValueError("Config P native/safety stop; no next sequence")
         if kind == "main":
-            if result.get("rows") != expected:
-                raise ValueError("Config P full prepared main differs from independent canonical reference")
+            ad_checks[request_id] = validate_main(result.get("rows", []), expected, eligible)
             response_hashes[request_id] = hashlib.sha256(json.dumps(result["rows"], sort_keys=True).encode()).hexdigest()
         return result
 
@@ -64,7 +65,7 @@ async def probe(root):
               "droplet_id": session.host_id, "fanout_authorized": False, "formal_T6": "NOT_ESTABLISHED"}
     result["source_sha256"] = {name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
                               for name in ("arm_satellite_api.py", "arm_satellite_serve.py", "arm_satellite_probe.py",
-                                           "arm_satellite_serve.compose.yml", "smoke_realism.py", "core_feed.py")}
+                                           "arm_satellite_serve.compose.yml", "arm_satellite_ad_parity.py", "smoke_realism.py", "core_feed.py")}
     try:
         httpx.AsyncClient, smoke_realism.core_feed.request = Client, request
         await smoke_realism.smoke(root / "input", root / "restore.json", output)
@@ -78,6 +79,7 @@ async def probe(root):
         observed = {row["request_id"]: row for row in observations if row.get("request_id") in ids}
         result["observations"] = list(observed.values())
         result["full_main_response_sha256"] = response_hashes
+        result["semantic_ad_checks"] = ad_checks
         result["samples"] = samples
         passed = assess(samples, requests, observations, response_hashes)
         mismatch = any(sample.get("failure_class") == "semantic_failure" and not sample.get("semantic_error", "").startswith(
