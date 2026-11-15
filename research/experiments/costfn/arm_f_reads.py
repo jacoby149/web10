@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 
 import arm_f_environment as environment
-from arm_f_gates import digest, read_trials, SAMPLES, TRIALS
+from arm_f_gates import digest, read_trial, read_trials, SAMPLES, TRIALS
 from arm_f_http import HTTP
 from arm_f_native import save
 from arm_f_runtime import Session
@@ -90,6 +90,12 @@ async def sequences(root, output, *, count=SAMPLES, expected=None, require_mode=
             public = {key: value for key, value in sample.items() if key not in ('rows', 'followups')}
             samples.append(public)
             save(output / 'samples.json', samples)
+            if index and sum(int(query['read_bytes']) for query in sample['native']) >= 25_000_000 and count == SAMPLES:
+                raise ValueError('complete-response byte budget missed; stop before another trial')
+    except BaseException as error:
+        save(output / 'failure.json', dict(failure_class=type(error).__name__, completed_samples=samples,
+            requests=http.records, parity='NOT_ESTABLISHED'))
+        raise
     finally:
         await http.close()
     return samples
@@ -130,6 +136,7 @@ async def performance(parent, output, *, populated=False, seed=None):
             samples = await sequences(root, output / ('trial-' + str(index)), require_mode='F_DOCUMENT_STREAM_V1')
             results.append(dict(fresh_restore_sha256=digest(root / 'restore.json'), root=str(root), samples=samples))
             save(output / 'trials.json', results)
+            read_trial(results[-1])  # Do not pay for a second restore after a failed first trial.
         finally:
             environment.stop(root, engine=True)
         if index < TRIALS - 1:

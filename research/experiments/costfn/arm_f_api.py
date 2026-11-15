@@ -98,6 +98,10 @@ original_query = p.ch.client.query
 
 def query(sql=None, *args, **kwargs):
     current = p.observer.current.get()
+    if current and current.get('request_id') != 'unlabelled':
+        settings = dict(kwargs.get('settings') or {})
+        settings['log_comment'] = 'F_READ:' + current['request_id']
+        kwargs['settings'] = settings
     if not current or current.get('request_id') == 'unlabelled' or not p._views.get():
         return original_query(sql, *args, **kwargs)
     if sql is None:
