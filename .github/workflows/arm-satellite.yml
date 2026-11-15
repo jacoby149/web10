@@ -12,6 +12,7 @@ on:
       - research/experiments/costfn/satellite.py
       - research/experiments/costfn/gate15.py
       - research/experiments/costfn/evidence/arm-t-20261115/consolidated/**
+      - research/experiments/costfn/evidence/arm-satellite-*/**
       - api/app/v3/services/safe_query.py
       - clickhouse-init/001-init-v3-schema.sql.template
       - .github/workflows/arm-satellite.yml

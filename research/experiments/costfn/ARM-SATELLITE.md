@@ -167,7 +167,11 @@ are whole-response p95 and bytes compared to 500 ms / 25 MB. K1000 failure is
 reported to Jacob, never automatic Config F admission. This evaluator authorizes
 no resource creation or written-feed build; it records a gate decision only.
 
-Native T1/T2/T3/T5/T6/T8 and the complete live stage profile remain OPEN.
+The bounded native count T1 passes in p2; receipts are in
+`evidence/arm-satellite-20261115/counts-batched-p2/`. The actual scope is one
+ordinary reader,26 stratified targets plus native history/multiplicity fixtures,
+not exhaustive all-reader parity. Live untreated profiling is complete. Native
+T2/T3/T5/T6/T8 and whole-response performance remain OPEN.
 T4 is gated off. T7 waits for T2+T6. After source/scope/DO admission is resolved:
 profile, report Step 0, build every S item with reconciliation/setup receipts,
 run T1 before T2, then the lifecycle/rebuild/budget tests. Preserve baseline,
@@ -198,7 +202,7 @@ Arm D and Arm T evidence unchanged. No production, migration or paper work.
   fifteen same-author outside-group likes/comments (expected zero), a
   cross-author shared attachment (row count two, DISTINCT one), ordinary/zero,
   high-engagement and longest-history-author strata. It does not activate a
-  feed adapter. Materializing two requested scopes is not an all-reader cache
+  feed adapter. Materializing requested scopes is not an all-reader cache
   size, ongoing maintenance or scale claim.
 - New typed satellites use a declared physical `index_granularity=64` to avoid
   paying 8,192-row marks for sparse point keys. This is a storage/read-amplification
@@ -206,7 +210,11 @@ Arm D and Arm T evidence unchanged. No production, migration or paper work.
   canonical tables and Arm T/D layouts/receipts are not reconfigured.
 - `arm_satellite_metadata.py` builds the current transpose and generic `strings`
   identity/reference/inventory pointers and `timestamps` shared ordering layout.
-  It also builds exact view snapshots. Bodies remain in documents. Native
+  It accepts the explicit passing p2 receipt/table, refusing the failed default
+  and changed canonical generations. Document identities are indexed by stable
+  doc/service keys; profile pointers retain every current profile identity,
+  never an assumed single profile per author. View snapshots remain opt-in
+  exploration and are skipped for this setup. Bodies remain in documents. Native
   reconciliation, independent parity and live delivery maintenance must be
   receipted separately; a snapshot alone is not T2 completion.
 - `arm_satellite_pull.py` implements request-sized merge/refill with a supplied

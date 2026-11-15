@@ -11,6 +11,7 @@ from pathlib import Path
 
 import arm_satellite_runtime as runtime
 import arm_satellite_sql as typed
+import arm_satellite_counts as counts_builder
 import arm_t
 
 STRINGS_DDL = """CREATE TABLE strings (
@@ -45,10 +46,11 @@ def identity_builds(service="posts", profile_service="profile", reference_key="r
     """Application vocabulary is recipe data; schema is only generic typed fields."""
     q = typed.literal
     return {
+        "document_identity": "INSERT INTO strings SELECT doc_id,concat('document:',collection_name),"
+            "author_key,author_key,doc_id,updated_at FROM documents FINAL WHERE deleted=0",
         "profile_identity": "INSERT INTO strings SELECT author_key," + q("service:" + profile_service)
-            + ",doc_id,author_key,doc_id,updated_at FROM (SELECT author_key,doc_id,updated_at,"
-            "row_number() OVER (PARTITION BY author_key ORDER BY updated_at DESC) AS rn "
-            "FROM documents FINAL WHERE deleted=0 AND collection_name=" + q(profile_service) + ") WHERE rn=1",
+            + ",doc_id,author_key,doc_id,updated_at FROM documents FINAL WHERE deleted=0 AND collection_name="
+            + q(profile_service),
         "reference_identity": "INSERT INTO strings SELECT JSONExtractString(body," + q(reference_key) + "),"
             + q("body:" + reference_key) + ",doc_id,author_key,doc_id,updated_at FROM documents FINAL "
             "WHERE deleted=0 AND collection_name=" + q(service) + " AND JSONExtractString(body,"
@@ -91,20 +93,44 @@ def build_view_snapshots(session, execute, result, *, explore=False):
     print("[satellite-p] exploratory view snapshot end; Phase 1.6 conflict remains open", flush=True)
 
 
-def build(root, *, explore_view_snapshots=False):
+def count_receipt(root, host, path=None):
+    path = Path(path) if path is not None else Path(root) / "counts/result.json"
+    counts = json.loads(path.read_bytes())
+    expected_table = {"SATELLITE_SCOPE_COUNT_BUILD_T1": "counting_numbers",
+                      "SATELLITE_BATCH_COUNT_BUILD_T1": "counting_numbers_p2"}.get(counts.get("kind"))
+    completed = {scope.get("label") for scope in counts.get("scopes", []) if scope.get("complete") is True}
+    if (counts.get("T1") != "PASS" or counts.get("droplet_id") != host
+            or counts.get("dataset_id") != arm_t.DATASET or expected_table is None
+            or counts.get("final_table", expected_table) != expected_table
+            or not {"main", "reactions", "comments"} <= completed):
+        raise ValueError("complete same-host native T1 and exact final count table required")
+    if expected_table == "counting_numbers_p2" and not any(
+            scope.get("label") == "fixture" and scope.get("complete") is True and scope.get("parity") == "PASS"
+            for scope in counts["scopes"]):
+        raise ValueError("batched native regression fixture must pass before metadata setup")
+    return counts
+
+
+def build(root, *, explore_view_snapshots=False, counts_receipt=None):
     root = Path(root)
     session = runtime.Session(root)
     session.verify_envelope()
-    counts = json.loads((root / "counts/result.json").read_bytes())
-    if counts.get("T1") != "PASS" or counts.get("droplet_id") != session.host_id:
-        raise ValueError("same-host native T1 must pass before further satellite builds")
+    counts = count_receipt(root, session.host_id, counts_receipt)
+    current, _ = counts_builder.generation(session)
+    if current != counts["canonical_generation"]:
+        raise ValueError("canonical generation changed since count T1; do not build metadata")
     output = root / "metadata"
     output.mkdir(exist_ok=False)
     result = {"kind": "SATELLITE_CONFIG_P_METADATA_BUILDS", "dataset_id": arm_t.DATASET,
               "droplet_id": session.host_id, "outcome": "BUILDING", "started_utc": datetime.now(UTC).isoformat(),
               "steps": [], "body_copies": False, "fanout": False, "T2": "NOT_RUN"}
+    counts_path = Path(counts_receipt) if counts_receipt is not None else root / "counts/result.json"
+    result["count_receipt_sha256"] = hashlib.sha256(counts_path.read_bytes()).hexdigest()
+    result["count_table"] = counts.get("final_table", "counting_numbers")
+    result["canonical_generation"] = current
     result["source_sha256"] = {name: hashlib.sha256((Path(__file__).parent / name).read_bytes()).hexdigest()
-                               for name in ("arm_satellite_metadata.py", "arm_satellite_runtime.py", "arm_satellite_sql.py")}
+                               for name in ("arm_satellite_metadata.py", "arm_satellite_runtime.py", "arm_satellite_sql.py",
+                                            "arm_satellite_counts.py", "arm_t.py")}
     result["open_integration_gates"] = ["independent profile/ref/inventory/view parity",
         "live view-delivery maintenance", "balanced/Trending cached slices", "Config P API adapter",
         "all-reader scope/storage/maintenance cost", "T2/T3/T5/T6/T8"]
@@ -138,6 +164,9 @@ def build(root, *, explore_view_snapshots=False):
         build_view_snapshots(session, execute, result, explore=explore_view_snapshots)
         result["generic_storage_rows"], _ = session.rows("typed_storage_counts", "SELECT field_name,count() AS n "
             "FROM strings GROUP BY field_name ORDER BY field_name")
+        closing, _ = counts_builder.generation(session)
+        if closing != current:
+            raise ValueError("canonical generation changed during metadata setup")
         result.update(outcome="BUILT_PENDING_INDEPENDENT_PARITY_AND_LIVE_MAINTENANCE",
                       completed_utc=datetime.now(UTC).isoformat())
     except Exception as error:
@@ -152,7 +181,8 @@ def build(root, *, explore_view_snapshots=False):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("root", type=Path)
+    parser.add_argument("--counts-receipt", type=Path, help="explicit complete native T1 receipt, including batched p2")
     parser.add_argument("--explore-view-snapshots", action="store_true",
                         help="exploratory only; never replaces Phase 1.6 or satisfies feed acceptance")
     args = parser.parse_args()
-    build(args.root, explore_view_snapshots=args.explore_view_snapshots)
+    build(args.root, explore_view_snapshots=args.explore_view_snapshots, counts_receipt=args.counts_receipt)

@@ -23,6 +23,21 @@ def budget():
 
 
 class InventoryTests(unittest.TestCase):
+    def test_native_batched_t1_pass_is_bounded_and_not_a_feed_budget_receipt(self):
+        root = arm.HERE / "evidence/arm-satellite-20261115/counts-batched-p2"
+        report = json.loads((root / "report.json").read_bytes())
+        result = json.loads((root / "result.json").read_bytes())
+        for name, digest in report["artifact_sha256"].items():
+            self.assertEqual(arm.sha(root / name), digest)
+        self.assertEqual(report["T1"], "PASS")
+        self.assertEqual(report["T2"], "NOT_RUN")
+        self.assertEqual(report["native_exception_codes"], [])
+        for scope in result["scopes"]:
+            self.assertTrue(scope["complete"])
+            for family in scope["families"]:
+                self.assertEqual(sorted(family["completed_batches"]), list(range(result["approval"]["batches"])))
+        self.assertEqual(arm.fanout_gate(report)["verdict"], "HOLD")
+
     def test_native_count_setup_memory_stop_is_not_t1_or_fanout_admission(self):
         root = arm.HERE / "evidence/arm-satellite-20261115/counts-stopped"
         report = json.loads((root / "report.json").read_bytes())
