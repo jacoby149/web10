@@ -1,0 +1,158 @@
+[
+  {
+    "index": 0,
+    "phase": "warmup",
+    "sequence_success": false,
+    "main_native_queries": [
+      {
+        "query_id": "b8786455-2f9b-4190-b8b0-1d1923342bc8",
+        "query_duration_ms": "2054",
+        "read_rows": "18107119",
+        "read_bytes": "1129464553",
+        "memory_usage": "321126774",
+        "exception_code": 0,
+        "query_sha256": "e9e27387fe206c2527ce62c19813a93422530b070be5fa438d0e19061edf8ce5",
+        "component": "candidate_selection_and_canonical_point_checks"
+      },
+      {
+        "query_id": "ad36b00d-659a-4c18-9812-ea1d2ee58553",
+        "query_duration_ms": "392",
+        "read_rows": "4945374",
+        "read_bytes": "327503628",
+        "memory_usage": "31020630",
+        "exception_code": 0,
+        "query_sha256": "e5905eb948b23025293b7fb4202b5002dae977d73b9c9c131a88cc6fbd8a2262",
+        "component": "canonical_main_and_related_metadata"
+      }
+    ],
+    "main_read_rows": 23052493,
+    "main_read_bytes": 1456968181,
+    "sequence_native_totals": {
+      "read_rows": 552466772,
+      "read_bytes": 37838603466,
+      "largest_query_peak_bytes": 22715910444,
+      "exception_codes": [
+        159,
+        241
+      ],
+      "attribution": "exclusive sequential HTTP-sequence wall-clock window; not individual SQL-to-ASGI tracing"
+    }
+  },
+  {
+    "index": 1,
+    "phase": "measured",
+    "sequence_success": false,
+    "main_native_queries": [
+      {
+        "query_id": "a6df8a51-c533-43a4-974e-12e1fe0e63c0",
+        "query_duration_ms": "2491",
+        "read_rows": "18107119",
+        "read_bytes": "1129464553",
+        "memory_usage": "301224140",
+        "exception_code": 0,
+        "query_sha256": "e9e27387fe206c2527ce62c19813a93422530b070be5fa438d0e19061edf8ce5",
+        "component": "candidate_selection_and_canonical_point_checks"
+      },
+      {
+        "query_id": "22be3250-0522-4768-91eb-ba22d4e8f5f9",
+        "query_duration_ms": "378",
+        "read_rows": "4945374",
+        "read_bytes": "327503628",
+        "memory_usage": "31140727",
+        "exception_code": 0,
+        "query_sha256": "e5905eb948b23025293b7fb4202b5002dae977d73b9c9c131a88cc6fbd8a2262",
+        "component": "canonical_main_and_related_metadata"
+      }
+    ],
+    "main_read_rows": 23052493,
+    "main_read_bytes": 1456968181,
+    "sequence_native_totals": {
+      "read_rows": 551221579,
+      "read_bytes": 37718053065,
+      "largest_query_peak_bytes": 22714037645,
+      "exception_codes": [
+        159,
+        241
+      ],
+      "attribution": "exclusive sequential HTTP-sequence wall-clock window; not individual SQL-to-ASGI tracing"
+    }
+  },
+  {
+    "index": 2,
+    "phase": "measured",
+    "sequence_success": false,
+    "main_native_queries": [
+      {
+        "query_id": "a57be978-40e3-4644-8e0d-b18908dcd2ac",
+        "query_duration_ms": "2214",
+        "read_rows": "18107119",
+        "read_bytes": "1129464553",
+        "memory_usage": "289494031",
+        "exception_code": 0,
+        "query_sha256": "e9e27387fe206c2527ce62c19813a93422530b070be5fa438d0e19061edf8ce5",
+        "component": "candidate_selection_and_canonical_point_checks"
+      },
+      {
+        "query_id": "550c567f-4b48-41c6-9edf-5b9fcc949968",
+        "query_duration_ms": "401",
+        "read_rows": "4945374",
+        "read_bytes": "327503628",
+        "memory_usage": "30746611",
+        "exception_code": 0,
+        "query_sha256": "e5905eb948b23025293b7fb4202b5002dae977d73b9c9c131a88cc6fbd8a2262",
+        "component": "canonical_main_and_related_metadata"
+      }
+    ],
+    "main_read_rows": 23052493,
+    "main_read_bytes": 1456968181,
+    "sequence_native_totals": {
+      "read_rows": 548133195,
+      "read_bytes": 37417752702,
+      "largest_query_peak_bytes": 22717139721,
+      "exception_codes": [
+        159,
+        241
+      ],
+      "attribution": "exclusive sequential HTTP-sequence wall-clock window; not individual SQL-to-ASGI tracing"
+    }
+  },
+  {
+    "index": 3,
+    "phase": "measured",
+    "sequence_success": false,
+    "main_native_queries": [
+      {
+        "query_id": "194f78f0-232a-4dc0-8a0e-9df323d8c44f",
+        "query_duration_ms": "2104",
+        "read_rows": "18107119",
+        "read_bytes": "1129464553",
+        "memory_usage": "299913395",
+        "exception_code": 0,
+        "query_sha256": "e9e27387fe206c2527ce62c19813a93422530b070be5fa438d0e19061edf8ce5",
+        "component": "candidate_selection_and_canonical_point_checks"
+      },
+      {
+        "query_id": "2af39020-870e-4e9f-86a0-a9abea86c14e",
+        "query_duration_ms": "363",
+        "read_rows": "4945374",
+        "read_bytes": "327503628",
+        "memory_usage": "34958512",
+        "exception_code": 0,
+        "query_sha256": "e5905eb948b23025293b7fb4202b5002dae977d73b9c9c131a88cc6fbd8a2262",
+        "component": "canonical_main_and_related_metadata"
+      }
+    ],
+    "main_read_rows": 23052493,
+    "main_read_bytes": 1456968181,
+    "sequence_native_totals": {
+      "read_rows": 552450379,
+      "read_bytes": 37834574841,
+      "largest_query_peak_bytes": 22708155287,
+      "exception_codes": [
+        159,
+        241
+      ],
+      "attribution": "exclusive sequential HTTP-sequence wall-clock window; not individual SQL-to-ASGI tracing"
+    }
+  }
+]

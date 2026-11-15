@@ -1,0 +1,350 @@
+Expression ((Project names + (Before ORDER BY + (Projection + )) [lifted up part]))
+  Limit (preliminary LIMIT (without OFFSET))
+    Sorting (Sorting for ORDER BY)
+      Expression ((Before ORDER BY + (Projection + )))
+        Join (JOIN FillRightFirst)
+          Expression
+            Join (JOIN FillRightFirst)
+              Expression
+                Join (JOIN FillRightFirst)
+                  Expression
+                    Join (JOIN FillRightFirst)
+                      CreatingSets (Create sets before main query execution)
+                        Filter ((( + (JOIN actions + Change column names to column identifiers)) + (Project names + Projection)))
+                          Filter ((WHERE + DROP unused columns after JOIN))
+                            Join (JOIN FillRightFirst)
+                              Filter (( + (JOIN actions + (Change column names to column identifiers + (Project names + Projection)))))
+                                Filter ((WHERE + (Change column names to column identifiers + (Project names + Projection))))
+                                  Window (Window step for window \'PARTITION BY __table4.doc_id, __table4.author_key ORDER BY __table4.updated_at DESC\')
+                                    Sorting (Sorting for window \'PARTITION BY __table4.doc_id, __table4.author_key ORDER BY __table4.updated_at DESC\')
+                                      Expression (Before WINDOW)
+                                        Expression
+                                          ReadFromMergeTree (web10.documents)
+                                          Indexes:
+                                            PrimaryKey
+                                              Condition: true
+                                              Parts: 4/4
+                                              Granules: 10767/10767
+                              Expression ((JOIN actions + (Change column names to column identifiers + (Project names + Projection))))
+                                Filter ((WHERE + (Change column names to column identifiers + (Project names + Projection))))
+                                  Window (Window step for window \'PARTITION BY __table7.doc_id, __table7.group_id ORDER BY __table7.updated_at DESC\')
+                                    Sorting (Sorting for window \'PARTITION BY __table7.doc_id, __table7.group_id ORDER BY __table7.updated_at DESC\')
+                                      Expression (Before WINDOW)
+                                        Expression
+                                          ReadFromMergeTree (web10.doc_groups)
+                                          Indexes:
+                                            PrimaryKey
+                                              Keys: 
+                                                group_id
+                                              Condition: (group_id in 21-element set)
+                                              Parts: 9/9
+                                              Granules: 11259/11259
+                        CreatingSet (Create set for subquery)
+                          Expression ((Project names + Projection))
+                            Filter ((WHERE + (Change column names to column identifiers + (Project names + Projection))))
+                              Window (Window step for window \'PARTITION BY __table2.username ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                                Sorting (Sorting for window \'PARTITION BY __table2.username ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                                  Expression ((Before WINDOW + Change column names to column identifiers))
+                                    ReadFromPreparedSource (Read from NullSource)
+                        CreatingSet (Create set for subquery)
+                          Expression ((Project names + Projection))
+                            Filter ((WHERE + (Change column names to column identifiers + (Project names + Projection))))
+                              Window (Window step for window \'PARTITION BY __table2.user_key, __table2.group_id ORDER BY __table2.updated_at DESC\')
+                                Sorting (Sorting for window \'PARTITION BY __table2.user_key, __table2.group_id ORDER BY __table2.updated_at DESC\')
+                                  Expression ((Before WINDOW + Change column names to column identifiers))
+                                    ReadFromPreparedSource (Read from NullSource)
+                        CreatingSet (Create set for subquery)
+                          Expression ((Project names + Projection))
+                            Filter ((WHERE + (Change column names to column identifiers + (Project names + Projection))))
+                              Window (Window step for window \'PARTITION BY __table2.group_id, __table2.doc_id ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                                Sorting (Sorting for window \'PARTITION BY __table2.group_id, __table2.doc_id ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                                  Expression ((Before WINDOW + Change column names to column identifiers))
+                                    ReadFromPreparedSource (Read from NullSource)
+                        CreatingSet (Create set for subquery)
+                          Expression ((Project names + Projection))
+                            Filter ((WHERE + (Change column names to column identifiers + (Project names + Projection))))
+                              Window (Window step for window \'PARTITION BY __table2.user_key, __table2.group_id, __table2.blocked_key ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                                Sorting (Sorting for window \'PARTITION BY __table2.user_key, __table2.group_id, __table2.blocked_key ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                                  Expression ((Before WINDOW + Change column names to column identifiers))
+                                    ReadFromPreparedSource (Read from NullSource)
+                        CreatingSet (Create set for subquery)
+                          Expression ((Project names + Projection))
+                            Filter ((WHERE + (Change column names to column identifiers + (Project names + Projection))))
+                              Window (Window step for window \'PARTITION BY __table2.user_key, __table2.blocked_key ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                                Sorting (Sorting for window \'PARTITION BY __table2.user_key, __table2.blocked_key ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                                  Expression ((Before WINDOW + Change column names to column identifiers))
+                                    ReadFromPreparedSource (Read from NullSource)
+                      Expression ((JOIN actions + (Change column names to column identifiers + (Project names + Projection))))
+                        Aggregating
+                          Expression (Before GROUP BY)
+                            CreatingSets (Create sets before main query execution)
+                              Filter (((WHERE + Change column names to column identifiers) + (Project names + Projection)))
+                                Filter ((WHERE + DROP unused columns after JOIN))
+                                  Join (JOIN FillRightFirst)
+                                    Filter (( + (JOIN actions + (Change column names to column identifiers + (Project names + Projection)))))
+                                      Filter ((WHERE + (Change column names to column identifiers + (Project names + Projection))))
+                                        Window (Window step for window \'PARTITION BY __table27.doc_id, __table27.author_key ORDER BY __table27.updated_at DESC\')
+                                          Sorting (Sorting for window \'PARTITION BY __table27.doc_id, __table27.author_key ORDER BY __table27.updated_at DESC\')
+                                            Expression (Before WINDOW)
+                                              Expression
+                                                ReadFromMergeTree (web10.documents)
+                                                Indexes:
+                                                  PrimaryKey
+                                                    Condition: true
+                                                    Parts: 4/4
+                                                    Granules: 10767/10767
+                                    Expression ((JOIN actions + (Change column names to column identifiers + (Project names + Projection))))
+                                      Filter ((WHERE + (Change column names to column identifiers + (Project names + Projection))))
+                                        Window (Window step for window \'PARTITION BY __table30.doc_id, __table30.group_id ORDER BY __table30.updated_at DESC\')
+                                          Sorting (Sorting for window \'PARTITION BY __table30.doc_id, __table30.group_id ORDER BY __table30.updated_at DESC\')
+                                            Expression (Before WINDOW)
+                                              Expression
+                                                ReadFromMergeTree (web10.doc_groups)
+                                                Indexes:
+                                                  PrimaryKey
+                                                    Keys: 
+                                                      group_id
+                                                    Condition: (group_id in 21-element set)
+                                                    Parts: 9/9
+                                                    Granules: 11259/11259
+                              CreatingSet (Create set for subquery)
+                                Expression ((Project names + Projection))
+                                  Filter ((WHERE + (Change column names to column identifiers + (Project names + Projection))))
+                                    Window (Window step for window \'PARTITION BY __table2.username ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                                      Sorting (Sorting for window \'PARTITION BY __table2.username ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                                        Expression ((Before WINDOW + Change column names to column identifiers))
+                                          ReadFromPreparedSource (Read from NullSource)
+                              CreatingSet (Create set for subquery)
+                                Expression ((Project names + Projection))
+                                  Filter ((WHERE + (Change column names to column identifiers + (Project names + Projection))))
+                                    Window (Window step for window \'PARTITION BY __table2.user_key, __table2.group_id ORDER BY __table2.updated_at DESC\')
+                                      Sorting (Sorting for window \'PARTITION BY __table2.user_key, __table2.group_id ORDER BY __table2.updated_at DESC\')
+                                        Expression ((Before WINDOW + Change column names to column identifiers))
+                                          ReadFromPreparedSource (Read from NullSource)
+                              CreatingSet (Create set for subquery)
+                                Expression ((Project names + Projection))
+                                  Filter ((WHERE + (Change column names to column identifiers + (Project names + Projection))))
+                                    Window (Window step for window \'PARTITION BY __table2.group_id, __table2.doc_id ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                                      Sorting (Sorting for window \'PARTITION BY __table2.group_id, __table2.doc_id ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                                        Expression ((Before WINDOW + Change column names to column identifiers))
+                                          ReadFromPreparedSource (Read from NullSource)
+                              CreatingSet (Create set for subquery)
+                                Expression ((Project names + Projection))
+                                  Filter ((WHERE + (Change column names to column identifiers + (Project names + Projection))))
+                                    Window (Window step for window \'PARTITION BY __table2.user_key, __table2.group_id, __table2.blocked_key ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                                      Sorting (Sorting for window \'PARTITION BY __table2.user_key, __table2.group_id, __table2.blocked_key ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                                        Expression ((Before WINDOW + Change column names to column identifiers))
+                                          ReadFromPreparedSource (Read from NullSource)
+                              CreatingSet (Create set for subquery)
+                                Expression ((Project names + Projection))
+                                  Filter ((WHERE + (Change column names to column identifiers + (Project names + Projection))))
+                                    Window (Window step for window \'PARTITION BY __table2.user_key, __table2.blocked_key ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                                      Sorting (Sorting for window \'PARTITION BY __table2.user_key, __table2.blocked_key ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                                        Expression ((Before WINDOW + Change column names to column identifiers))
+                                          ReadFromPreparedSource (Read from NullSource)
+                  Expression ((JOIN actions + (Change column names to column identifiers + (Project names + Projection))))
+                    Aggregating
+                      Expression (Before GROUP BY)
+                        CreatingSets (Create sets before main query execution)
+                          Filter (((WHERE + Change column names to column identifiers) + (Project names + Projection)))
+                            Filter ((WHERE + DROP unused columns after JOIN))
+                              Join (JOIN FillRightFirst)
+                                Filter (( + (JOIN actions + (Change column names to column identifiers + (Project names + Projection)))))
+                                  Filter ((WHERE + (Change column names to column identifiers + (Project names + Projection))))
+                                    Window (Window step for window \'PARTITION BY __table50.doc_id, __table50.author_key ORDER BY __table50.updated_at DESC\')
+                                      Sorting (Sorting for window \'PARTITION BY __table50.doc_id, __table50.author_key ORDER BY __table50.updated_at DESC\')
+                                        Expression (Before WINDOW)
+                                          Expression
+                                            ReadFromMergeTree (web10.documents)
+                                            Indexes:
+                                              PrimaryKey
+                                                Condition: true
+                                                Parts: 4/4
+                                                Granules: 10767/10767
+                                Expression ((JOIN actions + (Change column names to column identifiers + (Project names + Projection))))
+                                  Filter ((WHERE + (Change column names to column identifiers + (Project names + Projection))))
+                                    Window (Window step for window \'PARTITION BY __table53.doc_id, __table53.group_id ORDER BY __table53.updated_at DESC\')
+                                      Sorting (Sorting for window \'PARTITION BY __table53.doc_id, __table53.group_id ORDER BY __table53.updated_at DESC\')
+                                        Expression (Before WINDOW)
+                                          Expression
+                                            ReadFromMergeTree (web10.doc_groups)
+                                            Indexes:
+                                              PrimaryKey
+                                                Keys: 
+                                                  group_id
+                                                Condition: (group_id in 21-element set)
+                                                Parts: 9/9
+                                                Granules: 11259/11259
+                          CreatingSet (Create set for subquery)
+                            Expression ((Project names + Projection))
+                              Filter ((WHERE + (Change column names to column identifiers + (Project names + Projection))))
+                                Window (Window step for window \'PARTITION BY __table2.username ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                                  Sorting (Sorting for window \'PARTITION BY __table2.username ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                                    Expression ((Before WINDOW + Change column names to column identifiers))
+                                      ReadFromPreparedSource (Read from NullSource)
+                          CreatingSet (Create set for subquery)
+                            Expression ((Project names + Projection))
+                              Filter ((WHERE + (Change column names to column identifiers + (Project names + Projection))))
+                                Window (Window step for window \'PARTITION BY __table2.user_key, __table2.group_id ORDER BY __table2.updated_at DESC\')
+                                  Sorting (Sorting for window \'PARTITION BY __table2.user_key, __table2.group_id ORDER BY __table2.updated_at DESC\')
+                                    Expression ((Before WINDOW + Change column names to column identifiers))
+                                      ReadFromPreparedSource (Read from NullSource)
+                          CreatingSet (Create set for subquery)
+                            Expression ((Project names + Projection))
+                              Filter ((WHERE + (Change column names to column identifiers + (Project names + Projection))))
+                                Window (Window step for window \'PARTITION BY __table2.group_id, __table2.doc_id ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                                  Sorting (Sorting for window \'PARTITION BY __table2.group_id, __table2.doc_id ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                                    Expression ((Before WINDOW + Change column names to column identifiers))
+                                      ReadFromPreparedSource (Read from NullSource)
+                          CreatingSet (Create set for subquery)
+                            Expression ((Project names + Projection))
+                              Filter ((WHERE + (Change column names to column identifiers + (Project names + Projection))))
+                                Window (Window step for window \'PARTITION BY __table2.user_key, __table2.group_id, __table2.blocked_key ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                                  Sorting (Sorting for window \'PARTITION BY __table2.user_key, __table2.group_id, __table2.blocked_key ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                                    Expression ((Before WINDOW + Change column names to column identifiers))
+                                      ReadFromPreparedSource (Read from NullSource)
+                          CreatingSet (Create set for subquery)
+                            Expression ((Project names + Projection))
+                              Filter ((WHERE + (Change column names to column identifiers + (Project names + Projection))))
+                                Window (Window step for window \'PARTITION BY __table2.user_key, __table2.blocked_key ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                                  Sorting (Sorting for window \'PARTITION BY __table2.user_key, __table2.blocked_key ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                                    Expression ((Before WINDOW + Change column names to column identifiers))
+                                      ReadFromPreparedSource (Read from NullSource)
+              Expression ((JOIN actions + (Change column names to column identifiers + (Project names + Projection))))
+                Aggregating
+                  Expression (Before GROUP BY)
+                    CreatingSets (Create sets before main query execution)
+                      Filter (((WHERE + Change column names to column identifiers) + (Project names + Projection)))
+                        Filter ((WHERE + DROP unused columns after JOIN))
+                          Join (JOIN FillRightFirst)
+                            Filter (( + (JOIN actions + (Change column names to column identifiers + (Project names + Projection)))))
+                              Filter ((WHERE + (Change column names to column identifiers + (Project names + Projection))))
+                                Window (Window step for window \'PARTITION BY __table73.doc_id, __table73.author_key ORDER BY __table73.updated_at DESC\')
+                                  Sorting (Sorting for window \'PARTITION BY __table73.doc_id, __table73.author_key ORDER BY __table73.updated_at DESC\')
+                                    Expression (Before WINDOW)
+                                      Expression
+                                        ReadFromMergeTree (web10.documents)
+                                        Indexes:
+                                          PrimaryKey
+                                            Condition: true
+                                            Parts: 4/4
+                                            Granules: 10767/10767
+                            Expression ((JOIN actions + (Change column names to column identifiers + (Project names + Projection))))
+                              Filter ((WHERE + (Change column names to column identifiers + (Project names + Projection))))
+                                Window (Window step for window \'PARTITION BY __table76.doc_id, __table76.group_id ORDER BY __table76.updated_at DESC\')
+                                  Sorting (Sorting for window \'PARTITION BY __table76.doc_id, __table76.group_id ORDER BY __table76.updated_at DESC\')
+                                    Expression (Before WINDOW)
+                                      Expression
+                                        ReadFromMergeTree (web10.doc_groups)
+                                        Indexes:
+                                          PrimaryKey
+                                            Keys: 
+                                              group_id
+                                            Condition: (group_id in 21-element set)
+                                            Parts: 9/9
+                                            Granules: 11259/11259
+                      CreatingSet (Create set for subquery)
+                        Expression ((Project names + Projection))
+                          Filter ((WHERE + (Change column names to column identifiers + (Project names + Projection))))
+                            Window (Window step for window \'PARTITION BY __table2.username ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                              Sorting (Sorting for window \'PARTITION BY __table2.username ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                                Expression ((Before WINDOW + Change column names to column identifiers))
+                                  ReadFromPreparedSource (Read from NullSource)
+                      CreatingSet (Create set for subquery)
+                        Expression ((Project names + Projection))
+                          Filter ((WHERE + (Change column names to column identifiers + (Project names + Projection))))
+                            Window (Window step for window \'PARTITION BY __table2.user_key, __table2.group_id ORDER BY __table2.updated_at DESC\')
+                              Sorting (Sorting for window \'PARTITION BY __table2.user_key, __table2.group_id ORDER BY __table2.updated_at DESC\')
+                                Expression ((Before WINDOW + Change column names to column identifiers))
+                                  ReadFromPreparedSource (Read from NullSource)
+                      CreatingSet (Create set for subquery)
+                        Expression ((Project names + Projection))
+                          Filter ((WHERE + (Change column names to column identifiers + (Project names + Projection))))
+                            Window (Window step for window \'PARTITION BY __table2.group_id, __table2.doc_id ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                              Sorting (Sorting for window \'PARTITION BY __table2.group_id, __table2.doc_id ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                                Expression ((Before WINDOW + Change column names to column identifiers))
+                                  ReadFromPreparedSource (Read from NullSource)
+                      CreatingSet (Create set for subquery)
+                        Expression ((Project names + Projection))
+                          Filter ((WHERE + (Change column names to column identifiers + (Project names + Projection))))
+                            Window (Window step for window \'PARTITION BY __table2.user_key, __table2.group_id, __table2.blocked_key ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                              Sorting (Sorting for window \'PARTITION BY __table2.user_key, __table2.group_id, __table2.blocked_key ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                                Expression ((Before WINDOW + Change column names to column identifiers))
+                                  ReadFromPreparedSource (Read from NullSource)
+                      CreatingSet (Create set for subquery)
+                        Expression ((Project names + Projection))
+                          Filter ((WHERE + (Change column names to column identifiers + (Project names + Projection))))
+                            Window (Window step for window \'PARTITION BY __table2.user_key, __table2.blocked_key ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                              Sorting (Sorting for window \'PARTITION BY __table2.user_key, __table2.blocked_key ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                                Expression ((Before WINDOW + Change column names to column identifiers))
+                                  ReadFromPreparedSource (Read from NullSource)
+          Expression ((JOIN actions + (Change column names to column identifiers + (Project names + Projection))))
+            Filter (QUALIFY)
+              Window (Window step for window \'PARTITION BY __table93.author_key ORDER BY __table93.updated_at DESC\')
+                Sorting (Sorting for window \'PARTITION BY __table93.author_key ORDER BY __table93.updated_at DESC\')
+                  Expression ((Before WINDOW + Change column names to column identifiers))
+                    CreatingSets (Create sets before main query execution)
+                      Expression ((Project names + Projection))
+                        Filter ((WHERE + DROP unused columns after JOIN))
+                          Join (JOIN FillRightFirst)
+                            Filter (( + (JOIN actions + (Change column names to column identifiers + (Project names + Projection)))))
+                              Filter ((WHERE + (Change column names to column identifiers + (Project names + Projection))))
+                                Window (Window step for window \'PARTITION BY __table96.doc_id, __table96.author_key ORDER BY __table96.updated_at DESC\')
+                                  Sorting (Sorting for window \'PARTITION BY __table96.doc_id, __table96.author_key ORDER BY __table96.updated_at DESC\')
+                                    Expression (Before WINDOW)
+                                      Expression
+                                        ReadFromMergeTree (web10.documents)
+                                        Indexes:
+                                          PrimaryKey
+                                            Condition: true
+                                            Parts: 4/4
+                                            Granules: 10767/10767
+                            Expression ((JOIN actions + (Change column names to column identifiers + (Project names + Projection))))
+                              Filter ((WHERE + (Change column names to column identifiers + (Project names + Projection))))
+                                Window (Window step for window \'PARTITION BY __table99.doc_id, __table99.group_id ORDER BY __table99.updated_at DESC\')
+                                  Sorting (Sorting for window \'PARTITION BY __table99.doc_id, __table99.group_id ORDER BY __table99.updated_at DESC\')
+                                    Expression (Before WINDOW)
+                                      Expression
+                                        ReadFromMergeTree (web10.doc_groups)
+                                        Indexes:
+                                          PrimaryKey
+                                            Keys: 
+                                              group_id
+                                            Condition: (group_id in 21-element set)
+                                            Parts: 9/9
+                                            Granules: 11259/11259
+                      CreatingSet (Create set for subquery)
+                        Expression ((Project names + Projection))
+                          Filter ((WHERE + (Change column names to column identifiers + (Project names + Projection))))
+                            Window (Window step for window \'PARTITION BY __table2.username ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                              Sorting (Sorting for window \'PARTITION BY __table2.username ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                                Expression ((Before WINDOW + Change column names to column identifiers))
+                                  ReadFromPreparedSource (Read from NullSource)
+                      CreatingSet (Create set for subquery)
+                        Expression ((Project names + Projection))
+                          Filter ((WHERE + (Change column names to column identifiers + (Project names + Projection))))
+                            Window (Window step for window \'PARTITION BY __table2.user_key, __table2.group_id ORDER BY __table2.updated_at DESC\')
+                              Sorting (Sorting for window \'PARTITION BY __table2.user_key, __table2.group_id ORDER BY __table2.updated_at DESC\')
+                                Expression ((Before WINDOW + Change column names to column identifiers))
+                                  ReadFromPreparedSource (Read from NullSource)
+                      CreatingSet (Create set for subquery)
+                        Expression ((Project names + Projection))
+                          Filter ((WHERE + (Change column names to column identifiers + (Project names + Projection))))
+                            Window (Window step for window \'PARTITION BY __table2.group_id, __table2.doc_id ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                              Sorting (Sorting for window \'PARTITION BY __table2.group_id, __table2.doc_id ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                                Expression ((Before WINDOW + Change column names to column identifiers))
+                                  ReadFromPreparedSource (Read from NullSource)
+                      CreatingSet (Create set for subquery)
+                        Expression ((Project names + Projection))
+                          Filter ((WHERE + (Change column names to column identifiers + (Project names + Projection))))
+                            Window (Window step for window \'PARTITION BY __table2.user_key, __table2.group_id, __table2.blocked_key ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                              Sorting (Sorting for window \'PARTITION BY __table2.user_key, __table2.group_id, __table2.blocked_key ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                                Expression ((Before WINDOW + Change column names to column identifiers))
+                                  ReadFromPreparedSource (Read from NullSource)
+                      CreatingSet (Create set for subquery)
+                        Expression ((Project names + Projection))
+                          Filter ((WHERE + (Change column names to column identifiers + (Project names + Projection))))
+                            Window (Window step for window \'PARTITION BY __table2.user_key, __table2.blocked_key ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                              Sorting (Sorting for window \'PARTITION BY __table2.user_key, __table2.blocked_key ORDER BY __table2.updated_at DESC, __table2.deleted DESC\')
+                                Expression ((Before WINDOW + Change column names to column identifiers))
+                                  ReadFromPreparedSource (Read from NullSource)

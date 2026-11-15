@@ -1,0 +1,121 @@
+{
+  "kind": "ADDITIVE_ARM_T",
+  "directive": "Jacob 2026-11-14 post-freeze amendment",
+  "outcome": "ARM_T_BUILD_FAILED",
+  "dataset_id": "2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd",
+  "project": "web10-costfn-frozen-armt-d1",
+  "droplet_id": 619371600,
+  "admission_sha256": "872efd4d31d8ef07aec2e767695366168a3e553a4ca5368257de0cf7fff7097a",
+  "deadline_utc": "2026-11-15T05:17:51Z",
+  "pilot_gate_status": "operator-waived-not-passed",
+  "resources_before": {
+    "host_memory_bytes": 33654894592,
+    "docker_store_free_bytes": 348943495168,
+    "setup_query_spill_cap_bytes": 107374182400
+  },
+  "restore_sha256": "7815d95d232d5d5fbe531ab2fe788a99150a37f5afb2c3055d421fddca1120a5",
+  "validation_sha256": "5d7dabb6e4e322d5a76bed630d053b2340d34e5e5016682ad8bdb175c6afdd94",
+  "rewrite_sha256": "df4023c629b3a1aa700d131dd0b605c6be646c6393b90b146ceb5526652bc43c",
+  "builder_sha256": "6c663e949d29665d1579aa83e1d3a082281ae03e3e110618a555b51bfc6aa3b3",
+  "ddl_sha256": "33a03804b4d79c4d443d8c49eb721f1ea4b1b3a4b6f1d70e253e674bbb41f713",
+  "build_sql_sha256": "37fc4aa6445c50a1e0ff33093820f46e5ad2cd5f0b37923ba40b27120ebbb672",
+  "steps": [
+    {
+      "name": "engine",
+      "query_id": "arm-t-build-e075b88030a142e2a71dcb77f765538a",
+      "sql_sha256": "df1f1d15d442789a5b9c81cdddf44d88d5748499cc48865023ddc1ff1587d0f6",
+      "seconds": 0.284,
+      "complete": true
+    },
+    {
+      "name": "server_memory",
+      "query_id": "arm-t-build-7eca6f562fe24e5b8028d0029a0a23ad",
+      "sql_sha256": "2095cc241cf01e4f0587234cfabfc1dd1e1c36bc646622a624aafa1913f97a63",
+      "seconds": 0.295,
+      "complete": true
+    },
+    {
+      "name": "source_key_documents",
+      "query_id": "arm-t-build-9c8fce831b934e93bba9fd9fec1912c6",
+      "sql_sha256": "3b532975a5cddb369cb4f36d233f46da07700d746e47b5165c1f7fc899762182",
+      "seconds": 0.311,
+      "complete": true
+    },
+    {
+      "name": "source_key_doc_groups",
+      "query_id": "arm-t-build-276245b31a1246e59a16dfb084f60fb1",
+      "sql_sha256": "35d6b9236d971958ef0b9b521a0baace3dff3fa9749dde2d5337eb21dcce80a4",
+      "seconds": 0.283,
+      "complete": true
+    },
+    {
+      "name": "variant_absent",
+      "query_id": "arm-t-build-77ecd413cc0e442ba1a70472861166ca",
+      "sql_sha256": "0830325e060ed58b7843b0d308fd3d2b781f213f4b840b7a951d223251f11d70",
+      "seconds": 0.298,
+      "complete": true
+    },
+    {
+      "name": "rows_documents",
+      "query_id": "arm-t-build-6b9186a28a9a438191d23a20b38305d7",
+      "sql_sha256": "caf014c8e03296cdd988ff1dce5655f23de70734212bb9f35ac542641cd1c06d",
+      "seconds": 0.293,
+      "complete": true
+    },
+    {
+      "name": "history_documents",
+      "query_id": "arm-t-build-37663e91ebb849458d5cea658ff0ac8f",
+      "sql_sha256": "f720aad3f759ca9ffca8c080d7443142e60649d85942a8035cefdb79cc7b09d9",
+      "seconds": 34.726,
+      "complete": true
+    },
+    {
+      "name": "tombstones_documents",
+      "query_id": "arm-t-build-314c3188610f454585adadb9dfa3e0fd",
+      "sql_sha256": "ac8c4002500154e39f3b23cae12b3a0ce14b7b7e4e78b1b1816d291919f3ad90",
+      "seconds": 0.359,
+      "complete": true
+    },
+    {
+      "name": "rows_doc_groups",
+      "query_id": "arm-t-build-1ecfc202767e4f859113e863ec72f420",
+      "sql_sha256": "8b781ca4fc33f42929b5ad3b844dd164e1fe2e261e2f071a5875f64dd3983a3e",
+      "seconds": 0.314,
+      "complete": true
+    },
+    {
+      "name": "history_doc_groups",
+      "query_id": "arm-t-build-76ed70518ba44de395e5eb5fb795ea89",
+      "sql_sha256": "a730f8df0e13ee4dc80d57a2d329b013422862c26b32457ba1db82fda529f7f8",
+      "seconds": 45.626,
+      "complete": true
+    },
+    {
+      "name": "tombstones_doc_groups",
+      "query_id": "arm-t-build-acdc696edd4f4698b2cc695eadf571ab",
+      "sql_sha256": "cb20516a3579997140f4d6d62892c8b9d7f0072e32c04b5f74b1cde2fb4d5e45",
+      "seconds": 0.323,
+      "complete": true
+    },
+    {
+      "name": "create_variant",
+      "query_id": "arm-t-build-afd3d41d215c406e915b23cfb0191a97",
+      "sql_sha256": "33a03804b4d79c4d443d8c49eb721f1ea4b1b3a4b6f1d70e253e674bbb41f713",
+      "seconds": 0.312,
+      "complete": true
+    },
+    {
+      "name": "build_variant",
+      "query_id": "arm-t-build-21492bcdf9df4ef882e4e3c44d4f738b",
+      "sql_sha256": "37fc4aa6445c50a1e0ff33093820f46e5ad2cd5f0b37923ba40b27120ebbb672"
+    }
+  ],
+  "build_is_setup_not_feed_cost": true,
+  "parity": "NOT_RUN",
+  "receipt_sha256": "d9c8b9ec6416389c752275f0d24df3c4736b8040d1a4d846d071132c7aa01446",
+  "source_counts": {
+    "documents": 88200300,
+    "doc_groups": 92200600
+  },
+  "failure_class": "CalledProcessError"
+}

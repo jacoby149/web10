@@ -15,6 +15,97 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Additive research transpose (14.11.2026) — bounded change review, OPEN
+
+15 November consolidation admission: bounded helper allows only three fixed
+tables on the verified isolated Arm T project/DO host/current lease, preserves
+UUID/schema/count/hash evidence and stops before the feed on changed multisets.
+One mocked success/failure scope control passes alongside the existing controls
+(47 total). Physical own-store consolidation reaches one part per table with
+matching UUID/schema/count/hash checks; unchanged native SQL/source hashes and
+four exact independent main-page passes are retained in `consolidated/result.json`
+under the Arm T evidence directory. Full sequence still fails at reactions and
+preparation. No production/broader-security PASS follows from these hash checks
+or one synthetic-reader diagnostic.
+
+15 November query revision: GPT-6.1 Sol reviews the merge-first constructor and
+isolated adapter/direct canonical-boundary calls. Slices/global page are now
+separate from literal full-identity document/original-link verification. All
+five live policy gates remain; attachment/time/policy mismatch stops INVALID.
+Offline stale/denied-winner replay and stage-order/bound/gate controls pass.
+Original layout source pins remain checked; revision/adapter hashes are
+separately attributed in each observed request. Native iteration completes with
+four exact main-page passes, not full-sequence parity. Preserve raw live-inspection
+contamination and the identified-query core correction; no L1–L4/fresh/diverse/
+production assurance or clean complete-sequence cost claim follows.
+
+Completed 15 November diagnostic: full-sorting-merge setup reconciles every
+link/metadata row under the unchanged cap, and warm-up plus three measured main
+pages match the independent canonical IDs/order/checked projections. This is
+one frozen synthetic reader/cohort, not shared-group, lifecycle or production
+security assurance. Full-sequence parity stays NOT_ESTABLISHED because reaction
+follow-ups time out; comments/views/live-delivery checks are not reached. The
+ad-inventory read fails with native memory code241, so no empty inventory is
+verified and no permission to substitute an empty cache follows. Canonical
+policy checks remain in place; all broader/fresh/model-diverse coverage gates
+remain OPEN. Exact build/parity/native/HTTP scopes are retained in the additive
+`research/experiments/costfn/evidence/arm-t-20261115/result.json` receipt.
+
+15 November setup follow-through: an additive transport bounds only the
+independent canonical engagement oracle's link set by exact canonical document
+IDs. No authority or expected-count expression changes; frozen oracle/API SQL
+remain unchanged. Five native update/deletion/link/private/cross-author scopes
+and a full-store reader-scope equality control pass. All 43 focused no-engine
+controls pass. Both transpose builds fail at the existing 22-GiB setup limit;
+no Arm T feed/parity request has run and no new connected security or performance
+assurance follows. Diagnosis, native-control and failed-build evidence is in
+`research/experiments/costfn/evidence/arm-t-20261115/`.
+
+15 November operator-approved diagnostic exception: the admission guard may
+waive only the Study B launch prerequisite, explicitly labelled
+`operator-waived-not-passed`, within four hours/$2; diagnosis, parity, own-host
+and cleanup checks remain. Forty offline controls pass. Bounded read-only
+review also reproduces a retry-after-uncertain-create gap in the private
+operational controller; creation is now fenced before any provider call and
+cleanup uncertainty is never cleared merely because a tagged resource appears.
+The mocked uncertain-create replay is denied; one real droplet was created
+and the running host uses the separately verified timers/watchdog. This is
+operational review/control evidence, not a connected transpose result or a
+fresh/model-diverse security PASS. The source Volume is detached and retained.
+
+GPT-6.1 Sol orients against I3 and the distinction between identity hints and
+canonical document/link authority. Review covers the new research-only snapshot
+builder, compiler treatment, separate ASGI adapter and direct original compiler/
+execution callers; production API and frozen research observer remain unchanged.
+The transformed canonical boundaries retain all five original policy predicates,
+document/link version windows and group projections. Metadata identifies reads;
+it does not synthesize group ownership or replace live canonical authorization.
+
+A delegated read-only review finds missing runtime lease/host admission,
+assertion-only diagnosis admission, failure attribution installed after candidate
+execution, and undefined timestamp-tie ordering. Follow-up code binds the actual
+DO host/build/admission/deadline before startup/request SQL; requires retained
+source/query-ID/SQL/scan artifacts; installs observation before native execution
+and raises fixed HTTP-400 responses for expected native selection errors;
+and refuses ambiguous top-page ties with an explicit INVALID disposition. No
+frozen tie-breaker or reference oracle is altered. Offline regression controls
+exercise these refusals and exact AST gate preservation, not an engine exploit
+replay or connected parity proof.
+
+Follow-up review also catches the probe's independent-but-unbound admission and
+delayed INVALID handling. The probe now uses the same build-bound runtime
+admission before direct oracle work, and a content-free INVALID response marker
+converts only that condition to the unchanged smoke's immediate semantic stop.
+Ordinary native timeouts retain their HTTP-failure classification. Tests drive
+both paths and confirm mismatched admission prevents entering the oracle.
+
+All 39 new no-engine controls pass, alongside existing research controls and
+source captures. Fresh independent review, actual ClickHouse execution/parity, complete
+L1–L4 coverage and fresh/model-diverse three-dry sign-off remain separate OPEN
+gates. No production security-fix or whole-surface PASS is claimed. This is a
+bounded experimental treatment, not authorization to run it: baseline diagnosis,
+Study B pilot launch and own DO operational admission remain absent.
+
 ## Canonical service naming (13.11.2026) — bounded L1/L2 change coverage, OPEN
 
 GPT-6.1 Sol orients against I3/I5 and current exact-key authorization, then checks

@@ -1,0 +1,132 @@
+{
+  "kind": "ADDITIVE_ARM_T_K20_DIAGNOSTIC_RESULT",
+  "directive": "Jacob 2026-11-14; one-off pilot-first diagnostic exception confirmed 2026-11-15",
+  "outcome": "MAIN_PROJECTION_PASS_SEQUENCE_NOT_ESTABLISHED_TARGETS_MISSED",
+  "dataset_id": "2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd",
+  "droplet_id": 619371600,
+  "configuration": {
+    "accounts": 1000000,
+    "reader_index": 1,
+    "follows": 20,
+    "readable_groups_including_self": 21,
+    "fetched_rows": 21,
+    "displayed_rows": 20,
+    "excluded_warmups": 1,
+    "measured_sequences": 3,
+    "independent_formal_trials": 0,
+    "engine": "24.8.14.39",
+    "host_gib": 32,
+    "container_gib": 28,
+    "server_gib": 22,
+    "os_and_api_budget_gib": 4,
+    "main_sql_deadline_seconds": 10,
+    "arm_d": false,
+    "counting_numbers": false,
+    "views_treatment": false,
+    "ad_inventory_ttl_treatment": false
+  },
+  "build": {
+    "outcome": "ARM_T_BUILD_VERIFIED",
+    "variant_rows": 92200600,
+    "total_setup_seconds": 873.233,
+    "copy_seconds": 326.63,
+    "exact_reconciliation_seconds": 409.99,
+    "setup_algorithm": "full_sorting_merge",
+    "receipt_sha256": "3fc243ca203ef845aa7ae8367171935f9711161028965d0ef60fdab0279ff90b"
+  },
+  "parity": {
+    "main_projected_page": "PASS",
+    "checked_pages_including_warmup": 4,
+    "ids_order_and_checked_projection_match": true,
+    "whole_returned_rows_sha256": "b72c27e5d812c7bf3771fc7c83589699c7fe783c235fc291c23099e779b3fb9b",
+    "full_sequence": "NOT_ESTABLISHED",
+    "reason": "Reaction-count follow-up returns HTTP 400/native timeout code 159; comments/views and exact live-delivery verification are not reached. No wrong-main-page result observed."
+  },
+  "preserved_baseline": {
+    "reference": "../REALISM-SMOKE-20261113.json",
+    "outcome": "native main code159 timeout",
+    "native_main_read_rows": 360801800,
+    "native_main_read_bytes": 24319446938
+  },
+  "fresh_untreated_control": {
+    "read_rows": 360801800,
+    "read_bytes": 24374786309,
+    "native_exception_code": 159
+  },
+  "treated_core_sql_path": {
+    "scope": "candidate selection/canonical point checks PLUS final canonical main/related metadata; excludes preparation/auth/readability and is NOT whole main API cost",
+    "read_rows_per_observation": 23052493,
+    "read_bytes_per_observation": 1456968181,
+    "candidate_read_rows": 18107119,
+    "candidate_read_bytes": 1129464553,
+    "canonical_main_read_rows": 4945374,
+    "canonical_main_read_bytes": 327503628,
+    "native_duration_sums_ms": [
+      2869,
+      2615,
+      2467
+    ]
+  },
+  "whole_main_api": {
+    "http_statuses": [
+      200,
+      200,
+      200
+    ],
+    "client_ms": [
+      64481.73821900036,
+      59507.50103700011,
+      64061.522037999566
+    ],
+    "prepare_phase_ms": [
+      59989.96901099963,
+      55545.36994099999,
+      57373.495629999525
+    ],
+    "source_of_preparation_failure": "Node-ad inventory query fd65cec3... fails with native memory-limit code241 after roughly51\u201355seconds; four other preparation service reads each read86,744,923rows. These are outside the two treated core SQL statements, inside the main API request.",
+    "inventory_empty_verified": false,
+    "synthetic_node_ad_posts_in_input": 300
+  },
+  "sequence": {
+    "completed_measured_sequences": 0,
+    "failed_measured_sequences": 3,
+    "reaction_http_statuses": [
+      400,
+      400,
+      400
+    ],
+    "comments_requested": false,
+    "views_requested": false,
+    "sequence_native_logical_bytes": [
+      37718053065,
+      37417752702,
+      37834574841
+    ]
+  },
+  "targets": {
+    "bytes_per_request_less_than": 25000000,
+    "latency_p95_ms_less_than": 500,
+    "qualifying_success": false,
+    "p95_established": false,
+    "note": "Even the core-only SQL path exceeds the byte budget; three serial observations are not a formal p95 study."
+  },
+  "arm_d_realism_comparator": "NOT_AVAILABLE; old V2 figures are not substituted",
+  "discipline": {
+    "no_additional_cells_launched": true,
+    "no_k1000": true,
+    "containers_stopped": true,
+    "pilot_gate_status": "operator-waived-not-passed",
+    "no_production_changes": true,
+    "no_submission": true,
+    "fixed_operation_deadline_utc": "2026-11-15T05:17:51Z"
+  },
+  "artifact_sha256": {
+    "attempt3-build.json": "aba8a734970d520011649dbe20e5a895b49ba780e55a6517e029fd986390ad2c",
+    "main-projection-parity.json": "cfd121099bf3132d0f673bc335a324a76838aeb73c2b7abecf5efda49faa67c5",
+    "native-core-breakdown.json": "2fce80059023afbd40ff3999294d588b03a52b9261eaca4d27c8d778cd118dd6",
+    "main-request-observations.json": "b943268bb253e8b8c16d535a5e5e753d92e2e7b8f7c023e85ad376f4175c3d7a",
+    "sequence-parity.json": "05dae9b5515b05abd7b6e2d9b8fd4171a10e97230fc3ad514064f5b0b7c32b40",
+    "request-metadata.json": "d765740a86dbda80a2d4e08e90873d6bc7dfcc77f3707050d57774fc8d6c536d",
+    "attempt2-archival.json": "dccb147b4800073cb3db366f098c72904b558fe939608b3854e2dd30ee84a4ab"
+  }
+}

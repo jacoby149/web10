@@ -35,6 +35,69 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-14: A layout hint is not authority, and build admission is not a runtime lease
+
+15 November merge-first follow-up: page the immutable metadata before canonical
+checks, but compare every bounded attachment/time against the original live
+document/link/policy result. Missing or changed winners stop INVALID, never
+refill from an unverified snapshot or drop the authority checks. Keep the
+original layout receipt source pins intact; record the query revision/adapter
+hashes separately so reusing a verified layout does not rewrite build history.
+Offline stale/denied-winner replay is refused. This is bounded research-control
+coverage, not a fresh/model-diverse security PASS.
+
+Use a separate observer identity or exclude observation query IDs explicitly:
+live metadata SQL under the measured user contaminates wall-window totals, and
+substring stage markers can match an inspection query's string literals. Keep
+raw receipts; label any exact-ID correction and do not call the raw sequence
+exclusive or promote instrumented HTTP observations into clean latency claims.
+
+Physical-consolidation diagnostic scope is explicit: only the approved isolated
+measurement copies, never source storage or production. Bind the exact project/
+host/current lease before setup, retain table identities/counts/multiset hashes,
+and deny changed fingerprints before any feed probe. Hash equality is not exact
+row equality or a substitute for independent semantic parity. Mocked changed-
+multiset/output-reuse controls pass. Native consolidation preserves the recorded
+UUID/schema/count/hash checks and four main pages pass independent semantic
+parity; full sequence still fails. That is one synthetic reader, not lifecycle,
+shared-group or broad security assurance.
+
+Completed diagnostic lesson: a correct returned main page is not complete-
+sequence correctness. Do not present a fast final SELECT while excluding
+candidate selection, canonical preparation or failed follow-ups. An inventory
+read that hits a memory limit does not prove empty inventory (this fixture has
+300 node-ad posts). HTTP400 can wrap a native timeout, not malformed input;
+classify from the native error before choosing a repair. Keep canonical checks
+when optimizing; no read-performance result authorizes removing authority gates.
+
+15 November setup lesson: selecting a disk-capable join, even with explicit
+join-spill admission, does not prove whole-query memory is bounded. Preserve
+failed setup receipts and keep the global cap; a half-built layout is neither
+a parity sample nor a read-performance result. An oracle performance repair
+must retain canonical version/deletion/group/count semantics and demonstrate
+equivalence independently, not adjust expected values around a failing arm.
+
+15 November follow-through: an explicit diagnostic sequencing exception is
+`operator-waived-not-passed`, not evidence a pilot ran. Bound its lifetime and
+budget independently. Never retry an unresolved provider creation, and never
+call cleanup verified just because one matching resource disappeared; delayed
+visibility is not proof that no accepted creation can still materialize.
+
+An experimental transposed link snapshot can nominate full document identities,
+but canonical document/version, original-link and live policy checks must remain
+in the actual read. Never infer an author's group from a name or silently flatten
+cross-author engagement. Page-before-join treatments also need a declared rule
+for the captured query's undefined tie ordering: the additive Arm T prototype
+refuses relevant timestamp ties, rather than inventing a different oracle.
+
+Receipting a permitted build does not authorize an expired or foreign-host API
+run. Bind runtime to actual host/store/source/current admission before SQL, and
+record treatment identity before executing candidate SQL so timeouts remain
+attributable failures. A correctly hashed conclusion is still not a source-bound
+diagnosis: retain exact query, native query IDs, executing fingerprints and scan
+evidence. These are bounded research-tool review lessons and offline controls,
+not connected/native verification or an independent L1–L4/model-diverse PASS.
+
 ### 2026-11-13: Canonical identifiers are a shared boundary, not a lowercase display label
 
 New service names use one server-side ASCII validator across request fields,

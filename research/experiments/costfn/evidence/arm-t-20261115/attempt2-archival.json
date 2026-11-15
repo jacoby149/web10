@@ -1,0 +1,12 @@
+{
+  "utc": "2026-11-15T03:01:02.639979+00:00",
+  "failed_query_id": "arm-t-build-239fd66e82fa434f949f1d37d3fdeda4",
+  "preserved_variant": "doc_groups_t_failed_build_239fd66e82fa",
+  "variant_uuid": "7508ace5-a212-41fb-a561-a6941552ac9e",
+  "rows": 0,
+  "original_source_counts_unchanged": {
+    "documents": 88200300,
+    "doc_groups": 92200600
+  },
+  "scope": "archive only second failed experimental variant; no original table/data rewrite; no parity request ran"
+}
