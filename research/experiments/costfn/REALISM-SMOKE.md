@@ -4,6 +4,30 @@ The immediate question is modest: can one reader get a correct feed from the
 new store, and what does that sequence cost? Start with one reader, not a fleet.
 Three observations are a diagnostic, not a tail-latency distribution in disguise.
 
+## Result: restore complete, untreated baseline times out
+
+[The compact receipt](evidence/REALISM-SMOKE-20261113.json) records the completed
+13 November run. All seven node-table counts reconcile, including 88,200,300
+documents and 1.6B delivery events. Total preparation is 1,287.174 seconds;
+delivery import is 962.18 seconds. Independent expectations, real K20-plus-self
+group discovery and wrong-Origin denial pass.
+
+The excluded warm-up and all three measured **main** requests return HTTP 400
+with native timeout code 159. Client failure observations are 11,261.854,
+11,207.841 and 11,255.677 ms, not completed-feed latencies. Each failed main
+reads 360,801,800 rows / 24,319,446,938 native logical bytes and peaks around
+5.16–5.18 GB tracked query memory. Read bytes are not physical disk I/O; rows
+can include repeated reads, not distinct documents. This newly restored serial
+diagnostic does not establish controlled merge/cache steady state or causality.
+
+No main projection returns, so exact API output, engagement follow-ups and the
+live-delivery delta comparison remain **unexercised**, not passed. Keep this
+negative baseline; diagnose its reads and merge/cache conditions before choosing
+a treated arm, without raising the timeout. All owned run containers are stopped
+by 21:00:51.700 UTC, no OOM. The original validation receipt hash and existing
+host cleanup deadline are unchanged. Stopping containers does not stop host
+billing; the provider host and retained volume are not deleted by this run.
+
 ## This bite
 
 The operator authorizes the retained DigitalOcean host `618505005`, at most two
