@@ -53,6 +53,8 @@ const feedItem = { path: '/feed', icon: Flame, label: 'Posts', testId: 'nav-feed
 const videoItem = { path: '/video', icon: Video, label: 'Video', testId: 'nav-video' };
 const shortsItem = { path: '/shorts', icon: Clapperboard, label: 'Shorts', testId: 'nav-shorts' };
 const musicItem = { path: '/music', icon: Music, label: 'Music', testId: 'nav-music' };
+// One consumption dock for signed-in and signed-out readers; never fork its order.
+const bottomNavItems = [feedItem, videoItem, shortsItem, musicItem];
 const peopleItem = { path: '/people', icon: Users, label: 'People', testId: 'nav-people' };
 const messagesItem = { path: '/messages', icon: MessageSquare, label: 'Messages', testId: 'nav-messages' };
 // The profile nav item shows the user's name/username (not the word "Profile")
@@ -102,34 +104,17 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
   const { pathname } = useLocation();
   const actingIdentity = useActingAuthor();
   const token = getWapi().readToken();
-  // Anon mode (the operator: "supporting anon login with web10 social"): a
-  // signed-out visitor browses the public surfaces (Discover, Shorts,
-  // profiles) in a read-only shell. The chrome swaps the account row for a
-  // clear Sign in affordance and hides the signed-in-only nav (Feed, Messages,
-  // your Profile, Monetization). `isAnon` is driven by the same source App
-  // uses (getSocialAuth().isSignedIn()) so the chrome and the routes agree;
-  // a direct Layout render (no prop) falls back to the token's presence.
+  // Signed-out readers keep public content navigation and a clear Sign in
+  // action, without personal/account destinations. App supplies the same
+  // session state used by its routes; direct Layout tests fall back to a token.
   const isAnon = isAnonProp ?? !token;
   const profilePath = token ? `/u/${token.username}` : '/video';
-  // Anon nav: only the public surfaces (Video, Shorts, Hot Gossip, People).
-  // Feed, Messages, your Profile, and Monetization are signed-in-only — hiding
-  // them keeps the chrome honest (a dead nav item that redirects is worse
-  // than no item).
-  // Video leads the anon nav (a signed-out visitor is here for the video — the
-  // video wall is the front door, Shorts the lens). The signed-in order (M6)
-  // is unchanged.
-  // The pyramid order (the operator, 29.09.2026): People → Posts → Video →
-  // Shorts. People validates "wow there are people here!" (the node stats),
-  // then the user makes their way down the pyramid: Posts (the ranked board),
-  // Video (the wall), Shorts (the lens). Anon + signed-in share the order.
+  // Desktop retains its existing People-first public sidebar.
   const anonSidebarNavItems = [peopleItem, feedItem, videoItem, shortsItem, musicItem];
-  const anonBottomNavItems = [peopleItem, feedItem, videoItem, shortsItem];
   // Signed-in: Profile at the top, then the pyramid (People, Posts, Video,
   // Shorts, Music), then Messages + Monetization. More holds the rest
   // (Settings, Node Monetization, Node Settings, coming-soon).
   const sidebarNavItems = isAnon ? anonSidebarNavItems : [profileItem, peopleItem, feedItem, videoItem, shortsItem, musicItem, messagesItem, monetizationItem];
-  // Signed-in mobile prioritizes consumption; Messages remains in More.
-  const bottomNavItems = isAnon ? anonBottomNavItems : [feedItem, videoItem, shortsItem, musicItem];
   const [moreOpen, setMoreOpen] = useState(false);
   const { unread } = useNotifications();
   // The Messages unread badge (the purple count on the Messages icon) — DMs
@@ -282,6 +267,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
 
   const go = (path: string) => {
     const target = path === '/profile' ? profilePath : path;
+    console.log('[layout] navigate', { target, isAnon });
     setMoreOpen(false);
     navigate(target);
   };
@@ -705,27 +691,21 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
             </button>
             );
           })}
-          {/* The "More" tab: the fifth icon. Opens a sheet with Settings +
-               the coming-soon surfaces, so the bottom bar stays at five and
-               has room to grow as features ship (operator, 30.08.2026).
-               Hidden in anon mode — it only holds signed-in-only surfaces
-               (Settings, Monetization); the Sign in affordance is in the
-               header. */}
-          {!isAnon && (
+          {/* More keeps People/Appearance reachable for everyone; personal
+              destinations and message counts remain signed-in-only. */}
           <button
             data-testid="nav-more-mobile"
-            aria-label={messagesUnread > 0 ? `More, ${messagesUnread > 99 ? '99+' : messagesUnread} unread messages` : 'More'}
-            aria-current={isActive(messagesItem.path) ? 'page' : undefined}
+            aria-label={!isAnon && messagesUnread > 0 ? `More, ${messagesUnread > 99 ? '99+' : messagesUnread} unread messages` : 'More'}
+            aria-current={isActive(peopleItem.path) || (!isAnon && isActive(messagesItem.path)) ? 'page' : undefined}
             aria-expanded={moreOpen}
             onClick={() => setMoreOpen(true)}
             className="chrome-nav-item relative min-w-0 flex-1 flex flex-col items-center justify-center gap-1 min-h-12 py-2 text-foreground"
           >
             <span className="relative"><MoreHorizontal className="w-5 h-5" strokeWidth={1.75} />
-              {messagesUnread > 0 && <span data-testid="nav-more-messages-badge" aria-hidden="true" className="absolute -top-1.5 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[0.5625rem] font-bold text-background">{messagesUnread > 99 ? '99+' : messagesUnread}</span>}
+              {!isAnon && messagesUnread > 0 && <span data-testid="nav-more-messages-badge" aria-hidden="true" className="absolute -top-1.5 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[0.5625rem] font-bold text-background">{messagesUnread > 99 ? '99+' : messagesUnread}</span>}
             </span>
             <span className="text-[0.625rem] font-medium">More</span>
           </button>
-          )}
         </nav>
 
         {/* The "More" sheet — Settings (the demoted real destination) plus
@@ -748,10 +728,10 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
               </div>
 
               <div className="space-y-1">
-                <button type="button" data-testid="nav-profile-mobile" aria-label="View your profile" data-replay-private onClick={() => go(profileItem.path)} className="mb-4 flex min-h-20 w-full items-center gap-3 rounded-lg border border-border bg-elevated p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                {!isAnon && <button type="button" data-testid="nav-profile-mobile" aria-label="View your profile" data-replay-private onClick={() => go(profileItem.path)} className="mb-4 flex min-h-20 w-full items-center gap-3 rounded-lg border border-border bg-elevated p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                   <Avatar className="h-12 w-12 shrink-0">{avatarUrl && <AvatarImage src={avatarUrl} alt="" />}<AvatarFallback className="bg-brand-muted text-brand-300">{(displayName || username || '?').charAt(0).toUpperCase()}</AvatarFallback></Avatar>
                   <span className="min-w-0 flex-1"><span className="block truncate text-base font-semibold text-foreground">{displayName || username || 'Your profile'}</span><span className="mt-1 block truncate text-xs text-muted-foreground">@{username}</span><span className="mt-1 block text-sm font-medium text-brand-300">View profile</span></span>
-                </button>
+                </button>}
                 {/* People — the discovery/browse surface, kept in More. */}
                 <button
                   data-testid="nav-people-mobile"
@@ -765,7 +745,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                   {peopleItem.label}
                 </button>
                 {/* Messages keeps its route/unread indicator, outside the primary dock. */}
-                <button
+                {!isAnon && <button
                   data-testid="nav-messages-mobile"
                   onClick={() => go(messagesItem.path)}
                   className={cn(
@@ -776,12 +756,12 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                   <MessageSquare className="w-5 h-5" strokeWidth={1.75} />
                   {messagesItem.label}
                   {messagesUnread > 0 && <span data-testid="nav-messages-badge-mobile" className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1.5 text-xs font-semibold text-background">{messagesUnread > 99 ? '99+' : messagesUnread}</span>}
-                </button>
+                </button>}
                 <button type="button" data-testid="nav-appearance-mobile" onClick={() => go('/appearance')}
                   className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground hover:bg-elevated">
                   <Palette className="h-5 w-5" strokeWidth={1.75} />Appearance
                 </button>
-                <button
+                {!isAnon && <><button
                   data-testid="nav-settings-mobile"
                   onClick={() => go(settingsItem.path)}
                   className={cn(
@@ -816,6 +796,7 @@ export default function Layout({ onLogout, onLogin, isAnon: isAnonProp, onReport
                     {nodeSettingsItem.label}
                   </button>
                 )}
+                </>}
               </div>
 
               <div className="mt-4 pt-3 border-t border-border/60">
