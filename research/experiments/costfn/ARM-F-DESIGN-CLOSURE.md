@@ -8,6 +8,8 @@ design artifacts. This closes design intent, not implementation, native parity,
 security review or performance. The admitted run has now **STOPPED in P setup
 before Step0 serving**; the owned host/auxiliary resources were cleaned up early.
 See the receipt below. This admission is consumed/closed, not a standing retry grant.
+The operator subsequently authorizes an online batched-checker retry in the same
+fresh four-hour/$2 shape; this is a new guarded run, not renewal of the old lease.
 T7 needs separate admission. Production and views treatment remain unauthorized.
 
 This file contains **closure + operator approval**; the
@@ -412,8 +414,9 @@ a91133de21e61fed81b10fb2e2bcbd20eeb73f3c4e782170873aa92fbd553bfb  research/exper
 2c9b198f8b290d7f1287f1e1fc6179bbf81050ca4b7a75af8a34579214347bdd  research/experiments/costfn/evidence/core-feed-wire-v7.json
 b51f94c2f54ce84f9cc9bb0755f83956b365f0c793af880d88ec255ffd3a869c  research/experiments/costfn/arm_satellite_serve.py
 d0a177abee4e2d00be88f68d20bf01f7b3f9e38782f42728a8b11d54a6c02095  research/experiments/costfn/arm_satellite_counts.py
-f13774f78d4e5abc5513a9ecebf2e00e6f052f77c69bf7d31f3ec2531fe90985  research/experiments/costfn/arm_satellite_metadata.py
-d29c67886baeb0d63a9c1a64ac2ac967360cf3333eaec046aaa9f81ebca31c40  research/experiments/costfn/arm_satellite_verify.py
+69ba73271e91849b032dc1af7f88d7df9e6acf3d1e27e742b228da59f1b9a0e4  research/experiments/costfn/arm_satellite_metadata.py
+f661fef290535840fddf80a4778e39f3fef137d539291ae129170396070e1874  research/experiments/costfn/arm_satellite_verify.py
+fa0df8ffc81f5d92a1d02dbdfc679697c2774833274b375036c113efd07153c8  research/experiments/costfn/arm_satellite_reconcile.py
 d75eb688562d0b0cf0a2e9c10fd15a351bc695a1e9a2096e967968c4882fb6d5  research/experiments/costfn/smoke_realism.py
 9cc2fd817dd946e68455a91834f0a67a5987ff1c846e2a8590a9d9a00ee5501a  research/experiments/costfn/core_feed.py
 8b8ae69d4808fa72da0012c562ea92b73598e4bf7a20c7695b3246931539129f  api/app/v3/endpoints/query.py
@@ -483,7 +486,52 @@ keys/read-capability copy were removed after cleanup; the provider watchdog was
 unloaded only after verification. No native retry, new host, F/P1 cell, production
 action or paper rewrite followed the cap stop.
 
-Next is a separately reviewed, memory-bounded repair of the existing P checker
-under the same correctness/resource contract, retaining this failure. Any new
-paid/native attempt needs fresh operator admission; do not bypass reconciliation,
-start F using the old headline number, or reinterpret this STOP as a fanout verdict.
+### Batched repair and new online retry
+
+Operator direction after the stop: batch the full-store checker; online
+implementation/verification is permitted. The agreed retry remains a **new
+isolated four-hour/$2 run**,32/28/22GiB,24.8.14.39 and original measured-read/
+stop/cleanup rules. Credit availability does not raise the spending or memory
+limit. Record its new actual host/deadline before execution; no old lease revival.
+
+`arm_satellite_reconcile.py` partitions **all three inputs** by the same stable
+`cityHash64(doc_id)%8`, preserving FINAL, histories, author collisions, shared
+attachments, join predicates and every original field comparison. Expected and
+stored counts are batched too; each slice must independently agree, and all8
+must finish exactly once. Partial/duplicate/malformed results never become PASS.
+The five independent full-multiset metadata checks use the same partition rule;
+their grouping retains doc_id, so no group can split or cancel across batches.
+No default full-store join/hash reconciliation remains as the first proof step.
+
+An additional exactness control denies duplicate target logical keys
+`(group_id,author_key,doc_id)`: the old scalar counts/inner-join check could admit
+one valid duplicate cancelling a missing row. Canonical ReplacingMergeTree keys
+and single-partition semantics are verified before relying on canonical-key
+uniqueness. With unique canonical/target keys, equal per-batch cardinality,
+all target rows joined and every field equal, the comparison is bijective—not a
+sample or DISTINCT shortcut. The original failed SQL constant/hash and raw
+receipts stay unchanged; only input partitioning and the extra refusal gate change.
+
+The source manifest above binds the new checker/metadata callers. The old metadata
+builder hash starts `f13774f7…` and verifier `d29c6788…`; their complete original
+sources remain in the stopped-run evidence. SQL/recipe/field semantics and the
+independent oracle are not rewritten. Batch size bounds expected working set,
+not whole-server memory by assertion; the native cap still decides admission.
+
+Before another full archive restore, a separate tiny24.8.14.39/22GiB native
+fixture will exercise valid/shared/same-ID-author/history rows, wrong fields,
+orphans and duplicate-plus-missing cancellation. It stops/removes its own
+container before the measured store starts. This is checker implementation
+verification, not F or full-store capacity evidence. Then the programme resumes
+with the full-hash archive restore, P setup/stage table and original F gates.
+Eight no-engine AST/algebra/refusal controls pass. The **tiny native preflight
+passes** on fresh host **619612240**, engine24.8.14.39/server22GiB: positive
+history/shared/same-ID-author rows match, and field mutation, orphan rows and
+duplicate-cancels-missing cases are denied. Source-bound receipt:
+[`evidence/arm-f-batched-20261115/checker-native-fixture/result.json`](evidence/arm-f-batched-20261115/checker-native-fixture/result.json).
+This is not full-store fit or F performance. The new guarded deadline is
+**15 November23:24:56UTC**, max four hours/$2; provider cleanup was armed before
+creation, host/container stops are installed, and the archive restores from
+fully reverified MinIO bytes. Full-store reconciliation/stages/F gates remain
+pending; no old lease renewal or credit-based cap increase.
+No projection/P1 cell, production action, memory increase or automatic extension.

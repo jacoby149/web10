@@ -1,0 +1,1 @@
+INSERT INTO doc_groups_t SELECT group_id,created_at,'orphan',author_key,link_created_at,updated_at,deleted,collection_name,tags,ref_value,comment_post_id,repost_of FROM doc_groups_t LIMIT 1

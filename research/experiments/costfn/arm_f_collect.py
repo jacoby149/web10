@@ -11,6 +11,42 @@ import subprocess
 import tarfile
 
 
+def collect_fixture():
+    """File-only collection of a completed tiny preflight while restore continues."""
+    state = json.loads(Path('.context/fanout-run.json').read_bytes())
+    private = Path(state['root'])
+    host = json.loads((private / 'host.json').read_bytes())
+    options = ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=12', '-o', 'StrictHostKeyChecking=yes',
+               '-o', 'UserKnownHostsFile=' + str(private / 'known_hosts'), '-i', str(private / 'client-key')]
+    if state.get('ssh_jump'):
+        options += ['-J', state['ssh_jump']]
+    destination = 'root@' + host['ip']
+    script = """from pathlib import Path
+import json,tarfile
+root=Path('/opt/fanout/checker-native-fixture')
+assert json.loads((root/'result.json').read_bytes())['outcome']=='PASS'
+with tarfile.open('/opt/fanout/checker-native-evidence.tar.gz','w:gz') as archive:
+ for p in root.rglob('*'):
+  if p.is_file() and p.suffix in ('.json','.sql'):archive.add(p,arcname=str(p.relative_to(root)))
+ for name in ['arm_satellite_reconcile.py','arm_satellite_reconcile_native.py','arm_satellite_metadata.py']:
+  archive.add(Path('/opt/fanout/repo/research/experiments/costfn')/name,arcname='executing-source/'+name)
+print('tiny native checker evidence collected without SQL or engine interference')
+"""
+    subprocess.run(['ssh', *options, destination, 'python3 -c ' + shlex.quote(script)],
+                   capture_output=True, check=True, timeout=60)
+    archive = private / 'checker-native-evidence.tar.gz'
+    subprocess.run(['scp', *options, destination + ':/opt/fanout/checker-native-evidence.tar.gz', str(archive)],
+                   capture_output=True, check=True, timeout=120)
+    output = Path('research/experiments/costfn/evidence/arm-f-batched-20261115/checker-native-fixture')
+    output.mkdir(parents=True, exist_ok=False)
+    with tarfile.open(archive) as data:
+        data.extractall(output, filter='data')
+    manifest = {str(path.relative_to(output)): {'bytes': path.stat().st_size,
+        'sha256': hashlib.sha256(path.read_bytes()).hexdigest()} for path in sorted(output.rglob('*')) if path.is_file()}
+    (output / 'artifact-manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+    print((output / 'result.json').read_text())
+
+
 def collect():
     state = json.loads(Path('.context/fanout-run.json').read_bytes())
     private = Path(state['root'])
@@ -113,4 +149,10 @@ print(json.dumps({'containers':containers,'no_engine_restart':True,'receipt_byte
 
 
 if __name__ == '__main__':
-    collect()
+    import sys
+    if sys.argv[1:] == ['--fixture']:
+        collect_fixture()
+    elif sys.argv[1:]:
+        raise SystemExit('only explicit --fixture or stopped setup collection accepted')
+    else:
+        collect()

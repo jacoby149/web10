@@ -1,0 +1,1 @@
+SELECT count() AS n FROM (SELECT doc_id FROM (SELECT * FROM doc_groups FINAL WHERE cityHash64(doc_id) % 2 = 1) AS doc_groups WHERE deleted = 0) AS g INNER JOIN (SELECT doc_id FROM (SELECT * FROM documents FINAL WHERE cityHash64(doc_id) % 2 = 1) AS documents WHERE deleted = 0) AS d ON g.doc_id = d.doc_id

@@ -339,6 +339,9 @@ the15 November run stopped in P transpose reconciliation/native241 at22GiB,
 before serving or any F native gate. Count T1 alone passed; owned resources were
 cleaned up early. Failure/cleanup receipts live in the existing closure file and
 `evidence/arm-f-20261115/P-setup-stop/`; no current paid/native continuation grant.
+Subsequent operator approval permits a new online batched-checker run, not old-
+lease reuse: DO619612240 through15 November23:24:56UTC, same four-hour/$2 caps.
+Tiny native checker controls pass under22GiB; full-store fit/F gates remain open.
 Experiment first: prove hybrid write maintenance and layout-aware reads in isolated
 Config F, passing all required response/performance/write/lifecycle/rebuild and
 separately admitted stress gates before proposing broader platform integration.

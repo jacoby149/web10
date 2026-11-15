@@ -48,6 +48,10 @@ def validate(lease):
             or lease.get('deadline', 0) - lease.get('created_epoch', 0) != 14400
             or not lease.get('account_uuid')):
         raise ValueError('exact granted Config F four-hour/$2 lease required')
+    if lease.get('ssh_source_cidr'):
+        source = ipaddress.ip_network(lease['ssh_source_cidr'], strict=True)
+        if source.version != 4 or source.prefixlen != 32:
+            raise ValueError('one pinned SSH source, never broad ingress')
 
 
 def account(lease):
@@ -182,8 +186,10 @@ def create(path):
         row = row[0] if isinstance(row, list) else row
         lease.update(ssh_key_id=row['id'], key_fingerprint=row['fingerprint'])
         save(path, lease)
-        source = json.loads(subprocess.check_output(['curl', '-fsS', '--max-time', '10', 'https://api.ipify.org?format=json']))['ip']
-        source = str(ipaddress.IPv4Address(source)) + '/32'
+        source = lease.get('ssh_source_cidr')
+        if not source:
+            address = json.loads(subprocess.check_output(['curl', '-fsS', '--max-time', '10', 'https://api.ipify.org?format=json']))['ip']
+            source = str(ipaddress.IPv4Address(address)) + '/32'
         api('compute', 'tag', 'create', lease['tag'])
         row = api('compute', 'firewall', 'create', '--name', lease['name'], '--tag-names', lease['tag'],
             '--inbound-rules', 'protocol:tcp,ports:22,address:' + source,

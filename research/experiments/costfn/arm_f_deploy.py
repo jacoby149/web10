@@ -54,6 +54,10 @@ def deploy():
         deadline_utc=datetime.fromtimestamp(lease['deadline'], UTC).isoformat(),
         full_canonical_membership_pass=True, append_only_publication=True, read_cap=200,
         cutoff=2000, R_plus_W_required=True, T7_admitted=False, sort_order_arm_admitted=False)
+    prior_stop = Path(__file__).parent / 'evidence/arm-f-20261115/P-setup-stop/stop.json'
+    if prior_stop.is_file():
+        admission.update(operator_online_retry=True, reconciliation_batches=8,
+            prior_stop_receipt_sha256=hashlib.sha256(prior_stop.read_bytes()).hexdigest())
     cloud.save(private / 'admission.json', admission)
     transfer = [('source.tar.gz', private / 'source.tar.gz'), ('admission.json', private / 'admission.json'),
                 ('source-manifest.json', private / 'source-manifest.json'),

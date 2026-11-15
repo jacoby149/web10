@@ -212,6 +212,12 @@ def baseline(root, *, verified_input=None, project='web10-costfn-frozen-satellit
     save(root / 'result.json', result)
     session = None
     try:
+        result['stage'] = 'checker_native_fixture'
+        save(root / 'result.json', result)
+        from arm_satellite_reconcile_native import run as check_fixture
+        result['checker_native_fixture'] = check_fixture(root)['outcome']
+        result['stage'] = 'archive'
+        save(root / 'result.json', result)
         if verified_input is None:
             download(root)
         else:

@@ -45,6 +45,7 @@ jobs:
           python research/experiments/costfn/arm_satellite_runtime.test.py
           python research/experiments/costfn/arm_satellite_counts.test.py
           python research/experiments/costfn/arm_satellite_metadata.test.py
+          python research/experiments/costfn/arm_satellite_reconcile.test.py
           python research/experiments/costfn/arm_satellite_pull.test.py
           python research/experiments/costfn/arm_satellite_profile.test.py
           python research/experiments/costfn/arm_satellite_profile_api.test.py

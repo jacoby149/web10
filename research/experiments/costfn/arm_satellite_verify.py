@@ -6,6 +6,7 @@ from pathlib import Path
 
 import arm_satellite_counts as counts
 import arm_satellite_runtime as runtime
+import arm_satellite_reconcile as reconcile
 
 
 def difference(actual, expected, columns):
@@ -37,7 +38,8 @@ def checks():
     return result
 
 
-def verify(root):
+def verify(root, *, batches=reconcile.DEFAULT_BATCHES):
+    reconcile.require_batched(batches)
     root = Path(root)
     session = runtime.Session(root)
     envelope = session.verify_envelope()
@@ -48,7 +50,10 @@ def verify(root):
     output.mkdir(exist_ok=False)
     result = {"kind": "SATELLITE_METADATA_INDEPENDENT_PARITY", "outcome": "CHECKING", "checks": {},
               "droplet_id": session.host_id, "started_utc": datetime.now(UTC).isoformat(), "envelope": envelope,
-              "metadata_sha256": hashlib.sha256((root / "metadata/result.json").read_bytes()).hexdigest(), "T2": "NOT_RUN"}
+               "metadata_sha256": hashlib.sha256((root / "metadata/result.json").read_bytes()).hexdigest(), "T2": "NOT_RUN"}
+    result['partition_batches'] = batches
+    result['source_sha256'] = {name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
+                               for name in ('arm_satellite_verify.py', 'arm_satellite_reconcile.py')}
 
     def save():
         (output / "result.json").write_text(json.dumps(result, indent=2) + "\n")
@@ -58,13 +63,34 @@ def verify(root):
         before, _ = counts.generation(session)
         if before != metadata["canonical_generation"]:
             raise ValueError("canonical generation changed before independent parity")
+        import sqlglot
+        from sqlglot import exp
         for label, sql in checks().items():
-            (output / (label + ".sql")).write_text(sql + "\n")
-            rows, query_id = session.rows("independent_metadata_" + label, sql, setup_seconds=900)
-            result["checks"][label] = {"mismatches": int(rows[0]["mismatches"]), "native": session.native(query_id)}
+            tree = sqlglot.parse_one(sql, read='clickhouse')
+            tables = {table.name for table in tree.find_all(exp.Table)}
+            if not tables <= {'documents', 'doc_groups', 'strings', 'timestamps'}:
+                raise ValueError('unknown unpartitioned metadata source')
+            if not any(any(isinstance(column, exp.Column) and column.name == 'doc_id' for column in group.expressions)
+                       for group in tree.find_all(exp.Group)):
+                raise ValueError('multiset grouping must retain the partition identity')
+            checked = {"mismatches": 0, "batches": [], "complete": False}
+            result["checks"][label] = checked
+            for index in range(batches):
+                sliced = reconcile.partition(sql, index, batches, tables)
+                name = label + '_batch' + str(index)
+                (output / (name + '.sql')).write_text(sliced + '\n')
+                rows, query_id = session.rows('independent_metadata_' + name, sliced, setup_seconds=900)
+                if len(rows) != 1:
+                    raise ValueError('one exact metadata aggregate required')
+                mismatches = reconcile.uint(rows[0]['mismatches'])
+                checked['batches'].append({'batch': index, 'mismatches': mismatches, 'native': session.native(query_id)})
+                checked['mismatches'] += mismatches
+                save()
+                if mismatches:
+                    raise ValueError('metadata multiset parity INVALID: ' + name)
+            reconcile.complete([row['batch'] for row in checked['batches']], batches)
+            checked['complete'] = True
             save()
-            if result["checks"][label]["mismatches"]:
-                raise ValueError("metadata multiset parity INVALID: " + label)
         after, _ = counts.generation(session)
         if after != before:
             raise ValueError("canonical generation changed during independent parity")
