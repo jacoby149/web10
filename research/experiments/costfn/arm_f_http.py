@@ -48,6 +48,7 @@ class HTTP:
             return response.json(), row
         finally:
             row['elapsed_ms'] = (time.perf_counter() - begin) * 1000
+            row['ended_utc'] = datetime.now(UTC).isoformat()
             self.records.append(row)
             # No HTTP body, JWT, response or arbitrary exception serialization.
             with (self.output / 'requests.jsonl').open('a') as stream:
@@ -79,6 +80,13 @@ class HTTP:
         return dict(phase=phase, elapsed_ms=elapsed,
             request_ids=[record['request_id'], *[item[1]['request_id'] for item in followups]],
             rows=rows, followups=[item[0] for item in followups], path_mode=record.get('path_mode'))
+
+    def observation(self, request_id):
+        path = self.root / 'fanout-state/requests' / (request_id + '.jsonl')
+        rows = [json.loads(line) for line in path.read_text().splitlines()]
+        if len(rows) != 1 or rows[0].get('request_id') != request_id:
+            raise ValueError('missing/ambiguous request observation')
+        return rows[0]
 
     def native(self, request_ids, label):
         ids, stages = [], []
