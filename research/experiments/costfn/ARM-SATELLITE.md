@@ -127,7 +127,24 @@ attributed by the retained main split, and shared surfaces have no new receipt.
 
 ## Gates and next execution
 
-Count setup subsequently stopped with native241 at the server-total22GiB cap;
+**Batched retry approval,15 November12:42UTC:** Jacob explicitly says
+"great, batch and proceed please!" after the native241 STOP report. One
+separate batched setup attempt may use the same host, unchanged memory limits,
+original budget and15:38:32UTC deadline. Preserve the failed table and receipts;
+new partial/final tables and a fresh output directory must not adopt old rows.
+Partition both document and attachment histories by the same stable doc_id
+hash before their version windows. All versions and authors sharing a doc_id
+stay in one batch. Thus row multiplicity is preserved, and DISTINCT doc_id
+sets are disjoint between batches: per-batch exact counts can be summed.
+Never partition by group (overlap) or mutable body/ref/version fields.
+Require every batch to finish, reject duplicate partial keys, consolidate once,
+then compare independent canonical values. Native regression fixtures must
+exercise zero/positive/shared attachments and changed/deleted histories before
+full-store setup. Batch count is a physical setup parameter, not a page or
+correctness pin. Setup cost stays separately recorded; no fanout, views
+replacement, new host, limit increase or automatic lease extension follows.
+
+The first count setup stopped with native241 at the server-total22GiB cap;
 see `evidence/arm-satellite-20261115/counts-stopped/`. Main-scope comparisons
 were zero-only; broader positive/shared parity and closing generation checks
 were not reached. T1 is NOT_ESTABLISHED. Owned containers are stopped and no
@@ -196,6 +213,13 @@ Arm D and Arm T evidence unchanged. No production, migration or paper work.
   complete ordering key and canonical winner resolver. More than one slice of
   denied/deleted pointers still fills correctly; shared attachment multiplicity
   survives. These are offline algorithm controls, not native T2/T8 receipts.
+- `arm_satellite_batch.py`, `arm_satellite_batch_fixture.py` and
+  `arm_satellite_batch_run.py` implement the separately approved p2 setup:
+  disjoint stable document histories, native zero/positive/shared/edit/delete
+  controls first, per-service/reference shared scans, exact consolidation and
+  independent source-bound comparisons. The old partial table is never read or
+  altered. p2 uses `counting_numbers_p2_parts`/`counting_numbers_p2`; a complete
+  native T1 receipt is required before any downstream consumer may use them.
 
 The fresh host is 619510510, admitted through 15 November 15:38:32 UTC at
 $0.25/hour. Provider cleanup is independently scheduled on the Mac; a host
