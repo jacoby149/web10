@@ -19,9 +19,12 @@ def registered(root):
     return approval, value['project']
 
 
-def stop(root):
+def stop(root, *, api_only=False):
     _, project = registered(root)
-    identifiers = subprocess.check_output(['docker', 'ps', '-q', '--filter', 'label=com.docker.compose.project=' + project]).decode().split()
+    filters = ['--filter', 'label=com.docker.compose.project=' + project]
+    if api_only:
+        filters += ['--filter', 'label=com.docker.compose.service=api']
+    identifiers = subprocess.check_output(['docker', 'ps', '-q', *filters]).decode().split()
     if identifiers:
         subprocess.run(['docker', 'stop', '-t', '20', *identifiers], check=True, timeout=90)
 

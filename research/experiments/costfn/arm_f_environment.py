@@ -21,6 +21,12 @@ import restore_realism as restore
 
 
 def stop(root, *, engine=False):
+    root = Path(root)
+    if (root / 'fresh-trial.json').is_file():
+        # Cleanup must work before restore.json exists and after admission
+        # expires. The private trial registration still fences exact ownership;
+        # this does not authorize another query, restore or measurement.
+        return arm_f_guard.stop(root, api_only=not engine)
     session = Session(root)
     restore.command(session.compose, session.env, 'stop', *(['api', 'clickhouse', 'minio'] if engine else ['api']), timeout=120)
 
@@ -59,11 +65,18 @@ def serving_state(root):
 
 
 def prepare(root, parent, *, profile=None):
-    """Build unchanged P materializations; never relabel a stale generation."""
+    """Synchronous programme entry point; async trials use prepare_async."""
+    return asyncio.run(prepare_async(root, parent, profile=profile))
+
+
+async def prepare_async(root, parent, *, profile=None):
+    """Build unchanged P materializations in the caller's existing event loop."""
     root, parent = Path(root), Path(parent)
     session = Session(root)
     if profile is None:
-        profile = asyncio.run(setup.setup_scopes(root, session))
+        print('[F-setup] scope start', root.name, flush=True)
+        profile = await setup.setup_scopes(root, session)
+        print('[F-setup] scope complete', root.name, flush=True)
     else:
         (root / 'profile').mkdir(mode=0o700)
         setup.save(root / 'profile/inventory.json', profile)
@@ -100,8 +113,19 @@ def fresh(parent, name):
     setup.save(root / 'fresh-trial.json', dict(free_bytes_before=free, project=project, fresh=True,
         archive_receipt_sha256=hashlib.sha256((parent / 'evidence/archive.json').read_bytes()).hexdigest()))
     setup.save(root / 'container-guard.json', arm_f_guard.arm(root))
-    restore.restore(root / 'input', root / 'input/validation.json', arm_t.DATASET, arm_t.VALIDATION,
-                    project, 6098, root / 'restore.json')
+    try:
+        restore.restore(root / 'input', root / 'input/validation.json', arm_t.DATASET, arm_t.VALIDATION,
+                        project, 6098, root / 'restore.json')
+    except BaseException as error:
+        failure = {'failure_class': type(error).__name__, 'project': project}
+        try:
+            arm_f_guard.stop(root)
+            failure['containers_stopped'] = True
+        except BaseException as cleanup_error:
+            failure.update(containers_stopped=False, cleanup_failure_class=type(cleanup_error).__name__)
+        setup.save(root / 'fresh-trial-failure.json', failure)
+        print('[F-setup] restore stopped', root.name, failure, flush=True)
+        raise
     return root
 
 

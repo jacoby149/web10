@@ -1,12 +1,15 @@
 """No-engine orchestration/refusal controls. Not native performance/auth proof."""
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import ExitStack
 from datetime import UTC, datetime, timedelta
 import json
 from pathlib import Path
+from types import SimpleNamespace
 import tempfile
 import threading
 import unittest
+from unittest.mock import AsyncMock, patch
 
 import httpx
 import sqlglot
@@ -14,6 +17,7 @@ import sqlglot
 import arm_f
 from arm_f_fence import Fence
 import arm_f_faults as faults
+import arm_f_guard as guard
 import arm_f_gates as gates
 from arm_f_http import HTTP
 import arm_f_observe as observe
@@ -21,6 +25,8 @@ import arm_f_population as population
 import arm_f_programme as programme
 import arm_f_reference as reference
 import arm_f_views as views
+import arm_f_environment as environment
+import arm_f_reads as reads
 from arm_f_run import save
 
 
@@ -104,6 +110,181 @@ class GateTests(unittest.TestCase):
                 copy['reads']['errors'] = 140
             with self.assertRaises(ValueError, msg=mutation):
                 gates.load_verdict(copy)
+
+
+class PerformanceIntegrationTests(unittest.TestCase):
+    """Run the real performance/setup orchestration; mock only native/HTTP I/O."""
+    def setup_io(self, stack, parent, events, *, setup_error=None, cleanup_error=None):
+        created = []
+        def fresh(root, name):
+            directory = parent / 'trials' / name
+            directory.mkdir(parents=True)
+            (directory / 'restore.json').write_text(json.dumps({'fresh_trial': name}))
+            created.append(directory)
+            events.append(('fresh', name))
+            return directory
+        async def scope(root, session):
+            events.append(('scope', root.name, asyncio.get_running_loop()))
+            if setup_error:
+                raise setup_error
+            return {'reader': 'fixture'}
+        async def samples(root, output, **kwargs):
+            events.append(('samples', root.name))
+            return trial(len(created) - 1)['samples']
+        stack.enter_context(patch.object(environment, 'fresh', side_effect=fresh))
+        stack.enter_context(patch.object(environment, 'Session', return_value=SimpleNamespace()))
+        scope_mock = stack.enter_context(patch.object(environment.setup, 'setup_scopes', new=AsyncMock(side_effect=scope)))
+        for owner, name in ((environment.setup, 'build_p_counts'), (environment.metadata, 'build'),
+                            (environment.parity, 'verify'), (environment.presence, 'build'),
+                            (environment, 'serving_state'), (environment.arm_f_native, 'build')):
+            stack.enter_context(patch.object(owner, name))
+        stack.enter_context(patch.object(environment, 'boot', side_effect=lambda root: events.append(('boot', root.name))))
+        stopped = stack.enter_context(patch.object(environment, 'stop', side_effect=cleanup_error))
+        discarded = stack.enter_context(patch.object(environment, 'discard_trial'))
+        stack.enter_context(patch.object(reads, 'sequences', new=AsyncMock(side_effect=samples)))
+        return created, scope_mock, stopped, discarded
+
+    def test_performance_prepares_three_fresh_trials_in_the_existing_event_loop(self):
+        with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
+            parent, events = Path(directory), []
+            output = parent / 'output'
+            output.mkdir()
+            created, scope, stopped, discarded = self.setup_io(stack, parent, events)
+            async def exercise():
+                loop = asyncio.get_running_loop()
+                result = await reads.performance(parent, output)
+                self.assertEqual([row[2] for row in events if row[0] == 'scope'], [loop] * 3)
+                return result
+            result = asyncio.run(exercise())
+            self.assertTrue(result['verified'])
+            self.assertEqual(len(created), 3)
+            self.assertEqual(scope.await_count, 3)
+            self.assertEqual(stopped.call_count, 3)
+            self.assertEqual(discarded.call_count, 2)
+            self.assertEqual(result['final_root'], str(created[-1]))
+
+    def test_setup_failure_stops_the_trial_and_never_starts_a_second_restore(self):
+        with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
+            parent, events = Path(directory), []
+            output = parent / 'output'
+            output.mkdir()
+            created, _, stopped, discarded = self.setup_io(stack, parent, events, setup_error=ValueError('scope setup denied'))
+            with self.assertRaisesRegex(ValueError, 'scope setup denied'):
+                asyncio.run(reads.performance(parent, output))
+            self.assertEqual(len(created), 1)
+            stopped.assert_called_once_with(created[0], engine=True)
+            discarded.assert_not_called()
+            self.assertFalse(any(row[0] == 'samples' for row in events))
+
+    def test_populated_trials_still_seed_each_fresh_store_before_boot_and_reads(self):
+        with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
+            parent, events = Path(directory), []
+            output = parent / 'output'
+            output.mkdir()
+            created, scope, stopped, discarded = self.setup_io(stack, parent, events)
+            def seed(root):
+                events.append(('seed', root.name))
+            result = asyncio.run(reads.performance(parent, output, populated=True, seed=seed))
+            self.assertTrue(result['verified'])
+            self.assertEqual(scope.await_count, 3)
+            self.assertEqual(stopped.call_count, 3)
+            self.assertEqual(discarded.call_count, 2)
+            for root in created:
+                phases = [row[0] for row in events if len(row) > 1 and row[1] == root.name]
+                self.assertEqual(phases, ['fresh', 'scope', 'seed', 'boot', 'samples'])
+
+    def test_synchronous_programme_entry_still_runs_scope_setup_once(self):
+        with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
+            parent, events = Path(directory), []
+            root = parent / 'sync-trial'
+            root.mkdir()
+            _, scope, _, _ = self.setup_io(stack, parent, events)
+            self.assertEqual(environment.prepare(root, parent), root)
+            scope.assert_awaited_once()
+
+    def test_cleanup_failure_does_not_replace_the_actual_setup_failure(self):
+        with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
+            parent, events = Path(directory), []
+            output = parent / 'output'
+            output.mkdir()
+            self.setup_io(stack, parent, events, setup_error=ValueError('scope setup denied'),
+                          cleanup_error=RuntimeError('cleanup unavailable'))
+            with self.assertRaisesRegex(ValueError, 'scope setup denied'):
+                asyncio.run(reads.performance(parent, output))
+
+    def test_cleanup_failure_after_success_is_not_reported_as_a_passing_trial(self):
+        with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
+            parent, events = Path(directory), []
+            output = parent / 'output'
+            output.mkdir()
+            created, _, _, discarded = self.setup_io(stack, parent, events,
+                cleanup_error=RuntimeError('cleanup unavailable'))
+            with self.assertRaisesRegex(RuntimeError, 'cleanup unavailable'):
+                asyncio.run(reads.performance(parent, output))
+            self.assertEqual(len(created), 1)
+            discarded.assert_not_called()
+
+
+class TrialCleanupTests(unittest.TestCase):
+    def register(self, parent, name='broken'):
+        root = parent / 'trials' / name
+        root.mkdir(parents=True)
+        project = 'web10-costfn-frozen-satellite-f-123-' + name
+        (root / 'admission.json').write_text(json.dumps({'configuration': 'F', 'droplet_id': 123}))
+        (root / 'fresh-trial.json').write_text(json.dumps({'fresh': True, 'project': project}))
+        return root, project
+
+    def test_registered_trial_stop_does_not_depend_on_live_admission_or_restore_receipt(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root, project = self.register(Path(directory))
+            with patch.object(environment, 'Session', side_effect=ValueError('admission expired')) as session, \
+                    patch.object(guard.subprocess, 'check_output', return_value=b'owned-container\n') as listing, \
+                    patch.object(guard.subprocess, 'run') as stop:
+                environment.stop(root, engine=True)
+                session.assert_not_called()
+                self.assertIn('label=com.docker.compose.project=' + project, listing.call_args.args[0])
+                stop.assert_called_once_with(['docker', 'stop', '-t', '20', 'owned-container'], check=True, timeout=90)
+            self.assertFalse((root / 'restore.json').exists())
+
+    def test_api_only_cleanup_leaves_the_owned_trial_engine_alone(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root, _ = self.register(Path(directory))
+            with patch.object(environment, 'Session', side_effect=ValueError('admission expired')), \
+                    patch.object(guard.subprocess, 'check_output', return_value=b'api-container\n') as listing, \
+                    patch.object(guard.subprocess, 'run'):
+                environment.stop(root)
+                self.assertIn('label=com.docker.compose.service=api', listing.call_args.args[0])
+
+    def test_cleanup_still_refuses_a_nontrial_project(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root, _ = self.register(Path(directory))
+            (root / 'fresh-trial.json').write_text(json.dumps({'fresh': True, 'project': 'web10-prod'}))
+            with patch.object(guard.subprocess, 'check_output') as listing:
+                with self.assertRaises(ValueError):
+                    environment.stop(root, engine=True)
+                listing.assert_not_called()
+
+    def test_restore_failure_stops_its_exact_registered_project_before_receipt_exists(self):
+        with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
+            parent = Path(directory)
+            (parent / 'admission.json').write_text(json.dumps({'configuration': 'F', 'droplet_id': 123}))
+            (parent / 'input').mkdir()
+            (parent / 'evidence').mkdir()
+            (parent / 'evidence/archive.json').write_text('{}')
+            stack.enter_context(patch.object(environment, 'admitted', return_value=datetime.now(UTC) + timedelta(hours=2)))
+            stack.enter_context(patch.object(environment.arm_t, 'digitalocean_id', return_value=123))
+            stack.enter_context(patch.object(environment.shutil, 'disk_usage', return_value=SimpleNamespace(free=200 * 1024**3)))
+            stack.enter_context(patch.object(environment, 'stop'))
+            stack.enter_context(patch.object(environment.setup, 'operation'))
+            stack.enter_context(patch.object(guard, 'arm', return_value={'verified': True}))
+            stopped = stack.enter_context(patch.object(guard, 'stop'))
+            stack.enter_context(patch.object(environment.restore, 'restore', side_effect=RuntimeError('restore failed')))
+            with self.assertRaisesRegex(RuntimeError, 'restore failed'):
+                environment.fresh(parent, 'broken')
+            root = parent / 'trials/broken'
+            stopped.assert_called_once_with(root)
+            self.assertTrue((root / 'fresh-trial.json').exists())
+            self.assertFalse((root / 'restore.json').exists())
 
 
 class SQLTests(unittest.TestCase):
