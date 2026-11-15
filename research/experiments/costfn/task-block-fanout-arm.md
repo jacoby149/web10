@@ -7,6 +7,11 @@ single-pass count/recipients (no membership counter); append-only insertion with
 read-time logical cap/amortized background trim; research coordinator approved;
 settings range deferred. Exact artifacts, approval and granted four-hour/$2
 admission live in the linked closure file. No fifth planning document is needed.
+**Current execution status:** the admitted15 November run stopped in P transpose
+reconciliation with native241 at the22GiB cap, before any full-response sample
+or F native build. Owned resources were cleaned up at18:45UTC. The closure file
+contains the source-bound failure/cleanup receipts; this admission is closed.
+No retry, F/P1 cell or broader integration is implied by the source prototype.
 Architecture: [D113](../../../knowledge-base/web10-v3/db/group-delivery.md).
 Approval worksheet: [ARM-F-DESIGN-CLOSURE.md](ARM-F-DESIGN-CLOSURE.md).
 

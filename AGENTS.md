@@ -334,6 +334,11 @@ Separate research admission is now granted in the closure record: one fresh
 isolated four-hour/$2 DO run, unchanged32/28/22GiB/24.8.14.39/10s/>10M stop,
 mandatory concurrent R+W, layered cleanup; actual host/deadline still must be bound.
 T7 requires separate admission. Settings range is deferred, not a research gate.
+The isolated `arm_f*.py` source prototype is not a platform implementation:
+the15 November run stopped in P transpose reconciliation/native241 at22GiB,
+before serving or any F native gate. Count T1 alone passed; owned resources were
+cleaned up early. Failure/cleanup receipts live in the existing closure file and
+`evidence/arm-f-20261115/P-setup-stop/`; no current paid/native continuation grant.
 Experiment first: prove hybrid write maintenance and layout-aware reads in isolated
 Config F, passing all required response/performance/write/lifecycle/rebuild and
 separately admitted stress gates before proposing broader platform integration.

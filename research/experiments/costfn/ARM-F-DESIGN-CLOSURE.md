@@ -5,8 +5,9 @@ The operator approved §§1–6's bounded research design, deferred §7 to integ
 and granted §8's fresh isolated four-hour/$2 admission including concurrent R+W.
 The exact DDL and source-bound hook manifest are retained here as the final
 design artifacts. This closes design intent, not implementation, native parity,
-security review or performance. Host creation, deadline and execution receipts
-are still absent; no clock has started and no paid host has been created here.
+security review or performance. The admitted run has now **STOPPED in P setup
+before Step0 serving**; the owned host/auxiliary resources were cleaned up early.
+See the receipt below. This admission is consumed/closed, not a standing retry grant.
 T7 needs separate admission. Production and views treatment remain unauthorized.
 
 This file contains **closure + operator approval**; the
@@ -206,7 +207,8 @@ CREATE TABLE intents (
     operation TEXT NOT NULL,
     payload_json TEXT NOT NULL,
     state TEXT NOT NULL CHECK (state IN ('pending', 'reconciling', 'complete', 'denied')),
-    result_json TEXT
+    result_json TEXT,
+    created_utc TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f+00:00','now'))
 );
 ```
 
@@ -221,8 +223,11 @@ or durable read approval. Restart reacquires the lock and retries pending work
 only via reauthenticated workload actors/current authorization; absent actor
 credentials keep the operation pending/denied, not silently privileged replay.
 
-Mutation dispatch and same-group membership enumeration are serialized in this
-single coordinator; read handling remains concurrent and canonically gated.
+Same-group mutation/membership dispatch and reader maintenance use sorted scope
+locks in the single coordinator; the operation ID is always locked too. SQLite
+critical sections are short and contain no ClickHouse I/O. Disjoint groups can
+progress concurrently; reads have no global journal lock and remain canonically
+gated. The persisted server timestamp makes canonical create retries stable.
 Acknowledgement waits for canonical/pointer reconciliation and required satellite
 revalidation; ambiguous post-write outcomes stay pending. Unmanaged writes or a
 second writer invalidate the bounded model and stop the run. The source manifest
@@ -414,7 +419,7 @@ d75eb688562d0b0cf0a2e9c10fd15a351bc695a1e9a2096e967968c4882fb6d5  research/exper
 8b8ae69d4808fa72da0012c562ea92b73598e4bf7a20c7695b3246931539129f  api/app/v3/endpoints/query.py
 ```
 
-## Execution receipts — not started
+## Execution receipt — STOP before P serving; F not measured
 
 Dataset identity: `2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd`.
 Validation receipt SHA256:
@@ -424,11 +429,61 @@ Canonical archive: `https://minio.web10.app`, bucket `web10-media`, prefix
 retained publication index and manifest; no regeneration or retained-volume
 substitution for the operator's requested archive restore.
 
-Read-only preflight: DO account is active, no droplets listed, archive publication
-index/full hashes found, existing archive-host SSH identity confirmed. No archive
-payload fetched, fresh resource/lease created, cleanup guard installed or engine
-started in this closure pass. Admission is granted, not yet consumed; exact
-deadline will be recorded when the guarded host is created. Next is executable
-isolated tooling and its no-engine controls, then stage-attributed P on the fresh
-restore; report any preparation failure without spending the lease on idle build
-work. This file is not a security scan/PASS or a native build/test receipt.
+The admitted host was **619583249**,32GiB/8vCPU/$0.25h, with the original deadline
+**15 November21:23:23UTC** and independent provider, host and container cleanup
+guards. No memory/query/deadline increase or lease extension was made.
+
+All11 canonical MinIO objects were downloaded and size/SHA-verified, then
+reverified against the frozen manifest/validation. Credentials stayed on the
+archive host; private read capabilities were the only transferred access.
+Initial bootstrap corrected a doctl `ports:all`→port0 encoding issue using
+explicit1–65535 egress and a pinned existing operator SSH gateway. Ingress stayed
+one/32. The first restore stopped before importing users because the unprivileged
+ClickHouse process could not traverse the root-owned input directory. That
+attempt/source/log is preserved; a new project reused only the fully verified
+archive bytes, with input files0444/directory0555 and private parent/capability
+permissions unchanged. No input regeneration or in-place partial-store adoption.
+
+The fresh restore completed in **1,204.985s**:1M users,1M group contracts plus boot
+row,152,340,269 memberships plus boot row,20k app grants,88,200,300 documents,
+92,200,600 attachments and1.6B events. The count T1 regression fixture and all
+main/reaction/comment scope comparisons passed for one ordinary reader and26
+declared targets; main sparse zeros are not positive-source coverage, while the
+broader scopes/native fixture include positive/shared/history cases. All60
+recorded count-build queries have native exception0; max tracked query peak
+**5,161,942,105 bytes**, not server RSS or a serving-performance result.
+
+The transpose INSERT completed in341,440ms, reading186,206,064 rows /
+26,792,124,618 logical bytes, with9,243,624,591-byte tracked query peak. Its next
+**exact reconciliation** stopped with native **241** at18:33:52UTC: server-total
+memory would use **27.29GiB versus the unchanged22GiB cap**. This is not a
+27.29GiB tracked query peak, not an OOM kill, and not a failed F query. Exact
+transpose reconciliation did not complete, so no metadata/parity/serving gate is
+claimed from the successful INSERT alone.
+
+**Complete-response samples:0. Native F build/T4/T2-F/T6-F/T3-F/T5-F/T8-F/R+W:
+NOT RUN.** Neither the new stage table nor counts cost per response was obtained.
+Sort-Order targets therefore remain unconfirmed; it stays planned/not admitted.
+The F source prototype and offline seam controls are not a completed experiment,
+native authorization proof, model-diverse review or production implementation.
+
+Raw/source-bound setup evidence:
+[`evidence/arm-f-20261115/P-setup-stop/stop.json`](evidence/arm-f-20261115/P-setup-stop/stop.json),
+its artifact manifest, executing sources, SQL, full count receipts and native
+failure text. Failed-query read rows/bytes/tracked peak remain explicitly
+uncollected; system query-log parts were preserved privately with a public hash
+chain **without restarting the engine**. All owned containers were stopped:
+ClickHouse/MinIO exit0, API143, none OOM-killed.
+
+Provider cleanup of owned droplet/firewall/key was verified at
+**18:45:01.710822UTC**, before the original deadline. Estimated elapsed-time
+compute is **$0.3402**, not an invoice or provider-enforced billing guarantee.
+No retained Volume or original MinIO archive was deleted. Own temporary private
+keys/read-capability copy were removed after cleanup; the provider watchdog was
+unloaded only after verification. No native retry, new host, F/P1 cell, production
+action or paper rewrite followed the cap stop.
+
+Next is a separately reviewed, memory-bounded repair of the existing P checker
+under the same correctness/resource contract, retaining this failure. Any new
+paid/native attempt needs fresh operator admission; do not bypass reconciliation,
+start F using the old headline number, or reinterpret this STOP as a fanout verdict.

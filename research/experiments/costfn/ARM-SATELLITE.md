@@ -27,6 +27,12 @@ condition, trial schedule and approval are folded into `ARM-F-DESIGN-CLOSURE.md`
 `counting_numbers` retains engagement-only semantics. Timed disposable-scope
 rebuild/revalidation is approved, guard bypass is not. Settings range is deferred;
 host/deadline/cleanup binding and native gates remain unexecuted, T7 separate.
+**Execution outcome:** that fresh F-programme admission is now closed: P count
+T1 passed, but its transpose exact reconciliation failed native241 against the
+unchanged22GiB server cap before Step0 serving/F build. No new complete-response
+or F metric was obtained; resources were cleaned up early at18:45UTC. The
+existing F closure and `evidence/arm-f-20261115/P-setup-stop/` retain receipts.
+No retry, source-gate waiver or paid continuation is authorized by the old grant.
 
 **Experiment-first clarification,15 November:** Jacob requires the proposed
 hybrid write/read design to pass the experiment before integration into the

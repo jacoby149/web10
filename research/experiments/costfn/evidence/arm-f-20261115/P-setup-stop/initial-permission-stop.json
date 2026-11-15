@@ -1,0 +1,18 @@
+{
+  "kind": "CONFIG_F_INITIAL_RESTORE_PERMISSION_STOP",
+  "outcome": "STOP_BEFORE_FIRST_TABLE_IMPORT",
+  "droplet_id": 619583249,
+  "stopped_utc": "2026-11-15T17:38:14.169967+00:00",
+  "original_deadline_utc": "2026-11-15T21:23:23+00:00",
+  "native_exception_code": 1001,
+  "operation": "DESCRIBE TABLE file('input/users.parquet', Parquet)",
+  "cause": "Root-owned input directory mode0700 was not traversable by the unprivileged ClickHouse process",
+  "executing_run_source_sha256": "c2752db759286438923b2be0e7b412f546c862395a45bee721fb08c2a73a74c7",
+  "private_original_journal_sha256": "086e764014e0982caf110b7d74d68b1bba9c4f21c8e377247985622c546938f5",
+  "repaired_attempt": "Separate fresh project fstep0a2 on the same admitted host, reusing only fully reverified MinIO archive bytes",
+  "repair": "Verified input files mode0444, directory0555; credential/private parent permissions unchanged",
+  "input_bytes_regenerated_or_changed": false,
+  "resource_limits_or_deadline_changed": false,
+  "performance_samples": 0,
+  "F_native_gates": "NOT_RUN"
+}
