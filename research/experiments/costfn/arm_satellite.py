@@ -28,7 +28,7 @@ STAGES = (
     ("profile_resolution", "S", "derived author-to-profile identity lookup"),
     ("ad_inventory", "S", "shared nonempty lifecycle-aware inventory"),
     ("ad_selection_and_media", "C", "live eligibility, access and signing provenance"),
-    ("views", "S", "impressions plus exact distinct-reader state; freshness required"),
+    ("views", "S", "exploratory snapshots only; Phase 1.6 treatment conflict OPEN; no feed activation"),
     ("shared_time_and_ranking", "S", "shared time/ranking inputs, not universal reader authorization"),
     ("existing_full_key_reads", "P", "retain bounded lookups; native cost unmeasured here"),
     ("authentication_and_app_grants", "C", "current credentials and authority"),

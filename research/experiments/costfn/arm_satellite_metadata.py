@@ -73,7 +73,25 @@ def view_builds(service, source_generation):
     return scope, result
 
 
-def build(root):
+def build_view_snapshots(session, execute, result, *, explore=False):
+    result["view_treatment"] = "PHASE_1_6_CONFLICT_OPEN_NOT_ACTIVATED"
+    result["view_acceptance_eligible"] = False
+    if not explore:
+        print("[satellite-p] skip view snapshots; Phase 1.6 replacement is not approved", flush=True)
+        return
+    print("[satellite-p] exploratory view snapshot start; excluded from feed acceptance", flush=True)
+    event_parts, _ = session.rows("view_generation", "SELECT name,rows,data_version FROM system.parts "
+        "WHERE database='web10' AND table='content_events' AND active ORDER BY name")
+    event_generation = hashlib.sha256(json.dumps(event_parts, sort_keys=True).encode()).hexdigest()
+    scope, queries = view_builds("posts", event_generation)
+    result["view_scope"] = scope
+    result["view_freshness"] = "exploratory setup snapshot only; no live delivery maintenance or feed acceptance"
+    for index, sql in enumerate(queries):
+        execute("exploratory_views_" + str(index), sql, seconds=1200)
+    print("[satellite-p] exploratory view snapshot end; Phase 1.6 conflict remains open", flush=True)
+
+
+def build(root, *, explore_view_snapshots=False):
     root = Path(root)
     session = runtime.Session(root)
     session.verify_envelope()
@@ -117,14 +135,7 @@ def build(root):
         # This experiment's app vocabulary is data passed to the typed builder.
         for label, sql in identity_builds(discover="api.localhost/groups/web10/discover").items():
             execute(label, sql)
-        event_parts, _ = session.rows("view_generation", "SELECT name,rows,data_version FROM system.parts "
-            "WHERE database='web10' AND table='content_events' AND active ORDER BY name")
-        event_generation = hashlib.sha256(json.dumps(event_parts, sort_keys=True).encode()).hexdigest()
-        scope, queries = view_builds("posts", event_generation)
-        result["view_scope"] = scope
-        result["view_freshness"] = "setup snapshot only; live delivery maintenance required before T2"
-        for index, sql in enumerate(queries):
-            execute("views_" + str(index), sql, seconds=1200)
+        build_view_snapshots(session, execute, result, explore=explore_view_snapshots)
         result["generic_storage_rows"], _ = session.rows("typed_storage_counts", "SELECT field_name,count() AS n "
             "FROM strings GROUP BY field_name ORDER BY field_name")
         result.update(outcome="BUILT_PENDING_INDEPENDENT_PARITY_AND_LIVE_MAINTENANCE",
@@ -141,4 +152,7 @@ def build(root):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("root", type=Path)
-    build(parser.parse_args().root)
+    parser.add_argument("--explore-view-snapshots", action="store_true",
+                        help="exploratory only; never replaces Phase 1.6 or satisfies feed acceptance")
+    args = parser.parse_args()
+    build(args.root, explore_view_snapshots=args.explore_view_snapshots)

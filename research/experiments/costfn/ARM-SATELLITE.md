@@ -50,7 +50,7 @@ means forbidden in the new design, not deleted from frozen evidence.
 | Profile discovery | S | Derived author-to-profile identity index; resolve returned bodies canonically |
 | Node-ad inventory | S | Shared derived inventory, including nonempty inventory and lifecycle changes |
 | Ad selection/media issuance | C | Current eligibility/access/provenance; cache does not grant signing authority |
-| View impressions/reach | S | Derived counters and exact distinct-reader state, with explicit delivery freshness |
+| View impressions/reach | S (exploration only) | Snapshot exploration; Phase 1.6 feed-treatment conflict remains OPEN |
 | Discover/Recent/Trending inputs | S | Shared time/ranking layouts; personalization/policy still applies at serve time |
 | Existing exact full-key reads | P | Keep only where actually bounded; physical native cost still needs proof |
 | Authentication/app authority | C | Current credentials and app grants, never a stored access decision |
@@ -61,6 +61,17 @@ attributed by the retained main split, and shared surfaces have no new receipt.
 
 ## Contract conflicts found before engine work
 
+0. **Views versus closed Phase 1.6.** `PROTOCOL.md` Phase 1.6 selected the
+   readability point-seek repair, explicitly not `counting_numbers`, because
+   delivery logging refreshes impressions and reach is distinct-reader state.
+   `REALISM-RERUN-PLAN.md` names write-maintained counters as future production
+   work, not proof that a snapshot can replace the approved treatment. View
+   snapshots are exploratory only and require `--explore-view-snapshots`; the
+   ordinary metadata build skips them. They cannot satisfy Config P acceptance
+   or replace the Phase 1.6 treatment without a separately recorded decision,
+   live delivery/repeat-reader parity, current document authorization and full
+   response cost. The untreated profile continues to measure the original view
+   path. No view-counter feed activation is approved by this exploration.
 1. **Rebuild source.** `documents` has no attachment, membership or event history.
    `clickhouse-init/001-init-v3-schema.sql.template` defines these independently
    as `doc_groups`, `group_members`/`group_contracts`, policy tables, and

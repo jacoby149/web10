@@ -1,5 +1,6 @@
 """Construction only; native rebuild/parity remains a separate gate."""
 import unittest
+from unittest.mock import Mock
 
 import sqlglot
 
@@ -7,6 +8,23 @@ import arm_satellite_metadata as metadata
 
 
 class MetadataTests(unittest.TestCase):
+    def test_default_metadata_path_does_not_read_or_build_view_counters(self):
+        session, execute = Mock(), Mock()
+        result = {}
+        metadata.build_view_snapshots(session, execute, result)
+        session.rows.assert_not_called()
+        execute.assert_not_called()
+        self.assertEqual(result["view_treatment"], "PHASE_1_6_CONFLICT_OPEN_NOT_ACTIVATED")
+
+    def test_explicit_view_exploration_cannot_claim_feed_acceptance(self):
+        session, execute = Mock(), Mock()
+        session.rows.return_value = ([{"name": "part", "rows": 1, "data_version": 1}], "query")
+        result = {}
+        metadata.build_view_snapshots(session, execute, result, explore=True)
+        self.assertEqual(execute.call_count, 2)
+        self.assertEqual(result["view_acceptance_eligible"], False)
+        self.assertIn("snapshot only", result["view_freshness"])
+
     def test_derived_tables_contain_identity_pointers_not_bodies(self):
         for ddl in (metadata.STRINGS_DDL, metadata.TIMESTAMPS_DDL):
             self.assertNotIn("body ", ddl)
