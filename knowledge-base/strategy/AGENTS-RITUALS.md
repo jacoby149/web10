@@ -15,7 +15,9 @@ come before the kickoff blocks — always.
 
 1. **Gather the state of the world.** `git fetch`; read `knowledge-base/strategy/plan.md`
    (THE STORY at the top + the current priority block), `knowledge-base/strategy/manifesto.md`,
-   `knowledge-base/strategy/outreach.md`, `knowledge-base/strategy/timeline.md`, recent `knowledge-base/strategy/decisions.md`, the lane queues
+   `knowledge-base/strategy/org-to-org.md` (the dominant GTM),
+   `knowledge-base/strategy/archive/creator-influencer-track/outreach.md` (archived creator track),
+   `knowledge-base/strategy/timeline.md`, recent `knowledge-base/strategy/decisions.md`, the lane queues
    + CURRENT CONDUCTOR BOARD in `knowledge-base/strategy/parallel-execution.md`, and the top
    ~10 entries of `knowledge-base/changelogs/CHANGELOG.md`. PLUS the two live-state scans the
    docs alone can't give you:

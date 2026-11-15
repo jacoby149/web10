@@ -46,7 +46,8 @@ Operator clarification, 15.11.2026:
 > approach for them
 
 **The customer is an organization, not an influencer.** The creator track
-(`outreach.md`, `thesis.md`, `business-plan.md`) sells escape for people the
+(archived: `archive/creator-influencer-track/outreach.md`; `thesis.md`,
+`business-plan.md`) sells escape for people the
 big platforms burned — banned or deplatformed, audience held in a landlord's
 house. This track is a completely different proposition. The customer is an
 organization that wants to spread a positive message (for this partner:

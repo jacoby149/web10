@@ -19,7 +19,7 @@ ACTUAL (logged 23.07): the machine items above were stale at
   real week-0 output: the D29 call (gauntlet = the bar, platform
   first), trending page cluster (1.0.130), follow UI (#254),
   public-layer hardening. list batch 1 drafted
-  (outreach_batch1.md). founder items (dmca registration, batch-1
+  (now archive/creator-influencer-track/outreach_batch1.md). founder items (dmca registration, batch-1
   review) are NOT verifiable in-repo — founder confirms, or these
   are the schedule's first slip and should be done this week.
 
@@ -75,7 +75,8 @@ GATE M0: slice stands on its own + video exists. nothing proceeds
 ## weeks 5-10 (aug 17 - sep 28) — the rule of 100
 founder (~2 hrs/wk): send 10-15/wk, agent-drafted, founder-sent.
   batch 1 (wk 5) iterates the pitch; batches 2-5 run the improved
-  copy. log everything (outreach.md §6). calls as they come.
+  copy. log everything (archive/creator-influencer-track/outreach.md §6).
+  calls as they come.
 machine (parallel, what creator #1 needs on day one): memberships/
   tiers wired to stripe rails + the amazon tag card (B4.5 minimum
   slice — memberships BEFORE creator #1, per KNOWN GAPS). hosted

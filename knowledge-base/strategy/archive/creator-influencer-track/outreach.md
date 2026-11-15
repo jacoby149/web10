@@ -79,8 +79,14 @@ fresh-start/no-catalog offer above (D95), not a change to every creator pitch
 or authorization to restore the retired importer. The email to Shimon is
 recorded verbatim in the partner brief; acceptance is not yet recorded. No further outbound message,
 public partner/logo claim, copy, provisioning or spend is authorized here.
-Scope, gates and queue: [torah-anytime.md](torah-anytime.md), `plan.md` and
+Scope, gates and queue: [torah-anytime.md](../../torah-anytime.md), `plan.md` and
 the `torah-anytime-partnership` lane in `parallel-execution.md`.
+
+> **Archived, 15.11.2026 (D112):** this file is the creator/influencer track's
+> sales kit, preserved intact after the dominant strategy moved to
+> org-to-org. Read it for history and the track's mechanics; the current
+> dominant frame is [`org-to-org.md`](../../org-to-org.md). The warm partner
+> track above remains live work tracked in `torah-anytime.md`.
 
 ## 1. build the list (start today — 100 names total, ~35/35/30 by
 segment, worked in BATCHES of 20)
