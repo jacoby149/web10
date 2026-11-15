@@ -221,6 +221,61 @@ branding must not obscure the actual operator, issuer or consent destination.
 Use the shared product, not an unmaintainable partner fork. Read `design.md`
 before future UI implementation; require desktop and 375px captures.
 
+### Reusable media tabs — duplicate, rename and rebrand
+
+Operator direction, 15.11.2026: a white-label operator should be able to
+duplicate an existing media tab and rename/rebrand each instance for its own
+catalog or genre. Music and Podcasts can coexist using the same audio browsing
+and player behavior; Videos can become Kids' Shows, or coexist with a separate
+Kids' Shows tab using the same video experience. The same principle applies to
+music videos, Shorts and other supported media experiences.
+
+**Duplicate the configured experience, not the code or media.** Each tab instance
+selects a supported base experience, has its own label/branding and content
+selection, and reuses the shared renderer/player. Renaming an existing tab and
+adding another instance must both be supported; this is more than two names for
+the same unfiltered catalog. Genres/categories can separate their content without
+inventing a new media format or requiring duplicate uploads.
+
+**TABS1 — configurable media-tab contract and implementation scoping.** Inventory
+navigation, media classification/querying and player consumers; define persisted
+per-instance identity, label/branding, base experience and catalog/genre selection.
+Give each instance a stable deep link independent of its display name, with
+refresh/back/forward and tab/filter state preserved. Settle classification,
+overlapping catalog membership and rename/removal behavior in the contract before
+implementation. Keep shared layouts and playback behavior in product code; do not
+fork components per partner or add social-specific concepts to the generic API.
+Coordinate settings/configuration and social owners before assigning bounded
+runtime changes. Acceptance must cover Music + Podcasts and Videos + Kids' Shows
+with distinct selections, save/reload, rename without broken links, shared player
+parity and desktop/375px navigation in both themes. A category label is not access
+control or a child-safety/moderation guarantee; existing authorization still applies.
+
+**Later-stage enhancement, not needed for the demo.** The operator's TorahAnytime
+sidebar reference shows destinations such as StoryAnytime and MusicAnytime;
+**this is precisely the motivation for duplicable tabs:** partners already
+organize media into branded destinations that need not each be a new product.
+MusicAnytime could use a renamed Music instance; StoryAnytime could use an
+audio or video instance according to its actual content. Separate Clips/Shorts
+or audience/category destinations could similarly reuse a suitable supported
+experience with their own content selection. These are proposed mappings, not
+verified equivalents of TorahAnytime's functionality. Duplication/rebranding
+would let us offer those kinds of destinations without rebuilding the player
+and browsing experience for each one. The screenshot demonstrates the use case,
+not a requirement to reproduce its entire sidebar: Topics, Speakers, Series,
+Organizations, History and other destinations may need different capabilities
+and are not automatically delivered by duplicating a media tab.
+
+This is not a request to reproduce that sidebar or its full feature set for
+the showcase. Keep TABS1
+out of the demo's critical path; execution requires a separate later-stage
+priority/ownership decision.
+
+This is reusable white-label product scope, not a TorahAnytime-only fork.
+Planning capture only; no configurable tabs are shipped by this update.
+It extends the earlier fixed-navigation boundary below: supported
+tab instances and names become configurable, not arbitrary layouts or behavior.
+
 ### Serious appearance controls — exact partner colors and typography
 
 Operator follow-up, 11.11.2026:
@@ -249,8 +304,10 @@ expose general configuration or credentials through this response.
 The API describes the brand; each client maps supported fields into its own
 semantic tokens/components. Do not return executable CSS, arbitrary selectors
 or remote font-loader instructions. Separate flexible brand/theme data from
-fixed product structure: navigation, layout and interaction behavior stay in
-shared product code. Start operator controls with brand colors/fonts and a
+fixed product structure: layout and interaction behavior stay in shared product
+code; supported navigation instances/labels are separately scoped in TABS1 above,
+not arbitrary theme CSS or a theme-editor responsibility. Start operator controls
+with brand colors/fonts and a
 coherent visual preset; derive coordinated states with optional validated
 advanced overrides, rather than require every token to be edited manually.
 THEME1 must settle the fixed/themeable/editable boundary before building the
