@@ -25,7 +25,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install parser pinned to the API lock and offline test dependencies
-        run: python -m pip install sqlglot==30.18.0 ruff==0.15.22 -r research/experiments/costfn/realism-requirements.txt
+        run: python -m pip install sqlglot==30.18.0 pydantic==2.13.4 ruff==0.15.22 -r research/experiments/costfn/realism-requirements.txt
       - name: Lint the isolated additive surface
         run: python -m ruff check research/experiments/costfn/arm_t*.py
       - name: Exercise admission, actual compiler, SQL structure and mocked adapters
