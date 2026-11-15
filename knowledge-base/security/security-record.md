@@ -17,6 +17,16 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 
 ## Arm D attachment repair (15.11.2026) — bounded constructor review, OPEN
 
+Later explicitly approved native fixed-inventory diagnostic: fresh source/copy
+count/multiset fingerprints and UUID/key/settled census checks match. Repaired
+main times out with native159/345.726M rows before returning a page; native exact
+parity therefore remains unestablished, not PASS. The >10M-row rule stops any
+measured trials/stress extension. Separate old-timer/native394 setup failure is
+preserved, with the retry inside the original budget/deadline. All62 protected
+evidence files remain hash-identical and containers stop. One additional offline
+control binds the exact repaired SQL hash to this native failed-query receipt.
+This evidence narrows the performance conclusion, not the OPEN security status.
+
 GPT-6.1 Sol orients against I3, the existing layout-hint learning and the actual
 INVALID realism receipts. Bounded read-only review traces the old constructor's
 removed doc_groups join into reaction/comment aggregates and the new pure

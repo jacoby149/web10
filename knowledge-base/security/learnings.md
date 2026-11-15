@@ -37,6 +37,13 @@ that matters for orient:
 
 ### 2026-11-15: A singleton author set does not establish document attachments
 
+Subsequent operator-approved repaired native attempt: retaining the canonical
+join restores a broad-read path, reaching main native159 at10 seconds/345.726M
+rows before returning a page. This does not establish native parity or justify
+removing the checks. Record fixed-inventory scope and the >10M-row stop; no
+measured trial or complete request-cost success follows. The separate first
+setup native394 was a scheduled container-stop cancellation, not a main timeout.
+
 Arm D's preserved realism warm-up returns the correct21 IDs/order but15 likes
 and15 comments per row where the group-scoped main reference expects0/0.
 An author can own both group-attached posts and engagement attached elsewhere.

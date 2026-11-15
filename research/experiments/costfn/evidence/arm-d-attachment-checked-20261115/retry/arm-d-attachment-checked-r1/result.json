@@ -1,0 +1,510 @@
+{
+  "kind": "ARM_D_ATTACHMENT_CHECKED_FIXED_INVENTORY_DIAGNOSTIC",
+  "outcome": "NATIVE_FAILURE_STOP",
+  "parity": "NOT_RUN",
+  "steps": [
+    {
+      "label": "ready",
+      "query_id": "arm-d-repaired-608d140e2eaa4f058b1faf5c98b3ca40",
+      "setup": true,
+      "sql_sha256": "e004ebd5b5532a4b85984a62f8ad48a81aa3460c1ca07701f386135d72cdecf5",
+      "elapsed_seconds": 0.312
+    },
+    {
+      "label": "ready",
+      "query_id": "arm-d-repaired-f4a318c28ec7453d837c63f1158455dd",
+      "setup": true,
+      "sql_sha256": "e004ebd5b5532a4b85984a62f8ad48a81aa3460c1ca07701f386135d72cdecf5",
+      "elapsed_seconds": 0.305
+    },
+    {
+      "label": "engine",
+      "query_id": "arm-d-repaired-d34b6837bc3f4799b59a9567c8f47afe",
+      "setup": true,
+      "sql_sha256": "df1f1d15d442789a5b9c81cdddf44d88d5748499cc48865023ddc1ff1587d0f6",
+      "elapsed_seconds": 0.307
+    },
+    {
+      "label": "server_cap",
+      "query_id": "arm-d-repaired-415717aadb7e49f0baf2fadeb993f938",
+      "setup": true,
+      "sql_sha256": "2095cc241cf01e4f0587234cfabfc1dd1e1c36bc646622a624aafa1913f97a63",
+      "elapsed_seconds": 0.351
+    },
+    {
+      "label": "identities",
+      "query_id": "arm-d-repaired-072c069a9560446185ab48e3fd74a36c",
+      "setup": true,
+      "sql_sha256": "85b0bd984a358ec596bc3a1d5bd7f6911998a3a10eaafe4eac4b11cdea331676",
+      "elapsed_seconds": 0.326
+    },
+    {
+      "label": "settled_census",
+      "query_id": "arm-d-repaired-8afe8fe5fd3440e3b082139fd27391ab",
+      "setup": true,
+      "sql_sha256": "b780561505cd4296ffd2b64f59759e84dca9145a691de07fcfc3a6616973deee",
+      "elapsed_seconds": 0.326
+    },
+    {
+      "label": "merges",
+      "query_id": "arm-d-repaired-6a2bbd60584c49568be81e70bf32d6aa",
+      "setup": true,
+      "sql_sha256": "4b21ef1bf6109b588c5af74ef4261d8a1c787c26267ece920d407f8824a2a5c6",
+      "elapsed_seconds": 0.327
+    },
+    {
+      "label": "copy_key",
+      "query_id": "arm-d-repaired-898135dd7ab440bb85965bff93782273",
+      "setup": true,
+      "sql_sha256": "41536a86d9de27e705d21747fb3bb8213aa15592d1938f38207d482a204af38b",
+      "elapsed_seconds": 0.303
+    },
+    {
+      "label": "columns_documents",
+      "query_id": "arm-d-repaired-8d92fef403324d58ad569b8858e65c7b",
+      "setup": true,
+      "sql_sha256": "2617d5c89ff6951e2395757f348d30ad94821262570fe25e2a8a867fa4ee9a16",
+      "elapsed_seconds": 0.283
+    },
+    {
+      "label": "fingerprint_documents",
+      "query_id": "arm-d-repaired-69c40ac0c793428ca493e917639d6033",
+      "setup": true,
+      "sql_sha256": "db90c19931058639d3ce7f5457b9312e29b209442b2cae9319bf542243e46193",
+      "elapsed_seconds": 8.677
+    },
+    {
+      "label": "columns_doc_groups",
+      "query_id": "arm-d-repaired-a1182446d83b40f3bbbde58bf3ceee43",
+      "setup": true,
+      "sql_sha256": "8c1008c1132688ed130711d9c6526cf700ce8bccc76f30b9b71f665d155ff30a",
+      "elapsed_seconds": 0.301
+    },
+    {
+      "label": "fingerprint_doc_groups",
+      "query_id": "arm-d-repaired-3fc84f11afe149ca9ed59958100d4d53",
+      "setup": true,
+      "sql_sha256": "aae124204bdfc106c3ec651251474b2047657a4f43674ed54df06957c946a2ce",
+      "elapsed_seconds": 4.246
+    },
+    {
+      "label": "columns_documents_d",
+      "query_id": "arm-d-repaired-4ec9a1fe1f3d4cd890daee29027cc47a",
+      "setup": true,
+      "sql_sha256": "f9d4609c5c7cf8dd650fbbd5fc2a47f0ab42ef21c8ba3cdeab702611af7e0de0",
+      "elapsed_seconds": 0.407
+    },
+    {
+      "label": "fingerprint_documents_d",
+      "query_id": "arm-d-repaired-42af16af74f147a386cdf8e1c7ae79d5",
+      "setup": true,
+      "sql_sha256": "0a0f725f297d95fc520e828c487608dc229a08389092a6654347a27c804fa6a4",
+      "elapsed_seconds": 9.209
+    },
+    {
+      "label": "warmup_main",
+      "query_id": "arm-d-repaired-dc14428c0c76473985c696043757bdc1",
+      "setup": false,
+      "sql_sha256": "4588c8ab4419cb708639ca0890a9073d0cb90a0eb394e7b2b839a4e9726d5052",
+      "elapsed_seconds": 10.373
+    },
+    {
+      "label": "flush_native",
+      "query_id": "arm-d-repaired-6a9abcf8c87949d3a3905b2e70256a23",
+      "setup": true,
+      "sql_sha256": "066df34fd4fd54f1aa861219200adbab6e002a16d2908bccda607d2080b3f818",
+      "elapsed_seconds": 0.433
+    },
+    {
+      "label": "native_receipt",
+      "query_id": "arm-d-repaired-9a0496f656314ce0b6288888a364a9d6",
+      "setup": true,
+      "sql_sha256": "b42353b684a6ef8e604b756f7c3234d49b5f98caa392e6d6b690bb35afb03fb6",
+      "elapsed_seconds": 0.349
+    },
+    {
+      "label": "identities",
+      "query_id": "arm-d-repaired-c192eac9747f4c46809d459017debfbd",
+      "setup": true,
+      "sql_sha256": "85b0bd984a358ec596bc3a1d5bd7f6911998a3a10eaafe4eac4b11cdea331676",
+      "elapsed_seconds": 0.315
+    }
+  ],
+  "observations": [
+    {
+      "phase": "warmup",
+      "index": 0,
+      "query_id": "arm-d-repaired-dc14428c0c76473985c696043757bdc1",
+      "query_duration_ms": "10002",
+      "read_rows": "345725896",
+      "read_bytes": "33545329245",
+      "memory_usage": "371057510",
+      "exception_code": 159
+    }
+  ],
+  "measured_trials": [],
+  "dataset_id": "2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd",
+  "droplet_id": 619371600,
+  "deadline_utc": "2026-11-15T05:17:51Z",
+  "scope": "fixed preserved author inventory, native main only; not full runtime enumeration/request cost, HTTP or p95",
+  "K1000": "NOT_AUTHORIZED",
+  "full_sequence": "NOT_ATTEMPTED",
+  "prior_census_receipt_sha256": "0fb43f74d87e4f7e686b5974b7861b1cedcf20204f12654034f8f39b58839551",
+  "prior_oracle_sha256": "be4d609cd0374eb230589583227924245551af3f55f66fef3ff36ead6075d7a3",
+  "source_sha256": {
+    "arm_d_attachment_repair.py": "5fa6e837727c8d192d278def8a06ef24e2dc6bf0dcb8f94ee0bdb6b6620ebdcb",
+    "arm_t_rewrite.py": "df4023c629b3a1aa700d131dd0b605c6be646c6393b90b146ceb5526652bc43c",
+    "smoke_realism.py": "d75eb688562d0b0cf0a2e9c10fd15a351bc695a1e9a2096e967968c4882fb6d5"
+  },
+  "driver_sha256": "aa6963a72161bc370d91bc3ef897e023ac9d095356a800ffffe913ccfbaf20cb",
+  "host_resources": {
+    "host_memory_bytes": 33654894592,
+    "docker_store_free_bytes": 345056370688,
+    "setup_query_spill_cap_bytes": 107374182400
+  },
+  "original_identities_before": [
+    {
+      "name": "doc_groups",
+      "uuid": "69e9bbf9-1d6d-4c79-8c9d-1b4520815226",
+      "sorting_key": "doc_id, group_id"
+    },
+    {
+      "name": "doc_groups_t",
+      "uuid": "4fb8ed8a-4f92-4ef6-acd4-2a3201072cba",
+      "sorting_key": "group_id, created_at, doc_id"
+    },
+    {
+      "name": "documents",
+      "uuid": "e6df5ed3-9636-4121-9a63-72159761cead",
+      "sorting_key": "author_key, doc_id"
+    }
+  ],
+  "settled_parts": [
+    {
+      "table": "doc_groups",
+      "partition_id": "all",
+      "parts": "1",
+      "rows": "92200600",
+      "marks": "11256"
+    },
+    {
+      "table": "doc_groups_t",
+      "partition_id": "all",
+      "parts": "1",
+      "rows": "92200600",
+      "marks": "11256"
+    },
+    {
+      "table": "documents",
+      "partition_id": "all",
+      "parts": "1",
+      "rows": "88200300",
+      "marks": "10768"
+    },
+    {
+      "table": "documents_d",
+      "partition_id": "all",
+      "parts": "1",
+      "rows": "88200300",
+      "marks": "10768"
+    }
+  ],
+  "fresh_fingerprints": {
+    "documents": [
+      {
+        "rows": "88200300",
+        "hash_sum": "12204346763475163072",
+        "hash_xor": "7313910453931266398"
+      }
+    ],
+    "doc_groups": [
+      {
+        "rows": "92200600",
+        "hash_sum": "6974483004087625319",
+        "hash_xor": "15281151235529313889"
+      }
+    ],
+    "documents_d": [
+      {
+        "rows": "88200300",
+        "hash_sum": "12204346763475163072",
+        "hash_xor": "7313910453931266398"
+      }
+    ]
+  },
+  "treated_sql_sha256": "df59b26f3ad8bfc968210a77249aee412e61abebda6b385e81c072fc45bbd335",
+  "author_sets": [
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0000000/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0000000"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0000000"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0000001/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0000001"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0000001"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0000002/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0000002"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0000002"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0000003/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0000003"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0000003"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0000004/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0000004"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0000004"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0000005/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0000005"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0000005"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0000006/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0000006"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0000006"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0000007/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0000007"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0000007"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0000008/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0000008"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0000008"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0000009/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0000009"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0000009"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0000010/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0000010"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0000010"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0000011/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0000011"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0000011"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0000012/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0000012"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0000012"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0000013/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0000013"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0000013"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0000014/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0000014"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0000014"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0000015/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0000015"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0000015"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0614008/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0614008"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0614008"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0614009/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0614009"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0614009"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0614010/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0614010"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0614010"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0614011/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0614011"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0614011"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0980001/followers",
+      "role": "owner",
+      "shortcut_authors": [
+        "rd42-u0980001"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0980001"
+      ],
+      "actual_size": 1
+    }
+  ],
+  "anomaly": "MAIN_EXCEEDS_10M_ROWS",
+  "original_identities_after": [
+    {
+      "name": "doc_groups",
+      "uuid": "69e9bbf9-1d6d-4c79-8c9d-1b4520815226",
+      "sorting_key": "doc_id, group_id"
+    },
+    {
+      "name": "doc_groups_t",
+      "uuid": "4fb8ed8a-4f92-4ef6-acd4-2a3201072cba",
+      "sorting_key": "group_id, created_at, doc_id"
+    },
+    {
+      "name": "documents",
+      "uuid": "e6df5ed3-9636-4121-9a63-72159761cead",
+      "sorting_key": "author_key, doc_id"
+    }
+  ],
+  "original_identities_unchanged": true,
+  "completed_utc": "2026-11-15T05:10:27.654244+00:00"
+}

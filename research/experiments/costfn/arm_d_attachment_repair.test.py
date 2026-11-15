@@ -60,6 +60,26 @@ def fixture_boundary(sql, service, documents, links):
 
 
 class RepairTests(unittest.TestCase):
+    def test_retained_native_repair_is_attributed_timeout_not_parity_success(self):
+        import hashlib
+        root = Path(__file__).parent / "evidence"
+        prior_root = root / "arm-d-realism-20261115/arm-d-realism-r1"
+        prior = json.loads((prior_root / "result.json").read_bytes())
+        actual_root = root / "arm-d-attachment-checked-20261115/retry/arm-d-attachment-checked-r1"
+        actual = json.loads((actual_root / "result.json").read_bytes())
+        inventory = {row["group_id"]: row["actual_attached_authors"] for row in prior["author_sets"]}
+        sql = repair.transform((prior_root / "compiled.sql").read_text().strip(), prior["reader"],
+                               prior["groups_including_self"], inventory)
+        self.assertEqual(hashlib.sha256(sql.encode()).hexdigest(), actual["treated_sql_sha256"])
+        self.assertEqual((actual_root / "treated.sql").read_text().strip(), sql)
+        self.assertEqual(actual["outcome"], "NATIVE_FAILURE_STOP")
+        self.assertEqual(actual["measured_trials"], [])
+        self.assertEqual(actual["parity"], "NOT_RUN")
+        self.assertEqual(len(actual["observations"]), 1)
+        self.assertEqual(int(actual["observations"][0]["exception_code"]), 159)
+        self.assertGreater(int(actual["observations"][0]["read_rows"]), 10_000_000)
+        self.assertEqual(actual["anomaly"], "MAIN_EXCEEDS_10M_ROWS")
+
     def setUp(self):
         self.fixed = repair.transform(COMPILED, "reader", GROUPS, INVENTORY)
 

@@ -8,6 +8,7 @@ on:
       - research/experiments/costfn/arm_t_rewrite.py
       - research/experiments/costfn/smoke_realism.py
       - research/experiments/costfn/evidence/arm-d-realism-20261115/**
+      - research/experiments/costfn/evidence/arm-d-attachment-checked-20261115/**
       - research/experiments/costfn/evidence/arm-d-compiled-main-golden-20261109.sql
       - .github/workflows/arm-d.yml
 
