@@ -126,8 +126,9 @@ async def performance(parent, output, *, populated=False, seed=None):
     results, final_root = [], None
     for index in range(TRIALS):
         root = environment.fresh(parent, ('populated-' if populated else 'quiet-') + str(index))
+        failure = None
         try:
-            environment.prepare(root, parent)
+            await environment.prepare_async(root, parent)
             if populated:
                 if seed is None:
                     raise ValueError('full population builder must run on EVERY fresh populated trial')
@@ -137,8 +138,19 @@ async def performance(parent, output, *, populated=False, seed=None):
             results.append(dict(fresh_restore_sha256=digest(root / 'restore.json'), root=str(root), samples=samples))
             save(output / 'trials.json', results)
             read_trial(results[-1])  # Do not pay for a second restore after a failed first trial.
+        except BaseException as error:
+            failure = error
+            save(output / ('trial-' + str(index) + '-failure.json'),
+                 dict(trial=index, root=str(root), failure_class=type(error).__name__))
+            raise
         finally:
-            environment.stop(root, engine=True)
+            try:
+                environment.stop(root, engine=True)
+            except BaseException as error:
+                save(output / ('trial-' + str(index) + '-cleanup-failure.json'),
+                     dict(trial=index, root=str(root), failure_class=type(error).__name__))
+                if failure is None:
+                    raise
         if index < TRIALS - 1:
             environment.discard_trial(root)
         else:

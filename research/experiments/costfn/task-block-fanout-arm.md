@@ -85,6 +85,13 @@ within that same admission (original STOP is never retried). Future launchers us
 source until separately updated. All132 no-engine controls/Ruff pass; no native
 performance/full-population/load PASS follows from this source-level completion.
 
+**6.21.1 local integration repair:** async performance trials now await scope
+preparation on their existing loop; synchronous programme stages retain a sync
+entry point. Partial-restore and expired-admission cleanup uses only exact private
+trial registration (API-only mode remains scoped), without authorizing new engine
+work. Original failures survive secondary cleanup errors. Ten regression controls
+plus the full142 no-engine controls pass; native validation/deployment is separate.
+
 The additional source includes per-trial earlier stop timers, private exact crash
 controls, a shared mutation/exclusive shadow-rebuild fence, atomic pointer-table
 exchange and real lifecycle/retry/concurrent-load workloads. R+W has a declared

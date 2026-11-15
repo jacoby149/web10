@@ -1784,6 +1784,8 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+- [✓ 6.21.1 local repair only] **RD4-FANOUT-ASYNC-TRIAL-REPAIR** — fix nested asyncio.run in performance preparation, preserve original failure through cleanup errors, and stop exact registered trial containers after partial restore/admission expiry without an engine connection. Ten red/green no-engine integration controls; all142 F/satellite controls/Ruff pass. Sync callers and fresh/populated trial sequencing retained; current-source native rehearsal/execution remain OPEN, no live deployment or budget change.
+
 - [✓ 6.21.0 source/no-engine only] **RD4-FANOUT-ORCHESTRATION-SOURCE** — executable real-gate programme/Step0 continuation, lifecycle/cutoff/crash-retry/fenced-rebuild and open-loop populated R+W tooling, per-trial cleanup guards and exact attribution/reconciliation are present.132 no-engine controls/Ruff/whitespace pass. Actual updated-source native rehearsal, full-response/performance/load gate execution and independent review remain OPEN under RD4-FANOUT-EXECUTE/RW-LOAD; no benchmark PASS, new host or deadline extension claimed.
 
 - [✓ 6.15.0 cancellation only] **RD4-FANOUT-CANCEL-ONE-READER-RUN** — operator cancellation of DO619612240 at20:14:57UTC; runner/owned containers stopped, private receipts retained, droplet/firewall/key cleanup verified20:16:19UTC. Frozen archive/Volumes untouched; no F gate result, old lease closed.
