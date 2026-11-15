@@ -1,0 +1,306 @@
+{
+  "expected": [
+    {
+      "doc_id": "73855328-0b10-1606-ef9a-fd16e24f4a4a",
+      "author_key": "rd42-u0000000",
+      "posted_by": "rd42-u0000000",
+      "body": "{\"text\":\"Derived synthetic post 0\"}",
+      "tags": [],
+      "ref_value": "",
+      "ad_mode": "none",
+      "ad_target": "",
+      "created_ms": "1794052799979"
+    },
+    {
+      "doc_id": "5ccefb1a-d112-685b-264c-a9fca19337bf",
+      "author_key": "rd42-u0000000",
+      "posted_by": "rd42-u0000000",
+      "body": "{\"text\":\"Derived synthetic post 1\"}",
+      "tags": [],
+      "ref_value": "",
+      "ad_mode": "none",
+      "ad_target": "",
+      "created_ms": "1794052799957"
+    },
+    {
+      "doc_id": "67569b90-14ef-0cfe-bf74-73d4606ad8ba",
+      "author_key": "rd42-u0000000",
+      "posted_by": "rd42-u0000000",
+      "body": "{\"text\":\"Derived synthetic post 2\"}",
+      "tags": [],
+      "ref_value": "",
+      "ad_mode": "none",
+      "ad_target": "",
+      "created_ms": "1794052799936"
+    },
+    {
+      "doc_id": "8adfb89a-e243-d124-eca7-62e9852af8b8",
+      "author_key": "rd42-u0000000",
+      "posted_by": "rd42-u0000000",
+      "body": "{\"text\":\"Derived synthetic post 3\"}",
+      "tags": [],
+      "ref_value": "",
+      "ad_mode": "none",
+      "ad_target": "",
+      "created_ms": "1794052799914"
+    },
+    {
+      "doc_id": "69cba28e-7b0d-c1fc-310a-57a7ea7486bb",
+      "author_key": "rd42-u0000000",
+      "posted_by": "rd42-u0000000",
+      "body": "{\"text\":\"Derived synthetic post 506\"}",
+      "tags": [],
+      "ref_value": "",
+      "ad_mode": "none",
+      "ad_target": "",
+      "created_ms": "1794052789049"
+    },
+    {
+      "doc_id": "5001f91f-ec7b-9e16-ae86-aac47ae0d1de",
+      "author_key": "rd42-u0000000",
+      "posted_by": "rd42-u0000000",
+      "body": "{\"text\":\"Derived synthetic post 507\"}",
+      "tags": [],
+      "ref_value": "",
+      "ad_mode": "none",
+      "ad_target": "",
+      "created_ms": "1794052789028"
+    },
+    {
+      "doc_id": "79e0c2e1-b349-5ed1-5c86-1173db56110e",
+      "author_key": "rd42-u0000000",
+      "posted_by": "rd42-u0000000",
+      "body": "{\"text\":\"Derived synthetic post 508\"}",
+      "tags": [],
+      "ref_value": "",
+      "ad_mode": "none",
+      "ad_target": "",
+      "created_ms": "1794052789006"
+    },
+    {
+      "doc_id": "79aa3c87-d203-ff06-89e5-a8235b7fe52d",
+      "author_key": "rd42-u0000000",
+      "posted_by": "rd42-u0000000",
+      "body": "{\"text\":\"Derived synthetic post 1011\"}",
+      "tags": [],
+      "ref_value": "",
+      "ad_mode": "none",
+      "ad_target": "",
+      "created_ms": "1794052778141"
+    },
+    {
+      "doc_id": "4691a418-697b-7d3a-d209-dd42bfb6a608",
+      "author_key": "rd42-u0000000",
+      "posted_by": "rd42-u0000000",
+      "body": "{\"text\":\"Derived synthetic post 1012\"}",
+      "tags": [],
+      "ref_value": "",
+      "ad_mode": "none",
+      "ad_target": "",
+      "created_ms": "1794052778120"
+    },
+    {
+      "doc_id": "9ff41cec-1f2c-fb84-b74b-35f04d4aa01a",
+      "author_key": "rd42-u0000000",
+      "posted_by": "rd42-u0000000",
+      "body": "{\"text\":\"Derived synthetic post 1013\"}",
+      "tags": [],
+      "ref_value": "",
+      "ad_mode": "none",
+      "ad_target": "",
+      "created_ms": "1794052778098"
+    },
+    {
+      "doc_id": "fe53701f-931d-f7d1-339d-310c7954bd30",
+      "author_key": "rd42-u0000000",
+      "posted_by": "rd42-u0000000",
+      "body": "{\"text\":\"Derived synthetic post 1516\"}",
+      "tags": [],
+      "ref_value": "",
+      "ad_mode": "none",
+      "ad_target": "",
+      "created_ms": "1794052767233"
+    },
+    {
+      "doc_id": "524e1c0f-c5e6-1392-4a75-b014e4374bde",
+      "author_key": "rd42-u0000000",
+      "posted_by": "rd42-u0000000",
+      "body": "{\"text\":\"Derived synthetic post 1517\"}",
+      "tags": [],
+      "ref_value": "",
+      "ad_mode": "none",
+      "ad_target": "",
+      "created_ms": "1794052767212"
+    },
+    {
+      "doc_id": "e42e3397-f570-d9eb-4c41-27555540f6b5",
+      "author_key": "rd42-u0000000",
+      "posted_by": "rd42-u0000000",
+      "body": "{\"text\":\"Derived synthetic post 1518\"}",
+      "tags": [],
+      "ref_value": "",
+      "ad_mode": "none",
+      "ad_target": "",
+      "created_ms": "1794052767190"
+    },
+    {
+      "doc_id": "e3453c62-2d27-a675-d5cf-eb0f1e1cf4b0",
+      "author_key": "rd42-u0000000",
+      "posted_by": "rd42-u0000000",
+      "body": "{\"text\":\"Derived synthetic post 2021\"}",
+      "tags": [],
+      "ref_value": "",
+      "ad_mode": "none",
+      "ad_target": "",
+      "created_ms": "1794052756325"
+    },
+    {
+      "doc_id": "2c13eeae-1809-f7e0-2bdc-a0102b8148a4",
+      "author_key": "rd42-u0000000",
+      "posted_by": "rd42-u0000000",
+      "body": "{\"text\":\"Derived synthetic post 2022\"}",
+      "tags": [],
+      "ref_value": "",
+      "ad_mode": "none",
+      "ad_target": "",
+      "created_ms": "1794052756304"
+    },
+    {
+      "doc_id": "acff1f0b-0ac7-9ec5-5244-e0e17032d0b9",
+      "author_key": "rd42-u0000000",
+      "posted_by": "rd42-u0000000",
+      "body": "{\"text\":\"Derived synthetic post 2023\"}",
+      "tags": [],
+      "ref_value": "",
+      "ad_mode": "none",
+      "ad_target": "",
+      "created_ms": "1794052756282"
+    },
+    {
+      "doc_id": "7cf4a5dd-f3d8-01ef-ab38-d4d5845b14de",
+      "author_key": "rd42-u0000000",
+      "posted_by": "rd42-u0000000",
+      "body": "{\"text\":\"Derived synthetic post 2526\"}",
+      "tags": [],
+      "ref_value": "",
+      "ad_mode": "none",
+      "ad_target": "",
+      "created_ms": "1794052745417"
+    },
+    {
+      "doc_id": "9f45f71b-b24d-05be-a19d-67ed389e793b",
+      "author_key": "rd42-u0000000",
+      "posted_by": "rd42-u0000000",
+      "body": "{\"text\":\"Derived synthetic post 2527\"}",
+      "tags": [],
+      "ref_value": "",
+      "ad_mode": "none",
+      "ad_target": "",
+      "created_ms": "1794052745396"
+    },
+    {
+      "doc_id": "056d71ab-ecfd-411c-bf3e-0aa29b993871",
+      "author_key": "rd42-u0000000",
+      "posted_by": "rd42-u0000000",
+      "body": "{\"text\":\"Derived synthetic post 2528\"}",
+      "tags": [],
+      "ref_value": "",
+      "ad_mode": "none",
+      "ad_target": "",
+      "created_ms": "1794052745374"
+    },
+    {
+      "doc_id": "8e169aff-3cd4-6b0d-13ea-696efec6c106",
+      "author_key": "rd42-u0000000",
+      "posted_by": "rd42-u0000000",
+      "body": "{\"text\":\"Derived synthetic post 3031\"}",
+      "tags": [],
+      "ref_value": "",
+      "ad_mode": "none",
+      "ad_target": "",
+      "created_ms": "1794052734509"
+    },
+    {
+      "doc_id": "5cb79eb0-9b63-1177-96e9-e9bee40dbafe",
+      "author_key": "rd42-u0000000",
+      "posted_by": "rd42-u0000000",
+      "body": "{\"text\":\"Derived synthetic post 3032\"}",
+      "tags": [],
+      "ref_value": "",
+      "ad_mode": "none",
+      "ad_target": "",
+      "created_ms": "1794052734488"
+    }
+  ],
+  "profiles": {
+    "rd42-u0000000": {
+      "display_name": "Account 0"
+    }
+  },
+  "attachments": {
+    "69cba28e-7b0d-c1fc-310a-57a7ea7486bb": [
+      "api.localhost/groups/users/rd42-u0000000/followers"
+    ],
+    "8adfb89a-e243-d124-eca7-62e9852af8b8": [
+      "api.localhost/groups/users/rd42-u0000000/followers"
+    ],
+    "5001f91f-ec7b-9e16-ae86-aac47ae0d1de": [
+      "api.localhost/groups/users/rd42-u0000000/followers"
+    ],
+    "79e0c2e1-b349-5ed1-5c86-1173db56110e": [
+      "api.localhost/groups/users/rd42-u0000000/followers"
+    ],
+    "2c13eeae-1809-f7e0-2bdc-a0102b8148a4": [
+      "api.localhost/groups/users/rd42-u0000000/followers"
+    ],
+    "fe53701f-931d-f7d1-339d-310c7954bd30": [
+      "api.localhost/groups/users/rd42-u0000000/followers"
+    ],
+    "67569b90-14ef-0cfe-bf74-73d4606ad8ba": [
+      "api.localhost/groups/users/rd42-u0000000/followers"
+    ],
+    "5cb79eb0-9b63-1177-96e9-e9bee40dbafe": [
+      "api.localhost/groups/users/rd42-u0000000/followers"
+    ],
+    "9f45f71b-b24d-05be-a19d-67ed389e793b": [
+      "api.localhost/groups/users/rd42-u0000000/followers"
+    ],
+    "73855328-0b10-1606-ef9a-fd16e24f4a4a": [
+      "api.localhost/groups/users/rd42-u0000000/followers"
+    ],
+    "5ccefb1a-d112-685b-264c-a9fca19337bf": [
+      "api.localhost/groups/users/rd42-u0000000/followers"
+    ],
+    "524e1c0f-c5e6-1392-4a75-b014e4374bde": [
+      "api.localhost/groups/users/rd42-u0000000/followers"
+    ],
+    "e42e3397-f570-d9eb-4c41-27555540f6b5": [
+      "api.localhost/groups/users/rd42-u0000000/followers"
+    ],
+    "4691a418-697b-7d3a-d209-dd42bfb6a608": [
+      "api.localhost/groups/users/rd42-u0000000/followers"
+    ],
+    "e3453c62-2d27-a675-d5cf-eb0f1e1cf4b0": [
+      "api.localhost/groups/users/rd42-u0000000/followers"
+    ],
+    "79aa3c87-d203-ff06-89e5-a8235b7fe52d": [
+      "api.localhost/groups/users/rd42-u0000000/followers"
+    ],
+    "7cf4a5dd-f3d8-01ef-ab38-d4d5845b14de": [
+      "api.localhost/groups/users/rd42-u0000000/followers"
+    ],
+    "9ff41cec-1f2c-fb84-b74b-35f04d4aa01a": [
+      "api.localhost/groups/users/rd42-u0000000/followers"
+    ],
+    "056d71ab-ecfd-411c-bf3e-0aa29b993871": [
+      "api.localhost/groups/users/rd42-u0000000/followers"
+    ],
+    "8e169aff-3cd4-6b0d-13ea-696efec6c106": [
+      "api.localhost/groups/users/rd42-u0000000/followers"
+    ],
+    "acff1f0b-0ac7-9ec5-5244-e0e17032d0b9": [
+      "api.localhost/groups/users/rd42-u0000000/followers"
+    ]
+  },
+  "counts": {}
+}

@@ -1,0 +1,766 @@
+{
+  "kind": "ARM_D_REALISM_MAIN_ONLY",
+  "outcome": "INVALID_STOP",
+  "parity": "FAIL",
+  "dataset_id": "2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd",
+  "droplet_id": 619371600,
+  "deadline_utc": "2026-11-15T05:17:51Z",
+  "setup_settings": {
+    "max_bytes_before_external_sort": 2147483648,
+    "max_bytes_before_external_group_by": 2147483648,
+    "max_temporary_data_on_disk_size_for_query": 107374182400,
+    "max_memory_usage": 23622320128,
+    "max_threads": 4,
+    "join_algorithm": "full_sorting_merge"
+  },
+  "steps": [
+    {
+      "label": "ready",
+      "query_id": "arm-d-realism-a7ff383122554466b03e6b02a7a61899",
+      "sql_sha256": "e004ebd5b5532a4b85984a62f8ad48a81aa3460c1ca07701f386135d72cdecf5",
+      "setup": true,
+      "elapsed_seconds": 0.446
+    },
+    {
+      "label": "ready",
+      "query_id": "arm-d-realism-09831e1d207e4c2da934c7684fabea51",
+      "sql_sha256": "e004ebd5b5532a4b85984a62f8ad48a81aa3460c1ca07701f386135d72cdecf5",
+      "setup": true,
+      "elapsed_seconds": 0.444
+    },
+    {
+      "label": "engine",
+      "query_id": "arm-d-realism-ba59baf330bb4ed88b3b2e120666404c",
+      "sql_sha256": "df1f1d15d442789a5b9c81cdddf44d88d5748499cc48865023ddc1ff1587d0f6",
+      "setup": true,
+      "elapsed_seconds": 0.429
+    },
+    {
+      "label": "server_cap",
+      "query_id": "arm-d-realism-03b94b784f4447e9b511cde3bd65c56e",
+      "sql_sha256": "2095cc241cf01e4f0587234cfabfc1dd1e1c36bc646622a624aafa1913f97a63",
+      "setup": true,
+      "elapsed_seconds": 0.398
+    },
+    {
+      "label": "original_identities",
+      "query_id": "arm-d-realism-cff42e6072ad472d8bdfebf8b799a59b",
+      "sql_sha256": "85b0bd984a358ec596bc3a1d5bd7f6911998a3a10eaafe4eac4b11cdea331676",
+      "setup": true,
+      "elapsed_seconds": 0.388
+    },
+    {
+      "label": "variant_absent",
+      "query_id": "arm-d-realism-c245cccf29fb44e4bdab9a5bae8b1dac",
+      "sql_sha256": "6084d46a08691044e1c6d69789c8866c9c60d161eb1437d5e5dd9be11ae3adc7",
+      "setup": true,
+      "elapsed_seconds": 0.461
+    },
+    {
+      "label": "source_ddl",
+      "query_id": "arm-d-realism-acc14a8081c14b52b2fdead99d33f7b2",
+      "sql_sha256": "40f53301a120254c0d4631bc43c6e60a758bd5cb6c6dcdfafdeb9a943f29546b",
+      "setup": true,
+      "elapsed_seconds": 0.401
+    },
+    {
+      "label": "create_own_copy",
+      "query_id": "arm-d-realism-049250ccf2764a8584f5d24ec5d04044",
+      "sql_sha256": "30344b10730272cf8a88ca8ef8626c803038b56047908b15aa857a5b20324f2a",
+      "setup": true,
+      "elapsed_seconds": 0.473
+    },
+    {
+      "label": "spill_sorted_copy",
+      "query_id": "arm-d-realism-8232a1bec3a24c9fbb7d339ab9fa4107",
+      "sql_sha256": "0d9c217beb03f9913545109037c6c31f9bf3c013c55dd06b2df10daabec3e573",
+      "setup": true,
+      "elapsed_seconds": 277.599
+    },
+    {
+      "label": "source_rows",
+      "query_id": "arm-d-realism-72acd7680d4345a98a599c32640551c8",
+      "sql_sha256": "caf014c8e03296cdd988ff1dce5655f23de70734212bb9f35ac542641cd1c06d",
+      "setup": true,
+      "elapsed_seconds": 0.399
+    },
+    {
+      "label": "copy_rows",
+      "query_id": "arm-d-realism-a92d58474bc14afcaf1d59668ce807fe",
+      "sql_sha256": "77aeff0c1f735238f672c065f473a36f3953f0d9547c1981c17d36a881347801",
+      "setup": true,
+      "elapsed_seconds": 0.437
+    },
+    {
+      "label": "part_census",
+      "query_id": "arm-d-realism-f101f77ff9e44aa1bd14fc22c6cc96d7",
+      "sql_sha256": "b780561505cd4296ffd2b64f59759e84dca9145a691de07fcfc3a6616973deee",
+      "setup": true,
+      "elapsed_seconds": 0.485
+    },
+    {
+      "label": "consolidate_own_copy",
+      "query_id": "arm-d-realism-3fa9b3f20fce4fe2b4f818a1696fcbe1",
+      "sql_sha256": "27dd4a9be18ca3117deb2b0955d53cbac01ac25f26b3cb8cf84688464fdd20a0",
+      "setup": true,
+      "elapsed_seconds": 131.827
+    },
+    {
+      "label": "part_census",
+      "query_id": "arm-d-realism-1c289417f8f742c28f6e030eb2e9f374",
+      "sql_sha256": "b780561505cd4296ffd2b64f59759e84dca9145a691de07fcfc3a6616973deee",
+      "setup": true,
+      "elapsed_seconds": 0.441
+    },
+    {
+      "label": "active_merges",
+      "query_id": "arm-d-realism-62002cf1e59f4dd38fd80f037250a7cb",
+      "sql_sha256": "4b21ef1bf6109b588c5af74ef4261d8a1c787c26267ece920d407f8824a2a5c6",
+      "setup": true,
+      "elapsed_seconds": 0.428
+    },
+    {
+      "label": "part_census",
+      "query_id": "arm-d-realism-f00e07849d0a4b1d839c7ff9ed2fe01d",
+      "sql_sha256": "b780561505cd4296ffd2b64f59759e84dca9145a691de07fcfc3a6616973deee",
+      "setup": true,
+      "elapsed_seconds": 0.431
+    },
+    {
+      "label": "active_merges",
+      "query_id": "arm-d-realism-831fe202cd1f470e9363b43dd0e20d6b",
+      "sql_sha256": "4b21ef1bf6109b588c5af74ef4261d8a1c787c26267ece920d407f8824a2a5c6",
+      "setup": true,
+      "elapsed_seconds": 0.336
+    },
+    {
+      "label": "part_census",
+      "query_id": "arm-d-realism-e455945c18f147e68f0e840fe73413b8",
+      "sql_sha256": "b780561505cd4296ffd2b64f59759e84dca9145a691de07fcfc3a6616973deee",
+      "setup": true,
+      "elapsed_seconds": 0.419
+    },
+    {
+      "label": "active_merges",
+      "query_id": "arm-d-realism-d26394677ee64705b0de7bc0f7d6ce3b",
+      "sql_sha256": "4b21ef1bf6109b588c5af74ef4261d8a1c787c26267ece920d407f8824a2a5c6",
+      "setup": true,
+      "elapsed_seconds": 0.465
+    },
+    {
+      "label": "reader_fixture",
+      "query_id": "arm-d-realism-de766059d5594724bfb2918bd2034a1a",
+      "sql_sha256": "8231b63f8496b2aa818aace2210057bcc52da76a832590c082ade18e831a2439",
+      "setup": true,
+      "elapsed_seconds": 14.599
+    },
+    {
+      "label": "actual_group_author_sets",
+      "query_id": "arm-d-realism-d125f34a4261478399f0f479fbea1caa",
+      "sql_sha256": "c7ce290f7a73b58e4af6a9f3a85324ebd4e7b964085dce2bdfba130dc3a3a31a",
+      "setup": true,
+      "elapsed_seconds": 100.602
+    },
+    {
+      "label": "independent_oracle",
+      "query_id": "arm-d-realism-db403fcc7b344847bb47bdc20e1c123a",
+      "sql_sha256": "0c2db1d3f25ac921a1d02a747bda09311b396334909b9b6de1dae5f1cc7a0f4a",
+      "setup": true,
+      "elapsed_seconds": 16.225
+    },
+    {
+      "label": "independent_oracle",
+      "query_id": "arm-d-realism-017179117cce4ab89ee130a05bbfe294",
+      "sql_sha256": "2686ea977b40cc5c271efeff7d1c5957b607e08a2fa5225afee6b577eb9c0499",
+      "setup": true,
+      "elapsed_seconds": 0.341
+    },
+    {
+      "label": "independent_oracle",
+      "query_id": "arm-d-realism-a20175cc96bd483185a72f59ceab8c64",
+      "sql_sha256": "7182d937c7c4a379ebf60e9b42ea77932e14035540c2e8bc3abbc2bc437acea6",
+      "setup": true,
+      "elapsed_seconds": 0.349
+    },
+    {
+      "label": "independent_oracle",
+      "query_id": "arm-d-realism-7fb47fbeab4e47bcb7f67816144a413c",
+      "sql_sha256": "ae52d6b382e8bd012ae63b8b268823153ea05c6c625bc61795b9a387fc2c9ee9",
+      "setup": true,
+      "elapsed_seconds": 6.95
+    },
+    {
+      "label": "warmup_owner_policy_verification",
+      "query_id": "arm-d-realism-f68fd60335fa4ee28009103028e126aa",
+      "sql_sha256": "33665f1822e5d6513dc43746e5198d0853c4ebda744c4b874d59c3c3cc78edf0",
+      "setup": false,
+      "elapsed_seconds": 0.402
+    },
+    {
+      "label": "warmup_owner_policy_verification",
+      "query_id": "arm-d-realism-f247669f161445f7a673f76733df1a92",
+      "sql_sha256": "3160ca3e0fb38c0ced4ed5a07d87c2285dba1a71adefa1d8bbc6c7934c4e4947",
+      "setup": false,
+      "elapsed_seconds": 0.375
+    },
+    {
+      "label": "warmup_owner_policy_verification",
+      "query_id": "arm-d-realism-6e90930d0d1740049268aff5398b7058",
+      "sql_sha256": "2dbd77900c933b8705c9419e446b5be54128172681be489bfd6597daf87b9a64",
+      "setup": false,
+      "elapsed_seconds": 0.337
+    },
+    {
+      "label": "warmup_main",
+      "query_id": "arm-d-realism-f6ea8e4d74634d52a2105964ca518eea",
+      "sql_sha256": "8a9d0cbfd8fed0c3ca5a311cf18f07fc21c3ca066eb9fc276f4098ed0cca5829",
+      "setup": false,
+      "elapsed_seconds": 1.398
+    },
+    {
+      "label": "flush_native",
+      "query_id": "arm-d-realism-231a23e6dcb145089b26a210886e4cfd",
+      "sql_sha256": "066df34fd4fd54f1aa861219200adbab6e002a16d2908bccda607d2080b3f818",
+      "setup": true,
+      "elapsed_seconds": 0.404
+    },
+    {
+      "label": "native_receipt",
+      "query_id": "arm-d-realism-548a4e3587184cb9ba0b4cf726af017f",
+      "sql_sha256": "ee4c1660b3ef5d1cc2d93b013da89117727e3496eda2389476b3eed719ee9d8e",
+      "setup": true,
+      "elapsed_seconds": 0.305
+    },
+    {
+      "label": "flush_native",
+      "query_id": "arm-d-realism-b97ff7b0f8b54e0ab10118f1fe97f1b5",
+      "sql_sha256": "066df34fd4fd54f1aa861219200adbab6e002a16d2908bccda607d2080b3f818",
+      "setup": true,
+      "elapsed_seconds": 0.405
+    },
+    {
+      "label": "native_receipt",
+      "query_id": "arm-d-realism-1c05c41b1fca422aa2dedb7208bb7665",
+      "sql_sha256": "284ee7b0060ed7912cf05f14fa512b0bb22f7e554bcf6d29f31e97a86c4e11f0",
+      "setup": true,
+      "elapsed_seconds": 0.334
+    },
+    {
+      "label": "flush_native",
+      "query_id": "arm-d-realism-6a08c3f027c64a94a6db097a4fcd5fa3",
+      "sql_sha256": "066df34fd4fd54f1aa861219200adbab6e002a16d2908bccda607d2080b3f818",
+      "setup": true,
+      "elapsed_seconds": 0.379
+    },
+    {
+      "label": "native_receipt",
+      "query_id": "arm-d-realism-b460963a0ee74aa39408b328f19f4a3f",
+      "sql_sha256": "358036d6f364216e94cf6689ed0cef3b8d202a92b7ffc4adee23a698e772fed4",
+      "setup": true,
+      "elapsed_seconds": 0.317
+    },
+    {
+      "label": "flush_native",
+      "query_id": "arm-d-realism-80f1e203595e4abea87bf90cb0e672e4",
+      "sql_sha256": "066df34fd4fd54f1aa861219200adbab6e002a16d2908bccda607d2080b3f818",
+      "setup": true,
+      "elapsed_seconds": 0.377
+    },
+    {
+      "label": "native_receipt",
+      "query_id": "arm-d-realism-d4a44967d64a43839a0d3d82eb041a74",
+      "sql_sha256": "e72c681584012d659f34c0f4046742f0d802eacd298a5194e1810aee3210ad48",
+      "setup": true,
+      "elapsed_seconds": 0.313
+    },
+    {
+      "label": "original_identities_after",
+      "query_id": "arm-d-realism-6256da13818e40f2869241012313e821",
+      "sql_sha256": "85b0bd984a358ec596bc3a1d5bd7f6911998a3a10eaafe4eac4b11cdea331676",
+      "setup": true,
+      "elapsed_seconds": 0.322
+    }
+  ],
+  "trials": [],
+  "K1000": "GATED_OFF",
+  "full_sequence": "NOT_ATTEMPTED",
+  "scope": "native main, not HTTP/p95/full-sequence",
+  "source_sha256": {
+    "arm_d_realism.py": "2120ba44bd9ae2201e9b9307cfe08cc4fe6718b4715a97e295c08b8b553a53b1",
+    "arm_d_rewrite.py": "c6feba3dada1883333063d119df2cb7e5fe2c20ea9eb8c4d1dc32126dbfaa2e0",
+    "smoke_realism.py": "d75eb688562d0b0cf0a2e9c10fd15a351bc695a1e9a2096e967968c4882fb6d5",
+    "arm_t_oracle.py": "364debb823e5b17842003b95cb23b485d406320efbe2776150ae7df7656d1de1"
+  },
+  "host_resources": {
+    "host_memory_bytes": 33654894592,
+    "docker_store_free_bytes": 352817770496,
+    "setup_query_spill_cap_bytes": 107374182400
+  },
+  "original_identities_before": [
+    {
+      "name": "doc_groups",
+      "uuid": "69e9bbf9-1d6d-4c79-8c9d-1b4520815226",
+      "sorting_key": "doc_id, group_id"
+    },
+    {
+      "name": "doc_groups_t",
+      "uuid": "4fb8ed8a-4f92-4ef6-acd4-2a3201072cba",
+      "sorting_key": "group_id, created_at, doc_id"
+    },
+    {
+      "name": "documents",
+      "uuid": "e6df5ed3-9636-4121-9a63-72159761cead",
+      "sorting_key": "author_key, doc_id"
+    }
+  ],
+  "source_rows": 88200300,
+  "copy_rows": 88200300,
+  "row_count_verified": true,
+  "before_parts": [
+    {
+      "table": "doc_groups",
+      "partition_id": "all",
+      "parts": "1",
+      "rows": "92200600",
+      "marks": "11256"
+    },
+    {
+      "table": "doc_groups_t",
+      "partition_id": "all",
+      "parts": "1",
+      "rows": "92200600",
+      "marks": "11256"
+    },
+    {
+      "table": "documents",
+      "partition_id": "all",
+      "parts": "1",
+      "rows": "88200300",
+      "marks": "10768"
+    },
+    {
+      "table": "documents_d",
+      "partition_id": "all",
+      "parts": "11",
+      "rows": "88200300",
+      "marks": "10778"
+    }
+  ],
+  "after_parts": [
+    {
+      "table": "doc_groups",
+      "partition_id": "all",
+      "parts": "1",
+      "rows": "92200600",
+      "marks": "11256"
+    },
+    {
+      "table": "doc_groups_t",
+      "partition_id": "all",
+      "parts": "1",
+      "rows": "92200600",
+      "marks": "11256"
+    },
+    {
+      "table": "documents",
+      "partition_id": "all",
+      "parts": "1",
+      "rows": "88200300",
+      "marks": "10768"
+    },
+    {
+      "table": "documents_d",
+      "partition_id": "all",
+      "parts": "1",
+      "rows": "88200300",
+      "marks": "10768"
+    }
+  ],
+  "reader_index": 1,
+  "reader": "rd42-u0980001",
+  "follow_count": 20,
+  "groups_including_self": [
+    "api.localhost/groups/users/rd42-u0000000/followers",
+    "api.localhost/groups/users/rd42-u0000001/followers",
+    "api.localhost/groups/users/rd42-u0000002/followers",
+    "api.localhost/groups/users/rd42-u0000003/followers",
+    "api.localhost/groups/users/rd42-u0000004/followers",
+    "api.localhost/groups/users/rd42-u0000005/followers",
+    "api.localhost/groups/users/rd42-u0000006/followers",
+    "api.localhost/groups/users/rd42-u0000007/followers",
+    "api.localhost/groups/users/rd42-u0000008/followers",
+    "api.localhost/groups/users/rd42-u0000009/followers",
+    "api.localhost/groups/users/rd42-u0000010/followers",
+    "api.localhost/groups/users/rd42-u0000011/followers",
+    "api.localhost/groups/users/rd42-u0000012/followers",
+    "api.localhost/groups/users/rd42-u0000013/followers",
+    "api.localhost/groups/users/rd42-u0000014/followers",
+    "api.localhost/groups/users/rd42-u0000015/followers",
+    "api.localhost/groups/users/rd42-u0614008/followers",
+    "api.localhost/groups/users/rd42-u0614009/followers",
+    "api.localhost/groups/users/rd42-u0614010/followers",
+    "api.localhost/groups/users/rd42-u0614011/followers",
+    "api.localhost/groups/users/rd42-u0980001/followers"
+  ],
+  "page_size": 21,
+  "author_sets": [
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0000000/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0000000"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0000000"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0000001/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0000001"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0000001"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0000002/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0000002"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0000002"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0000003/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0000003"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0000003"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0000004/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0000004"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0000004"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0000005/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0000005"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0000005"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0000006/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0000006"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0000006"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0000007/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0000007"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0000007"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0000008/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0000008"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0000008"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0000009/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0000009"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0000009"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0000010/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0000010"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0000010"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0000011/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0000011"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0000011"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0000012/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0000012"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0000012"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0000013/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0000013"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0000013"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0000014/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0000014"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0000014"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0000015/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0000015"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0000015"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0614008/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0614008"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0614008"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0614009/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0614009"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0614009"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0614010/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0614010"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0614010"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0614011/followers",
+      "role": "member",
+      "shortcut_authors": [
+        "rd42-u0614011"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0614011"
+      ],
+      "actual_size": 1
+    },
+    {
+      "group_id": "api.localhost/groups/users/rd42-u0980001/followers",
+      "role": "owner",
+      "shortcut_authors": [
+        "rd42-u0980001"
+      ],
+      "shortcut_size": 1,
+      "actual_attached_authors": [
+        "rd42-u0980001"
+      ],
+      "actual_size": 1
+    }
+  ],
+  "followed_author_set_total": 20,
+  "shortcut_followed_enumeration_total": 20,
+  "observations": [
+    {
+      "phase": "warmup",
+      "index": 0,
+      "query_id": "arm-d-realism-f6ea8e4d74634d52a2105964ca518eea",
+      "query_duration_ms": "1030",
+      "read_rows": "6512640",
+      "read_bytes": "962112014",
+      "memory_usage": "338262078",
+      "exception_code": 0,
+      "verification_native": [
+        {
+          "query_id": "arm-d-realism-f68fd60335fa4ee28009103028e126aa",
+          "query_duration_ms": "65",
+          "read_rows": "1464350",
+          "read_bytes": "118612512",
+          "memory_usage": "177160",
+          "exception_code": 0
+        },
+        {
+          "query_id": "arm-d-realism-f247669f161445f7a673f76733df1a92",
+          "query_duration_ms": "67",
+          "read_rows": "1464350",
+          "read_bytes": "118792653",
+          "memory_usage": "169400",
+          "exception_code": 0
+        },
+        {
+          "query_id": "arm-d-realism-6e90930d0d1740049268aff5398b7058",
+          "query_duration_ms": "14",
+          "read_rows": "6",
+          "read_bytes": "81",
+          "memory_usage": "180304",
+          "exception_code": 0
+        }
+      ]
+    }
+  ],
+  "parity_error": "wrong main aggregate: likes",
+  "expected_ids": [
+    "73855328-0b10-1606-ef9a-fd16e24f4a4a",
+    "5ccefb1a-d112-685b-264c-a9fca19337bf",
+    "67569b90-14ef-0cfe-bf74-73d4606ad8ba",
+    "8adfb89a-e243-d124-eca7-62e9852af8b8",
+    "69cba28e-7b0d-c1fc-310a-57a7ea7486bb",
+    "5001f91f-ec7b-9e16-ae86-aac47ae0d1de",
+    "79e0c2e1-b349-5ed1-5c86-1173db56110e",
+    "79aa3c87-d203-ff06-89e5-a8235b7fe52d",
+    "4691a418-697b-7d3a-d209-dd42bfb6a608",
+    "9ff41cec-1f2c-fb84-b74b-35f04d4aa01a",
+    "fe53701f-931d-f7d1-339d-310c7954bd30",
+    "524e1c0f-c5e6-1392-4a75-b014e4374bde",
+    "e42e3397-f570-d9eb-4c41-27555540f6b5",
+    "e3453c62-2d27-a675-d5cf-eb0f1e1cf4b0",
+    "2c13eeae-1809-f7e0-2bdc-a0102b8148a4",
+    "acff1f0b-0ac7-9ec5-5244-e0e17032d0b9",
+    "7cf4a5dd-f3d8-01ef-ab38-d4d5845b14de",
+    "9f45f71b-b24d-05be-a19d-67ed389e793b",
+    "056d71ab-ecfd-411c-bf3e-0aa29b993871",
+    "8e169aff-3cd4-6b0d-13ea-696efec6c106",
+    "5cb79eb0-9b63-1177-96e9-e9bee40dbafe"
+  ],
+  "actual_ids": [
+    "73855328-0b10-1606-ef9a-fd16e24f4a4a",
+    "5ccefb1a-d112-685b-264c-a9fca19337bf",
+    "67569b90-14ef-0cfe-bf74-73d4606ad8ba",
+    "8adfb89a-e243-d124-eca7-62e9852af8b8",
+    "69cba28e-7b0d-c1fc-310a-57a7ea7486bb",
+    "5001f91f-ec7b-9e16-ae86-aac47ae0d1de",
+    "79e0c2e1-b349-5ed1-5c86-1173db56110e",
+    "79aa3c87-d203-ff06-89e5-a8235b7fe52d",
+    "4691a418-697b-7d3a-d209-dd42bfb6a608",
+    "9ff41cec-1f2c-fb84-b74b-35f04d4aa01a",
+    "fe53701f-931d-f7d1-339d-310c7954bd30",
+    "524e1c0f-c5e6-1392-4a75-b014e4374bde",
+    "e42e3397-f570-d9eb-4c41-27555540f6b5",
+    "e3453c62-2d27-a675-d5cf-eb0f1e1cf4b0",
+    "2c13eeae-1809-f7e0-2bdc-a0102b8148a4",
+    "acff1f0b-0ac7-9ec5-5244-e0e17032d0b9",
+    "7cf4a5dd-f3d8-01ef-ab38-d4d5845b14de",
+    "9f45f71b-b24d-05be-a19d-67ed389e793b",
+    "056d71ab-ecfd-411c-bf3e-0aa29b993871",
+    "8e169aff-3cd4-6b0d-13ea-696efec6c106",
+    "5cb79eb0-9b63-1177-96e9-e9bee40dbafe"
+  ],
+  "original_identities_after": [
+    {
+      "name": "doc_groups",
+      "uuid": "69e9bbf9-1d6d-4c79-8c9d-1b4520815226",
+      "sorting_key": "doc_id, group_id"
+    },
+    {
+      "name": "doc_groups_t",
+      "uuid": "4fb8ed8a-4f92-4ef6-acd4-2a3201072cba",
+      "sorting_key": "group_id, created_at, doc_id"
+    },
+    {
+      "name": "documents",
+      "uuid": "e6df5ed3-9636-4121-9a63-72159761cead",
+      "sorting_key": "author_key, doc_id"
+    }
+  ],
+  "original_identities_unchanged": true,
+  "completed_utc": "2026-11-15T04:47:51.288728+00:00"
+}

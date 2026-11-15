@@ -15,6 +15,38 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Arm D attachment repair (15.11.2026) — bounded constructor review, OPEN
+
+Later explicitly approved native fixed-inventory diagnostic: fresh source/copy
+count/multiset fingerprints and UUID/key/settled census checks match. Repaired
+main times out with native159/345.726M rows before returning a page; native exact
+parity therefore remains unestablished, not PASS. The >10M-row rule stops any
+measured trials/stress extension. Separate old-timer/native394 setup failure is
+preserved, with the retry inside the original budget/deadline. All62 protected
+evidence files remain hash-identical and containers stop. One additional offline
+control binds the exact repaired SQL hash to this native failed-query receipt.
+This evidence narrows the performance conclusion, not the OPEN security status.
+
+GPT-6.1 Sol orients against I3, the existing layout-hint learning and the actual
+INVALID realism receipts. Bounded read-only review traces the old constructor's
+removed doc_groups join into reaction/comment aggregates and the new pure
+constructor's direct `arm_t_rewrite.pinned` call. The separate revision preserves
+canonical version/deletion/attachment joins and all policy predicates, changing
+only physical documents plus author candidate hints. Nine no-engine controls
+include an old-admits/new-denies same-author/outside-group replay, positive
+attachments/shared authors/history and structural equality of retained gates
+and aggregates. A native decoder is wired into the probe, without activating
+the new constructor or changing raw prior receipts. The real retained failure
+still fails after numeric normalization. No production/API/SDK auth change.
+
+| Unit | Level | Status | Evidence / open gate |
+|---|---|---|---|
+| Arm D attachment constructor + direct pin/decoder/probe callers | L1/L2 bounded review | OPEN | `research/experiments/costfn/arm_d_attachment_repair.test.py`; relational model/AST coverage only, native exact parity and fresh/model-diverse review unfulfilled |
+
+This is not a whole L1–L4 scan, connected exploit closure or security PASS.
+Author-hint completeness/source binding and full runtime cost attribution must
+be established by a separately admitted executable revision before measurement.
+
 ## Additive research transpose (14.11.2026) — bounded change review, OPEN
 
 15 November consolidation admission: bounded helper allows only three fixed

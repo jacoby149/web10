@@ -1,0 +1,18 @@
+{
+  "cause": "pre-existing one-shot container-stop timer interrupted setup before any main query",
+  "native_exception_code": 394,
+  "engine_oom_observed": false,
+  "journal": {
+    "arm-t-owned-containers-stop.service": [
+      "2026-11-15T05:07:52+00:00 web10-armt-diag-b79d9c48ab5f systemd[1]: Started arm-t-owned-containers-stop.service - /usr/bin/docker stop --time 30 web10-costfn-frozen-armt-d1-api-1 web10-costfn-frozen-armt-d1-clickhouse-1 web10-costfn-frozen-armt-d1-minio-1.",
+      "2026-11-15T05:07:53+00:00 web10-armt-diag-b79d9c48ab5f docker[66001]: Flag --time has been deprecated, use --timeout instead",
+      "2026-11-15T05:07:53+00:00 web10-armt-diag-b79d9c48ab5f docker[66001]: web10-costfn-frozen-armt-d1-api-1",
+      "2026-11-15T05:07:54+00:00 web10-armt-diag-b79d9c48ab5f docker[66001]: web10-costfn-frozen-armt-d1-clickhouse-1",
+      "2026-11-15T05:07:54+00:00 web10-armt-diag-b79d9c48ab5f docker[66001]: web10-costfn-frozen-armt-d1-minio-1",
+      "2026-11-15T05:07:54+00:00 web10-armt-diag-b79d9c48ab5f systemd[1]: arm-t-owned-containers-stop.service: Deactivated successfully."
+    ],
+    "arm-t-owned-containers-stop.timer": [
+      "2026-11-15T05:07:54+00:00 web10-armt-diag-b79d9c48ab5f systemd[1]: arm-t-owned-containers-stop.timer: Deactivated successfully."
+    ]
+  }
+}

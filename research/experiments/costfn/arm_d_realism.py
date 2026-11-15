@@ -10,6 +10,7 @@ import time
 import uuid
 
 import arm_d_rewrite
+import arm_d_attachment_repair
 import arm_t
 import arm_t_oracle
 import restore_dataset
@@ -66,7 +67,7 @@ def run(root, approval_path, output_name="arm-d-realism"):
               "setup_settings": SPILL, "steps": [], "trials": [], "K1000": "NOT_RUN",
               "full_sequence": "NOT_ATTEMPTED", "scope": "native main, not HTTP/p95/full-sequence",
               "source_sha256": {n: arm_t.digest(Path(__file__).parent / n) for n in
-                  ("arm_d_realism.py", "arm_d_rewrite.py", "smoke_realism.py", "arm_t_oracle.py")}}
+                  ("arm_d_realism.py", "arm_d_rewrite.py", "arm_d_attachment_repair.py", "smoke_realism.py", "arm_t_oracle.py")}}
     restored = json.loads((root / "restore.json").read_bytes())
     manifest = json.loads((root / "input/manifest.json").read_bytes())
     if (not restored.get("node_import_complete") or restored["dataset_id"] != arm_t.DATASET
@@ -225,7 +226,8 @@ def run(root, approval_path, output_name="arm-d-realism"):
                 if int(value) != want:
                     raise ValueError("base-series owner/policy precondition failed")
             raw, qid = query(phase + "_main", treated + " FORMAT JSON", measured=True)
-            returned = json.loads(raw)["data"]
+            (output / (phase + "-" + str(index) + "-native-response.json")).write_text(raw + "\n")
+            returned = arm_d_attachment_repair.native_rows(raw)
             metrics = native(qid)
             observation = {"phase": phase, "index": index, **metrics,
                 "verification_native": [native(q) for q in verification_ids]}
