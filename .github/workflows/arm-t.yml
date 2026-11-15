@@ -32,3 +32,4 @@ jobs:
         run: |
           python research/experiments/costfn/arm_t.test.py
           python research/experiments/costfn/arm_t_probe.test.py
+          python research/experiments/costfn/arm_t_oracle.test.py

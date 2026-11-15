@@ -17,6 +17,16 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 
 ## Additive research transpose (14.11.2026) — bounded change review, OPEN
 
+15 November setup follow-through: an additive transport bounds only the
+independent canonical engagement oracle's link set by exact canonical document
+IDs. No authority or expected-count expression changes; frozen oracle/API SQL
+remain unchanged. Five native update/deletion/link/private/cross-author scopes
+and a full-store reader-scope equality control pass. All 43 focused no-engine
+controls pass. Both transpose builds fail at the existing 22-GiB setup limit;
+no Arm T feed/parity request has run and no new connected security or performance
+assurance follows. Diagnosis, native-control and failed-build evidence is in
+`research/experiments/costfn/evidence/arm-t-20261115/`.
+
 15 November operator-approved diagnostic exception: the admission guard may
 waive only the Study B launch prerequisite, explicitly labelled
 `operator-waived-not-passed`, within four hours/$2; diagnosis, parity, own-host

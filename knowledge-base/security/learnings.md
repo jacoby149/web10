@@ -37,6 +37,13 @@ that matters for orient:
 
 ### 2026-11-14: A layout hint is not authority, and build admission is not a runtime lease
 
+15 November setup lesson: selecting a disk-capable join, even with explicit
+join-spill admission, does not prove whole-query memory is bounded. Preserve
+failed setup receipts and keep the global cap; a half-built layout is neither
+a parity sample nor a read-performance result. An oracle performance repair
+must retain canonical version/deletion/group/count semantics and demonstrate
+equivalence independently, not adjust expected values around a failing arm.
+
 15 November follow-through: an explicit diagnostic sequencing exception is
 `operator-waived-not-passed`, not evidence a pilot ran. Bound its lifetime and
 budget independently. Never retry an unresolved provider creation, and never

@@ -122,6 +122,34 @@ Paper submission remains a separate explicit decision after the full gates.
 
 ## Tooling and the next executable step
 
+**Build setup retry (15 November):** the first `INSERT SELECT` fails while
+filling the right join side at 22.01 GiB against the unchanged 22-GiB query cap,
+before any feed/parity request. Retain that build receipt and partial variant
+under a separately identified failed-build name. A fresh variant/retry receipt
+uses explicit **1-GiB join spill admission**, **64 initial grace-hash buckets**
+and **2-GiB external-sort admission** inside the same 22/28-GiB envelope.
+No original document/link table is renamed or rewritten. These are separately
+receipted setup controls, not feed optimizations, a memory-limit increase or
+permission to extend the four-hour/$2 diagnostic window.
+
+That retry also fails at the unchanged 22-GiB cap, now in JoiningTransform.
+Both attempts are setup failures; neither reaches a transpose feed/parity
+request. Explicit spill settings are not evidence the whole join fits the
+envelope. Preserve both receipts and obtain a completed reconciled snapshot
+before making any Arm T correctness or read-performance claim.
+
+**Live setup repair (15 November):** the first own-store restore succeeds, but
+the independent canonical expectation-builder's Discover engagement query
+times out at its unchanged 120-second setup ceiling, before any feed request.
+Preserve that failure. An additive oracle transport may insert an exact
+canonical engagement-document-ID bound into the original link subquery,
+without changing its count expressions, FINAL/deletion semantics, references
+or group scope. Prove equality on native version/tombstone controls and the
+full-store reader-only scope; retain original and rewritten SQL hashes.
+This is setup/control-plane work, not an Arm T performance result or permission
+to weaken parity. Frozen smoke/oracle files and measured API SQL stay untouched;
+the production ten-second ceiling is unchanged.
+
 `arm_t.py` builds/reconciles the separate snapshot. `arm_t_rewrite.py` pins the
 actual compiler output and constructs the two-stage canonical main.
 `arm_t_api.py` is a **separate** ASGI entry point selected only by

@@ -1,0 +1,71 @@
+{
+  "database": "arm_t_oracle_controls_9ceca605f282",
+  "controls": [
+    {
+      "groups": "'discover'",
+      "exact_equal": true,
+      "expected": [
+        {
+          "ref_value": "post-a",
+          "likes": "0",
+          "dislikes": "1",
+          "comments": "1"
+        },
+        {
+          "ref_value": "post-b",
+          "likes": "1",
+          "dislikes": "0",
+          "comments": "0"
+        }
+      ]
+    },
+    {
+      "groups": "'shared'",
+      "exact_equal": true,
+      "expected": [
+        {
+          "ref_value": "post-a",
+          "likes": "0",
+          "dislikes": "1",
+          "comments": "0"
+        }
+      ]
+    },
+    {
+      "groups": "'discover','shared'",
+      "exact_equal": true,
+      "expected": [
+        {
+          "ref_value": "post-a",
+          "likes": "0",
+          "dislikes": "1",
+          "comments": "1"
+        },
+        {
+          "ref_value": "post-b",
+          "likes": "1",
+          "dislikes": "0",
+          "comments": "0"
+        }
+      ]
+    },
+    {
+      "groups": "'private'",
+      "exact_equal": true,
+      "expected": [
+        {
+          "ref_value": "post-b",
+          "likes": "0",
+          "dislikes": "0",
+          "comments": "1"
+        }
+      ]
+    },
+    {
+      "groups": "'missing'",
+      "exact_equal": true,
+      "expected": []
+    }
+  ],
+  "scope": "Synthetic native oracle equivalence, no transpose/feed performance claim"
+}

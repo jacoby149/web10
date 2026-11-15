@@ -308,6 +308,10 @@ class BuildTests(unittest.TestCase):
         if args[0] == "inspect":
             return str(28 * 1024**3).encode()
         sql = args[args.index("--query") + 1]
+        self.assertEqual(args[args.index("--max_memory_usage") + 1], str(22 * 1024**3))
+        self.assertEqual(args[args.index("--max_bytes_in_join") + 1], str(1024**3))
+        self.assertEqual(args[args.index("--grace_hash_join_initial_buckets") + 1], "64")
+        self.assertEqual(args[args.index("--max_bytes_before_external_sort") + 1], str(2 * 1024**3))
         self.sql.append(sql)
         if sql == "SELECT version()":
             return b"24.8.14.39"

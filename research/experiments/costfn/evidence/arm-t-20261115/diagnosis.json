@@ -1,0 +1,118 @@
+{
+  "outcome": "BASELINE_BOUNDARY_SCANS_CONFIRMED",
+  "dataset_id": "2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd",
+  "baseline_query_sha256": "a9319fcfbe2591a4d427b7adc01489970e3df59714352058fbf8f3dd2d2d07f4",
+  "read_rows": 360801800,
+  "unexpected_attribution": false,
+  "baseline_receipt_sha256": "f2120d33b12b298b23f396184f28b18e7fa5b317c3983aa568f3f9e23b126251",
+  "sources": {
+    "api_python_sha256": "28a990b1acdfbc4c81a61a99119a6a5681656c6052c520d473d2aa02c1910058",
+    "api_lock_sha256": "ecaa9988e333b039c47ba7e7ef0284c6af5ad03259b766eb122d30783ed38ea8",
+    "research_compose_sha256": "6cc1c347614af76dd3c08f03a8da2ae223eb3c7b9e4d8cbd66ffa9b308883b96",
+    "harness_python_sha256": "640c542b4e1d4724c3d8be2698f445f08813dc5b5f398193494090b0672591cd",
+    "wire_sha256": "2c9b198f8b290d7f1287f1e1fc6179bbf81050ca4b7a75af8a34579214347bdd",
+    "pagination_capture_sha256": "7f3d33be819bae9ac1b6edf372897c06e1df473615e87d03eb726d2c3bd77a42"
+  },
+  "native_query_ids": [
+    "ad8f2768-701e-491a-b8ba-bd8394dd59b3",
+    "bd11bfb0-7751-4ca9-b431-c3ae5a3c5db4",
+    "4af96660-0c4f-46b0-88bc-c262ccf5cf05"
+  ],
+  "scan_rows_by_table": {
+    "documents": 176400600,
+    "doc_groups": 184401200
+  },
+  "scan_accounting_scope": "Full-table-equivalent attribution of the preserved native total (two document/link pairs), not directly instrumented per-table counters; five pairs remain planned because posts is referenced twice. Timeout is partial execution, not completed feed cost.",
+  "retained_query": {
+    "path": "baseline-main.sql",
+    "sha256": "a9319fcfbe2591a4d427b7adc01489970e3df59714352058fbf8f3dd2d2d07f4"
+  },
+  "scan_evidence": {
+    "path": "baseline-explain.txt",
+    "sha256": "f249dc38fa0cf42e1f9eee33f191c78d6e5b04329df83e2c1e0c563a31935e11"
+  },
+  "replay_native_main": [
+    {
+      "query_id": "bd765033-9231-44a6-8e91-f9de5f91f9e4",
+      "read_rows": "360801800",
+      "read_bytes": "24374786309",
+      "memory_usage": "5182636131",
+      "exception_code": 159,
+      "tables": [
+        "web10.banned_users",
+        "web10.doc_groups",
+        "web10.documents",
+        "web10.group_blacklist",
+        "web10.group_hidden_docs",
+        "web10.user_blacklist",
+        "web10.user_group_sharing"
+      ]
+    },
+    {
+      "query_id": "ec0fb6a7-65b1-4a88-adab-d83d72722c27",
+      "read_rows": "360801800",
+      "read_bytes": "24374786309",
+      "memory_usage": "5160622559",
+      "exception_code": 159,
+      "tables": [
+        "web10.banned_users",
+        "web10.doc_groups",
+        "web10.documents",
+        "web10.group_blacklist",
+        "web10.group_hidden_docs",
+        "web10.user_blacklist",
+        "web10.user_group_sharing"
+      ]
+    },
+    {
+      "query_id": "210eb116-6992-403f-96b2-1f7f48746cab",
+      "read_rows": "360801800",
+      "read_bytes": "24374786309",
+      "memory_usage": "5174196643",
+      "exception_code": 159,
+      "tables": [
+        "web10.banned_users",
+        "web10.doc_groups",
+        "web10.documents",
+        "web10.group_blacklist",
+        "web10.group_hidden_docs",
+        "web10.user_blacklist",
+        "web10.user_group_sharing"
+      ]
+    },
+    {
+      "query_id": "50d5836b-9d64-44d9-b5f4-360198b228f5",
+      "read_rows": "360801800",
+      "read_bytes": "24374786309",
+      "memory_usage": "5171064455",
+      "exception_code": 159,
+      "tables": [
+        "web10.banned_users",
+        "web10.doc_groups",
+        "web10.documents",
+        "web10.group_blacklist",
+        "web10.group_hidden_docs",
+        "web10.user_blacklist",
+        "web10.user_group_sharing"
+      ]
+    }
+  ],
+  "replay_source_counts": {
+    "documents": 88200300,
+    "doc_groups": 92200600
+  },
+  "plan_full_scan_nodes": {
+    "documents": 5,
+    "doc_groups": 5
+  },
+  "policy_table_counts": {
+    "user_blacklist": 0,
+    "group_blacklist": 0,
+    "user_group_sharing": 0,
+    "group_hidden_docs": 0,
+    "banned_users": 0
+  },
+  "active_merges_at_snapshot": [],
+  "finding": "All 10767 document granules and all 11259 link granules selected at each planned boundary. Readability by group cannot prune the existing doc-first link key. No policy-table or content-events scan explains the main mass.",
+  "limits": "Repeat confirms broad-read mechanism with the identical query and frozen bytes; does not reconstruct historical cache/merge state or establish p95/capacity."
+}
