@@ -19,6 +19,8 @@ from fastapi import HTTPException
 import sqlglot
 
 import arm_f as f
+import arm_f_observe as observation
+import arm_f_views
 from arm_f_journal import Journal
 from arm_f_store import Store
 from arm_f_runtime import admitted
@@ -78,7 +80,12 @@ def insert(*args, **kwargs):
     settings['max_memory_usage'] = 22 * 1024**3
     kwargs['settings'] = settings
     try:
-        return original_insert(*args, **kwargs)
+        result = original_insert(*args, **kwargs)
+        table = args[0] if args else kwargs.get('table')
+        if table == 'fanout':
+            rows = args[1] if len(args) > 1 else kwargs['data']
+            observation.pointers(ROOT, current, table, rows, kwargs.get('column_names'))
+        return result
     except Exception as error:
         fail('native_insert_' + type(error).__name__)
         raise
@@ -86,6 +93,27 @@ def insert(*args, **kwargs):
 
 p.ch.client.command = command
 p.ch.client.insert = insert
+original_query = p.ch.client.query
+
+
+def query(sql=None, *args, **kwargs):
+    current = p.observer.current.get()
+    if not current or current.get('request_id') == 'unlabelled' or not p._views.get():
+        return original_query(sql, *args, **kwargs)
+    if sql is None:
+        sql = kwargs.pop('query')
+    bound = p._signature.bind_partial(sql, *args, **kwargs)
+    params = bound.arguments.get('parameters') or {}
+    bound.arguments['query'] = arm_f_views.checked_sql(p.serve.bound_sql(sql, params))
+    bound.arguments['parameters'] = None
+    result = original_query(*bound.args, **bound.kwargs)
+    values = arm_f_views.verify(result.result_rows)
+    current.setdefault('fanout_view_checks', []).append({'query_id': result.query_id,
+        'method': 'same-snapshot canonical sum/array-distinct', 'values': values})
+    return result
+
+
+p.ch.client.query = query
 
 
 def active():
@@ -325,6 +353,8 @@ def compile_query(*args, **kwargs):
     reader = kwargs.get('member_key', args[2] if len(args) > 2 else 'anon')
     tree = sqlglot.parse_one(compiled, read='clickhouse')
     is_main = 'profile_body' in {item.alias_or_name for item in tree.expressions} and bool(tree.args.get('joins'))
+    current.setdefault('fanout_scopes', []).append({'reader': reader, 'readable': readable,
+        'is_main': is_main, 'sql_sha256': hashlib.sha256(compiled.encode()).hexdigest()})
     # No global journal/reader lock across ClickHouse I/O. Immutable-receipt
     # generation is checked before/after; uncertified state takes canonical reads.
     fresh = generation() == p.counts['canonical_generation']
@@ -405,6 +435,17 @@ def guarded_compile(*args, **kwargs):
 
 p.observer.original_compile = guarded_compile
 p.ch.execute_query = execute_query
+
+
+def inventory():
+    current = p.observer.current.get()
+    if current and current.get('fanout', {}).get('path') == 'canonical_fallback':
+        # Fallback must not quietly retain P's stale strings inventory hints.
+        return p._original_inventory()
+    return p.inventory()
+
+
+p.ch.get_active_node_ads = inventory
 if os.environ.get('FANOUT_STAGE_DIR'):
     # Same fixed-format native stage observation as Step0; does not replace the
     # F application, compiler, real auth gates or write coordinator.
@@ -445,8 +486,14 @@ async def application(scope, receive, send):
     token = context.set({'operation_id': identity})
     result_token = pending.set(None)
     async def marked_send(message):
-        if message['type'] == 'http.response.start' and dict(message.get('headers', [])).get(b'x-arm-p-stop') == b'1':
-            fail('native_or_canonical_resolution_stop')
+        if message['type'] == 'http.response.start':
+            current = p.observer.current.get()
+            if dict(message.get('headers', [])).get(b'x-arm-p-stop') == b'1':
+                fail('native_or_canonical_resolution_stop')
+            observation.request(ROOT, current)
+            path = (current or {}).get('fanout', {}).get('path')
+            if path in ('canonical_fallback', 'F_DOCUMENT_STREAM_V1', 'P_DOCUMENT_STREAM_V1'):
+                message = {**message, 'headers': [*message.get('headers', []), (b'x-fanout-path', path.encode())]}
         await send(message)
     try:
         return await p.application(scope, receive, marked_send)

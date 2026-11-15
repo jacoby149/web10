@@ -111,18 +111,22 @@ def readonly_input(directory):
     os.chmod(directory, 0o555)
 
 
-async def setup_scopes(root, session):
+async def setup_scopes(root, session, *, reader_override=None, groups_override=None):
     """Exercise the real read gates with LIMIT0, not an untreated 361M-row cell."""
     output = root / 'profile'
     output.mkdir(mode=0o700, exist_ok=False)
     manifest = json.loads((root / 'input/manifest.json').read_bytes())
-    reader = manifest['readers'][1]
+    reader = reader_override or manifest['readers'][1]
     q = typed.literal
     rows, _ = session.rows('setup_memberships', 'SELECT group_id,role FROM group_members FINAL WHERE member_key='
         + q(reader) + " AND deleted=0 AND endsWith(group_id,'/followers') ORDER BY group_id", setup_seconds=120)
     groups = [r['group_id'] for r in rows]
-    if sum(r['role'] == 'member' for r in rows) != 20:
+    if groups_override is None and sum(r['role'] == 'member' for r in rows) != 20:
         raise ValueError('ordinary K20 reader differs')
+    if groups_override is not None:
+        if not groups_override or len(groups_override) != len(set(groups_override)):
+            raise ValueError('explicit distinct fixture group scope required')
+        groups = list(groups_override)
     expected, _ = session.rows('setup_reference_ids', "SELECT doc_id,author_key FROM documents FINAL WHERE "
         "collection_name='posts' AND deleted=0 AND NOT has(tags,'ad') AND NOT has(tags,'product') AND doc_id IN "
         "(SELECT doc_id FROM doc_groups FINAL WHERE deleted=0 AND group_id IN ("
@@ -156,7 +160,8 @@ async def setup_scopes(root, session):
     restore.command(session.compose, session.env, 'stop', 'api', timeout=60)
     profile = dict(dataset_id=arm_t.DATASET, droplet_id=session.host_id, reader=reader, groups=groups,
         reference_page=expected, actual_readable_by_kind=actual, satellite_builds_started=False,
-        scope='real authenticated gate/compiler LIMIT0 setup; not untreated/performance evidence')
+        scope='real authenticated gate/compiler LIMIT0 setup; not untreated/performance evidence',
+        fixture_scope=groups_override is not None)
     save(output / 'inventory.json', profile)
     return profile
 

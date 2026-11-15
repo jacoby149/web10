@@ -36,13 +36,15 @@ def save(path, value):
         __import__('os').fsync(stream.fileno())
 
 
-def build(root):
+def build(root, *, step0_root=None):
     root = Path(root)
     session = Session(root)
-    step0 = json.loads((root / 'serve-probe/config-p.json').read_bytes())
-    if step0.get('T2') != 'PASS' or not (root / 'step0-stage-table.json').is_file():
+    baseline = Path(step0_root) if step0_root is not None else root
+    step0 = json.loads((baseline / 'serve-probe/config-p.json').read_bytes())
+    if step0.get('T2') != 'PASS' or step0.get('droplet_id') != session.host_id or not (baseline / 'step0-stage-table.json').is_file():
         raise ValueError('source-bound complete P Step0/parity required before any F build')
-    if not (root / 'evidence/step0-reported.json').is_file():
+    report = json.loads((baseline / 'evidence/step0-reported.json').read_bytes())
+    if report.get('stage_table_sha256') != hashlib.sha256((baseline / 'step0-stage-table.json').read_bytes()).hexdigest():
         raise ValueError('report P stage table before building F')
     repository = Path(__file__).resolve().parents[3]
     closure = Path(__file__).with_name('ARM-F-DESIGN-CLOSURE.md').read_text()
@@ -53,6 +55,7 @@ def build(root):
     output.mkdir(mode=0o700, exist_ok=False)
     profile = json.loads((root / 'profile/inventory.json').read_bytes())
     result = dict(kind='CONFIG_F_CANONICAL_BUILD', outcome='BUILDING', P_Step0_T2='PASS',
+        Step0_reference=str(baseline), Step0_receipt_sha256=hashlib.sha256((baseline / 'serve-probe/config-p.json').read_bytes()).hexdigest(),
         droplet_id=session.host_id, dataset_id=session.operation['dataset_id'], cutoff=f.CUTOFF,
         logical_cap=f.CAP, DDL_sha256=hashlib.sha256(f.DDL.encode()).hexdigest(),
         group_members={}, queries=[], rebuild_sources=['documents', 'doc_groups', 'group_members'],
