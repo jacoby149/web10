@@ -348,6 +348,19 @@ Config F acceptance must retain the supplied task's discipline:
   ordering and page refill. Serving a deleted document fails immediately.
 - **T7:** K=1000 only after T2-F and T6-F pass and execution is separately admitted.
   Any parity/rebuild failure or stop-rule hit stops the arm; views treatment stays off.
+- **Mandatory concurrent R+W:** the operator's load addendum requires ten minutes
+  of the declared37k-DAU reader profile (approximately1,400 sessions/23 complete
+  sequences per second at60s think, or46/sec at30s), concurrently with100 real
+  publishes/sec and10 follows/sec. Every publish includes the full canonical
+  membership count/recipient query and contract/coordinator write path; no cached
+  recipient shortcut or direct workload inserts. Under writer load, read
+  p95<500ms AND<25MB/complete sequence and errors<1% across reads/writes must hold.
+  Report publish p95, follow completion, actual recipient-pointer rates bounded
+  per publication route by cutoff-minus-one, separate backfill/physical writes
+  and backlog; any lost/duplicated logical delivery, parity failure or stop-rule
+  hit stops. This extends T6-F or is separately reported after it, but is required
+  before arm PASS/integration proposal. Quiet T4/read-only T6-F cannot substitute;
+  full accounting/admission requirements are in the linked task block.
 
 Add boundary controls for 1,999↔2,000 transitions, multi-group route removal,
 same-ID/different-author identity, same-timestamp tombstones, cap overflow,

@@ -14,6 +14,11 @@ diagnostic cost miss motivate F consideration, not formal T6 completion or
 operational admission. The programme requires approved design closure, fresh
 paid admission and stage-attributed P reproduction **before** F build. Physical
 name `fanout` and default cutoff2,000 are settled; old receipts remain untouched.
+The operator's R+W addendum makes concurrent full-reader load with100 real
+publishes/sec and10 follows/sec for ten minutes a mandatory F gate, including
+canonical membership-query cost, write latency, delivery reconciliation and
+separate publish/backfill write accounting. Read-only T6-F success is insufficient;
+P's generation-pinned snapshots are not silently made live by this requirement.
 
 **Experiment-first clarification,15 November:** Jacob requires the proposed
 hybrid write/read design to pass the experiment before integration into the

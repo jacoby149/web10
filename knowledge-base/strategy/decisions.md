@@ -69,6 +69,15 @@ additive, personal Independent affiliation, CIDR next cycle; no SIGMOD 2027
 submission. The proposed headline is a hypothesis, not a result. No gate passed
 or paid resource admitted by recording the programme.
 
+**Concurrent load addendum:** Config F must pass a full reader+writer cell,
+not readers alone: declared37k-DAU profile,100 real publishes/sec with full
+canonical membership count/recipient query and coordinator/contract writes,
+plus10 mixed-lane follows/sec, sustained concurrently for ten minutes. Same
+complete-response read budget and errors<1% apply; report under-load publish
+p95/follow completion and reconciled pointer/physical writes. Lost/duplicated
+delivery or a stop-rule/parity failure stops. This changes evidence required,
+not architecture or paid admission; the task block records full accounting.
+
 **Open before build:** exact recipients/count semantics, full document identity and
 route provenance, physical DDL, cap/history coverage, durable maintenance/races and
 query multiplicity/ordering. Spec: [db/group-delivery.md](../web10-v3/db/group-delivery.md).

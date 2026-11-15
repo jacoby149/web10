@@ -50,6 +50,9 @@ structural conclusion and the proposed v7 headline remain hypotheses to test.
 - Rebuild from canonical documents, attachments, grants/policies and actual
   subscription/event sources, never from another satellite as the root of truth.
 - Publish classification reads the current member counter in `counting_numbers`.
+  The R+W addendum below additionally requires a full canonical membership
+  count/recipient query on every measured publish; a cached counter alone is
+  not an accepted substitute. Reconciliation/ordering is a closure artifact.
   Up-crossing 2,000 stops new fanout; existing pointers age out and seek covers
   reads. Down-crossing reuses bounded follow-backfill. Do not invent a separate
   crossing system; specify durable scheduling and race handling for these paths.
@@ -72,7 +75,9 @@ structural conclusion and the proposed v7 headline remain hypotheses to test.
    and effective cutoff, code locations, hook file/line references, implemented
    recipient predicate and canonical dependency manifest.
 5. Run the gates below in order. Any parity/rebuild failure or stop-rule hit
-   stops the arm and reports. No silent comparator changes or improvisation.
+    stops the arm and reports. No silent comparator changes or improvisation.
+   Step 5 also requires the concurrent **R+W** gate below before the arm passes;
+   quiet T4 and read-only T6-F results cannot substitute for it.
 6. Only if every required gate passes, write a separate staged, flag-gated
    broader-integration proposal. A PASS permits a proposal, not deployment.
 7. Only on a separate explicit operator go, implement broader protocol integration:
@@ -97,6 +102,82 @@ structural conclusion and the proposed v7 headline remain hypotheses to test.
 | 8 | T8-F | Stale-pointer deletion/revocation/entitlement replay, latest-version-first tombstones and refill; serving a deleted document fails immediately |
 | 9 | Boundaries | 1,999↔2,000 both ways, multi-route removal, same-ID/different-author, cap overflow, crash/retry and concurrent publish/follow/rebuild |
 | 10 | T7 | K=1000 only after T2-F and T6-F pass; separately admitted under the programme |
+| Required load extension | R+W | Ten minutes of full reader load concurrently with100 real publishes/sec and10 follows/sec; read budget, delivered rates, errors and delivery correctness must hold as specified below |
+
+## Addendum — the load model is DAU R+W, not readers alone
+
+**Operator direction,15 November 2026.** This amends programme Step 5 and what
+the arm must prove, not the settled design. Fanout moves work onto publication
+and follow; measuring only reads would test the cheap half. Both streams must
+run concurrently for the full measured cell, not before/after it.
+
+### Declare both profiles before launch
+
+Use the full frozen realism store and the **37k DAU reader load model**:
+approximately **1,400 peak concurrent sessions**, approximately **23 complete
+feed loads/sec at60-second think time** (approximately **46/sec at30 seconds**).
+Pin the chosen think-time/rate profile, session scheduling, arrival model,
+reader cohort/K and sample schedule in admission. Do not retrospectively choose
+the easier rate or call configured virtual users achieved concurrency.
+
+The supplied writer model is approximately **12,500 publishes/day** at the
+1M-user shape, approximately **0.2/sec average** and **1–2/sec realistic peak**
+at37k DAU. These are operator-supplied sizing assumptions, not new observed
+traffic. The test deliberately stresses writers at approximately **50–100×**
+that assumed peak, rather than testing at the realistic rate:
+
+| Stream | Sustained target during the full measured cell | Required execution |
+|---|---|---|
+| Readers | Declared approximately23/sec (60s think), or46/sec (30s think) | Full Config F response sequence, not only the candidate/main query |
+| Publishes | **100/sec**, mixed under-cutoff group sizes through1,999 members | Real authorized write path through the §4 maintenance coordinator, group-contract hook, **full canonical `group_members` count and recipient-set query**, canonical publication and fanout writes |
+| Follows | **10/sec**, mixed under/at/over-cutoff groups | Real follow path; bounded small-group backfill and large-group no-backfill/first-read seek classification |
+
+**No direct table inserts or precomputed recipient shortcuts in the workload.**
+The hook's legitimate derived writes occur inside the real path. Include auth,
+membership enumeration, coordinator queueing/retries and derived work in write
+latency/accounting; enqueue acknowledgement alone is not completion. Closure
+must reconcile the counter-based classification with this mandatory canonical
+query without changing the counted-member predicate or excluding its cost.
+
+### Required cell and acceptance
+
+Run **10 sustained minutes at the declared target rates**, either as a declared
+T6-F load extension or a separately reported R+W cell after T6-F. It is mandatory
+before the arm is called passed. Frozen source files/receipts remain immutable;
+restore an admitted disposable copy and declare workload mutations, storage
+headroom and cleanup. Writes must affect the serving workload, not an unrelated
+side database. No higher memory/query limits, automatic lease extension or new
+paid admission follows from this addendum.
+
+- Complete-response **read p95 <500ms AND <25MB total logical reads per
+  complete sequence**, counting all native stages, while both writers run.
+  Retain unchanged query/resource and >10M-row single-read stop rules.
+- Report **publish-path p95 latency under load**, not only quiet T4 timing,
+  and **follow/backfill completion latency under load**, including backlog and
+  drain status. No numeric publish/follow latency threshold is invented here;
+  T3-F's separate same-session/>60s gate remains unchanged.
+- Receipt actual publish recipient-pointer writes/sec against the **actual sum
+  of entitled recipients for the measured publications** and the declared
+  maximum **publish rate ×1,999**. Define a publication as one group route for
+  this bound: multi-group document writes require summed route accounting, not
+  a false document-wide1,999 ceiling. Pin route mix before launch.
+- Report follow-backfill pointers separately from publish pointers; also report
+  retries, trim/tombstone/bookkeeping writes and total physical amplification.
+  The publish bound is not a ceiling on all physical storage operations.
+- **Errors <1% for reads and writes**, with read/publish/follow counts and error
+  denominators separately retained as well as the combined result; one quiet
+  stream cannot hide another's failure. Record offered/started/completed rates,
+  actual concurrency, timeouts, rejected arrivals, queued work and unresolved
+  acknowledgements. Throttling/draining later cannot manufacture sustained rates.
+- Independent canonical parity and an operation/recipient/route reconciliation
+  must detect lost or duplicated logical delivery under concurrency. Distinguish
+  idempotent retry versions and intentional200-window eviction from duplicate
+  delivery or loss; inspect receipts/history as well as the final retained window.
+  Any parity failure, lost/duplicated delivery or stop-rule hit stops and reports.
+
+A PASS supports only the declared reader/writer mix and measured envelope. It
+does not establish arbitrary load, forecast traffic or unmeasured write-latency
+headroom. A read-only T6-F PASS cannot close the arm or admit broader integration.
 
 Pin unchanged baseline/Arm T/P receipts and distinguish main-only scopes from
 complete-sequence scopes. Historical comparators are approximately 361M rows /

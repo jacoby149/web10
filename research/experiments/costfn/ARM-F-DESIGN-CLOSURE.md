@@ -31,6 +31,12 @@ member-read compatibility path even with an undefined role; do not silently
 replace that with stricter role-map service rules. Live document policies still
 apply at read time. The group-contract hook yields candidates, not permissions.
 
+**R+W addendum requirement:** every measured publish runs the full canonical
+`group_members` count/recipient-set query through the real contract/coordinator
+path. Snapshot/cached counters alone are insufficient. Close how that canonical
+result reconciles the `counting_numbers` routing value at the same boundary;
+retain its actual query and cost inside publish latency, not setup.
+
 **Gap:** Config P's `counting_numbers` is a scoped engagement snapshot, not a
 live member counter. `arm_satellite_sql.py:15–18,58–81` pins its existing shape;
 `clickhouse.py:1866–1884` computes directory member counts from canonical rows
@@ -160,6 +166,16 @@ new reader count scopes, include their cost, not prebuild outside the timer.
 Live update behavior not supported by unchanged P remains a visible blocker;
 no generation-guard bypass. The operator must settle test scope before build.
 
+**R+W strengthens this blocker:** an isolated quiet lifecycle fixture is not the
+required load cell. The serving workload must see concurrent authorized100/sec
+publishes and10/sec follows throughout ten minutes of full reader load. Moving
+those writes to a disjoint database, pausing readers to rebuild, or rebuilding
+satellites outside the measured window cannot satisfy it. Before closure,
+specify generation-safe live visibility/current counts and fresh-reader scopes
+without changing P semantics or bypassing its guard; any required maintenance
+must be measured and separately reviewed. This remains OPEN, not solved by the
+earlier disposable-scope proposal.
+
 ## 6. Read-plan adoption — proposed artifact
 
 | Shape | Intended route / proof required |
@@ -209,6 +225,18 @@ schedule and p95 estimator before launch; do not retrofit them to observations.
 Every native stage and failed request remains in raw evidence; no headline
 number without decomposition. No paid admission is granted by these artifacts.
 
+**Mandatory R+W load gate:** declare the37k-DAU reader profile (approximately
+1,400 concurrent sessions/23 sequences per second at60s think, or46/sec at30s),
+plus100 real publishes/sec and10 real follows/sec for ten concurrent sustained
+minutes. Pin group-size/route mix, actual timing/concurrency, mutable-copy
+headroom and independent delivery-reconciliation method before launch. Same
+read p95<500ms/<25MB complete-sequence budget, errors<1% for reads/writes and
+all stop rules hold; report under-load publish p95 and follow completion,
+publish recipient writes vs actual recipients and rate×1,999, separate backfill
+and physical amplification/backlog. This may extend T6-F or run after it, but
+must pass before the arm does. See the task block for exact accounting. No
+cell launch, numeric write-latency threshold or additional budget is inferred.
+
 ## Approval ledger and next action
 
 | D113 §9 decision | Artifact here | Approval / readiness |
@@ -217,10 +245,10 @@ number without decomposition. No paid admission is granted by these artifacts.
 | Physical pointer schema | §2 candidate columns/key/granularity | OPEN: full DDL depends on §4 revisions |
 | Cap/history coverage | §3 fallback proposal and controls | Proposed; not approved/measured |
 | Durable maintenance | §4 coordinator contract and crash cases | OPEN: journal/fencing/API integration |
-| Serving integration | §5 multiplicity and mutable-snapshot conflicts | OPEN: query contract and lifecycle scope |
+| Serving integration | §5 multiplicity and mutable-snapshot conflicts | OPEN: query contract, lifecycle scope and concurrent R+W visibility |
 | Read-plan adoption | §6 shape/access evidence matrix | Proposed; captured AST binding pending |
 | Node Settings | §7 field/range/UI proposal | Proposed; mapping/propagation pending |
-| Experiment admission | §8 receipt requirements | OPEN: separate operator approval |
+| Experiment admission | §8 receipt requirements incl. mandatory concurrent R+W | OPEN: separate operator approval and predeclared load/reconciliation schedule |
 
 No row is marked CLOSED. First obtain operator disposition on: (1) recipients
 and counter semantics, (2) journal/coordinator model, (3) multi-group query
