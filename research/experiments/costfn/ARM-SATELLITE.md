@@ -127,6 +127,53 @@ attributed by the retained main split, and shared surfaces have no new receipt.
 
 ## Gates and next execution
 
+Current native receipts: all nine metadata build steps complete, transpose
+92,200,600/92,200,600 with zero mismatches, five independent signed-multiset
+checks PASS, and reaction-presence native T1 PASS. See
+`evidence/arm-satellite-20261115/metadata-complete/`. The first full-API attempt
+then stops during ordinary group discovery with HTTP500/native159, before any
+feed warm-up. Its separate `full-api-setup-stop/` receipt is not T2 or performance
+evidence. A local red-then-green timeout-scope repair preserves original setup
+behavior while keeping marked feed reads at ten seconds; a repaired native
+attempt and all downstream gates remain unestablished.
+
+Serving integration uses an explicitly opted-in, research-only ASGI adapter.
+The ordinary endpoint still authenticates, checks the app contract and resolves
+current per-service grants before compilation. A current canonical-part
+generation must match the built scopes. Pull/refill resolves winners through
+the original full-identity document/link/policy windows, counts through exact
+scope-qualified tables, and profiles through indexed identities with canonical
+bodies. Live resolved rows are held only inside that request and consumed once
+by its execution seam; they are never fabricated, saved body-cache rows or
+observer/log payloads. Ordinary serialization, canonical preparation, media/ad
+issuance and delivery accounting still run. Every measured native read has the
+ten-second/22-GiB limit and10M-row stop; login/group discovery is setup, not a
+hidden claimed feed sample. Unsupported predicates/grouping/ranking refuse.
+
+Reaction presence is separately built and canonically checked so an unknown
+reaction type can still produce the original zero-valued aggregate row. Node-ad
+inventory pointers only narrow the original canonical history/eligibility read,
+including cutoff ties. Views use the closed Phase1.6 exact-ID readability repair,
+not snapshot counters; all live event counting/reach remains original.
+
+The first full-API diagnostic uses an independent canonical-table-only prepared
+reference (no transpose/strings/counter or treatment-result oracle). Its setup
+reads may take900s under the same memory cap; serving still has ten seconds.
+Compare complete render-ready main rows plus the unchanged independent
+follow-up/delivery oracle, then report one excluded warm-up and three serial
+observations. These are not formal fresh-restore trials, a population p95, a
+T6 pass or fanout admission. Any HTTP/native/safety/parity failure stops the
+remaining sequences. Preserve private reference bodies outside Git; retain
+only content-free hashes/receipts publicly. All later gates remain explicit.
+
+**Autonomous continuation,15 November:** Jacob asks to keep rolling through
+the whole experiment, checking every300 seconds and advancing after each
+successful step, involving him on failure. This does not waive parity, resource,
+deadline or fanout gates. Independent full-multiset identity/profile/reference/
+inventory/time comparisons run before serving activation. Complete-response T2
+must pass before any performance claim; no idle build is called a performance
+test. The original15:38:32UTC cleanup remains unchanged.
+
 **Batched retry approval,15 November12:42UTC:** Jacob explicitly says
 "great, batch and proceed please!" after the native241 STOP report. One
 separate batched setup attempt may use the same host, unchanged memory limits,

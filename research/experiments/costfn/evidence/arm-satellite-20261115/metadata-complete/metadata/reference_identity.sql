@@ -1,0 +1,1 @@
+INSERT INTO strings SELECT JSONExtractString(body,unhex('7265706f73745f6f66')),unhex('626f64793a7265706f73745f6f66'),doc_id,author_key,doc_id,updated_at FROM documents FINAL WHERE deleted=0 AND collection_name=unhex('706f737473') AND JSONExtractString(body,unhex('7265706f73745f6f66'))!=''

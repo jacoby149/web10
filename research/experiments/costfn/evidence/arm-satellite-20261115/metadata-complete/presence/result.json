@@ -1,0 +1,403 @@
+{
+  "kind": "SATELLITE_COUNTER_PRESENCE",
+  "outcome": "PASS",
+  "T1": "PASS",
+  "droplet_id": 619510510,
+  "canonical_generation": "661ca1829c7895e044b98ca431b4f9e0280cf0e4e09143e9989db4b4e4419c2c",
+  "envelope": {
+    "container_bytes": 30064771072,
+    "engine": "24.8.14.39",
+    "server_bytes": 23622320128
+  },
+  "scopes": [
+    {
+      "label": "presence_fixture",
+      "scope_key": "b6dd00068450e6580333115cda88e0387bc04e1fe0d85a8e8d2d3ec4be559d8b",
+      "families": [
+        {
+          "counters": [
+            "reactions:like",
+            "reactions:dislike",
+            "reactions:present"
+          ],
+          "completed_batches": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        }
+      ],
+      "complete": true,
+      "consolidated": true,
+      "parity": "PASS",
+      "zero_group": [
+        {
+          "ref_value": "unknown-target",
+          "like_count": "0",
+          "dislike_count": "0"
+        }
+      ]
+    },
+    {
+      "label": "reaction_presence",
+      "scope_key": "9ff4aca2910563d3ed1b5f8742376ef8ed7bd5fcd83e9f955b2b8a8c42a7b19b",
+      "families": [
+        {
+          "counters": [
+            "reactions:present"
+          ],
+          "completed_batches": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        }
+      ],
+      "complete": true,
+      "consolidated": true,
+      "comparisons": [
+        {
+          "counter": "reactions:present",
+          "canonical": {
+            "4691a418-697b-7d3a-d209-dd42bfb6a608": 4114,
+            "5001f91f-ec7b-9e16-ae86-aac47ae0d1de": 2459,
+            "79aa3c87-d203-ff06-89e5-a8235b7fe52d": 4199,
+            "e42e3397-f570-d9eb-4c41-27555540f6b5": 2161,
+            "acff1f0b-0ac7-9ec5-5244-e0e17032d0b9": 4351,
+            "116b897b-babf-49b3-04e1-01951081aea2": 18677,
+            "39281395-e828-ed7f-7811-ec53d873a882": 23514,
+            "5cb79eb0-9b63-1177-96e9-e9bee40dbafe": 1611,
+            "73855328-0b10-1606-ef9a-fd16e24f4a4a": 4193,
+            "2c13eeae-1809-f7e0-2bdc-a0102b8148a4": 1801,
+            "9f45f71b-b24d-05be-a19d-67ed389e793b": 1550,
+            "524e1c0f-c5e6-1392-4a75-b014e4374bde": 4011,
+            "8e169aff-3cd4-6b0d-13ea-696efec6c106": 1736,
+            "e3453c62-2d27-a675-d5cf-eb0f1e1cf4b0": 4865,
+            "79e0c2e1-b349-5ed1-5c86-1173db56110e": 1240,
+            "056d71ab-ecfd-411c-bf3e-0aa29b993871": 1696,
+            "69cba28e-7b0d-c1fc-310a-57a7ea7486bb": 1390,
+            "fe53701f-931d-f7d1-339d-310c7954bd30": 4076,
+            "67569b90-14ef-0cfe-bf74-73d4606ad8ba": 1720,
+            "231db418-323f-0956-2f93-2232ccdc8c35": 16823,
+            "7cf4a5dd-f3d8-01ef-ab38-d4d5845b14de": 2296,
+            "5ccefb1a-d112-685b-264c-a9fca19337bf": 1203,
+            "8adfb89a-e243-d124-eca7-62e9852af8b8": 1577,
+            "9ff41cec-1f2c-fb84-b74b-35f04d4aa01a": 1198,
+            "2bd4dd25-9f43-9609-7c8a-1c885c5c5734": 17607,
+            "cd87b45b-2735-217f-c840-4b4fca5e6aae": 20312
+          },
+          "stored": {
+            "056d71ab-ecfd-411c-bf3e-0aa29b993871": 1696,
+            "116b897b-babf-49b3-04e1-01951081aea2": 18677,
+            "231db418-323f-0956-2f93-2232ccdc8c35": 16823,
+            "2bd4dd25-9f43-9609-7c8a-1c885c5c5734": 17607,
+            "2c13eeae-1809-f7e0-2bdc-a0102b8148a4": 1801,
+            "39281395-e828-ed7f-7811-ec53d873a882": 23514,
+            "4691a418-697b-7d3a-d209-dd42bfb6a608": 4114,
+            "5001f91f-ec7b-9e16-ae86-aac47ae0d1de": 2459,
+            "524e1c0f-c5e6-1392-4a75-b014e4374bde": 4011,
+            "5cb79eb0-9b63-1177-96e9-e9bee40dbafe": 1611,
+            "5ccefb1a-d112-685b-264c-a9fca19337bf": 1203,
+            "67569b90-14ef-0cfe-bf74-73d4606ad8ba": 1720,
+            "69cba28e-7b0d-c1fc-310a-57a7ea7486bb": 1390,
+            "73855328-0b10-1606-ef9a-fd16e24f4a4a": 4193,
+            "79aa3c87-d203-ff06-89e5-a8235b7fe52d": 4199,
+            "79e0c2e1-b349-5ed1-5c86-1173db56110e": 1240,
+            "7cf4a5dd-f3d8-01ef-ab38-d4d5845b14de": 2296,
+            "8adfb89a-e243-d124-eca7-62e9852af8b8": 1577,
+            "8e169aff-3cd4-6b0d-13ea-696efec6c106": 1736,
+            "9f45f71b-b24d-05be-a19d-67ed389e793b": 1550,
+            "9ff41cec-1f2c-fb84-b74b-35f04d4aa01a": 1198,
+            "acff1f0b-0ac7-9ec5-5244-e0e17032d0b9": 4351,
+            "cd87b45b-2735-217f-c840-4b4fca5e6aae": 20312,
+            "e3453c62-2d27-a675-d5cf-eb0f1e1cf4b0": 4865,
+            "e42e3397-f570-d9eb-4c41-27555540f6b5": 2161,
+            "fe53701f-931d-f7d1-339d-310c7954bd30": 4076
+          },
+          "parity": "PASS"
+        }
+      ],
+      "groups_by_service": {
+        "reactions": [
+          "api.localhost/groups/users/rd42-u0000000/followers",
+          "api.localhost/groups/users/rd42-u0000001/followers",
+          "api.localhost/groups/users/rd42-u0000002/followers",
+          "api.localhost/groups/users/rd42-u0000003/followers",
+          "api.localhost/groups/users/rd42-u0000004/followers",
+          "api.localhost/groups/users/rd42-u0000005/followers",
+          "api.localhost/groups/users/rd42-u0000006/followers",
+          "api.localhost/groups/users/rd42-u0000007/followers",
+          "api.localhost/groups/users/rd42-u0000008/followers",
+          "api.localhost/groups/users/rd42-u0000009/followers",
+          "api.localhost/groups/users/rd42-u0000010/followers",
+          "api.localhost/groups/users/rd42-u0000011/followers",
+          "api.localhost/groups/users/rd42-u0000012/followers",
+          "api.localhost/groups/users/rd42-u0000013/followers",
+          "api.localhost/groups/users/rd42-u0000014/followers",
+          "api.localhost/groups/users/rd42-u0000015/followers",
+          "api.localhost/groups/users/rd42-u0614008/followers",
+          "api.localhost/groups/users/rd42-u0614009/followers",
+          "api.localhost/groups/users/rd42-u0614010/followers",
+          "api.localhost/groups/users/rd42-u0614011/followers",
+          "api.localhost/groups/users/rd42-u0980001/followers",
+          "api.localhost/groups/web10/discover"
+        ]
+      }
+    }
+  ],
+  "build_queries": [
+    {
+      "label": "presence_fixture_family0_batch0",
+      "query_id": "satellite-p-384bfae436d9455f9f255f4819e35193",
+      "native": {
+        "query_id": "satellite-p-384bfae436d9455f9f255f4819e35193",
+        "type": "QueryFinish",
+        "query_duration_ms": "29",
+        "read_rows": "2",
+        "read_bytes": "76",
+        "memory_usage": "74160",
+        "exception_code": 0
+      }
+    },
+    {
+      "label": "presence_fixture_family0_batch1",
+      "query_id": "satellite-p-9451b5dd2d3843f496f5c93168bd4cdc",
+      "native": {
+        "query_id": "satellite-p-9451b5dd2d3843f496f5c93168bd4cdc",
+        "type": "QueryFinish",
+        "query_duration_ms": "30",
+        "read_rows": "2",
+        "read_bytes": "76",
+        "memory_usage": "72304",
+        "exception_code": 0
+      }
+    },
+    {
+      "label": "presence_fixture_family0_batch2",
+      "query_id": "satellite-p-c527fa6539524ab99153d4742837813f",
+      "native": {
+        "query_id": "satellite-p-c527fa6539524ab99153d4742837813f",
+        "type": "QueryFinish",
+        "query_duration_ms": "30",
+        "read_rows": "2",
+        "read_bytes": "76",
+        "memory_usage": "68232",
+        "exception_code": 0
+      }
+    },
+    {
+      "label": "presence_fixture_family0_batch3",
+      "query_id": "satellite-p-868a05fa8bf840f6a85a5f9176ea19be",
+      "native": {
+        "query_id": "satellite-p-868a05fa8bf840f6a85a5f9176ea19be",
+        "type": "QueryFinish",
+        "query_duration_ms": "48",
+        "read_rows": "2",
+        "read_bytes": "76",
+        "memory_usage": "72304",
+        "exception_code": 0
+      }
+    },
+    {
+      "label": "presence_fixture_family0_batch4",
+      "query_id": "satellite-p-09aa916ccd624472a3e4a8b36878c096",
+      "native": {
+        "query_id": "satellite-p-09aa916ccd624472a3e4a8b36878c096",
+        "type": "QueryFinish",
+        "query_duration_ms": "31",
+        "read_rows": "2",
+        "read_bytes": "76",
+        "memory_usage": "68200",
+        "exception_code": 0
+      }
+    },
+    {
+      "label": "presence_fixture_family0_batch5",
+      "query_id": "satellite-p-6e83933b2fe4415aaab603a286f3354f",
+      "native": {
+        "query_id": "satellite-p-6e83933b2fe4415aaab603a286f3354f",
+        "type": "QueryFinish",
+        "query_duration_ms": "29",
+        "read_rows": "2",
+        "read_bytes": "187",
+        "memory_usage": "115026",
+        "exception_code": 0
+      }
+    },
+    {
+      "label": "presence_fixture_family0_batch6",
+      "query_id": "satellite-p-77806103abb447b1bd70b1891a85ec3b",
+      "native": {
+        "query_id": "satellite-p-77806103abb447b1bd70b1891a85ec3b",
+        "type": "QueryFinish",
+        "query_duration_ms": "33",
+        "read_rows": "2",
+        "read_bytes": "76",
+        "memory_usage": "68200",
+        "exception_code": 0
+      }
+    },
+    {
+      "label": "presence_fixture_family0_batch7",
+      "query_id": "satellite-p-15adbc75189a463ba2a20406c6a4bf6f",
+      "native": {
+        "query_id": "satellite-p-15adbc75189a463ba2a20406c6a4bf6f",
+        "type": "QueryFinish",
+        "query_duration_ms": "39",
+        "read_rows": "2",
+        "read_bytes": "76",
+        "memory_usage": "72304",
+        "exception_code": 0
+      }
+    },
+    {
+      "label": "presence_fixture_consolidate",
+      "query_id": "satellite-p-0e90d10eecb74067a50233af2c365a80",
+      "native": {
+        "query_id": "satellite-p-0e90d10eecb74067a50233af2c365a80",
+        "type": "QueryFinish",
+        "query_duration_ms": "6",
+        "read_rows": "1",
+        "read_bytes": "130",
+        "memory_usage": "79329",
+        "exception_code": 0
+      }
+    },
+    {
+      "label": "reaction_presence_family0_batch0",
+      "query_id": "satellite-p-0effae53ed124674bedc059a9b71359d",
+      "native": {
+        "query_id": "satellite-p-0effae53ed124674bedc059a9b71359d",
+        "type": "QueryFinish",
+        "query_duration_ms": "29420",
+        "read_rows": "180400900",
+        "read_bytes": "20859624913",
+        "memory_usage": "4646713876",
+        "exception_code": 0
+      }
+    },
+    {
+      "label": "reaction_presence_family0_batch1",
+      "query_id": "satellite-p-d194d16207374ce5b84dee1a9a285ab4",
+      "native": {
+        "query_id": "satellite-p-d194d16207374ce5b84dee1a9a285ab4",
+        "type": "QueryFinish",
+        "query_duration_ms": "27974",
+        "read_rows": "180400900",
+        "read_bytes": "20859824068",
+        "memory_usage": "4583055019",
+        "exception_code": 0
+      }
+    },
+    {
+      "label": "reaction_presence_family0_batch2",
+      "query_id": "satellite-p-29b7591be9a14d3b8d46848abe0e7515",
+      "native": {
+        "query_id": "satellite-p-29b7591be9a14d3b8d46848abe0e7515",
+        "type": "QueryFinish",
+        "query_duration_ms": "30049",
+        "read_rows": "180400900",
+        "read_bytes": "20859743284",
+        "memory_usage": "4603868613",
+        "exception_code": 0
+      }
+    },
+    {
+      "label": "reaction_presence_family0_batch3",
+      "query_id": "satellite-p-114724adf23446599b77b27f0ca6212a",
+      "native": {
+        "query_id": "satellite-p-114724adf23446599b77b27f0ca6212a",
+        "type": "QueryFinish",
+        "query_duration_ms": "28376",
+        "read_rows": "180400900",
+        "read_bytes": "20860967752",
+        "memory_usage": "4591640113",
+        "exception_code": 0
+      }
+    },
+    {
+      "label": "reaction_presence_family0_batch4",
+      "query_id": "satellite-p-15dd817618b84c9887daf3371ed77dfc",
+      "native": {
+        "query_id": "satellite-p-15dd817618b84c9887daf3371ed77dfc",
+        "type": "QueryFinish",
+        "query_duration_ms": "28908",
+        "read_rows": "180400900",
+        "read_bytes": "20859710137",
+        "memory_usage": "4591924234",
+        "exception_code": 0
+      }
+    },
+    {
+      "label": "reaction_presence_family0_batch5",
+      "query_id": "satellite-p-79fe5866f0284addb355e532aa78ca12",
+      "native": {
+        "query_id": "satellite-p-79fe5866f0284addb355e532aa78ca12",
+        "type": "QueryFinish",
+        "query_duration_ms": "26445",
+        "read_rows": "180400900",
+        "read_bytes": "20859301507",
+        "memory_usage": "4572287461",
+        "exception_code": 0
+      }
+    },
+    {
+      "label": "reaction_presence_family0_batch6",
+      "query_id": "satellite-p-c642d0967ae240ccb5164c1060520dc2",
+      "native": {
+        "query_id": "satellite-p-c642d0967ae240ccb5164c1060520dc2",
+        "type": "QueryFinish",
+        "query_duration_ms": "28238",
+        "read_rows": "180400900",
+        "read_bytes": "20861632423",
+        "memory_usage": "4533878949",
+        "exception_code": 0
+      }
+    },
+    {
+      "label": "reaction_presence_family0_batch7",
+      "query_id": "satellite-p-d05fd759b4814354a65e24232a2bd7e4",
+      "native": {
+        "query_id": "satellite-p-d05fd759b4814354a65e24232a2bd7e4",
+        "type": "QueryFinish",
+        "query_duration_ms": "24911",
+        "read_rows": "180400900",
+        "read_bytes": "20859851554",
+        "memory_usage": "4633681143",
+        "exception_code": 0
+      }
+    },
+    {
+      "label": "reaction_presence_consolidate",
+      "query_id": "satellite-p-7c369f0fae3f49f1b9df6d0759d38f0c",
+      "native": {
+        "query_id": "satellite-p-7c369f0fae3f49f1b9df6d0759d38f0c",
+        "type": "QueryFinish",
+        "query_duration_ms": "993",
+        "read_rows": "2926556",
+        "read_bytes": "444836490",
+        "memory_usage": "410466768",
+        "exception_code": 0
+      }
+    }
+  ],
+  "started_utc": "2026-11-15T13:53:44.474952+00:00",
+  "feed_activated": false,
+  "source_sha256": {
+    "arm_satellite_presence.py": "f66207677e74b006499c14c5b4a997eb2e5480617d940c7030284dc90054ecd3",
+    "arm_satellite_batch_run.py": "0055ebae93b974f1373cccd7914735de633cc908ae84b19cf791d67e194ab7ba",
+    "arm_satellite_serve.py": "604411a9b36e592c79dbb1fd8a1dbc3dd6963bc5ea1ef3d49884a2deb8b390c1"
+  },
+  "serving_scope_key": "9ff4aca2910563d3ed1b5f8742376ef8ed7bd5fcd83e9f955b2b8a8c42a7b19b",
+  "completed_utc": "2026-11-15T13:58:48.969916+00:00"
+}
