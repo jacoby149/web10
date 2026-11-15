@@ -10,6 +10,10 @@ import hashlib
 import json
 from pathlib import Path
 import time
+import re
+
+import sqlglot
+from sqlglot import exp
 
 import arm_f as f
 from arm_f_journal import Journal
@@ -157,12 +161,21 @@ def require_early_gates(root):
 
 class Builder:
     """Finite reader/group ranges, exact batch receipts, no implicit retry/resume."""
-    def __init__(self, session, output):
+    def __init__(self, session, output, *, target='fanout'):
+        if not re.fullmatch(r'fanout(?:_rebuild_[1-9][0-9]*)?', target):
+            raise ValueError('owned fanout rebuild target required')
+        self.target = target
         self.session, self.output = session, Path(output)
         self.output.mkdir(mode=0o700, exist_ok=False)
         self.queries = []
 
     def query(self, label, sql, *, rows=False):
+        if self.target != 'fanout':
+            tree = sqlglot.parse_one(sql, read='clickhouse')
+            for table in tree.find_all(exp.Table):
+                if table.name == 'fanout':
+                    table.set('this', exp.to_identifier(self.target))
+            sql = tree.sql(dialect='clickhouse')
         (self.output / (label + '.sql')).write_text(sql + '\n')
         print('[fanout-population] start', label, flush=True)
         raw, query_id = self.session.query(label, sql + (' FORMAT JSON' if rows else ''), setup_seconds=120, settings=LIMITS)

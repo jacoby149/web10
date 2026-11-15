@@ -21,6 +21,9 @@ import sqlglot
 import arm_f as f
 import arm_f_observe as observation
 import arm_f_views
+import arm_f_faults
+from arm_f_fence import Fence
+import arm_f_online_rebuild
 from arm_f_journal import Journal
 from arm_f_store import Store
 from arm_f_runtime import admitted
@@ -44,6 +47,7 @@ if (build.get('DDL_sha256') != hashlib.sha256(f.DDL.encode()).hexdigest()
     raise RuntimeError('same-host source-bound F build after P Step0 required')
 journal = Journal(ROOT / 'journal')
 store = Store(p.ch.client, journal)
+fence = Fence()
 log = logging.getLogger('arm-f')
 fatal = threading.Event()
 context = contextvars.ContextVar('fanout_request', default=None)
@@ -106,12 +110,16 @@ def query(sql=None, *args, **kwargs):
         return original_query(sql, *args, **kwargs)
     if sql is None:
         sql = kwargs.pop('query')
-    bound = p._signature.bind_partial(sql, *args, **kwargs)
-    params = bound.arguments.get('parameters') or {}
-    bound.arguments['query'] = arm_f_views.checked_sql(p.serve.bound_sql(sql, params))
-    bound.arguments['parameters'] = None
-    result = original_query(*bound.args, **bound.kwargs)
-    values = arm_f_views.verify(result.result_rows)
+    try:
+        bound = p._signature.bind_partial(sql, *args, **kwargs)
+        params = bound.arguments.get('parameters') or {}
+        bound.arguments['query'] = arm_f_views.checked_sql(p.serve.bound_sql(sql, params))
+        bound.arguments['parameters'] = None
+        result = original_query(*bound.args, **bound.kwargs)
+        values = arm_f_views.verify(result.result_rows)
+    except Exception as error:
+        fail('view_oracle_' + type(error).__name__)
+        raise
     current.setdefault('fanout_view_checks', []).append({'query_id': result.query_id,
         'method': 'same-snapshot canonical sum/array-distinct', 'values': values})
     return result
@@ -148,6 +156,16 @@ def payload(data):
 original_create = documents.create_as
 
 
+def mutation(function):
+    @wraps(function)
+    def call(*args, **kwargs):
+        with fence.shared():
+            active()
+            return function(*args, **kwargs)
+    return call
+
+
+@mutation
 @wraps(original_create)
 def create(request, data, real_author, client_id, **kwargs):
     active()
@@ -167,7 +185,9 @@ def create(request, data, real_author, client_id, **kwargs):
         # group-author and actual target authority. Stable UUID/time survive retry.
         call = {**kwargs, 'doc_id': str(uuid.uuid5(uuid.NAMESPACE_URL, real_author + ':' + op)),
                 'version_time': f.publication_time(journal.timestamp(sequence))}
-        return original_create(request, data, real_author, client_id, **call)
+        result = original_create(request, data, real_author, client_id, **call)
+        arm_f_faults.check(ROOT, op, real_author, 'after_apply')
+        return result
     def reconcile(sequence, saved, result):
         for group in result.get('groups', []):
             live = store.rows('SELECT author_key,doc_id,created_at,deleted FROM (SELECT *,row_number() OVER '
@@ -181,6 +201,7 @@ def create(request, data, real_author, client_id, **kwargs):
             current = p.observer.current.get()
             if current is not None:
                 current.setdefault('fanout_publications', []).append({'group_id': group, **receipt})
+        arm_f_faults.check(ROOT, op, real_author, 'after_reconcile')
         # Canonical-generation mismatch now prevents stale P materialization use.
     try:
         return journal.run(op, real_author, 'publish', payload(data), authorize, apply, reconcile,
@@ -197,6 +218,7 @@ documents.create_as = create
 
 def install_document_hook(route, kind):
     original = route.dependant.call
+    @mutation
     @wraps(original)
     def mutate(request, data):
         active()
@@ -272,6 +294,7 @@ def install_document_hook(route, kind):
 
 def install_membership_hook(route):
     original = route.dependant.call
+    @mutation
     @wraps(original)
     def member(data):
         active()
@@ -463,7 +486,8 @@ def trim_loop():
         token = p.observer.current.set(observation)
         try:
             active()
-            journal.trim_batch(store.trim)
+            with fence.shared():
+                journal.trim_batch(store.trim)
         except Exception as error:
             fatal.set()
             (ROOT / 'F.stop').write_text('background_trim_' + type(error).__name__ + '\n')
@@ -477,6 +501,7 @@ def trim_loop():
 
 
 threading.Thread(target=trim_loop, daemon=True).start()
+rebuild_stop = arm_f_online_rebuild.start(ROOT, p, journal, fence, admission, active, fail)
 
 
 async def application(scope, receive, send):

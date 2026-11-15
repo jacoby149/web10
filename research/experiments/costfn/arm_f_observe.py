@@ -46,8 +46,13 @@ def pointers(root, current, table, rows, columns):
     if columns != f.COLUMNS or not current:
         raise ValueError('pointer-only audit requires explicit expected schema/current owner')
     audit = []
+    seen = set()
     for row in rows:
         if len(row) != 7 or any(not isinstance(row[i], str) for i in (0, 2, 3, 4)):
             raise ValueError('invalid pointer audit shape')
-        audit.append([row[0], round(f.publication_time(row[1]).timestamp() * 1000), *row[2:]])
+        value = [row[0], round(f.publication_time(row[1]).timestamp() * 1000), *row[2:]]
+        if tuple(value) in seen:
+            raise ValueError('duplicate route inside one physical insert')
+        seen.add(tuple(value))
+        audit.append(value)
     append(target(root, 'pointer-audit', current['request_id']), {'rows': audit})

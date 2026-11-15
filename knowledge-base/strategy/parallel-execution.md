@@ -1784,6 +1784,8 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+- [✓ 6.21.0 source/no-engine only] **RD4-FANOUT-ORCHESTRATION-SOURCE** — executable real-gate programme/Step0 continuation, lifecycle/cutoff/crash-retry/fenced-rebuild and open-loop populated R+W tooling, per-trial cleanup guards and exact attribution/reconciliation are present.132 no-engine controls/Ruff/whitespace pass. Actual updated-source native rehearsal, full-response/performance/load gate execution and independent review remain OPEN under RD4-FANOUT-EXECUTE/RW-LOAD; no benchmark PASS, new host or deadline extension claimed.
+
 - [✓ 6.15.0 cancellation only] **RD4-FANOUT-CANCEL-ONE-READER-RUN** — operator cancellation of DO619612240 at20:14:57UTC; runner/owned containers stopped, private receipts retained, droplet/firewall/key cleanup verified20:16:19UTC. Frozen archive/Volumes untouched; no F gate result, old lease closed.
 - [~ 6.15.0 native rehearsal PASS; fresh restore running] **RD4-FANOUT-FULL-POPULATION** — born-batched all-human canonical-backed200-identity/all-route seed/rebuild source; local119 controls/Ruff and tiny native402-route/36-query rehearsal PASS. Exact native/source receipts: `evidence/arm-f-population-20261115/native-preflight/`. All11 archive objects reverified; fresh restore running at20:40UTC. Preserve early T4→T2-F→T6-F→T3-F priority, then population and populated T6/T5/R+W. Full-store fit, later gate drivers and whole-arm acceptance remain OPEN; no seed claim. Owns research costfn/additive CI/serialized evidence. Fresh DO619625857 through16 November00:33:47UTC, same four-hour/$2/32-28-22GiB caps/layered cleanup; detached logging survives VPN loss. No cancelled lease renewal, production/P1/views/T7 expansion or implied full-arm PASS.
 

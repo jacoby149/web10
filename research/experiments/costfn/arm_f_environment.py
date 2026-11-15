@@ -9,6 +9,7 @@ import shutil
 import urllib.request
 
 import arm_f_native
+import arm_f_guard
 from arm_f_runtime import Session, admitted
 import arm_f_run as setup
 import arm_satellite_metadata as metadata
@@ -98,6 +99,7 @@ def fresh(parent, name):
     project = 'web10-costfn-frozen-satellite-f-' + str(approval['droplet_id']) + '-' + name
     setup.save(root / 'fresh-trial.json', dict(free_bytes_before=free, project=project, fresh=True,
         archive_receipt_sha256=hashlib.sha256((parent / 'evidence/archive.json').read_bytes()).hexdigest()))
+    setup.save(root / 'container-guard.json', arm_f_guard.arm(root))
     restore.restore(root / 'input', root / 'input/validation.json', arm_t.DATASET, arm_t.VALIDATION,
                     project, 6098, root / 'restore.json')
     return root

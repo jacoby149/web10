@@ -23,7 +23,7 @@ def worker_command(remaining, here, *, detach=False):
         '--property=WorkingDirectory=/opt/fanout/repo',
         *(['--property=StandardOutput=append:/opt/fanout/step0-service.log',
            '--property=StandardError=append:/opt/fanout/step0-service.log'] if detach else ['--wait', '--pipe']),
-        '/opt/fanout/venv/bin/python', '-u', here + 'arm_f_run.py', '/opt/fanout']
+        '/opt/fanout/venv/bin/python', '-u', here + 'arm_f_run.py', '/opt/fanout', '--programme']
 
 
 def deploy(*, detach=False):

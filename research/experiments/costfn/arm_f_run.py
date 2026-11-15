@@ -285,5 +285,9 @@ if __name__ == '__main__':
     parser.add_argument('root', type=Path)
     parser.add_argument('--verified-input', type=Path, help='Explicit new restore attempt reusing fully verified archive bytes')
     parser.add_argument('--project', default='web10-costfn-frozen-satellite-fstep0')
+    parser.add_argument('--programme', action='store_true', help='continue through all real F gates after Step0; no T7')
     args = parser.parse_args()
     baseline(args.root, verified_input=args.verified_input, project=args.project)
+    if args.programme:
+        from arm_f_programme import run
+        run(args.root)

@@ -100,6 +100,8 @@ class Programme:
             if not isinstance(evidence, dict) or evidence.get('verified') is not True:
                 raise ValueError('gate action did not establish its actual evidence')
             value.update(evidence=evidence, outcome='PASS')
+            if 'population_receipt_sha256' in evidence:
+                value['population_receipt_sha256'] = evidence['population_receipt_sha256']
         except BaseException as error:
             value.update(outcome='STOP', failure_class=type(error).__name__)
             self.results[gate] = value
@@ -109,7 +111,8 @@ class Programme:
             value['ended_utc'] = self.clock().isoformat()
             save(output / 'result.json', value)
             self.results[gate] = value
-            save(self.directory / 'programme.json', dict(outcome='PASS' if gate == ORDER[-1] and value['outcome'] == 'PASS'
-                else 'INCOMPLETE', gates=self.results, unreached=[g for g in ORDER if g not in self.results]))
+            save(self.directory / 'programme.json', dict(outcome='STOP' if value['outcome'] == 'STOP' else
+                ('PASS' if gate == ORDER[-1] else 'INCOMPLETE'), gates=self.results,
+                unreached=[g for g in ORDER if g not in self.results]))
         print('[F-programme] PASS', gate, flush=True)
         return value

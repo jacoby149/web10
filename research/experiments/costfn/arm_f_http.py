@@ -36,7 +36,7 @@ class HTTP:
         if operation:
             headers['X-Fanout-Operation'] = operation
         started, begin = datetime.now(UTC).isoformat(), time.perf_counter()
-        row = dict(request_id=request_id, path=path, started_utc=started, status=None)
+        row = dict(request_id=request_id, path=path, started_utc=started, status=None, operation_id=operation)
         try:
             response = await self.client.post(path, json=body, headers=headers)
             row.update(status=response.status_code, elapsed_ms=(time.perf_counter() - begin) * 1000,
@@ -86,6 +86,8 @@ class HTTP:
         rows = [json.loads(line) for line in path.read_text().splitlines()]
         if len(rows) != 1 or rows[0].get('request_id') != request_id:
             raise ValueError('missing/ambiguous request observation')
+        if any(rows[0].get(key) for key in ('arm_p_stop', 'arm_p_native_failure', 'delivery_failures')):
+            raise ValueError('request contains a hidden native/delivery failure')
         return rows[0]
 
     def native(self, request_ids, label):

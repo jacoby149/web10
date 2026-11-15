@@ -53,8 +53,16 @@ def build(directory):
         return safe_query.build_safe_query(sql, scopes[kind], member_key=reader,
             allowed_services=frozenset(scopes[kind]), max_limit=1000)
     tree = contract(compile(capture['requests'][0]['payload']['sql'], 'main'))
+    if spec.get('verify_actual_pairs'):
+        # Identity eligibility is independently established by the lower page;
+        # these supplied keys are ONLY a canonical payload/authority check.
+        baseline = exp.Literal.string(spec['lower_before_utc']).sql(dialect='clickhouse')
+        cutoff = exp.Literal.string(spec['lower_read_utc']).sql(dialect='clickhouse')
+        tree.where(sqlglot.parse_one('SELECT 1 WHERE p.created_at<parseDateTime64BestEffort(' + baseline
+            + ",6,'UTC') OR (p.author_key,p.doc_id) IN (SELECT author_key,doc_id FROM f_oracle_commits "
+            'WHERE completed_at<parseDateTime64BestEffort(' + cutoff + ",6,'UTC'))", read='clickhouse').args['where'].this, copy=False)
     boundary = next(cte.this for cte in tree.args['with_'].expressions if cte.alias == 'posts')
-    page = sqlglot.parse_one('SELECT p.doc_id,p.author_key FROM (' + boundary.sql(dialect='clickhouse') + ') AS p', read='clickhouse')
+    page = sqlglot.parse_one('SELECT p.doc_id,p.author_key,p.created_at FROM (' + boundary.sql(dialect='clickhouse') + ') AS p', read='clickhouse')
     for key in ('where', 'order', 'limit', 'qualify'):
         if tree.args.get(key):
             page.set(key, tree.args[key].copy())
@@ -64,8 +72,17 @@ def build(directory):
         raise ValueError('canonical document-stream page empty')
     def literals(values):
         return ','.join(exp.Literal.string(value).sql(dialect='clickhouse') for value in sorted(set(values)))
-    ids = [row['doc_id'] for row in page_rows]
-    selected, authors = literals(ids), literals([row['author_key'] for row in page_rows])
+    lower_rows = [endpoint._serialize_row(row) for row in page_rows]
+    pairs = spec.get('verify_actual_pairs')
+    if pairs:
+        tree = contract(compile(capture['requests'][0]['payload']['sql'], 'main'))
+        encoded = ','.join('(' + literals([author]) + ',' + literals([doc]) + ')' for author, doc in pairs)
+        tree.where(sqlglot.parse_one('SELECT 1 WHERE (p.author_key,p.doc_id) IN (' + encoded + ')', read='clickhouse').args['where'].this,
+                   copy=False)
+        ids, author_keys = [doc for _, doc in pairs], [author for author, _ in pairs]
+    else:
+        ids, author_keys = [row['doc_id'] for row in page_rows], [row['author_key'] for row in page_rows]
+    selected, authors = literals(ids), literals(author_keys)
     selectors = {'posts': 'doc_id IN (' + selected + ") OR JSONExtractString(body,'repost_of') IN (" + selected + ')',
         'reactions': 'ref_value IN (' + selected + ')', 'comments': "JSONExtractString(body,'post_id') IN (" + selected + ')',
         'profile': 'author_key IN (' + authors + ')'}
@@ -98,7 +115,7 @@ def build(directory):
         compiled = sqlglot.parse_one(compile(payload['sql'], kind), read='clickhouse')
         columns, values = ch.execute_query(bounded(compiled), settings={'max_execution_time': 900})
         engagements.append([endpoint._serialize_row(dict(zip(columns, row))) for row in values])
-    result = dict(rows=prepared, eligible_ads=eligible, followups=engagements, ids=ids)
+    result = dict(rows=prepared, lower_rows=lower_rows, eligible_ads=eligible, followups=engagements, ids=ids)
     (directory / 'expected.json').write_text(json.dumps(result, sort_keys=True))
     (directory / 'summary.json').write_text(json.dumps(dict(kind='CANONICAL_DOCUMENT_STREAM_REFERENCE',
         native=native, contract='DOCUMENT_STREAM_V1', rows=len(prepared), input_sha256=hashlib.sha256((directory / 'input.json').read_bytes()).hexdigest(),
