@@ -58,6 +58,17 @@ placement, propagation and safe reclassification/backfill/rollback remain design
 closure work. Configured recipient bounds scale as cutoff minus one; 1,999 is the
 default-only bound. No settings/runtime implementation precedes experiment proof.
 
+**Corrected Fanout Arm programme:** physical table name **`fanout`** is settled
+as generic platform delivery infrastructure. Retained task/programme:
+`research/experiments/costfn/task-block-fanout-arm.md`; proposed closure artifacts:
+`ARM-F-DESIGN-CLOSURE.md` in the same directory. Eight decision artifacts need
+operator approval before code; fresh paid admission and a stage-attributed P
+baseline precede F build. Broader protocol implementation requires a separate go
+after all gates and the integration proposal. Draft v7 follows those steps,
+additive, personal Independent affiliation, CIDR next cycle; no SIGMOD 2027
+submission. The proposed headline is a hypothesis, not a result. No gate passed
+or paid resource admitted by recording the programme.
+
 **Open before build:** exact recipients/count semantics, full document identity and
 route provenance, physical DDL, cap/history coverage, durable maintenance/races and
 query multiplicity/ordering. Spec: [db/group-delivery.md](../web10-v3/db/group-delivery.md).

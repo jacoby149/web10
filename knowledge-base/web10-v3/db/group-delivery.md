@@ -5,6 +5,13 @@ has chosen the shape; it is not an implemented schema, production migration or
 capacity result. Settled intent is below; §9 lists the decisions still needed
 before implementation. No paid experiment or deployment is authorized here.
 
+The corrected operator [Config F task block and eight-step programme](../../../research/experiments/costfn/task-block-fanout-arm.md)
+are retained in the repo. The physical table name **`fanout`** is settled; it
+names a generic platform mechanism, not an app concept. The first
+[design-closure worksheet](../../../research/experiments/costfn/ARM-F-DESIGN-CLOSURE.md)
+is a proposal, not operator approval: membership counters, durable revisions,
+query multiplicity and mutable-satellite coverage still block implementation.
+
 **Experiment first; broader integration only after the gates pass.** The operator
 clarified: "i want to do in the experiment this before we do it to the actual
 system to confirm it gets us where we need to be!" and "pass all the performance
@@ -110,7 +117,7 @@ through a non-equivalent delivery-stream rewrite.
 |---|---|---|
 | `documents` | Canonical content, author, versions and document tombstones | Necessary, not sufficient |
 | `doc_groups` and canonical group/access/policy state | Current attachments, memberships, contracts, moderation and other access rules | Through the existing read gate |
-| Recipient-pointer table (physical name not settled) | Bounded recent delivery candidates per reader | No |
+| `fanout` | Bounded recent delivery candidates per reader | No |
 | Group/time index (`doc_groups_t` in the experiment) | Seekable group candidates, including large-group coverage | No |
 | Metadata/count satellites | Indexed identities and exact scope-qualified aggregates | No |
 
@@ -363,3 +370,5 @@ this document is neither a security scan nor a security PASS.
 
 Next step is a **design-closure pass**, not implementation. Settle these artifacts
 with the operator, then build the smallest independently testable research unit.
+Use the linked worksheet's approval ledger; drafting an artifact does not close
+its row or admit the experiment. Paid admission remains a separate operator act.

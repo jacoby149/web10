@@ -7,6 +7,14 @@ and derived metadata/counts. There is **no written feed and no fanout**.
 Config F is conditional on a parity-valid Config P cost failure; a correctness
 failure or a stop-rule hit never authorizes it.
 
+**Current next-arm programme:** the corrected operator task is retained at
+[task-block-fanout-arm.md](task-block-fanout-arm.md), with the proposed
+[design-closure ledger](ARM-F-DESIGN-CLOSURE.md). Config P's bounded parity and
+diagnostic cost miss motivate F consideration, not formal T6 completion or
+operational admission. The programme requires approved design closure, fresh
+paid admission and stage-attributed P reproduction **before** F build. Physical
+name `fanout` and default cutoff2,000 are settled; old receipts remain untouched.
+
 **Experiment-first clarification,15 November:** Jacob requires the proposed
 hybrid write/read design to pass the experiment before integration into the
 actual system: "pass all the performance benches then do the fanout to the
