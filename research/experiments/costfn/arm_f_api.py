@@ -20,6 +20,7 @@ import sqlglot
 import arm_f as f
 from arm_f_journal import Journal
 from arm_f_store import Store
+from arm_f_runtime import admitted
 import arm_satellite_api as p
 from arm_satellite_sql import literal as q
 from app.v3.endpoints import documents, groups
@@ -41,6 +42,7 @@ if (build.get('DDL_sha256') != hashlib.sha256(f.DDL.encode()).hexdigest()
 journal = Journal(ROOT / 'journal')
 store = Store(p.ch.client, journal)
 log = logging.getLogger('arm-f')
+fatal = threading.Event()
 context = contextvars.ContextVar('fanout_request', default=None)
 pending = contextvars.ContextVar('fanout_live_result', default=None)
 MARKER = '/* Config F request-private canonical result */ SELECT 1'
@@ -50,7 +52,8 @@ if MODE not in ('F_DOCUMENT_STREAM_V1', 'P_DOCUMENT_STREAM_V1'):
 
 
 def active():
-    if not start <= datetime.now(UTC) < deadline:
+    admitted(admission, p.host)
+    if fatal.is_set() or not start <= datetime.now(UTC) < deadline:
         raise HTTPException(503, 'research admission closed')
 
 
@@ -249,7 +252,19 @@ def execute_query(sql, settings=None):
     return value[1], value[2]
 
 
-p.observer.original_compile = compile_query
+def guarded_compile(*args, **kwargs):
+    try:
+        return compile_query(*args, **kwargs)
+    except HTTPException:
+        raise
+    except Exception as error:
+        unsafe = getattr(p.observer.safe_query, 'UnsafeQueryError', ())
+        if unsafe and isinstance(error, unsafe):
+            raise
+        p.stop('F_compile_or_resolution_' + type(error).__name__)
+
+
+p.observer.original_compile = guarded_compile
 p.ch.execute_query = execute_query
 stop_trim = threading.Event()
 
@@ -259,8 +274,11 @@ def trim_loop():
         try:
             active()
             journal.trim_batch(store.trim)
-        except Exception:
-            log.exception('[arm-f] background trim failed; logical read cap remains enforced')
+        except Exception as error:
+            fatal.set()
+            (ROOT / 'F.stop').write_text('background_trim_' + type(error).__name__ + '\n')
+            log.error('[arm-f] background trim failed class=%s; arm stops', type(error).__name__)
+            break
 
 
 threading.Thread(target=trim_loop, daemon=True).start()
