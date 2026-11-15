@@ -5,6 +5,21 @@ has chosen the shape; it is not an implemented schema, production migration or
 capacity result. Settled intent is below; §9 lists the decisions still needed
 before implementation. No paid experiment or deployment is authorized here.
 
+**Experiment first; broader integration only after the gates pass.** The operator
+clarified: "i want to do in the experiment this before we do it to the actual
+system to confirm it gets us where we need to be!" and "pass all the performance
+benches then do the fanout to the broader system". D113 chooses the candidate
+architecture, not permission to wire it into the platform before measuring it.
+Close §9, then implement the hybrid write maintenance **and** layout-aware reads
+in the isolated Config F research arm. Keep ordinary platform runtime/schema and
+deployment unchanged during this proof. Passing a fanout microbenchmark or making
+the main SELECT fast is not enough: the complete response must pass §8's parity,
+latency/read-byte, write-amplification, follow, lifecycle, rebuild and admitted
+stress gates. Missing or failed evidence blocks broader integration. A passing
+experiment permits a separately reviewed integration proposal, not automatic
+deployment or a claim of unmeasured capacity. Fresh paid-host admission is still
+required before engine work; this clarification does not renew an expired lease.
+
 ## 1. The point: one distribution system for every app
 
 An organization should not rebuild its application when its audience grows.
@@ -43,7 +58,7 @@ Canonical documents + canonical group attachments
                  |
        current group member count
            /                  \
-       < 1,000              >= 1,000
+       < 2,000              >= 2,000
            |                    |
     recipient pointers    group/time seek index
            \                    /
@@ -72,8 +87,8 @@ These are two separate responsibilities:
   maintenance automatically, regardless of which app wrote it, whether anyone has
   queried it, or whether any current query uses the derived layout. There is no
   per-query opt-in that enables fanout, and no first-read trigger that builds it.
-  The existing cutoff still controls physical recipient expansion: under 1,000
-  writes recipient pointers; at/over 1,000 writes zero recipient pointers and has
+  The default cutoff controls physical recipient expansion: under 2,000
+  writes recipient pointers; at/over 2,000 writes zero recipient pointers and has
   seek-backed coverage. The group/time index needs maintenance for all groups,
   including under-cutoff history/fallback. Durable maintenance semantics are §6.
 - **Read-path responsibility:** the query engine and its read queries must be
@@ -131,30 +146,69 @@ does not mean every app must display it: apps retain service filters and ranking
 
 | Event | Required behavior |
 |---|---|
-| Publish/attach into a group below 1,000 members | Resolve the contract's entitled, explicitly addressable delivery recipients; write one logical pointer per recipient for that route |
-| Publish/attach into a group at or above 1,000 | Write zero recipient pointers for that route; the group/time seek lane supplies candidates |
+| Publish/attach into a group below 2,000 members | Resolve the contract's entitled, explicitly addressable delivery recipients; write one logical pointer per recipient for that route |
+| Publish/attach into a group at or above 2,000 | Write zero recipient pointers for that route; the group/time seek lane supplies candidates |
 | Follow/subscribe to an under-cutoff group | Backfill its recent eligible documents up to the reader window in the same session |
 | Follow/subscribe to an at/over-cutoff group | No pointer backfill; time the first seek-backed read too |
 | Unfollow/unsubscribe | Remove this group's delivery contribution within the reader window; retain other valid routes |
-| Cross upward through 1,000 | Stop new fanout; old pointers age out under the cap; reads classify using the current counter and include seek coverage |
-| Cross downward below 1,000 | Reuse bounded follow-backfill for the remaining followers; do not lose coverage while it completes |
+| Cross upward through 2,000 | Stop new fanout; old pointers age out under the cap; reads classify using the current counter and include seek coverage |
+| Cross downward below 2,000 | Reuse bounded follow-backfill for the remaining followers; do not lose coverage while it completes |
 | Edit content | Resolve the latest canonical body; do not create an independent body copy or treat every edit as a new publication |
 | Delete, detach, moderate or revoke access | Canonical resolution excludes the now-ineligible candidate; pointer cleanup is not the gate |
 
-The lane cutoff is **one declared node constant: 1,000 members**. The publish
+The lane cutoff is **one node-wide setting, default 2,000 members**. The publish
 decision reads the group's member counter from `counting_numbers`; reads use
 the current classification. Exact counter freshness and transition coordination
 must be specified before code, not inferred from a snapshot counter test.
+
+The operator selected this default as the "normie celebrity cutoff", superseding
+the original 1,000-member proposal. Name the design parameter
+`fanout_member_cutoff` to distinguish it from benchmark **K**, the number of groups
+a reader follows. Changing the cutoff does not change K=20/K=1000 benchmark cells
+or admit a new cell. The 2,000-member default is a hypothesis to validate in the
+experiment, not a measured optimum or a capacity guarantee.
+
+### Planned Node Settings control
+
+Expose `fanout_member_cutoff` as **Fanout member cutoff** in the node's admin
+settings when broader integration is admitted, not as a per-app, per-group or
+per-reader preference. Persist one server-owned value, default **2,000**; both
+write routing and read planning consume the same effective configuration.
+Use the existing node-admin configuration authority, never a client-only setting.
+The exact settings-screen placement and storage/API field mapping must be closed
+before implementation; the social moderation tabs are not a new authority source.
+
+- Explain the rule beside the field: below the cutoff, fanout; at/above, seek.
+  Higher values can increase pointer storage, publish cost and backfill work.
+  Show the effective value, an explicit Save and Reset to default; validate a
+  positive integer server-side, with tested minimum/maximum bounds settled during
+  design closure. No unbounded write-amplification control or undocumented zero mode.
+- A saved change must use the same durable lane-transition/backfill machinery as
+  member-count crossings. Raising the cutoff creates newly fanout-eligible groups;
+  lowering it stops new fanout for affected groups. Keep seek coverage throughout,
+  tolerate old pointers and retain canonical authorization. Changing a number must
+  not create feed gaps, trigger an unbounded synchronous rebuild or imply that
+  backfill has completed. Define effective/pending version and cross-worker
+  propagation, restart persistence and rollback semantics before enabling edits.
+- Pin the effective cutoff in every experiment/build receipt; vary it only in
+  separately declared runs. The publication recipient bound is **cutoff minus
+  one**, conditional on exact recipient semantics; **1,999** applies at the default,
+  not to every configured value. Prove non-default boundaries, change-during-read/
+  write/backfill, restart and rollback behavior as well as default performance.
+- Future UI acceptance includes admin/non-admin behavior, saved/error/pending
+  states, URL-owned settings navigation and desktop/375px verification under
+  `strategy/design.md`. This is planned scope only: no settings control or runtime
+  configuration exists for delivery yet, and experiment-first gates still apply.
 
 The recent window is **approximately 200 logical pointers per reader**, trimmed
 on insertion, with one declared cap parameter. Changing the cap changes storage
 and hit rate, not which documents are eligible. This is a logical retained-window
 bound, not a promise of immediate physical deletion/compaction in ClickHouse.
 
-The 999-pointer ceiling is **per under-cutoff group publication**, conditional
+At the default cutoff, the 1,999-pointer ceiling is **per under-cutoff group publication**, conditional
 on an exact recipient/member definition. A document attached to several small
 groups can generate more total writes. Down-crossing backfill is bounded per
-reader but can still touch up to 999 readers. Retries, trimming, bookkeeping and
+reader but can still touch up to 1,999 readers. Retries, trimming, bookkeeping and
 counter maintenance are additional work: report physical writes separately.
 
 Public `anyone`/`authenticated` grants do not enumerate the internet as recipients.
@@ -270,8 +324,8 @@ Config F acceptance must retain the supplied task's discipline:
 
 - **Build receipt before tests:** actual DDL/granularity, constants and locations,
   hook file/line references, recipient predicate and canonical dependency manifest.
-- **T4:** measured fanout at roughly 10, 500 and 999 members; entitled-recipient
-  parity, at most 999 pointers per small-group publication, zero at/over 1,000,
+- **T4:** measured fanout at roughly 10, 500, 999 and 1,999 members; entitled-recipient
+  parity, at most 1,999 pointers per small-group publication, zero at 2,000 and above,
   physical write amplification and added publish-path p95 latency.
 - **T2-F:** independent complete-response parity, mixed lanes and multi-group
   deduplication; exact core/order/counts/profiles/creator ads, semantic eligible
@@ -288,7 +342,7 @@ Config F acceptance must retain the supplied task's discipline:
 - **T7:** K=1000 only after T2-F and T6-F pass and execution is separately admitted.
   Any parity/rebuild failure or stop-rule hit stops the arm; views treatment stays off.
 
-Add boundary controls for 999↔1,000 transitions, multi-group route removal,
+Add boundary controls for 1,999↔2,000 transitions, multi-group route removal,
 same-ID/different-author identity, same-timestamp tombstones, cap overflow,
 filtered/older pages, crash/retry recovery and concurrent publish/follow/rebuild.
 Future authority-affecting code needs independent review and exploit-replay gates;
@@ -298,12 +352,13 @@ this document is neither a security scan nor a security PASS.
 
 | Open decision | Required artifact |
 |---|---|
-| Recipient and member-count semantics | Exact canonical predicate: owners, reserved classes, subscriptions vs memberships, per-service compatibility, counter freshness and the 999 bound |
+| Recipient and member-count semantics | Exact canonical predicate: owners, reserved classes, subscriptions vs memberships, per-service compatibility, counter freshness and the 1,999 bound |
 | Physical pointer/provenance schema | D60-compliant names, full document identity, group-route retention, stable order/ties, dedup/version/trim keys and index granularity |
 | Cap and history coverage | Logical vs physical cap, cross-service fairness, watermarks and complete older/filtered/refill fallback |
 | Durable maintenance | Publish/attach/update/delete and membership hooks; idempotency, acknowledgement, lag, crashes, transition/backfill races and rebuild boundary |
 | Serving integration | Generic query seam, app ordering, attachment multiplicity vs document dedup, pagination/error/concurrent-read semantics; no new access policy |
 | Read-plan adoption | Which query shapes explicitly use maintained pointers/seeks, their compiler/SQL plans and native bounded-read receipts; correct behavior for unsupported shapes |
+| Node Settings configuration | Admin UI placement and generic persisted field, tested integer bounds, shared effective/pending version, propagation/restart/rollback and bounded reclassification/backfill on change; default 2,000 |
 | Experiment admission | Stage-attributed P baseline, retained source-bound F task/receipts, fresh explicit host/window/budget and independent cleanup; no production action |
 
 Next step is a **design-closure pass**, not implementation. Settle these artifacts

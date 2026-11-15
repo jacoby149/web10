@@ -7,6 +7,33 @@ and derived metadata/counts. There is **no written feed and no fanout**.
 Config F is conditional on a parity-valid Config P cost failure; a correctness
 failure or a stop-rule hit never authorizes it.
 
+**Experiment-first clarification,15 November:** Jacob requires the proposed
+hybrid write/read design to pass the experiment before integration into the
+actual system: "pass all the performance benches then do the fanout to the
+broader system". Config F is the isolated proof, not a platform rollout. Its
+design closure and complete acceptance matrix live in
+[group-delivery.md §§8–9](../../../knowledge-base/web10-v3/db/group-delivery.md).
+Complete-response parity and p95<500ms **and** <25MB logical reads, write cost,
+follow/backfill, tombstone/revocation/refill, rebuild and separately admitted
+K1000 stress must pass before proposing broader integration. Failed or absent
+gates block it; no main-only or pointer-only result substitutes. Preserve Config
+P and historical no-fanout gates/receipts; this direction supplies neither a
+native F PASS nor fresh host/window/budget/cleanup admission. Keep ordinary
+platform runtime/schema/deployment unchanged during the research proof.
+
+**Cutoff clarification,15 November:** the proposed Config F default is now
+`fanout_member_cutoff=2000`: fanout below 2,000 group members, seek at/above it.
+This supersedes the original 1,000-member proposal only; Config P and historical
+receipts remain unchanged. T4 must include 1,999-member fanout, zero recipient
+pointers at/above 2,000 and 1,999↔2,000 transitions, with physical write cost
+reported. Benchmark K counts followed groups, not group members: the K20/K1000
+cells, stress admission and experiment-before-integration gates are unchanged.
+The cutoff is also planned as a persisted node-wide admin setting. Research
+receipts must pin its effective value; non-default values need declared runs and
+their own cutoff-minus-one boundary/write-cost checks. Configuration-change,
+restart and rollback coverage is required before enabling the broader settings
+control; no live settings implementation or benchmark admission follows here.
+
 ## Operator approval: 15 November 2026
 
 Jacob explicitly approved both follow-up questions: rebuild from the existing
