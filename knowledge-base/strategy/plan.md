@@ -65,6 +65,8 @@ open; this visual PR does not claim live delivery enabled.
 - [✓ 5.33.4 local] **Polish authenticator credential entry** — compact brand/form layout, one solid primary action, URL-owned progressive password/signup/contact entry and secondary account-server identity. Operator follow-ups give Use another account a bordered plus-icon row and signup a full-width violet-tinted button. All 338 UI tests/build/typecheck, eight both-theme four-width browser cases, appearance regression and eight real-local signup/return/password/Following handoffs pass. Desktop/375px captures inspected under `.context/auth-credential-style/`. Auth/consent/vault policy unchanged; no deployment or physical-phone claim.
 ## Feed music playback correction
 
+- [✓ 6.6.2 local] **Consistent signed-out mobile navigation** — share Posts/Video/Shorts/Music/More across both session states instead of the old anonymous People-first dock. Public More keeps People/Appearance; personal actions/counts remain signed-in-only and desktop order stays unchanged. Reproduced regression, all 2,660 social tests/build/typecheck and eight both-theme four-width browser cases pass; desktop/375px captures inspected in `.context/navigation-consistency/`. No deployment or auth-policy change.
+
 Pre-integration 6.5.0 verification: all 2,660 social/379 marketing tests and both
 production builds pass, plus eight sound and twenty existing browser journeys.
 Combined PR checks and physical-phone/deployment acceptance remain separate.
