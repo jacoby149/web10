@@ -26,6 +26,93 @@ of D95's general creator-onboarding direction. Do not resurrect the retired
 importer. The current `marketing-importing/` Instagram workflow is a reference
 for resumability/deduplication, not a Torah Anytime connector or petabyte pipeline.
 
+## Marketing proposition — an organization's positive spread: hygienic but connected
+
+Operator direction, 15.11.2026:
+
+> web10 for torah anytime, if you look at the markdowns, that is a completely
+> different marketing proposition than the bannned influencers, you have
+> something positive to spread, want a node that sscales to 1M to do it, but
+> also be compatible with other conversations, this is interoperable with
+> reform jews for example that want to pull. in a little torah into their
+> feed, but dont want the 100% blast
+
+Operator clarification, 15.11.2026:
+
+> we were talking about influencers that got banned, this is different, this
+> is organizations looking to spread a positive message but dont have in
+> house social media capabilities, they dont want to be mixed up with the
+> ick of current social media, helps keep a hygenic but connected technology
+> approach for them
+
+**The customer is an organization, not an influencer.** The creator track
+(archived: `archive/creator-influencer-track/outreach.md`; `thesis.md`,
+`business-plan.md`) sells escape for people the
+big platforms burned — banned or deplatformed, audience held in a landlord's
+house. This track is a completely different proposition. The customer is an
+organization that wants to spread a positive message (for this partner:
+Torah) — not someone fleeing a burn event, choosing a cleaner house.
+
+**What the organization lacks: in-house social media capability.** Building
+and running a social layer — accounts, feeds, follow/delivery, media
+playback, moderation, scale — is not their job, and they would not hire a
+team to do it. The offer is the capability itself: a node that runs the
+social experience under their brand, so the organization can spread its
+message the way big platforms are supposed to — reliably, at scale — without
+owning the platform engineering.
+
+**What the organization avoids: the ick of current social media.** Their
+audience and their message do not want to sit next to other platforms'
+content, ad machinery, engagement traps and moderation failures. A
+purpose-built, Torah-only node keeps that out: the community's feed is the
+mission, not a mixed-content firehose. The hygiene is the point, not a side
+effect — it is why an institution would pick this over adding a forum or
+buying ads.
+
+**Scale target: a node that scales to 1M.** The operator wants the node to
+scale to 1M to do the spreading. That sits next to — not replacing — the
+supplied banner metrics in the business-scale section below (500K monthly
+visitors). Both are operator-stated design targets to carry into later
+catalog/search, speaker-page, publishing, playback and operating-cost
+planning; they are not measured capacity of any present deployment and not a
+claim the current stack supports them. TA0 confirms definitions and peak
+workload before sizing or promising.
+
+**Connected, not sealed: compatible with other conversations.**
+The hygienic node does not have to be a walled garden. On its side the
+Torah-only node stays Torah-only (the policy section below is unchanged:
+unapproved material does not enter its feeds, search or discovery). On the
+other side the network is interoperable by design (D41: the node is readable;
+discovery and public content are the product). A member of an adjacent
+community — the operator's example is a Reform Jew on their own node/feed —
+can follow a few Torah speakers and pull a little Torah into their own mixed
+feed. They do not get the 100% blast: cross-node reads go through the server
+mixer, which keeps a per-source fetch weight ("a horizontal knob for how much
+to fetch from each," `federated-feed-mixer.md`), and the reader's other
+follows rank alongside. Only publicly readable content crosses (speaker
+groups with the usual `anyone`/`authenticated` read grants, D58); nothing
+private travels by following. For the partner conversation this is a growth
+argument: the spread reaches people who would never join a 100% Torah
+platform, without diluting the core node.
+
+**The one-liner for this track:** hygienic but connected — the organization
+gets a clean, on-mission social platform at the scale it wants, and the
+message can travel to other conversations at the dose the reader chooses.
+The banned-influencer track's frame (escape, deplatforming, landlord) must
+not be used with this customer; it is a different story, and mixing the
+frames cheapens both.
+
+**Boundaries.** This is marketing voice and planning direction, recorded with
+the partner brief; it authorizes no implementation, outreach send, deployment
+or capacity promise. It does not claim cross-node federation is deployed: the
+mixer queue (`federated-feed-mixer.md`), separate-node key provisioning and
+connected two-node verification remain open. It does not change the first demo
+(existing web10-social policy, branded, gated), the role/permission work (TA2)
+or the catalog-sync scope (TA3). No new `api/` surface is implied: the pull is
+expressed through existing universal primitives — public readable grants,
+source-qualified reads and the server mixer — so the same pull works for any
+node/community pair, not just this partner (D60).
+
 ## Business scale we want to support
 
 Operator direction, 15.11.2026: record the supplied TorahAnytime metric banner
@@ -48,8 +135,11 @@ units and rounded K/M values. The timeframes for hotline calls and hours learnt
 are not shown; do not label them monthly, annual or lifetime totals by inference.
 
 This is an institutional library, an ongoing publishing operation and a large
-audience—not just a small branded demo. Use it to guide later catalog/search,
-speaker-page, publishing, playback and operating-cost planning. Monthly visitors
+audience—not just a small branded demo. The operator's 15.11.2026 marketing
+direction adds a 1M scale target for the node that carries the spread (see the
+marketing-proposition section above), alongside these banner figures. Use it
+to guide later catalog/search, speaker-page, publishing, playback and
+operating-cost planning. Monthly visitors
 are not a supplied MAU, registered-account, concurrent-user or requests/second
 figure. Classes and learning hours do not determine storage bytes or media
 egress without formats, bitrates and usage data. Hotline calls describe another

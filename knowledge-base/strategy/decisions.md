@@ -9,6 +9,42 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D112 — The dominant GTM is org-to-org; the creator/influencer track is archived, not erased [decided]
+
+**Operator, 15.11.2026:** "now the dominating strategy should be b2b or o2o
+org to org bus 2 bus, getting the world online, much more similar to the old
+internet in that way, node by node." Same-session customer clarification:
+the track is "organizations looking to spread a positive message but dont
+have in house social media capabilities, they dont want to be mixed up with
+the ick of current social media, helps keep a hygenic but connected
+technology approach for them" (verbatim: `torah-anytime.md`).
+
+**The decision.** The dominant go-to-market strategy is **org-to-org
+(o2o/B2B)**: organizations run their own web10 nodes (their brand,
+community, content policy), and the network grows node by node,
+old-internet style. New dominant-strategy doc: `strategy/org-to-org.md`.
+Torah Anytime is the first anchor org (`strategy/torah-anytime.md`). The
+influencer/creator strategy — the 100-name outreach machine, M0 kill test,
+20-pitch sales kit, segment splits and sourcer tooling — moved **unchanged**
+to `strategy/archive/creator-influencer-track/` (`outreach.md`,
+`outreach_batch1.md`, `outreach_prospects.md`, `outreach_prospects_full.md`,
+`outreach_sourcer.py`); nothing was erased or rewritten. It is no longer the
+dominant frame and is not authorized for execution by this decision.
+
+**What it rejects.** (1) Leading org prospects with the banned-creator
+story — different customer, different pain, different frame; the partner
+track uses the hygienic-but-connected frame recorded in `torah-anytime.md`.
+(2) Treating "archived" as "deleted" — the track's docs stay readable and
+stay in the `web10web10!` re-read stack (via `AGENTS-RITUALS.md`).
+(3) Any claim the product changed — D20, D41, D60 and the generic API are
+untouched; this is a GTM realignment, and the white-label kit
+(DEMO/THEME/TABS/TA items) is now the reusable onboarding surface for every
+org, not a partner special.
+
+**Open:** the org pipeline itself (segments, sourcing, kill gate, pitch
+copy — the M0 equivalent) is unscoped; a new lane item when the operator
+wants it.
+
 ### D111 — Marketing sends readers to social; it does not replicate discovery [decided]
 
 **13.11.2026 — operator:** Trending should be just a link to
@@ -570,7 +606,7 @@ Operator, 03.11.2026 — "the import your life page is just not really a product
 
 **What it rejects.** (1) The "Import Your Life" marketing page as a front-door pitch — the operator's call that it is not product focus and that people don't care. (2) The bulk catalog import as the onboarding hook — replaced by the AI-assistant, post-by-post flow. (3) Keeping the `staging_posts` tier around an empty pipeline — with no importer writing to it, the staging/review surface is dead weight and goes too. **Supersedes** the import half of D90 (the worker durability pass) and the "YouTube Importer (port your YouTube)" plan section; D90's *idiom* (in-process + ClickHouse-queued worker) still stands for any future durable job.
 
-**Implementation disposition.** Marketing/docs merged in #1348; the remaining code gut is tracked in the import lane. Delete the old `web10-v3/social/import.md` implementation guide and its live links. Removing job/event DDL does not authorize dropping existing tables, deleting raw objects or staged documents; any storage cleanup requires a separate inventory and operator approval. Generic CRUD/media/export and the current access model remain. References: `plan.md` "YouTube Importer", `outreach.md`, `ads-october/gaps.md` Gap 1.
+**Implementation disposition.** Marketing/docs merged in #1348; the remaining code gut is tracked in the import lane. Delete the old `web10-v3/social/import.md` implementation guide and its live links. Removing job/event DDL does not authorize dropping existing tables, deleting raw objects or staged documents; any storage cleanup requires a separate inventory and operator approval. Generic CRUD/media/export and the current access model remain. References: `plan.md` "YouTube Importer", `outreach.md` (archived: `archive/creator-influencer-track/outreach.md`), `ads-october/gaps.md` Gap 1.
 
 ### D94 - Portable Protected Media Delivery, Cloudflare First [decided]
 

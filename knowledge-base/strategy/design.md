@@ -72,8 +72,9 @@ self-possession. The brand is confident and quiet; it never begs.
    device by default, with remembered System / Light / Dark choices (D108).
    Both palettes are built from tokens; media stages retain dark controls.
 - **Voice.** Declarative, restrained, no gush. The fan-facing voice
-  lives in `manifesto.md`, the creator pitch in `outreach.md` — match
-  them. Never claim what isn't built. Headlines state facts:
+  lives in `manifesto.md`, the dominant GTM frame in `org-to-org.md`,
+  the archived creator pitch in
+  `archive/creator-influencer-track/outreach.md` — match them. Never claim what isn't built. Headlines state facts:
   Your audience. beats "Unlock the future of social!!"
 - **Never fake it.** No stock photos of smiling people, no invented
   testimonials, no logos of companies that don't use us. Real
