@@ -71,6 +71,10 @@ def switch_writer(root, *, control):
         overlay.write_text(json.dumps({'services': {'api': {'volumes': [str(stages) + ':/fanout-stages'],
             'environment': {'FANOUT_STAGE_DIR': '/fanout-stages'}, 'command': ['uv', 'run', 'uvicorn',
                 'arm_f_profile_api:application', '--host', '0.0.0.0', '--port', '80', '--no-access-log']}}}))
+    logs = root / 'T4-phase-logs'
+    logs.mkdir(mode=0o700, exist_ok=True)
+    (logs / (uuid.uuid4().hex + '.log')).write_bytes(
+        restore.command(session.compose, session.env, 'logs', '--no-log-prefix', 'api'))
     compose = session.compose[:-2] + ['-f', str(here / 'arm_satellite_serve.compose.yml'), '-f', str(overlay), *session.compose[-2:]]
     restore.command(compose, env, 'up', '-d', '--no-deps', 'api', timeout=180)
     restore_dataset.wait_for(lambda: urllib.request.urlopen('http://127.0.0.1:6098/docs', timeout=3).status == 200,
@@ -89,7 +93,7 @@ async def run(root):
     output = root / 'T4'
     output.mkdir(mode=0o700, exist_ok=False)
     result = dict(kind='CONFIG_F_T4_REAL_AUTHORIZED_PUBLISH', T4='NOT_ESTABLISHED', outcome='RUNNING',
-        cutoff=f.CUTOFF, samples_per_size=20, groups=[], requests=[], queries=[],
+        cutoff=f.CUTOFF, samples_per_size=20, groups=[], requests=[], control_requests=[], queries=[],
         droplet_id=session.host_id, source='actual v3 login/self-grant/group/create paths, no direct workload inserts')
     def save():
         (output / 'result.json').write_text(json.dumps(result, indent=2) + '\n')
@@ -129,11 +133,15 @@ async def run(root):
                 result['groups'].append(info)
                 info['control_api_command'] = switch_writer(root, control=True)
                 for index in range(20):
+                    request_id = uuid.uuid4().hex
+                    lower = datetime.now(UTC).isoformat()
                     begin = time.perf_counter()
                     response = await client.post('/v3/create', json={'token': token, 'service': 'posts',
                         'body': {'text': 'F T4 synthetic publication', 'trial': index}, 'groups': [group_id]},
-                        headers={'Origin': ORIGIN, 'X-Research-ID': uuid.uuid4().hex})
+                        headers={'Origin': ORIGIN, 'X-Research-ID': request_id})
                     elapsed = (time.perf_counter() - begin) * 1000
+                    result['control_requests'].append({'request_id': request_id, 'status': response.status_code,
+                        'started': lower, 'ended': datetime.now(UTC).isoformat(), 'elapsed_ms': elapsed, 'members': size})
                     if response.status_code != 200 or response.headers.get('x-arm-p-stop') == '1':
                         raise ValueError('original authorized T4 write control failed')
                     info['control_latencies_ms'].append(elapsed)
@@ -175,6 +183,7 @@ async def run(root):
             session.query('T4_flush_query_log', 'SYSTEM FLUSH LOGS')
             ids = [row['request_id'] for row in result['requests']]
             raw = restore.command(session.compose, session.env, 'logs', '--no-log-prefix', 'api').decode()
+            raw += '\n' + '\n'.join(path.read_text() for path in (root / 'T4-phase-logs').glob('*.log'))
             observed = [json.loads(line.split('COSTFN_REQUEST=', 1)[1]) for line in raw.splitlines()
                         if line.startswith('COSTFN_REQUEST=')]
             observed = {row['request_id']: row for row in observed if row.get('request_id') in ids}

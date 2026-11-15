@@ -1,0 +1,8 @@
+{
+  "kind": "PRE_SERVING_STAGE_OBSERVER_DETAIL",
+  "before_sha256": "4071c3362ec468b891c08335da3a7ad2a1f2754e1f826ed5040d1017517c159d",
+  "after_sha256": "5fa41fa9a3594b1e694d1f2e10bf0013412eb8e0aea5b62d2523ec46048cddf4",
+  "stage_at_install": "P_satellite_setup",
+  "P_query_or_oracle_changed": false,
+  "reason": "operator-required counts/resolution/preparation native stage separation; names-only stack attribution"
+}

@@ -1,0 +1,13 @@
+[realism-restore] command exec failed (241): Received exception from server (version 24.8.14):
+Code: 241. DB::Exception: Received from localhost:9000. DB::Exception: Memory limit (total) exceeded: would use 27.29 GiB (attempt to allocate chunk of 4428878 bytes), maximum: 22.00 GiB. OvercommitTracker decision: Query was selected to stop by OvercommitTracker.: (avg_value_size_hint = 59, avg_chars_size = 61.199999999999996, limit = 5056): (while reading column group_id): (while reading from part /var/lib/clickhouse/store/8bb/8bb0d499-1661-45f6-ba39-840dd289db9a/all_1_36_2/ in table web10.doc_groups_t (8bb0d499-1661-45f6-ba39-840dd289db9a) located on disk default of type local, from mark 112640 with max_rows_to_read = 5056): While executing MergeTreeSelect(pool: ReadPool, algorithm: Thread). (MEMORY_LIMIT_EXCEEDED)
+(query: SELECT count() AS matched,
+countIf(tuple(t.author_key,t.created_at,t.link_created_at,t.updated_at,t.deleted,
+              t.collection_name,t.tags,t.ref_value,t.comment_post_id,t.repost_of)
+     != tuple(d.author_key,d.created_at,g.created_at,g.updated_at,g.deleted,
+              d.collection_name,d.tags,d.ref_value,
+              JSONExtractString(d.body,'post_id'),JSONExtractString(d.body,'repost_of'))) AS mismatched
+FROM doc_groups_t AS t
+INNER JOIN (SELECT * FROM doc_groups FINAL WHERE deleted=0) AS g ON t.doc_id=g.doc_id AND t.group_id=g.group_id
+INNER JOIN (SELECT * FROM documents FINAL WHERE deleted=0) AS d ON t.doc_id=d.doc_id AND t.author_key=d.author_key FORMAT JSON)
+
+[satellite-p] end transpose_exact_reconciliation 18.207
