@@ -1,0 +1,1 @@
+INSERT INTO group_members VALUES ('g1','alice',toDateTime64('2026-11-15 00:00:00',3),0),('g1','bob',toDateTime64('2026-11-15 00:00:00',3),0),('g2','alice',toDateTime64('2026-11-15 00:00:00',3),0),('g2','bob',toDateTime64('2026-11-15 00:00:00',3),0),('g2','bob',toDateTime64('2026-11-15 00:00:00',3)+1,1),('g1','anyone',toDateTime64('2026-11-15 00:00:00',3),0)

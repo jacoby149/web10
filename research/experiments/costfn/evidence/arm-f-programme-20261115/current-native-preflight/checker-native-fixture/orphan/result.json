@@ -1,0 +1,94 @@
+{
+  "kind": "BATCHED_EXACT_TRANSPOSE_RECONCILIATION",
+  "outcome": "STOP",
+  "batches": 2,
+  "rows": [
+    {
+      "batch": 0,
+      "expected": 4,
+      "stored": 5,
+      "matched": 4,
+      "mismatched": 0,
+      "duplicate_keys": 0
+    }
+  ],
+  "source_sha256": "fa0df8ffc81f5d92a1d02dbdfc679697c2774833274b375036c113efd07153c8",
+  "original_failed_query_sha256": "1dd1d76b54f3751308dbee1945f43a7c0b86881e2b09c45c38b7e9277fb7040c",
+  "partition": "cityHash64(doc_id)%batches on all three inputs; never group/body/ref/version",
+  "no_sampling": true,
+  "native_performance_claim": false,
+  "canonical_keys": [
+    {
+      "name": "doc_groups",
+      "engine": "ReplacingMergeTree",
+      "sorting_key": "doc_id, group_id",
+      "partition_key": "",
+      "uuid": "d63bdc85-2282-4c25-9b10-5736e4244dba"
+    },
+    {
+      "name": "doc_groups_t",
+      "engine": "MergeTree",
+      "sorting_key": "group_id, created_at, doc_id",
+      "partition_key": "",
+      "uuid": "59be6613-5d12-4c4c-b81d-e7c138148b9a"
+    },
+    {
+      "name": "documents",
+      "engine": "ReplacingMergeTree",
+      "sorting_key": "author_key, doc_id",
+      "partition_key": "",
+      "uuid": "20035cea-8aae-41eb-bc5c-8f9baf9c5123"
+    }
+  ],
+  "queries": [
+    {
+      "label": "transpose_batch_0_expected",
+      "query_id": "checker-fixture-e8fe6a713f584bd19b9ecee96e290c1d",
+      "native": {
+        "query_id": "checker-fixture-e8fe6a713f584bd19b9ecee96e290c1d",
+        "query_duration_ms": "5",
+        "read_rows": "9",
+        "read_bytes": "312",
+        "memory_usage": "68502",
+        "exception_code": 0
+      }
+    },
+    {
+      "label": "transpose_batch_0_stored",
+      "query_id": "checker-fixture-69169a19a532403db9b9cf4390828e03",
+      "native": {
+        "query_id": "checker-fixture-69169a19a532403db9b9cf4390828e03",
+        "query_duration_ms": "4",
+        "read_rows": "6",
+        "read_bytes": "156",
+        "memory_usage": "136848",
+        "exception_code": 0
+      }
+    },
+    {
+      "label": "transpose_batch_0_fields",
+      "query_id": "checker-fixture-92106056bdae4861a0c4e0a82dac1991",
+      "native": {
+        "query_id": "checker-fixture-92106056bdae4861a0c4e0a82dac1991",
+        "query_duration_ms": "11",
+        "read_rows": "15",
+        "read_bytes": "1440",
+        "memory_usage": "17899214",
+        "exception_code": 0
+      }
+    },
+    {
+      "label": "transpose_batch_0_duplicates",
+      "query_id": "checker-fixture-d7c73221a9b941eab435810738503dd7",
+      "native": {
+        "query_id": "checker-fixture-d7c73221a9b941eab435810738503dd7",
+        "query_duration_ms": "5",
+        "read_rows": "6",
+        "read_bytes": "216",
+        "memory_usage": "126728",
+        "exception_code": 0
+      }
+    }
+  ],
+  "failure_class": "ValueError"
+}

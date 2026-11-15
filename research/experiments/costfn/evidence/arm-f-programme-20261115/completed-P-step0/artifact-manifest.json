@@ -1,0 +1,14 @@
+{
+  "banked.json": {
+    "bytes": 427,
+    "sha256": "186d502be40aa357c5032283f9e507de6cf7fad739c35bddc5c593a6b9757983"
+  },
+  "result.json": {
+    "bytes": 1557,
+    "sha256": "b15240b57124e92b2ef55e3f024688e211da92aefc5b92f4c04321536fff6b32"
+  },
+  "step0-stage-table.json": {
+    "bytes": 182561,
+    "sha256": "2b8208b5202579b02d321face3f805eb9c357ed8d9d02683b2698f7af6e38d3a"
+  }
+}

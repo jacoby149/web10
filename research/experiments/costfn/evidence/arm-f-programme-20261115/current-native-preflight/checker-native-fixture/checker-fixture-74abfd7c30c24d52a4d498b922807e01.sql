@@ -1,0 +1,1 @@
+CREATE TABLE documents (doc_id String,author_key String,collection_name String,body String,ref_value String,tags Array(String),created_at DateTime64(3),updated_at DateTime64(3),deleted UInt8) ENGINE=ReplacingMergeTree(updated_at) ORDER BY (author_key,doc_id)

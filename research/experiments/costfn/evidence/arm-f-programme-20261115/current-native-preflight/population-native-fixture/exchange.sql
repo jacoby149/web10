@@ -1,0 +1,1 @@
+EXCHANGE TABLES fanout_rebuild_7 AND fanout

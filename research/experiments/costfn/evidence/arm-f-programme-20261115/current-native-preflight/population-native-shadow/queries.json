@@ -1,0 +1,26 @@
+[
+  {
+    "label": "shadow_ddl",
+    "query_id": "checker-fixture-1512c84536754f65895e695594ab5f8d",
+    "native": {
+      "query_id": "checker-fixture-1512c84536754f65895e695594ab5f8d",
+      "query_duration_ms": "17",
+      "read_rows": "0",
+      "read_bytes": "0",
+      "memory_usage": "1040",
+      "exception_code": 0
+    }
+  },
+  {
+    "label": "shadow_insert",
+    "query_id": "checker-fixture-bf279e698047471eb5365bb65473edc1",
+    "native": {
+      "query_id": "checker-fixture-bf279e698047471eb5365bb65473edc1",
+      "query_duration_ms": "25",
+      "read_rows": "845",
+      "read_bytes": "27198",
+      "memory_usage": "6631608",
+      "exception_code": 0
+    }
+  }
+]

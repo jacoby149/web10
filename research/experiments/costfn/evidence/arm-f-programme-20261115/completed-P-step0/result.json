@@ -1,0 +1,51 @@
+{
+  "kind": "CONFIG_F_PROGRAMME_STEP0",
+  "outcome": "P_STEP0_COMPLETE",
+  "stage": "P_stage_report_ready",
+  "droplet_id": 619625857,
+  "deadline_utc": "2026-11-16T00:33:47+00:00",
+  "native_F_gates": "NOT_RUN",
+  "full_population_backfill": "UNREACHED",
+  "seeded_population_fraction": 0,
+  "population_prerequisites": [
+    "T4",
+    "T2-F",
+    "T6-F",
+    "T3-F"
+  ],
+  "later_gates": [
+    "T6-F-populated",
+    "T5-F-full-population",
+    "R+W-full-population"
+  ],
+  "checker_native_fixture": "PASS",
+  "restore_project": "web10-costfn-frozen-satellite-fstep0",
+  "P_T2": "PASS",
+  "P_observations": [
+    {
+      "elapsed_ms": 3352.1852750000107,
+      "read_rows": 8336832,
+      "read_bytes": 471765234,
+      "largest_query_peak_bytes": 21648177,
+      "exception_codes": [],
+      "attribution": "exclusive sequential HTTP-sequence wall-clock window; not individual SQL-to-ASGI tracing"
+    },
+    {
+      "elapsed_ms": 3360.787782999978,
+      "read_rows": 8337344,
+      "read_bytes": 471838450,
+      "largest_query_peak_bytes": 18456063,
+      "exception_codes": [],
+      "attribution": "exclusive sequential HTTP-sequence wall-clock window; not individual SQL-to-ASGI tracing"
+    },
+    {
+      "elapsed_ms": 3249.8847339993517,
+      "read_rows": 8336768,
+      "read_bytes": 471756082,
+      "largest_query_peak_bytes": 18365264,
+      "exception_codes": [],
+      "attribution": "exclusive sequential HTTP-sequence wall-clock window; not individual SQL-to-ASGI tracing"
+    }
+  ],
+  "updated_utc": "2026-11-15T21:56:19.350771+00:00"
+}

@@ -1,0 +1,1 @@
+INSERT INTO users SELECT concat('human-',toString(number)),toDateTime64('2026-11-15 00:00:00',3),0 FROM numbers(2000)

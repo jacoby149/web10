@@ -1,0 +1,1 @@
+INSERT INTO documents SELECT '9999','a','posts','{}','',[],toDateTime64('2026-11-15 00:00:00',3)+9999,toDateTime64('2026-11-15 00:00:00',3),0

@@ -77,6 +77,15 @@ structural conclusion and the proposed v7 headline remain hypotheses to test.
 
 ## Programme and admission
 
+**6.21.2 native execution update:** original P Step0 parity PASS and diagnostics
+are banked without changing its933 source files. Merged2ca24da5c2c0 is staged in a
+separate996-file-verified tree on the SAME DO619625857 lease, original cleanup
+16 November00:33:47UTC unchanged. Updated native checker/population/shadow/views
+rehearsal PASS (402 logical fixture routes;49 population/shadow statements).
+Build preparation restores its own copy from the same frozen archive; original
+P store/source remain intact. T4 and remaining gates are unreached, not passes.
+Receipts: `evidence/arm-f-programme-20261115/`. No automatic extension/new host.
+
 **6.21.0 source update:** `arm_f_programme.py` now supplies the complete explicit
 gate sequence, not merely the P launcher. `--plan` is no-engine; ROOT continues
 only after a real completed Step0, and `--wait-for-step0 ROOT` waits read-only
