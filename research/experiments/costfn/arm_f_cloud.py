@@ -155,6 +155,21 @@ def tick(path, stop=False):
             save(path, lease)
 
 
+def watchdog_program(script, lease, *, executable=None):
+    """Launch outside the caller's disposable uv/venv, using stdlib only."""
+    python = Path(executable or getattr(sys, '_base_executable', None) or sys.executable).resolve(strict=True)
+    if any(part in ('builds-v0', 'environments-v2') or part.startswith('.tmp') for part in python.parts):
+        raise ValueError('temporary interpreter cannot own the provider cleanup watchdog')
+    if not python.is_file() or not os.access(python, os.X_OK):
+        raise ValueError('executable durable base Python required for cleanup watchdog')
+    probe = subprocess.run([str(python), '-I', '-S', '-c',
+        'import argparse,datetime,fcntl,ipaddress,json,os,pathlib,plistlib,re,shutil,subprocess,sys,time,traceback,uuid;'
+        'print("F_WATCHDOG_STDLIB_READY")'], capture_output=True, timeout=10)
+    if probe.returncode or probe.stdout.strip() != b'F_WATCHDOG_STDLIB_READY':
+        raise ValueError('durable isolated stdlib watchdog interpreter failed preflight')
+    return [str(python), '-I', '-S', str(script), 'tick', '--lease', str(lease)]
+
+
 def initialize(*, state=Path('.context/fanout-run.json'), scope=None, ssh_source_cidr=None):
     state = Path(state)
     if scope not in (None, 'F_DEPLOY_REHEARSAL', 'F_GATES_ONLY'):
@@ -185,10 +200,12 @@ def initialize(*, state=Path('.context/fanout-run.json'), scope=None, ssh_source
     save(path, lease)
     shutil.copyfile(__file__, root / 'watchdog.py')
     label = 'app.web10.fanout.' + name.rsplit('-', 1)[1]
+    program = watchdog_program(root / 'watchdog.py', path)
+    lease['watchdog_program'] = program
+    save(path, lease)
     plist = Path.home() / 'Library/LaunchAgents' / (label + '.plist')
     with plist.open('wb') as stream:
-        plistlib.dump(dict(Label=label, ProgramArguments=[sys.executable, str(root / 'watchdog.py'),
-            'tick', '--lease', str(path)], RunAtLoad=True, StartInterval=30,
+        plistlib.dump(dict(Label=label, ProgramArguments=program, RunAtLoad=True, StartInterval=30,
             StandardOutPath=str(root / 'watchdog.out'), StandardErrorPath=str(root / 'watchdog.err')), stream)
     subprocess.run(['launchctl', 'bootstrap', 'gui/' + str(os.getuid()), str(plist)], check=True, capture_output=True)
     tick(path)

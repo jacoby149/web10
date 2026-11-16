@@ -3,6 +3,8 @@ import json
 from pathlib import Path
 import tempfile
 import time
+import subprocess
+import sys
 import unittest
 from unittest.mock import Mock, patch
 from types import SimpleNamespace
@@ -12,6 +14,48 @@ import arm_f_deploy as deploy
 
 
 class HostReadinessTests(unittest.TestCase):
+    def test_watchdog_program_survives_removal_of_launcher_virtualenv(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            environment = root / 'temporary-uv-environment'
+            (environment / 'bin').mkdir(parents=True)
+            launcher = environment / 'bin/python'
+            launcher.symlink_to(Path(sys.executable).resolve())
+            probe = root / 'watchdog-probe.py'
+            probe.write_text('import argparse,datetime,fcntl,ipaddress,json,os,pathlib,plistlib,re,shutil,subprocess,sys,time,traceback,uuid\n'
+                'assert sys.flags.isolated and sys.flags.no_site\nprint("stdlib watchdog survived")\n')
+            command = cloud.watchdog_program(probe, root / 'lease.json', executable=launcher)
+            old_program = [str(launcher), str(probe), 'tick', '--lease', str(root / 'lease.json')]
+            self.assertEqual(Path(command[0]), Path(sys.executable).resolve())
+            self.assertEqual(command[1:3], ['-I', '-S'])
+            launcher.unlink()
+            (environment / 'bin').rmdir()
+            environment.rmdir()
+            with self.assertRaises(FileNotFoundError):
+                subprocess.run(old_program, capture_output=True, check=True, timeout=10)
+            result = subprocess.run(command, capture_output=True, text=True, check=True, timeout=10)
+            self.assertEqual(result.stdout.strip(), 'stdlib watchdog survived')
+
+    def test_watchdog_program_rejects_missing_or_temporary_real_interpreters(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with self.assertRaises((ValueError, FileNotFoundError)):
+                cloud.watchdog_program(root / 'watchdog.py', root / 'lease.json', executable=root / 'missing')
+            temporary = root / 'builds-v0/.tmp-failing/bin/python'
+            temporary.parent.mkdir(parents=True)
+            temporary.write_text('not a durable interpreter')
+            temporary.chmod(0o700)
+            with self.assertRaisesRegex(ValueError, 'temporary'):
+                cloud.watchdog_program(root / 'watchdog.py', root / 'lease.json', executable=temporary)
+
+    def test_watchdog_defaults_to_base_not_ephemeral_uv_sys_executable(self):
+        base = str(Path(getattr(sys, '_base_executable', sys.executable)).resolve())
+        with (patch.object(cloud.sys, 'executable', '/missing/uv/builds-v0/.tmp-vanished/bin/python'),
+              patch.object(cloud.sys, '_base_executable', base)):
+            command = cloud.watchdog_program('/private/watchdog.py', '/private/lease.json')
+        self.assertEqual(command[0], base)
+        self.assertEqual(command[1:3], ['-I', '-S'])
+
     def setup_lease(self, root):
         created = int(time.time())
         lease = dict(name='web10-fanout-f-123456abcdef', tag='web10-fanout-f-123456abcdef',

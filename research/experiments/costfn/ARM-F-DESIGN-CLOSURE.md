@@ -25,6 +25,50 @@ reading beyond the retained 200 pointers without missing eligible content.
 
 ## 1. Recipient/member predicate — approved; no membership counter
 
+### Expired gates recovery —16 November20:17UTC; evidence loss, not a gate verdict
+
+Recovery finds DO619846432 powered off, no gates archive in local controller
+storage, and the launchd provider watchdog unable to spawn (exit78). Its command
+points at a vanished temporary uv-build Python; its last tick before recovery
+was11:55:07UTC. The source used `sys.executable`, so deleting the calling uv
+environment also removed the supposedly independent watchdog's interpreter.
+This is a harness defect, not operator fault and not a native query failure.
+
+No host or engine was restarted after the15:26:06UTC deadline. Overdue owned
+droplet/firewall/key cleanup verifies20:17:33.018196UTC,17,487s late. Elapsed SKU
+estimate$2.2144 includes powered-off droplet time and exceeds the admitted2USD;
+it is not CPU time, an invoice, a billing guarantee or a retroactive extension.
+The ephemeral root's trial receipts were not recovered before deletion to stop
+continued provider charges. Exact native stop time is unverified.
+
+| Stage/evidence | Recovery verdict |
+|---|---|
+| Banked PR#1572 P/deploy proof/60 partial writes | Preserved, not remeasured/reclassified |
+| Native trim fixture | PASS retained, six-source binding unchanged |
+| Build and real deployed trim-first | NOT_RECOVERED |
+| T4, T2-F, T6-F, T3-F | NOT_RECOVERED |
+| Population, populated T6, T5-F, T8-F, Boundaries, R+W | NOT_RECOVERED |
+
+Unknown execution is **not** evidence that a stage was unreached, failed or
+passed. Public incident: `evidence/arm-f-trim-20261116/expired-gates-recovery.json`.
+No performance/capacity/whole-arm result can be recovered from the missing files.
+
+Source repair selects and resolves the durable base interpreter, rejects temporary
+build paths, preflights isolated stdlib imports, and records the exact `-I -S`
+watchdog command. Offline controls delete a simulated launcher environment: the
+old path fails and the durable command still executes. This repairs the observed
+interpreter-lifetime defect only. Controller-independent private receipt export,
+interruption recovery and dependence on the operator machine remaining available
+are still OPEN before fresh paid admission. No automatic retry, new host,
+production or T7 action is authorized by this recovery.
+
+All186 F/satellite no-engine controls, focused Ruff and whitespace checks pass;
+the banked native fixture's six source hashes still match. Provider inventory
+readback confirms zero droplets/no owned firewall or key. The dead local watchdog
+registration, own temporary private keys and expired archive GET capabilities
+are removed. These controls do not recover the lost trial receipts or validate
+any F performance gate.
+
 ### Native trim verdict PASS; fresh F gates admitted —16 November
 
 **Diagnosis:** saving a bound ClickHouse method on the import thread bypasses
