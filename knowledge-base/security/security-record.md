@@ -17,6 +17,17 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 
 ## F research cleanup/checkpoint guardian (16.11.2026) — source controls, OPEN
 
+6.22.5 adds the separately authorized cleanup-only OAuth context, fixed HTTPS
+read/delete provider adapter, dedicated-controller bootstrap/watch and bounded
+off-controller exact-key receipt transport. The broad creation credential remains
+Mac-side; no provider token belongs on a measured node or production gateway.
+Separate source review identifies missing sink installation, auxiliary-error
+starvation and archive-dependent self-expiry; source repairs gate F registration
+on real offsite readiness, isolate auxiliary failures and install/activate a flat
+expiry path before main archive extraction. Follow-up review and live proof remain
+OPEN. Generated bootstrap, scoped-refresh/route refusal and sink byte/hash controls
+are offline evidence only; preparation has not created a paid controller.
+
 Bounded review covers the new research-only guardian, private file checkpoint
 transport and paid-launch call sites. No platform auth/API change or provider
 credential transfer. Offline controls deny absent/dead guardians, altered lease

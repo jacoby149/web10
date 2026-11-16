@@ -180,7 +180,8 @@ class Guardian(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             current = lease()
-            live = dict(account_uuid='synthetic', ssh_source_cidr=current['ssh_source_cidr'], heartbeat_epoch=time.time())
+            live = dict(account_uuid='synthetic', ssh_source_cidr=current['ssh_source_cidr'], heartbeat_epoch=time.time(),
+                controller_deadline=time.time() + 21600, offsite_ready=True)
             with patch.object(safety, 'status', return_value=live), patch.object(cloud, 'account'):
                 safety.rpc(root, 'register', {'lease': current})
                 updated = {**current, 'droplet_id': 123}
@@ -200,7 +201,8 @@ class Guardian(unittest.TestCase):
     def test_wrong_collection_egress_refuses_before_registering_a_run(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            live = dict(account_uuid='synthetic', ssh_source_cidr='192.0.2.99/32', heartbeat_epoch=time.time())
+            live = dict(account_uuid='synthetic', ssh_source_cidr='192.0.2.99/32', heartbeat_epoch=time.time(),
+                controller_deadline=time.time() + 21600, offsite_ready=True)
             with patch.object(safety, 'status', return_value=live), patch.object(cloud, 'account') as account:
                 with self.assertRaisesRegex(ValueError, 'ingress'):
                     safety.rpc(root, 'register', {'lease': lease()})
@@ -269,7 +271,8 @@ class Guardian(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             current = lease()
-            live = dict(account_uuid='synthetic', ssh_source_cidr=current['ssh_source_cidr'], heartbeat_epoch=time.time())
+            live = dict(account_uuid='synthetic', ssh_source_cidr=current['ssh_source_cidr'], heartbeat_epoch=time.time(),
+                controller_deadline=time.time() + 21600, offsite_ready=True)
             with (patch.object(safety, 'status', return_value=live), patch.object(cloud, 'account'),
                   patch.object(safety, 'fsync_directory') as fsync):
                 safety.rpc(root, 'register', {'lease': current})
@@ -281,7 +284,8 @@ class Guardian(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             current = lease()
-            live = dict(account_uuid='synthetic', ssh_source_cidr=current['ssh_source_cidr'], heartbeat_epoch=time.time())
+            live = dict(account_uuid='synthetic', ssh_source_cidr=current['ssh_source_cidr'], heartbeat_epoch=time.time(),
+                controller_deadline=time.time() + 21600, offsite_ready=True)
             with patch.object(safety, 'status', return_value=live), patch.object(cloud, 'account'):
                 safety.rpc(root, 'register', {'lease': current})
             current['droplet_id'] = 123
@@ -358,7 +362,7 @@ def emit(*args, **kwargs):
         return real(*args, **kwargs)
     return real([sys.executable, '-c',
         'import pathlib,sys;sys.stdout.buffer.write(pathlib.Path(sys.argv[1]).read_bytes())', sys.argv[3]], **kwargs)
-with patch.object(safety.subprocess, 'run', side_effect=emit):
+with patch.object(safety.subprocess, 'run', side_effect=emit), patch.object(safety, 'export_offsite', return_value={'offline_transport_control': True}):
     safety.collect(pathlib.Path(sys.argv[2]), json.loads(sys.argv[4]))
 print('EXPORTED', flush=True)
 time.sleep(30)

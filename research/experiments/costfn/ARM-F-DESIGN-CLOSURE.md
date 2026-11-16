@@ -27,6 +27,33 @@ reading beyond the retained 200 pointers without missing eligible content.
 
 ### Autonomous continuation — run safety source, not live admission proof
 
+**Credential unblocking:** the operator subsequently says “rip it” and completes
+DigitalOcean's browser authorization for an isolated cleanup-only OAuth context.
+Account readback matches the expected account. The selected grant permits only
+read/delete of droplets/firewalls/SSH keys plus provider-added read dependencies;
+it has no create/resize/volume authority. The broad Mac credential stays on the Mac.
+Autonomous setup is scoped to one dedicated NYC3`s-1vcpu-1gb` controller at
+$0.00893/h, an absolute six-hour/$0.10 auxiliary ceiling inside the existing$20
+overall safety ceiling; the measured F lease remains four-hour/$2/32–28–22GiB.
+The controller is not a measured node or the production gateway. Its scoped
+credential and absolute self-deletion service are bootstrapped privately on that
+new host, with a durable Mac watchdog as a secondary layer. No production service,
+bucket policy, original retained Volume or frozen data is changed.
+
+The independent controller itself is ephemeral, so a checkpoint is acknowledged
+only after an off-controller private MinIO PUT **and independent GET/hash readback**.
+Exact run-key eight-hour capabilities are minted inside the existing production
+API process; storage credentials stay there.96 one-use checkpoint slots are
+predeclared; failures consume their slot rather than overwrite evidence. The
+controller's cleanup-only OAuth transport (`arm_f_provider.py`) has a fixed
+read/delete route allowlist and independent token refresh, with no external binary
+download dependency. The absolute finalizer verifies its own metadata ID and full
+account/name/tag/SKU before deleting owned auxiliary resources and itself last.
+The sole ancillary-host isolation exception is this exact source/lease-bound
+controller, not arbitrary other hosts. F's deadline must fit inside the original
+controller deadline with a ten-minute margin. Runtime interruption/offsite/cleanup
+proof must precede a fresh F-gates launch; authorization is not that proof.
+
 The operator requests autonomous safety repair and F execution, with five-minute
 checks and no routine approval pauses. Keep the existing four-hour/$2 run shape,
 $20 overall safety ceiling, native caps, gate order and scope exclusions. This

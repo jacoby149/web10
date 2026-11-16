@@ -176,6 +176,22 @@ def watchdog_program(script, lease, *, executable=None):
     return [str(python), '-I', '-S', str(script), 'tick', '--lease', str(lease)]
 
 
+def isolation(guardian_config):
+    """The sole ancillary host is the exact separately bounded cleanup controller."""
+    from arm_f_guardian import validate as validate_controller
+    config = json.loads(Path(guardian_config).read_bytes())
+    controller = config['controller']
+    validate_controller(controller)
+    rows = api('compute', 'droplet', 'list') or []
+    if len(rows) != 1:
+        raise ValueError('exactly the admitted guardian, no other hosts, required before F creation')
+    row = rows[0]
+    if (row.get('id') != controller.get('droplet_id') or row.get('name') != controller['name']
+            or controller['tag'] not in row.get('tags', []) or row.get('size_slug') != controller['size']
+            or row.get('region', {}).get('slug') != controller['region']):
+        raise ValueError('another/unbound host exists; no arbitrary isolation exception')
+
+
 def initialize(*, state=Path('.context/fanout-run.json'), scope=None, ssh_source_cidr=None,
                guardian_config=Path('.context/fanout-safety-controller.json')):
     state = Path(state)
@@ -192,8 +208,7 @@ def initialize(*, state=Path('.context/fanout-run.json'), scope=None, ssh_source
     if (shape['memory'] != 32768 or shape['vcpus'] != 8 or shape['disk'] < 400
             or shape['price_hourly'] != .25 or not shape['available'] or 'nyc3' not in shape['regions']):
         raise ValueError('approved exact SKU unavailable; no replacement')
-    if api('compute', 'droplet', 'list'):
-        raise ValueError('another host exists; isolation preflight required')
+    isolation(guardian_config)
     name = 'web10-fanout-f-' + uuid.uuid4().hex[:12]
     root = Path.home() / '.local/state/web10-research' / name
     root.mkdir(mode=0o700)
@@ -240,8 +255,7 @@ def create(path):
                 or not lease.get('watchdog_api_verified') or time.time() - lease.get('watchdog_seen_epoch', 0) > 90
                 or time.time() >= lease['deadline'] - 1800):
             raise ValueError('closed/existing/unguarded admission; no creation')
-        if api('compute', 'droplet', 'list'):
-            raise ValueError('another host exists')
+        isolation(lease['guardian_config'])
         if not lease.get('ssh_source_cidr'):
             raise ValueError('explicit pinned SSH source required before any resource creation')
         from arm_f_safety import remote

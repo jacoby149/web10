@@ -31,7 +31,8 @@ import arm_f_checkpoint as checkpoint
 import arm_f_cloud as cloud
 
 PERIOD = 300
-NAMES = ('arm_f_safety.py', 'arm_f_checkpoint.py', 'arm_f_cloud.py')
+NAMES = ('arm_f_safety.py', 'arm_f_checkpoint.py', 'arm_f_cloud.py', 'arm_f_sink.py',
+    'arm_f_provider.py', 'arm_f_guardian.py')
 IMMUTABLE = ('name', 'tag', 'configuration', 'region', 'size', 'max_usd',
     'hourly_usd', 'account_uuid', 'created_epoch', 'deadline', 'scope', 'ssh_source_cidr')
 BINDINGS = ('droplet_id', 'ssh_key_id', 'key_fingerprint', 'firewall_id')
@@ -96,10 +97,14 @@ def status(root):
 def rpc(root, action, payload):
     root = private_root(root)
     live = status(root)
-    if time.time() - live['heartbeat_epoch'] > 20:
+    if time.time() - live['heartbeat_epoch'] > 10:
         raise ValueError('guardian is busy/stale; no mutation or blocking RPC lock wait')
+    if live.get('offsite_ready') is not True:
+        raise ValueError('actual off-controller private write/readback proof required before F registration')
     lease = payload['lease']
     cloud.validate(lease)
+    if lease['deadline'] > live['controller_deadline'] - 600:
+        raise ValueError('F lease must fit the original controller deadline with cleanup margin')
     if (lease['account_uuid'] != live['account_uuid']
             or lease.get('ssh_source_cidr') != live['ssh_source_cidr']):
         raise ValueError('guardian cloud account/direct collection ingress differs')
@@ -188,10 +193,35 @@ def collect(target, lease):
         destination = directory / (str(time.time_ns()) + '-' + digest + '.tar.gz')
         os.link(stream.name, destination)  # Immutable name, no replacement.
         fsync_directory(directory)
+    offsite = export_offsite(target, destination)
     value = dict(epoch=time.time(), archive=destination.name, sha256=digest,
-        bytes=destination.stat().st_size, droplet_id=lease['droplet_id'], deadline=lease['deadline'])
+        bytes=destination.stat().st_size, droplet_id=lease['droplet_id'], deadline=lease['deadline'], offsite=offsite)
     cloud.save(target / 'checkpoint-receipt.json', value)
     return value
+
+
+def export_offsite(target, archive):
+    """Reserve each exact-key slot once; never acknowledge a guardian-only copy."""
+    root = target.parent
+    config = json.loads((root / 'sink.json').read_bytes())
+    claims = root / 'sink-claims'
+    claims.mkdir(mode=0o700, exist_ok=True)
+    for index, slot in enumerate(config['slots']):
+        try:
+            fd = os.open(claims / str(index), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        except FileExistsError:
+            continue
+        with os.fdopen(fd, 'w') as stream:
+            stream.write(archive.name)
+            stream.flush()
+            os.fsync(stream.fileno())
+        fsync_directory(claims)
+        result = subprocess.run([sys.executable, '-I', '-S', str(Path(__file__).with_name('arm_f_sink.py')), str(archive)],
+            input=json.dumps(slot).encode(), capture_output=True, timeout=20)
+        if result.returncode:
+            raise RuntimeError('off-controller export failed; no checkpoint acknowledgement')
+        return json.loads(result.stdout)
+    raise ValueError('off-controller checkpoint slots exhausted; no new work')
 
 
 def verify_archive(path, expected):
@@ -257,6 +287,11 @@ def serve(root, doctl, account_uuid, ssh_source_cidr):
     cloud.DOCTL = doctl
     cloud.API_TIMEOUT = 20
     cloud.account({'account_uuid': account_uuid})
+    from arm_f_guardian import identity
+    controller = json.loads((root.parent / 'controller-lease.json').read_bytes())
+    with urllib.request.urlopen('http://169.254.169.254/metadata/v1/id', timeout=3) as response:
+        controller_id = int(response.read(32))
+    identity(controller, controller_id)
     source = str(ipaddress.IPv4Network(ssh_source_cidr, strict=True))
     with urllib.request.urlopen('https://api.ipify.org?format=json', timeout=10) as response:
         actual_source = str(ipaddress.IPv4Address(json.load(response)['ip'])) + '/32'
@@ -267,8 +302,12 @@ def serve(root, doctl, account_uuid, ssh_source_cidr):
         while True:
             try:
                 errors = cycle(root)
+                proof_path = root / 'offsite-proof.json'
+                offsite = json.loads(proof_path.read_bytes()) if proof_path.is_file() else {}
                 cloud.save(root / 'guardian.json', dict(heartbeat_epoch=time.time(), sources=STARTUP_SOURCES,
                     degraded=bool(errors),
+                    offsite_ready=offsite.get('controller_droplet_id') == controller_id and offsite.get('independently_read_back') is True,
+                    controller_droplet_id=controller_id, controller_deadline=controller['deadline'],
                     ssh_source_cidr=source, account_uuid=account_uuid, doctl=doctl, hostname=socket.gethostname(),
                     controller_id=hashlib.sha256(Path('/etc/machine-id').read_bytes()).hexdigest()))
             except Exception as error:
@@ -283,9 +322,10 @@ def remote(action, lease, config_path, *, transport=None):
         raise ValueError('explicit independent controller SSH configuration required')
     command = ['ssh', '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes', '-o', 'ConnectTimeout=10',
         '-o', 'IPQoS=none', '-o', 'UserKnownHostsFile=' + config['known_hosts'], '-i', config['identity'],
+        *(['-F', config['ssh_config']] if config.get('ssh_config') else []),
         config['host'], shlex.join(['python3', '-I', '-S', config['script'], 'rpc', '--root', config['root'], '--action', action])]
     result = subprocess.run(command, input=json.dumps(dict(lease=lease, **({'transport': transport} if transport else {}))).encode(),
-        capture_output=True, timeout=75)
+        capture_output=True, timeout=95)
     if result.returncode:
         raise ValueError('independent cleanup guardian unavailable/unconfigured; no paid launch')
     proof = json.loads(result.stdout)
@@ -293,6 +333,7 @@ def remote(action, lease, config_path, *, transport=None):
             or proof.get('account_uuid') != lease['account_uuid'] or proof.get('name') != lease['name']
             or proof.get('ssh_source_cidr') != lease.get('ssh_source_cidr')
             or proof.get('deadline') != lease['deadline'] or not proof.get('controller_id')
+            or proof.get('controller_droplet_id') != config['controller']['droplet_id']
             or not 0 <= time.time() - proof.get('heartbeat_epoch', 0) < 90):
         raise ValueError('independent guardian identity/source/deadline/heartbeat differs')
     return proof

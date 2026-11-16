@@ -33,7 +33,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install pinned no-engine dependencies
-        run: python -m pip install ruff==0.15.22 sqlglot==30.18.0 pydantic==2.13.4 fastapi==0.139.0 clickhouse-connect==1.6.0 -r research/experiments/costfn/realism-requirements.txt
+        run: python -m pip install ruff==0.15.22 sqlglot==30.18.0 pydantic==2.13.4 fastapi==0.139.0 clickhouse-connect==1.6.0 pyyaml==6.0.3 -r research/experiments/costfn/realism-requirements.txt
       - name: Lint the additive preparation
         run: python -m ruff check research/experiments/costfn/arm_satellite*.py research/experiments/costfn/arm_f*.py
       - name: Check retained inventory and pull-first gate
@@ -43,6 +43,7 @@ jobs:
           python research/experiments/costfn/arm_f_client.test.py
           python research/experiments/costfn/arm_f_cloud.test.py
           python research/experiments/costfn/arm_f_safety.test.py
+          python research/experiments/costfn/arm_f_control.test.py
           python research/experiments/costfn/arm_f_api.test.py
           python research/experiments/costfn/arm_f_hooks.test.py
           python research/experiments/costfn/arm_f_startup.test.py

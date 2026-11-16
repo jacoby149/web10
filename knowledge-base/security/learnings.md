@@ -37,6 +37,15 @@ that matters for orient:
 
 ### 2026-11-16: A powered-off research host is still a billable resource
 
+Dedicated-controller follow-through must preserve its receipts elsewhere before
+self-deletion: a second ephemeral root is not durable evidence. Use exact-key,
+expiring private PUT/GET capabilities, verify sink bytes independently and refuse
+F registration until actual sink readiness. Provider consent is a scoped OAuth
+context, not permission to export an existing broad credential. A flat expiry
+programme must survive failed main-code extraction, and failed nonbillable
+auxiliary cleanup must not prevent deletion of the exactly owned billable host.
+These source controls still need connected interruption and cleanup proof.
+
 The F recovery loses ephemeral receipts and exceeds its cleanup deadline when
 the Mac's cleanup interpreter disappears. A stable base interpreter repairs that
 specific failure, not loss of the Mac. Host poweroff limits execution but is not

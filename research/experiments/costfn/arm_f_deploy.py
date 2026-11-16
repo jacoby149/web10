@@ -22,8 +22,12 @@ def ssh_options(private, jump=None):
     if jump:
         # ProxyJump does not propagate the outer IPQoS option to its nested SSH
         # process; this network otherwise times out during banner exchange.
+        target = jump['host'] if isinstance(jump, dict) else jump
+        pin = ['-o', 'UserKnownHostsFile=' + jump['known_hosts'], '-i', jump['identity']] if isinstance(jump, dict) else []
+        if isinstance(jump, dict) and jump.get('ssh_config'):
+            pin += ['-F', jump['ssh_config']]
         proxy = shlex.join(['ssh', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10',
-            '-o', 'StrictHostKeyChecking=yes', '-o', 'IPQoS=none', '-W', '%h:%p', jump])
+            '-o', 'StrictHostKeyChecking=yes', '-o', 'IPQoS=none', *pin, '-W', '%h:%p', target])
         options += ['-o', 'ProxyCommand=' + proxy]
     return options
 
