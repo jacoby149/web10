@@ -204,7 +204,7 @@ def build_p_counts(root, session, profile):
             raise ValueError('canonical generation changed during P count setup')
         result.update(outcome='BATCH_COUNTS_BUILT_T1_PASS', T1='PASS')
     except Exception as error:
-        result.update(outcome='STOP', failure_class=type(error).__name__)
+        result.update(outcome='STOP', **__import__('arm_f_failure').details(error))
         raise
     finally:
         batching.save(output, result)
@@ -264,7 +264,7 @@ def baseline(root, *, verified_input=None, project='web10-costfn-frozen-satellit
         result.update(stage='P_stage_report_ready', outcome='P_STEP0_COMPLETE', restore_project=restored['project'],
                       P_T2=verdict['T2'], P_observations=verdict.get('performance_observations'))
     except Exception as error:
-        result.update(outcome='STOP', failure_class=type(error).__name__)
+        result.update(outcome='STOP', **__import__('arm_f_failure').details(error))
         print('[arm-f] STOP', result['stage'], type(error).__name__, flush=True)
         raise
     finally:

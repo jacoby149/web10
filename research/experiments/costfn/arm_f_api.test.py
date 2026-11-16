@@ -53,6 +53,8 @@ class AdapterTests(unittest.TestCase):
             safe_query=SimpleNamespace(UnsafeQueryError=type('Unsafe', (Exception,), {})), application=Mock())
         client = SimpleNamespace(query=Mock(), command=Mock(), insert=Mock())
         ch = SimpleNamespace(client=client, execute_query=Mock(), can_write_group=Mock(return_value=True))
+        native = SimpleNamespace(query=client.query, command=client.command, insert=client.insert)
+        ch._get_client = lambda: native
         parent = ModuleType('arm_satellite_api')
         parent.host, parent.observer, parent.ch = 123, observer, ch
         parent.counts, parent.profile = {'canonical_generation': 'g'}, {'reader': 'alice'}
@@ -65,6 +67,7 @@ class AdapterTests(unittest.TestCase):
         with patch.dict(sys.modules, replacements), patch.dict(os.environ, FANOUT_CONFIG_F='1', FANOUT_STATE=str(root)), patch.object(threading.Thread, 'start'):
             spec.loader.exec_module(module)
         module.context.set({'operation_id': '11111111-1111-4111-8111-111111111111'})
+        module.original_command, module.original_insert = native.command, native.insert
         return module, parent, docs
 
     def data(self):

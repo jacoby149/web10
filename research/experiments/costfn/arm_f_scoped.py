@@ -9,10 +9,13 @@ import sqlite3
 import tempfile
 
 import arm_f_banked as banked
+import arm_f_failure as failure
 import arm_f_environment as environment
 from arm_f_gates import Programme, SCOPED_ORDER, digest
 from arm_f_http import HTTP
 import arm_f_lifecycle as lifecycle
+import arm_f_trim
+from arm_f_trim_native import TRIM_SOURCES
 from arm_f_programme import Actions
 from arm_f_run import download, save
 from arm_f_runtime import admitted
@@ -26,11 +29,38 @@ def sources():
     return {path.name: digest(path) for path in sorted([*here.glob('arm_f*.py'), here / 'arm_satellite_api.py'])}
 
 
+BANKED_REHEARSAL_SHA256 = 'a47e4c2bc1781e8cd1c818a6540752b5f66ccd0beba24a9baf304d0d3e722133'
+
+
+def trim_proof(root, approval):
+    path = Path(root) / 'trim-native-proof.json'
+    value = json.loads(path.read_bytes())
+    native = value.get('native', [])
+    if (digest(path) != approval.get('trim_native_sha256') or value.get('outcome') != 'PASS'
+            or value.get('readers') != 2 or value.get('publications') != 205 or value.get('logical_cap') != 200
+            or value.get('overlap_observed') is not True or value.get('journal_pending') != []
+            or value.get('old_capture_failure', {}).get('failure_class') != 'ProgrammingError'
+            or not value.get('old_capture_failure', {}).get('failure_traceback')
+            or 'concurrent queries within the same session' not in value.get('old_capture_failure', {}).get('failure_message', '')
+            or not native or any(int(row['exception_code']) or int(row['read_rows']) > 10_000_000 for row in native)
+            or value.get('source_sha256') != {name: digest(Path(__file__).with_name(name)) for name in TRIM_SOURCES}
+            or type(value.get('droplet_id')) is not int or value['droplet_id'] == approval.get('droplet_id')
+            or not value.get('completed_utc')
+            or datetime.fromisoformat(value['completed_utc']) >= datetime.fromisoformat(approval['approved_utc'])
+            or value.get('engine') != '24.8.14.39'):
+        raise ValueError('source-bound native publish/overflow/trim proof required before gates admission')
+    return value
+
+
 def rehearsal_proof(root, approval):
     path = Path(root) / 'deploy-rehearsal.json'
     value = json.loads(path.read_bytes())
+    continuation = approval.get('trim_native_sha256') is not None
+    if continuation:
+        trim_proof(root, approval)
+    source_valid = (digest(path) == BANKED_REHEARSAL_SHA256 if continuation else value.get('source_sha256') == sources())
     if (digest(path) != approval.get('rehearsal_sha256') or value.get('outcome') != 'PASS'
-            or value.get('source_sha256') != sources() or value.get('banked_P_sha256') != banked.ARCHIVE_SHA256
+            or not source_valid or value.get('banked_P_sha256') != banked.ARCHIVE_SHA256
             or value.get('actual_authorized_publish') is not True or value.get('hook_readiness') != 'PASS'
             or value.get('droplet_id') == approval.get('droplet_id')
             or not value.get('request_id') or value.get('recipient_pointers') != 10
@@ -39,7 +69,7 @@ def rehearsal_proof(root, approval):
     return value
 
 
-def initialize(scope, banked_archive, *, state, rehearsal=None, ssh_source_cidr=None):
+def initialize(scope, banked_archive, *, state, rehearsal=None, ssh_source_cidr=None, trim_native=None):
     """Validate offline inputs/rehearsal BEFORE cloud.initialize starts any clock."""
     import arm_f_cloud as cloud
     from arm_f_native import authorized_sources
@@ -52,7 +82,11 @@ def initialize(scope, banked_archive, *, state, rehearsal=None, ssh_source_cidr=
             if rehearsal is None:
                 raise ValueError('no gates admission clock without a real rehearsal receipt')
             shutil.copyfile(rehearsal, root / 'deploy-rehearsal.json')
-            rehearsal_proof(root, dict(rehearsal_sha256=digest(rehearsal), approved_utc=datetime.now(UTC).isoformat()))
+            approval = dict(rehearsal_sha256=digest(rehearsal), approved_utc=datetime.now(UTC).isoformat())
+            if trim_native is not None:
+                shutil.copyfile(trim_native, root / 'trim-native-proof.json')
+                approval['trim_native_sha256'] = digest(trim_native)
+            rehearsal_proof(root, approval)
         elif scope != 'F_DEPLOY_REHEARSAL':
             raise ValueError('explicit scoped purpose required')
         cloud.initialize(state=Path(state), scope=scope, ssh_source_cidr=ssh_source_cidr)
@@ -61,6 +95,10 @@ def initialize(scope, banked_archive, *, state, rehearsal=None, ssh_source_cidr=
         shutil.copyfile(banked_archive, private / 'banked-P.tar.gz')
         if rehearsal is not None:
             shutil.copyfile(rehearsal, private / 'deploy-rehearsal.json')
+        if trim_native is not None:
+            shutil.copyfile(trim_native, private / 'trim-native-proof.json')
+            controller['trim_native_sha256'] = digest(trim_native)
+            __import__('arm_f_failure').save(state, controller)
         return controller
 
 
@@ -125,12 +163,17 @@ async def one_publish(actions, output):
             request_id=record['request_id'], operation_id=record['operation_id'], doc_id=doc['doc_id'],
             recipient_pointers=10, native=native, api_ready_sha256=digest(root / 'F-api-ready.json'))
     finally:
+        failure.before_cleanup(output, operation='one_publish')
         await http.close()
         environment.stop(root, engine=True)
 
 
 def run(root):
-    actions = ScopedActions(root)
+    try:
+        actions = ScopedActions(root)
+    except BaseException as error:
+        failure.persist(root, error, stage='initialization', operation='ScopedActions')
+        raise
     is_rehearsal = actions.approval['scope'] == 'F_DEPLOY_REHEARSAL'
     runner = Programme(root, actions.host, scoped=True)
     stage = 'Banked-P'
@@ -151,6 +194,9 @@ def run(root):
             save(actions.root / 'deploy-rehearsal.json', result)
             print('[F-scoped] ACTUAL_DEPLOY_REHEARSAL_PASS; no gates lease started', flush=True)
             return result
+        if actions.approval.get('trim_native_sha256'):
+            stage = 'trim-first'
+            asyncio.run(arm_f_trim.run(actions.active_root, actions.root / 'trim-first'))
         methods = (actions.publish, actions.parity, actions.quiet, actions.follow,
             actions.population, actions.populated, actions.rebuild, actions.stale, actions.boundaries, actions.load)
         for gate, action in zip(SCOPED_ORDER[2:], methods, strict=True):
@@ -158,7 +204,8 @@ def run(root):
             runner.run(gate, action)
         return runner.results
     except BaseException as error:
-        save(actions.root / 'scoped-stop.json', dict(outcome='STOP', failure_class=type(error).__name__,
+        failure.persist(actions.root, error, stage=stage, operation='scoped_run')
+        save(actions.root / 'scoped-stop.json', dict(outcome='STOP', **failure.details(error),
             failed_stage=stage, classification=getattr(error, 'classification', 'gate_or_setup_failure'),
             scope=actions.approval['scope'], completed_gates=list(runner.results),
             unreached=[gate for gate in SCOPED_ORDER if gate not in runner.results]))
@@ -291,7 +338,8 @@ def repair_rehearsal(root, *, approval_name='rehearsal-repair-approval.json'):
         print('[F-scoped] ACTUAL_DEPLOY_REHEARSAL_PASS_AFTER_CHECKER_REPAIR; original STOP retained', flush=True)
         return result
     except BaseException as error:
-        save(output / 'stop.json', dict(outcome='STOP', failure_class=type(error).__name__, original_STOP_preserved=True))
+        failure.persist(output, error, operation='repair_rehearsal')
+        save(output / 'stop.json', dict(outcome='STOP', **failure.details(error), original_STOP_preserved=True))
         raise
     finally:
         environment.stop(trial, engine=True)

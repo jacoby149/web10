@@ -16,6 +16,7 @@ import shutil
 import subprocess
 import sys
 import time
+import traceback
 import uuid
 
 DOCTL = '/opt/homebrew/bin/doctl'
@@ -126,6 +127,10 @@ def tick(path, stop=False):
                 cleanup(lease)
         except Exception as error:
             lease['watchdog_error_class'] = type(error).__name__
+            # This copied watchdog remains stdlib-only. api() already replaces
+            # provider errors with fixed operation metadata, never response bodies.
+            lease['watchdog_error_message'] = str(error)
+            lease['watchdog_error_traceback'] = ''.join(traceback.format_exception(error))
             raise
         finally:
             save(path, lease)

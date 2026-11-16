@@ -46,6 +46,8 @@ class AdapterTests(unittest.TestCase):
             return list(result.column_names), list(result.result_rows)
 
         ch = SimpleNamespace(client=client, execute_query=execute, get_active_node_ads=Mock(), content_event_views_for_docs=Mock())
+        native = SimpleNamespace(query=query)
+        ch._get_client = lambda: native
         observer = SimpleNamespace(original_compile=Mock(), current=contextvars.ContextVar("adapter-test", default={"request_id": "a" * 32}), application=Mock())
         real_import = importlib.import_module
 

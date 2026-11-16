@@ -53,6 +53,7 @@ def ready(root, compose, env, boot_id, *, seconds=30):
             time.sleep(.25)
         raise StartupFailure('real F API readiness exceeded30 seconds')
     except BaseException as error:
+        __import__('arm_f_failure').persist(root, error, stage='startup', operation='ready', boot_id=boot_id)
         # Private host-only logs, never stdout HTTP bodies or credential copies in
         # public receipts. A process crash is observed immediately, not after180s.
         try:
@@ -63,7 +64,7 @@ def ready(root, compose, env, boot_id, *, seconds=30):
         except Exception:
             pass
         approval = json.loads((root / 'admission.json').read_bytes())
-        save(root / 'F-startup-failure.json', dict(outcome='STOP', failure_class=type(error).__name__,
+        save(root / 'F-startup-failure.json', dict(outcome='STOP', **__import__('arm_f_failure').details(error),
             classification='rehearsal_escape' if approval.get('scope') == 'F_GATES_ONLY' else 'startup_failure',
             elapsed_seconds=time.monotonic() - started, boot_id=boot_id))
         print('[F-startup] STOP', type(error).__name__, flush=True)

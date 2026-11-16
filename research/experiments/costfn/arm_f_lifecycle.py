@@ -83,6 +83,7 @@ async def follow(root, output):
         result.update(verified=True, native=http.native(sample['request_ids'], 'follow39-first-feed'))
         return result
     finally:
+        __import__('arm_f_failure').before_cleanup(output, stage='T3-F', operation='follow')
         save(output / 'follow39.json', result)
         await http.close()
         environment.stop(root)
@@ -130,6 +131,7 @@ async def stale(root, output):
         cases.append('cap_overflow_rejoin_history_and_tombstone')
         return {'verified': True, 'cases': cases, 'sample_request_ids': restored['request_ids']}
     finally:
+        __import__('arm_f_failure').before_cleanup(output, stage='T8-F', operation='stale')
         await http.close()
         environment.stop(root)
 
@@ -258,5 +260,6 @@ async def boundaries(root, output):
         cases.append('concurrent_publish_follow_fenced_canonical_rebuild')
         return {'verified': True, 'cases': cases, 'rebuild_receipt': str(path), 'rebuild': state}
     finally:
+        __import__('arm_f_failure').before_cleanup(output, stage='Boundaries', operation='boundaries')
         await http.close()
         environment.stop(root)

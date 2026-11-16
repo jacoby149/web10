@@ -212,9 +212,11 @@ class Actions:
                     key = (await lifecycle.fixture_groups(http, writer, token, [10], prefix='T5-spot'))[0]['group_id']
                     await lifecycle.checked_publish(http, token, key)
                 finally:
+                    __import__('arm_f_failure').before_cleanup(output, stage='T5-F', operation='publication_spot')
                     await http.close()
             asyncio.run(publication_spot())
         finally:
+            __import__('arm_f_failure').before_cleanup(output, stage='T5-F', operation='rebuild')
             environment.stop(self.active_root)
         return dict(verified=True, rebuild_sha256=digest(self.active_root / 'F-population-rebuild/result.json'), read_spot=samples,
             real_publish_spot='PASS')
@@ -233,7 +235,11 @@ class Actions:
 
 
 def run(root):
-    actions = Actions(root)
+    try:
+        actions = Actions(root)
+    except BaseException as error:
+        __import__('arm_f_failure').persist(root, error, stage='initialization', operation='Actions')
+        raise
     programme = Programme(root, actions.host)
     methods = (actions.step0, actions.build, actions.publish, actions.parity, actions.quiet, actions.follow,
                actions.population, actions.populated, actions.rebuild, actions.stale, actions.boundaries, actions.load)
@@ -241,6 +247,7 @@ def run(root):
         for gate, action in zip(ORDER, methods, strict=True):
             programme.run(gate, action)
     finally:
+        __import__('arm_f_failure').before_cleanup(root, operation='programme')
         if actions.active_root and (actions.active_root / 'restore.json').is_file():
             environment.stop(actions.active_root, engine=True)
     return programme.results

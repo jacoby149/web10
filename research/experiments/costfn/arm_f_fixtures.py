@@ -94,6 +94,7 @@ async def parity_fixture(root):
         save(root / 'fixture.json', result)
         return result
     finally:
+        __import__('arm_f_failure').before_cleanup(root, operation='parity_fixture')
         await http.close()
         environment.stop(root)
 

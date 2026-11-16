@@ -88,6 +88,8 @@ def deploy(*, detach=False, state_path=Path('.context/fanout-run.json')):
         admission.update(scope=state['scope'], banked_P_sha256=arm_f_banked.ARCHIVE_SHA256)
         if state['scope'] == 'F_GATES_ONLY':
             from arm_f_scoped import rehearsal_proof
+            if state.get('trim_native_sha256'):
+                admission['trim_native_sha256'] = state['trim_native_sha256']
             admission['rehearsal_sha256'] = hashlib.sha256((private / 'deploy-rehearsal.json').read_bytes()).hexdigest()
             rehearsal_proof(private, admission)
     prior_stop = Path(__file__).parent / 'evidence/arm-f-20261115/P-setup-stop/stop.json'
@@ -102,6 +104,8 @@ def deploy(*, detach=False, state_path=Path('.context/fanout-run.json')):
         transfer.append(('banked-P.tar.gz', private / 'banked-P.tar.gz'))
         if state['scope'] == 'F_GATES_ONLY':
             transfer.append(('deploy-rehearsal.json', private / 'deploy-rehearsal.json'))
+            if state.get('trim_native_sha256'):
+                transfer.append(('trim-native-proof.json', private / 'trim-native-proof.json'))
     for name, source in transfer:
         subprocess.run(['scp', *options, str(source), destination + ':/opt/fanout/' + name],
                        check=True, capture_output=True, timeout=180)

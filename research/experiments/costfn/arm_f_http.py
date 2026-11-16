@@ -46,11 +46,17 @@ class HTTP:
             if response.status_code not in allow:
                 response.raise_for_status()
             return response.json(), row
+        except BaseException as error:
+            identifiers = {key: body[key] for key in ('group_id', 'doc_id', 'groups', 'username') if key in body}
+            __import__('arm_f_failure').persist(self.output, error, operation=path,
+                request_id=request_id, operation_id=operation, **identifiers)
+            row.update(__import__('arm_f_failure').details(error))
+            raise
         finally:
             row['elapsed_ms'] = (time.perf_counter() - begin) * 1000
             row['ended_utc'] = datetime.now(UTC).isoformat()
             self.records.append(row)
-            # No HTTP body, JWT, response or arbitrary exception serialization.
+            # No HTTP body, JWT, response or frame locals; private sanitized diagnostics only.
             with (self.output / 'requests.jsonl').open('a') as stream:
                 stream.write(json.dumps(row) + '\n')
 

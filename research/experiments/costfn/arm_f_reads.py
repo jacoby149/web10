@@ -93,7 +93,7 @@ async def sequences(root, output, *, count=SAMPLES, expected=None, require_mode=
             if index and sum(int(query['read_bytes']) for query in sample['native']) >= 25_000_000 and count == SAMPLES:
                 raise ValueError('complete-response byte budget missed; stop before another trial')
     except BaseException as error:
-        save(output / 'failure.json', dict(failure_class=type(error).__name__, completed_samples=samples,
+        save(output / 'failure.json', dict(**__import__('arm_f_failure').details(error), completed_samples=samples,
             requests=http.records, parity='NOT_ESTABLISHED'))
         raise
     finally:
@@ -117,6 +117,7 @@ async def identical_contract(root, output):
             samples = await sequences(root, output / mode, count=1, expected=expected, require_mode=mode)
             results[mode] = samples
         finally:
+            __import__('arm_f_failure').before_cleanup(output, operation='identical_contract', mode=mode)
             environment.stop(root)
     return {'verified': True, 'same_contract': True, 'modes': results, 'fixture_sha256': digest(root / 'fixture.json')}
 
@@ -141,14 +142,14 @@ async def performance(parent, output, *, populated=False, seed=None):
         except BaseException as error:
             failure = error
             save(output / ('trial-' + str(index) + '-failure.json'),
-                 dict(trial=index, root=str(root), failure_class=type(error).__name__))
+                 dict(trial=index, root=str(root), **__import__('arm_f_failure').details(error)))
             raise
         finally:
             try:
                 environment.stop(root, engine=True)
             except BaseException as error:
                 save(output / ('trial-' + str(index) + '-cleanup-failure.json'),
-                     dict(trial=index, root=str(root), failure_class=type(error).__name__))
+                      dict(trial=index, root=str(root), **__import__('arm_f_failure').details(error)))
                 if failure is None:
                     raise
         if index < TRIALS - 1:

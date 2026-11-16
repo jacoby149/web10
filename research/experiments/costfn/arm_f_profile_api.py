@@ -73,7 +73,7 @@ def query(sql, *args, **kwargs):
                    read_bytes=int(summary.get('read_bytes', 0)), success=True)
         return result
     except Exception as error:
-        row.update(success=False, failure_class=type(error).__name__)
+        row.update(success=False, **__import__('arm_f_failure').details(error))
         raise
     finally:
         row['client_query_ms'] = (time.monotonic() - started) * 1000

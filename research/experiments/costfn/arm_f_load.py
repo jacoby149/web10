@@ -279,9 +279,11 @@ async def run(root, output):
                     scopes[reader].append(group_id)
                 event['success'] = True
             except httpx.HTTPError as error:
-                event['failure_class'] = type(error).__name__
+                event.update(__import__('arm_f_failure').details(error))
+                __import__('arm_f_failure').persist(output, error, operation=kind, reader=reader, index=index)
             except ValueError as error:
-                event['failure_class'] = type(error).__name__
+                event.update(__import__('arm_f_failure').details(error))
+                __import__('arm_f_failure').persist(output, error, operation=kind, reader=reader, index=index)
                 parity_failure.set()  # Never hide a semantic failure in the<1% HTTP-error allowance.
             finally:
                 if owns_reader_slot:
@@ -360,6 +362,7 @@ async def run(root, output):
         result['verified'] = True
         return result
     finally:
+        __import__('arm_f_failure').before_cleanup(output, stage='R+W', operation='load')
         for task in schedulers:
             task.cancel()
         if schedulers:

@@ -141,7 +141,7 @@ def build(root, *, step0_root=None):
         journal.close()
         save(state / 'build.json', result)
     except Exception as error:
-        result.update(outcome='STOP', failure_class=type(error).__name__)
+        result.update(outcome='STOP', **__import__('arm_f_failure').details(error))
         raise
     finally:
         result['updated_utc'] = datetime.now(UTC).isoformat()
