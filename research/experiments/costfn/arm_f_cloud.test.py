@@ -99,6 +99,18 @@ class HostReadinessTests(unittest.TestCase):
                 cloud.tick(path, stop=True)
             cleanup.assert_called_once()
 
+    def test_reappearing_host_resets_settling_even_if_delete_immediately_hides_it(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path, row = self.setup_lease(Path(directory))
+            lease = json.loads(path.read_bytes())
+            lease.update(created_epoch=1000, cleanup_absence_first_epoch=1100, cleanup_verified=True)
+            with (patch.object(cloud, 'account'),
+                  patch.object(cloud, 'api', side_effect=[[row], None, [], [], [], [], []]),
+                  patch.object(cloud.time, 'time', return_value=1200)):
+                cloud.cleanup(lease)
+            self.assertFalse(lease['cleanup_verified'])
+            self.assertEqual(lease['cleanup_absence_first_epoch'], 1200)
+
     def test_incomplete_list_requires_exact_id_full_ownership_before_delete(self):
         for wrong in (False, True):
             with self.subTest(wrong=wrong), tempfile.TemporaryDirectory() as directory:

@@ -93,6 +93,7 @@ def cleanup(lease):
     account(lease)
     for row in api('compute', 'droplet', 'list') or []:
         if row['id'] == lease.get('droplet_id') or lease['tag'] in row.get('tags', []):
+            lease.pop('cleanup_absence_first_epoch', None)
             if not owned(row, lease):
                 # LIST can briefly omit metadata during provisioning/deletion.
                 # Only our exact recorded ID may get a second, full GET check;

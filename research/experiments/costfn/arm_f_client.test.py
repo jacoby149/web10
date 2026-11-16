@@ -7,10 +7,20 @@ from types import SimpleNamespace
 import unittest
 
 from arm_f_client import dispatch
-from arm_f_trim_native import foreground_probe_sql, FOREGROUND_SQL
+from arm_f_trim_native import foreground_probe_sql, FOREGROUND_SQL, native_query_id
 
 
 class DispatchTests(unittest.TestCase):
+    def test_query_id_handles_real_driver_summary_method_and_result_property(self):
+        from clickhouse_connect.driver.summary import QuerySummary
+        from clickhouse_connect.driver.query import QueryResult
+        self.assertEqual(native_query_id(QueryResult(query_id='result-id')), 'result-id')
+        self.assertEqual(native_query_id(QuerySummary({'query_id': 'summary-id'})), 'summary-id')
+        for result in (SimpleNamespace(), SimpleNamespace(query_id=None), SimpleNamespace(query_id=lambda: None),
+                       SimpleNamespace(query_id=123), SimpleNamespace(query_id='')):
+            with self.assertRaisesRegex(ValueError, 'query identity'):
+                native_query_id(result)
+
     def test_overlap_probe_accepts_driver_appended_wire_format(self):
         import sqlglot
         from sqlglot import exp
