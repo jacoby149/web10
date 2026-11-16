@@ -99,6 +99,11 @@ def run(container, root):
                 lambda *args: None, scope_keys=['group:trim-fixture'])
             result['publications'] += 1
             failure.save(output / 'result.json', result)
+        def overflow(reader):
+            return store.rows(f.cache_sql(reader, []).replace("position<=200 AND group_id IN ('')", 'position>200'))
+        for reader in ('reader-a', 'reader-b'):
+            if len(overflow(reader)) != 5:
+                raise ValueError('native fixture did not establish five physical overflow identities per reader')
         def held_foreground():
             return old(FOREGROUND_SQL, settings={**limits, 'log_comment': 'F_TRIM_OLD_OVERLAP'})
         def await_foreground():
@@ -133,6 +138,8 @@ def run(container, root):
         if trimmed != 2 or journal.trim_batch(store.trim) != 0:
             raise ValueError('trim did not drain both dirty readers')
         for reader in ('reader-a', 'reader-b'):
+            if overflow(reader):
+                raise ValueError('native trim left physical overflow; logical200 alone is not trim proof')
             actual = store.rows(f.cache_sql(reader, ['trim-fixture']))
             if len(actual) != 200 or {row['doc_id'] for row in actual} != {'trim-' + str(i).zfill(3) for i in range(5, 205)}:
                 raise ValueError('native trimmed logical window differs')

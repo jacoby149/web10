@@ -41,6 +41,7 @@ jobs:
           python research/experiments/costfn/arm_f.test.py
           python research/experiments/costfn/arm_f_failure.test.py
           python research/experiments/costfn/arm_f_client.test.py
+          python research/experiments/costfn/arm_f_cloud.test.py
           python research/experiments/costfn/arm_f_api.test.py
           python research/experiments/costfn/arm_f_hooks.test.py
           python research/experiments/costfn/arm_f_startup.test.py

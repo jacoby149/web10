@@ -89,14 +89,24 @@ def firewall_verified(row, lease):
 
 def cleanup(lease):
     lease['cancelled'] = True
+    lease['cleanup_verified'] = False
     account(lease)
     for row in api('compute', 'droplet', 'list') or []:
         if row['id'] == lease.get('droplet_id') or lease['tag'] in row.get('tags', []):
             if not owned(row, lease):
-                raise ValueError('droplet ownership mismatch; no broad cleanup')
+                # LIST can briefly omit metadata during provisioning/deletion.
+                # Only our exact recorded ID may get a second, full GET check;
+                # every original ownership predicate must still match.
+                if row['id'] != lease.get('droplet_id'):
+                    raise ValueError('droplet ownership mismatch; no broad cleanup')
+                exact = api('compute', 'droplet', 'get', str(row['id']))
+                exact = exact[0] if isinstance(exact, list) else exact
+                if not owned(exact, lease):
+                    raise ValueError('droplet ownership mismatch on exact readback; no cleanup')
             api('compute', 'droplet', 'delete', str(row['id']), '--force')
     if any(row['id'] == lease.get('droplet_id') or lease['tag'] in row.get('tags', [])
            for row in api('compute', 'droplet', 'list') or []):
+        lease.pop('cleanup_absence_first_epoch', None)
         return
     for kind, id_key in (('firewall', 'firewall_id'), ('ssh-key', 'ssh_key_id')):
         for row in api('compute', kind, 'list') or []:
@@ -111,6 +121,14 @@ def cleanup(lease):
     if lease.get('creation_uncertain'):
         lease['cleanup_pending'] = 'uncertain creation: watchdog remains armed'
         return
+    now = time.time()
+    # A very early DELETE during provisioning can briefly disappear from LIST,
+    # then reappear. Never unload the independent watchdog on that single read.
+    first_absent = lease.setdefault('cleanup_absence_first_epoch', now)
+    if now < lease['created_epoch'] + 90 or now - first_absent < 10:
+        lease['cleanup_pending'] = 'provider creation/absence settling; watchdog remains armed'
+        return
+    lease.pop('cleanup_pending', None)
     lease.update(cleanup_verified=True, cleanup_epoch=time.time())
 
 
@@ -123,7 +141,7 @@ def tick(path, stop=False):
         try:
             account(lease)
             lease.update(watchdog_seen_epoch=time.time(), watchdog_api_verified=True)
-            if not lease.get('cleanup_verified') and (stop or lease.get('cancelled') or time.time() >= lease['deadline']):
+            if stop or (not lease.get('cleanup_verified') and (lease.get('cancelled') or time.time() >= lease['deadline'])):
                 cleanup(lease)
         except Exception as error:
             lease['watchdog_error_class'] = type(error).__name__
@@ -235,6 +253,49 @@ def create(path):
         lease.update(droplet_id=row['id'], creation_uncertain=False)
         save(path, lease)
         print(json.dumps({'droplet_id': row['id'], 'deadline_utc': datetime.fromtimestamp(lease['deadline'], UTC).isoformat()}))
+
+
+def bind_ready_host(path, *, seconds=120):
+    """Observe one already-created owned host; never provision, adopt or renew.
+
+    DigitalOcean can return networks={} while a fresh droplet is provisioning.
+    Wait for active + one public IPv4, then pin the preinstalled host key. An
+    incomplete response is readiness evidence, not a KeyError or a new lease.
+    """
+    path = Path(path)
+    root = path.parent
+    if type(seconds) is not int or not 1 <= seconds <= 120:
+        raise ValueError('bounded host-readiness wait required')
+    if (root / 'host.json').exists() or (root / 'known_hosts').exists():
+        raise ValueError('host binding already exists; no adoption or overwrite')
+    started = time.monotonic()
+    while time.monotonic() - started < seconds:
+        lease = json.loads(path.read_bytes())
+        validate(lease)
+        if (lease.get('cancelled') or lease.get('cleanup_verified') or not lease.get('droplet_id')
+                or time.time() >= lease['deadline'] - 300):
+            raise ValueError('closed/unguarded host-readiness admission')
+        rows = api('compute', 'droplet', 'get', str(lease['droplet_id']))
+        row = rows[0] if isinstance(rows, list) else rows
+        if not owned(row, lease):
+            raise ValueError('host-readiness ownership mismatch')
+        addresses = [value['ip_address'] for value in (row.get('networks') or {}).get('v4', [])
+                     if value.get('type') == 'public' and value.get('ip_address')]
+        if row.get('status') == 'active' and len(addresses) == 1:
+            address = str(ipaddress.IPv4Address(addresses[0]))
+            public_key = (root / 'host-key.pub').read_text().strip()
+            if not public_key.startswith('ssh-ed25519 ') or '\n' in public_key:
+                raise ValueError('preinstalled exact host public key required')
+            fd = os.open(root / 'known_hosts', os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(fd, 'w') as stream:
+                stream.write(address + ' ' + public_key + '\n')
+                stream.flush()
+                os.fsync(stream.fileno())
+            value = dict(id=row['id'], ip=address, bound_utc=datetime.now(UTC).isoformat())
+            save(root / 'host.json', value)
+            return value
+        time.sleep(2)
+    raise TimeoutError('owned host did not become active with one public IPv4 within bounded wait')
 
 
 if __name__ == '__main__':
