@@ -28,6 +28,37 @@ def ssh_options(private, jump=None):
     return options
 
 
+def wait_for_ssh(private, destination, *, jump=None, seconds=120):
+    """Bounded authenticated readiness only; never loosen the pinned host key."""
+    if type(seconds) is not int or not 1 <= seconds <= 120:
+        raise ValueError('bounded SSH readiness wait required')
+    private = Path(private)
+    lease = json.loads((private / 'lease.json').read_bytes())
+    cloud.validate(lease)
+    command = ['ssh', *ssh_options(private, jump), destination, 'true']
+    started = time.monotonic()
+    last = None
+    while time.monotonic() - started < seconds:
+        if lease.get('cancelled') or time.time() >= lease['deadline'] - 300:
+            raise ValueError('SSH readiness admission closed')
+        try:
+            result = subprocess.run(command, capture_output=True, timeout=15)
+            if result.returncode == 0:
+                return
+            last = subprocess.CalledProcessError(result.returncode, command,
+                output=result.stdout, stderr=result.stderr)
+        except subprocess.TimeoutExpired as error:
+            last = error
+        time.sleep(2)
+        lease = json.loads((private / 'lease.json').read_bytes())
+    from arm_f_failure import persist
+    error = TimeoutError('pinned authenticated SSH did not become ready within bounded wait')
+    if last is not None:
+        persist(private, last, stage='SSH_readiness', operation='authenticated_true')
+    persist(private, error, stage='SSH_readiness', operation='authenticated_true')
+    raise error from last
+
+
 def worker_command(remaining, here, *, detach=False, scoped=False):
     if type(remaining) is not int or not 300 <= remaining <= 14100:
         raise ValueError('worker must fit the original four-hour lease and cleanup margin')

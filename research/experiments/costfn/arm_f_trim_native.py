@@ -34,6 +34,15 @@ def foreground_probe_sql():
     return 'SELECT query_id,query FROM system.processes WHERE startsWith(query,' + literal(FOREGROUND_SQL) + ')'
 
 
+def native_query_id(result):
+    """QueryResult has a property; clickhouse-connect1.6 QuerySummary a method."""
+    value = getattr(result, 'query_id', None)
+    value = value() if callable(value) else value
+    if not isinstance(value, str) or not value:
+        raise ValueError('native result did not expose a nonempty string query identity')
+    return value
+
+
 def run(container, root):
     import clickhouse_connect
     from clickhouse_connect.driver.exceptions import ProgrammingError
@@ -63,7 +72,7 @@ def run(container, root):
     def query(sql, *args, **kwargs):
         kwargs['settings'] = {**limits, 'log_comment': 'F_TRIM_NATIVE', **kwargs.get('settings', {})}
         answer = namespace['_get_client']().query(sql, *args, **kwargs)
-        query_ids.append(answer.query_id)
+        query_ids.append(native_query_id(answer))
         failure.save(output / 'query-ids.json', query_ids)
         return answer
     try:
@@ -82,10 +91,8 @@ def run(container, root):
         def insert(*args, **kwargs):
             kwargs['settings'] = {**limits, 'log_comment': 'F_TRIM_NATIVE', **kwargs.get('settings', {})}
             answer = native_insert(*args, **kwargs)
-            identity = getattr(answer, 'query_id', None)
-            if identity:
-                query_ids.append(identity)
-                failure.save(output / 'query-ids.json', query_ids)
+            query_ids.append(native_query_id(answer))
+            failure.save(output / 'query-ids.json', query_ids)
             return answer
         proxy.query = query
         proxy.insert = insert
@@ -99,6 +106,13 @@ def run(container, root):
                 lambda *args: None, scope_keys=['group:trim-fixture'])
             result['publications'] += 1
             failure.save(output / 'result.json', result)
+        def overflow(reader):
+            return store.rows(f.cache_sql(reader, []).replace("position<=200 AND group_id IN ('')", 'position>200'))
+        for reader in ('reader-a', 'reader-b'):
+            if len(overflow(reader)) != 5:
+                raise ValueError('native fixture did not establish five physical overflow identities per reader')
+        result['physical_overflow_before'] = {'reader-a': 5, 'reader-b': 5}
+        failure.save(output / 'result.json', result)
         def held_foreground():
             return old(FOREGROUND_SQL, settings={**limits, 'log_comment': 'F_TRIM_OLD_OVERLAP'})
         def await_foreground():
@@ -133,9 +147,14 @@ def run(container, root):
         if trimmed != 2 or journal.trim_batch(store.trim) != 0:
             raise ValueError('trim did not drain both dirty readers')
         for reader in ('reader-a', 'reader-b'):
+            if overflow(reader):
+                raise ValueError('native trim left physical overflow; logical200 alone is not trim proof')
             actual = store.rows(f.cache_sql(reader, ['trim-fixture']))
             if len(actual) != 200 or {row['doc_id'] for row in actual} != {'trim-' + str(i).zfill(3) for i in range(5, 205)}:
                 raise ValueError('native trimmed logical window differs')
+        result.update(physical_overflow_after={'reader-a': 0, 'reader-b': 0},
+            repaired_trim_cycle='OBSERVED_PASS_PENDING_NATIVE_ATTRIBUTION', overlap_observed=True)
+        failure.save(output / 'result.json', result)
         control.command('SYSTEM FLUSH LOGS')
         from arm_satellite_sql import literal
         native = control.query('SELECT query_id,exception_code,read_rows,read_bytes,written_rows FROM system.query_log '
@@ -156,9 +175,10 @@ def run(container, root):
         try:
             control.command('SYSTEM FLUSH LOGS')
             from arm_satellite_sql import literal
+            valid_ids = [value for value in query_ids if isinstance(value, str) and value]
             observed = control.query('SELECT query_id,toString(type) AS type,exception_code,exception,stack_trace,'
                 'read_rows,read_bytes,written_rows FROM system.query_log WHERE (query_id IN ('
-                + (','.join(literal(value) for value in query_ids) or "''")
+                + (','.join(literal(value) for value in valid_ids) or "''")
                 + ") OR log_comment IN ('F_TRIM_OLD_OVERLAP','F_TRIM_NATIVE')) AND type IN "
                 "('QueryFinish','ExceptionBeforeStart','ExceptionWhileProcessing')")
             result['stopped_native'] = [dict(zip(observed.column_names, row)) for row in observed.result_rows]

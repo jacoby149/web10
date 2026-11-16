@@ -25,6 +25,95 @@ reading beyond the retained 200 pointers without missing eligible content.
 
 ## 1. Recipient/member predicate — approved; no membership counter
 
+### Expired gates recovery —16 November20:17UTC; evidence loss, not a gate verdict
+
+Recovery finds DO619846432 powered off, no gates archive in local controller
+storage, and the launchd provider watchdog unable to spawn (exit78). Its command
+points at a vanished temporary uv-build Python; its last tick before recovery
+was11:55:07UTC. The source used `sys.executable`, so deleting the calling uv
+environment also removed the supposedly independent watchdog's interpreter.
+This is a harness defect, not operator fault and not a native query failure.
+
+No host or engine was restarted after the15:26:06UTC deadline. Overdue owned
+droplet/firewall/key cleanup verifies20:17:33.018196UTC,17,487s late. Elapsed SKU
+estimate$2.2144 includes powered-off droplet time and exceeds the admitted2USD;
+it is not CPU time, an invoice, a billing guarantee or a retroactive extension.
+The ephemeral root's trial receipts were not recovered before deletion to stop
+continued provider charges. Exact native stop time is unverified.
+
+| Stage/evidence | Recovery verdict |
+|---|---|
+| Banked PR#1572 P/deploy proof/60 partial writes | Preserved, not remeasured/reclassified |
+| Native trim fixture | PASS retained, six-source binding unchanged |
+| Build and real deployed trim-first | NOT_RECOVERED |
+| T4, T2-F, T6-F, T3-F | NOT_RECOVERED |
+| Population, populated T6, T5-F, T8-F, Boundaries, R+W | NOT_RECOVERED |
+
+Unknown execution is **not** evidence that a stage was unreached, failed or
+passed. Public incident: `evidence/arm-f-trim-20261116/expired-gates-recovery.json`.
+No performance/capacity/whole-arm result can be recovered from the missing files.
+
+Source repair selects and resolves the durable base interpreter, rejects temporary
+build paths, preflights isolated stdlib imports, and records the exact `-I -S`
+watchdog command. Offline controls delete a simulated launcher environment: the
+old path fails and the durable command still executes. This repairs the observed
+interpreter-lifetime defect only. Controller-independent private receipt export,
+interruption recovery and dependence on the operator machine remaining available
+are still OPEN before fresh paid admission. No automatic retry, new host,
+production or T7 action is authorized by this recovery.
+
+All186 F/satellite no-engine controls, focused Ruff and whitespace checks pass;
+the banked native fixture's six source hashes still match. Provider inventory
+readback confirms zero droplets/no owned firewall or key. The dead local watchdog
+registration, own temporary private keys and expired archive GET capabilities
+are removed. These controls do not recover the lost trial receipts or validate
+any F performance gate.
+
+### Native trim verdict PASS; fresh F gates admitted —16 November
+
+**Diagnosis:** saving a bound ClickHouse method on the import thread bypasses
+the core's per-thread lookup. Native overlap through the actual journal/Store
+trim path reproduces `ProgrammingError: Attempt to execute concurrent queries
+within the same session. Please use a separate client instance per thread/process.`
+The full stack is retained in
+`evidence/arm-f-trim-20261116/native-fixture-pass.json`. This establishes the
+failure mechanism and its repaired fixture, not the exact historical exception
+whose message/stack the original T4 run lost.
+
+**Fixture:** fresh DO619845312,11:22:10→15:22:10UTC, passes at11:25:04UTC on
+24.8.14.39 in the unchanged32/28/22GiB envelope.205 coordinator publications
+create410 pointers. Both readers have five physical overflow identities before
+trim, zero after, and exact newest200 identities under observed foreground
+overlap.420 unique native query rows have zero repaired-cycle exceptions and
+maximum264 read rows;420 written rows are410 publication pointers+10 trim
+tombstones, not measured storage/merge amplification. No pending intents remain.
+Private proof SHA`7d86a5fa760969fea25a04ef4b0137156ddb95e3c01eb75b15c9df678c44c9c2`,
+archive SHA`5766b21ed5d7573ab4d509816ffe55aedac11e899262554378f13fe8749aee51`.
+Owned host/firewall/key cleanup verifies11:25:41UTC before the original deadline.
+
+**Harness history and controls:** retain pre-engine starts DO619839835/619841442
+and DO619842914's native attribution STOP. A transient missing provider IPv4
+field, one-shot SSH boot readiness and provider deletion/list consistency exposed
+controller gaps. Early absence verification on619839835 is explicitly retracted;
+stable owned cleanup verifies11:09:56UTC.619841442 cleanup verifies11:12:22UTC;
+619842914 cleanup verifies11:20:34UTC. Bounded readiness retains strict preinstalled
+host keys and the verified gateway. Cleanup retains every ownership predicate,
+uses exact-ID readback for incomplete LIST metadata and waits for settled absence
+before unloading its watchdog. The native attribution defect was a real driver
+API mismatch: QueryResult.query_id is a property, QuerySummary.query_id() a
+method. Explicit normalization and an actual pinned1.6.0 no-engine regression
+repair it; all183 F/satellite controls and focused Ruff pass. No earlier STOP is
+rewritten as a passing attempt, and no native work resumes on those closed leases.
+
+**Fresh gates binding:** separately authorized F_GATES_ONLY DO619846432 is bound
+11:26:06→15:26:06UTC, four hours/$2, same engine/32-28-22GiB/ten-second measured
+reads/>10M stop and layered cleanup. Native trim proof passes before admission;
+PR#1572 P and the exact banked deploy rehearsal are cited, not remeasured. The
+real authorized periodic trim-first cell must pass before the complete T4 schedule,
+then the unchanged contract order through R+W. No full deploy re-rehearsal,
+automatic restart/extension, T7/P1/production action or gate/performance PASS is
+implied by admission. New gate results remain OPEN until actual receipts arrive.
+
 ### Trim diagnosis and T4-first continuation —16 November, before repair
 
 **Execution update: fixture STOP, not native acceptance.** Fresh isolated
