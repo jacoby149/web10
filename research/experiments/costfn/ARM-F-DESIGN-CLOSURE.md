@@ -25,6 +25,62 @@ reading beyond the retained 200 pointers without missing eligible content.
 
 ## 1. Recipient/member predicate — approved; no membership counter
 
+### Trim diagnosis and T4-first continuation —16 November, before repair
+
+**Execution update: fixture STOP, not native acceptance.** Fresh isolated
+DO619832253 is bound10:48:48→14:48:48UTC in the unchanged four-hour/$2 shape.
+Executing1,379 source files verify; the24.8.14.39/28GiB-container/22GiB-server
+fixture completes205 synthetic coordinator publication intents for two readers.
+It then stops before old-capture trim, with `TimeoutError: native foreground
+overlap was not observed`. Both dirty readers remain at generation205/trimmed0.
+The source-level detector used exact submitted-SQL equality; the pinned driver
+appends FORMAT Native. The repaired prefix detector has an offline regression,
+not a new native PASS. Earlier query IDs/native rows were not retained by this
+first fixture either; incremental-ID and before-cleanup native collection are
+now source repairs. Call this a harness failure, not evidence about trim.
+
+Full message/stack and cleanup are in
+`evidence/arm-f-trim-20261116/native-preflight-stop.json`; private archive SHA256
+`5e66baf10d6eb79194724789aab2b9d864154415a7659e0d5dc66eeecdbb4f26`.
+Owned droplet/firewall/key absence verifies10:51:53.249998UTC, before the original
+deadline; estimated compute$0.012865 is not an invoice. No retry/extension or
+gates admission follows. The historical trim cause remains unconfirmed; both
+native reproductions and every continuation gate remain OPEN. Source controls
+and a prepared trim-first driver are not native acceptance.
+
+Local verification after the fixture STOP:174 no-engine F/satellite controls,
+focused Ruff and whitespace checks pass. Own temporary cloud keys are removed
+and the exact watchdog is unloaded only after verified provider cleanup. No PR,
+CI-green, independent-review or native-success claim follows from these checks.
+
+**Hypothesis, not a retrospective verdict:** `arm_satellite_api._query` and F's
+`original_command`/`original_insert` capture bound methods while importing on the
+startup thread. The core `_LazyClickHouse.__getattr__` resolves `_get_client()`
+at attribute lookup, not at invocation. Those saved methods therefore bypass
+per-thread connection ownership. The 60-second trim worker can share the startup
+connection with foreground workers; clickhouse-connect rejects overlapping use
+of a session with `ProgrammingError`. The old receipt establishes the class and
+maintenance origin, but lacks message/stack: it cannot establish this cause.
+Retain the original STOP and stopped native parts unchanged. A no-engine overlap
+replay can prove the dispatch defect, not the historical native exception.
+
+Operator direction requires durable private failure receipts before cleanup:
+type, complete diagnostic message/traceback (no frame locals or credentials),
+cell/stage/operation and reader/group/document identifiers, plus native query IDs
+and query-log rows for engine failures. Missing native evidence must be explicit,
+never an invented engine verdict. A class-only stop is a harness failure.
+
+Native fixture admission precedes gates admission: reproduce the old dispatch
+failure, then pass publish→overflow→trim through the real coordinator, including
+readers above200 and overlapping workers. Cite the banked real-deploy rehearsal
+and PR#1572 P baseline; do not repeat Step0 or buy another full rehearsal. The
+fresh gates host must open with the trim cycle before the complete T4 schedule,
+then T2-F→T6-F→T3-F→Population→T6-F-populated→T5-F→T8-F→Boundaries→R+W.
+Keep32/28/22GiB,24.8.14.39,10-second measured reads,>10M stop, four hours/$2,
+layered cleanup and a stated deadline. No automatic retry/extension; T7 remains
+separate. This entry records direction and the pre-fix hypothesis, not native
+proof, a newly provisioned host or a gate PASS.
+
 ### Final scoped-run verdict — T4 STOP,16 November03:52:17UTC
 
 DO619706349 completes the hash-verified restore, scoped infrastructure spots and
@@ -604,7 +660,7 @@ aa90341a0795f7f88a622a939f190b6f9d4bf50444a7181785351db3d126d352  api/app/v3/end
 d9fa359eadf6e5b9792923913e3fb14a453759afc7f7fb774d1c86968cd5f030  api/app/v3/services/clickhouse.py
 411c9d51f592e66d33e6e654e1b0665225cd89ec4bbb56d6be2f50aa4da2bf61  api/app/v3/services/safe_query.py
 675d2bc7030d7efb3c636489366937486f508d74146d1b4249801a40c5a12518  marketing/web10-social/src/data/feed.ts
-0db24ffd00d5f2f36ba7e21ce3e056b95ed5ec736e5939135d3c174f528b5163  research/experiments/costfn/arm_satellite_api.py
+25b667f2ae901e1f1bbcbb005fe3ccae9c8bb88fbb903837035df88aabcac228  research/experiments/costfn/arm_satellite_api.py
 a91133de21e61fed81b10fb2e2bcbd20eeb73f3c4e782170873aa92fbd553bfb  research/experiments/costfn/arm_satellite_pull.py
 2c9b198f8b290d7f1287f1e1fc6179bbf81050ca4b7a75af8a34579214347bdd  research/experiments/costfn/evidence/core-feed-wire-v7.json
 b51f94c2f54ce84f9cc9bb0755f83956b365f0c793af880d88ec255ffd3a869c  research/experiments/costfn/arm_satellite_serve.py

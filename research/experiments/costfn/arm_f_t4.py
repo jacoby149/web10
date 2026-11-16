@@ -190,7 +190,9 @@ async def run(root):
                 physical_written_rows=sum(int(row['written_rows']) for row in native),
                 physical_written_bytes=sum(int(row['written_bytes']) for row in native))
         except Exception as error:
-            result.update(outcome='STOP', failure_class=type(error).__name__)
+            result.update(outcome='STOP', **__import__('arm_f_failure').details(error))
+            __import__('arm_f_failure').persist(root, error, stage='T4', groups=result['groups'],
+                operation='publish_schedule')
             (root / 'F.stop').write_text('T4_' + type(error).__name__ + '\n')
             raise
         finally:

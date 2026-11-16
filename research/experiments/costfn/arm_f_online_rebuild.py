@@ -116,7 +116,7 @@ def run(root, p, journal, fence, approval, active):
                 {'canonical_generation': before, 'source_sha256': command['source_sha256']}, lambda: None, apply, lambda *a: None)
             state.update(outcome='PASS', result=result, readers=result['readers'])
     except BaseException as error:
-        state.update(outcome='STOP', failure_class=type(error).__name__)
+        state.update(outcome='STOP', **__import__('arm_f_failure').details(error))
         (root / 'F.stop').write_text('fenced_rebuild_' + type(error).__name__ + '\n')
         raise
     finally:
@@ -133,7 +133,7 @@ def start(root, p, journal, fence, approval, active, fail):
             try:
                 run(root, p, journal, fence, approval, active)
             except BaseException as error:
-                fail('fenced_rebuild_' + type(error).__name__)
+                fail('fenced_rebuild_' + type(error).__name__, error)
                 break
     threading.Thread(target=loop, daemon=True).start()
     return stop

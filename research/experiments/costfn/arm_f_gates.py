@@ -9,6 +9,7 @@ import math
 from pathlib import Path
 
 import arm_t
+import arm_f_failure as failure
 from arm_f_native import save
 
 ORDER = ('Step0', 'Build', 'T4', 'T2-F', 'T6-F', 'T3-F', 'Population',
@@ -97,6 +98,7 @@ class Programme:
             predecessors={name: digest(self.directory / name / 'result.json') for name in self.results})
         save(output / 'result.json', value)
         print('[F-programme] start', gate, flush=True)
+        diagnostic_token = failure.current.set(dict(stage=gate, cell=gate, operation=getattr(action, '__name__', gate)))
         try:
             evidence = action(output)
             if not isinstance(evidence, dict) or evidence.get('verified') is not True:
@@ -105,7 +107,8 @@ class Programme:
             if 'population_receipt_sha256' in evidence:
                 value['population_receipt_sha256'] = evidence['population_receipt_sha256']
         except BaseException as error:
-            value.update(outcome='STOP', failure_class=type(error).__name__)
+            value.update(outcome='STOP', **failure.details(error))
+            failure.persist(self.root, error, stage=gate, cell=gate)
             if getattr(error, 'classification', None) == 'rehearsal_escape':
                 value['classification'] = 'rehearsal_escape'
             self.results[gate] = value
@@ -118,5 +121,6 @@ class Programme:
             save(self.directory / 'programme.json', dict(outcome='STOP' if value['outcome'] == 'STOP' else
                 ('PASS' if gate == self.order[-1] else 'INCOMPLETE'), gates=self.results,
                 unreached=[g for g in self.order if g not in self.results]))
+            failure.current.reset(diagnostic_token)
         print('[F-programme] PASS', gate, flush=True)
         return value

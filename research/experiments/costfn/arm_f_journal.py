@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 import sqlite3
 import threading
+import arm_f_failure as failure
 
 log = logging.getLogger('arm-f')
 FORBIDDEN = {'token', 'password', 'authorization', 'cookie', 'access_key', 'secret_key', 'signed_url'}
@@ -34,6 +35,7 @@ def encoding(value):
 class Journal:
     def __init__(self, directory):
         root = Path(directory)
+        self.root = root
         root.mkdir(mode=0o700, parents=True, exist_ok=True)
         if root.is_symlink() or any((root / name).is_symlink() for name in ('coordinator.lock', 'intents.sqlite')):
             raise ValueError('journal paths must not be symlinks')
@@ -109,9 +111,13 @@ class Journal:
             # No transaction held across canonical writes; crashes stay visibly pending.
             with self.lock:
                 self.db.execute("UPDATE intents SET state='reconciling' WHERE sequence=?", (sequence,))
-            result = apply(sequence, json.loads(raw))
-            log.info('[arm-f] canonical apply complete sequence=%d', sequence)
-            reconcile(sequence, json.loads(raw), result)
+            identifiers = {key: payload[key] for key in ('reader', 'group_id', 'doc_id', 'groups',
+                'member_key', 'requester_key', 'author_as', 'service') if key in payload}
+            with failure.operation(self.root, operation=operation, operation_id=operation_id,
+                                   sequence=sequence, actor=actor, **identifiers):
+                result = apply(sequence, json.loads(raw))
+                log.info('[arm-f] canonical apply complete sequence=%d', sequence)
+                reconcile(sequence, json.loads(raw), result)
             log.info('[arm-f] reconciliation complete sequence=%d', sequence)
             result_raw = encoding(result)
             with self.lock:
@@ -132,8 +138,9 @@ class Journal:
             rows = self.db.execute('SELECT reader_key,generation FROM dirty_readers '
                 'WHERE generation>trimmed_generation ORDER BY generation,reader_key LIMIT ?', (limit,)).fetchall()
         for reader, generation in rows:
-            if trim(reader) is False:
-                continue
+            with failure.operation(self.root, operation='trim_reader', reader=reader, generation=generation):
+                if trim(reader) is False:
+                    continue
             with self.lock:
                 self.db.execute('UPDATE dirty_readers SET trimmed_generation=? WHERE reader_key=? AND generation=?',
                                 (generation, reader, generation))

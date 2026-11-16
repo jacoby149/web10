@@ -115,7 +115,7 @@ def run(session, root):
         result['cases'].append('duplicate_batch_refused')
         result.update(outcome='PASS', logical_routes=len(wanted))
     except Exception as error:
-        result.update(outcome='STOP', failure_class=type(error).__name__)
+        result.update(outcome='STOP', **__import__('arm_f_failure').details(error))
         raise
     finally:
         save(builder.output / 'result.json', result)

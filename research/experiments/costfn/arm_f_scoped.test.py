@@ -9,7 +9,7 @@ import sqlite3
 import tempfile
 from types import SimpleNamespace
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import sqlglot
 from sqlglot import exp
@@ -196,6 +196,52 @@ class ScopedTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'no gates admission clock'):
                 scoped.initialize('F_GATES_ONLY', '/nonexistent-test-archive', state='unused')
         initialize.assert_not_called()
+
+    def test_trim_continuation_refuses_stop_missing_stack_source_drift_and_native_errors(self):
+        for fault in ('none', 'stop', 'stack', 'source', 'engine'):
+            with self.subTest(fault=fault), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                value = dict(outcome='PASS', readers=2, publications=205, logical_cap=200,
+                    droplet_id=123, completed_utc=(datetime.now(UTC) - timedelta(minutes=1)).isoformat(),
+                    overlap_observed=True, journal_pending=[], engine='24.8.14.39',
+                    old_capture_failure=dict(failure_class='ProgrammingError', failure_traceback='synthetic full stack',
+                        failure_message='Attempt to execute concurrent queries within the same session.'),
+                    native=[dict(query_id='synthetic-native', exception_code=0, read_rows=1)],
+                    source_sha256={name: gates.digest(Path(scoped.__file__).with_name(name)) for name in scoped.TRIM_SOURCES})
+                if fault == 'stop':
+                    value['outcome'] = 'STOP'
+                elif fault == 'stack':
+                    del value['old_capture_failure']['failure_traceback']
+                elif fault == 'source':
+                    value['source_sha256'] = {}
+                elif fault == 'engine':
+                    value['native'][0]['exception_code'] = 241
+                path = root / 'trim-native-proof.json'
+                path.write_text(json.dumps(value))
+                approval = dict(trim_native_sha256=gates.digest(path), approved_utc=datetime.now(UTC).isoformat())
+                if fault == 'none':
+                    self.assertEqual(scoped.trim_proof(root, approval)['outcome'], 'PASS')
+                else:
+                    with self.assertRaises(ValueError):
+                        scoped.trim_proof(root, approval)
+
+    def test_trim_first_failure_stops_before_t4_and_persists_stack(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            actions = SimpleNamespace(root=root, host=123,
+                approval={'scope': 'F_GATES_ONLY', 'trim_native_sha256': 'synthetic'}, active_root=root,
+                setup=Mock(), cite=Mock(return_value={'verified': True}), build=Mock(return_value={'verified': True}),
+                publish=Mock())
+            with (patch.object(scoped, 'ScopedActions', return_value=actions),
+                  patch.object(scoped.arm_f_trim, 'run', AsyncMock(side_effect=RuntimeError('synthetic trim-first wound'))),
+                  patch.object(scoped.environment, 'stop')):
+                with self.assertRaisesRegex(RuntimeError, 'trim-first wound'):
+                    scoped.run(root)
+            actions.publish.assert_not_called()
+            stop = json.loads((root / 'scoped-stop.json').read_bytes())
+            self.assertEqual(stop['failed_stage'], 'trim-first')
+            self.assertIn('RuntimeError: synthetic trim-first wound', stop['failure_traceback'])
+            self.assertIn('T4', stop['unreached'])
 
     def test_scoped_programme_cites_but_never_reexecutes_step0(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -22,6 +22,8 @@ import sqlglot
 
 import arm_f as f
 import arm_f_hooks
+import arm_f_failure as failure
+from arm_f_client import dispatch
 from arm_f_banked import ARCHIVE_SHA256 as BANKED_P_SHA256
 import arm_f_observe as observation
 import arm_f_views
@@ -65,8 +67,8 @@ MODE = os.environ.get('FANOUT_SERVING_MODE', 'F_DOCUMENT_STREAM_V1')
 if MODE not in ('F_DOCUMENT_STREAM_V1', 'P_DOCUMENT_STREAM_V1'):
     raise RuntimeError('explicit separately labelled document contract required')
 
-original_command = p.ch.client.command
-original_insert = p.ch.client.insert
+original_command = dispatch(p.ch._get_client, 'command', p.ch.client.command)
+original_insert = dispatch(p.ch._get_client, 'insert', p.ch.client.insert)
 
 
 def command(sql, *args, **kwargs):
@@ -75,7 +77,7 @@ def command(sql, *args, **kwargs):
     settings.update(max_execution_time=10, max_memory_usage=22 * 1024**3,
                     max_rows_to_read=10_000_000, read_overflow_mode='throw')
     current = p.observer.current.get()
-    settings['log_comment'] = 'F_WRITE:' + (current['request_id'] if current else 'background')
+    settings['log_comment'] = 'F_WRITE:' + (current['request_id'] if current else 'background-' + uuid.uuid4().hex)
     kwargs['settings'] = settings
     try:
         return original_command(sql, *args, **kwargs)
@@ -94,7 +96,8 @@ def command(sql, *args, **kwargs):
             log.warning('[arm-f] lifespan schema warning code=16 class=%s sql_sha256=%s',
                 type(error).__name__, hashlib.sha256(sql.encode()).hexdigest())
         else:
-            fail('native_command_' + type(error).__name__)
+            failure.engine_failure(ROOT, error, p.ch._get_client, log_comment=settings['log_comment'], operation='command')
+            fail('native_command_' + type(error).__name__, error)
         raise
 
 
@@ -102,7 +105,7 @@ def insert(*args, **kwargs):
     active()
     settings = dict(kwargs.get('settings') or {})
     current = p.observer.current.get()
-    settings['log_comment'] = 'F_WRITE:' + (current['request_id'] if current else 'background')
+    settings['log_comment'] = 'F_WRITE:' + (current['request_id'] if current else 'background-' + uuid.uuid4().hex)
     settings['max_memory_usage'] = 22 * 1024**3
     kwargs['settings'] = settings
     try:
@@ -113,7 +116,8 @@ def insert(*args, **kwargs):
             observation.pointers(ROOT, current, table, rows, kwargs.get('column_names'))
         return result
     except Exception as error:
-        fail('native_insert_' + type(error).__name__)
+        failure.engine_failure(ROOT, error, p.ch._get_client, log_comment=settings['log_comment'], operation='insert')
+        fail('native_insert_' + type(error).__name__, error)
         raise
 
 
@@ -122,7 +126,7 @@ p.ch.client.insert = insert
 original_query = p.ch.client.query
 
 
-def query(sql=None, *args, **kwargs):
+def checked_query(sql=None, *args, **kwargs):
     current = p.observer.current.get()
     if current and current.get('request_id') != 'unlabelled':
         settings = dict(kwargs.get('settings') or {})
@@ -140,11 +144,24 @@ def query(sql=None, *args, **kwargs):
         result = original_query(*bound.args, **bound.kwargs)
         values = arm_f_views.verify(result.result_rows)
     except Exception as error:
-        fail('view_oracle_' + type(error).__name__)
+        fail('view_oracle_' + type(error).__name__, error)
         raise
     current.setdefault('fanout_view_checks', []).append({'query_id': result.query_id,
         'method': 'same-snapshot canonical sum/array-distinct', 'values': values})
     return result
+
+
+def query(sql=None, *args, **kwargs):
+    current = p.observer.current.get() or {}
+    comment = 'F_READ:' + current.get('request_id', 'background-' + uuid.uuid4().hex)
+    kwargs['settings'] = {**(kwargs.get('settings') or {}), 'log_comment': comment}
+    try:
+        return checked_query(sql, *args, **kwargs)
+    except Exception as error:
+        failure.engine_failure(ROOT, error, p.ch._get_client,
+            log_comment=comment, operation='query')
+        fail('native_query_' + type(error).__name__, error)
+        raise
 
 
 p.ch.client.query = query
@@ -156,10 +173,14 @@ def active():
         raise HTTPException(503, 'research admission closed')
 
 
-def fail(reason):
+def fail(reason, error=None):
+    error = error or __import__('sys').exception() or RuntimeError(reason)
+    current = p.observer.current.get()
+    failure.persist(ROOT, error, stage='F_API', cell=(current or {}).get('path_kind', 'foreground'),
+        operation=reason, request_id=(current or {}).get('request_id'),
+        operation_id=(context.get() or {}).get('operation_id'))
     fatal.set()
     (ROOT / 'F.stop').write_text(reason + '\n')
-    current = p.observer.current.get()
     if current is not None:
         current['arm_p_native_failure'] = reason
 
@@ -207,6 +228,7 @@ def create(request, data, real_author, client_id, **kwargs):
         # group-author and actual target authority. Stable UUID/time survive retry.
         call = {**kwargs, 'doc_id': str(uuid.uuid5(uuid.NAMESPACE_URL, real_author + ':' + op)),
                 'version_time': f.publication_time(journal.timestamp(sequence))}
+        failure.current.get()['doc_id'] = call['doc_id']
         result = original_create(request, data, real_author, client_id, **call)
         arm_f_faults.check(ROOT, op, real_author, 'after_apply')
         return result
@@ -231,7 +253,7 @@ def create(request, data, real_author, client_id, **kwargs):
     except HTTPException:
         raise
     except Exception as error:
-        fail('publish_' + type(error).__name__)
+        fail('publish_' + type(error).__name__, error)
         raise
 
 
@@ -309,7 +331,7 @@ def install_document_hook(route, kind):
         except HTTPException:
             raise
         except Exception as error:
-            fail(kind + '_' + type(error).__name__)
+            fail(kind + '_' + type(error).__name__, error)
             raise
     route.dependant.call = mutate
 
@@ -351,7 +373,7 @@ def install_membership_hook(route):
         except HTTPException:
             raise
         except Exception as error:
-            fail('membership_' + type(error).__name__)
+            fail('membership_' + type(error).__name__, error)
             raise
         return result['response']
     route.dependant.call = member
@@ -471,6 +493,7 @@ def guarded_compile(*args, **kwargs):
         unsafe = getattr(p.observer.safe_query, 'UnsafeQueryError', ())
         if unsafe and isinstance(error, unsafe):
             raise
+        fail('F_compile_or_resolution_' + type(error).__name__, error)
         p.stop('F_compile_or_resolution_' + type(error).__name__)
 
 
@@ -498,20 +521,23 @@ def trim_loop():
     while not stop_trim.wait(60):
         observation = {'request_id': uuid.uuid4().hex, 'path_kind': 'derived-background-trim'}
         token = p.observer.current.set(observation)
+        diagnostic_token = failure.current.set(dict(stage='maintenance', cell='background-trim',
+            operation='trim_batch', request_id=observation['request_id']))
         try:
             active()
             with fence.shared():
                 journal.trim_batch(store.trim)
         except Exception as error:
-            fatal.set()
-            (ROOT / 'F.stop').write_text('background_trim_' + type(error).__name__ + '\n')
-            log.error('[arm-f] background trim failed class=%s; arm stops', type(error).__name__)
+            fail('background_trim_' + type(error).__name__, error)
+            observation.update(failure.details(error))
+            log.error('[arm-f] background trim failed class=%s; private message/stack persisted', type(error).__name__)
             break
         finally:
             p.observer.current.reset(token)
             folder = ROOT / 'background'
             folder.mkdir(exist_ok=True, mode=0o700)
-            (folder / (observation['request_id'] + '.json')).write_text(json.dumps(observation))
+            failure.save(folder / (observation['request_id'] + '.json'), observation)
+            failure.current.reset(diagnostic_token)
 
 
 threading.Thread(target=trim_loop, daemon=True).start()
@@ -519,6 +545,8 @@ rebuild_stop = arm_f_online_rebuild.start(ROOT, p, journal, fence, admission, ac
 
 
 async def application(scope, receive, send):
+    diagnostic_token = failure.current.set(dict(stage='F_API', cell=scope['type'],
+        operation='request_application', trial=str(ROOT.parent)))
     phase_token = startup_phase.set(asyncio.current_task() if scope['type'] == 'lifespan' else None)
     async def phase_send(message):
         if message['type'] in ('lifespan.startup.complete', 'lifespan.startup.failed'):
@@ -526,8 +554,14 @@ async def application(scope, receive, send):
         await send(message)
     try:
         return await request_application(scope, receive, phase_send)
+    except HTTPException:
+        raise  # Expected authorization/admission refusals are not new engine failures.
+    except BaseException as error:
+        fail('application_' + type(error).__name__, error)
+        raise
     finally:
         startup_phase.reset(phase_token)
+        failure.current.reset(diagnostic_token)
 
 
 async def request_application(scope, receive, send):

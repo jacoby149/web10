@@ -65,6 +65,7 @@ def run(root):
     try:
         verdict = asyncio.run(probe.probe(root))
     finally:
+        __import__('arm_f_failure').before_cleanup(root, stage='Step0', operation='reference_and_probe')
         # Correlated IDs, not arbitrary observer-window queries. Retrieve full SQL
         # only after measurement. Setup/reference queries never become read cost.
         observed = [json.loads(line) for path in sorted(stages.glob('*.jsonl')) for line in path.read_text().splitlines()]

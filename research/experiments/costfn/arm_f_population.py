@@ -365,7 +365,7 @@ def build(root, *, rebuild=False):
                     raise ValueError('T5 full-population logical rebuild mismatch')
             result.update(T5='PASS', logical_totals_tolerance=0)
     except Exception as error:
-        result.update(outcome='STOP', failure_class=type(error).__name__,
+        result.update(outcome='STOP', **__import__('arm_f_failure').details(error),
             seeded_fraction=result['readers_seeded'] / result['readers_total'] if result['readers_total'] else 0)
         (root / 'F.stop').write_text('population_' + type(error).__name__ + '\n')
         raise

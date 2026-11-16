@@ -135,14 +135,16 @@ def fresh(parent, name):
         restore.restore(root / 'input', root / 'input/validation.json', arm_t.DATASET, arm_t.VALIDATION,
                         project, 6098, root / 'restore.json')
     except BaseException as error:
-        failure = {'failure_class': type(error).__name__, 'project': project}
+        failure = {**__import__('arm_f_failure').details(error), 'project': project}
+        setup.save(root / 'fresh-trial-failure.json', failure)  # BEFORE container cleanup.
         try:
             arm_f_guard.stop(root)
             failure['containers_stopped'] = True
         except BaseException as cleanup_error:
             failure.update(containers_stopped=False, cleanup_failure_class=type(cleanup_error).__name__)
+            failure['cleanup_failure'] = __import__('arm_f_failure').details(cleanup_error)
         setup.save(root / 'fresh-trial-failure.json', failure)
-        print('[F-setup] restore stopped', root.name, failure, flush=True)
+        print('[F-setup] restore stopped', root.name, failure['failure_class'], flush=True)
         raise
     return root
 

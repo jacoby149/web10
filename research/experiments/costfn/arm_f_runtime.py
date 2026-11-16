@@ -71,8 +71,26 @@ class Session(p.Session):
                              elapsed_seconds=time.monotonic() - begin))
             return raw.decode().strip(), query_id
         except Exception as error:
+            from arm_f_failure import details, persist, save
+            path = persist(self.root, error, operation=label, query_id=query_id,
+                native={'status': 'PENDING', 'query_ids': [query_id]})
+            receipt = json.loads(path.read_bytes())
+            try:
+                restore.command(self.compose, self.env, 'exec', '-T', 'clickhouse', 'clickhouse-client',
+                    '--user', 'web10', '--password', 'web10', '--query', 'SYSTEM FLUSH LOGS', timeout=5)
+                sql = ('SELECT query_id,toString(type) AS type,exception_code,exception,stack_trace,read_rows,read_bytes '
+                    "FROM system.query_log WHERE query_id='" + query_id
+                    + "' AND type IN ('QueryFinish','ExceptionBeforeStart','ExceptionWhileProcessing') FORMAT JSON")
+                raw = restore.command(self.compose, self.env, 'exec', '-T', 'clickhouse', 'clickhouse-client',
+                    '--user', 'web10', '--password', 'web10', '--max_execution_time=2', '--query', sql, timeout=5)
+                rows = json.loads(raw)['data']
+                receipt['native'] = dict(status='COLLECTED' if rows else 'NO_QUERY_LOG_ROWS',
+                    query_ids=[query_id], rows=rows)
+            except BaseException as diagnostic_error:
+                receipt['native'] = dict(status='COLLECTION_FAILED', query_ids=[query_id], **details(diagnostic_error))
+            save(path, receipt)
             self.record(dict(phase='finish', label=label, query_id=query_id, success=False,
-                failure_class=type(error).__name__, elapsed_seconds=time.monotonic() - begin))
+                **details(error), elapsed_seconds=time.monotonic() - begin))
             raise
 
     def native(self, query_id, *, measured=False):

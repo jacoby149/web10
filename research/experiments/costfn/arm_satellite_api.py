@@ -12,6 +12,7 @@ import sqlglot
 from sqlglot import exp
 
 import arm_t
+from arm_f_client import dispatch
 from arm_f_infrastructure import serving_valid
 from arm_satellite_runtime import admitted
 from arm_satellite_pull import pull_page
@@ -43,7 +44,7 @@ ch = importlib.import_module("app.v3.services.clickhouse")
 
 _compile = observer.original_compile
 _execute = ch.execute_query
-_query = ch.client.query
+_query = dispatch(ch._get_client, 'query', ch.client.query)
 _signature = inspect.signature(_query)
 _pending = contextvars.ContextVar("satellite_canonical_result", default=None)
 _inventory = contextvars.ContextVar("satellite_inventory_read", default=False)

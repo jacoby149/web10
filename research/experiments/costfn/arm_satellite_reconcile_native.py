@@ -19,7 +19,7 @@ import arm_satellite_reconcile as reconcile
 IMAGE = 'clickhouse/clickhouse-server:24.8.14.39@sha256:1ffa82edee000a42c09313bd9f1293d94c570aee74babc1b3ca9983a35fa597b'
 
 
-def run(root):
+def run(root, *, trim_only=False):
     root = Path(root)
     approval = json.loads((root / 'admission.json').read_bytes())
     host = arm_t.digitalocean_id()
@@ -84,6 +84,11 @@ def run(root):
         limit, _ = session.query('fixture_memory', "SELECT value FROM system.server_settings WHERE name='max_server_memory_usage'")
         if int(limit) != 22 * 1024**3:
             raise ValueError('fixture server memory cap differs')
+        if trim_only:
+            from arm_f_trim_native import run as trim_fixture
+            result['trim'] = trim_fixture(name, root)
+            result.update(outcome='PASS', engine='24.8.14.39', server_bytes=int(limit))
+            return result
         session.query('fixture_docs', "CREATE TABLE documents (doc_id String,author_key String,collection_name String,body String,"
             "ref_value String,tags Array(String),created_at DateTime64(3),updated_at DateTime64(3),deleted UInt8) "
             "ENGINE=ReplacingMergeTree(updated_at) ORDER BY (author_key,doc_id)")
@@ -134,9 +139,10 @@ def run(root):
         result.update(outcome='PASS', engine='24.8.14.39', server_bytes=int(limit),
                       checker_source_sha256=hashlib.sha256(Path(reconcile.__file__).read_bytes()).hexdigest())
     except Exception as error:
-        result.update(outcome='STOP', failure_class=type(error).__name__)
+        result.update(outcome='STOP', **__import__('arm_f_failure').details(error))
         raise
     finally:
+        reconcile.persist(output / 'result.json', result)  # Failure evidence BEFORE container cleanup.
         subprocess.run(['docker', 'stop', '-t', '20', name], capture_output=True, timeout=60)
         reconcile.persist(output / 'result.json', result)
     print('[checker-native] tiny positive/negative controls PASS; full-store memory remains unproven', flush=True)
