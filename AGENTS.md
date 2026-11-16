@@ -371,9 +371,17 @@ Rehearsal DO619676674 completes real API boot/all nine hooks and an authorized
 ten-recipient publish at16 November02:40:56UTC; nine native write receipts have
 zero exceptions. The209.694ms single write is not feed latency/p95. Original
 failed attempts/forensics remain intact; owned cleanup verifies02:45:33UTC.
-Fresh F-only DO619706349 is admitted02:47:54→06:47:54UTC after source-bound rehearsal
-proof, with banked P cited rather than remeasured.165 pinned controls/Ruff and
-separate actual-lifespan-owner cap controls pass; F gates remain OPEN. Explicit
+Fresh F-only DO619706349 runs02:47:54→T4 STOP03:52:17UTC, with banked P cited rather
+than remeasured. Build passes;60 F publishes reconcile pointers and20-sample write
+p95s are228.992/267.406/276.930ms at10/500/999 members. Periodic trim latches
+`ProgrammingError`;1,999/2,000 F writes, final T4 native validation and every read/
+later gate are unreached. This is a maintenance-path rehearsal escape, not a feed
+latency result or arm PASS. Raw/source/stopped native query-log receipts are banked
+at `evidence/arm-f-gates-only-20261116/` (raw private); owned cleanup verifies
+04:02:28UTC before original06:47:54. No restart/extension; further native/paid work
+needs fresh admission after source-only trim diagnosis and maintenance-covering
+rehearsal.165 pinned controls/Ruff and separate actual-lifespan-owner cap controls
+pass, not full native acceptance. Explicit
 bounded-spot infrastructure labels do not claim new full parity. The research
 startup guard preserves only the lifespan owner's caught code16 CREATE warning;
 HTTP/background/native caps still stop. Gates retain four hours/$2 and all

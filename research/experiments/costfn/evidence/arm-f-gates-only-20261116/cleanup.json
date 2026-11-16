@@ -1,0 +1,12 @@
+{
+  "kind": "OWNED_F_GATES_RESOURCE_CLEANUP",
+  "droplet_id": 619706349,
+  "original_deadline_utc": "2026-11-16T06:47:54+00:00",
+  "cleanup_verified_utc": "2026-11-16T04:02:28.270605+00:00",
+  "owned_droplet_firewall_ssh_key_absence_verified": true,
+  "trial_containers_already_stopped": true,
+  "estimated_elapsed_compute_usd": 0.31071323646439447,
+  "estimate_is_not_invoice_or_provider_enforced_billing_guarantee": true,
+  "frozen_archive_or_retained_volumes_changed": false,
+  "no_retry_or_extension": true
+}

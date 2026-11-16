@@ -84,9 +84,14 @@ DO619676674 (real API/all nine hooks/authorized publish/ten stored pointers/nine
 native write receipts with zero exceptions).209.694ms is a single rehearsal write,
 not feed latency/p95. Prior failed attempts/forensics are preserved and owned
 cleanup verifies02:45:33UTC. Fresh F-only DO619706349 is admitted02:47:54→06:47:54UTC,
-unchanged four-hour/$2 shape after source-bound proof verification. No F gate
-verdict yet; PR#1572 P remains cited, never remeasured. Full current binding and
-rehearsal proof hashes are in the existing closure file.
+unchanged four-hour/$2 shape after source-bound proof verification. It passes
+Build, then stops at T4's periodic background-trim `ProgrammingError` before
+any1,999-member F publish.60 correct-pointer F writes yield partial20-sample
+p95s228.992/267.406/276.930ms at10/500/999 members. T4 is not established; all
+read/later gates remain unreached. Owned cleanup verifies04:02:28UTC before the
+original deadline; the admission is closed, no retry/extension. PR#1572 P remains
+cited, never remeasured. Source/native/cleanup receipts and the maintenance-path
+rehearsal escape are retained in the existing closure/evidence stack.
 
 The next admission is **F gates only**. DO619625857 completed F Build, then
 stopped at T4 startup at23:26:09UTC: the real API refused to boot with

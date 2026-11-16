@@ -25,6 +25,39 @@ reading beyond the retained 200 pointers without missing eligible content.
 
 ## 1. Recipient/member predicate — approved; no membership counter
 
+### Final scoped-run verdict — T4 STOP,16 November03:52:17UTC
+
+DO619706349 completes the hash-verified restore, scoped infrastructure spots and
+F Build without remeasuring P. T4 records60 F publishes with exact recipient
+pointer parity:20-sample HTTP publish p95s228.992/267.406/276.930ms at10/500/999
+members. These are partial write observations, not whole-T4/full-feed/capacity
+assurance. The one-publish rehearsal did not exercise periodic maintenance.
+
+At03:51:33UTC the derived background trim path records `ProgrammingError` and
+latches `background_trim_ProgrammingError`. Switching back from the1,999-member
+original-write control then correctly refuses further F work. Its20 control
+writes complete, but **zero1,999-member F writes** run. The2,000 cell and final
+T4 native validation are unreached; T4 is NOT_ESTABLISHED. T2-F/T6-F/T3-F/full
+population/rebuild/stale-pointer/boundaries/R+W are all unreached. No startup-hook
+boot failure occurs here; it is a **maintenance-path rehearsal escape**. Do not
+disable trim or clear the stop to continue the benchmark.
+
+The exact exception message/stack was not retained. Capturing bound client
+methods in the research adapters, despite the core's thread-local ClickHouse
+proxy, is a leading diagnostic suspect only; no cause/fix is certified. Native
+query-log parts are collected from the stopped owned volume without restarting
+the engine. Private full evidence SHA256
+`5e475149757e3c579436e9141434bbfc5b3b11a9e9ddfc586b8957a4581cb1a4`
+(9,238,446 bytes). Public derived receipt:
+`evidence/arm-f-gates-only-20261116/T4-stop.json`.
+
+All trial containers exit without OOM; owned droplet/firewall/SSH-key absence
+verifies04:02:28.270605UTC, before original06:47:54UTC cleanup. Estimated elapsed
+compute$0.3107 is not an invoice/billing guarantee. Frozen archive/retained Volumes
+are untouched. This admission is closed, with no retry/extension or F-read result.
+Do source-only diagnosis/regression work next; a maintenance-covering real-deploy
+rehearsal and any paid/native continuation need separate explicit admission.
+
 ### Current binding — F gates only,16 November02:47:54UTC
 
 **Actual deploy rehearsal PASS** on DO619676674 at02:40:56UTC: real API ready,
