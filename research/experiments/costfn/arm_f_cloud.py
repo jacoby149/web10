@@ -82,6 +82,8 @@ def firewall_verified(row, lease):
     addresses = rules[0].get('sources', {}).get('addresses', [])
     if len(addresses) != 1 or not addresses[0].endswith('/32'):
         raise ValueError('one pinned operator source required')
+    if lease.get('ssh_source_cidr') and addresses != [lease['ssh_source_cidr']]:
+        raise ValueError('actual SSH source differs from the pinned gateway')
 
 
 def cleanup(lease):
@@ -129,7 +131,7 @@ def tick(path, stop=False):
             save(path, lease)
 
 
-def initialize(*, state=Path('.context/fanout-run.json'), scope=None):
+def initialize(*, state=Path('.context/fanout-run.json'), scope=None, ssh_source_cidr=None):
     state = Path(state)
     if scope not in (None, 'F_DEPLOY_REHEARSAL', 'F_GATES_ONLY'):
         raise ValueError('unknown F admission scope')
@@ -152,6 +154,9 @@ def initialize(*, state=Path('.context/fanout-run.json'), scope=None):
                   deadline=created + 14400, approved_by='Jacob', cancelled=False)
     if scope:
         lease['scope'] = scope
+    if ssh_source_cidr:
+        lease['ssh_source_cidr'] = ssh_source_cidr
+    validate(lease)  # Network pin is in the initial record BEFORE watchdog launch.
     path = root / 'lease.json'
     save(path, lease)
     shutil.copyfile(__file__, root / 'watchdog.py')
@@ -194,6 +199,8 @@ def create(path):
         if not source:
             address = json.loads(subprocess.check_output(['curl', '-fsS', '--max-time', '10', 'https://api.ipify.org?format=json']))['ip']
             source = str(ipaddress.IPv4Address(address)) + '/32'
+            lease['ssh_source_cidr'] = source
+            save(path, lease)
         api('compute', 'tag', 'create', lease['tag'])
         row = api('compute', 'firewall', 'create', '--name', lease['name'], '--tag-names', lease['tag'],
             '--inbound-rules', 'protocol:tcp,ports:22,address:' + source,

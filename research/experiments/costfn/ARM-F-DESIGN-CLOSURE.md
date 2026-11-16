@@ -25,6 +25,36 @@ reading beyond the retained 200 pointers without missing eligible content.
 
 ## 1. Recipient/member predicate — approved; no membership counter
 
+### Scoped F-only continuation and deploy rehearsal (operator15 November; execution16 November)
+
+The prior DO619625857 continuation completed Build at23:23:07UTC, then stopped
+at23:26:09UTC before T4's first publish: real F API hook discovery missed
+FastAPI0.139's deferred included routers and refused startup. Counters, metadata
+parity and presence passed; zero F performance samples. Private stop receipts
+are retained in the controller and workspace. Independent cleanup verified
+00:35:30.557UTC,103.557 seconds after the original00:33:47 deadline; no extension
+or provider-enforced billing guarantee is claimed.
+
+The operator now admits a **fresh F-gates-only** run, banked P cited rather than
+remeasured, after the existing task block's actual-deploy rehearsal. An additional
+operator clarification permits up to$20 as an overall careful-spending ceiling;
+this does not change the explicit four-hour/$2 gates shape. Rehearsal is separately
+bounded using the same stricter four-hour/$2 shape, with no automatic retries or
+extension. Banked archive SHA256 remains`acc1508f…3966c9`; unchanged infrastructure
+builder hashes must match its manifest. Infrastructure rebuilds use explicit
+bounded-spot labels, not fabricated full-parity PASS receipts. Original full
+serving requirements remain for unscoped runs.
+
+The repair discovers every required dispatched route context, preserving its
+existing handler/dependencies; source/boot-bound hooks and real HTTP/process
+readiness precede T4.155 pinned no-engine controls/Ruff pass. The real rehearsal
+is **not yet passed**: DO619676674 is independently guarded through16 November
+04:46:50UTC, same32/28/22GiB/24.8.14.39 shape. It must deploy the actual scoped
+runner, rebuild infrastructure from the hash-verified archive, boot the real API
+and reconcile one real authorized ten-recipient publish. No gates clock has
+started. Startup/hook failures after a passing rehearsal are named rehearsal
+escapes. T7/P1/production/settings/paper work remain unauthorized.
+
 ### 22:09UTC continuation on the existing admitted host
 
 Original P Step0 completes at21:56:19UTC with semantic parity PASS. Its three

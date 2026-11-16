@@ -12,6 +12,7 @@ from unittest.mock import Mock, patch
 
 import arm_f_banked as banked
 import arm_f_cloud as cloud
+import arm_f_deploy as deploy
 import arm_f_gates as gates
 import arm_f_infrastructure as infra
 import arm_f_scoped as scoped
@@ -57,6 +58,25 @@ class BankedTests(unittest.TestCase):
 
 
 class ScopedTests(unittest.TestCase):
+    def test_firewall_readback_must_match_the_declared_gateway(self):
+        lease = dict(name='owned', tag='owned', ssh_source_cidr='192.0.2.1/32')
+        row = dict(name='owned', tags=['owned'], outbound_rules=[dict(protocol=p, ports='1-65535',
+            destinations={'addresses': ['0.0.0.0/0']}) for p in ('tcp', 'udp')],
+            inbound_rules=[dict(protocol='tcp', ports='22', sources={'addresses': ['192.0.2.2/32']})])
+        with self.assertRaisesRegex(ValueError, 'differs from the pinned gateway'):
+            cloud.firewall_verified(row, lease)
+        row['inbound_rules'][0]['sources']['addresses'] = ['192.0.2.1/32']
+        cloud.firewall_verified(row, lease)
+
+    def test_gateway_transport_propagates_no_qos_and_strict_host_keys_to_both_hops(self):
+        options = deploy.ssh_options(Path('/private/controller'), 'operator@gateway')
+        self.assertIn('StrictHostKeyChecking=yes', options)
+        self.assertIn('IPQoS=none', options)
+        proxy = next(value for value in options if value.startswith('ProxyCommand='))
+        self.assertIn('IPQoS=none', proxy)
+        self.assertIn('StrictHostKeyChecking=yes', proxy)
+        self.assertIn('-W %h:%p operator@gateway', proxy)
+
     def test_spot_receipts_cannot_impersonate_full_parity_or_unscoped_permission(self):
         operation = {'scope': 'F_GATES_ONLY', 'banked_P_sha256': banked.ARCHIVE_SHA256}
         receipts = [dict(validation=infra.VERDICT, banked_archive_sha256=banked.ARCHIVE_SHA256,

@@ -361,7 +361,17 @@ At22:09UTC the merged2ca24da5c2c0 continuation starts separately on the same lea
 old P Step0 parity PASS is banked,996 continuation source hashes verify, and its
 updated native rehearsal passes49 population/shadow statements. Build preparation
 uses a fresh trial copy; original P source/store remain intact. T4 and later
-gates are still unreached; cleanup remains16 November00:33:47UTC.
+gates were not reached: Build passes23:23UTC, then T4 stops before its first
+publish because deferred FastAPI router hooks were not discovered. Owned provider
+cleanup verifies16 November00:35:30UTC (103.557s late, no billing guarantee).
+The operator's next run is scoped to F gates only, citing banked PR#1572 P rather
+than remeasuring Step0. Real-dispatch hook repair/fail-fast boot and a separately
+guarded actual-deploy/authorized-publish rehearsal precede any gates clock.
+Rehearsal DO619676674 is admitted16 November00:46:50→04:46:50UTC;155 pinned offline
+controls pass, actual rehearsal/F gates remain OPEN. Infrastructure rebuilds use
+explicit source-bound bounded-spot labels, not new full-parity PASS claims. Gates
+retain four hours/$2 and all original limits/trials/order; the operator's$20 overall
+safety ceiling does not authorize automatic retries/extensions or T7/production.
 Experiment first: prove hybrid write maintenance and layout-aware reads in isolated
 Config F, passing all required response/performance/write/lifecycle/rebuild and
 separately admitted stress gates before proposing broader platform integration.

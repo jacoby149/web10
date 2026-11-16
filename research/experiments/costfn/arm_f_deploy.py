@@ -16,6 +16,18 @@ import arm_f_cloud as cloud
 import arm_t
 
 
+def ssh_options(private, jump=None):
+    options = ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10', '-o', 'StrictHostKeyChecking=yes',
+        '-o', 'IPQoS=none', '-o', 'UserKnownHostsFile=' + str(private / 'known_hosts'), '-i', str(private / 'client-key')]
+    if jump:
+        # ProxyJump does not propagate the outer IPQoS option to its nested SSH
+        # process; this network otherwise times out during banner exchange.
+        proxy = shlex.join(['ssh', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10',
+            '-o', 'StrictHostKeyChecking=yes', '-o', 'IPQoS=none', '-W', '%h:%p', jump])
+        options += ['-o', 'ProxyCommand=' + proxy]
+    return options
+
+
 def worker_command(remaining, here, *, detach=False, scoped=False):
     if type(remaining) is not int or not 300 <= remaining <= 14100:
         raise ValueError('worker must fit the original four-hour lease and cleanup margin')
@@ -37,10 +49,7 @@ def deploy(*, detach=False, state_path=Path('.context/fanout-run.json')):
     host = json.loads((private / 'host.json').read_bytes())
     if lease.get('cancelled') or lease['droplet_id'] != host['id'] or time.time() > lease['deadline'] - 1800:
         raise ValueError('closed or mismatched guarded host')
-    options = ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10', '-o', 'StrictHostKeyChecking=yes',
-               '-o', 'UserKnownHostsFile=' + str(private / 'known_hosts'), '-i', str(private / 'client-key')]
-    if state.get('ssh_jump'):
-        options += ['-J', state['ssh_jump']]
+    options = ssh_options(private, state.get('ssh_jump'))
     destination = 'root@' + host['ip']
 
     def ssh(command, timeout=300):

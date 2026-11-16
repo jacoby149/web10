@@ -38,7 +38,7 @@ def rehearsal_proof(root, approval):
     return value
 
 
-def initialize(scope, banked_archive, *, state, rehearsal=None):
+def initialize(scope, banked_archive, *, state, rehearsal=None, ssh_source_cidr=None):
     """Validate offline inputs/rehearsal BEFORE cloud.initialize starts any clock."""
     import arm_f_cloud as cloud
     with tempfile.TemporaryDirectory(prefix='f-scoped-') as directory:
@@ -52,7 +52,7 @@ def initialize(scope, banked_archive, *, state, rehearsal=None):
             rehearsal_proof(root, dict(rehearsal_sha256=digest(rehearsal), approved_utc=datetime.now(UTC).isoformat()))
         elif scope != 'F_DEPLOY_REHEARSAL':
             raise ValueError('explicit scoped purpose required')
-        cloud.initialize(state=Path(state), scope=scope)
+        cloud.initialize(state=Path(state), scope=scope, ssh_source_cidr=ssh_source_cidr)
         controller = json.loads(Path(state).read_bytes())
         private = Path(controller['root'])
         shutil.copyfile(banked_archive, private / 'banked-P.tar.gz')
