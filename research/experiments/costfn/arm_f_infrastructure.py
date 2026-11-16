@@ -94,8 +94,10 @@ def build(root):
     return dict(verified=True, validation=VERDICT, targets=ids, canonical_generation=generation)
 
 
-def build_metadata(root, session, profile, generation):
-    output = root / 'metadata'
+def build_metadata(root, session, profile, generation, *, reuse=None):
+    if reuse is not None and session.operation.get('scope') != 'F_DEPLOY_REHEARSAL':
+        raise ValueError('infrastructure repair reuse is rehearsal-only, never a gates trial')
+    output = root / ('metadata-repaired' if reuse is not None else 'metadata')
     output.mkdir(mode=0o700)
     result = dict(**common(session, generation), kind='F_SCOPED_METADATA_INFRASTRUCTURE', outcome='BUILDING',
         count_table=batching.FINAL, count_receipt_sha256=hashlib.sha256((root / 'counts-batch-p2/result.json').read_bytes()).hexdigest(),
@@ -103,10 +105,21 @@ def build_metadata(root, session, profile, generation):
     queries = {'transpose_ddl': arm_t.DDL + ' SETTINGS index_granularity=64',
         'strings_ddl': metadata.STRINGS_DDL, 'timestamps_ddl': metadata.TIMESTAMPS_DDL,
         'transpose': metadata.TRANSPOSE_BUILD, **metadata.identity_builds(discover='api.localhost/groups/web10/discover')}
+    if reuse is not None:
+        old = json.loads((reuse / 'result.json').read_bytes())
+        if (old.get('canonical_generation') != generation or old.get('validation') != VERDICT
+                or {row['label'] for row in old['steps']} != set(queries) or len(old['steps']) != len(queries)
+                or any(int(row['native']['exception_code']) for row in old['steps'])
+                or any((reuse / (label + '.sql')).read_text().strip() != sql for label, sql in queries.items())):
+            raise ValueError('rehearsal repair requires unchanged complete native build statements/generation')
+        result['reused_build_receipt_sha256'] = hashlib.sha256((reuse / 'result.json').read_bytes()).hexdigest()
     for label, sql in queries.items():
         (output / (label + '.sql')).write_text(sql + '\n')
-        _, query_id = session.query('infra_' + label, sql, setup_seconds=900)
-        result['steps'].append(dict(label=label, native=session.native(query_id)))
+        if reuse is None:
+            _, query_id = session.query('infra_' + label, sql, setup_seconds=900)
+            result['steps'].append(dict(label=label, native=session.native(query_id)))
+        else:
+            result['steps'].append({**next(row for row in old['steps'] if row['label'] == label), 'reused_for_rehearsal_only': True})
         save(output / 'result.json', result)
     checks = []
     for row in profile['reference_page'][:3]:
@@ -122,17 +135,12 @@ def build_metadata(root, session, profile, generation):
             raise ValueError('bounded full-key identity spot mismatch')
         checks.append(dict(author_key=row['author_key'], doc_id=row['doc_id'], status='SPOT_PASS'))
         condition = 'author_key=' + q(row['author_key']) + ' AND doc_id=' + q(row['doc_id'])
-        expected, _ = session.rows('infra_transpose_canonical', 'SELECT g.group_id,d.author_key,d.doc_id,d.created_at,'
-            'g.created_at AS link_created_at,g.updated_at,g.deleted,d.collection_name,d.tags,d.ref_value,'
-            "JSONExtractString(d.body,'post_id') AS comment_post_id,JSONExtractString(d.body,'repost_of') AS repost_of "
-            'FROM (SELECT * FROM documents FINAL WHERE ' + condition + ' AND deleted=0) d INNER JOIN '
-            '(SELECT * FROM doc_groups FINAL WHERE doc_id=' + q(row['doc_id']) + ' AND deleted=0) g ON d.doc_id=g.doc_id '
-            'ORDER BY g.group_id LIMIT 65')
-        stored, _ = session.rows('infra_transpose_stored', 'SELECT group_id,author_key,doc_id,created_at,link_created_at,'
-            'updated_at,deleted,collection_name,tags,ref_value,comment_post_id,repost_of FROM doc_groups_t WHERE '
-            + condition + ' ORDER BY group_id LIMIT 65')
-        if len(expected) >= 65 or stored != expected:
-            raise ValueError('bounded canonical transpose spot mismatch')
+        canonical_sql, stored_sql = transpose_spot_sql(row)
+        expected, canonical_id = session.rows('infra_transpose_canonical', canonical_sql)
+        stored, stored_id = session.rows('infra_transpose_stored', stored_sql)
+        save(output / ('transpose-spot-' + str(len(checks)) + '.json'),
+            dict(expected=expected, stored=stored, canonical_query_id=canonical_id, stored_query_id=stored_id))
+        compare_transpose(expected, stored)
         expected_time, _ = session.rows('infra_time_canonical', 'SELECT created_at AS value,author_key,doc_id,updated_at AS version '
             'FROM documents FINAL WHERE ' + condition + ' AND deleted=0 ORDER BY value,doc_id LIMIT 3')
         stored_time, _ = session.rows('infra_time_stored', 'SELECT value,author_key,doc_id,version FROM timestamps '
@@ -141,10 +149,31 @@ def build_metadata(root, session, profile, generation):
             raise ValueError('bounded canonical timestamp spot mismatch')
     result.update(outcome='INFRASTRUCTURE_BUILT_SPOTS_PASS', completed_utc=datetime.now(UTC).isoformat())
     save(output / 'result.json', result)
-    directory = root / 'metadata-parity'
+    directory = root / ('metadata-parity-repaired' if reuse is not None else 'metadata-parity')
     directory.mkdir(mode=0o700)
     save(directory / 'result.json', dict(**common(session, generation), outcome='BOUNDED_SPOT_PASS',
         metadata_sha256=hashlib.sha256((output / 'result.json').read_bytes()).hexdigest(), checks=checks))
+    return {'metadata': output / 'result.json', 'parity': directory / 'result.json'}
+
+
+def transpose_spot_sql(row):
+    q = typed.literal
+    condition = 'author_key=' + q(row['author_key']) + ' AND doc_id=' + q(row['doc_id'])
+    canonical = ('SELECT g.group_id AS group_id,d.author_key AS author_key,d.doc_id AS doc_id,d.created_at AS created_at,'
+        'g.created_at AS link_created_at,g.updated_at AS updated_at,g.deleted AS deleted,'
+        'd.collection_name AS collection_name,d.tags AS tags,d.ref_value AS ref_value,'
+        "JSONExtractString(d.body,'post_id') AS comment_post_id,JSONExtractString(d.body,'repost_of') AS repost_of "
+        'FROM (SELECT * FROM documents FINAL WHERE ' + condition + ' AND deleted=0) d INNER JOIN '
+        '(SELECT * FROM doc_groups FINAL WHERE doc_id=' + q(row['doc_id']) + ' AND deleted=0) g ON d.doc_id=g.doc_id '
+        'ORDER BY g.group_id LIMIT 65')
+    stored = ('SELECT group_id,author_key,doc_id,created_at,link_created_at,updated_at,deleted,collection_name,tags,'
+        'ref_value,comment_post_id,repost_of FROM doc_groups_t WHERE ' + condition + ' ORDER BY group_id LIMIT 65')
+    return canonical, stored
+
+
+def compare_transpose(expected, stored):
+    if len(expected) >= 65 or stored != expected:
+        raise ValueError('bounded canonical transpose spot mismatch')
 
 
 def build_presence(root, session, profile, generation, files, ids, fixture):

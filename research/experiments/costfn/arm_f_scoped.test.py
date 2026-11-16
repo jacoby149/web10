@@ -5,10 +5,14 @@ import io
 import json
 from pathlib import Path
 import tarfile
+import sqlite3
 import tempfile
 from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
+
+import sqlglot
+from sqlglot import exp
 
 import arm_f_banked as banked
 import arm_f_cloud as cloud
@@ -17,6 +21,7 @@ import arm_f_gates as gates
 import arm_f_infrastructure as infra
 import arm_f_scoped as scoped
 import arm_f_report as report
+import arm_f_native as native
 
 
 class BankedTests(unittest.TestCase):
@@ -58,6 +63,65 @@ class BankedTests(unittest.TestCase):
 
 
 class ScopedTests(unittest.TestCase):
+    def startup_state(self, root, *, scope='F_DEPLOY_REHEARSAL', served=False):
+        (root / 'admission.json').write_text(json.dumps({'scope': scope}))
+        state = root / 'fanout-state'
+        (state / 'journal').mkdir(parents=True)
+        (state / 'F.stop').write_text('native_command_DatabaseError\n')
+        (state / 'hook-install.json').write_text('{}')
+        with sqlite3.connect(state / 'journal/intents.sqlite') as database:
+            database.execute('CREATE TABLE intents (operation_id TEXT,state TEXT)')
+            database.execute("INSERT INTO intents VALUES ('canonical-bootstrap','complete')")
+            if served:
+                database.execute("INSERT INTO intents VALUES ('human-publish','complete')")
+        (root / 'F-startup-failure.json').write_text('{}')
+        (root / 'F-startup-api.log').write_text('synthetic caught schema startup failure')
+        return dict(startup_marker_sha256=gates.digest(state / 'F.stop'),
+            startup_failure_sha256=gates.digest(root / 'F-startup-failure.json'),
+            startup_log_sha256=gates.digest(root / 'F-startup-api.log'))
+
+    def test_startup_recovery_preserves_failed_state_and_refuses_gates_or_served_journals(self):
+        for scope, served in [('F_DEPLOY_REHEARSAL', False), ('F_GATES_ONLY', False), ('F_DEPLOY_REHEARSAL', True)]:
+            with self.subTest(scope=scope, served=served), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                approval = self.startup_state(root, scope=scope, served=served)
+                if scope == 'F_DEPLOY_REHEARSAL' and not served:
+                    result = scoped.recover_unserved_startup_state(root, approval)
+                    self.assertTrue(result['original_failed_state_preserved'])
+                    self.assertTrue((root / 'fanout-state-stopped-startup/F.stop').exists())
+                    self.assertFalse((root / 'fanout-state/F.stop').exists())
+                    self.assertFalse((root / 'fanout-state/hook-install.json').exists())
+                else:
+                    with self.assertRaises(ValueError):
+                        scoped.recover_unserved_startup_state(root, approval)
+                    self.assertTrue((root / 'fanout-state/F.stop').exists())
+
+    def test_authorized_runtime_pins_are_checked_offline_and_drift_refuses(self):
+        self.assertIn('research/experiments/costfn/arm_satellite_api.py', native.authorized_sources())
+        with self.assertRaisesRegex(ValueError, 'source drift'):
+            native.authorized_sources(closure='0' * 64 + '  research/experiments/costfn/arm_satellite_api.py\n')
+        with self.assertRaisesRegex(ValueError, 'manifest missing'):
+            native.authorized_sources(closure='no manifest')
+
+    def test_transpose_spot_has_explicit_labels_and_still_denies_value_or_multiplicity_changes(self):
+        sql, _ = infra.transpose_spot_sql({'author_key': 'author', 'doc_id': 'doc'})
+        tree = sqlglot.parse_one(sql, read='clickhouse')
+        self.assertTrue(all(isinstance(item, exp.Alias) for item in tree.expressions))
+        self.assertEqual([item.alias for item in tree.expressions], ['group_id', 'author_key', 'doc_id', 'created_at',
+            'link_created_at', 'updated_at', 'deleted', 'collection_name', 'tags', 'ref_value', 'comment_post_id', 'repost_of'])
+        wanted = [{'updated_at': 'synthetic-time', 'deleted': 0}]
+        with self.assertRaises(ValueError):
+            infra.compare_transpose([{'g.updated_at': 'synthetic-time', 'g.deleted': 0}], wanted)
+        infra.compare_transpose(wanted, wanted)
+        for bad in ([{'updated_at': 'wrong', 'deleted': 0}], [{'updated_at': 'synthetic-time', 'deleted': 1}], wanted * 2):
+            with self.assertRaises(ValueError):
+                infra.compare_transpose(wanted, bad)
+
+    def test_metadata_repair_reuse_is_refused_for_gates_before_any_io(self):
+        session = SimpleNamespace(operation={'scope': 'F_GATES_ONLY'})
+        with self.assertRaisesRegex(ValueError, 'rehearsal-only'):
+            infra.build_metadata(Path('/unused'), session, {}, 'g', reuse=Path('/unused'))
+
     def test_firewall_readback_must_match_the_declared_gateway(self):
         lease = dict(name='owned', tag='owned', ssh_source_cidr='192.0.2.1/32')
         row = dict(name='owned', tags=['owned'], outbound_rules=[dict(protocol=p, ports='1-65535',

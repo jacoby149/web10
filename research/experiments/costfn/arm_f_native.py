@@ -36,6 +36,19 @@ def save(path, value):
         __import__('os').fsync(stream.fileno())
 
 
+def authorized_sources(*, closure=None):
+    """Offline admission preflight as well as the final native-build guard."""
+    repository = Path(__file__).resolve().parents[3]
+    text = closure if closure is not None else Path(__file__).with_name('ARM-F-DESIGN-CLOSURE.md').read_text()
+    entries = re.findall(r'^([a-f0-9]{64})  (.+)$', text, re.M)
+    if not entries:
+        raise ValueError('approved authorized source manifest missing')
+    for expected, name in entries:
+        if hashlib.sha256((repository / name).read_bytes()).hexdigest() != expected:
+            raise ValueError('approved authorized source drift: ' + name)
+    return {name: expected for expected, name in entries}
+
+
 def build(root, *, step0_root=None):
     root = Path(root)
     session = Session(root)
@@ -55,11 +68,7 @@ def build(root, *, step0_root=None):
             raise ValueError('report P stage table before building F')
         step0_digest = hashlib.sha256((baseline / 'serve-probe/config-p.json').read_bytes()).hexdigest()
         step0_status = 'PASS'
-    repository = Path(__file__).resolve().parents[3]
-    closure = Path(__file__).with_name('ARM-F-DESIGN-CLOSURE.md').read_text()
-    for expected, name in re.findall(r'^([a-f0-9]{64})  (.+)$', closure, re.M):
-        if hashlib.sha256((repository / name).read_bytes()).hexdigest() != expected:
-            raise ValueError('approved authorized source drift; stop before F DDL')
+    authorized_sources()
     output = root / 'F-build'
     output.mkdir(mode=0o700, exist_ok=False)
     profile = json.loads((root / 'profile/inventory.json').read_bytes())

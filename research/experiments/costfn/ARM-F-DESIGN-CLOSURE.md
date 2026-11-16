@@ -25,6 +25,37 @@ reading beyond the retained 200 pointers without missing eligible content.
 
 ## 1. Recipient/member predicate — approved; no membership counter
 
+### Current binding — F gates only,16 November02:47:54UTC
+
+**Actual deploy rehearsal PASS** on DO619676674 at02:40:56UTC: real API ready,
+six membership/three document hooks, actual authorized ten-recipient publication,
+ten matching stored pointers and nine native write receipts with zero exceptions.
+Single publish209.694ms is not feed latency/p95, T4 or T6. Source-bound proof SHA256
+`a47e4c2bc1781e8cd1c818a6540752b5f66ccd0beba24a9baf304d0d3e722133`;
+complete private evidence archive SHA256
+`12d78bf040c1fbfa73d9718d1ed15605b5b87cb85905d176202dd7f600539cb1`.
+Prior failures, exact-query forensics and failed startup states remain intact.
+Owned rehearsal cleanup verifies02:45:33UTC, before its original deadline.
+
+The final boot repair is research-only: retain the ordinary node's caught native
+code16 CREATE-schema warning only in the exact ASGI lifespan owner task. HTTP
+explicitly clears that context and async child tasks cannot inherit the exception;
+caps/timeouts/row limits and HTTP/background failures remain fatal. Unhandled
+startup failures still deny readiness. No core OAuth/auth DDL is changed or
+certified. Runtime source pins now check offline before any clock; only the
+operator-required scoped infrastructure-receipt branch in`arm_satellite_api.py`
+is rebound below, with original unscoped requirements retained.165 pinned controls,
+Ruff and four additional actual-lifespan-owner cap controls pass.
+
+Fresh **F_GATES_ONLY DO619706349** is admitted02:47:54→06:47:54UTC, four hours/$2,
+same32/28/22GiB/24.8.14.39/ten-second measured-read/>10M stop shape. Layered cleanup
+is independent, gateway pin is in the initial lease, and source-bound real-path
+rehearsal proof is verified before initialization. Banked PR#1572 P/stage costs
+are cited, not remeasured; new infrastructure uses bounded spots, not full parity.
+All required F gates remain OPEN until observed. No renewal, T7/P1/production or
+paper action; unfinished cells stay unreached. The older dated subsections below
+are retained execution history, not the current verdict.
+
 ### Scoped F-only continuation and deploy rehearsal (operator15 November; execution16 November)
 
 The prior DO619625857 continuation completed Build at23:23:07UTC, then stopped
@@ -54,6 +85,26 @@ runner, rebuild infrastructure from the hash-verified archive, boot the real API
 and reconcile one real authorized ten-recipient publish. No gates clock has
 started. Startup/hook failures after a passing rehearsal are named rehearsal
 escapes. T7/P1/production/settings/paper work remain unauthorized.
+
+Rehearsal update:1372 deployed-source hashes verify; archive/fresh restore and
+all43 counter-build queries/banked spots complete. The first attempt stops in
+metadata's new bounded transpose spot at01:44:50UTC, before API boot. Operator
+explicitly approves exact-query stopped-store forensics and checker repair if
+proved. Original SQL hashes match; two canonical/two stored rows have identical
+values and multiplicities, differing only in ClickHouse output keys
+`g.updated_at`/`g.deleted` versus `updated_at`/`deleted`. Private forensic receipt
+SHA256`1a22a268cf5cac6b587105d130dd893f49acf385219f09292e56f7840afa70ef`.
+The original STOP/private archive is retained; this is not an F cost failure.
+
+The repair uses explicit SQL aliases, retaining strict full-row/multiplicity
+equality and now saving both spot rowsets before comparison.159 pinned controls
+and Ruff pass, including changed-value/deletion/duplicate denial. A separate
+source-verified `fanout-rehearsal-repair` worker runs on the SAME lease, with no
+renewal: only unchanged, fully receipted build statements/current generation
+may be reused for rehearsal. Original metadata/STOP/source tree stay intact;
+repaired checks have separate paths. Reuse is explicitly refused for gates;
+the later gates host/trials must still restore fresh. Actual API/publish proof
+is pending, no gates clock has started and no fresh performance trial is claimed.
 
 ### 22:09UTC continuation on the existing admitted host
 
@@ -512,7 +563,7 @@ No production source edit or new endpoint is authorized.
 | `api/app/v3/services/clickhouse.py`: `add_group_member`, `remove_group_member` |1454,1469| Reconcile actual membership effects; one canonical recipient selection per publication, no member-counter hook |
 | `api/app/v3/services/safe_query.py`: `_boundary_cte_sql` |146| Retain canonical latest-version/attachment/policy authority and generic row multiplicity |
 | `marketing/web10-social/src/data/feed.ts`: `buildFeedQuery` |509| Captured contract inspection only; no app edit. New research-labelled document-stream query is separate |
-| `research/experiments/costfn/arm_satellite_api.py`: `compile_query`, `generation`; `arm_satellite_pull.py`: `pull_page` |155,123;19| New isolated F/P-document-stream adapter path; original P code/guard preserved, canonical resolution before preparation/signing |
+| `research/experiments/costfn/arm_satellite_api.py`: `compile_query`, `generation`; `arm_satellite_pull.py`: `pull_page` |155,123;19| New isolated F/P-document-stream adapter; original unscoped guards preserved, explicitly scoped banked-spot infrastructure branch, canonical resolution before preparation/signing |
 
 ```text
 327e5d7058cc3682433dea659f6779c0bf7bbb99ea3318b835fcde6e94c66b40  api/app/v3/endpoints/documents.py
@@ -520,7 +571,7 @@ aa90341a0795f7f88a622a939f190b6f9d4bf50444a7181785351db3d126d352  api/app/v3/end
 d9fa359eadf6e5b9792923913e3fb14a453759afc7f7fb774d1c86968cd5f030  api/app/v3/services/clickhouse.py
 411c9d51f592e66d33e6e654e1b0665225cd89ec4bbb56d6be2f50aa4da2bf61  api/app/v3/services/safe_query.py
 675d2bc7030d7efb3c636489366937486f508d74146d1b4249801a40c5a12518  marketing/web10-social/src/data/feed.ts
-e9b71f99c336149fe84fc64723beb4fc53892b94b69ac55e6c5eff523ad2f9ed  research/experiments/costfn/arm_satellite_api.py
+0db24ffd00d5f2f36ba7e21ce3e056b95ed5ec736e5939135d3c174f528b5163  research/experiments/costfn/arm_satellite_api.py
 a91133de21e61fed81b10fb2e2bcbd20eeb73f3c4e782170873aa92fbd553bfb  research/experiments/costfn/arm_satellite_pull.py
 2c9b198f8b290d7f1287f1e1fc6179bbf81050ca4b7a75af8a34579214347bdd  research/experiments/costfn/evidence/core-feed-wire-v7.json
 b51f94c2f54ce84f9cc9bb0755f83956b365f0c793af880d88ec255ffd3a869c  research/experiments/costfn/arm_satellite_serve.py

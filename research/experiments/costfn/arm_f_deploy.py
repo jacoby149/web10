@@ -39,6 +39,18 @@ def worker_command(remaining, here, *, detach=False, scoped=False):
         *([] if scoped else ['--programme'])]
 
 
+def bundle(private, stem='source'):
+    files = subprocess.check_output(['git', 'ls-files', '--cached', '--others', '--exclude-standard', '-z']).decode().split('\0')
+    prefixes = ('api/', 'sdk/src/', 'clickhouse-init/', 'research/experiments/costfn/', 'marketing/web10-social/src/data/')
+    files = sorted({name for name in files if name.startswith(prefixes) and Path(name).is_file() and not Path(name).is_symlink()})
+    with tarfile.open(private / (stem + '.tar.gz'), 'w:gz') as archive:
+        for name in files:
+            archive.add(name, arcname='repo/' + name, recursive=False)
+    hashes = {name: hashlib.sha256(Path(name).read_bytes()).hexdigest() for name in files}
+    cloud.save(private / (stem + '-manifest.json'), hashes)
+    return hashes
+
+
 def deploy(*, detach=False, state_path=Path('.context/fanout-run.json')):
     state = json.loads(Path(state_path).read_bytes())
     private = Path(state['root'])
@@ -60,14 +72,7 @@ def deploy(*, detach=False, state_path=Path('.context/fanout-run.json')):
     (private / 'cloud-init-status.txt').write_bytes(status)
     ssh('systemctl is-active docker fanout-hard-stop.timer')
     ssh('install -d -m 700 /opt/fanout')
-    files = subprocess.check_output(['git', 'ls-files', '--cached', '--others', '--exclude-standard', '-z']).decode().split('\0')
-    prefixes = ('api/', 'sdk/src/', 'clickhouse-init/', 'research/experiments/costfn/', 'marketing/web10-social/src/data/')
-    files = sorted({name for name in files if name.startswith(prefixes) and Path(name).is_file() and not Path(name).is_symlink()})
-    with tarfile.open(private / 'source.tar.gz', 'w:gz') as archive:
-        for name in files:
-            archive.add(name, arcname='repo/' + name, recursive=False)
-    source_hashes = {name: hashlib.sha256(Path(name).read_bytes()).hexdigest() for name in files}
-    cloud.save(private / 'source-manifest.json', source_hashes)
+    bundle(private)
     admission = dict(configuration='F', approved_by='Jacob', dataset_id=arm_t.DATASET,
         droplet_id=host['id'], budget_usd=2, watchdog_verified=True,
         approved_utc=datetime.fromtimestamp(lease['created_epoch'], UTC).isoformat(),
@@ -141,6 +146,58 @@ def deploy(*, detach=False, state_path=Path('.context/fanout-run.json')):
     # Receipt collection happens separately; do not erase the host/store here.
     if code:
         raise SystemExit(code)
+
+
+def repair_rehearsal(*, state_path, approval_name='rehearsal-repair-approval.json'):
+    """Ship a separately approved checker repair, preserving the stopped tree.
+
+    Same owned rehearsal lease only. This never launches/resumes measured gates.
+    """
+    state = json.loads(Path(state_path).read_bytes())
+    if approval_name not in ('rehearsal-repair-approval.json', 'rehearsal-ready-approval.json', 'rehearsal-startup-approval.json'):
+        raise ValueError('unknown rehearsal repair checkpoint')
+    startup = approval_name == 'rehearsal-startup-approval.json'
+    ready = approval_name in ('rehearsal-ready-approval.json', 'rehearsal-startup-approval.json')
+    private = Path(state['root'])
+    cloud.tick(state['lease'])
+    lease = json.loads(Path(state['lease']).read_bytes())
+    cloud.validate(lease)
+    approval = json.loads((private / approval_name).read_bytes())
+    if (state.get('scope') != 'F_DEPLOY_REHEARSAL' or lease.get('cancelled')
+            or approval.get('droplet_id') != lease['droplet_id']
+            or approval.get('deadline_utc') != datetime.fromtimestamp(lease['deadline'], UTC).isoformat()
+            or time.time() >= lease['deadline'] - 900):
+        raise ValueError('explicit same-lease rehearsal repair only, never gates/renewal')
+    host = json.loads((private / 'host.json').read_bytes())
+    if host['id'] != lease['droplet_id']:
+        raise ValueError('owned rehearsal host differs')
+    options = ssh_options(private, state.get('ssh_jump'))
+    destination = 'root@' + host['ip']
+    def ssh(command, timeout=120):
+        return subprocess.run(['ssh', *options, destination, command], check=True, timeout=timeout, capture_output=True).stdout
+    stage = '/opt/fanout/' + ('rehearsal-startup-source' if startup else 'rehearsal-ready-source' if ready else 'rehearsal-repair-source')
+    ssh('mkdir -m 700 ' + stage)  # Refuse an existing attempt, no overwrite/retry.
+    stem = 'rehearsal-startup-source' if startup else 'rehearsal-ready-source' if ready else 'rehearsal-repair1-source'
+    bundle(private, stem)
+    for source, name in [(private / (stem + '.tar.gz'), 'source.tar.gz'),
+            (private / (stem + '-manifest.json'), 'source-manifest.json'),
+            (private / approval_name, approval_name)]:
+        target = '/opt/fanout/' + name if name == approval_name else stage + '/' + name
+        subprocess.run(['scp', *options, str(source), destination + ':' + target], check=True, capture_output=True, timeout=180)
+    ssh('tar -xzf ' + stage + '/source.tar.gz -C ' + stage)
+    check = "import hashlib,json;from pathlib import Path;r=Path(" + repr(stage) + ");d=json.loads((r/'source-manifest.json').read_bytes());assert all(hashlib.sha256((r/'repo'/p).read_bytes()).hexdigest()==v for p,v in d.items());print('repair source hashes verified',len(d))"
+    print(ssh('/opt/fanout/venv/bin/python -c ' + shlex.quote(check)).decode(), flush=True)
+    remaining = int(lease['deadline'] - time.time()) - 300
+    unit = 'fanout-rehearsal-startup' if startup else 'fanout-rehearsal-ready' if ready else 'fanout-rehearsal-repair'
+    logfile = '/opt/fanout/' + ('rehearsal-startup-service.log' if startup else 'rehearsal-ready-service.log' if ready else 'rehearsal-repair-service.log')
+    command = ['systemd-run', '--unit=' + unit, '--property=RuntimeMaxSec=' + str(remaining),
+        '--property=WorkingDirectory=' + stage + '/repo',
+        '--property=StandardOutput=append:' + logfile,
+        '--property=StandardError=append:' + logfile,
+        '/opt/fanout/venv/bin/python', '-u', stage + '/repo/research/experiments/costfn/arm_f_scoped.py',
+        '/opt/fanout', '--repair-rehearsal', '--repair-approval', approval_name]
+    ssh(shlex.join(command), timeout=30)
+    print(ssh('systemctl show ' + unit + ' --property=ActiveState,SubState,MainPID').decode(), flush=True)
 
 
 def retry_permission_setup():

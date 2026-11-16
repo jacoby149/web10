@@ -1,5 +1,6 @@
 """No-engine F adapter seam controls. Mocked dependencies, NOT native auth proof."""
 import contextvars
+import asyncio
 from datetime import UTC, datetime, timedelta
 import hashlib
 import importlib.util
@@ -11,7 +12,7 @@ import tempfile
 import threading
 from types import ModuleType, SimpleNamespace
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 from fastapi import HTTPException
 import sqlglot
@@ -70,6 +71,75 @@ class AdapterTests(unittest.TestCase):
         value = SimpleNamespace(service='posts', groups=['allowed'], author_as=None, body={'text': 'synthetic'})
         value.model_dump = lambda **kwargs: {'service': 'posts', 'groups': ['allowed'], 'body': value.body}
         return value
+
+    def test_caught_lifespan_warning_does_not_poison_http_but_poststartup_failures_stop(self):
+        with tempfile.TemporaryDirectory() as directory:
+            module, parent, _ = self.load(directory)
+            module.original_command.side_effect = RuntimeError('Received ClickHouse exception, code: 16, synthetic schema warning')
+            async def lifespan(scope, receive, send):
+                with self.assertRaises(RuntimeError):
+                    module.command('CREATE TABLE IF NOT EXISTS synthetic_schema (x UInt8)')
+                self.assertFalse(module.fatal.is_set())
+                await send({'type': 'lifespan.startup.complete'})
+                self.assertFalse(module.startup_phase.get())
+            parent.application = lifespan
+            try:
+                asyncio.run(module.application({'type': 'lifespan'}, AsyncMock(), AsyncMock()))
+                self.assertFalse(module.fatal.is_set())
+                self.assertFalse(module.startup_phase.get())
+                with self.assertRaises(RuntimeError):
+                    module.command('INSERT INTO synthetic_workload VALUES (1)')
+                self.assertTrue(module.fatal.is_set())
+                self.assertTrue((Path(directory) / 'F.stop').exists())
+            finally:
+                module.journal.close()
+
+    def test_startup_memory_timeout_and_unknown_failures_still_stop_the_arm(self):
+        for code in (241, 159, 158, 497):
+            with self.subTest(code=code), tempfile.TemporaryDirectory() as directory:
+                module, _, _ = self.load(directory)
+                module.original_command.side_effect = RuntimeError(f'Received ClickHouse exception, code: {code}, synthetic failure')
+                token = module.startup_phase.set(True)
+                try:
+                    with self.assertRaises(RuntimeError):
+                        module.command('CREATE TABLE IF NOT EXISTS synthetic_schema (x UInt8)')
+                    self.assertTrue(module.fatal.is_set())
+                finally:
+                    module.startup_phase.reset(token)
+                    module.journal.close()
+
+    def test_http_cannot_inherit_or_request_startup_exception_handling(self):
+        with tempfile.TemporaryDirectory() as directory:
+            module, parent, _ = self.load(directory)
+            module.original_command.side_effect = RuntimeError('synthetic measured failure')
+            async def http(scope, receive, send):
+                self.assertFalse(module.startup_phase.get())
+                module.command('INSERT INTO synthetic_workload VALUES (1)')
+            parent.application = http
+            token = module.startup_phase.set(True)  # Even a parent context cannot exempt HTTP.
+            try:
+                with self.assertRaises(RuntimeError):
+                    asyncio.run(module.application({'type': 'http', 'headers': [(b'x-startup', b'1')]}, AsyncMock(), AsyncMock()))
+                self.assertTrue(module.fatal.is_set())
+            finally:
+                module.startup_phase.reset(token)
+                module.journal.close()
+
+    def test_async_background_child_cannot_inherit_lifespan_warning_exception(self):
+        with tempfile.TemporaryDirectory() as directory:
+            module, parent, _ = self.load(directory)
+            module.original_command.side_effect = RuntimeError('Received ClickHouse exception, code: 16, synthetic failure')
+            async def background():
+                module.command('CREATE TABLE IF NOT EXISTS synthetic_schema (x UInt8)')
+            async def lifespan(scope, receive, send):
+                with self.assertRaises(RuntimeError):
+                    await asyncio.create_task(background())
+                self.assertTrue(module.fatal.is_set())
+            parent.application = lifespan
+            try:
+                asyncio.run(module.application({'type': 'lifespan'}, AsyncMock(), AsyncMock()))
+            finally:
+                module.journal.close()
 
     def test_authority_denial_never_calls_original_write_or_pointer_insert(self):
         with tempfile.TemporaryDirectory() as directory:

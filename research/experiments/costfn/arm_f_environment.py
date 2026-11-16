@@ -56,14 +56,15 @@ def boot(root, mode='F_DOCUMENT_STREAM_V1'):
     return session
 
 
-def serving_state(root):
+def serving_state(root, *, overrides=None):
     root = Path(root)
     directory = root / 'serve-state'
     directory.mkdir(mode=0o700, exist_ok=True)
     for name, relative in {'operation': 'evidence/operation.json', 'counts': 'counts-batch-p2/result.json',
         'metadata': 'metadata/result.json', 'parity': 'metadata-parity/result.json',
         'profile': 'profile/inventory.json', 'presence': 'presence/result.json'}.items():
-        shutil.copyfile(root / relative, directory / (name + '.json'))
+        source = (overrides or {}).get(name, root / relative)
+        shutil.copyfile(source, directory / (name + '.json'))
 
 
 def prepare(root, parent, *, profile=None):

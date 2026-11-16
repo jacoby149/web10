@@ -4,6 +4,7 @@ Existing endpoint functions certify/authorize the real actor. A single private
 coordinator journals and reconciles their actual effects. Old P remains intact.
 """
 import contextvars
+import asyncio
 from datetime import UTC, datetime
 from functools import wraps
 import hashlib
@@ -11,6 +12,7 @@ import importlib
 import json
 import logging
 import os
+import re
 from pathlib import Path
 import threading
 import uuid
@@ -56,6 +58,7 @@ fence = Fence()
 log = logging.getLogger('arm-f')
 fatal = threading.Event()
 context = contextvars.ContextVar('fanout_request', default=None)
+startup_phase = contextvars.ContextVar('fanout_lifespan_startup_owner', default=None)
 pending = contextvars.ContextVar('fanout_live_result', default=None)
 MARKER = '/* Config F request-private canonical result */ SELECT 1'
 MODE = os.environ.get('FANOUT_SERVING_MODE', 'F_DOCUMENT_STREAM_V1')
@@ -77,7 +80,21 @@ def command(sql, *args, **kwargs):
     try:
         return original_command(sql, *args, **kwargs)
     except Exception as error:
-        fail('native_command_' + type(error).__name__)
+        native_code = re.match(r'^Received ClickHouse exception, code: (\d+),', str(error))
+        try:
+            in_startup_task = startup_phase.get() is not None and startup_phase.get() is asyncio.current_task()
+        except RuntimeError:  # Native commands in worker/background threads.
+            in_startup_task = False
+        schema_warning = (in_startup_task and native_code and int(native_code[1]) == 16
+            and sql.lstrip().upper().startswith('CREATE TABLE IF NOT EXISTS '))
+        if schema_warning:
+            # Preserve the ordinary node's own handling of startup DDL errors.
+            # Uncaught errors still fail ASGI startup/readiness. This context is
+            # never enabled by a request/header, HTTP or background F operation.
+            log.warning('[arm-f] lifespan schema warning code=16 class=%s sql_sha256=%s',
+                type(error).__name__, hashlib.sha256(sql.encode()).hexdigest())
+        else:
+            fail('native_command_' + type(error).__name__)
         raise
 
 
@@ -502,6 +519,18 @@ rebuild_stop = arm_f_online_rebuild.start(ROOT, p, journal, fence, admission, ac
 
 
 async def application(scope, receive, send):
+    phase_token = startup_phase.set(asyncio.current_task() if scope['type'] == 'lifespan' else None)
+    async def phase_send(message):
+        if message['type'] in ('lifespan.startup.complete', 'lifespan.startup.failed'):
+            startup_phase.set(None)
+        await send(message)
+    try:
+        return await request_application(scope, receive, phase_send)
+    finally:
+        startup_phase.reset(phase_token)
+
+
+async def request_application(scope, receive, send):
     active()
     headers = dict(scope.get('headers', []))
     supplied = headers.get(b'x-fanout-operation', b'').decode('ascii', errors='ignore')

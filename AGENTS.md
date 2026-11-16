@@ -367,11 +367,18 @@ cleanup verifies16 November00:35:30UTC (103.557s late, no billing guarantee).
 The operator's next run is scoped to F gates only, citing banked PR#1572 P rather
 than remeasuring Step0. Real-dispatch hook repair/fail-fast boot and a separately
 guarded actual-deploy/authorized-publish rehearsal precede any gates clock.
-Rehearsal DO619676674 is admitted16 November00:46:50→04:46:50UTC;155 pinned offline
-controls pass, actual rehearsal/F gates remain OPEN. Infrastructure rebuilds use
-explicit source-bound bounded-spot labels, not new full-parity PASS claims. Gates
-retain four hours/$2 and all original limits/trials/order; the operator's$20 overall
-safety ceiling does not authorize automatic retries/extensions or T7/production.
+Rehearsal DO619676674 completes real API boot/all nine hooks and an authorized
+ten-recipient publish at16 November02:40:56UTC; nine native write receipts have
+zero exceptions. The209.694ms single write is not feed latency/p95. Original
+failed attempts/forensics remain intact; owned cleanup verifies02:45:33UTC.
+Fresh F-only DO619706349 is admitted02:47:54→06:47:54UTC after source-bound rehearsal
+proof, with banked P cited rather than remeasured.165 pinned controls/Ruff and
+separate actual-lifespan-owner cap controls pass; F gates remain OPEN. Explicit
+bounded-spot infrastructure labels do not claim new full parity. The research
+startup guard preserves only the lifespan owner's caught code16 CREATE warning;
+HTTP/background/native caps still stop. Gates retain four hours/$2 and all
+original limits/trials/order; the operator's$20 overall safety ceiling does not
+authorize automatic retries/extensions or T7/production.
 Experiment first: prove hybrid write maintenance and layout-aware reads in isolated
 Config F, passing all required response/performance/write/lifecycle/rebuild and
 separately admitted stress gates before proposing broader platform integration.
