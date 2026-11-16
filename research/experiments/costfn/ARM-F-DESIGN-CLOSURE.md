@@ -25,6 +25,67 @@ reading beyond the retained 200 pointers without missing eligible content.
 
 ## 1. Recipient/member predicate — approved; no membership counter
 
+### Autonomous continuation — run safety source, not live admission proof
+
+The operator requests autonomous safety repair and F execution, with five-minute
+checks and no routine approval pauses. Keep the existing four-hour/$2 run shape,
+$20 overall safety ceiling, native caps, gate order and scope exclusions. This
+direction does not turn missing receipts into passes or authorize copying a broad
+provider credential onto production infrastructure.
+
+`arm_f_safety.py` adds an independent Linux controller using **its own existing,
+separately reviewed** doctl configuration. It registers the exact lease before
+paid creation, refuses changed deadlines/resource identities and proves a live
+kernel-locked supervisor plus current source/account binding over pinned SSH.
+The Mac's local watchdog remains an additional layer, not the billing backstop.
+The external controller begins owned provider cleanup ten minutes before the
+original deadline; collection failure cannot defer cleanup. Two missed five-minute
+export intervals fail shut. Aggregate retained archives are capped at4GiB with
+1GiB reserved free space; old evidence is not evicted to make room. Diagnostic
+write failure cannot skip due cleanup or processing the next lease. Provider/
+network failure is still not a billing SLA.
+
+`arm_f_checkpoint.py` exports bounded, declared private receipt trees, without
+following input/store symlinks or including archive capabilities, admissions,
+keys, runtime environment or database files. The external sink verifies every
+file digest and host/deadline/source binding, fsyncs an immutable archive and
+records its SHA before acknowledging collection. A real first checkpoint must
+verify before worker launch; periodic collection runs independently of the agent,
+Mac, SSH session and worker virtualenv. Checkpoints are evidence preservation,
+**never** self-declared gate verdicts. Mutable files skipped during a snapshot are
+listed explicitly; historical missing evidence remains NOT_RECOVERED.
+
+Activation is **BLOCKED**, not passed: read-only inspection finds zero DO droplets
+and no doctl/configuration on the reachable existing operator gateway. No provider
+secret was moved and no production service was changed. A separate preconfigured
+controller, live interruption/recovery verification and review remain required;
+the launcher now refuses missing guardian configuration before provider actions.
+Offline controls exercise real archive readback and child-process interruption,
+not an actual independent-controller/provider outage or native F workload.
+
+Controller installation contract: on a separately reviewed Linux controller,
+install the three source-pinned modules (`arm_f_safety.py`, `arm_f_checkpoint.py`,
+`arm_f_cloud.py`) in a private immutable code directory. Run the guardian under
+an independently enabled system service, with a private0700 state root:
+`python3 -I -S /PRIVATE-CODE/arm_f_safety.py serve --root /PRIVATE-STATE --doctl /ABSOLUTE/doctl --account-uuid ACCOUNT --ssh-source-cidr CONTROLLER-IP/32`.
+Its existing doctl account must match the admitted account. The workspace's
+gitignored `.context/fanout-safety-controller.json` supplies `host`, absolute
+`root`/`script`, pinned `known_hosts` and `identity` paths for controller SSH.
+The controller's HTTPS-verified direct public egress must equal the explicit
+admitted SSH source, bound before registration; gateway-only mismatches refuse
+before paid creation. Bootstrap SSH must use that same preconfigured controller
+route. The current collector does not invent a gateway jump or copy its keys. Only
+the new run's disposable SSH key is synchronized for receipt pulling; never a
+provider credential, S3 key or existing operator key. Do not install this on the
+production gateway merely because SSH access exists. No such installation has
+been performed by this source change. RPC provider calls are bounded20s, collection
+SSH20s and verifier10s (CPU5s/Linux address space512MiB), inside the75s client
+envelope. Registry lock contention fails immediately rather than waiting behind
+collection; acknowledgements recheck the live process/source heartbeat. Heartbeats
+identify the programme's import-time sources, not later disk edits. The supervisor
+keeps checking existing leases even if a separate old record is malformed, and
+advertises degraded health to refuse new work until those errors are resolved.
+
 ### Expired gates recovery —16 November20:17UTC; evidence loss, not a gate verdict
 
 Recovery finds DO619846432 powered off, no gates archive in local controller

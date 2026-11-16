@@ -149,6 +149,12 @@ def deploy(*, detach=False, state_path=Path('.context/fanout-run.json')):
     verify = "import hashlib,json;from pathlib import Path;root=Path('/opt/fanout'); files=json.loads((root/'source-manifest.json').read_bytes()); "
     verify += "assert all(hashlib.sha256((root/'repo'/p).read_bytes()).hexdigest()==v for p,v in files.items()); print('source hashes verified',len(files))"
     print(ssh('/opt/fanout/venv/bin/python -c ' + shlex.quote(verify)).decode(), flush=True)
+    # The independent guardian holds only this disposable run's SSH key. Its
+    # provider credentials must already exist on that separate controller.
+    from arm_f_safety import remote
+    remote('sync', lease, lease['guardian_config'], transport=dict(droplet_id=host['id'], ip=host['ip'],
+        host_public_key=(private / 'host-key.pub').read_text().strip(),
+        client_key=(private / 'client-key').read_text(), source_manifest=json.loads((private / 'source-manifest.json').read_bytes())))
     stop = datetime.fromtimestamp(lease['deadline'] - 240, UTC).strftime('%Y-%m-%d %H:%M:%S UTC')
     here = '/opt/fanout/repo/research/experiments/costfn/'
     stop_command = ['systemd-run', '--unit=fanout-container-stop', '--on-calendar=' + stop,

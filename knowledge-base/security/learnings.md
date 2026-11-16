@@ -35,6 +35,26 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-16: A powered-off research host is still a billable resource
+
+The F recovery loses ephemeral receipts and exceeds its cleanup deadline when
+the Mac's cleanup interpreter disappears. A stable base interpreter repairs that
+specific failure, not loss of the Mac. Host poweroff limits execution but is not
+provider deletion. Keep provider credentials off measured nodes and production
+gateways; an independent cleanup controller needs its own explicitly reviewed
+provider access, not a casual copy of the operator's broad token.
+
+New source-level launch guards require live off-Mac supervisor/source/account/
+deadline binding before resource creation. A heartbeat file without its live
+kernel-held process lock is refused. Private checkpoint pulls must verify
+host/deadline/source and every file hash at the independent sink before acknowledging
+durability; bounded receipt trees exclude capabilities, keys, input and database
+files. Collection failure must not hold cleanup hostage, and old lease/resource
+identities must not be editable into a renewal. Offline process-kill/archive and
+denial controls are not live loss-of-controller proof or a security PASS. Actual
+controller provisioning, full trust-boundary review and connected validation stay
+OPEN; no existing provider credential has been exported by this work.
+
 ### 2026-11-16: Install experimental hooks on dispatched routes, not a flat router assumption
 
 The isolated F API refused startup because FastAPI0.139 keeps included routers

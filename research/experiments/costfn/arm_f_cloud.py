@@ -20,11 +20,12 @@ import traceback
 import uuid
 
 DOCTL = '/opt/homebrew/bin/doctl'
+API_TIMEOUT = 100
 
 
 def api(*args):
     result = subprocess.run([DOCTL, '--http-retry-max', '0', '--output', 'json', *args],
-                            capture_output=True, timeout=100)
+                            capture_output=True, timeout=API_TIMEOUT)
     if result.returncode:
         raise RuntimeError('DO operation failed: ' + ' '.join(args[:3]))
     return json.loads(result.stdout) if result.stdout.strip() else None
@@ -39,6 +40,11 @@ def save(path, value):
         stream.flush()
         os.fsync(stream.fileno())
     temporary.replace(path)
+    directory = os.open(path.parent, os.O_RDONLY)
+    try:
+        os.fsync(directory)
+    finally:
+        os.close(directory)
 
 
 def validate(lease):
@@ -170,8 +176,12 @@ def watchdog_program(script, lease, *, executable=None):
     return [str(python), '-I', '-S', str(script), 'tick', '--lease', str(lease)]
 
 
-def initialize(*, state=Path('.context/fanout-run.json'), scope=None, ssh_source_cidr=None):
+def initialize(*, state=Path('.context/fanout-run.json'), scope=None, ssh_source_cidr=None,
+               guardian_config=Path('.context/fanout-safety-controller.json')):
     state = Path(state)
+    guardian_config = Path(guardian_config).resolve(strict=True)
+    if not ssh_source_cidr:
+        raise ValueError('explicit guardian-compatible SSH source required before registration')
     if scope not in (None, 'F_DEPLOY_REHEARSAL', 'F_GATES_ONLY'):
         raise ValueError('unknown F admission scope')
     if state.exists():
@@ -196,6 +206,9 @@ def initialize(*, state=Path('.context/fanout-run.json'), scope=None, ssh_source
     if ssh_source_cidr:
         lease['ssh_source_cidr'] = ssh_source_cidr
     validate(lease)  # Network pin is in the initial record BEFORE watchdog launch.
+    from arm_f_safety import remote
+    remote('register', lease, guardian_config)  # No paid resource without an off-Mac owner.
+    lease['guardian_config'] = str(guardian_config)
     path = root / 'lease.json'
     save(path, lease)
     shutil.copyfile(__file__, root / 'watchdog.py')
@@ -229,6 +242,10 @@ def create(path):
             raise ValueError('closed/existing/unguarded admission; no creation')
         if api('compute', 'droplet', 'list'):
             raise ValueError('another host exists')
+        if not lease.get('ssh_source_cidr'):
+            raise ValueError('explicit pinned SSH source required before any resource creation')
+        from arm_f_safety import remote
+        remote('check', lease, lease['guardian_config'])
         for name in ('client-key', 'host-key'):
             subprocess.run(['ssh-keygen', '-q', '-t', 'ed25519', '-N', '', '-f', str(root / name)], check=True, capture_output=True)
         public = (root / 'client-key.pub').read_text().strip()
@@ -236,12 +253,8 @@ def create(path):
         row = row[0] if isinstance(row, list) else row
         lease.update(ssh_key_id=row['id'], key_fingerprint=row['fingerprint'])
         save(path, lease)
-        source = lease.get('ssh_source_cidr')
-        if not source:
-            address = json.loads(subprocess.check_output(['curl', '-fsS', '--max-time', '10', 'https://api.ipify.org?format=json']))['ip']
-            source = str(ipaddress.IPv4Address(address)) + '/32'
-            lease['ssh_source_cidr'] = source
-            save(path, lease)
+        remote('sync', lease, lease['guardian_config'])
+        source = lease['ssh_source_cidr']
         api('compute', 'tag', 'create', lease['tag'])
         row = api('compute', 'firewall', 'create', '--name', lease['name'], '--tag-names', lease['tag'],
             '--inbound-rules', 'protocol:tcp,ports:22,address:' + source,
@@ -249,6 +262,7 @@ def create(path):
         row = row[0] if isinstance(row, list) else row
         lease['firewall_id'] = row['id']
         save(path, lease)
+        remote('sync', lease, lease['guardian_config'])
         checked = api('compute', 'firewall', 'get', str(row['id']))
         firewall_verified(checked[0] if isinstance(checked, list) else checked, lease)
         halt = datetime.fromtimestamp(lease['deadline'] - 120, UTC).strftime('%Y-%m-%d %H:%M:%S UTC')
@@ -264,12 +278,14 @@ def create(path):
         os.chmod(cloud_path, 0o600)
         lease['creation_uncertain'] = True
         save(path, lease)
+        remote('sync', lease, lease['guardian_config'])
         row = api('compute', 'droplet', 'create', lease['name'], '--region', lease['region'], '--size', lease['size'],
                   '--image', 'ubuntu-24-04-x64', '--ssh-keys', str(lease['ssh_key_id']), '--tag-names', lease['tag'],
                   '--user-data-file', str(cloud_path))
         row = row[0] if isinstance(row, list) else row
         lease.update(droplet_id=row['id'], creation_uncertain=False)
         save(path, lease)
+        remote('sync', lease, lease['guardian_config'])
         print(json.dumps({'droplet_id': row['id'], 'deadline_utc': datetime.fromtimestamp(lease['deadline'], UTC).isoformat()}))
 
 
