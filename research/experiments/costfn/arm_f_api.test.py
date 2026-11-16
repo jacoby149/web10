@@ -17,6 +17,7 @@ from fastapi import HTTPException
 import sqlglot
 
 import arm_f as f
+import arm_f_hooks
 import arm_t
 
 # Load lazy dialect registration outside sys.modules patching; otherwise the
@@ -43,8 +44,9 @@ class AdapterTests(unittest.TestCase):
         endpoint_package.documents, endpoint_package.groups = docs, groups
         app_package, v3_package = ModuleType('app'), ModuleType('app.v3')
         app_package.v3, v3_package.endpoints = v3_package, endpoint_package
-        routes = [SimpleNamespace(path='/v3/groups/' + action, methods={'POST'},
-            dependant=SimpleNamespace(call=Mock(return_value={'role': 'member'}))) for action in ('join', 'leave')]
+        routes = [SimpleNamespace(path=path, methods={'POST'},
+            dependant=SimpleNamespace(call=Mock(return_value={'role': 'member'})))
+            for path in arm_f_hooks.MEMBERSHIP_PATHS | set(arm_f_hooks.DOCUMENT_PATHS)]
         observer = SimpleNamespace(app=SimpleNamespace(routes=routes),
             current=contextvars.ContextVar('f-seam-observer', default={'request_id': 'a' * 32}),
             safe_query=SimpleNamespace(UnsafeQueryError=type('Unsafe', (Exception,), {})), application=Mock())

@@ -112,4 +112,7 @@ class HTTP:
         if any(int(row['exception_code']) or int(row['read_rows']) > 10_000_000 for row in rows):
             raise ValueError('native failure/over10M stop')
         save(self.output / (label + '-stages.json'), stages)
+        if (self.root / 'banked-P.tar.gz').is_file():
+            from arm_f_report import report
+            report(self.root, self.output / (label + '-P-cited-F-observed.json'), rows, stages)
         return rows

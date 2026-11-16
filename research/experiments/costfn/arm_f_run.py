@@ -57,7 +57,9 @@ def operation(root):
     baseline = {**admission, 'kind': 'SATELLITE_CONFIG_P_OPERATION_APPROVAL', 'configuration': 'P',
                 'fanout': False, 'canonical_sources_approved': True, 'scope_qualified_counts_approved': True,
                 'purpose': 'Step0 P-only reproduction inside the separately admitted F programme',
-                'parent_admission_sha256': hashlib.sha256((root / 'admission.json').read_bytes()).hexdigest()}
+                 'parent_admission_sha256': hashlib.sha256((root / 'admission.json').read_bytes()).hexdigest()}
+    if admission.get('scope') in ('F_GATES_ONLY', 'F_DEPLOY_REHEARSAL'):
+        baseline['purpose'] = 'P satellites as infrastructure only; PR#1572 comparator cited, no Step0 measurements'
     save(root / 'evidence/operation.json', baseline)
     return admission
 

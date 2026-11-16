@@ -129,8 +129,10 @@ def tick(path, stop=False):
             save(path, lease)
 
 
-def initialize():
-    state = Path('.context/fanout-run.json')
+def initialize(*, state=Path('.context/fanout-run.json'), scope=None):
+    state = Path(state)
+    if scope not in (None, 'F_DEPLOY_REHEARSAL', 'F_GATES_ONLY'):
+        raise ValueError('unknown F admission scope')
     if state.exists():
         raise FileExistsError('existing F run; no adoption/extension')
     rows = api('account', 'get')
@@ -147,7 +149,9 @@ def initialize():
     created = int(time.time())
     lease = dict(name=name, tag=name, configuration='F', size=shape['slug'], region='nyc3',
                  account_uuid=account_row['uuid'], max_usd=2, hourly_usd=.25, created_epoch=created,
-                 deadline=created + 14400, approved_by='Jacob', cancelled=False)
+                  deadline=created + 14400, approved_by='Jacob', cancelled=False)
+    if scope:
+        lease['scope'] = scope
     path = root / 'lease.json'
     save(path, lease)
     shutil.copyfile(__file__, root / 'watchdog.py')
@@ -160,7 +164,7 @@ def initialize():
     subprocess.run(['launchctl', 'bootstrap', 'gui/' + str(os.getuid()), str(plist)], check=True, capture_output=True)
     tick(path)
     subprocess.run(['launchctl', 'print', 'gui/' + str(os.getuid()) + '/' + label], check=True, capture_output=True)
-    save(state, dict(root=str(root), lease=str(path), label=label))
+    save(state, dict(root=str(root), lease=str(path), label=label, **({'scope': scope} if scope else {})))
     print(json.dumps({'state_root': str(root), 'deadline_utc': datetime.fromtimestamp(lease['deadline'], UTC).isoformat(),
                       'watchdog_loaded': True}))
 

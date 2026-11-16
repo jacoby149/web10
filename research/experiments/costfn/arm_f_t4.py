@@ -15,6 +15,7 @@ import uuid
 import httpx
 
 import arm_f as f
+import arm_f_environment as environment
 from arm_f_runtime import Session
 from arm_satellite_sql import literal as q
 import restore_dataset
@@ -30,28 +31,7 @@ def p95(values):
 
 
 def start(root):
-    root = Path(root)
-    session = Session(root)
-    here = Path(__file__).parent
-    stages = root / 'F-stages'
-    stages.mkdir(mode=0o700, exist_ok=False)
-    overlay = root / 'F-api.overlay.json'
-    overlay.write_text(json.dumps({'services': {'api': {'volumes': [str(root / 'fanout-state') + ':/fanout-state',
-                                                                str(stages) + ':/fanout-stages'],
-        'environment': {'FANOUT_CONFIG_F': '1', 'FANOUT_STATE': '/fanout-state',
-                        'FANOUT_SERVING_MODE': 'F_DOCUMENT_STREAM_V1', 'FANOUT_STAGE_DIR': '/fanout-stages'},
-        'command': ['uv', 'run', 'uvicorn', 'arm_f_api:application', '--host', '0.0.0.0', '--port', '80', '--no-access-log']}}}))
-    env = {**session.env, 'SATELLITE_SERVE_STATE': str(root / 'serve-state')}
-    compose = session.compose[:-2] + ['-f', str(here / 'arm_satellite_serve.compose.yml'), '-f', str(overlay), *session.compose[-2:]]
-    restore.command(compose, env, 'up', '-d', 'clickhouse', 'minio', timeout=120)
-    restore_dataset.wait_for(lambda: restore.server_ready(session.compose, session.env), 'owned F engine')
-    session.verify_envelope()
-    restore.command(compose, env, 'up', '-d', '--no-deps', 'api', timeout=180)
-    restore_dataset.wait_for(lambda: urllib.request.urlopen('http://127.0.0.1:6098/docs', timeout=3).status == 200,
-                            'real authorized F API')
-    if not (root / 'fanout-state/hook-install.json').is_file():
-        raise ValueError('real API hook installation receipt absent')
-    return session
+    return environment.boot(root)
 
 
 def switch_writer(root, *, control):
@@ -61,6 +41,9 @@ def switch_writer(root, *, control):
     are new labelled T4 write controls, not a rewrite of Step0 or old receipts.
     """
     root = Path(root)
+    if not control:
+        environment.boot(root)
+        return ['uv', 'run', 'uvicorn', 'arm_f_api:application', '--host', '0.0.0.0', '--port', '80', '--no-access-log']
     session = Session(root)
     env = {**session.env, 'SATELLITE_SERVE_STATE': str(root / 'serve-state')}
     here = Path(__file__).parent

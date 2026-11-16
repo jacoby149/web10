@@ -16,18 +16,19 @@ import arm_f_cloud as cloud
 import arm_t
 
 
-def worker_command(remaining, here, *, detach=False):
+def worker_command(remaining, here, *, detach=False, scoped=False):
     if type(remaining) is not int or not 300 <= remaining <= 14100:
         raise ValueError('worker must fit the original four-hour lease and cleanup margin')
     return ['systemd-run', '--unit=fanout-step0', '--property=RuntimeMaxSec=' + str(remaining),
         '--property=WorkingDirectory=/opt/fanout/repo',
         *(['--property=StandardOutput=append:/opt/fanout/step0-service.log',
            '--property=StandardError=append:/opt/fanout/step0-service.log'] if detach else ['--wait', '--pipe']),
-        '/opt/fanout/venv/bin/python', '-u', here + 'arm_f_run.py', '/opt/fanout', '--programme']
+        '/opt/fanout/venv/bin/python', '-u', here + ('arm_f_scoped.py' if scoped else 'arm_f_run.py'), '/opt/fanout',
+        *([] if scoped else ['--programme'])]
 
 
-def deploy(*, detach=False):
-    state = json.loads(Path('.context/fanout-run.json').read_bytes())
+def deploy(*, detach=False, state_path=Path('.context/fanout-run.json')):
+    state = json.loads(Path(state_path).read_bytes())
     private = Path(state['root'])
     lease = json.loads(Path(state['lease']).read_bytes())
     cloud.validate(lease)
@@ -66,6 +67,15 @@ def deploy(*, detach=False):
         cutoff=2000, R_plus_W_required=True, T7_admitted=False, sort_order_arm_admitted=False,
         full_population_backfill_required=True,
         population_gate_order=['T4', 'T2-F', 'T6-F', 'T3-F', 'population', 'T6-F-populated', 'T5-F', 'R+W'])
+    scoped = state.get('scope') in ('F_GATES_ONLY', 'F_DEPLOY_REHEARSAL')
+    if scoped:
+        import arm_f_banked
+        arm_f_banked.load(private)
+        admission.update(scope=state['scope'], banked_P_sha256=arm_f_banked.ARCHIVE_SHA256)
+        if state['scope'] == 'F_GATES_ONLY':
+            from arm_f_scoped import rehearsal_proof
+            admission['rehearsal_sha256'] = hashlib.sha256((private / 'deploy-rehearsal.json').read_bytes()).hexdigest()
+            rehearsal_proof(private, admission)
     prior_stop = Path(__file__).parent / 'evidence/arm-f-20261115/P-setup-stop/stop.json'
     if prior_stop.is_file():
         admission.update(operator_online_retry=True, reconciliation_batches=8,
@@ -73,7 +83,11 @@ def deploy(*, detach=False):
     cloud.save(private / 'admission.json', admission)
     transfer = [('source.tar.gz', private / 'source.tar.gz'), ('admission.json', private / 'admission.json'),
                 ('source-manifest.json', private / 'source-manifest.json'),
-                ('archive-urls.json', Path('.context/fanout-preflight/archive-urls.json'))]
+                 ('archive-urls.json', Path('.context/fanout-preflight/archive-urls.json'))]
+    if scoped:
+        transfer.append(('banked-P.tar.gz', private / 'banked-P.tar.gz'))
+        if state['scope'] == 'F_GATES_ONLY':
+            transfer.append(('deploy-rehearsal.json', private / 'deploy-rehearsal.json'))
     for name, source in transfer:
         subprocess.run(['scp', *options, str(source), destination + ':/opt/fanout/' + name],
                        check=True, capture_output=True, timeout=180)
@@ -97,7 +111,7 @@ def deploy(*, detach=False):
     remaining = int(lease['deadline'] - time.time()) - 300
     if remaining < 1800:
         raise ValueError('insufficient remaining original admission before restore')
-    command = worker_command(remaining, here, detach=detach)
+    command = worker_command(remaining, here, detach=detach, scoped=scoped)
     print('[arm-f] guarded archive restore and P setup starting; deadline=' + admission['deadline_utc'], flush=True)
     if detach:
         # A VPN/SSH disconnect must not tear down the worker's stdout pipe.

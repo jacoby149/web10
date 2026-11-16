@@ -35,6 +35,23 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-16: Install experimental hooks on dispatched routes, not a flat router assumption
+
+The isolated F API refused startup because FastAPI0.139 keeps included routers
+as deferred branches: scanning only `app.routes` missed actual prefixed endpoints.
+Enumerate effective route contexts and wrap their existing dependency callable;
+do not replace authentication, original mutation handlers or dependencies. A real
+nested-router HTTP regression covers every required hook and preserves403 denial.
+Require all routes before installing any, then verify source/boot-bound receipts
+and actual HTTP/process readiness before a gate. Tiny SQL fixtures do not prove
+the deployment seam; an actual authorized-publish rehearsal remains required.
+
+Scoped infrastructure spots are not new full-parity proof. The F-only adapter
+accepts their distinct labels only under an explicit current scoped admission,
+the immutable banked archive/builder pins, current host/generation and exact
+receipt hashes. Original serving requirements remain for unscoped runs. This is
+bounded research-tool coverage, not production authorization or an L1–L4 PASS.
+
 ### 2026-11-15: A singleton author set does not establish document attachments
 
 Subsequent operator-approved repaired native attempt: retaining the canonical
