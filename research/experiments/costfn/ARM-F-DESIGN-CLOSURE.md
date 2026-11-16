@@ -17,6 +17,34 @@ Native preflight and all11 frozen archive-object hashes pass; fresh isolated
 restore is underway. This is setup progress, not a deployed trim/T4/read result.
 Agent-invoked private checkpoints are copied locally and SHA-256 verified.
 
+**Write/validator update:** full restore/infrastructure/F Build pass. Deployed
+trim-first passes205 authorized publications with physical overflow observed.
+All100 treated writes pass exact recipient-pointer checks. Twenty-sample publish
+p95s are222.540/262.263/265.758/285.881/200.256ms at10/500/999/1,999/2,000 members.
+These are write timings, not feed latency or production numbers.
+
+Original T4's final native classifier stops on SQLGlot's unsupported driver
+`INSERT … FORMAT Native` telemetry header, after the complete measured schedule.
+The original STOP/full traceback and stopped native parts remain preserved;
+private archive SHA`ed163418b420e0c7f4d8740ebc4919032547b5f01664e38d784707bc78c18d9f`.
+The repair recognizes only a column-only binary-insert header; every SELECT,
+nested SELECT and INSERT-SELECT still gets AST rerank detection, and unknown
+syntax still fails. Three offline controls replay these boundaries. An explicit
+**validation-only** replay reads1,560 original native rows: zero exceptions,
+max38,283 read rows/no rerank,100/100 treated pointer parity. It repeats zero
+writes, changes no observations and overwrites no failed file. The existing
+isolated engine restarts solely to retrieve original query receipts and stops
+again; the original failure archive predates that restart. Native written
+70,560 rows/11,607,610 bytes include auxiliary writes, not merge/storage costs.
+
+A separate continuation directory/source manifest retains the original gate
+STOP and binds the validator-only PASS to its original receipt/native/source
+hashes. Only `arm_f_t4.py` changes among runtime sources; original deadline and
+all later gate order/trials stay unchanged. It starts T2-F on the same host;
+no new paid creation or T4 measurement retry. Public write/checker receipt:
+`evidence/arm-f-directive-20261116/write-and-validator.json`. Read, population and
+R+W results remain OPEN until actually observed.
+
 **15 November 2026 · OPERATOR APPROVED, with the corrections below.**
 The operator approved §§1–6's bounded research design, deferred §7 to integration,
 and granted §8's fresh isolated four-hour/$2 admission including concurrent R+W.
