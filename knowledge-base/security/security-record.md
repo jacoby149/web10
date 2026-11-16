@@ -15,6 +15,39 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## F research cleanup/checkpoint guardian (16.11.2026) — source controls, OPEN
+
+6.22.5 adds the separately authorized cleanup-only OAuth context, fixed HTTPS
+read/delete provider adapter, dedicated-controller bootstrap/watch and bounded
+off-controller exact-key receipt transport. The broad creation credential remains
+Mac-side; no provider token belongs on a measured node or production gateway.
+Separate source review identifies missing sink installation, auxiliary-error
+starvation and archive-dependent self-expiry; source repairs gate F registration
+on real offsite readiness, isolate auxiliary failures and install/activate a flat
+expiry path before main archive extraction. Follow-up review and live proof remain
+OPEN. Generated bootstrap, scoped-refresh/route refusal and sink byte/hash controls
+are offline evidence only; preparation has not created a paid controller.
+
+Bounded review covers the new research-only guardian, private file checkpoint
+transport and paid-launch call sites. No platform auth/API change or provider
+credential transfer. Offline controls deny absent/dead guardians, altered lease
+bindings, tampered/oversized archives and input/capability export; a real killed
+collector process leaves its previously verified immutable archive recoverable.
+Provider deletion is mocked in those tests. Controller provisioning, live
+provider cleanup during Mac loss, independent/model-diverse review and broader
+L1–L4 coverage remain OPEN. No security or native-gate PASS is claimed.
+
+A separate reviewer reproduces and drives repair of cleanup-state poisoning,
+archive parser bounds, cross-lease starvation and parent-directory symlink escape;
+source identity/ingress/durability and ENOSPC/RPC-budget issues are also repaired.
+The final bounded follow-up reports no additional material source defect and21
+passing safety controls. This is one same-family review stream, not the required
+model-diverse three-dry convergence review or live-controller assurance.
+
+| Unit | Level | Status | Evidence / open gate |
+|---|---|---|---|
+| `arm_f_safety.py`, `arm_f_checkpoint.py`, cloud/deploy callers | Bounded source/change review, not completed L1–L4 | OPEN | `arm_f_safety.test.py`; no-engine/process/archive controls only; separate controller credentials/setup and connected interruption/recovery unverified |
+
 ## Scoped F research continuation (16.11.2026) — bounded change review, OPEN
 
 GPT-6.1 Sol traces the isolated hook installer into FastAPI's effective route
