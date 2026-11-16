@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 import re
 import shutil
-import urllib.request
+import uuid
 
 import arm_f_native
 import arm_f_guard
@@ -36,12 +36,13 @@ def boot(root, mode='F_DOCUMENT_STREAM_V1'):
         raise ValueError('only declared identical-contract P/F modes')
     root = Path(root)
     session = Session(root)
+    boot_id = uuid.uuid4().hex
     stages = root / 'F-stages'
     stages.mkdir(mode=0o700, exist_ok=True)
     overlay = root / 'F-api.overlay.json'
     overlay.write_text(json.dumps({'services': {'api': {'volumes': [str(root / 'fanout-state') + ':/fanout-state',
         str(stages) + ':/fanout-stages'], 'environment': {'FANOUT_CONFIG_F': '1', 'FANOUT_STATE': '/fanout-state',
-        'FANOUT_SERVING_MODE': mode, 'FANOUT_STAGE_DIR': '/fanout-stages'},
+        'FANOUT_SERVING_MODE': mode, 'FANOUT_STAGE_DIR': '/fanout-stages', 'FANOUT_BOOT_ID': boot_id},
         'command': ['uv', 'run', 'uvicorn', 'arm_f_api:application', '--host', '0.0.0.0', '--port', '80', '--no-access-log']}}}))
     here = Path(__file__).parent
     compose = session.compose[:-2] + ['-f', str(here / 'arm_satellite_serve.compose.yml'), '-f', str(overlay), *session.compose[-2:]]
@@ -50,18 +51,20 @@ def boot(root, mode='F_DOCUMENT_STREAM_V1'):
     restore_dataset.wait_for(lambda: restore.server_ready(session.compose, session.env), 'owned trial engine')
     session.verify_envelope()
     restore.command(compose, env, 'up', '-d', '--no-deps', 'api', timeout=180)
-    restore_dataset.wait_for(lambda: urllib.request.urlopen('http://127.0.0.1:6098/docs', timeout=3).status == 200, 'F trial API')
+    from arm_f_startup import ready
+    ready(root, compose, env, boot_id)
     return session
 
 
-def serving_state(root):
+def serving_state(root, *, overrides=None):
     root = Path(root)
     directory = root / 'serve-state'
     directory.mkdir(mode=0o700, exist_ok=True)
     for name, relative in {'operation': 'evidence/operation.json', 'counts': 'counts-batch-p2/result.json',
         'metadata': 'metadata/result.json', 'parity': 'metadata-parity/result.json',
         'profile': 'profile/inventory.json', 'presence': 'presence/result.json'}.items():
-        shutil.copyfile(root / relative, directory / (name + '.json'))
+        source = (overrides or {}).get(name, root / relative)
+        shutil.copyfile(source, directory / (name + '.json'))
 
 
 def prepare(root, parent, *, profile=None):
@@ -78,12 +81,20 @@ async def prepare_async(root, parent, *, profile=None):
         profile = await setup.setup_scopes(root, session)
         print('[F-setup] scope complete', root.name, flush=True)
     else:
-        (root / 'profile').mkdir(mode=0o700)
-        setup.save(root / 'profile/inventory.json', profile)
-    setup.build_p_counts(root, session, profile)
-    metadata.build(root, counts_receipt=root / 'counts-batch-p2/result.json')
-    parity.verify(root)
-    presence.build(root)
+        (root / 'profile').mkdir(mode=0o700, exist_ok=True)
+        existing = root / 'profile/inventory.json'
+        if existing.exists() and json.loads(existing.read_bytes()) != profile:
+            raise ValueError('existing authoritative trial profile differs')
+        setup.save(existing, profile)
+    approval = json.loads((root / 'admission.json').read_bytes()) if (root / 'admission.json').exists() else {}
+    if approval.get('scope') in ('F_GATES_ONLY', 'F_DEPLOY_REHEARSAL'):
+        import arm_f_infrastructure
+        arm_f_infrastructure.build(root)
+    else:
+        setup.build_p_counts(root, session, profile)
+        metadata.build(root, counts_receipt=root / 'counts-batch-p2/result.json')
+        parity.verify(root)
+        presence.build(root)
     serving_state(root)
     arm_f_native.build(root, step0_root=parent)
     return root
@@ -102,10 +113,17 @@ def fresh(parent, name):
     if free < 150 * 1024**3:
         raise ValueError('fresh-trial150GiB reserve not available; no deletion or capacity guess')
     # One engine at a time. Keep the original Step0 store and its receipts intact.
-    stop(parent, engine=True)
+    if (parent / 'restore.json').is_file():
+        stop(parent, engine=True)
+    elif approval.get('scope') not in ('F_GATES_ONLY', 'F_DEPLOY_REHEARSAL'):
+        # Legacy parent must still be a real completed Step0 store. Scoped
+        # controllers have no parent engine; their first restore is trial write.
+        stop(parent, engine=True)
     root = parent / 'trials' / name
     root.mkdir(parents=True, mode=0o700, exist_ok=False)
     shutil.copyfile(parent / 'admission.json', root / 'admission.json')
+    if (parent / 'banked-P.tar.gz').is_file():
+        (root / 'banked-P.tar.gz').symlink_to((parent / 'banked-P.tar.gz').resolve())
     setup.operation(root)
     (root / 'input').symlink_to(parent / 'input', target_is_directory=True)
     setup.save(root / 'evidence/archive.json', json.loads((parent / 'evidence/archive.json').read_bytes()))

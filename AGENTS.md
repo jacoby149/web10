@@ -361,7 +361,32 @@ At22:09UTC the merged2ca24da5c2c0 continuation starts separately on the same lea
 old P Step0 parity PASS is banked,996 continuation source hashes verify, and its
 updated native rehearsal passes49 population/shadow statements. Build preparation
 uses a fresh trial copy; original P source/store remain intact. T4 and later
-gates are still unreached; cleanup remains16 November00:33:47UTC.
+gates were not reached: Build passes23:23UTC, then T4 stops before its first
+publish because deferred FastAPI router hooks were not discovered. Owned provider
+cleanup verifies16 November00:35:30UTC (103.557s late, no billing guarantee).
+The operator's next run is scoped to F gates only, citing banked PR#1572 P rather
+than remeasuring Step0. Real-dispatch hook repair/fail-fast boot and a separately
+guarded actual-deploy/authorized-publish rehearsal precede any gates clock.
+Rehearsal DO619676674 completes real API boot/all nine hooks and an authorized
+ten-recipient publish at16 November02:40:56UTC; nine native write receipts have
+zero exceptions. The209.694ms single write is not feed latency/p95. Original
+failed attempts/forensics remain intact; owned cleanup verifies02:45:33UTC.
+Fresh F-only DO619706349 runs02:47:54→T4 STOP03:52:17UTC, with banked P cited rather
+than remeasured. Build passes;60 F publishes reconcile pointers and20-sample write
+p95s are228.992/267.406/276.930ms at10/500/999 members. Periodic trim latches
+`ProgrammingError`;1,999/2,000 F writes, final T4 native validation and every read/
+later gate are unreached. This is a maintenance-path rehearsal escape, not a feed
+latency result or arm PASS. Raw/source/stopped native query-log receipts are banked
+at `evidence/arm-f-gates-only-20261116/` (raw private); owned cleanup verifies
+04:02:28UTC before original06:47:54. No restart/extension; further native/paid work
+needs fresh admission after source-only trim diagnosis and maintenance-covering
+rehearsal.165 pinned controls/Ruff and separate actual-lifespan-owner cap controls
+pass, not full native acceptance. Explicit
+bounded-spot infrastructure labels do not claim new full parity. The research
+startup guard preserves only the lifespan owner's caught code16 CREATE warning;
+HTTP/background/native caps still stop. Gates retain four hours/$2 and all
+original limits/trials/order; the operator's$20 overall safety ceiling does not
+authorize automatic retries/extensions or T7/production.
 Experiment first: prove hybrid write maintenance and layout-aware reads in isolated
 Config F, passing all required response/performance/write/lifecycle/rebuild and
 separately admitted stress gates before proposing broader platform integration.

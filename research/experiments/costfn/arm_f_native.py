@@ -36,26 +36,44 @@ def save(path, value):
         __import__('os').fsync(stream.fileno())
 
 
+def authorized_sources(*, closure=None):
+    """Offline admission preflight as well as the final native-build guard."""
+    repository = Path(__file__).resolve().parents[3]
+    text = closure if closure is not None else Path(__file__).with_name('ARM-F-DESIGN-CLOSURE.md').read_text()
+    entries = re.findall(r'^([a-f0-9]{64})  (.+)$', text, re.M)
+    if not entries:
+        raise ValueError('approved authorized source manifest missing')
+    for expected, name in entries:
+        if hashlib.sha256((repository / name).read_bytes()).hexdigest() != expected:
+            raise ValueError('approved authorized source drift: ' + name)
+    return {name: expected for expected, name in entries}
+
+
 def build(root, *, step0_root=None):
     root = Path(root)
     session = Session(root)
     baseline = Path(step0_root) if step0_root is not None else root
-    step0 = json.loads((baseline / 'serve-probe/config-p.json').read_bytes())
-    if step0.get('T2') != 'PASS' or step0.get('droplet_id') != session.host_id or not (baseline / 'step0-stage-table.json').is_file():
-        raise ValueError('source-bound complete P Step0/parity required before any F build')
-    report = json.loads((baseline / 'evidence/step0-reported.json').read_bytes())
-    if report.get('stage_table_sha256') != hashlib.sha256((baseline / 'step0-stage-table.json').read_bytes()).hexdigest():
-        raise ValueError('report P stage table before building F')
-    repository = Path(__file__).resolve().parents[3]
-    closure = Path(__file__).with_name('ARM-F-DESIGN-CLOSURE.md').read_text()
-    for expected, name in re.findall(r'^([a-f0-9]{64})  (.+)$', closure, re.M):
-        if hashlib.sha256((repository / name).read_bytes()).hexdigest() != expected:
-            raise ValueError('approved authorized source drift; stop before F DDL')
+    scoped = session.operation.get('scope') in ('F_GATES_ONLY', 'F_DEPLOY_REHEARSAL')
+    if scoped:
+        import arm_f_banked
+        reference = arm_f_banked.citation(root)
+        step0_digest = reference['archive_sha256']
+        step0_status = 'CITED_PASS'
+    else:
+        step0 = json.loads((baseline / 'serve-probe/config-p.json').read_bytes())
+        if step0.get('T2') != 'PASS' or step0.get('droplet_id') != session.host_id or not (baseline / 'step0-stage-table.json').is_file():
+            raise ValueError('source-bound complete P Step0/parity required before any F build')
+        report = json.loads((baseline / 'evidence/step0-reported.json').read_bytes())
+        if report.get('stage_table_sha256') != hashlib.sha256((baseline / 'step0-stage-table.json').read_bytes()).hexdigest():
+            raise ValueError('report P stage table before building F')
+        step0_digest = hashlib.sha256((baseline / 'serve-probe/config-p.json').read_bytes()).hexdigest()
+        step0_status = 'PASS'
+    authorized_sources()
     output = root / 'F-build'
     output.mkdir(mode=0o700, exist_ok=False)
     profile = json.loads((root / 'profile/inventory.json').read_bytes())
-    result = dict(kind='CONFIG_F_CANONICAL_BUILD', outcome='BUILDING', P_Step0_T2='PASS',
-        Step0_reference=str(baseline), Step0_receipt_sha256=hashlib.sha256((baseline / 'serve-probe/config-p.json').read_bytes()).hexdigest(),
+    result = dict(kind='CONFIG_F_CANONICAL_BUILD', outcome='BUILDING', P_Step0_T2=step0_status,
+        Step0_reference='PR#1572 cited, not re-measured' if scoped else str(baseline), Step0_receipt_sha256=step0_digest,
         droplet_id=session.host_id, dataset_id=session.operation['dataset_id'], cutoff=f.CUTOFF,
         logical_cap=f.CAP, DDL_sha256=hashlib.sha256(f.DDL.encode()).hexdigest(),
         group_members={}, queries=[], rebuild_sources=['documents', 'doc_groups', 'group_members'],

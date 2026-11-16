@@ -94,7 +94,10 @@ class Actions:
         value = json.loads((self.active_root / 'F-build/result.json').read_bytes())
         if value.get('outcome') != 'F_BUILD_READY_FOR_T4' or not value.get('actual_ddl'):
             raise ValueError('actual F schema/canonical build unverified')
-        return dict(verified=True, root=str(self.active_root), build_sha256=digest(self.active_root / 'F-build/result.json'))
+        environment.boot(self.active_root)  # Real installed hooks + ready API BEFORE entering T4.
+        environment.stop(self.active_root)
+        return dict(verified=True, root=str(self.active_root), build_sha256=digest(self.active_root / 'F-build/result.json'),
+            api_ready_sha256=digest(self.active_root / 'F-api-ready.json'))
 
     def publish(self, output):
         self.check()
@@ -114,6 +117,12 @@ class Actions:
         fixture = asyncio.run(fixtures.parity_fixture(self.active_root))
         profile = asyncio.run(__import__('arm_f_run').setup_scopes(self.active_root, Session(self.active_root),
             reader_override=fixture['reader'], groups_override=fixture['groups']))
+        if self.approval.get('scope') == 'F_GATES_ONLY':
+            environment.prepare(self.active_root, self.root, profile=profile)
+            value = asyncio.run(reads.identical_contract(self.active_root, output))
+            environment.discard_trial(self.active_root)
+            self.active_root = None
+            return value
         # Scope capture already wrote profile; prepare must not fabricate it or
         # re-run group discovery as if this were the ordinary K20 trial.
         from arm_f_run import build_p_counts

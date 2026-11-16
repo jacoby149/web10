@@ -12,6 +12,7 @@ import sqlglot
 from sqlglot import exp
 
 import arm_t
+from arm_f_infrastructure import serving_valid
 from arm_satellite_runtime import admitted
 from arm_satellite_pull import pull_page
 import arm_satellite_serve as serve
@@ -29,7 +30,8 @@ metadata = json.loads((STATE / "metadata.json").read_bytes())
 parity = json.loads((STATE / "parity.json").read_bytes())
 profile = json.loads((STATE / "profile.json").read_bytes())
 presence = json.loads((STATE / "presence.json").read_bytes())
-if (counts.get("T1") != "PASS" or parity.get("outcome") != "PASS" or presence.get("T1") != "PASS"
+infrastructure_spots = serving_valid(operation, counts, metadata, parity, presence)
+if ((not infrastructure_spots and (counts.get("T1") != "PASS" or parity.get("outcome") != "PASS" or presence.get("T1") != "PASS"))
         or any(item.get("droplet_id") != host for item in (counts, metadata, parity, profile, presence))
         or metadata["count_receipt_sha256"] != hashlib.sha256((STATE / "counts.json").read_bytes()).hexdigest()
         or parity["metadata_sha256"] != hashlib.sha256((STATE / "metadata.json").read_bytes()).hexdigest()

@@ -13,6 +13,7 @@ from arm_f_native import save
 
 ORDER = ('Step0', 'Build', 'T4', 'T2-F', 'T6-F', 'T3-F', 'Population',
          'T6-F-populated', 'T5-F', 'T8-F', 'Boundaries', 'R+W')
+SCOPED_ORDER = ('Banked-P', *ORDER[1:])
 MODES = ('P_DOCUMENT_STREAM_V1', 'F_DOCUMENT_STREAM_V1')
 TRIALS, SAMPLES, LOAD_SECONDS = 3, 100, 600
 
@@ -76,17 +77,18 @@ def load_verdict(result):
 
 
 class Programme:
-    def __init__(self, root, host, *, clock=None):
+    def __init__(self, root, host, *, clock=None, scoped=False):
         self.root, self.host = Path(root), host
         self.clock = clock or (lambda: datetime.now(UTC))
+        self.order = SCOPED_ORDER if scoped else ORDER
         self.directory = self.root / 'F-gates'
         self.directory.mkdir(mode=0o700, exist_ok=True)
         self.results = {}
         self.sources = {p.name: digest(p) for p in sorted(Path(__file__).parent.glob('arm_f*.py'))}
 
     def run(self, gate, action):
-        index = ORDER.index(gate)
-        if tuple(self.results) != ORDER[:index] or any(row['outcome'] != 'PASS' for row in self.results.values()):
+        index = self.order.index(gate)
+        if tuple(self.results) != self.order[:index] or any(row['outcome'] not in ('PASS', 'CITED') for row in self.results.values()):
             raise ValueError('cannot skip/reorder an incomplete F gate')
         output = self.directory / gate
         output.mkdir(mode=0o700, exist_ok=False)
@@ -99,11 +101,13 @@ class Programme:
             evidence = action(output)
             if not isinstance(evidence, dict) or evidence.get('verified') is not True:
                 raise ValueError('gate action did not establish its actual evidence')
-            value.update(evidence=evidence, outcome='PASS')
+            value.update(evidence=evidence, outcome='CITED' if gate == 'Banked-P' else 'PASS')
             if 'population_receipt_sha256' in evidence:
                 value['population_receipt_sha256'] = evidence['population_receipt_sha256']
         except BaseException as error:
             value.update(outcome='STOP', failure_class=type(error).__name__)
+            if getattr(error, 'classification', None) == 'rehearsal_escape':
+                value['classification'] = 'rehearsal_escape'
             self.results[gate] = value
             (self.root / 'F.stop').write_text('gate_' + gate + '_' + type(error).__name__ + '\n')
             raise
@@ -112,7 +116,7 @@ class Programme:
             save(output / 'result.json', value)
             self.results[gate] = value
             save(self.directory / 'programme.json', dict(outcome='STOP' if value['outcome'] == 'STOP' else
-                ('PASS' if gate == ORDER[-1] else 'INCOMPLETE'), gates=self.results,
-                unreached=[g for g in ORDER if g not in self.results]))
+                ('PASS' if gate == self.order[-1] else 'INCOMPLETE'), gates=self.results,
+                unreached=[g for g in self.order if g not in self.results]))
         print('[F-programme] PASS', gate, flush=True)
         return value

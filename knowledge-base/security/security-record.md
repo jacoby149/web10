@@ -15,6 +15,32 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Scoped F research continuation (16.11.2026) — bounded change review, OPEN
+
+GPT-6.1 Sol traces the isolated hook installer into FastAPI's effective route
+contexts and the unchanged real membership/document handlers; HTTP regressions
+retain denied authority and wrap every required dispatched route. Source/boot
+receipt and exited-process controls deny stale/missing hooks before T4. Immutable
+banked-source validation and explicitly scoped infrastructure-spot labels do not
+claim a new full-parity PASS or replace live grants/canonical resolution. Original
+production endpoints are unmodified. Actual-deploy rehearsal/native gate evidence,
+independent/model-diverse review and broader scan coverage remain OPEN.
+
+Bounded native update: actual deploy/API boot installs all nine hooks and a real
+authorized publish reconciles ten stored pointers/nine native write receipts
+with zero exceptions. Rehearsal proof`a47e4c2b…22133` and its retained original
+failures are source-bound. The research-only startup exception is restricted to
+the lifespan owner task's caught native code16 CREATE warning; HTTP/background
+tasks cannot inherit it, and cap/timeout/row-limit failures still stop.165 pinned
+controls plus four actual-owner cap replays pass. A separately approved never-
+served rehearsal state recovery retains the old failed state and refuses served
+journals/gates. Core OAuth DDL remains unchanged/unassured. These facts narrow
+the OPEN state; they do not supply independent/model-diverse or L1–L4 assurance.
+
+| Unit | Level | Status | Evidence / open gate |
+|---|---|---|---|
+| F hook/startup/citation/infrastructure adapter and direct callers | L1/L2 bounded change review | OPEN | `arm_f_hooks.test.py`, `arm_f_startup.test.py`, `arm_f_scoped.test.py`; no-engine dispatch/refusal controls only, not whole-surface or production assurance |
+
 ## Arm D attachment repair (15.11.2026) — bounded constructor review, OPEN
 
 Later explicitly approved native fixed-inventory diagnostic: fresh source/copy

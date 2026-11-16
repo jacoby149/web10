@@ -35,6 +35,43 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-16: Install experimental hooks on dispatched routes, not a flat router assumption
+
+The isolated F API refused startup because FastAPI0.139 keeps included routers
+as deferred branches: scanning only `app.routes` missed actual prefixed endpoints.
+Enumerate effective route contexts and wrap their existing dependency callable;
+do not replace authentication, original mutation handlers or dependencies. A real
+nested-router HTTP regression covers every required hook and preserves403 denial.
+Require all routes before installing any, then verify source/boot-bound receipts
+and actual HTTP/process readiness before a gate. Tiny SQL fixtures do not prove
+the deployment seam; an actual authorized-publish rehearsal remains required.
+
+Scoped infrastructure spots are not new full-parity proof. The F-only adapter
+accepts their distinct labels only under an explicit current scoped admission,
+the immutable banked archive/builder pins, current host/generation and exact
+receipt hashes. Original serving requirements remain for unscoped runs. This is
+bounded research-tool coverage, not production authorization or an L1–L4 PASS.
+
+The first real scoped rehearsal also exposes a checker representation defect:
+ClickHouse emits qualified output names for two joined columns. Exact-query
+forensics proves identical row values/multiplicities; fix explicit SQL aliases,
+not expected data, predicates or equality. Persist both compared rowsets before
+raising, privately. A separately approved rehearsal repair may reuse unchanged
+receipted infrastructure only with current-generation/source checks; this is not
+a fresh performance trial and must be rejected by gates admission.
+
+Real API startup also distinguishes a server lifespan task from workload tasks.
+The node already catches a code16 CREATE-schema warning in its startup helper;
+F must not turn that handled setup warning into a permanent workload stop. The
+exception is limited to that native code/DDL class in the exact lifespan owner
+task. HTTP explicitly clears it; async child tasks cannot inherit permission to
+ignore failures. Caps/timeouts/row limits, all HTTP/background native failures
+and unhandled startup errors still stop/fail readiness. Core auth/OAuth DDL is
+unchanged and not certified by this repair. A never-ready, never-served,
+bootstrap-only rehearsal state can be separately preserved/recovered with exact
+failure hashes, never a served journal or a gates trial. Real API/publish proof
+passes, but this is not whole-API/security or F read-performance assurance.
+
 ### 2026-11-15: A singleton author set does not establish document attachments
 
 Subsequent operator-approved repaired native attempt: retaining the canonical

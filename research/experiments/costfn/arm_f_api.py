@@ -4,6 +4,7 @@ Existing endpoint functions certify/authorize the real actor. A single private
 coordinator journals and reconciles their actual effects. Old P remains intact.
 """
 import contextvars
+import asyncio
 from datetime import UTC, datetime
 from functools import wraps
 import hashlib
@@ -11,6 +12,7 @@ import importlib
 import json
 import logging
 import os
+import re
 from pathlib import Path
 import threading
 import uuid
@@ -19,6 +21,8 @@ from fastapi import HTTPException
 import sqlglot
 
 import arm_f as f
+import arm_f_hooks
+from arm_f_banked import ARCHIVE_SHA256 as BANKED_P_SHA256
 import arm_f_observe as observation
 import arm_f_views
 import arm_f_faults
@@ -42,8 +46,11 @@ if (admission.get('configuration') != 'F' or admission.get('droplet_id') != p.ho
         or (deadline - start).total_seconds() != 14400 or not start <= datetime.now(UTC) < deadline):
     raise RuntimeError('exact current parent F admission required')
 build = json.loads((ROOT / 'build.json').read_bytes())
+banked_comparator = (admission.get('scope') in ('F_GATES_ONLY', 'F_DEPLOY_REHEARSAL')
+    and admission.get('banked_P_sha256') == BANKED_P_SHA256
+    and build.get('Step0_receipt_sha256') == BANKED_P_SHA256 and build.get('P_Step0_T2') == 'CITED_PASS')
 if (build.get('DDL_sha256') != hashlib.sha256(f.DDL.encode()).hexdigest()
-        or build.get('droplet_id') != p.host or build.get('P_Step0_T2') != 'PASS'):
+        or build.get('droplet_id') != p.host or (build.get('P_Step0_T2') != 'PASS' and not banked_comparator)):
     raise RuntimeError('same-host source-bound F build after P Step0 required')
 journal = Journal(ROOT / 'journal')
 store = Store(p.ch.client, journal)
@@ -51,6 +58,7 @@ fence = Fence()
 log = logging.getLogger('arm-f')
 fatal = threading.Event()
 context = contextvars.ContextVar('fanout_request', default=None)
+startup_phase = contextvars.ContextVar('fanout_lifespan_startup_owner', default=None)
 pending = contextvars.ContextVar('fanout_live_result', default=None)
 MARKER = '/* Config F request-private canonical result */ SELECT 1'
 MODE = os.environ.get('FANOUT_SERVING_MODE', 'F_DOCUMENT_STREAM_V1')
@@ -72,7 +80,21 @@ def command(sql, *args, **kwargs):
     try:
         return original_command(sql, *args, **kwargs)
     except Exception as error:
-        fail('native_command_' + type(error).__name__)
+        native_code = re.match(r'^Received ClickHouse exception, code: (\d+),', str(error))
+        try:
+            in_startup_task = startup_phase.get() is not None and startup_phase.get() is asyncio.current_task()
+        except RuntimeError:  # Native commands in worker/background threads.
+            in_startup_task = False
+        schema_warning = (in_startup_task and native_code and int(native_code[1]) == 16
+            and sql.lstrip().upper().startswith('CREATE TABLE IF NOT EXISTS '))
+        if schema_warning:
+            # Preserve the ordinary node's own handling of startup DDL errors.
+            # Uncaught errors still fail ASGI startup/readiness. This context is
+            # never enabled by a request/header, HTTP or background F operation.
+            log.warning('[arm-f] lifespan schema warning code=16 class=%s sql_sha256=%s',
+                type(error).__name__, hashlib.sha256(sql.encode()).hexdigest())
+        else:
+            fail('native_command_' + type(error).__name__)
         raise
 
 
@@ -335,23 +357,15 @@ def install_membership_hook(route):
     route.dependant.call = member
 
 
-MEMBERSHIP_PATHS = {'/v3/groups/join', '/v3/groups/leave', '/v3/groups/members/add',
-    '/v3/groups/members/remove', '/v3/groups/accept-invite', '/v3/groups/requests/join/approve'}
-installed = []
-document_hooks = {'/v3/update': 'update', '/v3/delete': 'delete', '/v3/attachment': 'attachment'}
-for route in p.observer.app.routes:
-    if getattr(route, 'path', None) in MEMBERSHIP_PATHS and 'POST' in (getattr(route, 'methods', None) or set()):
-        install_membership_hook(route)
-        installed.append(route.path)
-    if getattr(route, 'path', None) in document_hooks and 'POST' in (getattr(route, 'methods', None) or set()):
-        install_document_hook(route, document_hooks[route.path])
-if not {'/v3/groups/join', '/v3/groups/leave'} <= set(installed):
-    raise RuntimeError('real membership routes not installed; no synthetic substitute')
-(ROOT / 'hook-install.json').write_text(json.dumps({'authorized_membership_routes': installed,
-    'authorized_document_routes': list(document_hooks),
+hook_receipt = arm_f_hooks.install(p.observer.app, install_membership_hook, install_document_hook)
+(ROOT / 'hook-install.json').write_text(json.dumps({**hook_receipt,
+    'boot_id': os.environ.get('FANOUT_BOOT_ID'),
     'create_entry': 'documents.create_document -> documents.create_as -> original_create',
     'adapter_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+    'installer_sha256': hashlib.sha256(Path(arm_f_hooks.__file__).read_bytes()).hexdigest(),
     'production_source_modified': False}, indent=2))
+print('[arm-f] real route hooks installed', len(hook_receipt['authorized_membership_routes']),
+      len(hook_receipt['authorized_document_routes']), flush=True)
 
 
 def generation():
@@ -505,6 +519,18 @@ rebuild_stop = arm_f_online_rebuild.start(ROOT, p, journal, fence, admission, ac
 
 
 async def application(scope, receive, send):
+    phase_token = startup_phase.set(asyncio.current_task() if scope['type'] == 'lifespan' else None)
+    async def phase_send(message):
+        if message['type'] in ('lifespan.startup.complete', 'lifespan.startup.failed'):
+            startup_phase.set(None)
+        await send(message)
+    try:
+        return await request_application(scope, receive, phase_send)
+    finally:
+        startup_phase.reset(phase_token)
+
+
+async def request_application(scope, receive, send):
     active()
     headers = dict(scope.get('headers', []))
     supplied = headers.get(b'x-fanout-operation', b'').decode('ascii', errors='ignore')

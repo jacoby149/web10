@@ -77,6 +77,51 @@ structural conclusion and the proposed v7 headline remain hypotheses to test.
 
 ## Programme and admission
 
+### Scoped continuation — operator direction,15 November2026
+
+Execution update16 November: actual-deploy rehearsal passes02:40:56UTC on
+DO619676674 (real API/all nine hooks/authorized publish/ten stored pointers/nine
+native write receipts with zero exceptions).209.694ms is a single rehearsal write,
+not feed latency/p95. Prior failed attempts/forensics are preserved and owned
+cleanup verifies02:45:33UTC. Fresh F-only DO619706349 is admitted02:47:54→06:47:54UTC,
+unchanged four-hour/$2 shape after source-bound proof verification. It passes
+Build, then stops at T4's periodic background-trim `ProgrammingError` before
+any1,999-member F publish.60 correct-pointer F writes yield partial20-sample
+p95s228.992/267.406/276.930ms at10/500/999 members. T4 is not established; all
+read/later gates remain unreached. Owned cleanup verifies04:02:28UTC before the
+original deadline; the admission is closed, no retry/extension. PR#1572 P remains
+cited, never remeasured. Source/native/cleanup receipts and the maintenance-path
+rehearsal escape are retained in the existing closure/evidence stack.
+
+The next admission is **F gates only**. DO619625857 completed F Build, then
+stopped at T4 startup at23:26:09UTC: the real API refused to boot with
+`real membership routes not installed; no synthetic substitute`. No T4 publish
+or F read-performance sample ran. Preserve this failure, not a fanout cost verdict.
+
+Before starting the gates lease, repair hook installation and prove the **actual
+deploy path** on a short-lived isolated host: real F API boot, installed-hook
+receipt, and one T4-shaped authorized publish. A tiny SQL fixture is not this
+rehearsal. Missing hooks or an exited API must fail in seconds, before T4, not
+after the old180-second readiness timeout. Keep rehearsal costs/deadline and
+cleanup separately bounded; the four-hour gates clock starts only after PASS.
+
+Use a fresh isolated DigitalOcean host and hash-verified frozen MinIO dataset
+`2d6bbc4d…`, unchanged32/28/22GiB envelope,24.8.14.39, ten-second measured reads
+and >10M-row stop. Four hours/$2, independent provider/host/container cleanup,
+stated deadline, no extension. Rebuild P satellites as **infrastructure**, with
+bounded spot checks bound to banked receipts, identical dataset and builder code.
+Do not rerun Step0 measurements or full infrastructure parity; do not label spot
+checks as a new full-parity PASS. Banked PR#1572 P Step0/stage table is the cited
+comparator in every P-vs-F table. A fresh F build/reader seed still gets a receipt.
+
+Gate order remains T4 → T2-F → T6-F → T3-F → Population → T6-F-populated →
+T5-F → T8-F → Boundaries → R+W. Preserve three fresh-restore-bound trials ×100
+measured complete sequences, the full-population contract and all observation-
+derived verdicts. T2-F correctness comparisons are not a new P performance
+baseline. T7/P1/production/paper work remain outside admission. Any startup/hook
+failure after rehearsal is explicitly a **rehearsal escape**; stop, retain its
+stage/receipts and report all later gates unreached.
+
 **6.21.2 native execution update:** original P Step0 parity PASS and diagnostics
 are banked without changing its933 source files. Merged2ca24da5c2c0 is staged in a
 separate996-file-verified tree on the SAME DO619625857 lease, original cleanup
