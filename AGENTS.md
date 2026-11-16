@@ -384,7 +384,15 @@ rehearsal.165 pinned controls/Ruff and separate actual-lifespan-owner cap contro
 pass, not full native acceptance. Explicit
 bounded-spot infrastructure labels do not claim new full parity. The research
 startup guard preserves only the lifespan owner's caught code16 CREATE warning;
-HTTP/background/native caps still stop. Gates retain four hours/$2 and all
+HTTP/background/native caps still stop. The16 November operator directive in
+`task-block-fanout-arm.md` revokes the independent guardian/watchdog prerequisite,
+including PR#1576: agent supervision about every300s and droplet self-kill timers
+are the approved model; do not activate or build external supervision. Evidence
+collection/checkpoints remain required. Safety apparatus must cost less than the
+loss prevented; no further hardening layers without explicit operator approval.
+Fresh F-only DO620048100 is admitted22:03:51→17 November02:03:51UTC; native
+preflight/frozen archive hashes pass and restore is underway, not a gate verdict.
+Gates retain four hours/$2 and all
 original limits/trials/order; the operator's$20 overall safety ceiling does not
 authorize automatic retries/extensions or T7/production.
 Experiment first: prove hybrid write maintenance and layout-aware reads in isolated

@@ -21,7 +21,11 @@ def admitted(operation, host_id, now=None):
             or type(host_id) is not int or host_id <= 0 or host_id in (618505005, 619371600)
             or operation.get("canonical_sources_approved") is not True
             or operation.get("scope_qualified_counts_approved") is not True
-            or operation.get("fanout") is not False or operation.get("watchdog_verified") is not True
+            or operation.get("fanout") is not False or not (operation.get("watchdog_verified") is True or (
+                operation.get('cleanup_model') == 'agent-supervised-self-kill'
+                and operation.get('host_self_kill_verified') is True
+                and operation.get('scope') in ('F_GATES_ONLY', 'F_DEPLOY_REHEARSAL')
+                and operation.get('parent_admission_sha256')))
             or not 0 < operation.get("budget_usd", 0) <= 2
             or not 0 < (deadline - start).total_seconds() <= 4 * 3600
             or not start <= now < deadline):

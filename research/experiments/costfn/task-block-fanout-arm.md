@@ -1,5 +1,31 @@
 # Task block — the Fanout Arm (Config F)
 
+## Governing run directive — Jacob Hoffman,16 November2026
+
+This directive supersedes earlier cleanup requirements here and in PR#1576.
+The independent cleanup guardian gate is revoked: do not activate, configure,
+build or wait for a guardian. Agent supervision (roughly300-second checks) and
+droplet self-kill timers are the approved cleanup model. Receipt/checkpoint/archive
+collection remains required and separate from supervision; preserve every failure.
+
+**Standing proportionality rule:** safety and supervision apparatus must cost less
+than the loss it prevents. Do not build machinery whose development cost rivals
+the failure insured against. The operator accepts a few dollars of droplet overrun
+if away; no further safety/hardening layers without explicit operator approval.
+
+**Fresh admission granted:** execute F gates only in the existing four-hour/$2
+shape, unchanged frozen `2d6bbc4d…` dataset, independent oracle,32/28/22GiB envelope,
+24.8.14.39, ten-second reads and >10M-row stop. Cite banked P/deploy/native-trim
+receipts, do not remeasure P. Run deployed trim-first, full T4 including1,999/2,000,
+then the existing gate order through full-population seed, populated feed-read and
+R+W. Unstick routine transport/setup stalls without silently retrying a failed
+treatment or bypassing parity/caps. No independent watcher/external controller.
+The MinIO archive and retained volume are untouched. No production,§8 integration,
+P1/T7 or paper work. Each requested cell ends with receipt-backed numbers or a
+preserved stop and explicit downstream-unreached status. Compare feed-read with
+500ms/25MB, baseline~361M rows/24.32GB, Arm T main1.72M/156.5MB and parity-valid
+P complete~3.3s/~484MB; these are research comparators, not production numbers.
+
 Operator direction, 15 November 2026. Retained, structured transcription of the
 corrected task block supplied in this session; not a measurement receipt.
 **Subsequent operator approval/corrections govern:** canonical membership

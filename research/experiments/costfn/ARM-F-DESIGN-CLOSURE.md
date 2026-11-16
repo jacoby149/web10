@@ -1,5 +1,22 @@
 # Config F — approved research closure and execution receipt
 
+### Governing16 November run admission — guardian revoked
+
+Jacob Hoffman's latest directive in `task-block-fanout-arm.md` supersedes the
+independent guardian/cleanup activation prerequisite, including PR#1576. This
+fresh F-only run uses agent checks about every300 seconds and existing droplet
+self-kill timers, not launchd or an external guardian. No additional supervision
+machinery is authorized. Receipt collection/checkpointing stays required; earlier
+lost receipts remain NOT_RECOVERED. Four-hour/$2 admission, all measurement/parity
+stops, immutable dataset/archive/retained volume and research-only boundaries stay
+unchanged. Native trim and banked P/deploy receipts are cited, not remeasured.
+Fresh DO620048100 is bound16 November22:03:51→17 November02:03:51UTC.
+Actual host self-kill and container-stop timers verify active before the detached
+worker starts;1,384 executing source hashes verify. No guardian is started.
+Native preflight and all11 frozen archive-object hashes pass; fresh isolated
+restore is underway. This is setup progress, not a deployed trim/T4/read result.
+Agent-invoked private checkpoints are copied locally and SHA-256 verified.
+
 **15 November 2026 · OPERATOR APPROVED, with the corrections below.**
 The operator approved §§1–6's bounded research design, deferred §7 to integration,
 and granted §8's fresh isolated four-hour/$2 admission including concurrent R+W.

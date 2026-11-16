@@ -1,7 +1,7 @@
 """Ship the verified source/private archive read capabilities to the admitted host.
 
-No provisioning and no management/S3 credential transfer. The independent Mac
-watchdog is already armed; host/container timers are verified before engine work.
+No provisioning and no management/S3 credential transfer. Agent supervision and
+host/container self-kill timers replace the revoked independent guardian gate.
 """
 from datetime import UTC, datetime
 import hashlib
@@ -105,7 +105,8 @@ def deploy(*, detach=False, state_path=Path('.context/fanout-run.json')):
     ssh('install -d -m 700 /opt/fanout')
     bundle(private)
     admission = dict(configuration='F', approved_by='Jacob', dataset_id=arm_t.DATASET,
-        droplet_id=host['id'], budget_usd=2, watchdog_verified=True,
+        droplet_id=host['id'], budget_usd=2, watchdog_verified=False,
+        cleanup_model='agent-supervised-self-kill', host_self_kill_verified=True,
         approved_utc=datetime.fromtimestamp(lease['created_epoch'], UTC).isoformat(),
         deadline_utc=datetime.fromtimestamp(lease['deadline'], UTC).isoformat(),
         full_canonical_membership_pass=True, append_only_publication=True, read_cap=200,

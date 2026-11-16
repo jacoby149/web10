@@ -14,6 +14,46 @@ import arm_f_deploy as deploy
 
 
 class HostReadinessTests(unittest.TestCase):
+    def test_initialize_never_starts_guardian_or_launchctl(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            (home / '.local/state/web10-research').mkdir(parents=True)
+            shape = dict(slug='s-8vcpu-32gb-amd', memory=32768, vcpus=8, disk=400,
+                price_hourly=.25, available=True, regions=['nyc3'])
+            state = home / 'state.json'
+            with (patch.object(cloud.Path, 'home', return_value=home),
+                  patch.object(cloud, 'api', side_effect=[[{'uuid': 'test'}], [shape], []]),
+                  patch.object(cloud.subprocess, 'run') as run):
+                cloud.initialize(state=state, scope='F_GATES_ONLY', ssh_source_cidr='192.0.2.1/32')
+            run.assert_not_called()
+            controller = json.loads(state.read_bytes())
+            lease = json.loads(Path(controller['lease']).read_bytes())
+            self.assertNotIn('label', controller)
+            self.assertNotIn('watchdog_program', lease)
+            self.assertEqual(lease['cleanup_model'], 'agent-supervised-self-kill')
+            self.assertFalse(lease['guardian_required'])
+            self.assertEqual(lease['deadline'] - lease['created_epoch'], 14400)
+
+    def test_creation_without_watchdog_reaches_key_setup_not_guardian_gate(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path, _ = self.setup_lease(Path(directory))
+            lease = json.loads(path.read_bytes())
+            lease.pop('droplet_id')
+            path.write_text(json.dumps(lease))
+            with (patch.object(cloud, 'account'), patch.object(cloud, 'api', return_value=[]),
+                  patch.object(cloud.subprocess, 'run', side_effect=RuntimeError('key-setup-probe')) as run):
+                with self.assertRaisesRegex(RuntimeError, 'key-setup-probe'):
+                    cloud.create(path)
+            self.assertEqual(run.call_args.args[0][0], 'ssh-keygen')
+
+    def test_runtime_accepts_timers_without_claiming_independent_watchdog(self):
+        from arm_f_runtime import cleanup_approved
+        operation = dict(watchdog_verified=False, cleanup_model='agent-supervised-self-kill',
+            host_self_kill_verified=True)
+        self.assertTrue(cleanup_approved(operation))
+        self.assertFalse(cleanup_approved({**operation, 'host_self_kill_verified': False}))
+        self.assertFalse(cleanup_approved({**operation, 'cleanup_model': 'anything'}))
+
     def test_watchdog_program_survives_removal_of_launcher_virtualenv(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
