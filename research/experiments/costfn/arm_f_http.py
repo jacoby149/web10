@@ -28,7 +28,15 @@ class HTTP:
     async def close(self):
         await self.client.aclose()
 
-    async def post(self, path, body, *, origin=None, operation=None, allow=()):
+    async def post(self, path, body, *, origin=None, operation=None, allow=(), setup_group=False):
+        options = {}
+        if setup_group:
+            if path != '/v3/groups/create':
+                raise ValueError('long setup timeout is only for fixture group creation')
+            remaining = (self.session.deadline - datetime.now(UTC)).total_seconds() - 180
+            if remaining <= 0:
+                raise TimeoutError('fixture group setup reached original cleanup margin')
+            options['timeout'] = min(600, remaining)
         request_id = uuid.uuid4().hex
         headers = {'X-Research-ID': request_id}
         if origin:
@@ -37,8 +45,10 @@ class HTTP:
             headers['X-Fanout-Operation'] = operation
         started, begin = datetime.now(UTC).isoformat(), time.perf_counter()
         row = dict(request_id=request_id, path=path, started_utc=started, status=None, operation_id=operation)
+        if setup_group:
+            row.update(setup_only=True, request_timeout_seconds=options['timeout'])
         try:
-            response = await self.client.post(path, json=body, headers=headers)
+            response = await self.client.post(path, json=body, headers=headers, **options)
             row.update(status=response.status_code, elapsed_ms=(time.perf_counter() - begin) * 1000,
                        stop=response.headers.get('x-arm-p-stop') == '1', path_mode=response.headers.get('x-fanout-path'))
             if response.headers.get('x-research-id') != request_id or row['stop']:

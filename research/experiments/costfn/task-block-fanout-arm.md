@@ -1,5 +1,92 @@
 # Task block — the Fanout Arm (Config F)
 
+## Persistent execution result —17 November2026
+
+The requested comparison now exists. Paired verified fixture P/F (one warm-up
++one measured complete sequence each) has exact parity; measured P3,267.824ms/
+2,140,109 rows/140,626,163 bytes, F2,931.022ms/2,139,341 rows/140,546,167 bytes.
+The ORIGINAL ordinary-K20 F workload also completes with exact parity and21
+positive view/reach docs:4,702.160ms/3,734,802 rows/286,693,122 bytes measured,
+after a separate4,132.601ms warm-up. All57 native queries succeed; max1,114,133
+rows/query. Both500ms/25MB lines FAIL; the predeclared byte gate stops further
+trials/dependent gates. No p95/full T6/population/R+W/arm PASS. This is an actual
+cost result, not another harness-only stop or a reason to raise the limits.
+
+Every setup/prepare/dispatch/scope/OS interruption is preserved with source/native
+bindings. Unattended-upgrade restarted the controller during K20 prep; six actual
+committed setup queries were recovered by QueryFinish/SQL/generation, never
+reinserted or called a new trial. Final archive SHA`690c505c…89f27` verifies before
+owned cleanup06:47:54UTC, before06:58:36, estimated compute$0.95546/not invoice.
+No owned compute/firewall/key remains. Snapshot255003176 is retained as the
+earlier prepared image; ongoing storage is separate, restore speed unmeasured.
+Final receipts: `evidence/arm-f-persistent-20261117/` (paired diagnostic,
+ordinary-K20 read/cleanup, native fixture proof and provider snapshot).
+
+## Persistent execution override —17 November operator direction
+
+> i need you to fix run fix run stop asking me permission, and get these measurements
+>
+> sleep 300 monitor if anything broke, if not great keep sleep 300ing, if broke fix, sleep 300 monitor
+> in fact put something in the markdowns as this as a direction, kind of being persistent or persevering? if told to persevere or persist, this is what i mean
+
+This explicitly authorizes the repair/run/check loop for this task without a new
+permission question at every harness failure. About every300 seconds the agent
+checks progress/errors, saves evidence, repairs the evidenced break and continues
+with a separately source-bound attempt. Do not stop at diagnosis or a green PR.
+Preserve every failed fixture/treatment as a failure, never relabel or weaken its
+oracle. Record resumed/repeated work honestly instead of calling it a fresh trial.
+Same frozen input, P/trim/T4 citations, read-first priority, native/parity gates,
+four-hour/$2 per lease and existing$20 overall safety ceiling; keep cumulative
+estimates, no larger envelope/production/§8/P1/T7. Agent supervision/self-kill
+only, no guardian. A real measured gate failure remains a result, not permission
+to change the limits until it passes. Earlier admission-per-repair blockers are
+superseded for this explicitly authorized loop; old failures/cleanup remain true.
+
+## Next-lease override — Jacob Hoffman,16 November2026
+
+The operator explicitly admits one fresh lease under the existing four-hour/$2
+discipline. The earlier directive's guardian revocation, proportionality,
+agent supervision (~300s) and droplet self-kill model remain binding.
+
+P parity (#1568–#1570/#1572), deployed trim-first205/cap200 and T4's100 treated
+publishes including1,999/2,000 (#1577) are **banked, cited, not remeasured**.
+The explicit-ID fixture-clock repair is source-only until this lease verifies it.
+
+The read takes priority: restore/setup and seed the real fixtures; preserve a
+separate PREPARED-store snapshot, leaving frozen `2d6bbc4d…` untouched; verify
+both collision authors, shared route and mixed-lane winner on the independent
+canonical page immediately, before dependent cells. The launcher additionally
+checks this coverage before the long satellite build, without changing the
+oracle or page. Failed coverage stops immediately, with private/hash-bound
+evidence and no re-seed/retry or use of the lease for unrelated cells.
+
+Then T2-F (both complete P/F serving modes on that page) → T6-F → full-population
+backfill → populated feed-read → R+W → T3-F → T5-F → T8-F → Boundaries, as time
+honestly permits. Three full-restore trials/100 measured sequences and all native
+caps remain unchanged. P-mode correctness/contract observations are not a new P
+baseline. Report F complete latency/rows/bytes beside cited P against500ms/25MB,
+baseline~361M rows/24.32GB, Arm T **main-only**1.72M/156.5MB and parity-valid P
+complete~3.3s/~484MB. Failures remain failures, never silently retried.
+
+Use one account-private provider snapshot of the stopped prepared store, not a
+new backup subsystem. Retain its provider ID/source/fixture/restore bindings as
+a new artifact; future restore speed remains unproven until observed. No guardian,
+production,§8 integration, P1/T7, regenerated dataset or expanded envelope.
+This override governs over the historical orders/admissions retained below.
+
+**Execution receipt,17 November:** DO620093795's fresh import completes in
+1,260.321s, but the real2,000-member fixture group-create exceeds the unchanged
+65s setup HTTP deadline (client65,033.660ms; same-request server200/69,893.208ms
+in stopped logs). Zero fixture posts, no canonical coverage/clock verification,
+snapshot or P/F read comparison; later gates UNREACHED. Preserve the earlier
+pre-import project-name STOP and its source-bound same-lease continuation too.
+No failed fixture retry or engine restart. Full private archive SHA`79dd3c76…00662`
+is verified before owned cleanup01:45:40UTC, ahead of05:07:38; estimated compute
+$0.15849/not invoice. Admission is closed, read acceptance is not satisfied.
+Next is source-only large-group setup deadline diagnosis/repair and offline
+controls; fresh explicit paid/native admission is required for another attempt.
+Public receipt: `evidence/arm-f-read-first-20261117/setup-stop-and-cleanup.json`.
+
 ## Governing run directive — Jacob Hoffman,16 November2026
 
 This directive supersedes earlier cleanup requirements here and in PR#1576.

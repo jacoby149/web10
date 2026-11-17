@@ -1,5 +1,141 @@
 # Config F — approved research closure and execution receipt
 
+## FINAL ordinary-K20 result —17 November
+
+Exact main/prepared/count/authorized-view parity passes on the ORIGINAL ordinary
+K20 scope (20 follows plus own group;21 feed/22 engagement groups, one main-page
+author/21 rows). Warm-up4,132.601ms/3,738,173 rows/287,175,679 bytes; measured
+complete sequence4,702.160ms/3,734,802 rows/286,693,122 logical bytes. All57 native
+queries finish without exception; largest query1,114,133 rows, below10M. All21
+returned view docs have positive impressions/reach, with same-snapshot and
+independent scoped/raw-delivery audits retained. Both500ms/25MB targets FAIL.
+The declared byte gate stops after one measured sample, before another trial:
+no p95, completed three-trial T6, population, populated read, R+W or whole-arm PASS.
+
+Measured native bytes reconcile exactly: views98,542,861; preparation75,263,403;
+mixed resolution/counts20,137,337; candidates11,635,214; counts891,072; metadata
+1,499; generation2,124;80,219,612 unclassified. Never assign unknowns by guess
+or sum native query milliseconds as wall time. Fanout candidate work is only a
+small part of this complete response; the full cost remains above the targets.
+
+At06:18UTC unattended-upgrade/needrestart stopped/restarted the one-shot controller,
+whose reentry correctly refused its existing output directory. ClickHouse kept
+running. Its ORIGINAL unserved fresh trial0 resumes from six committed setup
+queries verified against exact SQL, generation and actual QueryFinish records;
+no committed INSERT or restore is repeated. The remaining setup/checks and real
+sequences run under unchanged source modules/native bounds/original deadline.
+Keep interruption/reentry/recovery receipts, not a fabricated new trial. Timers/
+services for unattended updates are paused only on this disposable lease, not
+production; no guardian is introduced.
+
+Final private/source/stopped-native archive3,865,632 bytes/SHA
+`690c505ce34c939f762e00f9ce70a0146981adb4cd9d72d49677a0da4b189f27`
+is copied/hash-verified BEFORE owned cleanup06:47:54UTC, before06:58:36. Transient
+SSH-key-delete API failure is preserved; final exact ownership readback finds no
+droplet/firewall/key. No OOM, production or frozen-archive/retained-Volume change.
+Estimated compute$0.95546 is not invoice; retained snapshot255003176 is the earlier
+prepared checkpoint, not a post-repair K20 image, and incurs separate storage
+billing. Restore speed remains unmeasured. Public full scope/counter/source/
+recovery/cleanup receipt: `evidence/arm-f-persistent-20261117/ordinary-k20-read-and-cleanup.json`.
+
+Historical reference lines stay cited, not remeasured: baseline~361M rows/24.32GB;
+Arm T MAIN ONLY1.72M/156.5MB; P complete~3.3s/~484MB. Source/instrumentation and
+scope differences remain explicit; this is not a causal speedup/capacity claim.
+
+**Current read result:** paired21-row/three-group fixture page has exact parity
+PASS in both modes. One measured complete sequence (plus separate warm-up) each:
+P3,267.824ms/2,140,109 rows/140,626,163 bytes; F2,931.022ms/2,139,341 rows/
+140,546,167 bytes. Both miss500ms/25MB. This is NOT p95, ordinary K20, capacity
+or production evidence. All bytes except79,996 candidate bytes are equal between
+modes;71.037MB preparation/14.715MB views remain in complete totals.214 exact
+F/satellite controls/Ruff pass. Original K20 formal T6 trial0 is restoring fresh,
+not using this fixture page as its performance workload. Source/native/scope/
+failure/checkpoint bindings: `evidence/arm-f-persistent-20261117/paired-fixture-read-comparison.json`.
+
+The preceding successful-HTTP/failed-view-check warm-up remains a failure. The
+same-snapshot F wrapper now retains document-ID parameter metadata until the
+original P attachment rewrite consumes it. The independent post-read view audit
+now resolves the ACTUAL captured Discover-only candidate scope, rather than
+equating private fixture deliveries with publicly queryable metrics. Main-page
+oracle and group scopes stay unchanged; raw delivery delta and same-snapshot
+checks remain, with private view-audit receipts. No fixture was made public and
+no view check was dropped. Preserved stopped native/failure archive SHA
+`cd7dd3b39d97a6aa892a43bfdc4abed9b246a13ac1086714d05208f4605003e8`.
+
+Current persistence checkpoint: prepared snapshot255003176 is retained (88.2GB;
+restore speed unmeasured, storage billing separate from elapsed compute). First
+P warm-up is INVALID dispatch: uncertified generation takes canonical fallback,
+then native159/10,205ms/360,802,112 rows/24,330,409,606 bytes stops the attempt.
+Full stopped-native/failure archive SHA`68b3eebc…dd95a` is preserved before repair.
+CLI and normalized-driver metadata hashes match each other but not the stored
+generation. The new same-lease generation-source1 (1,395 verified files) retains
+the old bootstrap-only failed journal/state, consolidates ALL ten certificate
+tables and rebuilds disposable derived tables. Original data-policy/grant reads,
+native caps and generation denial stay intact. Post-boot and post-login census
+checks fail setup before a stale canonical fallback can be sampled again.
+The first snapshot is explicitly cited as the earlier prepared image, not a new
+repair-state image. T2's verified fixture page is diagnostic; formal T6 uses the
+original ordinary K20 scope and three fresh restores, not three fixture groups.
+212 exact F/satellite controls/Ruff pass. No repaired serving/performance result
+is inferred from these source/setup facts; the original06:58:36UTC deadline holds.
+
+###17 November persistence amendment
+
+Jacob explicitly directs fix/run, then sleep300s/check/fix/continue until the
+requested measurements exist, without a permission question at every routine
+harness failure. `task-block-fanout-arm.md` retains the verbatim direction.
+Same four-hour/$2 per lease/$20 overall safety ceiling, dataset/oracle/native
+limits/read-first priority and no-production boundary; agent checks/self-kill,
+not a guardian. Preserve old failed attempts and separately bind every repair.
+The group-create HTTP setup deadline now allows up to600s inside the original
+cleanup margin; ordinary HTTP stays65s and measured native limits do not change.
+205 no-engine controls/Ruff pass; native acceptance remains receipt-dependent.
+
+Run binding: DO620121703,17 November02:58:36→06:58:36UTC, source1,391 hashes.
+All63 fixture posts and the large group's200/55,477.366ms complete. Original
+oracle preparation then refuses the required same-ID/two-author fixture because
+the node's canonical binder keys by doc_id alone. Original STOP/full stderr and
+stopped native parts are privately banked SHA`bbd4bfcc…b9903` before restart.
+The isolated `arm_f_prepare.py` selector partitions requests by author, then
+adds an outer literal-author filter to the ORIGINAL authorized canonical lookup;
+the original compiler/binder's policies, ambiguity/missing-row guard and body
+provenance stay intact. Ordinary API source and independent oracle page SQL/
+coverage stay unchanged, and P/F measured costs include every prepare lookup.
+Four real-binder/compiler/SQLite-history controls preserve denials;210 total
+F/satellite controls/Ruff pass. Resume only the unchanged pre-serving fixtures
+under a new source manifest, preserving failed oracle files and original lease;
+no re-seed, fresh-restore claim, oracle weakening or native PASS inferred.
+
+### Next-lease read-first override —16 November operator directive
+
+The `task-block-fanout-arm.md` next-lease override is the current admission,
+superseding the historical write-first order below. P/trim/T4 are banked, not
+remeasured. The explicit-ID fixture-clock repair must pass the unchanged
+independent canonical page guard before dependent work. `arm_f_read_first.py`
+checks it before satellite construction, retains one separate stopped PREPARED
+provider snapshot, then runs both complete P/F modes, T6-F, population,
+populated T6, R+W and remaining T3/T5/T8/Boundaries in that order. No weakened
+oracle, hidden fixture retry, guardian, production or§8 integration. Fresh host,
+deadline, native outcomes and retained snapshot ID must be recorded from receipts;
+source/local controls are not native acceptance or proof of future restore speed.
+
+Final read-first receipt: DO620093795 imports the frozen store in1,260.321s,
+then setup stops01:39:53UTC on the2,000-member group-create HTTP client65s
+deadline. Same-request stopped API evidence returns200 at69,893.208ms, after
+client65,033.660ms; neither exact membership nor any fixture post/clock/coverage
+is proven. Prepared snapshot/T2-F/T6-F/population/R+W and remaining gates are
+UNREACHED. This is not a feed cost verdict or the specified coverage stop.
+Earlier local launch timeout/pre-import project-name failure remain preserved;
+only the latter's pre-import setup was source-bound continued on the same lease.
+No failed fixture retry. Private archive2,791,646 bytes/SHA
+`79dd3c761040fa2389bccadd1c87159e91b52ec8e8464f5a0c59e29748a00662`
+includes full tracebacks, request metadata and stopped native query-log parts;
+copied/hash-verified before owned cleanup01:45:40UTC, before05:07:38. No engine
+restart/OOM/guardian/snapshot or production/archive/retained-volume change.
+Estimated compute$0.15849 is not invoice. Admission closed, acceptance OPEN;
+next source-only setup-deadline repair needs controls, then fresh explicit native
+admission. Public receipt `evidence/arm-f-read-first-20261117/setup-stop-and-cleanup.json`.
+
 ### Governing16 November run admission — guardian revoked
 
 Jacob Hoffman's latest directive in `task-block-fanout-arm.md` supersedes the

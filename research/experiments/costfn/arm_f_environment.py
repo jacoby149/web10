@@ -53,7 +53,20 @@ def boot(root, mode='F_DOCUMENT_STREAM_V1'):
     restore.command(compose, env, 'up', '-d', '--no-deps', 'api', timeout=180)
     from arm_f_startup import ready
     ready(root, compose, env, boot_id)
+    verify_generation(root, session)
     return session
+
+
+def verify_generation(root, session):
+    """An invalid setup must fail BEFORE an expensive canonical-fallback sample."""
+    from arm_satellite_counts import generation
+    root = Path(root)
+    expected = json.loads((root / 'counts-batch-p2/result.json').read_bytes())['canonical_generation']
+    actual, parts = generation(session)
+    setup.save(root / 'F-generation-ready.json', dict(expected=expected, actual=actual,
+        canonical_parts=parts, verified=actual == expected))
+    if actual != expected:
+        raise ValueError('canonical generation differs after API boot; repair setup before any serving sample')
 
 
 def serving_state(root, *, overrides=None):

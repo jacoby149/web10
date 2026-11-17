@@ -1,0 +1,265 @@
+{
+  "kind": "CONFIG_F_ORDINARY_K20_COMPLETE_READ_AND_FINAL_ACCOUNTING",
+  "outcome": "PARITY_PASS_COST_BUDGET_FAIL",
+  "droplet_id": 620121703,
+  "dataset_id": "2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd",
+  "scope": {
+    "ordinary_K": 20,
+    "feed_groups": 21,
+    "fixture_scope": false,
+    "main_rows": 21,
+    "main_authors": 1,
+    "group_counts_by_kind": {
+      "main": {
+        "comments": 21,
+        "posts": 21,
+        "reactions": 21,
+        "profile": 21
+      },
+      "reactions": {
+        "reactions": 22
+      },
+      "comments": {
+        "comments": 22
+      }
+    }
+  },
+  "complete_sequences": [
+    {
+      "phase": "warmup",
+      "elapsed_ms": 4132.600970000567,
+      "read_rows": 3738173,
+      "read_bytes": 287175679,
+      "native_queries": 57,
+      "max_query_rows": 1114133,
+      "native_exceptions": 0,
+      "parity": "PASS",
+      "request_ids": [
+        "79f1b5669bbf451e8e47084863e4ed4c",
+        "7241e55d7f604332828a03b9dafa0792",
+        "5007afb702164999b1158e94a7f78d15",
+        "520f5025dc4643308b6d0779624ffdfe"
+      ],
+      "view_docs_returned": 21,
+      "positive_impression_docs": 21,
+      "positive_reach_docs": 21,
+      "private_view_audit_sha256": "d3c6be18a80f81ed9fb4021c27877a43e488e57b9eafdc39e4f6baee83aeee5f"
+    },
+    {
+      "phase": "measured",
+      "elapsed_ms": 4702.159845999631,
+      "read_rows": 3734802,
+      "read_bytes": 286693122,
+      "native_queries": 57,
+      "max_query_rows": 1114133,
+      "native_exceptions": 0,
+      "parity": "PASS",
+      "request_ids": [
+        "04d3f4a6d41c4c84afb7a03b4ceecb30",
+        "73fd58d3ce844c8ca2df897b4d684301",
+        "4fe5ba33a33a49edafe96146ad3a5ce1",
+        "e5971736b25e47799f851556e60581ac"
+      ],
+      "view_docs_returned": 21,
+      "positive_impression_docs": 21,
+      "positive_reach_docs": 21,
+      "private_view_audit_sha256": "40845f0bd204bc9e84ca7fa3ec065cd2e77e5ceef7d91d6254d3c5f7585b3d72"
+    }
+  ],
+  "measured_stage_totals": {
+    "unclassified": {
+      "read_rows": 1458197,
+      "read_bytes": 80219612,
+      "native_ms_sum_not_wall": 135,
+      "queries": 12
+    },
+    "generation_or_envelope": {
+      "read_rows": 30,
+      "read_bytes": 2124,
+      "native_ms_sum_not_wall": 11,
+      "queries": 6
+    },
+    "candidates": {
+      "read_rows": 82501,
+      "read_bytes": 11635214,
+      "native_ms_sum_not_wall": 158,
+      "queries": 17
+    },
+    "metadata_identities": {
+      "read_rows": 64,
+      "read_bytes": 1499,
+      "native_ms_sum_not_wall": 7,
+      "queries": 1
+    },
+    "counts_embedded_in_resolution": {
+      "read_rows": 208704,
+      "read_bytes": 20137337,
+      "native_ms_sum_not_wall": 162,
+      "queries": 1
+    },
+    "preparation": {
+      "read_rows": 863109,
+      "read_bytes": 75263403,
+      "native_ms_sum_not_wall": 296,
+      "queries": 17
+    },
+    "counts": {
+      "read_rows": 8064,
+      "read_bytes": 891072,
+      "native_ms_sum_not_wall": 86,
+      "queries": 2
+    },
+    "views": {
+      "read_rows": 1114133,
+      "read_bytes": 98542861,
+      "native_ms_sum_not_wall": 126,
+      "queries": 1
+    }
+  },
+  "phase0": {
+    "latency_line_ms": 500,
+    "read_bytes_line": 25000000,
+    "measured_latency_pass": false,
+    "measured_bytes_pass": false
+  },
+  "formal_T6": {
+    "outcome": "STOP_AT_PREDECLARED_COMPLETE_RESPONSE_BYTE_GATE",
+    "fresh_stores_started": 1,
+    "measured_sequences_completed": 1,
+    "warmups_completed": 1,
+    "required_trials": 3,
+    "required_measured_per_trial": 100,
+    "p95": "NOT_ESTABLISHED",
+    "further_trials_stopped_as_declared": true,
+    "whole_arm": "NOT_PASS"
+  },
+  "gate_stop": {
+    "failure_class": "ValueError",
+    "failure_message": "complete-response byte budget missed; stop before another trial",
+    "original_result_sha256": "9d6ce428bb30a4b61cd8f52db41e955720e530239baf36b0f9f03717f3cf8962"
+  },
+  "setup_recovery": {
+    "cause": "apt-daily-upgrade/needrestart restarted one-shot controller at06:18UTC",
+    "controller_reentry_refused_existing_directory": true,
+    "interrupted_serving": false,
+    "fresh_trial0_original_restore_retained": true,
+    "committed_inserts_not_repeated": true,
+    "recovered_original_native_query_ids": [
+      "fanout-f-58b1c35a958d479b93b1f7b6c8357074",
+      "fanout-f-30530e5282c94c0cac6a0a57a1cd1dd2",
+      "fanout-f-ac626475bdf1459bac69054e72292e2e",
+      "fanout-f-f5f7a6d35452447487b728336db9cb92",
+      "fanout-f-74c9c6e9d59e4eb79ca1d556156fc8d9",
+      "fanout-f-70644ca3c50b44179f70b8a7b15309e9"
+    ],
+    "driver_sha256": "8931f7976eeb3d4ab1b1fb3dda020f8da3cf3713c030e8b3a3b8cfc289d34a8d",
+    "serving_source_manifest_sha256": "6b11a8f1d4752c2a2341a5fbdc967ff01af68aeb36d555d4875da75efc7f6b52"
+  },
+  "historical_comparators": {
+    "baseline_rows_approx": 361000000,
+    "baseline_bytes_approx": 24320000000,
+    "Arm_T_scope": "MAIN_ONLY",
+    "Arm_T_rows_approx": 1720000,
+    "Arm_T_bytes_approx": 156500000,
+    "P_scope": "CITED_HISTORICAL_COMPLETE_SEQUENCE_NOT_REMEASURED",
+    "P_ms_approx": 3300,
+    "P_bytes_approx": 484000000,
+    "not_a_claim_of_identical_source_or_instrumentation": true
+  },
+  "later_gates": {
+    "population": "UNREACHED_T6_BUDGET_STOP",
+    "populated_feed_read": "UNREACHED",
+    "R_plus_W": "UNREACHED",
+    "T3_F": "UNREACHED",
+    "T5_F": "UNREACHED",
+    "T8_F": "UNREACHED",
+    "boundaries": "UNREACHED"
+  },
+  "private_final_archive": {
+    "bytes": 3865632,
+    "sha256": "690c505ce34c939f762e00f9ce70a0146981adb4cd9d72d49677a0da4b189f27",
+    "containers": [
+      {
+        "project": "web10-costfn-frozen-satellite-f-620121703-quiet-0",
+        "service": "api",
+        "status": "exited",
+        "exit_code": 143,
+        "oom_killed": false
+      },
+      {
+        "project": "web10-costfn-frozen-satellite-f-620121703-quiet-0",
+        "service": "clickhouse",
+        "status": "exited",
+        "exit_code": 0,
+        "oom_killed": false
+      },
+      {
+        "project": "web10-costfn-frozen-satellite-f-620121703-quiet-0",
+        "service": "minio",
+        "status": "exited",
+        "exit_code": 0,
+        "oom_killed": false
+      }
+    ],
+    "native_parts": [
+      {
+        "trial": "quiet-0",
+        "bytes": 3507037
+      }
+    ],
+    "engine_restarted": false
+  },
+  "cleanup": {
+    "droplet_id": 620121703,
+    "cleanup_verified": true,
+    "cleanup_utc": "2026-11-17T06:47:54.670156+00:00",
+    "deadline_utc": "2026-11-17T06:58:36+00:00",
+    "elapsed_compute_usd_estimate": 0.9554632052779197,
+    "estimate_not_invoice": true,
+    "private_archive_verified_before_cleanup": true,
+    "retained_snapshot_id": "255003176",
+    "retained_storage_billing_separate": true,
+    "no_guardian_started": true,
+    "cleanup_transient_ssh_key_delete_error_preserved": true,
+    "final_private_archive": {
+      "bytes": 3865632,
+      "sha256": "690c505ce34c939f762e00f9ce70a0146981adb4cd9d72d49677a0da4b189f27",
+      "containers": [
+        {
+          "project": "web10-costfn-frozen-satellite-f-620121703-quiet-0",
+          "service": "api",
+          "status": "exited",
+          "exit_code": 143,
+          "oom_killed": false
+        },
+        {
+          "project": "web10-costfn-frozen-satellite-f-620121703-quiet-0",
+          "service": "clickhouse",
+          "status": "exited",
+          "exit_code": 0,
+          "oom_killed": false
+        },
+        {
+          "project": "web10-costfn-frozen-satellite-f-620121703-quiet-0",
+          "service": "minio",
+          "status": "exited",
+          "exit_code": 0,
+          "oom_killed": false
+        }
+      ],
+      "native_parts": [
+        {
+          "trial": "quiet-0",
+          "bytes": 3507037
+        }
+      ],
+      "engine_restarted": false
+    }
+  },
+  "no_production_changes": true,
+  "no_guardian_started": true,
+  "frozen_archive_mutated": false,
+  "node_capacity_claim": false,
+  "retained_snapshot_id": "255003176",
+  "snapshot_restore_speed": "UNMEASURED"
+}

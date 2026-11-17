@@ -57,6 +57,22 @@ def views(session, ids, label):
     return {row['doc_id']: {'impressions': int(row['impressions']), 'reach': int(row['reach'])} for row in rows}
 
 
+def visible_views(session, ids, groups, label):
+    """Independent current attachment scope for the ACTUAL captured views request.
+
+    The client asks Discover, even on a private Following/fixture page. Raw
+    delivery before/after totals remain separately checked, never omitted.
+    """
+    if not groups:
+        return {}
+    selected = ','.join(q(doc) for doc in sorted(set(ids)))
+    rows, _ = session.rows(label, "SELECT doc_id,count() AS impressions,uniqExact(reader_key) AS reach FROM content_events "
+        "WHERE service='posts' AND event_type='delivery' AND doc_id IN (" + selected + ') AND doc_id IN '
+        '(SELECT doc_id FROM doc_groups FINAL WHERE deleted=0 AND group_id IN ('
+        + ','.join(q(group) for group in groups) + ')) GROUP BY doc_id', setup_seconds=120)
+    return {row['doc_id']: {'impressions': int(row['impressions']), 'reach': int(row['reach'])} for row in rows}
+
+
 async def sequences(root, output, *, count=SAMPLES, expected=None, require_mode=None, profile=None):
     root, output = Path(root), Path(output)
     session = Session(root)
@@ -66,6 +82,7 @@ async def sequences(root, output, *, count=SAMPLES, expected=None, require_mode=
     samples = []
     try:
         token = await http.login(profile['reader'])
+        environment.verify_generation(root, session)
         for index in range(count + 1):
             before = views(session, expected['ids'], 'before_' + str(index))
             sample = await http.sequence(token, profile['groups'], phase='warmup' if index == 0 else 'measured')
@@ -74,7 +91,10 @@ async def sequences(root, output, *, count=SAMPLES, expected=None, require_mode=
             # In quiet cells no other readers run. This second independent query
             # certifies the live-delivery delta, not a precomputed view snapshot.
             after = views(session, expected['ids'], 'after_' + str(index))
-            if sample['followups'][2] != after:
+            scoped = visible_views(session, expected['ids'], expected['views_readable_groups'], 'visible_' + str(index))
+            save(output / ('views-audit-' + str(index) + '.json'), dict(before=before, after=after,
+                scoped_expected=scoped, actual=sample['followups'][2], same_snapshot_checks=observation.get('fanout_view_checks')))
+            if sample['followups'][2] != scoped:
                 raise ValueError('quiet independent canonical views mismatch')
             for doc in expected['ids']:
                 previous, current = before.get(doc, {'impressions': 0, 'reach': 0}), after.get(doc, {'impressions': 0, 'reach': 0})
@@ -101,15 +121,25 @@ async def sequences(root, output, *, count=SAMPLES, expected=None, require_mode=
     return samples
 
 
-async def identical_contract(root, output):
-    root, output = Path(root), Path(output)
-    fixture = json.loads((root / 'fixture.json').read_bytes())
-    expected = reference(root)
+def fixture_coverage(fixture, expected):
+    """The original page guard, also usable BEFORE infrastructure construction."""
     identities = [(row['author_key'], row['doc_id']) for row in expected['rows']]
     if (sum(doc == fixture['collision_id'] for _, doc in identities) != 2
+            or (fixture.get('collision_authors') and
+                {author for author, doc in identities if doc == fixture['collision_id']}
+                != set(fixture['collision_authors']))
             or not any(doc in fixture['shared_ids'] for _, doc in identities)
             or not any(doc == fixture['large_front_id'] for _, doc in identities)):
         raise ValueError('tie/shared/full-key/mixed-lane fixture did not reach the actual page')
+    return dict(verified=True, collision_authors=2, shared_route=True, mixed_lane=True,
+        canonical_page_rows=len(identities))
+
+
+async def identical_contract(root, output, *, expected=None):
+    root, output = Path(root), Path(output)
+    fixture = json.loads((root / 'fixture.json').read_bytes())
+    expected = expected if expected is not None else reference(root)
+    fixture_coverage(fixture, expected)
     results = {}
     for mode in ('P_DOCUMENT_STREAM_V1', 'F_DOCUMENT_STREAM_V1'):
         environment.boot(root, mode)

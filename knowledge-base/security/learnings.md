@@ -35,6 +35,36 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-17: A delivery audit and a scoped views response are different sets
+
+The captured frontend requests Discover-only views even when the main fixture
+page is private. Raw canonical deliveries must still be checked for every served
+doc, but they cannot be equated with the metric response for a narrower readable
+group set. Independently resolve the captured view scope and current canonical
+attachments; retain the raw before/after delivery audit and same-snapshot API
+aggregate check. Public-positive/private-denied/deleted controls prevent an empty
+response from becoming an accidental pass. Also retain bound ID metadata until
+the existing P views rewrite consumes it: prematurely clearing parameters made
+its attachment predicate an empty-ID set. A real F-checker→P-rewriter composition
+test covers that seam. No client request, ordinary API policy or fixture publicness
+is widened by this research-only correction; broader security review stays OPEN.
+
+### 2026-11-17: Full-key research selectors must retain canonical prepare authority
+
+Config F's required same-ID/different-author fixture exposes the node prepare
+binder's deliberate doc_id-only ambiguity denial. Do not remove that denial or
+trust projected bodies to make the benchmark pass. The isolated document-stream
+adapter partitions requests by author, then adds an outer author selector to the
+ORIGINAL authorized canonical lookup. The original binder/compiler still enforce
+service/group/history/visibility, missing-row and ambiguity denials and canonical
+body/owner provenance; ordinary API code remains unmodified. Both P/F measured
+paths include every lookup's cost. The independent oracle's page query/coverage
+guard stay unchanged; only the same canonical preparation selector is made
+full-key-aware. Real production binder/compiler plus SQLite history controls
+retain cross-author bodies independently and deny forged owners, foreign/removed/
+deleted/missing keys, blocklists, hidden docs, bans and sharing pauses. This is
+bounded research correctness coverage, not production or L1–L4 security PASS.
+
 ### 2026-11-16: Install experimental hooks on dispatched routes, not a flat router assumption
 
 The isolated F API refused startup because FastAPI0.139 keeps included routers

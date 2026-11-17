@@ -33,9 +33,10 @@ import arm_f_online_rebuild
 from arm_f_journal import Journal
 from arm_f_store import Store
 from arm_f_runtime import admitted
+from arm_f_prepare import install as install_full_key_prepare
 import arm_satellite_api as p
 from arm_satellite_sql import literal as q
-from app.v3.endpoints import documents, groups
+from app.v3.endpoints import documents, groups, query as query_endpoint
 
 if os.environ.get('FANOUT_CONFIG_F') != '1':
     raise RuntimeError('explicit isolated F opt-in required')
@@ -140,7 +141,10 @@ def checked_query(sql=None, *args, **kwargs):
         bound = p._signature.bind_partial(sql, *args, **kwargs)
         params = bound.arguments.get('parameters') or {}
         bound.arguments['query'] = arm_f_views.checked_sql(p.serve.bound_sql(sql, params))
-        bound.arguments['parameters'] = None
+        # P's existing views rewrite still needs d0/d1/... to narrow the
+        # authorized attachment query. SQL is already safely literal-bound;
+        # retaining the metadata until P consumes it avoids an empty-ID filter.
+        bound.arguments['parameters'] = params
         result = original_query(*bound.args, **bound.kwargs)
         values = arm_f_views.verify(result.result_rows)
     except Exception as error:
@@ -499,6 +503,11 @@ def guarded_compile(*args, **kwargs):
 
 p.observer.original_compile = guarded_compile
 p.ch.execute_query = execute_query
+
+# The declared document-stream contract includes same-ID/different-author rows.
+# Retain the node's canonical authority check; narrow its exact-ID lookup to
+# each requested author rather than bypassing its doc_id ambiguity refusal.
+install_full_key_prepare(query_endpoint)
 
 
 def inventory():
