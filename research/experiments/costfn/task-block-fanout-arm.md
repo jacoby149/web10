@@ -26,6 +26,24 @@ preserved stop and explicit downstream-unreached status. Compare feed-read with
 500ms/25MB, baseline~361M rows/24.32GB, Arm T main1.72M/156.5MB and parity-valid
 P complete~3.3s/~484MB; these are research comparators, not production numbers.
 
+**Final execution receipt for this directive:** DO620048100 passes deployed trim
+and all100 treated write recipient checks, including both cutoff cases. Original
+T4 final-validator ParseError is preserved; a narrow validation-only repair
+checks1,560 original native rows with zero exceptions/no repeated writes. The
+separate same-lease continuation stops at T2's required fixture-coverage guard
+on17 November00:27:37UTC, before either serving mode: unmarked setup posts lacked
+explicit IDs, so `create_as` did not forward their fixed insert clock. Their later
+timestamps displaced the required collision/shared/mixed-lane fixtures.
+
+The setup-only explicit-ID repair has two passing no-engine controls, not native
+acceptance. Coverage/oracle/order stay intact; no F read-cost sample or500ms/25MB
+comparison exists, and population/R+W are unreached behind T2. Both STOPs/private
+oracle/stopped native parts are archived and hash-verified before owned cleanup
+at00:35:55UTC, ahead of02:03:51; elapsed SKU estimate$0.63363, not invoice. No
+guardian or archive/retained-volume/production change. This admission is closed,
+not a paid retry grant. Full source-bound receipts and the next fixture acceptance
+gate live in the existing closure/queues and `evidence/arm-f-directive-20261116/`.
+
 Operator direction, 15 November 2026. Retained, structured transcription of the
 corrected task block supplied in this session; not a measurement receipt.
 **Subsequent operator approval/corrections govern:** canonical membership

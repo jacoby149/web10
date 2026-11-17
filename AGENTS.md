@@ -390,8 +390,17 @@ including PR#1576: agent supervision about every300s and droplet self-kill timer
 are the approved model; do not activate or build external supervision. Evidence
 collection/checkpoints remain required. Safety apparatus must cost less than the
 loss prevented; no further hardening layers without explicit operator approval.
-Fresh F-only DO620048100 is admitted22:03:51→17 November02:03:51UTC; native
-preflight/frozen archive hashes pass and restore is underway, not a gate verdict.
+Fresh F-only DO620048100 passes deployed trim and100 treated writes, including
+1,999/2,000-member cases. Original final-validator ParseError remains preserved;
+validation-only repair passes1,560 original native rows without repeating writes.
+The separate same-lease continuation stops at T2's required fixture-coverage
+guard before any serving sequence: setup clock was forwarded only for explicit
+IDs. Explicit fixture IDs have a source-only repair, not native acceptance.
+Feed-read/population/R+W remain unreached; no read-cost/whole-arm PASS. Full
+private receipts/stopped native parts are retained and owned cleanup verifies
+17 November00:35:55UTC, before02:03:51UTC; estimated compute$0.63363, not invoice.
+Admission closed, no automatic retry. Final receipt lives under
+`evidence/arm-f-directive-20261116/` in the existing costfn directory.
 Gates retain four hours/$2 and all
 original limits/trials/order; the operator's$20 overall safety ceiling does not
 authorize automatic retries/extensions or T7/production.

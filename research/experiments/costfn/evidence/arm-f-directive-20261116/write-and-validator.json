@@ -72,9 +72,10 @@
     "continuation_source_manifest_sha256": "5f9774f4d95dc23126cde018ade08d11e850e2f6b076adae70bacf654c2a80d5",
     "next_gate": "T2-F"
   },
-  "feed_read_result": "NOT_YET_OBSERVED",
-  "full_population_result": "NOT_YET_OBSERVED",
-  "R_plus_W_result": "NOT_YET_OBSERVED",
+  "feed_read_result": "UNREACHED_T2_FIXTURE_COVERAGE_STOP",
+  "full_population_result": "UNREACHED_T2_FIXTURE_COVERAGE_STOP",
+  "R_plus_W_result": "UNREACHED_T2_FIXTURE_COVERAGE_STOP",
+  "final_receipt": "read-gate-stop-and-cleanup.json",
   "whole_arm_PASS": false,
   "production_claim": false,
   "T7_admitted": false
