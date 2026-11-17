@@ -147,6 +147,31 @@ def independent_windows(builder, groups_by_reader):
 
 def require_early_gates(root):
     """Only the owned gate drivers' persisted results; absent is never PASS."""
+    root = Path(root)
+    admission = root / 'admission.json'
+    if admission.exists():
+        approval = json.loads(admission.read_bytes())
+        if approval.get('run_directive') == 'Jacob Hoffman 2026-11-16 read-first/prepared-snapshot':
+            # Explicit operator reorder: banked writes, T2/T6 BEFORE population;
+            # T3 follows R+W. Do not fabricate old-order T3/T4 PASS files.
+            value = json.loads((root / 'read-first-early.json').read_bytes())
+            from arm_f_runtime import admitted
+            admitted(approval, __import__('arm_t').digitalocean_id())
+            paths = {key: Path(value[key + '_path']) for key in ('read_gates', 'banked_writes')}
+            if (value.get('directive') != approval['run_directive']
+                    or value.get('droplet_id') != approval['droplet_id']
+                    or value.get('dataset_id') != approval['dataset_id']
+                    or value.get('T2') != 'PASS' or value.get('T6') != 'PASS'
+                    or value.get('banked_writes_sha256') != approval.get('banked_writes_sha256')
+                    or any(hashlib.sha256(path.read_bytes()).hexdigest() != value[key + '_sha256']
+                           for key, path in paths.items())):
+                raise ValueError('source-bound read-first early proofs required')
+            gates = json.loads(paths['read_gates'].read_bytes())
+            from arm_f_gates import read_trials
+            if gates['T2-F'].get('verified') is not True or json.loads(paths['banked_writes'].read_bytes()).get('T4') != 'PASS':
+                raise ValueError('native parity/banked write proof incomplete')
+            read_trials(gates['T6-F']['trials'])
+            return {key: value[key + '_sha256'] for key in paths}
     result = {}
     for gate in EARLY_GATES:
         path = Path(root) / 'F-gates' / gate / 'result.json'

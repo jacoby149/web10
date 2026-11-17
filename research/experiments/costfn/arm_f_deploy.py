@@ -59,14 +59,14 @@ def wait_for_ssh(private, destination, *, jump=None, seconds=120):
     raise error from last
 
 
-def worker_command(remaining, here, *, detach=False, scoped=False):
+def worker_command(remaining, here, *, detach=False, scoped=False, read_first=False):
     if type(remaining) is not int or not 300 <= remaining <= 14100:
         raise ValueError('worker must fit the original four-hour lease and cleanup margin')
     return ['systemd-run', '--unit=fanout-step0', '--property=RuntimeMaxSec=' + str(remaining),
         '--property=WorkingDirectory=/opt/fanout/repo',
         *(['--property=StandardOutput=append:/opt/fanout/step0-service.log',
            '--property=StandardError=append:/opt/fanout/step0-service.log'] if detach else ['--wait', '--pipe']),
-        '/opt/fanout/venv/bin/python', '-u', here + ('arm_f_scoped.py' if scoped else 'arm_f_run.py'), '/opt/fanout',
+        '/opt/fanout/venv/bin/python', '-u', here + ('arm_f_read_first.py' if read_first else 'arm_f_scoped.py' if scoped else 'arm_f_run.py'), '/opt/fanout',
         *([] if scoped else ['--programme'])]
 
 
@@ -124,6 +124,14 @@ def deploy(*, detach=False, state_path=Path('.context/fanout-run.json')):
                 admission['trim_native_sha256'] = state['trim_native_sha256']
             admission['rehearsal_sha256'] = hashlib.sha256((private / 'deploy-rehearsal.json').read_bytes()).hexdigest()
             rehearsal_proof(private, admission)
+    if state.get('read_first'):
+        if not scoped or state['scope'] != 'F_GATES_ONLY':
+            raise ValueError('read-first requires explicit F gates admission')
+        from arm_f_read_first import DIRECTIVE
+        admission.update(run_directive=DIRECTIVE,
+            banked_writes_sha256=hashlib.sha256((private / 'banked-writes.json').read_bytes()).hexdigest(),
+            population_gate_order=['Banked-T4', 'T2-F', 'T6-F', 'Population', 'T6-F-populated', 'R+W',
+                                   'T3-F', 'T5-F', 'T8-F', 'Boundaries'])
     prior_stop = Path(__file__).parent / 'evidence/arm-f-20261115/P-setup-stop/stop.json'
     if prior_stop.is_file():
         admission.update(operator_online_retry=True, reconciliation_batches=8,
@@ -138,6 +146,8 @@ def deploy(*, detach=False, state_path=Path('.context/fanout-run.json')):
             transfer.append(('deploy-rehearsal.json', private / 'deploy-rehearsal.json'))
             if state.get('trim_native_sha256'):
                 transfer.append(('trim-native-proof.json', private / 'trim-native-proof.json'))
+    if state.get('read_first'):
+        transfer.append(('banked-writes.json', private / 'banked-writes.json'))
     for name, source in transfer:
         subprocess.run(['scp', *options, str(source), destination + ':/opt/fanout/' + name],
                        check=True, capture_output=True, timeout=180)
@@ -161,7 +171,7 @@ def deploy(*, detach=False, state_path=Path('.context/fanout-run.json')):
     remaining = int(lease['deadline'] - time.time()) - 300
     if remaining < 1800:
         raise ValueError('insufficient remaining original admission before restore')
-    command = worker_command(remaining, here, detach=detach, scoped=scoped)
+    command = worker_command(remaining, here, detach=detach, scoped=scoped, read_first=state.get('read_first', False))
     print('[arm-f] guarded archive restore and P setup starting; deadline=' + admission['deadline_utc'], flush=True)
     if detach:
         # A VPN/SSH disconnect must not tear down the worker's stdout pipe.

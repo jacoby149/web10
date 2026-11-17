@@ -50,6 +50,7 @@ jobs:
           python research/experiments/costfn/arm_f_scoped.test.py
           python research/experiments/costfn/arm_f_population.test.py
           python research/experiments/costfn/arm_f_programme.test.py
+          python research/experiments/costfn/arm_f_read_first.test.py
           python research/experiments/costfn/arm_satellite.test.py
           python research/experiments/costfn/arm_satellite_sql.test.py
           python research/experiments/costfn/arm_satellite_runtime.test.py

@@ -1784,6 +1784,16 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+Current read-first lease: DO620093795,17 November01:07:38→05:07:38UTC,
+unchanged four-hour/$2 shape. Local provisioning-command120s timeout is preserved;
+same-host deployment completed after cloud-init, then a pre-import project-name
+STOP is preserved. Short-name/source-bound setup continuation reuses only verified
+download/tiny native proof, with original failures intact; fresh restore is active.
+No fixture/treatment retry or admission extension/replacement. Native fixture/read/
+snapshot gates OPEN; eight new controls plus the existing F/satellite suite pass.
+
+- [~] **RD4-FANOUT-READ-FIRST** — Jacob's16 November next-lease directive grants one fresh four-hour/$2 DO run: cite banked P/trim/T4, native-verify explicit-ID fixture clock on independent canonical page, retain a separate PREPARED provider snapshot, T2-F→T6-F first, then population→populated feed-read→R+W→T3/T5/T8/Boundaries as clock permits. Coverage failure stops immediately with preserved evidence; no retries elsewhere. Same frozen dataset/oracle/envelope/native stops/trials; agent supervision/self-kill only, no guardian or production/§8/P1/T7. Owns costfn/additive CI/serialized KB/evidence. Native fixture/read/snapshot outcomes remain OPEN until receipts; supersedes earlier next-run ordering/admission blockers, not historical results.
+
 - [✓ 6.22.5 attempt/stop accounting only] **RD4-FANOUT-DIRECTIVE-RUN** — guardian revoked/no guardian started. DO620048100 passes trim-first and100 treated writes including1,999/2,000; final native classification ParseError preserved, validation-only replay passes1,560 original rows without repeated writes. Separate same-lease T2-F stops00:27:37UTC on missing required fixture strata before either serving mode. Explicit fixture IDs repair clock forwarding source-only;195 no-engine controls/Ruff pass, not native acceptance. No read-cost/population/R+W result or whole-arm PASS. Both STOPs/private oracle/native parts archived SHA`62aa80b1…63af`; owned cleanup00:35:55UTC before02:03:51, estimated$0.63363/not invoice. Admission closed; no archive/retained-volume/production change. Final receipt `evidence/arm-f-directive-20261116/read-gate-stop-and-cleanup.json`.
 - [ ] **RD4-FANOUT-FIXTURE-CLOCK-NATIVE** — prove the repaired setup-only explicit-ID/common-clock seam on real authorized fixture creates and require both collision authors/shared route/mixed-lane winner on the canonical page before paying for the long infrastructure build. Then, only under fresh explicit admission, resume the remaining F read/population/R+W gates in original order/trials with banked writes/P cited. Owns `research/experiments/costfn/`, additive CI and serialized KB/evidence; no platform/production/archive/retained-volume mutation. Acceptance: exact fixture/oracle/source/native receipts, unchanged four-hour/$2/32-28-22GiB/24.8.14.39/10s/>10M rules, no coverage relaxation or hidden retry, agent supervision/self-kill only (guardian stays revoked). BLOCKED on fresh paid/native admission, not guardian activation.
 

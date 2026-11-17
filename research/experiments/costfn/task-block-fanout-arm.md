@@ -1,5 +1,37 @@
 # Task block — the Fanout Arm (Config F)
 
+## Next-lease override — Jacob Hoffman,16 November2026
+
+The operator explicitly admits one fresh lease under the existing four-hour/$2
+discipline. The earlier directive's guardian revocation, proportionality,
+agent supervision (~300s) and droplet self-kill model remain binding.
+
+P parity (#1568–#1570/#1572), deployed trim-first205/cap200 and T4's100 treated
+publishes including1,999/2,000 (#1577) are **banked, cited, not remeasured**.
+The explicit-ID fixture-clock repair is source-only until this lease verifies it.
+
+The read takes priority: restore/setup and seed the real fixtures; preserve a
+separate PREPARED-store snapshot, leaving frozen `2d6bbc4d…` untouched; verify
+both collision authors, shared route and mixed-lane winner on the independent
+canonical page immediately, before dependent cells. The launcher additionally
+checks this coverage before the long satellite build, without changing the
+oracle or page. Failed coverage stops immediately, with private/hash-bound
+evidence and no re-seed/retry or use of the lease for unrelated cells.
+
+Then T2-F (both complete P/F serving modes on that page) → T6-F → full-population
+backfill → populated feed-read → R+W → T3-F → T5-F → T8-F → Boundaries, as time
+honestly permits. Three full-restore trials/100 measured sequences and all native
+caps remain unchanged. P-mode correctness/contract observations are not a new P
+baseline. Report F complete latency/rows/bytes beside cited P against500ms/25MB,
+baseline~361M rows/24.32GB, Arm T **main-only**1.72M/156.5MB and parity-valid P
+complete~3.3s/~484MB. Failures remain failures, never silently retried.
+
+Use one account-private provider snapshot of the stopped prepared store, not a
+new backup subsystem. Retain its provider ID/source/fixture/restore bindings as
+a new artifact; future restore speed remains unproven until observed. No guardian,
+production,§8 integration, P1/T7, regenerated dataset or expanded envelope.
+This override governs over the historical orders/admissions retained below.
+
 ## Governing run directive — Jacob Hoffman,16 November2026
 
 This directive supersedes earlier cleanup requirements here and in PR#1576.

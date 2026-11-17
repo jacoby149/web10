@@ -1,5 +1,18 @@
 # Config F — approved research closure and execution receipt
 
+### Next-lease read-first override —16 November operator directive
+
+The `task-block-fanout-arm.md` next-lease override is the current admission,
+superseding the historical write-first order below. P/trim/T4 are banked, not
+remeasured. The explicit-ID fixture-clock repair must pass the unchanged
+independent canonical page guard before dependent work. `arm_f_read_first.py`
+checks it before satellite construction, retains one separate stopped PREPARED
+provider snapshot, then runs both complete P/F modes, T6-F, population,
+populated T6, R+W and remaining T3/T5/T8/Boundaries in that order. No weakened
+oracle, hidden fixture retry, guardian, production or§8 integration. Fresh host,
+deadline, native outcomes and retained snapshot ID must be recorded from receipts;
+source/local controls are not native acceptance or proof of future restore speed.
+
 ### Governing16 November run admission — guardian revoked
 
 Jacob Hoffman's latest directive in `task-block-fanout-arm.md` supersedes the

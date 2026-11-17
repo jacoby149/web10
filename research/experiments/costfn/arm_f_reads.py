@@ -101,15 +101,25 @@ async def sequences(root, output, *, count=SAMPLES, expected=None, require_mode=
     return samples
 
 
-async def identical_contract(root, output):
-    root, output = Path(root), Path(output)
-    fixture = json.loads((root / 'fixture.json').read_bytes())
-    expected = reference(root)
+def fixture_coverage(fixture, expected):
+    """The original page guard, also usable BEFORE infrastructure construction."""
     identities = [(row['author_key'], row['doc_id']) for row in expected['rows']]
     if (sum(doc == fixture['collision_id'] for _, doc in identities) != 2
+            or (fixture.get('collision_authors') and
+                {author for author, doc in identities if doc == fixture['collision_id']}
+                != set(fixture['collision_authors']))
             or not any(doc in fixture['shared_ids'] for _, doc in identities)
             or not any(doc == fixture['large_front_id'] for _, doc in identities)):
         raise ValueError('tie/shared/full-key/mixed-lane fixture did not reach the actual page')
+    return dict(verified=True, collision_authors=2, shared_route=True, mixed_lane=True,
+        canonical_page_rows=len(identities))
+
+
+async def identical_contract(root, output, *, expected=None):
+    root, output = Path(root), Path(output)
+    fixture = json.loads((root / 'fixture.json').read_bytes())
+    expected = expected if expected is not None else reference(root)
+    fixture_coverage(fixture, expected)
     results = {}
     for mode in ('P_DOCUMENT_STREAM_V1', 'F_DOCUMENT_STREAM_V1'):
         environment.boot(root, mode)

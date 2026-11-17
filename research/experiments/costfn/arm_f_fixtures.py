@@ -89,7 +89,7 @@ async def parity_fixture(root):
             raise ValueError('actual same-ID/different-author fixture not established')
         result = dict(reader=reader, writer=writer, groups=[first, second_group, large],
             sizes=[3, 3, 2000], shared_ids=posts[:30] + [collision[0]['doc_id']], collision_id=collision[0]['doc_id'],
-            large_front_id=large_front['doc_id'],
+            large_front_id=large_front['doc_id'], collision_authors=[writer, other],
             fixture_clock=json.loads((root / 'fixture-clock.json').read_bytes()), actual_authorized_paths=True)
         save(root / 'fixture.json', result)
         return result
