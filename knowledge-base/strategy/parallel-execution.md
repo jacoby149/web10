@@ -1784,27 +1784,27 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
-Native paired fixture comparison is now banked: parity PASS; P3,267.824ms/
-2,140,109 rows/140,626,163 bytes; F2,931.022ms/2,139,341 rows/140,546,167 bytes.
-Both miss500ms/25MB. One measured complete sequence each, not p95/K20/capacity.
-Snapshot255003176 retained; original-K20 T6 trial0 fresh restore is active,
-same DO620121703/original06:58:36UTC deadline.214 exact controls/Ruff pass.
-Receipt `evidence/arm-f-persistent-20261117/paired-fixture-read-comparison.json`.
+Measurement goal reached; performance goal FAILED. Ordinary K20 F complete
+sequence:4,702.160ms/3,734,802 rows/286,693,122 bytes, parity PASS including21
+positive view/reach docs. Paired three-group fixture P/F also has parity PASS
+(3,267.824/2,931.022ms;140,626,163/140,546,167 bytes). All miss500ms/25MB.
+One measured sequence per cell, NOT p95/three-trial T6/capacity. Byte gate stops
+further trials and dependent population/R+W. Owned cleanup06:47:54UTC precedes
+06:58:36; estimated compute$0.95546/not invoice; snapshot255003176 retained,
+ongoing storage separate, restore speed unmeasured.214 controls/Ruff pass.
+Receipts: `evidence/arm-f-persistent-20261117/{paired-fixture-read-comparison,ordinary-k20-read-and-cleanup}.json`.
 
 Current direction,17 November: **persist** — repair/run, sleep300s, inspect,
 repair if broken and repeat until measurements exist. Routine source-bound
 re-runs are explicitly admitted within unchanged four-hour/$2 leases and the
 existing$20 overall ceiling; preserve every failure, oracle/caps and no-production
 boundary. No new guardian or permission question at each harness repair.
-Setup group-create timeout is source-repaired (205 no-engine controls/Ruff),
-not yet a native fixture/read PASS. Prior closed lease below stays closed.
-Update: DO620121703 through06:58:36UTC now passes native fixture coverage on
-the independent21-row page after source-bound full-key prepare selection;
-same fixtures/restore, original ambiguity STOP preserved,210 controls/Ruff.
-Infrastructure active; snapshot/read comparison still UNREACHED. Receipt
-`evidence/arm-f-persistent-20261117/fixture-coverage.json`.
+This iteration now ends on an actual cost-gate result, not another harness-only
+stop. All earlier setup/dispatch/scope failures remain preserved. Ordinary API,
+production and the frozen archive stay unchanged; later arm acceptance is OPEN.
 
-- [~] **RD4-FANOUT-PERSISTENT-READ** — execute the operator-authorized repair/run/300s-check loop to native fixture coverage, separate PREPARED snapshot and complete P/F read measurements. Cite banked P/trim/T4; then population/populated reads/R+W and remaining gates as clock allows. Owns costfn/additive CI/serialized KB/evidence; ordinary API/production read-only. Acceptance: receipt-backed complete latency/rows/bytes against500ms/25MB and cited comparators; exact independent parity, original limits/trials, preserved failures and owned cleanup. No artificial PASS, guardian, production/§8/P1/T7, unbounded spend or limit relaxation.
+- [✓ 6.22.7 measurements obtained; cost FAIL] **RD4-FANOUT-PERSISTENT-READ** — persisted through evidenced repairs and300s checks to native fixture coverage, separate prepared snapshot, paired P/F complete sequences and the original ordinary-K20 F complete sequence. Exact parity passes;500ms/25MB fail. Original byte-stop rule prevents further paid trials and population/R+W; no p95/full T6/arm PASS. Preserve every failed attempt, exact native/source/scope receipts and06:47:54 owned cleanup. No guardian/production/§8/P1/T7 or raised limits.
+- [ ] **RD4-FANOUT-COMPLETE-READ-COST** — diagnose the measured ordinary-K20 F286,693,122-byte complete response from exact native receipts: views98,542,861; preparation75,263,403; mixed counts/resolution20,137,337; candidates11,635,214;80,219,612 remains unclassified until SQL-backed. Owns costfn/additive CI/serialized KB/evidence; ordinary API/production read-only. Acceptance: exact stage/request/query reconciliation, unknowns labelled unknown, source-bound next repair proposal plus no-engine controls, unchanged oracle/budgets and preserved FAIL. This is source-only diagnosis, not automatic P1/T7/production work or a whole-arm PASS.
 
 Read-first admission CLOSED: DO620093795 stops before fixture coverage; owned
 cleanup17 November01:45:40UTC, before05:07:38. Setup's2,000-member group-create
@@ -1813,12 +1813,12 @@ clock/coverage/snapshot/read result. Both prior setup failures remain preserved;
 no failed fixture retry.203 no-engine controls/Ruff pass, not native acceptance.
 
 - [✓ 6.22.6 attempt accounting only] **RD4-FANOUT-READ-FIRST-ATTEMPT** — full frozen import1,260.321s; fixture setup STOP65,033.660ms client/69,893.208ms same-request late server200. No canonical coverage/clock/read/snapshot verdict or later gates. Full private/stopped native archive SHA`79dd3c76…00662` verified before owned cleanup01:45:40UTC; compute estimate$0.15849/not invoice. Admission closed, no guardian/production/archive mutation. Receipt `evidence/arm-f-read-first-20261117/setup-stop-and-cleanup.json`.
-- [ ] **RD4-FANOUT-LARGE-GROUP-SETUP** — diagnose and repair the setup-only2,000-member group-create transport deadline using the preserved65s client/69.893s server200 receipt; add no-engine controls that drive the actual setup HTTP configuration and real compose-name limit. Owns `research/experiments/costfn/`, additive CI and serialized KB/evidence; ordinary API/production remain read-only. Acceptance: measured readers/writers keep their original limits, fixture clock/oracle/coverage stay unchanged, original failures retained, no re-seed/retry/new paid host or engine query without fresh explicit admission. Then native-verify fixtures and produce the read-first comparison/snapshot under a separately bound lease; no automatic admission or snapshot-speed claim.
+- [✓ 6.22.7 setup/native coverage] **RD4-FANOUT-LARGE-GROUP-SETUP** — setup-only deadline repaired and exercised through the real fixture HTTP path;600s is bounded by original cleanup margin, ordinary HTTP/native measured limits unchanged. Native large-group200/55.477s and all63 posts complete, then independent full-key fixture coverage/P-F comparison pass. Original65s/69.893s failure remains preserved. Snapshot retained, ordinary-K20 cost gate FAIL, not whole-arm or snapshot-speed assurance.
 
-- [ ] **RD4-FANOUT-READ-FIRST** — acceptance remains OPEN after the6.22.6 pre-coverage setup STOP. The granted lease is consumed/closed; future native work requires fresh explicit admission after LARGE-GROUP-SETUP. Cite banked P/trim/T4, verify unchanged fixture clock/oracle/coverage, retain a separate PREPARED snapshot, T2-F→T6-F first, then population→populated feed-read→R+W→T3/T5/T8/Boundaries as clock permits. Same frozen dataset/envelope/trials/native stops; agent supervision/self-kill only. Owns costfn/additive CI/serialized KB/evidence; no guardian/production/§8/P1/T7 or automatic retry.
+- [✓ 6.22.7 read comparison exists; cost FAIL] **RD4-FANOUT-READ-FIRST** — banked P/trim/T4 cited, native fixture coverage and paired P/F comparison captured, prepared snapshot255003176 retained. Original ordinary-K20 F sequence completes with parity at4.702s/3.735M rows/286.693MB, then the unchanged25MB gate stops further trials/dependent gates. No formal p95/T6/population/R+W/arm PASS. All failures and source/native receipts preserved; owned lease cleaned before deadline.
 
 - [✓ 6.22.5 attempt/stop accounting only] **RD4-FANOUT-DIRECTIVE-RUN** — guardian revoked/no guardian started. DO620048100 passes trim-first and100 treated writes including1,999/2,000; final native classification ParseError preserved, validation-only replay passes1,560 original rows without repeated writes. Separate same-lease T2-F stops00:27:37UTC on missing required fixture strata before either serving mode. Explicit fixture IDs repair clock forwarding source-only;195 no-engine controls/Ruff pass, not native acceptance. No read-cost/population/R+W result or whole-arm PASS. Both STOPs/private oracle/native parts archived SHA`62aa80b1…63af`; owned cleanup00:35:55UTC before02:03:51, estimated$0.63363/not invoice. Admission closed; no archive/retained-volume/production change. Final receipt `evidence/arm-f-directive-20261116/read-gate-stop-and-cleanup.json`.
-- [ ] **RD4-FANOUT-FIXTURE-CLOCK-NATIVE** — prove the repaired setup-only explicit-ID/common-clock seam on real authorized fixture creates and require both collision authors/shared route/mixed-lane winner on the canonical page before paying for the long infrastructure build. Then, only under fresh explicit admission, resume the remaining F read/population/R+W gates in original order/trials with banked writes/P cited. Owns `research/experiments/costfn/`, additive CI and serialized KB/evidence; no platform/production/archive/retained-volume mutation. Acceptance: exact fixture/oracle/source/native receipts, unchanged four-hour/$2/32-28-22GiB/24.8.14.39/10s/>10M rules, no coverage relaxation or hidden retry, agent supervision/self-kill only (guardian stays revoked). BLOCKED on fresh paid/native admission, not guardian activation.
+- [✓ 6.22.7 native fixture only] **RD4-FANOUT-FIXTURE-CLOCK-NATIVE** — all63 real authorized posts exercise the explicit-ID/common-clock repair; the independent21-row canonical page includes both collision authors, shared route and mixed-lane winner before infrastructure. Original failed fixtures/oracle/dispatch checks remain preserved, source-bound repairs disclosed, no coverage relaxation. Public `evidence/arm-f-persistent-20261117/fixture-coverage.json`; subsequent complete-read cost FAIL is separate, not a whole-arm PASS.
 
 - [✓ 6.22.0 native rehearsal only] **RD4-FANOUT-SCOPED-PREFLIGHT** — real deployed API installs six membership/three document hooks, becomes ready, and a real authorized publish reconciles ten stored recipient pointers with nine native write receipts/zero exceptions. Completed02:40:56UTC on DO619676674; single rehearsal write209.694ms, not feed latency/p95. Preserve original failures/forensics; explicit SQL aliases fix output labels, reviewed scoped-adapter pin is rebound and checked offline, only the lifespan owner's caught code16 CREATE warning avoids poisoning F while caps/HTTP/background failures still stop.165 pinned controls/Ruff plus actual-owner cap controls pass. Proof SHA`a47e4c2b…22133`; owned cleanup verified02:45:33UTC. Gates/performance/CI remain separate, no production/auth-policy change.
 - [✓ 6.22.0 attempt only; T4 STOP] **RD4-FANOUT-SCOPED-GATES** — DO619706349 restores frozen input and passes source-bound infrastructure spots/F Build with P comparator cited, never remeasured.60 F publishes reconcile pointers;20-sample write p95s228.992/267.406/276.930ms at10/500/999 members. Background trim latches `ProgrammingError` at03:51:33UTC; T4 stops03:52:17 before any1,999-member F write (20 original controls completed).2,000/final T4 native validation/T2-F and every later gate unreached; no feed latency/capacity or arm PASS. Private raw/source/stopped native query-log archive SHA`5e475149…cb1a4`; public receipt `evidence/arm-f-gates-only-20261116/T4-stop.json`. All owned resources cleaned04:02:28UTC, before original06:47:54 deadline; estimated compute$0.3107, not invoice. No restart/extension/production action.

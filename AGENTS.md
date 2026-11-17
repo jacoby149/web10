@@ -412,6 +412,14 @@ still binds its own four-hour/$2 window inside the existing$20 overall ceiling;
 never weaken the oracle/native limits, disguise a repeated attempt as a fresh
 trial, or expand into production/§8/P1/T7. Full current directive and receipts:
 `research/experiments/costfn/task-block-fanout-arm.md`.
+That persistent run now obtains native fixture parity, a retained prepared
+snapshot255003176 and real complete-read measurements. Ordinary K20 F is
+4,702.160ms/3,734,802 rows/286,693,122 logical bytes with exact parity/positive
+views;500ms/25MB FAIL. The predeclared byte stop prevents further trials and
+population/R+W, so no p95/full T6/arm PASS. Owned cleanup verifies17 November
+06:47:54UTC before06:58:36; compute estimate$0.95546/not invoice, snapshot storage
+separate/restore speed unmeasured. Preserve all earlier failures; receipts:
+`research/experiments/costfn/evidence/arm-f-persistent-20261117/`.
 Experiment first: prove hybrid write maintenance and layout-aware reads in isolated
 Config F, passing all required response/performance/write/lifecycle/rebuild and
 separately admitted stress gates before proposing broader platform integration.

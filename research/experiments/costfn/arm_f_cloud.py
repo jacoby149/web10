@@ -242,9 +242,13 @@ def create(path):
             'ssh_keys': {'ed25519_private': (root / 'host-key').read_text(),
                          'ed25519_public': (root / 'host-key.pub').read_text().strip()},
             'users': [{'name': 'root', 'lock_passwd': True, 'ssh_authorized_keys': [public]}],
-            'packages': ['docker.io', 'docker-compose-v2', 'python3-venv', 'git'],
-            'runcmd': [['systemctl', 'enable', '--now', 'docker'],
-                       ['systemd-run', '--unit=fanout-hard-stop', '--on-calendar=' + halt, '/sbin/poweroff']]}
+             'packages': ['docker.io', 'docker-compose-v2', 'python3-venv', 'git'],
+             'runcmd': [['systemctl', 'enable', '--now', 'docker'],
+                        # This disposable four-hour benchmark must not be
+                        # restarted mid-cell by unattended OS maintenance.
+                        ['systemctl', 'stop', 'apt-daily.timer', 'apt-daily-upgrade.timer'],
+                        ['systemctl', 'mask', '--runtime', 'apt-daily.service', 'apt-daily-upgrade.service'],
+                        ['systemd-run', '--unit=fanout-hard-stop', '--on-calendar=' + halt, '/sbin/poweroff']]}
         cloud_path = root / 'cloud-init.yaml'
         cloud_path.write_text('#cloud-config\n' + json.dumps(cloud))
         os.chmod(cloud_path, 0o600)

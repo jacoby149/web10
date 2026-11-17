@@ -1,5 +1,47 @@
 # Config F — approved research closure and execution receipt
 
+## FINAL ordinary-K20 result —17 November
+
+Exact main/prepared/count/authorized-view parity passes on the ORIGINAL ordinary
+K20 scope (20 follows plus own group;21 feed/22 engagement groups, one main-page
+author/21 rows). Warm-up4,132.601ms/3,738,173 rows/287,175,679 bytes; measured
+complete sequence4,702.160ms/3,734,802 rows/286,693,122 logical bytes. All57 native
+queries finish without exception; largest query1,114,133 rows, below10M. All21
+returned view docs have positive impressions/reach, with same-snapshot and
+independent scoped/raw-delivery audits retained. Both500ms/25MB targets FAIL.
+The declared byte gate stops after one measured sample, before another trial:
+no p95, completed three-trial T6, population, populated read, R+W or whole-arm PASS.
+
+Measured native bytes reconcile exactly: views98,542,861; preparation75,263,403;
+mixed resolution/counts20,137,337; candidates11,635,214; counts891,072; metadata
+1,499; generation2,124;80,219,612 unclassified. Never assign unknowns by guess
+or sum native query milliseconds as wall time. Fanout candidate work is only a
+small part of this complete response; the full cost remains above the targets.
+
+At06:18UTC unattended-upgrade/needrestart stopped/restarted the one-shot controller,
+whose reentry correctly refused its existing output directory. ClickHouse kept
+running. Its ORIGINAL unserved fresh trial0 resumes from six committed setup
+queries verified against exact SQL, generation and actual QueryFinish records;
+no committed INSERT or restore is repeated. The remaining setup/checks and real
+sequences run under unchanged source modules/native bounds/original deadline.
+Keep interruption/reentry/recovery receipts, not a fabricated new trial. Timers/
+services for unattended updates are paused only on this disposable lease, not
+production; no guardian is introduced.
+
+Final private/source/stopped-native archive3,865,632 bytes/SHA
+`690c505ce34c939f762e00f9ce70a0146981adb4cd9d72d49677a0da4b189f27`
+is copied/hash-verified BEFORE owned cleanup06:47:54UTC, before06:58:36. Transient
+SSH-key-delete API failure is preserved; final exact ownership readback finds no
+droplet/firewall/key. No OOM, production or frozen-archive/retained-Volume change.
+Estimated compute$0.95546 is not invoice; retained snapshot255003176 is the earlier
+prepared checkpoint, not a post-repair K20 image, and incurs separate storage
+billing. Restore speed remains unmeasured. Public full scope/counter/source/
+recovery/cleanup receipt: `evidence/arm-f-persistent-20261117/ordinary-k20-read-and-cleanup.json`.
+
+Historical reference lines stay cited, not remeasured: baseline~361M rows/24.32GB;
+Arm T MAIN ONLY1.72M/156.5MB; P complete~3.3s/~484MB. Source/instrumentation and
+scope differences remain explicit; this is not a causal speedup/capacity claim.
+
 **Current read result:** paired21-row/three-group fixture page has exact parity
 PASS in both modes. One measured complete sequence (plus separate warm-up) each:
 P3,267.824ms/2,140,109 rows/140,626,163 bytes; F2,931.022ms/2,139,341 rows/

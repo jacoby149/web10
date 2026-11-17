@@ -1,5 +1,27 @@
 # Task block — the Fanout Arm (Config F)
 
+## Persistent execution result —17 November2026
+
+The requested comparison now exists. Paired verified fixture P/F (one warm-up
++one measured complete sequence each) has exact parity; measured P3,267.824ms/
+2,140,109 rows/140,626,163 bytes, F2,931.022ms/2,139,341 rows/140,546,167 bytes.
+The ORIGINAL ordinary-K20 F workload also completes with exact parity and21
+positive view/reach docs:4,702.160ms/3,734,802 rows/286,693,122 bytes measured,
+after a separate4,132.601ms warm-up. All57 native queries succeed; max1,114,133
+rows/query. Both500ms/25MB lines FAIL; the predeclared byte gate stops further
+trials/dependent gates. No p95/full T6/population/R+W/arm PASS. This is an actual
+cost result, not another harness-only stop or a reason to raise the limits.
+
+Every setup/prepare/dispatch/scope/OS interruption is preserved with source/native
+bindings. Unattended-upgrade restarted the controller during K20 prep; six actual
+committed setup queries were recovered by QueryFinish/SQL/generation, never
+reinserted or called a new trial. Final archive SHA`690c505c…89f27` verifies before
+owned cleanup06:47:54UTC, before06:58:36, estimated compute$0.95546/not invoice.
+No owned compute/firewall/key remains. Snapshot255003176 is retained as the
+earlier prepared image; ongoing storage is separate, restore speed unmeasured.
+Final receipts: `evidence/arm-f-persistent-20261117/` (paired diagnostic,
+ordinary-K20 read/cleanup, native fixture proof and provider snapshot).
+
 ## Persistent execution override —17 November operator direction
 
 > i need you to fix run fix run stop asking me permission, and get these measurements
