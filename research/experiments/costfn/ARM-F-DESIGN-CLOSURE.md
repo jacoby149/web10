@@ -1,5 +1,85 @@
 # Config F — approved research closure and execution receipt
 
+### Governing16 November run admission — guardian revoked
+
+Jacob Hoffman's latest directive in `task-block-fanout-arm.md` supersedes the
+independent guardian/cleanup activation prerequisite, including PR#1576. This
+fresh F-only run uses agent checks about every300 seconds and existing droplet
+self-kill timers, not launchd or an external guardian. No additional supervision
+machinery is authorized. Receipt collection/checkpointing stays required; earlier
+lost receipts remain NOT_RECOVERED. Four-hour/$2 admission, all measurement/parity
+stops, immutable dataset/archive/retained volume and research-only boundaries stay
+unchanged. Native trim and banked P/deploy receipts are cited, not remeasured.
+Fresh DO620048100 is bound16 November22:03:51→17 November02:03:51UTC.
+Actual host self-kill and container-stop timers verify active before the detached
+worker starts;1,384 executing source hashes verify. No guardian is started.
+Native preflight and all11 frozen archive-object hashes pass; fresh isolated
+restore is underway. This is setup progress, not a deployed trim/T4/read result.
+Agent-invoked private checkpoints are copied locally and SHA-256 verified.
+
+**Write/validator update:** full restore/infrastructure/F Build pass. Deployed
+trim-first passes205 authorized publications with physical overflow observed.
+All100 treated writes pass exact recipient-pointer checks. Twenty-sample publish
+p95s are222.540/262.263/265.758/285.881/200.256ms at10/500/999/1,999/2,000 members.
+These are write timings, not feed latency or production numbers.
+
+Original T4's final native classifier stops on SQLGlot's unsupported driver
+`INSERT … FORMAT Native` telemetry header, after the complete measured schedule.
+The original STOP/full traceback and stopped native parts remain preserved;
+private archive SHA`ed163418b420e0c7f4d8740ebc4919032547b5f01664e38d784707bc78c18d9f`.
+The repair recognizes only a column-only binary-insert header; every SELECT,
+nested SELECT and INSERT-SELECT still gets AST rerank detection, and unknown
+syntax still fails. Three offline controls replay these boundaries. An explicit
+**validation-only** replay reads1,560 original native rows: zero exceptions,
+max38,283 read rows/no rerank,100/100 treated pointer parity. It repeats zero
+writes, changes no observations and overwrites no failed file. The existing
+isolated engine restarts solely to retrieve original query receipts and stops
+again; the original failure archive predates that restart. Native written
+70,560 rows/11,607,610 bytes include auxiliary writes, not merge/storage costs.
+
+A separate continuation directory/source manifest retains the original gate
+STOP and binds the validator-only PASS to its original receipt/native/source
+hashes. Only `arm_f_t4.py` changes among runtime sources; original deadline and
+all later gate order/trials stay unchanged. It starts T2-F on the same host;
+no new paid creation or T4 measurement retry. Public write/checker receipt:
+`evidence/arm-f-directive-20261116/write-and-validator.json`. Read, population and
+R+W results were unobserved at continuation start; the final outcome is below.
+
+**Final outcome — T2-F fixture-coverage STOP at17 November00:27:37UTC.** Its
+independent canonical page contains21 rows but zero required collision/shared-
+route/mixed-lane fixtures. The guard fires before either P/F serving mode runs:
+zero complete serving sequences and no valid F feed-read latency/bytes/rows.
+This is a fixture-coverage failure, not a measured F read mismatch or cost FAIL.
+T6-F, T3-F, full-population seed, populated T6, rebuild/stale/boundary and R+W
+are **UNREACHED because T2-F did not pass**. No500ms/25MB verdict or valid F
+comparison with baseline~361M/24.32GB, Arm T main1.72M/156.5MB or P complete
+~3.3s/~484MB is available. Original P numbers and historical failures stand.
+
+The source cause is the setup clock seam: `create_as` forwards `version_time`
+to the insert only when `doc_id` is supplied. Unmarked fixtures supplied no ID,
+so their page timestamps are23:46:45.986–23:46:47UTC rather than the fixed
+23:45:24.323074UTC used by the marked fixtures. They displaced the required
+corners. A setup-only explicit UUID for every create repairs the seam; marked
+UUID5 collision identities remain unchanged. The two no-engine controls include
+the reproduced pre-fix missing-ID failure. This source repair is **not deployed
+or native-verified**; the stopped fixture/guard/oracle/order are not rewritten,
+relaxed or retried, and there is no additional paid creation.
+
+Final private archive15,212,480 bytes/SHA
+`62aa80b1d2f790b36b9d465a27213815f7e1c73e51621f2b9024ac0108fd63af`
+contains both STOPs/full tracebacks, original/continuation source bindings,
+private fixture/expected page and stopped native query-log parts for both trials.
+It is copied and hash-verified before cleanup. Original T4 failure archive is
+separately retained. Owned droplet/firewall/key cleanup verifies
+17 November00:35:55.250786UTC, before02:03:51UTC; elapsed SKU estimate$0.63363,
+not an invoice. A transient ownership refusal during provider deletion/readback
+settling is preserved; settled absence is verified without weaker predicates.
+No guardian was started, no OOM, production/archive/retained-volume mutation,
+deadline extension or whole-arm PASS. Own temporary keys/GET capabilities are
+removed. This admission is closed; native acceptance of the fixture repair and
+the remaining cells require fresh admission, not an automatic rerun.
+Public final receipt: `evidence/arm-f-directive-20261116/read-gate-stop-and-cleanup.json`.
+
 **15 November 2026 · OPERATOR APPROVED, with the corrections below.**
 The operator approved §§1–6's bounded research design, deferred §7 to integration,
 and granted §8's fresh isolated four-hour/$2 admission including concurrent R+W.

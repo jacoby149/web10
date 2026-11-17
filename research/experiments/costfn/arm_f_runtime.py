@@ -18,12 +18,19 @@ def admitted(operation, host, now=None):
     start, deadline = (datetime.fromisoformat(operation[name]) for name in ('approved_utc', 'deadline_utc'))
     if (operation.get('configuration') != 'F' or operation.get('approved_by') != 'Jacob'
             or operation.get('droplet_id') != host or operation.get('dataset_id') != p.arm_t.DATASET
-            or operation.get('budget_usd') != 2 or operation.get('watchdog_verified') is not True
+            or operation.get('budget_usd') != 2 or not cleanup_approved(operation)
             or operation.get('cutoff') != 2000 or operation.get('T7_admitted') is not False
             or operation.get('sort_order_arm_admitted') is not False
             or (deadline - start).total_seconds() != 14400 or not start <= now < deadline):
         raise ValueError('current exact isolated F approval required, not an old P lease')
     return deadline
+
+
+def cleanup_approved(operation):
+    """Nov16 operator directive: verified host timers, no independent guardian."""
+    return (operation.get('watchdog_verified') is True or (
+        operation.get('cleanup_model') == 'agent-supervised-self-kill'
+        and operation.get('host_self_kill_verified') is True))
 
 
 class Session(p.Session):

@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 import json
 import math
 from pathlib import Path
+import re
 import time
 import urllib.request
 import uuid
@@ -28,6 +29,21 @@ def p95(values):
     if not values or any(not math.isfinite(value) or value < 0 for value in values):
         raise ValueError('finite nonempty measured latency samples required')
     return sorted(values)[math.ceil(.95 * len(values)) - 1]
+
+
+def reads_fanout(sql):
+    """Classify driver INSERT headers without discarding any SELECT subtree."""
+    import sqlglot
+    from sqlglot import exp
+    identifier = r'(?:`[^`]+`|[A-Za-z_][A-Za-z_0-9]*)'
+    header = (r'\s*INSERT\s+INTO\s+' + identifier + r'(?:\.' + identifier + r')?\s*\(\s*'
+        + identifier + r'(?:\s*,\s*' + identifier + r')*\s*\)\s+FORMAT\s+Native\s*')
+    if re.fullmatch(header, sql, re.I):
+        # Binary rows travel outside SQL. Supply a placeholder VALUES solely
+        # for AST parsing of this exact column-only header, never INSERT SELECT.
+        sql = re.sub(r'\s+FORMAT\s+Native\s*$', ' VALUES (NULL)', sql, flags=re.I)
+    tree = sqlglot.parse_one(sql, read='clickhouse')
+    return any(table.name == 'fanout' and table.find_ancestor(exp.Select) for table in tree.find_all(exp.Table))
 
 
 def start(root):
@@ -178,13 +194,10 @@ async def run(root):
             native, _ = session.rows('T4_native_write_receipts', 'SELECT query_id,query_duration_ms,read_rows,read_bytes,'
                 'written_rows,written_bytes,memory_usage,exception_code,log_comment,query FROM system.query_log WHERE ('
                 + conditions + ") AND type IN ('QueryFinish','ExceptionBeforeStart','ExceptionWhileProcessing')")
+            __import__('arm_f_failure').save(output / 'native-write-raw.json', native)
             for row in native:
                 sql = row.pop('query')
-                import sqlglot
-                from sqlglot import exp
-                tree = sqlglot.parse_one(sql, read='clickhouse')
-                reads_fanout = any(table.name == 'fanout' and table.find_ancestor(exp.Select) for table in tree.find_all(exp.Table))
-                if int(row['exception_code']) or int(row['read_rows']) > 10_000_000 or reads_fanout:
+                if int(row['exception_code']) or int(row['read_rows']) > 10_000_000 or reads_fanout(sql):
                     raise ValueError('T4 native stop or per-insert reader rerank defect')
             result.update(outcome='T4_PASS', T4='PASS', observations=observed, queries=native,
                 physical_written_rows=sum(int(row['written_rows']) for row in native),

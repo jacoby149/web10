@@ -10,9 +10,7 @@ import ipaddress
 import json
 import os
 from pathlib import Path
-import plistlib
 import re
-import shutil
 import subprocess
 import sys
 import time
@@ -190,29 +188,18 @@ def initialize(*, state=Path('.context/fanout-run.json'), scope=None, ssh_source
     created = int(time.time())
     lease = dict(name=name, tag=name, configuration='F', size=shape['slug'], region='nyc3',
                  account_uuid=account_row['uuid'], max_usd=2, hourly_usd=.25, created_epoch=created,
-                  deadline=created + 14400, approved_by='Jacob', cancelled=False)
+                  deadline=created + 14400, approved_by='Jacob', cancelled=False,
+                  cleanup_model='agent-supervised-self-kill', guardian_required=False)
     if scope:
         lease['scope'] = scope
     if ssh_source_cidr:
         lease['ssh_source_cidr'] = ssh_source_cidr
-    validate(lease)  # Network pin is in the initial record BEFORE watchdog launch.
+    validate(lease)
     path = root / 'lease.json'
     save(path, lease)
-    shutil.copyfile(__file__, root / 'watchdog.py')
-    label = 'app.web10.fanout.' + name.rsplit('-', 1)[1]
-    program = watchdog_program(root / 'watchdog.py', path)
-    lease['watchdog_program'] = program
-    save(path, lease)
-    plist = Path.home() / 'Library/LaunchAgents' / (label + '.plist')
-    with plist.open('wb') as stream:
-        plistlib.dump(dict(Label=label, ProgramArguments=program, RunAtLoad=True, StartInterval=30,
-            StandardOutPath=str(root / 'watchdog.out'), StandardErrorPath=str(root / 'watchdog.err')), stream)
-    subprocess.run(['launchctl', 'bootstrap', 'gui/' + str(os.getuid()), str(plist)], check=True, capture_output=True)
-    tick(path)
-    subprocess.run(['launchctl', 'print', 'gui/' + str(os.getuid()) + '/' + label], check=True, capture_output=True)
-    save(state, dict(root=str(root), lease=str(path), label=label, **({'scope': scope} if scope else {})))
+    save(state, dict(root=str(root), lease=str(path), **({'scope': scope} if scope else {})))
     print(json.dumps({'state_root': str(root), 'deadline_utc': datetime.fromtimestamp(lease['deadline'], UTC).isoformat(),
-                      'watchdog_loaded': True}))
+                      'cleanup_model': lease['cleanup_model'], 'watchdog_loaded': False}))
 
 
 def create(path):
@@ -224,9 +211,8 @@ def create(path):
         validate(lease)
         account(lease)
         if (lease.get('cancelled') or lease.get('droplet_id') or lease.get('creation_uncertain')
-                or not lease.get('watchdog_api_verified') or time.time() - lease.get('watchdog_seen_epoch', 0) > 90
                 or time.time() >= lease['deadline'] - 1800):
-            raise ValueError('closed/existing/unguarded admission; no creation')
+            raise ValueError('closed/existing admission; no creation')
         if api('compute', 'droplet', 'list'):
             raise ValueError('another host exists')
         for name in ('client-key', 'host-key'):

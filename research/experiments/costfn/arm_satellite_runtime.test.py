@@ -19,6 +19,15 @@ class RuntimeTests(unittest.TestCase):
     def test_approved_own_host_is_admitted(self):
         self.assertEqual(admitted(self.operation, 619510510, self.now), self.now + timedelta(hours=4))
 
+    def test_f_subordinate_infrastructure_accepts_verified_self_kill_not_standalone_p(self):
+        operation = {**self.operation, 'watchdog_verified': False,
+            'cleanup_model': 'agent-supervised-self-kill', 'host_self_kill_verified': True,
+            'scope': 'F_GATES_ONLY', 'parent_admission_sha256': 'a' * 64}
+        self.assertEqual(admitted(operation, 619510510, self.now), self.now + timedelta(hours=4))
+        for changes in ({'host_self_kill_verified': False}, {'scope': None}, {'parent_admission_sha256': None}):
+            with self.subTest(changes=changes), self.assertRaises(ValueError):
+                admitted({**operation, **changes}, 619510510, self.now)
+
     def test_expired_other_host_config_f_budget_or_incomplete_approval_denied(self):
         for field, value in (("deadline_utc", self.now.isoformat()), ("configuration", "F"),
                              ("budget_usd", 2.01), ("fanout", True), ("watchdog_verified", False),

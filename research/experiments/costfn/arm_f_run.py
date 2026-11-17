@@ -50,7 +50,8 @@ def operation(root):
     if (admission.get('configuration') != 'F' or admission.get('approved_by') != 'Jacob'
             or admission.get('droplet_id') != host or admission.get('dataset_id') != arm_t.DATASET
             or admission.get('budget_usd') != 2 or (deadline - start).total_seconds() != 14400
-            or not start <= datetime.now(UTC) < deadline or admission.get('watchdog_verified') is not True):
+            or not start <= datetime.now(UTC) < deadline
+            or not __import__('arm_f_runtime').cleanup_approved(admission)):
         raise ValueError('current exact Config F admission required')
     # Explicit subordinate P-only baseline operation on the F lease. Not F build
     # approval disguised as a P receipt, and never reuse the historic lease.

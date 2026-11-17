@@ -22,6 +22,9 @@ original = documents.create_as
 @wraps(original)
 def create(request, data, real_author, client_id, **kwargs):
     kwargs['version_time'] = FIXTURE_TIME
+    # create_as forwards its trusted clock to insert_document only with an ID.
+    # Every setup post must share the clock, not just marked collision posts.
+    kwargs.setdefault('doc_id', str(uuid.uuid4()))
     marker = data.body.get('fixture_same_id') if isinstance(data.body, dict) else None
     if marker is not None:
         if not isinstance(marker, str) or not 1 <= len(marker) <= 80:
