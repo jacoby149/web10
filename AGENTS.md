@@ -404,6 +404,14 @@ Admission closed, no automatic retry. Final receipt lives under
 Gates retain four hours/$2 and all
 original limits/trials/order; the operator's$20 overall safety ceiling does not
 authorize automatic retries/extensions or T7/production.
+Subsequent17 November direction explicitly authorizes persistent Config F
+fix/run/300-second-check iterations to obtain the read measurements, without
+asking again at each routine harness repair. This supersedes admission-per-repair
+blockers for that task, not historical STOPs or cleanup receipts. Each fresh lease
+still binds its own four-hour/$2 window inside the existing$20 overall ceiling;
+never weaken the oracle/native limits, disguise a repeated attempt as a fresh
+trial, or expand into production/§8/P1/T7. Full current directive and receipts:
+`research/experiments/costfn/task-block-fanout-arm.md`.
 Experiment first: prove hybrid write maintenance and layout-aware reads in isolated
 Config F, passing all required response/performance/write/lifecycle/rebuild and
 separately admitted stress gates before proposing broader platform integration.
@@ -680,6 +688,20 @@ gates remain OPEN; this is not whole-node-ad assurance.
 Defined in the KB: `knowledge-base/web10-v3/security/overview.md`. Short version — I1: cryptographic issuer verification, I2: no unsigned decode, I3: no query returns documents for an `author_key` the token doesn't own (unless group membership grants access), I4: node-readable by design — operator-blindness is not a goal, access is terms-controlled (D41), I5: scoped/expiring/revocable tokens enforced by app contracts. Enforced by the conformance/permission test suite.
 
 ## Operator code words — recognize instantly, never treat as banter
+
+- **`persist` / `persevere`** → stay with the active task. For a running job,
+  sleep about300 seconds, inspect progress/logs/errors and remaining budget,
+  fix what broke, continue or run the corrected attempt, then repeat. Healthy
+  jobs keep running while you keep checking; a status update, green unit tests,
+  or an opened PR is not the finish line when measurements/results were asked
+  for. Preserve failed attempts and bind each repair to its executing source;
+  do not silently retry a failure into a PASS. Do not ask again for routine
+  repairs/re-runs already authorized by the operator. Stay inside the task's
+  explicit budget, deadlines, native/parity gates and production boundaries;
+  persistence is not unlimited spending, a weakened oracle or permission to
+  change the treatment. Use the agent's watch loop and existing self-kill timers,
+  not a new guardian/watchdog subsystem. Stop only on completion, cancellation,
+  a real gate result, exhausted authorized bounds, or a genuinely external blocker.
 
 - **`web10web10!`** (any number of `!`s) → run the full ritual defined in
   `knowledge-base/strategy/AGENTS-RITUALS.md`. In short: SHIP FIRST — gather

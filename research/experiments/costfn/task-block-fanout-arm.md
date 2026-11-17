@@ -1,5 +1,25 @@
 # Task block — the Fanout Arm (Config F)
 
+## Persistent execution override —17 November operator direction
+
+> i need you to fix run fix run stop asking me permission, and get these measurements
+>
+> sleep 300 monitor if anything broke, if not great keep sleep 300ing, if broke fix, sleep 300 monitor
+> in fact put something in the markdowns as this as a direction, kind of being persistent or persevering? if told to persevere or persist, this is what i mean
+
+This explicitly authorizes the repair/run/check loop for this task without a new
+permission question at every harness failure. About every300 seconds the agent
+checks progress/errors, saves evidence, repairs the evidenced break and continues
+with a separately source-bound attempt. Do not stop at diagnosis or a green PR.
+Preserve every failed fixture/treatment as a failure, never relabel or weaken its
+oracle. Record resumed/repeated work honestly instead of calling it a fresh trial.
+Same frozen input, P/trim/T4 citations, read-first priority, native/parity gates,
+four-hour/$2 per lease and existing$20 overall safety ceiling; keep cumulative
+estimates, no larger envelope/production/§8/P1/T7. Agent supervision/self-kill
+only, no guardian. A real measured gate failure remains a result, not permission
+to change the limits until it passes. Earlier admission-per-repair blockers are
+superseded for this explicitly authorized loop; old failures/cleanup remain true.
+
 ## Next-lease override — Jacob Hoffman,16 November2026
 
 The operator explicitly admits one fresh lease under the existing four-hour/$2

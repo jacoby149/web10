@@ -1,6 +1,7 @@
 """No-engine read-first ordering/coverage/snapshot refusals, not native proof."""
 import asyncio
 from contextlib import ExitStack
+from datetime import UTC, datetime, timedelta
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -8,7 +9,11 @@ import tempfile
 import unittest
 from unittest.mock import AsyncMock, Mock, patch
 
+import httpx
+
 import arm_f_deploy as deploy
+import arm_f_fixtures as fixtures
+from arm_f_http import HTTP
 import arm_f_read_first as first
 import arm_f_reads as reads
 import realism_runner
@@ -16,6 +21,54 @@ from arm_f_run import save
 
 
 class ReadFirstTests(unittest.TestCase):
+    def test_real_setup_http_survives_recorded_group_latency_without_changing_measured_default(self):
+        async def scenario(root):
+            save(root / 'input/manifest.json', {})
+            http = HTTP(root, SimpleNamespace(deadline=datetime.now(UTC) + timedelta(hours=1)), root / 'http')
+            await http.client.aclose()
+            observed = []
+            def server(request):
+                observed.append(request.extensions['timeout']['read'])
+                if observed[-1] < 69.893208:
+                    raise httpx.ReadTimeout('recorded group-create exceeds client deadline', request=request)
+                return httpx.Response(200, json={'group_id': 'synthetic-group'},
+                    headers={'x-research-id': request.headers['x-research-id']})
+            http.client = httpx.AsyncClient(base_url='http://127.0.0.1:6098', timeout=65,
+                transport=httpx.MockTransport(server))
+            try:
+                with self.assertRaises(httpx.ReadTimeout):
+                    await http.post('/v3/groups/create', {})
+                self.assertEqual(await fixtures.group(http, 'synthetic-token', 'fixture', []), 'synthetic-group')
+                self.assertEqual(observed, [65, 600])
+                self.assertEqual(http.client.timeout.read, 65)
+                self.assertTrue(http.records[-1]['setup_only'])
+                with self.assertRaisesRegex(ValueError, 'only for fixture group'):
+                    await http.post('/v3/query', {}, setup_group=True)
+            finally:
+                await http.close()
+        with tempfile.TemporaryDirectory() as directory:
+            asyncio.run(scenario(Path(directory)))
+
+    def test_setup_timeout_respects_original_cleanup_margin(self):
+        async def scenario(root):
+            save(root / 'input/manifest.json', {})
+            http = HTTP(root, SimpleNamespace(deadline=datetime.now(UTC) + timedelta(seconds=240)), root / 'http')
+            async def server(request):
+                self.assertTrue(0 < request.extensions['timeout']['read'] <= 60)
+                return httpx.Response(200, json={}, headers={'x-research-id': request.headers['x-research-id']})
+            await http.client.aclose()
+            http.client = httpx.AsyncClient(base_url='http://127.0.0.1:6098', timeout=65,
+                transport=httpx.MockTransport(server))
+            try:
+                await http.post('/v3/groups/create', {}, setup_group=True)
+                http.session.deadline = datetime.now(UTC) + timedelta(seconds=179)
+                with self.assertRaisesRegex(TimeoutError, 'cleanup margin'):
+                    await http.post('/v3/groups/create', {}, setup_group=True)
+            finally:
+                await http.close()
+        with tempfile.TemporaryDirectory() as directory:
+            asyncio.run(scenario(Path(directory)))
+
     def test_explicit_worker_and_operator_order_do_not_change_legacy(self):
         command = deploy.worker_command(3600, '/research/', detach=True, scoped=True, read_first=True)
         self.assertIn('/research/arm_f_read_first.py', command)

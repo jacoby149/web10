@@ -36,7 +36,8 @@ def setup_worker(root):
 
 async def group(http, token, name, members):
     value, _ = await http.post('/v3/groups/create', {'token': token, 'name': name, 'roles': ROLES,
-        'members': members, 'join_policy': 'open', 'discoverable': False, 'membership_visibility': 'hidden'}, origin=ORIGIN)
+        'members': members, 'join_policy': 'open', 'discoverable': False, 'membership_visibility': 'hidden'},
+        origin=ORIGIN, setup_group=True)
     return value['group_id']
 
 

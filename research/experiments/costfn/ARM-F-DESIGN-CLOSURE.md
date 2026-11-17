@@ -1,5 +1,17 @@
 # Config F — approved research closure and execution receipt
 
+###17 November persistence amendment
+
+Jacob explicitly directs fix/run, then sleep300s/check/fix/continue until the
+requested measurements exist, without a permission question at every routine
+harness failure. `task-block-fanout-arm.md` retains the verbatim direction.
+Same four-hour/$2 per lease/$20 overall safety ceiling, dataset/oracle/native
+limits/read-first priority and no-production boundary; agent checks/self-kill,
+not a guardian. Preserve old failed attempts and separately bind every repair.
+The group-create HTTP setup deadline now allows up to600s inside the original
+cleanup margin; ordinary HTTP stays65s and measured native limits do not change.
+215 no-engine controls/Ruff pass; native acceptance remains receipt-dependent.
+
 ### Next-lease read-first override —16 November operator directive
 
 The `task-block-fanout-arm.md` next-lease override is the current admission,
