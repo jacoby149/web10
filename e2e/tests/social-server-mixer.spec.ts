@@ -39,7 +39,7 @@ for (const width of [1440, 375]) test(`server mixer mounts on every board and re
     const rack = page.getByTestId('server-mixer');
     await expect(rack).toBeVisible();
     const fader = rack.getByRole('slider');
-    await expect(fader).toBeEnabled();
+    await expect(fader).toBeEnabled({ timeout: 15000 });
     await expect(fader).toHaveValue(name === 'discover' ? '100' : '37');
     if (name === 'discover') {
       const saved = page.waitForResponse(response => response.url().endsWith('/v3/create') && response.request().postDataJSON()?.body?.sources?.[0]?.weight === 37);
@@ -53,7 +53,9 @@ for (const width of [1440, 375]) test(`server mixer mounts on every board and re
     await expect(page.getByTestId('server-editor')).toHaveCount(0);
     await page.reload();
     await expect(rack).toBeVisible();
-    await expect(fader).toBeEnabled();
+    // Reload resolves private settings and current source approvals before
+    // enabling the rack. The trace still had those reads in flight at5s.
+    await expect(fader).toBeEnabled({ timeout: 15000 });
     await expect(fader).toHaveValue('37');
     if (process.env.E2E_MIXER_SHOTS) {
       await mkdir(process.env.E2E_MIXER_SHOTS, { recursive: true });

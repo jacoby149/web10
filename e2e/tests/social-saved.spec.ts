@@ -408,7 +408,6 @@ test.describe('Saved collections gauntlet — real flow through the app contract
 
     // The following feed (the owner's non-discover groups' posts) shows the post.
     await page.goto(`${SOCIAL_BASE}/feed?tab=following`);
-    await page.waitForLoadState('networkidle');
     const card = page.locator('[data-testid="post-card"]', { hasText: postText }).first();
     await expect(card).toBeVisible({ timeout: 15000 });
 
@@ -447,7 +446,6 @@ test.describe('Saved collections gauntlet — real flow through the app contract
     await settle();
 
     await page2.goto(`${SOCIAL_BASE}/u/${owner.username}?tab=saved`);
-    await page2.waitForLoadState('networkidle');
     // The collection card renders on the Saved tab.
     const savedCard = page2.locator('[data-testid="saved-collection-card"]', { hasText: colName }).first();
     await expect(savedCard).toBeVisible({ timeout: 15000 });
@@ -501,7 +499,6 @@ test.describe('Saved collections gauntlet — real flow through the app contract
     // read can lag the membership_visibility flip by a beat under CH eventual
     // consistency.)
     await page3.goto(`${SOCIAL_BASE}/u/${owner.username}?tab=saved`);
-    await page3.waitForLoadState('networkidle');
     const viewerSavedCard = page3.locator('[data-testid="saved-collection-card"]', { hasText: colName }).first();
     await expect(viewerSavedCard).toBeVisible({ timeout: 15000 });
 

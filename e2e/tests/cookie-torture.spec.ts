@@ -213,13 +213,19 @@ test.describe('Cookie torture — persistent-state scenarios clean-context tests
     // plus a notice — never "all set", never the auto-complete.
     await popup.locator('[data-testid="consent-req-0"], [data-testid="consent-mismatch"]').first().waitFor({ state: 'visible', timeout: 15000 });
     const row = popup.locator('[data-testid="consent-req-0"]');
-    if (await row.count()) await row.locator('[data-testid="consent-approve-0"]').click();
+    if (await row.count()) {
+      await row.locator('[data-testid="consent-approve-0"]').click();
+      // Continue is a separate step, not a concurrent second approval while
+      // the per-request grant is still in flight (visible in the failed trace).
+      await expect(row).toHaveCount(0);
+    }
     // D42: the Close-window button is gone. The token handoff — the seam the
     // identity check guards — now happens on "continue": Approve all & continue
     // calls goToApp, which posts the popup's (B's) token back to the demo and
     // self-closes. The demo's authListen must reject B's token (it acts as A).
+    const closed = popup.waitForEvent('close', { timeout: 10000 });
     await popup.locator('[data-testid="consent-approve-all"]').click();
-    await popup.waitForEvent('close', { timeout: 5000 });
+    await closed;
     await page.waitForTimeout(500);
 
     // THE assertion: the demo must still be user A — the person using it.
