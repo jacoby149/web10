@@ -3,6 +3,7 @@ import asyncio
 from contextlib import ExitStack
 from datetime import UTC, datetime, timedelta
 import json
+import sqlite3
 from pathlib import Path
 from types import SimpleNamespace
 import tempfile
@@ -13,6 +14,8 @@ import httpx
 
 import arm_f_deploy as deploy
 import arm_f_fixtures as fixtures
+import arm_f_environment as environment
+import arm_f_infrastructure as infrastructure
 from arm_f_http import HTTP
 import arm_f_read_first as first
 import arm_f_reads as reads
@@ -21,6 +24,55 @@ from arm_f_run import save
 
 
 class ReadFirstTests(unittest.TestCase):
+    def test_independent_views_scope_does_not_confuse_private_delivery_with_discover_visibility(self):
+        db = sqlite3.connect(':memory:')
+        class Unique:
+            def __init__(self): self.values = set()
+            def step(self, value): self.values.add(value)
+            def finalize(self): return len(self.values)
+        db.create_function('unhex', 1, lambda value: bytes.fromhex(value).decode())
+        db.create_aggregate('uniqExact', 1, Unique)
+        db.executescript("CREATE TABLE content_events(doc_id TEXT,service TEXT,event_type TEXT,reader_key TEXT);"
+            "CREATE TABLE doc_groups(doc_id TEXT,group_id TEXT,deleted INT);"
+            "INSERT INTO content_events VALUES ('public','posts','delivery','reader'),('private','posts','delivery','reader');"
+            "INSERT INTO doc_groups VALUES ('public','Discover',0),('private','Private',0);")
+        def rows(label, sql, **kwargs):
+            cursor = db.execute(sql)
+            return [dict(zip([c[0] for c in cursor.description], row)) for row in cursor.fetchall()], label
+        session = SimpleNamespace(rows=rows)
+        try:
+            self.assertEqual(set(reads.views(session, ['public', 'private'], 'raw')), {'public', 'private'})
+            self.assertEqual(reads.visible_views(session, ['public', 'private'], ['Discover'], 'visible'),
+                {'public': {'impressions': 1, 'reach': 1}})
+            self.assertEqual(reads.visible_views(session, ['private'], ['Discover'], 'private'), {})
+            self.assertEqual(reads.visible_views(session, ['public'], [], 'denied'), {})
+            db.execute("UPDATE doc_groups SET deleted=1 WHERE doc_id='public'")
+            self.assertEqual(reads.visible_views(session, ['public'], ['Discover'], 'removed'), {})
+        finally:
+            db.close()
+
+    def test_every_generation_table_is_settled_without_disabling_merges_or_changing_limits(self):
+        session = SimpleNamespace(query=Mock())
+        infrastructure.settle_canonical(session)
+        self.assertEqual([call.args[1] for call in session.query.call_args_list],
+            ['OPTIMIZE TABLE ' + table + ' FINAL' for table in infrastructure.CANONICAL_TABLES])
+        self.assertIn('group_members', infrastructure.CANONICAL_TABLES)
+        self.assertIn('app_contracts', infrastructure.CANONICAL_TABLES)
+        self.assertTrue(all(call.kwargs == {'setup_seconds': 900} for call in session.query.call_args_list))
+
+    def test_stale_generation_fails_before_serving_and_retains_actual_census(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            save(root / 'counts-batch-p2/result.json', {'canonical_generation': 'expected'})
+            with patch('arm_satellite_counts.generation', return_value=('changed', [{'table': 'group_members'}])):
+                with self.assertRaisesRegex(ValueError, 'before any serving sample'):
+                    environment.verify_generation(root, Mock())
+            receipt = json.loads((root / 'F-generation-ready.json').read_bytes())
+            self.assertFalse(receipt['verified'])
+            self.assertEqual(receipt['canonical_parts'], [{'table': 'group_members'}])
+            with patch('arm_satellite_counts.generation', return_value=('expected', [])):
+                environment.verify_generation(root, Mock())
+
     def test_real_setup_http_survives_recorded_group_latency_without_changing_measured_default(self):
         async def scenario(root):
             save(root / 'input/manifest.json', {})

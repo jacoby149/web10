@@ -1,5 +1,42 @@
 # Config F — approved research closure and execution receipt
 
+**Current read result:** paired21-row/three-group fixture page has exact parity
+PASS in both modes. One measured complete sequence (plus separate warm-up) each:
+P3,267.824ms/2,140,109 rows/140,626,163 bytes; F2,931.022ms/2,139,341 rows/
+140,546,167 bytes. Both miss500ms/25MB. This is NOT p95, ordinary K20, capacity
+or production evidence. All bytes except79,996 candidate bytes are equal between
+modes;71.037MB preparation/14.715MB views remain in complete totals.214 exact
+F/satellite controls/Ruff pass. Original K20 formal T6 trial0 is restoring fresh,
+not using this fixture page as its performance workload. Source/native/scope/
+failure/checkpoint bindings: `evidence/arm-f-persistent-20261117/paired-fixture-read-comparison.json`.
+
+The preceding successful-HTTP/failed-view-check warm-up remains a failure. The
+same-snapshot F wrapper now retains document-ID parameter metadata until the
+original P attachment rewrite consumes it. The independent post-read view audit
+now resolves the ACTUAL captured Discover-only candidate scope, rather than
+equating private fixture deliveries with publicly queryable metrics. Main-page
+oracle and group scopes stay unchanged; raw delivery delta and same-snapshot
+checks remain, with private view-audit receipts. No fixture was made public and
+no view check was dropped. Preserved stopped native/failure archive SHA
+`cd7dd3b39d97a6aa892a43bfdc4abed9b246a13ac1086714d05208f4605003e8`.
+
+Current persistence checkpoint: prepared snapshot255003176 is retained (88.2GB;
+restore speed unmeasured, storage billing separate from elapsed compute). First
+P warm-up is INVALID dispatch: uncertified generation takes canonical fallback,
+then native159/10,205ms/360,802,112 rows/24,330,409,606 bytes stops the attempt.
+Full stopped-native/failure archive SHA`68b3eebc…dd95a` is preserved before repair.
+CLI and normalized-driver metadata hashes match each other but not the stored
+generation. The new same-lease generation-source1 (1,395 verified files) retains
+the old bootstrap-only failed journal/state, consolidates ALL ten certificate
+tables and rebuilds disposable derived tables. Original data-policy/grant reads,
+native caps and generation denial stay intact. Post-boot and post-login census
+checks fail setup before a stale canonical fallback can be sampled again.
+The first snapshot is explicitly cited as the earlier prepared image, not a new
+repair-state image. T2's verified fixture page is diagnostic; formal T6 uses the
+original ordinary K20 scope and three fresh restores, not three fixture groups.
+212 exact F/satellite controls/Ruff pass. No repaired serving/performance result
+is inferred from these source/setup facts; the original06:58:36UTC deadline holds.
+
 ###17 November persistence amendment
 
 Jacob explicitly directs fix/run, then sleep300s/check/fix/continue until the
@@ -10,7 +47,7 @@ limits/read-first priority and no-production boundary; agent checks/self-kill,
 not a guardian. Preserve old failed attempts and separately bind every repair.
 The group-create HTTP setup deadline now allows up to600s inside the original
 cleanup margin; ordinary HTTP stays65s and measured native limits do not change.
-215 no-engine controls/Ruff pass; native acceptance remains receipt-dependent.
+205 no-engine controls/Ruff pass; native acceptance remains receipt-dependent.
 
 Run binding: DO620121703,17 November02:58:36→06:58:36UTC, source1,391 hashes.
 All63 fixture posts and the large group's200/55,477.366ms complete. Original
@@ -22,7 +59,7 @@ adds an outer literal-author filter to the ORIGINAL authorized canonical lookup;
 the original compiler/binder's policies, ambiguity/missing-row guard and body
 provenance stay intact. Ordinary API source and independent oracle page SQL/
 coverage stay unchanged, and P/F measured costs include every prepare lookup.
-Four real-binder/compiler/SQLite-history controls preserve denials;220 total
+Four real-binder/compiler/SQLite-history controls preserve denials;210 total
 F/satellite controls/Ruff pass. Resume only the unchanged pre-serving fixtures
 under a new source manifest, preserving failed oracle files and original lease;
 no re-seed, fresh-restore claim, oracle weakening or native PASS inferred.

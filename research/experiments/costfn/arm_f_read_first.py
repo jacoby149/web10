@@ -14,7 +14,7 @@ import time
 import arm_f_environment as environment
 import arm_f_failure as failure
 import arm_f_fixtures as fixtures
-from arm_f_gates import digest, read_trial, read_trials, TRIALS
+from arm_f_gates import digest
 import arm_f_reads as reads
 import arm_f_population as population
 import arm_f_lifecycle as lifecycle
@@ -157,7 +157,97 @@ def resume_fixture_page(actions, previous, trial):
     return trial, expected
 
 
-def run(root, *, prepared_from=None, fixture_store=None):
+def repair_generation_page(actions, previous, trial):
+    """New source-bound attempt; preserve the failed fallback and rebuild caches."""
+    import arm_f_infrastructure as infrastructure
+    import arm_satellite_batch_run as batching
+    import sqlite3
+    previous, trial = Path(previous), Path(trial)
+    stopped = json.loads((previous / 'read-first-stop.json').read_bytes())
+    failed = json.loads((previous / 'read-first/T2-F/P_DOCUMENT_STREAM_V1/failure.json').read_bytes())
+    if (stopped.get('failed_stage') != 'T2-F' or failed.get('completed_samples')
+            or not any(r.get('path_mode') == 'canonical_fallback' and r.get('stop') for r in failed['requests'])
+            or json.loads((trial / 'admission.json').read_bytes()) != actions.approval
+            or not (trial / 'fanout-state/F.stop').exists()):
+        raise ValueError('only preserved failed canonical-fallback setup may rebuild retained quiet store')
+    environment.stop(trial, engine=True)
+    with sqlite3.connect('file:' + str(trial / 'fanout-state/journal/intents.sqlite') + '?mode=ro', uri=True) as database:
+        intents = database.execute('SELECT operation_id,state FROM intents').fetchall()
+    if intents != [('canonical-bootstrap', 'complete')]:
+        raise ValueError('generation setup repair cannot reset a served/mutating journal')
+    actions.active_root = trial
+    archive = trial / 'before-generation-repair'
+    archive.mkdir(mode=0o700, exist_ok=False)
+    for name in ('counts-batch-p2', 'metadata', 'metadata-parity', 'presence', 'serve-state', 'F-build',
+                 'fanout-state', 'F-api-ready.json', 'F-api.overlay.json', 'fixture-coverage.json'):
+        path = trial / name
+        if path.exists():
+            path.rename(archive / name)
+    (actions.root / 'input').symlink_to(trial / 'input', target_is_directory=True)
+    save(actions.root / 'evidence/archive.json', json.loads((trial / 'evidence/archive.json').read_bytes()))
+    shutil.copytree(previous / 'orchestration-preflight', actions.root / 'orchestration-preflight')
+    actions.rehearsal = actions.root / 'orchestration-preflight/population-native-fixture'
+    session = Session(trial)
+    restore.command(session.compose, session.env, 'up', '-d', 'clickhouse', 'minio', timeout=120)
+    restore_dataset.wait_for(lambda: restore.server_ready(session.compose, session.env), 'generation repair engine')
+    # Only disposable derived tables created by the preserved build, never
+    # canonical documents/grants/attachments, input archive or a retained Volume.
+    for table in (batching.PARTS, batching.FINAL, 'strings', 'timestamps', 'doc_groups_t', 'fanout'):
+        session.query('repair_drop_derived_' + table, 'DROP TABLE IF EXISTS ' + table, setup_seconds=120)
+    profile = json.loads((trial / 'profile/inventory.json').read_bytes())
+    environment.prepare(trial, actions.root, profile=profile)
+    expected = reads.reference(trial, name='F-reference-settled')
+    fixture = json.loads((trial / 'fixture.json').read_bytes())
+    coverage = reads.fixture_coverage(fixture, expected)
+    coverage.update(fixture_sha256=digest(trial / 'fixture.json'),
+        oracle_sha256=digest(trial / 'F-reference-settled/expected.json'),
+        oracle_summary_sha256=digest(trial / 'F-reference-settled/summary.json'),
+        fixture_clock_sha256=digest(trial / 'fixture-clock.json'))
+    save(trial / 'fixture-coverage.json', coverage)
+    save(actions.root / 'generation-repair.json', dict(original_stop_sha256=digest(previous / 'read-first-stop.json'),
+        original_failed_state_preserved=str(archive), fixture_reseeded=False, fresh_restore=False,
+        canonical_tables_consolidated=list(infrastructure.CANONICAL_TABLES), derived_tables_rebuilt=True,
+        measured_caps_unchanged=True, original_prepared_snapshot_cited=True))
+    return trial, expected
+
+
+def resume_prepared_views(actions, previous, trial):
+    """Keep prepared data/caches; repair the evidenced view binding/check only."""
+    previous, trial = Path(previous), Path(trial)
+    stop = json.loads((previous / 'read-first-stop.json').read_bytes())
+    failed = json.loads((previous / 'read-first/T2-F/P_DOCUMENT_STREAM_V1/failure.json').read_bytes())
+    if (stop.get('failed_stage') != 'T2-F' or stop.get('failure_message') != 'quiet independent canonical views mismatch'
+            or failed.get('completed_samples') or not failed.get('requests')
+            or any(row.get('status') != 200 or row.get('stop') for row in failed['requests'])
+            or (trial / 'fanout-state/F.stop').exists()
+            or json.loads((trial / 'admission.json').read_bytes()) != actions.approval):
+        raise ValueError('only the preserved successful-HTTP scoped-view check failure may reuse prepared store')
+    actions.active_root = trial
+    (actions.root / 'input').symlink_to(trial / 'input', target_is_directory=True)
+    save(actions.root / 'evidence/archive.json', json.loads((trial / 'evidence/archive.json').read_bytes()))
+    shutil.copytree(previous / 'orchestration-preflight', actions.root / 'orchestration-preflight')
+    actions.rehearsal = actions.root / 'orchestration-preflight/population-native-fixture'
+    session = Session(trial)
+    restore.command(session.compose, session.env, 'up', '-d', 'clickhouse', 'minio', timeout=120)
+    restore_dataset.wait_for(lambda: restore.server_ready(session.compose, session.env), 'prepared view repair store')
+    session.verify_envelope()
+    environment.verify_generation(trial, session)
+    expected = reads.reference(trial, name='F-reference-scoped-views')
+    fixture = json.loads((trial / 'fixture.json').read_bytes())
+    coverage = reads.fixture_coverage(fixture, expected)
+    coverage.update(fixture_sha256=digest(trial / 'fixture.json'),
+        oracle_sha256=digest(trial / 'F-reference-scoped-views/expected.json'),
+        oracle_summary_sha256=digest(trial / 'F-reference-scoped-views/summary.json'),
+        fixture_clock_sha256=digest(trial / 'fixture-clock.json'))
+    (trial / 'fixture-coverage.json').rename(trial / 'fixture-coverage-before-scoped-views.json')
+    save(trial / 'fixture-coverage.json', coverage)
+    save(actions.root / 'views-repair.json', dict(original_stop_sha256=digest(previous / 'read-first-stop.json'),
+        fixture_reseeded=False, fresh_restore=False, infrastructure_rebuilt=False,
+        original_view_scope_preserved=True, raw_delivery_audit_retained=True, same_snapshot_audit_retained=True))
+    return trial, expected
+
+
+def run(root, *, prepared_from=None, fixture_store=None, generation_repair=False, views_repair=False):
     actions = ScopedActions(root)
     if actions.approval.get('run_directive') != DIRECTIVE:
         raise ValueError('explicit fresh read-first admission required')
@@ -173,7 +263,11 @@ def run(root, *, prepared_from=None, fixture_store=None):
             raise ValueError('banked T4 validation receipt missing; never rerun writes')
         completed[stage] = dict(status='CITED_NOT_REMEASURED', sha256=digest(actions.root / 'banked-writes.json'))
         stage = 'Setup'
-        if fixture_store is not None:
+        if views_repair:
+            trial_root, expected = resume_prepared_views(actions, prepared_from, fixture_store)
+        elif generation_repair:
+            trial_root, expected = repair_generation_page(actions, prepared_from, fixture_store)
+        elif fixture_store is not None:
             trial_root, expected = resume_fixture_page(actions, prepared_from, fixture_store)
         elif prepared_from is None:
             actions.setup()
@@ -183,7 +277,14 @@ def run(root, *, prepared_from=None, fixture_store=None):
             trial_root, expected = prepare_page(actions, 'rf0')
         completed[stage] = dict(root=str(trial_root), coverage_sha256=digest(trial_root / 'fixture-coverage.json'))
         stage = 'Prepared-snapshot'
-        completed[stage] = snapshot(actions)
+        if generation_repair or views_repair:
+            image = actions.root / 'prepared-snapshot.json'
+            if not image.exists():
+                image = Path(prepared_from) / 'prepared-snapshot.json'
+            completed[stage] = {**json.loads(image.read_bytes()),
+                'status': 'CITED_PREVIOUS_PREPARED_IMAGE_NOT_A_NEW_REPAIR_IMAGE'}
+        else:
+            completed[stage] = snapshot(actions)
         stage = 'T2-F'
         parity = asyncio.run(reads.identical_contract(trial_root, output / stage, expected=expected))
         completed[stage] = parity
@@ -191,26 +292,14 @@ def run(root, *, prepared_from=None, fixture_store=None):
         save(output / 'feed-read-comparison.json', comparison(parity['modes']))
         print('[F-read-first] COMPLETE_SEQUENCE_COMPARISON_RECORDED', flush=True)
         stage = 'T6-F'
-        trials = []
-        for index in range(TRIALS):
-            actions.check()
-            if index:
-                environment.discard_trial(trial_root)
-                trial_root, expected = prepare_page(actions, 'rf' + str(index))
-            environment.boot(trial_root)
-            try:
-                samples = asyncio.run(reads.sequences(trial_root, output / stage / ('trial-' + str(index)),
-                    expected=expected, require_mode='F_DOCUMENT_STREAM_V1'))
-            finally:
-                failure.before_cleanup(output, stage=stage, trial=index)
-                environment.stop(trial_root)
-            trial = dict(root=str(trial_root), fresh_restore_sha256=digest(trial_root / 'restore.json'),
-                fixture_coverage_sha256=digest(trial_root / 'fixture-coverage.json'), samples=samples,
-                prior_T2_sequences=4 if index == 0 else 0)
-            trials.append(trial)
-            save(output / stage / 'trials.json', trials)
-            read_trial(trial)
-        completed[stage] = dict(verified=True, trials=trials, verdicts=read_trials(trials))
+        # T2's mixed/collision page is the diagnostic P/F comparison. Formal T6
+        # keeps the ORIGINAL ordinary K20 workload and three fresh restores;
+        # never promote a three-fixture-group cell to a K20 performance PASS.
+        environment.discard_trial(trial_root)
+        actions.active_root = None
+        completed[stage] = asyncio.run(reads.performance(actions.root, output / stage))
+        actions.active_root = Path(completed[stage]['final_root'])
+        trial_root = actions.active_root
         save(output / 'read-gates.json', completed)
         early = dict(directive=DIRECTIVE, droplet_id=actions.host,
             dataset_id=actions.approval['dataset_id'], T2='PASS', T6='PASS',
@@ -277,5 +366,8 @@ if __name__ == '__main__':
     parser.add_argument('root', type=Path)
     parser.add_argument('--prepared-setup-from', type=Path)
     parser.add_argument('--fixture-store', type=Path)
+    parser.add_argument('--generation-repair', action='store_true')
+    parser.add_argument('--views-repair', action='store_true')
     args = parser.parse_args()
-    run(args.root, prepared_from=args.prepared_setup_from, fixture_store=args.fixture_store)
+    run(args.root, prepared_from=args.prepared_setup_from, fixture_store=args.fixture_store,
+        generation_repair=args.generation_repair, views_repair=args.views_repair)

@@ -21,6 +21,16 @@ import arm_t
 
 SCOPES = ('F_GATES_ONLY', 'F_DEPLOY_REHEARSAL')
 VERDICT = 'BANKED_INFRA_SPOTCHECK'
+CANONICAL_TABLES = ('documents', 'doc_groups', 'group_members', 'group_contracts', 'app_contracts',
+    'user_blacklist', 'group_blacklist', 'user_group_sharing', 'group_hidden_docs', 'banned_users')
+
+
+def settle_canonical(session):
+    # Generation certificates include ALL these physical part sets, not only
+    # documents/links. Complete ordinary FINAL consolidation before certifying
+    # quiet infrastructure; never mask a changed generation at serving time.
+    for table in CANONICAL_TABLES:
+        session.query('infra_settle_' + table, 'OPTIMIZE TABLE ' + table + ' FINAL', setup_seconds=900)
 
 
 def common(session, generation):
@@ -50,9 +60,8 @@ def build(root):
         raise ValueError('explicit scoped infrastructure admission required')
     session.verify_envelope()
     profile = json.loads((root / 'profile/inventory.json').read_bytes())
-    session.query('infra_settle_documents', 'OPTIMIZE TABLE documents FINAL', setup_seconds=900)
-    session.query('infra_settle_links', 'OPTIMIZE TABLE doc_groups FINAL', setup_seconds=900)
-    generation, _ = counts.generation(session)
+    settle_canonical(session)
+    generation, parts = counts.generation(session)
     fixture = profile.get('fixture_scope') is True
     old = files['counts-batch-p2/result.json']
     ids = sorted({row['doc_id'] for row in profile['reference_page'][:2]})
@@ -67,7 +76,8 @@ def build(root):
     output = root / 'counts-batch-p2'
     output.mkdir(mode=0o700)
     result = dict(**common(session, generation), kind='F_SCOPED_COUNT_INFRASTRUCTURE', outcome='BUILDING',
-        T1='NOT_REPEATED', final_table=batching.FINAL, scopes=[], build_queries=[], stratified_targets={'all_ids': ids})
+        T1='NOT_REPEATED', final_table=batching.FINAL, scopes=[], build_queries=[], stratified_targets={'all_ids': ids},
+        canonical_parts=parts)
     save(output / 'result.json', result)
     session.query('infra_count_parts', batch.partial_ddl(batching.PARTS))
     session.query('infra_count_final', batch.count_ddl(batching.FINAL))

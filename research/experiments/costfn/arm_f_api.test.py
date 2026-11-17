@@ -1,9 +1,11 @@
 """No-engine F adapter seam controls. Mocked dependencies, NOT native auth proof."""
 import contextvars
+import ast
 import asyncio
 from datetime import UTC, datetime, timedelta
 import hashlib
 import importlib.util
+import inspect
 import json
 import os
 from pathlib import Path
@@ -27,6 +29,44 @@ sqlglot.parse_one('SELECT 1', read='clickhouse')
 
 
 class AdapterTests(unittest.TestCase):
+    def test_same_snapshot_views_keep_ids_through_the_real_parent_rewrite(self):
+        import arm_satellite_serve as serve
+        with tempfile.TemporaryDirectory() as directory:
+            module, parent, _ = self.load(directory)
+            queries = []
+            def driver(query, parameters=None, settings=None):
+                queries.append(query)
+                tree = sqlglot.parse_one(query, read='clickhouse')
+                attachment = next(t for t in tree.find_all(sqlglot.exp.Table) if t.name == 'doc_groups').find_ancestor(sqlglot.exp.Select)
+                selectors = [p for p in attachment.args['where'].find_all(sqlglot.exp.In) if p.this.name == 'doc_id']
+                present = any('646f63' in p.sql(dialect='clickhouse') for p in selectors)
+                return SimpleNamespace(result_rows=[('doc', 1, 1, 1, 1)] if present else [],
+                    query_id='native-views-' + str(len(queries)), summary={'read_rows': 1, 'read_bytes': 8})
+            parent._signature = inspect.signature(driver)
+            parent._views = contextvars.ContextVar('test-real-views-rewrite', default=True)
+            parent.serve = serve
+            node = next(n for n in ast.parse(Path(__file__).with_name('arm_satellite_api.py').read_text()).body
+                if isinstance(n, ast.FunctionDef) and n.name == 'query')
+            namespace = dict(admitted=lambda *args: None, operation={}, host=123, observer=parent.observer,
+                _signature=parent._signature, _query=driver, _views=parent._views,
+                _inventory=contextvars.ContextVar('test-inventory', default=False), serve=serve,
+                sqlglot=sqlglot, exp=sqlglot.exp)
+            exec(compile(ast.Module(body=[node], type_ignores=[]), '<real-parent-views-query>', 'exec'), namespace)
+            module.original_query = namespace['query']
+            sql = ("SELECT e.doc_id,count() AS impressions,countDistinct(e.reader_key) AS reach FROM content_events e "
+                "WHERE e.service=%(svc)s AND e.event_type='delivery' AND e.doc_id IN (%(d0)s) AND e.doc_id IN "
+                "(SELECT doc_id FROM doc_groups WHERE group_id IN (%(g0)s) AND deleted=0) GROUP BY e.doc_id")
+            try:
+                for positional in (False, True):
+                    params = {'svc': 'posts', 'd0': 'doc', 'g0': 'allowed'}
+                    result = module.checked_query(sql, params) if positional else module.checked_query(sql, parameters=params)
+                    self.assertEqual(result.result_rows, [('doc', 1, 1, 1, 1)])
+                    self.assertNotIn("doc_id IN ('')", queries[-1])
+                checks = parent.observer.current.get()['fanout_view_checks']
+                self.assertEqual(checks[-1]['values'], [['doc', 1, 1]])
+            finally:
+                module.journal.close()
+
     def load(self, directory):
         root = Path(directory)
         start = datetime.now(UTC) - timedelta(seconds=30)

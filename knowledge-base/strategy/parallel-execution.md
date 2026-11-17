@@ -1784,16 +1784,23 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+Native paired fixture comparison is now banked: parity PASS; P3,267.824ms/
+2,140,109 rows/140,626,163 bytes; F2,931.022ms/2,139,341 rows/140,546,167 bytes.
+Both miss500ms/25MB. One measured complete sequence each, not p95/K20/capacity.
+Snapshot255003176 retained; original-K20 T6 trial0 fresh restore is active,
+same DO620121703/original06:58:36UTC deadline.214 exact controls/Ruff pass.
+Receipt `evidence/arm-f-persistent-20261117/paired-fixture-read-comparison.json`.
+
 Current direction,17 November: **persist** — repair/run, sleep300s, inspect,
 repair if broken and repeat until measurements exist. Routine source-bound
 re-runs are explicitly admitted within unchanged four-hour/$2 leases and the
 existing$20 overall ceiling; preserve every failure, oracle/caps and no-production
 boundary. No new guardian or permission question at each harness repair.
-Setup group-create timeout is source-repaired (215 no-engine controls/Ruff),
+Setup group-create timeout is source-repaired (205 no-engine controls/Ruff),
 not yet a native fixture/read PASS. Prior closed lease below stays closed.
 Update: DO620121703 through06:58:36UTC now passes native fixture coverage on
 the independent21-row page after source-bound full-key prepare selection;
-same fixtures/restore, original ambiguity STOP preserved,220 controls/Ruff.
+same fixtures/restore, original ambiguity STOP preserved,210 controls/Ruff.
 Infrastructure active; snapshot/read comparison still UNREACHED. Receipt
 `evidence/arm-f-persistent-20261117/fixture-coverage.json`.
 
@@ -1803,7 +1810,7 @@ Read-first admission CLOSED: DO620093795 stops before fixture coverage; owned
 cleanup17 November01:45:40UTC, before05:07:38. Setup's2,000-member group-create
 client65s deadline expires before server200/69.893s. Zero fixture posts, no native
 clock/coverage/snapshot/read result. Both prior setup failures remain preserved;
-no failed fixture retry.213 no-engine controls/Ruff pass, not native acceptance.
+no failed fixture retry.203 no-engine controls/Ruff pass, not native acceptance.
 
 - [✓ 6.22.6 attempt accounting only] **RD4-FANOUT-READ-FIRST-ATTEMPT** — full frozen import1,260.321s; fixture setup STOP65,033.660ms client/69,893.208ms same-request late server200. No canonical coverage/clock/read/snapshot verdict or later gates. Full private/stopped native archive SHA`79dd3c76…00662` verified before owned cleanup01:45:40UTC; compute estimate$0.15849/not invoice. Admission closed, no guardian/production/archive mutation. Receipt `evidence/arm-f-read-first-20261117/setup-stop-and-cleanup.json`.
 - [ ] **RD4-FANOUT-LARGE-GROUP-SETUP** — diagnose and repair the setup-only2,000-member group-create transport deadline using the preserved65s client/69.893s server200 receipt; add no-engine controls that drive the actual setup HTTP configuration and real compose-name limit. Owns `research/experiments/costfn/`, additive CI and serialized KB/evidence; ordinary API/production remain read-only. Acceptance: measured readers/writers keep their original limits, fixture clock/oracle/coverage stay unchanged, original failures retained, no re-seed/retry/new paid host or engine query without fresh explicit admission. Then native-verify fixtures and produce the read-first comparison/snapshot under a separately bound lease; no automatic admission or snapshot-speed claim.

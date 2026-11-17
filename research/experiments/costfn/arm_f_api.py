@@ -141,7 +141,10 @@ def checked_query(sql=None, *args, **kwargs):
         bound = p._signature.bind_partial(sql, *args, **kwargs)
         params = bound.arguments.get('parameters') or {}
         bound.arguments['query'] = arm_f_views.checked_sql(p.serve.bound_sql(sql, params))
-        bound.arguments['parameters'] = None
+        # P's existing views rewrite still needs d0/d1/... to narrow the
+        # authorized attachment query. SQL is already safely literal-bound;
+        # retaining the metadata until P consumes it avoids an empty-ID filter.
+        bound.arguments['parameters'] = params
         result = original_query(*bound.args, **bound.kwargs)
         values = arm_f_views.verify(result.result_rows)
     except Exception as error:

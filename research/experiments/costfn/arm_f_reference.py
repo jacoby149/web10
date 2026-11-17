@@ -117,7 +117,10 @@ def build(directory):
         compiled = sqlglot.parse_one(compile(payload['sql'], kind), read='clickhouse')
         columns, values = ch.execute_query(bounded(compiled), settings={'max_execution_time': 900})
         engagements.append([endpoint._serialize_row(dict(zip(columns, row))) for row in values])
-    result = dict(rows=prepared, lower_rows=lower_rows, eligible_ads=eligible, followups=engagements, ids=ids)
+    views_payload = core_feed.payload(capture['requests'][3]['payload'], '__oracle_not_a_credential__', spec['groups'], ids)
+    views_groups = ch.readable_groups(reader, views_payload['service'], True, views_payload['groups'])
+    result = dict(rows=prepared, lower_rows=lower_rows, eligible_ads=eligible, followups=engagements, ids=ids,
+        views_readable_groups=views_groups)
     (directory / 'expected.json').write_text(json.dumps(result, sort_keys=True))
     (directory / 'summary.json').write_text(json.dumps(dict(kind='CANONICAL_DOCUMENT_STREAM_REFERENCE',
         native=native, contract='DOCUMENT_STREAM_V1', rows=len(prepared), input_sha256=hashlib.sha256((directory / 'input.json').read_bytes()).hexdigest(),
