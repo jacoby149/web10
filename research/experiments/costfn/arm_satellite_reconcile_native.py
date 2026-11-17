@@ -19,7 +19,7 @@ import arm_satellite_reconcile as reconcile
 IMAGE = 'clickhouse/clickhouse-server:24.8.14.39@sha256:1ffa82edee000a42c09313bd9f1293d94c570aee74babc1b3ca9983a35fa597b'
 
 
-def run(root, *, trim_only=False):
+def run(root, *, trim_only=False, engagement_only=False):
     root = Path(root)
     approval = json.loads((root / 'admission.json').read_bytes())
     host = arm_t.digitalocean_id()
@@ -84,6 +84,13 @@ def run(root, *, trim_only=False):
         limit, _ = session.query('fixture_memory', "SELECT value FROM system.server_settings WHERE name='max_server_memory_usage'")
         if int(limit) != 22 * 1024**3:
             raise ValueError('fixture server memory cap differs')
+        if engagement_only:
+            if approval.get('engagement_ref_admitted') is not True:
+                raise ValueError('explicit engagement experiment admission required')
+            from engagement_fixture import run as engagement_fixture
+            result['engagement'] = engagement_fixture(session, root)
+            result.update(outcome='PASS', engine='24.8.14.39', server_bytes=int(limit))
+            return result
         if trim_only:
             from arm_f_trim_native import run as trim_fixture
             result['trim'] = trim_fixture(name, root)

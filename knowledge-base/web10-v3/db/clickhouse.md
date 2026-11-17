@@ -12,6 +12,31 @@ for the production inventory and migration/authorization gates.
 
 ## Schema Architecture
 
+### Runtime engine upgrade —17 November2026
+
+The operator requested a current engine. Local/E2E/ecosystem Compose now share
+the explicit mirrored server tag `26.10.4.207`, sourced from the official
+multi-platform image digest in `e2e/mirror-images.json`. This was Docker Hub's
+newest published stable server image at inspection. GitHub had just announced
+`26.10.5.57-stable`; its official image endpoint still returned404. Do not
+substitute `head` or pretend an unavailable image was installed.
+
+Publish only the new target with `ghcr-mirror`'s optional exact `target` input;
+never repoint historical24.3/24.8 tags. Source configuration/mirror publication
+is not a live deployment or proof of an in-place data upgrade. Back up the
+existing store, rehearse the supported upgrade path on a copy, verify schema,
+read/write/history/permission behavior, then approve rollout. Do not assume
+starting the old image can safely undo new-engine data-format changes.
+
+The running engagement control remains explicitly24.8.14.39. A modern-engine
+comparison must label the version and rerun baseline plus treatment. Consider
+25.5+ `_part_offset` as an alternative implementation of the SAME `ref_sorted`
+projection (keys/offsets with payload fetched from the base table), not an
+additional projection or authorization shortcut. Current canonical history,
+full-key and policy checks remain mandatory; no native offset/read-cost proof
+or production projection is claimed. Official reference:
+<https://clickhouse.com/docs/data-modeling/projections>.
+
 **Planned delivery architecture, not current schema:** D113 specifies a generic
 recipient-pointer table alongside canonical documents, with small-group fanout
 and large-group seek. See [group-delivery.md](group-delivery.md) for the pre-build
