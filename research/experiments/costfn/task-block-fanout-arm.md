@@ -32,6 +32,19 @@ a new artifact; future restore speed remains unproven until observed. No guardia
 production,§8 integration, P1/T7, regenerated dataset or expanded envelope.
 This override governs over the historical orders/admissions retained below.
 
+**Execution receipt,17 November:** DO620093795's fresh import completes in
+1,260.321s, but the real2,000-member fixture group-create exceeds the unchanged
+65s setup HTTP deadline (client65,033.660ms; same-request server200/69,893.208ms
+in stopped logs). Zero fixture posts, no canonical coverage/clock verification,
+snapshot or P/F read comparison; later gates UNREACHED. Preserve the earlier
+pre-import project-name STOP and its source-bound same-lease continuation too.
+No failed fixture retry or engine restart. Full private archive SHA`79dd3c76…00662`
+is verified before owned cleanup01:45:40UTC, ahead of05:07:38; estimated compute
+$0.15849/not invoice. Admission is closed, read acceptance is not satisfied.
+Next is source-only large-group setup deadline diagnosis/repair and offline
+controls; fresh explicit paid/native admission is required for another attempt.
+Public receipt: `evidence/arm-f-read-first-20261117/setup-stop-and-cleanup.json`.
+
 ## Governing run directive — Jacob Hoffman,16 November2026
 
 This directive supersedes earlier cleanup requirements here and in PR#1576.

@@ -13,6 +13,23 @@ oracle, hidden fixture retry, guardian, production or§8 integration. Fresh host
 deadline, native outcomes and retained snapshot ID must be recorded from receipts;
 source/local controls are not native acceptance or proof of future restore speed.
 
+Final read-first receipt: DO620093795 imports the frozen store in1,260.321s,
+then setup stops01:39:53UTC on the2,000-member group-create HTTP client65s
+deadline. Same-request stopped API evidence returns200 at69,893.208ms, after
+client65,033.660ms; neither exact membership nor any fixture post/clock/coverage
+is proven. Prepared snapshot/T2-F/T6-F/population/R+W and remaining gates are
+UNREACHED. This is not a feed cost verdict or the specified coverage stop.
+Earlier local launch timeout/pre-import project-name failure remain preserved;
+only the latter's pre-import setup was source-bound continued on the same lease.
+No failed fixture retry. Private archive2,791,646 bytes/SHA
+`79dd3c761040fa2389bccadd1c87159e91b52ec8e8464f5a0c59e29748a00662`
+includes full tracebacks, request metadata and stopped native query-log parts;
+copied/hash-verified before owned cleanup01:45:40UTC, before05:07:38. No engine
+restart/OOM/guardian/snapshot or production/archive/retained-volume change.
+Estimated compute$0.15849 is not invoice. Admission closed, acceptance OPEN;
+next source-only setup-deadline repair needs controls, then fresh explicit native
+admission. Public receipt `evidence/arm-f-read-first-20261117/setup-stop-and-cleanup.json`.
+
 ### Governing16 November run admission — guardian revoked
 
 Jacob Hoffman's latest directive in `task-block-fanout-arm.md` supersedes the
