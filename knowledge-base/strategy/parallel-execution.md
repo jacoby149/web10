@@ -1791,6 +1791,11 @@ existing$20 overall ceiling; preserve every failure, oracle/caps and no-producti
 boundary. No new guardian or permission question at each harness repair.
 Setup group-create timeout is source-repaired (215 no-engine controls/Ruff),
 not yet a native fixture/read PASS. Prior closed lease below stays closed.
+Update: DO620121703 through06:58:36UTC now passes native fixture coverage on
+the independent21-row page after source-bound full-key prepare selection;
+same fixtures/restore, original ambiguity STOP preserved,220 controls/Ruff.
+Infrastructure active; snapshot/read comparison still UNREACHED. Receipt
+`evidence/arm-f-persistent-20261117/fixture-coverage.json`.
 
 - [~] **RD4-FANOUT-PERSISTENT-READ** — execute the operator-authorized repair/run/300s-check loop to native fixture coverage, separate PREPARED snapshot and complete P/F read measurements. Cite banked P/trim/T4; then population/populated reads/R+W and remaining gates as clock allows. Owns costfn/additive CI/serialized KB/evidence; ordinary API/production read-only. Acceptance: receipt-backed complete latency/rows/bytes against500ms/25MB and cited comparators; exact independent parity, original limits/trials, preserved failures and owned cleanup. No artificial PASS, guardian, production/§8/P1/T7, unbounded spend or limit relaxation.
 

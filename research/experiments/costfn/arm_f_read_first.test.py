@@ -95,6 +95,17 @@ class ReadFirstTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'pre-import project-name'):
                 first.prepared_setup(actions, previous)
 
+    def test_full_key_continuation_refuses_any_other_oracle_failure_before_engine_io(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            save(root / 'read-first-stop.json', dict(failed_stage='Setup', failure_class='CalledProcessError',
+                failure_stderr='native memory failure, not canonical identity ambiguity'))
+            actions = SimpleNamespace(root=root / 'next', approval={})
+            with patch.object(first.restore, 'command') as command:
+                with self.assertRaisesRegex(ValueError, 'unchanged pre-serving'):
+                    first.resume_fixture_page(actions, root, root / 'trials/rf0')
+                command.assert_not_called()
+
     def test_coverage_requires_both_authors_shared_and_mixed_on_canonical_page(self):
         fixture = dict(collision_id='c', collision_authors=['a', 'b'], shared_ids=['c', 's'], large_front_id='l')
         rows = [dict(author_key=a, doc_id=d) for a, d in [('a', 'c'), ('b', 'c'), ('a', 'l')]]

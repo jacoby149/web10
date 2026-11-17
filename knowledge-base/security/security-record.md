@@ -15,6 +15,17 @@ live in the cartridge: [`ai-pack/ai-security-theory/the-security-record/`](../..
 > the final boss). The order is L1 → L2 → L3 → L4, each to 100% before the next,
 > backend-first. When all four are 100%, the surface has **passed the AI pentest**.
 
+## Full-key F research prepare selector (17.11.2026) — bounded review, OPEN
+
+GPT-6.1 Sol traces `arm_f_prepare.py` through the original canonical prepare
+binder and safe-query compiler into ordinary prepare passes. The adapter only
+narrows an already-authorized lookup by a SQL literal author; the original
+ambiguity/missing-row denial remains. Real binder/compiler/SQLite history
+controls reproduce the collision rejection, bind canonical bodies per author and
+retain visibility/history/forged-author denials. Ordinary API code and oracle
+page selection are unmodified. Native current-source, independent/model-diverse
+review and broader security coverage remain OPEN; no L1–L4 PASS is claimed.
+
 ## Scoped F research continuation (16.11.2026) — bounded change review, OPEN
 
 GPT-6.1 Sol traces the isolated hook installer into FastAPI's effective route

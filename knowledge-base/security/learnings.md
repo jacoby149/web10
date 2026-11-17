@@ -35,6 +35,22 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-17: Full-key research selectors must retain canonical prepare authority
+
+Config F's required same-ID/different-author fixture exposes the node prepare
+binder's deliberate doc_id-only ambiguity denial. Do not remove that denial or
+trust projected bodies to make the benchmark pass. The isolated document-stream
+adapter partitions requests by author, then adds an outer author selector to the
+ORIGINAL authorized canonical lookup. The original binder/compiler still enforce
+service/group/history/visibility, missing-row and ambiguity denials and canonical
+body/owner provenance; ordinary API code remains unmodified. Both P/F measured
+paths include every lookup's cost. The independent oracle's page query/coverage
+guard stay unchanged; only the same canonical preparation selector is made
+full-key-aware. Real production binder/compiler plus SQLite history controls
+retain cross-author bodies independently and deny forged owners, foreign/removed/
+deleted/missing keys, blocklists, hidden docs, bans and sharing pauses. This is
+bounded research correctness coverage, not production or L1–L4 security PASS.
+
 ### 2026-11-16: Install experimental hooks on dispatched routes, not a flat router assumption
 
 The isolated F API refused startup because FastAPI0.139 keeps included routers

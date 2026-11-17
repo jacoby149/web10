@@ -53,6 +53,8 @@ class AdapterTests(unittest.TestCase):
             safe_query=SimpleNamespace(UnsafeQueryError=type('Unsafe', (Exception,), {})), application=Mock())
         client = SimpleNamespace(query=Mock(), command=Mock(), insert=Mock())
         ch = SimpleNamespace(client=client, execute_query=Mock(), can_write_group=Mock(return_value=True))
+        endpoint_package.query = SimpleNamespace(ch=ch,
+            _canonical_prepare_docs=Mock(side_effect=lambda rows, reader, readable: rows))
         native = SimpleNamespace(query=client.query, command=client.command, insert=client.insert)
         ch._get_client = lambda: native
         parent = ModuleType('arm_satellite_api')

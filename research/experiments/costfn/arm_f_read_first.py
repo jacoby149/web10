@@ -119,7 +119,45 @@ def prepared_setup(actions, previous):
         original_failed_attempt_preserved=True, failed_fixture_or_treatment_retried=False))
 
 
-def run(root, *, prepared_from=None):
+def resume_fixture_page(actions, previous, trial):
+    """Persisted pre-serving oracle repair, same canonical fixtures/restore/lease."""
+    previous, trial = Path(previous).resolve(), Path(trial).resolve()
+    stopped = previous / 'read-first-stop.json'
+    value = json.loads(stopped.read_bytes())
+    if (value.get('failed_stage') != 'Setup' or value.get('failure_class') != 'CalledProcessError'
+            or '403: ambiguous canonical prepare identity' not in value.get('failure_stderr', '')
+            or json.loads((previous / 'admission.json').read_bytes()) != actions.approval
+            or trial != previous / 'trials/rf0' or (trial / 'F-build').exists()
+            or (trial / 'F-reference/expected.json').exists() or (trial / 'F.stop').exists()):
+        raise ValueError('only unchanged pre-serving full-key oracle failure may reuse fixture store')
+    fixture = json.loads((trial / 'fixture.json').read_bytes())
+    profile = json.loads((trial / 'profile/inventory.json').read_bytes())
+    (actions.root / 'input').symlink_to(previous / 'input', target_is_directory=True)
+    save(actions.root / 'evidence/archive.json', json.loads((previous / 'evidence/archive.json').read_bytes()))
+    shutil.copytree(previous / 'orchestration-preflight', actions.root / 'orchestration-preflight')
+    actions.rehearsal = actions.root / 'orchestration-preflight/population-native-fixture'
+    actions.active_root = trial
+    save(actions.root / 'fixture-store-continuation.json', dict(original_stop_sha256=digest(stopped),
+        fixture_sha256=digest(trial / 'fixture.json'), restore_sha256=digest(trial / 'restore.json'),
+        original_failed_oracle_preserved=True, fixture_reseeded=False, fresh_restore=False,
+        before_serving=True, same_admission=True))
+    session = Session(trial)
+    restore.command(session.compose, session.env, 'up', '-d', 'clickhouse', 'minio', timeout=120)
+    restore_dataset.wait_for(lambda: restore.server_ready(session.compose, session.env), 'retained fixture store')
+    session.verify_envelope()
+    expected = reads.reference(trial, name='F-reference-fullkey')
+    coverage = reads.fixture_coverage(fixture, expected)
+    coverage.update(fixture_sha256=digest(trial / 'fixture.json'),
+        oracle_sha256=digest(trial / 'F-reference-fullkey/expected.json'),
+        oracle_summary_sha256=digest(trial / 'F-reference-fullkey/summary.json'),
+        fixture_clock_sha256=digest(trial / 'fixture-clock.json'))
+    save(trial / 'fixture-coverage.json', coverage)
+    print('[F-read-first] NATIVE_FIXTURE_COVERAGE_PASS on retained unchanged fixture store', flush=True)
+    environment.prepare(trial, actions.root, profile=profile)
+    return trial, expected
+
+
+def run(root, *, prepared_from=None, fixture_store=None):
     actions = ScopedActions(root)
     if actions.approval.get('run_directive') != DIRECTIVE:
         raise ValueError('explicit fresh read-first admission required')
@@ -135,11 +173,14 @@ def run(root, *, prepared_from=None):
             raise ValueError('banked T4 validation receipt missing; never rerun writes')
         completed[stage] = dict(status='CITED_NOT_REMEASURED', sha256=digest(actions.root / 'banked-writes.json'))
         stage = 'Setup'
-        if prepared_from is None:
+        if fixture_store is not None:
+            trial_root, expected = resume_fixture_page(actions, prepared_from, fixture_store)
+        elif prepared_from is None:
             actions.setup()
+            trial_root, expected = prepare_page(actions, 'rf0')
         else:
             prepared_setup(actions, prepared_from)
-        trial_root, expected = prepare_page(actions, 'rf0')
+            trial_root, expected = prepare_page(actions, 'rf0')
         completed[stage] = dict(root=str(trial_root), coverage_sha256=digest(trial_root / 'fixture-coverage.json'))
         stage = 'Prepared-snapshot'
         completed[stage] = snapshot(actions)
@@ -235,5 +276,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('root', type=Path)
     parser.add_argument('--prepared-setup-from', type=Path)
+    parser.add_argument('--fixture-store', type=Path)
     args = parser.parse_args()
-    run(args.root, prepared_from=args.prepared_setup_from)
+    run(args.root, prepared_from=args.prepared_setup_from, fixture_store=args.fixture_store)

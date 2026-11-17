@@ -12,6 +12,21 @@ The group-create HTTP setup deadline now allows up to600s inside the original
 cleanup margin; ordinary HTTP stays65s and measured native limits do not change.
 215 no-engine controls/Ruff pass; native acceptance remains receipt-dependent.
 
+Run binding: DO620121703,17 November02:58:36→06:58:36UTC, source1,391 hashes.
+All63 fixture posts and the large group's200/55,477.366ms complete. Original
+oracle preparation then refuses the required same-ID/two-author fixture because
+the node's canonical binder keys by doc_id alone. Original STOP/full stderr and
+stopped native parts are privately banked SHA`bbd4bfcc…b9903` before restart.
+The isolated `arm_f_prepare.py` selector partitions requests by author, then
+adds an outer literal-author filter to the ORIGINAL authorized canonical lookup;
+the original compiler/binder's policies, ambiguity/missing-row guard and body
+provenance stay intact. Ordinary API source and independent oracle page SQL/
+coverage stay unchanged, and P/F measured costs include every prepare lookup.
+Four real-binder/compiler/SQLite-history controls preserve denials;220 total
+F/satellite controls/Ruff pass. Resume only the unchanged pre-serving fixtures
+under a new source manifest, preserving failed oracle files and original lease;
+no re-seed, fresh-restore claim, oracle weakening or native PASS inferred.
+
 ### Next-lease read-first override —16 November operator directive
 
 The `task-block-fanout-arm.md` next-lease override is the current admission,

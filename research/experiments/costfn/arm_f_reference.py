@@ -31,6 +31,8 @@ def build(directory):
     from app.v3.endpoints import query as endpoint
     from app.v3.models import PrepareSpec
     from app.v3.services import clickhouse as ch, safe_query
+    from arm_f_prepare import install
+    install(endpoint)
     directory = Path(directory)
     spec = json.loads((directory / 'input.json').read_bytes())
     reader, scopes = spec['reader'], spec['actual_readable_by_kind']

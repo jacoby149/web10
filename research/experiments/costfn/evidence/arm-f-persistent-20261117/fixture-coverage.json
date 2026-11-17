@@ -1,0 +1,43 @@
+{
+  "kind": "CONFIG_F_NATIVE_FIXTURE_COVERAGE",
+  "outcome": "PASS_FIXTURE_COVERAGE_ONLY",
+  "droplet_id": 620121703,
+  "deadline_utc": "2026-11-17T06:58:36+00:00",
+  "dataset_id": "2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd",
+  "independent_canonical_page": {
+    "verified": true,
+    "collision_authors": 2,
+    "shared_route": true,
+    "mixed_lane": true,
+    "canonical_page_rows": 21,
+    "fixture_sha256": "2cfe0fc4191c3013adec0f75650f30e46dbc7599147acbc9d8fe3df8de72a807",
+    "oracle_sha256": "5207a84d01d56e63e6839de87c162abeaf547740075815eb5b5d459a29ad2cd0",
+    "oracle_summary_sha256": "acd8bef2a865ea70aa08a0974bec5d4b31114eba015fb80c0dd96b7e064f6eb1",
+    "fixture_clock_sha256": "90a7e2553a9f9145a185efc30e2da9454ff0a81b2b4e57cdd1bbed7816c399e3"
+  },
+  "continuation": {
+    "original_stop_sha256": "46981ec3991d50aa0bc6e94aa31ce07f3bbbd1ad26ef402dd806f0cad7cd4097",
+    "fixture_sha256": "2cfe0fc4191c3013adec0f75650f30e46dbc7599147acbc9d8fe3df8de72a807",
+    "restore_sha256": "1b5f656912da151e41452f4f8345a984b6486d19f3f2e98022381898faf6e0b9",
+    "original_failed_oracle_preserved": true,
+    "fixture_reseeded": false,
+    "fresh_restore": false,
+    "before_serving": true,
+    "same_admission": true
+  },
+  "executing_source_manifest_sha256": "a048dd86ef61470618f66ad14fc675ae7a9b5dd45be78125437f4daf32e6a958",
+  "original_oracle_failure": {
+    "archive_bytes": 4489290,
+    "archive_sha256": "bbd4bfcc6f5fb0b585c4e94869ce3fed7295a1cb35f9f9c40492c337da3b9903",
+    "preserved": true
+  },
+  "proof_checkpoint": {
+    "bytes": 610498,
+    "sha256": "c94fd248c0d752e92cfcf986724457517abdb983c2f0af8ccba3bc865ad09fa5",
+    "private": true
+  },
+  "snapshot": "UNREACHED",
+  "complete_read_comparison": "UNREACHED",
+  "phase0_budget_verdict": "UNREACHED",
+  "production_claim": false
+}
