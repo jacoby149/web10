@@ -449,7 +449,6 @@ test.describe('Profiles gauntlet — real flow + log sequence', () => {
 
     // /profile redirects to /u/{username} (the owner's own profile).
     await page.goto(`${SOCIAL_BASE}/profile`);
-    await page.waitForLoadState('networkidle');
     // Signed in via the cookie — the app mounted into the signed-in shell.
     await expect(page.locator('[data-testid="edit-profile-button"]')).toBeVisible({ timeout: 15000 });
 
@@ -481,7 +480,6 @@ test.describe('Profiles gauntlet — real flow + log sequence', () => {
     // Return run: reload. The token cookie persists, the profile re-reads,
     // and the bio survives (the doc was written to the followers group).
     await page.reload();
-    await page.waitForLoadState('networkidle');
     await expect(page.getByText(bio, { exact: false })).toBeVisible({ timeout: 15000 });
 
     // The app recognized the signed-in state from the cookie (log sequence).
@@ -508,7 +506,6 @@ test.describe('Profiles gauntlet — real flow + log sequence', () => {
     await settle();
 
     await page.goto(`${SOCIAL_BASE}/u/${owner.username}`);
-    await page.waitForLoadState('networkidle');
 
     // The profile renders: the display name + bio (from the profile doc).
     await expect(page.getByText('Public Owner')).toBeVisible({ timeout: 15000 });
@@ -541,7 +538,6 @@ test.describe('Profiles gauntlet — real flow + log sequence', () => {
     await settle();
 
     await page.goto(`${SOCIAL_BASE}/u/${owner.username}`);
-    await page.waitForLoadState('networkidle');
     await expect(page.locator('[data-testid="edit-profile-button"]')).toBeVisible({ timeout: 15000 });
 
     // Edit display name + website + bio.
@@ -587,7 +583,6 @@ test.describe('Profiles gauntlet — real flow + log sequence', () => {
     // Return run: reload — the profile re-reads from the group and the edits
     // survive.
     await page.reload();
-    await page.waitForLoadState('networkidle');
     await expect(page.getByTestId('profile-name')).toHaveText(displayName, { timeout: 15000 });
     await expect(page.getByText(website)).toBeVisible();
     await expect(page.getByText(bio, { exact: false })).toBeVisible();
@@ -608,7 +603,6 @@ test.describe('Profiles gauntlet — real flow + log sequence', () => {
     await settle();
 
     await page.goto(`${SOCIAL_BASE}/u/${owner.username}`);
-    await page.waitForLoadState('networkidle');
     await expect(page.locator('[data-testid="edit-profile-button"]')).toBeVisible({ timeout: 15000 });
 
     // No avatar yet — the fallback letter renders, no avatar <img>.
@@ -678,7 +672,6 @@ test.describe('Profiles gauntlet — real flow + log sequence', () => {
     // Return run: reload — the avatar re-resolves (resolveMediaRefs →
     // listMedia(doc_ids) → fresh presign) and still renders.
     await page.reload();
-    await page.waitForLoadState('networkidle');
     const reloadedAvatar = page.locator('[data-testid="avatar-image"]');
     await expect(reloadedAvatar).toBeVisible({ timeout: 30000 });
     const reloadedSrc = await reloadedAvatar.getAttribute('src');
@@ -709,7 +702,6 @@ test.describe('Profiles gauntlet — real flow + log sequence', () => {
     // post-text check to the lightbox (the post also appears in the profile grid
     // behind it, which would trip strict mode).
     await page.goto(`${SOCIAL_BASE}/u/${owner.username}/p/${postId}`);
-    await page.waitForLoadState('networkidle');
     await expect(page.locator('[data-testid="post-lightbox"]')).toBeVisible({ timeout: 15000 });
     await expect(page.locator('[data-testid="post-lightbox"]').getByText(postText, { exact: false })).toBeVisible();
   });

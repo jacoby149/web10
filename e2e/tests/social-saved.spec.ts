@@ -391,6 +391,9 @@ test.describe('Saved collections — API floor (the app\'s exact reads/writes)',
 
 test.describe('Saved collections gauntlet — real flow through the app contract', () => {
   test('save a post → it appears on the Saved tab → open → flip public → a second account opens it', async ({ browser, request }) => {
+    // Three independent browser contexts plus real create/save/visibility and
+    // viewer reads. Per-step assertions remain bounded; this is not a30s SLA.
+    test.setTimeout(120000);
     // The owner: signup + the app contract (Origin-gated) + a post to save.
     const owner = await signupAndLogin(request, 'svdgui');
     await addSocialAppContract(request, owner.token);

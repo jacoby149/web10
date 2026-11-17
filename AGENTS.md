@@ -426,7 +426,13 @@ and diagnostic-first insert aggregation of `content_events` (events do not move)
 Engagement schema/runtime integration stays off. The operator separately requests
 an engine upgrade: active local/E2E/ecosystem Compose now pins the mirrored
 26.10.4.207 official image (newest published image observed; the just-announced
-26.10.5.57 tag was not yet published), while frozen research remains24.8.14.39.
+26.10.5.57 tag was not yet published). Historical24.8 receipts/pins remain intact;
+Jacob's subsequent17 November directive LIFTS the engagement engine freeze and
+admits a fresh26.10.4.207 A–D run with a same-engine untreated baseline, projection,
+independent views diagnostic/aggregate, exact semantics migration/full HTTP reads
+and a fat-engagement cell. Pre-lease complete-read integration controls are still
+needed; the old stage-only runner is not that controller. One stage stopping must
+not silently skip independent stages. No fresh26.x host/deadline is bound yet.
 Mirror/CI/in-place upgrade and production rollout are distinct gates; no live
 deployment is implied. Consider `_part_offset` only as a separately measured
 replacement for the same projection, never extra authority or a second layout.

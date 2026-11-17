@@ -1,0 +1,79 @@
+{
+  "kind": "HISTORICAL_24_8_ENGAGEMENT_FULL_STORE_CONTROL",
+  "outcome": "MIGRATION_PARITY_PASS_AUTHORIZED_READ_ENVELOPE_STOP",
+  "not_the_subsequently_admitted_26_x_A_B_C_D_run": true,
+  "droplet_id": 620273404,
+  "engine": "24.8.14.39",
+  "dataset_id": "2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd",
+  "projection_only_candidate_stage": {
+    "outcome": "EXACT_CANDIDATE_MULTISET_PARITY_PASS",
+    "query_id": "fanout-f-3d8acf8bb2ae49d6982ec5389d1e4ef1",
+    "actual_projection": "web10.documents.ref_sorted",
+    "returned_candidate_identities": 69685,
+    "native_query_duration_ms": 104,
+    "read_rows": 1178632,
+    "logical_read_bytes": 152974006,
+    "scope": "ONE_NATIVE_CANDIDATE_STAGE_NOT_COMPLETE_RESPONSE_OR_P95",
+    "projection_only_views": "UNAFFECTED"
+  },
+  "migration": {
+    "source_rows": 88200300,
+    "copied_rows": 88200300,
+    "source_validation_checks": 9,
+    "source_validation_failures": 0,
+    "roundtrip_inverse_multiset_batches": 32,
+    "completed_batches": 32,
+    "mismatching_batches": 0,
+    "outcome": "EXACT_INVERSE_SEMANTICS_ALL_COLUMN_MULTIPLICITY_PARITY_PASS",
+    "source_content_not_rewritten": true
+  },
+  "authorized_uniform_reactions_warmup": {
+    "outcome": "STOP_BEFORE_RETURNED_ROW_PARITY",
+    "query_id": "fanout-f-cd05443e74bf400399dab35b51e38a79",
+    "sql_sha256": "acd39d48c45ad0bd38d4922fc1adc308689e3cd3fd4726d713b496c194bc55db",
+    "started_utc": "2026-11-17T13:28:32.338175+00:00",
+    "native_exception_code": 159,
+    "maximum_seconds": 10,
+    "exception_reported_elapsed_seconds": 13.365937507,
+    "client_operation_elapsed_seconds_not_native_query_duration": 14.137983364999855,
+    "read_rows": 21458663,
+    "logical_read_bytes": 2036498365,
+    "over_10M_row_stop_also_exceeded": true,
+    "source_query_observation": "Document history is candidate-full-key bounded; attachment history retains a broad group-only selector. No per-table native cost attribution is invented.",
+    "no_replay_or_raised_limit": true
+  },
+  "unreached": [
+    "PARITY_VALID_UNIFORM_READ_MEASURED_SAMPLE",
+    "UNIFORM_COMMENTS_READ",
+    "FULL_STORE_VIEWS_DIAGNOSTIC",
+    "FULL_STORE_EVENT_AGGREGATE_SEED_AND_READ",
+    "COMPLETE_HTTP_SEQUENCE",
+    "FAT_ENGAGEMENT_CELL"
+  ],
+  "source_sha256": {
+    "engagement_run.py": "fa2fc96f1b374777cdd66bdd49b34022e6deb2f521a30193d3da5aa57dade4d2",
+    "engagement_ref.py": "c1c8e8bed8cdd45bb2422a60bd6f8cf663a8a8b29914251c1a9dbd2e259edfd3",
+    "engagement_events.py": "1d3d7f07011db80a0e3b1acbe35145313e89c8329838d723a186a93ad89c4dd0"
+  },
+  "private_final_evidence": {
+    "name": "engagement-checkpoint-20261117T133327Z.tar.gz",
+    "bytes": 5070697,
+    "sha256": "b4a3486bf15a88a03f3f7e13fcb55bf5a9f423ffa5ed2fc05210d31bd34aa0da",
+    "off_host_hash_verified_before_cleanup": true,
+    "includes_stopped_native_query_log_parts": true,
+    "includes_original_failures_and_executing_source": true
+  },
+  "cleanup": {
+    "owned_droplet_firewall_and_ssh_key_absent": true,
+    "verified_utc": "2026-11-17T13:38:07.707578+00:00",
+    "original_deadline_utc": "2026-11-17T16:38:50+00:00",
+    "compute_estimate_usd": 0.2470630262626542,
+    "not_invoice": true,
+    "temporary_owned_keys_and_capabilities_removed": true,
+    "retained_snapshot_255003176_not_deleted": true,
+    "no_engine_restart": true
+  },
+  "complete_feed_pass": false,
+  "production_changes": false,
+  "guardian": false
+}
