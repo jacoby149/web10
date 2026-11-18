@@ -358,7 +358,11 @@ class ModernTests(unittest.TestCase):
                 "/* ENGAGEMENT_DOC_COUNTS */ SELECT * FROM doc_groups WHERE group_id IN ('allowed')"):
             with self.assertRaises(ValueError):
                 engagement_observe.uniform_guard(sql, current)
-        engagement_observe.uniform_guard("/* ENGAGEMENT_DOC_COUNTS */ SELECT * FROM doc_groups WHERE doc_id IN ('post')", current)
+        with self.assertRaisesRegex(ValueError, 'deletion-winning'):
+            engagement_observe.uniform_guard("/* ENGAGEMENT_DOC_COUNTS */ SELECT * FROM doc_groups WHERE doc_id IN ('post')", current)
+        sql = queries.followup(self.compile("SELECT ref_value,count() FROM reactions WHERE ref_value IN ('post') GROUP BY ref_value"),
+            'reactions', uniform=True, table='engagement_documents')
+        self.assertTrue(engagement_observe.uniform_guard(sql, current)['deletion_wins_timestamp_ties'])
 
     def test_hot_reactions_compute_every_comment_target_not_only_a_page_total(self):
         from engagement_hot_read import reaction_sql, expected_reactions

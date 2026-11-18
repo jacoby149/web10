@@ -2,6 +2,13 @@
 from functools import wraps
 
 
+def query_kwargs(signature, sql=None, *args, **kwargs):
+    """Bind at ingress, then keep every driver option named through wrappers."""
+    if sql is None:
+        sql = kwargs.pop('query')
+    return dict(signature.bind_partial(sql, *args, **kwargs).arguments)
+
+
 def dispatch(get_client, method, signature_source):
     # wraps retains the driver's inspect.signature, not its bound connection.
     @wraps(signature_source)

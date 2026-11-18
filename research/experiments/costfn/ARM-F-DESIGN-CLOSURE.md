@@ -965,7 +965,7 @@ aa90341a0795f7f88a622a939f190b6f9d4bf50444a7181785351db3d126d352  api/app/v3/end
 d9fa359eadf6e5b9792923913e3fb14a453759afc7f7fb774d1c86968cd5f030  api/app/v3/services/clickhouse.py
 411c9d51f592e66d33e6e654e1b0665225cd89ec4bbb56d6be2f50aa4da2bf61  api/app/v3/services/safe_query.py
 675d2bc7030d7efb3c636489366937486f508d74146d1b4249801a40c5a12518  marketing/web10-social/src/data/feed.ts
-25b667f2ae901e1f1bbcbb005fe3ccae9c8bb88fbb903837035df88aabcac228  research/experiments/costfn/arm_satellite_api.py
+d5069d3d1d581fe33761c5e80725f13663ec4daf25607918ae7994d698505b66  research/experiments/costfn/arm_satellite_api.py
 a91133de21e61fed81b10fb2e2bcbd20eeb73f3c4e782170873aa92fbd553bfb  research/experiments/costfn/arm_satellite_pull.py
 2c9b198f8b290d7f1287f1e1fc6179bbf81050ca4b7a75af8a34579214347bdd  research/experiments/costfn/evidence/core-feed-wire-v7.json
 b51f94c2f54ce84f9cc9bb0755f83956b365f0c793af880d88ec255ffd3a869c  research/experiments/costfn/arm_satellite_serve.py
@@ -977,6 +977,14 @@ d75eb688562d0b0cf0a2e9c10fd15a351bc695a1e9a2096e967968c4882fb6d5  research/exper
 9cc2fd817dd946e68455a91834f0a67a5987ff1c846e2a8590a9d9a00ee5501a  research/experiments/costfn/core_feed.py
 8b8ae69d4808fa72da0012c562ea92b73598e4bf7a20c7695b3246931539129f  api/app/v3/endpoints/query.py
 ```
+
+18 November completion repair: the current `arm_satellite_api.py` pin changes
+only its driver invocation from positional `BoundArguments.args` to named
+`BoundArguments.arguments`, as explicitly required by Jacob's closed settings
+composition fix. Previous pin `25b667f2…acac228` and every historical executing
+receipt stay banked. Canonical compiler/policy/scopes, builders, read caps and
+the remaining source pins are unchanged; the new HTTP composition control
+rejects positional settings at each actual research wrapper boundary.
 
 ## Execution receipt — STOP before P serving; F not measured
 

@@ -12,12 +12,19 @@ import restore_realism as restore
 ENGINE = '26.10.4.207'
 IMAGE = 'ghcr.io/jacoby149/base-clickhouse:26.10.4.207@sha256:4f491abc44d9f4a1747c033c35ddd5bc385521305d85ca8251ba0824ff597035'
 DIRECTIVE = 'Jacob Hoffman 2026-11-17 engagement full-store A-D candidate-scoped attachments'
+COMPLETION_DIRECTIVE = 'Jacob Hoffman 2026-11-18 engagement fix-and-finish; initial K20 setup exception'
 
 
 def admitted(value, host, now=None):
     deadline = arm_f_runtime.admitted(value, host, now=now)
+    completion = (value.get('purpose') == 'ENGAGEMENT_COMPLETION_ONLY'
+        and value.get('run_directive') == COMPLETION_DIRECTIVE
+        and value.get('engagement_completion_admitted') is True
+        and value.get('initial_k20_count_build_admitted') is True
+        and value.get('stages_b_d_admitted') is False)
     if (value.get('engagement_engine') != ENGINE or value.get('engagement_directive') != DIRECTIVE
-            or value.get('purpose') != 'ENGAGEMENT_FULL_STORE_A_D' or value.get('engagement_ref_admitted') is not True):
+            or (value.get('purpose') != 'ENGAGEMENT_FULL_STORE_A_D' and not completion)
+            or value.get('engagement_ref_admitted') is not True):
         raise ValueError('explicit26.10.4.207 full-store engagement admission required')
     return deadline
 
@@ -68,10 +75,16 @@ class Session(arm_f_runtime.Session):
             args += ['--' + key + '=' + str(value) for key, value in settings.items()]
         started = time.perf_counter()
         try:
-            raw = restore.command(self.compose, self.env, 'exec', '-T', 'clickhouse', 'clickhouse-client',
+            command = ['exec', '-T', 'clickhouse', 'clickhouse-client',
                 '--user', 'web10', '--password', 'web10', '--database', 'web10', '--query_id', query_id,
                 '--max_execution_time', str(budget), '--receive_timeout', str(budget + 10),
-                *args, '--query', sql, timeout=budget + 20)
+                *args, '--query', sql]
+            if (not measured and self.operation.get('engagement_completion_admitted') is True
+                    and sql.lstrip().upper().startswith(('ALTER ', 'OPTIMIZE ', 'INSERT ', 'CREATE '))):
+                from engagement_native import await_query
+                raw = await_query(self, [*self.compose, *command], query_id, budget)
+            else:
+                raw = restore.command(self.compose, self.env, *command, timeout=budget + 20)
             self.record(dict(phase='finish', label=label, query_id=query_id, success=True,
                 elapsed_seconds=time.perf_counter() - started))
             return raw.decode().strip(), query_id

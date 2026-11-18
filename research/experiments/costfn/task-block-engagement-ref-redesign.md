@@ -6,6 +6,47 @@ The previous F cost FAIL and all stopped attempts remain unchanged.
 
 ## Governing full-store directive —17 November2026
 
+###18 November fix-and-finish admission — supersedes future execution below
+
+Jacob admits **one new completion lease**,26.10.4.207, unchanged four-hour/$2,
+32/28/22GiB,10s/>10M measured caps and existing$20 overall ceiling. No host/window
+is bound yet. The closed DO620491569 and all banked failures remain unchanged.
+
+Closed fixes: keyword-only settings across the actual complete-HTTP wrappers;
+native QueryFinish polling for long setup operations without resubmission after
+client timeout; a terminal untreated-baseline gate before adding the projection;
+and counter/metadata/fanout physical-generation rebinding after materialization,
+with certification checked before measurement and no canonical fallback sample.
+Rebinding requires identical base canonical column bytes/schema and preserves
+scope keys addressing existing values, never a guard bypass or semantic re-scope.
+
+Order: prepared snapshot255003176 → ordinary K20 untreated complete response,
+old semantics/no projection → known rebuild-mode ref_sorted/native materialization
+and equal-row coverage → refreshed certificates → old-semantics projection K20
+and real nonempty measured mixed-count decomposition → accepted migrated copy/
+nine zero checks/current-copy exact parity gates → certified treated K20 and
+paired fixture P/F reads. Actual measured SQL must show candidate-doc attachment
+scoping and deletion-winning timestamp ties. Report history24.8 / untreated26.x /
+treated26.x actuals; preparation/unclassified remain named unoptimized remainder.
+
+Stage B diagnostic/aggregate, Stage D hot cell and the26.x lossless design proof
+are BANKED, not re-run. A restored copy still passes its constructor/gates. No
+aggregate seed, new cells, population/R+W/p95, counter retirement, production or§8.
+
+**Explicit setup exception, same-session clarification:** the prepared snapshot
+certifies only paired-fixture count scopes, not ordinary K20. Asked how to supply
+the missing inputs without violating "No counting_numbers build", Jacob selected
+**"Allow initial K20 build"**: one setup-only build of missing ordinary K20
+scopes is permitted; no counter redesign, Stage B/D rerun or counter rebuild after
+materialization. Paired values/metadata are adopted from the prepared snapshot;
+uniform treatment forbids cached-counter reads. Ordinary API/SDK/social remain
+read-only. Agent300s checks and droplet self-kill timers only, no guardian.
+
+Source checkpoint: new completion-only controller, prepared adoption/K20 exception,
+identical-byte certificate refresh and native completion waiter are implemented.
+264 no-engine controls pass, including eight completion controls; no new native
+measurement or paid resource is implied by this source checkpoint.
+
 Jacob accepts PR#1579's three-things implementation/tiny rehearsal and explicitly
 admits one fresh full-store lease: **ClickHouse26.10.4.207**, same frozen dataset,
 envelope/budgets/DO-only/agent300s/self-kill/no-guardian rules. The24.8 freeze is
