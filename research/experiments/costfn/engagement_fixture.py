@@ -39,6 +39,10 @@ def run(session, root):
         query('projection_padding', "INSERT INTO documents SELECT concat('padding-',toString(number)),'alice','posts','{}','',[],"
             "toDateTime64('2026-11-16',3),toDateTime64('2026-11-16',3),0,'none','','alice' FROM numbers(4096)")
         if getattr(session, 'engagement_engine', None):
+            #26.x prunes the all-empty-ref padding PART without the projection.
+            # Put targets and padding into one settled part before comparing
+            # granules; retain the original forced-plan assertion unchanged.
+            query('modern_settle_padding', 'OPTIMIZE TABLE documents FINAL')
             from engagement_projection import install
             result['modern_default_projection'] = install(session, 'documents', output)
         else:

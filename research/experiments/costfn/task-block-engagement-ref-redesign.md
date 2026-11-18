@@ -47,7 +47,13 @@ totals, but do not optimize them in this run. Stage wins are not complete-feed
 PASS; old F FAIL remains until a complete response meets500ms/25MB. Preserve every
 materialization/validation/parity/cost STOP. **One stage stopping does not
 silently skip independent stages**: report each completed/failed/unreached cell.
-The fresh lease's actual host/deadline remains UNBOUND; no new paid host started.
+The fresh lease is now DO620491569,18 November01:43:57→05:43:57UTC, admitted
+four-hour/$2 shape inside the existing$20 ceiling (prior compute estimate$6.65620,
+not invoice). Snapshot255003176 is the requested source; actual26.x restore and
+all A–D outcomes remain pending. A bounded provider-readiness timeout is retained;
+continuation uses the SAME lease/host/deadline. Host self-kill/container-stop timers
+verify; no guardian.1,420 source hashes verify before native work. First private
+checkpoint2,386,441 bytes/SHA`77d1c75d…49c409` verifies off-host.
 
 Source checkpoint18 November: `engagement_full.py` now composes the captured
 complete HTTP path with isolated per-cell state, independent stage receipts,
