@@ -1,8 +1,10 @@
 """New admission/order and real wrapper limits; no engine/cloud execution."""
 import ast
 import contextvars
+import csv
 from datetime import UTC, datetime, timedelta
 import inspect
+import hashlib
 import json
 from pathlib import Path
 import tempfile
@@ -11,6 +13,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 import engagement_finish as finish
+import engagement_finish_continue as continuation
 import engagement_limits as limits
 import engagement_modern as modern
 import engagement_observe as observe
@@ -27,6 +30,95 @@ def function(file, name, namespace):
 
 
 class FinishTests(unittest.TestCase):
+    def test_banked_native_completion_csv_reconciles_every_sequence_and_auxiliary_record(self):
+        directory = Path(__file__).parent / 'evidence/engagement-finish-20261118'
+        value = json.loads((directory / 'results.json').read_bytes())
+        raw = (directory / 'native-query-costs.csv').read_bytes()
+        self.assertNotIn(b'\r', raw)
+        self.assertEqual(hashlib.sha256(raw).hexdigest(), value['preservation']['public_csv_sha256'])
+        rows = list(csv.DictReader(raw.decode().splitlines()))
+        self.assertEqual(len(rows), 556)
+        self.assertEqual(len({row['query_id'] for row in rows}), len(rows))
+        for name, samples in value['cells'].items():
+            for sample in samples:
+                selected = [row for row in rows if row['cell'] == name and row['phase'] == sample['phase']]
+                for key in ('read_rows', 'read_bytes'):
+                    self.assertEqual(sum(int(row[key]) for row in selected), sample['request_tagged_inclusive_totals'][key])
+                    captured = [row for row in selected if row['stage'] != 'request_tagged_auxiliary']
+                    self.assertEqual(sum(int(row[key]) for row in captured), sample[key])
+                self.assertTrue(all(row['native_max_execution_time'] == '600' for row in captured))
+                self.assertTrue(all(int(row['exception_code']) == 0 for row in selected))
+                self.assertEqual(sample['parity'], 'PASS')
+                self.assertFalse(sample['below_25MB'])
+                self.assertFalse(sample['below_500ms'])
+
+    def test_native_receipt_keeps_original_failures_and_does_not_claim_performance_pass(self):
+        value = json.loads((Path(__file__).parent / 'evidence/engagement-finish-20261118/results.json').read_bytes())
+        self.assertEqual(value['original_stage_outcomes']['A-treated'], 'INCOMPLETE')
+        self.assertEqual(value['original_stage_outcomes']['C-paired'], 'INCOMPLETE')
+        self.assertTrue(all(v == 'PASS' for v in value['continuation_stage_outcomes'].values()))
+        self.assertTrue(value['lease']['cleanup_verified'])
+        self.assertFalse(value['full_F_arm_pass'])
+        self.assertFalse(value['counter_retired'])
+        self.assertFalse(value['baseline_B_D_repeated'])
+        self.assertEqual(len(value['actual_statement_proofs']), 8)
+        self.assertTrue(all(p['native_prefix_matches'] for p in value['actual_statement_proofs']))
+        self.assertTrue(all(p['exception_code'] == 0 and p['type'] == 'QueryFinish' for p in value['unchanged_paired_preparation']))
+
+    def test_transport_continuation_requires_completed_setup_and_preserves_original_summary(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = root / 'programme-finish'
+            output.mkdir()
+            stages = {name: {'outcome': 'PASS'} for name in finish.ORDER}
+            for name in ('A-treated', 'C-complete', 'C-paired'):
+                stages[name]['outcome'] = 'INCOMPLETE'
+            path = output / 'summary.json'
+            original = json.dumps({'stages': stages}).encode()
+            path.write_bytes(original)
+            continuation.prepared(root)
+            self.assertEqual(path.read_bytes(), original)
+            stages['C-certified']['outcome'] = 'INCOMPLETE'
+            path.write_text(json.dumps({'stages': stages}))
+            with self.assertRaises(ValueError):
+                continuation.prepared(root)
+        self.assertEqual(continuation.ORDER, ('A-treated', 'A-decomposition', 'C-complete', 'C-paired'))
+
+    def test_repaired_paired_run_keeps_original_failed_comparison_bytes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / 'C-paired-comparison.json'
+            original = b'{"P":"original startup failure","F":"original startup failure"}'
+            path.write_bytes(original)
+            actions = continuation.Actions.__new__(continuation.Actions)
+            actions.root = root
+            actions.complete = Mock(return_value=[])
+            actions.paired()
+            self.assertEqual(path.read_bytes(), original)
+            self.assertEqual(actions.complete.call_count, 2)
+            self.assertTrue((root / 'C-paired-transport-comparison.json').exists())
+
+    def test_pinned_driver_progress_initialization_and_actual_transport_have_no_read_cap(self):
+        import clickhouse_connect
+        from clickhouse_connect.driver._backend.httpcommon import apply_http_server_settings
+        made = []
+        def factory(**kwargs):
+            backend = SimpleNamespace()
+            client = SimpleNamespace(_backend=backend, _initial_settings={}, set_client_setting=Mock(),
+                _setting_status=lambda _: SimpleNamespace(is_writable=True, is_set=False))
+            # The real1.6 initializer: None reproduces the deployed TypeError.
+            apply_http_server_settings(client, backend, None, kwargs['send_receive_timeout'])
+            self.assertEqual(kwargs['query_retries'], 0)
+            made.append(client)
+            return client
+        with patch.object(clickhouse_connect, 'get_client', side_effect=factory):
+            limits.clients()
+            client = clickhouse_connect.get_client(host='unused')
+        self.assertEqual(made, [client])
+        self.assertIsNone(client._backend.timeout.read_timeout)
+        self.assertEqual(client._backend.http_retries, 0)
+        self.assertEqual(client._backend.progress_interval, '120000')
+
     def test_real_finish_dispatch_cannot_call_B_D_or_aggregate_writers(self):
         actions = finish.Actions.__new__(finish.Actions)
         actions.approval = dict(measurement_limits_directive=limits.DIRECTIVE, run_directive=limits.RUN,

@@ -16,8 +16,15 @@ def settings(value=None):
 def clients():
     """Only the isolated research API process calls this before importing the node."""
     import clickhouse_connect
+    from urllib3.util import Timeout
     original = clickhouse_connect.get_client
     def client(*args, **kwargs):
-        kwargs.update(send_receive_timeout=None, query_retries=0)
-        return original(*args, **kwargs)
+        # Pinned1.6 computes progress_interval from this number during init and
+        # cannot accept None there. Disable the actual read deadline AFTER init;
+        # native max_execution_time, not a transport cap, governs measurements.
+        kwargs.update(send_receive_timeout=660, query_retries=0)
+        result = original(*args, **kwargs)
+        result._backend.timeout = Timeout(connect=10, read=None)
+        result._backend.http_retries = 0
+        return result
     clickhouse_connect.get_client = client

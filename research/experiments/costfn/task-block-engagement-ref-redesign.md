@@ -1,5 +1,20 @@
 # Engagement reads: one segment per root document
 
+**Treated completion CLOSED —18 November:**
+[`evidence/engagement-finish-20261118/RESULTS.md`](evidence/engagement-finish-20261118/RESULTS.md)
+records all four completed treated responses with exact parity PASS/budget FAIL.
+Captured-query projection/uniform K20 costs are25,815.782ms/59,461,806,191 bytes
+and156,892.952ms/52,097,155,602 bytes; paired P/F150,027.498/166,358.107ms and
+9,969,184,052/9,969,158,768 bytes. Every measured sequence's separately reported
+request-tagged auxiliary work adds60 rows/6,840 bytes. Three real standalone
+count components and unchanged preparation4bc916c8… now finish; no estimated
+rows are substituted for actuals. Original startup failures stay intact beside
+the separately source-bound same-store transport repair. No baseline/B/D/setup/
+counter/materialization/lossless-proof repeat or query redesign. Native/SQL/
+settings receipts reconcile; owned cleanup12:55:15UTC precedes15:02:47, estimated
+compute$0.468647/not invoice. Snapshot/volume unchanged, no p95/capacity/F-arm
+PASS or counter retirement. Further design/paid/production work needs admission.
+
 ## Newly admitted treated-completion lease — Jacob Hoffman,18 November2026
 
 One fresh DO lease is admitted under the existing per-lease budget discipline;
@@ -29,6 +44,20 @@ replacement.1,434 source hashes at`5d4259a29` and16 approved pins verify, seven
 finish controls pass on-host, both self-kill timers active, no guardian. Baseline
 citation is recorded and restore is running. First private checkpoint1,822,830
 bytes/SHA`689c2ff4…4506f` verifies off-host. No treated result is yet claimed.
+
+Same-lease checkpoint: restore/read setup/one-time K20 setup, source projection
+and certificate refresh PASS. Original A serving stops **before readiness**:
+pinned clickhouse-connect1.6 subtracts5 from `send_receive_timeout=None` while
+initializing progress headers. Preserve full startup log/failed A and empty
+decomposition, not a performance result. Independent C construction continues.
+Transport-only repair initializes the driver with a numeric progress interval,
+then sets its actual backend read timeout toNone and retries to0; the600s native
+statement bound remains. A real pinned-driver initialization-function control
+reproduces/covers the defect. A separately source-bound same-lease continuation
+requires original certified setup/copy, keeps original cell/summary/paired-failure
+files, uses newly named cell outputs and runs only A/decomposition/C/paired reads.
+No restore, counter rebuild, projection materialization, migration proof, B/D,
+query redesign or new lease/deadline is authorized by this repair.
 
 **18 November governing execution override:** Jacob's
 [archaic execution limits removed](README.md#governing-execution-directive--18-november-2026)
