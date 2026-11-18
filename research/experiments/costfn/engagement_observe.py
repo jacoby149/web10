@@ -61,15 +61,27 @@ def classify(sql, callers, current):
 def install(original, observer, directory):
     directory = Path(directory)
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+    signature = inspect.signature(original)
     def query(sql, *args, **kwargs):
         current = observer.current.get() or {}
         request_id = current.get('request_id')
         if not request_id or request_id == 'unlabelled':
             return original(sql, *args, **kwargs)
-        settings = dict(kwargs.get('settings') or {})
+        # BoundArguments.args can move an originally keyword settings mapping
+        # into its positional driver slot. Normalize once before adding caps;
+        # adding another keyword would otherwise pass settings twice.
+        if 'settings' in signature.parameters:
+            bound = signature.bind_partial(sql, *args, **kwargs)
+            settings = dict(bound.arguments.get('settings') or {})
+        else:
+            bound = None
+            settings = dict(kwargs.get('settings') or {})
         settings.update(max_execution_time=10, max_memory_usage=22 * 1024**3,
             max_rows_to_read=10_000_000, read_overflow_mode='throw', log_comment='F_READ:' + request_id)
-        kwargs['settings'] = settings
+        if bound is not None:
+            bound.arguments['settings'] = settings
+        else:
+            kwargs['settings'] = settings
         parameters = kwargs.get('parameters') or (args[0] if args and isinstance(args[0], dict) else None)
         rendered = sql
         if parameters:
@@ -89,7 +101,7 @@ def install(original, observer, directory):
         started = time.perf_counter()
         try:
             uniform_guard(rendered, current)
-            result = original(sql, *args, **kwargs)
+            result = original(*bound.args, **bound.kwargs) if bound is not None else original(sql, *args, **kwargs)
             row.update(query_id=result.query_id, success=True)
             return result
         except BaseException as error:

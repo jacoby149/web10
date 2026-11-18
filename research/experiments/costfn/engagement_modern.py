@@ -70,7 +70,8 @@ class Session(arm_f_runtime.Session):
         try:
             raw = restore.command(self.compose, self.env, 'exec', '-T', 'clickhouse', 'clickhouse-client',
                 '--user', 'web10', '--password', 'web10', '--database', 'web10', '--query_id', query_id,
-                '--max_execution_time', str(budget), *args, '--query', sql, timeout=budget + 20)
+                '--max_execution_time', str(budget), '--receive_timeout', str(budget + 10),
+                *args, '--query', sql, timeout=budget + 20)
             self.record(dict(phase='finish', label=label, query_id=query_id, success=True,
                 elapsed_seconds=time.perf_counter() - started))
             return raw.decode().strip(), query_id

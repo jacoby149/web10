@@ -110,7 +110,10 @@ def checked_query(sql=None, *args, **kwargs):
                 node.set('this', exp.to_identifier(table))
         bound.arguments['query'] = tree.sql(dialect='clickhouse')
         bound.arguments['parameters'] = params if p._inventory.get() else None
-        sql, args, kwargs = bound.args[0], bound.args[1:], bound.kwargs
+        # The outer F adapter adds a keyword settings tag. Do not turn its
+        # existing settings into a positional argument during copy rewriting.
+        kwargs = dict(bound.arguments)
+        sql, args = kwargs.pop('query'), ()
     return old_checked(sql, *args, **kwargs)
 
 
