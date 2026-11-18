@@ -38,10 +38,14 @@ Those are different quantities, not evidence of88.64M actual reads.
   produces a timeout result. This policy change does not itself allocate a new
   paid host or extend a closed lease.
 
-This entry records policy, not implemented harness behavior or a new native
-result. Before executing under it, reconcile every research wrapper/controller
-with this directive; do not silently inherit the retired row, deadline, client
-or budget-abort behavior. Ordinary API/production behavior is unchanged.
+This entry defines policy, not blanket proof that every historical harness is
+aligned. The separately admitted engagement completion now has
+[native complete-response results](evidence/engagement-finish-20261118/RESULTS.md):
+exact parity PASS/budget FAIL in all four cells, with preserved original startup
+failures and a source-bound transport repair. Before using another research
+entry point, reconcile its wrappers/controllers with this directive; do not
+silently inherit retired row, deadline, client or budget-abort behavior.
+Ordinary API/production behavior is unchanged.
 
 **Additive Arm T (14 November):** [contract and sequencing gates](ARM-T.md).
 Separate group-first link layout on the unchanged validated realism input;

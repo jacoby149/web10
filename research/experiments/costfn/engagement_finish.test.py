@@ -1,8 +1,10 @@
 """New admission/order and real wrapper limits; no engine/cloud execution."""
 import ast
 import contextvars
+import csv
 from datetime import UTC, datetime, timedelta
 import inspect
+import hashlib
 import json
 from pathlib import Path
 import tempfile
@@ -28,6 +30,40 @@ def function(file, name, namespace):
 
 
 class FinishTests(unittest.TestCase):
+    def test_banked_native_completion_csv_reconciles_every_sequence_and_auxiliary_record(self):
+        directory = Path(__file__).parent / 'evidence/engagement-finish-20261118'
+        value = json.loads((directory / 'results.json').read_bytes())
+        raw = (directory / 'native-query-costs.csv').read_bytes()
+        self.assertEqual(hashlib.sha256(raw).hexdigest(), value['preservation']['public_csv_sha256'])
+        rows = list(csv.DictReader(raw.decode().splitlines()))
+        self.assertEqual(len(rows), 556)
+        self.assertEqual(len({row['query_id'] for row in rows}), len(rows))
+        for name, samples in value['cells'].items():
+            for sample in samples:
+                selected = [row for row in rows if row['cell'] == name and row['phase'] == sample['phase']]
+                for key in ('read_rows', 'read_bytes'):
+                    self.assertEqual(sum(int(row[key]) for row in selected), sample['request_tagged_inclusive_totals'][key])
+                    captured = [row for row in selected if row['stage'] != 'request_tagged_auxiliary']
+                    self.assertEqual(sum(int(row[key]) for row in captured), sample[key])
+                self.assertTrue(all(row['native_max_execution_time'] == '600' for row in captured))
+                self.assertTrue(all(int(row['exception_code']) == 0 for row in selected))
+                self.assertEqual(sample['parity'], 'PASS')
+                self.assertFalse(sample['below_25MB'])
+                self.assertFalse(sample['below_500ms'])
+
+    def test_native_receipt_keeps_original_failures_and_does_not_claim_performance_pass(self):
+        value = json.loads((Path(__file__).parent / 'evidence/engagement-finish-20261118/results.json').read_bytes())
+        self.assertEqual(value['original_stage_outcomes']['A-treated'], 'INCOMPLETE')
+        self.assertEqual(value['original_stage_outcomes']['C-paired'], 'INCOMPLETE')
+        self.assertTrue(all(v == 'PASS' for v in value['continuation_stage_outcomes'].values()))
+        self.assertTrue(value['lease']['cleanup_verified'])
+        self.assertFalse(value['full_F_arm_pass'])
+        self.assertFalse(value['counter_retired'])
+        self.assertFalse(value['baseline_B_D_repeated'])
+        self.assertEqual(len(value['actual_statement_proofs']), 8)
+        self.assertTrue(all(p['native_prefix_matches'] for p in value['actual_statement_proofs']))
+        self.assertTrue(all(p['exception_code'] == 0 and p['type'] == 'QueryFinish' for p in value['unchanged_paired_preparation']))
+
     def test_transport_continuation_requires_completed_setup_and_preserves_original_summary(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

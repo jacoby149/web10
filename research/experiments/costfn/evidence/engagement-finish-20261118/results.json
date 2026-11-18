@@ -1,0 +1,1291 @@
+{
+  "kind": "ENGAGEMENT_TREATED_COMPLETION_RESULTS",
+  "engine": "26.10.4.207",
+  "dataset_id": "2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd",
+  "outcome": "COMPLETE_RESPONSE_PARITY_PASS_BUDGET_FAIL",
+  "lease": {
+    "droplet_id": 620634285,
+    "cleanup_verified": true,
+    "cleanup_verified_utc": "2026-11-18T12:55:15.517242+00:00",
+    "created_utc": "2026-11-18T11:02:47+00:00",
+    "deadline_utc": "2026-11-18T15:02:47+00:00",
+    "compute_estimate_usd": 0.4686470307078626,
+    "invoice": false,
+    "temporary_credentials_removed": [
+      "client-key",
+      "client-key.pub",
+      "host-key",
+      "host-key.pub",
+      "cloud-init.yaml"
+    ],
+    "retained_snapshot": "255003176",
+    "retained_storage_untouched": true
+  },
+  "envelope_GiB": {
+    "host": 32,
+    "container": 28,
+    "server": 22
+  },
+  "measurement_policy": {
+    "native_statement_seconds": 600,
+    "row_count_stop": false,
+    "fixed_transport_read_cap": false,
+    "budgets": {
+      "complete_response_ms": 500,
+      "complete_response_bytes": 25000000
+    },
+    "budgets_abort_run": false
+  },
+  "banked_baseline_not_remeasured": [
+    {
+      "phase": "warmup",
+      "elapsed_ms": 5534.866175999923,
+      "parity": "PASS",
+      "read_rows": 4157101,
+      "read_bytes": 260155392,
+      "stages": {
+        "unclassified": {
+          "read_rows": 974848,
+          "read_bytes": 52096217,
+          "native_ms": 116,
+          "queries": 11
+        },
+        "generation_or_envelope": {
+          "read_rows": 30,
+          "read_bytes": 2076,
+          "native_ms": 25,
+          "queries": 6
+        },
+        "candidates": {
+          "read_rows": 85957,
+          "read_bytes": 10167477,
+          "native_ms": 492,
+          "queries": 17
+        },
+        "metadata_identities": {
+          "read_rows": 64,
+          "read_bytes": 2099,
+          "native_ms": 270,
+          "queries": 1
+        },
+        "counts_embedded_in_resolution": {
+          "read_rows": 200640,
+          "read_bytes": 16864419,
+          "native_ms": 135,
+          "queries": 1
+        },
+        "views": {
+          "read_rows": 2351877,
+          "read_bytes": 134958411,
+          "native_ms": 153,
+          "queries": 2
+        },
+        "preparation": {
+          "read_rows": 540997,
+          "read_bytes": 45720837,
+          "native_ms": 439,
+          "queries": 17
+        },
+        "counts": {
+          "read_rows": 2688,
+          "read_bytes": 343856,
+          "native_ms": 27,
+          "queries": 2
+        }
+      },
+      "below_500ms": false,
+      "below_25MB": false,
+      "scope": "ONE_COMPLETE_HTTP_SEQUENCE_NOT_P95_OR_WHOLE_ARM_ACCEPTANCE"
+    },
+    {
+      "phase": "measured",
+      "elapsed_ms": 4551.675006000096,
+      "parity": "PASS",
+      "read_rows": 3244874,
+      "read_bytes": 222387685,
+      "stages": {
+        "unclassified": {
+          "read_rows": 974848,
+          "read_bytes": 52096217,
+          "native_ms": 110,
+          "queries": 11
+        },
+        "generation_or_envelope": {
+          "read_rows": 30,
+          "read_bytes": 2076,
+          "native_ms": 21,
+          "queries": 6
+        },
+        "candidates": {
+          "read_rows": 85957,
+          "read_bytes": 10167477,
+          "native_ms": 198,
+          "queries": 17
+        },
+        "metadata_identities": {
+          "read_rows": 64,
+          "read_bytes": 2099,
+          "native_ms": 4,
+          "queries": 1
+        },
+        "counts_embedded_in_resolution": {
+          "read_rows": 196608,
+          "read_bytes": 16594275,
+          "native_ms": 127,
+          "queries": 1
+        },
+        "views": {
+          "read_rows": 1474978,
+          "read_bytes": 98624346,
+          "native_ms": 109,
+          "queries": 2
+        },
+        "preparation": {
+          "read_rows": 509701,
+          "read_bytes": 44557339,
+          "native_ms": 218,
+          "queries": 17
+        },
+        "counts": {
+          "read_rows": 2688,
+          "read_bytes": 343856,
+          "native_ms": 37,
+          "queries": 2
+        }
+      },
+      "below_500ms": false,
+      "below_25MB": false,
+      "scope": "ONE_COMPLETE_HTTP_SEQUENCE_NOT_P95_OR_WHOLE_ARM_ACCEPTANCE"
+    }
+  ],
+  "historical_24_8": {
+    "phase": "measured",
+    "elapsed_ms": 4702.159845999631,
+    "read_rows": 3734802,
+    "read_bytes": 286693122,
+    "native_queries": 57,
+    "max_query_rows": 1114133,
+    "native_exceptions": 0,
+    "parity": "PASS",
+    "request_ids": [
+      "04d3f4a6d41c4c84afb7a03b4ceecb30",
+      "73fd58d3ce844c8ca2df897b4d684301",
+      "4fe5ba33a33a49edafe96146ad3a5ce1",
+      "e5971736b25e47799f851556e60581ac"
+    ],
+    "view_docs_returned": 21,
+    "positive_impression_docs": 21,
+    "positive_reach_docs": 21,
+    "private_view_audit_sha256": "40845f0bd204bc9e84ca7fa3ec065cd2e77e5ceef7d91d6254d3c5f7585b3d72"
+  },
+  "historical_stage_costs": {
+    "candidates": {
+      "history_24_8_PR1578": {
+        "read_rows": 82501,
+        "read_bytes": 11635214,
+        "native_ms_sum_not_wall": 158,
+        "queries": 17
+      },
+      "baseline_26_x": {
+        "read_rows": 85957,
+        "read_bytes": 10167477,
+        "native_ms": 198,
+        "queries": 17
+      },
+      "projection_26_x": "NO_COMPLETE_RESPONSE_ROW_GUARD_STOP",
+      "uniform_26_x": "NO_COMPLETE_RESPONSE_ROW_GUARD_STOP"
+    },
+    "counts": {
+      "history_24_8_PR1578": {
+        "read_rows": 8064,
+        "read_bytes": 891072,
+        "native_ms_sum_not_wall": 86,
+        "queries": 2
+      },
+      "baseline_26_x": {
+        "read_rows": 2688,
+        "read_bytes": 343856,
+        "native_ms": 37,
+        "queries": 2
+      },
+      "projection_26_x": "NO_COMPLETE_RESPONSE_ROW_GUARD_STOP",
+      "uniform_26_x": "NO_COMPLETE_RESPONSE_ROW_GUARD_STOP"
+    },
+    "counts_embedded_in_resolution": {
+      "history_24_8_PR1578": {
+        "read_rows": 208704,
+        "read_bytes": 20137337,
+        "native_ms_sum_not_wall": 162,
+        "queries": 1
+      },
+      "baseline_26_x": {
+        "read_rows": 196608,
+        "read_bytes": 16594275,
+        "native_ms": 127,
+        "queries": 1
+      },
+      "projection_26_x": "NO_COMPLETE_RESPONSE_ROW_GUARD_STOP",
+      "uniform_26_x": "NO_COMPLETE_RESPONSE_ROW_GUARD_STOP"
+    },
+    "generation_or_envelope": {
+      "history_24_8_PR1578": {
+        "read_rows": 30,
+        "read_bytes": 2124,
+        "native_ms_sum_not_wall": 11,
+        "queries": 6
+      },
+      "baseline_26_x": {
+        "read_rows": 30,
+        "read_bytes": 2076,
+        "native_ms": 21,
+        "queries": 6
+      },
+      "projection_26_x": "NO_COMPLETE_RESPONSE_ROW_GUARD_STOP",
+      "uniform_26_x": "NO_COMPLETE_RESPONSE_ROW_GUARD_STOP"
+    },
+    "metadata_identities": {
+      "history_24_8_PR1578": {
+        "read_rows": 64,
+        "read_bytes": 1499,
+        "native_ms_sum_not_wall": 7,
+        "queries": 1
+      },
+      "baseline_26_x": {
+        "read_rows": 64,
+        "read_bytes": 2099,
+        "native_ms": 4,
+        "queries": 1
+      },
+      "projection_26_x": "NO_COMPLETE_RESPONSE_ROW_GUARD_STOP",
+      "uniform_26_x": "NO_COMPLETE_RESPONSE_ROW_GUARD_STOP"
+    },
+    "preparation": {
+      "history_24_8_PR1578": {
+        "read_rows": 863109,
+        "read_bytes": 75263403,
+        "native_ms_sum_not_wall": 296,
+        "queries": 17
+      },
+      "baseline_26_x": {
+        "read_rows": 509701,
+        "read_bytes": 44557339,
+        "native_ms": 218,
+        "queries": 17
+      },
+      "projection_26_x": "NO_COMPLETE_RESPONSE_ROW_GUARD_STOP",
+      "uniform_26_x": "NO_COMPLETE_RESPONSE_ROW_GUARD_STOP"
+    },
+    "unclassified": {
+      "history_24_8_PR1578": {
+        "read_rows": 1458197,
+        "read_bytes": 80219612,
+        "native_ms_sum_not_wall": 135,
+        "queries": 12
+      },
+      "baseline_26_x": {
+        "read_rows": 974848,
+        "read_bytes": 52096217,
+        "native_ms": 110,
+        "queries": 11
+      },
+      "projection_26_x": "NO_COMPLETE_RESPONSE_ROW_GUARD_STOP",
+      "uniform_26_x": "NO_COMPLETE_RESPONSE_ROW_GUARD_STOP"
+    },
+    "views": {
+      "history_24_8_PR1578": {
+        "read_rows": 1114133,
+        "read_bytes": 98542861,
+        "native_ms_sum_not_wall": 126,
+        "queries": 1
+      },
+      "baseline_26_x": {
+        "read_rows": 1474978,
+        "read_bytes": 98624346,
+        "native_ms": 109,
+        "queries": 2
+      },
+      "projection_26_x": "NO_COMPLETE_RESPONSE_ROW_GUARD_STOP",
+      "uniform_26_x": "NO_COMPLETE_RESPONSE_ROW_GUARD_STOP"
+    }
+  },
+  "cells": {
+    "A-projection-old-semantics": [
+      {
+        "phase": "warmup",
+        "elapsed_ms": 27755.39278300039,
+        "parity": "PASS",
+        "read_rows": 902595833,
+        "read_bytes": 70152680561,
+        "stages": {
+          "counts_embedded_in_resolution": {
+            "read_rows": 515674529,
+            "read_bytes": 31964049507,
+            "native_ms": 7746,
+            "queries": 1
+          },
+          "generation_or_envelope": {
+            "read_rows": 20,
+            "read_bytes": 1400,
+            "native_ms": 14,
+            "queries": 4
+          },
+          "views": {
+            "read_rows": 2351877,
+            "read_bytes": 135081291,
+            "native_ms": 136,
+            "queries": 2
+          },
+          "preparation": {
+            "read_rows": 540997,
+            "read_bytes": 45720793,
+            "native_ms": 384,
+            "queries": 17
+          },
+          "unclassified": {
+            "read_rows": 974848,
+            "read_bytes": 52096217,
+            "native_ms": 115,
+            "queries": 11
+          },
+          "counts": {
+            "read_rows": 382967541,
+            "read_bytes": 37945561777,
+            "native_ms": 25280,
+            "queries": 2
+          },
+          "candidates": {
+            "read_rows": 85957,
+            "read_bytes": 10167477,
+            "native_ms": 525,
+            "queries": 17
+          },
+          "metadata_identities": {
+            "read_rows": 64,
+            "read_bytes": 2099,
+            "native_ms": 267,
+            "queries": 1
+          }
+        },
+        "below_500ms": false,
+        "below_25MB": false,
+        "scope": "ONE_COMPLETE_HTTP_SEQUENCE_NOT_P95_OR_WHOLE_ARM_ACCEPTANCE",
+        "request_tagged_auxiliary_native": {
+          "read_rows": 109,
+          "read_bytes": 11696,
+          "native_ms_sum_not_wall": 107,
+          "queries": 15,
+          "written_rows": 50,
+          "written_bytes": 6881
+        },
+        "request_tagged_inclusive_totals": {
+          "read_rows": 902595942,
+          "read_bytes": 70152692257,
+          "queries": 70
+        }
+      },
+      {
+        "phase": "measured",
+        "elapsed_ms": 25815.781901000264,
+        "parity": "PASS",
+        "read_rows": 646223530,
+        "read_bytes": 59461806191,
+        "stages": {
+          "counts_embedded_in_resolution": {
+            "read_rows": 260210421,
+            "read_bytes": 21310993131,
+            "native_ms": 5298,
+            "queries": 1
+          },
+          "generation_or_envelope": {
+            "read_rows": 20,
+            "read_bytes": 1400,
+            "native_ms": 21,
+            "queries": 4
+          },
+          "views": {
+            "read_rows": 1474978,
+            "read_bytes": 98624346,
+            "native_ms": 106,
+            "queries": 2
+          },
+          "preparation": {
+            "read_rows": 509701,
+            "read_bytes": 44557359,
+            "native_ms": 287,
+            "queries": 17
+          },
+          "unclassified": {
+            "read_rows": 974848,
+            "read_bytes": 52096217,
+            "native_ms": 119,
+            "queries": 11
+          },
+          "counts": {
+            "read_rows": 382967541,
+            "read_bytes": 37945364162,
+            "native_ms": 28204,
+            "queries": 2
+          },
+          "candidates": {
+            "read_rows": 85957,
+            "read_bytes": 10167477,
+            "native_ms": 217,
+            "queries": 17
+          },
+          "metadata_identities": {
+            "read_rows": 64,
+            "read_bytes": 2099,
+            "native_ms": 9,
+            "queries": 1
+          }
+        },
+        "below_500ms": false,
+        "below_25MB": false,
+        "scope": "ONE_COMPLETE_HTTP_SEQUENCE_NOT_P95_OR_WHOLE_ARM_ACCEPTANCE",
+        "request_tagged_auxiliary_native": {
+          "read_rows": 60,
+          "read_bytes": 6840,
+          "native_ms_sum_not_wall": 64,
+          "queries": 12,
+          "written_rows": 8,
+          "written_bytes": 2520
+        },
+        "request_tagged_inclusive_totals": {
+          "read_rows": 646223590,
+          "read_bytes": 59461813031,
+          "queries": 67
+        }
+      }
+    ],
+    "C-uniform": [
+      {
+        "phase": "warmup",
+        "elapsed_ms": 149071.14722999994,
+        "parity": "PASS",
+        "read_rows": 554392571,
+        "read_bytes": 52123857012,
+        "stages": {
+          "generation_or_envelope": {
+            "read_rows": 44,
+            "read_bytes": 3316,
+            "native_ms": 37,
+            "queries": 8
+          },
+          "unclassified": {
+            "read_rows": 974848,
+            "read_bytes": 52096217,
+            "native_ms": 146,
+            "queries": 11
+          },
+          "candidates": {
+            "read_rows": 85957,
+            "read_bytes": 10167477,
+            "native_ms": 227,
+            "queries": 17
+          },
+          "metadata_identities": {
+            "read_rows": 64,
+            "read_bytes": 2099,
+            "native_ms": 9,
+            "queries": 1
+          },
+          "counts_embedded_in_resolution": {
+            "read_rows": 163838999,
+            "read_bytes": 12637339524,
+            "native_ms": 2875,
+            "queries": 1
+          },
+          "views": {
+            "read_rows": 1474978,
+            "read_bytes": 98624346,
+            "native_ms": 184,
+            "queries": 2
+          },
+          "preparation": {
+            "read_rows": 88546224,
+            "read_bytes": 9948720152,
+            "native_ms": 127366,
+            "queries": 17
+          },
+          "counts": {
+            "read_rows": 299471457,
+            "read_bytes": 29376903881,
+            "native_ms": 22194,
+            "queries": 2
+          }
+        },
+        "below_500ms": false,
+        "below_25MB": false,
+        "scope": "ONE_COMPLETE_HTTP_SEQUENCE_NOT_P95_OR_WHOLE_ARM_ACCEPTANCE",
+        "request_tagged_auxiliary_native": {
+          "read_rows": 60,
+          "read_bytes": 6840,
+          "native_ms_sum_not_wall": 79,
+          "queries": 12,
+          "written_rows": 8,
+          "written_bytes": 2520
+        },
+        "request_tagged_inclusive_totals": {
+          "read_rows": 554392631,
+          "read_bytes": 52123863852,
+          "queries": 71
+        }
+      },
+      {
+        "phase": "measured",
+        "elapsed_ms": 156892.95177199983,
+        "parity": "PASS",
+        "read_rows": 553857605,
+        "read_bytes": 52097155602,
+        "stages": {
+          "generation_or_envelope": {
+            "read_rows": 44,
+            "read_bytes": 3316,
+            "native_ms": 44,
+            "queries": 8
+          },
+          "unclassified": {
+            "read_rows": 974848,
+            "read_bytes": 52096217,
+            "native_ms": 134,
+            "queries": 11
+          },
+          "candidates": {
+            "read_rows": 85957,
+            "read_bytes": 10167477,
+            "native_ms": 215,
+            "queries": 17
+          },
+          "metadata_identities": {
+            "read_rows": 64,
+            "read_bytes": 2099,
+            "native_ms": 6,
+            "queries": 1
+          },
+          "counts_embedded_in_resolution": {
+            "read_rows": 163304033,
+            "read_bytes": 12610659119,
+            "native_ms": 2612,
+            "queries": 1
+          },
+          "views": {
+            "read_rows": 1474978,
+            "read_bytes": 98624346,
+            "native_ms": 188,
+            "queries": 2
+          },
+          "preparation": {
+            "read_rows": 88546224,
+            "read_bytes": 9948720152,
+            "native_ms": 135501,
+            "queries": 17
+          },
+          "counts": {
+            "read_rows": 299471457,
+            "read_bytes": 29376882876,
+            "native_ms": 21404,
+            "queries": 2
+          }
+        },
+        "below_500ms": false,
+        "below_25MB": false,
+        "scope": "ONE_COMPLETE_HTTP_SEQUENCE_NOT_P95_OR_WHOLE_ARM_ACCEPTANCE",
+        "request_tagged_auxiliary_native": {
+          "read_rows": 60,
+          "read_bytes": 6840,
+          "native_ms_sum_not_wall": 76,
+          "queries": 12,
+          "written_rows": 8,
+          "written_bytes": 2520
+        },
+        "request_tagged_inclusive_totals": {
+          "read_rows": 553857665,
+          "read_bytes": 52097162442,
+          "queries": 71
+        }
+      }
+    ],
+    "C-paired-P_DOCUMENT_STREAM_V1": [
+      {
+        "phase": "warmup",
+        "elapsed_ms": 155557.2559679995,
+        "parity": "PASS",
+        "read_rows": 90973319,
+        "read_bytes": 10069209223,
+        "stages": {
+          "generation_or_envelope": {
+            "read_rows": 44,
+            "read_bytes": 3316,
+            "native_ms": 43,
+            "queries": 8
+          },
+          "unclassified": {
+            "read_rows": 139264,
+            "read_bytes": 8128775,
+            "native_ms": 90,
+            "queries": 11
+          },
+          "candidates": {
+            "read_rows": 1216,
+            "read_bytes": 51040,
+            "native_ms": 35,
+            "queries": 3
+          },
+          "metadata_identities": {
+            "read_rows": 64,
+            "read_bytes": 5440,
+            "native_ms": 8,
+            "queries": 1
+          },
+          "counts_embedded_in_resolution": {
+            "read_rows": 1302528,
+            "read_bytes": 68595362,
+            "native_ms": 391,
+            "queries": 1
+          },
+          "views": {
+            "read_rows": 945111,
+            "read_bytes": 44813887,
+            "native_ms": 82,
+            "queries": 2
+          },
+          "preparation": {
+            "read_rows": 88585092,
+            "read_bytes": 9947611403,
+            "native_ms": 149822,
+            "queries": 29
+          },
+          "counts": {
+            "read_rows": 0,
+            "read_bytes": 0,
+            "native_ms": 118,
+            "queries": 2
+          }
+        },
+        "below_500ms": false,
+        "below_25MB": false,
+        "scope": "ONE_COMPLETE_HTTP_SEQUENCE_NOT_P95_OR_WHOLE_ARM_ACCEPTANCE",
+        "request_tagged_auxiliary_native": {
+          "read_rows": 107,
+          "read_bytes": 11494,
+          "native_ms_sum_not_wall": 194,
+          "queries": 15,
+          "written_rows": 48,
+          "written_bytes": 6679
+        },
+        "request_tagged_inclusive_totals": {
+          "read_rows": 90973426,
+          "read_bytes": 10069220717,
+          "queries": 72
+        }
+      },
+      {
+        "phase": "measured",
+        "elapsed_ms": 150027.49763200062,
+        "parity": "PASS",
+        "read_rows": 88916228,
+        "read_bytes": 9969184052,
+        "stages": {
+          "preparation": {
+            "read_rows": 88554436,
+            "read_bytes": 9946499379,
+            "native_ms": 143821,
+            "queries": 29
+          },
+          "generation_or_envelope": {
+            "read_rows": 44,
+            "read_bytes": 3316,
+            "native_ms": 50,
+            "queries": 8
+          },
+          "unclassified": {
+            "read_rows": 139264,
+            "read_bytes": 8128775,
+            "native_ms": 123,
+            "queries": 11
+          },
+          "views": {
+            "read_rows": 20,
+            "read_bytes": 1640,
+            "native_ms": 31,
+            "queries": 2
+          },
+          "counts": {
+            "read_rows": 0,
+            "read_bytes": 0,
+            "native_ms": 113,
+            "queries": 2
+          },
+          "candidates": {
+            "read_rows": 1216,
+            "read_bytes": 51040,
+            "native_ms": 54,
+            "queries": 3
+          },
+          "metadata_identities": {
+            "read_rows": 64,
+            "read_bytes": 5440,
+            "native_ms": 9,
+            "queries": 1
+          },
+          "counts_embedded_in_resolution": {
+            "read_rows": 221184,
+            "read_bytes": 14494462,
+            "native_ms": 390,
+            "queries": 1
+          }
+        },
+        "below_500ms": false,
+        "below_25MB": false,
+        "scope": "ONE_COMPLETE_HTTP_SEQUENCE_NOT_P95_OR_WHOLE_ARM_ACCEPTANCE",
+        "request_tagged_auxiliary_native": {
+          "read_rows": 60,
+          "read_bytes": 6840,
+          "native_ms_sum_not_wall": 197,
+          "queries": 12,
+          "written_rows": 8,
+          "written_bytes": 2520
+        },
+        "request_tagged_inclusive_totals": {
+          "read_rows": 88916288,
+          "read_bytes": 9969190892,
+          "queries": 69
+        }
+      }
+    ],
+    "C-paired-F_DOCUMENT_STREAM_V1": [
+      {
+        "phase": "warmup",
+        "elapsed_ms": 163836.06859300018,
+        "parity": "PASS",
+        "read_rows": 88915529,
+        "read_bytes": 9969158768,
+        "stages": {
+          "generation_or_envelope": {
+            "read_rows": 44,
+            "read_bytes": 3316,
+            "native_ms": 37,
+            "queries": 8
+          },
+          "unclassified": {
+            "read_rows": 139264,
+            "read_bytes": 8128775,
+            "native_ms": 85,
+            "queries": 11
+          },
+          "candidates": {
+            "read_rows": 517,
+            "read_bytes": 25756,
+            "native_ms": 21,
+            "queries": 2
+          },
+          "metadata_identities": {
+            "read_rows": 64,
+            "read_bytes": 5440,
+            "native_ms": 6,
+            "queries": 1
+          },
+          "counts_embedded_in_resolution": {
+            "read_rows": 221184,
+            "read_bytes": 14494462,
+            "native_ms": 341,
+            "queries": 1
+          },
+          "views": {
+            "read_rows": 20,
+            "read_bytes": 1640,
+            "native_ms": 21,
+            "queries": 2
+          },
+          "preparation": {
+            "read_rows": 88554436,
+            "read_bytes": 9946499379,
+            "native_ms": 158639,
+            "queries": 29
+          },
+          "counts": {
+            "read_rows": 0,
+            "read_bytes": 0,
+            "native_ms": 144,
+            "queries": 2
+          }
+        },
+        "below_500ms": false,
+        "below_25MB": false,
+        "scope": "ONE_COMPLETE_HTTP_SEQUENCE_NOT_P95_OR_WHOLE_ARM_ACCEPTANCE",
+        "request_tagged_auxiliary_native": {
+          "read_rows": 60,
+          "read_bytes": 6840,
+          "native_ms_sum_not_wall": 202,
+          "queries": 12,
+          "written_rows": 8,
+          "written_bytes": 2520
+        },
+        "request_tagged_inclusive_totals": {
+          "read_rows": 88915589,
+          "read_bytes": 9969165608,
+          "queries": 68
+        }
+      },
+      {
+        "phase": "measured",
+        "elapsed_ms": 166358.10661100002,
+        "parity": "PASS",
+        "read_rows": 88915529,
+        "read_bytes": 9969158768,
+        "stages": {
+          "generation_or_envelope": {
+            "read_rows": 44,
+            "read_bytes": 3316,
+            "native_ms": 48,
+            "queries": 8
+          },
+          "unclassified": {
+            "read_rows": 139264,
+            "read_bytes": 8128775,
+            "native_ms": 116,
+            "queries": 11
+          },
+          "candidates": {
+            "read_rows": 517,
+            "read_bytes": 25756,
+            "native_ms": 22,
+            "queries": 2
+          },
+          "metadata_identities": {
+            "read_rows": 64,
+            "read_bytes": 5440,
+            "native_ms": 8,
+            "queries": 1
+          },
+          "counts_embedded_in_resolution": {
+            "read_rows": 221184,
+            "read_bytes": 14494462,
+            "native_ms": 349,
+            "queries": 1
+          },
+          "views": {
+            "read_rows": 20,
+            "read_bytes": 1640,
+            "native_ms": 40,
+            "queries": 2
+          },
+          "preparation": {
+            "read_rows": 88554436,
+            "read_bytes": 9946499379,
+            "native_ms": 160554,
+            "queries": 29
+          },
+          "counts": {
+            "read_rows": 0,
+            "read_bytes": 0,
+            "native_ms": 196,
+            "queries": 2
+          }
+        },
+        "below_500ms": false,
+        "below_25MB": false,
+        "scope": "ONE_COMPLETE_HTTP_SEQUENCE_NOT_P95_OR_WHOLE_ARM_ACCEPTANCE",
+        "request_tagged_auxiliary_native": {
+          "read_rows": 60,
+          "read_bytes": 6840,
+          "native_ms_sum_not_wall": 208,
+          "queries": 12,
+          "written_rows": 8,
+          "written_bytes": 2520
+        },
+        "request_tagged_inclusive_totals": {
+          "read_rows": 88915589,
+          "read_bytes": 9969165608,
+          "queries": 68
+        }
+      }
+    ]
+  },
+  "restore": 125.53875557900001,
+  "source_projection": {
+    "table": "documents",
+    "mode": "rebuild",
+    "default_mode": "BANKED_344_NOT_REPROBED",
+    "materialization_seconds": 431.67801392599995,
+    "materialization_query_id": "fanout-f-c6cc2cf311314fed869aa77110fca524",
+    "setup_seconds": 442.14409645800015,
+    "source_rows": 88200363,
+    "projection_rows": 88200363,
+    "source_parts": 1,
+    "covered_parts": 1
+  },
+  "copy_projection": {
+    "table": "engagement_documents",
+    "mode": "rebuild",
+    "default_mode": "BANKED_344_NOT_REPROBED",
+    "materialization_seconds": 250.611978938,
+    "materialization_query_id": "fanout-f-59a88854fbf3427daef822b09dd5fe8f",
+    "setup_seconds": 263.1587110219998,
+    "source_rows": 88200363,
+    "projection_rows": 88200363,
+    "source_parts": 6,
+    "covered_parts": 6
+  },
+  "current_copy_checks": {
+    "comment_root_required": {
+      "n": 0,
+      "query_id": "fanout-f-fceedfda810347a79af2b0c77a86dcaf"
+    },
+    "comment_identity_ambiguous": {
+      "n": 0,
+      "query_id": "fanout-f-77216c03604249c99f947a633be9f8f8"
+    },
+    "comment_root_missing": {
+      "n": 0,
+      "query_id": "fanout-f-ea4fd71b1bd44078a23544b95cbd0ec8"
+    },
+    "comment_parent_missing": {
+      "n": 0,
+      "query_id": "fanout-f-22cf68dfbe854e4f9879d36189f84a8b"
+    },
+    "comment_parent_wrong_root": {
+      "n": 0,
+      "query_id": "fanout-f-95cf413f82f74a40905c09f8d7d7c766"
+    },
+    "repost_root_missing": {
+      "n": 0,
+      "query_id": "fanout-f-e8eb20bb801d4b84a6a40264ac3b55a4"
+    },
+    "repost_conflicting_ref": {
+      "n": 0,
+      "query_id": "fanout-f-150ba0e7da974c67b24cd788cf6cc227"
+    },
+    "nonrepost_post_ref": {
+      "n": 0,
+      "query_id": "fanout-f-9f1f09881aae441692827a606b9224b2"
+    },
+    "reserved_body_keys": {
+      "n": 0,
+      "query_id": "fanout-f-b8f4fd7b832f47a1a1c006f90382ce0b"
+    }
+  },
+  "lossless_design_proof": "CITED_BANKED_NOT_REPEATED",
+  "constructor_sha256": "1df04731a84ed972e240647fe43ac6186756c9306ce1b9e35c40f85e4034e32b",
+  "mixed_count_decomposition": {
+    "components": [
+      {
+        "statement_sha256": "5d16a21637f4d3442e4ab50a0ab34c43d9b4af429144cca692eb18d3d73ea629",
+        "outcome": "COMPLETE",
+        "returned_rows": 0,
+        "native": {
+          "query_id": "fanout-f-9f51f99ec46a4c1190318b77bf4cf17a",
+          "type": "QueryFinish",
+          "query_duration_ms": 2405,
+          "read_rows": 91897589,
+          "read_bytes": 7097470372,
+          "written_rows": 0,
+          "written_bytes": 0,
+          "memory_usage": 39239426,
+          "exception_code": 0
+        }
+      },
+      {
+        "statement_sha256": "6bbe79e87b14bb6f141fa1ee699f98dbbe2facbaa4c1b4bf6e21fc448b035a08",
+        "outcome": "COMPLETE",
+        "returned_rows": 0,
+        "native": {
+          "query_id": "fanout-f-0d0448f28aaa4f02a4650734b8ef0cd4",
+          "type": "QueryFinish",
+          "query_duration_ms": 3251,
+          "read_rows": 176400726,
+          "read_bytes": 7778559804,
+          "written_rows": 0,
+          "written_bytes": 0,
+          "memory_usage": 12283090,
+          "exception_code": 0
+        }
+      },
+      {
+        "statement_sha256": "909473ec0145bce6321f58ec247b4348cfbef20f5e86c82e4352f99dea60a35b",
+        "outcome": "COMPLETE",
+        "returned_rows": 0,
+        "native": {
+          "query_id": "fanout-f-29b485b29aef448f975d3367f0803948",
+          "type": "QueryFinish",
+          "query_duration_ms": 8277,
+          "read_rows": 247081302,
+          "read_bytes": 17060447628,
+          "written_rows": 0,
+          "written_bytes": 0,
+          "memory_usage": 20959037,
+          "exception_code": 0
+        }
+      }
+    ],
+    "additive": false
+  },
+  "original_stage_outcomes": {
+    "banked": "PASS",
+    "restore": "PASS",
+    "read-setup": "PASS",
+    "initial-prepared": "PASS",
+    "A-projection": "PASS",
+    "A-certified": "PASS",
+    "A-treated": "INCOMPLETE",
+    "A-decomposition": "INCOMPLETE",
+    "C-migration": "PASS",
+    "C-certified": "PASS",
+    "C-complete": "INCOMPLETE",
+    "C-paired": "INCOMPLETE"
+  },
+  "original_failed_summary_sha256": "2960d1dd9bb9a24f286027c980ea5df355270a96d5ea8e7eac1aab34c5ba980b",
+  "continuation_stage_outcomes": {
+    "A-treated": "PASS",
+    "A-decomposition": "PASS",
+    "C-complete": "PASS",
+    "C-paired": "PASS"
+  },
+  "continuation_binding": {
+    "original_summary_sha256": "2960d1dd9bb9a24f286027c980ea5df355270a96d5ea8e7eac1aab34c5ba980b",
+    "no_restore_or_seed": true,
+    "no_counter_rebuild": true,
+    "no_materialization_repeat": true
+  },
+  "actual_statement_proofs": [
+    {
+      "cell": "A-projection-old-semantics",
+      "phase": "warmup",
+      "query_id": "1a18f2fe-b7d9-4928-9dd1-4a4b0e889ece",
+      "sql_sha256": "4de991ae4e9f53f1e1868c4dcc0338e1b6202704ef4ddbe4f2c8524c9a8a81a4",
+      "native_sql_sha256": "523120ad2b7352da727b196d3900234fc899788224c098462f6b2ebd77763ad9",
+      "native_prefix_matches": true,
+      "projections": [
+        "web10.documents.ref_sorted"
+      ],
+      "candidate_doc_id_attachment_scope": true,
+      "deletion_wins_timestamp_ties": true
+    },
+    {
+      "cell": "A-projection-old-semantics",
+      "phase": "measured",
+      "query_id": "a268aeeb-b8dd-45b8-9fbf-3caaeee63cdf",
+      "sql_sha256": "4de991ae4e9f53f1e1868c4dcc0338e1b6202704ef4ddbe4f2c8524c9a8a81a4",
+      "native_sql_sha256": "523120ad2b7352da727b196d3900234fc899788224c098462f6b2ebd77763ad9",
+      "native_prefix_matches": true,
+      "projections": [
+        "web10.documents.ref_sorted"
+      ],
+      "candidate_doc_id_attachment_scope": true,
+      "deletion_wins_timestamp_ties": true
+    },
+    {
+      "cell": "C-uniform",
+      "phase": "warmup",
+      "query_id": "93c88bca-e502-41d9-970c-62aba96b1559",
+      "sql_sha256": "9641d20d8df43098e9dedb1e8eb40c2290cb54fbef0b7d7334a15853f9d63800",
+      "native_sql_sha256": "f62704d9ef0f56fa8b00883bfcac1fd6959a82ac72369fcbb6f2ed7d273440c5",
+      "native_prefix_matches": true,
+      "projections": [
+        "web10.engagement_documents.ref_sorted"
+      ],
+      "candidate_doc_id_attachment_scope": true,
+      "deletion_wins_timestamp_ties": true
+    },
+    {
+      "cell": "C-uniform",
+      "phase": "measured",
+      "query_id": "d6fafa7f-87bc-4708-8cf1-707a20534f91",
+      "sql_sha256": "9641d20d8df43098e9dedb1e8eb40c2290cb54fbef0b7d7334a15853f9d63800",
+      "native_sql_sha256": "f62704d9ef0f56fa8b00883bfcac1fd6959a82ac72369fcbb6f2ed7d273440c5",
+      "native_prefix_matches": true,
+      "projections": [
+        "web10.engagement_documents.ref_sorted"
+      ],
+      "candidate_doc_id_attachment_scope": true,
+      "deletion_wins_timestamp_ties": true
+    },
+    {
+      "cell": "C-paired-P_DOCUMENT_STREAM_V1",
+      "phase": "warmup",
+      "query_id": "4b89c3a8-293c-4cf0-9791-37d38d23be29",
+      "sql_sha256": "680227a21cb81fd429ca90f4884d4df04cb38a02e6c41fe85950b71cfc0030ca",
+      "native_sql_sha256": "76f3923de25a2335a868857abc6e70f183d425cbe2b9b0e3363d0b46764ae092",
+      "native_prefix_matches": true,
+      "projections": [
+        "web10.engagement_documents.ref_sorted"
+      ],
+      "candidate_doc_id_attachment_scope": true,
+      "deletion_wins_timestamp_ties": true
+    },
+    {
+      "cell": "C-paired-P_DOCUMENT_STREAM_V1",
+      "phase": "measured",
+      "query_id": "decd96ee-4481-46fa-abcb-d653e4608031",
+      "sql_sha256": "680227a21cb81fd429ca90f4884d4df04cb38a02e6c41fe85950b71cfc0030ca",
+      "native_sql_sha256": "76f3923de25a2335a868857abc6e70f183d425cbe2b9b0e3363d0b46764ae092",
+      "native_prefix_matches": true,
+      "projections": [
+        "web10.engagement_documents.ref_sorted"
+      ],
+      "candidate_doc_id_attachment_scope": true,
+      "deletion_wins_timestamp_ties": true
+    },
+    {
+      "cell": "C-paired-F_DOCUMENT_STREAM_V1",
+      "phase": "warmup",
+      "query_id": "c202dea0-f987-4279-9fc8-747448f49d31",
+      "sql_sha256": "680227a21cb81fd429ca90f4884d4df04cb38a02e6c41fe85950b71cfc0030ca",
+      "native_sql_sha256": "76f3923de25a2335a868857abc6e70f183d425cbe2b9b0e3363d0b46764ae092",
+      "native_prefix_matches": true,
+      "projections": [
+        "web10.engagement_documents.ref_sorted"
+      ],
+      "candidate_doc_id_attachment_scope": true,
+      "deletion_wins_timestamp_ties": true
+    },
+    {
+      "cell": "C-paired-F_DOCUMENT_STREAM_V1",
+      "phase": "measured",
+      "query_id": "59541e02-ceb4-43a1-a28b-a2da9e7b22b8",
+      "sql_sha256": "680227a21cb81fd429ca90f4884d4df04cb38a02e6c41fe85950b71cfc0030ca",
+      "native_sql_sha256": "76f3923de25a2335a868857abc6e70f183d425cbe2b9b0e3363d0b46764ae092",
+      "native_prefix_matches": true,
+      "projections": [
+        "web10.engagement_documents.ref_sorted"
+      ],
+      "candidate_doc_id_attachment_scope": true,
+      "deletion_wins_timestamp_ties": true
+    }
+  ],
+  "unchanged_paired_preparation": [
+    {
+      "cell": "C-uniform",
+      "phase": "warmup",
+      "query_id": "420dd629-5230-4f35-a7af-87cc3922ec71",
+      "sql_sha256": "4bc916c85c420f45a56d98424274efe1f83483092363c8c9fdae1194c24765f6",
+      "read_rows": 88364203,
+      "read_bytes": 9933017043,
+      "native_ms": 127153,
+      "type": "QueryFinish",
+      "exception_code": 0
+    },
+    {
+      "cell": "C-uniform",
+      "phase": "measured",
+      "query_id": "522dfd82-45b6-48c9-ba95-05ed5cbc3ab8",
+      "sql_sha256": "4bc916c85c420f45a56d98424274efe1f83483092363c8c9fdae1194c24765f6",
+      "read_rows": 88364203,
+      "read_bytes": 9933017043,
+      "native_ms": 135304,
+      "type": "QueryFinish",
+      "exception_code": 0
+    },
+    {
+      "cell": "C-paired-P_DOCUMENT_STREAM_V1",
+      "phase": "warmup",
+      "query_id": "56d8c730-a7f7-4a3a-ad5c-0ef1334cb4ee",
+      "sql_sha256": "4bc916c85c420f45a56d98424274efe1f83483092363c8c9fdae1194c24765f6",
+      "read_rows": 88364203,
+      "read_bytes": 9933017043,
+      "native_ms": 149325,
+      "type": "QueryFinish",
+      "exception_code": 0
+    },
+    {
+      "cell": "C-paired-P_DOCUMENT_STREAM_V1",
+      "phase": "measured",
+      "query_id": "ab8a8496-ae2c-430f-8eda-93b5cea9031b",
+      "sql_sha256": "4bc916c85c420f45a56d98424274efe1f83483092363c8c9fdae1194c24765f6",
+      "read_rows": 88364203,
+      "read_bytes": 9933017043,
+      "native_ms": 143401,
+      "type": "QueryFinish",
+      "exception_code": 0
+    },
+    {
+      "cell": "C-paired-F_DOCUMENT_STREAM_V1",
+      "phase": "warmup",
+      "query_id": "a42477bb-4f41-4bdb-925f-72b5e653fedb",
+      "sql_sha256": "4bc916c85c420f45a56d98424274efe1f83483092363c8c9fdae1194c24765f6",
+      "read_rows": 88364203,
+      "read_bytes": 9933017043,
+      "native_ms": 158244,
+      "type": "QueryFinish",
+      "exception_code": 0
+    },
+    {
+      "cell": "C-paired-F_DOCUMENT_STREAM_V1",
+      "phase": "measured",
+      "query_id": "7e2985fa-6bea-40c7-b6eb-b99059889a10",
+      "sql_sha256": "4bc916c85c420f45a56d98424274efe1f83483092363c8c9fdae1194c24765f6",
+      "read_rows": 88364203,
+      "read_bytes": 9933017043,
+      "native_ms": 160137,
+      "type": "QueryFinish",
+      "exception_code": 0
+    }
+  ],
+  "native_reconciliation": {
+    "tagged_records": 575,
+    "exceptions": 0,
+    "complete_sample_queries": 454,
+    "complete_sample_auxiliary_queries": 102,
+    "all_sample_sql_prefixes_and_counters_match": true,
+    "all_sample_query_ids_unique": true,
+    "all_sample_read_query_settings_max_execution_time": "600",
+    "row_setting": "Zero-valued defaults not present in changed-settings map; actual over10M QueryFinish receipts retained",
+    "tagged_auxiliary_records": 114,
+    "tagged_auxiliary_read_rows": 636,
+    "tagged_auxiliary_read_bytes": 71042,
+    "write_settings_scope": "Read-query600s assertions are not a claim about INSERT settings"
+  },
+  "accounting_scope": "read_rows/read_bytes retain banked-comparison captured-read scope; request_tagged_inclusive_totals add exact request-tagged logger/insert metadata. Historical inclusive totals are not invented.",
+  "initial_setup_repeated": false,
+  "counter_rebuild_after_materialization": false,
+  "baseline_B_D_repeated": false,
+  "aggregate_reseeded": false,
+  "counter_retired": false,
+  "original_failures_preserved": true,
+  "query_redesign": false,
+  "p95": false,
+  "capacity_claim": false,
+  "full_F_arm_pass": false,
+  "production_changes": false,
+  "preservation": {
+    "final_checkpoint": {
+      "name": "finish-checkpoint-20261118T125314Z.tar.gz",
+      "bytes": 9931254,
+      "sha256": "dbda467c7213d1d3b50afea3267863d5dfd2e3e7be281a40bc19da31ffe81ace",
+      "verified_off_host": true
+    },
+    "stopped_native": {
+      "stopped_utc": "2026-11-18T12:53:04.629521+00:00",
+      "containers": [
+        {
+          "name": "/web10-costfn-frozen-satellite-f-620121703-rf0-api-1",
+          "status": "exited",
+          "oom_killed": false,
+          "exit_code": 143
+        },
+        {
+          "name": "/web10-costfn-frozen-satellite-f-620121703-rf0-clickhouse-1",
+          "status": "exited",
+          "oom_killed": false,
+          "exit_code": 0
+        },
+        {
+          "name": "/web10-costfn-frozen-satellite-f-620121703-rf0-minio-1",
+          "status": "exited",
+          "oom_killed": false,
+          "exit_code": 0
+        }
+      ],
+      "native_parts_uncompressed_bytes": 5998384,
+      "archive_bytes": 3083121,
+      "sha256": "bc9dc96224281aa444f6db77ad6f98e145a8fdaceb1f486171358f1f76320fba",
+      "no_engine_restart_after_collection": true,
+      "verified_off_host": true
+    },
+    "original_source": "5d4259a29",
+    "original_source_files": 1434,
+    "continuation_source": "8fd92437294275f035a950c273f13ab0e73cb0a1",
+    "continuation_source_files": 1435,
+    "public_csv_sha256": "252b467f3bb5f3c059f0f02d232a41460ed20110f53c0d2e35eee0a6b2eaf36a"
+  }
+}

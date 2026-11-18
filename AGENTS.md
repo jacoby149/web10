@@ -327,8 +327,10 @@ oracle/adversarial fixtures/claim discipline,32/28/22GiB comparison frame and
 agent~300s/self-kill/no-guardian supervision. Explicit operator run admission
 remains; no new host or reopened lease follows from policy capture. Conflicting
 limits/byte stops below and in older task blocks are historical, not governing
-future execution. Harness alignment is still required; this is not a native result
-or a production-limit change.
+future execution. The admitted engagement completion now has native results in
+`research/experiments/costfn/evidence/engagement-finish-20261118/RESULTS.md`;
+other research entry points still require explicit harness alignment before use.
+Production query limits are unchanged.
 
 **Planned group delivery (D113), not implemented:** the operator chose built-in
 generic hybrid distribution for every group-published document: under 2,000
@@ -471,6 +473,24 @@ precedes09:42:45; compute estimate$0.31827/not invoice. Full receipts:
 `research/experiments/costfn/evidence/engagement-completion-20261118/RESULTS.md`.
 The old OPEN/missing-baseline statements above describe that earlier lease, not
 the new banked baseline. Further design/preparation/native work needs new admission.
+The separately admitted18 November treated-completion DO620634285 now closes
+with exact complete-response parity in all four cells, budget FAIL. The banked
+26.x baseline/B/D/lossless proof are cited, not repeated. Captured-query actuals:
+projection K20 is25,815.782ms/646,223,530 rows/59,461,806,191 bytes; uniform K20
+156,892.952ms/553,857,605/52,097,155,602. Paired P/F are150,027.498/166,358.107ms
+and9,969,184,052/9,969,158,768 bytes. Exact request-tagged auxiliary accounting
+adds60 rows/6,840 bytes per measured sequence, reported separately from the
+banked comparison scope. All three standalone count components complete;
+decomposition remains non-additive. Unchanged preparation SQL4bc916c8… completes
+at88,364,203 rows/9,933,017,043 bytes, not the old selection estimate. Preserve
+original pinned-driver startup failures and the separate transport-only
+continuation; no SQL redesign/setup/counter/projection/B/D repeat. All454 captured
+read statements reconcile to native600s settings/zero exceptions. Checkpoints
+and stopped native parts verify off-host; owned cleanup12:55:15UTC precedes
+15:02:47, estimated compute$0.468647/not invoice. No p95/capacity/F-arm PASS,
+counter retirement, production/§8 or automatic new paid admission. Full costs,
+accounting scopes and provenance:
+`research/experiments/costfn/evidence/engagement-finish-20261118/RESULTS.md`.
 Mirror/CI/in-place upgrade and production rollout are distinct gates; no live
 deployment is implied. Consider `_part_offset` only as a separately measured
 replacement for the same projection, never extra authority or a second layout.
