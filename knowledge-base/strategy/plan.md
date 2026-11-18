@@ -216,6 +216,43 @@ Combined PR checks and physical-phone/deployment acceptance remain separate.
 
 - [✓ 3.254.8 local docs] **Shadowguard deferred to web10 v4** - preserve the 3.254.7 concept in [shadowguard.md](shadowguard.md) and [later.md](later.md#web10-v4-shadowguard); remove its protocol-decision task from the active queue. Not planned any time soon, no release date, research/implementation assignment or dependency for v3. Explicit operator reactivation during v4 planning is required before any work resumes.
 
+## Experimentation program (A/B testing)
+
+Contract: `ab-testing.md`. web10's general experimentation capability —
+how we run controlled experiments on any surface — as its own lane,
+independent of any specific experiment (the classic-homepage test is the
+intended first candidate, nothing more). PostHog already ships
+deterministic flag evaluation + experiment reporting; the delta is opening
+that surface generally inside the D103-hardened telemetry stack. Phases:
+client-side presentation variants on marketing-ui (1) → web10-social
+(2, per-person assignment after `identify()`) → the generic node flag
+seam for data treatments (3, a protocol decision: own D-number + security
+review + operator admission, not buildable in this lane). Grounding facts
+that shape the build: feature flags and web experiments are deliberately
+disabled in the shared SDK config; the wire gate silently drops
+`$feature/*` properties (reports would be blind); the `_w10a` + `$identify`
+attribution chain exists but is unproven (AB-02 makes it evidence).
+Every experiment runs a pre-declared contract in
+`knowledge-base/strategy/experiments.md`: falsifiable hypothesis, named
+variants with control marked, exactly one primary metric on the metric
+ladder (engagement → conversion → activation → retention; conversion
+experiments carry activation as a declared guardrail), guardrails,
+window = max(N days, M per arm) from the sample-size table, minimum lift,
+no peeking, SRM chi-square before any read (>1 % split deviation
+invalidates), single end-of-window read, concurrency rule (one active
+experiment per surface + primary metric). auth-ui is excluded by default
+(trust boundary, separate security review); `disable_web_experiments`
+stays true (variants render in code); no `api/` app-specific surface
+(D60); default-off invariant holds (`posthog_enabled=false` → no flags,
+no events, control everywhere); null flag always renders control.
+
+- [ ] **AB-01 — foundation (code, marketing-ui)** — generic per-app flag option (designed so the social flip is one line + EVENTS additions, not a redesign); `$feature/<slug>` + enrollment wire-gate passthrough with red/green off-state controls; tracker `flag(name)` + marketing-ui pass-through, null renders control; first-experiment events on the explicit EVENTS allowlist; wire-gate delta reviewed as trust-boundary work. Gate: disabled node indistinguishable from control.
+- [ ] **AB-02 — attribution proof** — synthetic replay (variant landing → ticketed CTA → signup → `$identify` merge) + connected e2e-node receipt; assert the experiment report joins the signup to the arm. Identity rules unchanged; no production writes.
+- [ ] **AB-03 — experiments ledger** — `knowledge-base/strategy/experiments.md` with the full record format (above); first record = the classic-homepage test or a cheaper smoke experiment (operator choice).
+- [ ] **AB-04 — run experiment #1** — flag on enabled origins only; operator dashboard read at window end only; SRM first; single read; outcome ship/iterate/kill recorded; D-number when it changes what we build.
+- [ ] **AB-05 — phase 2 rollout: web10-social + guardrail ops** — one-line flag flip (AB-01's generic option), per-person assignment after `identify()` resolves, social EVENTS additions, onboarding as the first social candidate; SRM procedure + read cadence, dashboard ownership, wire-gate re-scan after any allowlist change, concurrency rule enforced; finished experiments are not re-read.
+- [ ] **AB-06 — node flag seam (deferred; research, not build)** — when data treatments are worth testing: pick a candidate shape (node-side PostHog server SDK gated by existing operator config, fails closed, vendor sees hashed person/device; vs an operator-managed flag set via existing `GET /telemetry` — a rollout mechanism, not an A/B, labeled as such), open the D-number, run the security review, get operator admission. No code in this lane.
+
 ## Marketing: org-to-org (dominant strategy)
 
 - [✓ 6.13.0 docs only] **Record the dominant org-to-org strategy; archive the creator track intact** — operator (15.11.2026): the dominating strategy is B2B/O2O org-to-org, "getting the world online, much more similar to the old internet in that way, node by node." The customer is an organization with something positive to spread, no in-house social media capability, and no wish to mix with the ick of current social media — hygienic but connected. Creator/influencer strategy docs moved unchanged to `knowledge-base/strategy/archive/creator-influencer-track/` (outreach.md, outreach_batch1.md, outreach_prospects.md, outreach_prospects_full.md, outreach_sourcer.py). New `knowledge-base/strategy/org-to-org.md` captures the frame, node-by-node growth, the two-track contrast and the boundaries; D112 recorded. All cross-references repointed (AGENTS.md, thesis, business-plan, design, timeline, AGENTS-RITUALS, the D95 pointer, the 2026-10 security-scan exclusions, torah-anytime, the lane's "Owns now"). century-club-findings.md is a product findings log, not influencer strategy — it stays top-level. No content erased or rewritten; no execution scope implied (the org pipeline is unscoped until separately directed).
