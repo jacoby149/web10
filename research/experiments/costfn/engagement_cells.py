@@ -62,6 +62,10 @@ def serving_state(parent, cell, profile_name):
 
 def boot(parent, name, profile_name, mode, *, serving_mode='F_DOCUMENT_STREAM_V1', aggregate=False):
     parent = Path(parent)
+    completion = json.loads((parent / 'admission.json').read_bytes()).get('engagement_completion_admitted') is True
+    if completion:
+        from engagement_certificates import verify
+        verify(parent)
     cell = root(parent, name)
     serving_state(parent, cell, profile_name)
     session = modern.Session(cell)
@@ -82,6 +86,8 @@ def boot(parent, name, profile_name, mode, *, serving_mode='F_DOCUMENT_STREAM_V1
     environment = {**session.env, 'SATELLITE_SERVE_STATE': str(cell / 'serve-state')}
     restore.command(compose, environment, 'up', '-d', '--no-deps', 'api', timeout=180)
     arm_f_startup.ready(cell, compose, environment, boot_id)
+    if completion:
+        verify(parent)
     return cell
 
 
@@ -134,6 +140,9 @@ async def complete(parent, cell, profile, expected, *, uniform=False, serving_mo
     samples = []
     try:
         token = await http.login(profile['reader'])
+        if session.operation.get('engagement_completion_admitted') is True:
+            from engagement_certificates import verify
+            verify(parent)
         for phase in ('warmup', 'measured'):
             before = reads.views(session, expected['ids'], phase + '_raw_delivery_before')
             sample = await http.sequence(token, profile['groups'], phase=phase)

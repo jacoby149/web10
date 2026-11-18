@@ -6,6 +6,94 @@ The previous F cost FAIL and all stopped attempts remain unchanged.
 
 ## Governing full-store directive —17 November2026
 
+###18 November fix-and-finish admission — supersedes future execution below
+
+Jacob admits **one new completion lease**,26.10.4.207, unchanged four-hour/$2,
+32/28/22GiB,10s/>10M measured caps and existing$20 overall ceiling. No host/window
+is bound yet. The closed DO620491569 and all banked failures remain unchanged.
+
+Closed fixes: keyword-only settings across the actual complete-HTTP wrappers;
+native QueryFinish polling for long setup operations without resubmission after
+client timeout; a terminal untreated-baseline gate before adding the projection;
+and counter/metadata/fanout physical-generation rebinding after materialization,
+with certification checked before measurement and no canonical fallback sample.
+Rebinding requires identical base canonical column bytes/schema and preserves
+scope keys addressing existing values, never a guard bypass or semantic re-scope.
+
+Order: prepared snapshot255003176 → ordinary K20 untreated complete response,
+old semantics/no projection → known rebuild-mode ref_sorted/native materialization
+and equal-row coverage → refreshed certificates → old-semantics projection K20
+and real nonempty measured mixed-count decomposition → accepted migrated copy/
+nine zero checks/current-copy exact parity gates → certified treated K20 and
+paired fixture P/F reads. Actual measured SQL must show candidate-doc attachment
+scoping and deletion-winning timestamp ties. Report history24.8 / untreated26.x /
+treated26.x actuals; preparation/unclassified remain named unoptimized remainder.
+
+Stage B diagnostic/aggregate, Stage D hot cell and the26.x lossless design proof
+are BANKED, not re-run. A restored copy still passes its constructor/gates. No
+aggregate seed, new cells, population/R+W/p95, counter retirement, production or§8.
+
+**Explicit setup exception, same-session clarification:** the prepared snapshot
+certifies only paired-fixture count scopes, not ordinary K20. Asked how to supply
+the missing inputs without violating "No counting_numbers build", Jacob selected
+**"Allow initial K20 build"**: one setup-only build of missing ordinary K20
+scopes is permitted; no counter redesign, Stage B/D rerun or counter rebuild after
+materialization. Paired values/metadata are adopted from the prepared snapshot;
+uniform treatment forbids cached-counter reads. Ordinary API/SDK/social remain
+read-only. Agent300s checks and droplet self-kill timers only, no guardian.
+
+Source checkpoint: new completion-only controller, prepared adoption/K20 exception,
+identical-byte certificate refresh and native completion waiter are implemented.
+264 no-engine controls pass, including eight completion controls; no new native
+measurement or paid resource is implied by this source checkpoint.
+
+Execution binding: one new **DO620548967**,18 November05:42:45→09:42:45UTC,
+same four-hour/$2 shape, prior compute estimate$7.39434/not invoice. Provider
+snapshot readiness exceeds two bounded waits; both remain preserved and the SAME
+host/window continues.1,428 executing hashes verify at source`c5093d8d3`; actual
+host/container stop timers are active, no guardian. Native worker starts only
+after the eight completion controls pass on the host. Snapshot verification is
+running, not a baseline/treated PASS. First private checkpoint1,805,765 bytes,
+SHA`e7446d0e…851cdb`, verifies off-host.
+
+First attempt: restore72.091s/current envelope/counts and fixture coverage PASS;
+one approved K20 setup completes. The untreated baseline then STOPs at the
+certification guard BEFORE projection. Forensics proves an encoding mismatch,
+not changed data: CLI JSON UInt64 fields are integers (`fe9d1909…`), while F/P
+serving explicitly stringifies the same fields (`8e24648e…`). All post-baseline
+stages are BLOCKED as required; no fallback or row estimate is measured.
+Preserve the failed cells/summary and verified1,953,870-byte private checkpoint
+SHA`580fa107…7b36b2`. A separately hash-bound same-lease prepared continuation
+normalizes only generation encoding, proves unchanged canonical bytes, updates
+counter/metadata/fanout receipts and starts a fresh named baseline attempt before
+any projection. No initial setup, counter build, native write or seed is repeated;
+the original09:42:45UTC deadline and all native limits stand.265 no-engine controls
+pass, including actual driver-generation/CLI equivalence. A baseline STOP is still
+terminal for its executing attempt; no stopped attempt is relabelled PASS.
+
+**Completion lease CLOSED:** final report/three-column actuals/STOPs are in
+`evidence/engagement-completion-20261118/RESULTS.md` + content-free JSON/native CSV.
+The valid untreated baseline is4,551.675ms/3,244,874 rows/222,387,685 bytes with
+exact parity, before projection. Source/copy materializations finish natively once;
+coverage88,200,363/88,200,363 and nine-check/32-batch current-copy parity pass.
+Physical certification refresh and actual bounded/deletion-winning/ref_sorted
+SQL are verified. Projection/uniform K20 then stop158 at mixed resolution/counts:
+actual770,048 rows/50,803,827 bytes and1,359,872/94,724,839 respectively. Reported
+88.64M/70.65M selections are not actual scanning. Paired P/F main statements finish,
+then separately excluded preparation stops158 (229,376 rows/21,275,333 bytes each).
+No treated complete response/parity or full-feed PASS. Three real baseline count
+components plus the treated stopped component are recovered without SQL replay;
+decomposition stays partial/non-additive, not an empty PASS.
+
+Owned cleanup verifies18 November06:59:08UTC, before09:42:45; compute estimate
+$0.31827/not invoice, retained snapshot storage separate. Final4,200,186-byte
+private checkpoint SHA`bffc0bfa…445166` and2,984,123-byte stopped native archive
+SHA`50ef0a63…347ea1` verify off-host first. No OOM, restart after final collection,
+Stage B/D rerun/aggregate seed, counter rebuild after materialization, new workload
+cell, production or limit change. Remaining selection/preparation work is outside
+the closed four-fix admission; any changed design or new paid/native execution
+requires a separate operator decision/admission. No automatic continuation.
+
 Jacob accepts PR#1579's three-things implementation/tiny rehearsal and explicitly
 admits one fresh full-store lease: **ClickHouse26.10.4.207**, same frozen dataset,
 envelope/budgets/DO-only/agent300s/self-kill/no-guardian rules. The24.8 freeze is

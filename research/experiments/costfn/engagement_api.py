@@ -95,7 +95,7 @@ def checked_query(sql=None, *args, **kwargs):
         groups = [value for key, value in params.items() if key.startswith('g') and key[1:].isdigit()]
         bound.arguments['query'] = events.read(ids, params['svc'], groups, aggregate=aggregate_views)
         # Existing P rewrite consumes the original bound-ID metadata.
-        result = f.original_query(*bound.args, **bound.kwargs)
+        result = f.original_query(**bound.arguments)
         values = [[row[0], int(row[1]), int(row[2])] for row in result.result_rows]
         if current is not None:
             current.setdefault('fanout_view_checks', []).append(dict(query_id=result.query_id,

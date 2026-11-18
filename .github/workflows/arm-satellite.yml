@@ -48,6 +48,7 @@ jobs:
           python e2e/clickhouse-image.test.py
           python research/experiments/costfn/engagement.test.py
           python research/experiments/costfn/engagement_modern.test.py
+          python research/experiments/costfn/engagement_completion.test.py
           python research/experiments/costfn/arm_f.test.py
           python research/experiments/costfn/arm_f_failure.test.py
           python research/experiments/costfn/arm_f_client.test.py

@@ -53,3 +53,21 @@ def install(session, table, output):
         projection_setup_total_seconds=time.perf_counter() - started, **coverage(session, table))
     save(output / ('projection-' + table + '.json'), value)
     return value
+
+
+def install_rebuild(session, table, output):
+    """Completion admission cites banked344; never re-probe the answered question."""
+    started = time.perf_counter()
+    mode, add, materialize = refs.projection(table)
+    session.query('completion_projection_rebuild_' + table, mode)
+    session.query('completion_projection_start_' + table, 'SYSTEM START MERGES ' + identifier(table))
+    session.query('completion_projection_add_' + table, add)
+    materialize_started = time.perf_counter()
+    _, query_id = session.query('completion_projection_materialize_' + table, materialize, setup_seconds=1200)
+    elapsed = time.perf_counter() - materialize_started
+    session.query('completion_projection_freeze_' + table, 'SYSTEM STOP MERGES ' + identifier(table))
+    value = dict(table=table, mode='rebuild', default_mode='BANKED_344_NOT_REPROBED',
+        materialization_seconds=elapsed, materialization_query_id=query_id,
+        setup_seconds=time.perf_counter() - started, **coverage(session, table))
+    save(output / ('projection-' + table + '.json'), value)
+    return value

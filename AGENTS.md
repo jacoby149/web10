@@ -443,6 +443,19 @@ precedes05:43:57. Complete-path/generation refresh and baseline-ordering accepta
 remain OPEN; no new paid/native admission follows. One stage stopping must not
 silently skip independent stages. Full receipts:
 `research/experiments/costfn/evidence/engagement26-20261118/RESULTS.md`.
+The separately admitted18 November completion DO620548967 is also now closed.
+It fixes keyword/native-finish/baseline-order/generation encoding and refresh,
+with one explicit initial K20 setup exception and no later counter rebuild.
+Untreated26.x complete baseline now banks4,551.675ms/222,387,685 bytes, exact parity
+PASS/budget FAIL, before projection. Intended bounded/deletion-winning/ref_sorted
+K20 SQL reaches the native158 row guard (actual50.80MB projection/94.72MB uniform;
+reported88.64M/70.65M selections are not actual reads); paired preparation separately
+stops. No treated complete response/parity/full-feed PASS or counter retirement.
+All current-copy9/32 gates pass; B/D are not repeated. Owned cleanup06:59:08UTC
+precedes09:42:45; compute estimate$0.31827/not invoice. Full receipts:
+`research/experiments/costfn/evidence/engagement-completion-20261118/RESULTS.md`.
+The old OPEN/missing-baseline statements above describe that earlier lease, not
+the new banked baseline. Further design/preparation/native work needs new admission.
 Mirror/CI/in-place upgrade and production rollout are distinct gates; no live
 deployment is implied. Consider `_part_offset` only as a separately measured
 replacement for the same projection, never extra authority or a second layout.

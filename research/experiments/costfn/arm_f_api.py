@@ -23,7 +23,7 @@ import sqlglot
 import arm_f as f
 import arm_f_hooks
 import arm_f_failure as failure
-from arm_f_client import dispatch
+from arm_f_client import dispatch, query_kwargs
 from arm_f_banked import ARCHIVE_SHA256 as BANKED_P_SHA256
 import arm_f_observe as observation
 import arm_f_views
@@ -128,24 +128,24 @@ original_query = p.ch.client.query
 
 
 def checked_query(sql=None, *args, **kwargs):
+    named = query_kwargs(p._signature, sql, *args, **kwargs)
+    sql = named['query']
     current = p.observer.current.get()
     if current and current.get('request_id') != 'unlabelled':
-        settings = dict(kwargs.get('settings') or {})
+        settings = dict(named.get('settings') or {})
         settings['log_comment'] = 'F_READ:' + current['request_id']
-        kwargs['settings'] = settings
+        named['settings'] = settings
     if not current or current.get('request_id') == 'unlabelled' or not p._views.get():
-        return original_query(sql, *args, **kwargs)
-    if sql is None:
-        sql = kwargs.pop('query')
+        return original_query(**named)
     try:
-        bound = p._signature.bind_partial(sql, *args, **kwargs)
+        bound = p._signature.bind_partial(**named)
         params = bound.arguments.get('parameters') or {}
         bound.arguments['query'] = arm_f_views.checked_sql(p.serve.bound_sql(sql, params))
         # P's existing views rewrite still needs d0/d1/... to narrow the
         # authorized attachment query. SQL is already safely literal-bound;
         # retaining the metadata until P consumes it avoids an empty-ID filter.
         bound.arguments['parameters'] = params
-        result = original_query(*bound.args, **bound.kwargs)
+        result = original_query(**bound.arguments)
         values = arm_f_views.verify(result.result_rows)
     except Exception as error:
         fail('view_oracle_' + type(error).__name__, error)
@@ -156,11 +156,12 @@ def checked_query(sql=None, *args, **kwargs):
 
 
 def query(sql=None, *args, **kwargs):
+    named = query_kwargs(p._signature, sql, *args, **kwargs)
     current = p.observer.current.get() or {}
     comment = 'F_READ:' + current.get('request_id', 'background-' + uuid.uuid4().hex)
-    kwargs['settings'] = {**(kwargs.get('settings') or {}), 'log_comment': comment}
+    named['settings'] = {**(named.get('settings') or {}), 'log_comment': comment}
     try:
-        return checked_query(sql, *args, **kwargs)
+        return checked_query(**named)
     except Exception as error:
         failure.engine_failure(ROOT, error, p.ch._get_client,
             log_comment=comment, operation='query')
@@ -426,6 +427,8 @@ def compile_query(*args, **kwargs):
     # generation is checked before/after; uncertified state takes canonical reads.
     fresh = generation() == p.counts['canonical_generation']
     if reader != p.profile['reader'] or not fresh:
+        if admission.get('engagement_completion_admitted') is True:
+            raise ValueError('uncertified completion dispatch refused before canonical fallback execution')
         current['fanout'] = {'path': 'canonical_fallback', 'reason': 'unbuilt_reader' if fresh else 'uncertified_generation'}
         return compiled
     if not is_main:

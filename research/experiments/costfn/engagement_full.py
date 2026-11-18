@@ -189,6 +189,8 @@ class Actions:
                             returned_rows=len(values)))
                     result.append(record)
         save(self.root / 'mixed-decomposition.json', result)
+        if not result or any(not row['components'] for row in result):
+            raise ValueError('mixed decomposition unavailable; an empty list is not a measurement')
         return dict(queries=result, attribution='isolated count components; no subtractive/additive per-table byte attribution')
 
     def diagnostic(self):
@@ -289,7 +291,9 @@ class Actions:
                 raise ValueError('migration source check nonzero: ' + name)
         for index, sql in enumerate(statements[:-len(refs.projection('engagement_documents'))]):
             session.query('migration_setup_' + str(index), sql, setup_seconds=1200)
-        engagement_projection.install(session, 'engagement_documents', self.root)
+        install = (engagement_projection.install_rebuild if self.approval.get('engagement_completion_admitted') is True
+            else engagement_projection.install)
+        install(session, 'engagement_documents', self.root)
         batches = []
         for batch in range(32):
             rows, query_id = session.rows('migration_roundtrip_' + str(batch), refs.roundtrip_check(batch), setup_seconds=900)

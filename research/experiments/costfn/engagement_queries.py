@@ -114,13 +114,17 @@ def mixed_components(sql):
     tree = sqlglot.parse_one(sql, read='clickhouse')
     components = []
     for select in tree.find_all(exp.Select):
-        if not any(list(item.find_all(exp.AggFunc)) for item in select.expressions):
+        if not any(aggregate.find_ancestor(exp.Select) is select
+                for item in select.expressions for aggregate in item.find_all(exp.AggFunc)):
             continue
         source = select.args.get('from_')
         if source is None:
             continue
         tables = {table.name for table in select.find_all(exp.Table)}
         if any(name.startswith('counting_numbers') for name in tables) or isinstance(source.this, exp.Subquery):
-            components.append(select.sql(dialect='clickhouse'))
+            component = select.copy()
+            if tree.args.get('with_') and component is not tree:
+                component.set('with_', tree.args['with_'].copy())
+            components.append(component.sql(dialect='clickhouse'))
     return dict(components=components, additive=False,
         policy='isolated component reads are diagnostic; do not subtract native bytes to invent resolution cost')

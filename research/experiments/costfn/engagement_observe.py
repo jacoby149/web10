@@ -13,7 +13,7 @@ from arm_f_observe import append
 
 
 def uniform_guard(sql, current):
-    if current.get('engagement_mode') != 'uniform':
+    if current.get('engagement_mode') not in ('uniform', 'projection'):
         return
     tree = sqlglot.parse_one(sql, read='clickhouse')
     if any(table.name.startswith('counting_numbers') for table in tree.find_all(exp.Table)):
@@ -27,6 +27,19 @@ def uniform_guard(sql, current):
         if where is None or not any(isinstance(node.this, exp.Column) and node.this.name == 'doc_id'
                 for node in where.find_all(exp.In)):
             raise ValueError('known group-only attachment lane refused before native execution')
+        ancestor, ordered = table.parent, False
+        while ancestor is not None:
+            if isinstance(ancestor, exp.Select):
+                for window in ancestor.find_all(exp.Window):
+                    if {column.name for column in window.args.get('partition_by', [])} == {'doc_id', 'group_id'}:
+                        order = window.args.get('order')
+                        if order and [(item.this.name, item.args.get('desc')) for item in order.expressions] == [
+                                ('updated_at', True), ('deleted', True)]:
+                            ordered = True
+            ancestor = ancestor.parent
+        if not ordered:
+            raise ValueError('attachment history lacks deletion-winning timestamp ties')
+    return dict(candidate_doc_id_attachment_scope=True, deletion_wins_timestamp_ties=True)
 
 
 def classify(sql, callers, current):
@@ -62,7 +75,9 @@ def install(original, observer, directory):
     directory = Path(directory)
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
     signature = inspect.signature(original)
-    def query(sql, *args, **kwargs):
+    def query(sql=None, *args, **kwargs):
+        if sql is None:
+            sql = kwargs.pop('query')
         current = observer.current.get() or {}
         request_id = current.get('request_id')
         if not request_id or request_id == 'unlabelled':
@@ -100,8 +115,10 @@ def install(original, observer, directory):
             stage=classify(rendered, callers, current), success=False)
         started = time.perf_counter()
         try:
-            uniform_guard(rendered, current)
-            result = original(*bound.args, **bound.kwargs) if bound is not None else original(sql, *args, **kwargs)
+            proof = uniform_guard(rendered, current)
+            if proof:
+                row['attachment_execution_guard'] = proof
+            result = original(**bound.arguments) if bound is not None else original(sql, *args, **kwargs)
             row.update(query_id=result.query_id, success=True)
             return result
         except BaseException as error:

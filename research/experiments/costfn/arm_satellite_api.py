@@ -99,7 +99,7 @@ def query(sql=None, *args, **kwargs):
     bound.arguments["settings"] = settings
     print("[satellite-serve] read start", flush=True)
     try:
-        result = _query(*bound.args, **bound.kwargs)
+        result = _query(**bound.arguments)
     except Exception as error:
         if current is not None:
             current["arm_p_native_failure"] = type(error).__name__
