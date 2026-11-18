@@ -1,5 +1,28 @@
 # Engagement reads: one segment per root document
 
+## Newly admitted treated-completion lease — Jacob Hoffman,18 November2026
+
+One fresh DO lease is admitted under the existing per-lease budget discipline;
+bind its actual host/window before execution. Restore snapshot255003176 on
+26.10.4.207 in the32/28/22GiB frame. The new measurement-limits directive applies:
+no row-count stop;600s per measured statement; native-completion polling; timeout
+partial actuals are results, not run aborts. Agent~300s/self-kill only, no guardian;
+day-away overrun accepted, proportionality applies. No production or§8 work.
+
+The untreated26.x baseline4,551.675ms/222,387,685 bytes/parity PASS/budget FAIL is
+**banked, never remeasured**. B/views, D/hot, lossless migration proof and default344
+are banked too. Setup-only ordinary K20 scopes build once before projection;
+after rebuild-mode materialization and equal-row coverage, refresh certificates,
+not counters. Then old-semantics projection K20 plus real count-component list;
+construct migrated copy with nine zero checks (cite banked lossless proof, do not
+repeat it), current-copy fence, uniform K20 and independent paired P/F comparison.
+Actual measured SQL must retain bounded attachments/deletion-winning ties. Paired
+node-ad preparation SQL4bc916c8… runs unchanged; its actual cost is its own stage.
+No candidate-to-canonical redesign. Preserve each failed cell and continue
+independent cells. Report24.8 history / banked26.x baseline / new treated actuals,
+per-step rows/bytes, named preparation/unclassified remainders and exact parity
+or INVALID.500ms/25MB judge results only; scan-shaped completions say so plainly.
+
 **18 November governing execution override:** Jacob's
 [archaic execution limits removed](README.md#governing-execution-directive--18-november-2026)
 directive applies to future completion work as well as all other costfn runs:

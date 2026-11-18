@@ -13,10 +13,17 @@ from sqlglot import exp
 
 import engagement_events as events
 import engagement_modern as modern
+import engagement_limits
 import engagement_observe
 import engagement_queries as queries
 
 DIRECTORY = os.environ.pop('FANOUT_STAGE_DIR')
+# This process is launched only by the isolated cell overlay. Configure transport
+# before the node's thread-local clients are constructed, not after a300s loss.
+_admission = json.loads((Path(os.environ['FANOUT_STATE']) / 'admission.json').read_bytes())
+if engagement_limits.enabled(_admission):
+    modern.admitted(_admission, __import__('arm_t').digitalocean_id())
+    engagement_limits.clients()
 import arm_f_api as f  # noqa: E402 -- disable only the old observer before importing the unchanged adapter
 
 p = f.p
@@ -42,7 +49,7 @@ old_main = p.serve.main_sql
 old_compile = p.compile_query
 old_checked = f.checked_query
 raw_query = p._query
-p._query = engagement_observe.install(raw_query, p.observer, DIRECTORY)
+p._query = engagement_observe.install(raw_query, p.observer, DIRECTORY, operation=f.admission)
 
 
 def copy_fence(current):

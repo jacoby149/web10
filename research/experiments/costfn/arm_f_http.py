@@ -19,7 +19,8 @@ class HTTP:
         self.root, self.session, self.output = Path(root), session, Path(output)
         self.output.mkdir(mode=0o700, parents=True, exist_ok=True)
         self.manifest = json.loads((self.root / 'input/manifest.json').read_bytes())
-        self.client = httpx.AsyncClient(base_url='http://127.0.0.1:6098', timeout=65, trust_env=False,
+        policy = getattr(session, 'operation', {}).get('measurement_limits_directive') == 'Jacob Hoffman 2026-11-18 archaic execution limits removed'
+        self.client = httpx.AsyncClient(base_url='http://127.0.0.1:6098', timeout=None if policy else 65, trust_env=False,
             limits=httpx.Limits(max_connections=2048, max_keepalive_connections=256))
         self.records = []
         self.capture = core_feed.wire()
@@ -89,9 +90,16 @@ class HTTP:
         if not rows:
             raise ValueError('empty full response is not a valid sequence')
         ids = [row['doc_id'] for row in rows]
+        policy = getattr(self.session, 'operation', {}).get('measurement_limits_directive') == 'Jacob Hoffman 2026-11-18 archaic execution limits removed'
         followups = await asyncio.gather(*(self.post(item['path'],
             core_feed.payload(item['payload'], token, groups, ids), origin=self.manifest['origin'])
-            for item in self.capture['requests'][1:]))
+            for item in self.capture['requests'][1:]), return_exceptions=policy)
+        # A failed sibling must not close the client under a still-running native
+        # follow-up. All submitted statements finish before this cell reports it.
+        if policy:
+            for item in followups:
+                if isinstance(item, BaseException):
+                    raise item
         elapsed = (time.perf_counter() - started) * 1000
         return dict(phase=phase, elapsed_ms=elapsed,
             request_ids=[record['request_id'], *[item[1]['request_id'] for item in followups]],
@@ -125,7 +133,8 @@ class HTTP:
             + ','.join(q(value) for value in ids) + ") AND type IN ('QueryFinish','ExceptionBeforeStart','ExceptionWhileProcessing')")
         if {row['query_id'] for row in rows} != set(ids) or len(rows) != len(ids):
             raise ValueError('missing/duplicate actual native query results')
-        if any(int(row['exception_code']) or int(row['read_rows']) > 10_000_000 for row in rows):
+        policy = getattr(self.session, 'operation', {}).get('measurement_limits_directive') == 'Jacob Hoffman 2026-11-18 archaic execution limits removed'
+        if any(int(row['exception_code']) or (not policy and int(row['read_rows']) > 10_000_000) for row in rows):
             raise ValueError('native failure/over10M stop')
         save(self.output / (label + '-stages.json'), stages)
         if (self.root / 'banked-P.tar.gz').is_file():

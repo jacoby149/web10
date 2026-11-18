@@ -71,7 +71,7 @@ def classify(sql, callers, current):
     return 'unclassified'
 
 
-def install(original, observer, directory):
+def install(original, observer, directory, *, operation=None):
     directory = Path(directory)
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
     signature = inspect.signature(original)
@@ -93,6 +93,10 @@ def install(original, observer, directory):
             settings = dict(kwargs.get('settings') or {})
         settings.update(max_execution_time=10, max_memory_usage=22 * 1024**3,
             max_rows_to_read=10_000_000, read_overflow_mode='throw', log_comment='F_READ:' + request_id)
+        if operation is not None:
+            import engagement_limits
+            if engagement_limits.enabled(operation):
+                settings = engagement_limits.settings(settings)
         if bound is not None:
             bound.arguments['settings'] = settings
         else:

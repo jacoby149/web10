@@ -51,6 +51,7 @@ jobs:
           python dataset.test.py
           python restore_realism.test.py
           python smoke_realism.test.py
+          python engagement_finish.test.py
       - name: Verify offline source captures
         working-directory: research/experiments/costfn
         run: bun test capture-feed.test.ts capture-pagination.test.ts

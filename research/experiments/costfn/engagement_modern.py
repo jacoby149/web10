@@ -7,6 +7,7 @@ import uuid
 
 import arm_f_runtime
 import arm_t
+import engagement_limits as limits
 import restore_realism as restore
 
 ENGINE = '26.10.4.207'
@@ -18,7 +19,8 @@ COMPLETION_DIRECTIVE = 'Jacob Hoffman 2026-11-18 engagement fix-and-finish; init
 def admitted(value, host, now=None):
     deadline = arm_f_runtime.admitted(value, host, now=now)
     completion = (value.get('purpose') == 'ENGAGEMENT_COMPLETION_ONLY'
-        and value.get('run_directive') == COMPLETION_DIRECTIVE
+        and (value.get('run_directive') == COMPLETION_DIRECTIVE or (
+            value.get('run_directive') == limits.RUN and limits.enabled(value)))
         and value.get('engagement_completion_admitted') is True
         and value.get('initial_k20_count_build_admitted') is True
         and value.get('stages_b_d_admitted') is False)
@@ -56,25 +58,31 @@ class Session(arm_f_runtime.Session):
 
     def native(self, query_id, *, measured=False):
         value = super().native(query_id, measured=False)
-        if measured and int(value['read_rows']) > 10_000_000:
+        if measured and not limits.enabled(self.operation) and int(value['read_rows']) > 10_000_000:
             raise ValueError('modern cell read over10M; preserve it and stop this cell')
         return value
 
     def query(self, label, sql, *, measured=False, setup_seconds=600, settings=None):
         admitted(self.operation, self.host_id)
-        budget = min(10 if measured else setup_seconds, remaining(self.operation))
+        current_policy = limits.enabled(self.operation)
+        budget = min((600 if current_policy else 10) if measured else setup_seconds, remaining(self.operation))
         if budget < 1:
             raise TimeoutError('modern query reached original cleanup margin')
         query_id = 'fanout-f-' + uuid.uuid4().hex
         self.record(dict(phase='start', label=label, query_id=query_id, measured=measured,
             sql_sha256=__import__('hashlib').sha256(sql.encode()).hexdigest(), deadline_seconds=budget))
         args = ['--max_memory_usage=' + str(22 * 1024**3), '--max_threads=4']
-        if measured:
+        if measured and not current_policy:
             args += ['--max_rows_to_read=10000000', '--read_overflow_mode=throw']
-        else:
+        if not measured:
             args += ['--max_bytes_before_external_sort=2147483648', '--max_bytes_before_external_group_by=2147483648',
                 '--max_temporary_data_on_disk_size_for_query=107374182400', '--join_algorithm=full_sorting_merge']
         if settings:
+            settings = dict(settings)
+            if current_policy:
+                settings.pop('max_rows_to_read', None)
+                settings.pop('max_bytes_to_read', None)
+                settings.pop('max_result_rows', None)
             ceilings = dict(max_memory_usage=22 * 1024**3, max_rows_to_read=10_000_000,
                 max_bytes_to_read=2 * 1024**3, max_result_rows=1_000_000,
                 max_bytes_before_external_sort=2 * 1024**3, max_bytes_before_external_group_by=2 * 1024**3)
@@ -82,14 +90,17 @@ class Session(arm_f_runtime.Session):
                 raise ValueError('only tighter explicit modern query bounds allowed')
             args = [arg for arg in args if arg.split('=', 1)[0].removeprefix('--') not in settings]
             args += ['--' + key + '=' + str(value) for key, value in settings.items()]
+        if current_policy:
+            args += ['--max_rows_to_read=0', '--max_rows_to_read_leaf=0', '--max_bytes_to_read=0',
+                '--max_bytes_to_read_leaf=0', '--max_result_rows=0']
         started = time.perf_counter()
         try:
             command = ['exec', '-T', 'clickhouse', 'clickhouse-client',
                 '--user', 'web10', '--password', 'web10', '--database', 'web10', '--query_id', query_id,
                 '--max_execution_time', str(budget), '--receive_timeout', str(budget + 10),
                 *args, '--query', sql]
-            if (not measured and self.operation.get('engagement_completion_admitted') is True
-                    and sql.lstrip().upper().startswith(('ALTER ', 'OPTIMIZE ', 'INSERT ', 'CREATE '))):
+            if (current_policy or (not measured and self.operation.get('engagement_completion_admitted') is True
+                    and sql.lstrip().upper().startswith(('ALTER ', 'OPTIMIZE ', 'INSERT ', 'CREATE ')))):
                 from engagement_native import await_query
                 raw = await_query(self, [*self.compose, *command], query_id, budget)
             else:
