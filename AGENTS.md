@@ -315,6 +315,21 @@ do not privacy-wash D56 or put content/credentials into events or recordings.
 
 ## How the data model works
 
+**Costfn execution override — Jacob Hoffman,18 November2026:** for all future
+costfn experiment runs, including completion work, the governing policy is
+`research/experiments/costfn/README.md` “Governing execution directive”. No
+experiment row-count stop (`max_rows_to_read`/code158); measurement statements
+have a600s bound whose timeout/partial actuals are results, not run aborts.
+Native-completion polling must not abandon running work at fixed client caps.
+The13 November$40 programme compute ceiling is retired; receipt per-run costs.
+500ms/25MB are success lines only, not future abort conditions. Preserve the
+oracle/adversarial fixtures/claim discipline,32/28/22GiB comparison frame and
+agent~300s/self-kill/no-guardian supervision. Explicit operator run admission
+remains; no new host or reopened lease follows from policy capture. Conflicting
+limits/byte stops below and in older task blocks are historical, not governing
+future execution. Harness alignment is still required; this is not a native result
+or a production-limit change.
+
 **Planned group delivery (D113), not implemented:** the operator chose built-in
 generic hybrid distribution for every group-published document: under 2,000
 members fan out recipient pointers; at/over 2,000 use group/time seek by default. Canonical

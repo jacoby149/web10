@@ -96,6 +96,10 @@ def query(sql=None, *args, **kwargs):
     settings["max_memory_usage"] = 22 * 1024**3
     if current is not None and current.get("request_id") != "unlabelled":
         settings["max_execution_time"] = 10
+    if operation.get('measurement_limits_directive'):
+        from engagement_limits import enabled, settings as measurement_settings
+        if enabled(operation):
+            settings = measurement_settings(settings)
     bound.arguments["settings"] = settings
     print("[satellite-serve] read start", flush=True)
     try:
@@ -110,7 +114,9 @@ def query(sql=None, *args, **kwargs):
     if current is not None:
         current.setdefault("arm_p_native", []).append({"query_id": result.query_id,
             "read_rows": int(summary.get("read_rows", 0)), "read_bytes": int(summary.get("read_bytes", 0))})
-    if current is not None and current.get("request_id") != "unlabelled" and int(summary.get("read_rows", 0)) > 10_000_000:
+    if (current is not None and current.get("request_id") != "unlabelled"
+            and int(summary.get("read_rows", 0)) > 10_000_000
+            and operation.get('measurement_limits_directive') != 'Jacob Hoffman 2026-11-18 archaic execution limits removed'):
         stop("single_read_over_10M")
     return result
 
