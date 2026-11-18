@@ -58,18 +58,37 @@ def segment(boundary, ids, *, table='documents'):
     into history windows resurrects a moved or deleted document's old version.
     Every original policy/link/window expression stays in place.
     """
+    return bounded_boundary(boundary, seek(ids, table=table),
+        'ref_value IN (' + targets(ids) + ')', table=table)
+
+
+def bounded_boundary(boundary, candidates, predicate, *, table='documents'):
+    """Internal trusted constructors only; original canonical gate is retained."""
     tree = sqlglot.parse_one(boundary, read='clickhouse')
     documents = [node for node in tree.find_all(exp.Table) if node.name == 'documents']
     if not isinstance(tree, exp.Select) or not documents:
         raise ValueError('canonical documents boundary required')
-    candidates = seek(ids, table=table)
+    # Complete attachment partitions are keyed by (doc_id,group_id). Bound the
+    # physical lane before its history window, but never filter deleted rows
+    # before the winner. A group-only history scan is the banked24.8 STOP.
+    for node in list(tree.find_all(exp.Table)):
+        if node.name != 'doc_groups':
+            continue
+        owner = node.find_ancestor(exp.Select)
+        for window in owner.find_all(exp.Window):
+            if {column.name for column in window.args.get('partition_by', [])} == {'doc_id', 'group_id'}:
+                window.set('order', sqlglot.parse_one('SELECT row_number() OVER '
+                    '(ORDER BY updated_at DESC,deleted DESC)', read='clickhouse').expressions[0].args['order'])
+        replacement = sqlglot.parse_one('SELECT * FROM doc_groups WHERE doc_id IN '
+            '(SELECT doc_id FROM (' + candidates + '))', read='clickhouse')
+        node.replace(exp.Subquery(this=replacement,
+            alias=exp.TableAlias(this=exp.to_identifier(node.alias_or_name))))
     for node in documents:
         alias = node.alias_or_name
         replacement = sqlglot.parse_one('SELECT * FROM ' + identifier(table)
             + ' WHERE (author_key,doc_id) IN (' + candidates + ')', read='clickhouse')
         node.replace(exp.Subquery(this=replacement, alias=exp.TableAlias(this=exp.to_identifier(alias))))
-    return ('SELECT * FROM (' + tree.sql(dialect='clickhouse') + ') AS authorized_segment '
-        'WHERE ref_value IN (' + targets(ids) + ')')
+    return ('SELECT * FROM (' + tree.sql(dialect='clickhouse') + ') AS authorized_segment WHERE ' + predicate)
 
 
 def restructure(rows):

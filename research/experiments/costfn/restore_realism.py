@@ -72,9 +72,17 @@ def server_ready(compose, env):
     return process.startswith(b"clickhouse") and query(compose, env, "SELECT 1").strip() == "1"
 
 
-def restore(directory, validation, expected_id, expected_receipt_sha, project, port, receipt):
+def restore(directory, validation, expected_id, expected_receipt_sha, project, port, receipt, *, engine='24.8.14.39'):
     started = time.monotonic()
     receipt = Path(receipt).resolve()
+    image = 'clickhouse/clickhouse-server:24.8.14.39@sha256:1ffa82edee000a42c09313bd9f1293d94c570aee74babc1b3ca9983a35fa597b'
+    if engine != '24.8.14.39':
+        from engagement_modern import ENGINE, IMAGE, admitted
+        import arm_t
+        if engine != ENGINE:
+            raise ValueError('only the explicitly admitted engagement engine is supported')
+        admitted(json.loads((receipt.parent / 'admission.json').read_bytes()), arm_t.digitalocean_id())
+        image = IMAGE
     if receipt.exists() or receipt.with_suffix(".overlay.json").exists():
         raise FileExistsError("fresh receipt/overlay paths required")
     manifest = verified_input(directory, validation, expected_id, expected_receipt_sha)
@@ -88,7 +96,7 @@ def restore(directory, validation, expected_id, expected_receipt_sha, project, p
     receipt.parent.mkdir(parents=True, exist_ok=True)
     overlay = receipt.with_suffix(".overlay.json")
     overlay.write_text(json.dumps({"services": {"clickhouse": {
-        "image": "clickhouse/clickhouse-server:24.8.14.39@sha256:1ffa82edee000a42c09313bd9f1293d94c570aee74babc1b3ca9983a35fa597b",
+        "image": image,
         # Image-owned fresh volumes already belong to clickhouse. Skip the
         # entrypoint's recursive chown so the read-only Parquet bind is untouched;
         # keep the image's normal unprivileged server user.
@@ -105,7 +113,7 @@ def restore(directory, validation, expected_id, expected_receipt_sha, project, p
     print("[realism-restore] start fresh pinned ClickHouse/MinIO", flush=True)
     command(compose, env, "up", "-d", "clickhouse", "minio")
     restore_dataset.wait_for(lambda: server_ready(compose, env), "initialized pinned ClickHouse")
-    if query(compose, env, "SELECT version()").strip() != "24.8.14.39":
+    if query(compose, env, "SELECT version()").strip() != engine:
         raise ValueError("engine pin mismatch")
     for template in sorted((Path(__file__).resolve().parents[3] / "clickhouse-init").glob("*.sql.template")):
         command(compose, env, "exec", "-T", "clickhouse", "clickhouse-client", "--user", "web10",

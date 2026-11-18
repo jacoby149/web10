@@ -96,6 +96,9 @@ class EngagementTests(unittest.TestCase):
         for table in {t.name for t in original.find_all(exp.Table)} - {'documents'}:
             self.assertIn(table, {t.name for t in tree.find_all(exp.Table)})
         self.assertIn('(author_key, doc_id) IN', rewritten)
+        link = next(table for table in tree.find_all(exp.Table) if table.name == 'doc_groups')
+        self.assertIn('doc_id IN', link.find_ancestor(exp.Select).sql(dialect='clickhouse'))
+        self.assertIn('updated_at DESC, deleted DESC', rewritten)
         self.assertNotIn('repost_of', rewritten)
         self.assertNotIn('post_id', rewritten)
 
@@ -143,6 +146,12 @@ class EngagementTests(unittest.TestCase):
                 self.assertIn(('own', 'allowed'), read())
             db.execute('ROLLBACK TO denial')
             db.execute('RELEASE denial')
+
+        # New directive explicitly requires deletion to win a timestamp tie.
+        # The actual transformed compiler boundary must deny this row, not a
+        # separate Python/SQL imitation of the attachment winner.
+        db.execute("INSERT INTO doc_groups VALUES ('active','allowed',3,1)")
+        self.assertNotIn(('active', 'allowed'), read())
 
     def test_bad_ids_and_table_identifiers_are_refused(self):
         for ids in ([], [''], [None]):
