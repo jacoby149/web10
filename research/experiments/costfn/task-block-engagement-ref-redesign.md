@@ -30,6 +30,20 @@ finish controls pass on-host, both self-kill timers active, no guardian. Baselin
 citation is recorded and restore is running. First private checkpoint1,822,830
 bytes/SHA`689c2ff4…4506f` verifies off-host. No treated result is yet claimed.
 
+Same-lease checkpoint: restore/read setup/one-time K20 setup, source projection
+and certificate refresh PASS. Original A serving stops **before readiness**:
+pinned clickhouse-connect1.6 subtracts5 from `send_receive_timeout=None` while
+initializing progress headers. Preserve full startup log/failed A and empty
+decomposition, not a performance result. Independent C construction continues.
+Transport-only repair initializes the driver with a numeric progress interval,
+then sets its actual backend read timeout toNone and retries to0; the600s native
+statement bound remains. A real pinned-driver initialization-function control
+reproduces/covers the defect. A separately source-bound same-lease continuation
+requires original certified setup/copy, keeps original cell/summary/paired-failure
+files, uses newly named cell outputs and runs only A/decomposition/C/paired reads.
+No restore, counter rebuild, projection materialization, migration proof, B/D,
+query redesign or new lease/deadline is authorized by this repair.
+
 **18 November governing execution override:** Jacob's
 [archaic execution limits removed](README.md#governing-execution-directive--18-november-2026)
 directive applies to future completion work as well as all other costfn runs:

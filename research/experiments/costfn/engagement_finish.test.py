@@ -11,6 +11,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 import engagement_finish as finish
+import engagement_finish_continue as continuation
 import engagement_limits as limits
 import engagement_modern as modern
 import engagement_observe as observe
@@ -27,6 +28,60 @@ def function(file, name, namespace):
 
 
 class FinishTests(unittest.TestCase):
+    def test_transport_continuation_requires_completed_setup_and_preserves_original_summary(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = root / 'programme-finish'
+            output.mkdir()
+            stages = {name: {'outcome': 'PASS'} for name in finish.ORDER}
+            for name in ('A-treated', 'C-complete', 'C-paired'):
+                stages[name]['outcome'] = 'INCOMPLETE'
+            path = output / 'summary.json'
+            original = json.dumps({'stages': stages}).encode()
+            path.write_bytes(original)
+            continuation.prepared(root)
+            self.assertEqual(path.read_bytes(), original)
+            stages['C-certified']['outcome'] = 'INCOMPLETE'
+            path.write_text(json.dumps({'stages': stages}))
+            with self.assertRaises(ValueError):
+                continuation.prepared(root)
+        self.assertEqual(continuation.ORDER, ('A-treated', 'A-decomposition', 'C-complete', 'C-paired'))
+
+    def test_repaired_paired_run_keeps_original_failed_comparison_bytes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / 'C-paired-comparison.json'
+            original = b'{"P":"original startup failure","F":"original startup failure"}'
+            path.write_bytes(original)
+            actions = continuation.Actions.__new__(continuation.Actions)
+            actions.root = root
+            actions.complete = Mock(return_value=[])
+            actions.paired()
+            self.assertEqual(path.read_bytes(), original)
+            self.assertEqual(actions.complete.call_count, 2)
+            self.assertTrue((root / 'C-paired-transport-comparison.json').exists())
+
+    def test_pinned_driver_progress_initialization_and_actual_transport_have_no_read_cap(self):
+        import clickhouse_connect
+        from clickhouse_connect.driver._backend.httpcommon import apply_http_server_settings
+        made = []
+        def factory(**kwargs):
+            backend = SimpleNamespace()
+            client = SimpleNamespace(_backend=backend, _initial_settings={}, set_client_setting=Mock(),
+                _setting_status=lambda _: SimpleNamespace(is_writable=True, is_set=False))
+            # The real1.6 initializer: None reproduces the deployed TypeError.
+            apply_http_server_settings(client, backend, None, kwargs['send_receive_timeout'])
+            self.assertEqual(kwargs['query_retries'], 0)
+            made.append(client)
+            return client
+        with patch.object(clickhouse_connect, 'get_client', side_effect=factory):
+            limits.clients()
+            client = clickhouse_connect.get_client(host='unused')
+        self.assertEqual(made, [client])
+        self.assertIsNone(client._backend.timeout.read_timeout)
+        self.assertEqual(client._backend.http_retries, 0)
+        self.assertEqual(client._backend.progress_interval, '120000')
+
     def test_real_finish_dispatch_cannot_call_B_D_or_aggregate_writers(self):
         actions = finish.Actions.__new__(finish.Actions)
         actions.approval = dict(measurement_limits_directive=limits.DIRECTIVE, run_directive=limits.RUN,
