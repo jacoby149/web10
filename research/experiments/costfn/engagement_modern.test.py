@@ -202,6 +202,85 @@ class ModernTests(unittest.TestCase):
         self.assertGreater(plan['comment_reactions'], 0)
         self.assertLessEqual(plan['post_reactions'], plan['actors'])
 
+    def test_query_observer_accepts_driver_settings_moved_to_positional_by_binding(self):
+        current = {'request_id': 'd' * 32}
+        observer = SimpleNamespace(current=SimpleNamespace(get=lambda: current))
+        seen = []
+        def execute(query=None, parameters=None, settings=None):
+            seen.append((query, parameters, settings))
+            return SimpleNamespace(query_id='bound-driver')
+        with tempfile.TemporaryDirectory() as directory:
+            wrapped = engagement_observe.install(execute, observer, directory)
+            bound = inspect.signature(execute).bind_partial('SELECT %(x)s', parameters={'x': 1},
+                settings={'max_execution_time': 999, 'custom': 2})
+            wrapped(*bound.args, **bound.kwargs)
+        self.assertEqual(seen[0][:2], ('SELECT %(x)s', {'x': 1}))
+        self.assertEqual(seen[0][2]['max_execution_time'], 10)
+        self.assertEqual(seen[0][2]['custom'], 2)
+        self.assertEqual(seen[0][2]['log_comment'], 'F_READ:' + 'd' * 32)
+
+    def test_setup_transport_outlives_native_budget_without_raising_measured_deadline(self):
+        session = modern.Session.__new__(modern.Session)
+        session.operation, session.host_id = self.approval(), 123
+        session.compose, session.env = ['docker', 'compose'], {}
+        session.record = lambda value: None
+        for measured, budget in ((False, 1200), (True, 10)):
+            with patch.object(modern.restore, 'command', return_value=b'ok') as command:
+                session.query('transport-control', 'SELECT 1', measured=measured, setup_seconds=1200)
+            args = command.call_args.args
+            self.assertEqual(args[args.index('--max_execution_time') + 1], str(budget))
+            self.assertEqual(args[args.index('--receive_timeout') + 1], str(budget + 10))
+            self.assertEqual(command.call_args.kwargs['timeout'], budget + 20)
+
+    def test_same_lease_continuation_preserves_stops_and_never_reseeds(self):
+        import engagement_continue as continuation
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / 'original'
+            root.mkdir()
+            (root / 'programme26').mkdir()
+            original = json.dumps({'stages': {name: {'outcome': 'STOP'} for name in ('B-aggregate', 'D-fat')}})
+            (root / 'programme26/summary.json').write_text(original)
+            for name in ('ordinary', 'fixture'):
+                folder = root / ('reference-' + name)
+                folder.mkdir()
+                (folder / 'expected.json').write_text('{}')
+            (root / 'hot-fixture').mkdir()
+            (root / 'hot-fixture/seeded.json').write_text('{}')
+            session = SimpleNamespace(native=lambda _: {'exception_code': 0}, query=lambda *args: None)
+            actions = SimpleNamespace(approval=self.approval(), expected={}, aggregate_ready=False,
+                views=lambda *args: (_ for _ in ()).throw(ValueError('independent aggregate STOP')),
+                migrate=lambda: (_ for _ in ()).throw(ValueError('migration STOP')))
+            with patch.object(continuation.modern, 'install_sessions'), patch.object(continuation.modern, 'Session', return_value=session), \
+                    patch.object(continuation.full, 'Actions', return_value=actions), \
+                    patch.object(continuation.engagement_projection, 'coverage', return_value={'source_rows': 2, 'projection_rows': 2}), \
+                    patch.object(continuation.engagement_hot_read, 'run', return_value=[]) as hot, \
+                    patch.object(continuation.full.cells, 'stop'):
+                result = continuation.run(root, Path(directory) / 'continuation')
+            self.assertEqual(result['stages']['B-aggregate']['outcome'], 'STOP')
+            self.assertEqual(result['stages']['D-fat']['outcome'], 'PASS')
+            self.assertEqual(result['stages']['C-migration']['outcome'], 'STOP')
+            self.assertFalse(result['reseeded'])
+            self.assertEqual((root / 'programme26/summary.json').read_text(), original)
+            self.assertEqual(hot.call_args.kwargs['name'], 'D-hot-continuation')
+
+    def test_uniform_rewrite_composes_with_actual_f_keyword_settings_tag(self):
+        def driver(query=None, parameters=None, settings=None):
+            return (query, parameters, settings)
+        def old_checked(sql, *args, **kwargs):
+            kwargs['settings'] = {**kwargs.get('settings', {}), 'log_comment': 'F_READ:control'}
+            return driver(sql, *args, **kwargs)
+        p = SimpleNamespace(observer=SimpleNamespace(current=SimpleNamespace(get=lambda: {'request_id': 'e' * 32})),
+            _signature=inspect.signature(driver), _views=SimpleNamespace(get=lambda: False),
+            _inventory=SimpleNamespace(get=lambda: False))
+        check = self.function('engagement_api.py', 'checked_query', dict(p=p, uniform=True,
+            MODE='uniform', copy_fence=lambda _: None, table='engagement_documents',
+            sqlglot=sqlglot, exp=exp, old_checked=old_checked))
+        sql, params, settings = check('SELECT * FROM documents WHERE doc_id=%(id)s',
+            parameters={'id': 'post'}, settings={'max_execution_time': 10})
+        self.assertIn('engagement_documents', sql)
+        self.assertIsNone(params)
+        self.assertEqual(settings, {'max_execution_time': 10, 'log_comment': 'F_READ:control'})
+
     def test_infrastructure_failure_does_not_block_independent_diagnostic_migration_or_hot_cell(self):
         class Actions:
             def stage(self, stage, results):

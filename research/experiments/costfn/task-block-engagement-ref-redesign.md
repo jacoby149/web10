@@ -66,6 +66,39 @@ comments and divides the other350k events/reactions by frozen totals; positive
 comment reactions are an explicitly added coverage stratum, absent from the frozen
 corpus. Do not mistake these controls for an executed A–D run.
 
+## Closed26.x lease —18 November2026
+
+DO620491569 is now deleted, with owned cleanup verified04:41:06UTC before the
+original05:43:57UTC deadline; elapsed compute estimate$0.73814/not invoice.
+The pending/source checkpoints above describe earlier states, not live work.
+No replacement lease, reseed, guardian, production action or native-limit change.
+
+Projection coverage88,200,363/88,200,363 and all nine migration checks/32 exact
+inverse-multiset batches pass on26.x. Independent raw→aggregate views read
+1,474,936→344,064 rows/98,621,175→46,216,238 bytes with exact impressions/reach
+parity;132→168 native ms is not a latency win. Full400k hot computation includes
+the50k-comment tree,6,732 exact reaction targets and aggregate/raw views parity:
+1,847.902ms/47,157,035 bytes, budget FAIL, not p95 or counter-retirement evidence.
+
+The original baseline stopped before projection; no complete untreated26.x
+baseline exists. Exact native QueryFinish/coverage recover the original setup
+completion after preserved300s materialization/OPTIMIZE transport STOPs; no setup
+is reseeded. Two source-bound research-wrapper settings repairs permit actual
+C main requests, but their uncertified generation selects canonical fallback.
+All ordinary/paired requests stop158/ExceptionBeforeStart at92.20M estimated
+rows, with zero actual native rows/bytes. This is INVALID treatment dispatch,
+not the intended bounded attachment path's measured performance. Complete K20,
+paired response parity and mixed-cost decomposition remain OPEN; old F FAIL stays.
+
+Public full report/three-column tables and content-free native receipts:
+`evidence/engagement26-20261118/RESULTS.md` + `results.json`. Final private
+checkpoint12,599,039 bytes/SHA`9447ed4e…3316ba`; stopped native archive5,231,894
+bytes/SHA`75303813…37148`; both verify off-host before provider cleanup. Own
+temporary keys/archive capabilities are removed; retained snapshot/volume stay
+untouched. Next is source-only complete-path/generation/baseline-ordering repair
+and controls. Any new paid/native execution needs separate admission; remaining
+overall budget is not permission to restart this closed lease.
+
 ## Historical24.8 full-store stop and cleanup
 
 The prior DO620273404 run imports the exact frozen store, uses `ref_sorted` for
