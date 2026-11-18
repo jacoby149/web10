@@ -47,6 +47,30 @@ identical-byte certificate refresh and native completion waiter are implemented.
 264 no-engine controls pass, including eight completion controls; no new native
 measurement or paid resource is implied by this source checkpoint.
 
+Execution binding: one new **DO620548967**,18 November05:42:45→09:42:45UTC,
+same four-hour/$2 shape, prior compute estimate$7.39434/not invoice. Provider
+snapshot readiness exceeds two bounded waits; both remain preserved and the SAME
+host/window continues.1,428 executing hashes verify at source`c5093d8d3`; actual
+host/container stop timers are active, no guardian. Native worker starts only
+after the eight completion controls pass on the host. Snapshot verification is
+running, not a baseline/treated PASS. First private checkpoint1,805,765 bytes,
+SHA`e7446d0e…851cdb`, verifies off-host.
+
+First attempt: restore72.091s/current envelope/counts and fixture coverage PASS;
+one approved K20 setup completes. The untreated baseline then STOPs at the
+certification guard BEFORE projection. Forensics proves an encoding mismatch,
+not changed data: CLI JSON UInt64 fields are integers (`fe9d1909…`), while F/P
+serving explicitly stringifies the same fields (`8e24648e…`). All post-baseline
+stages are BLOCKED as required; no fallback or row estimate is measured.
+Preserve the failed cells/summary and verified1,953,870-byte private checkpoint
+SHA`580fa107…7b36b2`. A separately hash-bound same-lease prepared continuation
+normalizes only generation encoding, proves unchanged canonical bytes, updates
+counter/metadata/fanout receipts and starts a fresh named baseline attempt before
+any projection. No initial setup, counter build, native write or seed is repeated;
+the original09:42:45UTC deadline and all native limits stand.265 no-engine controls
+pass, including actual driver-generation/CLI equivalence. A baseline STOP is still
+terminal for its executing attempt; no stopped attempt is relabelled PASS.
+
 Jacob accepts PR#1579's three-things implementation/tiny rehearsal and explicitly
 admits one fresh full-store lease: **ClickHouse26.10.4.207**, same frozen dataset,
 envelope/budgets/DO-only/agent300s/self-kill/no-guardian rules. The24.8 freeze is

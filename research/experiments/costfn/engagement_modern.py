@@ -34,6 +34,15 @@ class Session(arm_f_runtime.Session):
         super().__init__(root)
         self.deadline = admitted(self.operation, self.host_id)
 
+    def rows(self, label, sql, **kwargs):
+        rows, query_id = super().rows(label, sql, **kwargs)
+        if label == 'canonical_generation':
+            # The real F/P serving drivers hash these UInt64 fields as decimal
+            # strings.26.x JSON emits numbers; encode the SAME parts identically.
+            rows = [{**row, 'rows': str(int(row['rows'])), 'data_version': str(int(row['data_version']))}
+                for row in rows]
+        return rows, query_id
+
     def verify_envelope(self):
         container = restore.command(self.compose, self.env, 'ps', '-q', 'clickhouse').decode().strip()
         if not container or '\n' in container:

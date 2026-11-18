@@ -3,6 +3,7 @@ import ast
 import contextvars
 from functools import wraps
 import inspect
+import hashlib
 import json
 from pathlib import Path
 import tempfile
@@ -21,6 +22,8 @@ import engagement_events as events
 import engagement_native as native
 import engagement_observe as observe
 import engagement_queries as queries
+import engagement_modern as modern
+import arm_satellite_counts as counts
 
 
 def function(file, name, namespace):
@@ -31,6 +34,20 @@ def function(file, name, namespace):
 
 
 class CompletionTests(unittest.TestCase):
+    def test_cli_generation_encoding_matches_actual_f_and_p_driver_generation(self):
+        parts = [dict(table='documents', name='all_1', rows=88_200_363, data_version=1)]
+        session = modern.Session.__new__(modern.Session)
+        session.query = lambda *args, **kwargs: (json.dumps({'data': parts}), 'metadata-id')
+        expected, encoded = counts.generation(session)
+        p = SimpleNamespace(run=lambda _: [dict(row) for row in parts])
+        actual = function('arm_f_api.py', 'generation', dict(p=p, hashlib=hashlib, json=json))()
+        self.assertEqual(expected, actual)
+        parent = function('arm_satellite_api.py', 'generation', dict(run=p.run, counts={'canonical_generation': expected},
+            stop=lambda reason: self.fail(reason), hashlib=hashlib, json=json))
+        parent()
+        self.assertEqual(encoded[0]['rows'], '88200363')
+        self.assertNotEqual(expected, hashlib.sha256(json.dumps(parts, sort_keys=True).encode()).hexdigest())
+
     def test_baseline_stop_never_adds_projection_or_runs_any_later_cell(self):
         calls = []
         class Actions:

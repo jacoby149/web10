@@ -3,6 +3,7 @@ from copy import deepcopy
 import hashlib
 import json
 from pathlib import Path
+import shutil
 
 from arm_f_native import save
 import arm_f_infrastructure as infrastructure
@@ -86,6 +87,11 @@ def refresh(root, before, name):
     root = Path(root)
     output = root / ('certification-' + name)
     output.mkdir(mode=0o700, exist_ok=False)
+    previous = output / 'previous-receipts'
+    previous.mkdir(mode=0o700)
+    for label, path in receipt_paths(root).items():
+        shutil.copyfile(path, previous / (label + '.json'))
+    shutil.copyfile(root / 'certification.json', previous / 'certification.json')
     session = modern.Session(root)
     after = fingerprint(session)
     save(output / 'before.json', before)
@@ -98,7 +104,7 @@ def refresh(root, before, name):
     if (before['canonical_content_sha256'] != after['canonical_content_sha256']
             or before['base_files'] != after['base_files'] or totals(before) != totals(after)):
         raise ValueError('canonical base data changed: cannot rebind physical certificates')
-    provenance = dict(kind='IDENTICAL_CANONICAL_BASE_BYTES_AFTER_MATERIALIZATION',
+    provenance = dict(kind='IDENTICAL_CANONICAL_BASE_BYTES_REBIND', cause=name,
         before_generation=before['canonical_generation'], after_generation=after['canonical_generation'],
         canonical_content_sha256=after['canonical_content_sha256'], proof_sha256=digest(output / 'after.json'),
         cached_values_rebuilt=False, scope_keys_rewritten=False)
