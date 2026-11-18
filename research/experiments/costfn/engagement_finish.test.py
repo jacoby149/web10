@@ -15,6 +15,7 @@ import engagement_limits as limits
 import engagement_modern as modern
 import engagement_observe as observe
 import engagement_native as native
+import engagement_prepared as prepared
 import arm_f_http
 
 
@@ -26,6 +27,54 @@ def function(file, name, namespace):
 
 
 class FinishTests(unittest.TestCase):
+    def test_real_finish_dispatch_cannot_call_B_D_or_aggregate_writers(self):
+        actions = finish.Actions.__new__(finish.Actions)
+        actions.approval = dict(measurement_limits_directive=limits.DIRECTIVE, run_directive=limits.RUN,
+            purpose='ENGAGEMENT_COMPLETION_ONLY')
+        with tempfile.TemporaryDirectory() as directory, \
+                patch.object(modern, 'remaining', return_value=2000), \
+                patch.object(finish.full.Actions, 'aggregate') as aggregate, \
+                patch.object(finish.full.Actions, 'hot') as hot:
+            actions.root = Path(directory)
+            for name in ('B-aggregate', 'B-diagnostic', 'D-fat'):
+                with self.assertRaises(KeyError):
+                    actions.stage(name, {})
+        aggregate.assert_not_called()
+        hot.assert_not_called()
+
+    def test_real_initial_K20_setup_is_once_only_not_a_rebuild_hook(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            profile = dict(reader='reader', reference_page=[{'doc_id': 'post'}],
+                actual_readable_by_kind={name: {} for name in ('main', 'reactions', 'comments')})
+            (root / 'profile-ordinary.json').write_text(json.dumps(profile))
+            session = SimpleNamespace(operation={'initial_k20_count_build_admitted': True})
+            with patch.object(prepared.infra, 'common', return_value={}), \
+                    patch.object(prepared.counts, 'RECIPES', []), \
+                    patch.object(prepared.typed, 'scope_key', return_value='scope'), \
+                    patch.object(prepared.batching, 'build_scope', return_value={}) as build, \
+                    patch.object(prepared.batching, 'compare', return_value=[]), \
+                    patch.object(prepared.engagement_setup, 'presence'):
+                prepared.initial_k20(root, session, 'generation')
+                self.assertEqual(build.call_count, 3)
+                with self.assertRaises(FileExistsError):
+                    prepared.initial_k20(root, session, 'generation')
+                self.assertEqual(build.call_count, 3)
+
+    def test_programme_refuses_existing_failure_output_before_any_stage_or_write(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / 'programme-finish'
+            output.mkdir()
+            failure = output / 'A-treated.json'
+            original = b'{"outcome":"INCOMPLETE","original_failure":true}\n'
+            failure.write_bytes(original)
+            actions = SimpleNamespace(stage=Mock(), checkpoint=Mock())
+            with self.assertRaises(FileExistsError):
+                finish.programme(actions, output)
+            actions.stage.assert_not_called()
+            actions.checkpoint.assert_not_called()
+            self.assertEqual(failure.read_bytes(), original)
+
     def test_banked_baseline_and_constructor_are_bound_without_engine(self):
         value = finish.banked()
         self.assertEqual(value['baseline']['samples'][1]['read_bytes'], 222387685)

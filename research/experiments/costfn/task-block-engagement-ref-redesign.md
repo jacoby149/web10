@@ -23,6 +23,13 @@ independent cells. Report24.8 history / banked26.x baseline / new treated actual
 per-step rows/bytes, named preparation/unclassified remainders and exact parity
 or INVALID.500ms/25MB judge results only; scan-shaped completions say so plainly.
 
+Execution binds **DO620634285**,18 November11:02:47→15:02:47UTC, existing four-hour/$2
+lease discipline. First provider-readiness timeout is preserved; same host, no
+replacement.1,434 source hashes at`5d4259a29` and16 approved pins verify, seven
+finish controls pass on-host, both self-kill timers active, no guardian. Baseline
+citation is recorded and restore is running. First private checkpoint1,822,830
+bytes/SHA`689c2ff4…4506f` verifies off-host. No treated result is yet claimed.
+
 **18 November governing execution override:** Jacob's
 [archaic execution limits removed](README.md#governing-execution-directive--18-november-2026)
 directive applies to future completion work as well as all other costfn runs:
