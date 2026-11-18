@@ -34,6 +34,7 @@ class FinishTests(unittest.TestCase):
         directory = Path(__file__).parent / 'evidence/engagement-finish-20261118'
         value = json.loads((directory / 'results.json').read_bytes())
         raw = (directory / 'native-query-costs.csv').read_bytes()
+        self.assertNotIn(b'\r', raw)
         self.assertEqual(hashlib.sha256(raw).hexdigest(), value['preservation']['public_csv_sha256'])
         rows = list(csv.DictReader(raw.decode().splitlines()))
         self.assertEqual(len(rows), 556)
