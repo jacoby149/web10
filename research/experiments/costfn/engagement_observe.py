@@ -24,6 +24,8 @@ def classify(sql, callers, current):
         return 'views'
     if preparation:
         return 'preparation'
+    if 'ENGAGEMENT_DOC_COUNTS' in sql:
+        return 'counts_embedded_in_resolution' if any(row.get('is_main') for row in current.get('fanout_scopes', [])) else 'counts'
     if 'engagement_documents' in tables and list(sqlglot.parse_one(sql, read='clickhouse').find_all(exp.AggFunc)):
         return 'counts_embedded_in_resolution' if any(row.get('is_main') for row in current.get('fanout_scopes', [])) else 'counts'
     if tables & {'doc_groups_t', 'fanout'}:

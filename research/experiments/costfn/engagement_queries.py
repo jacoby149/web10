@@ -8,7 +8,6 @@ import arm_satellite_serve as serve
 from arm_satellite_sql import identifier, literal as q
 import engagement_ref as refs
 
-_CACHED_MAIN = serve.main_sql
 
 
 def migrate_sql(sql):
@@ -68,14 +67,23 @@ def followup(compiled, service, *, uniform, table):
     cte = next(cte for cte in tree.args['with_'].expressions if cte.alias == service)
     cte.set('this', sqlglot.parse_one(scoped(cte.this.sql(dialect='clickhouse'), ids, service,
         uniform=uniform, table=table), read='clickhouse'))
-    return tree.sql(dialect='clickhouse')
+    return '/* ENGAGEMENT_DOC_COUNTS */ ' + tree.sql(dialect='clickhouse')
 
 
 def main(compiled, pointers, profile_pairs, scope, *, uniform, table):
     original = sqlglot.parse_one(compiled, read='clickhouse')
-    result = sqlglot.parse_one(_CACHED_MAIN(compiled, pointers, profile_pairs, scope), read='clickhouse')
+    result = original.copy()
     boundaries = {cte.alias: cte.this for cte in original.args['with_'].expressions}
     ids = [row['doc_id'] for row in pointers]
+    source = original.args['from_'].this
+    for cte in result.args['with_'].expressions:
+        if cte.alias == source.name:
+            cte.set('this', sqlglot.parse_one(head(cte.this.sql(dialect='clickhouse'),
+                [(row['author_key'], row['doc_id']) for row in pointers], table), read='clickhouse'))
+        elif cte.alias == 'profile':
+            cte.set('this', sqlglot.parse_one(head(cte.this.sql(dialect='clickhouse'), profile_pairs, table), read='clickhouse'))
+    result.args['with_'].set('expressions', [cte for cte in result.args['with_'].expressions
+        if cte.alias not in ('reactions', 'comments')])
     for old_join, new_join in zip(original.args.get('joins', []), result.args.get('joins', []), strict=True):
         selected = old_join.this.this if isinstance(old_join.this, exp.Subquery) else None
         if not isinstance(selected, exp.Select) or not any(list(item.find_all(exp.AggFunc)) for item in selected.expressions):
@@ -87,7 +95,18 @@ def main(compiled, pointers, profile_pairs, scope, *, uniform, table):
         selected.set('from_', exp.From(this=exp.Subquery(this=sqlglot.parse_one(boundary, read='clickhouse'),
             alias=exp.TableAlias(this=exp.to_identifier(service)))))
         new_join.this.set('this', selected)
-    return result.sql(dialect='clickhouse')
+    triples = ','.join('(' + ','.join(q(row[key]) for key in ('author_key', 'doc_id', 'group_id')) + ')' for row in pointers)
+    alias = source.alias_or_name
+    result.where(serve.condition('(' + alias + '.author_key,' + alias + '.doc_id,' + alias + '.group_id) IN ('
+        + triples + ')' if triples else '0'), copy=False)
+    return '/* ENGAGEMENT_DOC_COUNTS */ ' + result.sql(dialect='clickhouse')
+
+
+def head(boundary, pairs, table):
+    keys = ','.join('(' + q(author) + ',' + q(doc) + ')' for author, doc in sorted(set(pairs)))
+    candidates = 'SELECT author_key,doc_id FROM ' + identifier(table) + ' WHERE ' + (
+        '(author_key,doc_id) IN (' + keys + ')' if keys else '0')
+    return refs.bounded_boundary(boundary, candidates, '1', table=table)
 
 
 def mixed_components(sql):
