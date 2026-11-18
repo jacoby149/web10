@@ -1,0 +1,57 @@
+{
+  "kind": "ENGAGEMENT_THREE_PART_TINY_NATIVE_REHEARSAL",
+  "outcome": "PASS",
+  "scope": "TINY_NATIVE_FIXTURE_NOT_FULL_STORE_OR_FEED_PERFORMANCE",
+  "droplet_id": 620273404,
+  "dataset_for_subsequent_full_run": "2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd",
+  "lease_start_utc": "2026-11-17T12:38:50+00:00",
+  "lease_deadline_utc": "2026-11-17T16:38:50+00:00",
+  "engine": "24.8.14.39",
+  "host_GiB": 32,
+  "container_GiB": 28,
+  "server_GiB": 22,
+  "read_seconds": 10,
+  "native_row_stop": 10000000,
+  "projection": {
+    "name": "ref_sorted",
+    "actual_native_plan": "ReadFromMergeTree (ref_sorted)",
+    "selected_granules": 1,
+    "total_granules": 65,
+    "fixture_index_granularity": 64,
+    "full_store_granularity_not_changed_by_fixture": true,
+    "assertion_setting": "force_optimize_projection_name=ref_sorted",
+    "projection_only_views": "UNAFFECTED"
+  },
+  "cases": [
+    "SQL_MIGRATION_EXACT_STABLE_SOURCE_VERSIONS_BODY_AND_FULL_KEYS",
+    "ROOT_SEGMENT_NESTED_REPLY_REACTION_REPOST_AND_TOMBSTONE",
+    "INVERSE_MULTISET_ORACLE_DENIES_DUPLICATE",
+    "EXACT_DISTINCT_CROSS_DAY_INSERT_BLOCK_AND_LIVE_ATTACHMENT_SCOPE"
+  ],
+  "stable_source_nonpadding_physical_versions": 6,
+  "failed_attempts_preserved": [
+    {"attempt": 1, "failure": "NATIVE_344_REPLACING_MERGE_TREE_PROJECTION_MODE"},
+    {"attempt": 2, "failure": "MATERIALIZATION_TIMEOUT_WITH_MERGES_STOPPED"},
+    {"attempt": 3, "failure": "NATIVE_117_SINGLE_GRANULE_PROJECTION_NOT_SELECTED"},
+    {"attempt": 4, "failure": "INDEPENDENT_SEMANTIC_MISMATCH_NULL_RETIRED_JSON_KEYS"}
+  ],
+  "source_sha256": {
+    "engagement_ref.py": "c1c8e8bed8cdd45bb2422a60bd6f8cf663a8a8b29914251c1a9dbd2e259edfd3",
+    "engagement_events.py": "1d3d7f07011db80a0e3b1acbe35145313e89c8329838d723a186a93ad89c4dd0",
+    "engagement_fixture.py": "ace75bdd01e221890903ad5a0ec00e20a09d16b19b5f7b34802b32f577fb5ebf",
+    "arm_satellite_reconcile_native.py": "8a9a4e582b77e1a24d3e8f777254be9ab41f671e909c9d03fe956baa650801e0"
+  },
+  "private_native_proof_sha256": "7f0d0f1d53b3da3698218123b2a6629acdc12529bf044a7dc12702fd47128214",
+  "off_host_private_checkpoint": {
+    "name": "engagement-checkpoint-20261117T125213Z.tar.gz",
+    "bytes": 347620,
+    "sha256": "734e58027f0d3fcbd67a3b25b8a5b0e7f331d1e864b542a4beae3bf090972651",
+    "hash_verified": true
+  },
+  "TTL_reconciliation": "OPEN_INSERT_AGGREGATES_DO_NOT_SUBTRACT_EXPIRED_RAW_EVENTS",
+  "full_store": "PENDING_SEPARATE_STAGE_RECEIPTS",
+  "complete_response": "NOT_MEASURED",
+  "performance_improvement": "NOT_ESTABLISHED_BY_TINY_FIXTURE",
+  "production_changes": false,
+  "guardian": false
+}

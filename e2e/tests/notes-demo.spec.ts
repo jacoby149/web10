@@ -110,7 +110,11 @@ test.describe('Notes demo gauntlet — CRUD + console logs', () => {
     // --- UPDATE ---
     const updatedText = `updated ${Date.now()}`;
     await page.locator('.note textarea').first().fill(updatedText);
+    const updated = page.waitForResponse(response => response.url().endsWith('/v3/update') && response.request().method() === 'POST');
+    const reread = page.waitForResponse(response => response.url().endsWith('/v3/read') && response.request().method() === 'POST');
     await page.locator('.note button:has-text("Update")').first().click();
+    expect((await updated).ok()).toBeTruthy();
+    expect((await reread).ok()).toBeTruthy();
     await expect(page.locator('.note textarea').first()).toHaveValue(updatedText, { timeout: 10000 });
 
     // --- DELETE ---
@@ -192,7 +196,14 @@ test.describe('Notes demo gauntlet — CRUD + console logs', () => {
     await expect(page.locator('.note').first()).toBeVisible({ timeout: 10000 });
 
     await page.locator('.note textarea').first().fill('updated');
+    // Filling a textarea already satisfies toHaveValue; it does not acknowledge
+    // the write. The CI trace had Delete finish BEFORE Update and recreate the
+    // note. Wait for the real update + reread before driving the next mutation.
+    const updated = page.waitForResponse(response => response.url().endsWith('/v3/update') && response.request().method() === 'POST');
+    const reread = page.waitForResponse(response => response.url().endsWith('/v3/read') && response.request().method() === 'POST');
     await page.locator('.note button:has-text("Update")').first().click();
+    expect((await updated).ok()).toBeTruthy();
+    expect((await reread).ok()).toBeTruthy();
     await expect(page.locator('.note textarea').first()).toHaveValue('updated', { timeout: 10000 });
 
     await page.locator('.note button:has-text("Delete")').first().click();

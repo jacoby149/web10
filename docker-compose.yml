@@ -84,7 +84,7 @@ services:
 
   clickhouse: # v3 OLAP store — ClickHouse with v3 schema init
     # Mirrored to our GHCR namespace (ghcr-mirror.yml) — see e2e/mirror-images.json.
-    image: ghcr.io/jacoby149/base-clickhouse:24.3
+    image: ghcr.io/jacoby149/base-clickhouse:26.10.4.207
     volumes:
       - clickhouse-data:/var/lib/clickhouse
       - ./clickhouse-init:/docker-entrypoint-initdb.d:ro

@@ -15,7 +15,7 @@ services:
 
   clickhouse:
     # Mirrored to our GHCR namespace (ghcr-mirror.yml) — see e2e/mirror-images.json.
-    image: ghcr.io/jacoby149/base-clickhouse:24.8
+    image: ghcr.io/jacoby149/base-clickhouse:26.10.4.207
     user: "101:101"
     command: ["clickhouse-server", "--config-file=/etc/clickhouse-server/config.xml"]
     ulimits:

@@ -202,7 +202,7 @@ def initialize(*, state=Path('.context/fanout-run.json'), scope=None, ssh_source
                       'cleanup_model': lease['cleanup_model'], 'watchdog_loaded': False}))
 
 
-def create(path):
+def create(path, *, snapshot=None):
     path = Path(path)
     root = path.parent
     with path.with_suffix('.lock').open('a') as lock:
@@ -210,6 +210,20 @@ def create(path):
         lease = json.loads(path.read_bytes())
         validate(lease)
         account(lease)
+        image = 'ubuntu-24-04-x64'
+        if snapshot is not None:
+            from engagement_modern import DIRECTIVE, ENGINE
+            if (str(snapshot) != '255003176' or lease.get('engagement_engine') != ENGINE
+                    or lease.get('engagement_directive') != DIRECTIVE):
+                raise ValueError('only the explicitly admitted retained engagement snapshot may be restored')
+            saved = api('compute', 'snapshot', 'get', str(snapshot))
+            saved = saved[0] if isinstance(saved, list) else saved
+            if (str(saved.get('id')) != str(snapshot) or saved.get('resource_type') != 'droplet'
+                    or str(saved.get('resource_id')) != '620121703' or 'nyc3' not in saved.get('regions', [])
+                    or saved.get('min_disk_size', 1000) > 400):
+                raise ValueError('retained snapshot identity/region/shape changed')
+            image = str(snapshot)
+            lease['restored_snapshot_id'] = image
         if (lease.get('cancelled') or lease.get('droplet_id') or lease.get('creation_uncertain')
                 or time.time() >= lease['deadline'] - 1800):
             raise ValueError('closed/existing admission; no creation')
@@ -255,7 +269,7 @@ def create(path):
         lease['creation_uncertain'] = True
         save(path, lease)
         row = api('compute', 'droplet', 'create', lease['name'], '--region', lease['region'], '--size', lease['size'],
-                  '--image', 'ubuntu-24-04-x64', '--ssh-keys', str(lease['ssh_key_id']), '--tag-names', lease['tag'],
+                  '--image', image, '--ssh-keys', str(lease['ssh_key_id']), '--tag-names', lease['tag'],
                   '--user-data-file', str(cloud_path))
         row = row[0] if isinstance(row, list) else row
         lease.update(droplet_id=row['id'], creation_uncertain=False)

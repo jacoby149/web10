@@ -12,17 +12,24 @@
     {
       "source": "clickhouse/clickhouse-server:24.8",
       "target": "ghcr.io/jacoby149/base-clickhouse:24.8",
-      "used_by": ["e2e/docker-compose.yml"]
+      "used_by": ["research/experiments/costfn/research.compose.yml", "research/experiments/social/compose.yml"]
     },
     {
       "source": "clickhouse/clickhouse-server:24.3",
       "target": "ghcr.io/jacoby149/base-clickhouse:24.3",
-      "used_by": ["docker-compose.yml"]
+      "used_by": ["research/experiments/costfn/compose.yml"]
     },
     {
       "source": "clickhouse/clickhouse-server:latest",
       "target": "ghcr.io/jacoby149/base-clickhouse:latest",
-      "used_by": ["ubuntu-deployment/docker-compose.ecosystem.yml"]
+      "used_by": [],
+      "_note": "Legacy mirror retained; active runtime uses an explicit release tag below. Never retag the frozen 24.3/24.8 experiment images as a new engine."
+    },
+    {
+      "source": "clickhouse/clickhouse-server:26.10.4.207@sha256:4f491abc44d9f4a1747c033c35ddd5bc385521305d85ca8251ba0824ff597035",
+      "target": "ghcr.io/jacoby149/base-clickhouse:26.10.4.207",
+      "used_by": ["docker-compose.yml", "e2e/docker-compose.yml", "ubuntu-deployment/docker-compose.ecosystem.yml"],
+      "_note": "Newest official published server image observed17 November2026. GitHub26.10.5.57-stable was announced today but its image tag was still404; do not point runtime at an unpublished image or silently advance this digest."
     },
     {
       "source": "nginxproxy/nginx-proxy:1.6",

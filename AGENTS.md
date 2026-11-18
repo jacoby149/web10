@@ -420,6 +420,29 @@ population/R+W, so no p95/full T6/arm PASS. Owned cleanup verifies17 November
 06:47:54UTC before06:58:36; compute estimate$0.95546/not invoice, snapshot storage
 separate/restore speed unmeasured. Preserve all earlier failures; receipts:
 `research/experiments/costfn/evidence/arm-f-persistent-20261117/`.
+The separately approved17 November engagement experiment now implements one
+skinny `ref_sorted` projection, uniform root refs on a disposable document copy,
+and diagnostic-first insert aggregation of `content_events` (events do not move).
+Engagement schema/runtime integration stays off. The operator separately requests
+an engine upgrade: active local/E2E/ecosystem Compose now pins the mirrored
+26.10.4.207 official image (newest published image observed; the just-announced
+26.10.5.57 tag was not yet published). Historical24.8 receipts/pins remain intact;
+Jacob's subsequent17 November directive LIFTS the engagement engine freeze and
+admits a fresh26.10.4.207 A–D run with a same-engine untreated baseline, projection,
+independent views diagnostic/aggregate, exact semantics migration/full HTTP reads
+and a fat-engagement cell. Pre-lease complete-read integration controls are still
+needed; the old stage-only runner is not that controller. One stage stopping must
+not silently skip independent stages. No fresh26.x host/deadline is bound yet.
+Mirror/CI/in-place upgrade and production rollout are distinct gates; no live
+deployment is implied. Consider `_part_offset` only as a separately measured
+replacement for the same projection, never extra authority or a second layout.
+Native24.8 requires projection rebuild
+on deduplicating merges; the original344 failure remains preserved. Source and
+small-fixture checks do not establish full-data optimizer/parity/performance.
+Exact distinct reach is merged across day/insert states, never summed; insert
+aggregates do not subtract expired raw events, so TTL reconciliation remains a
+separate production gate. Scope/admission/results:
+`research/experiments/costfn/task-block-engagement-ref-redesign.md`.
 Experiment first: prove hybrid write maintenance and layout-aware reads in isolated
 Config F, passing all required response/performance/write/lifecycle/rebuild and
 separately admitted stress gates before proposing broader platform integration.

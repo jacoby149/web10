@@ -19,11 +19,18 @@ import arm_satellite_reconcile as reconcile
 IMAGE = 'clickhouse/clickhouse-server:24.8.14.39@sha256:1ffa82edee000a42c09313bd9f1293d94c570aee74babc1b3ca9983a35fa597b'
 
 
-def run(root, *, trim_only=False):
+def run(root, *, trim_only=False, engagement_only=False, engagement_engine=None):
     root = Path(root)
     approval = json.loads((root / 'admission.json').read_bytes())
     host = arm_t.digitalocean_id()
     deadline = arm_f_runtime.admitted(approval, host)
+    engine, image = '24.8.14.39', IMAGE
+    if engagement_engine is not None:
+        import engagement_modern as modern
+        modern.admitted(approval, host)
+        if engagement_engine != modern.ENGINE or not engagement_only or trim_only:
+            raise ValueError('modern native rehearsal is engagement-only')
+        engine, image = modern.ENGINE, modern.IMAGE
     output = root / 'checker-native-fixture'
     output.mkdir(mode=0o700, exist_ok=False)
     name = 'fanout-checker-fixture-' + uuid.uuid4().hex[:12]
@@ -47,7 +54,9 @@ def run(root, *, trim_only=False):
             completed = subprocess.run(args, capture_output=True, timeout=30)
             if completed.returncode:
                 (output / (query_id + '.stderr')).write_bytes(completed.stderr)
-                raise RuntimeError('native fixture SQL failed; exact private stderr retained')
+                error = RuntimeError('native fixture SQL failed; exact private stderr retained')
+                error.stderr = completed.stderr
+                raise error
             return completed.stdout.decode().strip(), query_id
         def rows(self, label, sql, **kwargs):
             text, query_id = self.query(label, sql + ' FORMAT JSON', **kwargs)
@@ -60,12 +69,13 @@ def run(root, *, trim_only=False):
                 raise ValueError('native fixture receipt/stop-rule failure')
             return rows[0]
     session = Session()
+    session.engagement_engine = engagement_engine
     config = Path(__file__).parent / 'clickhouse-config/realism-memory.xml'
     try:
         subprocess.run(['docker', 'run', '-d', '--rm', '--name', name, '--memory', str(28 * 1024**3),
             '--label', 'web10.checker-fixture=' + str(host), '-e', 'CLICKHOUSE_DB=web10',
             '-e', 'CLICKHOUSE_USER=web10', '-e', 'CLICKHOUSE_PASSWORD=web10',
-            '-v', str(config) + ':/etc/clickhouse-server/config.d/fanout-memory.xml:ro', IMAGE],
+            '-v', str(config) + ':/etc/clickhouse-server/config.d/fanout-memory.xml:ro', image],
             capture_output=True, check=True, timeout=180)
         ready = False
         for _ in range(90):
@@ -73,7 +83,7 @@ def run(root, *, trim_only=False):
             if state.returncode == 0 and state.stdout.startswith(b'clickhouse'):
                 try:
                     version, _ = session.query('fixture_version', 'SELECT version()')
-                    if version == '24.8.14.39':
+                    if version == engine:
                         ready = True
                         break
                 except RuntimeError:
@@ -84,10 +94,17 @@ def run(root, *, trim_only=False):
         limit, _ = session.query('fixture_memory', "SELECT value FROM system.server_settings WHERE name='max_server_memory_usage'")
         if int(limit) != 22 * 1024**3:
             raise ValueError('fixture server memory cap differs')
+        if engagement_only:
+            if approval.get('engagement_ref_admitted') is not True:
+                raise ValueError('explicit engagement experiment admission required')
+            from engagement_fixture import run as engagement_fixture
+            result['engagement'] = engagement_fixture(session, root)
+            result.update(outcome='PASS', engine=engine, server_bytes=int(limit))
+            return result
         if trim_only:
             from arm_f_trim_native import run as trim_fixture
             result['trim'] = trim_fixture(name, root)
-            result.update(outcome='PASS', engine='24.8.14.39', server_bytes=int(limit))
+            result.update(outcome='PASS', engine=engine, server_bytes=int(limit))
             return result
         session.query('fixture_docs', "CREATE TABLE documents (doc_id String,author_key String,collection_name String,body String,"
             "ref_value String,tags Array(String),created_at DateTime64(3),updated_at DateTime64(3),deleted UInt8) "
@@ -136,7 +153,7 @@ def run(root, *, trim_only=False):
         if approval.get('full_population_backfill_required') is True:
             from arm_f_population_fixture import run as population_fixture
             result['population_builder_rehearsal'] = population_fixture(session, root)['outcome']
-        result.update(outcome='PASS', engine='24.8.14.39', server_bytes=int(limit),
+        result.update(outcome='PASS', engine=engine, server_bytes=int(limit),
                       checker_source_sha256=hashlib.sha256(Path(reconcile.__file__).read_bytes()).hexdigest())
     except Exception as error:
         result.update(outcome='STOP', **__import__('arm_f_failure').details(error))

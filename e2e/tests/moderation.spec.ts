@@ -393,8 +393,13 @@ test.describe('Content moderation (D59)', () => {
 
       // Add the sentinel word to the blocklist (auto-saves — no separate Save).
       await pageOp.locator('[data-testid="moderation-word-input"]').fill(FLAG_WORD);
+      const wordsSaved = pageOp.waitForResponse(response => response.url().endsWith('/config/update') && response.request().method() === 'POST');
       await pageOp.locator('[data-testid="moderation-word-add"]').click();
       await expect(pageOp.locator(`[data-testid="moderation-word-${FLAG_WORD}"]`)).toBeVisible({ timeout: 20000 });
+      // The chip is optimistic. The failed trace created the post while this
+      // config write was still pending, so the old blocklist correctly applied.
+      expect((await wordsSaved).ok()).toBeTruthy();
+      expect((await getConfig(request, admin)).sensitive_words).toContain(FLAG_WORD);
       expect(opErrors, 'operator pageerrors (blocklist set)').toEqual([]);
 
       // --- A flagged post is hidden from the board ---
@@ -411,9 +416,11 @@ test.describe('Content moderation (D59)', () => {
       expect(opErrors, 'operator pageerrors (queue)').toEqual([]);
 
       // --- The operator "keeps hiding" (adds the user to auto_hide_users) ---
+      const hideSaved = pageOp.waitForResponse(response => response.url().endsWith('/v3/moderation/auto-hide') && response.request().method() === 'POST');
       await pageOp.locator(`[data-testid="moderation-flag-toggle-${user.username}"]`).click();
       // The button flips to the "Hiding" state (the user is now on the list).
       await expect(pageOp.locator(`[data-testid="moderation-flag-toggle-${user.username}"]`)).toContainText('Hiding', { timeout: 20000 });
+      expect((await hideSaved).ok()).toBeTruthy();
       expect(opErrors, 'operator pageerrors (keep hiding)').toEqual([]);
       await ctxOp.close();
 
@@ -431,9 +438,11 @@ test.describe('Content moderation (D59)', () => {
       // The user is still flagged (the audit log is append-only) and on the list
       // (the button shows "Hiding") — clicking removes them.
       await expect(pageOp2.locator(`[data-testid="moderation-flag-${user.username}"]`)).toBeVisible({ timeout: 20000 });
+      const unhideSaved = pageOp2.waitForResponse(response => response.url().endsWith('/v3/moderation/auto-hide') && response.request().method() === 'POST');
       await pageOp2.locator(`[data-testid="moderation-flag-toggle-${user.username}"]`).click();
       // The button flips back to "Keep hiding" (the user is off the list).
       await expect(pageOp2.locator(`[data-testid="moderation-flag-toggle-${user.username}"]`)).toContainText('Keep hiding', { timeout: 20000 });
+      expect((await unhideSaved).ok()).toBeTruthy();
       expect(op2Errors, 'operator pageerrors (remove)').toEqual([]);
       await ctxOp2.close();
 
