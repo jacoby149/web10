@@ -430,9 +430,19 @@ an engine upgrade: active local/E2E/ecosystem Compose now pins the mirrored
 Jacob's subsequent17 November directive LIFTS the engagement engine freeze and
 admits a fresh26.10.4.207 A–D run with a same-engine untreated baseline, projection,
 independent views diagnostic/aggregate, exact semantics migration/full HTTP reads
-and a fat-engagement cell. Pre-lease complete-read integration controls are still
-needed; the old stage-only runner is not that controller. One stage stopping must
-not silently skip independent stages. No fresh26.x host/deadline is bound yet.
+and a fat-engagement cell. The26.x DO620491569 lease is now closed: projection
+coverage88,200,363/88,200,363 and nine-check/32-batch migration parity pass;
+independent raw→aggregate views98.62→46.22MB retain exact parity, no sampled
+latency win. Full400k hot computation passes thread/per-target/views parity at
+1,847.902ms/47.16MB, budget FAIL. Untreated complete baseline is missing; C
+ordinary/paired requests select canonical_fallback/uncertified_generation and
+stop158 before execution (92.20M estimate, zero actual native rows/bytes).
+This is not intended-treatment cost or a complete-feed PASS. All failed states/
+sources/stopped native parts verify off-host; owned cleanup18 November04:41:06UTC
+precedes05:43:57. Complete-path/generation refresh and baseline-ordering acceptance
+remain OPEN; no new paid/native admission follows. One stage stopping must not
+silently skip independent stages. Full receipts:
+`research/experiments/costfn/evidence/engagement26-20261118/RESULTS.md`.
 Mirror/CI/in-place upgrade and production rollout are distinct gates; no live
 deployment is implied. Consider `_part_offset` only as a separately measured
 replacement for the same projection, never extra authority or a second layout.
