@@ -102,12 +102,14 @@ def checked_query(sql=None, *args, **kwargs):
                 method=('aggregate' if aggregate_views else 'raw') + '; independent quiet canonical check after HTTP', values=values))
         return result
     if uniform and current is not None and current.get('request_id') != 'unlabelled':
-        tree = sqlglot.parse_one(p.serve.bound_sql(sql, params) if params else sql, read='clickhouse')
+        from clickhouse_connect.driver.binding import bind_query
+        literal = bind_query(sql, params)[0] if params else sql
+        tree = sqlglot.parse_one(literal, read='clickhouse')
         for node in tree.find_all(exp.Table):
             if node.name == 'documents':
                 node.set('this', exp.to_identifier(table))
         bound.arguments['query'] = tree.sql(dialect='clickhouse')
-        bound.arguments['parameters'] = params
+        bound.arguments['parameters'] = params if p._inventory.get() else None
         sql, args, kwargs = bound.args[0], bound.args[1:], bound.kwargs
     return old_checked(sql, *args, **kwargs)
 

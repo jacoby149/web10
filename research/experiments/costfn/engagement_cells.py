@@ -2,9 +2,9 @@
 import asyncio
 import hashlib
 import json
+import os
 from pathlib import Path
 import shutil
-import time
 import urllib.request
 import uuid
 
@@ -103,8 +103,28 @@ def boot_views(parent, name, mode, *, module='engagement_views_api', extra=None)
 
 
 def stop(parent):
+    # Stopping an owned service is cleanup, including after admission expiry;
+    # it is not permission for a new query or measurement.
+    value = json.loads((Path(parent) / 'restore.json').read_bytes())
+    compose = restore.commands(value['project'], value['api_port'], value['overlay'])
+    env = {**os.environ, 'API_PORT': str(value['api_port']), 'COSTFN_RESEARCH_DIR': str(Path(__file__).parent),
+        'COSTFN_REPO_DIR': str(Path(__file__).resolve().parents[3])}
+    restore.command(compose, env, 'stop', 'api', timeout=60)
+
+
+def harvest(parent, cell, http):
+    """Collect failed queries by native request tag before any stage shutdown."""
+    ids = [row['request_id'] for row in http.records if row['path'] != '/v3/login']
+    if not ids:
+        return
+    from arm_satellite_sql import literal as q
     session = modern.Session(parent)
-    restore.command(session.compose, session.env, 'stop', 'api', timeout=60)
+    session.query('cell_flush_failure_evidence', 'SYSTEM FLUSH LOGS')
+    comments = [prefix + value for value in ids for prefix in ('F_READ:', 'F_WRITE:')]
+    rows, _ = session.rows('cell_all_native', 'SELECT query_id,toString(type) AS type,log_comment,query_duration_ms,read_rows,read_bytes,'
+        'written_rows,written_bytes,memory_usage,exception_code,exception FROM system.query_log WHERE log_comment IN ('
+        + ','.join(q(value) for value in comments) + ") AND type IN ('QueryFinish','ExceptionBeforeStart','ExceptionWhileProcessing') LIMIT 10000")
+    save(Path(cell) / 'all-native-including-failures-and-writes.json', rows)
 
 
 async def complete(parent, cell, profile, expected, *, uniform=False, serving_mode='F_DOCUMENT_STREAM_V1'):
@@ -115,13 +135,22 @@ async def complete(parent, cell, profile, expected, *, uniform=False, serving_mo
     try:
         token = await http.login(profile['reader'])
         for phase in ('warmup', 'measured'):
+            before = reads.views(session, expected['ids'], phase + '_raw_delivery_before')
             sample = await http.sequence(token, profile['groups'], phase=phase)
             if sample['path_mode'] != serving_mode:
                 raise ValueError('complete read silently fell back from the declared path')
             observation = http.observation(sample['request_ids'][-1])
             reads.compare(sample, expected, observation)
             actual = sample['followups'][2]
+            after = reads.views(session, expected['ids'], phase + '_raw_delivery_after')
             raw = reads.visible_views(session, expected['ids'], expected['views_readable_groups'], phase + '_raw_canonical')
+            save(Path(cell) / (phase + '-views-audit.json'), dict(before=before, after=after, scoped_expected=raw, actual=actual))
+            for doc in expected['ids']:
+                previous = before.get(doc, dict(impressions=0, reach=0))
+                current = after.get(doc, dict(impressions=0, reach=0))
+                if not (0 <= current['reach'] - previous['reach'] <= 1
+                        and 0 <= current['impressions'] - previous['impressions'] <= expected['ids'].count(doc)):
+                    raise ValueError('raw canonical delivery delta exceeds returned multiplicity')
             if actual != raw:
                 raise ValueError('complete HTTP view values differ from independent raw canonical events')
             sample['native'] = http.native(sample['request_ids'], phase)
@@ -130,6 +159,10 @@ async def complete(parent, cell, profile, expected, *, uniform=False, serving_mo
             save(Path(cell) / (phase + '.json'), sample)
         return samples
     finally:
+        try:
+            harvest(parent, cell, http)
+        except Exception as error:
+            save(Path(cell) / 'native-collection-failure.json', __import__('arm_f_failure').details(error))
         await http.close()
         stop(parent)
 

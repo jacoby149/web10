@@ -170,15 +170,18 @@ def threads(rows):
         if row['doc_id'] in by_id:
             raise ValueError('ambiguous comment identity in thread segment')
         by_id[row['doc_id']] = dict(document=row, replies=[])
-    for doc_id, node in by_id.items():
-        parent = json.loads(node['document']['body']).get('parent_id', '')
-        seen = {doc_id}
-        cursor = parent
-        while cursor in by_id:
+    parents = {doc_id: json.loads(node['document']['body']).get('parent_id', '') for doc_id, node in by_id.items()}
+    done = set()
+    for doc_id in by_id:
+        seen, cursor = set(), doc_id
+        while cursor in by_id and cursor not in done:
             if cursor in seen:
                 raise ValueError('cyclic reply tree')
             seen.add(cursor)
-            cursor = json.loads(by_id[cursor]['document']['body']).get('parent_id', '')
+            cursor = parents[cursor]
+        done.update(seen)
+    for doc_id, node in by_id.items():
+        parent = parents[doc_id]
         if parent in by_id:
             if by_id[parent]['document']['ref_value'] != node['document']['ref_value']:
                 raise ValueError('cross-root reply edge')

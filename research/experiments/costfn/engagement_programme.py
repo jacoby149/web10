@@ -4,14 +4,15 @@ from pathlib import Path
 
 from arm_f_failure import details, save
 
-ORDER = ('restore', 'A-baseline', 'A-projection', 'A-treated', 'A-decomposition',
+ORDER = ('restore', 'read-setup', 'infrastructure', 'A-baseline', 'A-projection', 'A-treated', 'A-decomposition',
     'B-diagnostic', 'B-aggregate', 'C-migration', 'C-complete', 'C-paired', 'D-fat')
 DEPENDENCIES = {
-    'restore': (), 'A-baseline': ('restore',), 'A-projection': ('restore',),
-    'A-treated': ('A-projection',), 'A-decomposition': ('restore',),
-    'B-diagnostic': ('restore',), 'B-aggregate': ('B-diagnostic',),
-    'C-migration': ('A-projection',), 'C-complete': ('C-migration',),
-    'C-paired': ('C-migration',), 'D-fat': ('restore',),
+    'restore': (), 'read-setup': ('restore',), 'infrastructure': ('read-setup',),
+    'A-baseline': ('infrastructure',), 'A-projection': ('restore',),
+    'A-treated': ('A-projection', 'infrastructure'), 'A-decomposition': ('restore',),
+    'B-diagnostic': ('read-setup',), 'B-aggregate': ('B-diagnostic',),
+    'C-migration': ('A-projection',), 'C-complete': ('C-migration', 'infrastructure'),
+    'C-paired': ('C-migration', 'infrastructure'), 'D-fat': ('restore',),
 }
 
 

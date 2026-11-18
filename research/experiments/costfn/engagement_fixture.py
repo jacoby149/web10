@@ -38,8 +38,12 @@ def run(session, root):
         # Add non-target posts across granules; no changed measured-store layout.
         query('projection_padding', "INSERT INTO documents SELECT concat('padding-',toString(number)),'alice','posts','{}','',[],"
             "toDateTime64('2026-11-16',3),toDateTime64('2026-11-16',3),0,'none','','alice' FROM numbers(4096)")
-        for index, sql in enumerate(refs.projection()):
-            query('projection_' + str(index), sql)
+        if getattr(session, 'engagement_engine', None):
+            from engagement_projection import install
+            result['modern_default_projection'] = install(session, 'documents', output)
+        else:
+            for index, sql in enumerate(refs.projection()):
+                query('projection_' + str(index), sql)
         # STOP MERGES also suspends projection materialization mutations in24.8.
         # Materialize first, then freeze history for exact comparisons.
         query('freeze_history', 'SYSTEM STOP MERGES documents')
@@ -54,6 +58,8 @@ def run(session, root):
         if 'ref_sorted' not in plan:
             raise ValueError('native plan did not confirm ref_sorted')
         result['projection_plan'] = plan
+        from engagement_projection import coverage
+        result['projection_coverage'] = coverage(session, 'documents')
         result['projection_only_views'] = 'UNAFFECTED'
         checks, statements = refs.migration()
         for label, sql in checks.items():
@@ -86,6 +92,26 @@ def run(session, root):
         query('freeze_links', 'SYSTEM STOP MERGES doc_groups')
         query('insert_links', "INSERT INTO doc_groups VALUES ('post','g','2026-11-16',0),('post','second','2026-11-16',0),"
             "('private','other','2026-11-16',0),('removed','g','2026-11-16',0),('removed','g','2026-11-17',1)")
+        for name, fields in {
+            'user_blacklist': 'user_key String,blocked_key String',
+            'group_blacklist': 'user_key String,group_id String,blocked_key String',
+            'user_group_sharing': 'user_key String,group_id String,sharing_enabled UInt8',
+            'group_hidden_docs': 'group_id String,doc_id String',
+            'banned_users': 'username String',
+        }.items():
+            query('policy_' + name, 'CREATE TABLE ' + name + ' (' + fields + ',updated_at Int64,deleted UInt8) ENGINE=MergeTree ORDER BY tuple()')
+        query('engagement_links', "INSERT INTO doc_groups SELECT doc_id,'g',toDateTime64('2026-11-16',3),0 "
+            "FROM engagement_documents WHERE ref_value='post'")
+        from arm_satellite_counts import canonical_boundary
+        scoped = refs.segment(canonical_boundary('comments', ['g'], 'reader'), ['post'], table='engagement_documents')
+        visible, _ = session.rows('real_compiler_scoped_links', scoped)
+        if {row['doc_id'] for row in visible} != {'top', 'reply'}:
+            raise ValueError('actual canonical boundary candidate-link positive mismatch')
+        query('tie_removed_reply', "INSERT INTO doc_groups VALUES ('reply','g','2026-11-16',1)")
+        visible, _ = session.rows('real_compiler_link_deletion_tie', scoped)
+        if {row['doc_id'] for row in visible} != {'top'}:
+            raise ValueError('actual canonical boundary resurrected a deletion-tie attachment')
+        result['cases'].append('ACTUAL_COMPILER_CANDIDATE_SCOPED_ATTACHMENTS_DELETION_WINS_TIE')
         query('events', 'CREATE TABLE content_events (doc_id String,service String,reader_key String,surface String,'
             'event_type String,payload String,seen_at DateTime64(3)) ENGINE=MergeTree ORDER BY (doc_id,reader_key,surface,event_type,seen_at)')
         query('insert_events', "INSERT INTO content_events VALUES ('post','posts','a','feed','delivery','','2026-11-15'),"

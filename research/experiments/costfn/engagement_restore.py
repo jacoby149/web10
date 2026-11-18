@@ -28,13 +28,17 @@ def sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
-def snapshot(root):
-    root = Path(root)
+def stop_snapshot_processes():
     for identifier in subprocess.check_output(['docker', 'ps', '-q']).decode().split():
         info = json.loads(subprocess.check_output(['docker', 'inspect', identifier]))[0]
         if info['Config']['Labels'].get('com.docker.compose.project') != 'web10-costfn-frozen-satellite-f-620121703-rf0':
             raise IsolationError('unexpected running snapshot container; no adoption or second engine')
         subprocess.run(['docker', 'stop', '-t', '20', identifier], check=True, capture_output=True, timeout=60)
+
+
+def snapshot(root):
+    root = Path(root)
+    stop_snapshot_processes()
     if sha(SNAPSHOT_ROOT / 'restore.json') != RESTORE_SHA or sha(SNAPSHOT_ROOT / 'fixture.json') != FIXTURE_SHA:
         raise ValueError('snapshot restore/fixture artifact binding differs')
     original = json.loads((SNAPSHOT_ROOT / 'restore.json').read_bytes())
@@ -56,6 +60,10 @@ def snapshot(root):
         '(SELECT count() FROM content_events) AS events')
     if int(values[0]['documents']) != 88_200_363 or int(values[0]['events']) != 1_600_000_000:
         raise ValueError('prepared snapshot canonical counts differ from its frozen+fixture binding')
+    projections, _ = session.rows('snapshot_untreated_projection_check',
+        "SELECT count() AS n FROM system.projections WHERE database='web10' AND table='documents'")
+    if int(projections[0]['n']):
+        raise ValueError('snapshot is not an untreated document store')
     source_input = (SNAPSHOT_ROOT / 'input').resolve()
     restore.verified_input(source_input, source_input / 'validation.json', arm_t.DATASET, arm_t.VALIDATION)
     (root / 'input').symlink_to(source_input, target_is_directory=True)

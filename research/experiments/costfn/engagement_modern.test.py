@@ -1,11 +1,15 @@
 """Modern programme/read composition controls. No engine, cloud or API import."""
-from copy import deepcopy
 from datetime import UTC, datetime, timedelta
+import ast
+from concurrent.futures import ThreadPoolExecutor
+import inspect
 import json
 from pathlib import Path
 import sys
 import tempfile
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import sqlglot
 from sqlglot import exp
@@ -15,12 +19,20 @@ import engagement_programme as programme
 import engagement_queries as queries
 import core_feed
 import arm_f
+import engagement_events as events
+import engagement_observe
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / 'api'))
 from app.v3.services.safe_query import build_safe_query  # noqa: E402
 
 
 class ModernTests(unittest.TestCase):
+    def function(self, file, name, namespace):
+        node = next(node for node in ast.parse(Path(__file__).with_name(file).read_text()).body
+            if isinstance(node, ast.FunctionDef) and node.name == name)
+        exec(compile(ast.Module(body=[node], type_ignores=[]), file, 'exec'), namespace)
+        return namespace[name]
+
     def approval(self):
         now = datetime.now(UTC)
         return dict(configuration='F', approved_by='Jacob', dataset_id=modern.arm_t.DATASET,
@@ -123,6 +135,151 @@ class ModernTests(unittest.TestCase):
         self.assertFalse(value['additive'])
         self.assertEqual(len(value['components']), 1)
         self.assertIn('counting_numbers_p2', value['components'][0])
+
+    def test_actual_view_query_hook_routes_raw_and_aggregate_with_the_same_bound_authority(self):
+        def signature(query=None, parameters=None, settings=None):
+            pass
+        current = {'request_id': 'a' * 32}
+        calls = []
+        def execute(*args, **kwargs):
+            calls.append(inspect.signature(signature).bind_partial(*args, **kwargs).arguments)
+            return SimpleNamespace(result_rows=[('post', 4, 3)], query_id='actual-id')
+        p = SimpleNamespace(observer=SimpleNamespace(current=SimpleNamespace(get=lambda: current)),
+            _signature=inspect.signature(signature), _views=SimpleNamespace(get=lambda: True))
+        scope = dict(p=p, f=SimpleNamespace(original_query=execute), MODE='aggregate', copy_fence=lambda current: None,
+            events=events, aggregate_views=True, uniform=False, old_checked=lambda *a, **k: self.fail('raw fallback'))
+        hook = self.function('engagement_api.py', 'checked_query', scope)
+        params = {'d0': 'post', 'g0': 'allowed', 'svc': 'posts'}
+        hook('SELECT ignored', parameters=params)
+        self.assertIn('content_events_aggregated', calls[-1]['query'])
+        self.assertEqual(calls[-1]['parameters'], params)
+        scope['aggregate_views'] = False
+        hook('SELECT ignored', parameters=params)
+        self.assertNotIn('content_events_aggregated', calls[-1]['query'])
+        self.assertIn('FROM content_events ', calls[-1]['query'])
+        self.assertIn('ORDER BY updated_at DESC,deleted DESC', calls[-1]['query'])
+        self.assertEqual(current['fanout_view_checks'][-1]['values'], [['post', 4, 3]])
+
+    def test_actual_uniform_query_hook_uses_driver_binding_and_migrated_canonical_table(self):
+        def signature(query=None, parameters=None, settings=None):
+            pass
+        calls = []
+        p = SimpleNamespace(observer=SimpleNamespace(current=SimpleNamespace(get=lambda: {'request_id': 'b' * 32})),
+            _signature=inspect.signature(signature), _views=SimpleNamespace(get=lambda: False),
+            _inventory=SimpleNamespace(get=lambda: False))
+        scope = dict(p=p, MODE='uniform', uniform=True, table='engagement_documents', copy_fence=lambda current: None,
+            sqlglot=sqlglot, exp=exp, old_checked=lambda *args, **kwargs: calls.append(inspect.signature(signature).bind_partial(*args, **kwargs).arguments))
+        hook = self.function('engagement_api.py', 'checked_query', scope)
+        hook('SELECT * FROM documents WHERE author_key=%(who)s LIMIT %(n)s', parameters={'who': "a'b", 'n': 5})
+        self.assertIn('engagement_documents', calls[0]['query'])
+        self.assertIn('LIMIT 5', calls[0]['query'])
+        self.assertIsNone(calls[0]['parameters'])
+
+    def test_query_observer_keeps_native_caps_and_concurrent_identical_sql_receipts(self):
+        current = {'request_id': 'c' * 32}
+        observer = SimpleNamespace(current=SimpleNamespace(get=lambda: current))
+        settings_seen = []
+        def execute(sql, **kwargs):
+            settings_seen.append(kwargs['settings'])
+            return SimpleNamespace(query_id='id-' + str(len(settings_seen)))
+        with tempfile.TemporaryDirectory() as directory:
+            query = engagement_observe.install(execute, observer, directory)
+            with ThreadPoolExecutor(max_workers=6) as pool:
+                list(pool.map(lambda _: query('SELECT username FROM users WHERE username=%(u)s', parameters={'u': 'alice'},
+                    settings={'max_execution_time': 999}), range(6)))
+            records = [json.loads(line) for line in (Path(directory) / ('c' * 32 + '.jsonl')).read_text().splitlines()]
+            self.assertEqual(len(records), 6)
+            self.assertEqual(len(list(Path(directory).glob('*.sql'))), 1)
+        self.assertTrue(all(row['max_execution_time'] == 10 and row['max_rows_to_read'] == 10_000_000
+            and row['max_memory_usage'] == 22 * 1024**3 for row in settings_seen))
+
+    def test_hot_composition_keeps_the_fixed_thread_and_calibrates_remaining_rows(self):
+        from engagement_hot import composition
+        plan = composition(1_600_000_000, 80_000_000)
+        self.assertEqual(plan['comments'], 50000)
+        self.assertEqual(plan['views'] + plan['comments'] + plan['reactions'], 400000)
+        self.assertEqual(plan['post_reactions'] + plan['comment_reactions'], plan['reactions'])
+        self.assertGreater(plan['comment_reactions'], 0)
+        self.assertLessEqual(plan['post_reactions'], plan['actors'])
+
+    def test_infrastructure_failure_does_not_block_independent_diagnostic_migration_or_hot_cell(self):
+        class Actions:
+            def stage(self, stage, results):
+                if stage == 'infrastructure':
+                    raise ValueError('counter build stopped')
+                return {}
+            def checkpoint(self, stage, result):
+                pass
+        with tempfile.TemporaryDirectory() as directory:
+            result = programme.run(Actions(), Path(directory) / 'run')
+        self.assertEqual(result['A-baseline']['outcome'], 'BLOCKED')
+        for stage in ('B-diagnostic', 'C-migration', 'D-fat'):
+            self.assertEqual(result[stage]['outcome'], 'PASS')
+
+    def test_projection_default_mode_is_probed_before_any_rebuild_override(self):
+        import engagement_projection as projection
+        class Session:
+            def __init__(self, refuse=False):
+                self.calls, self.refuse = [], refuse
+            def query(self, label, sql, **kwargs):
+                self.calls.append((label, sql))
+                if 'default_probe' in label and self.refuse:
+                    error = RuntimeError('default-mode denial')
+                    error.stderr = b'code344 deduplicate_merge_projection_mode'
+                    raise error
+                return ('CREATE TABLE documents (doc_id String)', 'native-id')
+        for refuse in (False, True):
+            session = Session(refuse)
+            with tempfile.TemporaryDirectory() as directory, patch.object(projection, 'coverage', return_value={'source_rows': 2, 'projection_rows': 2}):
+                value = projection.install(session, 'documents', Path(directory))
+                self.assertEqual((Path(directory) / 'projection-default-stop-documents.json').exists(), refuse)
+            labels = [label for label, _ in session.calls]
+            self.assertEqual(value['forced_rebuild_mode'], refuse)
+            self.assertEqual('projection_explicit_rebuild_documents' in labels, refuse)
+            if refuse:
+                self.assertLess(labels.index('projection_default_probe_documents'), labels.index('projection_explicit_rebuild_documents'))
+
+    def test_projection_coverage_requires_rows_and_every_parent_part(self):
+        from engagement_projection import coverage
+        class Session:
+            def rows(self, label, sql):
+                if label.startswith('projection_names'):
+                    return [{'name': 'ref_sorted'}], 'id'
+                return [self.value], 'id'
+        session = Session()
+        session.value = dict(source_rows=10, projection_rows=10, source_parts=2, covered_parts=2)
+        self.assertEqual(coverage(session, 'documents')['projection_rows'], 10)
+        for key in ('projection_rows', 'covered_parts'):
+            session.value[key] -= 1
+            with self.assertRaises(ValueError):
+                coverage(session, 'documents')
+            session.value[key] += 1
+
+    def test_snapshot_failure_is_retained_before_clean_parquet_fallback(self):
+        import engagement_restore as restored
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'admission.json').write_text(json.dumps({'restored_snapshot_id': restored.SNAPSHOT}))
+            def fail_snapshot(root):
+                raise ValueError('26.x snapshot boot failed')
+            def parquet(*args, **kwargs):
+                self.assertEqual(kwargs['engine'], modern.ENGINE)
+                self.assertTrue((root / 'snapshot-restore-stop.json').exists())
+            with patch.object(restored.modern, 'operation'), patch.object(restored, 'snapshot', fail_snapshot), \
+                    patch.object(restored, 'download') as download, patch.object(restored.restore, 'restore', parquet), \
+                    patch.object(restored.modern, 'Session', return_value=SimpleNamespace(verify_envelope=lambda: {'engine': modern.ENGINE})):
+                value = restored.run(root)
+            download.assert_called_once_with(root)
+            self.assertEqual(value['source'], 'ARCHIVED_PARQUET')
+            self.assertTrue(value['snapshot_failure_preserved'])
+
+    def test_uniform_guard_denies_known_group_only_link_selector_before_native_dispatch(self):
+        current = {'engagement_mode': 'uniform'}
+        for sql in ('SELECT * FROM counting_numbers_p2',
+                "/* ENGAGEMENT_DOC_COUNTS */ SELECT * FROM doc_groups WHERE group_id IN ('allowed')"):
+            with self.assertRaises(ValueError):
+                engagement_observe.uniform_guard(sql, current)
+        engagement_observe.uniform_guard("/* ENGAGEMENT_DOC_COUNTS */ SELECT * FROM doc_groups WHERE doc_id IN ('post')", current)
 
 
 if __name__ == '__main__':

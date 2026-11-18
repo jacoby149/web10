@@ -49,6 +49,17 @@ materialization/validation/parity/cost STOP. **One stage stopping does not
 silently skip independent stages**: report each completed/failed/unreached cell.
 The fresh lease's actual host/deadline remains UNBOUND; no new paid host started.
 
+Source checkpoint18 November: `engagement_full.py` now composes the captured
+complete HTTP path with isolated per-cell state, independent stage receipts,
+snapshot fallback, projection coverage/default-mode probing and the hot driver.
+Seventeen modern no-engine controls pass alongside234 retained controls. The
+uniform attachment selector bounds candidate doc IDs BEFORE latest `(doc_id,
+group_id)` selection; deletion wins timestamp ties. Native26.x dispatch, full-store
+projection use and all measured outcomes remain OPEN. Hot calibration fixes50k
+comments and divides the other350k events/reactions by frozen totals; positive
+comment reactions are an explicitly added coverage stratum, absent from the frozen
+corpus. Do not mistake these controls for an executed A–D run.
+
 ## Historical24.8 full-store stop and cleanup
 
 The prior DO620273404 run imports the exact frozen store, uses `ref_sorted` for
