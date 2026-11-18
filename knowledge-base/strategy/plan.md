@@ -139,6 +139,24 @@ no failed fixture retry.203 no-engine controls/Ruff pass, not native acceptance.
 
 - [✓ 6.4.0 local] **MARKETING-HANDOFF — retire the Trending replica** — Trending is an ordinary same-tab link to the configured social `/feed` (production `https://social.web10.app/feed`); legacy Trending URLs replace-navigate to supported social destinations/filters. Removed marketing-only feed/directory/mixer/ranking/media code, obsolete tests/fixtures and vendored HLS; social/shared consumers and unrelated pages remain. Two old-link regressions reproduce before repair; all 197 remaining marketing tests/build/typecheck and renderer inventory pass. Eight both-theme four-width Chromium cases verify mouse/keyboard/mobile/footer, same-tab/Back, ten legacy shapes and zero discovery reads; desktop/375px captures inspected in `.context/marketing-handoff/`. Browser evidence uses an isolated social destination, not live social acceptance. Updated connected handoff/moderation E2E discovers eight tests; actual stack/CI/review/rollout remain OPEN. No API/auth/deployment change; marketing no longer owes discovery parity.
 
+## Marketing: Classic homepage revival (A/B)
+
+Contract: `homepage-classic-revival.md`. The pre-D13 “web10 Revolution”
+own-your-data landing (deep navy `#1a1a2e`, electric-fractal hero,
+“Enter web10” signup CTA — recoverable at `e01e4b6c3^`) comes back at
+`/revolution` on modern bones, then competes for `/` in a pre-declared
+PostHog experiment. D41 thesis fit: the current hero sells the archived
+summer creator pitch; the classic page sells the data-policy platform.
+Client-side only (D60); D94 import cut and D103 PostHog-only stand; no
+deployment by implication.
+
+- [ ] **MK-CLASSIC-00 — record the baseline (Phase 0)** — operator PostHog numbers for `/`, `/freedom`, `/everything`, `/join` (views, CTA clicks, signups, 4–8 weeks) + www ingestion confirmation into the contract's Baseline table; docs-only. They size the A/B via the sample-size table (~1,100–4,000 visitors/arm by baseline/lift) or declare the observational fallback.
+- [ ] **MK-CLASSIC-01 — classic tokens + hero asset (Phase 1)** — classic palette as design.md §13 + marketing-ui `@theme` tokens (always-dark surface exception + one flourish documented), `back2.jpg` restored web-optimized, no fixed parallax <640 px, AA contrast on navy. Gate: screenshot shows tokens resolving.
+- [ ] **MK-CLASSIC-02 — the classic page at `/revolution` (Phase 2)** — modern bones, faithful soul: fractal hero + original copy, dual CTA (“Enter web10” → AUTH signup ask + “Explore web10” → SOCIAL per D111), P2P/Own Your Data/Data Freedom features, live `/v3/stats` band (existing fields only), 2022 pledge, allowlisted telemetry events, footer link; team/university/capital sections dropped by default. Gate: desktop + 375 px, tokens-only guard, full marketing suite.
+- [ ] **MK-CLASSIC-03 — observation window (Phase 3)** — 2–4 weeks no-flag funnel comparison `/revolution` vs `/` against the Phase 0 baseline; first trigger wins (parity-or-better → Phase 4; worse → one iteration; thin → extend once, then observational-only stated plainly).
+- [ ] **MK-CLASSIC-04 — the A/B on `/` (Phase 4)** — PostHog `home_classic` 50/50 on the landing route; client-side evaluation, variant on pageview/funnel events, signup attribution via existing campaign handoff + account-row context; pre-declared decision rule (primary = completed signups; window = max(N days, M visits/arm); minimum lift; no peeking) operator-approved BEFORE the first visit.
+- [ ] **MK-CLASSIC-05 — decision + ship (Phase 5)** — single end-of-window read; winner renders at `/` (flag retired, code simplified); loser kept at `/revolution` or retired; outcome + D-number in `decisions.md`. Optional follow-up only if classic wins: pitch-vs-ask split (classic hero, Explore-only CTA).
+
 ## Hierarchy of Reliance
 
 Every layer depends on the one above it. An LLM implementing any layer
