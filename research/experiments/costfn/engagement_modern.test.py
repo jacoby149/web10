@@ -281,6 +281,19 @@ class ModernTests(unittest.TestCase):
                 engagement_observe.uniform_guard(sql, current)
         engagement_observe.uniform_guard("/* ENGAGEMENT_DOC_COUNTS */ SELECT * FROM doc_groups WHERE doc_id IN ('post')", current)
 
+    def test_hot_reactions_compute_every_comment_target_not_only_a_page_total(self):
+        from engagement_hot_read import reaction_sql, expected_reactions
+        sql = reaction_sql('post')
+        compiled = self.compile(sql)
+        self.assertIn('GROUP BY target_id', compiled)
+        self.assertIn('groupArray', compiled)
+        plan = dict(post_id='post', post_reactions=5, comment_reactions=50001)
+        values = expected_reactions(plan)
+        self.assertEqual(values[''], 5)
+        self.assertEqual(len(values), 50001)
+        self.assertEqual(sum(values.values()), 50006)
+        self.assertEqual(max(n for target, n in values.items() if target), 2)
+
 
 if __name__ == '__main__':
     unittest.main()

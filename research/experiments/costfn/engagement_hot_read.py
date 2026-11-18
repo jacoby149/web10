@@ -21,6 +21,23 @@ def expected_parents(post):
     return {identifier(index): '' if index < 32 else identifier((index - 32) // 32) for index in range(50000)}
 
 
+def reaction_sql(post):
+    # A total alone does not compute the reactions needed by the rendered
+    # thread. Keep every comment target's count in this measured computation.
+    return ("SELECT sum(n) AS reaction_rows,sumIf(n,target_id='') AS post_likes,"
+        "sumIf(n,target_id!='') AS comment_likes,groupArray(tuple(target_id,n)) AS by_target FROM ("
+        "SELECT JSONExtractString(body,'target_id') AS target_id,count() AS n FROM reactions "
+        'WHERE ref_value=' + q(post) + ' GROUP BY target_id)')
+
+
+def expected_reactions(plan):
+    result = {'': plan['post_reactions']}
+    for index in range(plan['comment_reactions']):
+        target = str(uuid.UUID(hashlib.md5((plan['post_id'] + ':comment:' + str(index % 50000)).encode()).hexdigest()))
+        result[target] = result.get(target, 0) + 1
+    return result
+
+
 async def compute(parent, cell, plan, *, aggregate):
     session = modern.Session(parent)
     http = HTTP(cell, session, Path(cell) / 'http')
@@ -40,8 +57,7 @@ async def compute(parent, cell, plan, *, aggregate):
                 page_payload.update(surface='posts', content_service='posts')
             post, post_record = await http.post('/v3/query', page_payload, origin=manifest['origin'])
             work = [query('SELECT count() AS comment_count,groupArray(tuple(doc_id,author_key,body,ref_value)) AS thread '
-                'FROM comments WHERE ref_value=' + target), query("SELECT count() AS reaction_rows,countIf(JSONExtractString(body,'target_id')='') AS post_likes,"
-                "countIf(JSONExtractString(body,'target_id')!='') AS comment_likes FROM reactions WHERE ref_value=" + target)]
+                'FROM comments WHERE ref_value=' + target), query(reaction_sql(plan['post_id']))]
             if aggregate:
                 work.append(http.post('/v3/contentViews', dict(token=token, groups=[plan['group']], service='posts', doc_ids=[plan['post_id']]),
                     origin=manifest['origin']))
@@ -71,6 +87,9 @@ async def compute(parent, cell, plan, *, aggregate):
             if {key: int(reactions[key]) for key in ('reaction_rows', 'post_likes', 'comment_likes')} != dict(
                     reaction_rows=plan['reactions'], post_likes=plan['post_reactions'], comment_likes=plan['comment_reactions']):
                 raise ValueError('hot post/comment reaction count mismatch')
+            targets = {row[0]: int(row[1]) for row in reactions['by_target']}
+            if len(targets) != len(reactions['by_target']) or targets != expected_reactions(plan):
+                raise ValueError('hot per-comment reaction counts differ from independent target map')
             if aggregate:
                 raw, _ = session.rows(phase + '_hot_raw_oracle', "SELECT count() AS impressions,uniqExact(reader_key) AS reach FROM content_events "
                     "WHERE service='posts' AND event_type='delivery' AND doc_id=" + target)
@@ -91,6 +110,7 @@ async def compute(parent, cell, plan, *, aggregate):
             native = http.native(requests, phase)
             sample = dict(phase=phase, elapsed_ms=elapsed, thread_assembly_ms=tree_ms, thread_rows=visited, maximum_depth=depth,
                 parity='PASS', aggregate_views=aggregate, full_engagement_complete=aggregate, native=native,
+                reaction_target_counts_verified=True, reaction_targets=len(targets),
                 request_ids=requests, native_read_rows=sum(int(row['read_rows']) for row in native),
                 native_read_bytes=sum(int(row['read_bytes']) for row in native),
                 components={'post': requests[0], 'comments_and_thread': requests[1], 'post_and_comment_reactions': requests[2],
@@ -108,7 +128,7 @@ async def compute(parent, cell, plan, *, aggregate):
         cells.stop(parent)
 
 
-def run(parent, plan, *, aggregate):
-    cell = cells.boot_views(parent, 'D-hot', 'aggregate', module='engagement_hot_api',
+def run(parent, plan, *, aggregate, name='D-hot'):
+    cell = cells.boot_views(parent, name, 'aggregate', module='engagement_hot_api',
         extra={'ENGAGEMENT_HOT_POST': plan['post_id']})
     return asyncio.run(compute(parent, cell, plan, aggregate=aggregate))
