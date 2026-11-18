@@ -1798,6 +1798,8 @@ starting.
 
 ### Lane: sigmod-paper (SIGMOD 2027 industry track)
 
+- [✓ 6.23.7 directive recorded only] **COSTFN-MEASUREMENT-LIMITS** — capture Jacob Hoffman's18 November governing execution override in costfn README and task/agent entry points. Future admitted runs: no row-count stop,600s measurement statement bound with timeout/partial actuals as results rather than run aborts, native-completion polling without fixed-client abandonment, retired paper-era$40 compute ceiling,500ms/25MB success lines only. Preserve historical STOPs, oracle/fixtures/claims,32/28/22GiB comparison frame and agent300s/self-kill/no guardian. Explicit run admission remains; no new lease, harness implementation, native rerun or production-limit change. Full policy: `research/experiments/costfn/README.md` “Governing execution directive”. Conflicting earlier execution limits/byte-stop instructions below are superseded for future runs, not erased from history.
+
 Measurement goal reached; performance goal FAILED. Ordinary K20 F complete
 sequence:4,702.160ms/3,734,802 rows/286,693,122 bytes, parity PASS including21
 positive view/reach docs. Paired three-group fixture P/F also has parity PASS

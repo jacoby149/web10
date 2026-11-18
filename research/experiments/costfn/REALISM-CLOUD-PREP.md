@@ -1,5 +1,15 @@
 # Monitored DigitalOcean preparation — operator approval
 
+**18 November supersession for future costfn runs:** the13 November$40 compute
+ceiling below is retired by Jacob's
+[governing execution directive](README.md#governing-execution-directive--18-november-2026).
+Report per-run lease costs; preserve the original receipts/deadlines and separate
+storage charges. That directive also removes experiment row-count stops, replaces
+the10s measurement run-stopper with600s timeout results, forbids fixed-client
+abandonment of native work and makes500ms/25MB verdicts rather than aborts.
+Explicit run admission and agent300s/self-kill/no-guardian supervision remain;
+the historical host approvals below do not allocate or reopen compute.
+
 **13 November budget supersession:** the operator explicitly raises total
 validation compute to **$40** on droplet `618505005`, at the existing $0.25/hour
 rate. The applied recovery window ends **14 November 04:38:02 UTC**, not at

@@ -1,5 +1,17 @@
 # Engagement reads: one segment per root document
 
+**18 November governing execution override:** Jacob's
+[archaic execution limits removed](README.md#governing-execution-directive--18-november-2026)
+directive applies to future completion work as well as all other costfn runs:
+no row-count stop;600s measurement statements whose timeouts are results, not
+run aborts; native-completion polling without fixed-client abandonment; no
+paper-era$40 programme ceiling.500ms/25MB judge success and never stop future
+measurements. The oracle/fixtures/claims,32/28/22GiB comparison frame and
+agent300s/self-kill/no-guardian model remain. Conflicting limits and byte-stop
+instructions below describe the earlier admissions/results, not current policy.
+DO620548967 remains closed; no new host or native result is implied. Harness
+alignment is not yet implemented by this documentation change.
+
 Jacob Hoffman's17 November2026 three-part directive governs this isolated
 experiment. It supersedes the earlier P1/views exclusions for this task only.
 The previous F cost FAIL and all stopped attempts remain unchanged.

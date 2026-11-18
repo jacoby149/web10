@@ -1,5 +1,15 @@
 # Task block — the Fanout Arm (Config F)
 
+**18 November execution-policy supersession:** read Jacob's
+[governing costfn directive](README.md#governing-execution-directive--18-november-2026)
+before using the earlier instructions below. Future admitted experiments have
+no row-count stop; measurement statements have a600s bound and timeout/partial
+actuals are results, not run aborts. Fixed client caps must not abandon native
+work.500ms/25MB are success lines only; the paper-era$40 programme ceiling is
+retired. Historical byte/row/deadline STOPs and cleanup remain intact. The oracle,
+fixtures,32/28/22GiB comparison frame, agent300s/self-kill/no-guardian supervision
+and explicit run admission remain. This record starts no run and changes no code.
+
 ## Persistent execution result —17 November2026
 
 The requested comparison now exists. Paired verified fixture P/F (one warm-up

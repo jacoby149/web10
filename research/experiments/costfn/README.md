@@ -1,5 +1,48 @@
 # Access-Control Cost Function Experiment
 
+## Governing execution directive — 18 November 2026
+
+Jacob Hoffman's **“archaic execution limits removed”** directive applies to
+every costfn experiment run from this directive onward, including completion
+work. It overrides conflicting earlier task blocks and standing rules. Earlier
+STOPs, source bindings, costs and cleanup receipts remain historical facts;
+this is not permission to relabel them or reopen a deleted host.
+
+The programme measures first, then improves. Jacob identifies pre-candidate
+row-selection estimates as the reason to remove the guard: the retained completion
+query reported88.64M selected rows against770,048 actually read at its stop.
+Those are different quantities, not evidence of88.64M actual reads.
+
+- **No row-count stop:** remove experiment `max_rows_to_read`/code158 guards;
+  no row-count stop applies to any experiment statement. Record actual rows and
+  logical bytes per step, including partial work on failures.
+- **Measurement statements have a600s native bound, not a10s run-stopper.**
+  A600s timeout is a measured timeout result with partial actuals; preserve it
+  and continue independent work rather than aborting the run. Missing dependent
+  results stay unavailable, never PASS. Production query limits are separate.
+- **No fixed client cap abandons native work.** Use exact-query native-completion
+  polling (PR#1588); a300s-class client/transport timeout is not a native verdict
+  and must not cause resubmission or loss of a still-running operation.
+- **The13 November$40 programme compute ceiling is retired.** Receipt and report
+  lease costs per run; that ceiling does not cap them. Storage charges remain
+  distinct from compute.
+- **500ms/25MB are success lines, not abort conditions.** Record misses and
+  continue the admitted measurements, including scan-shaped completions. Earlier
+  byte-gate aborts remain preserved historical outcomes, not future policy.
+- **Unchanged:** exact parity oracle, adversarial fixtures and claim discipline;
+  the32/28/22GiB host/container/server comparability envelope unless separately
+  directed otherwise; agent supervision about every300s and droplet self-kill
+  timers, with no guardian. The envelope is not a statement acceptance gate.
+- **Admission remains explicit.** Runs start on an operator directive. Within
+  an admitted run, no statement-level run-stoppers apply; the600s statement bound
+  produces a timeout result. This policy change does not itself allocate a new
+  paid host or extend a closed lease.
+
+This entry records policy, not implemented harness behavior or a new native
+result. Before executing under it, reconcile every research wrapper/controller
+with this directive; do not silently inherit the retired row, deadline, client
+or budget-abort behavior. Ordinary API/production behavior is unchanged.
+
 **Additive Arm T (14 November):** [contract and sequencing gates](ARM-T.md).
 Separate group-first link layout on the unchanged validated realism input;
 not a replacement for any frozen cell. Build/execution wait for the baseline
