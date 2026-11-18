@@ -71,6 +71,29 @@ the original09:42:45UTC deadline and all native limits stand.265 no-engine contr
 pass, including actual driver-generation/CLI equivalence. A baseline STOP is still
 terminal for its executing attempt; no stopped attempt is relabelled PASS.
 
+**Completion lease CLOSED:** final report/three-column actuals/STOPs are in
+`evidence/engagement-completion-20261118/RESULTS.md` + content-free JSON/native CSV.
+The valid untreated baseline is4,551.675ms/3,244,874 rows/222,387,685 bytes with
+exact parity, before projection. Source/copy materializations finish natively once;
+coverage88,200,363/88,200,363 and nine-check/32-batch current-copy parity pass.
+Physical certification refresh and actual bounded/deletion-winning/ref_sorted
+SQL are verified. Projection/uniform K20 then stop158 at mixed resolution/counts:
+actual770,048 rows/50,803,827 bytes and1,359,872/94,724,839 respectively. Reported
+88.64M/70.65M selections are not actual scanning. Paired P/F main statements finish,
+then separately excluded preparation stops158 (229,376 rows/21,275,333 bytes each).
+No treated complete response/parity or full-feed PASS. Three real baseline count
+components plus the treated stopped component are recovered without SQL replay;
+decomposition stays partial/non-additive, not an empty PASS.
+
+Owned cleanup verifies18 November06:59:08UTC, before09:42:45; compute estimate
+$0.31827/not invoice, retained snapshot storage separate. Final4,200,186-byte
+private checkpoint SHA`bffc0bfa…445166` and2,984,123-byte stopped native archive
+SHA`50ef0a63…347ea1` verify off-host first. No OOM, restart after final collection,
+Stage B/D rerun/aggregate seed, counter rebuild after materialization, new workload
+cell, production or limit change. Remaining selection/preparation work is outside
+the closed four-fix admission; any changed design or new paid/native execution
+requires a separate operator decision/admission. No automatic continuation.
+
 Jacob accepts PR#1579's three-things implementation/tiny rehearsal and explicitly
 admits one fresh full-store lease: **ClickHouse26.10.4.207**, same frozen dataset,
 envelope/budgets/DO-only/agent300s/self-kill/no-guardian rules. The24.8 freeze is
