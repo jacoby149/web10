@@ -13,6 +13,15 @@ new host/window before execution; do not reopen620898285 or relabel its raw
 PASS flags as acceptance. Its numerical observations and missing-domain audit
 remain preserved regardless of the new outcome. No automatic retries/extensions.
 
+Fresh execution binds **DO621021141**,19 November10:36:09→14:36:09UTC, approved
+Intel SKU/four-hour-$2 bound. Two readiness timeouts stay on that host/window.
+Source`4a9dbce92` verifies1,447 files/16 pins;14 tally controls pass on-host and
+both self-kill timers verify, no guardian. Initial engine/server-envelope checks
+pass; restore/source-count verification is active, not paired native acceptance.
+First1,856,211-byte checkpoint SHA`5fd3f28f…47e87` verifies off-host. A transient
+code210 boot-readiness observation is retained; the subsequent engine checks
+succeed, not a measured-statement retry or a replacement host.
+
 **Tally lease CLOSED; full tally acceptance OPEN —19 November:**
 [`evidence/engagement-tally-20261119/RESULTS.md`](evidence/engagement-tally-20261119/RESULTS.md)
 retains exact ordinary response parity and thousand-row pure count reads. Uniform
