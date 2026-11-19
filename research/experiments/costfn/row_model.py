@@ -303,7 +303,8 @@ def materialize(payload, children, path):
             raise ValueError('incomplete object pointer children')
         return {name: materialize(payload, children, (*path, name)) for name in names}
     if kind == 'arrays':
-        if any(type(name) is not int for name in names) or sorted(names) != list(range(value)):
+        if (len(names) != value or any(type(name) is not int for name in names)
+                or any(index != name for index, name in enumerate(sorted(names)))):
             raise ValueError('incomplete array pointer children')
         return [materialize(payload, children, (*path, index)) for index in range(value)]
     if names:

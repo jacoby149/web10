@@ -354,6 +354,11 @@ class RowModelTests(unittest.TestCase):
         self.assertNotIn('row_document_versions', driver.tables)
         self.assertTrue(driver.tables['row_text'])  # Unreferenced values survive; GC is a separate question.
 
+    def test_corrupt_container_length_is_refused_without_allocating_claimed_children(self):
+        payload = {('body',):('arrays', 2**63)}
+        with self.assertRaisesRegex(ValueError, 'incomplete array'):
+            model.materialize(payload, {}, ('body',))
+
 
 if __name__ == '__main__':
     unittest.main()
