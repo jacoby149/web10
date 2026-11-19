@@ -10,7 +10,10 @@ import engagement_limits as limits
 import engagement_queries as queries
 import engagement_tally_queries as tallies
 
-if (e.f.admission.get('run_directive') != limits.TALLY_RUN or e.f.admission.get('tally_wiring_admitted') is not True):
+from engagement_composition import DIRECTIVE as COMPOSITION
+if ((e.f.admission.get('run_directive') != limits.TALLY_RUN and not (
+        e.f.admission.get('run_directive') == COMPOSITION and e.f.admission.get('composition_admitted') is True))
+        or e.f.admission.get('tally_wiring_admitted') is not True):
     raise RuntimeError('explicit tally wiring admission required')
 receipt = e.p.counts.get('tally', {})
 if not receipt.get('verified') or receipt.get('canonical_generation') != e.p.counts['canonical_generation']:

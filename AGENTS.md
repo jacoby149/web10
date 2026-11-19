@@ -315,6 +315,32 @@ do not privacy-wash D56 or put content/credentials into events or recordings.
 
 ## How the data model works
 
+**19 November design revolution — intent, not shipped storage (D115–D120):**
+Jacob chose static billboard ads with author-first post-time pin documents
+(D115), and a derived, rebuildable N-ref pairs satellite sorted `(ref_id, doc_id)`
+with one governing root and role-as-data (D116). The satellite is the new
+research store furniture: the17 November mandatory `ref_sorted` rule is
+superseded, and the projection retires from the treated composition only after
+same-question parity. Preserve old projection source/stores/receipts. Read-time
+ad repicking/reader targeting and `ref_value` as the future single-link model
+are superseded design, not deleted production code.
+
+The maximal no-JSON row model (D117) and typed API declarations/write enforcement
+(D119) are **DIRECTION, proving cell pending**. Versioned pointers choose immutable,
+shareable per-type value rows; the intended model has no fat canonical fallback.
+Its isolated post experiment deliberately KEEPS canonical JSON as build source,
+independent oracle and fallback. Storage need not match export shape (D118).
+Pre-answer declared question shapes in satellites (D120); a new `documents`
+projection in the row-model direction is a smell, not the remedy. No universal
+arbitrary-query speed guarantee follows. “Make all the fixes, then do the
+experiments”: source preparation includes row-model work before spending;
+all-fixes measurement banks before the row-model assembly cell. This thread's
+KB capture admits no code/native/cloud action. No new measured PASS, production
+or§8 acceptance. Decisions and exact banked receipts:
+`knowledge-base/web10-v3/db/design-revolution.md`. Current schema and all older
+receipts below remain historical/current-implementation descriptions, not proof
+that the new design has shipped.
+
 **Generic tallying (D114), operator18 November2026:** tallying belongs in the
 fanout family as a generic platform-maintained satellite; meanings are named
 recipes/data, not social-specific node columns. The isolated admitted tally

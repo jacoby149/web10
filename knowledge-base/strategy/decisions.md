@@ -6,8 +6,184 @@ parallel agents and future-you don't re-litigate settled questions. Details
 and task breakdowns live in `plan.txt`.
 
 Status legend: [decided] intent set · [in-progress] · [open] still debating.
+For D115–D120, **DECIDED** records operator intent, **DIRECTION** records a
+chosen design awaiting its proving cell, and **PRINCIPLE** records the lesson.
+None of these labels means implemented, measured or shipped.
 
 ---
+
+### D120 — Answer the question once, rather than over-read on every request [PRINCIPLE]
+
+**Jacob Hoffman, 19 November 2026.** The programme's unifying lesson is
+over-reading: a question without a suitable access path is answered by scanning
+the store again. The remedy is uniform, not a fresh social-specific table for
+each symptom (D60): pre-answer declared question shapes at write/setup time.
+Fanout supplies delivery (D109/D113), tallies supply numbers (D114), aggregates
+supply views, and satellites supply relationships and typed values (D116/D117).
+Reads should be bounded seeks over those shapes, not rediscoveries of history.
+
+**Receipts, not a new result:** standalone document-count diagnostics read
+91,897,589 / 176,400,726 / 247,081,302 rows; raw views read 1,474,936 rows;
+the node-ad inventory statement read 88,364,203 rows / 9,933,017,043 bytes.
+Ordinary tally diagnostics reduce each count lookup to 1,600 rows / 107,200
+bytes. Views aggregate parity is banked at 344,064 rows / 46,216,238 bytes
+versus raw 98,621,175 bytes, **not a sampled latency win**. Exact evidence and
+the PR #1587/#1589/#1590/#1591 lineage are indexed in
+[the design receipt ledger](../web10-v3/db/design-revolution.md).
+
+In the row-model direction, declaring a value or relationship and indexing it
+are the same act: no future declared question shape should be born unindexed.
+That is the design obligation, **not proof that arbitrary future queries are
+automatically indexed or cheap**. Read queries must exploit the layouts; new
+question shapes still need suitable access paths and measurement. No new
+`documents` projections are intended in that model: needing one is a smell
+that a value or relationship remains trapped inside a document. The pending
+composition and assembly cells decide costs; §8/production remain gated.
+
+### D119 — Apps declare typed keys; writes enforce the declaration [DIRECTION; cell pending]
+
+**Jacob Hoffman, 19 November 2026.** Apps declare document keys **with types**
+where they use the web10 API. A wrong type is rejected at write, not discovered
+by casting on read. The declaration tells the platform which type-sorted
+satellite receives the value (D117). Declaring a key is data, not a migration:
+no `ALTER TABLE`, no rebuild; schemaless flexibility survives with types attached.
+
+Jacob welcomes strong typing in web10-social's API usage; modifying that usage
+is future work, not part of this documentation task. Key/type semantics stay
+data under D60. This does not specify a new endpoint, declaration syntax or
+compatibility rollout, and does not claim present API enforcement. The row-model
+proving cell is pending behind the all-fixes run; protocol integration and §8
+remain separate gates. Rejects: untyped ingest followed by read-time guesses,
+and treating every newly declared key as a physical schema migration.
+
+### D118 — Storage shape is not export shape [DECIDED]
+
+**Jacob Hoffman, 19 November 2026.** Retire the assumption that data must be
+stored as it is exported. A node's internal storage is its own business: the
+wire principle applies inward too. Export is a boundary transformation—assemble
+the document from rows, serialize it, hand it over. Exports are rare; reads are
+constant. Do not charge every query for preserving the export representation.
+
+The wire/export document format and protocol surface do not change under this
+principle. Existing features must remain deliverable from the row shape; this
+is a requirement, not a claim that they have been verified. Serving a complete
+document also pays assembly cost, which D117 explicitly measures. Strong-typing
+surface work (D119) is a separate pending direction, not silently shipped by
+this internal-storage decision. Rejects: export format dictating physical
+layout, deleting canonical research JSON before replacement proof, and using
+storage freedom as permission to break clients. No migration or rollout here.
+
+### D117 — Documents become versioned pointers to immutable typed rows [DIRECTION; cell pending]
+
+**Jacob Hoffman, 19 November 2026:** these are “revolutionary changes to the
+system.” The chosen direction is the maximal row model, not merely a few
+extracted JSON fields. Its seven storage rules are:
+
+1. Storage contains only skinny typed rows; **no JSON is stored**. JSON is the
+   API wire format, parsed once at ingest, not extracted or cast on reads.
+2. A document is pointers `(doc_id, key, type, value_row_id)`. Key and type are
+   dictionary-coded **data**. Zero pointers beyond identity is normal: likes,
+   follows and pins are already pointer-bag documents.
+3. Values live in per-type satellites—text, integers, floats, timestamps, and
+   other required types—sorted for their types' questions. Tables name types,
+   never app concepts (D60).
+4. Value rows have their own identities, are immutable and may be shared.
+   Store a value once and point to it from many documents; edits create values.
+5. **Versioning lives on pointers.** The winning pointer per key at the
+   document's current version is its state; deletion is a pointer tombstone.
+   This winner discipline is the consistency core: the intended design has no
+   fat canonical row to fall back on.
+6. Edges are pointers whose value table is documents itself. The N-ref
+   satellite (D116) is the first instalment. Counters and events are already
+   rows and do not change.
+7. Assemble winners only. Seek displayed keys for candidate work; assemble a
+   full document only when opened or served, including the page's winners.
+
+**Honest refinement.** The banked improvements concern queryable values:
+values sought, filtered, sorted, counted or traversed. Payload decomposition
+buys uniformity, not an already-measured speedup. The maximal cell's bet is
+**assembly economics**; it must include payload text rather than quietly test
+only the cheaper refinement.
+
+**Pre-committed verdicts:** exact parity plus same-cost-class feed/post-open
+assembly supports maximal decomposition **at page scale only**. Exact parity
+with order-of-magnitude costlier assembly rejects the maximal version and banks
+the refinement: queryable values as rows, payload as document content. A parity
+mismatch blocks measurement; neither verdict is recorded yet.
+
+**Proof order and boundary:** “make all the fixes, then do the experiments.”
+Row-model source preparation is necessary before spending on runs, but its
+measured cell queues **after** all-fixes banking, not inside or instead of it.
+The isolated post-family experiment retains canonical JSON as build source,
+independent oracle and fallback; the treatment stores no JSON and assembles
+without read extraction. That experimental safety net does not contradict the
+intended no-fat-fallback model. Verify ordinary/paired/fat/sample keys, edits,
+tombstones, shared values and zero-payload documents, then separately price
+displayed-key/feed and full post-open assembly. Other families, garbage
+collection, production and §8 are not admitted by this record. Contract:
+[`ROW-MODEL-QUEUED.md`](../../research/experiments/costfn/ROW-MODEL-QUEUED.md).
+No row-model measurement or production acceptance is claimed.
+
+### D116 — Docs are nodes, refs are edges: a generic N-ref satellite [DECIDED]
+
+**Jacob Hoffman, 19 November 2026:** “docs are nodes, refs are edges.” A single
+`ref_value` column is vestigial as the intended relationship design: a column
+holds one value; an edge table holds N connections.
+
+A generic pairs satellite of `(doc_id, ref_id)` edges is **derived from canonical
+documents**, rebuildable and never authoritative. A document may carry N refs.
+Exactly one ref is the governing root; it alone decides group scope and
+permissions. Other refs are targets, not extra grants. A pair's role is data,
+never schema (D60). Sort `(ref_id, doc_id)`, carrying `author_key` as payload;
+retain full document identity when resolving candidates. A transposed sorting
+for reverse questions is future work, not a second admitted layout.
+
+The satellite is the new standard store furniture for this research direction.
+The **17 November mandatory `ref_sorted` furniture rule is superseded**: retire
+that projection in the treated composition **once the satellite proves parity
+on the same questions**. Preserve historical projection stores, source and
+receipts; no production projection is removed by this decision. Current
+canonical winners/tombstones/attachments/policy still decide what is served.
+Neither a stale edge nor an extra target grants access. D117 generalizes edges
+to typed pointers; that later direction is not required to call these edges
+derived in the present canonical-document experiment. All-fixes refs census,
+paired coverage and native composition costs remain pending; see
+[`ALL-FIXES-THEN-MEASURE.md`](../../research/experiments/costfn/ALL-FIXES-THEN-MEASURE.md).
+
+### D115 — Ads are a billboard, not a tracker [DECIDED]
+
+**Jacob Hoffman, 19 November 2026.** Ads are static documents, created once and
+reused on any number of posts: the same ad for everyone who sees it—“a billboard,
+not a tracker.” No reader mining and no per-viewer targeting.
+
+Placement is a **pin document**: its ref is the post (governing root), and its
+body/second ref names the ad (target). Pins are authored, versioned and deletable
+documents, expressed through generic primitives (D60/D116), not a social-only
+node table or endpoint. The author's ad **always wins** their post's slot; a
+node ad never replaces it, rotates over it or outbids it.
+
+Placement is decided **when the post is made**. The API selects from a
+collection: the author's own ads first; only an otherwise-unpinned post gets a
+node-ratio roll. The ratio is a node constant (operator example **5%**, not a
+new default). On a hit, choose from the node's collection. **Round robin** is
+the recorded selection rule; random is mechanically equivalent for this
+placement model. Once pinned, the association remains with that post forever:
+never repick at read time. “Forever” rules out automatic reassignment, not the
+document's explicit version/delete lifecycle or current access/deletion checks.
+Node ads monetize otherwise-empty slots because not every author is an influencer.
+
+The motivating old inventory statement scanned **88,364,203 rows /
+9,933,017,043 bytes** per completed uniform/paired response to find roughly300
+static ads. The intended treatment deletes that read-time inventory scan and
+resolves ads through the refs satellite; it does not merely cache its answer.
+The exact scan receipt is banked, while the approximate inventory size is
+operator context. The all-fixes directive admits remodel fixtures and measurement;
+its research placements are setup-time analogues, **not implemented production
+post-time selection**. Results pending, no §8/production claim. This supersedes
+older read-time rotation/node-overlay design, retaining its history in
+[ads-dissemination.md](../web10-v3/social/ads-dissemination.md),
+[ads-catalog.md](../web10-v3/social/ads-catalog.md) and
+[node-ads.md](../web10-v3/social/node-ads.md).
 
 ### D114 — Tallying is a generic maintained satellite in the fanout family [decided; research first]
 

@@ -30,6 +30,11 @@ pyramid, how to write docs) is not here — that's the portable cartridge in
 
 ## Reading Order
 
+**19 November design decisions:** [D115–D120 map and receipt ledger](./web10-v3/db/design-revolution.md)
+records billboard ads, N-ref edges, the row-model direction, storage/export
+separation, typed API direction and the over-read principle. DECIDED is intent;
+DIRECTION cells are pending. No new storage rollout or native result is implied.
+
 1. **`strategy/plan.md`** — THE STORY at the top + the current priority block.
 2. **`strategy/decisions.md`** — the big calls.
 3. **`web10-v3/`** — the implementation details for the area you're touching.

@@ -2,6 +2,12 @@
 
 This folder holds the finalized, authoritative documentation for web10 v3.
 
+**Status boundary:** individual design entries may describe chosen but unproved
+directions, not current implementation. The [19 November D115–D120 map](db/design-revolution.md)
+labels those explicitly: billboard/N-ref design is DECIDED, row-model/typed API
+work is DIRECTION with cells pending. No replacement storage has shipped by
+recording it here; the current schema below remains the implementation map.
+
 v3 is the core architecture switch: ClickHouse, groups as the primitive, CRUD with groups, auth, social app. Everything here is what we build first.
 
 Everything beyond the core is in `../web10-v4/` — P2P delivery at scale, federation, real-time, advanced SDK, finance, monetization.

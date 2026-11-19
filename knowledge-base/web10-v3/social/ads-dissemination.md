@@ -1,5 +1,13 @@
 # Ad Dissemination (v3): The Ad Preference on the Document
 
+**Design superseded, 19 November2026 — D115/D116:** future placement is a
+versioned pin document, author-first, selected at post time and never repicked
+on read. Node-ratio placement fills only otherwise-empty slots; round robin
+chooses from the collection at placement, never per viewer. The older design
+below is retained as history/current-implementation context, not the future
+contract. [Decision and pending-proof status](../../strategy/decisions.md#d115--ads-are-a-billboard-not-a-tracker-decided).
+No production selection change or measured remodel result is claimed.
+
 > **v3 design** (27.08.2026). How a document's ad gets chosen in v3 — **mad
 > simple**: `pinned` | `none`. The creator pins an ad to a post, or doesn't. The
 > full curation engine (`round_robin` / `greedy` / `random`, the node-level

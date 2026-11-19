@@ -1,5 +1,12 @@
 # Web10 Ads: The Catalog + Composer (D54, D55)
 
+**19 November2026 design supersession — D115/D116:** static reusable ad
+documents remain the inventory; placement becomes a separate authored,
+versioned, deletable pin document with post root and ad target. Round robin is
+post-time selection, never read-time rotation; author pins always beat node
+placement. Older direct-`ref_value`/rotation text below is retained as prior
+design/current-implementation context. [New decision, not shipped behavior](../../strategy/decisions.md#d115--ads-are-a-billboard-not-a-tracker-decided).
+
 `ads.md` defines what an ad is (a `posts` document tagged `ad` — a piece of content + a link that pays) and how it reaches a viewer (group delivery + the feed read). This doc defines the two surfaces a creator actually touches: the **Ad Catalog** in web10-social's Monetization surface (the inventory of *their* ads — D75 moved it out of the authenticator) and the **composer integration** in web10-social (attaching an ad to a post, or letting the creator's own ads rotate).
 
 ## The Use Case

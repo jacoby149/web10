@@ -54,7 +54,7 @@ jobs:
       - name: Run full F satellite and engagement no-engine suite
         working-directory: research/experiments/costfn
         run: |
-          for test in arm_f*.test.py arm_satellite*.test.py engagement*.test.py; do
+          for test in arm_f*.test.py arm_satellite*.test.py engagement*.test.py row_model*.test.py; do
             python "$test"
           done
       - name: Verify offline source captures
