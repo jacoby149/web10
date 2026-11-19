@@ -1,5 +1,10 @@
 # ClickHouse v4 — Monetization, Ads, Marketplace, Provider
 
+**Historical schema proposal, not current implementation or target DDL.**
+D115/D116 are DECIDED and D117 remains DIRECTION (cell pending). The
+[canonical design map](../../web10-v3/db/design-revolution.md) controls the new
+direction; this retained proposal grants no schema migration or new projection.
+
 v3 has 10 core tables: documents, doc_groups, group_contracts, group_members, group_join_requests, group_hidden_docs, service_contracts, user_blacklist, group_blacklist, user_group_sharing.
 
 v4 adds 24 more tables across four areas.

@@ -166,8 +166,8 @@ do not seed only final aggregates or mock away the system being validated.
 | New signup, old-account login, failed/duplicate signup, contact-code account creation, cancellation and retry | Only canonical new accounts count. No recovery/signup alternative silently bypasses capture. |
 | Refresh, StrictMode/remount, back/forward, double submission, duplicate/out-of-order delivery, multiple tabs and account switching | One conversion per account; correct scope; no old account's touch/activity leaks to a new one. |
 | Block GA4/Hotjar; storage denied/cleared; beacon returns false/throws; offline, storage error, restart between creation and event | Supported first-party path works or is visibly incomplete/unattributed. Recovery reconciles exactly; lost beacons never masquerade as saved conversions. |
-| UTC boundaries, 24h/168h/D7/D30 edges, late arrivals, mixed event types and 7/30/90 selector | Actual ClickHouse rows, API summaries, charts and aggregate export match expected values. Immature retention stays pending; server time determines eligibility. |
-| Forged public signup/activity beacon, claimed other-account subject, replayed/expired handoff, non-admin report | Cannot fabricate a canonical conversion or cross-account association. Claimed behavior never gains server-authoritative provenance. Replay each boundary attack before/after repair. |
+| UTC cutoffs, 24h/168h/D7/D30 interval endpoints, late arrivals, mixed event types and 7/30/90 selector | Actual ClickHouse rows, API summaries, charts and aggregate export match expected values. Immature retention stays pending; server time determines eligibility. |
+| Forged public signup/activity beacon, claimed other-account subject, replayed/expired handoff, non-admin report | Cannot fabricate a canonical conversion or cross-account association. Replay attacks at the browser -> API attribution and API -> analytics-vendor exchanges before/after repair; claimed behavior never becomes server-authoritative provenance. |
 | Labeled bot scenarios plus legitimate passive readers/shared-device humans | Intended flags/exclusions explain every count; false positives/misses documented, no claim of complete human detection. |
 | Deliberately break ingest or stop reporting | Health shows stale/incomplete data, persisted timestamp and discrepancy; a genuine zero remains distinguishable from an outage. |
 
@@ -189,16 +189,16 @@ first-party ledger. A green GA4 DebugView is not full-funnel acceptance.
 |---|---|
 | **A0 — approve contract and validation fixture** | Approve §2 metrics, attribution/maturity/spend rules, source/identity/retention contract, generic storage/handoff design, reporting mock and independent expected-results manifest. No runtime work until unresolved authority/policy decisions are settled. |
 | **A1 — repair existing analytics accuracy** | Reproduce/fix mixed-event pageview totals and date-range wiring separately; test actual SQL and real HTTP/UI. Verify beacon-failure behavior. Keep old dashboards working. |
-| **A2 — campaign capture and safe handoff** | Implement approved touch/destination/handoff contract across marketing/social/auth/SDK, with boundary replay tests, dedup/expiry/account-transition evidence and no privilege changes. |
+| **A2 — campaign capture and safe handoff** | Implement approved touch/destination/handoff contract across marketing/social/auth/SDK; replay the marketing-app -> authenticator and app -> API handoffs, with dedup/expiry/account-transition evidence and no privilege changes. |
 | **A3 — canonical conversions and cohort evidence** | Implement approved durable conversion/association/recovery, activity and retention calculations. Real storage proves restart/retry/canonical identity; immature, QA, suspicious and unattributed counts remain distinct. |
 | **A4 — operator comparison and quality review** | Admin view of all five: spend, observed sessions, new signups, activation, mature returns/rates, cost metrics, flagged counts and completeness. Include denominator/window/formula tooltips, aggregate export and last reconciled timestamp. Route/query holds filters; tokens-only desktop/375px UI, loading/error/empty/stale states. |
-| **A5 — connected acceptance** | Run every §5 case on an isolated real stack with real app/SDK/auth/ClickHouse, reconcile the independent fixture, test outage visibility, review trust boundaries and repair until gates pass. Screenshots alone and mocked event tests do not close this bite. |
+| **A5 — connected acceptance** | Run every §5 case on an isolated real stack with real app/SDK/auth/ClickHouse, reconcile the independent fixture, test outage visibility, and review browser -> API and API -> analytics-vendor authority before acceptance. Screenshots alone and mocked event tests do not close this bite. |
 | **A6 — deployed acceptance and campaign release** | After explicit approval and normal reviewed deployment, verify revision/config and all five final link destinations in actual Instagram's in-app browser on a physical phone, plus desktop/Safari. Use separately excluded, approved QA accounts; confirm real report rows and supplementary GA4 receipt where enabled. No production writes/config/deployment authorized by the plan itself. |
 
 Implementation ownership: continue under `platform-telemetry`, with explicit
 coordination for `api/`, `clickhouse-init/`, `sdk/src/`, auth `Interface.tsx`,
 admin Analytics and social follow/activity seams. Do not take unrelated lane
-work or rebuild creator post/ad analytics. Keep PRs small; trust-boundary fixes
+work or rebuild creator post/ad analytics. Keep PRs small; browser -> API/API -> analytics-vendor authority fixes
 follow AI Security Theory's record/repro/review requirements, one finding each.
 Every PR targets `dev`, resolves conflicts and passes **all** checks.
 

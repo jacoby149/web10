@@ -7,12 +7,13 @@ work.” Prepare both source implementations before any spending. Preserve the
 measurement order rather than running an incomplete intermediate design.
 No row-model native execution or fresh lease has started.
 
-## Current implementation boundary — do not confuse legacy with the target
+## Current implementation versus target — do not confuse the two
 
 The destination is the maximal replacement: typed rows and pointers, NOT a
 permanent JSON-plus-index hybrid. Old production code and canonical research
-JSON remaining in this branch do not reverse that decision. D115–D120 and
-`knowledge-base/web10-v3/db/design-revolution.md` record the direction. Nothing
+JSON remaining in this branch do not reverse that decision. D117 is DIRECTION
+(cell pending); D115/D116/D118 are DECIDED, D119 is DIRECTION and D120 is PRINCIPLE.
+The [design map](../../../knowledge-base/web10-v3/db/design-revolution.md) links the canonical ledger. Nothing
 here claims that unmeasured source prototypes have completed a production cutover.
 
 Source modules now implement:
@@ -32,8 +33,13 @@ Source modules now implement:
   or ambiguous legacy targets refuse; edges never silently become text.
 - `row_model_fence.py` / `row_model_cell.py`: exact-domain/source/part fences,
   independent canonical key/type checks, all-fixes-banking barrier and separately
-  accounted canonical-versus-row assembly stages. These are source primitives;
-  the actual native action-provider/connected-cell integration is still OPEN.
+  accounted canonical-versus-row assembly stages.
+- `row_model_native.py`, `row_model_actions.py`, `row_model_worker.py` and
+  `row_model_run.py`: concrete typed-driver/owned-container wiring, full-family
+  setup, real canonical/typed controls, physical sharing and zero-pointer
+  verification, native query receipts and private comparison packets. Source
+  integration is implemented; actual native/data-scale acceptance remains OPEN.
+  Invocation/admission/cost scopes: [`ROW-MODEL-RUN.md`](ROW-MODEL-RUN.md).
 
 **Snapshot consistency choice:** each committed experimental version contains a
 complete pointer set, with explicit tombstones for removed keys. A skinny header
@@ -41,11 +47,16 @@ binds its count/digest. Never merge keys from different versions or publish a
 partial build. This is NOT a live-write concurrency/transaction claim. Selected
 key reads require whole-model parity and unchanged frozen native table parts;
 full reads also verify the complete pointer manifest and immutable value IDs.
+Container values additionally commit to child key/type/value IDs: equal arity
+alone is NOT value identity. Nested child pointers remain versioned document
+rows; container content changes cannot retain their previous immutable ID.
 
 The cell's typed layouts answer row-ID assembly seeks; do not infer numeric-
 range/text-prefix query-planner performance from that test. No new `documents`
-projection is introduced. Full-scale native type/driver/layout/assembly proof,
-connected harness integration and eventual JSON read-path retirement remain OPEN.
+projection is introduced. Full-scale native type/driver/layout/assembly proof
+and eventual production JSON read-path retirement remain OPEN. The connected
+action-provider/worker/host entry is now source-implemented and source-tested,
+not claimed natively accepted.
 
 ## The goal
 
@@ -57,8 +68,13 @@ economics, not declare victory because a row happens to be skinny.
 
 ## Storage rules
 
+**Canonical design home:** [D117 (DIRECTION; cell pending)](../../../knowledge-base/strategy/decisions.md#d117--documents-become-versioned-pointers-to-immutable-typed-rows-direction-cell-pending)
+owns the storage rules. The checklist below applies that decision to this
+isolated proving contract; it is not a second source of implementation status.
+
 - Storage contains only skinny typed rows. **No JSON is stored.** JSON is the
-  API wire format: parse once at ingest; reassemble at the output boundary.
+  app -> API input format: parse once at ingest. At the API -> app/UI boundary,
+  assemble and serialize the response.
   Reads never parse JSON, extract paths or cast strings to use values.
 - A document is a set of pointers `(doc_id, key, type, value_row_id)`. `key`
   is its path, for example `post.text_in_post`; `type` names the value table.

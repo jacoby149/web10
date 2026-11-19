@@ -1,5 +1,11 @@
 # The Query Engine Reads Group Metadata — the web10 engine reads what you're allowed to read
 
+**Retained design discussion with implementation history.** Current compiled
+SQL is documented in `../web10-v3/safe-query.md`; older prerequisite statements
+below are not a new claim that shipped fields are missing. JSON/single-ref
+examples are current/legacy storage, not D116 (DECIDED)/D117 (DIRECTION, cell
+pending). [The design map](../web10-v3/db/design-revolution.md) owns target links.
+
 **Status: PLANNED — the keystone. This is the first protocol work of the
 discover / groups / search cluster.** It's a big addition to the protocol
 (expanding the query engine's reachable tables), and it's the foundation the
@@ -66,10 +72,10 @@ metadata I'm allowed to see, **sorted by it**" a single, secure, queryable read.
 ## Why it's safe (the wall extends, it doesn't weaken)
 
 The engine's guarantee (`safe_query.py:5-30`): a caller query can only reference
-**service names** (→ API-built boundary CTEs, group-filtered) and its own CTEs —
+**service names** (→ API-built access-filtered CTEs) and its own CTEs —
 never raw tables. The raw string is parsed to an AST, every table reference is
-checked, the boundary CTEs are injected (API-built), and the result re-parses
-(round-trip backstop). The boundary is on the *input* tables, not a filter on the
+checked, the API-generated access-filtered CTEs are injected, and the result re-parses
+(round-trip backstop). At the API -> ClickHouse boundary, authorization restricts *input* tables, not merely the
 *output* — so aggregation, self-joins, and subqueries can't leak past it.
 
 **This extension adds one more API-built, visibility-enforced CTE**
@@ -88,7 +94,7 @@ tables; it touches the API-built, visibility-enforced `group_meta`.
 **The join key doesn't exist yet.** `_CTE_COLUMNS` (`safe_query.py:84`) is
 `doc_id, author_key, body, ref_value, tags, created_at, updated_at, ad_mode,
 ad_target` — **no `group_id`.** A doc can be in *multiple* groups (via
-`doc_groups`), so the boundary CTE must JOIN `doc_groups` and surface the
+`doc_groups`), so the access-filtered CTE must JOIN `doc_groups` and surface the
 group(s) — one row per (doc, readable-group) pair, each carrying that
 `group_id`. Then a caller can `JOIN group_meta gm ON p.group_id = gm.group_id`.
 **This is safe** (operator, 18.09.2026): the CTE is *already* filtered to the
@@ -99,8 +105,8 @@ row shape is expected, not a problem. This is a prerequisite the original design
 skipped — it's **QE-A0** (below) and must land before the `group_meta` join is
 usable.
 
-### The new boundary CTE: `group_meta`
-- A new API-built boundary CTE (parallel to the service CTEs), exposing group
+### The new API-generated access-filtered CTE: `group_meta`
+- A new API-built access-filtered CTE (parallel to the service CTEs), exposing group
   metadata: `group_id`, **`member_count`** (from `group_members`),
   **`join_policy`** + **`discoverable`** (from `group_contracts`).
 - Built by a new `_group_meta_cte_sql(readable_group_ids, member_key,
@@ -251,7 +257,7 @@ the sort I3-honest, and a WHERE-filter would quietly break it.
 
 - [✓ 3.121.0] **QE-A0: expose `group_id` on the content CTEs** (the join key — the
   prerequisite, `api/app/v3/services/safe_query.py`) — add `dg.group_id` to the
-  boundary CTE's outer SELECT (the one that JOINs `doc_groups`), so a doc in N
+  access-filtered CTE's outer SELECT (the one that JOINs `doc_groups`), so a doc in N
   readable groups surfaces N rows (one per group, each with that `group_id`) —
   the multi-group row shape is pre-existing (the JOIN already produces N rows)
   and now visible + meaningful. The exposed group_ids are all readable groups

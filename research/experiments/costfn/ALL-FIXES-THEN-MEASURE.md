@@ -53,23 +53,21 @@ report auxiliary request-tagged work separately. Decompose every stage, naming
 each formerly unclassified query by identity, SQL/source and actual native cost.
 Do not optimize those remainders in this task.
 
-## Banked facts and claim limits
+## Banked evidence and claim limits — canonical report links
 
-Dataset `2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd`:
-88,200,300 documents; prepared store 88,200,363 including fixtures; 1.6B events.
-Untreated 26.x baseline: 4,551.675ms / 3,244,874 rows / 222,387,685 bytes,
-exact parity PASS, budget FAIL. No baseline, Stage B or Stage D timing reruns.
-Banked lossless migration: 9 checks/32 inverse-multiset batches on both engines.
+Dataset identity remains `2d6bbc4d89dfa5f9bfc43da3d8bc1395a915ae26061a4f120a0f1e3e19f8dddd`.
+The reports own counts, timings, byte scopes and their original verdicts:
 
-PR #1590 exact treated parity remains PASS/budget FAIL: projection K20 59.462GB,
-uniform K20 52.097GB. PR #1591 ordinary counts collapse to 1,600 rows per
-component; projection K20 224,523,076 bytes, uniform K20 10,128,634,167 bytes.
-Its missing-20-root paired-verifier defect remains OPEN until new native proof.
-Fat fixture: 50,000 comments, 6,731 direct + 6,731 finer reactions. Tally build
-4,531,029 rows. Views aggregate's banked exact states read 46,216,238 bytes
-versus raw 98,621,175. The deleted read-time inventory statement's hash is
+- [Untreated modern baseline and migration prerequisites](evidence/engagement-completion-20261118/RESULTS.md).
+- [Treated complete responses, standalone counts and old inventory statement](evidence/engagement-finish-20261118/RESULTS.md).
+- [Ordinary tally observations, fat/sample verification and OPEN paired-domain audit](evidence/engagement-tally-20261119/RESULTS.md).
+- [Independent raw/aggregate views and lossless migration evidence](evidence/engagement26-20261118/RESULTS.md).
+
+Do not remeasure baseline/B/D timings or reinterpret their numerical scopes.
+D114 full acceptance is OPEN until actual paired roots pass the repaired gate.
+The retired inventory statement's identity remains
 `4bc916c85c420f45a56d98424274efe1f83483092363c8c9fdae1194c24765f6`;
-its old 9,933,017,043 bytes must not survive in any measured sequence.
+neither it nor an equivalent read-time inventory scan may execute in a measured sequence.
 
 All old Config F/#1590/#1591 budget FAILs stand. The expected aggregate views,
 unclassified work (~52MB) and preparation remainder may still exceed 25MB.

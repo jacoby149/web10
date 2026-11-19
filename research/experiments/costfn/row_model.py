@@ -112,15 +112,32 @@ def typed(value):
     raise ValueError('unsupported canonical value type')
 
 
+@dataclass(frozen=True)
+class Container:
+    count: int
+    children_digest: str
+
+
+def child_digest(items):
+    framed_items = [framed(encode_path((name,)).encode()) + framed(kind.encode()) + framed(row_id.encode())
+        for name, kind, row_id in sorted(items, key=lambda item: encode_path((item[0],)))]
+    return hashlib.sha256(b''.join(framed_items)).hexdigest()
+
+
 def value_bytes(kind, value):
     if kind == 'text':
         if not isinstance(value, str):
             raise ValueError('typed text required')
         return value.encode('utf-8')
-    if kind in ('integers', 'objects', 'arrays'):
-        if type(value) is not int or (kind != 'integers' and value < 0):
-            raise ValueError('typed integer/container length required')
+    if kind == 'integers':
+        if type(value) is not int:
+            raise ValueError('typed integer required')
         return value.to_bytes(32, 'big', signed=True)
+    if kind in ('objects', 'arrays'):
+        if (not isinstance(value, Container) or type(value.count) is not int or not 0 <= value.count < 2**64
+                or not isinstance(value.children_digest, str) or len(value.children_digest) != 64):
+            raise ValueError('typed complete-container commitment required')
+        return value.count.to_bytes(8, 'big') + bytes.fromhex(value.children_digest)
     if kind == 'floats':
         if type(value) is not float or not math.isfinite(value):
             raise ValueError('typed finite float required')
@@ -202,16 +219,18 @@ def decompose(document, version, *, previous=(), deleted=False, references=None)
             used.add(path)
         else:
             kind, payload = typed(value)
+            if kind in ('objects', 'arrays'):
+                children = list(value.items()) if kind == 'objects' else list(enumerate(value))
+                members = []
+                for name, child in children:
+                    add((*path, name), child)
+                    pointer = pointers[encode_path((*path, name))]
+                    members.append((name, pointer.type, pointer.value_row_id))
+                payload = Container(len(children), child_digest(members))
             stored = Value(kind, payload)
             value_id = stored.row_id
             values[kind, value_id] = stored
         pointers[key] = Pointer(owner, version, key, kind, value_id)
-        if isinstance(value, dict):
-            for name, child in value.items():
-                add((*path, name), child)
-        elif isinstance(value, list):
-            for index, child in enumerate(value):
-                add((*path, index), child)
     if not deleted:
         for name, value in document.items():
             if name not in ('author_key', 'doc_id'):
@@ -254,8 +273,14 @@ def assemble(node, pointers, values, identities):
     return result
 
 
+class Payload(dict):
+    def __init__(self):
+        super().__init__()
+        self.row_ids = {}
+
+
 def hydrate(node, rows, values, identities):
-    payload, seen = {}, {}
+    payload, seen = Payload(), {}
     for pointer in rows:
         if pointer.document_row_id != node.identity.row_id or pointer.version != node.version:
             raise ValueError('foreign or mixed-version pointer set')
@@ -282,6 +307,7 @@ def hydrate(node, rows, values, identities):
         if path in payload and payload[path] != (pointer.type, value):
             raise ValueError('conflicting selected pointer winners')
         payload[path] = pointer.type, value
+        payload.row_ids[path] = pointer.value_row_id
     return payload
 
 
@@ -298,18 +324,29 @@ def child_map(payload):
 def materialize(payload, children, path):
     kind, value = payload[path]
     names = children.get(path, [])
+    count = value.count if isinstance(value, Container) else value
     if kind == 'objects':
-        if len(names) != value or any(not isinstance(name, str) for name in names):
+        if len(names) != count or any(not isinstance(name, str) for name in names):
             raise ValueError('incomplete object pointer children')
+        verify_container(payload, path, names, value)
         return {name: materialize(payload, children, (*path, name)) for name in names}
     if kind == 'arrays':
-        if (len(names) != value or any(type(name) is not int for name in names)
+        if (len(names) != count or any(type(name) is not int for name in names)
                 or any(index != name for index, name in enumerate(sorted(names)))):
             raise ValueError('incomplete array pointer children')
-        return [materialize(payload, children, (*path, index)) for index in range(value)]
+        verify_container(payload, path, names, value)
+        return [materialize(payload, children, (*path, index)) for index in range(count)]
     if names:
         raise ValueError('scalar pointer has children')
     return value
+
+
+def verify_container(payload, path, names, value):
+    if not isinstance(value, Container) or not hasattr(payload, 'row_ids'):
+        raise ValueError('missing immutable container content identity')
+    actual = child_digest((name, payload[(*path,name)][0], payload.row_ids[(*path,name)]) for name in names)
+    if actual != value.children_digest:
+        raise ValueError('immutable container children changed')
 
 
 def assemble_selected(node, pointers, values, identities, paths, *, frozen_verified):

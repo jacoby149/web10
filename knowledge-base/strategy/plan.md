@@ -1,13 +1,15 @@
 # web10 v3 Plan
 
+- [✓ 6.25.1 documentation only] **KB-NOV19-TIGHTENING** — complete the seven-task terminology/status/current-versus-target/canonical-fact/directive-index/paper-retarget/index-changelog audit. Report: [design-revolution-tightening-report.md](design-revolution-tightening-report.md); exhaustive original-occurrence inventory linked there. D114 paired acceptance OPEN; D117 cell pending. No source edits, evidence rewrites, native work, leases or rollout.
+
 - [✓ 6.24.4 documentation only] **KB-NOV19-DESIGN-REVOLUTION** — record Jacob's seven KB tasks: D115 billboard ads and immutable-at-read author-first placement; D116 derived N-ref edges and conditional projection retirement; D117 maximal row-model DIRECTION and both pre-committed assembly verdicts; D118 storage/export separation; D119 typed API DIRECTION; D120 over-read PRINCIPLE; indexes, receipts and explicit supersession notes. Owns knowledge-base/ and AGENTS.md documentation only; implementation thread owns source and execution. Pending cells remain pending, canonical research JSON remains source/oracle/fallback, prior FAILs/paired coverage gap retained. No code, lease, native execution, production/§8 or new run admission. Map: `knowledge-base/web10-v3/db/design-revolution.md`.
 
-- [~ 6.24.2 ordinary measured; paired precheck OPEN] **RD4-TALLY-WIRING** — ordinary exact response parity and count-stage collapse measured: isolated lookups1,600 rows/107,200 bytes each; follow-ups2,688/353,839. Uniform128,480.771ms/10,128,634,167 bytes and optional projection7,647.980ms/224,523,076 retain whole-response budget FAILs. Fat50k/6,731/6,731 maps and60 sample roots match. Final audit finds all20 paired roots absent from five legacy-page-derived verification domains; raw PASS flags are not full acceptance. Source domain selection/refusal repaired, native repair acceptance OPEN. Intel DO620898285 cleaned04:13:42UTC before06:03:43, estimate$0.618968/not invoice; no new paid retry admitted. Owns costfn/additive CI/serialized KB/evidence; ordinary API/production read-only, original FAILs/remainders/oracle/bounds retained, no baseline/B/D/event/aggregate/live maintenance/§8. Results: `research/experiments/costfn/evidence/engagement-tally-20261119/RESULTS.md`.
+- [~ 6.24.2 ordinary measured; paired precheck OPEN] **RD4-TALLY-WIRING** — ordinary observations, count-stage costs, fat/sample checks and budget FAILs are canonical in the [tally report/domain audit](../../research/experiments/costfn/evidence/engagement-tally-20261119/RESULTS.md). Actual paired roots were omitted from the old verification domains; raw PASS flags are not full acceptance. Source repair does not close D114's paired gate. The old lease is cleaned; current treatment/admission selection follows the costfn directive index. Owns costfn/additive CI/serialized KB; ordinary API/production remain read-only. No baseline/B/D rerun, live maintenance or§8 acceptance.
 - [✓ operator cancellation/cleanup only; paired proof OPEN] **RD4-TALLY-PAIRED-COVERAGE** — Jacob cancelled DO621021141 rather than spend on an intermediate design. Owned provider cleanup verified19 November11:02:55.431UTC, before the original14:36:09 deadline; latest verified off-host checkpoint1,896,739 bytes/SHA`1d7d3cce…fc135` preserved. Direct SSH timed out at cancellation, so no final checkpoint/native acceptance is inferred. Preserve original4a9dbce92/source/boot receipts and the first tally run's20-root coverage gap. No reopen/replacement/automatic retry. Actual paired verification now belongs to RD4-ALL-FIXES-COMPOSITION, after BOTH source implementations are prepared; production/§8 remain unchanged. Detailed binding/history: existing engagement task block.
 
 - [✓ 6.23.11 native completion] **RD4-ENGAGEMENT-TRANSPORT-REPAIR** — preserve pinned1.6 startup TypeError/original failures; numeric initialization followed by uncapped backend read transport/retries0 is exercised natively. Source-bound continuation8fd924372 verifies1,435 files and reuses certified setup/copy without counters/materialization/baseline/B/D or failed-output overwrites. All four complete responses and count decomposition pass exact parity, budget FAIL; owned DO620634285 cleanup12:55:15UTC precedes15:02:47. Native/source/accounting receipts: `research/experiments/costfn/evidence/engagement-finish-20261118/RESULTS.md`.
 
-- [✓ 6.23.11 measurements complete; budget FAIL] **RD4-ENGAGEMENT-TREATED-COMPLETION** — all four treated responses complete with exact parity. Captured-query projection/uniform K20:25,815.782ms/59,461,806,191 bytes and156,892.952ms/52,097,155,602; paired P/F150,027.498/166,358.107ms and9,969,184,052/9,969,158,768 bytes. Each measured sequence separately accounts for60 rows/6,840 auxiliary bytes. Real non-additive decomposition/unchanged preparation SQL now finish;454 read and102 auxiliary records reconcile. Bank baseline/B/D/lossless proof, preserve original startup failures and transport continuation; no rebuild/redesign. DO620634285 cleanup12:55:15UTC before15:02:47, compute estimate$0.468647/not invoice, snapshot untouched. No p95/capacity/F-arm PASS/counter retirement/production/§8 or fresh paid admission. Full three-column/stage/source/native receipts: `research/experiments/costfn/evidence/engagement-finish-20261118/RESULTS.md`.
+- [✓ 6.23.11 measurements complete; budget FAIL] **RD4-ENGAGEMENT-TREATED-COMPLETION** — exact treated parity and budget FAILs are banked in the [treated-completion report](../../research/experiments/costfn/evidence/engagement-finish-20261118/RESULTS.md). That report owns captured/auxiliary totals, non-additive count diagnostics, preparation actuals, source/failure lineage and cleanup/cost receipts. No p95/capacity/F-arm PASS, counter retirement, production/§8 or fresh admission follows.
 
 - [✓ 6.23.7 directive recorded only] **COSTFN-MEASUREMENT-LIMITS** — capture Jacob Hoffman's18 November governing execution override in costfn README and task/agent entry points. Future admitted runs: no row-count stop,600s measurement statement bound with timeout/partial actuals as results rather than run aborts, native-completion polling without fixed-client abandonment, retired paper-era$40 compute ceiling,500ms/25MB success lines only. Preserve historical STOPs, oracle/fixtures/claims,32/28/22GiB comparison frame and agent300s/self-kill/no guardian. Explicit run admission remains; no new lease, harness implementation, native rerun or production-limit change. Full policy: `research/experiments/costfn/README.md` “Governing execution directive”. Conflicting earlier execution limits/byte-stop instructions below are superseded for future runs, not erased from history.
 
@@ -16,9 +18,9 @@
 
 - [✓ 6.23.3 bounded lease closed, partial results] **RD4-ENGAGEMENT-26X-A-D-LEASE** — existing DO620491569, no replacement/reseed/extension: projection88,200,363/88,200,363 and nine-check/32-batch migration parity pass; raw→aggregate views98.62→46.22MB/exact parity, no sampled latency win. Full400k hot computation1,847.902ms/47.16MB/exact thread/per-target/views parity, budget FAIL. Complete untreated baseline missing; C ordinary/paired fall back on uncertified physical generation and stop158 before execution, not valid treated costs. All failures/source/stopped native parts verified off-host; cleanup18 November04:41:06UTC before05:43:57, estimated compute$0.73814/not invoice. Results: `research/experiments/costfn/evidence/engagement26-20261118/RESULTS.md`.
 - [~ 6.23.11 complete parity measured; performance FAIL] **RD4-ENGAGEMENT-REF-REDESIGN** — accepted three-things design/B/D/lossless proof and24.8 history remain banked. Treated K20/paired/decomposition measurements now exist with exact response parity and severe cost FAIL; no counter retirement or whole-F-arm PASS. Preparation/unclassified remain named; any candidate-to-canonical/preparation revision is a separately admitted proposal against those actuals, not automatic implementation/paid continuation. Owns costfn/additive CI/serialized KB/evidence, ordinary API/production read-only, no population/R+W/§8/T7/extra projections. Nov18 governing limits override older row/deadline/byte aborts;32/28/22GiB and agent/self-kill/no guardian remain. Contract: existing engagement task block; results: `research/experiments/costfn/evidence/engagement-finish-20261118/RESULTS.md`.
-- [✓ 6.23.6 completion lease closed; baseline valid, treated native gates STOP] **RD4-ENGAGEMENT-COMPLETION-LEASE** — DO620548967 banks the untreated26.x baseline before projection:4,551.675ms/222,387,685 bytes, parity PASS/budget FAIL. Four harness fixes/codec normalization and current certification work; single-submission materializations/equal coverage and9/32 copy gates pass. Intended bounded/deletion-winning/ref_sorted SQL stops158 for projection/uniform K20; paired preparation separately stops. Actual native costs and partial non-additive decomposition are retained, never engine estimates as samples. No treated complete response or counter retirement. Cleanup06:59:08UTC before09:42:45, estimated compute$0.31827/not invoice; no B/D rerun/reseed/new lease/limit change. Results: `research/experiments/costfn/evidence/engagement-completion-20261118/RESULTS.md`.
+- [✓ 6.23.6 completion lease closed; baseline valid, treated native gates STOP] **RD4-ENGAGEMENT-COMPLETION-LEASE** — the [completion report](../../research/experiments/costfn/evidence/engagement-completion-20261118/RESULTS.md) owns the valid untreated baseline, stopped treated gates, copy/materialization verification, partial diagnostics and cleanup/cost. That attempt did not return a treated complete response or retire counters. Historical guards stay in its receipt; current policy is linked from the costfn directive index, not retroactively applied.
 - [✓ 6.23.11 integration measured; budget FAIL] **RD4-ENGAGEMENT-READ-INTEGRATION** — exact complete K20/paired response parity/totals and nonempty count decomposition are now measured with certified dispatch, native600s reads and unchanged bounded/deletion-winning/ref_sorted SQL. Retain original codec/boot/row/preparation STOPs and source-bound repair; no counter rebuild after materialization. Scope/comparison/auxiliary accounting: `research/experiments/costfn/evidence/engagement-finish-20261118/RESULTS.md`. Performance/F-arm acceptance still FAIL; no redesign/production/new paid continuation.
-- [✓ 6.23.11 evidence reviewed] **RD4-ENGAGEMENT-NATIVE-GATE-REVIEW** — retained actual SQL/projection/native receipts distinguish pre-read selections from actuals; the paired preparation blocker is separate, not a projection-fallback claim. The subsequent independently admitted completion now measures the unchanged statements: scan-shaped actuals and preparation4bc916c8…88,364,203 rows/9,933,017,043 bytes. Bounded candidate-to-canonical/preparation proposals need separate operator admission; no redesign/counter retirement/automatic paid run. Evidence, limitations and actuals: `research/experiments/costfn/evidence/engagement-finish-20261118/RESULTS.md` and the preserved earlier completion report.
+- [✓ 6.23.11 evidence reviewed] **RD4-ENGAGEMENT-NATIVE-GATE-REVIEW** — the [treated-completion report](../../research/experiments/costfn/evidence/engagement-finish-20261118/RESULTS.md) distinguishes native actuals, estimates and preparation scope. Preserve the earlier STOP and unchanged-statement lineage. This review grants no redesign, counter retirement or automatic paid run; newer treatment selection belongs to the operative directive index.
 
 Measurement goal reached; performance goal FAILED. Ordinary K20 F complete
 sequence:4,702.160ms/3,734,802 rows/286,693,122 bytes, parity PASS including21
@@ -34,7 +36,7 @@ Current direction,17 November: **persist** — repair/run, sleep300s, inspect,
 repair if broken and repeat until measurements exist. Routine source-bound
 re-runs are explicitly admitted within unchanged four-hour/$2 leases and the
 existing$20 overall ceiling; preserve every failure, oracle/caps and no-production
-boundary. No new guardian or permission question at each harness repair.
+scope. No new guardian or permission question at each harness repair.
 This iteration now ends on an actual cost-gate result, not another harness-only
 stop. All earlier setup/dispatch/scope failures remain preserved. Ordinary API,
 production and the frozen archive stay unchanged; later arm acceptance is OPEN.
@@ -87,7 +89,7 @@ no failed fixture retry.203 no-engine controls/Ruff pass, not native acceptance.
 - [~ 6.14.1 source prototype; native P-setup STOP] **RD4-FANOUT-IMPLEMENTATION** — source primitives, gated research API/coordinator/native-build/T4 control harness and offline controls implemented, not native-tested. DO619583249 stops at P transpose reconciliation/native241 before any complete response or F native build; count T1 only passes. Raw receipts and early verified cleanup18:45UTC are retained, estimated compute$0.3402, no extension. Full F gates/R+W, broader implementation and independent review remain OPEN; no P1/production/settings/views/T7 action or paid continuation.
 
 - [✓ 6.13.8 design artifacts only] **RD4-FANOUT-APPROVAL-ARTIFACTS** — fold operator approval/corrections and granted four-hour/$2 admission into the existing stack; exact fanout DDL and source-bound authorized hook manifest in `ARM-F-DESIGN-CLOSURE.md`. Canonical single-pass count/recipients, no membership counter, append-only inserts/read cap/amortized trim; bounded coordinator and timed revalidation approved, settings deferred, same-contract P/F path conditional on captured multiplicity. No new planning document, installed hook, native PASS or paid creation.
-- [ ] **RD4-FANOUT-EXECUTE** — implement isolated executable tooling/no-engine controls, then consume the granted fresh four-hour/$2 admission with layered cleanup and full-hash MinIO restore; report stage-attributed P first, F build receipt, T4→T2-F→T6-F→T3-F→T5-F→T8-F→boundaries and mandatory R+W. Owns `research/experiments/costfn/`, additive CI and serialized KB/evidence only. Acceptance: approved closure/task/addendum with real authorized paths, no membership counter/per-insert rerank/oracle or generation bypass, predeclared trials/p95 and complete source/native receipts. Stop/report on failure/cap; T7 separately admitted, no production/settings/views-treatment/paper action. Use the existing stack, not a fifth planning document.
+- [ ] **RD4-FANOUT-EXECUTE** — implement isolated executable tooling/no-engine controls, then consume the granted fresh four-hour/$2 admission with layered cleanup and full-hash MinIO restore; report stage-attributed P first, F build receipt, T4→T2-F→T6-F→T3-F→T5-F→T8-F→cutoff/transition gates and mandatory R+W. Owns `research/experiments/costfn/`, additive CI and serialized KB/evidence only. Acceptance: approved closure/task/addendum with real authorized paths, no membership counter/per-insert rerank/oracle or generation bypass, predeclared trials/p95 and complete source/native receipts. Stop/report on failure/cap; T7 separately admitted, no production/settings/views-treatment/paper action. Use the existing stack, not a fifth planning document.
   **6.14.1 execution state:** partial source implementation; admitted run STOPPED before P serving and was cleaned up. That grant is closed. Do the bounded checker-repair review first; no paid/native continuation without fresh operator admission.
   **6.16.0 execution state:** executable programme contract (`arm_f_gates.py`) and real-HTTP/native-attribution harness (`arm_f_http.py`) added with no-engine import/lint; no gate executed, no paid host or native result; full programme execution remains open behind fresh admission.
   **6.17.0 execution state:** fresh-trial environment (owned full restore per trial with lease/reserve/one-engine guards, trial-only discard), real authorized 3/3/2000 fixtures incl. same-ID/different-author collision via setup-only API, independent canonical document-stream oracle and pointer-only observation added; all33 no-engine controls plus focused Ruff pass locally; no gate executed, no paid host or native result; full programme execution remains open behind fresh admission.
@@ -261,12 +263,12 @@ window = max(N days, M per arm) from the sample-size table, minimum lift,
 no peeking, SRM chi-square before any read (>1 % split deviation
 invalidates), single end-of-window read, concurrency rule (one active
 experiment per surface + primary metric). auth-ui is excluded by default
-(trust boundary, separate security review); `disable_web_experiments`
+(app -> authenticator credentials/consent require separate review); `disable_web_experiments`
 stays true (variants render in code); no `api/` app-specific surface
 (D60); default-off invariant holds (`posthog_enabled=false` → no flags,
 no events, control everywhere); null flag always renders control.
 
-- [ ] **AB-01 — foundation (code, marketing-ui)** — generic per-app flag option (designed so the social flip is one line + EVENTS additions, not a redesign); `$feature/<slug>` + enrollment wire-gate passthrough with red/green off-state controls; tracker `flag(name)` + marketing-ui pass-through, null renders control; first-experiment events on the explicit EVENTS allowlist; wire-gate delta reviewed as trust-boundary work. Gate: disabled node indistinguishable from control.
+- [ ] **AB-01 — foundation (code, marketing-ui)** — generic per-app flag option (designed so the social flip is one line + EVENTS additions, not a redesign); `$feature/<slug>` + enrollment wire-gate passthrough with red/green off-state controls; tracker `flag(name)` + marketing-ui pass-through, null renders control; first-experiment events on the explicit EVENTS allowlist; review changes at the browser-page -> PostHog capture boundary under the security method. Gate: disabled node indistinguishable from control.
 - [ ] **AB-02 — attribution proof** — synthetic replay (variant landing → ticketed CTA → signup → `$identify` merge) + connected e2e-node receipt; assert the experiment report joins the signup to the arm. Identity rules unchanged; no production writes.
 - [ ] **AB-03 — experiments ledger** — `knowledge-base/strategy/experiments.md` with the full record format (above); first record = the classic-homepage test or a cheaper smoke experiment (operator choice).
 - [ ] **AB-04 — run experiment #1** — flag on enabled origins only; operator dashboard read at window end only; SRM first; single read; outcome ship/iterate/kill recorded; D-number when it changes what we build.
@@ -290,7 +292,7 @@ no events, control everywhere); null flag always renders control.
 - [✓ 5.27.3 local docs only] **Record API-to-client theme architecture** — propose public read-only `GET /theme` backed by existing node config, publishing versioned generic brand/palette/font/preset data that social maps to semantic tokens. Admin writes stay separate; fixed product structure is not an editor option. THEME1 settles fixed/themeable/editable boundaries, coordinated defaults/advanced overrides, cache/startup/failure behavior and configured-node ownership, never feed-source branding. Endpoint/editor implementation remains open under THEME2.
 - [ ] **THEME0 — verify TorahAnytime brand references** — record dated public-site/style or approved-kit evidence for exact colors, font families/weights/sources and Hebrew/English/RTL coverage; verify font redistribution rights or obtain approved alternatives. Distinguish verified values from proposed dark-mode adaptations. Docs/reference capture only; no guessed palette or font claim.
 - [ ] **THEME1 — reusable node appearance contract and editor design** — after THEME0, inventory config/consumers and specify persisted light/dark semantic palettes with color pickers plus exact hex fields, approved self-hosted UI/heading fonts, contrast validation, URL-reachable preview/Save/Cancel/reset and failure recovery. Map existing tokens across social/authenticator/browser and enabled branding touchpoints; distinguish node branding from browser System/Light/Dark and preserve web10 defaults. Assign bounded owners before code; see `torah-anytime.md`.
-- [ ] **THEME2 — implement and verify node appearance controls** — after approved THEME0/THEME1 references/contract and owner assignment, split generic config/validation, settings editor, social and authenticator wiring. Require exact hex persistence, real font loading/fallback, preview/cancel/reset, node isolation, first-paint/theme preference parity, contrast/keyboard checks and both-theme desktop/375px captures; normal tests/build/all CI and partner visual approval before rollout. Future write-boundary work follows security method. No partner fork or implicit Part 1 demo blocker.
+- [ ] **THEME2 — implement and verify node appearance controls** — after approved THEME0/THEME1 references/contract and owner assignment, split generic config/validation, settings editor, social and authenticator wiring. Require exact hex persistence, real font loading/fallback, preview/cancel/reset, node isolation, first-paint/theme preference parity, contrast/keyboard checks and both-theme desktop/375px captures; normal tests/build/all CI and partner visual approval before rollout. Future admin UI -> API configuration writes follow the security method. No partner fork or implicit Part 1 demo blocker.
 - [✓ 5.27.2 local docs only] **Clarify listener tier can like** — operator corrects the earlier “read-only” label: these listeners can read/watch and like; this is not another additional tier or speaker/publisher authority. Carry into TA0/TA-PROPOSAL/TA2; comments, other reactions and publishing remain separate policy decisions. First demo unchanged; no runtime implementation claimed.
 - [✓ 5.27.1 local docs only] **Record Demo Part 2 policy-mirroring stage** — after the existing-policy showcase, discovery and bounded proposal agreement, return with a second isolated demo mirroring their confirmed policies. Partner feedback refines the proposal before rollout; no assumed speaker rules, SSO or sync, and no blocker added to Part 1.
 - [✓ 5.27.1 local docs only] **Demo first, existing web10-social policy** — operator's current direction supersedes custom-account-level/SSO discussion for the first demo. Show branded TorahAnytime Social with existing account/post/comment/moderation behavior, curated content and the outer password gate; no new speaker tiers, approval queue or TorahAnytime login/sync. After showing it, discover their actual/desired participation and abuse policies plus integration capabilities, then write TA-PROPOSAL. No runtime implementation claimed.
@@ -699,7 +701,7 @@ finding closure, and a single-file scan does not establish whole-API coverage.
 - [✓ 3.245.6] **PROTOCOL-01/L1-J-01: import trace attribution** — source repair merged #1267; context-owned capture and pre-lock guards, nine controls/1,225 API passes at repair pin. Deployment/history/diverse review remain OPEN. `knowledge-base/security/scans/2026-10/repair-j01-import-traces.md`.
 - [✓ 3.245.7] **PROTOCOL-01/L1-DEPLOY-01: frozen install enforcement** — source repair merged #1268; eight controls/1,233 API passes at repair pin and actual production Linux image checks for both apps passed on equivalent pre-merge source. Deployment/dependency authenticity/diverse review OPEN. `knowledge-base/security/scans/2026-10/repair-deploy01-frozen-installs.md`.
 - [✓ 3.245.8] **PROTOCOL-01/L1-D-01: verified principal freshness** — source repair merged #1271 at b828736b4; 92 controls/1,325 API passes at repair pin and fresh same-model review. Rollout/diverse review OPEN; no issuer/provider/purpose/revocation assurance. `knowledge-base/security/scans/2026-10/repair-d01-token-freshness.md`.
-- [ ] **PROTOCOL-02: protocol L2** — after the L1 gate: direct-edge scans, bounded fixes and evidence for API/SDK/RTC caller/sink boundaries.
+- [ ] **PROTOCOL-02: protocol L2** — after the L1 gate: direct-edge scans, bounded fixes and evidence for SDK -> API and RTC -> API caller/sink exchanges.
 - [✓ 3.245.9] **PROTOCOL-01/S-1: SDK auth sender binding** — source repair merged #1273; 246 SDK tests at repair pin and applicable browser/package/Docker/security CI passed on identical inputs. Delivery/migration/diverse review OPEN. `knowledge-base/security/scans/2026-10/repair-s1-auth-sender.md`.
 - [✓ 3.245.10] **PROTOCOL-01/A-01-F-01-SENDER: consent sender slice** — source merged #1275 at 40a515fcc, applicable CI green on identical inputs. Request correlation/class/rollout/diverse review remain OPEN. `knowledge-base/security/scans/2026-10/repair-consent-senders.md`.
 - [~] **PROTOCOL-01/A-01-F-01-CORRELATION: bind consent decisions to requests/batches** — UI preparation local, not strict SDK activation or class closure; lifecycle and end-to-end integration below remain local L1 gates, not L2 deferrals.
@@ -715,17 +717,17 @@ finding closure, and a single-file scan does not establish whole-API coverage.
 ## Security Hardening Extraction (PRs 1157 / 1159)
 
 The two overlapping implementations are pinned references, not final merge
-candidates. Extract by security boundary with full source-hunk accounting.
+candidates. Extract by named app -> API, API -> ClickHouse or API -> signer exchange with full source-hunk accounting.
 Kickoffs, ownership, dependencies and release gates:
 `security-hardening-extraction.md`. Planning is complete; security fixes below
 remain open. Eight workspaces do not imply eight independently safe releases.
 
 - [✓ 3.229.3] **Extraction planning** — eight detailed kickoff blocks, semantic coverage ledger and final no-silent-omission audit gate.
 - [✓ 3.229.4] **Source-reading gate** — every kickoff requires actual pinned code/test research, exact hunk receipts, current-dev comparison and baseline evidence before application edits.
-- [ ] **S1: Exposure and operations** — metadata-only logs, SDK credential hygiene, settings and manifest-fetch boundaries.
+- [ ] **S1: Exposure and operations** — metadata-only logs, SDK credential hygiene, admin UI -> API settings writes and API -> manifest-origin destination checks.
 - [ ] **S2: Unified popup lifecycle** — reconcile sender/window/origin binding and regenerate combined SDK artifacts.
 - [ ] **S3: Issuer, delegation and coordinated consumer rollout** — verified self/app model, exact management grants, consent and integration accounting.
-- [ ] **S4: Document, group and query authority** — role/tombstone gates, query boundary and canonical capability preparation.
+- [ ] **S4: Document, group and query authority** — role/tombstone gates, API -> ClickHouse authorization and canonical capability preparation.
 - [ ] **S5: Media, HLS and import safety** — ownership, resource limits, persisted authorization and provisioning.
 - [ ] **S6: RTC admission, logout and deployment** — one-use tickets, coherent addressing, teardown and runtime wiring.
 - [ ] **S7: Group detail transport and auth** — body-authenticated reads without weakening service/app authority.
@@ -1143,6 +1145,12 @@ The **model is unchanged** (D58 + D53 + D60). No new protocol surface — the AP
 
 ## The Query Engine Reads Group Metadata — the keystone (do first)
 
+**Historical kickoff, now implemented:** the original operator request and
+completed queue below are retained. At the API -> ClickHouse boundary, the API
+supplies the access-filtered `group_meta` CTE. Current contract:
+[`engine-group-metadata.md`](engine-group-metadata.md) and
+[`safe-query.md`](../web10-v3/safe-query.md), not a new build instruction.
+
 **Operator pass (18.09.2026):** "joining with groups table in secure way for reads, reading what you are allowed to read is essential thing for the web10 engine" + "it should be the first thing we do since it is a big addition to the protocol." **The full design (security model, the I3 proof, the decisions, bite sizing, acceptance bar): `knowledge-base/strategy/engine-group-metadata.md`.** The one-liner: extend the D73 query engine so a caller's query can JOIN **group metadata** (`member_count`, `join_policy`, `discoverable`) into a content read — gated by the **existing I3 read gate** (`can_read_group`), with **NULL-out-and-sort-last** semantics for groups the reader can't read. **The wall extends, it doesn't weaken** — `group_meta` is a new API-built, visibility-enforced boundary CTE; the raw tables stay blocked; opt-in (`withGroupMeta`). **Behavior change (decided):** metadata is visible iff you can read the group (tightens the D53 model; KB update to `groups/detail.md`). This is the keystone of the discover / groups / search cluster — it makes "sort people by legit followers / groups by legit members" a first-class, secure, queryable, sortable capability, and **gates D0 (people read) + D3 (groups browser)**.
 
 - [✓ 3.121.0] **QE-A0: expose `group_id` on the content CTEs** (`safe_query.py`) — the join-key prerequisite: add `dg.group_id` to the boundary CTE's outer SELECT (a doc in N readable groups surfaces N rows, one per group, each with that `group_id` — pre-existing multi-group shape, now visible; the exposed group_ids are all readable groups, so no I3 leak). **Gates QE-A** (the `group_meta` join needs the key).
@@ -1157,7 +1165,7 @@ Lane: `engine-group-metadata` in `parallel-execution.md`.
 
 - [✓ 5.9.7 planning only] **Shared typed-index direction captured** — operator: "the future, tables for each data type kind of thing, where devs dont create indexes they use the indexes already there". Canonical JSON remains the source of truth; a fixed generic family of derived typed access tables serves arbitrary app paths as rows, not per-app/per-field DDL. Social drives requirements, node capabilities remain generic. Contract/phases: `research/shared-typed-indexes-follow-up.md`. Date-range Discover feasibility stays first; this does not authorize rearchitecture or alter the current paper.
 - [ ] **IX1-A: typed-index architecture/semantics contract** — research/KB only: logical typed/access-pattern families, schema-guided intent/optional automatic policy, exact scalar/path/array semantics, complete reads, version/deletion/coverage/watermark/write-failure/backfill/rebuild/fallback, current permissions, API compatibility and rollback. No DDL or migration before explicit sign-off.
-- [ ] **IX1-B/C: isolated prototype then planner integration** — separately claimed ≤500-line trust-boundary bites: prove one family on synthetic data, then supported predicate/candidate intersections and selective current canonical reads, complete fallback and raw-index SQL isolation. Each phase reviewed independently; no all-index default, production deployment or new paid run without approval.
+- [ ] **IX1-B/C: isolated prototype then planner integration** — separately claimed ≤500-line API -> ClickHouse authorization bites: prove one family on synthetic data, then supported predicate/candidate intersections and selective current canonical reads, complete fallback and raw-index SQL isolation. Each phase reviewed independently; no all-index default, production deployment or new paid run without approval.
 - [ ] **IX1-D / PAPER-INDEX: multi-app scale proof and follow-up research** — after contract/prototype, compare selective fixed-match growth and broad/intersection/denied/overlap/failure workloads with native read/concurrency metrics and exact results. Fresh related-work/novelty and matched-baseline design before a new manuscript; typed/EAV/inverted indexes are not themselves a novelty claim. Current manuscript/receipts unchanged; no new paper/venue/submission or cloud execution implied.
 
 ## Global Search: the top-bar everything-search — web10-social
@@ -1481,14 +1489,14 @@ Spec'd in `knowledge-base/web10-v3/social/content-moderation.md` (the model) +
 The **flexible read**: a caller writes a ClickHouse `SELECT` over their
 **services** and the node runs it — read-only by construction. The safe-query
 engine (`safe_query.py`) parses the query (sqlglot), validates every table
-reference, and rewrites each service to an API-built **boundary CTE**
+reference, and rewrites each service to an API-built **access-filtered CTE**
 (group-filtered + block/sharing/hidden), so self-joins, aggregations,
 subqueries, and caller CTEs all work and none can leak past the caller's groups
 (the raw tables are unreachable — a wall, not a membrane). Exposed as
 `POST /v3/query` + the SDK's `w.query(sql, { groups? })`. Anon-capable (D41),
 app-contract-gated, `LIMIT 1000` + `max_execution_time=10` bounds. Spec'd in
 `knowledge-base/web10-v3/query-engine.md` (the discussion) + `safe-query.md`
-(the boundary + why the guarantee holds). Lane is `query-engine` in
+(API -> ClickHouse authorization and its verification). Lane is `query-engine` in
 `parallel-execution.md`.
 
 - [✓ 3.52.0] **The boundary** (`safe_query.py`) — parse → validate → rewrite to boundary CTEs; the `ref` filter (`read_docs_by_ref`) is the first consumer.
@@ -1993,7 +2001,7 @@ floor rerun, memory-limit increase or validation/storage/experiment completion.
 repaired-generator 1M attempt OOMed in the global graph window before exporting
 Parquet. Empty output/failure/source evidence retained. Candidate-count batches
 keep full `(cell, reader_id)` windows, original target arithmetic/self exclusion/
-truncation and every requested edge. Three new exact/boundary controls and all
+truncation and every requested edge. Three new exact/cutoff controls and all
 nine offline Python suites pass; isolated same-host tools run full 100k graph
 equivalence then fresh source-bound floors before any 1M retry. No raised
 memory/new host/distribution waiver; approved cleanup/$5 ceiling and separate
@@ -2164,7 +2172,16 @@ memory/new host/distribution waiver; approved cleanup/$5 ceiling and separate
 
 - [✓ 3.257.8 local] **Abstract and PDF layout repair** - operator-requested edit of the existing manuscript: contribution/evidence-led abstract, repaired column overflow and DNS/table wrapping, unchanged ACM margins/fonts and review numbering. Rebuilt 12-page PDF inspected; no overfull horizontal boxes, remaining underfull/font and small final vertical-box warnings recorded. Not W1 or evaluation completion.
 
-**Deadline: Tuesday, Nov 24, 2026, 11:59pm AoE** (6:59am ET Wed Nov 25). Up to
+**Current paper strategy — D121 (DECIDED):** [SIGMOD RESEARCH, January round of
+the SIGMOD 2028 cycle](paper-submission.md), with PVLDB monthly research rounds
+after rejection. Dates there are PROJECTED and require re-verification when
+the official call posts. The existing twelve-page-excluding-references plan is
+unchanged. This is strategy, not submission or experiment admission.
+
+<details>
+<summary>Superseded industrial-track deadline and rationale — historical planning record</summary>
+
+**Historical deadline: Tuesday, Nov 24, 2026, 11:59pm AoE** (6:59am ET Wed Nov 25). Up to
 **12 pages + references** (10 is fine — it does not have to be exactly 10).
 CMT has not opened for this track yet. **Target internal freeze: Nov 20** —
 evaluation numbers and formatting always take longer than expected.
@@ -2176,6 +2193,8 @@ industry track rewards **operational experience, scale, deployment lessons,
 and cost** — the "we run this in production" story is the differentiator, and
 the workshop draft's deferred evaluation section (`research/first-draft/main.tex`
 §"Scale and latency (extended version)") is now half the paper.
+
+</details>
 
 **What exists:** `research/first-draft/main.tex` — the first draft: a complete
 12-page paper with the access model, query-layer enforcement
@@ -2190,7 +2209,9 @@ Q&A-structured evaluation, positioning-form related work. The original
 the first draft stays intact as the record.
 
 **The critical path is data, not writing.** `research/evaluation-plan.md` is
-all unchecked boxes. The numbers the industry track will demand:
+all unchecked boxes. The earlier industrial-track evaluation checklist below
+is retained as history, not the current venue rationale; D121 does not mark
+any evaluation item complete:
 
 - [~] **E1: scale counters** — users, collections/groups, documents, access
   decisions/day, deployment duration. Queryable from the running node today?

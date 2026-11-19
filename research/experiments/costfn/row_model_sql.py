@@ -17,6 +17,7 @@ DDL = (
     'CREATE TABLE row_pointers (document_row_id FixedString(64),version UInt64,key LowCardinality(String),'
     'type LowCardinality(String),value_row_id String,deleted Bool) ENGINE=MergeTree ORDER BY (document_row_id,version,key)',
     *("CREATE TABLE row_" + kind + ' (value_row_id FixedString(64),value ' + native
+        + (',children_digest FixedString(64)' if kind in ('objects','arrays') else '')
         + ') ENGINE=MergeTree ORDER BY value_row_id' for kind, native in VALUE_TYPES.items()),
 )
 
@@ -59,4 +60,6 @@ def values(kind, ids):
     if kind not in TYPES:
         raise ValueError('unknown typed value table')
     columns = 'value_row_id,author_key,doc_id' if kind == 'documents' else 'value_row_id,value'
+    if kind in ('objects','arrays'):
+        columns += ',children_digest'
     return 'SELECT ' + columns + ' FROM row_' + kind + ' WHERE value_row_id IN (' + literals(ids) + ')'

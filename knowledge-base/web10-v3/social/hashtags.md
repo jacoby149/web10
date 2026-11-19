@@ -39,7 +39,7 @@ precedent (rich-text.md): the social write layer parses the markdown body and
 writes `body.hashtags` (lowercase, deduped) alongside it. The node stores it
 opaquely; the read side maps it (`PostRecord.hashtags`); the board query
 filters on it (`has(JSONExtract(body, 'hashtags', 'Array(String)'), '<tag>')`
-through the D73 safe-query engine — the boundary CTE's block/sharing/hidden
+through the D73 safe-query engine — the access-filtered CTE's block/sharing/hidden
 anti-joins apply, so moderated content never leaks). Document `tags` is
 untouched by user prose, period.
 
@@ -51,11 +51,11 @@ discovery, not for classification.
 
 `#` + 1–30 chars of `[a-zA-Z0-9_]` (letters, digits, underscore — Instagram's
 character set; **no hyphens**: `#walk-king` tags `walk` and leaves `-king` as
-text; no unicode in v1), with the mention's boundary discipline:
+text; no unicode in v1), with explicit mention-token delimiter rules:
 
 - the `#` sits at the start of the text or after whitespace / `(` — so `a#b`,
   `1#x` are not hashtags;
-- the run must END on a boundary (a non `[a-zA-Z0-9_]` char or the text end) —
+- the run must END before a non `[a-zA-Z0-9_]` character or at text end —
   a 31-char run is not a hashtag (no mid-word truncation, no partial tag);
 - never inside inline code / code blocks / link labels / URLs / raw HTML;
 - never in a markdown heading — `# ` / `## ` at line start are ATX markers the
@@ -110,7 +110,7 @@ Each result shows a compact post count (for example `100K posts`) with its
 exact count available to assistive technology/title. Counts mean distinct
 readable public posts on this node's Discover board, not private drafts,
 comments, global/federated uses or a sample of the loaded feed. Repeated tags
-in a post count once. Normal query boundary visibility and ad/product
+in a post count once. Normal API -> ClickHouse visibility checks and ad/product
 exclusions apply. Historical posts without the derived index stay uncounted.
 
 The app's D73 aggregation returns at most eight matches, after ranking, using
@@ -301,5 +301,5 @@ isolated loaded-feed UI receipt, not a live global index or phone acceptance.
 markdown-under-the-hood, the locked render, the write derivation),
 `social/post-render.md` (the render matrix — the board's row),
 `social/ads.md` (the reserved-tag guard the hashtag must not touch),
-`web10-v3/db/clickhouse.md` + `sdk/implementation.md` (the D73 boundary CTE
+`web10-v3/db/clickhouse.md` + `sdk/implementation.md` (the D73 access-filtered CTE
 the board query runs inside).

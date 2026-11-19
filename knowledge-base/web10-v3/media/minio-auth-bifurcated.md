@@ -59,7 +59,7 @@ Keys remain opaque, not decoded or normalized. The owner comes from the already
 authorized document's media-owner context (`posted_by` for group-authored posts),
 not from the viewer, so group-authorized cross-user media remains supported.
 
-This is the metadata-reference signing boundary, not certification of recursive
+This checks document-reference -> object-storage-signer authority, not certification of recursive
 raw minio leaves, legacy stored URLs, HLS provenance or caller-selected owner
 columns. Those separate sinks/authority contexts remain recorded security debt.
 
@@ -118,7 +118,7 @@ media** — a `posts` doc whose `media_refs` include the media doc_id, in a
 group the reader can read. Rule (3) is the cross-user feed path: social
 media docs (confirmMediaUpload) are groupless, so a follower streams a
 creator's video through the post's groups — the post is the access model,
-the media doc is owned data, not a boundary. It leaks nothing new: the post
+the media doc is owned data, not an independent read grant. It leaks nothing new: the post
 read already grants every post reader a presigned `read_url` for the raw
 file (the renditions are strictly less data). A removed/blocked follower
 loses the stream within one sig TTL.

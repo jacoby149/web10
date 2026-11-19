@@ -1,5 +1,55 @@
 # Access-Control Cost Function Experiment
 
+## Directive precedence index
+
+**As of 19 November 2026.** This index owns precedence, not design definitions
+or measured values. The [decision ledger](../../../knowledge-base/strategy/decisions.md)
+owns D115/D116/D118 DECIDED, D117/D119 DIRECTION and D120 PRINCIPLE. Evidence
+reports own numerical facts. Current implementation is still documented in the
+[v3 schema](../../../knowledge-base/web10-v3/db/clickhouse.md); source machinery
+and a chosen direction are not native acceptance or production replacement.
+
+Read operative documents together: source preparation includes the row model
+BEFORE spending; all-fixes measurements bank BEFORE row-model assembly. This
+index grants no lease, retry, extension, local engine execution or rollout.
+Historical documents stay intact; a successor applies prospectively, not as a
+retroactive waiver of failed or missing gates.
+
+| Directive/document | Status and controlling successor or record |
+|---|---|
+| `README.md`, Governing execution directive below | **Operative** — current execution policy; overrides older row/deadline/client/byte aborts, not receipts |
+| [ALL-FIXES-THEN-MEASURE.md](ALL-FIXES-THEN-MEASURE.md) | **Operative** — composed read treatment and required prechecks; no measured result banked |
+| [ROW-MODEL-QUEUED.md](ROW-MODEL-QUEUED.md) | **Queued behind ALL-FIXES-THEN-MEASURE measurements** — source work precedes both runs; D117 proving cell pending |
+| [ROW-MODEL-RUN.md](ROW-MODEL-RUN.md) | **Operative runbook for the queued ROW-MODEL-QUEUED cell** — explicit host/window/source binding required; not execution evidence |
+| [task-block-engagement-ref-redesign.md](task-block-engagement-ref-redesign.md) | **Superseded for new treatment/run selection by ALL-FIXES-THEN-MEASURE** — retains earlier admissions, closed attempts and receipt pointers |
+| [task-block-fanout-arm.md](task-block-fanout-arm.md) | **Executed and banked, qualified Config F history** — later complete-read work proceeds through ALL-FIXES-THEN-MEASURE; unearned F capacity/write gates remain OPEN |
+| [ARM-F-DESIGN-CLOSURE.md](ARM-F-DESIGN-CLOSURE.md) | **Executed and banked, partial/stopped research attempts** — no whole-F acceptance; current composed-read successor is ALL-FIXES-THEN-MEASURE |
+| [ARM-SATELLITE.md](ARM-SATELLITE.md) | **Executed and banked, qualified Config P attempts** — programme successor task-block-fanout-arm, then ALL-FIXES-THEN-MEASURE; not permission to restart |
+| [ARM-T.md](ARM-T.md) | **Executed and banked, failed setup** — later programme task-block-fanout-arm/ALL-FIXES-THEN-MEASURE does not turn Arm T into a PASS |
+| [ARM-D-REALISM.md](ARM-D-REALISM.md) | **Superseded for current programme selection by ARM-SATELLITE/task-block-fanout-arm** — historical arm contract/results retained |
+| [ARM-D-ATTACHMENT-REPAIR.md](ARM-D-ATTACHMENT-REPAIR.md) | **Superseded for current programme selection by ARM-SATELLITE/task-block-fanout-arm** — retained repair contract, not a newly admitted run |
+| [PLAN.md](PLAN.md) | **Superseded by REALISM-RERUN-PLAN for realism inputs, then ALL-FIXES-THEN-MEASURE for the current read composition** — historical K20-first plan retained |
+| [PROTOCOL.md](PROTOCOL.md) | **Executed and banked historical protocol/results** — old treatment/abort choices are superseded by ALL-FIXES-THEN-MEASURE and current execution policy |
+| [STUDY.md](STUDY.md) | **Superseded by PLAN, then REALISM-RERUN-PLAN** — old industrial-track/VU matrix is not current paper strategy or run admission |
+| [DESIGN-REVIEW.md](DESIGN-REVIEW.md) | **Superseded by PLAN/REALISM-RERUN-PLAN for programme planning** — historical review, not current acceptance |
+| [READYING.md](READYING.md) | **Superseded by PLAN/REALISM-RERUN-PLAN** — old primary matrix is not an alternative launch route |
+| [RUNBOOK.md](RUNBOOK.md) | **Superseded for current runs by ALL-FIXES-THEN-MEASURE/ROW-MODEL-RUN** — earlier commands remain historical |
+| [RUNNING-V2.md](RUNNING-V2.md), [DATASET.md](DATASET.md) | **Superseded by REALISM-DATASET and REALISM-DATASET-DECISIONS** — frozen V2 records preserved |
+| [REALISM-DATASET-DECISIONS.md](REALISM-DATASET-DECISIONS.md) | **Executed and banked input decisions** — canonical realism lineage; does not authorize rebuilding validated inputs |
+| [REALISM-DATASET.md](REALISM-DATASET.md) | **Executed and banked build/validation contract** — current experiment input comes from the retained verified snapshot/archive |
+| [REALISM-RERUN-PLAN.md](REALISM-RERUN-PLAN.md) | **Executed and banked input/early-run history** — new treatment selection is superseded by ALL-FIXES-THEN-MEASURE |
+| [REALISM-CLICKHOUSE.md](REALISM-CLICKHOUSE.md) | **Operative validation contract, executed validation banked** — validator engine/frame is distinct from the measurement engine; no validation rerun admitted here |
+| [REALISM-CHECKPOINTS.md](REALISM-CHECKPOINTS.md) | **Operative validation-resume contract** — not an experiment resubmission or new-host grant |
+| [REALISM-RECOVERY.md](REALISM-RECOVERY.md) | **Operative preparation-persistence contract** — preparation only, not a new experiment-checkpoint framework; old execution windows remain historical |
+| [REALISM-STORAGE.md](REALISM-STORAGE.md) | **Operative frozen-input storage/custody contract** — no new object writes or paid storage implied |
+| [REALISM-CLOUD-PREP.md](REALISM-CLOUD-PREP.md) | **Executed and banked preparation history** — old host admission consumed; current runs require their own explicit binding |
+| [REALISM-SMOKE.md](REALISM-SMOKE.md) | **Executed and banked connected untreated diagnostic, STOP** — its main requests did not complete; no current lease or performance acceptance |
+| [K100-RESULTS.md](K100-RESULTS.md), [K1000-RESULTS.md](K1000-RESULTS.md), [SIXTH-DRAFT-RESULTS.md](SIXTH-DRAFT-RESULTS.md) | **Executed and banked reports** — immutable evidence, never a new directive |
+
+The current [paper target](../../../knowledge-base/strategy/paper-submission.md)
+is separate from experiment admission. Older industrial/CIDR targets in the
+retained documents are superseded by D121 (DECIDED), not silently rewritten.
+
 ## Governing execution directive — 18 November 2026
 
 Jacob Hoffman's **“archaic execution limits removed”** directive applies to
@@ -8,10 +58,10 @@ work. It overrides conflicting earlier task blocks and standing rules. Earlier
 STOPs, source bindings, costs and cleanup receipts remain historical facts;
 this is not permission to relabel them or reopen a deleted host.
 
-The programme measures first, then improves. Jacob identifies pre-candidate
-row-selection estimates as the reason to remove the guard: the retained completion
-query reported88.64M selected rows against770,048 actually read at its stop.
-Those are different quantities, not evidence of88.64M actual reads.
+The current order is all source fixes, including row-model preparation, before
+paid proving runs. The [completion report](evidence/engagement-completion-20261118/RESULTS.md)
+distinguishes pre-candidate selection estimates from actual native reads. That
+distinction motivates the execution policy; estimates are never measured I/O.
 
 - **No row-count stop:** remove experiment `max_rows_to_read`/code158 guards;
   no row-count stop applies to any experiment statement. Record actual rows and
@@ -52,6 +102,10 @@ Ordinary/fat/sample evidence and thousand-row scalar reads are banked, but the
 required paired precheck omitted20 actual roots. Full acceptance stays OPEN;
 the source verifier is repaired, not natively reaccepted. That lease is cleaned
 up and consumed; no fresh paid/native retry follows automatically.
+
+**Historical navigation below:** these earlier arm/admission notes retain their
+original moment. The directive index above controls current selection; none of
+the old “wait,” “run,” or host-window text reopens a consumed admission.
 
 **Additive Arm T (14 November):** [contract and sequencing gates](ARM-T.md).
 Separate group-first link layout on the unchanged validated realism input;

@@ -35,6 +35,16 @@ records billboard ads, N-ref edges, the row-model direction, storage/export
 separation, typed API direction and the over-read principle. DECIDED is intent;
 DIRECTION cells are pending. No new storage rollout or native result is implied.
 
+Canonical navigation, without copied benchmark figures:
+- [Decision definitions and statuses](strategy/decisions.md) — D114 acceptance remains OPEN on the paired gate.
+- [Research directive precedence](../research/experiments/costfn/README.md#directive-precedence-index) — which document governs now; older records are retained.
+- [Row-model source runbook](../research/experiments/costfn/ROW-MODEL-RUN.md) — machinery, not a banked native result.
+- [All-fixes contract](../research/experiments/costfn/ALL-FIXES-THEN-MEASURE.md) and [queued row-model cell](../research/experiments/costfn/ROW-MODEL-QUEUED.md) — new directive pages recorded with #1592; source preparation and measurement order are distinct.
+- [Paper target and provisional dates](strategy/paper-submission.md) — D121 (DECIDED), research track; future dates require re-verification.
+- [Named-interface language](strategy/interface-language.md) — name both sides instead of an unspecified interface.
+- [Tightening audit](strategy/design-revolution-tightening-report.md) — findings, changes and protected historical instances.
+- [Per-occurrence terminology inventory](strategy/design-revolution-boundary-inventory.json) — original locations, replacement excerpts and historical exceptions.
+
 1. **`strategy/plan.md`** — THE STORY at the top + the current priority block.
 2. **`strategy/decisions.md`** — the big calls.
 3. **`web10-v3/`** — the implementation details for the area you're touching.

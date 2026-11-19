@@ -1,4 +1,6 @@
-# The Safe Query (Flexible-Read Boundary)
+<a id="the-safe-query-flexible-read-boundary"></a>
+
+# The Safe Query — app -> API validation, API -> ClickHouse authorization
 
 [implemented] — `api/app/v3/services/safe_query.py`, tests in
 `api/tests/test_safe_query.py`. The design discussion is in `query-engine.md`.
@@ -7,9 +9,16 @@ A caller (an app, on behalf of a user) writes a ClickHouse `SELECT`. The node
 runs it **only** over the caller's own groups. This doc is how that works and
 why the guarantee holds.
 
+**Current implementation.** The JSON-body/single-`ref_value` SQL below describes
+the running v3 design, not the replacement storage. D116 (DECIDED) defines
+derived N-ref relationships; D117 (DIRECTION, cell pending) defines typed-row
+storage. [The design map](db/design-revolution.md) links their canonical definitions.
+At the app -> API boundary, the API validates the caller and submitted SQL.
+At the API -> ClickHouse boundary, it supplies access-filtered SQL for execution.
+
 ## The one-sentence guarantee
 
-> A caller's query can only read the **boundary CTEs** (service-named,
+> A caller's query can only read the **API-generated access-filtered CTEs** (service-named,
 > filtered to the caller's readable groups; plus the opt-in `group_meta`
 > CTE, visibility-enforced the same way) or CTEs derived from them. The raw
 > tables (`documents`, `doc_groups`, `group_members`, …) are **unreachable**
@@ -35,10 +44,10 @@ The caller's SQL string is **never executed**. It is:
       in (`withGroupMeta`); otherwise rejected as an unknown table. It is an
       API-built CTE, not a service (see [Group metadata](#group-metadata-the-group_meta-cte));
     - an **ungranted / unknown** table → rejected;
-    - a **granted service** (`posts`, `comments`, …) → noted (a boundary CTE is
+    - a **granted service** (`posts`, `comments`, …) → noted (an access-filtered CTE is
       needed);
     - a **caller-defined CTE** → allowed (it is derived from services).
-4. **Compiled**: for each service the query uses, the API builds a **boundary
+4. **Compiled**: for each service the query uses, the API builds an **access-filtered
    CTE** — the service's docs, deduped, joined to `doc_groups`, filtered to the
    caller's readable groups for that service — and injects it **first** (so
    caller CTEs that reference a service resolve). The caller's query is
@@ -46,7 +55,7 @@ The caller's SQL string is **never executed**. It is:
 5. **Round-tripped**: the compiled SQL is re-parsed and must come back as
    exactly one statement (a malformed injection would break this).
 
-The boundary CTE for a service looks like:
+The API-generated access-filtered CTE for a service looks like:
 
 ```sql
 posts AS (
@@ -116,7 +125,7 @@ transposed: `ub.user_key = d.author_key AND ub.blocked_key = reader` becomes
 
 The engine can also expose **group metadata** — `member_count` (from
 `group_members`), `join_policy` + `discoverable` (from `group_contracts`) —
-through a second API-built boundary CTE named `group_meta`. Design:
+through a second API-built access-filtered CTE named `group_meta`. Design:
 `strategy/engine-group-metadata.md`.
 
 **Opt-in.** The caller sets `withGroupMeta: true` on `POST /v3/query` (SDK:
@@ -179,7 +188,7 @@ caller CTE, subquery) even with the opt-in on.
 
 ## Why the guarantee holds
 
-**The boundary is on the input, not the output.** This is the whole thing. If
+**The API -> ClickHouse authorization boundary restricts query inputs, not just outputs.** If
 you instead wrapped the caller's query and filtered the *output*
 (`SELECT * FROM (caller) WHERE <group filter>`), the caller's query would have
 *already read the raw table* inside the parens, and a filter on the output
@@ -193,12 +202,12 @@ SELECT author_key, count(*) FROM documents WHERE collection_name='comments' GROU
 Redirecting the *input* (the caller reads the CTE, never the raw table) makes
 that impossible: there is no raw table in the caller's query to aggregate over,
 join, or subquery. The CTE is already filtered, so aggregation, self-joins, and
-subqueries all stay inside the boundary.
+subqueries all retain the API -> ClickHouse authorization restrictions.
 
 **String injection is neutralized by construction.** The attacks that break
 string-wrapping — stacked statements, comment blocks, "gibberish" — are all
 attacks on the *string*. Here the string is resolved into a tree *before* any
-check runs, so there is no string boundary to jump out of:
+check runs, so the API never constructs an executable wrapper from an unchecked caller string:
 - `; DROP TABLE` → two statements → rejected at step 1.
 - `/* … */` / `--` → stripped by the parser before the walk; a hidden table ref
   is still a real `Table` node in the tree → caught at step 3.
@@ -215,7 +224,7 @@ membrane that must not leak:
 
 | facet | test |
 |---|---|
-| boundary CTE injected + group-filtered | `test_simple_service_query_gets_boundary_cte` |
+| API-generated access-filtered CTE injected + group-filtered | `test_simple_service_query_gets_boundary_cte` |
 | empty groups → empty CTE, not error | `test_no_readable_groups_degrades_to_empty_not_error` |
 | hyphenated service CTE is quoted (re-parses) | `test_hyphenated_service_cte_is_quoted` |
 | cross-service self-join | `test_self_join_across_services_injects_both_ctes` |
@@ -232,7 +241,7 @@ membrane that must not leak:
 | group_meta I3 semantics on live data (value NULL, no rank leak, no count leak, wall holds) | `e2e/tests/query-engine.spec.ts` — the `group_meta (QE-C: the I3 anti-tests)` block (the seatbelt: real ClickHouse, real membership data) |
 | non-SELECT rejected | `test_non_select_rejected` |
 | unparseable rejected | `test_unparseable_rejected` |
-| aggregation can't leak past the boundary | `test_aggregation_cannot_leak_past_the_boundary` |
+| aggregation retains API -> ClickHouse authorization | `test_aggregation_cannot_leak_past_the_boundary` |
 
 ## The honest caveat
 
@@ -249,13 +258,13 @@ failure modes and their backstops:
   one thing to keep watching as sqlglot evolves; the pinned tests are the
   tripwire.
 
-The **ClickHouse account is not a backstop** here: the boundary CTEs
+The **ClickHouse account is not a backstop** here: the access-filtered CTEs
 legitimately reference `documents` + `doc_groups`, so the service account must
-read them. The boundary is the rewriter, full stop.
+read them. The API's rewriter enforces the API -> ClickHouse authorization boundary.
 
 ## Wiring it in
 
-`build_safe_query` is the boundary. It is wired two ways:
+`build_safe_query` enforces the API -> ClickHouse authorization boundary through two entry points:
 
 1. **`POST /v3/query`** (`api/app/v3/endpoints/query.py`) — the flexible read
    endpoint. The caller's `SELECT` + the app-contract-granted services →
@@ -268,6 +277,6 @@ read them. The boundary is the rewriter, full stop.
    `build_safe_query`, which injects the CTE if the query references it.
 2. **The `ref` filter on the group read** (`read_docs_by_ref`) — the fixed
    "give me the comments/reactions for these posts" shape, compiled through the
-   same engine so it carries the full boundary.
+   same engine so it retains the API -> ClickHouse authorization checks.
 
-Both paths share the boundary; neither can reach the raw tables.
+Both paths share the API -> ClickHouse authorization checks; caller SQL cannot reach raw tables.

@@ -109,7 +109,7 @@ The `immersive` prop is what makes the player fill the frame instead of reservin
 
 ## The security questions, answered with code
 
-The operator's concern: *can someone hack the system — put an image in, or a wrong-ratio file, and have it show up as a short?* Here is what the code actually does, and where the trust boundaries are.
+The operator's concern: *can someone hack the system — put an image in, or a wrong-ratio file, and have it show up as a short?* The checks differ across the app -> API upload, uploader -> object-storage and API -> app/UI media-rendering exchanges described below.
 
 ### Q1 — Can the API filter to require the `short` tag present?
 
@@ -133,13 +133,13 @@ So the honest answer to "can someone put an image in?": **yes, at the metadata l
 
 The honest framing, in line with D41 (the node is readable by design; trust is *legal*, not cryptographic):
 
-- **A *malicious* attacker faking shorts is not a meaningful threat.** Faking a short is not a privilege escalation — it produces a piece of *content on the public board*, exactly like any other post. It is subject to the same moderation (`_moderate_post`, `documents.py:17-43`), the same block/sharing/hidden anti-joins, and the same I3 boundary as every post. There is no "shorts admin" to impersonate, no money to touch, no private data to leak. The worst case is a junk post, which is the worst case of *any* post.
+- **Faking Shorts metadata is not itself a permission grant.** The resulting post remains subject to moderation and block/sharing/hidden filters at the API -> ClickHouse boundary, like any other post. The render-quality risk described below is separate from content authorization.
 - **The real risk is *quality*, not security.** A lying `width`/`height` (or an image tagged `short`) makes the immersive feed render a broken slide — a letterboxed image, a non-playing "video," a layout jump. That is a UX-integrity problem, not a breach.
 - **The defense that actually matters is *defense in depth at render*, not server verification.** The Shorts feed should **re-derive 9:16 from the resolved media at read time** (`mime_type` starts with `video/` **and** `width < height`) rather than trusting the `short` tag alone. The tag is the *server-side filter* (cheap, indexable); the aspect-ratio + mime check is the *render-time gate* (drops the fakes). A post that is tagged `short` but whose media isn't actually a vertical video simply doesn't render as a short. No server-side file decoding required.
 
 **The optional hardening (if the operator wants server-side truth):** the transcode worker already runs ffmpeg over every uploaded video (`/v3/media/transcode`, `media.py:110-131`). ffmpeg *does* read the real container — real dimensions, real duration, real codec. We could have the worker **write the verified `width`/`height`/`duration_seconds` back onto the media doc** (overriding the client's assertion) and set a `verified` flag. Then "is this a real 9:16 video" becomes a server-stamped fact. This is the only way to make it truly bulletproof against a lying client, and it is a small addition to a worker that already decodes the file. **Recommendation: ship v1 with the render-time gate (cheap, correct, no new infra); add the worker verification as a follow-up if the operator wants the server-stamped guarantee.**
 
-### The trust-boundary summary
+### Who asserts data across app -> API, uploader -> storage and API -> app/UI exchanges
 
 | Claim | Who asserts it | Verified by |
 |---|---|---|

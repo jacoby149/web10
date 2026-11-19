@@ -102,7 +102,7 @@ not a claim that individuals are the only customer.
   copy) is a new lane item when the operator wants it — not implied by
   this record.
 
-## Boundaries
+## Scope and non-goals
 
 - This record changes strategy dominance and the `strategy/` folder
   structure (creator-track files moved to `archive/creator-influencer-track/`

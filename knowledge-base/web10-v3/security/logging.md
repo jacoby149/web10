@@ -1,4 +1,4 @@
-# HTTP Request Logging Boundary
+# API request handler -> operations-log boundary
 
 Protocol repair B-4: automatic API request logs must preserve useful diagnostics
 without becoming a second store of bearer credentials, passwords or app content.
@@ -24,7 +24,7 @@ Return the original response, retaining streaming, duplicate headers/cookies,
 background tasks and client-visible payloads. Keep method/route/status/latency
 and severity diagnostics; do not add a silent request-origin/auth-context owner.
 Any future trusted attribution/context must be integrated with its actual issuer/
-authorization boundary rather than reintroducing unsigned body-derived metadata.
+app -> API credential verification rather than reintroducing unsigned body-derived metadata.
 
 ## Limits
 

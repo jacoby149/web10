@@ -1,5 +1,10 @@
 # Public Discover
 
+**Historical app-design/API examples, not target storage.** Current v3 lives in
+`../web10-v3/`. The [design map](../web10-v3/db/design-revolution.md) links D116
+(DECIDED), D117 (DIRECTION, cell pending) and D118 (DECIDED); retained JSON/ref
+examples do not assert that the new storage direction has shipped.
+
 The public board. Everything posted to the discover group, sorted by time or
 engagement. Same for every user.
 

@@ -1,5 +1,10 @@
 # Repost — amplifying a post into your own feed
 
+**Current app/API composition, not target storage.** The JSON/`ref_value`
+examples below describe the current implementation. D116 is DECIDED, D117 is
+DIRECTION (cell pending), and D118 is DECIDED. Canonical target/proof links:
+[design map](../db/design-revolution.md).
+
 A repost is a fan saying "this deserves more eyes" — and saying it *from themselves*. A repost resurfaces someone else's post in the reposter's own feed, optionally with the reposter's own comment on top (a quote). This doc defines what a repost *is* on the wire, how the composer creates one, how the feed renders it, and how it is counted. The feed / discover / groups docs define *where* a post shows; `post-actions.md` defines *how the engagement row renders*.
 
 > **Model change (3.110.0):** a repost is **a post, not a reaction.** The pre-3.110.0 model (a `reactions` doc with `type: 'repost'`, a countable signal on the target) is retired as the primary mechanism. A repost now creates a real `posts` doc that references the original by `repost_of` and carries the reposter's comment in `text`. That is what makes it show up in the reposter's feed as "reposted" — a reaction never appears in a feed. (The legacy `type: 'repost'` reaction still reads as a "reposted" fill for old data — a read-only fallback. **The repeat icon on every surface is unified onto the post model** (3.154.0): it opens the composer in repost mode, and the count is the number of `repost_of` posts.)
@@ -58,7 +63,7 @@ A repost is a normal post, so **every post surface renders it the same way** —
 The repost count on a post is the number of **posts whose `repost_of` points at it** — one per reposter, so it is self-healing (delete your repost post and the tally drops). It is stable across refresh (no `1 0 1 0` toggle), because it is a read of the post docs, not a reaction flip.
 
 - **Feed** — the D73 feed query joins `posts` on `JSONExtractString(body, 'repost_of') = p.doc_id` and counts, so `post.reposts` rides in the payload (the same path as `likes` / `dislikes` / `comments`). The join is scoped to the reader's groups (I3), so a private post's repost tally is not visible to non-members.
-- **Discover / Lightbox / Profile / Groups** — the same count, lifted to a surface read: `readRepostCounts(postIds, groups)` runs an I3-scoped `count(DISTINCT doc_id)` over `posts` whose `repost_of` points at the post (the feed query's join, run per-surface). `count(DISTINCT doc_id)` — not `count()` — because a post attached to N readable groups surfaces N rows in the boundary CTE; one reposter is one repost, not N.
+- **Discover / Lightbox / Profile / Groups** — the same count, lifted to a surface read: `readRepostCounts(postIds, groups)` runs an I3-scoped `count(DISTINCT doc_id)` over `posts` whose `repost_of` points at the post (the feed query's join, run per-surface). `count(DISTINCT doc_id)` — not `count()` — because a post attached to N readable groups surfaces N rows in the API-generated access-filtered CTE; one reposter is one repost, not N.
 
 ## The "I reposted this" state (the filled icon)
 

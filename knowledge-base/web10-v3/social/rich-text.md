@@ -284,7 +284,7 @@ the URL.
 
 **The hashtag (the second social token, D110).** `#word` in the prose is the
 body's topic token: one shared pattern (`@web10/discover/hashtags` — `#` +
-1–30 of `[a-zA-Z0-9_]`, mention boundary discipline, never in code / headings /
+1–30 of `[a-zA-Z0-9_]`, explicit mention-token delimiter rules, never in code / headings /
 link labels / URLs) feeds BOTH the write-side derivation (`body.hashtags`,
 lowercase-deduped, the `mention_usernames` seam — NOT the doc `tags` column,
 which is the machine's vocabulary) and the read-side render (a `#tag` →

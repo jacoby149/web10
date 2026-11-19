@@ -17,7 +17,8 @@ STAGES = ('uniform-K20-feed', 'paired-P-feed', 'paired-F-feed', 'ordinary-post-o
 
 def binding():
     names = ('row_model.py', 'row_model_ingest.py', 'row_model_sql.py', 'row_model_store.py',
-        'row_model_fence.py', 'row_model_cell.py', 'row_model_build.py')
+        'row_model_fence.py', 'row_model_cell.py', 'row_model_build.py', 'row_model_native.py',
+        'row_model_actions.py', 'row_model_worker.py', 'row_model_run.py')
     return {name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest() for name in names}
 
 
@@ -43,7 +44,7 @@ def require_banked_composition(summary):
             raise ValueError('actual complete all-fixes response accounting required before row-model measurement')
 
 
-def verify_domains(reader, canonical, domains):
+def verify_domains(reader, canonical, domains, *, record=None):
     """Expected documents come from canonical source, never pointer/value output.
 
     Every domain carries full identities. No missing-domain zero/default values
@@ -55,6 +56,8 @@ def verify_domains(reader, canonical, domains):
     for name, identities in domains.items():
         expected = canonical(identities)
         actual = reader(identities)
+        if record is not None:
+            record(name, expected, actual)
         if set(expected) != set(identities) or set(actual) != set(identities):
             raise ValueError('row-model/canonical verifier omitted required identities')
         for identity in identities:
@@ -92,6 +95,8 @@ def measure(actions, banked, verification):
             or set(verification.get('domains', {})) != DOMAINS or not verification.get('native_fence_verified')
             or not verification.get('query_ids') or any(not v for v in verification['domains'].values())):
         raise ValueError('native complete model verification/fence must precede every assembly measurement')
+    if not all(verification.get(key) is True for key in ('zero_pointer_native_verified', 'shared_values_physical_singleton')):
+        raise ValueError('actual zero-pointer and physical shared-value native controls required')
     result = {}
     # Each control/treatment and failure is preserved by the action provider's
     # existing native ledger. No JSON control cost is arithmetically substituted.

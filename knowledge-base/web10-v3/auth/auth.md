@@ -210,9 +210,9 @@ session is vaulted on load (so the live account is always one-tap). The vault
 is **persistent** — logging out does not clear it (the account is still a
 valid one-tap switch back).
 
-**Trust boundary:** the single `token` cookie is not `HttpOnly`, so a token in
+**Browser JavaScript -> credential-store access:** the single `token` cookie is not `HttpOnly`, so a token in
 localStorage is the *same* exposure class — a script on the authenticator's
-origin already reads the live token. The vault does not widen the boundary; it
+origin already reads the live token. The vault does not widen browser-JavaScript -> credential-store access; it
 makes the multi-account switching the picker already promised actually
 possible. (The operator's call, 29.09.2026: "remember all the cookies doesn't
 sound like a risk to me.")

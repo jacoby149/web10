@@ -18,7 +18,7 @@ The idea: a portable cryptographic identity keeps a creator's audience and live
 group permissions attached to them when they change servers. Existing fans find
 new posts on a fresh node without refollowing or exporting old content. Optional
 DNS/ENS names aid discovery; no blockchain or identity protocol is selected.
-Full concept and acceptance boundaries: [shadowguard.md](shadowguard.md).
+Full concept and acceptance scope: [shadowguard.md](shadowguard.md).
 
 Why it is good: being dropped by one provider must not erase the creator's
 identity, trap their audience or require other groups to re-invite them. The

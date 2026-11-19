@@ -207,7 +207,7 @@ before implementation; the social moderation tabs are not a new authority source
 - Pin the effective cutoff in every experiment/build receipt; vary it only in
   separately declared runs. The publication recipient bound is **cutoff minus
   one**, conditional on exact recipient semantics; **1,999** applies at the default,
-  not to every configured value. Prove non-default boundaries, change-during-read/
+  not to every configured value. Prove non-default cutoffs, change-during-read/
   write/backfill, restart and rollback behavior as well as default performance.
 - Future UI acceptance includes admin/non-admin behavior, saved/error/pending
   states, URL-owned settings navigation and desktop/375px verification under
@@ -290,7 +290,7 @@ row can be deferred. No deletion requires a successful synchronous sweep of all
 recipients. Route-specific invalidation must not globally erase another route.
 Reader-specific denial must not delete shared candidate state for other readers.
 
-**This preserves the existing read boundary, not a new transactional guarantee.**
+**This preserves API -> ClickHouse read authorization, not a new transactional guarantee.**
 Specify visibility during concurrent delete/read and membership changes before
 building. Do not claim atomic cross-table revocation, cancellation of an already
 returned response, physical erasure of history or revocation of already-issued
@@ -313,7 +313,7 @@ Delayed retries must not resurrect a detached route or rewind a trim watermark.
 
 Rebuilding need not reproduce historical physical insertion order; it must
 reproduce the correct logical window and served results at a declared canonical
-boundary. Coordinate live writes/backfills with that boundary. Drop only the
+watermark. Coordinate live writers and rebuild/backfill workers against that watermark. Drop only the
 fanout table in the rebuild test, then re-run independent response and write checks.
 
 ## 7. What stays unchanged
@@ -372,7 +372,7 @@ Config F acceptance must retain the supplied task's discipline:
   before arm PASS/integration proposal. Quiet T4/read-only T6-F cannot substitute;
   full accounting/admission requirements are in the linked task block.
 
-Add boundary controls for 1,999↔2,000 transitions, multi-group route removal,
+Add cutoff controls for 1,999↔2,000 transitions, multi-group route removal,
 same-ID/different-author identity, same-timestamp tombstones, cap overflow,
 filtered/older pages, crash/retry recovery and concurrent publish/follow/rebuild.
 Future authority-affecting code needs independent review and exploit-replay gates;
@@ -385,7 +385,7 @@ this document is neither a security scan nor a security PASS.
 | Recipient and member-count semantics | APPROVED: single canonical membership pass; explicit owner included, reserved classes/pending invites excluded, no public enumeration or membership counter; default1,999 bound |
 | Physical pointer/provenance schema | D60-compliant names, full document identity, group-route retention, stable order/ties, dedup/version/trim keys and index granularity |
 | Cap and history coverage | Logical vs physical cap, cross-service fairness, watermarks and complete older/filtered/refill fallback |
-| Durable maintenance | Publish/attach/update/delete and membership hooks; idempotency, acknowledgement, lag, crashes, transition/backfill races and rebuild boundary |
+| Durable maintenance | Publish/attach/update/delete and membership hooks; idempotency, acknowledgement, lag, crashes, transition/backfill races and live-writer -> rebuild-worker watermark |
 | Serving integration | Generic query seam, app ordering, attachment multiplicity vs document dedup, pagination/error/concurrent-read semantics; no new access policy |
 | Read-plan adoption | Which query shapes explicitly use maintained pointers/seeks, their compiler/SQL plans and native bounded-read receipts; correct behavior for unsupported shapes |
 | Node Settings configuration | DEFERRED to integration; no range/UI implementation or experiment blocker; receipts pin2,000 |

@@ -102,7 +102,7 @@ The banned-influencer track's frame (escape, deplatforming, landlord) must
 not be used with this customer; it is a different story, and mixing the
 frames cheapens both.
 
-**Boundaries.** This is marketing voice and planning direction, recorded with
+**Scope.** This is marketing voice and planning direction, recorded with
 the partner brief; it authorizes no implementation, outreach send, deployment
 or capacity promise. It does not claim cross-node federation is deployed: the
 mixer queue (`federated-feed-mixer.md`), separate-node key provisioning and
@@ -398,7 +398,7 @@ priority/ownership decision.
 
 This is reusable white-label product scope, not a TorahAnytime-only fork.
 Planning capture only; no configurable tabs are shipped by this update.
-It extends the earlier fixed-navigation boundary below: supported
+It extends the earlier fixed-navigation constraints below: supported
 tab instances and names become configurable, not arbitrary layouts or behavior.
 
 ### Serious appearance controls — exact partner colors and typography
@@ -435,7 +435,7 @@ not arbitrary theme CSS or a theme-editor responsibility. Start operator control
 with brand colors/fonts and a
 coherent visual preset; derive coordinated states with optional validated
 advanced overrides, rather than require every token to be edited manually.
-THEME1 must settle the fixed/themeable/editable boundary before building the
+THEME1 must distinguish fixed structure, themeable tokens and editable settings before building the
 editor; a representative TorahAnytime feed/profile/login exploration validates
 whether colors/fonts alone suffice or a quieter visual treatment is needed.
 
@@ -492,7 +492,7 @@ its current default palette/fonts; no global rebrand or per-account theme sync.
 reference/approved fallback and THEME1's contract, split generic configuration/
 validation, node-settings editor, social rendering and authenticator rendering
 into bounded owner-assigned changes. Follow the security method for future
-configuration write-boundary changes. Require exact hex round trips, font and
+configuration writes across the admin UI -> API boundary. Require exact hex round trips, font and
 configuration failure recovery, reset/cancel/save, node isolation, no theme flash
 with available saved configuration, and unchanged System/Light/Dark behavior.
 Inspect desktop/375px captures in both modes, keyboard/focus and actual computed
@@ -552,7 +552,7 @@ primitives. Grants are additive: a restricted member role cannot subtract an
 `anyone` or `authenticated` create grant. Inventory default/public grants and
 self-owned publishing paths before claiming restrictions. Hiding compose
 buttons is not enforcement; direct API calls, alternate clients, delegated
-identities and revoked roles need denial tests at the real boundary. Keep the
+identities and revoked roles need denial tests at the app -> API publication boundary. Keep the
 API generic (D60), never hardcode Torah concepts in `api/`.
 
 ### Torah-only platform, not merely a filtered Discover tab
@@ -565,7 +565,7 @@ implementation rather than assuming every video is pre-reviewed. A keyword block
 not a guarantee of Torah-only content. Existing D59 board hiding alone is
 insufficient: hidden content can still be accessible elsewhere.
 
-Define the policy boundary across feeds, search, profiles, groups, direct/share
+Define policy enforcement for API -> app/UI delivery across feeds, search, profiles, groups, direct/share
 links, comments, reposts, previews, embeds, recommendations, ads and enabled
 media surfaces. General-network discovery/server mixing must not silently
 introduce unapproved material; external sources are off unless explicitly
@@ -619,7 +619,7 @@ still precede demo execution.
 3. **TA2 — role and Torah-only publication contract.** Map every enabled
    surface/write path to existing grants, review lifecycle and bypass-denial
    tests; resolve broad grants and outside-source exposure. Gate: TA0 and
-   partner approval. Future trust-boundary work follows the security method.
+   partner approval. Future admin UI -> API configuration-write changes follow the security method.
 4. **TA3 — bounded catalog-sync design and trial.** Specify source mapping,
    reconciliation, integrity, sample/bandwidth/storage limits, rollback and
    measured cost. Gate: TA0 authorized sample, approved limits and explicit

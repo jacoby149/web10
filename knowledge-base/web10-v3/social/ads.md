@@ -1,5 +1,10 @@
 # Web10 Ads
 
+**Current implementation/history.** D115 (DECIDED) supersedes older read-time
+selection; D116 (DECIDED) defines the relationship target. D117 typed storage
+remains DIRECTION with its proving cell pending. This page does not claim those
+changes have deployed; see the [canonical design map](../db/design-revolution.md).
+
 An ad is a **post that carries a monetizable link**. That is the whole thing: a piece of content (the post's own text + media) plus a link that pays the creator (the `offer`). It is not a service, not a collection, not an ad network — in **web10-social** it is a `posts` document tagged `ad`, delivered to the creator's followers by the same architecture that delivers every other post.
 
 > **D75 — the node is service-agnostic; the catalog is app-owned.** The *ad

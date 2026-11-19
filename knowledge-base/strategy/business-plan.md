@@ -59,7 +59,7 @@ supplied banner reports 1,200 weekly lectures, 1.2K unique speakers, 400K Torah
 classes, 500K monthly visitors, 4M hotline calls and 18M+ hours learnt. This is a
 concrete scale of customer business we want web10 to support, not a verified
 deployment-capacity result, revenue projection or research-paper input. Metric
-definitions, unknown reporting periods and sizing boundaries are recorded in
+definitions, unknown reporting periods and sizing assumptions are recorded in
 [`torah-anytime.md`](torah-anytime.md#business-scale-we-want-to-support).
 
 ## 4. business model + pricing (D57, 30.08.2026)

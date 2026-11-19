@@ -52,7 +52,7 @@ cleanup and late-part behavior need isolated real-storage tests before enablemen
 Use Uppy behind the existing UI, without its Dashboard or Companion. The pinned
 AWS S3 plugin 5.x callback API lets our authenticated server own multipart
 creation/completion and canonical verification; upgrade to the changed 6.x
-sign-only API only with equivalent control-boundary tests. No temporary storage
+sign-only API only with equivalent API -> object-storage signing-authorization tests. No temporary storage
 credentials are handed to the browser. File hashes are computed incrementally,
 not by copying a 500 MiB movie into a single ArrayBuffer.
 

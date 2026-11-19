@@ -31,7 +31,7 @@ you from reimplementation due to misalignment. The KB is the root of trust — k
  apply.
 
 **Load `ai-pack/ai-security-theory/README.md` before doing security work**
-(hardening, scanning, or any PR that touches a trust boundary — auth, tokens,
+(hardening, scanning, or a PR changing app -> API credentials or API -> ClickHouse authority — auth, tokens,
 the DB read gate, federation, the SDK's credential surface). Security is
 *coverage, not convergence*: **orient first** (read
 `knowledge-base/security/learnings.md` — onboarding, recession, the obvious gap),
@@ -316,30 +316,25 @@ do not privacy-wash D56 or put content/credentials into events or recordings.
 ## How the data model works
 
 **19 November design revolution — intent, not shipped storage (D115–D120):**
-Jacob chose static billboard ads with author-first post-time pin documents
-(D115), and a derived, rebuildable N-ref pairs satellite sorted `(ref_id, doc_id)`
-with one governing root and role-as-data (D116). The satellite is the new
-research store furniture: the17 November mandatory `ref_sorted` rule is
-superseded, and the projection retires from the treated composition only after
-same-question parity. Preserve old projection source/stores/receipts. Read-time
-ad repicking/reader targeting and `ref_value` as the future single-link model
-are superseded design, not deleted production code.
+The canonical definitions/statuses live in `knowledge-base/strategy/decisions.md`:
+D115 DECIDED, D116 DECIDED, D117 DIRECTION (cell pending), D118 DECIDED,
+D119 DIRECTION, D120 PRINCIPLE. Read the navigation/evidence links in
+`knowledge-base/web10-v3/db/design-revolution.md`; do not copy its linked
+reports' numbers into new guidance. The current JSON/`ref_value` implementation
+is NOT the target or a permanent hybrid. Retain canonical JSON for experimental
+source/oracle/fallback until replacement proof; source machinery is not native
+acceptance or production migration. Old `ref_sorted` receipts remain history.
 
-The maximal no-JSON row model (D117) and typed API declarations/write enforcement
-(D119) are **DIRECTION, proving cell pending**. Versioned pointers choose immutable,
-shareable per-type value rows; the intended model has no fat canonical fallback.
-Its isolated post experiment deliberately KEEPS canonical JSON as build source,
-independent oracle and fallback. Storage need not match export shape (D118).
-Pre-answer declared question shapes in satellites (D120); a new `documents`
-projection in the row-model direction is a smell, not the remedy. No universal
-arbitrary-query speed guarantee follows. “Make all the fixes, then do the
-experiments”: source preparation includes row-model work before spending;
-all-fixes measurement banks before the row-model assembly cell. This thread's
-KB capture admits no code/native/cloud action. No new measured PASS, production
-or§8 acceptance. Decisions and exact banked receipts:
-`knowledge-base/web10-v3/db/design-revolution.md`. Current schema and all older
-receipts below remain historical/current-implementation descriptions, not proof
-that the new design has shipped.
+“Make all the fixes, then do the experiments”: prepare row-model source before
+spending; bank all-fixes measurements before row-model assembly measurements.
+`research/experiments/costfn/README.md` owns directive precedence. No documentation
+entry grants code/native/cloud action or upgrades a pending gate. The older
+execution notes below remain historical, not instructions to reopen a lease.
+
+**Writing rule:** name the two systems in a complete sentence, for example
+“At the API -> ClickHouse boundary, the API supplies authorized SQL.” See
+`knowledge-base/strategy/interface-language.md`. D121 (DECIDED) paper strategy,
+projected dates and fallback live only in `knowledge-base/strategy/paper-submission.md`.
 
 **Generic tallying (D114), operator18 November2026:** tallying belongs in the
 fanout family as a generic platform-maintained satellite; meanings are named
@@ -360,10 +355,10 @@ repaired; it is not retroactive native proof. Preserve raw PASS flags and qualif
 numbers, do not claim the paired gate passed, and do not start a new paid run
 without fresh admission. Audit/results:
 `research/experiments/costfn/evidence/engagement-tally-20261119/RESULTS.md`.
-Jacob subsequently explicitly approved one fresh Intel coverage-repair lease;
-its host/window must be independently bound and its actual oracle-root coverage
-must pass before measurement. This does not retroactively close the first run's
-gap. Current admission/state: the existing engagement task block.
+The later coverage-repair lease was operator-cancelled and cleaned up; it did
+not close that gap. Current precedence/state is in the costfn README and linked
+contracts. D114 full acceptance stays OPEN on the paired gate. Neither repaired
+source nor the committed run machinery is proof that the missing native gate ran.
 
 **Costfn execution override — Jacob Hoffman,18 November2026:** for all future
 costfn experiment runs, including completion work, the governing policy is
@@ -513,11 +508,10 @@ silently skip independent stages. Full receipts:
 The separately admitted18 November completion DO620548967 is also now closed.
 It fixes keyword/native-finish/baseline-order/generation encoding and refresh,
 with one explicit initial K20 setup exception and no later counter rebuild.
-Untreated26.x complete baseline now banks4,551.675ms/222,387,685 bytes, exact parity
-PASS/budget FAIL, before projection. Intended bounded/deletion-winning/ref_sorted
-K20 SQL reaches the native158 row guard (actual50.80MB projection/94.72MB uniform;
-reported88.64M/70.65M selections are not actual reads); paired preparation separately
-stops. No treated complete response/parity/full-feed PASS or counter retirement.
+The untreated modern baseline and stopped treated attempts are banked in the
+completion report linked below, with exact parity/budget qualifications and
+selection-estimate versus actual-read distinctions. No treated full-feed PASS or
+counter retirement followed from that stopped attempt.
 All current-copy9/32 gates pass; B/D are not repeated. Owned cleanup06:59:08UTC
 precedes09:42:45; compute estimate$0.31827/not invoice. Full receipts:
 `research/experiments/costfn/evidence/engagement-completion-20261118/RESULTS.md`.
@@ -525,14 +519,10 @@ The old OPEN/missing-baseline statements above describe that earlier lease, not
 the new banked baseline. Further design/preparation/native work needs new admission.
 The separately admitted18 November treated-completion DO620634285 now closes
 with exact complete-response parity in all four cells, budget FAIL. The banked
-26.x baseline/B/D/lossless proof are cited, not repeated. Captured-query actuals:
-projection K20 is25,815.782ms/646,223,530 rows/59,461,806,191 bytes; uniform K20
-156,892.952ms/553,857,605/52,097,155,602. Paired P/F are150,027.498/166,358.107ms
-and9,969,184,052/9,969,158,768 bytes. Exact request-tagged auxiliary accounting
-adds60 rows/6,840 bytes per measured sequence, reported separately from the
-banked comparison scope. All three standalone count components complete;
-decomposition remains non-additive. Unchanged preparation SQL4bc916c8… completes
-at88,364,203 rows/9,933,017,043 bytes, not the old selection estimate. Preserve
+modern baseline/B/D/lossless proof are cited, not repeated. Exact captured-query
+and separately request-tagged auxiliary actuals live in the linked treated-
+completion report, not duplicated here. Its count decomposition is non-additive;
+the old preparation statement's actuals are not selection estimates. Preserve
 original pinned-driver startup failures and the separate transport-only
 continuation; no SQL redesign/setup/counter/projection/B/D repeat. All454 captured
 read statements reconcile to native600s settings/zero exceptions. Checkpoints
@@ -836,7 +826,7 @@ Defined in the KB: `knowledge-base/web10-v3/security/overview.md`. Short version
   for. Preserve failed attempts and bind each repair to its executing source;
   do not silently retry a failure into a PASS. Do not ask again for routine
   repairs/re-runs already authorized by the operator. Stay inside the task's
-  explicit budget, deadlines, native/parity gates and production boundaries;
+  explicit budget, deadlines, native/parity gates and production scopes;
   persistence is not unlimited spending, a weakened oracle or permission to
   change the treatment. Use the agent's watch loop and existing self-kill timers,
   not a new guardian/watchdog subsystem. Stop only on completion, cancellation,
@@ -875,14 +865,14 @@ been shipped.
 
 ## Debugging: log everything, keep it in
 
-**Security boundary:** diagnostic density does not permit credentials or private
+**At the API-request-handler -> operations-log boundary,** diagnostic density does not permit credentials or private
 HTTP content in logs. Automatic API request logging is metadata-only; follow
 `knowledge-base/web10-v3/security/logging.md` rather than the payload-dumping
-guidance below for that boundary. Keep useful safe signal, not secret copies.
+guidance below for API-handler -> operations-log writes. Keep useful safe signal, not secret copies.
 
 This is an open-source project — copious logging is a feature, not noise.
 When debugging, add `console.log` at every decision point, state
-transition, and message boundary. Prefix logs so they're filterable:
+transition, and message send/receive. Prefix logs so they're filterable:
 `[wapi]` for SDK, `[auth-ui]` for the authenticator UI, `[demo]` for demo
 apps, etc.
 

@@ -2,18 +2,13 @@
 
 The data model. Every table, every index, every pattern.
 
-**19 November supersession notice (D115–D120):** the schema/DDL below describes
-the existing JSON-body and single-`ref_value` implementation, retained intact.
-As future design, a single ref column is superseded by the derived N-ref pairs
-satellite (D116); store-as-exported is retired by D118. The mandatory17 November
-`ref_sorted` furniture rule is superseded: the satellite is standard research
-furniture and replaces that projection in the treated composition only after
-same-question parity. The maximal typed-row model (D117) and API type enforcement
-(D119) are DIRECTION, not measured or deployed. No new `documents` projections
-are intended in that model; question shapes belong in satellites (D120). See
-[the decision map and receipt ledger](design-revolution.md). No DDL below is
-silently rewritten, no historical projection evidence is invalidated, and no
-production migration follows from this notice.
+**Current implementation, not target DDL.** The JSON-body and single-`ref_value`
+schema below is retained as the current implementation. The canonical design
+definitions live in the [decision map's linked ledger](design-revolution.md):
+D115/D116/D118 are DECIDED, D117 is DIRECTION (cell pending), D119 is DIRECTION,
+and D120 is PRINCIPLE. Existing projection/JSON examples are not an instruction
+to preserve that physical representation in the replacement. No DDL, native
+evidence or production rollout is changed by this label.
 
 **v3 is ClickHouse-only.** FerretDB and Postgres have been removed from the stack. Every operation — auth, CRUD, groups, contracts, media, accounts — goes through ClickHouse. No MongoDB. No DocumentDB. One database, one query engine, one deployment.
 
@@ -41,13 +36,15 @@ existing store, rehearse the supported upgrade path on a copy, verify schema,
 read/write/history/permission behavior, then approve rollout. Do not assume
 starting the old image can safely undo new-engine data-format changes.
 
-The running engagement control remains explicitly24.8.14.39. A modern-engine
-comparison must label the version and rerun baseline plus treatment. Consider
-25.5+ `_part_offset` as an alternative implementation of the SAME `ref_sorted`
-projection (keys/offsets with payload fetched from the base table), not an
-additional projection or authorization shortcut. Current canonical history,
-full-key and policy checks remain mandatory; no native offset/read-cost proof
-or production projection is claimed. Official reference:
+**Historical projection/engine comparison, not current run selection.** The old
+control and later modern-engine baseline/treatment results are linked from the
+[design map](design-revolution.md). New experiments follow the
+[directive precedence index](../../../research/experiments/costfn/README.md#directive-precedence-index),
+not a request to rerun a banked baseline from this paragraph. `_part_offset`
+was a proposed same-projection comparison; it is not a second admitted layout
+or the D116 (DECIDED)/D117 (DIRECTION, cell pending) target. Current history,
+full-key and policy checks remain mandatory; no offset or production acceptance
+is claimed. Historical technology reference:
 <https://clickhouse.com/docs/data-modeling/projections>.
 
 **Planned delivery architecture, not current schema:** D113 specifies a generic
@@ -570,7 +567,7 @@ TTL ts + INTERVAL 30 DAY;
 
 | `service` | Source | How |
 |---|---|---|
-| `api` | API middleware (`app/middleware.py`) | When downstream yields a response: allowlisted method, server route template (not raw URL), status, latency and severity; body/meta/user_key/origin columns empty ([logging boundary](../security/logging.md)) |
+| `api` | API middleware (`app/middleware.py`) | When downstream yields a response: allowlisted method, server route template (not raw URL), status, latency and severity; body/meta/user_key/origin columns empty ([API handler -> operations-log contract](../security/logging.md)) |
 | `sdk` | Browser SDK via `POST /v3/logs` | Console logs tee'd from the demo app. Tagged with `user_key` + `origin` |
 | `e2e` | Playwright runner via `POST /v3/logs` | Captured browser console + network logs after each test. Tagged with `test_name` in `meta` |
 

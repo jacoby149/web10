@@ -60,7 +60,7 @@ single-flight deduplication are separate tools.
 - Chunk large sets with explicit bounds; avoid unbounded SQL IN lists and one
   giant import insert. Isolate partial failures. Keep `api/` generic (D60): no
   identity-picker, feed, mutual-friend or DM-specific node endpoint.
-- Each item is a queue of small PRs, not one combined PR. Trust-boundary bites
+- Each item is a queue of small PRs, not one combined PR. API -> ClickHouse authorization changes
   must satisfy the existing <=500 code/test-line gate. Split equivalence tests,
   wiring/promotion and connected verification where necessary; never exempt the
   gate just because the feature is large.

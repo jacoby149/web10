@@ -132,12 +132,19 @@ class Actions(finish.Actions):
         return result
 
 
-def run(root):
+def run(root, *, with_row_model=False):
     root = Path(root)
+    if with_row_model:
+        from row_model_run import source_ready
+        source_ready(json.loads((root / 'admission.json').read_bytes()))
     modern.install_sessions()
     actions = Actions(root)
     try:
-        return contract.run(actions, root / 'programme-all-fixes')
+        result = contract.run(actions, root / 'programme-all-fixes')
+        if with_row_model:
+            from row_model_run import run as row_model
+            return dict(composition=result, row_model=row_model(root))
+        return result
     finally:
         if (root / 'restore.json').exists():
             cells.stop(root)
@@ -146,4 +153,6 @@ def run(root):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('root', type=Path)
-    run(parser.parse_args().root)
+    parser.add_argument('--with-row-model', action='store_true', help='require prepared/bound row source, bank all-fixes, then run assembly on the owned store')
+    args = parser.parse_args()
+    run(args.root, with_row_model=args.with_row_model)
