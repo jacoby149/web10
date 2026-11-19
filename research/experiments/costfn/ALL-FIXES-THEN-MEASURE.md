@@ -87,7 +87,17 @@ does not return. Receipt each lease's cost. Agent ~300s supervision and host
 self-kill timers only; no independent guardian. No local engine execution.
 Preserve failed attempts, source bindings, native receipts and cleanup.
 
-## Cancellation and current state
+## Latest admitted attempt —19 November2026
+
+The merged-source composed entry was executed on DO621405771 with row readiness
+verified before restore. Restore stopped at the snapshot's existing input path;
+all required prechecks and measured cells were blocked. The row-model bridge
+refused unbanked composition results. No paired-tally acceptance, new performance
+result or assembly verdict follows. Owned cleanup is verified, snapshot retained,
+and the one-lease admission is consumed/closed. Failure, source, off-host receipts
+and cost: [RESULTS.md](evidence/all-fixes-row-model-20261119/RESULTS.md).
+
+## Historical cancellation and source-preparation state
 
 Jacob explicitly cancelled the previous coverage-repair lease in this session.
 DO621021141 and its owned auxiliary resources are deleted; provider cleanup

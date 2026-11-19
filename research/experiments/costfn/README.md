@@ -1,5 +1,16 @@
 # Access-Control Cost Function Experiment
 
+## Latest attempt —19 November2026
+
+The explicitly admitted one-lease composed entry on merged dev1c903afb8 stopped
+during restore at the existing `/opt/fanout/input` symlink collision, before any
+parity gate or measurement. Row-source readiness passed before restore; the
+row-model worker was blocked on unbanked composition results. D114 paired
+acceptance remains OPEN; D117 assembly remains pending. Owned DO621405771 and
+auxiliary resources are verified deleted, snapshot255003176 retained. Admission
+is consumed/closed, no automatic retry. Exact failure/cost/custody/cleanup:
+[attempt report](evidence/all-fixes-row-model-20261119/RESULTS.md).
+
 ## Directive precedence index
 
 **As of 19 November 2026.** This index owns precedence, not design definitions

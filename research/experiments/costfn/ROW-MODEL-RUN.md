@@ -10,6 +10,15 @@ owns the target; the [directive index](README.md#directive-precedence-index)
 owns execution precedence. The present JSON implementation remains source/oracle
 and experimental fallback, not a permanent hybrid or the replacement target.
 
+## Latest attempt —19 November2026
+
+The exact source binding passed on DO621405771 before the composed entry restored
+the store. Restore then stopped at an existing-input-path collision; all-fixes
+never banked. The row-model bridge refused before worker launch, so no family
+build, key/type verification or assembly measurement ran. Source readiness is
+not native acceptance. Lease cleanup is verified and admission closed; no retry
+is implied. [Failure/cost/cleanup report](evidence/all-fixes-row-model-20261119/RESULTS.md).
+
 ## What is wired
 
 `row_model_run.py` is the host entry. It verifies the bound DO admission and live
