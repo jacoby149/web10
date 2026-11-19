@@ -24,8 +24,11 @@ def admitted(value, host, now=None):
         and value.get('engagement_completion_admitted') is True
         and value.get('initial_k20_count_build_admitted') is True
         and value.get('stages_b_d_admitted') is False)
+    tally = (value.get('purpose') == 'ENGAGEMENT_TALLY_WIRING' and value.get('run_directive') == limits.TALLY_RUN
+        and limits.enabled(value) and value.get('tally_wiring_admitted') is True
+        and value.get('stages_b_d_admitted') is False)
     if (value.get('engagement_engine') != ENGINE or value.get('engagement_directive') != DIRECTIVE
-            or (value.get('purpose') != 'ENGAGEMENT_FULL_STORE_A_D' and not completion)
+            or (value.get('purpose') != 'ENGAGEMENT_FULL_STORE_A_D' and not completion and not tally)
             or value.get('engagement_ref_admitted') is not True):
         raise ValueError('explicit26.10.4.207 full-store engagement admission required')
     return deadline
@@ -64,6 +67,8 @@ class Session(arm_f_runtime.Session):
 
     def query(self, label, sql, *, measured=False, setup_seconds=600, settings=None):
         admitted(self.operation, self.host_id)
+        if self.operation.get('tally_wiring_admitted') is True:
+            setup_seconds = min(setup_seconds, 600)
         current_policy = limits.enabled(self.operation)
         budget = min((600 if current_policy else 10) if measured else setup_seconds, remaining(self.operation))
         if budget < 1:

@@ -47,6 +47,12 @@ entry point, reconcile its wrappers/controllers with this directive; do not
 silently inherit retired row, deadline, client or budget-abort behavior.
 Ordinary API/production behavior is unchanged.
 
+**D114 tally run,19 November:** [qualified count results and coverage audit](evidence/engagement-tally-20261119/RESULTS.md).
+Ordinary/fat/sample evidence and thousand-row scalar reads are banked, but the
+required paired precheck omitted20 actual roots. Full acceptance stays OPEN;
+the source verifier is repaired, not natively reaccepted. That lease is cleaned
+up and consumed; no fresh paid/native retry follows automatically.
+
 **Additive Arm T (14 November):** [contract and sequencing gates](ARM-T.md).
 Separate group-first link layout on the unchanged validated realism input;
 not a replacement for any frozen cell. Build/execution wait for the baseline

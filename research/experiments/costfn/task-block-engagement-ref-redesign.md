@@ -1,5 +1,85 @@
 # Engagement reads: one segment per root document
 
+## Fresh coverage-repair admission — Jacob Hoffman,19 November2026
+
+After reviewing the omitted20-root paired precheck, Jacob explicitly selected
+**“Approve fresh lease”** for one new Intel run:26.10.4.207,32/28/22GiB,
+four hours/$2,600s/no row stop/native polling, agent~300s/self-kill/no guardian.
+Use the repaired independent-oracle target domain and prove every actual paired
+root is queried in each required main/follow-up service scope before measuring.
+Keep ordinary/fat/sample checks; measure only after all required gates pass.
+No baseline/B/D timings, view-event/aggregate seed, production or§8 work. Bind a
+new host/window before execution; do not reopen620898285 or relabel its raw
+PASS flags as acceptance. Its numerical observations and missing-domain audit
+remain preserved regardless of the new outcome. No automatic retries/extensions.
+
+Fresh execution binds **DO621021141**,19 November10:36:09→14:36:09UTC, approved
+Intel SKU/four-hour-$2 bound. Two readiness timeouts stay on that host/window.
+Source`4a9dbce92` verifies1,447 files/16 pins;14 tally controls pass on-host and
+both self-kill timers verify, no guardian. Initial engine/server-envelope checks
+pass; restore/source-count verification is active, not paired native acceptance.
+First1,856,211-byte checkpoint SHA`5fd3f28f…47e87` verifies off-host. A transient
+code210 boot-readiness observation is retained; the subsequent engine checks
+succeed, not a measured-statement retry or a replacement host.
+
+**Tally lease CLOSED; full tally acceptance OPEN —19 November:**
+[`evidence/engagement-tally-20261119/RESULTS.md`](evidence/engagement-tally-20261119/RESULTS.md)
+retains exact ordinary response parity and thousand-row pure count reads. Uniform
+captured total is128,480.771ms/10,128,634,167 bytes; optional projection7,647.980ms/
+224,523,076. Fat maps and60 sampled roots match. Final audit nevertheless finds
+all20 actual paired roots omitted from five wrong-legacy-page verification
+domains; zero default comparisons hid the omission. Preserve raw programme PASS
+flags as recorded, **not** as full acceptance. Source now queries authoritative
+oracle IDs/prepared-row IDs and refuses omitted roots even for all-zero counts.
+The repair has no new native proof. Owned cleanup04:13:42.115UTC precedes06:03:43,
+compute estimate$0.618968/not invoice. No second lease/retry without new admission;
+no waiver or postdating of the required gate. Ordinary metrics and original
+PR#1590/F FAILs remain banked, with all remainders and auxiliary work explicit.
+
+## New admission — tally wiring, Jacob Hoffman18 November2026
+
+One fresh DO lease is admitted for D114 setup tallies on the same migrated
+composition. Bind host/deadline first;26.10.4.207,32/28/22GiB, existing per-lease
+discipline, no row stop,600s statements/native polling and agent~300s/self-kill/no
+guardian. No baseline/B/D remeasurement, aggregate seed, production or§8 work.
+
+**Explicit hardware substitution approved by Jacob in this session:** the old
+AMD32GiB/400GiB SKU is no longer listed innyc3 and lacks regions metadata; the
+snapshot isnyc3-only. Use `s-8vcpu-32gb-640gb-intel`,8vCPU/32GiB/640GiB at
+$0.28571/hour (~$1.143/four hours, still below$2). Receipt the CPU/disk/rate
+difference; keep32/28/22GiB and the original four-hour/$2 discipline. The failed
+catalog preflight created no lease/resource. This exception does not admit other
+SKUs or relax historical AMD leases.
+
+Execution binds **DO620898285**,19 November02:03:43→06:03:43UTC, the explicitly
+approved Intel SKU at$0.28571/hour/four-hour/$2 bound. Two provider-readiness
+timeouts remain preserved on the same host, no replacement. Source`c7c0012f5`
+verifies1,444 executing files/16 approved pins;11 tally controls pass on-host,
+both self-kill timers are active, no guardian. Full local suite is34/290 after
+the two hardware controls. Banked citation and initial native engine/count
+checks pass; restore/input verification is active, not a native tally result.
+First private checkpoint1,845,588 bytes/SHA`c09eab81…c6f0e` verifies off-host.
+
+Build generic scope-qualified `counting_numbers_tally` from canonical current
+rows, all roots in each built scope—not merely the feed page. Every engagement
+tallies its root and any distinct finer body target. Kind names preserve the
+pinned feed's direct-post reaction semantics separately from root-wide totals.
+Before measuring, require exact independent agreement on every ordinary/paired
+page root, a deterministic store-wide sample, and the banked50k-comment/6,731
+direct/6,731 finer-target fat document/link fixture. Its deterministic fixture
+reconstruction is verification setup, not Stage D timing or view-event seeding.
+Any mismatch stops admission to measurement. Preserve current credential/service/
+group/policy/source/copy fences; no stale/incomplete-scope zero filling.
+
+Repoint only known main/follow-up displayed-count aggregates to stored scalars.
+Keep post/profile canonical resolution, document-on-open projection reads, raw
+views, node-ad preparation and unclassified work unchanged. Measure uniform K20
+warmup+measured/exact parity; optional projection K20 only if the original clock
+allows. Count-stage collapse to thousands of rows is the tally verdict. Report
+that, complete totals and named remainders independently; neither a complete
+budget FAIL means tally FAIL nor cheap counts mean feed PASS. PR#1590 and F FAILs
+stay banked. Design/scoping contract: `knowledge-base/web10-v3/db/tallies.md`.
+
 **Treated completion CLOSED —18 November:**
 [`evidence/engagement-finish-20261118/RESULTS.md`](evidence/engagement-finish-20261118/RESULTS.md)
 records all four completed treated responses with exact parity PASS/budget FAIL.

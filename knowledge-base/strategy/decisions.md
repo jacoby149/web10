@@ -9,6 +9,21 @@ Status legend: [decided] intent set · [in-progress] · [open] still debating.
 
 ---
 
+### D114 — Tallying is a generic maintained satellite in the fanout family [decided; research first]
+
+**Jacob Hoffman,18 November2026:** feed reads fetch ready numbers from the
+`counting_numbers` abstraction instead of counting canonical documents again.
+Counter kinds/targeting semantics are data (D60); the table remains generic for
+notes, music, shops and social apps. Canonical source/policy authority still
+governs each certified scope. Root and finer-target contributions retain their
+distinct displayed-count meanings. This run builds/verifies setup tallies on
+the migrated research copy, then measures the unchanged complete composition
+with only its displayed-count reads redirected. It does not implement or admit
+live production maintenance, invalidation, endpoints,§8 or rollout. Contract:
+`web10-v3/db/tallies.md`; run: existing engagement task block. PR#1590 FAILs remain
+banked; count-stage collapse, not the unrelated preparation/views remainder,
+judges this treatment.
+
 ### D113 — Group delivery is built-in and hybrid; canonical state remains authority [research design approved; native gates open]
 
 **Operator, 15.11.2026:** "it is just built in, always ready for scale no

@@ -79,8 +79,10 @@ def boot(parent, name, profile_name, mode, *, serving_mode='F_DOCUMENT_STREAM_V1
     if mode == 'uniform':
         volumes.append(str(parent / 'copy-proof.json') + ':/copy-proof.json:ro')
     overlay = cell / 'api.overlay.json'
+    entry = ('engagement_tally_api' if json.loads((parent / 'admission.json').read_bytes()).get('tally_wiring_admitted') is True
+        else 'engagement_api')
     save(overlay, {'services': {'api': {'volumes': volumes, 'environment': env,
-        'command': ['uv', 'run', 'uvicorn', 'engagement_api:application', '--host', '0.0.0.0', '--port', '80', '--no-access-log']}}})
+        'command': ['uv', 'run', 'uvicorn', entry + ':application', '--host', '0.0.0.0', '--port', '80', '--no-access-log']}}})
     here = Path(__file__).parent
     compose = session.compose[:-2] + ['-f', str(here / 'arm_satellite_serve.compose.yml'), '-f', str(overlay), *session.compose[-2:]]
     environment = {**session.env, 'SATELLITE_SERVE_STATE': str(cell / 'serve-state')}
