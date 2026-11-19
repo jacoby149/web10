@@ -107,8 +107,10 @@ class Driver:
         if self.variant != 'rows':
             return
         tree = sqlglot.parse_one(statement, read='clickhouse')
-        tables = {node.name for node in tree.find_all(exp.Table)}
-        if not isinstance(tree, exp.Select) or tables - {*TABLES, 'parts', 'tables'}:
+        tables = list(tree.find_all(exp.Table))
+        if not isinstance(tree, exp.Select) or any(node.catalog or not (
+                node.name in TABLES and node.db in ('', 'web10')
+                or node.name in ('parts', 'tables') and node.db == 'system') for node in tables):
             raise ValueError('typed assembly attempted a canonical/unknown-table fallback')
         for node in tree.find_all(exp.Func):
             name = node.name if isinstance(node, exp.Anonymous) else node.sql_name()

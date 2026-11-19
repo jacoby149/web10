@@ -77,6 +77,8 @@ def run(root, client_factory=None, host=None):
         result['verification'] = actions.verify()
         save(output / 'result.json', result)
         copy_fence(driver, root)
+        driver.collect_pending()
+        driver.require_native(driver.records)
         print('[row-model] verified; start isolated assembly comparisons', flush=True)
         result['measurements'] = cell.measure(actions, banked, result['verification'])
         copy_fence(driver, root)

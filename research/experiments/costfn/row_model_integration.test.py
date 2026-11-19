@@ -106,7 +106,8 @@ class IntegrationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             driver, client = self.driver(directory)
             driver.variant = 'rows'
-            for statement in ('SELECT body FROM engagement_documents',
+            for statement in ('SELECT body FROM engagement_documents', 'SELECT value FROM foreign.row_text',
+                    'SELECT body FROM tables',
                     "SELECT JSONExtractString(value,'text') FROM row_text", 'SELECT toUInt64(value) FROM row_text',
                     'SELECT CAST(value AS UInt64) FROM row_text', 'SELECT unhex(value) FROM row_text'):
                 with self.subTest(statement=statement), self.assertRaises(ValueError):
