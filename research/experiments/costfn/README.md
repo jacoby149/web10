@@ -1,6 +1,17 @@
 # Access-Control Cost Function Experiment
 
-## Latest attempt —19 November2026
+## Latest rerun —19 November2026, restore fixed
+
+Separate path-only fix PR#1595 merged before fresh DO621414125 ran exact source
+2749c1037. Restore/read setup/migration pass. Billboard fixture setup then stops
+at OS argv-size handling before native submission; all required parity gates,
+compositions, decomposition and row worker remain blocked. D114 paired OPEN,
+D117 pending. New receipts verified off-host before owned cleanup, snapshot
+retained, admission consumed/closed; no automatic retry. Fix/tests, regenerated
+binding and new-attempt-only cost/cleanup: [rerun report](evidence/all-fixes-row-model-rerun-20261119/RESULTS.md).
+The first attempt's evidence is unchanged.
+
+## First attempt —19 November2026
 
 The explicitly admitted one-lease composed entry on merged dev1c903afb8 stopped
 during restore at the existing `/opt/fanout/input` symlink collision, before any

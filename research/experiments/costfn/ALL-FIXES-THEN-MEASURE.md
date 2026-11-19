@@ -87,7 +87,18 @@ does not return. Receipt each lease's cost. Agent ~300s supervision and host
 self-kill timers only; no independent guardian. No local engine execution.
 Preserve failed attempts, source bindings, native receipts and cleanup.
 
-## Latest admitted attempt —19 November2026
+## Latest admitted rerun —19 November2026
+
+After separate restore fix PR#1595 merged, fresh DO621414125 on exact source
+2749c1037 passes row readiness, restore, read setup and migration. Billboard
+fixture setup then stops before native submission because its185,447-byte SQL
+is carried in one process argument. No parity gate/measurement/row worker runs;
+D114 paired remains OPEN and D117 pending. Receipts verified off-host before
+owned cleanup, snapshot retained, admission consumed/closed, no automatic retry.
+Fix/binding/new-attempt cost/failure: [rerun report](evidence/all-fixes-row-model-rerun-20261119/RESULTS.md).
+The first attempt's banked evidence remains unchanged.
+
+## First admitted attempt —19 November2026
 
 The merged-source composed entry was executed on DO621405771 with row readiness
 verified before restore. Restore stopped at the snapshot's existing input path;
