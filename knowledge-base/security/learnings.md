@@ -49,6 +49,14 @@ attempts and deny them before stored-value dispatch. This is bounded research
 correctness coverage, not a production implementation or an L1–L4 security PASS;
 broader maintenance/invalidation and production review remain OPEN.
 
+Final native audit catches a verification-integrity gap, not a demonstrated read
+grant bypass: the legacy inventory's page IDs differ from the canonical paired
+page. Zero-valued comparisons can pass when an unqueried key is defaulted to0.
+Require the actual oracle ID/prepared-row domain to be included in the queried
+verification domain before accepting value equality. A deterministic wrong-page/
+all-zero replay is now denied. The old run's20 missing paired roots remain OPEN;
+source repair is not retroactive native proof or permission for a new paid run.
+
 ### 2026-11-17: A delivery audit and a scoped views response are different sets
 
 The captured frontend requests Discover-only views even when the main fixture

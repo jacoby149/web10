@@ -1,5 +1,19 @@
 # Engagement reads: one segment per root document
 
+**Tally lease CLOSED; full tally acceptance OPEN —19 November:**
+[`evidence/engagement-tally-20261119/RESULTS.md`](evidence/engagement-tally-20261119/RESULTS.md)
+retains exact ordinary response parity and thousand-row pure count reads. Uniform
+captured total is128,480.771ms/10,128,634,167 bytes; optional projection7,647.980ms/
+224,523,076. Fat maps and60 sampled roots match. Final audit nevertheless finds
+all20 actual paired roots omitted from five wrong-legacy-page verification
+domains; zero default comparisons hid the omission. Preserve raw programme PASS
+flags as recorded, **not** as full acceptance. Source now queries authoritative
+oracle IDs/prepared-row IDs and refuses omitted roots even for all-zero counts.
+The repair has no new native proof. Owned cleanup04:13:42.115UTC precedes06:03:43,
+compute estimate$0.618968/not invoice. No second lease/retry without new admission;
+no waiver or postdating of the required gate. Ordinary metrics and original
+PR#1590/F FAILs remain banked, with all remainders and auxiliary work explicit.
+
 ## New admission — tally wiring, Jacob Hoffman18 November2026
 
 One fresh DO lease is admitted for D114 setup tallies on the same migrated

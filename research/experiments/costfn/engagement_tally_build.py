@@ -57,8 +57,18 @@ def stored(session, key, ids=None):
     return result, query_id
 
 
-def page_parity(root, profile, label, service, actual):
+def verification_targets(expected, sample_ids, legacy_ids=()):
+    # The canonical document-stream oracle, not the legacy inventory page,
+    # defines the actual roots whose counts will be displayed.
+    return sorted(set(sample_ids) | set(legacy_ids) | set(expected['ids'])
+        | {row['doc_id'] for row in expected['rows']})
+
+
+def page_parity(root, profile, label, service, actual, *, verified_ids):
     expected = json.loads((Path(root) / ('reference-' + profile) / 'expected.json').read_bytes())
+    required = set(expected['ids']) | {row['doc_id'] for row in expected['rows']}
+    if not required <= set(verified_ids):
+        raise ValueError('independent verification omitted actual page roots; zero defaults are not evidence')
     if label == 'main':
         fields = {'reactions': (('likes','reactions:like:direct'),('dislikes','reactions:dislike:direct')),
             'comments': (('comments','comments'),), 'posts': (('reposts','reposts'),)}[service]
@@ -156,7 +166,8 @@ def run(root):
     for profile_name in ('ordinary', 'fixture'):
         profile = json.loads((root / ('profile-' + profile_name + '.json')).read_bytes())
         record['routing'][profile_name] = {}
-        ids = sorted(set(sample_ids + [row['doc_id'] for row in profile['reference_page']]))
+        page = json.loads((root / ('reference-' + profile_name) / 'expected.json').read_bytes())
+        ids = verification_targets(page,sample_ids,[row['doc_id'] for row in profile['reference_page']])
         for label in ('main', 'reactions', 'comments'):
             record['routing'][profile_name][label] = {}
             for service in ('reactions', 'comments', 'posts') if label == 'main' else (label,):
@@ -171,7 +182,7 @@ def run(root):
                     oracle_query_id=query_id, stored_query_id=stored_id, parity='PASS' if expected == actual else 'FAIL'))
                 if expected != actual:
                     raise ValueError('tally differs from independent canonical counts; do not measure')
-                page_parity(root, profile_name, label, service, actual)
+                page_parity(root, profile_name, label, service, actual, verified_ids=ids)
                 record['scopes'][key]['verified'] = True
     session.query('tally_settle', 'OPTIMIZE TABLE ' + sql.TABLE + ' FINAL')
     parts, _ = session.rows('tally_current_parts', "SELECT name,toString(rows) AS rows,toString(data_version) AS data_version FROM system.parts "

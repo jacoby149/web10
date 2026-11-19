@@ -28,6 +28,39 @@ from app.v3.services.safe_query import build_safe_query  # noqa: E402
 
 
 class TallyTests(unittest.TestCase):
+    def test_native_receipt_keeps_paired_coverage_gap_open_instead_of_promoting_PASS_flags(self):
+        root=Path(__file__).parent/'evidence/engagement-tally-20261119'
+        value=json.loads((root/'results.json').read_bytes())
+        audit=value['verification']['pre_measurement_domain_audit']
+        self.assertFalse(value['verification']['overall_required_gate_satisfied'])
+        self.assertTrue(value['verification']['ordinary_page_gate_satisfied'])
+        self.assertEqual(sum(r['profile']=='fixture' and r['missing_roots']==20 for r in audit),5)
+        self.assertTrue(all(r['missing_roots']==0 for r in audit if r['profile']=='ordinary'))
+        self.assertEqual(value['programme_outcomes']['tallies'],'PASS')  # Preserve raw execution, not a new acceptance claim.
+        self.assertIn('PAIRED_PRECHECK_OPEN',value['tally_verdict'])
+        self.assertTrue(value['lease']['cleanup_verified'])
+        self.assertTrue(all(c['native']['read_rows']==1600 for c in value['count_components']['components']))
+
+    def test_native_tally_CSV_reconciles_captured_and_auxiliary_work_for_each_sequence(self):
+        import csv
+        root=Path(__file__).parent/'evidence/engagement-tally-20261119'
+        value=json.loads((root/'results.json').read_bytes())
+        data=(root/'native-query-costs.csv').read_bytes()
+        self.assertNotIn(b'\r',data)
+        self.assertEqual(hashlib.sha256(data).hexdigest(),value['preservation']['public_csv_sha256'])
+        rows=list(csv.DictReader(data.decode().splitlines()))
+        self.assertEqual(len(rows),311)
+        self.assertEqual(len({r['query_id'] for r in rows}),311)
+        for name,samples in value['cells'].items():
+            for sample in samples:
+                selected=[r for r in rows if r['cell']==name and r['phase']==sample['phase']]
+                for key in ('read_rows','read_bytes'):
+                    self.assertEqual(sum(int(r[key]) for r in selected),sample['request_tagged_inclusive_totals'][key])
+                    pure=[r for r in selected if r['stage']!='request_tagged_auxiliary']
+                    self.assertEqual(sum(int(r[key]) for r in pure),sample[key])
+                self.assertTrue(all(r['native_max_execution_time']=='600' for r in pure))
+                self.assertEqual(sample['parity'],'PASS')
+
     def test_native_verification_disagreement_blocks_every_measurement(self):
         calls=[]
         class Actions:
@@ -54,10 +87,24 @@ class TallyTests(unittest.TestCase):
                 followups=[[dict(ref_value='root',like_count=0,dislike_count=0)],[]])
             (root/'reference-ordinary/expected.json').write_text(json.dumps(expected))
             with self.assertRaises(ValueError):
-                build.page_parity(root,'ordinary','main','reactions',{('root','reactions:like:direct'):2})
-            build.page_parity(root,'ordinary','reactions','reactions',{('root','reactions:present:direct'):1})
+                build.page_parity(root,'ordinary','main','reactions',{('root','reactions:like:direct'):2},verified_ids=['root'])
+            build.page_parity(root,'ordinary','reactions','reactions',{('root','reactions:present:direct'):1},verified_ids=['root'])
             with self.assertRaises(ValueError):
-                build.page_parity(root,'ordinary','reactions','reactions',{})
+                build.page_parity(root,'ordinary','reactions','reactions',{},verified_ids=['root'])
+
+    def test_zero_counts_cannot_hide_missing_paired_roots_from_legacy_inventory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            (root/'reference-fixture').mkdir()
+            expected=dict(ids=['actual-fixture-root'],rows=[dict(doc_id='actual-fixture-root',likes=0,dislikes=0,comments=0,reposts=0)],
+                followups=[[],[]])
+            (root/'reference-fixture/expected.json').write_text(json.dumps(expected))
+            old_domain=['sample-root','legacy-inventory-root']
+            with self.assertRaisesRegex(ValueError,'omitted actual page roots'):
+                build.page_parity(root,'fixture','main','reactions',{},verified_ids=old_domain)
+            repaired=build.verification_targets(expected,['sample-root'],['legacy-inventory-root'])
+            self.assertIn('actual-fixture-root',repaired)
+            build.page_parity(root,'fixture','main','reactions',{},verified_ids=repaired)
 
     def test_actual_tally_fence_denies_changed_parts_before_original_driver(self):
         node=next(n for n in ast.parse(Path(__file__).with_name('engagement_tally_api.py').read_text()).body

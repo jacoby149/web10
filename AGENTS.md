@@ -326,6 +326,14 @@ maintenance/invalidation/protocol/production implementation is not admitted.
 Contract: `knowledge-base/web10-v3/db/tallies.md`; new run and verdict live in
 the existing engagement task block. PR#1590/F FAILs remain banked; raw views,
 preparation and unclassified are separate remainders, not the tally verdict.
+The first tally lease620898285 is now cleaned up. Ordinary count-stage collapse
+and exact ordinary response parity are measured, but full tally acceptance is
+OPEN: all20 actual paired roots were omitted from five legacy-page verification
+domains, hidden by zero defaults. Source target selection/domain refusal is
+repaired; it is not retroactive native proof. Preserve raw PASS flags and qualified
+numbers, do not claim the paired gate passed, and do not start a new paid run
+without fresh admission. Audit/results:
+`research/experiments/costfn/evidence/engagement-tally-20261119/RESULTS.md`.
 
 **Costfn execution override — Jacob Hoffman,18 November2026:** for all future
 costfn experiment runs, including completion work, the governing policy is

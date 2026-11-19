@@ -62,3 +62,16 @@ self-kill timers only, no guardian. Uniform K20 is required; old-semantics
 projection K20 is optional if the original clock allows. No baseline/B/D/§8 or
 production work. Live write maintenance, invalidation and rollout need separate
 protocol/production admission. Contract: the existing engagement task block.
+
+## First run: ordinary cost measured; paired precheck incomplete
+
+The19 November run measures ordinary count-stage collapse with exact response
+parity: three isolated table reads each1,600 rows/107,200 bytes and two follow-ups
+total2,688 rows/353,839 bytes. Fat maps and60 sampled roots verify; whole responses
+retain their preparation/views/unclassified budget FAILs. However, the final
+audit finds all20 actual paired roots absent from five legacy-inventory-derived
+verification domains. Raw PASS flags are preserved but do not satisfy that
+gate. Full tally acceptance is OPEN. Source now builds verification targets from
+the independent oracle's actual IDs and refuses omitted roots even for all-zero
+counts. Cleanup is verified; native repair acceptance needs fresh admission.
+Receipts and limitations: `research/experiments/costfn/evidence/engagement-tally-20261119/RESULTS.md`.
