@@ -2,6 +2,19 @@
 
 The data model. Every table, every index, every pattern.
 
+**19 November supersession notice (D115–D120):** the schema/DDL below describes
+the existing JSON-body and single-`ref_value` implementation, retained intact.
+As future design, a single ref column is superseded by the derived N-ref pairs
+satellite (D116); store-as-exported is retired by D118. The mandatory17 November
+`ref_sorted` furniture rule is superseded: the satellite is standard research
+furniture and replaces that projection in the treated composition only after
+same-question parity. The maximal typed-row model (D117) and API type enforcement
+(D119) are DIRECTION, not measured or deployed. No new `documents` projections
+are intended in that model; question shapes belong in satellites (D120). See
+[the decision map and receipt ledger](design-revolution.md). No DDL below is
+silently rewritten, no historical projection evidence is invalidated, and no
+production migration follows from this notice.
+
 **v3 is ClickHouse-only.** FerretDB and Postgres have been removed from the stack. Every operation — auth, CRUD, groups, contracts, media, accounts — goes through ClickHouse. No MongoDB. No DocumentDB. One database, one query engine, one deployment.
 
 New API service identifiers and grant keys canonicalize to lowercase; ordinary
@@ -197,7 +210,7 @@ ORDER BY (author_key, doc_id);
 
 **Tombstones:** deletes are inserts with `deleted = 1`. The engine is a ReplacingMergeTree, so the live row and its tombstone COEXIST until a background merge physically compacts them — a raw `WHERE deleted = 0` therefore keeps serving the live row in that window (a deleted post "lingers" on whatever read path took the raw filter). The read contract is **dedup-then-filter**: rank the latest version per key with `row_number() OVER (PARTITION BY … ORDER BY updated_at DESC, deleted DESC)` (the deletion wins timestamp ties), take `rn = 1`, and only then apply `deleted = 0`. The board/group reads (`_board_base_sql`), the by-author read (`read_documents`), the single-doc read (`read_document_by_id` — the last raw reader, fixed 11.11.2026 after the music-social-library connected acceptance caught a deleted post lingering on a collection's items until a merge happened to run) and the media list all carry the dedup; a new read path that filters `deleted = 0` on `documents` without the `row_number()` rank is a review rejection. (No TTL — the `documents` table keeps data until explicitly deleted; the node is the user's data lake.)
 
-**`ref_value`:** the universal link. Comments, reactions, replies, quotes, bookmarks, votes — all just documents with a `ref`.
+**`ref_value` (current implementation; single-link future design superseded by D116):** the universal link. Comments, reactions, replies, quotes, bookmarks, votes — all just documents with a `ref`. The intended N-ref replacement is recorded in [the decision map](design-revolution.md), not implemented by this schema description.
 
 **`ad_mode` + `ad_target`:** the v3 ad preference (`../social/ads-dissemination.md`). `ad_mode` is `none` (the default — no ad) or `pinned` (the doc carries a specific ad); `ad_target` is the pinned ad's `doc_id`. The read serves a pinned doc with its ad inline, I3-checked. Pre-existing volumes get the columns via the boot self-heal (`ALTER TABLE ... ADD COLUMN IF NOT EXISTS`), which is why document inserts are positional and append the values last.
 

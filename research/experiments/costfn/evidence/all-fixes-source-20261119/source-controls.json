@@ -1,0 +1,21 @@
+{
+  "kind": "SOURCE_ONLY_CONTROLS_NOT_NATIVE_ACCEPTANCE",
+  "date": "2026-11-19",
+  "suites": 36,
+  "tests": 334,
+  "result": "PASS",
+  "new_composition_tests": 16,
+  "new_row_model_tests": 25,
+  "retained_tests": 293,
+  "lint_scope": "E9,F63,F7,F82,F401 on changed experimental Python surface",
+  "lint": "PASS",
+  "git_diff_check": "PASS",
+  "engine_execution": false,
+  "cloud_resources_created": 0,
+  "whole_security_acceptance": false,
+  "native_performance_acceptance": false,
+  "production_cutover": false,
+  "row_model_native_action_provider_integration": "OPEN",
+  "row_model_target": "Typed immutable value rows and versioned pointers; JSON at boundary/ingest only, not a permanent hybrid",
+  "preserved_JSON_role": "Current compatibility and canonical experiment source/oracle/fallback until native replacement proof"
+}

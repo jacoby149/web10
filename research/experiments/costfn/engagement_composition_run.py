@@ -1,0 +1,149 @@
+"""One source-bound all-fixes lease. Invocation never provisions another host."""
+import argparse
+import json
+from pathlib import Path
+
+from arm_f_native import save
+import engagement_cells as cells
+import engagement_composition as contract
+import engagement_composition_setup as setup
+import engagement_composition_verify as verify
+import engagement_events as events
+import engagement_finish as finish
+import engagement_modern as modern
+import engagement_pairs as pairs
+import engagement_prepared as prepared
+import engagement_tally_build as tallies
+
+
+class Actions(finish.Actions):
+    def stage(self, name, results):
+        if (self.approval.get('composition_admitted') is not True
+                or self.approval.get('run_directive') != contract.DIRECTIVE):
+            raise ValueError('one explicitly bound all-fixes lease required')
+        if modern.remaining(self.approval) < 120:
+            raise TimeoutError('original lease cleanup margin reached')
+        if name == 'banked':
+            value = finish.banked()
+            return dict(baseline_status='CITED_NOT_REMEASURED', baseline_receipt_sha256=setup.digest(finish.BANKED),
+                baseline=value['baseline'], stages_B_D='BANKED_NOT_REPEATED')
+        if name == 'restore':
+            return self.restore()
+        if name == 'read-setup':
+            return self.read_setup()
+        session = modern.Session(self.root)
+        if name == 'migrate':
+            cells.stop(self.root)
+            return setup.migrate(session, self.root)
+        if name == 'billboard-fixtures':
+            return setup.fixtures(session, self.root, self.expected,
+                node_ratio=self.approval['billboard_node_ratio'], seed=self.approval['billboard_seed'])
+        if name == 'furniture':
+            return self.furniture(session)
+        if name.startswith('verify-'):
+            kind = name.removeprefix('verify-')
+            value = {'refs': lambda: verify.refs(session, self.root),
+                'paired-tallies': lambda: verify.tallies(self.root, self.expected),
+                'views': lambda: verify.views(session, self.root, self.expected),
+                'ads': lambda: verify.billboards(session, self.root, self.expected)}[kind]()
+            if kind == 'ads':
+                gates = {key: results['verify-' + key]['evidence'] for key in contract.GATES if key != 'ads'}
+                gates['ads'] = value
+                for key in contract.GATES:
+                    contract.gate(key, gates[key])
+                copy = json.loads((self.root / 'copy-proof.json').read_bytes())
+                digest, _ = setup.parts(session, pairs.TABLE)
+                save(self.root / 'composition-proof.json', dict(droplet_id=session.host_id, gates=gates,
+                    copy_parts_sha256=copy['parts_sha256'], immutable_parts={pairs.TABLE: digest}))
+            return value
+        if name in contract.CELLS:
+            return self.complete('all-fixes-' + name, 'uniform',
+                profile='ordinary' if name == 'uniform-K20' else 'fixture',
+                serving='P_DOCUMENT_STREAM_V1' if name == 'paired-P' else 'F_DOCUMENT_STREAM_V1')
+        if name == 'decomposition':
+            return self.decomposition()
+        raise ValueError('unknown composition stage')
+
+    def checkpoint(self, name, result):
+        save(self.root / 'checkpoint.json', dict(stage=name, outcome=result['outcome'],
+            directive=contract.DIRECTIVE, deadline_utc=self.approval['deadline_utc']))
+
+    def furniture(self, session):
+        # All canonical fixture writes precede initial infrastructure/fingerprints.
+        # No obsolete ref projection is constructed on either table.
+        initial = prepared.run(self.root)
+        session.query('composition_freeze_copy', 'SYSTEM STOP MERGES engagement_documents')
+        projections, _ = session.rows('composition_no_ref_projection', "SELECT count() AS n FROM system.projections "
+            "WHERE database='web10' AND table IN ('documents','engagement_documents')")
+        if int(projections[0]['n']):
+            raise ValueError('retired projection remains on treated store')
+        digest, query_id = setup.parts(session, 'engagement_documents')
+        prior = finish.banked()['migration']['copy_proof']
+        proof = dict(parity=prior['parity'], batches=prior['batches'], parts_sha256=digest,
+            lossless_proof='CITED_BANKED_NOT_REPEATED', fixtures=setup.digest(self.root / 'billboards/build.json'),
+            current_parts_query_id=query_id, constructor_sha256=finish.CONSTRUCTOR)
+        save(self.root / 'copy-proof.json', proof)
+        tally = tallies.run(self.root)  # Existing recipes/build/verifier, unchanged.
+        satellite = setup.build_pairs(session, self.root)
+        # Setup build is explicitly admitted; banked Stage B timings/diagnosis
+        # are cited, not rerun. Install MV before one seed with API writers down.
+        receipts = []
+        for index, sql in enumerate((events.DDL, events.MV, events.SEED)):
+            _, query_id = session.query('composition_aggregate_setup_' + str(index), sql)
+            receipts.append(dict(query_id=query_id, native=session.native(query_id)))
+            save(self.root / 'composition-aggregate-build.json', receipts)
+        self.aggregate_ready = True
+        if setup.parts(session, 'engagement_documents')[0] != digest:
+            raise ValueError('canonical copy changed during furniture build')
+        return dict(initial=initial, tally_rows=tally.get('table'), pairs=satellite, aggregate=receipts,
+            live_maintenance_implemented=False, no_stage_B_timing_rerun=True)
+
+    def decomposition(self):
+        result = {}
+        for cell in sorted((self.root / 'cells').glob('all-fixes-*')):
+            stages, native = {}, {}
+            for path in (cell / 'F-stages').glob('*.jsonl'):
+                for line in path.read_text().splitlines():
+                    row = json.loads(line)
+                    if row.get('query_id'):
+                        stages[row['query_id']] = row
+            for phase in ('warmup', 'measured'):
+                path = cell / (phase + '.json')
+                if not path.exists():
+                    continue  # Failed cells retain their native failure archive.
+                sample = json.loads(path.read_bytes())
+                records = []
+                for row in sample['native']:
+                    identity = row['query_id']
+                    if identity not in stages:
+                        raise ValueError('native statement has no captured SQL identity')
+                    records.append({**stages[identity], 'native': row})
+                    native[identity] = row
+                result[cell.name + ':' + phase] = contract.statement_inventory(cell / 'F-stages', records)
+            # Request-tagged work not captured by the observer remains SEPARATE.
+            all_native = json.loads((cell / 'all-native-including-failures-and-writes.json').read_bytes())
+            auxiliary = [r for r in all_native if r['query_id'] not in stages]
+            result[cell.name + ':auxiliary'] = dict(queries=len(auxiliary),
+                read_rows=sum(int(r['read_rows']) for r in auxiliary), read_bytes=sum(int(r['read_bytes']) for r in auxiliary),
+                query_ids=[r['query_id'] for r in auxiliary])
+        if not result:
+            raise ValueError('no real measured statement inventory available')
+        save(self.root / 'all-fixes-statement-inventory.json', result)
+        return result
+
+
+def run(root):
+    root = Path(root)
+    modern.install_sessions()
+    actions = Actions(root)
+    try:
+        return contract.run(actions, root / 'programme-all-fixes')
+    finally:
+        if (root / 'restore.json').exists():
+            cells.stop(root)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('root', type=Path)
+    run(parser.parse_args().root)

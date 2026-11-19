@@ -1,5 +1,33 @@
 # Engagement reads: one segment per root document
 
+## Governing combined directive — Jacob Hoffman,19 November2026
+
+All source fixes first, then ONE fresh experiment lease: generic N-ref pairs
+instead of ref_sorted, static setup-time billboard pins instead of read-time
+inventory, actual aggregate views, and existing D114 tallies/F delivery unchanged.
+Every ref/tally/actual20-paired-root/views/exact-ad-identity precheck precedes
+all measurement. Contract and cancellation receipt:
+[`ALL-FIXES-THEN-MEASURE.md`](ALL-FIXES-THEN-MEASURE.md).
+Phase1 source is in progress; no combined host/window is bound. All old FAILs
+stand. This supersedes projection furniture and folds the standalone ads run
+into the combined lease; it changes no production write path.
+
+Jacob explicitly CANCELLED DO621021141 in this session. Owned provider cleanup
+verified19 November11:02:55.431UTC before14:36:09; latest off-host checkpoint
+1,896,739 bytes/SHA`1d7d3cce…fc135` preserved. Final SSH collection timed out:
+no new paired acceptance or final native result is inferred. Do not reopen it.
+
+The row-model MEASUREMENT queues behind that run. Jacob subsequently clarified
+that its SOURCE WORK is necessary BEFORE any lease: “no point in running lease
+without row model work.” The post-family pointer/immutable-typed-value cell
+keeps canonical JSON source/oracle/fallback, verifies key-for-key before
+measuring displayed-key and full post-open assembly as separate stages, and
+accepts either same-cost-class parity or a measured rejection of maximal
+decomposition. Both source implementations are active; no new lease is running.
+Retained legacy JSON is not the target or a permanent hybrid; native proof and
+eventual production cutover remain separate, unclaimed gates.
+Contract: [`ROW-MODEL-QUEUED.md`](ROW-MODEL-QUEUED.md).
+
 ## Fresh coverage-repair admission — Jacob Hoffman,19 November2026
 
 After reviewing the omitted20-root paired precheck, Jacob explicitly selected

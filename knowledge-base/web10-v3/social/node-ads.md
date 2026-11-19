@@ -1,5 +1,13 @@
 # Node-Level Ads (v3): The Operator's Ad Inventory
 
+**Design superseded, 19 November2026 — D115:** node ads fill only posts with
+no author pin, via a post-time node-ratio roll and persistent pin document.
+An author's ad is never overlaid, replaced, rotated over or outbid. No read-time
+inventory scan, per-viewer selection or repick belongs in the intended model.
+The two-layer/read-time design below is retained, not erased; it is not the
+future contract. [Billboard decision; experiment results pending](../../strategy/decisions.md#d115--ads-are-a-billboard-not-a-tracker-decided).
+No production implementation/rollout is claimed by this notice.
+
 > **v3 design** (30.08.2026). The node operator's ad layer — the second
 > layer of the two-layer ad model (D57). Read `ads.md` (the ad object, D55)
 > and `ads-dissemination.md` (the v3 dissemination, `pinned` | `none`)

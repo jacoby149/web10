@@ -35,6 +35,21 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-19: Row-model completeness cannot rely on a fat canonical fallback
+
+The isolated source prototype binds full author/document identity, exact version
+and a complete pointer count/digest before a commit becomes readable. Typed
+immutable values verify their identities; incomplete, mixed-version, conflicting
+or changed rows refuse rather than silently reading canonical JSON. A staged
+write without its commit remains invisible. Selected-key reads additionally
+require whole-model parity and unchanged frozen native table parts; this is NOT
+a concurrent production-write protocol. Exact parity distinguishes Boolean from
+integer, absent from null, and positive from negative zero. Local source controls
+exercise these cases, shared values, tombstones and interrupted publication.
+Native/connected proof and the broader security review remain OPEN; no L1–L4 or
+production assurance is inferred. Refs/pins still propose candidates, never new
+grants; canonical post/creative policy remains first in the all-fixes experiment.
+
 ### 2026-11-18: Ready scalar counts still need the complete read context
 
 The isolated D114 tally experiment binds reader, exact service/groups, recipe

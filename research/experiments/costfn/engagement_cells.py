@@ -81,6 +81,10 @@ def boot(parent, name, profile_name, mode, *, serving_mode='F_DOCUMENT_STREAM_V1
     overlay = cell / 'api.overlay.json'
     entry = ('engagement_tally_api' if json.loads((parent / 'admission.json').read_bytes()).get('tally_wiring_admitted') is True
         else 'engagement_api')
+    if json.loads((parent / 'admission.json').read_bytes()).get('composition_admitted') is True:
+        entry = 'engagement_composition_api'
+        env['ENGAGEMENT_COMPOSITION_PROOF'] = '/composition-proof.json'
+        volumes.append(str(parent / 'composition-proof.json') + ':/composition-proof.json:ro')
     save(overlay, {'services': {'api': {'volumes': volumes, 'environment': env,
         'command': ['uv', 'run', 'uvicorn', entry + ':application', '--host', '0.0.0.0', '--port', '80', '--no-access-log']}}})
     here = Path(__file__).parent
@@ -152,6 +156,9 @@ async def complete(parent, cell, profile, expected, *, uniform=False, serving_mo
                 raise ValueError('complete read silently fell back from the declared path')
             observation = http.observation(sample['request_ids'][-1])
             reads.compare(sample, expected, observation)
+            if session.operation.get('composition_admitted') is True:
+                from engagement_billboards import compare
+                compare(sample['rows'], expected['rows'], expected['billboard_setup'])
             actual = sample['followups'][2]
             after = reads.views(session, expected['ids'], phase + '_raw_delivery_after')
             raw = reads.visible_views(session, expected['ids'], expected['views_readable_groups'], phase + '_raw_canonical')

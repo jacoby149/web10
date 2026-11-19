@@ -1,0 +1,25 @@
+{
+  "kind": "OPERATOR_CANCELLED_INTERMEDIATE_TALLY_LEASE",
+  "droplet_id": 621021141,
+  "source_commit": "4a9dbce92b79e00851f3eaffda91d829c5e72bb8",
+  "original_approved_utc": "2026-11-19T10:36:09+00:00",
+  "original_deadline_utc": "2026-11-19T14:36:09+00:00",
+  "operator_direction": "Cancel the intermediate lease; prepare all fixes including the row model before spending",
+  "cancelled": true,
+  "cleanup_verified": true,
+  "cleanup_utc": "2026-11-19T11:02:55.431211+00:00",
+  "owned_droplet_firewall_and_ssh_key_removed": true,
+  "subsequent_provider_droplet_list": [],
+  "new_resources_created_by_this_workspace": 0,
+  "latest_verified_off_host_checkpoint": {
+    "file": "finish-checkpoint-20261119T105345Z.tar.gz",
+    "bytes": 1896739,
+    "sha256": "1d7d3cce0743456695c6bb535e5d15f5f53ab56d2c6b0955827ef8e8ff6fc135"
+  },
+  "final_collection": "Direct pinned-key SSH timed out; no final checkpoint or final native result inferred",
+  "estimated_compute_usd_not_invoice": 0.12749262813702822,
+  "snapshot_storage_separate": true,
+  "paired_tally_acceptance": "OPEN",
+  "prior_failures_preserved": true,
+  "guardian_started": false
+}
