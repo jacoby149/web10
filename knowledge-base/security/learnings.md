@@ -35,6 +35,20 @@ that matters for orient:
 
 ## Findings → fixes (the dated learnings)
 
+### 2026-11-18: Ready scalar counts still need the complete read context
+
+The isolated D114 tally experiment binds reader, exact service/groups, recipe
+definitions, canonical policy generation and migrated-copy identity into each
+scope. The current authenticated compiler/readable groups remain first; a scalar
+lookup is not a new grant. Serving checks both source-copy and tally part fences,
+recomputes the recipe/scope identity and rejects foreign/unbuilt scopes and unsafe
+predicate shapes. Unknown reaction presence and direct-post versus root-wide
+kinds are separate semantics, not permission to zero-fill an unbuilt scope.
+Local no-engine controls replay wrong-reader/group/scope and changed-part access
+attempts and deny them before stored-value dispatch. This is bounded research
+correctness coverage, not a production implementation or an L1–L4 security PASS;
+broader maintenance/invalidation and production review remain OPEN.
+
 ### 2026-11-17: A delivery audit and a scoped views response are different sets
 
 The captured frontend requests Discover-only views even when the main fixture

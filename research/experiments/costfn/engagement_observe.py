@@ -17,7 +17,10 @@ def uniform_guard(sql, current):
         return
     tree = sqlglot.parse_one(sql, read='clickhouse')
     if any(table.name.startswith('counting_numbers') for table in tree.find_all(exp.Table)):
-        raise ValueError('uniform treatment attempted an undeclared cached-counter fallback')
+        if not current.get('engagement_tally_verified'):
+            raise ValueError('uniform treatment attempted an undeclared cached-counter fallback')
+        from engagement_tally_queries import guard
+        guard(tree, current.get('engagement_tally_scopes', []))
     if 'ENGAGEMENT_DOC_COUNTS' not in sql:
         return  # Preparation remains the explicitly named, unoptimized remainder.
     for table in tree.find_all(exp.Table):

@@ -1,6 +1,7 @@
 """Nov18 measurement policy; explicit research admission, never production defaults."""
 DIRECTIVE = 'Jacob Hoffman 2026-11-18 archaic execution limits removed'
 RUN = 'Jacob Hoffman 2026-11-18 treated completion; banked baseline; no statement stops'
+TALLY_RUN = 'Jacob Hoffman 2026-11-18 generic tally wiring; setup verified; counts only'
 
 
 def enabled(operation):

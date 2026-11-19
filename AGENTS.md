@@ -315,6 +315,18 @@ do not privacy-wash D56 or put content/credentials into events or recordings.
 
 ## How the data model works
 
+**Generic tallying (D114), operator18 November2026:** tallying belongs in the
+fanout family as a generic platform-maintained satellite; meanings are named
+recipes/data, not social-specific node columns. The isolated admitted tally
+experiment builds/verifies canonical scope-qualified `counting_numbers` values
+on the migrated store and redirects only displayed feed counts. Every engagement
+contributes to its root and distinct finer target; root-wide versus direct-post
+reaction kinds remain separate so the existing oracle is unchanged. Live write
+maintenance/invalidation/protocol/production implementation is not admitted.
+Contract: `knowledge-base/web10-v3/db/tallies.md`; new run and verdict live in
+the existing engagement task block. PR#1590/F FAILs remain banked; raw views,
+preparation and unclassified are separate remainders, not the tally verdict.
+
 **Costfn execution override — Jacob Hoffman,18 November2026:** for all future
 costfn experiment runs, including completion work, the governing policy is
 `research/experiments/costfn/README.md` “Governing execution directive”. No

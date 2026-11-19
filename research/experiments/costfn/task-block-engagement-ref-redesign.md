@@ -1,5 +1,32 @@
 # Engagement reads: one segment per root document
 
+## New admission — tally wiring, Jacob Hoffman18 November2026
+
+One fresh DO lease is admitted for D114 setup tallies on the same migrated
+composition. Bind host/deadline first;26.10.4.207,32/28/22GiB, existing per-lease
+discipline, no row stop,600s statements/native polling and agent~300s/self-kill/no
+guardian. No baseline/B/D remeasurement, aggregate seed, production or§8 work.
+
+Build generic scope-qualified `counting_numbers_tally` from canonical current
+rows, all roots in each built scope—not merely the feed page. Every engagement
+tallies its root and any distinct finer body target. Kind names preserve the
+pinned feed's direct-post reaction semantics separately from root-wide totals.
+Before measuring, require exact independent agreement on every ordinary/paired
+page root, a deterministic store-wide sample, and the banked50k-comment/6,731
+direct/6,731 finer-target fat document/link fixture. Its deterministic fixture
+reconstruction is verification setup, not Stage D timing or view-event seeding.
+Any mismatch stops admission to measurement. Preserve current credential/service/
+group/policy/source/copy fences; no stale/incomplete-scope zero filling.
+
+Repoint only known main/follow-up displayed-count aggregates to stored scalars.
+Keep post/profile canonical resolution, document-on-open projection reads, raw
+views, node-ad preparation and unclassified work unchanged. Measure uniform K20
+warmup+measured/exact parity; optional projection K20 only if the original clock
+allows. Count-stage collapse to thousands of rows is the tally verdict. Report
+that, complete totals and named remainders independently; neither a complete
+budget FAIL means tally FAIL nor cheap counts mean feed PASS. PR#1590 and F FAILs
+stay banked. Design/scoping contract: `knowledge-base/web10-v3/db/tallies.md`.
+
 **Treated completion CLOSED —18 November:**
 [`evidence/engagement-finish-20261118/RESULTS.md`](evidence/engagement-finish-20261118/RESULTS.md)
 records all four completed treated responses with exact parity PASS/budget FAIL.
