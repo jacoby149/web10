@@ -352,6 +352,83 @@ class ModernTests(unittest.TestCase):
             self.assertEqual(value['source'], 'ARCHIVED_PARQUET')
             self.assertTrue(value['snapshot_failure_preserved'])
 
+    def snapshot_input_layout(self, layout):
+        """Exercise real snapshot() path handling; mock only external engine/validation seams."""
+        import engagement_restore as restored
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory).resolve()
+            snapshot_root = base / 'snapshot/trials/rf0'
+            snapshot_root.mkdir(parents=True)
+            source = base / 'snapshot/input'
+            source.mkdir()
+            (source / 'validation.json').write_text('{}')
+            (source / 'frozen-input').write_bytes(b'independent frozen fixture')
+            (snapshot_root / 'input').symlink_to(source, target_is_directory=True)
+            overlay = base / 'original-overlay.json'
+            overlay.write_text(json.dumps({'services': {'clickhouse': {'image': 'old'}}}))
+            (snapshot_root / 'restore.json').write_text(json.dumps({'overlay': str(overlay)}))
+            (snapshot_root / 'fixture.json').write_text(json.dumps({'fixture': 'banked'}))
+            root = base / ('snapshot' if layout == 'self-resident' else 'run')
+            root.mkdir(exist_ok=True)
+            (root / 'evidence').mkdir()  # Normally created by the real Session.
+            run_input = root / 'input'
+            if layout == 'foreign-directory':
+                run_input.mkdir()
+                (run_input / 'keep').write_bytes(b'never overwrite')
+            elif layout == 'foreign-dangling-link':
+                run_input.symlink_to(base / 'missing')
+            elif layout == 'same-source-link':
+                run_input.symlink_to(source, target_is_directory=True)
+            foreign = layout.startswith('foreign-')
+            def verified(path, validation, dataset, digest):
+                self.assertEqual(path, source.resolve())
+                self.assertEqual(validation, source / 'validation.json')
+                self.assertEqual((dataset, digest), (restored.arm_t.DATASET, restored.arm_t.VALIDATION))
+                self.assertEqual((path / 'frozen-input').read_bytes(), b'independent frozen fixture')
+            def rows(label, sql):
+                return ([{'documents': 88_200_363, 'events': 1_600_000_000}] if label == 'snapshot_canonical_counts'
+                    else [{'n': 0}]), 'native-mock'
+            session = SimpleNamespace(compose=[], env={}, rows=rows, verify_envelope=lambda: {'engine': modern.ENGINE})
+            with patch.object(restored, 'SNAPSHOT_ROOT', snapshot_root), \
+                    patch.object(restored, 'RESTORE_SHA', restored.sha(snapshot_root / 'restore.json')), \
+                    patch.object(restored, 'FIXTURE_SHA', restored.sha(snapshot_root / 'fixture.json')), \
+                    patch.object(restored, 'stop_snapshot_processes'), \
+                    patch.object(restored.modern, 'Session', return_value=session), \
+                    patch.object(restored.restore, 'command'), patch.object(restored.restore_dataset, 'wait_for'), \
+                    patch.object(restored.restore, 'verified_input', side_effect=verified) as check:
+                if foreign:
+                    with self.assertRaisesRegex(FileExistsError, 'existing run input differs'):
+                        restored.snapshot(root)
+                    self.assertFalse((root / 'evidence/archive.json').exists())
+                else:
+                    value = restored.snapshot(root)
+                    self.assertEqual(value['source'], 'PREPARED_PROVIDER_SNAPSHOT')
+                    self.assertTrue((root / 'evidence/archive.json').is_file())
+                check.assert_called_once()
+            self.assertEqual((source / 'frozen-input').read_bytes(), b'independent frozen fixture')
+            if layout == 'self-resident':
+                self.assertTrue(run_input.is_dir())
+                self.assertFalse(run_input.is_symlink())
+            elif layout == 'foreign-directory':
+                self.assertEqual((run_input / 'keep').read_bytes(), b'never overwrite')
+                self.assertFalse(run_input.is_symlink())
+            elif layout == 'foreign-dangling-link':
+                self.assertEqual(run_input.readlink(), base / 'missing')
+            else:
+                self.assertTrue(run_input.is_symlink())
+                self.assertEqual(run_input.resolve(), source.resolve())
+
+    def test_snapshot_self_resident_verified_input_proceeds_without_self_link(self):
+        self.snapshot_input_layout('self-resident')
+        self.snapshot_input_layout('same-source-link')
+
+    def test_snapshot_foreign_existing_input_refuses_without_mutation(self):
+        self.snapshot_input_layout('foreign-directory')
+        self.snapshot_input_layout('foreign-dangling-link')
+
+    def test_snapshot_new_run_root_still_links_verified_input(self):
+        self.snapshot_input_layout('new-root')
+
     def test_uniform_guard_denies_known_group_only_link_selector_before_native_dispatch(self):
         current = {'engagement_mode': 'uniform'}
         for sql in ('SELECT * FROM counting_numbers_p2',

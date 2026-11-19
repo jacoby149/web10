@@ -66,7 +66,12 @@ def snapshot(root):
         raise ValueError('snapshot is not an untreated document store')
     source_input = (SNAPSHOT_ROOT / 'input').resolve()
     restore.verified_input(source_input, source_input / 'validation.json', arm_t.DATASET, arm_t.VALIDATION)
-    (root / 'input').symlink_to(source_input, target_is_directory=True)
+    run_input = root / 'input'
+    if run_input.exists() or run_input.is_symlink():
+        if run_input.resolve() != source_input:
+            raise FileExistsError('existing run input differs from verified snapshot input')
+    else:
+        run_input.symlink_to(source_input, target_is_directory=True)
     save(root / 'evidence/archive.json', dict(dataset_id=arm_t.DATASET, all_size_sha256_verified=True,
         source='verified frozen files retained in provider snapshot', original_snapshot=SNAPSHOT))
     return dict(envelope=envelope, snapshot_id=SNAPSHOT, counts=values,
